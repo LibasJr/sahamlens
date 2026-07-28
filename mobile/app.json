@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Stock Analyst",
+    "slug": "stock-analyst",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.sahamlens.app",
+      "permissions": ["REQUEST_INSTALL_PACKAGES"]
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
+  }
+}

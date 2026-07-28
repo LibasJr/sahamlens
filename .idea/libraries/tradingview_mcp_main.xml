@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="tradingview-mcp-main">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/tradingview-mcp-main.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

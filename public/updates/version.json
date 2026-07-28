@@ -1,0 +1,6 @@
+{
+  "versionCode": 10,
+  "versionName": "10.0.0",
+  "apkFileName": "StockAnalyst.apk",
+  "releaseNotes": "Pembaruan v10: Rebranding menjadi Stock Analyst. Logo baru, nama baru, dan perlindungan tambahan terhadap anomali data Yahoo Finance (Dividend Bug)."
+}

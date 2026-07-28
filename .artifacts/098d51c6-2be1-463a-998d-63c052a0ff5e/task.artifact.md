@@ -1,0 +1,16 @@
+- [x] Cleanup: Delete Python files and folders
+- [x] Dependencies: Install `yahoo-finance2`, `ai`, `@ai-sdk/google`, `date-fns-tz`
+- [x] Task 3: Fix Live Data API (`app/api/live/[ticker]/route.ts`)
+- [x] Task 4: Create 10 Agents System (`app/api/agents/`)
+    - [x] technical-agent
+    - [x] bandar-agent
+    - [x] fundamental-agent
+    - [x] risk-agent
+    - [x] news-agent
+    - [x] flow-agent
+    - [x] pattern-agent
+    - [x] valuation-agent
+    - [x] momentum-agent
+    - [x] orchestrator-agent
+- [x] Task 5: Frontend Update (`app/page.tsx`)
+- [x] Verification and Final Polish
