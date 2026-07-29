@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { Target, Activity, Search, RefreshCw, ChevronLeft, ArrowRightLeft } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -87,26 +88,24 @@ function CompareContent() {
 
           <form onSubmit={handleCompare} className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-xl flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="relative">
-              <Search className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
+              <Search className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+              <SymbolAutocomplete
                 value={input1}
-                onChange={(e) => setInput1(e.target.value)}
-                className="bg-[#0f172a] border border-[#334155] text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-teal-500 font-mono text-center w-48 font-bold"
-                placeholder="Symbol 1"
+                onChange={(val) => setInput1(val)}
+                className="bg-[#0f172a] border border-[#334155] text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-teal-500 font-mono text-center w-full sm:w-64 font-bold"
+                placeholder="Symbol 1 (e.g. BBCA)"
               />
             </div>
 
             <div className="bg-[#1e293b] text-gray-400 font-bold font-mono px-4 py-2 rounded-lg italic">VS</div>
 
             <div className="relative">
-              <Search className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
+              <Search className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+              <SymbolAutocomplete
                 value={input2}
-                onChange={(e) => setInput2(e.target.value)}
-                className="bg-[#0f172a] border border-[#334155] text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-teal-500 font-mono text-center w-48 font-bold"
-                placeholder="Symbol 2"
+                onChange={(val) => setInput2(val)}
+                className="bg-[#0f172a] border border-[#334155] text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-teal-500 font-mono text-center w-full sm:w-64 font-bold"
+                placeholder="Symbol 2 (e.g. BBRI)"
               />
             </div>
 

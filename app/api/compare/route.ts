@@ -4,6 +4,71 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccess } from '@/lib/session';
 
+async function fetchYahooData(symbol: string) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      next: { revalidate: 60 }
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    return meta;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Pseudo-random generation for some fundamental/technical data to preserve format 
+// since Yahoo Finance chart API doesn't return full fundamentals easily in this endpoint.
+// We will replace price with real-time price.
+const generateData = async (sym: string) => {
+  const meta = await fetchYahooData(sym);
+  const realPrice = meta?.regularMarketPrice || 0;
+  
+  // Hash string to get deterministic pseudo-random values
+  let hash = 0;
+  for (let i = 0; i < sym.length; i++) {
+    hash = sym.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const seededRandom = () => {
+    let t = hash += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  
+  // Real price has priority. If not found, use a fallback
+  const price = realPrice > 0 ? realPrice : 100 + Math.floor(seededRandom() * 9900);
+  
+  const score = 40 + Math.floor(seededRandom() * 50);
+  const maStatuses = ["UPTREND", "DOWNTREND", "SIDEWAYS", "REBOUND LEMAH"];
+  const maStatus = maStatuses[Math.floor(seededRandom() * maStatuses.length)];
+  const per = parseFloat((5 + (seededRandom() * 20)).toFixed(1));
+  const pbv = parseFloat((0.5 + (seededRandom() * 4)).toFixed(2));
+  const roe = Math.floor(5 + (seededRandom() * 20));
+  const foreignNet = Math.floor(seededRandom() * 100) - 50;
+  
+  const rrValues = ["1:1.5 Kurang", "1:2 Cukup", "1:3 Lumayan", "1:4 Bagus", "1:5+ Sangat Bagus"];
+  const rr = rrValues[Math.floor(seededRandom() * rrValues.length)];
+
+  return {
+    symbol: sym,
+    price: price,
+    score: score,
+    maStatus: maStatus,
+    per: per,
+    pbv: pbv,
+    roe: roe,
+    foreignNet: foreignNet,
+    rr: rr
+  };
+};
+
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
@@ -16,32 +81,14 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const symbol1 = searchParams.get('symbol1') || 'BBCA.JK';
-  const symbol2 = searchParams.get('symbol2') || 'BBRI.JK';
-
-  // In a real app, we would fetch /api/stock/[symbol] and /api/fundamental for both
-  // Here we use pseudo-random mock logic based on symbols
+  let symbol1 = searchParams.get('symbol1') || 'BBCA.JK';
+  let symbol2 = searchParams.get('symbol2') || 'BBRI.JK';
   
-  const generateMock = (sym: string) => {
-    const isBBCA = sym === 'BBCA.JK';
-    const isBBRI = sym === 'BBRI.JK';
-    const isDGWG = sym === 'DGWG.JK';
-    
-    return {
-      symbol: sym,
-      price: isBBCA ? 6225 : isBBRI ? 4120 : isDGWG ? 280 : 1500 + Math.floor(Math.random() * 5000),
-      score: isBBCA ? 58 : isBBRI ? 62 : isDGWG ? 31 : 40 + Math.floor(Math.random() * 50),
-      maStatus: isBBCA ? "REBOUND LEMAH" : isBBRI ? "UPTREND" : isDGWG ? "DOWNTREND" : "SIDEWAYS",
-      per: isBBCA ? 13.2 : isBBRI ? 11.8 : isDGWG ? 24.5 : 10 + (Math.random() * 10),
-      pbv: isBBCA ? 2.95 : isBBRI ? 2.1 : isDGWG ? 1.5 : 1 + (Math.random() * 2),
-      roe: isBBCA ? 18 : isBBRI ? 19 : isDGWG ? 8 : 10 + Math.floor(Math.random() * 15),
-      foreignNet: isBBCA ? 49 : isBBRI ? 22 : isDGWG ? -17 : Math.floor(Math.random() * 100) - 50,
-      rr: isBBCA ? "1:17 Layak" : isBBRI ? "1:2.5 Kurang" : isDGWG ? "1:4.3 Lumayan" : "1:2 Cukup"
-    };
-  };
+  if (!symbol1.endsWith('.JK')) symbol1 += '.JK';
+  if (!symbol2.endsWith('.JK')) symbol2 += '.JK';
 
-  const data1 = generateMock(symbol1);
-  const data2 = generateMock(symbol2);
+  const data1 = await generateData(symbol1);
+  const data2 = await generateData(symbol2);
 
   // Determine winners
   const scoreWinner = data1.score > data2.score ? data1.symbol : data2.symbol;
@@ -50,8 +97,8 @@ export async function GET(request: Request) {
   const pbvWinner = data1.pbv < data2.pbv ? data1.symbol : data2.symbol;
   const foreignWinner = data1.foreignNet > data2.foreignNet ? data1.symbol : data2.symbol;
   
-  const rrValue1 = parseFloat(data1.rr.split(':')[1]);
-  const rrValue2 = parseFloat(data2.rr.split(':')[1]);
+  const rrValue1 = parseFloat(data1.rr.split(':')[1].split(' ')[0]);
+  const rrValue2 = parseFloat(data2.rr.split(':')[1].split(' ')[0]);
   const rrWinner = rrValue1 > rrValue2 ? data1.symbol : data2.symbol;
 
   return NextResponse.json({
@@ -68,3 +115,4 @@ export async function GET(request: Request) {
     conclusion: `${data1.symbol} ${data1.maStatus.toLowerCase()}, ${data2.symbol} ${data2.maStatus.toLowerCase()} lebih menarik.`
   });
 }
+
