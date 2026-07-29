@@ -30,7 +30,7 @@ ${context}
 
 Jika pengguna bertanya hal umum tentang saham, kaitkan dengan saham di konteks.
 `;
-    
+
     // Panggil Gemini API
     const result = await model.generateContent(systemInstruction + "\nPertanyaan User: " + prompt);
     const responseText = result.response.text();
@@ -41,9 +41,9 @@ Jika pengguna bertanya hal umum tentang saham, kaitkan dengan saham di konteks.
     });
   } catch (error: any) {
     console.error("Chat API Error:", error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       role: 'assistant',
-      content: 'Maaf, terjadi kesalahan saat menghubungi AI: ' + error.message 
+      content: 'Maaf, terjadi kesalahan saat menghubungi AI: ' + error.message
     }, { status: 500 });
   }
 }

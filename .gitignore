@@ -11,3 +11,5 @@ mobile/android/app/build/
 mobile/android/.gradle/
 mobile/.expo/
 converted.png
+
+.vercel

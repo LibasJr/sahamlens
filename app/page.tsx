@@ -120,7 +120,7 @@ function DashboardMock({ symbol, price, changePct, score, chips, compact = false
 
 export default function LandingPage() {
   const router = useRouter();
-  const [pulseData, setPulseData] = useState<any>(null);
+  const [marketSummary, setMarketSummary] = useState<any>(null);
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -129,6 +129,11 @@ export default function LandingPage() {
   const [demoStock, setDemoStock] = useState<any>(null);
 
   useEffect(() => {
+    fetch('/api/market-summary')
+      .then(res => res.json())
+      .then(data => setMarketSummary(data))
+      .catch(err => console.error("Error fetching market summary", err));
+
     fetch('/api/market-pulse')
       .then(res => res.json())
       .then(data => setPulseData(data))
@@ -360,18 +365,19 @@ export default function LandingPage() {
         </div>
 
         {/* SECTION 2.5 - MARKET SUMMARY (Ringkasan Pasar) */}
-        {pulseData && pulseData.breadth && (
+        {marketSummary && (
           <section className="mb-24">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Ringkasan Pasar Hari Ini</h2>
-              <p className="text-gray-400 font-mono text-sm">Top Gainer, Loser, Value, Volume & Foreign Flow</p>
+              <p className="text-gray-400 font-mono text-sm">Top Gainer, Loser, Value, Volume, Frekuensi &amp; Foreign Flow</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+
               {/* Top Gainer */}
               <div className="bg-tv-card border border-tv-green/30 p-4 rounded-xl shadow-[0_0_15px_rgba(34,197,94,0.1)] flex flex-col">
                 <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2"><ArrowUpRight className="w-3 h-3 text-tv-green" /> Top Gainer</div>
                 <div className="space-y-2">
-                  {pulseData.breadth.topGainers?.slice(0, 10).map((g: any, i: number) => (
+                  {marketSummary.topGainers?.map((g: any, i: number) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
                       <span className="text-white font-bold text-sm">{g.symbol}</span>
                       <span className="text-tv-green text-xs font-mono">+{g.changePct}%</span>
@@ -384,7 +390,7 @@ export default function LandingPage() {
               <div className="bg-tv-card border border-tv-red/30 p-4 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.1)] flex flex-col">
                 <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2"><TrendingDown className="w-3 h-3 text-tv-red" /> Top Loser</div>
                 <div className="space-y-2">
-                  {pulseData.breadth.topLosers?.slice(0, 10).map((l: any, i: number) => (
+                  {marketSummary.topLosers?.map((l: any, i: number) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
                       <span className="text-white font-bold text-sm">{l.symbol}</span>
                       <span className="text-tv-red text-xs font-mono">{l.changePct}%</span>
@@ -397,10 +403,10 @@ export default function LandingPage() {
               <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
                 <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2"><BarChart2 className="w-3 h-3 text-blue-400" /> Top Value</div>
                 <div className="space-y-2">
-                  {pulseData.breadth.topValue?.slice(0, 10).map((v: any, i: number) => (
+                  {marketSummary.topValue?.map((v: any, i: number) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
                       <span className="text-white font-bold text-sm">{v.symbol}</span>
-                      <span className="text-blue-400 text-xs font-mono">Rp {(v.value / 1e9).toFixed(1)}B</span>
+                      <span className="text-blue-400 text-xs font-mono">{(v.value / 1e9).toFixed(1)}B</span>
                     </div>
                   ))}
                 </div>
@@ -410,7 +416,7 @@ export default function LandingPage() {
               <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
                 <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2">Net F. Buy</div>
                 <div className="space-y-2">
-                  {pulseData.breadth.netForeign?.buy?.slice(0, 10).map((b: any, i: number) => (
+                  {marketSummary.netForeignBuy?.map((b: any, i: number) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
                       <span className="text-white font-bold text-sm">{b.symbol}</span>
                       <span className="text-tv-green text-xs font-mono">{(b.val / 1e9).toFixed(1)}B</span>
@@ -423,7 +429,7 @@ export default function LandingPage() {
               <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
                 <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2">Net F. Sell</div>
                 <div className="space-y-2">
-                  {pulseData.breadth.netForeign?.sell?.slice(0, 10).map((s: any, i: number) => (
+                  {marketSummary.netForeignSell?.map((s: any, i: number) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
                       <span className="text-white font-bold text-sm">{s.symbol}</span>
                       <span className="text-tv-red text-xs font-mono">{(s.val / 1e9).toFixed(1)}B</span>
@@ -436,7 +442,7 @@ export default function LandingPage() {
               <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
                 <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2">Top Freq</div>
                 <div className="space-y-2">
-                  {pulseData.breadth.topFreq?.slice(0, 10).map((f: any, i: number) => (
+                  {marketSummary.topFreq?.map((f: any, i: number) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
                       <span className="text-white font-bold text-sm">{f.symbol}</span>
                       <span className="text-tv-yellow text-xs font-mono">{f.freq}x</span>
@@ -444,9 +450,9 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
+
             </div>
           </section>
-        )}
 
         {/* SECTION 3 - FITUR GRID */}
         <section id="fitur" className="mb-32">
