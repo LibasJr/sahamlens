@@ -1,9 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import React from 'react';
 import * as xlsx from 'xlsx';
+import { redirect } from 'next/navigation';
+import { isAdminServer } from '@/lib/auth';
 import ExportButton from './ExportButton';
 
 export default async function AdminPage() {
+  if (!isAdminServer()) {
+    redirect('/admin-login');
+  }
+
   const { data: users, error: usersError } = await supabaseAdmin
     .from('users')
     .select('*')
@@ -87,6 +93,7 @@ export default async function AdminPage() {
                     {user.role === 'free' && (
                       <form action={async () => {
                         'use server';
+                        if (!isAdminServer()) return;
                         await supabaseAdmin.from('users').update({ role: 'pro', sisa_analisa: 999 }).eq('id', user.id);
                         await supabaseAdmin.from('payments').insert({
                           telegram_id: user.telegram_id,
