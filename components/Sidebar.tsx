@@ -27,6 +27,7 @@ const MODULES = [
     color: 'text-white',
     bgColor: 'bg-white/10'
   },
+
   {
     id: 'dashboard',
     name: 'Technical Analyzer',

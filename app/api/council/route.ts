@@ -5,9 +5,7 @@ import { NextResponse } from 'next/server';
 import { getCouncil } from '@/lib/agents/councilFinal';
 import { runLocalCouncil } from '@/lib/agents/localCouncil';
 import { getCouncilCache, setCouncilCache } from '@/lib/cache';
-import { checkAnalisaLimit } from '@/lib/limits';
-import { cookies } from 'next/headers';
-import { USER_COOKIE } from '@/lib/auth';
+import { getSession, checkProAccess } from '@/lib/session';
 
 // Minimal technical analyzer functions from existing codebase
 import { analyze as analyzeEma } from '@/lib/analyzers/ema-analyzer';
@@ -95,21 +93,13 @@ export async function GET(req: Request) {
     const symbol = url.searchParams.get('symbol') || 'DGWG.JK';
     
     // Check limits
-    const cookieStore = cookies();
-    let telegram_id: number | undefined;
-    const userCookie = cookieStore.get(USER_COOKIE);
-    if (userCookie?.value) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(userCookie.value));
-        telegram_id = Number(parsed.id);
-      } catch (e) {}
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
     }
-    const roleCookie = cookieStore.get('role');
-    const adminCookie = cookieStore.get('saham_admin');
-    const isAdmin = roleCookie?.value === 'admin' || roleCookie?.value === 'pro' || adminCookie?.value === 'true';
 
-    const limitCheck = await checkAnalisaLimit(telegram_id, isAdmin);
-    if (!limitCheck.allowed) {
+    const hasPro = checkProAccess(session);
+    if (!hasPro) {
       return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
     }
 

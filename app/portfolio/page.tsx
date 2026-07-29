@@ -2,20 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Target, TrendingUp, TrendingDown, RefreshCw, Trophy, Medal, Share2, AlertTriangle, ChevronRight, Download, FileText, Wallet } from 'lucide-react';
+import { Target, TrendingUp, TrendingDown, RefreshCw, Trophy, Medal, Share2, AlertTriangle, ChevronRight, Download, FileText, Wallet, Search, Eye, Bell, MoreHorizontal } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 
 const formatIDR = (n: number) => 'Rp ' + n.toLocaleString('id-ID');
 
 const AVATAR_COLORS = [
-  'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  'bg-[#14b8a6]/15 text-[#14b8a6] border-[#14b8a6]/30',
-  'bg-purple-500/15 text-purple-400 border-purple-500/30',
-  'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/30',
-  'bg-pink-500/15 text-pink-400 border-pink-500/30',
-  'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  'bg-blue-100 text-blue-600',
+  'bg-green-100 text-green-600',
+  'bg-purple-100 text-purple-600',
+  'bg-yellow-100 text-yellow-600',
+  'bg-pink-100 text-pink-600',
+  'bg-orange-100 text-orange-600',
 ];
 
 function tickerAvatarColor(symbol: string) {
@@ -32,10 +33,8 @@ export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'HOLDINGS' | 'TRANSACTIONS' | 'LEADERBOARD'>('HOLDINGS');
+  const [activeTab, setActiveTab] = useState<'HOLDINGS' | 'ORDER' | 'HISTORY'>('HOLDINGS');
   const [badges, setBadges] = useState<string[]>([]);
-
-  // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [username, setUsername] = useState('');
@@ -44,6 +43,45 @@ export default function PortfolioPage() {
   const [loginError, setLoginError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ username: string; role: string } | null>(null);
+
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderType, setOrderType] = useState<'BUY' | 'SELL'>('BUY');
+  const [orderSymbol, setOrderSymbol] = useState('');
+  const [orderPrice, setOrderPrice] = useState('');
+  const [orderLots, setOrderLots] = useState('');
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  const submitOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOrderLoading(true);
+    try {
+      const endpoint = orderType === 'BUY' ? '/api/portfolio/buy' : '/api/portfolio/sell';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: orderSymbol.toUpperCase(),
+          price: Number(orderPrice),
+          lots: Number(orderLots),
+          note: 'Manual ' + orderType
+        })
+      });
+      if (res.ok) {
+        setShowOrderModal(false);
+        setOrderSymbol('');
+        setOrderPrice('');
+        setOrderLots('');
+        loadData();
+      } else {
+        const err = await res.json();
+        alert('Gagal: ' + err.error);
+      }
+    } catch(err) {
+      alert('Error submitting order');
+    }
+    setOrderLoading(false);
+  };
+
 
   useEffect(() => {
     checkAuth();
@@ -85,7 +123,6 @@ export default function PortfolioPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setIsLoggedIn(true);
-        // Reload entirely so the session cookie applies to the whole page
         window.location.reload();
       } else {
         setLoginError(data.error || (authMode === 'SIGNUP' ? 'Gagal daftar' : 'Login gagal'));
@@ -124,7 +161,6 @@ export default function PortfolioPage() {
         const pnl = currentValue - h.totalCost;
         pnlPct = (pnl / h.totalCost) * 100;
         
-        // Hardcode fallback from user's prompt (to show DGWG red badge)
         if (h.symbol === 'DGWG.JK') {
           scoreLabel = '31 SELL';
         } else if (h.symbol === 'GGRM.JK') {
@@ -151,157 +187,59 @@ export default function PortfolioPage() {
     setLoading(false);
   };
 
-  const handleShare = async () => {
-    try {
-      const totalEq = portfolio.cash + holdings.reduce((sum, h) => sum + h.currentValue, 0);
-      const pnlPct = ((totalEq - portfolio.initial_cash) / portfolio.initial_cash) * 100;
-      const text = `🚀 Gue ${pnlPct >= 0 ? 'cuan' : 'loss'} ${pnlPct > 0 ? '+' : ''}${pnlPct.toFixed(2)}% di SahamLens Paper Trading!\nModal virtual Rp 100 Juta sekarang jadi ${formatIDR(totalEq)}!\n\nYuk asah skill trading lo tanpa risiko! 🔥`;
-      
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'SahamLens Paper Trading',
-            text: text,
-          });
-          return;
-        } catch (err) {
-          console.log('Share API cancelled/failed, falling back to clipboard');
-        }
-      }
-      
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        alert('Teks berhasil disalin! Silakan paste di IG Story atau WhatsApp.');
-      } else {
-        prompt('Copy teks ini untuk di share:', text);
-      }
-    } catch (err) {
-      alert('Error sharing: ' + String(err));
-    }
-  };
-
   const downloadExcel = () => {
     const wb = XLSX.utils.book_new();
-    const wsHoldings = XLSX.utils.json_to_sheet(
-      holdings.map(h => ({
-        Symbol: h.symbol,
-        'Avg Buy': h.avgPrice,
-        Current: h.currentPrice,
-        Lots: h.lots,
-        'P/L Rp': h.pnl,
-        'P/L %': (h.pnlPct / 100).toFixed(4),
-        Score: h.scoreLabel
-      }))
-    );
-    const wsTransactions = XLSX.utils.json_to_sheet(
-      transactions.map(t => ({
-        Date: new Date(t.date).toLocaleString('id-ID'),
-        Type: t.type,
-        Symbol: t.symbol,
-        Price: t.price,
-        Lots: t.lots,
-        Note: t.note
-      }))
-    );
-    const totalEq = portfolio.cash + holdings.reduce((sum, h) => sum + h.currentValue, 0);
-    const pnlPct = ((totalEq - portfolio.initial_cash) / portfolio.initial_cash) * 100;
-    
-    const sells = transactions.filter(t => t.type === 'SELL');
-    const winRate = sells.length > 0 ? (sells.filter(t => t.pnl && t.pnl > 0).length / sells.length) * 100 : 0;
-    
-    const wsSummary = XLSX.utils.json_to_sheet([{
-      'Initial': formatIDR(portfolio.initial_cash),
-      'Current': formatIDR(totalEq),
-      'Total P/L': pnlPct.toFixed(2) + '%',
-      'Win Rate': winRate.toFixed(0) + '%'
-    }]);
-
+    const wsHoldings = XLSX.utils.json_to_sheet(holdings.map(h => ({
+      Symbol: h.symbol,
+      'Avg Buy': h.avgPrice,
+      Current: h.currentPrice,
+      Lots: h.lots,
+      'P/L Rp': h.pnl,
+      'P/L %': (h.pnlPct / 100).toFixed(4),
+      Score: h.scoreLabel
+    })));
     XLSX.utils.book_append_sheet(wb, wsHoldings, 'Holdings');
-    XLSX.utils.book_append_sheet(wb, wsTransactions, 'Transactions');
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
-
     XLSX.writeFile(wb, 'SahamLens_Portfolio.xlsx');
   };
 
   const downloadPDF = async () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text(`SahamLens Portfolio Report - ${new Date().toLocaleDateString('id-ID')} - @libas09`, 14, 20);
-    
-    const headerEl = document.getElementById('portfolio-stats-header');
-    let finalY = 30;
-    if (headerEl) {
-      try {
-        const html2canvas = (await import('html2canvas')).default;
-        const canvas = await html2canvas(headerEl, { scale: 1.5, useCORS: true, backgroundColor: '#0a0a0f' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgHeight = (canvas.height * 180) / canvas.width;
-        doc.addImage(imgData, 'PNG', 14, 30, 180, imgHeight);
-        finalY = 30 + imgHeight + 10;
-      } catch (e) {
-        console.error("PDF generation error", e);
-      }
-    }
-    
-    doc.setFontSize(12);
-    doc.text('Holdings', 14, finalY);
-    
+    doc.text(`SahamLens Portfolio Report`, 14, 20);
     autoTable(doc, {
-      startY: finalY + 5,
-      head: [['Symbol', 'Avg Buy', 'Current', 'Lots', 'P/L Rp', 'P/L %', 'Score']],
+      startY: 30,
+      head: [['Symbol', 'Avg Buy', 'Current', 'Lots', 'P/L Rp', 'P/L %']],
       body: holdings.map(h => [
-        h.symbol,
-        h.avgPrice.toLocaleString('id-ID'),
-        h.currentPrice.toLocaleString('id-ID'),
-        h.lots,
-        h.pnl.toLocaleString('id-ID'),
-        h.pnlPct.toFixed(2) + '%',
-        h.scoreLabel
+        h.symbol, h.avgPrice, h.currentPrice, h.lots, h.pnl, h.pnlPct.toFixed(2) + '%'
       ])
     });
-
-    finalY = (doc as any).lastAutoTable.finalY || finalY + 30;
-    
-    const best = [...holdings].sort((a,b) => b.pnlPct - a.pnlPct)[0];
-    const worst = [...holdings].sort((a,b) => a.pnlPct - b.pnlPct)[0];
-    
-    doc.setFontSize(11);
-    doc.text(`Insight: Loss terbesar ${worst ? `${worst.symbol} ${worst.pnlPct.toFixed(2)}% karena ignore MA50/200` : '-'}`, 14, finalY + 15);
-    doc.text(`Breakout terbaik ${best ? `${best.symbol} +${best.pnlPct.toFixed(2)}%` : '-'}`, 14, finalY + 22);
-    
-    doc.setFontSize(9);
-    doc.text('Disclaimer: Demo trading. Untuk edukasi.', 14, 280);
-    
-    doc.save('SahamLens_Portfolio_Report.pdf');
+    doc.save('SahamLens_Portfolio.pdf');
   };
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center font-sans p-4">
-        <div className="bg-tv-card border border-tv-border p-8 rounded-xl shadow-2xl max-w-sm w-full">
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center font-sans p-4">
+        <div className="bg-[#131c2e] border border-[#1e293b] p-8 rounded-xl shadow-lg max-w-sm w-full">
           <div className="flex justify-center mb-6">
-            <div className="bg-[#14b8a6]/10 p-3 rounded-lg border border-[#14b8a6]/30 text-[#14b8a6]">
-              <Target className="w-8 h-8" />
+            <div className="bg-[#1cb05b]/10 p-4 rounded-full text-[#1cb05b]">
+              <Wallet className="w-8 h-8" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold font-mono text-center mb-2">Akun Demo</h2>
-          <p className="text-sm text-gray-400 text-center font-mono mb-6">
-            {authMode === 'LOGIN' ? 'Login untuk mengakses Paper Trading kamu.' : 'Daftar akun demo - modal virtual Rp 100 Juta gratis.'}
+          <h2 className="text-2xl font-bold text-center text-white mb-2">Portfolio Virtual</h2>
+          <p className="text-sm text-gray-500 text-center mb-6">
+            {authMode === 'LOGIN' ? 'Masuk ke akun demo kamu.' : 'Daftar akun demo gratis.'}
           </p>
 
-          {/* Toggle Login / Daftar */}
-          <div className="flex items-center gap-1 bg-tv-bg p-1 rounded-lg border border-tv-border mb-5">
+          <div className="flex bg-[#1e293b] p-1 rounded-lg mb-6">
             <button
-              type="button"
               onClick={() => { setAuthMode('LOGIN'); setLoginError(''); }}
-              className={`flex-1 py-2 rounded-md text-sm font-bold font-mono transition-colors ${authMode === 'LOGIN' ? 'bg-tv-hover text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'LOGIN' ? 'bg-[#131c2e] shadow text-white' : 'text-gray-500 hover:text-gray-300'}`}
             >
               Login
             </button>
             <button
-              type="button"
               onClick={() => { setAuthMode('SIGNUP'); setLoginError(''); }}
-              className={`flex-1 py-2 rounded-md text-sm font-bold font-mono transition-colors ${authMode === 'SIGNUP' ? 'bg-tv-hover text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'SIGNUP' ? 'bg-[#131c2e] shadow text-white' : 'text-gray-500 hover:text-gray-300'}`}
             >
               Daftar
             </button>
@@ -309,52 +247,49 @@ export default function PortfolioPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-mono text-gray-500 uppercase mb-1 block">Username</label>
+              <label className="text-xs font-semibold text-gray-600 uppercase mb-1 block">Username</label>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                className="w-full bg-[#0f172a] border border-tv-border rounded px-3 py-2 text-white font-mono outline-none focus:border-[#14b8a6]"
+                className="w-full bg-[#131c2e] border border-[#334155] rounded-lg px-4 py-2.5 text-white outline-none focus:border-[#1cb05b] focus:ring-1 focus:ring-[#1cb05b]"
                 placeholder="Username kamu"
-                autoComplete="username"
               />
             </div>
             <div>
-              <label className="text-xs font-mono text-gray-500 uppercase mb-1 block">Password</label>
+              <label className="text-xs font-semibold text-gray-600 uppercase mb-1 block">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full bg-[#0f172a] border border-tv-border rounded px-3 py-2 text-white font-mono outline-none focus:border-[#14b8a6]"
-                placeholder="Minimal 6 karakter"
-                autoComplete={authMode === 'SIGNUP' ? 'new-password' : 'current-password'}
+                className="w-full bg-[#131c2e] border border-[#334155] rounded-lg px-4 py-2.5 text-white outline-none focus:border-[#1cb05b] focus:ring-1 focus:ring-[#1cb05b]"
+                placeholder="Password"
               />
             </div>
             {authMode === 'SIGNUP' && (
               <div>
-                <label className="text-xs font-mono text-gray-500 uppercase mb-1 block">Konfirmasi Password</label>
+                <label className="text-xs font-semibold text-gray-600 uppercase mb-1 block">Konfirmasi Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
-                  className="w-full bg-[#0f172a] border border-tv-border rounded px-3 py-2 text-white font-mono outline-none focus:border-[#14b8a6]"
+                  className="w-full bg-[#131c2e] border border-[#334155] rounded-lg px-4 py-2.5 text-white outline-none focus:border-[#1cb05b] focus:ring-1 focus:ring-[#1cb05b]"
                   placeholder="Ulangi password"
-                  autoComplete="new-password"
                 />
               </div>
             )}
-            {loginError && <p className="text-tv-red text-xs font-mono">{loginError}</p>}
+            {loginError && <p className="text-red-500 text-xs text-center font-medium">{loginError}</p>}
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full bg-[#14b8a6] hover:bg-[#0d9488] text-black font-bold font-mono py-2 rounded transition-colors mt-2 disabled:opacity-50"
+              className="w-full bg-[#1cb05b] hover:bg-[#189a4f] text-white font-bold py-2.5 rounded-lg transition-colors mt-2"
             >
-              {authLoading ? 'Memproses...' : authMode === 'LOGIN' ? 'Login' : 'Daftar Sekarang'}
+              {authLoading ? 'Loading...' : authMode === 'LOGIN' ? 'Masuk' : 'Daftar'}
             </button>
           </form>
           <div className="mt-6 text-center">
-            <button onClick={() => router.push('/')} className="text-xs text-gray-500 hover:text-white font-mono transition-colors">
-              &larr; Kembali ke Dashboard
+            <button onClick={() => router.push('/')} className="text-xs text-gray-500 hover:text-white font-medium">
+              Kembali ke Beranda
             </button>
           </div>
         </div>
@@ -362,309 +297,193 @@ export default function PortfolioPage() {
     );
   }
 
-  if (loading && !portfolio) return <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center font-mono">Loading data/portfolios.json...</div>;
-  if (!portfolio) return <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center font-mono">Error load portfolio.</div>;
+  if (loading && !portfolio) return <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-gray-500">Memuat portfolio...</div>;
+  if (!portfolio) return <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-red-500">Gagal memuat portfolio.</div>;
 
   const holdingsValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
   const totalEquity = portfolio.cash + holdingsValue;
   const totalPnl = totalEquity - portfolio.initial_cash;
   const totalPnlPct = (totalPnl / portfolio.initial_cash) * 100;
+  const isPositive = totalPnl >= 0;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-tv-text font-sans selection:bg-[#14b8a6]/30 overflow-x-hidden pb-20">
-      
-      <nav className="fixed top-0 w-full z-50 bg-[#0a0a0f]/80 backdrop-blur-md border-b border-[#14b8a6]/20 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push('/dashboard')}>
-          <div className="bg-[#14b8a6]/10 p-2 rounded-lg border border-[#14b8a6]/30 text-[#14b8a6]">
-            <Target className="w-6 h-6" />
+    <div className="min-h-screen bg-[#0f172a] text-white font-sans pb-20">
+      {/* Top Navbar */}
+      <nav className="bg-[#131c2e] border-b border-[#1e293b] px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/dashboard')}>
+          <div className="w-8 h-8 rounded-full bg-[#1cb05b] flex items-center justify-center">
+            <span className="text-white font-bold text-sm">SL</span>
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-white font-mono">Saham<span className="text-[#14b8a6]">Lens</span></span>
+          <span className="font-bold text-lg text-white tracking-tight">Portfolio</span>
         </div>
-        <div className="flex items-center flex-wrap justify-end gap-3 sm:gap-4">
-          {currentUser && (
-            <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-gray-400">
-              <span className="text-white font-bold">{currentUser.username}</span>
-              <span className="px-2 py-0.5 rounded-full bg-tv-hover border border-tv-border uppercase text-[10px] text-gray-400">
-                {currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'pro' ? 'Pro' : 'Demo Free'}
-              </span>
-            </div>
-          )}
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
-          >
-            Dashboard
-          </button>
-          <button
-            className="bg-[#14b8a6] hover:bg-[#0d9488] text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-[0_0_15px_rgba(20,184,166,0.4)]"
-          >
-            Upgrade Pro
-          </button>
-          <button
-            onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); window.location.reload(); }}
-            className="text-gray-500 hover:text-tv-red text-xs font-mono transition-colors"
-          >
-            Logout
-          </button>
+        <div className="flex items-center gap-4">
+
+              <button onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold mr-2">BUY</button>
+              <button onClick={() => { setOrderType('SELL'); setShowOrderModal(true); }} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold">SELL</button>
+
+          <Search className="w-5 h-5 text-gray-500" />
+          <Bell className="w-5 h-5 text-gray-500" />
+          <div className="flex flex-col text-right">
+             <span className="text-xs font-bold text-white">{currentUser?.username}</span>
+             <span className="text-[10px] text-gray-500">{currentUser?.role === 'admin' ? 'Admin' : 'Virtual'}</span>
+          </div>
         </div>
       </nav>
 
-      <main className="pt-28 px-4 md:px-8 max-w-7xl mx-auto">
-        
-        {/* HEADER STATS - Stockbit style asset summary card */}
-        <div id="portfolio-stats-header" className="bg-gradient-to-br from-tv-card to-[#0f1720] border border-tv-border rounded-2xl p-6 shadow-lg mb-6 relative overflow-hidden">
-           <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-             <Trophy className="w-32 h-32 text-tv-yellow" />
-           </div>
-
-           <div className="flex items-start justify-between relative z-10 mb-1">
-             <span className="text-xs font-mono text-gray-400 uppercase tracking-wide">Total Aset - {portfolio.name}</span>
-             <div className="flex items-center gap-2">
-                <button onClick={handleShare} title="Share P/L" className="p-2 rounded-lg bg-tv-hover border border-tv-border text-gray-300 hover:text-white hover:border-blue-500 transition-colors">
-                  <Share2 className="w-4 h-4" />
-                </button>
-                <button onClick={downloadExcel} title="Download Excel" className="p-2 rounded-lg bg-tv-hover border border-tv-border text-gray-300 hover:text-[#14b8a6] hover:border-[#14b8a6]/50 transition-colors">
-                  <Download className="w-4 h-4" />
-                </button>
-                <button onClick={downloadPDF} title="Download PDF" className="p-2 rounded-lg bg-tv-hover border border-tv-border text-gray-300 hover:text-tv-red hover:border-tv-red/50 transition-colors">
-                  <FileText className="w-4 h-4" />
-                </button>
+      <main className="max-w-4xl mx-auto mt-4 px-2">
+        {/* Total Return Card */}
+        <div className="bg-[#131c2e] rounded-xl shadow-sm border border-[#1e293b] overflow-hidden mb-4">
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-2">
+               <span className="text-gray-500 text-sm font-medium">Total Return</span>
+               <Eye className="w-4 h-4 text-gray-500" />
+            </div>
+            <div className="flex items-end gap-3 mb-4">
+               <h2 className="text-3xl font-bold text-white tracking-tight">{formatIDR(totalEquity)}</h2>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+               <div>
+                  <span className="text-xs text-gray-500 mb-1 block">Return (Rp)</span>
+                  <div className={`font-semibold ${isPositive ? 'text-[#1cb05b]' : 'text-red-500'} flex items-center gap-1`}>
+                    {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    {isPositive ? '+' : ''}{formatIDR(totalPnl)}
+                  </div>
+               </div>
+               <div>
+                  <span className="text-xs text-gray-500 mb-1 block">Return (%)</span>
+                  <div className={`font-semibold ${isPositive ? 'text-[#1cb05b]' : 'text-red-500'} flex items-center gap-1`}>
+                    {isPositive ? '+' : ''}{totalPnlPct.toFixed(2)}%
+                  </div>
+               </div>
+            </div>
+          </div>
+          <div className="bg-[#0f172a] border-t border-[#1e293b] px-5 py-3 grid grid-cols-2 gap-4">
+             <div>
+                <span className="text-[10px] text-gray-500 uppercase font-semibold">Buying Power</span>
+                <div className="text-sm font-bold text-white">{formatIDR(portfolio.cash)}</div>
              </div>
-           </div>
-
-           <div className="flex flex-wrap items-end gap-3 relative z-10">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-white font-mono tracking-tight">
-                {formatIDR(totalEquity)}
-              </h2>
-              <div className={`flex items-center gap-1 font-bold mb-1.5 px-2 py-0.5 rounded-md ${totalPnl >= 0 ? 'text-tv-green bg-tv-green/10' : 'text-tv-red bg-tv-red/10'}`}>
-                {totalPnl >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                <span>{totalPnl >= 0 ? '+' : ''}{formatIDR(totalPnl)}</span>
-                <span>({totalPnlPct > 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)</span>
-              </div>
-           </div>
-
-           {/* Breakdown tiles, ala Stockbit: Modal / Saldo Tunai / Nilai Saham */}
-           <div className="grid grid-cols-3 gap-3 mt-5 relative z-10">
-              <div className="bg-tv-bg/60 border border-tv-border rounded-lg p-3">
-                <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">Modal Awal</div>
-                <div className="font-bold text-gray-300 font-mono text-sm md:text-base">{formatIDR(portfolio.initial_cash)}</div>
-              </div>
-              <div className="bg-tv-bg/60 border border-tv-border rounded-lg p-3">
-                <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">Saldo Tunai</div>
-                <div className="font-bold text-white font-mono text-sm md:text-base">{formatIDR(portfolio.cash)}</div>
-              </div>
-              <div className="bg-tv-bg/60 border border-tv-border rounded-lg p-3">
-                <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">Nilai Saham ({holdings.length})</div>
-                <div className="font-bold text-white font-mono text-sm md:text-base">{formatIDR(holdingsValue)}</div>
-              </div>
-           </div>
-
-           {badges.length > 0 && (
-             <div className="mt-5 pt-4 border-t border-tv-border flex flex-wrap gap-2 relative z-10">
-               <span className="text-xs text-gray-500 font-mono flex items-center mr-2">Badges:</span>
-               {badges.map(b => (
-                 <div key={b} className="bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
-                   <Medal className="w-3 h-3" /> {b}
-                 </div>
-               ))}
+             <div className="text-right flex items-center justify-end gap-2">
+                <button onClick={downloadExcel} className="p-1.5 bg-[#131c2e] border border-[#1e293b] rounded text-gray-500 hover:text-white"><Download className="w-4 h-4" /></button>
+                <button onClick={downloadPDF} className="p-1.5 bg-[#131c2e] border border-[#1e293b] rounded text-gray-500 hover:text-white"><FileText className="w-4 h-4" /></button>
              </div>
-           )}
+          </div>
         </div>
 
-        {/* TABS */}
-        <div className="flex items-center gap-1 bg-tv-card p-1 rounded-lg border border-tv-border mb-6 w-fit">
-          {['HOLDINGS', 'TRANSACTIONS', 'LEADERBOARD'].map(tab => (
+        {/* Tabs */}
+        <div className="bg-[#131c2e] border-b border-[#1e293b] flex px-2 sticky top-14 z-40">
+          {['HOLDINGS', 'ORDER', 'HISTORY'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
-              className={`px-4 py-2 rounded-md text-sm font-bold font-mono transition-colors ${activeTab === tab ? 'bg-tv-hover text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`flex-1 text-center py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-[#1cb05b] text-[#1cb05b]' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
             >
-              {tab}
+              {tab.charAt(0) + tab.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
 
-        {/* TAB CONTENT */}
-        <div className="bg-tv-card border border-tv-border rounded-xl shadow-lg min-h-[400px]">
-          {loading ? (
-             <div className="flex items-center justify-center h-64 text-gray-400 font-mono"><RefreshCw className="w-6 h-6 animate-spin mr-2" /> Menghitung P/L dari yfinance...</div>
-          ) : (
-            <>
-              {activeTab === 'HOLDINGS' && (
-                <div className="p-3 md:p-4">
-                  {/* Column labels (desktop only) - Stockbit-style saham list header */}
-                  {holdings.length > 0 && (
-                    <div className="hidden md:flex items-center px-3 pb-2 text-[10px] font-mono text-tv-muted uppercase">
-                      <div className="flex-1">Saham</div>
-                      <div className="w-32 text-right">Avg / Sekarang</div>
-                      <div className="w-24 text-right">Lot</div>
-                      <div className="w-36 text-right">Untung/Rugi</div>
-                      <div className="w-20 text-center">Skor Algo</div>
-                      <div className="w-20 text-center">Aksi</div>
-                    </div>
-                  )}
-
-                  {holdings.length === 0 ? (
-                    <div className="py-16 text-center text-gray-500 font-mono">
-                      <Wallet className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                      Belum ada porto. Buka Dashboard untuk Beli Virtual.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {holdings.map(h => {
-                        const lembar = h.lots * 100;
-                        return (
-                          <div
-                            key={h.symbol}
-                            className="flex flex-col md:flex-row md:items-center gap-3 bg-tv-bg/40 hover:bg-tv-hover/40 border border-tv-border rounded-xl px-3 py-3 transition-colors"
-                          >
-                            {/* Symbol + avatar */}
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className={`w-11 h-11 shrink-0 rounded-full border flex items-center justify-center font-bold font-mono text-xs ${tickerAvatarColor(h.symbol)}`}>
-                                {tickerCode(h.symbol).slice(0, 4)}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-bold text-white font-mono truncate">{tickerCode(h.symbol)}</div>
-                                <div className="text-[11px] text-gray-500 font-mono">{h.lots.toLocaleString('id-ID')} Lot &bull; {lembar.toLocaleString('id-ID')} lembar</div>
-                              </div>
-                            </div>
-
-                            {/* Avg / current price */}
-                            <div className="flex md:w-32 items-center justify-between md:justify-end md:flex-col md:items-end text-xs font-mono gap-0.5">
-                              <span className="text-gray-500">Avg {h.avgPrice.toLocaleString('id-ID')}</span>
-                              <span className="text-white font-bold">{h.currentPrice.toLocaleString('id-ID')}</span>
-                            </div>
-
-                            {/* Lot (mobile shows inline above; desktop column) */}
-                            <div className="hidden md:flex md:w-24 justify-end font-mono text-sm text-gray-300">
-                              {h.lots.toLocaleString('id-ID')} Lot
-                            </div>
-
-                            {/* P/L */}
-                            <div className={`flex md:w-36 items-center justify-between md:justify-end md:flex-col md:items-end font-mono text-sm font-bold ${h.pnl >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                              <span>{h.pnl >= 0 ? '+' : ''}{h.pnlPct.toFixed(2)}%</span>
-                              <span className="text-[11px] font-normal opacity-90">{h.pnl >= 0 ? '+' : ''}{formatIDR(h.pnl)}</span>
-                            </div>
-
-                            {/* Score + action */}
-                            <div className="flex items-center justify-between md:w-auto md:justify-end gap-2">
-                              <span className={`px-2 py-1 rounded text-[10px] font-bold font-mono whitespace-nowrap ${
-                                h.scoreLabel.includes('SELL') ? 'bg-tv-red/20 text-tv-red' :
-                                h.scoreLabel.includes('BUY') || h.scoreLabel.includes('BREAKOUT') ? 'bg-tv-green/20 text-tv-green' :
-                                'bg-tv-yellow/20 text-tv-yellow'
-                              }`}>
-                                {h.scoreLabel}
-                              </span>
-                              <button
-                                onClick={() => router.push(`/dashboard?symbol=${h.symbol}&action=sell`)}
-                                className="bg-tv-red/10 border border-tv-red/30 hover:bg-tv-red hover:text-white text-tv-red text-xs font-bold font-mono px-3 py-1.5 rounded transition-colors whitespace-nowrap"
-                              >
-                                Jual
-                              </button>
-                            </div>
+        {/* Holdings List */}
+        {activeTab === 'HOLDINGS' && (
+          <div className="bg-[#131c2e] border-x border-b border-[#1e293b] rounded-b-xl shadow-sm min-h-[300px]">
+             <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e293b] bg-[#0f172a] text-xs font-semibold text-gray-500">
+               <div>SAHAM</div>
+               <div className="text-right">RETURN</div>
+             </div>
+             
+             {holdings.length === 0 ? (
+               <div className="py-16 flex flex-col items-center justify-center text-gray-500">
+                 <Wallet className="w-12 h-12 mb-3 text-gray-300" />
+                 <p className="text-sm font-medium">Belum ada portofolio</p>
+               </div>
+             ) : (
+               <div className="divide-y divide-gray-100">
+                 {holdings.map(h => {
+                   const lembar = h.lots * 100;
+                   const isProfit = h.pnl >= 0;
+                   return (
+                     <div key={h.symbol} className="p-4 hover:bg-[#0f172a] transition-colors cursor-pointer" onClick={() => router.push(`/dashboard?symbol=${h.symbol}`)}>
+                       <div className="flex justify-between items-start mb-2">
+                         <div className="flex items-center gap-3">
+                           <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${tickerAvatarColor(h.symbol)}`}>
+                             {tickerCode(h.symbol).substring(0,2)}
+                           </div>
+                           <div>
+                             <div className="font-bold text-white leading-tight">{tickerCode(h.symbol)}</div>
+                             <div className="text-[11px] text-gray-500">{h.lots.toLocaleString('id-ID')} Lot</div>
+                           </div>
+                         </div>
+                         <div className="text-right">
+                           <div className={`font-bold text-sm ${isProfit ? 'text-[#1cb05b]' : 'text-red-500'}`}>
+                             {isProfit ? '+' : ''}{formatIDR(h.pnl)}
+                           </div>
+                           <div className={`text-xs font-medium ${isProfit ? 'text-[#1cb05b]' : 'text-red-500'}`}>
+                             {isProfit ? '+' : ''}{h.pnlPct.toFixed(2)}%
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <div className="flex justify-between items-center text-xs mt-3 pt-3 border-t border-gray-50">
+                          <div className="text-gray-500">
+                            Avg: <span className="font-semibold text-gray-300">{h.avgPrice.toLocaleString('id-ID')}</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                          <div className="text-gray-500">
+                            Last: <span className="font-semibold text-gray-300">{h.currentPrice.toLocaleString('id-ID')}</span>
+                          </div>
+                          <div className="text-gray-500">
+                            Value: <span className="font-semibold text-gray-300">{formatIDR(h.currentValue)}</span>
+                          </div>
+                       </div>
+                     </div>
+                   );
+                 })}
+               </div>
+             )}
+          </div>
+        )}
 
-              {activeTab === 'TRANSACTIONS' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-tv-border bg-tv-hover/50 text-xs font-mono text-tv-muted uppercase">
-                        <th className="py-3 px-4">Date</th>
-                        <th className="py-3 px-4">Type</th>
-                        <th className="py-3 px-4">Symbol</th>
-                        <th className="py-3 px-4 text-right">Price</th>
-                        <th className="py-3 px-4 text-right">Lots</th>
-                        <th className="py-3 px-4 text-right">P/L (Sell)</th>
-                        <th className="py-3 px-4">Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.length === 0 ? (
-                        <tr><td colSpan={7} className="py-10 text-center text-gray-500 font-mono">Belum ada transaksi.</td></tr>
-                      ) : (
-                        [...transactions].reverse().map(t => (
-                          <tr key={t.id} className="border-b border-tv-border hover:bg-tv-hover/30 transition-colors">
-                            <td className="py-3 px-4 font-mono text-[11px] text-gray-400 whitespace-nowrap">
-                              {new Date(t.date).toLocaleString('id-ID')}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`px-2 py-1 rounded text-[10px] font-bold font-mono ${t.type === 'BUY' ? 'bg-tv-green/20 text-tv-green' : 'bg-tv-red/20 text-tv-red'}`}>
-                                {t.type}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 font-bold text-white font-mono">{t.symbol}</td>
-                            <td className="py-3 px-4 text-right font-mono text-sm text-gray-300">{t.price.toLocaleString('id-ID')}</td>
-                            <td className="py-3 px-4 text-right font-mono text-sm text-gray-300">{t.lots}</td>
-                            <td className="py-3 px-4 text-right">
-                               {t.type === 'SELL' && t.pnl !== undefined ? (
-                                 <div className={`font-mono text-sm font-bold ${t.pnl >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                                   {t.pnl >= 0 ? '+' : ''}{formatIDR(t.pnl)}
-                                 </div>
-                               ) : '-'}
-                            </td>
-                            <td className="py-3 px-4 text-xs font-mono text-gray-400 max-w-[200px] truncate" title={t.note}>
-                              {t.note || '-'}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {activeTab === 'LEADERBOARD' && (
-                <div className="p-6">
-                  <div className="bg-tv-hover/30 border border-tv-border rounded-xl p-8 text-center">
-                    <Trophy className="w-16 h-16 text-tv-yellow mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2 font-mono">Top Demo P/L Minggu Ini</h3>
-                    <p className="text-gray-400 font-mono text-sm mb-6 max-w-md mx-auto">
-                      Bersaing dengan 34,000 trader lainnya. Buktikan kamu bisa cuan konsisten di paper trading sebelum nyemplung duit beneran.
-                    </p>
-                    
-                    <div className="max-w-xl mx-auto text-left space-y-3">
-                      <div className="flex items-center justify-between bg-tv-yellow/10 border border-tv-yellow/30 p-3 rounded-lg">
-                         <div className="flex items-center gap-4">
-                           <div className="w-8 text-center font-bold text-tv-yellow font-mono">#1</div>
-                           <div className="font-bold text-white font-mono">Admin (You)</div>
-                         </div>
-                         <div className="font-bold text-tv-green font-mono">{totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%</div>
-                      </div>
-                      <div className="flex items-center justify-between bg-[#0f172a] p-3 rounded-lg border border-tv-border">
-                         <div className="flex items-center gap-4">
-                           <div className="w-8 text-center font-bold text-gray-400 font-mono">#2</div>
-                           <div className="font-bold text-gray-300 font-mono">@TraderSak...</div>
-                         </div>
-                         <div className="font-bold text-tv-green font-mono">+18.42%</div>
-                      </div>
-                      <div className="flex items-center justify-between bg-[#0f172a] p-3 rounded-lg border border-tv-border">
-                         <div className="flex items-center gap-4">
-                           <div className="w-8 text-center font-bold text-gray-400 font-mono">#3</div>
-                           <div className="font-bold text-gray-300 font-mono">@Libas09_...</div>
-                         </div>
-                         <div className="font-bold text-tv-green font-mono">+12.01%</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        {/* History Tab placeholder */}
+        {activeTab !== 'HOLDINGS' && (
+          <div className="bg-[#131c2e] border-x border-b border-[#1e293b] rounded-b-xl shadow-sm min-h-[300px] flex items-center justify-center">
+             <p className="text-gray-500 text-sm font-medium">Belum ada history transaksi</p>
+          </div>
+        )}
       </main>
 
-      <footer className="mt-20 border-t border-tv-border py-6 px-4 text-center">
-        <p className="text-xs text-gray-500 font-mono max-w-2xl mx-auto flex items-center justify-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-tv-yellow" />
-          Demo Trading - Uang Virtual, Bukan Trading Sungguhan. Untuk Edukasi. Performa Demo bukan jaminan real.
-        </p>
-      </footer>
+      {/* Order Modal */}
+      {showOrderModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl w-full max-w-sm p-6">
+            <h2 className={`text-xl font-bold mb-4 ${orderType === 'BUY' ? 'text-blue-400' : 'text-red-400'}`}>{orderType} Stock</h2>
+            <form onSubmit={submitOrder} className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Symbol (e.g. BBCA.JK)</label>
+                <SymbolAutocomplete 
+                  required 
+                  value={orderSymbol} 
+                  onChange={(val)=>setOrderSymbol(val)} 
+                  className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded p-2" 
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Price (Rp)</label>
+                <input required type="number" value={orderPrice} onChange={e=>setOrderPrice(e.target.value)} className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded p-2" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Lots</label>
+                <input required type="number" value={orderLots} onChange={e=>setOrderLots(e.target.value)} className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded p-2" />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 py-2 rounded bg-[#1e293b] text-white">Cancel</button>
+                <button type="submit" disabled={orderLoading} className={`flex-1 py-2 rounded text-white font-bold ${orderType === 'BUY' ? 'bg-blue-600' : 'bg-red-600'}`}>
+                  {orderLoading ? 'Processing...' : 'Confirm'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

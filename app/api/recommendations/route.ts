@@ -3,8 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
-import { cookies } from 'next/headers';
-import { USER_COOKIE } from '@/lib/auth';
+import { getSession, checkProAccess } from '@/lib/session';
 import { checkAnalisaLimit } from '@/lib/limits';
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 import { analyze as analyzeEma } from '@/lib/analyzers/ema-analyzer';
@@ -173,33 +172,15 @@ async function analyzeStock(ticker: string) {
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = cookies();
-    const isAdmin = cookieStore.get('saham_admin')?.value === 'true' || 
-                    cookieStore.get('role')?.value === 'admin' || 
-                    cookieStore.get('role')?.value === 'pro';
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+    }
 
-    if (!isAdmin) {
-      let telegram_id: number | undefined;
-      const userCookie = cookieStore.get(USER_COOKIE);
-      if (userCookie?.value) {
-        try {
-          const parsed = JSON.parse(decodeURIComponent(userCookie.value));
-          telegram_id = Number(parsed.id);
-        } catch (e) {}
-      }
-
-      const roleCookie = cookieStore.get('role');
-      const adminCookie = cookieStore.get('saham_admin');
-      const isAdmin = roleCookie?.value === 'admin' || roleCookie?.value === 'pro' || adminCookie?.value === 'true';
-
-      if (!telegram_id && !isAdmin) {
-        return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
-      }
-
-      const limitCheck = await checkAnalisaLimit(telegram_id, isAdmin);
-      if (!limitCheck.allowed) {
-        return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
-      }
+    const hasPro = checkProAccess(session);
+    if (!hasPro) {
+      // Fitur ini butuh Pro atau masa trial aktif
+      return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
     }
 
     const url = new URL(request.url);

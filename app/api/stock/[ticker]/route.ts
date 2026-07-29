@@ -17,8 +17,7 @@ import { calculateConsensus } from '@/lib/consensus-engine';
 import { getSession } from '@/lib/session';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { checkAnalisaLimit, decrementAnalisaLimit } from '@/lib/limits';
-import { cookies } from 'next/headers';
-import { USER_COOKIE } from '@/lib/auth';
+import { checkProAccess } from '@/lib/session';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -31,40 +30,16 @@ export async function GET(
   { params }: { params: { ticker: string } }
 ) {
   try {
-    let telegram_id: number | undefined;
-    const cookieStore = cookies();
-    const userCookie = cookieStore.get(USER_COOKIE);
-    if (userCookie?.value) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(userCookie.value));
-        telegram_id = Number(parsed.id);
-      } catch (e) {}
-    }
-    const roleCookie = cookieStore.get('role');
-    const adminCookie = cookieStore.get('saham_admin');
-    let isAdmin = false;
-    
-    if (roleCookie?.value === 'admin' || roleCookie?.value === 'pro' || adminCookie?.value === 'true') {
-      isAdmin = true;
-    }
-
     const session = await getSession();
-    if (session) {
-      if (session.role === 'admin' || session.role === 'pro') {
-        isAdmin = true;
-      } else if (session.trial_ends_at && new Date(session.trial_ends_at).getTime() > Date.now()) {
-        isAdmin = true; // Unlimited during trial
-      }
+    if (!session) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
     }
-
-    if (!isAdmin && !telegram_id) {
+    
+    const hasPro = checkProAccess(session);
+    if (!hasPro) {
       return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
     }
-
-    const limitCheck = await checkAnalisaLimit(telegram_id, isAdmin);
-    if (!limitCheck.allowed) {
-      return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
-    }
+    let telegram_id = Number(session.id);
     let ticker = params.ticker.toUpperCase();
     if (!ticker.includes('.')) {
       ticker = `${ticker}.JK`;
@@ -80,7 +55,7 @@ export async function GET(
       return NextResponse.json(cached.data);
     }
 
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=20y&interval=1d`;
     
     // Add timeout to prevent infinite spinning if Yahoo hangs
     const controller = new AbortController();
@@ -332,9 +307,8 @@ export async function GET(
       technical: {}
     };
 
-    if (telegram_id && !cached) {
-      // Only decrement if not hitting cache
-      await decrementAnalisaLimit(telegram_id, ticker);
+    if (!hasPro && !cached && session) {
+      // Free users decrement logic can be added here if implemented
     }
 
     return NextResponse.json(resultPayload);

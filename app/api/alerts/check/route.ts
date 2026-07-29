@@ -4,24 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// Helper function to send telegram message
-async function sendTelegramMessage(telegram_id: number, message: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: telegram_id,
-        text: message,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (err) {
-    console.error('Failed to send telegram message', err);
-  }
-}
+// Helper function removed (no more telegram)
 
 async function fetchJson(url: string) {
   try {
@@ -144,6 +127,7 @@ export async function GET(req: Request) {
     const pulseData = hasBreadthAlert ? await fetchJson(`${origin}/api/market-pulse`) : null;
 
     let triggeredCount = 0;
+    let triggeredAlertsData = [];
     
     for (const alert of active) {
       const ctx = {
@@ -160,7 +144,9 @@ export async function GET(req: Request) {
       if (!hasData) continue;
 
       if (isTriggered(alert, ctx)) {
-        await sendTelegramMessage(alert.telegram_id, formatMessage(alert, ctx));
+        const msg = formatMessage(alert, ctx);
+        // Instead of telegram, we collect it
+        triggeredAlertsData.push({ id: alert.id, message: msg.replace(/<[^>]*>?/gm, '') }); // strip HTML for native notification
         
         await supabaseAdmin
           .from('alerts')
@@ -171,7 +157,7 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({ checked: active.length, triggered: triggeredCount });
+    return NextResponse.json({ checked: active.length, triggered: triggeredCount, triggeredAlerts: triggeredAlertsData });
   } catch (err) {
     console.error('Error checking alerts:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -7,7 +7,7 @@ const key = new TextEncoder().encode(secretKey);
 export interface SessionPayload {
   id: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'free' | 'pro' | string;
   is_pro: boolean;
   trial_ends_at: string | null;
   [key: string]: any;
@@ -51,4 +51,11 @@ export async function setSession(payload: SessionPayload) {
 
 export function clearSession() {
   cookies().delete('session');
+}
+
+export function checkProAccess(session: SessionPayload | null): boolean {
+  if (!session) return false;
+  if (session.role === 'admin' || session.role === 'pro' || session.is_pro) return true;
+  if (session.trial_ends_at && new Date(session.trial_ends_at) > new Date()) return true;
+  return false;
 }

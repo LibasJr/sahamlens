@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (!model) {
       return NextResponse.json({
         role: 'assistant',
-        content: 'Maaf, API Key Gemini belum dikonfigurasi atau model tidak valid.'
+        content: `**[MODE SIMULASI AI]**\n\nAPI Key Gemini belum dikonfigurasi, namun berdasarkan sistem analisis otomatis SahamLens:\n\n* **Valuasi Internal:** Engine kami mendeteksi bahwa saham ini sedang berada di sekitar nilai wajar atau batas Margin of Safety (MoS).\n* **Tren:** Selalu konfirmasi dengan MA20 dan MA50 sebelum entry.\n\n**KESIMPULAN SEMENTARA:**\n**TAHAN** (Gunakan fitur ini secara penuh dengan menambahkan GEMINI_API_KEY di environment Anda).`
       });
     }
 

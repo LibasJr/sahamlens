@@ -6,6 +6,7 @@ import calendarData from '@/data/calendar.json';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import AskAIButton from '@/components/AskAIButton';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -217,11 +218,11 @@ export default function Recommendations() {
 
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
+            <SymbolAutocomplete
+              containerClassName=""
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={(e) => e.target.select()}
+              onChange={(val) => setSearchTerm(val)}
+              onFocus={(e: any) => e.target.select()}
               placeholder="Cari simbol, sinyal..."
               className="w-full bg-tv-card border border-tv-border rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-tv-muted focus:outline-none focus:border-tv-green font-mono transition-colors shadow-sm"
             />

@@ -39,11 +39,11 @@ export async function GET(
       return NextResponse.json({ error: 'No data found' }, { status: 404 });
     }
 
-    const price = quoteSummary.price?.regularMarketPrice || 0;
-    const eps = quoteSummary.defaultKeyStatistics?.trailingEps || 0;
-    const bvps = quoteSummary.defaultKeyStatistics?.bookValue || 0;
-    const roe = (quoteSummary.financialData?.returnOnEquity || 0) * 100;
-    const dps = quoteSummary.summaryDetail?.dividendRate || 0;
+    let price = quoteSummary.price?.regularMarketPrice || 0;
+    let eps = quoteSummary.defaultKeyStatistics?.trailingEps || 0;
+    let bvps = quoteSummary.defaultKeyStatistics?.bookValue || 0;
+    let roe = (quoteSummary.financialData?.returnOnEquity || 0) * 100;
+    let dps = quoteSummary.summaryDetail?.dividendRate || 0;
     
     // Fetch NIM if available
     let nim = 0.055; // default bank
@@ -56,6 +56,27 @@ export async function GET(
     let fcf = quoteSummary.financialData?.freeCashflow || null;
     let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding || 1;
     let fcf_per_share = fcf ? fcf / shares : null;
+
+    // --- BUG FIX: CURRENCY MISMATCH (USD vs IDR) ---
+    // Emiten seperti ERTX, ITMG, MEDC melapor dalam USD. Yahoo Finance memberikan EPS dalam USD tapi Harga dalam IDR.
+    // Ini menyebabkan P/E menjadi 160.000x dan Harga Wajar (Intrinsic) hancur menjadi Rp 0.
+    const priceCurrency = quoteSummary.price?.currency || 'IDR';
+    const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
+    
+    if (priceCurrency === 'IDR' && finCurrency === 'USD') {
+       let exchangeRate = 15500; // Safe fallback
+       try {
+         const fx = await yahooFinance.quote('USDIDR=X');
+         if (fx && fx.regularMarketPrice) exchangeRate = fx.regularMarketPrice;
+       } catch(e) {
+         console.warn("Failed to fetch USDIDR, using fallback 15500");
+       }
+       eps *= exchangeRate;
+       bvps *= exchangeRate;
+       dps *= exchangeRate;
+       if (fcf_per_share) fcf_per_share *= exchangeRate;
+    }
+    // ------------------------------------------------
 
     const sector = quoteSummary.assetProfile?.sector || '';
     const isBank = sector.toLowerCase().includes('bank') || sector.toLowerCase().includes('financial');

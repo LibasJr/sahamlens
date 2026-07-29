@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertTriangle, TrendingUp, TrendingDown, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
-export default function ResetPassword() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const initialEmail = searchParams.get('email') || '';
   
@@ -172,5 +172,13 @@ export default function ResetPassword() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0B0E14] flex items-center justify-center"><div className="text-teal-400">Loading...</div></div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

@@ -43,3 +43,7 @@ WORKFLOW WAJIB - FORMAT OUTPUT HARUS GINI:
 
 [6] PREVENT NEXT TIME]
 ...
+
+# Restart Server Rule
+- Setiap kali AI melakukan perombakan file berskala besar/masif, AI harus secara otomatis merestart server (misalnya kill Next.js dan jalankan ulang 
+pm run dev) di latar belakang.

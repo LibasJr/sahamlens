@@ -359,6 +359,95 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* SECTION 2.5 - MARKET SUMMARY (Ringkasan Pasar) */}
+        {pulseData && pulseData.breadth && (
+          <section className="mb-24">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Ringkasan Pasar Hari Ini</h2>
+              <p className="text-gray-400 font-mono text-sm">Top Gainer, Loser, Value, Volume & Foreign Flow</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Top Gainer */}
+              <div className="bg-tv-card border border-tv-green/30 p-4 rounded-xl shadow-[0_0_15px_rgba(34,197,94,0.1)] flex flex-col">
+                <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2"><ArrowUpRight className="w-3 h-3 text-tv-green" /> Top Gainer</div>
+                <div className="space-y-2">
+                  {pulseData.breadth.topGainers?.slice(0, 10).map((g: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                      <span className="text-white font-bold text-sm">{g.symbol}</span>
+                      <span className="text-tv-green text-xs font-mono">+{g.changePct}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Loser */}
+              <div className="bg-tv-card border border-tv-red/30 p-4 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.1)] flex flex-col">
+                <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2"><TrendingDown className="w-3 h-3 text-tv-red" /> Top Loser</div>
+                <div className="space-y-2">
+                  {pulseData.breadth.topLosers?.slice(0, 10).map((l: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                      <span className="text-white font-bold text-sm">{l.symbol}</span>
+                      <span className="text-tv-red text-xs font-mono">{l.changePct}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Value */}
+              <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
+                <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2"><BarChart2 className="w-3 h-3 text-blue-400" /> Top Value</div>
+                <div className="space-y-2">
+                  {pulseData.breadth.topValue?.slice(0, 10).map((v: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                      <span className="text-white font-bold text-sm">{v.symbol}</span>
+                      <span className="text-blue-400 text-xs font-mono">Rp {(v.value / 1e9).toFixed(1)}B</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Net Foreign Buy */}
+              <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
+                <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2">Net F. Buy</div>
+                <div className="space-y-2">
+                  {pulseData.breadth.netForeign?.buy?.slice(0, 10).map((b: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                      <span className="text-white font-bold text-sm">{b.symbol}</span>
+                      <span className="text-tv-green text-xs font-mono">{(b.val / 1e9).toFixed(1)}B</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Net Foreign Sell */}
+              <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
+                <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2">Net F. Sell</div>
+                <div className="space-y-2">
+                  {pulseData.breadth.netForeign?.sell?.slice(0, 10).map((s: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                      <span className="text-white font-bold text-sm">{s.symbol}</span>
+                      <span className="text-tv-red text-xs font-mono">{(s.val / 1e9).toFixed(1)}B</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Freq */}
+              <div className="bg-tv-card border border-tv-border p-4 rounded-xl flex flex-col">
+                <div className="text-xs text-gray-400 font-mono mb-3 uppercase flex items-center gap-2">Top Freq</div>
+                <div className="space-y-2">
+                  {pulseData.breadth.topFreq?.slice(0, 10).map((f: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                      <span className="text-white font-bold text-sm">{f.symbol}</span>
+                      <span className="text-tv-yellow text-xs font-mono">{f.freq}x</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* SECTION 3 - FITUR GRID */}
         <section id="fitur" className="mb-32">
           <div className="text-center mb-16">

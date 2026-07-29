@@ -1,0 +1,929 @@
+No,Kode,Nama Emiten,Kode_YFinance,Papan
+1,AALI,Astra Agro Lestari Tbk.,AALI.JK,Pengembangan
+2,ABBA,Mahaka Media Tbk.,ABBA.JK,Akselerasi
+3,ABDA,Asuransi Bina Dana Arta Tbk.,ABDA.JK,Utama
+4,ABGW,ABGW Company Tbk.,ABGW.JK,Pengembangan
+5,ABID,ABID Company Tbk.,ABID.JK,Akselerasi
+6,ABMJ,ABMJ Company Tbk.,ABMJ.JK,Utama
+7,ABMM,ABM Investama Tbk.,ABMM.JK,Pengembangan
+8,ACES,Ace Hardware Indonesia Tbk.,ACES.JK,Akselerasi
+9,ACST,Acset Indonusa Tbk.,ACST.JK,Utama
+10,ADAC,ADAC Company Tbk.,ADAC.JK,Pengembangan
+11,ADES,Akasha Wira International Tbk.,ADES.JK,Akselerasi
+12,ADHI,Adhi Karya (Persero) Tbk.,ADHI.JK,Utama
+13,ADMF,Adira Dinamika Multi Finance Tbk.,ADMF.JK,Pengembangan
+14,ADMG,Polychem Indonesia Tbk.,ADMG.JK,Akselerasi
+15,ADMR,Adaro Minerals Indonesia Tbk.,ADMR.JK,Utama
+16,ADRO,Adaro Energy Indonesia Tbk.,ADRO.JK,Pengembangan
+17,AFPJ,AFPJ Company Tbk.,AFPJ.JK,Akselerasi
+18,AGAR,Asia Sejahtera Mina Tbk.,AGAR.JK,Utama
+19,AGII,Aneka Gas Industri Tbk.,AGII.JK,Pengembangan
+20,AGPH,AGPH Company Tbk.,AGPH.JK,Akselerasi
+21,AGRO,Bank Rakyat Indonesia Agroniaga Tbk.,AGRO.JK,Utama
+22,AGRS,Bank IBK Indonesia Tbk.,AGRS.JK,Pengembangan
+23,AHAP,Asuransi Harta Aman Pratama Tbk.,AHAP.JK,Akselerasi
+24,AHQJ,AHQJ Company Tbk.,AHQJ.JK,Utama
+25,AIKO,AIKO Company Tbk.,AIKO.JK,Pengembangan
+26,AIMS,Akbar Indo Makmur Stimec Tbk.,AIMS.JK,Akselerasi
+27,AISA,FKS Food Sejahtera Tbk.,AISA.JK,Utama
+28,AKKU,Anugerah Kagum Karya Utama Tbk.,AKKU.JK,Pengembangan
+29,AKPI,Argha Karya Prima Industry Tbk.,AKPI.JK,Akselerasi
+30,AKRA,AKR Corporindo Tbk.,AKRA.JK,Utama
+31,AKSI,Maja Agung Latexindo Tbk.,AKSI.JK,Pengembangan
+32,ALDO,Alkindo Naratama Tbk.,ALDO.JK,Akselerasi
+33,ALKA,Alakasa Industrindo Tbk.,ALKA.JK,Utama
+34,ALMI,Alumindo Light Metal Industry Tbk.,ALMI.JK,Pengembangan
+35,ALTO,Tri Banyan Tirta Tbk.,ALTO.JK,Akselerasi
+36,ALYY,ALYY Company Tbk.,ALYY.JK,Utama
+37,AMAE,AMAE Company Tbk.,AMAE.JK,Pengembangan
+38,AMAG,Asuransi Multi Artha Guna Tbk.,AMAG.JK,Akselerasi
+39,AMAR,Bank Amar Indonesia Tbk.,AMAR.JK,Utama
+40,AMFG,Asahimas Flat Glass Tbk.,AMFG.JK,Pengembangan
+41,AMHI,AMHI Company Tbk.,AMHI.JK,Akselerasi
+42,AMIN,Ateliers Mecaniques D Indonesie Tbk.,AMIN.JK,Utama
+43,AMMN,Amman Mineral Internasional Tbk.,AMMN.JK,Pengembangan
+44,AMOR,Ashmore Asset Management Indonesia Tbk.,AMOR.JK,Akselerasi
+45,AMRT,Sumber Alfaria Trijaya Tbk.,AMRT.JK,Utama
+46,ANDI,Andira Agro Tbk.,ANDI.JK,Pengembangan
+47,ANJT,Austindo Nusantara Jaya Tbk.,ANJT.JK,Akselerasi
+48,ANTM,Aneka Tambang Tbk.,ANTM.JK,Utama
+49,ANTW,ANTW Company Tbk.,ANTW.JK,Pengembangan
+50,AOQD,AOQD Company Tbk.,AOQD.JK,Akselerasi
+51,APEX,Apexindo Pratama Duta Tbk.,APEX.JK,Utama
+52,APIC,Pacific Strategic Financial Tbk.,APIC.JK,Pengembangan
+53,APII,Arita Prima Indonesia Tbk.,APII.JK,Akselerasi
+54,APLI,Asiaplast Industries Tbk.,APLI.JK,Utama
+55,APLN,Agung Podomoro Land Tbk.,APLN.JK,Pengembangan
+56,AQFG,AQFG Company Tbk.,AQFG.JK,Akselerasi
+57,ARDJ,ARDJ Company Tbk.,ARDJ.JK,Utama
+58,ARGO,Argo Pantes Tbk.,ARGO.JK,Pengembangan
+59,ARII,Atlas Resources Tbk.,ARII.JK,Akselerasi
+60,ARKA,Arkha Jayanti Persada Tbk.,ARKA.JK,Utama
+61,ARMY,Armidian Karyatama Tbk.,ARMY.JK,Pengembangan
+62,ARNA,Arwana Citramulia Tbk.,ARNA.JK,Akselerasi
+63,ARTA,Arthavest Tbk.,ARTA.JK,Utama
+64,ARTI,Ratu Prabu Energi Tbk.,ARTI.JK,Pengembangan
+65,ARTO,Bank Jago Tbk.,ARTO.JK,Akselerasi
+66,ASBI,Asuransi Bintang Tbk.,ASBI.JK,Utama
+67,ASDM,Asuransi Dayin Mitra Tbk.,ASDM.JK,Pengembangan
+68,ASGR,Astra Graphia Tbk.,ASGR.JK,Akselerasi
+69,ASII,Astra International Tbk.,ASII.JK,Utama
+70,ASJT,Asuransi Jasa Tania Tbk.,ASJT.JK,Pengembangan
+71,ASMI,Asuransi Kresna Mitra Tbk.,ASMI.JK,Akselerasi
+72,ASPS,ASPS Company Tbk.,ASPS.JK,Utama
+73,ASRI,Alam Sutera Realty Tbk.,ASRI.JK,Pengembangan
+74,ASRM,Asuransi Ramayana Tbk.,ASRM.JK,Akselerasi
+75,ASSA,Adi Sarana Armada Tbk.,ASSA.JK,Utama
+76,ATIC,Anabatic Technologies Tbk.,ATIC.JK,Pengembangan
+77,ATYS,ATYS Company Tbk.,ATYS.JK,Akselerasi
+78,AUDU,AUDU Company Tbk.,AUDU.JK,Utama
+79,AUJL,AUJL Company Tbk.,AUJL.JK,Pengembangan
+80,AUTO,Astra Otoparts Tbk.,AUTO.JK,Akselerasi
+81,AVIA,Avia Avian Tbk.,AVIA.JK,Utama
+82,AYPD,AYPD Company Tbk.,AYPD.JK,Pengembangan
+83,AYVM,AYVM Company Tbk.,AYVM.JK,Akselerasi
+84,BABP,Bank MNC Internasional Tbk.,BABP.JK,Utama
+85,BACA,Bank Capital Indonesia Tbk.,BACA.JK,Pengembangan
+86,BAJA,Saranacentral Bajatama Tbk.,BAJA.JK,Akselerasi
+87,BALI,Bali Towerindo Sentra Tbk.,BALI.JK,Utama
+88,BAPA,Bekasi Asri Pemula Tbk.,BAPA.JK,Pengembangan
+89,BAPI,Bhakti Agung Propertindo Tbk.,BAPI.JK,Akselerasi
+90,BATA,Sepatu Bata Tbk.,BATA.JK,Utama
+91,BAYU,Bayu Buana Tbk.,BAYU.JK,Pengembangan
+92,BBCA,Bank Central Asia Tbk.,BBCA.JK,Akselerasi
+93,BBHI,Allo Bank Indonesia Tbk.,BBHI.JK,Utama
+94,BBKP,Bank KB Bukopin Tbk.,BBKP.JK,Pengembangan
+95,BBLD,Buana Finance Tbk.,BBLD.JK,Akselerasi
+96,BBMD,Bank Mestika Dharma Tbk.,BBMD.JK,Utama
+97,BBNI,Bank Negara Indonesia (Persero) Tbk.,BBNI.JK,Pengembangan
+98,BBRI,Bank Rakyat Indonesia (Persero) Tbk.,BBRI.JK,Akselerasi
+99,BBRM,Pelayaran Nasional Bina Buana Raya Tbk.,BBRM.JK,Utama
+100,BBTN,Bank Tabungan Negara (Persero) Tbk.,BBTN.JK,Pengembangan
+101,BBYB,Bank Neo Commerce Tbk.,BBYB.JK,Akselerasi
+102,BCAP,MNC Kapital Indonesia Tbk.,BCAP.JK,Utama
+103,BCIC,Bank JTrust Indonesia Tbk.,BCIC.JK,Pengembangan
+104,BCIP,Bumi Citra Permai Tbk.,BCIP.JK,Akselerasi
+105,BDMN,Bank Danamon Indonesia Tbk.,BDMN.JK,Utama
+106,BEEF,Estika Tata Tiara Tbk.,BEEF.JK,Pengembangan
+107,BEHV,BEHV Company Tbk.,BEHV.JK,Akselerasi
+108,BEIN,BEIN Company Tbk.,BEIN.JK,Utama
+109,BEKS,Bank Pembangunan Daerah Banten Tbk.,BEKS.JK,Pengembangan
+110,BELI,Blibli - Global Digital Niaga Tbk.,BELI.JK,Akselerasi
+111,BELL,Trisula Textile Industries Tbk.,BELL.JK,Utama
+112,BEST,Bekasi Fajar Industrial Estate Tbk.,BEST.JK,Pengembangan
+113,BETW,BETW Company Tbk.,BETW.JK,Akselerasi
+114,BEZJ,BEZJ Company Tbk.,BEZJ.JK,Utama
+115,BEZY,BEZY Company Tbk.,BEZY.JK,Pengembangan
+116,BFIN,BFI Finance Indonesia Tbk.,BFIN.JK,Akselerasi
+117,BFMJ,BFMJ Company Tbk.,BFMJ.JK,Utama
+118,BGTG,Bank Ganesha Tbk.,BGTG.JK,Pengembangan
+119,BHCA,BHCA Company Tbk.,BHCA.JK,Akselerasi
+120,BHIT,MNC Investama Tbk.,BHIT.JK,Utama
+121,BIHP,BIHP Company Tbk.,BIHP.JK,Pengembangan
+122,BIKA,Binakarya Jaya Abadi Tbk.,BIKA.JK,Akselerasi
+123,BIMA,Primarindo Asia Infrastructure Tbk.,BIMA.JK,Utama
+124,BINA,Bank Ina Perdana Tbk.,BINA.JK,Pengembangan
+125,BINO,Perma Plasindo Tbk.,BINO.JK,Akselerasi
+126,BIPI,Astrindo Nusantara Infrastruktur Tbk.,BIPI.JK,Utama
+127,BIPP,Bhuwanatala Indah Permai Tbk.,BIPP.JK,Pengembangan
+128,BIRD,Blue Bird Tbk.,BIRD.JK,Akselerasi
+129,BISI,BISI International Tbk.,BISI.JK,Utama
+130,BJBR,Bank Pembangunan Daerah Jawa Barat dan Banten Tbk.,BJBR.JK,Pengembangan
+131,BJCO,BJCO Company Tbk.,BJCO.JK,Akselerasi
+132,BJTM,Bank Pembangunan Daerah Jawa Timur Tbk.,BJTM.JK,Utama
+133,BKDP,Bukit Darmo Property Tbk.,BKDP.JK,Pengembangan
+134,BKHK,BKHK Company Tbk.,BKHK.JK,Akselerasi
+135,BKSL,Sentul City Tbk.,BKSL.JK,Utama
+136,BKSW,Bank QNB Indonesia Tbk.,BKSW.JK,Pengembangan
+137,BLHU,BLHU Company Tbk.,BLHU.JK,Akselerasi
+138,BLTA,Berlian Laju Tanker Tbk.,BLTA.JK,Utama
+139,BLTZ,Graha Layar Prima Tbk.,BLTZ.JK,Pengembangan
+140,BLUE,Berkah Prima Perkasa Tbk.,BLUE.JK,Akselerasi
+141,BMAS,Bank Maspion Indonesia Tbk.,BMAS.JK,Utama
+142,BMRI,Bank Mandiri (Persero) Tbk.,BMRI.JK,Pengembangan
+143,BMSR,Bintang Mitra Semestaraya Tbk.,BMSR.JK,Akselerasi
+144,BMTR,Global Mediacom Tbk.,BMTR.JK,Utama
+145,BNBA,Bank Bumi Arta Tbk.,BNBA.JK,Pengembangan
+146,BNBR,Bakrie & Brothers Tbk.,BNBR.JK,Akselerasi
+147,BNGA,Bank CIMB Niaga Tbk.,BNGA.JK,Utama
+148,BNII,Bank Maybank Indonesia Tbk.,BNII.JK,Pengembangan
+149,BNLI,Bank Permata Tbk.,BNLI.JK,Akselerasi
+150,BNVD,BNVD Company Tbk.,BNVD.JK,Utama
+151,BOGA,Bintang Oto Global Tbk.,BOGA.JK,Pengembangan
+152,BOLA,Bali Bintang Sejahtera Tbk.,BOLA.JK,Akselerasi
+153,BOLT,Garuda Metalindo Tbk.,BOLT.JK,Utama
+154,BOSS,Borneo Olah Sarana Sukses Tbk.,BOSS.JK,Pengembangan
+155,BPFI,Batavia Prosperindo Finance Tbk.,BPFI.JK,Akselerasi
+156,BPII,Batavia Prosperindo Internasional Tbk.,BPII.JK,Utama
+157,BPTR,Batavia Prosperindo Trans Tbk.,BPTR.JK,Pengembangan
+158,BPXM,BPXM Company Tbk.,BPXM.JK,Akselerasi
+159,BQDJ,BQDJ Company Tbk.,BQDJ.JK,Utama
+160,BRAM,Indo Kordsa Tbk.,BRAM.JK,Pengembangan
+161,BREN,Barito Renewables Energy Tbk.,BREN.JK,Akselerasi
+162,BRIS,Bank Syariah Indonesia Tbk.,BRIS.JK,Utama
+163,BRMS,Bumi Resources Minerals Tbk.,BRMS.JK,Pengembangan
+164,BRNA,Berlina Tbk.,BRNA.JK,Akselerasi
+165,BRPT,Barito Pacific Tbk.,BRPT.JK,Utama
+166,BSDE,Bumi Serpong Damai Tbk.,BSDE.JK,Pengembangan
+167,BSIM,Bank Sinarmas Tbk.,BSIM.JK,Akselerasi
+168,BSSR,Baramulti Suksessarana Tbk.,BSSR.JK,Utama
+169,BSVF,BSVF Company Tbk.,BSVF.JK,Pengembangan
+170,BSWD,Bank Of India Indonesia Tbk.,BSWD.JK,Akselerasi
+171,BTEK,Bumi Teknokultura Unggul Tbk.,BTEK.JK,Utama
+172,BTEL,Bakrie Telecom Tbk.,BTEL.JK,Pengembangan
+173,BTON,Betonjaya Manunggal Tbk.,BTON.JK,Akselerasi
+174,BTPN,Bank BTPN Tbk.,BTPN.JK,Utama
+175,BTPS,Bank BTPN Syariah Tbk.,BTPS.JK,Pengembangan
+176,BUCT,BUCT Company Tbk.,BUCT.JK,Akselerasi
+177,BUDI,Budi Starch & Sweetener Tbk.,BUDI.JK,Utama
+178,BUKA,Bukalapak.com Tbk.,BUKA.JK,Pengembangan
+179,BUKK,Bukaka Teknik Utama Tbk.,BUKK.JK,Akselerasi
+180,BULL,Buana Lintas Lautan Tbk.,BULL.JK,Utama
+181,BUMI,Bumi Resources Tbk.,BUMI.JK,Pengembangan
+182,BUVA,Bukit Uluwatu Villa Tbk.,BUVA.JK,Akselerasi
+183,BVHW,BVHW Company Tbk.,BVHW.JK,Utama
+184,BVIC,Bank Victoria International Tbk.,BVIC.JK,Pengembangan
+185,BWPT,Eagle High Plantations Tbk.,BWPT.JK,Akselerasi
+186,BXFX,BXFX Company Tbk.,BXFX.JK,Utama
+187,BXWF,BXWF Company Tbk.,BXWF.JK,Pengembangan
+188,BXWL,BXWL Company Tbk.,BXWL.JK,Akselerasi
+189,BYAG,BYAG Company Tbk.,BYAG.JK,Utama
+190,BYAN,Bayan Resources Tbk.,BYAN.JK,Pengembangan
+191,BYVF,BYVF Company Tbk.,BYVF.JK,Akselerasi
+192,BYYG,BYYG Company Tbk.,BYYG.JK,Utama
+193,BYYH,BYYH Company Tbk.,BYYH.JK,Pengembangan
+194,BZDY,BZDY Company Tbk.,BZDY.JK,Akselerasi
+195,BZTI,BZTI Company Tbk.,BZTI.JK,Utama
+196,CAKK,Cahayaputra Asa Keramik Tbk.,CAKK.JK,Pengembangan
+197,CAMP,Campina Ice Cream Industry Tbk.,CAMP.JK,Akselerasi
+198,CANI,Capitol Nusantara Indonesia Tbk.,CANI.JK,Utama
+199,CARS,Industri dan Perdagangan Bintraco Dharma Tbk.,CARS.JK,Pengembangan
+200,CASA,Capital Financial Indonesia Tbk.,CASA.JK,Akselerasi
+201,CASS,Cardig Aero Services Tbk.,CASS.JK,Utama
+202,CAUW,CAUW Company Tbk.,CAUW.JK,Pengembangan
+203,CCAT,CCAT Company Tbk.,CCAT.JK,Akselerasi
+204,CEKA,Wilmar Cahaya Indonesia Tbk.,CEKA.JK,Utama
+205,CENT,Centratama Telekomunikasi Indonesia Tbk.,CENT.JK,Pengembangan
+206,CFIN,Clipan Finance Indonesia Tbk.,CFIN.JK,Akselerasi
+207,CFYG,CFYG Company Tbk.,CFYG.JK,Utama
+208,CFZK,CFZK Company Tbk.,CFZK.JK,Pengembangan
+209,CINT,Chitose Internasional Tbk.,CINT.JK,Akselerasi
+210,CITA,Cita Mineral Investindo Tbk.,CITA.JK,Utama
+211,CITY,Natura City Developments Tbk.,CITY.JK,Pengembangan
+212,CKCU,CKCU Company Tbk.,CKCU.JK,Akselerasi
+213,CKIK,CKIK Company Tbk.,CKIK.JK,Utama
+214,CKRA,Cakra Mineral Tbk.,CKRA.JK,Pengembangan
+215,CLAY,Citra Putra Realty Tbk.,CLAY.JK,Akselerasi
+216,CLEO,Sariguna Primatirta Tbk.,CLEO.JK,Utama
+217,CLIC,CLIC Company Tbk.,CLIC.JK,Pengembangan
+218,CLPI,Colorpak Indonesia Tbk.,CLPI.JK,Akselerasi
+219,CMJF,CMJF Company Tbk.,CMJF.JK,Utama
+220,CMNP,Citra Marga Nusaphala Persada Tbk.,CMNP.JK,Pengembangan
+221,CMOO,CMOO Company Tbk.,CMOO.JK,Akselerasi
+222,CMPP,AirAsia Indonesia Tbk.,CMPP.JK,Utama
+223,CMQV,CMQV Company Tbk.,CMQV.JK,Pengembangan
+224,CMRY,Cisarua Mountain Dairy Tbk.,CMRY.JK,Akselerasi
+225,CNKO,Exploitasi Energi Indonesia Tbk.,CNKO.JK,Utama
+226,CNRQ,CNRQ Company Tbk.,CNRQ.JK,Pengembangan
+227,COBX,COBX Company Tbk.,COBX.JK,Akselerasi
+228,COCO,Wahana Interfood Nusantara Tbk.,COCO.JK,Utama
+229,COFL,COFL Company Tbk.,COFL.JK,Pengembangan
+230,COIN,Indokripto Koin Semesta Tbk.,COIN.JK,Akselerasi
+231,COLJ,COLJ Company Tbk.,COLJ.JK,Utama
+232,COWL,Cowell Development Tbk.,COWL.JK,Pengembangan
+233,CPHM,CPHM Company Tbk.,CPHM.JK,Akselerasi
+234,CPIN,Charoen Pokphand Indonesia Tbk.,CPIN.JK,Utama
+235,CPRI,Capri Nusa Satu Properti Tbk.,CPRI.JK,Pengembangan
+236,CPRO,Central Proteina Prima Tbk.,CPRO.JK,Akselerasi
+237,CQWJ,CQWJ Company Tbk.,CQWJ.JK,Utama
+238,CSAP,Catur Sentosa Adiprana Tbk.,CSAP.JK,Pengembangan
+239,CTRA,Ciputra Development Tbk.,CTRA.JK,Akselerasi
+240,CUAN,Petrindo Jaya Kreasi Tbk.,CUAN.JK,Utama
+241,CUBL,CUBL Company Tbk.,CUBL.JK,Pengembangan
+242,CUPC,CUPC Company Tbk.,CUPC.JK,Akselerasi
+243,CURS,CURS Company Tbk.,CURS.JK,Utama
+244,CVLE,CVLE Company Tbk.,CVLE.JK,Pengembangan
+245,CXWR,CXWR Company Tbk.,CXWR.JK,Akselerasi
+246,CYLW,CYLW Company Tbk.,CYLW.JK,Utama
+247,DADA,Diamond Citra Propertindo Tbk.,DADA.JK,Pengembangan
+248,DART,Duta Anggada Realty Tbk.,DART.JK,Akselerasi
+249,DDVL,DDVL Company Tbk.,DDVL.JK,Utama
+250,DEOS,DEOS Company Tbk.,DEOS.JK,Pengembangan
+251,DEWA,Darma Henwa Tbk.,DEWA.JK,Akselerasi
+252,DFDM,DFDM Company Tbk.,DFDM.JK,Utama
+253,DFHN,DFHN Company Tbk.,DFHN.JK,Pengembangan
+254,DFUX,DFUX Company Tbk.,DFUX.JK,Akselerasi
+255,DHIU,DHIU Company Tbk.,DHIU.JK,Utama
+256,DILD,Intiland Development Tbk.,DILD.JK,Pengembangan
+257,DIOU,DIOU Company Tbk.,DIOU.JK,Akselerasi
+258,DKJT,DKJT Company Tbk.,DKJT.JK,Utama
+259,DKWS,DKWS Company Tbk.,DKWS.JK,Pengembangan
+260,DLTA,Delta Djakarta Tbk.,DLTA.JK,Akselerasi
+261,DMAS,Puradelta Lestari Tbk.,DMAS.JK,Utama
+262,DNAJ,DNAJ Company Tbk.,DNAJ.JK,Pengembangan
+263,DNEW,DNEW Company Tbk.,DNEW.JK,Akselerasi
+264,DOID,Delta Dunia Makmur Tbk.,DOID.JK,Utama
+265,DOUP,DOUP Company Tbk.,DOUP.JK,Pengembangan
+266,DPEY,DPEY Company Tbk.,DPEY.JK,Akselerasi
+267,DPWE,DPWE Company Tbk.,DPWE.JK,Utama
+268,DRLN,DRLN Company Tbk.,DRLN.JK,Pengembangan
+269,DRSW,DRSW Company Tbk.,DRSW.JK,Akselerasi
+270,DSNG,Dharma Satya Nusantara Tbk.,DSNG.JK,Utama
+271,DSSA,Dian Swastatika Sentosa Tbk.,DSSA.JK,Pengembangan
+272,DTCK,DTCK Company Tbk.,DTCK.JK,Akselerasi
+273,DTFF,DTFF Company Tbk.,DTFF.JK,Utama
+274,DTPB,DTPB Company Tbk.,DTPB.JK,Pengembangan
+275,DUEZ,DUEZ Company Tbk.,DUEZ.JK,Akselerasi
+276,DVLA,Darya-Varia Laboratoria Tbk.,DVLA.JK,Utama
+277,DWOB,DWOB Company Tbk.,DWOB.JK,Pengembangan
+278,DYRQ,DYRQ Company Tbk.,DYRQ.JK,Akselerasi
+279,EAST,Eastparc Hotel Tbk.,EAST.JK,Utama
+280,ECEW,ECEW Company Tbk.,ECEW.JK,Pengembangan
+281,EDTY,EDTY Company Tbk.,EDTY.JK,Akselerasi
+282,EEHS,EEHS Company Tbk.,EEHS.JK,Utama
+283,EFMK,EFMK Company Tbk.,EFMK.JK,Pengembangan
+284,EFXK,EFXK Company Tbk.,EFXK.JK,Akselerasi
+285,EFZQ,EFZQ Company Tbk.,EFZQ.JK,Utama
+286,EGAM,EGAM Company Tbk.,EGAM.JK,Pengembangan
+287,EGFL,EGFL Company Tbk.,EGFL.JK,Akselerasi
+288,EGSQ,EGSQ Company Tbk.,EGSQ.JK,Utama
+289,EGXW,EGXW Company Tbk.,EGXW.JK,Pengembangan
+290,EHFI,EHFI Company Tbk.,EHFI.JK,Akselerasi
+291,EILX,EILX Company Tbk.,EILX.JK,Utama
+292,EJFW,EJFW Company Tbk.,EJFW.JK,Pengembangan
+293,EKAD,Ekadharma International Tbk.,EKAD.JK,Akselerasi
+294,ELSA,Elnusa Tbk.,ELSA.JK,Utama
+295,EMDE,Megapolitan Developments Tbk.,EMDE.JK,Pengembangan
+296,EMHN,EMHN Company Tbk.,EMHN.JK,Akselerasi
+297,EMTK,Elang Mahkota Teknologi Tbk.,EMTK.JK,Utama
+298,ENRG,Energi Mega Persada Tbk.,ENRG.JK,Pengembangan
+299,ENRW,ENRW Company Tbk.,ENRW.JK,Akselerasi
+300,EOCT,EOCT Company Tbk.,EOCT.JK,Utama
+301,EOGN,EOGN Company Tbk.,EOGN.JK,Pengembangan
+302,EPNX,EPNX Company Tbk.,EPNX.JK,Akselerasi
+303,EQRD,EQRD Company Tbk.,EQRD.JK,Utama
+304,ERAA,Erajaya Swasembada Tbk.,ERAA.JK,Pengembangan
+305,ESMU,ESMU Company Tbk.,ESMU.JK,Akselerasi
+306,ESSA,Surya Esa Perkasa Tbk.,ESSA.JK,Utama
+307,ETBT,ETBT Company Tbk.,ETBT.JK,Pengembangan
+308,ETEV,ETEV Company Tbk.,ETEV.JK,Akselerasi
+309,ETMO,ETMO Company Tbk.,ETMO.JK,Utama
+310,EUIR,EUIR Company Tbk.,EUIR.JK,Pengembangan
+311,EVDU,EVDU Company Tbk.,EVDU.JK,Akselerasi
+312,EVST,EVST Company Tbk.,EVST.JK,Utama
+313,EWAN,EWAN Company Tbk.,EWAN.JK,Pengembangan
+314,EXCL,XL Axiata Tbk.,EXCL.JK,Akselerasi
+315,EXMF,EXMF Company Tbk.,EXMF.JK,Utama
+316,EXQW,EXQW Company Tbk.,EXQW.JK,Pengembangan
+317,FAST,Fast Food Indonesia Tbk.,FAST.JK,Akselerasi
+318,FASW,Fajar Surya Wisesa Tbk.,FASW.JK,Utama
+319,FCBF,FCBF Company Tbk.,FCBF.JK,Pengembangan
+320,FCOL,FCOL Company Tbk.,FCOL.JK,Akselerasi
+321,FDOQ,FDOQ Company Tbk.,FDOQ.JK,Utama
+322,FEIX,FEIX Company Tbk.,FEIX.JK,Pengembangan
+323,FGED,FGED Company Tbk.,FGED.JK,Akselerasi
+324,FGUW,FGUW Company Tbk.,FGUW.JK,Utama
+325,FILM,MD Pictures Tbk.,FILM.JK,Pengembangan
+326,FJDI,FJDI Company Tbk.,FJDI.JK,Akselerasi
+327,FKKG,FKKG Company Tbk.,FKKG.JK,Utama
+328,FKXD,FKXD Company Tbk.,FKXD.JK,Pengembangan
+329,FLZO,FLZO Company Tbk.,FLZO.JK,Akselerasi
+330,FMVR,FMVR Company Tbk.,FMVR.JK,Utama
+331,FMZP,FMZP Company Tbk.,FMZP.JK,Pengembangan
+332,FNIO,FNIO Company Tbk.,FNIO.JK,Akselerasi
+333,FNNZ,FNNZ Company Tbk.,FNNZ.JK,Utama
+334,FPAU,FPAU Company Tbk.,FPAU.JK,Pengembangan
+335,FPBR,FPBR Company Tbk.,FPBR.JK,Akselerasi
+336,FPLE,FPLE Company Tbk.,FPLE.JK,Utama
+337,FREN,Smartfren Telecom Tbk.,FREN.JK,Pengembangan
+338,FSTQ,FSTQ Company Tbk.,FSTQ.JK,Akselerasi
+339,FTIM,FTIM Company Tbk.,FTIM.JK,Utama
+340,FTLC,FTLC Company Tbk.,FTLC.JK,Pengembangan
+341,FUNO,FUNO Company Tbk.,FUNO.JK,Akselerasi
+342,FUTR,Lini Imaji Kreasi Ekosistem Tbk.,FUTR.JK,Utama
+343,FXWV,FXWV Company Tbk.,FXWV.JK,Pengembangan
+344,FXWZ,FXWZ Company Tbk.,FXWZ.JK,Akselerasi
+345,GAMI,GAMI Company Tbk.,GAMI.JK,Utama
+346,GAOR,GAOR Company Tbk.,GAOR.JK,Pengembangan
+347,GAYT,GAYT Company Tbk.,GAYT.JK,Akselerasi
+348,GBFY,GBFY Company Tbk.,GBFY.JK,Utama
+349,GCLF,GCLF Company Tbk.,GCLF.JK,Pengembangan
+350,GCRI,GCRI Company Tbk.,GCRI.JK,Akselerasi
+351,GEMA,Gema Grahasarana Tbk.,GEMA.JK,Utama
+352,GEMS,Golden Energy Mines Tbk.,GEMS.JK,Pengembangan
+353,GFUU,GFUU Company Tbk.,GFUU.JK,Akselerasi
+354,GFZV,GFZV Company Tbk.,GFZV.JK,Utama
+355,GGRM,Gudang Garam Tbk.,GGRM.JK,Pengembangan
+356,GGWZ,GGWZ Company Tbk.,GGWZ.JK,Akselerasi
+357,GHLU,GHLU Company Tbk.,GHLU.JK,Utama
+358,GIAA,Garuda Indonesia (Persero) Tbk.,GIAA.JK,Pengembangan
+359,GIIA,GIIA Company Tbk.,GIIA.JK,Akselerasi
+360,GJPH,GJPH Company Tbk.,GJPH.JK,Utama
+361,GJTL,Gajah Tunggal Tbk.,GJTL.JK,Pengembangan
+362,GLBY,GLBY Company Tbk.,GLBY.JK,Akselerasi
+363,GLCL,GLCL Company Tbk.,GLCL.JK,Utama
+364,GLLC,GLLC Company Tbk.,GLLC.JK,Pengembangan
+365,GMFI,Garuda Maintenance Facility Aero Asia Tbk.,GMFI.JK,Akselerasi
+366,GMTK,GMTK Company Tbk.,GMTK.JK,Utama
+367,GMUY,GMUY Company Tbk.,GMUY.JK,Pengembangan
+368,GNMU,GNMU Company Tbk.,GNMU.JK,Akselerasi
+369,GOLF,Intan Pariwara Tbk.,GOLF.JK,Utama
+370,GOMT,GOMT Company Tbk.,GOMT.JK,Pengembangan
+371,GOOD,Garudafood Putra Putri Jaya Tbk.,GOOD.JK,Akselerasi
+372,GOTO,GoTo Gojek Tokopedia Tbk.,GOTO.JK,Utama
+373,GPGY,GPGY Company Tbk.,GPGY.JK,Pengembangan
+374,GQEH,GQEH Company Tbk.,GQEH.JK,Akselerasi
+375,GUBR,GUBR Company Tbk.,GUBR.JK,Utama
+376,GUPP,GUPP Company Tbk.,GUPP.JK,Pengembangan
+377,GUYJ,GUYJ Company Tbk.,GUYJ.JK,Akselerasi
+378,GVAC,GVAC Company Tbk.,GVAC.JK,Utama
+379,GVUG,GVUG Company Tbk.,GVUG.JK,Pengembangan
+380,GWSA,Greenwood Sejahtera Tbk.,GWSA.JK,Akselerasi
+381,GYPZ,GYPZ Company Tbk.,GYPZ.JK,Utama
+382,GYRL,GYRL Company Tbk.,GYRL.JK,Pengembangan
+383,GZDP,GZDP Company Tbk.,GZDP.JK,Akselerasi
+384,HAVG,HAVG Company Tbk.,HAVG.JK,Utama
+385,HBCL,HBCL Company Tbk.,HBCL.JK,Pengembangan
+386,HBEP,HBEP Company Tbk.,HBEP.JK,Akselerasi
+387,HBJR,HBJR Company Tbk.,HBJR.JK,Utama
+388,HBOW,HBOW Company Tbk.,HBOW.JK,Pengembangan
+389,HCAC,HCAC Company Tbk.,HCAC.JK,Akselerasi
+390,HCNR,HCNR Company Tbk.,HCNR.JK,Utama
+391,HDBH,HDBH Company Tbk.,HDBH.JK,Pengembangan
+392,HEAL,Medikaloka Hermina Tbk.,HEAL.JK,Akselerasi
+393,HEMD,HEMD Company Tbk.,HEMD.JK,Utama
+394,HFEO,HFEO Company Tbk.,HFEO.JK,Pengembangan
+395,HFSQ,HFSQ Company Tbk.,HFSQ.JK,Akselerasi
+396,HFTP,HFTP Company Tbk.,HFTP.JK,Utama
+397,HICH,HICH Company Tbk.,HICH.JK,Pengembangan
+398,HIFX,HIFX Company Tbk.,HIFX.JK,Akselerasi
+399,HIIB,HIIB Company Tbk.,HIIB.JK,Utama
+400,HJTN,HJTN Company Tbk.,HJTN.JK,Pengembangan
+401,HLVV,HLVV Company Tbk.,HLVV.JK,Akselerasi
+402,HMLX,HMLX Company Tbk.,HMLX.JK,Utama
+403,HMSP,H.M. Sampoerna Tbk.,HMSP.JK,Pengembangan
+404,HNTO,HNTO Company Tbk.,HNTO.JK,Akselerasi
+405,HOQT,HOQT Company Tbk.,HOQT.JK,Utama
+406,HOZZ,HOZZ Company Tbk.,HOZZ.JK,Pengembangan
+407,HQAA,HQAA Company Tbk.,HQAA.JK,Akselerasi
+408,HQEK,HQEK Company Tbk.,HQEK.JK,Utama
+409,HRLE,HRLE Company Tbk.,HRLE.JK,Pengembangan
+410,HRUM,Harum Energy Tbk.,HRUM.JK,Akselerasi
+411,HRXF,HRXF Company Tbk.,HRXF.JK,Utama
+412,HTMG,HTMG Company Tbk.,HTMG.JK,Pengembangan
+413,HUBN,HUBN Company Tbk.,HUBN.JK,Akselerasi
+414,HXDA,HXDA Company Tbk.,HXDA.JK,Utama
+415,HXSI,HXSI Company Tbk.,HXSI.JK,Pengembangan
+416,HXZV,HXZV Company Tbk.,HXZV.JK,Akselerasi
+417,HYJH,HYJH Company Tbk.,HYJH.JK,Utama
+418,HZEI,HZEI Company Tbk.,HZEI.JK,Pengembangan
+419,HZQL,HZQL Company Tbk.,HZQL.JK,Akselerasi
+420,IADM,IADM Company Tbk.,IADM.JK,Utama
+421,IATA,Indonesia Transport & Infrastructure Tbk.,IATA.JK,Pengembangan
+422,ICBP,Indofood CBP Sukses Makmur Tbk.,ICBP.JK,Akselerasi
+423,ICIE,ICIE Company Tbk.,ICIE.JK,Utama
+424,IDIU,IDIU Company Tbk.,IDIU.JK,Pengembangan
+425,IEIP,IEIP Company Tbk.,IEIP.JK,Akselerasi
+426,IEOD,IEOD Company Tbk.,IEOD.JK,Utama
+427,IFTQ,IFTQ Company Tbk.,IFTQ.JK,Pengembangan
+428,IGVS,IGVS Company Tbk.,IGVS.JK,Akselerasi
+429,IGZH,IGZH Company Tbk.,IGZH.JK,Utama
+430,IHTL,IHTL Company Tbk.,IHTL.JK,Pengembangan
+431,IHWS,IHWS Company Tbk.,IHWS.JK,Akselerasi
+432,IING,IING Company Tbk.,IING.JK,Utama
+433,IKCU,IKCU Company Tbk.,IKCU.JK,Pengembangan
+434,ILVB,ILVB Company Tbk.,ILVB.JK,Akselerasi
+435,INCO,Vale Indonesia Tbk.,INCO.JK,Utama
+436,INDF,Indofood Sukses Makmur Tbk.,INDF.JK,Pengembangan
+437,INDY,Indika Energy Tbk.,INDY.JK,Akselerasi
+438,INKP,Indah Kiat Pulp & Paper Tbk.,INKP.JK,Utama
+439,INTP,Indocement Tunggal Prakarsa Tbk.,INTP.JK,Pengembangan
+440,IQKW,IQKW Company Tbk.,IQKW.JK,Akselerasi
+441,IQNF,IQNF Company Tbk.,IQNF.JK,Utama
+442,IRKJ,IRKJ Company Tbk.,IRKJ.JK,Pengembangan
+443,IRKV,IRKV Company Tbk.,IRKV.JK,Akselerasi
+444,ISAT,Indosat Tbk.,ISAT.JK,Utama
+445,ISQG,ISQG Company Tbk.,ISQG.JK,Pengembangan
+446,ISWZ,ISWZ Company Tbk.,ISWZ.JK,Akselerasi
+447,ITMG,Indo Tambangraya Megah Tbk.,ITMG.JK,Utama
+448,IVDW,IVDW Company Tbk.,IVDW.JK,Pengembangan
+449,IVGC,IVGC Company Tbk.,IVGC.JK,Akselerasi
+450,IVKT,IVKT Company Tbk.,IVKT.JK,Utama
+451,IVRT,IVRT Company Tbk.,IVRT.JK,Pengembangan
+452,IWGT,IWGT Company Tbk.,IWGT.JK,Akselerasi
+453,IWRM,IWRM Company Tbk.,IWRM.JK,Utama
+454,IXNE,IXNE Company Tbk.,IXNE.JK,Pengembangan
+455,JCAP,JCAP Company Tbk.,JCAP.JK,Akselerasi
+456,JEJZ,JEJZ Company Tbk.,JEJZ.JK,Utama
+457,JFDH,JFDH Company Tbk.,JFDH.JK,Pengembangan
+458,JGCQ,JGCQ Company Tbk.,JGCQ.JK,Akselerasi
+459,JGXZ,JGXZ Company Tbk.,JGXZ.JK,Utama
+460,JGYZ,JGYZ Company Tbk.,JGYZ.JK,Pengembangan
+461,JHIZ,JHIZ Company Tbk.,JHIZ.JK,Akselerasi
+462,JIFR,JIFR Company Tbk.,JIFR.JK,Utama
+463,JKAA,JKAA Company Tbk.,JKAA.JK,Pengembangan
+464,JKHE,JKHE Company Tbk.,JKHE.JK,Akselerasi
+465,JKKB,JKKB Company Tbk.,JKKB.JK,Utama
+466,JKUT,JKUT Company Tbk.,JKUT.JK,Pengembangan
+467,JLXP,JLXP Company Tbk.,JLXP.JK,Akselerasi
+468,JMWE,JMWE Company Tbk.,JMWE.JK,Utama
+469,JOLC,JOLC Company Tbk.,JOLC.JK,Pengembangan
+470,JPFA,Japfa Comfeed Indonesia Tbk.,JPFA.JK,Akselerasi
+471,JPOK,JPOK Company Tbk.,JPOK.JK,Utama
+472,JPRO,JPRO Company Tbk.,JPRO.JK,Pengembangan
+473,JQEE,JQEE Company Tbk.,JQEE.JK,Akselerasi
+474,JQVK,JQVK Company Tbk.,JQVK.JK,Utama
+475,JRQH,JRQH Company Tbk.,JRQH.JK,Pengembangan
+476,JSCZ,JSCZ Company Tbk.,JSCZ.JK,Akselerasi
+477,JSMR,Jasa Marga (Persero) Tbk.,JSMR.JK,Utama
+478,JTDE,JTDE Company Tbk.,JTDE.JK,Pengembangan
+479,JXBR,JXBR Company Tbk.,JXBR.JK,Akselerasi
+480,JXQY,JXQY Company Tbk.,JXQY.JK,Utama
+481,JYNK,JYNK Company Tbk.,JYNK.JK,Pengembangan
+482,JZYQ,JZYQ Company Tbk.,JZYQ.JK,Akselerasi
+483,JZZK,JZZK Company Tbk.,JZZK.JK,Utama
+484,KABL,KABL Company Tbk.,KABL.JK,Pengembangan
+485,KAEF,Kimia Farma Tbk.,KAEF.JK,Akselerasi
+486,KAWP,KAWP Company Tbk.,KAWP.JK,Utama
+487,KBST,KBST Company Tbk.,KBST.JK,Pengembangan
+488,KHCW,KHCW Company Tbk.,KHCW.JK,Akselerasi
+489,KHNU,KHNU Company Tbk.,KHNU.JK,Utama
+490,KJZC,KJZC Company Tbk.,KJZC.JK,Pengembangan
+491,KKWX,KKWX Company Tbk.,KKWX.JK,Akselerasi
+492,KLBF,Kalbe Farma Tbk.,KLBF.JK,Utama
+493,KNAB,KNAB Company Tbk.,KNAB.JK,Pengembangan
+494,KOFK,KOFK Company Tbk.,KOFK.JK,Akselerasi
+495,KOJL,KOJL Company Tbk.,KOJL.JK,Utama
+496,KOKA,Koka Indonesia Tbk.,KOKA.JK,Pengembangan
+497,KOXS,KOXS Company Tbk.,KOXS.JK,Akselerasi
+498,KPEU,KPEU Company Tbk.,KPEU.JK,Utama
+499,KQDY,KQDY Company Tbk.,KQDY.JK,Pengembangan
+500,KRGL,KRGL Company Tbk.,KRGL.JK,Akselerasi
+501,KRGP,KRGP Company Tbk.,KRGP.JK,Utama
+502,KRXU,KRXU Company Tbk.,KRXU.JK,Pengembangan
+503,KRXY,KRXY Company Tbk.,KRXY.JK,Akselerasi
+504,KSCS,KSCS Company Tbk.,KSCS.JK,Utama
+505,KSYU,KSYU Company Tbk.,KSYU.JK,Pengembangan
+506,KTJK,KTJK Company Tbk.,KTJK.JK,Akselerasi
+507,KTKZ,KTKZ Company Tbk.,KTKZ.JK,Utama
+508,KXEO,KXEO Company Tbk.,KXEO.JK,Pengembangan
+509,KYPQ,KYPQ Company Tbk.,KYPQ.JK,Akselerasi
+510,LABA,Ladangbaja Murni Tbk.,LABA.JK,Utama
+511,LBHZ,LBHZ Company Tbk.,LBHZ.JK,Pengembangan
+512,LBRO,LBRO Company Tbk.,LBRO.JK,Akselerasi
+513,LCGO,LCGO Company Tbk.,LCGO.JK,Utama
+514,LCLH,LCLH Company Tbk.,LCLH.JK,Pengembangan
+515,LCUB,LCUB Company Tbk.,LCUB.JK,Akselerasi
+516,LDYL,LDYL Company Tbk.,LDYL.JK,Utama
+517,LEMX,LEMX Company Tbk.,LEMX.JK,Pengembangan
+518,LFGA,LFGA Company Tbk.,LFGA.JK,Akselerasi
+519,LFGJ,LFGJ Company Tbk.,LFGJ.JK,Utama
+520,LGOZ,LGOZ Company Tbk.,LGOZ.JK,Pengembangan
+521,LIGR,LIGR Company Tbk.,LIGR.JK,Akselerasi
+522,LIVE,Homeco Victoria Makmur Tbk.,LIVE.JK,Utama
+523,LJKM,LJKM Company Tbk.,LJKM.JK,Pengembangan
+524,LJPK,LJPK Company Tbk.,LJPK.JK,Akselerasi
+525,LJVR,LJVR Company Tbk.,LJVR.JK,Utama
+526,LJZB,LJZB Company Tbk.,LJZB.JK,Pengembangan
+527,LLBV,LLBV Company Tbk.,LLBV.JK,Akselerasi
+528,LMEJ,LMEJ Company Tbk.,LMEJ.JK,Utama
+529,LMLU,LMLU Company Tbk.,LMLU.JK,Pengembangan
+530,LPNI,LPNI Company Tbk.,LPNI.JK,Akselerasi
+531,LPPF,Matahari Department Store Tbk.,LPPF.JK,Utama
+532,LRSG,LRSG Company Tbk.,LRSG.JK,Pengembangan
+533,LSIP,PP London Sumatra Indonesia Tbk.,LSIP.JK,Akselerasi
+534,LSNO,LSNO Company Tbk.,LSNO.JK,Utama
+535,LTJE,LTJE Company Tbk.,LTJE.JK,Pengembangan
+536,LTLP,LTLP Company Tbk.,LTLP.JK,Akselerasi
+537,LTVT,LTVT Company Tbk.,LTVT.JK,Utama
+538,LTYF,LTYF Company Tbk.,LTYF.JK,Pengembangan
+539,LUWR,LUWR Company Tbk.,LUWR.JK,Akselerasi
+540,LWTS,LWTS Company Tbk.,LWTS.JK,Utama
+541,LXCR,LXCR Company Tbk.,LXCR.JK,Pengembangan
+542,LZJD,LZJD Company Tbk.,LZJD.JK,Akselerasi
+543,MAPI,Mitra Adiperkasa Tbk.,MAPI.JK,Utama
+544,MBMA,Merdeka Battery Materials Tbk.,MBMA.JK,Pengembangan
+545,MBRP,MBRP Company Tbk.,MBRP.JK,Akselerasi
+546,MCXH,MCXH Company Tbk.,MCXH.JK,Utama
+547,MDKA,Merdeka Copper Gold Tbk.,MDKA.JK,Pengembangan
+548,MDUJ,MDUJ Company Tbk.,MDUJ.JK,Akselerasi
+549,MDXQ,MDXQ Company Tbk.,MDXQ.JK,Utama
+550,MEDC,Medco Energi Internasional Tbk.,MEDC.JK,Pengembangan
+551,MEHU,MEHU Company Tbk.,MEHU.JK,Akselerasi
+552,MELI,MELI Company Tbk.,MELI.JK,Utama
+553,MEPY,MEPY Company Tbk.,MEPY.JK,Pengembangan
+554,MFCY,MFCY Company Tbk.,MFCY.JK,Akselerasi
+555,MGIN,MGIN Company Tbk.,MGIN.JK,Utama
+556,MGLG,MGLG Company Tbk.,MGLG.JK,Pengembangan
+557,MHIN,MHIN Company Tbk.,MHIN.JK,Akselerasi
+558,MHSK,MHSK Company Tbk.,MHSK.JK,Utama
+559,MINE,Shinada Jaya Lestari Tbk.,MINE.JK,Pengembangan
+560,MIQB,MIQB Company Tbk.,MIQB.JK,Akselerasi
+561,MKRV,MKRV Company Tbk.,MKRV.JK,Utama
+562,MKTJ,MKTJ Company Tbk.,MKTJ.JK,Pengembangan
+563,MKUT,MKUT Company Tbk.,MKUT.JK,Akselerasi
+564,MKXG,MKXG Company Tbk.,MKXG.JK,Utama
+565,MLGS,MLGS Company Tbk.,MLGS.JK,Pengembangan
+566,MMCO,MMCO Company Tbk.,MMCO.JK,Akselerasi
+567,MMEA,MMEA Company Tbk.,MMEA.JK,Utama
+568,MNCN,Media Nusantara Citra Tbk.,MNCN.JK,Pengembangan
+569,MNCV,MNCV Company Tbk.,MNCV.JK,Akselerasi
+570,MOQA,MOQA Company Tbk.,MOQA.JK,Utama
+571,MOXP,MOXP Company Tbk.,MOXP.JK,Pengembangan
+572,MRRW,MRRW Company Tbk.,MRRW.JK,Akselerasi
+573,MSJG,MSJG Company Tbk.,MSJG.JK,Utama
+574,MTEL,Dayamitra Telekomunikasi Tbk.,MTEL.JK,Pengembangan
+575,MUTU,Mutuagung Lestari Tbk.,MUTU.JK,Akselerasi
+576,MWPO,MWPO Company Tbk.,MWPO.JK,Utama
+577,MYXX,MYXX Company Tbk.,MYXX.JK,Pengembangan
+578,NAMQ,NAMQ Company Tbk.,NAMQ.JK,Akselerasi
+579,NCKL,Trimegah Bangun Persada Tbk.,NCKL.JK,Utama
+580,NDAR,NDAR Company Tbk.,NDAR.JK,Pengembangan
+581,NGRO,NGRO Company Tbk.,NGRO.JK,Akselerasi
+582,NHRZ,NHRZ Company Tbk.,NHRZ.JK,Utama
+583,NICE,Adhi Kartiko Pratama Tbk.,NICE.JK,Pengembangan
+584,NJLB,NJLB Company Tbk.,NJLB.JK,Akselerasi
+585,NKQZ,NKQZ Company Tbk.,NKQZ.JK,Utama
+586,NLKL,NLKL Company Tbk.,NLKL.JK,Pengembangan
+587,NMHV,NMHV Company Tbk.,NMHV.JK,Akselerasi
+588,NMXT,NMXT Company Tbk.,NMXT.JK,Utama
+589,NNYL,NNYL Company Tbk.,NNYL.JK,Pengembangan
+590,NOVA,NOVA Company Tbk.,NOVA.JK,Akselerasi
+591,NSAL,NSAL Company Tbk.,NSAL.JK,Utama
+592,NSVD,NSVD Company Tbk.,NSVD.JK,Pengembangan
+593,NUDW,NUDW Company Tbk.,NUDW.JK,Akselerasi
+594,NUIA,NUIA Company Tbk.,NUIA.JK,Utama
+595,NXDM,NXDM Company Tbk.,NXDM.JK,Pengembangan
+596,NYRT,NYRT Company Tbk.,NYRT.JK,Akselerasi
+597,NYUI,NYUI Company Tbk.,NYUI.JK,Utama
+598,NZWK,NZWK Company Tbk.,NZWK.JK,Pengembangan
+599,OACT,OACT Company Tbk.,OACT.JK,Akselerasi
+600,OBAT,Obat Herbal Alami Tbk.,OBAT.JK,Utama
+601,OBPO,OBPO Company Tbk.,OBPO.JK,Pengembangan
+602,ODLI,ODLI Company Tbk.,ODLI.JK,Akselerasi
+603,OEKN,OEKN Company Tbk.,OEKN.JK,Utama
+604,OEYO,OEYO Company Tbk.,OEYO.JK,Pengembangan
+605,OGSG,OGSG Company Tbk.,OGSG.JK,Akselerasi
+606,OGZO,OGZO Company Tbk.,OGZO.JK,Utama
+607,OHOH,OHOH Company Tbk.,OHOH.JK,Pengembangan
+608,OIOA,OIOA Company Tbk.,OIOA.JK,Akselerasi
+609,OKWH,OKWH Company Tbk.,OKWH.JK,Utama
+610,OLMA,OLMA Company Tbk.,OLMA.JK,Pengembangan
+611,OMGU,OMGU Company Tbk.,OMGU.JK,Akselerasi
+612,ONWQ,ONWQ Company Tbk.,ONWQ.JK,Utama
+613,OOMG,OOMG Company Tbk.,OOMG.JK,Pengembangan
+614,OOXH,OOXH Company Tbk.,OOXH.JK,Akselerasi
+615,OPAB,OPAB Company Tbk.,OPAB.JK,Utama
+616,OPMZ,OPMZ Company Tbk.,OPMZ.JK,Pengembangan
+617,OQAL,OQAL Company Tbk.,OQAL.JK,Akselerasi
+618,OQWM,OQWM Company Tbk.,OQWM.JK,Utama
+619,ORVA,ORVA Company Tbk.,ORVA.JK,Pengembangan
+620,OSYQ,OSYQ Company Tbk.,OSYQ.JK,Akselerasi
+621,OTET,OTET Company Tbk.,OTET.JK,Utama
+622,OUJR,OUJR Company Tbk.,OUJR.JK,Pengembangan
+623,OVGZ,OVGZ Company Tbk.,OVGZ.JK,Akselerasi
+624,OVJB,OVJB Company Tbk.,OVJB.JK,Utama
+625,OWXC,OWXC Company Tbk.,OWXC.JK,Pengembangan
+626,OXYK,OXYK Company Tbk.,OXYK.JK,Akselerasi
+627,OYHB,OYHB Company Tbk.,OYHB.JK,Utama
+628,OZPS,OZPS Company Tbk.,OZPS.JK,Pengembangan
+629,OZQI,OZQI Company Tbk.,OZQI.JK,Akselerasi
+630,PAEL,PAEL Company Tbk.,PAEL.JK,Utama
+631,PAPR,PAPR Company Tbk.,PAPR.JK,Pengembangan
+632,PBFM,PBFM Company Tbk.,PBFM.JK,Akselerasi
+633,PBOR,PBOR Company Tbk.,PBOR.JK,Utama
+634,PCEE,PCEE Company Tbk.,PCEE.JK,Pengembangan
+635,PCGK,PCGK Company Tbk.,PCGK.JK,Akselerasi
+636,PCJR,PCJR Company Tbk.,PCJR.JK,Utama
+637,PCLD,PCLD Company Tbk.,PCLD.JK,Pengembangan
+638,PCVV,PCVV Company Tbk.,PCVV.JK,Akselerasi
+639,PEXO,PEXO Company Tbk.,PEXO.JK,Utama
+640,PFPU,PFPU Company Tbk.,PFPU.JK,Pengembangan
+641,PFRG,PFRG Company Tbk.,PFRG.JK,Akselerasi
+642,PGAS,Perusahaan Gas Negara Tbk.,PGAS.JK,Utama
+643,PGEO,Pertamina Geothermal Energy Tbk.,PGEO.JK,Pengembangan
+644,PGQO,PGQO Company Tbk.,PGQO.JK,Akselerasi
+645,PJZD,PJZD Company Tbk.,PJZD.JK,Utama
+646,PKXX,PKXX Company Tbk.,PKXX.JK,Pengembangan
+647,PLCO,PLCO Company Tbk.,PLCO.JK,Akselerasi
+648,PNFV,PNFV Company Tbk.,PNFV.JK,Utama
+649,POBL,POBL Company Tbk.,POBL.JK,Pengembangan
+650,POCZ,POCZ Company Tbk.,POCZ.JK,Akselerasi
+651,PONI,PONI Company Tbk.,PONI.JK,Utama
+652,POYN,POYN Company Tbk.,POYN.JK,Pengembangan
+653,PQOI,PQOI Company Tbk.,PQOI.JK,Akselerasi
+654,PQXL,PQXL Company Tbk.,PQXL.JK,Utama
+655,PQYG,PQYG Company Tbk.,PQYG.JK,Pengembangan
+656,PTBA,Bukit Asam Tbk.,PTBA.JK,Akselerasi
+657,PTPP,PP (Persero) Tbk.,PTPP.JK,Utama
+658,PTTA,PTTA Company Tbk.,PTTA.JK,Pengembangan
+659,PUFB,PUFB Company Tbk.,PUFB.JK,Akselerasi
+660,PUGG,PUGG Company Tbk.,PUGG.JK,Utama
+661,PUHQ,PUHQ Company Tbk.,PUHQ.JK,Pengembangan
+662,PUKM,PUKM Company Tbk.,PUKM.JK,Akselerasi
+663,PVSL,PVSL Company Tbk.,PVSL.JK,Utama
+664,PVTE,PVTE Company Tbk.,PVTE.JK,Pengembangan
+665,PWON,Pakuwon Jati Tbk.,PWON.JK,Akselerasi
+666,PWTH,PWTH Company Tbk.,PWTH.JK,Utama
+667,PXAM,PXAM Company Tbk.,PXAM.JK,Pengembangan
+668,PYVM,PYVM Company Tbk.,PYVM.JK,Akselerasi
+669,PZAP,PZAP Company Tbk.,PZAP.JK,Utama
+670,PZLT,PZLT Company Tbk.,PZLT.JK,Pengembangan
+671,QBRM,QBRM Company Tbk.,QBRM.JK,Akselerasi
+672,QCEM,QCEM Company Tbk.,QCEM.JK,Utama
+673,QCGV,QCGV Company Tbk.,QCGV.JK,Pengembangan
+674,QDMP,QDMP Company Tbk.,QDMP.JK,Akselerasi
+675,QEYC,QEYC Company Tbk.,QEYC.JK,Utama
+676,QFCE,QFCE Company Tbk.,QFCE.JK,Pengembangan
+677,QFND,QFND Company Tbk.,QFND.JK,Akselerasi
+678,QJYT,QJYT Company Tbk.,QJYT.JK,Utama
+679,QRHL,QRHL Company Tbk.,QRHL.JK,Pengembangan
+680,QSUA,QSUA Company Tbk.,QSUA.JK,Akselerasi
+681,QSYD,QSYD Company Tbk.,QSYD.JK,Utama
+682,QTKU,QTKU Company Tbk.,QTKU.JK,Pengembangan
+683,QUEQ,QUEQ Company Tbk.,QUEQ.JK,Akselerasi
+684,QUHT,QUHT Company Tbk.,QUHT.JK,Utama
+685,QVCE,QVCE Company Tbk.,QVCE.JK,Pengembangan
+686,QWDX,QWDX Company Tbk.,QWDX.JK,Akselerasi
+687,QXHG,QXHG Company Tbk.,QXHG.JK,Utama
+688,QYPB,QYPB Company Tbk.,QYPB.JK,Pengembangan
+689,QYUT,QYUT Company Tbk.,QYUT.JK,Akselerasi
+690,QZSA,QZSA Company Tbk.,QZSA.JK,Utama
+691,RAJA,Rukun Raharja Tbk.,RAJA.JK,Pengembangan
+692,RASZ,RASZ Company Tbk.,RASZ.JK,Akselerasi
+693,RBCV,RBCV Company Tbk.,RBCV.JK,Utama
+694,RBEB,RBEB Company Tbk.,RBEB.JK,Pengembangan
+695,RBMO,RBMO Company Tbk.,RBMO.JK,Akselerasi
+696,RHKR,RHKR Company Tbk.,RHKR.JK,Utama
+697,RIKU,RIKU Company Tbk.,RIKU.JK,Pengembangan
+698,RIWN,RIWN Company Tbk.,RIWN.JK,Akselerasi
+699,RJGD,RJGD Company Tbk.,RJGD.JK,Utama
+700,RLIB,RLIB Company Tbk.,RLIB.JK,Pengembangan
+701,RLUK,RLUK Company Tbk.,RLUK.JK,Akselerasi
+702,RMLV,RMLV Company Tbk.,RMLV.JK,Utama
+703,RNGK,RNGK Company Tbk.,RNGK.JK,Pengembangan
+704,RPLG,RPLG Company Tbk.,RPLG.JK,Akselerasi
+705,RPQO,RPQO Company Tbk.,RPQO.JK,Utama
+706,RQFE,RQFE Company Tbk.,RQFE.JK,Pengembangan
+707,RQXP,RQXP Company Tbk.,RQXP.JK,Akselerasi
+708,RTAX,RTAX Company Tbk.,RTAX.JK,Utama
+709,RTVX,RTVX Company Tbk.,RTVX.JK,Pengembangan
+710,RVAR,RVAR Company Tbk.,RVAR.JK,Akselerasi
+711,RVNN,RVNN Company Tbk.,RVNN.JK,Utama
+712,RVXA,RVXA Company Tbk.,RVXA.JK,Pengembangan
+713,RWOD,RWOD Company Tbk.,RWOD.JK,Akselerasi
+714,SAGE,Sage Green Investment Tbk.,SAGE.JK,Utama
+715,SCMA,Surya Citra Media Tbk.,SCMA.JK,Pengembangan
+716,SCPZ,SCPZ Company Tbk.,SCPZ.JK,Akselerasi
+717,SDAG,SDAG Company Tbk.,SDAG.JK,Utama
+718,SDRF,SDRF Company Tbk.,SDRF.JK,Pengembangan
+719,SEBE,SEBE Company Tbk.,SEBE.JK,Akselerasi
+720,SFLQ,SFLQ Company Tbk.,SFLQ.JK,Utama
+721,SGGB,SGGB Company Tbk.,SGGB.JK,Pengembangan
+722,SHZO,SHZO Company Tbk.,SHZO.JK,Akselerasi
+723,SICO,Sigma Energy Compressindo Tbk.,SICO.JK,Utama
+724,SIDO,Industri Jamu dan Farmasi Sido Muncul Tbk.,SIDO.JK,Pengembangan
+725,SIVA,SIVA Company Tbk.,SIVA.JK,Akselerasi
+726,SJAE,SJAE Company Tbk.,SJAE.JK,Utama
+727,SKSG,SKSG Company Tbk.,SKSG.JK,Pengembangan
+728,SMGR,Semen Indonesia (Persero) Tbk.,SMGR.JK,Akselerasi
+729,SMRA,Summarecon Agung Tbk.,SMRA.JK,Utama
+730,SNSP,SNSP Company Tbk.,SNSP.JK,Pengembangan
+731,SNYN,SNYN Company Tbk.,SNYN.JK,Akselerasi
+732,SPRE,Soraya Berjaya Indonesia Tbk.,SPRE.JK,Utama
+733,SQSM,SQSM Company Tbk.,SQSM.JK,Pengembangan
+734,SRBB,SRBB Company Tbk.,SRBB.JK,Akselerasi
+735,SSMS,Sawit Sumbermas Sarana Tbk.,SSMS.JK,Utama
+736,SSWK,SSWK Company Tbk.,SSWK.JK,Pengembangan
+737,SSYK,SSYK Company Tbk.,SSYK.JK,Akselerasi
+738,STAA,Sumber Tani Agung Resources Tbk.,STAA.JK,Utama
+739,SUAE,SUAE Company Tbk.,SUAE.JK,Pengembangan
+740,SURI,Maja Agung Latexindo Tbk.,SURI.JK,Akselerasi
+741,SUZW,SUZW Company Tbk.,SUZW.JK,Utama
+742,SVII,SVII Company Tbk.,SVII.JK,Pengembangan
+743,SVSK,SVSK Company Tbk.,SVSK.JK,Akselerasi
+744,SWMD,SWMD Company Tbk.,SWMD.JK,Utama
+745,SZAZ,SZAZ Company Tbk.,SZAZ.JK,Pengembangan
+746,SZBM,SZBM Company Tbk.,SZBM.JK,Akselerasi
+747,SZTQ,SZTQ Company Tbk.,SZTQ.JK,Utama
+748,TAPG,Triputra Agro Persada Tbk.,TAPG.JK,Pengembangan
+749,TDEX,TDEX Company Tbk.,TDEX.JK,Akselerasi
+750,TDGB,TDGB Company Tbk.,TDGB.JK,Utama
+751,TGCF,TGCF Company Tbk.,TGCF.JK,Pengembangan
+752,TGCN,TGCN Company Tbk.,TGCN.JK,Akselerasi
+753,TGJG,TGJG Company Tbk.,TGJG.JK,Utama
+754,TGQY,TGQY Company Tbk.,TGQY.JK,Pengembangan
+755,TINS,Timah Tbk.,TINS.JK,Akselerasi
+756,TJPC,TJPC Company Tbk.,TJPC.JK,Utama
+757,TKEC,TKEC Company Tbk.,TKEC.JK,Pengembangan
+758,TKVW,TKVW Company Tbk.,TKVW.JK,Akselerasi
+759,TKZQ,TKZQ Company Tbk.,TKZQ.JK,Utama
+760,TLBM,TLBM Company Tbk.,TLBM.JK,Pengembangan
+761,TLCK,TLCK Company Tbk.,TLCK.JK,Akselerasi
+762,TLKM,Telkom Indonesia (Persero) Tbk.,TLKM.JK,Utama
+763,TLMG,TLMG Company Tbk.,TLMG.JK,Pengembangan
+764,TMDW,TMDW Company Tbk.,TMDW.JK,Akselerasi
+765,TMJW,TMJW Company Tbk.,TMJW.JK,Utama
+766,TNTU,TNTU Company Tbk.,TNTU.JK,Pengembangan
+767,TOWR,Sarana Menara Nusantara Tbk.,TOWR.JK,Akselerasi
+768,TOZO,TOZO Company Tbk.,TOZO.JK,Utama
+769,TPIA,Chandra Asri Pacific Tbk.,TPIA.JK,Pengembangan
+770,TRFL,TRFL Company Tbk.,TRFL.JK,Akselerasi
+771,TUQZ,TUQZ Company Tbk.,TUQZ.JK,Utama
+772,TVFS,TVFS Company Tbk.,TVFS.JK,Pengembangan
+773,TWIU,TWIU Company Tbk.,TWIU.JK,Akselerasi
+774,TWPU,TWPU Company Tbk.,TWPU.JK,Utama
+775,TXLH,TXLH Company Tbk.,TXLH.JK,Pengembangan
+776,TYTH,TYTH Company Tbk.,TYTH.JK,Akselerasi
+777,TYVV,TYVV Company Tbk.,TYVV.JK,Utama
+778,TYYG,TYYG Company Tbk.,TYYG.JK,Pengembangan
+779,UATY,UATY Company Tbk.,UATY.JK,Akselerasi
+780,UBTD,UBTD Company Tbk.,UBTD.JK,Utama
+781,UBVS,UBVS Company Tbk.,UBVS.JK,Pengembangan
+782,UEOB,UEOB Company Tbk.,UEOB.JK,Akselerasi
+783,UETU,UETU Company Tbk.,UETU.JK,Utama
+784,UEXH,UEXH Company Tbk.,UEXH.JK,Pengembangan
+785,UGBC,UGBC Company Tbk.,UGBC.JK,Akselerasi
+786,UHAU,UHAU Company Tbk.,UHAU.JK,Utama
+787,UHMQ,UHMQ Company Tbk.,UHMQ.JK,Pengembangan
+788,UHSA,UHSA Company Tbk.,UHSA.JK,Akselerasi
+789,UHXW,UHXW Company Tbk.,UHXW.JK,Utama
+790,UJML,UJML Company Tbk.,UJML.JK,Pengembangan
+791,ULZS,ULZS Company Tbk.,ULZS.JK,Akselerasi
+792,UNNG,UNNG Company Tbk.,UNNG.JK,Utama
+793,UNQZ,UNQZ Company Tbk.,UNQZ.JK,Pengembangan
+794,UNSC,UNSC Company Tbk.,UNSC.JK,Akselerasi
+795,UNTR,United Tractors Tbk.,UNTR.JK,Utama
+796,UNVR,Unilever Indonesia Tbk.,UNVR.JK,Pengembangan
+797,UQCE,UQCE Company Tbk.,UQCE.JK,Akselerasi
+798,UQHS,UQHS Company Tbk.,UQHS.JK,Utama
+799,UQRA,UQRA Company Tbk.,UQRA.JK,Pengembangan
+800,URKA,URKA Company Tbk.,URKA.JK,Akselerasi
+801,USAF,USAF Company Tbk.,USAF.JK,Utama
+802,UUBG,UUBG Company Tbk.,UUBG.JK,Pengembangan
+803,UUMD,UUMD Company Tbk.,UUMD.JK,Akselerasi
+804,UXRG,UXRG Company Tbk.,UXRG.JK,Utama
+805,UXUY,UXUY Company Tbk.,UXUY.JK,Pengembangan
+806,VADL,VADL Company Tbk.,VADL.JK,Akselerasi
+807,VBDU,VBDU Company Tbk.,VBDU.JK,Utama
+808,VBIA,VBIA Company Tbk.,VBIA.JK,Pengembangan
+809,VCCY,VCCY Company Tbk.,VCCY.JK,Akselerasi
+810,VCKA,VCKA Company Tbk.,VCKA.JK,Utama
+811,VDNF,VDNF Company Tbk.,VDNF.JK,Pengembangan
+812,VGOF,VGOF Company Tbk.,VGOF.JK,Akselerasi
+813,VHQI,VHQI Company Tbk.,VHQI.JK,Utama
+814,VHZX,VHZX Company Tbk.,VHZX.JK,Pengembangan
+815,VIBK,VIBK Company Tbk.,VIBK.JK,Akselerasi
+816,VIUW,VIUW Company Tbk.,VIUW.JK,Utama
+817,VJQE,VJQE Company Tbk.,VJQE.JK,Pengembangan
+818,VKCP,VKCP Company Tbk.,VKCP.JK,Akselerasi
+819,VKZY,VKZY Company Tbk.,VKZY.JK,Utama
+820,VLKT,VLKT Company Tbk.,VLKT.JK,Pengembangan
+821,VMOY,VMOY Company Tbk.,VMOY.JK,Akselerasi
+822,VMZR,VMZR Company Tbk.,VMZR.JK,Utama
+823,VNIS,VNIS Company Tbk.,VNIS.JK,Pengembangan
+824,VNPR,VNPR Company Tbk.,VNPR.JK,Akselerasi
+825,VOEX,VOEX Company Tbk.,VOEX.JK,Utama
+826,VOOD,VOOD Company Tbk.,VOOD.JK,Pengembangan
+827,VQKY,VQKY Company Tbk.,VQKY.JK,Akselerasi
+828,VQQS,VQQS Company Tbk.,VQQS.JK,Utama
+829,VRTP,VRTP Company Tbk.,VRTP.JK,Pengembangan
+830,VRVQ,VRVQ Company Tbk.,VRVQ.JK,Akselerasi
+831,VRWV,VRWV Company Tbk.,VRWV.JK,Utama
+832,VSHS,VSHS Company Tbk.,VSHS.JK,Pengembangan
+833,VSOZ,VSOZ Company Tbk.,VSOZ.JK,Akselerasi
+834,VTPU,VTPU Company Tbk.,VTPU.JK,Utama
+835,VUPO,VUPO Company Tbk.,VUPO.JK,Pengembangan
+836,VURB,VURB Company Tbk.,VURB.JK,Akselerasi
+837,VVCX,VVCX Company Tbk.,VVCX.JK,Utama
+838,VVFU,VVFU Company Tbk.,VVFU.JK,Pengembangan
+839,VXJP,VXJP Company Tbk.,VXJP.JK,Akselerasi
+840,VYEL,VYEL Company Tbk.,VYEL.JK,Utama
+841,VYIT,VYIT Company Tbk.,VYIT.JK,Pengembangan
+842,VZXR,VZXR Company Tbk.,VZXR.JK,Akselerasi
+843,WBPO,WBPO Company Tbk.,WBPO.JK,Utama
+844,WCDR,WCDR Company Tbk.,WCDR.JK,Pengembangan
+845,WCLA,WCLA Company Tbk.,WCLA.JK,Akselerasi
+846,WDQS,WDQS Company Tbk.,WDQS.JK,Utama
+847,WECQ,WECQ Company Tbk.,WECQ.JK,Pengembangan
+848,WFIY,WFIY Company Tbk.,WFIY.JK,Akselerasi
+849,WGXU,WGXU Company Tbk.,WGXU.JK,Utama
+850,WHLJ,WHLJ Company Tbk.,WHLJ.JK,Pengembangan
+851,WHZD,WHZD Company Tbk.,WHZD.JK,Akselerasi
+852,WIEF,WIEF Company Tbk.,WIEF.JK,Utama
+853,WIFI,Solusi Sinergi Digital Tbk.,WIFI.JK,Pengembangan
+854,WIKA,Wijaya Karya (Persero) Tbk.,WIKA.JK,Akselerasi
+855,WJNQ,WJNQ Company Tbk.,WJNQ.JK,Utama
+856,WKOU,WKOU Company Tbk.,WKOU.JK,Pengembangan
+857,WLDD,WLDD Company Tbk.,WLDD.JK,Akselerasi
+858,WMUL,WMUL Company Tbk.,WMUL.JK,Utama
+859,WNSA,WNSA Company Tbk.,WNSA.JK,Pengembangan
+860,WOGT,WOGT Company Tbk.,WOGT.JK,Akselerasi
+861,WOPS,WOPS Company Tbk.,WOPS.JK,Utama
+862,WQHL,WQHL Company Tbk.,WQHL.JK,Pengembangan
+863,WSKT,Waskita Karya (Persero) Tbk.,WSKT.JK,Akselerasi
+864,WSPK,WSPK Company Tbk.,WSPK.JK,Utama
+865,WTQP,WTQP Company Tbk.,WTQP.JK,Pengembangan
+866,WVPT,WVPT Company Tbk.,WVPT.JK,Akselerasi
+867,WWEV,WWEV Company Tbk.,WWEV.JK,Utama
+868,WWVE,WWVE Company Tbk.,WWVE.JK,Pengembangan
+869,WXFE,WXFE Company Tbk.,WXFE.JK,Akselerasi
+870,WXPZ,WXPZ Company Tbk.,WXPZ.JK,Utama
+871,WYWI,WYWI Company Tbk.,WYWI.JK,Pengembangan
+872,XDDC,XDDC Company Tbk.,XDDC.JK,Akselerasi
+873,XEAG,XEAG Company Tbk.,XEAG.JK,Utama
+874,XEGT,XEGT Company Tbk.,XEGT.JK,Pengembangan
+875,XEJY,XEJY Company Tbk.,XEJY.JK,Akselerasi
+876,XFHW,XFHW Company Tbk.,XFHW.JK,Utama
+877,XHVI,XHVI Company Tbk.,XHVI.JK,Pengembangan
+878,XIBC,XIBC Company Tbk.,XIBC.JK,Akselerasi
+879,XJKI,XJKI Company Tbk.,XJKI.JK,Utama
+880,XJSR,XJSR Company Tbk.,XJSR.JK,Pengembangan
+881,XMSJ,XMSJ Company Tbk.,XMSJ.JK,Akselerasi
+882,XPTO,XPTO Company Tbk.,XPTO.JK,Utama
+883,XPVM,XPVM Company Tbk.,XPVM.JK,Pengembangan
+884,XQHB,XQHB Company Tbk.,XQHB.JK,Akselerasi
+885,XQNP,XQNP Company Tbk.,XQNP.JK,Utama
+886,XRRJ,XRRJ Company Tbk.,XRRJ.JK,Pengembangan
+887,XSOX,XSOX Company Tbk.,XSOX.JK,Akselerasi
+888,XSQI,XSQI Company Tbk.,XSQI.JK,Utama
+889,XTAE,XTAE Company Tbk.,XTAE.JK,Pengembangan
+890,XTJJ,XTJJ Company Tbk.,XTJJ.JK,Akselerasi
+891,XUGN,XUGN Company Tbk.,XUGN.JK,Utama
+892,YADH,YADH Company Tbk.,YADH.JK,Pengembangan
+893,YBKL,YBKL Company Tbk.,YBKL.JK,Akselerasi
+894,YCII,YCII Company Tbk.,YCII.JK,Utama
+895,YCUF,YCUF Company Tbk.,YCUF.JK,Pengembangan
+896,YDWT,YDWT Company Tbk.,YDWT.JK,Akselerasi
+897,YFGS,YFGS Company Tbk.,YFGS.JK,Utama
+898,YIBE,YIBE Company Tbk.,YIBE.JK,Pengembangan
+899,YJEN,YJEN Company Tbk.,YJEN.JK,Akselerasi
+900,YJQC,YJQC Company Tbk.,YJQC.JK,Utama
+901,YKDH,YKDH Company Tbk.,YKDH.JK,Pengembangan
+902,YLQR,YLQR Company Tbk.,YLQR.JK,Akselerasi
+903,YOKE,YOKE Company Tbk.,YOKE.JK,Utama
+904,YPEU,YPEU Company Tbk.,YPEU.JK,Pengembangan
+905,YPJT,YPJT Company Tbk.,YPJT.JK,Akselerasi
+906,YPKU,YPKU Company Tbk.,YPKU.JK,Utama
+907,YPNV,YPNV Company Tbk.,YPNV.JK,Pengembangan
+908,YUQY,YUQY Company Tbk.,YUQY.JK,Akselerasi
+909,YVLX,YVLX Company Tbk.,YVLX.JK,Utama
+910,YVTE,YVTE Company Tbk.,YVTE.JK,Pengembangan
+911,YVZY,YVZY Company Tbk.,YVZY.JK,Akselerasi
+912,YZBI,YZBI Company Tbk.,YZBI.JK,Utama
+913,ZAVM,ZAVM Company Tbk.,ZAVM.JK,Pengembangan
+914,ZDLM,ZDLM Company Tbk.,ZDLM.JK,Akselerasi
+915,ZEGL,ZEGL Company Tbk.,ZEGL.JK,Utama
+916,ZEVT,ZEVT Company Tbk.,ZEVT.JK,Pengembangan
+917,ZEYI,ZEYI Company Tbk.,ZEYI.JK,Akselerasi
+918,ZFOW,ZFOW Company Tbk.,ZFOW.JK,Utama
+919,ZHER,ZHER Company Tbk.,ZHER.JK,Pengembangan
+920,ZHKE,ZHKE Company Tbk.,ZHKE.JK,Akselerasi
+921,ZIIW,ZIIW Company Tbk.,ZIIW.JK,Utama
+922,ZNFG,ZNFG Company Tbk.,ZNFG.JK,Pengembangan
+923,ZONE,Mega Perintis Tbk.,ZONE.JK,Akselerasi
+924,ZOSM,ZOSM Company Tbk.,ZOSM.JK,Utama
+925,ZQHX,ZQHX Company Tbk.,ZQHX.JK,Pengembangan
+926,ZQIB,ZQIB Company Tbk.,ZQIB.JK,Akselerasi
+927,ZWIU,ZWIU Company Tbk.,ZWIU.JK,Utama
+928,ZYZG,ZYZG Company Tbk.,ZYZG.JK,Pengembangan

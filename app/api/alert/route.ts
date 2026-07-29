@@ -3,28 +3,19 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { cookies } from 'next/headers';
-import { USER_COOKIE } from '@/lib/auth';
+import { getSession } from '@/lib/session';
 
-function getTelegramId() {
-  const cookieStore = cookies();
-  const isAdmin = cookieStore.get('saham_admin')?.value === 'true' || 
-                  cookieStore.get('role')?.value === 'admin' || 
-                  cookieStore.get('role')?.value === 'pro';
-  if (isAdmin) return 999999;
-  
-  const userCookie = cookieStore.get(USER_COOKIE);
-  if (userCookie?.value) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(userCookie.value));
-      return Number(parsed.id);
-    } catch (e) {}
+async function getTelegramId() {
+  const session = await getSession();
+  if (session) {
+    if (session.role === 'admin') return 999999;
+    return Number(session.userId) || 12345;
   }
   return null;
 }
 
 export async function GET(request: Request) {
-  const telegram_id = getTelegramId();
+  const telegram_id = await getTelegramId();
 
   if (!telegram_id) {
     return NextResponse.json({ error: 'telegram_id is required' }, { status: 400 });
@@ -48,7 +39,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const telegram_id = getTelegramId();
+    const telegram_id = await getTelegramId();
     if (!telegram_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
@@ -81,7 +72,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
-  const telegram_id = getTelegramId();
+  const telegram_id = await getTelegramId();
 
   if (!id || !telegram_id) {
     return NextResponse.json({ error: 'id and telegram_id are required' }, { status: 400 });

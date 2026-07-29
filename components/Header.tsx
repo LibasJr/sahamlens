@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, AlertCircle, TrendingUp, RefreshCw, BarChart2, Bell, Menu, LogOut, User } from 'lucide-react';
+import SymbolAutocomplete from './SymbolAutocomplete';
 
 interface HeaderProps {
   currentTicker: string;
@@ -71,11 +72,15 @@ export default function Header({
 
         <form onSubmit={handleSearchSubmit} className="relative w-full md:w-64">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
+          <SymbolAutocomplete
+            containerClassName="w-full"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value.toUpperCase())}
-            onFocus={(e) => e.target.select()}
+            onChange={(val) => setSearchInput(val)}
+            onSelect={(val) => {
+              setSearchInput(val);
+              onTickerChange(val.toUpperCase());
+            }}
+            onFocus={(e: any) => e.target.select()}
             placeholder="Cari Ticker (cth: BBCA)..."
             className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-14 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:bg-white/10 transition-colors font-mono"
           />

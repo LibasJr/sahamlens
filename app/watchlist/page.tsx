@@ -1,18 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Bell, 
-  Trash2, 
-  Plus, 
-  TrendingUp, 
-  TrendingDown, 
-  AlertCircle,
-  RefreshCw,
-  Search,
-  Activity
-} from 'lucide-react';
+import { Trash2, AlertCircle, BellRing, Settings, ShieldCheck, Download, Plus, Activity, Search, Bell, RefreshCw } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
 
@@ -48,10 +39,24 @@ export default function WatchlistPage() {
   const [alertValue, setAlertValue] = useState('');
 
   const [showPaywall, setShowPaywall] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     refreshAdminStatus();
+    checkAdmin();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.user?.role === 'admin') {
+          setIsAdmin(true);
+        }
+      }
+    } catch (e) {}
+  };
 
   useEffect(() => {
     fetchWatchlist();
@@ -160,6 +165,12 @@ export default function WatchlistPage() {
     if (!alertSymbol) return;
 
     try {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          await Notification.requestPermission();
+        }
+      }
+
       const res = await fetch('/api/alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -193,7 +204,21 @@ export default function WatchlistPage() {
     try {
       const res = await fetch('/api/alerts/check');
       const json = await res.json();
-      alert(`Cron triggered. Messages sent: ${json.triggered || 0}`);
+      
+      if (json.triggeredAlerts && json.triggeredAlerts.length > 0) {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          json.triggeredAlerts.forEach((alert: any) => {
+            new Notification('SahamLens Alert', {
+              body: alert.message
+            });
+          });
+        } else {
+          alert(`Cron triggered! Alerts:\n` + json.triggeredAlerts.map((a: any) => a.message).join('\n\n'));
+        }
+      } else {
+        alert(`Cron triggered. No new alerts triggered. (Checked ${json.checked})`);
+      }
+      
       fetchAlerts();
     } catch (e) {
       console.error('Failed to trigger cron', e);
@@ -210,7 +235,7 @@ export default function WatchlistPage() {
             </div>
             <div>
               <h2 className="font-bold text-lg text-white tracking-tight">Watchlist & Alerts</h2>
-              <p className="text-xs text-gray-500 font-mono">Pantau portofolio dan set notifikasi Telegram</p>
+              <p className="text-xs text-gray-500 font-mono">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
             </div>
           </div>
           <button
@@ -234,6 +259,7 @@ export default function WatchlistPage() {
                 simbol: item.symbol,
                 hargaBeli: item.buy_price || 0,
                 hargaSekarang: liveData[item.symbol]?.price || 0,
+                lot: item.lot,
                 pnl: item.buy_price > 0 && liveData[item.symbol]?.price > 0 ? ((liveData[item.symbol]?.price - item.buy_price) / item.buy_price) * 100 : 0
               };
             })} 
@@ -248,11 +274,11 @@ export default function WatchlistPage() {
             <form onSubmit={addWatchlist} className="flex gap-3 mb-6">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input 
-                  type="text" 
+                <SymbolAutocomplete 
+                  containerClassName="relative flex-1"
                   placeholder="Simbol (contoh: BBCA)" 
                   value={newSymbol}
-                  onChange={(e) => setNewSymbol(e.target.value)}
+                  onChange={(val) => setNewSymbol(val)}
                   className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded-lg pl-9 pr-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
                   required
                 />
@@ -370,7 +396,7 @@ export default function WatchlistPage() {
             <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <Bell className="w-5 h-5 text-yellow-400" />
-                Telegram Alerts
+                Push Notifications (HP/Browser)
               </h3>
               <button onClick={triggerCron} className="text-[10px] font-mono text-gray-500 hover:text-white underline">
                 Test Cron
@@ -442,7 +468,6 @@ export default function WatchlistPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       <PaywallModal
