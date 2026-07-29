@@ -2,6 +2,12 @@ let fs: any;
 let path: any;
 let DB_PATH = '';
 
+const isVercel = !!process.env.VERCEL;
+// Fallback in-memory kalau di Vercel (filesystem read-only) - sama pola dengan lib/dbLocal.ts.
+// Diseed dari local_db.json yang ikut ter-deploy, lalu update berikutnya cuma nyimpen di memory
+// (hilang tiap cold start, tapi minimal gak EROFS crash di tengah request).
+let memoryDB: any = null;
+
 if (typeof window === 'undefined') {
   // Use eval to hide require from Webpack static analyzer
   fs = eval('require("fs")');
@@ -11,11 +17,19 @@ if (typeof window === 'undefined') {
 
 function readDB() {
   if (typeof window !== 'undefined') return { users: [], watchlists: [], usage_logs: [], alerts: [], payments: [] };
+  if (isVercel && memoryDB) return memoryDB;
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], watchlists: [], usage_logs: [], alerts: [], payments: [] }));
+    const empty = { users: [], watchlists: [], usage_logs: [], alerts: [], payments: [] };
+    if (isVercel) {
+      memoryDB = empty;
+      return empty;
+    }
+    fs.writeFileSync(DB_PATH, JSON.stringify(empty));
   }
   try {
-    return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    if (isVercel) memoryDB = data;
+    return data;
   } catch (e) {
     return { users: [], watchlists: [], usage_logs: [], alerts: [], payments: [] };
   }
@@ -23,6 +37,10 @@ function readDB() {
 
 function writeDB(data: any) {
   if (typeof window !== 'undefined') return;
+  if (isVercel) {
+    memoryDB = data;
+    return;
+  }
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
