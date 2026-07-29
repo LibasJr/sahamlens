@@ -5,8 +5,7 @@ export function analyze(data: any) {
   let decision = 'NEUTRAL';
   let confidence = 50;
 
-  // Assuming average PE is around 15
-  if (pe < 10) {
+  if (pe < 15) {
     decision = 'BULLISH';
     confidence = Math.min(95, 100 - (pe * 5));
   } else if (pe > 25) {

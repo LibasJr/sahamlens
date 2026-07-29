@@ -1,0 +1,10 @@
+[
+  {
+    "symbol": "DGWG.JK",
+    "conditionType": "PRICE_ABOVE",
+    "targetValue": "370",
+    "id": "1785249153729",
+    "createdAt": "2026-07-28T14:32:33.729Z",
+    "isActive": true
+  }
+]

@@ -3,19 +3,36 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
+import {
   Zap,
   Building2,
   ChevronRight,
+  Target,
+  Activity,
+  Bell,
+  Calendar,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 
 const MODULES = [
+  {
+    id: 'home',
+    name: 'Dashboard Utama',
+    subtitle: 'Overview & Market',
+    bank: 'HOME',
+    path: '/',
+    icon: Activity,
+    badge: 'NEW',
+    color: 'text-white',
+    bgColor: 'bg-white/10'
+  },
   {
     id: 'dashboard',
     name: 'Technical Analyzer',
     subtitle: '10 Pure Math Filters',
     bank: 'SYSTEM',
-    path: '/',
+    path: '/dashboard',
     icon: Zap,
     badge: 'TECHNICAL',
     color: 'text-tv-yellow',
@@ -31,6 +48,83 @@ const MODULES = [
     badge: 'FUNDAMENTAL',
     color: 'text-blue-400',
     bgColor: 'bg-blue-400/10'
+  },
+  {
+    id: 'recommendations',
+    name: 'Stock Recommendations',
+    subtitle: 'Daily AI Consensus',
+    bank: 'SYSTEM',
+    path: '/recommendations',
+    icon: Target,
+    badge: 'SIGNALS',
+    color: 'text-tv-green',
+    bgColor: 'bg-tv-green/10'
+  },
+  {
+    id: 'market-pulse',
+    name: 'Market Pulse',
+    subtitle: 'Index, Sector & Breadth',
+    bank: 'SYSTEM',
+    path: '/market-pulse',
+    icon: Activity,
+    badge: 'LIVE',
+    color: 'text-teal-400',
+    bgColor: 'bg-teal-400/10'
+  },
+  {
+    id: 'breakout-radar',
+    name: 'Breakout Radar',
+    subtitle: 'Top LQ45 Momentum',
+    bank: 'SYSTEM',
+    path: '/breakout-radar',
+    icon: Target,
+    badge: 'LIVE NEW',
+    color: 'text-teal-400',
+    bgColor: 'bg-teal-400/10'
+  },
+  {
+    id: 'watchlist',
+    name: 'Watchlist & Alerts',
+    subtitle: 'Portfolio & Telegram Bot',
+    bank: 'USER',
+    path: '/watchlist',
+    icon: Bell,
+    badge: 'ALERTS',
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10'
+  },
+  {
+    id: 'calendar',
+    name: 'Corporate Calendar',
+    subtitle: 'Dividen, RUPS, & Corp Action',
+    bank: 'EVENTS',
+    path: '/calendar',
+    icon: Calendar,
+    badge: 'NEW',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/10'
+  },
+  {
+    id: 'backtest',
+    name: 'Strategy Builder',
+    subtitle: 'Simulasi Performa Historis',
+    bank: 'SYSTEM',
+    path: '/backtest',
+    icon: TrendingUp,
+    badge: 'FINAL',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/10'
+  },
+  {
+    id: 'compare',
+    name: 'Compare Tool',
+    subtitle: 'Side-by-Side Analysis',
+    bank: 'SYSTEM',
+    path: '/compare',
+    icon: Target,
+    badge: 'NEW',
+    color: 'text-teal-400',
+    bgColor: 'bg-teal-500/10'
   }
 ];
 
@@ -38,19 +132,24 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-72 bg-tv-card border-r border-tv-border flex flex-col h-screen sticky top-0 z-30 select-none">
+    <aside className="w-[85vw] sm:w-72 shrink-0 snap-start bg-tv-card border-r border-tv-border flex flex-col h-screen sticky top-0 z-30 select-none">
       {/* Brand Header */}
       <div className="p-4 border-b border-tv-border flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-tv-green to-tv-blue flex items-center justify-center shadow-lg shadow-tv-green/20">
-            <Building2 className="w-5 h-5 text-white" />
+          <div className="flex items-center -space-x-1">
+            <div className="bg-tv-green/20 p-1.5 rounded-l-lg border border-tv-green/30">
+              <TrendingUp className="w-4 h-4 text-tv-green" />
+            </div>
+            <div className="bg-tv-red/20 p-1.5 rounded-r-lg border border-tv-red/30">
+              <TrendingDown className="w-4 h-4 text-tv-red" />
+            </div>
           </div>
           <div>
-            <h1 className="font-bold text-base tracking-wider text-white flex items-center gap-1.5">
-              SahamLens <span className="text-xs px-1.5 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">SUPER</span>
+            <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-tv-green to-tv-red">
+              Stock Screener
             </h1>
-            <p className="text-[10px] text-tv-muted uppercase font-mono tracking-widest">
-              IDX Algorithmic Suite
+            <p className="text-[10px] font-medium text-white/50 uppercase tracking-widest">
+              IDX Analytics
             </p>
           </div>
         </div>
@@ -105,6 +204,41 @@ export default function Sidebar() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Akun Demo - Pinned at bottom before footer */}
+      <div className="p-2 border-t border-tv-border/50 bg-[#0a0a0f]">
+        <Link
+          href="/portfolio"
+          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-xs relative ${
+            pathname === '/portfolio'
+              ? 'bg-tv-hover border border-tv-borderLight text-white shadow-md'
+              : 'text-tv-text hover:bg-tv-hover/60 hover:text-white border border-transparent'
+          }`}
+        >
+          {pathname === '/portfolio' && (
+            <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-tv-yellow shadow-sm shadow-tv-yellow" />
+          )}
+          <div className="p-2 rounded-md bg-yellow-500/10 text-yellow-400 group-hover:scale-105 transition-transform">
+            <Target className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-semibold truncate text-[13px]">Akun Demo</span>
+              <span className={`text-[9px] font-mono px-1 rounded uppercase tracking-tighter ${
+                pathname === '/portfolio' ? 'bg-tv-yellow/20 text-tv-yellow font-bold' : 'bg-tv-bg text-tv-muted'
+              }`}>
+                NEW
+              </span>
+            </div>
+            <div className="text-[10px] text-tv-muted truncate font-mono">
+              USER • Paper Trading & P/L
+            </div>
+          </div>
+          <ChevronRight className={`w-3.5 h-3.5 text-tv-muted opacity-0 group-hover:opacity-100 transition-opacity ${
+            pathname === '/portfolio' ? 'opacity-100 text-tv-yellow' : ''
+          }`} />
+        </Link>
       </div>
 
       {/* Institutional Legal Footer */}

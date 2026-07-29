@@ -15,17 +15,18 @@ export function analyze(history: any[], currentPrice: number) {
   let decision = 'NEUTRAL';
   let confidence = 50;
 
-  if (histogram > 0) {
+  // IDX Threshold: BUY = histogram > 0 DAN MACD line > Signal
+  if (histogram > 0 && lastMacd > lastSignal) {
     decision = 'BULLISH';
     confidence = Math.min(95, 60 + (histogram / currentPrice) * 1000);
-  } else if (histogram < 0) {
+  } else if (histogram < 0 && lastMacd < lastSignal) {
     decision = 'BEARISH';
     confidence = Math.min(95, 60 + (Math.abs(histogram) / currentPrice) * 1000);
   }
 
   return {
     label: 'MACD (12,26,9)',
-    value: `MACD: ${lastMacd.toFixed(2)}, Sig: ${lastSignal.toFixed(2)}`,
+    value: `MACD: ${lastMacd.toFixed(2)}, Sig: ${lastSignal.toFixed(2)}, Hist: ${histogram.toFixed(2)}`,
     decision,
     confidence: Math.round(confidence)
   };

@@ -13,7 +13,7 @@ export function analyze(history: any[], currentPrice: number) {
   let decision = 'NEUTRAL';
   let confidence = 50;
 
-  if (currentVol > avgVol) {
+  if (currentVol > 1.5 * avgVol) {
     // High volume
     const ratio = currentVol / avgVol;
     confidence = Math.min(99, 50 + ratio * 15);

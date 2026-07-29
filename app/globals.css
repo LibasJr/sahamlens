@@ -38,3 +38,124 @@ body {
   backdrop-filter: blur(8px);
   border: 1px solid rgba(42, 46, 57, 0.8);
 }
+
+/* ====== AI Chat Response Typography ====== */
+.ai-response {
+  color: #ccfbf1;
+  font-size: 13px;
+  line-height: 1.75;
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.ai-response p {
+  margin-bottom: 12px;
+}
+
+.ai-response p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-response h1, .ai-response h2, .ai-response h3 {
+  color: #ffffff;
+  font-weight: 700;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.ai-response h1 { font-size: 18px; }
+.ai-response h2 { font-size: 16px; border-bottom: 1px solid #0f766e; padding-bottom: 4px; }
+.ai-response h3 { font-size: 14px; color: #5eead4; }
+
+.ai-response strong, .ai-response b {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.ai-response em, .ai-response i {
+  color: #99f6e4;
+  font-style: italic;
+}
+
+.ai-response ul, .ai-response ol {
+  margin: 8px 0 12px 0;
+  padding-left: 20px;
+}
+
+.ai-response li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.ai-response li::marker {
+  color: #14b8a6;
+}
+
+.ai-response code {
+  background: rgba(15, 118, 110, 0.25);
+  color: #5eead4;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.ai-response pre {
+  background: #0c1424;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+.ai-response pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.ai-response blockquote {
+  border-left: 3px solid #14b8a6;
+  padding: 6px 12px;
+  margin: 10px 0;
+  background: rgba(20, 184, 166, 0.08);
+  border-radius: 0 6px 6px 0;
+  color: #99f6e4;
+}
+
+.ai-response hr {
+  border: none;
+  border-top: 1px solid #1e293b;
+  margin: 14px 0;
+}
+
+.ai-response table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.ai-response th {
+  background: rgba(15, 118, 110, 0.2);
+  color: #5eead4;
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid #1e293b;
+  font-weight: 600;
+}
+
+.ai-response td {
+  padding: 5px 10px;
+  border: 1px solid #1e293b;
+}
+
+.ai-response a {
+  color: #2dd4bf;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-response a:hover {
+  color: #5eead4;
+}

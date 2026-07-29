@@ -14,15 +14,15 @@ export function analyze(history: any[], currentPrice: number) {
   let decision = 'NEUTRAL';
   let confidence = 50;
 
-  if (rsi < 30) {
+  if (rsi < 40) {
     decision = 'BULLISH'; // Oversold -> buy signal
     confidence = Math.round(100 - rsi);
-  } else if (rsi > 70) {
+  } else if (rsi > 78) {
     decision = 'BEARISH'; // Overbought -> sell signal
     confidence = Math.round(rsi);
   } else {
     // Normal range
-    if (rsi > 50) {
+    if (rsi >= 50 && rsi <= 70) {
       decision = 'BULLISH';
       confidence = Math.round(rsi);
     } else {

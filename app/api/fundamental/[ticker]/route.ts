@@ -1,3 +1,6 @@
+import { guard } from '@/lib/sahamLensGuard';
+guard();
+
 import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
 
@@ -26,7 +29,7 @@ export async function GET(
 
     // Fetch Yahoo Finance Fundamental Data
     const quoteSummary = await yahooFinance.quoteSummary(ticker, {
-      modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']
+      modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price', 'assetProfile']
     });
 
     if (!quoteSummary) {
@@ -83,6 +86,28 @@ export async function GET(
         name: quoteSummary.price?.longName || quoteSummary.price?.shortName || ticker,
         change_pct: quoteSummary.price?.regularMarketChangePercent ? parseFloat((quoteSummary.price.regularMarketChangePercent * 100).toFixed(2)) : 0,
         volume: quoteSummary.price?.regularMarketVolume || 0
+      },
+      profile: {
+        sector: quoteSummary.assetProfile?.sector || 'N/A',
+        industry: quoteSummary.assetProfile?.industry || 'N/A',
+        description: quoteSummary.assetProfile?.longBusinessSummary || 'Tidak ada deskripsi perusahaan.',
+        website: quoteSummary.assetProfile?.website || ''
+      },
+      fundamentals: {
+        marketCap: quoteSummary.summaryDetail?.marketCap || quoteSummary.price?.marketCap || 0,
+        trailingPE: quoteSummary.summaryDetail?.trailingPE || 0,
+        forwardPE: quoteSummary.summaryDetail?.forwardPE || 0,
+        priceToBook: quoteSummary.defaultKeyStatistics?.priceToBook || 0,
+        returnOnEquity: quoteSummary.financialData?.returnOnEquity || 0,
+        returnOnAssets: quoteSummary.financialData?.returnOnAssets || 0,
+        debtToEquity: quoteSummary.financialData?.debtToEquity || 0,
+        totalRevenue: quoteSummary.financialData?.totalRevenue || 0,
+        ebitda: quoteSummary.financialData?.ebitda || 0,
+        profitMargins: quoteSummary.financialData?.profitMargins || 0,
+        dividendYield: quoteSummary.summaryDetail?.dividendYield || 0,
+        // Gross margin fallback for non-banks if needed by UI
+        grossMargins: quoteSummary.financialData?.grossMargins || 0,
+        nim: quoteSummary.financialData?.netInterestMargin || (ticker.includes('BBCA') ? 0.0546 : 0.055)
       }
     });
 

@@ -1,0 +1,46 @@
+{
+  "2026-07-28": [
+    {
+      "symbol": "BBCA.JK",
+      "type": "DIVIDEND",
+      "title": "Cum Date Dividen 5.65%",
+      "description": "Rp 350 per lembar saham"
+    },
+    {
+      "symbol": "GOTO.JK",
+      "type": "EARNINGS",
+      "title": "Q2 2026 Earnings Release",
+      "description": "Perkiraan EPS: -Rp 2, Revenue: Rp 4T"
+    }
+  ],
+  "2026-07-29": [
+    {
+      "symbol": "TLKM.JK",
+      "type": "RUPS",
+      "title": "RUPS Tahunan",
+      "description": "Agenda: Persetujuan Laporan Tahunan, Pergantian Direksi"
+    }
+  ],
+  "2026-07-31": [
+    {
+      "symbol": "BMRI.JK",
+      "type": "DIVIDEND",
+      "title": "Cum Date Dividen",
+      "description": "Rp 210 per lembar saham"
+    },
+    {
+      "symbol": "ASII.JK",
+      "type": "CORP_ACTION",
+      "title": "Stock Split 1:2",
+      "description": "Pemecahan nilai nominal saham"
+    }
+  ],
+  "2026-08-05": [
+    {
+      "symbol": "BBRI.JK",
+      "type": "EARNINGS",
+      "title": "Q2 2026 Earnings Release",
+      "description": "Est. Net Profit: Rp 15T"
+    }
+  ]
+}
