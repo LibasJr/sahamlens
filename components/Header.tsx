@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, AlertCircle, TrendingUp, RefreshCw, BarChart2, Bell } from 'lucide-react';
-import TelegramLogin from '@/components/TelegramLogin';
+import { Search, AlertCircle, TrendingUp, RefreshCw, BarChart2, Bell, Menu, LogOut, User } from 'lucide-react';
 
 interface HeaderProps {
   currentTicker: string;
@@ -14,8 +13,6 @@ interface HeaderProps {
   analisaRemaining?: number;
   analisaTotal?: number;
   isAdmin?: boolean;
-  /** Banner disclaimer di kanan nav - default disembunyikan, kepotong di halaman-halaman sempit. */
-  showDisclaimer?: boolean;
 }
 
 const QUICK_TICKERS = [
@@ -37,10 +34,21 @@ export default function Header({
   moduleBank = 'CITADEL LLC',
   analisaRemaining,
   analisaTotal = 5,
-  isAdmin = false,
-  showDisclaimer = false
+  isAdmin = false
 }: HeaderProps) {
   const [searchInput, setSearchInput] = useState(currentTicker);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(d => {
+        if (d.authenticated && d.user) {
+          setUser(d.user);
+        }
+      })
+      .catch(e => console.error(e));
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,98 +58,98 @@ export default function Header({
   };
 
   return (
-    <header className="bg-tv-card border-b border-tv-border px-6 py-3 sticky top-0 z-20 shadow-md">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-md shadow-md">
+      
+      {/* Top Mobile Row: Hamburger + Search */}
+      <div className="flex items-center gap-3 w-full md:w-auto">
+        <button 
+          onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+          className="md:hidden p-2 -ml-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
+        <form onSubmit={handleSearchSubmit} className="relative w-full md:w-64">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value.toUpperCase())}
+            onFocus={(e) => e.target.select()}
+            placeholder="Cari Ticker (cth: BBCA)..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-14 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:bg-white/10 transition-colors font-mono"
+          />
+          <button
+            type="submit"
+            className="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-mono rounded font-semibold transition-colors"
+          >
+            CARI
+          </button>
+        </form>
+      </div>
+
+      {/* Right side controls */}
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
         
-        {/* Left Module Badge & Title */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-md bg-tv-hover border border-tv-borderLight text-tv-green">
-            <BarChart2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-              <h2 className="font-bold text-base sm:text-lg text-white tracking-tight whitespace-nowrap">{moduleTitle}</h2>
-              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30 whitespace-nowrap">
-                {moduleBank}
-              </span>
-            </div>
-            <p className="text-[10px] sm:text-xs text-tv-muted font-mono hidden md:block">
-              Empowered by yfinance IDX Market Data (.JK) & AI Agent Engine
-            </p>
-          </div>
-        </div>
-
-        {/* Center Search Bar & Quick Ticker Chips */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value.toUpperCase())}
-              onFocus={(e) => e.target.select()}
-              placeholder="Cari Ticker (cth: BBCA)..."
-              className="w-full bg-tv-bg border border-tv-border rounded-lg pl-9 pr-14 py-1.5 text-xs text-white placeholder-tv-muted focus:outline-none focus:border-tv-green font-mono transition-colors"
-            />
+        {/* Quick Ticker Chips (Hidden on small mobile) */}
+        <div className="hidden xl:flex items-center gap-1.5 overflow-x-auto max-w-sm py-1 mr-2 scrollbar-hide">
+          {QUICK_TICKERS.map((t) => (
             <button
-              type="submit"
-              className="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-1 bg-tv-green hover:bg-tv-greenHover text-white text-[10px] font-mono rounded font-semibold transition-colors"
+              key={t.symbol}
+              onClick={() => {
+                setSearchInput(t.symbol);
+                onTickerChange(t.symbol);
+              }}
+              className={`px-2 py-1 rounded text-[11px] font-mono transition-all border shrink-0 ${
+                currentTicker === t.symbol
+                  ? 'bg-teal-500 text-white border-teal-500 font-bold shadow-sm shadow-teal-500/20'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10 border-white/5'
+              }`}
             >
-              CARI
+              {t.symbol}
             </button>
-          </form>
-
-          {/* Quick Ticker Chips */}
-          <div className="hidden xl:flex items-center gap-1.5 overflow-x-auto max-w-md py-1">
-            {QUICK_TICKERS.map((t) => (
-              <button
-                key={t.symbol}
-                onClick={() => {
-                  setSearchInput(t.symbol);
-                  onTickerChange(t.symbol);
-                }}
-                className={`px-2 py-1 rounded text-[11px] font-mono transition-all border ${
-                  currentTicker === t.symbol
-                    ? 'bg-tv-green text-white border-tv-green font-bold shadow-sm'
-                    : 'bg-tv-bg text-tv-text hover:bg-tv-hover border-tv-border'
-                }`}
-              >
-                {t.symbol}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
 
-        {/* Right Legal Disclaimer Banner & Alert Button */}
         <div className="flex items-center gap-3">
-          {/* Badge admin/login Telegram - lihat components/TelegramLogin.tsx */}
-          <TelegramLogin />
+          {/* Email Auth Status & Logout */}
+          {user && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-mono shrink-0">
+              <User className="w-4 h-4 text-slate-400" />
+              <span className="hidden sm:inline font-bold">
+                {user.email?.split('@')[0]}
+              </span>
+              <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${user.role === 'admin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-teal-500/20 text-teal-400 border border-teal-500/30'}`}>
+                {user.role}
+              </span>
+              <button 
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }}
+                className="ml-2 text-rose-400 hover:text-rose-300 p-0.5 rounded hover:bg-white/5 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {!isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining) && (
             <span className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold whitespace-nowrap ${
               analisaRemaining <= 0
-                ? 'bg-tv-red/10 border-tv-red/30 text-tv-red'
-                : 'bg-[#14b8a6]/10 border-[#14b8a6]/30 text-[#14b8a6]'
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                : 'bg-teal-500/10 border-teal-500/30 text-teal-400'
             }`}>
-              Sisa analisa gratis hari ini: {analisaRemaining}/{analisaTotal}
+              <span className="hidden sm:inline">Limit: </span>{analisaRemaining}/{analisaTotal}
             </span>
           )}
 
-          <Link href="/watchlist" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono hover:bg-blue-500/20 transition-colors">
+          <Link href="/watchlist" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono hover:bg-blue-500/20 transition-colors shrink-0">
             <Bell className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline font-bold">Watchlist</span>
           </Link>
-
-          {showDisclaimer && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono shrink-0">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="truncate hidden xl:inline">
-                <strong>Disclaimer:</strong> Bukan saran finansial
-              </span>
-            </div>
-          )}
         </div>
-
       </div>
     </header>
   );

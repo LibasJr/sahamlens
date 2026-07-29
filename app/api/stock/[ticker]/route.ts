@@ -14,6 +14,7 @@ import { analyze as analyzeSma } from '@/lib/analyzers/moving-average';
 import { analyze as analyzeMarketFlow } from '@/lib/analyzers/market-flow';
 import { calculateScore } from '@/lib/scoring-engine';
 import { calculateConsensus } from '@/lib/consensus-engine';
+import { getSession } from '@/lib/session';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { checkAnalisaLimit, decrementAnalisaLimit } from '@/lib/limits';
 import { cookies } from 'next/headers';
@@ -45,6 +46,15 @@ export async function GET(
     
     if (roleCookie?.value === 'admin' || roleCookie?.value === 'pro' || adminCookie?.value === 'true') {
       isAdmin = true;
+    }
+
+    const session = await getSession();
+    if (session) {
+      if (session.role === 'admin' || session.role === 'pro') {
+        isAdmin = true;
+      } else if (session.trial_ends_at && new Date(session.trial_ends_at).getTime() > Date.now()) {
+        isAdmin = true; // Unlimited during trial
+      }
     }
 
     if (!isAdmin && !telegram_id) {

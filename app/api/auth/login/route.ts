@@ -4,30 +4,62 @@ guard();
 import { NextResponse } from 'next/server';
 import { readJson } from '@/lib/dbLocal';
 import { cookies } from 'next/headers';
-import { verifyPassword, DEMO_SESSION_COOKIE } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { encrypt } from '@/lib/session';
+import { DEMO_SESSION_COOKIE } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json();
+    const { email, password, remember } = await req.json();
 
     const users = readJson('data/users.json') || [];
-    const user = users.find((u: any) => u.username.toLowerCase() === String(username || '').trim().toLowerCase());
+    const user = users.find((u: any) => u.email?.toLowerCase() === String(email || '').trim().toLowerCase());
 
-    if (!user || !verifyPassword(password, user.passwordHash)) {
-      return NextResponse.json({ error: 'Username atau password salah. Belum punya akun? Daftar dulu.' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: 'Email atau password salah.' }, { status: 401 });
     }
 
-    // Sengaja TIDAK pernah set cookie 'saham_admin'/'role' di sini - itu jalur admin situs
-    // (lihat lib/auth.ts). Login akun demo cuma buka akses ke portfolio virtual miliknya sendiri.
-    const cookieStore = cookies();
-    cookieStore.set(DEMO_SESSION_COOKIE, JSON.stringify({ id: user.id, username: user.username, role: user.role }), {
+    if (!user.is_verified && user.role !== 'admin') {
+      return NextResponse.json({ error: 'Akun belum diverifikasi.' }, { status: 403 });
+    }
+
+    const isValid = bcrypt.compareSync(password, user.password_hash);
+    if (!isValid) {
+      return NextResponse.json({ error: 'Email atau password salah.' }, { status: 401 });
+    }
+
+    // Create response first
+    const response = NextResponse.json({ success: true, role: user.role });
+
+    const maxAge = remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60; // 30 days or 1 day
+    const sessionExpires = remember ? '30d' : '24h';
+
+    // Set JWT Session
+    const session = await encrypt({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      is_pro: user.is_pro,
+      trial_ends_at: user.trial_ends_at
+    }, sessionExpires);
+    
+    response.cookies.set('session', session, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: maxAge
+    });
+
+    // Backward compatible with portfolio API
+    response.cookies.set(DEMO_SESSION_COOKIE, JSON.stringify({ id: user.id, username: user.email, role: user.role }), {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 30
     });
 
-    return NextResponse.json({ success: true, role: user.role });
+    return response;
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

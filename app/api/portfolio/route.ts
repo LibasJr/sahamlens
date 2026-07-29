@@ -3,12 +3,11 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { readJson } from '@/lib/dbLocal';
-import { cookies } from 'next/headers';
-import { getDemoSession } from '@/lib/auth';
+import { getSession } from '@/lib/session';
 
 export async function GET() {
   try {
-    const session = getDemoSession(cookies());
+    const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Belum login' }, { status: 401 });
     }

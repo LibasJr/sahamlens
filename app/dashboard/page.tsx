@@ -61,6 +61,7 @@ function DashboardContent() {
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [adminReady, setAdminReady] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
 
   const handleAskAI = async (algo: any) => {
     const prompt = `Tolong jelaskan analisis dari metrik ${algo.label} yang bernilai ${algo.value} (Keputusan: ${algo.decision}, Keyakinan: ${algo.confidence}%) untuk saham ${ticker}?`;
@@ -176,6 +177,32 @@ function DashboardContent() {
       setIsAdminUser(admin);
       setAdminReady(true);
     });
+
+    // Check 7-day trial status and Admin status from JWT
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(d => {
+        if (d.authenticated && d.user) {
+          if (d.user.role === 'admin' || d.user.role === 'pro') {
+            setIsAdminUser(true);
+            setAdminReady(true);
+          } else if (d.user.trial_ends_at) {
+            const trialEnd = new Date(d.user.trial_ends_at).getTime();
+            if (Date.now() > trialEnd) {
+              setIsTrialExpired(true);
+              setShowPaywall(true);
+              setAdminReady(true);
+            } else {
+              // Valid trial, grant infinite access on UI too (hide 5/5 counter)
+              setIsAdminUser(true); 
+              setAdminReady(true);
+            }
+          } else {
+            setAdminReady(true);
+          }
+        }
+      })
+      .catch(e => console.error(e));
 
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
@@ -437,7 +464,6 @@ function DashboardContent() {
           analisaRemaining={analisaRemaining}
           analisaTotal={FREE_LIMITS.analisaPerHari}
           isAdmin={isAdminUser}
-          showDisclaimer
         />
         <div className="flex flex-col items-center justify-center p-20 text-slate-400">
           <Target className="w-12 h-12 mb-4 text-slate-600" />
@@ -445,9 +471,9 @@ function DashboardContent() {
         </div>
         <PaywallModal
           open={showPaywall}
-          onClose={() => setShowPaywall(false)}
-          title="Limit Gratis Habis"
-          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + Breakout Radar LIVE.`}
+          onClose={() => { if (!isTrialExpired) setShowPaywall(false); }}
+          title={isTrialExpired ? "Masa Trial 7 Hari Habis" : "Limit Gratis Habis"}
+          body={isTrialExpired ? "Masa trial gratis 7 hari Anda telah berakhir. Upgrade ke Pro sekarang untuk terus menggunakan fitur Institutional AI dari SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + Breakout Radar LIVE.`}
           benefits={[
             'Unlimited Technical Analyzer (10 filter)',
             'Breakout Radar LIVE',
@@ -468,7 +494,6 @@ function DashboardContent() {
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}
-        showDisclaimer
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">

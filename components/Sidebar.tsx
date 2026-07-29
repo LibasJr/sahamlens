@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -130,11 +130,37 @@ const MODULES = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = () => setIsOpen(prev => !prev);
+    const handleClose = () => setIsOpen(false);
+    
+    window.addEventListener('toggle-sidebar', handleToggle);
+    window.addEventListener('close-sidebar', handleClose);
+    return () => {
+      window.removeEventListener('toggle-sidebar', handleToggle);
+      window.removeEventListener('close-sidebar', handleClose);
+    };
+  }, []);
 
   return (
-    <aside className="w-[85vw] sm:w-72 shrink-0 snap-start bg-tv-card border-r border-tv-border flex flex-col h-screen sticky top-0 z-30 select-none">
-      {/* Brand Header */}
-      <div className="p-4 border-b border-tv-border flex items-center justify-between">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#0F141D] border-r border-white/5 flex flex-col h-screen select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          isOpen ? 'translate-x-0 shadow-2xl shadow-black/50' : '-translate-x-full'
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="p-5 border-b border-white/5 flex items-center justify-between bg-gradient-to-b from-white/[0.02] to-transparent">
         <div className="flex items-center gap-3">
           <div className="flex items-center -space-x-1">
             <div className="bg-tv-green/20 p-1.5 rounded-l-lg border border-tv-green/30">
@@ -256,6 +282,7 @@ export default function Sidebar() {
           © 2026 SahamLens • Pure Algo
         </p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

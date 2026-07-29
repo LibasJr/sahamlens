@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from '@/lib/constants';
+import { decrypt } from '@/lib/session';
 
-// Rate limit IP sederhana (in-memory, tanpa Redis) - bukan untuk mencegah bypass yang niat
-// (VPN/proxy tetap bisa ganti IP), tapi cukup untuk mencegah orang berulang kali clear
-// localStorage buat reset kuota "5 analisa/hari" dari IP yang sama.
-const WINDOW_MS = 24 * 60 * 60 * 1000; // 1 hari
+const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_PER_WINDOW = 20;
-const BLOCK_MS = 60 * 60 * 1000; // 1 jam
+const BLOCK_MS = 60 * 60 * 1000;
 
 interface IpEntry {
   count: number;
@@ -14,8 +12,6 @@ interface IpEntry {
   blockedUntil: number;
 }
 
-// globalThis supaya map ini bertahan lintas hot-reload/invocation selama proses Node yang sama
-// hidup (persis pola "global._ipCounts" di spek, cuma dinamai lebih jelas).
 const g = globalThis as unknown as { __sahamlensIpStore?: Map<string, IpEntry> };
 if (!g.__sahamlensIpStore) g.__sahamlensIpStore = new Map();
 const ipStore = g.__sahamlensIpStore;
@@ -26,15 +22,44 @@ function getClientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') || 'unknown';
 }
 
-export function middleware(req: NextRequest) {
-  // Admin (cookie HttpOnly, cuma bisa di-set oleh /admin-login setelah verifikasi server) lolos rate limit.
-  // Juga izinkan bypass jika ada cookie saham_admin=true atau role=admin/pro
+export async function middleware(req: NextRequest) {
+  const sessionCookie = req.cookies.get('session')?.value;
+  let payload: any = null;
+  
+  if (sessionCookie) {
+    payload = await decrypt(sessionCookie);
+  }
+
+  // Authentication check for /dashboard
+  if (req.nextUrl.pathname.startsWith('/dashboard')) {
+    if (!payload) {
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+    // Trial check is handled client-side in /dashboard/page.tsx to show popup
+  }
+
+  let isAdminOrTrial = false;
+
+  // Legacy cookies check
   if (
     req.cookies.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE ||
     req.cookies.get('saham_admin')?.value === 'true' ||
     req.cookies.get('role')?.value === 'admin' ||
     req.cookies.get('role')?.value === 'pro'
   ) {
+    isAdminOrTrial = true;
+  }
+
+  // New JWT session check
+  if (payload) {
+    if (payload.role === 'admin' || payload.role === 'pro') {
+      isAdminOrTrial = true;
+    } else if (payload.trial_ends_at && new Date(payload.trial_ends_at).getTime() > Date.now()) {
+      isAdminOrTrial = true;
+    }
+  }
+
+  if (isAdminOrTrial) {
     return NextResponse.next();
   }
 
@@ -72,5 +97,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/stock/:path*', '/api/fundamental/:path*'],
+  matcher: ['/api/stock/:path*', '/api/fundamental/:path*', '/dashboard'],
 };

@@ -1,5 +1,8 @@
 import './globals.css';
+import { Inter } from 'next/font/google';
 import React from 'react';
+
+const inter = Inter({ subsets: ['latin'] });
 import AppShell from '@/components/AppShell';
 
 export const metadata = {
@@ -14,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className="dark">
-      <body className="bg-tv-bg text-tv-text antialiased min-h-screen relative overflow-x-hidden">
+      <body className={`${inter.className} bg-[#0B0E14] text-slate-200 antialiased min-h-screen relative overflow-x-hidden selection:bg-teal-500/30 selection:text-teal-200`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

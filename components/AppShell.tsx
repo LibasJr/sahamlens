@@ -13,23 +13,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  
   React.useEffect(() => {
-    // Delay slightly to ensure layout is rendered before scrolling
-    if (window.innerWidth < 640 && containerRef.current) {
-      setTimeout(() => {
-        if (containerRef.current) {
-          containerRef.current.scrollLeft = window.innerWidth;
-        }
-      }, 50);
-    }
+    // Clean up event listeners if any
   }, []);
 
   return (
-    <div ref={containerRef} className="flex min-h-screen w-screen max-w-[100vw] overflow-x-auto overflow-y-hidden snap-x snap-mandatory sm:overflow-x-hidden scroll-smooth">
+    <div className="flex min-h-screen w-full bg-[#0B0E14]">
       <Sidebar />
-      <main className="w-screen max-w-[100vw] sm:max-w-none sm:w-auto flex-1 shrink-0 snap-center flex flex-col min-w-0 h-screen overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         {children}
       </main>
       <AIChat />
