@@ -16,7 +16,7 @@ export async function GET() {
     const portfolios = readJson('data/portfolios.json') || [];
     let portfolio = portfolios.find((p: any) => p.user_id === session.id);
     let transactions: any[] = [];
-    
+
     if (!portfolio) {
       // Fallback Vercel cold-start: Jangan kembalikan 404 agar UI tidak nge-blank
       portfolio = {

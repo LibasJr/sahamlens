@@ -49,11 +49,24 @@ export default function TelegramLogin() {
     };
   }, [user]);
 
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.reload();
+  };
+
   if (isAdmin) {
     return (
-      <span className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-mono font-bold whitespace-nowrap">
-        {user?.name || 'Admin'} • ADMIN • UNLIMITED
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-mono font-bold whitespace-nowrap">
+          {user?.name || 'Admin'} • ADMIN • UNLIMITED
+        </span>
+        <button
+          onClick={handleLogout}
+          className="px-3 py-1.5 rounded-lg bg-tv-hover border border-tv-border text-gray-400 hover:text-tv-red hover:border-tv-red/50 text-xs font-mono font-bold whitespace-nowrap transition-colors"
+        >
+          Logout
+        </button>
+      </div>
     );
   }
 
@@ -61,9 +74,17 @@ export default function TelegramLogin() {
   // jumlah sisanya sudah ditampilkan Header lewat badge "Sisa analisa gratis" (lib/limits.ts).
   if (user) {
     return (
-      <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono font-bold whitespace-nowrap">
-        {user.name} • Free
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono font-bold whitespace-nowrap">
+          {user.name} • Free
+        </span>
+        <button
+          onClick={handleLogout}
+          className="px-3 py-1.5 rounded-lg bg-tv-hover border border-tv-border text-gray-400 hover:text-tv-red hover:border-tv-red/50 text-xs font-mono font-bold whitespace-nowrap transition-colors"
+        >
+          Logout
+        </button>
+      </div>
     );
   }
 
