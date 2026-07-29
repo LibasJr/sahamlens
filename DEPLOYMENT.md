@@ -123,6 +123,47 @@ bisnis (paywall vs freemium terbuka), bukan bug teknis.
    dan domain production didaftarkan ke bot itu lewat `/setdomain` di @BotFather. Belum
    dikonfigurasi saat dokumen ini ditulis.
 
+## Bug ke-2 yang sudah ditemukan & ditambal (2026-07-29): dua skema cookie admin yang gak nyambung
+
+Ternyata ada **dua sistem cookie admin yang independen** di codebase ini, dan sebelum tambalan
+ini, aktivasi lewat `/admin-login/key` gak beneran membuka akses data:
+
+- `sahamlens_admin=1` (`ADMIN_COOKIE`/`ADMIN_COOKIE_VALUE` di `lib/constants.ts`, httpOnly) -
+  dipakai `middleware.ts` (bypass rate limit) dan `isAdminServer()`/`lib/auth.ts` (guard halaman
+  `/admin`).
+- `saham_admin=true` + `role=admin` (bukan httpOnly, dibaca juga lewat `document.cookie` di
+  client) - dipakai `app/api/stock/[ticker]/route.ts`, `app/api/council/route.ts`, dan
+  `lib/limits.ts hasProAccess()`/badge admin di `TelegramLogin.tsx`.
+
+`/admin-login/key/route.ts` dan `/api/auth/telegram/route.ts` (login admin via Telegram) sebelumnya
+CUMA set cookie yang pertama. Akibatnya: abis "aktivasi admin", `/admin` panel kebuka tapi
+`/api/stock`/`/api/council` (dan semua menu yang manggil endpoint itu: technical, dashboard,
+fundamental, dst) **tetap 429** - persis keluhan user "semua menu gagal muat" yang masih muncul
+walau sudah pakai link aktivasi admin.
+
+Sudah ditambal: kedua route sekarang set ketiga cookie sekaligus (`sahamlens_admin`,
+`saham_admin`, `role`). Kalau nambah jalur admin baru, selalu set ketiganya, atau - lebih baik
+lagi - refactor semua pengecekan admin di codebase ini supaya cuma baca satu sumber kebenaran
+(`isAdminServer()`) biar gak kejadian lagi drift kayak gini.
+
+## "Akun Demo" minta signup, bukan langsung nampilin porto - ini bukan bug
+
+`/portfolio` (`app/portfolio/page.tsx`) motret status login lewat `/api/auth/me`
+(`DEMO_SESSION_COOKIE`, terpisah total dari cookie admin di atas). Kalau belum pernah signup di
+domain ini, yang muncul adalah form "Akun Demo" (Login/Daftar) - **bukan** langsung dashboard
+porto. ini konsisten dengan komentar yang sudah ada duluan di `lib/dbLocal.ts`
+(`DEFAULT_PORTFOLIOS` sengaja dikosongin: "portfolio virtual sekarang per-user ... User baru
+wajib daftar dulu"). Jadi kalau tampilannya beda dari yang diinget user ("gak kayak Stockbit
+tadi"), submit form Daftar dulu buat bikin akun demo baru (modal virtual Rp100jt, holdings kosong
+- BUKAN otomatis keisi DGWG/GGRM contoh). Kalau produk butuh porto contoh yang udah keisi
+default buat demo baru, itu perubahan behavior yang perlu dikonfirmasi dulu ke pemilik produk,
+bukan sesuatu yang boleh diubah sepihak.
+
+Catatan tambahan: karena penyimpanan `data/users.json`/`data/portfolios.json` di Vercel cuma
+in-memory (lihat bagian "Arsitektur data"), akun demo yang baru signup bisa "hilang" kalau lambda
+kena cold start baru - user perlu signup ulang. Ini keterbatasan yang sama, belum ada fix jangka
+pendek selain migrasi ke database beneran.
+
 ## Security fix yang sudah diterapkan (2026-07-29)
 
 `app/admin/page.tsx` (panel admin: daftar user, tombol "Set Pro") **sebelumnya tidak ada
