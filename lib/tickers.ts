@@ -926,7 +926,7 @@ export const TICKERS = [
   { symbol: 'ZQHX.JK', name: 'ZQHX Company Tbk.' },
   { symbol: 'ZQIB.JK', name: 'ZQIB Company Tbk.' },
   { symbol: 'ZWIU.JK', name: 'ZWIU Company Tbk.' },
-  { symbol: 'ZYZG.JK', name: 'ZYZG Company Tbk.' }
+  { symbol: 'ZYZG.JK', name: 'ZYZG Company Tbk.' },
   { symbol: 'LCKM.JK', name: 'PT LCK Global Kedaton Tbk' },
   { symbol: 'HELI.JK', name: 'PT Jaya Trishindo Tbk' },
   { symbol: 'JSKY.JK', name: 'PT Sky Energy Indonesia Tbk.' },
