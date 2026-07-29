@@ -121,6 +121,7 @@ function DashboardMock({ symbol, price, changePct, score, chips, compact = false
 export default function LandingPage() {
   const router = useRouter();
   const [marketSummary, setMarketSummary] = useState<any>(null);
+  const [pulseData, setPulseData] = useState<any>(null);
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -136,8 +137,8 @@ export default function LandingPage() {
 
     fetch('/api/market-pulse')
       .then(res => res.json())
-      .then(data => setPulseData(data))
-      .catch(err => console.error("Error fetching market pulse", err));
+      .then(data => { if (data && !data.error) setPulseData(data); })
+      .catch(() => {});
 
     const randomSymbol = DEMO_SYMBOLS[Math.floor(Math.random() * DEMO_SYMBOLS.length)];
 
@@ -453,6 +454,7 @@ export default function LandingPage() {
 
             </div>
           </section>
+        )}
 
         {/* SECTION 3 - FITUR GRID */}
         <section id="fitur" className="mb-32">
