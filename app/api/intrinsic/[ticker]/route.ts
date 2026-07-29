@@ -71,9 +71,9 @@ export async function GET(
        } catch(e) {
          console.warn("Failed to fetch USDIDR, using fallback 15500");
        }
-       eps *= exchangeRate;
+       // FIX: Yahoo Finance EPS & DPS are ALREADY in IDR.
+       // Only BVPS and FCF are in USD.
        bvps *= exchangeRate;
-       dps *= exchangeRate;
        if (fcf_per_share) fcf_per_share *= exchangeRate;
     }
     // ------------------------------------------------
