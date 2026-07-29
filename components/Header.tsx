@@ -14,6 +14,8 @@ interface HeaderProps {
   analisaRemaining?: number;
   analisaTotal?: number;
   isAdmin?: boolean;
+  /** Banner disclaimer di kanan nav - default disembunyikan, kepotong di halaman-halaman sempit. */
+  showDisclaimer?: boolean;
 }
 
 const QUICK_TICKERS = [
@@ -35,7 +37,8 @@ export default function Header({
   moduleBank = 'CITADEL LLC',
   analisaRemaining,
   analisaTotal = 5,
-  isAdmin = false
+  isAdmin = false,
+  showDisclaimer = false
 }: HeaderProps) {
   const [searchInput, setSearchInput] = useState(currentTicker);
 
@@ -129,12 +132,14 @@ export default function Header({
             <span className="hidden sm:inline font-bold">Watchlist</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono shrink-0">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="truncate hidden xl:inline">
-              <strong>Disclaimer:</strong> Bukan saran finansial
-            </span>
-          </div>
+          {showDisclaimer && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono shrink-0">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="truncate hidden xl:inline">
+                <strong>Disclaimer:</strong> Bukan saran finansial
+              </span>
+            </div>
+          )}
         </div>
 
       </div>

@@ -35,6 +35,37 @@ function AdminLoginContent() {
           Widget di atas cuma muncul kalau domain halaman ini sudah didaftarkan ke bot lewat
           @BotFather (/setdomain). Tidak akan tampil di localhost.
         </p>
+
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-tv-border" />
+          <span className="text-gray-600 text-[11px] font-mono">ATAU</span>
+          <div className="flex-1 h-px bg-tv-border" />
+        </div>
+
+        <form action="/admin-login/key" method="GET" className="text-left">
+          <label className="text-xs font-mono text-gray-500 uppercase mb-1 block">
+            Admin Secret Key
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              name="key"
+              placeholder="Paste ADMIN_SECRET_KEY"
+              className="flex-1 bg-[#0f172a] border border-tv-border rounded px-3 py-2 text-white font-mono text-sm outline-none focus:border-[#14b8a6]"
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              className="bg-[#14b8a6] hover:bg-[#0d9488] text-black font-bold font-mono px-4 py-2 rounded text-sm transition-colors whitespace-nowrap"
+            >
+              Masuk
+            </button>
+          </div>
+          <p className="text-gray-600 text-[11px] font-mono mt-2">
+            Key salah menampilkan halaman "Not found" biasa (disengaja, biar gak ketebak apakah
+            key-nya salah atau route ini memang tidak ada) - tekan tombol back browser buat coba lagi.
+          </p>
+        </form>
       </div>
     </div>
   );

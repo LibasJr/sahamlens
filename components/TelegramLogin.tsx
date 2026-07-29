@@ -20,7 +20,10 @@ function readUserCookie(): TelegramUser | null {
   }
 }
 
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'LibasBot';
+// Sengaja gak ada fallback hardcode - kalau env var ini belum di-set (bot belum didaftarkan ke
+// domain lewat @BotFather /setdomain), widget-nya gak usah dicoba render sama sekali daripada
+// nampilin teks error mentah "Bot domain invalid" dari script Telegram di semua halaman.
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
 export default function TelegramLogin() {
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -35,7 +38,7 @@ export default function TelegramLogin() {
   // Widget resmi Telegram cuma bisa jalan kalau domain halaman ini terdaftar di BotFather
   // (/setdomain) - tidak akan render apa pun kalau diakses dari localhost tanpa domain publik.
   useEffect(() => {
-    if (user || !widgetRef.current) return;
+    if (user || !widgetRef.current || !BOT_USERNAME) return;
     const script = document.createElement('script');
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
     script.async = true;

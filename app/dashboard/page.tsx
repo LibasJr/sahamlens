@@ -437,6 +437,7 @@ function DashboardContent() {
           analisaRemaining={analisaRemaining}
           analisaTotal={FREE_LIMITS.analisaPerHari}
           isAdmin={isAdminUser}
+          showDisclaimer
         />
         <div className="flex flex-col items-center justify-center p-20 text-slate-400">
           <Target className="w-12 h-12 mb-4 text-slate-600" />
@@ -467,6 +468,7 @@ function DashboardContent() {
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}
+        showDisclaimer
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">

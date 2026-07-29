@@ -380,7 +380,7 @@ export default function PortfolioPage() {
           </div>
           <span className="font-extrabold text-xl tracking-tight text-white font-mono">Saham<span className="text-[#14b8a6]">Lens</span></span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center flex-wrap justify-end gap-3 sm:gap-4">
           {currentUser && (
             <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-gray-400">
               <span className="text-white font-bold">{currentUser.username}</span>
