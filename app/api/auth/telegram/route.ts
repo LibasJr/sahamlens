@@ -77,6 +77,20 @@ export async function GET(req: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
     });
+    // Sama seperti admin-login/key: /api/stock, /api/council, dan badge client (hasProAccess)
+    // cek cookie "saham_admin"/"role" ini, bukan ADMIN_COOKIE - dua skema gak saling kenal.
+    res.cookies.set('saham_admin', 'true', {
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    res.cookies.set('role', 'admin', {
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
   }
 
   return res;

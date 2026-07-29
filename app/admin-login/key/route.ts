@@ -24,5 +24,21 @@ export async function GET(req: NextRequest) {
     path: '/',
     maxAge: 60 * 60 * 24 * 30, // 30 hari
   });
+  // /api/stock, /api/council, dan badge admin di client (lib/limits.ts hasProAccess) cek cookie
+  // "saham_admin"/"role" ini, bukan ADMIN_COOKIE di atas - dua skema cookie admin yang beda gak
+  // saling kenal. Set juga di sini biar /admin-login/key beneran buka akses data, bukan cuma
+  // /admin panel. Non-httpOnly sengaja, karena dibaca lewat document.cookie di client juga.
+  res.cookies.set('saham_admin', 'true', {
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  res.cookies.set('role', 'admin', {
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+  });
   return res;
 }
