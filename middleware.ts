@@ -6,6 +6,27 @@ const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_PER_WINDOW = 20;
 const BLOCK_MS = 60 * 60 * 1000;
 
+// Halaman analisis mendalam - wajib login. TIDAK termasuk /portfolio (punya sistem
+// akun demo terpisah sendiri via DEMO_SESSION_COOKIE, lihat lib/auth.ts) dan TIDAK
+// termasuk '/' atau '/screener' (ringkasan pasar publik, sengaja gratis).
+const PROTECTED_PAGES = [
+  '/dashboard',
+  '/fundamental',
+  '/technical',
+  '/watchlist',
+  '/compare',
+  '/backtest',
+  '/breakout-radar',
+  '/market-pulse',
+  '/recommendations',
+  '/calendar',
+  '/multi-agent',
+];
+
+function isProtectedPage(pathname: string): boolean {
+  return PROTECTED_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
+}
+
 interface IpEntry {
   count: number;
   windowStart: number;
@@ -30,12 +51,14 @@ export async function middleware(req: NextRequest) {
     payload = await decrypt(sessionCookie);
   }
 
-  // Authentication check for /dashboard
-  if (req.nextUrl.pathname.startsWith('/dashboard')) {
+  // Authentication check for all protected analysis pages
+  if (isProtectedPage(req.nextUrl.pathname)) {
     if (!payload) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('next', req.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
     }
-    // Trial check is handled client-side in /dashboard/page.tsx to show popup
+    // Trial/pro check is handled client-side to show upgrade popups where relevant
   }
 
   let isAdminOrTrial = false;
@@ -97,5 +120,19 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/stock/:path*', '/api/fundamental/:path*', '/dashboard'],
+  matcher: [
+    '/api/stock/:path*',
+    '/api/fundamental/:path*',
+    '/dashboard/:path*',
+    '/fundamental/:path*',
+    '/technical/:path*',
+    '/watchlist/:path*',
+    '/compare/:path*',
+    '/backtest/:path*',
+    '/breakout-radar/:path*',
+    '/market-pulse/:path*',
+    '/recommendations/:path*',
+    '/calendar/:path*',
+    '/multi-agent/:path*',
+  ],
 };
