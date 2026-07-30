@@ -2,10 +2,17 @@ import React, { Suspense } from 'react';
 import ClientHeader from './ClientHeader';
 import AskAIButton from '@/components/AskAIButton';
 import { Brain, AlertTriangle, Loader2 } from 'lucide-react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 async function getCouncilData(symbol: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
+  // http://localhost:3001 in production - a server-to-server fetch to a port nothing
+  // listens on there, which always failed. Derive the base URL from the actual
+  // incoming request instead so this works both locally and on any Vercel deployment.
+  const headersList = headers();
+  const host = headersList.get('host');
+  const protocol = host?.startsWith('localhost') || host?.startsWith('127.0.0.1') ? 'http' : 'https';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
   const cookieStore = cookies();
   const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
 
