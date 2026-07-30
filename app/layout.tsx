@@ -1,8 +1,8 @@
 import './globals.css';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import React from 'react';
 
-const inter = Inter({ subsets: ['latin'] });
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'] });
 import AppShell from '@/components/AppShell';
 
 export const metadata = {
@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className="dark">
-      <body className={`${inter.className} bg-genz-base text-genz-text antialiased min-h-screen relative overflow-x-hidden selection:bg-genz-lime selection:text-genz-base`}>
+      <body className={`${jakarta.className} bg-[#F8FAFC] dark:bg-[#0B1121] text-slate-900 dark:text-slate-100 antialiased min-h-screen relative overflow-x-hidden selection:bg-[#3A86FF]/20`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -10,7 +10,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isLandingPage = pathname === '/';
 
   if (isLandingPage) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <AIChat />
+      </>
+    );
   }
 
   React.useEffect(() => {
@@ -18,7 +23,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full bg-[#0B0E14]">
+    <div className="flex min-h-screen w-full">
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         {children}

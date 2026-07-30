@@ -1,0 +1,62 @@
+import { NextResponse } from 'next/server';
+
+export const revalidate = 60;
+
+export async function GET(
+  request: Request,
+  { params }: { params: { ticker: string } }
+) {
+  const { searchParams } = new URL(request.url);
+  const tf = searchParams.get('tf') || '1M';
+  
+  let range = '6mo';
+  let interval = '1d';
+  if (tf === '1M') { range = '1mo'; interval = '1d'; }
+  else if (tf === '3M') { range = '3mo'; interval = '1d'; }
+  else if (tf === '1Y') { range = '1y'; interval = '1wk'; }
+  else if (tf === 'ALL') { range = '15y'; interval = '1mo'; }
+
+  let ticker = params.ticker;
+  if (!ticker.endsWith('.JK') && !ticker.includes('^')) {
+    ticker = `${ticker}.JK`;
+  }
+
+  try {
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+    const res = await fetch(yahooUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      next: { revalidate: 60 }
+    });
+
+    if (!res.ok) throw new Error('Failed to fetch from Yahoo');
+
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) throw new Error('No data');
+
+    const timestamps = result.timestamp || [];
+    const quote = result.indicators?.quote?.[0] || {};
+    
+    const history = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      if (quote.close[i] !== null) {
+        history.push({
+          time: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
+          open: quote.open[i] || quote.close[i],
+          high: quote.high[i] || quote.close[i],
+          low: quote.low[i] || quote.close[i],
+          close: quote.close[i],
+          price: quote.close[i],
+          volume: quote.volume[i] || 0
+        });
+      }
+    }
+
+    return NextResponse.json({
+      ticker,
+      history
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

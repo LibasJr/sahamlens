@@ -47,3 +47,6 @@ WORKFLOW WAJIB - FORMAT OUTPUT HARUS GINI:
 # Restart Server Rule
 - Setiap kali AI melakukan perombakan file berskala besar/masif, AI harus secara otomatis merestart server (misalnya kill Next.js dan jalankan ulang 
 pm run dev) di latar belakang.
+
+# Deployment Rule
+- Setiap kali melakukan update/perubahan kode, WAJIB test build secara lokal terlebih dahulu (npm run build). Jika build lokal sukses 100% tanpa error, barulah kode boleh di-commit, push, dan deploy ke production.
