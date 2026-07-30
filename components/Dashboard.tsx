@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, LineChart, Sparkles, Moon, Sun } from 'lucide-react';
 import AskAIButton from '@/components/AskAIButton';
 import TradingViewChart from '@/components/TradingViewChart';
+import CommandPalette from '@/components/CommandPalette';
 
 type CardItem = { code: string; change: string; value: string; dir: 'up' | 'down' | 'neutral'; href: string };
 type CardDef = { id: string; title: string; sub: string; accent: string; Icon: any; key: string; listPath: string };
@@ -278,6 +279,9 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-3">
+              <div className="w-[40px] sm:w-[180px] md:w-[220px]">
+                <CommandPalette />
+              </div>
               <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white" title="Toggle Dark Mode">
                 {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
