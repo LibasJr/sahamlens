@@ -5,9 +5,12 @@ import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import AIChat from '@/components/AIChat';
 
+const BARE_AUTH_PAGES = ['/login', '/signup', '/forgot-password', '/reset-password', '/admin-login'];
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLandingPage = pathname === '/';
+  const isBareAuthPage = BARE_AUTH_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
   if (isLandingPage) {
     return (
@@ -16,6 +19,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <AIChat />
       </>
     );
+  }
+
+  // Auth pages render standalone: no sidebar, no menu, no chat widget.
+  if (isBareAuthPage) {
+    return <>{children}</>;
   }
 
   React.useEffect(() => {
