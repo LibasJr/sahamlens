@@ -64,6 +64,85 @@ function calcRsi(closes: number[], period = 14): number | null {
   return 100 - 100 / (1 + avgGain / avgLoss);
 }
 
+type Indicators = {
+  time: string; price: number; prevClose: number; change: number; changePct: number;
+  ma20: number | null; ma50: number | null; rsi14: number | null; rsiLabel: string;
+  volume: number; value: number; volRatio: number; score: number;
+  signal: 'BUY' | 'HOLD' | 'SELL'; crossLabel: string;
+};
+
+// Computes real technical indicators as of a given index in a real OHLC series -
+// used both for "today" (last index) and for whatever candle the user hovers on the chart.
+function computeIndicators(time: string, closes: number[], volumes: number[]): Indicators {
+  const price = closes[closes.length - 1];
+  const prev = closes.length > 1 ? closes[closes.length - 2] : price;
+  const change = price - prev;
+  const changePct = prev ? (change / prev) * 100 : 0;
+  const ma20 = sma(closes, 20);
+  const ma50 = sma(closes, 50);
+  const rsi14 = calcRsi(closes, 14);
+  const volume = volumes[volumes.length - 1] || 0;
+  const avgVolume20 = volumes.length >= 20
+    ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
+    : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
+  const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
+  const value = volume * price;
+
+  let conditionsMet = 0;
+  if (ma20 != null && price > ma20) conditionsMet++;
+  if (ma20 != null && ma50 != null && ma20 > ma50) conditionsMet++;
+  if (volRatio > 1) conditionsMet++;
+  const score = Math.round((conditionsMet / 3) * 100);
+
+  let signal: 'BUY' | 'HOLD' | 'SELL' = 'HOLD';
+  if (ma20 != null && ma50 != null) {
+    if (price > ma20 && ma20 > ma50) signal = 'BUY';
+    else if (price < ma20 && ma20 < ma50) signal = 'SELL';
+  }
+  const crossLabel = (ma20 != null && ma50 != null)
+    ? (ma20 > ma50 ? 'Golden Cross (MA20 di atas MA50)' : 'Death Cross (MA20 di bawah MA50)')
+    : 'Data historis belum cukup';
+
+  let rsiLabel = 'Netral';
+  if (rsi14 != null) {
+    if (rsi14 >= 70) rsiLabel = 'Overbought';
+    else if (rsi14 <= 30) rsiLabel = 'Oversold';
+    else if (rsi14 > 50) rsiLabel = 'Netral Cenderung Beli';
+    else rsiLabel = 'Netral Cenderung Jual';
+  }
+
+  return { time, price, prevClose: prev, change, changePct, ma20, ma50, rsi14, rsiLabel, volume, value, volRatio, score, signal, crossLabel };
+}
+
+// Real, rule-based insight from actual indicator values - no canned/hardcoded copy.
+// Each rule is independently checked so multiple observations can apply at once;
+// falls back to a neutral statement only when nothing meaningful triggers.
+function generateInsight(ind: Indicators): string {
+  const notes: string[] = [];
+  const { price, ma20, ma50, rsi14, volRatio } = ind;
+
+  if (ma20 != null && ma50 != null) {
+    if (price < ma20 && ma20 < ma50) {
+      notes.push('Downtrend terkonfirmasi, harga berada di bawah MA20 dan MA50. Tekanan jual masih dominan.');
+    } else if (price > ma20 && ma20 > ma50) {
+      notes.push('Uptrend terkonfirmasi, harga berada di atas MA20 dan MA50. Tekanan beli masih dominan.');
+    } else {
+      notes.push('Harga sedang sideways di sekitar MA20/MA50, belum ada tren jangka pendek yang jelas.');
+    }
+  }
+
+  if (rsi14 != null) {
+    if (rsi14 < 30) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi oversold (di bawah 30), potensi technical rebound.`);
+    else if (rsi14 > 70) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi overbought (di atas 70), potensi technical pullback.`);
+  }
+
+  if (volRatio > 1.2) notes.push(`Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat.`);
+  else if (volRatio < 0.8) notes.push(`Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata 20 hari, minat pasar cenderung sepi.`);
+
+  if (notes.length === 0) return 'Belum cukup data historis untuk menghasilkan insight teknikal pada titik ini.';
+  return notes.join(' ');
+}
+
 function isMarketOpen(d: Date): boolean {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
   const map: any = {};
@@ -111,7 +190,10 @@ export default function Dashboard() {
 
   const [chartData, setChartData] = useState<any[]>([]);
 
+  const [hoveredTime, setHoveredTime] = useState<string | null>(null);
+
   React.useEffect(() => {
+    setHoveredTime(null); // stale hover position from the previous series wouldn't line up
     fetch(`/api/public-chart/BBCA?tf=${timeframe}`)
       .then(r => r.json())
       .then(data => {
@@ -127,58 +209,22 @@ export default function Dashboard() {
   const change = (currentPrice != null && prevClose != null) ? currentPrice - prevClose : null;
   const changePct = (change != null && prevClose) ? (change / prevClose) * 100 : null;
 
-  // Real technical indicators for the featured BBCA card, computed from actual OHLC history
-  // (independent of the chart's zoom level so MA50 always has enough data points)
-  const [bbca, setBbca] = useState<any>(null);
+  // Real technical indicators for the featured BBCA card, recomputed for whichever candle
+  // is currently hovered on the chart (or the latest one, when nothing is hovered).
+  const bbca: Indicators | null = React.useMemo(() => {
+    if (chartData.length < 2) return null;
+    let idx = chartData.length - 1;
+    if (hoveredTime) {
+      const found = chartData.findIndex((c: any) => c.time === hoveredTime);
+      if (found >= 0) idx = found;
+    }
+    const upTo = chartData.slice(0, idx + 1);
+    const closes = upTo.map((h: any) => h.close);
+    const volumes = upTo.map((h: any) => h.volume || 0);
+    return computeIndicators(chartData[idx].time, closes, volumes);
+  }, [chartData, hoveredTime]);
 
-  React.useEffect(() => {
-    fetch('/api/public-chart/BBCA?tf=3M')
-      .then(r => r.json())
-      .then(data => {
-        if (!data || !data.history || data.history.length < 2) return;
-        const closes: number[] = data.history.map((h: any) => h.close);
-        const volumes: number[] = data.history.map((h: any) => h.volume || 0);
-        const price = closes[closes.length - 1];
-        const prev = closes[closes.length - 2];
-        const chg = price - prev;
-        const chgPct = prev ? (chg / prev) * 100 : 0;
-        const ma20 = sma(closes, 20);
-        const ma50 = sma(closes, 50);
-        const rsi14 = calcRsi(closes, 14);
-        const todayVolume = volumes[volumes.length - 1] || 0;
-        const avgVolume20 = volumes.length >= 20
-          ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
-          : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
-        const volRatio = avgVolume20 ? todayVolume / avgVolume20 : 1;
-        const value = todayVolume * price;
-
-        let conditionsMet = 0;
-        if (ma20 != null && price > ma20) conditionsMet++;
-        if (ma20 != null && ma50 != null && ma20 > ma50) conditionsMet++;
-        if (volRatio > 1) conditionsMet++;
-        const score = Math.round((conditionsMet / 3) * 100);
-
-        let signal: 'BUY' | 'HOLD' | 'SELL' = 'HOLD';
-        if (ma20 != null && ma50 != null) {
-          if (price > ma20 && ma20 > ma50) signal = 'BUY';
-          else if (price < ma20 && ma20 < ma50) signal = 'SELL';
-        }
-        const crossLabel = (ma20 != null && ma50 != null)
-          ? (ma20 > ma50 ? 'Golden Cross (MA20 di atas MA50)' : 'Death Cross (MA20 di bawah MA50)')
-          : 'Data historis belum cukup';
-
-        let rsiLabel = 'Netral';
-        if (rsi14 != null) {
-          if (rsi14 >= 70) rsiLabel = 'Overbought';
-          else if (rsi14 <= 30) rsiLabel = 'Oversold';
-          else if (rsi14 > 50) rsiLabel = 'Netral Cenderung Beli';
-          else rsiLabel = 'Netral Cenderung Jual';
-        }
-
-        setBbca({ price, prevClose: prev, change: chg, changePct: chgPct, ma20, ma50, rsi14, rsiLabel, todayVolume, value, volRatio, score, signal, crossLabel });
-      })
-      .catch(console.error);
-  }, []);
+  const isHovering = hoveredTime != null && bbca != null && chartData.length > 0 && bbca.time !== chartData[chartData.length - 1].time;
 
   const [marketCards, setMarketCards] = useState<Card[]>(CARD_DEFS.map(def => ({ ...def, items: [] })));
   const [cardsLoaded, setCardsLoaded] = useState(false);
@@ -302,7 +348,12 @@ export default function Dashboard() {
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
                         </span>
                       )}
-                      <span className="text-slate-400">{bbca ? `Vol: ${(bbca.todayVolume / 1e6).toFixed(1)} Jt • Val: Rp ${(bbca.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
+                      <span className="text-slate-400">{bbca ? `Vol: ${(bbca.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(bbca.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
+                      {isHovering && bbca && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#3A86FF]/10 text-[#3A86FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                          Data per {bbca.time}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -321,6 +372,7 @@ export default function Dashboard() {
                     candles={chartData}
                     height={340}
                     timeframe={timeframe}
+                    onHoverCandle={setHoveredTime}
                     technical={{
                       cross_status: bbca?.ma20 != null && bbca?.ma50 != null ? (bbca.ma20 > bbca.ma50 ? 'BULLISH' : 'BEARISH') : 'NETRAL',
                       broker_flow_status: bbca?.volRatio != null ? (bbca.volRatio > 1 ? 'AKUMULASI' : 'DISTRIBUSI') : 'NETRAL',
@@ -335,14 +387,10 @@ export default function Dashboard() {
 
               <div className="mt-4 flex flex-wrap gap-4 items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30">
                 <div className="text-blue-800 dark:text-blue-300 font-semibold text-[13px] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Insight BBCA Terkini
+                  <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${bbca?.time}` : 'Insight BBCA Terkini'}
                 </div>
                 <p className="text-[12px] text-blue-700 dark:text-blue-200">
-                  {bbca ? (
-                    <>
-                      Secara teknikal, BBCA saat ini diperdagangkan {bbca.ma20 != null && bbca.price > bbca.ma20 ? 'di atas' : 'di bawah'} MA20 {bbca.ma20 != null ? `(Rp ${Math.round(bbca.ma20).toLocaleString('id-ID')})` : ''} dengan RSI(14) di level {bbca.rsi14 != null ? bbca.rsi14.toFixed(1) : '-'} ({bbca.rsiLabel}). Volume hari ini {bbca.volRatio >= 1 ? `${((bbca.volRatio - 1) * 100).toFixed(0)}% di atas` : `${((1 - bbca.volRatio) * 100).toFixed(0)}% di bawah`} rata-rata 20 hari terakhir.
-                    </>
-                  ) : 'Memuat analisis teknikal real-time...'}
+                  {bbca ? generateInsight(bbca) : 'Memuat analisis teknikal real-time...'}
                 </p>
               </div>
             </div>
@@ -382,7 +430,7 @@ export default function Dashboard() {
                   { k: 'MA20', v: bbca.ma20 != null ? Math.round(bbca.ma20).toLocaleString('id-ID') : '-', s: bbca.ma20 != null ? (bbca.price > bbca.ma20 ? 'Harga berada di atas MA20' : 'Harga berada di bawah MA20') : 'Data belum cukup', c: bbca.ma20 != null && bbca.price > bbca.ma20 ? 'emerald' : 'slate' },
                   { k: 'MA50', v: bbca.ma50 != null ? Math.round(bbca.ma50).toLocaleString('id-ID') : '-', s: bbca.crossLabel, c: bbca.ma20 != null && bbca.ma50 != null && bbca.ma20 > bbca.ma50 ? 'blue' : 'slate' },
                   { k: 'RSI (14)', v: bbca.rsi14 != null ? bbca.rsi14.toFixed(1) : '-', s: `Status ${bbca.rsiLabel}`, c: 'slate' },
-                  { k: 'Volume', v: `${(bbca.todayVolume / 1e6).toFixed(1)} Jt`, s: bbca.volRatio >= 1 ? `Naik ${((bbca.volRatio - 1) * 100).toFixed(0)}% dari rata-rata` : `Turun ${((1 - bbca.volRatio) * 100).toFixed(0)}% dari rata-rata`, c: bbca.volRatio >= 1 ? 'emerald' : 'slate' },
+                  { k: 'Volume', v: `${(bbca.volume / 1e6).toFixed(1)} Jt`, s: bbca.volRatio >= 1 ? `Naik ${((bbca.volRatio - 1) * 100).toFixed(0)}% dari rata-rata` : `Turun ${((1 - bbca.volRatio) * 100).toFixed(0)}% dari rata-rata`, c: bbca.volRatio >= 1 ? 'emerald' : 'slate' },
                 ].map(r=>(
                   <div key={r.k} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800/50 bg-white dark:bg-[#152238] px-3 py-2.5">
                     <div className="flex items-center gap-2.5">
@@ -405,11 +453,7 @@ export default function Dashboard() {
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-widest text-white/60">Ringkasan Analisis Teknikal</div>
                       <p className="mt-1.5 text-[12px] leading-[1.5] text-white/85">
-                        {bbca ? (
-                          <>
-                            Saham BBCA saat ini {bbca.ma20 != null && bbca.price > bbca.ma20 ? 'bertahan di atas' : 'berada di bawah'} garis Rata-rata Pergerakan 20 hari (MA20){bbca.ma20 != null ? ` di level Rp ${Math.round(bbca.ma20).toLocaleString('id-ID')}` : ''}, dengan status {bbca.crossLabel}. RSI(14) berada di {bbca.rsi14 != null ? bbca.rsi14.toFixed(1) : '-'} ({bbca.rsiLabel}) dan volume transaksi {bbca.volRatio >= 1 ? 'meningkat' : 'menurun'} {Math.abs((bbca.volRatio - 1) * 100).toFixed(0)}% dibanding rata-rata 20 hari terakhir.
-                          </>
-                        ) : 'Memuat ringkasan analisis...'}
+                        {bbca ? generateInsight(bbca) : 'Memuat ringkasan analisis...'}
                       </p>
                     </div>
                     <LineChart className="h-4 w-4 text-white/40 shrink-0 mt-1" />
