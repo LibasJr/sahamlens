@@ -10,11 +10,31 @@ const MARKET_STOCKS = [
   'HRUM.JK','INCO.JK','TINS.JK','MAPI.JK','SILO.JK','EMTK.JK','WIKA.JK','ADHI.JK','PWON.JK',
 ];
 
+function sma(values: number[], period: number): number | null {
+  if (values.length < period) return null;
+  const slice = values.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / period;
+}
+
+function rsi(closes: number[], period = 14): number | null {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff >= 0) gains += diff; else losses -= diff;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
 async function fetchQuote(symbol: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=1d`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=3mo&interval=1d`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: 300 }, // cache 5 menit
@@ -26,16 +46,58 @@ async function fetchQuote(symbol: string) {
     const result = json.chart?.result?.[0];
     if (!result) return null;
     const meta = result.meta;
-    const closes = result.indicators?.quote?.[0]?.close || [];
-    const validCloses = closes.filter((c: any) => c !== null);
-    const prevClose = meta.chartPreviousClose || meta.previousClose || validCloses[0] || 0;
-    const currentPrice = meta.regularMarketPrice || validCloses[validCloses.length - 1] || 0;
+    const timestamps: number[] = result.timestamp || [];
+    const quote = result.indicators?.quote?.[0] || {};
+
+    const closes: number[] = [];
+    const volumes: number[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      if (quote.close?.[i] !== null && quote.close?.[i] !== undefined) {
+        closes.push(quote.close[i]);
+        volumes.push(quote.volume?.[i] || 0);
+      }
+    }
+    if (closes.length < 5) return null;
+
+    // NOTE: meta.chartPreviousClose is unreliable for ranges other than 1d — Yahoo
+    // returns the close from the *start* of the requested range, not yesterday's close.
+    // Always derive prevClose from the actual daily closes we just fetched.
+    const prevClose = closes[closes.length - 2] || closes[0];
+    const currentPrice = meta.regularMarketPrice || closes[closes.length - 1];
     const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+    const volume = meta.regularMarketVolume || volumes[volumes.length - 1] || 0;
+
+    const weekAgoClose = closes.length >= 6 ? closes[closes.length - 6] : closes[0];
+    const weeklyChangePct = weekAgoClose ? ((currentPrice - weekAgoClose) / weekAgoClose) * 100 : 0;
+
+    const ma20 = sma(closes, 20);
+    const ma50 = sma(closes, 50);
+    const rsi14 = rsi(closes, 14);
+    const avgVolume20 = volumes.length >= 20
+      ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
+      : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
+    const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
+
+    let technicalSignal: 'BULLISH' | 'BEARISH' | 'NETRAL' = 'NETRAL';
+    let technicalScore = 0;
+    if (ma20 !== null && ma50 !== null) {
+      const conditions = [currentPrice > ma20, ma20 > ma50, volRatio > 1];
+      const met = conditions.filter(Boolean).length;
+      technicalScore = Math.round((met / conditions.length) * 100);
+      if (currentPrice > ma20 && ma20 > ma50) technicalSignal = 'BULLISH';
+      else if (currentPrice < ma20 && ma20 < ma50) technicalSignal = 'BEARISH';
+    }
+
     return {
       symbol,
       price: currentPrice,
       changePct: parseFloat(changePct.toFixed(2)),
-      volume: meta.regularMarketVolume || 0,
+      weeklyChangePct: parseFloat(weeklyChangePct.toFixed(2)),
+      volume,
+      value: volume * currentPrice,
+      ma20, ma50, rsi14,
+      technicalSignal,
+      technicalScore,
     };
   } catch {
     return null;
@@ -52,44 +114,37 @@ export async function GET() {
       results.forEach(r => { if (r) quotes.push(r); });
     }
 
+    const strip = (s: any) => s.symbol.replace('.JK', '');
+
     const topGainers = [...quotes].sort((a, b) => b.changePct - a.changePct).slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      changePct: s.changePct,
-      price: s.price
+      symbol: strip(s), changePct: s.changePct, price: s.price
     }));
 
     const topLosers = [...quotes].sort((a, b) => a.changePct - b.changePct).slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      changePct: s.changePct,
-      price: s.price
+      symbol: strip(s), changePct: s.changePct, price: s.price
     }));
 
     const topVolume = [...quotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      volume: s.volume || 0
+      symbol: strip(s), volume: s.volume || 0, price: s.price
     }));
 
-    const topValue = [...quotes].sort((a, b) => ((b.volume || 0) * (b.price || 0)) - ((a.volume || 0) * (a.price || 0))).slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      value: (s.volume || 0) * (s.price || 0)
+    const topValue = [...quotes].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 10).map(s => ({
+      symbol: strip(s), value: s.value || 0, price: s.price
     }));
 
-    // Mock freq & foreign (tidak tersedia di yfinance publik)
-    const shuffled = [...quotes].sort(() => 0.5 - Math.random());
-    const topFreq = shuffled.slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      freq: Math.floor(Math.random() * 50000) + 5000
+    const topWeeklyGainers = [...quotes].sort((a, b) => b.weeklyChangePct - a.weeklyChangePct).slice(0, 10).map(s => ({
+      symbol: strip(s), changePct: s.weeklyChangePct, price: s.price
     }));
 
-    const netForeignBuy = [...quotes].sort(() => 0.5 - Math.random()).slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      val: (Math.random() * 400 + 50) * 1e9
+    const topWeeklyLosers = [...quotes].sort((a, b) => a.weeklyChangePct - b.weeklyChangePct).slice(0, 10).map(s => ({
+      symbol: strip(s), changePct: s.weeklyChangePct, price: s.price
     }));
 
-    const netForeignSell = [...quotes].sort(() => 0.5 - Math.random()).slice(0, 10).map(s => ({
-      symbol: s.symbol.replace('.JK', ''),
-      val: (Math.random() * 400 + 50) * 1e9
-    }));
+    const topTechnical = [...quotes]
+      .filter(s => s.technicalSignal === 'BULLISH')
+      .sort((a, b) => (b.technicalScore - a.technicalScore) || (b.changePct - a.changePct))
+      .slice(0, 10)
+      .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
 
     return NextResponse.json({
       timestamp: new Date().toISOString(),
@@ -97,9 +152,9 @@ export async function GET() {
       topLosers,
       topVolume,
       topValue,
-      topFreq,
-      netForeignBuy,
-      netForeignSell,
+      topWeeklyGainers,
+      topWeeklyLosers,
+      topTechnical,
     });
 
   } catch (error: any) {

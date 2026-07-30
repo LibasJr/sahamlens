@@ -31,13 +31,15 @@ interface TradingViewChartProps {
   technical: TechnicalData;
   symbol: string;
   height?: number;
+  timeframe?: string;
 }
 
 export default function TradingViewChart({
   candles,
   technical,
   symbol,
-  height = 480
+  height = 480,
+  timeframe = '1M'
 }: TradingViewChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -213,7 +215,7 @@ export default function TradingViewChart({
           <span className="font-bold font-mono text-base text-white tracking-wider">
             {symbol.endsWith('.JK') ? symbol : `${symbol}.JK`}
           </span>
-          <span className="text-xs text-tv-muted font-mono">1D Candlestick</span>
+          <span className="text-xs text-tv-muted font-mono">{timeframe === 'ALL' ? '15Y' : timeframe} Candlestick</span>
           <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${
             (technical.cross_status || '').includes('BULLISH')
               ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
