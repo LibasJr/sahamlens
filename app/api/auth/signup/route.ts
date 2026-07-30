@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { readJson, writeJson } from '@/lib/dbLocal';
+import { getUserByEmail, createUser, updateUser } from '@/lib/dbUsers';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 
@@ -17,22 +17,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Password minimal 6 karakter' }, { status: 400 });
     }
 
-    const users = readJson('data/users.json') || [];
-    const existingIndex = users.findIndex((u: any) => u.email?.toLowerCase() === email.trim().toLowerCase());
+    const existing = await getUserByEmail(email);
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hashed = bcrypt.hashSync(password, 10);
 
-    if (existingIndex !== -1) {
-      const user = users[existingIndex];
-      if (user.is_verified) {
+    if (existing) {
+      if (existing.is_verified) {
         return NextResponse.json({ error: 'Email sudah terdaftar dan terverifikasi' }, { status: 409 });
       }
       // Update existing unverified user
-      user.password_hash = hashed;
-      user.verification_code = code;
+      await updateUser(existing.id, { password_hash: hashed, verification_code: code });
     } else {
-      const newUser = {
+      await createUser({
         id: Date.now().toString(), // String so it doesn't break if someone expects number but we use string
         email: email.trim(),
         password_hash: hashed,
@@ -42,12 +39,11 @@ export async function POST(req: Request) {
         created_at: new Date().toISOString(),
         trial_ends_at: null,
         demo_ends_at: null,
-        verification_code: code
-      };
-      users.push(newUser);
+        verification_code: code,
+        reset_code: null,
+        reset_code_expires: null,
+      });
     }
-
-    writeJson('data/users.json', users);
 
     if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
       try {

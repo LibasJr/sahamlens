@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { readJson, writeJson } from '@/lib/dbLocal';
+import { getUserByEmail, updateUser } from '@/lib/dbUsers';
 import nodemailer from 'nodemailer';
 
 export async function POST(req: Request) {
@@ -12,22 +12,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email wajib diisi.' }, { status: 400 });
     }
 
-    const users = readJson('data/users.json') || [];
-    const userIndex = users.findIndex((u: any) => u.email?.toLowerCase() === email.trim().toLowerCase());
+    const user = await getUserByEmail(email);
 
-    if (userIndex === -1) {
+    if (!user) {
       // Don't reveal if user exists or not for security, just return success
       return NextResponse.json({ success: true, message: 'Jika email terdaftar, kode reset akan dikirim ke email Anda.' });
     }
 
     // Generate 6 digit code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Update user record
-    users[userIndex].reset_code = resetCode;
-    users[userIndex].reset_code_expires = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry
-    
-    writeJson('data/users.json', users);
+    const resetCodeExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry
+
+    await updateUser(user.id, { reset_code: resetCode, reset_code_expires: resetCodeExpires });
+    user.reset_code = resetCode;
+    user.reset_code_expires = resetCodeExpires;
 
     // Try to send actual email if SMTP is configured
     if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
@@ -42,12 +40,12 @@ export async function POST(req: Request) {
 
         await transporter.sendMail({
           from: `"SahamLens Admin" <${process.env.SMTP_EMAIL}>`,
-          to: users[userIndex].email,
+          to: user.email,
           subject: 'Kode Reset Password SahamLens',
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
               <h2 style="color: #0f172a;">Permintaan Reset Password</h2>
-              <p style="color: #475569;">Seseorang baru saja meminta reset password untuk akun SahamLens Anda (<strong>${users[userIndex].email}</strong>).</p>
+              <p style="color: #475569;">Seseorang baru saja meminta reset password untuk akun SahamLens Anda (<strong>${user.email}</strong>).</p>
               <p style="color: #475569;">Berikut adalah kode verifikasi 6 digit Anda:</p>
               <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; margin: 20px 0; border-radius: 5px;">
                 <h1 style="color: #0d9488; letter-spacing: 10px; margin: 0; font-size: 32px;">${resetCode}</h1>
@@ -57,18 +55,18 @@ export async function POST(req: Request) {
           `
         });
         
-        console.log(`[AUTH] Email reset berhasil dikirim ke ${users[userIndex].email}`);
+        console.log(`[AUTH] Email reset berhasil dikirim ke ${user.email}`);
       } catch (emailError: any) {
         console.error(`[AUTH] Gagal mengirim email: ${emailError.message}`);
         // Fallback to terminal if email fails
         console.log(`\n========================================`);
-        console.log(`[AUTH] Kode Reset Password untuk ${users[userIndex].email}: ${resetCode}`);
+        console.log(`[AUTH] Kode Reset Password untuk ${user.email}: ${resetCode}`);
         console.log(`========================================\n`);
       }
     } else {
       // Print to terminal if no SMTP config (Development mode)
       console.log(`\n========================================`);
-      console.log(`[AUTH] Kode Reset Password untuk ${users[userIndex].email}: ${resetCode}`);
+      console.log(`[AUTH] Kode Reset Password untuk ${user.email}: ${resetCode}`);
       console.log(`========================================\n`);
     }
 

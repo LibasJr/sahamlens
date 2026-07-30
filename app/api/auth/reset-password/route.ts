@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { readJson, writeJson } from '@/lib/dbLocal';
+import { getUserByEmail, updateUser } from '@/lib/dbUsers';
 import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
@@ -17,14 +17,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Password minimal 6 karakter.' }, { status: 400 });
     }
 
-    const users = readJson('data/users.json') || [];
-    const userIndex = users.findIndex((u: any) => u.email?.toLowerCase() === email.trim().toLowerCase());
+    const user = await getUserByEmail(email);
 
-    if (userIndex === -1) {
+    if (!user) {
       return NextResponse.json({ error: 'Kode reset salah atau kedaluwarsa.' }, { status: 400 });
     }
-
-    const user = users[userIndex];
 
     if (!user.reset_code || user.reset_code !== code) {
       return NextResponse.json({ error: 'Kode reset salah atau kedaluwarsa.' }, { status: 400 });
@@ -38,12 +35,7 @@ export async function POST(req: Request) {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(newPassword, salt);
 
-    // Update user record
-    users[userIndex].password_hash = hash;
-    users[userIndex].reset_code = null;
-    users[userIndex].reset_code_expires = null;
-    
-    writeJson('data/users.json', users);
+    await updateUser(user.id, { password_hash: hash, reset_code: null, reset_code_expires: null });
 
     return NextResponse.json({ success: true, message: 'Password berhasil diubah. Silakan login.' });
   } catch (err: any) {

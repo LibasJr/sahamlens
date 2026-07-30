@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { readJson } from '@/lib/dbLocal';
+import { getUserByEmail } from '@/lib/dbUsers';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { encrypt } from '@/lib/session';
@@ -12,8 +12,7 @@ export async function POST(req: Request) {
   try {
     const { email, password, remember } = await req.json();
 
-    const users = readJson('data/users.json') || [];
-    const user = users.find((u: any) => u.email?.toLowerCase() === String(email || '').trim().toLowerCase());
+    const user = await getUserByEmail(String(email || ''));
 
     if (!user) {
       return NextResponse.json({ error: 'Email atau password salah.' }, { status: 401 });
