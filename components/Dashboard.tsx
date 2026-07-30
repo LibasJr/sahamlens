@@ -7,17 +7,17 @@ import AskAIButton from '@/components/AskAIButton';
 import TradingViewChart from '@/components/TradingViewChart';
 
 type CardItem = { code: string; change: string; value: string; dir: 'up' | 'down' | 'neutral'; href: string };
-type CardDef = { id: string; title: string; sub: string; accent: string; Icon: any; key: string };
+type CardDef = { id: string; title: string; sub: string; accent: string; Icon: any; key: string; listPath: string };
 type Card = CardDef & { items: CardItem[] };
 
 const CARD_DEFS: CardDef[] = [
-  { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'emerald', Icon: TrendingUp, key: 'topGainers' },
-  { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'topLosers' },
-  { id: 'value', title: 'Berdasarkan Nilai Transaksi', sub: 'Top Value • Rp Triliun', accent: 'blue', Icon: DollarSign, key: 'topValue' },
-  { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'topVolume' },
-  { id: 'weeklyGainer', title: 'Penguatan Mingguan Tertinggi', sub: 'Top Gainer • 5 Hari', accent: 'emerald', Icon: ArrowUpRight, key: 'topWeeklyGainers' },
-  { id: 'weeklyLoser', title: 'Pelemahan Mingguan Terdalam', sub: 'Top Loser • 5 Hari', accent: 'red', Icon: ArrowDownRight, key: 'topWeeklyLosers' },
-  { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'indigo', Icon: Sparkles, key: 'topTechnical' },
+  { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'emerald', Icon: TrendingUp, key: 'topGainers', listPath: '/market/top-gainer' },
+  { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'topLosers', listPath: '/market/top-loser' },
+  { id: 'value', title: 'Berdasarkan Nilai Transaksi', sub: 'Top Value • Rp Triliun', accent: 'blue', Icon: DollarSign, key: 'topValue', listPath: '/market/top-value' },
+  { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'topVolume', listPath: '/market/top-volume' },
+  { id: 'weeklyGainer', title: 'Penguatan Mingguan Tertinggi', sub: 'Top Gainer • 5 Hari', accent: 'emerald', Icon: ArrowUpRight, key: 'topWeeklyGainers', listPath: '/market/weekly-gainer' },
+  { id: 'weeklyLoser', title: 'Pelemahan Mingguan Terdalam', sub: 'Top Loser • 5 Hari', accent: 'red', Icon: ArrowDownRight, key: 'topWeeklyLosers', listPath: '/market/weekly-loser' },
+  { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'indigo', Icon: Sparkles, key: 'topTechnical', listPath: '/market/technical-bullish' },
 ];
 
 function formatCardItems(id: string, arr: any[]): CardItem[] {
@@ -480,7 +480,7 @@ export default function Dashboard() {
 
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Update {lastUpdated || '--:--'} • IDX</span>
-                  <Link href="/screener" className="inline-flex items-center gap-1 text-[11px] font-bold text-[#3A86FF] hover:text-[#0A1931] transition">
+                  <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-[#3A86FF] hover:text-[#0A1931] transition">
                     Lihat Seluruhnya <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>

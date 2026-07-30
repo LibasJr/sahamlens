@@ -116,34 +116,38 @@ export async function GET() {
 
     const strip = (s: any) => s.symbol.replace('.JK', '');
 
-    const topGainers = [...quotes].sort((a, b) => b.changePct - a.changePct).slice(0, 10).map(s => ({
+    // Full list capped at 50 (in practice ~= the whole monitored universe below that size)
+    // for the dedicated /market/[category] pages; dashboard cards just show the first 4.
+    const LIST_CAP = 50;
+
+    const topGainers = [...quotes].sort((a, b) => b.changePct - a.changePct).slice(0, LIST_CAP).map(s => ({
       symbol: strip(s), changePct: s.changePct, price: s.price
     }));
 
-    const topLosers = [...quotes].sort((a, b) => a.changePct - b.changePct).slice(0, 10).map(s => ({
+    const topLosers = [...quotes].sort((a, b) => a.changePct - b.changePct).slice(0, LIST_CAP).map(s => ({
       symbol: strip(s), changePct: s.changePct, price: s.price
     }));
 
-    const topVolume = [...quotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 10).map(s => ({
+    const topVolume = [...quotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, LIST_CAP).map(s => ({
       symbol: strip(s), volume: s.volume || 0, price: s.price
     }));
 
-    const topValue = [...quotes].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 10).map(s => ({
+    const topValue = [...quotes].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, LIST_CAP).map(s => ({
       symbol: strip(s), value: s.value || 0, price: s.price
     }));
 
-    const topWeeklyGainers = [...quotes].sort((a, b) => b.weeklyChangePct - a.weeklyChangePct).slice(0, 10).map(s => ({
+    const topWeeklyGainers = [...quotes].sort((a, b) => b.weeklyChangePct - a.weeklyChangePct).slice(0, LIST_CAP).map(s => ({
       symbol: strip(s), changePct: s.weeklyChangePct, price: s.price
     }));
 
-    const topWeeklyLosers = [...quotes].sort((a, b) => a.weeklyChangePct - b.weeklyChangePct).slice(0, 10).map(s => ({
+    const topWeeklyLosers = [...quotes].sort((a, b) => a.weeklyChangePct - b.weeklyChangePct).slice(0, LIST_CAP).map(s => ({
       symbol: strip(s), changePct: s.weeklyChangePct, price: s.price
     }));
 
     const topTechnical = [...quotes]
       .filter(s => s.technicalSignal === 'BULLISH')
       .sort((a, b) => (b.technicalScore - a.technicalScore) || (b.changePct - a.changePct))
-      .slice(0, 10)
+      .slice(0, LIST_CAP)
       .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
 
     return NextResponse.json({
