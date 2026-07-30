@@ -16,8 +16,8 @@ const staggerContainer = { animate: { transition: { staggerChildren: 0.1 } } };
 
 // --- MOCK COMPONENTS (STORY & CHARTS) ---
 function VisualChartMock({ symbol, score, maStatus }: { symbol: string, score: number, maStatus: string }) {
-  const isDowntrend = maStatus.includes('DOWNTREND');
-  const color = isDowntrend ? '#FF3366' : '#00F090'; // genz.red / genz.green
+  const isDowntrend = maStatus.includes('DOWNTREND') || maStatus.includes('MELEMAH');
+  const color = isDowntrend ? '#EF4444' : '#10B981'; // professional red / green
 
   return (
     <div className="relative w-full h-48 bg-genz-surface rounded-2xl border border-genz-border p-4 flex flex-col justify-between overflow-hidden group">
@@ -25,8 +25,8 @@ function VisualChartMock({ symbol, score, maStatus }: { symbol: string, score: n
         <div>
           <h3 className="font-heading font-bold text-xl text-white">{symbol}</h3>
           <div className="flex items-center gap-2 mt-1">
-            <div className={`w-2 h-2 rounded-full ${isDowntrend ? 'bg-genz-red animate-pulse' : 'bg-genz-green shadow-[0_0_10px_#00F090]'}`} />
-            <span className="font-mono text-xs text-genz-muted uppercase">{maStatus}</span>
+            <div className={`w-2 h-2 rounded-full ${isDowntrend ? 'bg-genz-red animate-pulse' : 'bg-genz-green shadow-[0_0_10px_#10B981]'}`} />
+            <span className="font-sans text-xs text-genz-muted uppercase">{maStatus}</span>
           </div>
         </div>
         <div className={`px-3 py-1 rounded-full font-mono text-xs font-bold border ${isDowntrend ? 'bg-genz-red/10 border-genz-red/30 text-genz-red' : 'bg-genz-green/10 border-genz-green/30 text-genz-green'}`}>
@@ -46,9 +46,11 @@ function VisualChartMock({ symbol, score, maStatus }: { symbol: string, score: n
         />
       </svg>
       
-      {/* Gen Z Annotation */}
-      <div className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-genz-base/80 backdrop-blur text-xs font-mono px-3 py-2 rounded-lg border border-genz-border z-10 shadow-glass">
-        {isDowntrend ? '🚨 Fatal: Dead Cross!' : '🚀 Breakout Confirmed!'}
+      {/* Professional Annotation */}
+      <div className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-genz-base/90 backdrop-blur text-xs font-sans px-4 py-3 rounded-lg border border-genz-border z-10 shadow-glass max-w-[180px]">
+        {isDowntrend 
+          ? 'Harga di bawah MA200 menandakan tren jangka panjang masih melemah' 
+          : 'Momentum Breakout terkonfirmasi oleh lonjakan volume'}
       </div>
     </div>
   );
@@ -107,16 +109,16 @@ export default function LandingPage() {
       <main className="pt-32 px-6 max-w-6xl mx-auto flex flex-col items-center text-center">
         <motion.div initial="initial" animate="animate" variants={staggerContainer} className="max-w-3xl flex flex-col items-center">
           <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-genz-surface border border-genz-border text-xs font-mono mb-6 text-genz-lime">
-            <Flame size={14} /> 10 Pure Math Filters • No Opinion • Just Data
+            <ShieldCheck size={14} /> Analisis Berbasis Data • Objektif • Terukur
           </motion.div>
           
           <motion.h1 variants={fadeIn} className="text-5xl md:text-7xl font-heading font-extrabold tracking-tight leading-[1.1] mb-6">
-            Stop FOMO. <br/>
-            Start <span className="text-transparent bg-clip-text bg-gradient-to-r from-genz-lime to-genz-green">Winning.</span>
+            Kurangi Keputusan Emosional dengan <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-genz-lime to-genz-limeHover">Data yang Terukur.</span>
           </motion.h1>
           
-          <motion.p variants={fadeIn} className="text-genz-muted text-lg md:text-xl mb-10 max-w-xl">
-            Screener institusional yang disederhanakan untuk Gen Z. Ketahui kapan Bandar beli dan kapan harga siap Breakout.
+          <motion.p variants={fadeIn} className="text-genz-muted text-lg md:text-xl mb-10 max-w-2xl">
+            Screener tingkat institusi yang dirancang untuk investor modern. Ketahui pergerakan dana besar (Big Fund) dan momentum breakout secara real-time.
           </motion.p>
 
           {/* COMMAND PALETTE SEARCH */}
@@ -146,35 +148,35 @@ export default function LandingPage() {
           {/* Visual Storytelling Card */}
           <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.3}} className="md:col-span-2 bg-genz-surface border border-genz-border p-6 rounded-3xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-glow-purple pointer-events-none" />
-            <h3 className="font-heading font-bold text-2xl mb-2">Visual Storytelling</h3>
-            <p className="text-genz-muted text-sm mb-6">Pahami teknikal tanpa bahasa alien. Merah = Jangan disentuh.</p>
+            <h3 className="font-heading font-bold text-2xl mb-2">Technical Analysis Terpandu</h3>
+            <p className="text-genz-muted text-sm mb-6">Pahami teknikal dengan visualisasi yang jelas dan indikator yang mudah dimengerti.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <VisualChartMock symbol="BMRI" score={24} maStatus="DOWNTREND FATAL" />
-              <VisualChartMock symbol="BREN" score={85} maStatus="UPTREND STRONG" />
+              <VisualChartMock symbol="BMRI" score={24} maStatus="TREN MELEMAH" />
+              <VisualChartMock symbol="BREN" score={85} maStatus="UPTREND KUAT" />
             </div>
           </motion.div>
 
-          {/* Gamification Card */}
+          {/* Gamification Card -> Progress Learning */}
           <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.4}} className="bg-genz-surface border border-genz-border p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-glow-lime pointer-events-none" />
             <div>
-              <h3 className="font-heading font-bold text-2xl mb-2">Level Up</h3>
-              <p className="text-genz-muted text-sm">Mainkan market layaknya game.</p>
+              <h3 className="font-heading font-bold text-2xl mb-2">Progress Learning</h3>
+              <p className="text-genz-muted text-sm">Edukasi terstruktur untuk mempertajam insting investasi Anda.</p>
             </div>
             
             <div className="mt-6 space-y-3">
               <div className="bg-genz-base p-3 rounded-xl border border-genz-border flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center"><Star size={20}/></div>
+                <div className="w-10 h-10 rounded-full bg-genz-purple/20 text-genz-purple flex items-center justify-center"><TrendingUp size={20}/></div>
                 <div>
-                  <div className="text-xs font-mono text-genz-muted">RANK</div>
-                  <div className="font-bold">Whale Hunter</div>
+                  <div className="text-xs font-mono text-genz-muted">LEVEL 1</div>
+                  <div className="font-bold">Memahami Trend</div>
                 </div>
               </div>
               <div className="bg-genz-base p-3 rounded-xl border border-genz-border flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-genz-purple/20 text-genz-purple flex items-center justify-center"><Target size={20}/></div>
+                <div className="w-10 h-10 rounded-full bg-genz-lime/20 text-genz-lime flex items-center justify-center"><Activity size={20}/></div>
                 <div>
-                  <div className="text-xs font-mono text-genz-muted">STREAK</div>
-                  <div className="font-bold">14 Hari Cuan</div>
+                  <div className="text-xs font-mono text-genz-muted">LEVEL 2</div>
+                  <div className="font-bold">Membaca Aliran Dana Asing</div>
                 </div>
               </div>
             </div>
@@ -184,7 +186,7 @@ export default function LandingPage() {
         {/* PRICING */}
         <div className="mt-32 w-full max-w-4xl text-center">
           <h2 className="font-heading font-bold text-4xl mb-4">Invest in Your Edge</h2>
-          <p className="text-genz-muted mb-10">Pilih senjata andalanmu. Stop donasi ke market.</p>
+          <p className="text-genz-muted mb-10">Pilih paket yang sesuai dengan kebutuhan analisis Anda.</p>
           
           <div className="flex justify-center items-center gap-4 mb-8 bg-genz-surface p-1.5 rounded-full inline-flex border border-genz-border">
             <button onClick={() => setBilling('monthly')} className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${billing === 'monthly' ? 'bg-genz-base text-white shadow' : 'text-genz-muted hover:text-white'}`}>Bulanan</button>
@@ -195,8 +197,8 @@ export default function LandingPage() {
             {/* Free */}
             <div className="bg-genz-surface border border-genz-border p-8 rounded-3xl flex flex-col">
               <h3 className="text-2xl font-bold font-heading mb-2">Newbie</h3>
-              <p className="text-genz-muted text-sm mb-6">Buat kamu yang masih coba-coba.</p>
-              <div className="text-4xl font-bold font-mono mb-6">Gratis</div>
+              <p className="text-genz-muted text-sm mb-6">Dirancang untuk investor pemula yang ingin belajar analisis teknikal secara bertahap.</p>
+              <div className="text-4xl font-bold font-mono mb-6">Mulai Gratis</div>
               <ul className="space-y-3 mb-8 flex-1">
                 {['3x Analisis Saham / Hari', 'Data Delay 15 Menit', 'Basic Technical Score'].map((f, i) => (
                   <li key={i} className="flex items-center gap-3 text-sm"><CheckCircle2 className="text-genz-muted w-5 h-5"/> {f}</li>
@@ -206,33 +208,33 @@ export default function LandingPage() {
             </div>
             
             {/* Pro */}
-            <div className="bg-genz-surface border-2 border-genz-purple p-8 rounded-3xl flex flex-col relative transform md:-translate-y-4 shadow-neo">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-genz-purple text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">Most Popular</div>
+            <div className="bg-genz-surface border-2 border-genz-lime p-8 rounded-3xl flex flex-col relative transform md:-translate-y-4 shadow-neo">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-genz-lime text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">Paling Banyak Dipilih</div>
               <h3 className="text-2xl font-bold font-heading mb-2">Pro Trader</h3>
-              <p className="text-genz-muted text-sm mb-6">Unlock semua fitur rahasia bandar.</p>
+              <p className="text-genz-muted text-sm mb-6">Akses lengkap analisis Bandar & Foreign Flow secara real-time.</p>
               <div className="text-4xl font-bold font-mono mb-2">
-                {billing === 'monthly' ? 'Rp 99k' : 'Rp 79k'}<span className="text-lg text-genz-muted">/bln</span>
+                {billing === 'monthly' ? 'Rp 99.000' : 'Rp 79.000'}<span className="text-lg text-genz-muted">/bln</span>
               </div>
-              <p className="text-xs text-genz-lime mb-6">Dipakai 34,392 trader aktif</p>
+              <p className="text-xs text-genz-lime mb-6">Dipercaya oleh 34,392 trader aktif</p>
               
               <ul className="space-y-3 mb-8 flex-1">
                 {['Unlimited Analisis Saham', 'Real-time Data (No Delay)', 'Bandar & Foreign Flow Detector', 'Breakout Radar (Live 15m)', 'AI Assistant Gemini', 'Telegram Alerts'].map((f, i) => (
                   <li key={i} className="flex items-center gap-3 text-sm"><CheckCircle2 className="text-genz-lime w-5 h-5"/> {f}</li>
                 ))}
               </ul>
-              <button onClick={() => router.push('/signup')} className="w-full py-3 rounded-xl bg-genz-lime text-genz-base hover:bg-genz-limeHover transition-colors font-bold text-sm">Upgrade ke Pro</button>
+              <button onClick={() => router.push('/signup')} className="w-full py-3 rounded-xl bg-genz-lime text-white hover:bg-genz-limeHover transition-colors font-bold text-sm">Upgrade ke Pro</button>
             </div>
           </div>
         </div>
 
         {/* FAQ */}
         <div className="mt-32 w-full max-w-2xl text-left mb-20">
-          <h2 className="font-heading font-bold text-3xl mb-8 text-center">FAQ Bahasa Manusia</h2>
+          <h2 className="font-heading font-bold text-3xl mb-8 text-center">Pertanyaan Seputar SahamLens</h2>
           <div className="space-y-4">
             {[
-              { q: 'Ini aplikasi apaan sih bro?', a: 'Screener saham super pintar yang pakai 10 rumus matematika buat nentuin kapan saham mau naik atau turun. Gak ada opini, murni data.' },
-              { q: 'Kalau gue awam banget gimana?', a: 'Santai. UI kita sengaja dibikin kayak main game. Merah = Jauhin. Hijau = Gass. Sesimpel itu. Ada tooltip juga buat bantu jelasin istilah alien.' },
-              { q: 'Bedanya sama sekuritas biasa?', a: 'Sekuritas lu cuma ngasih tombol Buy/Sell. Kita ngasih tau **kapan** lu harus pencet tombol itu berdasarkan data bandar dan teknikal.' }
+              { q: 'Apa itu SahamLens?', a: 'SahamLens adalah Stock Screener pintar yang menggunakan 10 algoritma matematika untuk menganalisis probabilitas pergerakan saham. Semua analisis murni berbasis data, tanpa opini subjektif.' },
+              { q: 'Apakah cocok untuk pemula?', a: 'Sangat cocok. Antarmuka kami dirancang agar mudah dipahami (contoh: visualisasi merah/hijau yang intuitif), dilengkapi dengan tooltip dan edukasi 2-layer (sederhana & matematis) untuk membantu Anda belajar sambil menganalisis.' },
+              { q: 'Apa bedanya dengan aplikasi sekuritas biasa?', a: 'Aplikasi sekuritas berfokus pada eksekusi jual/beli. SahamLens hadir untuk melengkapi sekuritas Anda dengan memberikan insight berbasis data kapan momen yang paling tepat untuk bertransaksi berdasarkan pergerakan bandar (Big Fund) dan analisis teknikal.' }
             ].map((faq, idx) => (
               <div key={idx} className="bg-genz-surface border border-genz-border rounded-2xl overflow-hidden">
                 <button 
@@ -245,7 +247,7 @@ export default function LandingPage() {
                 <AnimatePresence>
                   {activeFaq === idx && (
                     <motion.div initial={{height:0}} animate={{height:'auto'}} exit={{height:0}} className="overflow-hidden">
-                      <div className="px-6 pb-4 text-genz-muted text-sm">{faq.a}</div>
+                      <div className="px-6 pb-4 text-genz-muted text-sm leading-relaxed">{faq.a}</div>
                     </motion.div>
                   )}
                 </AnimatePresence>

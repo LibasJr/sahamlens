@@ -10,51 +10,51 @@ module.exports = {
     extend: {
       colors: {
         genz: {
-          base: '#0A0E27',
-          surface: '#0F1222',
-          surfaceHover: '#1A1E35',
-          border: '#2A2F4C',
+          base: '#0A1931',
+          surface: '#152238',
+          surfaceHover: '#1E2C4A',
+          border: '#2C3A5A',
           text: '#F3F4F6',
           muted: '#8B94B6',
-          lime: '#D6FF00',
-          limeHover: '#C2E600',
-          purple: '#7A5CFF',
-          purpleHover: '#6947FF',
-          green: '#00F090', // Signal Green
-          red: '#FF3366',   // Signal Red
+          lime: '#3A86FF', // Changed to Accent Blue
+          limeHover: '#2563EB',
+          purple: '#D4AF37', // Changed to Accent Gold
+          purpleHover: '#B8860B',
+          green: '#10B981', // Professional Green
+          red: '#EF4444',   // Professional Red
         },
         tv: {
-          bg: '#0A0E27', // Override existing to new base
-          card: '#0F1222',
-          hover: '#1A1E35',
-          border: '#2A2F4C',
-          borderLight: '#363a45',
+          bg: '#0A1931', 
+          card: '#152238',
+          hover: '#1E2C4A',
+          border: '#2C3A5A',
+          borderLight: '#3A4B75',
           text: '#F3F4F6',
           muted: '#8B94B6',
-          green: '#00F090',
-          greenHover: '#00D680',
-          red: '#FF3366',
-          redHover: '#E62E5C',
-          yellow: '#f0b90b',
-          blue: '#7A5CFF', // Override with purple
-          blueHover: '#6947FF',
-          purple: '#ab47bc',
-          accent: '#D6FF00' // Override with lime
+          green: '#10B981',
+          greenHover: '#059669',
+          red: '#EF4444',
+          redHover: '#DC2626',
+          yellow: '#D4AF37',
+          blue: '#3A86FF', 
+          blueHover: '#2563EB',
+          purple: '#8B5CF6',
+          accent: '#3A86FF'
         }
       },
       fontFamily: {
-        heading: ['Sora', 'Space Grotesk', 'sans-serif'],
+        heading: ['Inter', 'sans-serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'Monaco', 'monospace'],
       },
       boxShadow: {
-        'neo': '4px 4px 0px 0px rgba(122, 92, 255, 1)',
-        'neo-lime': '4px 4px 0px 0px rgba(214, 255, 0, 1)',
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        'neo': '4px 4px 0px 0px rgba(58, 134, 255, 1)',
+        'neo-lime': '4px 4px 0px 0px rgba(58, 134, 255, 1)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
       },
       backgroundImage: {
-        'glow-purple': 'radial-gradient(circle, rgba(122,92,255,0.2) 0%, rgba(10,14,39,0) 70%)',
-        'glow-lime': 'radial-gradient(circle, rgba(214,255,0,0.15) 0%, rgba(10,14,39,0) 70%)',
+        'glow-purple': 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(10,25,49,0) 70%)',
+        'glow-lime': 'radial-gradient(circle, rgba(58,134,255,0.15) 0%, rgba(10,25,49,0) 70%)',
       }
     },
   },
