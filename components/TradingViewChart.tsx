@@ -32,6 +32,7 @@ interface TradingViewChartProps {
   symbol: string;
   height?: number;
   timeframe?: string;
+  onHoverCandle?: (time: string | null) => void;
 }
 
 export default function TradingViewChart({
@@ -39,10 +40,13 @@ export default function TradingViewChart({
   technical,
   symbol,
   height = 480,
-  timeframe = '1M'
+  timeframe = '1M',
+  onHoverCandle
 }: TradingViewChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const onHoverCandleRef = useRef(onHoverCandle);
+  onHoverCandleRef.current = onHoverCandle;
 
   useEffect(() => {
     if (!chartContainerRef.current || !candles || candles.length === 0) return;
@@ -192,6 +196,11 @@ export default function TradingViewChart({
 
     chart.timeScale().fitContent();
 
+    const handleCrosshairMove = (param: any) => {
+      onHoverCandleRef.current?.(param.time ? String(param.time) : null);
+    };
+    chart.subscribeCrosshairMove(handleCrosshairMove);
+
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -203,6 +212,7 @@ export default function TradingViewChart({
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
+      chart.unsubscribeCrosshairMove(handleCrosshairMove);
       chart.remove();
     };
   }, [candles, technical, height]);
