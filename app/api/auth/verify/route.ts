@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { getUserByEmail, updateUser } from '@/lib/dbUsers';
 import { readJson, writeJson } from '@/lib/dbLocal';
 import { cookies } from 'next/headers';
 import { encrypt } from '@/lib/session';
@@ -17,14 +18,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email dan kode verifikasi wajib diisi' }, { status: 400 });
     }
 
-    const users = readJson('data/users.json') || [];
-    const userIndex = users.findIndex((u: any) => u.email?.toLowerCase() === email.trim().toLowerCase());
+    const user = await getUserByEmail(email);
 
-    if (userIndex === -1) {
+    if (!user) {
       return NextResponse.json({ error: 'Email tidak ditemukan' }, { status: 404 });
     }
-
-    const user = users[userIndex];
 
     if (user.is_verified) {
       return NextResponse.json({ error: 'Akun sudah terverifikasi' }, { status: 400 });
@@ -42,9 +40,10 @@ export async function POST(req: Request) {
     user.verification_code = null;
     user.trial_ends_at = trialEndsAt.toISOString();
 
-    writeJson('data/users.json', users);
+    await updateUser(user.id, { is_verified: true, verification_code: null, trial_ends_at: user.trial_ends_at });
 
-    // Create portfolio
+    // Create portfolio (still file/memory-backed - separate demo-account system, out of
+    // scope for this migration; see project memory on /portfolio's own auth flow)
     const portfolios = readJson('data/portfolios.json') || [];
     if (!portfolios.find((p: any) => p.user_id === user.id)) {
       const newPortfolio = {
