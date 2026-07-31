@@ -24,7 +24,7 @@ const CARD_DEFS: CardDef[] = [
   { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'amber', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
 ];
 
-const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y'];
+const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y', 'ALL'];
 
 function formatCardItems(id: string, arr: any[]): CardItem[] {
   return (arr || []).slice(0, 4).map((s: any) => {

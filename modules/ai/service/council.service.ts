@@ -1,4 +1,4 @@
-import { getJsonModel } from "@/lib/gemini";
+import { generateAI, hasAnyAIProvider } from "@/lib/aiProviders";
 import { runLocalCouncil } from "./local-council.service";
 import { getCouncilCache, setCouncilCache } from "./council-cache.service";
 
@@ -67,28 +67,25 @@ export async function getCouncil(symbol: string, data: any) {
       .replace(/\$\{resistance\}/g, promptData.resistance.toString())
       .replace(/\$\{score\}/g, promptData.score.toString());
 
-    // 2. Coba Gemini Pro
-    const jsonModel = getJsonModel();
-    if (!jsonModel) {
-      console.warn("[COUNCIL] GEMINI_API_KEY missing, using local fallback", symbol);
+    // 2. Coba Council AI - cascade lintas provider (Gemini/Groq/OpenRouter, lihat
+    // lib/aiProviders.ts), bukan cuma satu model - kalau satu provider kena limit,
+    // otomatis lanjut ke provider lain sebelum jatuh ke fallback lokal.
+    if (!hasAnyAIProvider()) {
+      console.warn("[COUNCIL] Tidak ada AI provider terkonfigurasi, pakai local fallback", symbol);
       return runLocalCouncil(symbol, data);
     }
-    // Timeout 8 detik - pola sama seperti fetch Yahoo di seluruh app (Performance
-    // Roadmap Fase 2 poin 5). Tanpa ini, kalau Gemini hang, request menunggu penuh
-    // batas waktu function serverless alih-alih gagal cepat ke fallback lokal
-    // (runLocalCouncil) yang sudah tersedia dan jauh lebih murah.
-    const result = await Promise.race([
-      jsonModel.generateContent(prompt),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 8000)),
-    ]) as Awaited<ReturnType<typeof jsonModel.generateContent>>;
-    const jsonStr = result.response.text();
+    const jsonStr = await generateAI({ prompt, json: true, timeoutMs: 8000 });
+    if (!jsonStr) {
+      console.log("Semua AI provider gagal/limit, pakai local fallback", symbol);
+      return runLocalCouncil(symbol, data);
+    }
     const json = JSON.parse(jsonStr);
-    
+
     // Save cache
     await setCouncilCache(symbol, today, json);
     return json;
   } catch (e) {
-    console.log("Gemini limit atau error, pakai local fallback", e);
+    console.log("AI provider error, pakai local fallback", e);
     // 3. Fallback ke prompt lama (rule-based 10 file)
     return runLocalCouncil(symbol, data);
   }

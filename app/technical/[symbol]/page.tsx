@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
-import { Brain, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
+import { Users, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
 import { cookies, headers } from 'next/headers';
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
@@ -46,7 +46,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
           <p className="text-white font-semibold mb-1">Login untuk membuka Council AI</p>
-          <p className="text-tv-muted text-sm mb-4">Grafik & indikator di atas gratis untuk semua orang. Ringkasan 10 AI Agent Council butuh akun.</p>
+          <p className="text-tv-muted text-sm mb-4">Grafik & indikator di atas gratis untuk semua orang. Ringkasan Stock Analysis Council AI butuh akun.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Login Sekarang
           </Link>
@@ -58,7 +58,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
           <p className="text-white font-semibold mb-1">Council AI adalah fitur Pro</p>
-          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap 10 AI Agent Council pada {symbol}.</p>
+          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap Council AI pada {symbol}.</p>
           <a href="https://wa.me/?text=Halo%2C%20saya%20mau%20upgrade%20ke%20SahamLens%20Pro" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-tv-gold px-5 py-2.5 text-sm font-bold text-tv-bg hover:opacity-90 transition">
             Upgrade Pro
           </a>
@@ -151,7 +151,7 @@ function CouncilSkeleton({ symbol }: { symbol: string }) {
     <div className="space-y-6 animate-pulse">
       <div className="bg-tv-card border border-tv-border rounded-xl p-12 flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-tv-green animate-spin mb-4" />
-        <p className="text-tv-muted font-mono text-sm">10 AI Agents sedang merapatkan saham {symbol}, mohon tunggu (5-10 detik)...</p>
+        <p className="text-tv-muted font-mono text-sm">Council AI sedang merapatkan saham {symbol}, mohon tunggu (5-10 detik)...</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[...Array(6)].map((_, i) => (
@@ -172,11 +172,11 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
       <div className="p-6 space-y-6 max-w-7xl mx-auto w-full mt-6">
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 rounded-lg bg-tv-card border border-tv-borderLight text-tv-green">
-            <Brain className="w-6 h-6" />
+            <Users className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-2xl text-white tracking-tight">AI Council: {symbol}</h1>
-            <p className="text-sm text-tv-muted font-mono">10 AI Agents Debating Stock Analysis (Council AI)</p>
+            <h1 className="font-bold text-2xl text-white tracking-tight">Council AI: {symbol}</h1>
+            <p className="text-sm text-tv-muted font-mono">Stock Analysis Council AI</p>
           </div>
         </div>
 

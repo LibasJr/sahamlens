@@ -1,11 +1,12 @@
 import Parser from 'rss-parser';
-import { getJsonModel } from '@/lib/gemini';
+import { generateAI } from '@/lib/aiProviders';
 
 // Berita & Sentimen Pasar - sebelumnya cuma placeholder "Segera hadir" di app/home,
 // tidak ada backend sama sekali. Sumber berita: RSS publik gratis (CNBC Indonesia
 // & Detik Finance, keduanya sudah dites reachable), bukan API berbayar. Sentimen
-// dinilai oleh Council AI (Gemini) dalam SATU panggilan batch untuk semua judul
-// sekaligus (bukan per-artikel) supaya hemat kuota; kalau Gemini tidak tersedia,
+// dinilai oleh Council AI dalam SATU panggilan batch untuk semua judul sekaligus
+// (bukan per-artikel) supaya hemat kuota, dengan cascade lintas provider (Gemini/
+// Groq/OpenRouter - lib/aiProviders.ts); kalau semua provider tidak tersedia/gagal,
 // fallback ke heuristik kata kunci rule-based (bukan default netral kosong).
 
 const RSS_FEEDS = [
@@ -58,8 +59,7 @@ function keywordSentiment(title: string): { sentiment: Sentiment; reason: string
 }
 
 async function classifyWithCouncilAI(titles: string[]): Promise<{ sentiment: Sentiment; reason: string }[] | null> {
-  const jsonModel = getJsonModel();
-  if (!jsonModel || titles.length === 0) return null;
+  if (titles.length === 0) return null;
   try {
     const list = titles.map((t, i) => `${i + 1}. ${t}`).join('\n');
     const prompt = `Kamu adalah analis sentimen pasar saham Indonesia. Untuk setiap judul berita di bawah, tentukan sentimennya terhadap pasar saham/emiten terkait: POSITIF, NETRAL, atau NEGATIF, beserta alasan singkat (maks 12 kata, Bahasa Indonesia).
@@ -70,18 +70,16 @@ ${list}
 Balas HANYA dalam format JSON array, urut sesuai nomor, tanpa teks lain:
 [{"sentiment":"POSITIF|NETRAL|NEGATIF","reason":"..."}]`;
 
-    const result = await Promise.race([
-      jsonModel.generateContent(prompt),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 10000)),
-    ]) as Awaited<ReturnType<typeof jsonModel.generateContent>>;
-    const parsed = JSON.parse(result.response.text());
+    const text = await generateAI({ prompt, json: true, timeoutMs: 10000 });
+    if (!text) return null;
+    const parsed = JSON.parse(text);
     if (!Array.isArray(parsed) || parsed.length !== titles.length) return null;
     return parsed.map((p: any) => ({
       sentiment: ['POSITIF', 'NETRAL', 'NEGATIF'].includes(p.sentiment) ? p.sentiment : 'NETRAL',
       reason: typeof p.reason === 'string' ? p.reason : '',
     }));
   } catch (e) {
-    console.warn('[news] Council AI sentiment gagal, pakai fallback kata kunci:', e);
+    console.warn('[news] Semua AI provider gagal, pakai fallback kata kunci:', e);
     return null;
   }
 }

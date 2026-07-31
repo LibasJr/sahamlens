@@ -10,7 +10,7 @@ module.exports = {
     extend: {
       colors: {
         tv: {
-          bg: '#0A1931',
+          bg: '#0F141D',
           surface: '#0D1F3C',
           card: '#152238',
           hover: '#1E2C4A',

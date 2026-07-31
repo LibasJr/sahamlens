@@ -31,7 +31,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`dark ${jakarta.variable} ${sora.variable} ${spaceGrotesk.variable}`}>
-      <body className={`${jakarta.className} bg-[#0B1121] text-slate-100 antialiased min-h-screen relative overflow-x-hidden selection:bg-[#3A86FF]/20`}>
+      <body className={`${jakarta.className} bg-[#0F141D] text-slate-100 antialiased min-h-screen relative overflow-x-hidden selection:bg-[#3A86FF]/20`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>
