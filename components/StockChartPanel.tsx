@@ -5,7 +5,7 @@ import { Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import { computeIndicators, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
 
-const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y'];
+const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y', 'ALL'];
 
 // Grafik candlestick + timeframe switcher + ringkasan Council AI (10 agen), dipakai
 // baik di halaman /technical/[symbol] maupun bisa dipakai ulang di tempat lain yang

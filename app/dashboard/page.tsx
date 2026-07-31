@@ -13,7 +13,7 @@ import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { incrementAnalisa, getUsedSymbolsToday, refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
-  RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
+  RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
   Sparkles, Building2, Calculator, Newspaper
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -640,7 +640,7 @@ function DashboardContent() {
                   onClick={() => router.push(`/technical/${stock.symbol || ticker}`)}
                   className="flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-tv-yellow px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
                 >
-                  <Brain className="w-3.5 h-3.5" /> AI Council
+                  <Users className="w-3.5 h-3.5" /> Council AI
                 </button>
                 <button
                   onClick={downloadTechnicalPDF}
@@ -758,7 +758,7 @@ function DashboardContent() {
 
           <div className="w-full space-y-3">
             <div className="flex items-center gap-1.5 rounded-full bg-tv-card border border-tv-border p-1 w-fit">
-              {['1D', '3D', '7D', '1M', '1Y'].map((t) => (
+              {['1D', '3D', '7D', '1M', '1Y', 'ALL'].map((t) => (
                 <button
                   key={t}
                   onClick={() => setTimeframe(t)}
