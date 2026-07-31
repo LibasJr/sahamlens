@@ -165,6 +165,17 @@ export default function WatchlistPage() {
     e.preventDefault();
     if (!alertSymbol) return;
 
+    const needsValue = alertCondition === 'PRICE_BELOW' || alertCondition === 'PRICE_ABOVE';
+    // Backend (alertSchema) mewajibkan targetValue berupa number, tapi state ini bersumber
+    // dari <input type="number"> yang selalu berupa string di React - sebelumnya string
+    // mentah ("400") dikirim langsung dan ditolak validasi Zod, gagal 400 tanpa pesan apa
+    // pun ke user (klik "Set Alert" terlihat seperti tidak terjadi apa-apa).
+    const parsedValue = alertValue.trim() ? Number(alertValue) : null;
+    if (needsValue && (parsedValue === null || Number.isNaN(parsedValue))) {
+      alert('Target Nilai wajib diisi dengan angka.');
+      return;
+    }
+
     try {
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -178,17 +189,21 @@ export default function WatchlistPage() {
         body: JSON.stringify({
           symbol: alertSymbol.toUpperCase().replace('.JK', '') + '.JK',
           conditionType: alertCondition,
-          targetValue: alertValue
+          targetValue: needsValue ? parsedValue : null
         })
       });
-      
+
       if (res.ok) {
         fetchAlerts();
         setAlertSymbol('');
         setAlertValue('');
+      } else {
+        const errBody = await res.json().catch(() => null);
+        alert(errBody?.error || errBody?.message || 'Gagal membuat alert. Coba lagi.');
       }
     } catch (err) {
       console.error('Failed to add alert', err);
+      alert('Gagal membuat alert. Coba lagi.');
     }
   };
 
