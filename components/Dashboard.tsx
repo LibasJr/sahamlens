@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, LineChart, Sparkles, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity } from 'lucide-react';
 import AskAIButton from '@/components/AskAIButton';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
@@ -187,7 +187,7 @@ export default function Dashboard() {
           <div className="flex h-[64px] items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-[#3A86FF] grid place-items-center font-bold text-[14px] tracking-tight font-heading">SL</div>
+                <img src="/icon-192x192.png" alt="SahamLens" className="h-8 w-8 rounded-lg object-cover" />
                 <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
 
               </div>
@@ -262,7 +262,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Powered by</span>
-            <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] px-3 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm">Council AI</span>
+            <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] px-3 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm">SahamLens</span>
           </div>
         </div>
 
@@ -334,7 +334,7 @@ export default function Dashboard() {
             </div>
 
             {/* Right Panel - Institutional Analysis */}
-            <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-[#FBFDFF] p-5 sm:p-7 flex flex-col">
+            <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-[#FBFDFF] dark:bg-[#152238] p-5 sm:p-7 flex flex-col">
               <div className="flex items-center justify-between">
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Analisis Teknikal Real-Time</h3>
                 {ind && (
@@ -358,7 +358,7 @@ export default function Dashboard() {
                         <span className={`h-5 w-5 rounded-full grid place-items-center text-[#0A1931] text-[11px] ${finalSignal === 'BUY' ? 'bg-emerald-400' : finalSignal === 'SELL' ? 'bg-red-400' : 'bg-slate-300'}`}>{finalSignal === 'BUY' ? '↑' : finalSignal === 'SELL' ? '↓' : '→'}</span> {finalSignal}
                       </div>
                       <div className="text-[11px] text-white/70">
-                        {council ? `${council.confidence}% dari 10 agen sepakat` : ind.crossLabel}
+                        {ind.crossLabel}
                       </div>
                     </>
                   ) : <div className="mt-1 text-[13px] text-white/60">Memuat...</div>}
@@ -371,16 +371,27 @@ export default function Dashboard() {
                   { k: 'MA50', v: ind.ma50 != null ? Math.round(ind.ma50).toLocaleString('id-ID') : '-', s: ind.crossLabel, c: ind.ma20 != null && ind.ma50 != null && ind.ma20 > ind.ma50 ? 'blue' : 'slate' },
                   { k: 'RSI (14)', v: ind.rsi14 != null ? ind.rsi14.toFixed(1) : '-', s: `Status ${ind.rsiLabel}`, c: 'slate' },
                   { k: 'Volume', v: `${(ind.volume / 1e6).toFixed(1)} Jt`, s: ind.volRatio >= 1 ? `Naik ${((ind.volRatio - 1) * 100).toFixed(0)}% dari rata-rata` : `Turun ${((1 - ind.volRatio) * 100).toFixed(0)}% dari rata-rata`, c: ind.volRatio >= 1 ? 'emerald' : 'slate' },
+                  // Indikator tambahan dari agen Council AI lain (MACD, S/R, Money Flow,
+                  // Volatilitas) - menggantikan kotak "Ringkasan Analisis Teknikal" yang
+                  // dulu isinya duplikat persis dengan kartu Insight di kolom kiri.
+                  ...(council ? council.agents
+                    .filter(a => ['MACD', 'Support/Resistance', 'Money Flow', 'Volatilitas'].includes(a.name))
+                    .map(a => ({
+                      k: a.name,
+                      v: a.signal,
+                      s: a.reason,
+                      c: a.signal === 'BUY' ? 'emerald' : a.signal === 'SELL' ? 'red' : 'slate',
+                    })) : []),
                 ].map(r=>(
                   <div key={r.k} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800/50 bg-white dark:bg-[#152238] px-3 py-2.5">
                     <div className="flex items-center gap-2.5">
-                      <div className={`h-7 w-7 rounded-full grid place-items-center text-[11px] font-bold ${r.c==='emerald'?'bg-emerald-50 text-emerald-700': r.c==='blue'?'bg-blue-50 text-blue-700':'bg-slate-100 dark:bg-slate-800/80 text-slate-600'}`}>{r.k[0]}</div>
-                      <div>
+                      <div className={`h-7 w-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${r.c==='emerald'?'bg-emerald-50 text-emerald-700': r.c==='blue'?'bg-blue-50 text-blue-700': r.c==='red'?'bg-red-50 text-red-700':'bg-slate-100 dark:bg-slate-800/80 text-slate-600'}`}>{r.k[0]}</div>
+                      <div className="min-w-0">
                         <div className="text-[12px] font-bold text-slate-900 dark:text-slate-100">{r.k}</div>
                         <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{r.s}</div>
                       </div>
                     </div>
-                    <div className="text-[12px] font-bold text-[#0A1931] dark:text-white font-number">{r.v}</div>
+                    <div className="text-[12px] font-bold text-[#0A1931] dark:text-white font-number shrink-0 pl-2">{r.v}</div>
                   </div>
                 )) : (
                   <div className="text-[12px] text-slate-400 py-4 text-center">Memuat indikator teknikal...</div>
@@ -388,18 +399,7 @@ export default function Dashboard() {
               </div>
 
               <div className="mt-auto pt-5">
-                <div className="rounded-xl bg-gradient-to-br from-[#0A1931] to-[#1E293B] p-4 text-white">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-bold uppercase tracking-widest text-white/60">Ringkasan Analisis Teknikal (Council AI • 10 Agen)</div>
-                      <p className="mt-1.5 text-[12px] leading-[1.5] text-white/85">
-                        {ind ? insightText : 'Memuat ringkasan analisis...'}
-                      </p>
-                    </div>
-                    <LineChart className="h-4 w-4 text-white/40 shrink-0 mt-1" />
-                  </div>
-                </div>
-                <Link href={`/technical/${ticker.symbol}.JK`} className="mt-3 group flex w-full items-center justify-center gap-2 rounded-full bg-[#3A86FF] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-8px_#3A86FF] hover:bg-[#2f6fd6] transition">
+                <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#3A86FF] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-8px_#3A86FF] hover:bg-[#2f6fd6] transition">
                   Lihat Analisis Lengkap
                   <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>

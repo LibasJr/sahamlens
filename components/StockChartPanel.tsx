@@ -61,7 +61,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
                 : 'bg-tv-border text-tv-muted'
             }`}
           >
-            {finalSignal} {council ? `• ${council.confidence}% dari 10 agen` : ''}
+            {finalSignal}
           </span>
         )}
       </div>

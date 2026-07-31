@@ -16,8 +16,6 @@ import {
   Bell,
   Wallet,
   CalendarDays,
-  TrendingUp,
-  TrendingDown,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
@@ -151,14 +149,7 @@ export default function Sidebar() {
         {/* Brand Header */}
         <div className={`border-b border-white/5 flex items-center bg-gradient-to-b from-white/[0.02] to-transparent ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-5'} py-5`}>
           <Link href="/" className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center -space-x-1 shrink-0">
-              <div className="bg-tv-green/20 p-1.5 rounded-l-lg border border-tv-green/30">
-                <TrendingUp className="w-4 h-4 text-tv-green" />
-              </div>
-              <div className="bg-tv-red/20 p-1.5 rounded-r-lg border border-tv-red/30">
-                <TrendingDown className="w-4 h-4 text-tv-red" />
-              </div>
-            </div>
+            <img src="/icon-192x192.png" alt="SahamLens" className="h-9 w-9 rounded-lg shrink-0 object-cover" />
             <div className={isCollapsed ? 'md:hidden' : ''}>
               <h1 className="text-base font-bold text-white leading-none">SahamLens</h1>
               <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest mt-1">IDX Analytics</p>

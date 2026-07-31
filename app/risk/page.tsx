@@ -57,8 +57,8 @@ export default function RiskPage() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="Bridgewater Risk Matrix & Stress Testing"
-        moduleBank="BRIDGEWATER"
+        moduleTitle="Council AI Risk Matrix & Stress Testing"
+        moduleBank="COUNCIL AI"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
@@ -149,7 +149,7 @@ export default function RiskPage() {
             <div className="p-4 rounded-lg bg-tv-bg border border-tv-border space-y-2 font-mono text-xs">
               <div className="text-tv-yellow font-bold uppercase flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-tv-yellow" />
-                Rekomendasi Hedging & Rebalancing Bridgewater
+                Rekomendasi Hedging & Rebalancing Council AI
               </div>
               <p className="text-tv-text leading-relaxed">
                 {quant.recommended_hedging || 'Alokasikan 15-20% ke SBN / Emas untuk meredam volatilitas portofolio.'}

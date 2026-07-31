@@ -31,8 +31,8 @@ const QUICK_TICKERS = [
 export default function Header({
   currentTicker,
   onTickerChange,
-  moduleTitle = 'Citadel Technical + Bandarmology',
-  moduleBank = 'CITADEL LLC',
+  moduleTitle = 'Council AI Technical + Bandarmology',
+  moduleBank = 'COUNCIL AI',
   analisaRemaining,
   analisaTotal = 5,
   isAdmin = false

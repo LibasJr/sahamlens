@@ -436,8 +436,8 @@ export default function MarketPulse() {
                   </div>
                   <div className="space-y-1.5">
                     {data.breadth.topLosers?.map((s: any, i: number) => (
-                      <div 
-                        key={s.symbol} 
+                      <div
+                        key={s.symbol}
                         onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
                         className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-red-500/10 cursor-pointer hover:bg-[#131c2e]"
                       >
@@ -446,6 +446,51 @@ export default function MarketPulse() {
                           <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
                         </div>
                         <span className="text-sm font-bold text-red-400 font-mono">{s.changePct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Volume - datanya sudah dihitung backend (breadth.topVolume) tapi
+                    sebelumnya tidak pernah ditampilkan di sini. */}
+                <div>
+                  <div className="text-[10px] font-mono text-blue-400 uppercase mb-2 flex items-center gap-1">
+                    <BarChart3 className="w-3 h-3" /> Top Volume
+                  </div>
+                  <div className="space-y-1.5">
+                    {data.breadth.topVolume?.map((s: any, i: number) => (
+                      <div
+                        key={s.symbol}
+                        onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
+                        className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-blue-500/10 cursor-pointer hover:bg-[#131c2e]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono text-gray-600 w-4">{i + 1}</span>
+                          <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
+                        </div>
+                        <span className="text-sm font-bold text-blue-400 font-mono">{Math.round((s.volume || 0) / 100).toLocaleString('id-ID')} lot</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Value - sama, sudah dihitung backend (breadth.topValue). */}
+                <div>
+                  <div className="text-[10px] font-mono text-amber-400 uppercase mb-2 flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> Top Value Transaksi
+                  </div>
+                  <div className="space-y-1.5">
+                    {data.breadth.topValue?.map((s: any, i: number) => (
+                      <div
+                        key={s.symbol}
+                        onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
+                        className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-amber-500/10 cursor-pointer hover:bg-[#131c2e]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono text-gray-600 w-4">{i + 1}</span>
+                          <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
+                        </div>
+                        <span className="text-sm font-bold text-amber-400 font-mono">Rp {((s.value || 0) / 1e12).toFixed(2)} T</span>
                       </div>
                     ))}
                   </div>
