@@ -219,7 +219,7 @@ export default function PortfolioPage() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex items-center justify-center font-sans p-4">
-        <div className="bg-[#131c2e] border border-[#1e293b] p-8 rounded-xl shadow-lg max-w-sm w-full">
+        <div className="bg-[#131c2e] border border-[#1e293b] p-8 rounded-xl shadow-1 max-w-sm w-full">
           <div className="flex justify-center mb-6">
             <div className="bg-[#1cb05b]/10 p-4 rounded-full text-[#1cb05b]">
               <Wallet className="w-8 h-8" />

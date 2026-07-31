@@ -51,7 +51,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   if (!data) return null;
 
   return (
-    <div className="bg-tv-bg border border-tv-border rounded-xl p-5 shadow-lg flex flex-col gap-6">
+    <div className="bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col gap-6">
       
       {/* Header & Status */}
       <div className="flex items-center justify-between border-b border-tv-border pb-4">

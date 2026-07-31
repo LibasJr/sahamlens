@@ -64,7 +64,7 @@ export default function RiskPage() {
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Portfolio Input & Management Card */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <PieChart className="w-5 h-5 text-red-400" />
               Alokasi Portofolio User (%)
@@ -116,7 +116,7 @@ export default function RiskPage() {
           </div>
 
           {/* Stress Testing Results */}
-          <div className="lg:col-span-2 bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="lg:col-span-2 bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <Activity className="w-5 h-5 text-tv-yellow" />
               Hasil Stress Test IHSG Crash & Makro Indonesia

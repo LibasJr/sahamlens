@@ -9,22 +9,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        genz: {
-          base: '#0A1931',
-          surface: '#152238',
-          surfaceHover: '#1E2C4A',
-          border: '#2C3A5A',
-          text: '#F3F4F6',
-          muted: '#8B94B6',
-          lime: '#3A86FF', // Changed to Accent Blue
-          limeHover: '#2563EB',
-          purple: '#D4AF37', // Changed to Accent Gold
-          purpleHover: '#B8860B',
-          green: '#10B981', // Professional Green
-          red: '#EF4444',   // Professional Red
-        },
         tv: {
-          bg: '#0A1931', 
+          bg: '#0A1931',
+          surface: '#0D1F3C',
           card: '#152238',
           hover: '#1E2C4A',
           border: '#2C3A5A',
@@ -36,26 +23,45 @@ module.exports = {
           red: '#EF4444',
           redHover: '#DC2626',
           yellow: '#D4AF37',
-          blue: '#3A86FF', 
+          warning: '#F59E0B',
+          gold: '#EAB308',
+          blue: '#3A86FF',
           blueHover: '#2563EB',
           purple: '#8B5CF6',
           accent: '#3A86FF'
         }
       },
       fontFamily: {
-        heading: ['Inter', 'sans-serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        heading: ['Sora', 'Inter', 'sans-serif'],
+        display: ['Sora', 'Inter', 'sans-serif'],
+        number: ['"Space Grotesk"', 'Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'Monaco', 'monospace'],
       },
+      borderRadius: {
+        sm: '6px',
+        md: '10px',
+        lg: '14px',
+        xl: '20px',
+      },
       boxShadow: {
-        'neo': '4px 4px 0px 0px rgba(58, 134, 255, 1)',
-        'neo-lime': '4px 4px 0px 0px rgba(58, 134, 255, 1)',
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
+        1: '0 1px 2px 0 rgba(0,0,0,0.3)',
+        2: '0 4px 12px 0 rgba(0,0,0,0.35)',
+        3: '0 12px 32px 0 rgba(0,0,0,0.45)',
+        glass: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
       },
       backgroundImage: {
-        'glow-purple': 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(10,25,49,0) 70%)',
-        'glow-lime': 'radial-gradient(circle, rgba(58,134,255,0.15) 0%, rgba(10,25,49,0) 70%)',
-      }
+        'glow-blue': 'radial-gradient(circle, rgba(58,134,255,0.15) 0%, rgba(10,25,49,0) 70%)',
+        'glow-gold': 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(10,25,49,0) 70%)',
+        'glow-purple': 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, rgba(10,25,49,0) 70%)',
+      },
+      transitionTimingFunction: {
+        settle: 'cubic-bezier(0.16,1,0.3,1)',
+        snap: 'cubic-bezier(0.4,0,0.2,1)',
+      },
+      transitionDuration: {
+        250: '250ms',
+      },
     },
   },
   plugins: [],

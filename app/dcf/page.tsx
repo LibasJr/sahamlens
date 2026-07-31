@@ -44,7 +44,7 @@ export default function DcfPage() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Top DCF Summary Banner */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-blue-400/10 border border-blue-400/30 flex items-center justify-center text-blue-400">
               <Calculator className="w-6 h-6" />
@@ -82,7 +82,7 @@ export default function DcfPage() {
 
         {/* 5-Year FCF Projections Table */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <TrendingUp className="w-5 h-5 text-blue-400" />
               Proyeksi Cash Flow 5-Tahun (Free Cash Flow Per Share)
@@ -121,7 +121,7 @@ export default function DcfPage() {
           </div>
 
           {/* WACC vs Terminal Growth Sensitivity Matrix */}
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <Table className="w-5 h-5 text-tv-yellow" />
               Tabel Sensitivitas Valuasi WACC vs Terminal Growth

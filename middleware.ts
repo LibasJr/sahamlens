@@ -18,6 +18,7 @@ const RATE_LIMIT_CONFIG = {
 // akun demo terpisah sendiri via DEMO_SESSION_COOKIE) dan TIDAK termasuk '/' atau
 // '/screener' (ringkasan pasar publik, sengaja gratis).
 const PROTECTED_PAGES = [
+  '/home',
   '/dashboard',
   '/fundamental',
   '/technical',
@@ -93,6 +94,7 @@ export const config = {
   matcher: [
     '/api/stock/:path*',
     '/api/fundamental/:path*',
+    '/home/:path*',
     '/dashboard/:path*',
     '/fundamental/:path*',
     '/technical/:path*',

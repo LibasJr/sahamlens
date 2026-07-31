@@ -42,7 +42,7 @@ export default function MoatPage() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Sector Selection Bar */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-purple-400/10 border border-purple-400/30 text-purple-400">
               <Award className="w-6 h-6" />
@@ -73,7 +73,7 @@ export default function MoatPage() {
         </div>
 
         {/* Top Emitens Moat Comparison Table */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
           <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
             <Shield className="w-5 h-5 text-purple-400" />
             Matriks Persaingan & Rating Moat Sektor {sector}

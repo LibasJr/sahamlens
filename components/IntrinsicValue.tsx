@@ -33,7 +33,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
 
   if (loading) {
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex justify-center items-center h-[300px]">
+      <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex justify-center items-center h-[300px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tv-accent"></div>
       </div>
     );
@@ -84,7 +84,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
   }
   
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg">
+    <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
       <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
         <div className="flex items-center gap-3">
           <h3 className="text-base font-bold text-white flex items-center gap-2">

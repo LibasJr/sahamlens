@@ -87,7 +87,7 @@ export default function BacktestPage() {
           
           {/* Builder Panel */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
               <h3 className="font-bold text-white flex items-center gap-2 mb-4 border-b border-[#1e293b] pb-3">
                 <Target className="w-5 h-5 text-purple-400" /> PRESETS
               </h3>
@@ -98,7 +98,7 @@ export default function BacktestPage() {
               </div>
             </div>
 
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
               <h3 className="font-bold text-white flex items-center gap-2 mb-4 border-b border-[#1e293b] pb-3">
                 <Settings2 className="w-5 h-5 text-purple-400" /> ALGO FILTERS
               </h3>
@@ -184,7 +184,7 @@ export default function BacktestPage() {
                 </div>
 
                 {/* Chart */}
-                <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+                <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
                   <h3 className="text-sm font-bold text-white mb-4 font-mono">EQUITY CURVE</h3>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
@@ -218,7 +218,7 @@ export default function BacktestPage() {
                 </div>
 
                 {/* Trades */}
-                <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl shadow-lg overflow-hidden">
+                <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl shadow-1 overflow-hidden">
                   <div className="p-4 border-b border-[#1e293b] bg-slate-900/50">
                     <h3 className="text-sm font-bold text-white font-mono">SIMULATED TRADES (SAMPLE)</h3>
                   </div>

@@ -44,7 +44,7 @@ export default function EarningsPage() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Top Summary Banner */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
               <TrendingUp className="w-6 h-6" />
@@ -72,7 +72,7 @@ export default function EarningsPage() {
 
         {/* 4-Quarter Beat / Miss History Table */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <BarChart3 className="w-5 h-5 text-emerald-400" />
               Riwayat Beat / Miss Earnings 4 Kuartal Terakhir
@@ -111,7 +111,7 @@ export default function EarningsPage() {
           </div>
 
           {/* Bull & Bear Cases Scenario */}
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4 font-mono text-xs">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4 font-mono text-xs">
             <h3 className="text-base font-bold text-white border-b border-tv-border pb-3">
               Skenario Reaksi Pasar & Bull / Bear Case Pasca Rilis
             </h3>

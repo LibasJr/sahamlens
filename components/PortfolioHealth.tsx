@@ -3,6 +3,8 @@
 import React from 'react';
 import { AlertTriangle, ShieldCheck, Activity, PieChart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Card, CardHeader, CardTitle } from './ui/Card';
+import { Badge } from './ui/Badge';
 
 interface WatchlistItem {
   simbol: string;
@@ -67,15 +69,15 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
   const diversificationScore = Math.max(0, 100 - (maxConcentration - 30) * 1.5 - (watchlist.length === 1 ? 50 : 0));
 
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl shadow-lg mb-6 overflow-hidden">
-      <div className="p-4 border-b border-tv-border bg-slate-900/50 flex items-center justify-between">
-        <h2 className="font-bold text-white flex items-center gap-2">
-          <Activity className="w-5 h-5 text-blue-400" /> PORTFOLIO HEALTH CHECK
-        </h2>
-        <span className={`px-2 py-1 rounded text-xs font-bold font-mono ${diversificationScore > 60 ? 'bg-tv-green/20 text-tv-green' : 'bg-tv-red/20 text-tv-red'}`}>
-          SKOR: {Math.round(diversificationScore)}/100
-        </span>
-      </div>
+    <Card padding="none" hoverable className="mb-6 overflow-hidden">
+      <CardHeader className="p-4 border-b border-tv-border mb-0">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Activity className="w-5 h-5 text-tv-blue" /> Portfolio Health Check
+        </CardTitle>
+        <Badge variant={diversificationScore > 60 ? 'success' : 'danger'}>
+          Skor: {Math.round(diversificationScore)}/100
+        </Badge>
+      </CardHeader>
 
       <div className="p-5 flex flex-col md:flex-row gap-6">
         <div className="flex-1 space-y-4">
@@ -129,6 +131,6 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           </button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

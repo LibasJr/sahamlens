@@ -222,7 +222,7 @@ export default function MarketPulse() {
             return (
               <div
                 key={idx.name}
-                className={`bg-[#131c2e] border rounded-xl p-4 shadow-lg transition-all hover:shadow-xl ${
+                className={`bg-[#131c2e] border rounded-xl p-4 shadow-1 transition-all hover:shadow-xl ${
                   isUp ? 'border-[#14b8a6]/30' : 'border-red-500/30'
                 }`}
               >
@@ -247,7 +247,7 @@ export default function MarketPulse() {
           }) : (
             // Skeleton
             [1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-4 shadow-lg animate-pulse">
+              <div key={i} className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-4 shadow-1 animate-pulse">
                 <div className="h-4 bg-[#1e293b] rounded w-20 mb-2" />
                 <div className="h-6 bg-[#1e293b] rounded w-16 mb-3" />
                 <div className="h-8 bg-[#1e293b] rounded w-full" />
@@ -257,7 +257,7 @@ export default function MarketPulse() {
         </div>
 
         {/* === SECTION 1.5: BREAKOUT WIDGET === */}
-        <div className="bg-[#131c2e] border border-teal-500/30 rounded-xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-[#131c2e] border border-teal-500/30 rounded-xl p-5 shadow-1 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-bl-full -z-10" />
           <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
             <div>
@@ -304,7 +304,7 @@ export default function MarketPulse() {
         </div>
 
         {/* === SECTION 2: SECTOR HEATMAP === */}
-        <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+        <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
           <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Layers className="w-5 h-5 text-[#14b8a6]" />
@@ -333,7 +333,7 @@ export default function MarketPulse() {
         {/* === SECTION 3: MARKET BREADTH === */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Breadth Overview */}
-          <div className="lg:col-span-2 bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+          <div className="lg:col-span-2 bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
             <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-[#14b8a6]" />
@@ -399,7 +399,7 @@ export default function MarketPulse() {
           </div>
 
           {/* Top Movers */}
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-[#1e293b] pb-3 mb-4">
               <Zap className="w-5 h-5 text-yellow-400" />
               Top Movers

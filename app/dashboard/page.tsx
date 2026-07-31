@@ -2,16 +2,19 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Header from '@/components/Header';
 import TradingViewChart from '@/components/TradingViewChart';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { incrementAnalisa, getUsedSymbolsToday, refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
-  RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target
+  RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
+  Sparkles, Building2, Calculator, Newspaper
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -537,22 +540,22 @@ function DashboardContent() {
         </div>
 
 
-        {/* Top Summary Banner */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+        {/* Hero */}
+        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4 bg-glow-gold">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
+            <div className="w-12 h-12 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
               <Zap className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-extrabold text-white font-mono">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                <h1 className="font-heading text-2xl font-bold text-white">{displayTicker(stock.symbol || ticker)}.JK</h1>
                 <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
               </div>
-              <div className="flex items-center gap-3 mt-1 font-mono">
-                <span className="text-2xl font-bold text-white">
+              <div className="flex items-center gap-3 mt-1">
+                <span className="font-number text-2xl font-bold text-white tabular-nums">
                   Rp {stock.current_price?.toLocaleString('id-ID') || '-'}
                 </span>
-                <span className={`text-sm font-bold flex items-center gap-0.5 ${
+                <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
                   (stock.change_pct || 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
                 }`}>
                   {(stock.change_pct || 0) >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
@@ -574,7 +577,7 @@ function DashboardContent() {
              )}
             <div className="text-right">
               <div className="text-[10px] font-mono text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
-              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-lg flex items-center gap-2 ${
+              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
                 data?.consensus?.includes('BUY')
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
                   : data?.consensus?.includes('SELL')
@@ -594,6 +597,106 @@ function DashboardContent() {
             </div>
           </div>
         </div>
+
+        {/* AI Summary - breakdown skor + top alasan, dipindah tepat di bawah Hero
+            supaya konsensus AI terlihat sebelum user scroll ke chart/teknikal. */}
+        {data?.scoring && (
+          <div className="w-full bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-tv-blue" />
+              <h2 className="font-heading text-sm font-semibold text-white">AI Summary</h2>
+            </div>
+            <div className="flex flex-col md:flex-row gap-6 relative">
+              {/* Action Buttons */}
+              <div className="absolute top-0 right-0 flex gap-2 z-10">
+                <button
+                  onClick={() => router.push(`/technical/${stock.symbol || ticker}`)}
+                  className="flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-tv-yellow px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
+                >
+                  <Brain className="w-3.5 h-3.5" /> AI Council
+                </button>
+                <button
+                  onClick={downloadTechnicalPDF}
+                  className="hidden md:flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-white px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" /> Report
+                </button>
+              </div>
+
+              {/* Score Circle */}
+              <div className="flex flex-col items-center justify-center gap-2 min-w-[140px]">
+                <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
+                  SAHM LENS SCORE
+                </div>
+                <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-number ${
+                  data.scoring.total_score > 75 ? 'border-tv-green text-tv-green bg-tv-green/10' :
+                  data.scoring.total_score >= 60 ? 'border-blue-400 text-blue-400 bg-blue-400/10' :
+                  data.scoring.total_score >= 45 ? 'border-tv-yellow text-tv-yellow bg-tv-yellow/10' :
+                  'border-tv-red text-tv-red bg-tv-red/10'
+                }`}>
+                  <AnimatedNumber value={data.scoring.total_score} />
+                </div>
+                <div className={`text-sm font-bold font-mono px-3 py-1 rounded-full border ${
+                  data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
+                  data.scoring.kategori === 'BUY' ? 'bg-blue-400/20 text-blue-400 border-blue-400/50' :
+                  data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
+                  'bg-tv-red/20 text-tv-red border-tv-red/50'
+                }`}>
+                  {data.scoring.kategori}
+                </div>
+              </div>
+
+              {/* Score Breakdown */}
+              <div className="flex-1 space-y-3">
+                <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-2">BREAKDOWN SKOR</div>
+                {/* Technical */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-tv-muted font-mono w-28">Technical (0-40)</span>
+                  <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-all" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
+                  </div>
+                  <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.technical_score}</span>
+                </div>
+                {/* Fundamental */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-tv-muted font-mono w-28">Fundamental (0-30)</span>
+                  <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-400/80 to-blue-400 rounded-full transition-all" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
+                  </div>
+                  <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.fundamental_score}</span>
+                </div>
+                {/* Flow */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-tv-muted font-mono w-28">Flow Asing (0-30)</span>
+                  <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
+                  </div>
+                  <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.flow_score}</span>
+                </div>
+              </div>
+
+              {/* Reasons & Risk */}
+              <div className="flex-1 space-y-3">
+                <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
+                {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
+                  <div key={i} className="flex items-start gap-2 text-xs">
+                    <span className="text-tv-green font-bold">✓</span>
+                    <span className="text-tv-text font-mono">{reason}</span>
+                  </div>
+                ))}
+                {data.scoring.risk && (
+                  <div className="mt-3 pt-3 border-t border-tv-border">
+                    <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-1">RISK</div>
+                    <div className="flex items-start gap-2 text-xs">
+                      <span className="text-tv-red font-bold">⚠</span>
+                      <span className="text-tv-muted font-mono">{data.scoring.risk}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Layout */}
         <div className="flex flex-col gap-6">
@@ -640,101 +743,6 @@ function DashboardContent() {
             <BandarFlowPro symbol={stock.symbol || ticker} />
           </div>
 
-          {/* SahamLens Score Panel */}
-          {data?.scoring && (
-            <div className="w-full bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg">
-              <div className="flex flex-col md:flex-row gap-6 relative">
-                {/* Action Buttons */}
-                <div className="absolute top-0 right-0 flex gap-2 z-10">
-                  <button 
-                    onClick={() => router.push(`/technical/${stock.symbol || ticker}`)}
-                    className="flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-tv-yellow px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
-                  >
-                    <Brain className="w-3.5 h-3.5" /> AI Council
-                  </button>
-                  <button 
-                    onClick={downloadTechnicalPDF}
-                    className="hidden md:flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-white px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5" /> Report
-                  </button>
-                </div>
-                
-                {/* Score Circle */}
-                <div className="flex flex-col items-center justify-center gap-2 min-w-[140px]">
-                  <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
-                    SAHM LENS SCORE
-                  </div>
-                  <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-mono ${
-                    data.scoring.total_score > 75 ? 'border-tv-green text-tv-green bg-tv-green/10' :
-                    data.scoring.total_score >= 60 ? 'border-blue-400 text-blue-400 bg-blue-400/10' :
-                    data.scoring.total_score >= 45 ? 'border-tv-yellow text-tv-yellow bg-tv-yellow/10' :
-                    'border-tv-red text-tv-red bg-tv-red/10'
-                  }`}>
-                    {data.scoring.total_score}
-                  </div>
-                  <div className={`text-sm font-bold font-mono px-3 py-1 rounded-full border ${
-                    data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
-                    data.scoring.kategori === 'BUY' ? 'bg-blue-400/20 text-blue-400 border-blue-400/50' :
-                    data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
-                    'bg-tv-red/20 text-tv-red border-tv-red/50'
-                  }`}>
-                    {data.scoring.kategori}
-                  </div>
-                </div>
-
-                {/* Score Breakdown */}
-                <div className="flex-1 space-y-3">
-                  <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-2">BREAKDOWN SKOR</div>
-                  {/* Technical */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-tv-muted font-mono w-28">Technical (0-40)</span>
-                    <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-all" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
-                    </div>
-                    <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.technical_score}</span>
-                  </div>
-                  {/* Fundamental */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-tv-muted font-mono w-28">Fundamental (0-30)</span>
-                    <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-blue-400/80 to-blue-400 rounded-full transition-all" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
-                    </div>
-                    <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.fundamental_score}</span>
-                  </div>
-                  {/* Flow */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-tv-muted font-mono w-28">Flow Asing (0-30)</span>
-                    <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
-                    </div>
-                    <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.flow_score}</span>
-                  </div>
-                </div>
-
-                {/* Reasons & Risk */}
-                <div className="flex-1 space-y-3">
-                  <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
-                  {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
-                    <div key={i} className="flex items-start gap-2 text-xs">
-                      <span className="text-tv-green font-bold">✓</span>
-                      <span className="text-tv-text font-mono">{reason}</span>
-                    </div>
-                  ))}
-                  {data.scoring.risk && (
-                    <div className="mt-3 pt-3 border-t border-tv-border">
-                      <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-1">RISK</div>
-                      <div className="flex items-start gap-2 text-xs">
-                        <span className="text-tv-red font-bold">⚠</span>
-                        <span className="text-tv-muted font-mono">{data.scoring.risk}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="w-full">
             {/* Risk/Reward Calculator */}
             <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
@@ -747,6 +755,47 @@ function DashboardContent() {
               onAskAI={handleAskAI}
               isAdmin={isAdminUser}
             />
+          </div>
+        </div>
+
+        {/* Fundamental & DCF - fitur lengkap ada di halaman terpisah, ditautkan jelas
+            di sini supaya alur Detail Saham terasa menyatu tanpa menggabung ulang
+            2 halaman besar yang sudah stabil. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link
+            href="/fundamental"
+            className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
+          >
+            <div className="w-10 h-10 rounded-md bg-tv-blue/15 flex items-center justify-center text-tv-blue shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-heading text-sm font-semibold text-white">Fundamental</h3>
+              <p className="text-xs text-tv-muted">Value & Health Metrics per saham</p>
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-blue transition-colors" />
+          </Link>
+          <Link
+            href="/dcf"
+            className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
+          >
+            <div className="w-10 h-10 rounded-md bg-tv-gold/15 flex items-center justify-center text-tv-gold shrink-0">
+              <Calculator className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-heading text-sm font-semibold text-white">DCF Valuation</h3>
+              <p className="text-xs text-tv-muted">Intrinsic Value & Margin of Safety</p>
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-gold transition-colors" />
+          </Link>
+        </div>
+
+        {/* News - jujur: belum ada sumber berita nyata di backend */}
+        <div className="flex items-center gap-3 bg-tv-card/50 border border-dashed border-tv-border rounded-lg p-4">
+          <Newspaper className="w-4 h-4 text-tv-muted shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-tv-text">Berita & Sentimen Pasar</p>
+            <p className="text-xs text-tv-muted">Segera hadir.</p>
           </div>
         </div>
       </div>

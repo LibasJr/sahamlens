@@ -44,7 +44,7 @@ export default function DividendPage() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Form Controls & Overview */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-col lg:flex-row items-center justify-between gap-6">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-green-400/10 border border-green-400/30 flex items-center justify-center text-green-400">
               <Coins className="w-6 h-6" />
@@ -81,25 +81,25 @@ export default function DividendPage() {
 
         {/* Dynamic Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 font-mono">
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1">
             <div className="text-[10px] text-tv-muted uppercase">ESTIMASI PASIF INCOME / BULAN SAAT INI</div>
             <div className="text-xl font-bold text-tv-green mt-1">
               Rp {quant.est_monthly_income_now?.toLocaleString('id-ID') || '-'}
             </div>
           </div>
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1">
             <div className="text-[10px] text-tv-muted uppercase">ESTIMASI PASIF INCOME / TAHUN SAAT INI</div>
             <div className="text-xl font-bold text-tv-yellow mt-1">
               Rp {quant.est_annual_income_now?.toLocaleString('id-ID') || '-'}
             </div>
           </div>
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1">
             <div className="text-[10px] text-tv-muted uppercase">RATA-RATA DIVIDEND YIELD</div>
             <div className="text-xl font-bold text-white mt-1">
               {quant.average_portfolio_yield || '7.1'}%
             </div>
           </div>
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1">
             <div className="text-[10px] text-tv-muted uppercase">MODAL DIBUTUHKAN UNTUK TARGET</div>
             <div className="text-xl font-bold text-tv-accent mt-1">
               Rp {quant.required_capital_for_target?.toLocaleString('id-ID') || '-'}
@@ -109,7 +109,7 @@ export default function DividendPage() {
 
         {/* Dividend Stocks Table & Compounding Schedule */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <ShieldCheck className="w-5 h-5 text-green-400" />
               15-20 Saham Dividen IDX Terbaik & Safety Score
@@ -145,7 +145,7 @@ export default function DividendPage() {
             </div>
           </div>
 
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
               <Repeat className="w-5 h-5 text-tv-accent" />
               Simulasi Compounding 10-Tahun (DRIP Reinvestment)

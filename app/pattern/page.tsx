@@ -42,7 +42,7 @@ export default function PatternPage() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Top Overview Banner */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-pink-400/10 border border-pink-400/30 flex items-center justify-center text-pink-400">
               <Cpu className="w-6 h-6" />
@@ -72,22 +72,22 @@ export default function PatternPage() {
 
         {/* Seasonal Patterns Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-xs">
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg space-y-1">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1 space-y-1">
             <div className="text-[10px] text-tv-muted uppercase">WINDOW DRESSING (DESEMBER)</div>
             <div className="text-sm font-bold text-tv-green">{seasonal.window_dressing_december || '85% Win Rate (+3.8%)'}</div>
             <div className="text-[10px] text-tv-muted">Probabilitas historis penguatan akhir tahun</div>
           </div>
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg space-y-1">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1 space-y-1">
             <div className="text-[10px] text-tv-muted uppercase">RAMADAN & LEBARAN EFFECT</div>
             <div className="text-sm font-bold text-tv-yellow">{seasonal.ramadan_lebaran_effect || '+4.2% Pre-Lebaran'}</div>
             <div className="text-[10px] text-tv-muted">Lonjakan konsumsi & perputaran uang</div>
           </div>
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg space-y-1">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1 space-y-1">
             <div className="text-[10px] text-tv-muted uppercase">JANUARY EFFECT</div>
             <div className="text-sm font-bold text-tv-accent">{seasonal.january_effect || '72% Win Rate'}</div>
             <div className="text-[10px] text-tv-muted">Inflow dana baru di awal tahun</div>
           </div>
-          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-lg space-y-1">
+          <div className="p-4 rounded-xl bg-tv-card border border-tv-border shadow-1 space-y-1">
             <div className="text-[10px] text-tv-muted uppercase">SELL IN MAY & GO AWAY</div>
             <div className="text-sm font-bold text-tv-red">{seasonal.sell_in_may || 'Sideways / Moderasi'}</div>
             <div className="text-[10px] text-tv-muted">Koreksi musiman pertengahan tahun</div>
@@ -95,7 +95,7 @@ export default function PatternPage() {
         </div>
 
         {/* Statistical Edge Box */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
           <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
             <Sparkles className="w-5 h-5 text-pink-400" />
             Keunggulan Statistik (Quant Statistical Edge)

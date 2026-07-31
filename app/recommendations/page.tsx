@@ -229,7 +229,7 @@ export default function Recommendations() {
           </div>
         </div>
 
-        <div className="bg-tv-card border border-tv-border rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-tv-card border border-tv-border rounded-xl shadow-1 overflow-hidden">
           <div className="overflow-x-auto min-h-[500px]">
             <table className="w-full text-left border-collapse">
               <thead>

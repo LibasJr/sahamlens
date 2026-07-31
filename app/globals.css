@@ -38,6 +38,25 @@ body {
   border: 1px solid rgba(42, 46, 57, 0.8);
 }
 
+/* ====== Design System "Nucleus" - Typography & Glow tokens ====== */
+h1, h2, h3 {
+  font-family: 'Sora', 'Inter', sans-serif;
+}
+
+.font-heading {
+  font-family: 'Sora', 'Inter', sans-serif;
+}
+
+.font-number,
+.text-price {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.glow-ring {
+  box-shadow: 0 0 0 1px rgba(58, 134, 255, 0.4), 0 0 24px 0 rgba(58, 134, 255, 0.15);
+}
+
 /* ====== AI Chat Response Typography ====== */
 .ai-response {
   color: #ccfbf1;
