@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { usePathname } from 'next/navigation';
+import { getTickerName } from '@/lib/trendingTickers';
 
 export default function AIChat() {
   const pathname = usePathname();
@@ -54,7 +55,18 @@ export default function AIChat() {
     const segments = pathname.split('/');
     const currentSymbol = segments.length > 2 ? segments[segments.length - 1] : 'Umum';
     let context = `Pengguna saat ini sedang melihat halaman saham: ${currentSymbol}. Jika bertanya tanpa menyebut kode, asumsikan saham ini.`;
-    
+
+    // Nama resmi emiten HARUS diambil dari data terverifikasi (lib/tickers.ts), BUKAN
+    // ditebak/diingat sendiri oleh model - sebelumnya context ini tidak menyertakan nama
+    // perusahaan sama sekali, jadi AI mengarang nama yang salah (mis. DGWG dijawab sebagai
+    // "Dwi Guna Laksana Tbk" padahal nama resminya "Delta Giri Wacana Tbk").
+    if (currentSymbol && currentSymbol !== 'Umum') {
+      const officialName = getTickerName(currentSymbol);
+      if (officialName && officialName !== currentSymbol.replace('.JK', '')) {
+        context += `\nNama resmi emiten ${currentSymbol.replace('.JK', '')}: "${officialName}". WAJIB pakai nama ini persis, JANGAN pernah menyebut nama perusahaan lain/versi lama/tebakan.`;
+      }
+    }
+
     if (activeContextData) {
        // Kirim data analisis teknikal/fundamental
        const councilSummary = activeContextData.analyzers || activeContextData.council;
