@@ -223,20 +223,11 @@ export async function getMarketPulse() {
         symbol: s.symbol.replace('.JK', ''),
         value: (s.volume || 0) * (s.price || 0)
       })),
-      topFreq: [...breadthQuotes].sort((a, b) => 0.5 - Math.random()).slice(0, 10).map(s => ({ // Mock frequency
-        symbol: s.symbol.replace('.JK', ''),
-        freq: Math.floor(Math.random() * 50000) + 10000
-      })),
-      netForeign: {
-        buy: [...breadthQuotes].sort((a, b) => 0.5 - Math.random()).slice(0, 10).map(s => ({
-          symbol: s.symbol.replace('.JK', ''),
-          val: (Math.random() * 500 + 50) * 1e9 // 50B - 550B
-        })),
-        sell: [...breadthQuotes].sort((a, b) => 0.5 - Math.random()).slice(0, 10).map(s => ({
-          symbol: s.symbol.replace('.JK', ''),
-          val: (Math.random() * 500 + 50) * 1e9
-        }))
-      }
+      // topFreq & netForeign SEBELUMNYA ada di sini berisi Math.random() murni (komentar
+      // asli "Mock frequency") dan tidak pernah ditampilkan di UI manapun - dihapus,
+      // bukan disimpan sebagai data palsu yang berisiko suatu saat dipakai tanpa sadar.
+      // Data frekuensi transaksi & net foreign flow riil butuh feed data broker IDX
+      // yang tidak tersedia gratis lewat Yahoo Finance.
     }
   };
 }

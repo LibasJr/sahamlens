@@ -235,11 +235,19 @@ export function computeMiniCouncil(candles: Candle[]): CouncilResult | null {
   if (buyCount > sellCount && buyCount > holdCount) { finalSignal = 'BUY'; confidence = buyPct; }
   else if (sellCount > buyCount && sellCount > holdCount) { finalSignal = 'SELL'; confidence = sellPct; }
 
+  // Ringkasan ditulis sebagai kesimpulan langsung yang substantif - bukan rincian
+  // "sekian suara BUY/HOLD/SELL" atau menyebut jumlah agen. Metodenya tetap gabungan
+  // beberapa lensa teknikal independen (kode di atas), tapi yang ditampilkan ke user
+  // cukup kesimpulannya + alasan konkret yang mendukung, seperti seorang analis
+  // menjelaskan pendapatnya - bukan hasil pemungutan suara.
   const supporting = agents.filter(a => a.signal === finalSignal).slice(0, 2).map(a => a.reason);
   const opposing = agents.find(a => a.signal !== finalSignal && a.signal !== 'HOLD');
-  let summary = `Council AI (10 agen) — ${buyCount} suara BUY, ${holdCount} HOLD, ${sellCount} SELL. Kesimpulan: ${finalSignal} dengan keyakinan ${confidence}%.`;
+  const verdictText = finalSignal === 'BUY' ? 'layak dipertimbangkan untuk dibeli'
+    : finalSignal === 'SELL' ? 'sebaiknya diwaspadai / dipertimbangkan untuk dijual'
+    : 'masih dalam fase wait-and-see (tahan dulu)';
+  let summary = `Council AI menilai saham ini ${verdictText}.`;
   if (supporting.length) summary += ` ${supporting.join(' ')}`;
-  if (opposing) summary += ` Perlu diwaspadai: ${opposing.reason}`;
+  if (opposing) summary += ` Yang perlu diwaspadai: ${opposing.reason}`;
 
   return { agents, buyPct, sellPct, holdPct, finalSignal, confidence, summary };
 }

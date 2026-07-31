@@ -32,4 +32,11 @@ export const CACHE_TTL_SEC = {
   // Fallback basi kalau Yahoo Finance sedang down - lebih baik data lama daripada
   // error keras (app/api/stock/[ticker]).
   STALE_FALLBACK: 24 * 60 * 60,
+
+  // Universe mentah screener (app/api/screener) - BARU: batch quoteSummary fundamental
+  // utk ~50 saham sekaligus, jauh lebih mahal dari 1 request biasa. Fundamental (PER,
+  // ROE, DER, dividend yield) juga tidak berubah dalam hitungan menit seperti harga,
+  // jadi TTL lebih panjang dari MARKET_SUMMARY wajar. Skor per profil risiko dihitung
+  // ulang dari universe yang sama (murah), jadi TTL ini cuma menutupi fetch mentahnya.
+  SCREENER_UNIVERSE: 30 * 60,
 } as const;

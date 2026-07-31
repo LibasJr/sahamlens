@@ -16,7 +16,7 @@ import {
   Lock,
   Loader2,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardSubtitle } from '@/components/ui/Card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
@@ -82,6 +82,8 @@ export default function HomePage() {
   const [pulseNeedsPro, setPulseNeedsPro] = useState(false);
   const [picksNeedPro, setPicksNeedPro] = useState(false);
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
+  const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string }[]>([]);
+  const [loadingNews, setLoadingNews] = useState(true);
 
   useEffect(() => {
     fetch('/api/v1/portfolio', { cache: 'no-store' })
@@ -116,6 +118,12 @@ export default function HomePage() {
       })
       .catch(() => {})
       .finally(() => setLoadingPicks(false));
+
+    fetch('/api/news', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setNewsItems(d?.items || []))
+      .catch(() => {})
+      .finally(() => setLoadingNews(false));
   }, []);
 
   const totalCost = (portfolio?.holdings || []).reduce((sum, h) => sum + h.totalCost, 0);
@@ -347,16 +355,48 @@ export default function HomePage() {
         </motion.div>
       </div>
 
-      {/* News - jujur: belum ada sumber berita nyata di backend */}
+      {/* Berita & Sentimen Pasar - RSS publik (CNBC Indonesia, Detik Finance) + sentimen
+          dari Council AI (fallback heuristik kata kunci kalau Council AI tidak tersedia) */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="flat" className="border-dashed border-tv-border">
-          <div className="flex items-center gap-3 py-2">
-            <Newspaper className="w-4 h-4 text-tv-muted" />
-            <div>
-              <p className="text-sm font-medium text-tv-text">Berita & Sentimen Pasar</p>
-              <p className="text-xs text-tv-muted">Segera hadir.</p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-4 h-4 text-tv-muted" />
+              <CardTitle>Berita & Sentimen Pasar</CardTitle>
             </div>
-          </div>
+            <Badge variant="info">Council AI</Badge>
+          </CardHeader>
+
+          {loadingNews ? (
+            <div className="flex items-center gap-2 py-4 text-xs text-tv-muted">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat berita terkini...
+            </div>
+          ) : newsItems.length === 0 ? (
+            <p className="text-xs text-tv-muted py-2">Berita tidak tersedia saat ini.</p>
+          ) : (
+            <div className="divide-y divide-tv-border/50">
+              {newsItems.slice(0, 6).map((n) => (
+                <a
+                  key={n.link || n.title}
+                  href={n.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
+                    <p className="text-[10px] text-tv-muted mt-1">{n.source} • {n.reason}</p>
+                  </div>
+                  <Badge
+                    variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
+                    className="shrink-0"
+                  >
+                    {n.sentiment}
+                  </Badge>
+                </a>
+              ))}
+            </div>
+          )}
         </Card>
       </motion.div>
     </div>

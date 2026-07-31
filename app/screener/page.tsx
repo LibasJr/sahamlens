@@ -2,23 +2,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { Sliders, Award, Shield, Zap, RefreshCw, Filter, CheckCircle } from 'lucide-react';
 
 export default function ScreenerPage() {
+  const router = useRouter();
   const [riskProfile, setRiskProfile] = useState<'Konservatif' | 'Moderat' | 'Agresif'>('Moderat');
-  const [ticker, setTicker] = useState('BBCA');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
 
   const runScreener = async (profile: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/live/' + ticker);
+      const res = await fetch('/api/screener?profile=' + encodeURIComponent(profile));
       const json = await res.json();
-      setData(json);
+      setData(res.ok ? json : null);
     } catch (e) {
       console.error(e);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -33,10 +35,10 @@ export default function ScreenerPage() {
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Header
-        currentTicker={ticker}
-        onTickerChange={setTicker}
-        moduleTitle="Goldman Sachs Multi-Factor Screener"
-        moduleBank="GOLDMAN SACHS"
+        currentTicker=""
+        onTickerChange={(t) => router.push(`/technical/${t.replace('.JK', '')}.JK`)}
+        moduleTitle="Council AI Multi-Factor Screener"
+        moduleBank="COUNCIL AI"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
@@ -49,7 +51,7 @@ export default function ScreenerPage() {
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Seleksi Profil Risiko Investor</h1>
               <p className="text-xs text-tv-muted font-mono">
-                Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif Goldman Sachs.
+                Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif Council AI.
               </p>
             </div>
           </div>
@@ -105,6 +107,15 @@ export default function ScreenerPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
+                {top10.length === 0 && (
+                  <tr>
+                    <td colSpan={13} className="p-8 text-center text-tv-muted text-sm">
+                      {loading ? (
+                        <span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" /> Memindai ~50 saham likuid IDX...</span>
+                      ) : 'Gagal memuat data screener. Coba refresh.'}
+                    </td>
+                  </tr>
+                )}
                 {top10.map((item: any, idx: number) => (
                   <tr key={item.ticker} className="hover:bg-tv-hover/50 transition-colors">
                     <td className="p-3 text-tv-muted font-bold">{idx + 1}</td>
