@@ -12,6 +12,14 @@ mobile/android/.gradle/
 mobile/.expo/
 converted.png
 
+# Android (sahamlens-android, android-webview) - path SDK lokal & cache Gradle, bukan
+# bagian dari source yang perlu di-commit.
+local.properties
+.gradle/
+.kotlin/
+*/build/
+*/*/build/
+
 .vercel
 scratch/
 
