@@ -1,12 +1,46 @@
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-summary/route.ts, verbatim.
 // Rute publik (tanpa login) - ringkasan pasar untuk landing page & halaman /market/[category].
+// Universe diperluas dari 50 -> 250 saham atas permintaan eksplisit. 250 ticker ini BUKAN
+// hafalan/tebakan index membership (bisa basi) - dipilih lewat scratch/rank-liquidity.js
+// yang memindai ~1.277 emiten IDX di lib/tickers.ts dan mem-filter berdasarkan data REAL
+// Yahoo Finance: harga >= Rp100 & market cap >= Rp500 miliar (buang saham "gorengan"/shell),
+// lalu diranking berdasarkan nilai transaksi rata-rata (harga x avg volume 10 hari, proxy
+// likuiditas) dengan profitabilitas (ROE > 0, proxy fundamental) diprioritaskan lebih dulu.
+// Dari 335 kandidat yang lolos filter, 284 di antaranya profitable - 250 teratas semuanya
+// masuk dari kelompok profitable itu. Re-run script itu secara periodik untuk menyegarkan.
 const MARKET_STOCKS = [
-  'BBCA.JK','BBRI.JK','BMRI.JK','BBNI.JK','TLKM.JK','ASII.JK','GOTO.JK','ADRO.JK','UNTR.JK',
-  'ICBP.JK','KLBF.JK','PGAS.JK','PTBA.JK','ANTM.JK','BRPT.JK','INKP.JK','INDF.JK','ITMG.JK',
-  'CPIN.JK','UNVR.JK','AKRA.JK','BRIS.JK','SMGR.JK','INTP.JK','CTRA.JK','BSDE.JK','SMRA.JK',
-  'ISAT.JK','EXCL.JK','BUKA.JK','TOWR.JK','TBIG.JK','SIDO.JK','AMRT.JK','MYOR.JK','HMSP.JK',
-  'GGRM.JK','JPFA.JK','ARTO.JK','BDMN.JK','BNGA.JK','BBTN.JK','MEGA.JK','INDY.JK','BYAN.JK',
-  'HRUM.JK','INCO.JK','TINS.JK','MAPI.JK','SILO.JK','EMTK.JK','WIKA.JK','ADHI.JK','PWON.JK',
+  'TPIA.JK', 'BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'BUMI.JK', 'DSSA.JK', 'DEWA.JK', 'BRPT.JK',
+  'AMMN.JK', 'ANTM.JK', 'BRMS.JK', 'TLKM.JK', 'BUVA.JK', 'CUAN.JK', 'ASII.JK', 'BULL.JK',
+  'BBNI.JK', 'RAJA.JK', 'TINS.JK', 'ENRG.JK', 'BREN.JK', 'KOTA.JK', 'UNTR.JK', 'MDKA.JK',
+  'AADI.JK', 'VKTR.JK', 'INDY.JK', 'MEDC.JK', 'ADRO.JK', 'INCO.JK', 'RANS.JK', 'PGAS.JK',
+  'KLBF.JK', 'AMRT.JK', 'RATU.JK', 'ESSA.JK', 'CDIA.JK', 'ADMR.JK', 'INDF.JK', 'RMKE.JK',
+  'CPIN.JK', 'MBMA.JK', 'INET.JK', 'NCKL.JK', 'AKRA.JK', 'INKP.JK', 'WIFI.JK', 'DOOH.JK',
+  'BRIS.JK', 'ITMG.JK', 'ARCI.JK', 'ERAA.JK', 'JELI.JK', 'PANI.JK', 'PACK.JK', 'GGRM.JK',
+  'APIC.JK', 'ISAT.JK', 'TAPG.JK', 'PTBA.JK', 'BFIN.JK', 'BBTN.JK', 'EMTK.JK', 'ICBP.JK',
+  'IRSX.JK', 'UNVR.JK', 'TCPI.JK', 'SMGR.JK', 'ELSA.JK', 'PGEO.JK', 'JPFA.JK', 'MTEL.JK',
+  'SMIL.JK', 'CMNT.JK', 'AYAM.JK', 'TOWR.JK', 'BUKA.JK', 'BAIK.JK', 'MMIX.JK', 'NSSS.JK',
+  'HATM.JK', 'MSIN.JK', 'ARTO.JK', 'PWON.JK', 'CYBR.JK', 'SSMS.JK', 'MAPA.JK', 'KETR.JK',
+  'LSIP.JK', 'BBYB.JK', 'HEAL.JK', 'BEEF.JK', 'NICL.JK', 'BELL.JK', 'DSNG.JK', 'GJTL.JK',
+  'SCMA.JK', 'HMSP.JK', 'SIDO.JK', 'SGER.JK', 'KEEN.JK', 'DATA.JK', 'CTRA.JK', 'DMAS.JK',
+  'MNCN.JK', 'COIN.JK', 'BSML.JK', 'AALI.JK', 'BSDE.JK', 'JECX.JK', 'JSMR.JK', 'SMRA.JK',
+  'CMRY.JK', 'STAA.JK', 'HUMI.JK', 'OMED.JK', 'AVIA.JK', 'INDO.JK', 'HRUM.JK', 'MAPI.JK',
+  'APLN.JK', 'INTP.JK', 'MSJA.JK', 'BMTR.JK', 'AUTO.JK', 'ACES.JK', 'BNGA.JK', 'BDMN.JK',
+  'EURO.JK', 'JARR.JK', 'BJTM.JK', 'NEST.JK', 'ASSA.JK', 'BLES.JK', 'BSSR.JK', 'DGWG.JK',
+  'RISE.JK', 'TRIN.JK', 'BTPS.JK', 'APEX.JK', 'TEBE.JK', 'ASGR.JK', 'BDKR.JK', 'ARNA.JK',
+  'ADES.JK', 'LPPF.JK', 'DMMX.JK', 'CLEO.JK', 'MSTI.JK', 'ERAL.JK', 'ELPI.JK', 'BACA.JK',
+  'ALKA.JK', 'BJBR.JK', 'DILD.JK', 'GRIA.JK', 'VERN.JK', 'BIRD.JK', 'BANK.JK', 'ASRI.JK',
+  'SWID.JK', 'IPCC.JK', 'MOLI.JK', 'BABY.JK', 'SUNI.JK', 'TUGU.JK', 'BLUE.JK', 'MAHA.JK',
+  'BBRM.JK', 'ALII.JK', 'ABMM.JK', 'MHKI.JK', 'CASS.JK', 'TLDN.JK', 'ZONE.JK', 'CFIN.JK',
+  'AREA.JK', 'BGTG.JK', 'UANG.JK', 'BYAN.JK', 'DRMA.JK', 'MDIY.JK', 'SPTO.JK', 'ALDO.JK',
+  'AGII.JK', 'VICI.JK', 'GOLF.JK', 'PGUN.JK', 'GEMS.JK', 'DEPO.JK', 'CITY.JK', 'ARGO.JK',
+  'DAAZ.JK', 'PEVE.JK', 'BNLI.JK', 'MINE.JK', 'BMHS.JK', 'ADMF.JK', 'BISI.JK', 'CITA.JK',
+  'BEST.JK', 'AXIO.JK', 'BNBA.JK', 'KING.JK', 'GWSA.JK', 'IRRA.JK', 'BNII.JK', 'CSRA.JK',
+  'ADMG.JK', 'LABS.JK', 'BBHI.JK', 'DLTA.JK', 'PMJS.JK', 'LIVE.JK', 'GOOD.JK', 'PDPP.JK',
+  'SOHO.JK', 'ATIC.JK', 'CHIP.JK', 'BUAH.JK', 'MCOL.JK', 'SKRN.JK', 'CBUT.JK', 'BOLA.JK',
+  'BESS.JK', 'CAMP.JK', 'YUPI.JK', 'MKAP.JK', 'AMAN.JK', 'CLAY.JK', 'PNGO.JK', 'CEKA.JK',
+  'CARE.JK', 'TRGU.JK', 'PRAY.JK', 'AMAR.JK', 'CMNP.JK', 'KSIX.JK', 'AMFG.JK', 'ARII.JK',
+  'BOGA.JK', 'KEJU.JK', 'AGAR.JK', 'IFII.JK', 'CASA.JK', 'BHAT.JK', 'GUNA.JK', 'ROCK.JK',
+  'MKTR.JK', 'CSAP.JK',
 ];
 
 function sma(values: number[], period: number): number | null {
@@ -104,10 +138,11 @@ async function fetchQuote(symbol: string) {
 }
 
 export async function getMarketSummary() {
-  // Fetch in chunks of 10 parallel
+  // Fetch in chunks of 25 parallel - dinaikkan dari 10 seiring universe diperluas 50->250,
+  // supaya jumlah putaran (dan total wall-clock) tidak ikut naik 5x.
   const quotes: any[] = [];
-  for (let i = 0; i < MARKET_STOCKS.length; i += 10) {
-    const chunk = MARKET_STOCKS.slice(i, i + 10);
+  for (let i = 0; i < MARKET_STOCKS.length; i += 25) {
+    const chunk = MARKET_STOCKS.slice(i, i + 25);
     const results = await Promise.all(chunk.map(s => fetchQuote(s)));
     results.forEach(r => { if (r) quotes.push(r); });
   }

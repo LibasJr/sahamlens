@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Target, Activity, ArrowUpRight, Clock, ChevronRight } from 'lucide-react';
+import { Target, Activity, ArrowUpRight, ArrowDownRight, Clock, ChevronRight, Sparkles, Tag, AlertTriangle } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
+type CrossEntry = { symbol: string; price: number; change: string };
+type DailyPickCategory = { count: number; items: string[] };
 
 export default function BreakoutRadarPage() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function BreakoutRadarPage() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  const [crossSignals, setCrossSignals] = useState<{ golden: CrossEntry[]; dead: CrossEntry[] } | null>(null);
+  const [dailyPicks, setDailyPicks] = useState<{ attractive: DailyPickCategory; undervalue: DailyPickCategory; risky: DailyPickCategory } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -23,7 +27,7 @@ export default function BreakoutRadarPage() {
       try {
         const res = await fetch('/api/breakout-radar', { cache: 'no-store' });
         const json = await res.json();
-        
+
         if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
           setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
@@ -34,9 +38,10 @@ export default function BreakoutRadarPage() {
           const items = json.data || [];
           setData(items);
           setLastUpdate(new Date(json.lastUpdate));
-          
+          if (json.crossSignals) setCrossSignals(json.crossSignals);
+
           // Kirim data breakout ke AI Chat supaya jawaban AI lebih substantif
-          window.dispatchEvent(new CustomEvent('update-ai-context', { 
+          window.dispatchEvent(new CustomEvent('update-ai-context', {
             detail: {
               symbol: 'BREAKOUT_RADAR',
               recommendations: items.map((r: any) => ({
@@ -57,6 +62,12 @@ export default function BreakoutRadarPage() {
       }
     };
     fetchData();
+
+    // Kategori lain dari widget "Hari Ini AI Menemukan" (halaman utama) - semua kategori
+    // sekarang bermuara ke satu halaman AI Pick ini, bukan tersebar ke 4 halaman berbeda.
+    fetch('/api/daily-picks').then(r => r.json()).then((d) => {
+      if (d && !d.error) setDailyPicks(d);
+    }).catch(console.error);
   }, []);
 
   const formatTime = (d: Date) => {
@@ -76,7 +87,7 @@ export default function BreakoutRadarPage() {
               </div>
               <div>
                 <h1 className="font-bold text-xl text-white tracking-tight flex items-center gap-2">
-                  BREAKOUT RADAR LIVE
+                  AI PICK LIVE
                   <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-mono animate-pulse">LIVE</span>
                 </h1>
                 <p className="text-xs text-gray-400 font-mono flex items-center gap-1 mt-1">
@@ -187,6 +198,98 @@ export default function BreakoutRadarPage() {
               </table>
             </div>
           </div>
+
+          {/* Golden Cross & Dead Cross - mengisi ruang kosong di bawah tabel breakout,
+              sekaligus jadi bagian dari konsolidasi "AI Pick" (semua kategori temuan AI
+              sekarang bermuara ke satu halaman ini, bukan tersebar). */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-[#1e293b] flex items-center gap-2 bg-slate-900/50">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">Golden Cross</h3>
+                <span className="text-[10px] text-gray-500 font-mono">MA20 baru memotong ke atas MA50</span>
+              </div>
+              <div className="p-4 space-y-2">
+                {!crossSignals ? (
+                  <div className="text-xs text-gray-500 font-mono text-center py-3">Memuat...</div>
+                ) : crossSignals.golden.length === 0 ? (
+                  <div className="text-xs text-gray-500 font-mono text-center py-3">Tidak ada sinyal Golden Cross saat ini.</div>
+                ) : (
+                  crossSignals.golden.map((c) => (
+                    <button
+                      key={c.symbol}
+                      onClick={() => router.push(`/technical/${c.symbol}`)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#0f172a] border border-[#1e293b] hover:border-emerald-500/40 transition-colors"
+                    >
+                      <span className="font-bold text-white font-mono text-sm">{displayTicker(c.symbol)}</span>
+                      <span className="flex items-center gap-2 font-mono text-xs">
+                        <span className="text-gray-400">Rp {c.price.toLocaleString('id-ID')}</span>
+                        <span className="text-emerald-400 flex items-center"><ArrowUpRight className="w-3 h-3" />{c.change}</span>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-[#1e293b] flex items-center gap-2 bg-slate-900/50">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <h3 className="text-sm font-bold text-white">Dead Cross</h3>
+                <span className="text-[10px] text-gray-500 font-mono">MA20 baru memotong ke bawah MA50</span>
+              </div>
+              <div className="p-4 space-y-2">
+                {!crossSignals ? (
+                  <div className="text-xs text-gray-500 font-mono text-center py-3">Memuat...</div>
+                ) : crossSignals.dead.length === 0 ? (
+                  <div className="text-xs text-gray-500 font-mono text-center py-3">Tidak ada sinyal Dead Cross saat ini.</div>
+                ) : (
+                  crossSignals.dead.map((c) => (
+                    <button
+                      key={c.symbol}
+                      onClick={() => router.push(`/technical/${c.symbol}`)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#0f172a] border border-[#1e293b] hover:border-red-500/40 transition-colors"
+                    >
+                      <span className="font-bold text-white font-mono text-sm">{displayTicker(c.symbol)}</span>
+                      <span className="flex items-center gap-2 font-mono text-xs">
+                        <span className="text-gray-400">Rp {c.price.toLocaleString('id-ID')}</span>
+                        <span className="text-red-400 flex items-center"><ArrowDownRight className="w-3 h-3" />{c.change}</span>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Ringkasan kategori lain dari "Hari Ini AI Menemukan" (halaman utama) - semua
+              kategori (menarik/undervalue/berisiko) diarahkan ke sini, bukan ke 3 halaman
+              /market/[category] terpisah lagi. */}
+          {dailyPicks && (
+            <div className="mt-6 bg-[#131c2e] border border-[#1e293b] rounded-xl p-5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                <Tag className="w-4 h-4 text-blue-400" />
+                Ringkasan AI Lainnya Hari Ini
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg bg-[#0f172a] border border-[#1e293b]">
+                  <div className="text-lg font-bold text-emerald-400 font-mono">{dailyPicks.attractive.count}</div>
+                  <div className="text-[11px] text-gray-400">saham menarik (bullish MA20&gt;MA50)</div>
+                  <div className="text-[10px] text-gray-500 font-mono mt-1 truncate">{dailyPicks.attractive.items.join(', ') || '-'}</div>
+                </div>
+                <div className="p-3 rounded-lg bg-[#0f172a] border border-[#1e293b]">
+                  <div className="text-lg font-bold text-blue-400 font-mono">{dailyPicks.undervalue.count}</div>
+                  <div className="text-[11px] text-gray-400">saham undervalue (RSI oversold)</div>
+                  <div className="text-[10px] text-gray-500 font-mono mt-1 truncate">{dailyPicks.undervalue.items.join(', ') || '-'}</div>
+                </div>
+                <div className="p-3 rounded-lg bg-[#0f172a] border border-[#1e293b]">
+                  <div className="text-lg font-bold text-red-400 font-mono">{dailyPicks.risky.count}</div>
+                  <div className="text-[11px] text-gray-400">saham berisiko (bearish MA20&lt;MA50)</div>
+                  <div className="text-[10px] text-gray-500 font-mono mt-1 truncate">{dailyPicks.risky.items.join(', ') || '-'}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <style dangerouslySetInnerHTML={{__html:`
@@ -200,10 +303,10 @@ export default function BreakoutRadarPage() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + Breakout Radar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'Breakout Radar LIVE',
+          'AI Pick LIVE',
           'Fundamental Analyzer + Watchlist unlimited',
         ]}
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"

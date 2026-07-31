@@ -73,7 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Sinyal AI',
     items: [
       { id: 'recommendations', name: 'Stock Recommendations', subtitle: 'Daily AI Consensus', path: '/recommendations', icon: Sparkles },
-      { id: 'breakout-radar', name: 'Breakout Radar', subtitle: 'Top LQ45 Momentum', path: '/breakout-radar', icon: Radar, live: true },
+      { id: 'breakout-radar', name: 'AI Pick', subtitle: 'Top LQ45 Momentum', path: '/breakout-radar', icon: Radar, live: true },
     ],
   },
   {

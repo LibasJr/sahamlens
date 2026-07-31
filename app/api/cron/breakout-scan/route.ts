@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
-import { scanBreakouts } from '@/modules/recommendation';
+import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 
@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await withJobRunLog('breakout-scan', async () => {
-      const data = await scanBreakouts();
-      const payload = { data, lastUpdate: new Date().toISOString() };
+      const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
+      const payload = { data, crossSignals, lastUpdate: new Date().toISOString() };
       await cacheSet(CACHE_KEY, payload, TTL.MARKET);
       return { scanned: data.length };
     });
