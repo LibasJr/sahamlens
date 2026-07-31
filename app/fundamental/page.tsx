@@ -5,7 +5,6 @@ import Header from '@/components/Header';
 import TradingViewChart from '@/components/TradingViewChart';
 import IntrinsicValue from '@/components/IntrinsicValue';
 import PaywallModal from '@/components/PaywallModal';
-import AskAIButton from '@/components/AskAIButton';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import { 
   Zap, ArrowUpRight, ArrowDownRight, Layers,
@@ -433,12 +432,9 @@ export default function Dashboard() {
                         <span>{algo.value}</span>
                         <span className="text-white">Conf: {algo.confidence}%</span>
                       </div>
-                      <div className="flex justify-between items-center text-[10px] pt-2 border-t border-tv-hover">
-                        <div>
-                          <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
-                          <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
-                        </div>
-                        <AskAIButton prompt={`Tolong jelaskan analisis dari filter ${algo.label} yang bernilai ${algo.value} (Keputusan: ${algo.decision}, Keyakinan: ${algo.confidence}%) untuk saham ${ticker}?`} />
+                      <div className="pt-2 border-t border-tv-hover text-[10px]">
+                        <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
+                        <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
                       </div>
                     </div>
                   );

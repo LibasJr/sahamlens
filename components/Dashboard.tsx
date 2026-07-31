@@ -3,7 +3,6 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity } from 'lucide-react';
-import AskAIButton from '@/components/AskAIButton';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
@@ -256,7 +255,6 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-[24px] sm:text-[28px] font-bold tracking-tight text-[#0A1931] dark:text-white font-heading">Ringkasan Pasar Hari Ini</h1>
-              <AskAIButton prompt="Tolong berikan ringkasan kondisi pasar IHSG hari ini, serta saham-saham apa saja yang menarik untuk diperhatikan berdasarkan data terkini." />
             </div>
             <p className="mt-1 text-[13px] sm:text-[14px] text-slate-500 dark:text-slate-400 font-medium">Data real-time dari Bursa Efek Indonesia (via Yahoo Finance) • {lastUpdated ? <span className="text-[#3A86FF] font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
           </div>

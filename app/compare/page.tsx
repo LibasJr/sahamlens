@@ -128,87 +128,40 @@ function CompareContent() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-900/80 border-b border-[#1e293b]">
-                      <th className="py-4 px-6 text-gray-400 text-sm font-mono font-normal uppercase tracking-wider w-1/4">Metric</th>
+                      <th className="py-4 px-6 text-gray-400 text-sm font-mono font-normal uppercase tracking-wider w-1/5">Metric</th>
                       <th className="py-4 px-6 text-xl text-center border-l border-[#1e293b] text-white font-bold">{data.data1.symbol}</th>
                       <th className="py-4 px-6 text-xl text-center border-l border-[#1e293b] text-white font-bold">{data.data2.symbol}</th>
-                      <th className="py-4 px-6 text-teal-400 text-sm font-mono font-bold uppercase tracking-wider text-center border-l border-[#1e293b]">Winner</th>
+                      <th className="py-4 px-6 text-teal-400 text-sm font-mono font-bold uppercase tracking-wider text-center border-l border-[#1e293b] w-1/3">Penjelasan Council AI</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e293b] font-mono">
                     <tr className="hover:bg-[#1e293b]/30 transition-colors">
                       <td className="py-4 px-6 text-gray-300">Harga Terakhir</td>
-                      <td className="py-4 px-6 text-center text-white font-bold border-l border-[#1e293b]">Rp {data.data1.price.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-center text-white font-bold border-l border-[#1e293b]">Rp {data.data2.price.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-center text-gray-500 border-l border-[#1e293b]">-</td>
+                      <td className="py-4 px-6 text-center text-white font-bold border-l border-[#1e293b]">Rp {data.data1.price.toLocaleString('id-ID')}</td>
+                      <td className="py-4 px-6 text-center text-white font-bold border-l border-[#1e293b]">Rp {data.data2.price.toLocaleString('id-ID')}</td>
+                      <td className="py-4 px-6 text-center text-gray-500 border-l border-[#1e293b] text-xs">-</td>
                     </tr>
-                    <tr className="hover:bg-[#1e293b]/30 transition-colors">
-                      <td className="py-4 px-6 text-gray-300">SahamLens Score</td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${data.data1.score > 60 ? 'bg-teal-500/20 text-teal-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                          {data.data1.score} {data.data1.score > 60 ? 'BUY' : 'HOLD'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${data.data2.score > 60 ? 'bg-teal-500/20 text-teal-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                          {data.data2.score} {data.data2.score > 60 ? 'BUY' : 'HOLD'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className="text-teal-400 font-bold bg-teal-500/10 px-3 py-1 rounded">{data.winners.score}</span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-[#1e293b]/30 transition-colors">
-                      <td className="py-4 px-6 text-gray-300">MA Status</td>
-                      <td className="py-4 px-6 text-center text-gray-300 text-xs border-l border-[#1e293b]">{data.data1.maStatus}</td>
-                      <td className="py-4 px-6 text-center text-gray-300 text-xs border-l border-[#1e293b]">{data.data2.maStatus}</td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className="text-teal-400 font-bold bg-teal-500/10 px-3 py-1 rounded">{data.winners.ma}</span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-[#1e293b]/30 transition-colors">
-                      <td className="py-4 px-6 text-gray-300">PER (Valuasi)</td>
-                      <td className="py-4 px-6 text-center text-gray-300 border-l border-[#1e293b]">{data.data1.per.toFixed(1)}x</td>
-                      <td className="py-4 px-6 text-center text-gray-300 border-l border-[#1e293b]">{data.data2.per.toFixed(1)}x</td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className="text-teal-400 font-bold bg-teal-500/10 px-3 py-1 rounded">{data.winners.per}</span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-[#1e293b]/30 transition-colors">
-                      <td className="py-4 px-6 text-gray-300">PBV</td>
-                      <td className="py-4 px-6 text-center text-gray-300 border-l border-[#1e293b]">{data.data1.pbv.toFixed(2)}x</td>
-                      <td className="py-4 px-6 text-center text-gray-300 border-l border-[#1e293b]">{data.data2.pbv.toFixed(2)}x</td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className="text-teal-400 font-bold bg-teal-500/10 px-3 py-1 rounded">{data.winners.pbv}</span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-[#1e293b]/30 transition-colors">
-                      <td className="py-4 px-6 text-gray-300">Foreign 20D</td>
-                      <td className={`py-4 px-6 text-center font-bold border-l border-[#1e293b] ${data.data1.foreignNet > 0 ? 'text-teal-400' : 'text-red-400'}`}>
-                        {data.data1.foreignNet > 0 ? '+' : ''}{data.data1.foreignNet}M
-                      </td>
-                      <td className={`py-4 px-6 text-center font-bold border-l border-[#1e293b] ${data.data2.foreignNet > 0 ? 'text-teal-400' : 'text-red-400'}`}>
-                        {data.data2.foreignNet > 0 ? '+' : ''}{data.data2.foreignNet}M
-                      </td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className="text-teal-400 font-bold bg-teal-500/10 px-3 py-1 rounded">{data.winners.foreign}</span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-[#1e293b]/30 transition-colors">
-                      <td className="py-4 px-6 text-gray-300">Risk/Reward</td>
-                      <td className="py-4 px-6 text-center text-gray-300 text-xs border-l border-[#1e293b]">{data.data1.rr}</td>
-                      <td className="py-4 px-6 text-center text-gray-300 text-xs border-l border-[#1e293b]">{data.data2.rr}</td>
-                      <td className="py-4 px-6 text-center border-l border-[#1e293b]">
-                        <span className="text-teal-400 font-bold bg-teal-500/10 px-3 py-1 rounded">{data.winners.rr}</span>
-                      </td>
-                    </tr>
+                    {data.rows.map((row: any) => (
+                      <tr key={row.key} className="hover:bg-[#1e293b]/30 transition-colors align-top">
+                        <td className="py-4 px-6 text-gray-300">{row.label}</td>
+                        <td className={`py-4 px-6 text-center border-l border-[#1e293b] ${row.winner === data.data1.symbol ? 'text-teal-400 font-bold' : 'text-gray-300'}`}>{row.a}</td>
+                        <td className={`py-4 px-6 text-center border-l border-[#1e293b] ${row.winner === data.data2.symbol ? 'text-teal-400 font-bold' : 'text-gray-300'}`}>{row.b}</td>
+                        <td className="py-3 px-6 border-l border-[#1e293b] text-left">
+                          {row.winner !== '-' && (
+                            <span className="inline-block mb-1 text-teal-400 font-bold bg-teal-500/10 px-2 py-0.5 rounded text-[10px]">{row.winner} unggul</span>
+                          )}
+                          <p className="text-[11px] text-gray-400 font-sans leading-relaxed normal-case">{row.reason}</p>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
 
               <div className="p-6 bg-slate-900 border-t border-[#1e293b]">
-                <h3 className="text-sm font-bold text-gray-400 font-mono mb-2">KESIMPULAN AI</h3>
-                <p className="text-lg text-white font-serif leading-relaxed">
-                  &quot;{data.conclusion}&quot;
+                <h3 className="text-sm font-bold text-gray-400 font-mono mb-2">KESIMPULAN COUNCIL AI</h3>
+                <p className="text-base text-white font-sans leading-relaxed">
+                  {data.conclusion}
                 </p>
               </div>
             </div>

@@ -331,7 +331,7 @@ export default function MarketPulse() {
         </div>
 
         {/* === SECTION 3: MARKET BREADTH === */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
           {/* Breadth Overview */}
           <div className="lg:col-span-2 bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
             <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">

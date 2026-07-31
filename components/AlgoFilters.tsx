@@ -17,7 +17,6 @@ interface AlgoFiltersProps {
   sortByConfidence: boolean;
   setSortByConfidence: (v: boolean) => void;
   getAccuracyPct: (label: string) => string;
-  onAskAI: (algo: any) => void;
   isAdmin?: boolean;
 }
 
@@ -26,7 +25,6 @@ export default function AlgoFilters({
   sortByConfidence,
   setSortByConfidence,
   getAccuracyPct,
-  onAskAI,
   isAdmin = false,
 }: AlgoFiltersProps) {
   const lockedAnalyzers = isAdmin ? [] : analyzers.filter((a) => !isVisibleForFree(a.label));
@@ -97,17 +95,9 @@ export default function AlgoFilters({
                 <span>{algo.value}</span>
                 <span className="text-white">Conf: {algo.confidence}%</span>
               </div>
-              <div className="flex justify-between items-center text-[10px] pt-2 border-t border-tv-hover">
-                <div>
-                  <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
-                  <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
-                </div>
-                <button
-                  onClick={() => onAskAI(algo)}
-                  className="bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/30 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                >
-                  ✨ Tanya AI
-                </button>
+              <div className="pt-2 border-t border-tv-hover text-[10px]">
+                <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
+                <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
               </div>
             </div>
           );

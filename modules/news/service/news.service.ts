@@ -1,5 +1,5 @@
 import Parser from 'rss-parser';
-import { jsonModel } from '@/lib/gemini';
+import { getJsonModel } from '@/lib/gemini';
 
 // Berita & Sentimen Pasar - sebelumnya cuma placeholder "Segera hadir" di app/home,
 // tidak ada backend sama sekali. Sumber berita: RSS publik gratis (CNBC Indonesia
@@ -28,10 +28,10 @@ export type NewsItem = {
   reason: string;
 };
 
-async function fetchFeed(feed: { name: string; url: string }) {
+async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
   try {
     const parsed = await parser.parseURL(feed.url);
-    return (parsed.items || []).slice(0, 15).map((item) => ({
+    return (parsed.items || []).slice(0, limit).map((item) => ({
       title: (item.title || '').trim(),
       link: item.link || '',
       source: feed.name,
@@ -58,6 +58,7 @@ function keywordSentiment(title: string): { sentiment: Sentiment; reason: string
 }
 
 async function classifyWithCouncilAI(titles: string[]): Promise<{ sentiment: Sentiment; reason: string }[] | null> {
+  const jsonModel = getJsonModel();
   if (!jsonModel || titles.length === 0) return null;
   try {
     const list = titles.map((t, i) => `${i + 1}. ${t}`).join('\n');
@@ -98,6 +99,53 @@ export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSou
 
   deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
   const top = deduped.slice(0, 12);
+
+  const aiSentiments = await classifyWithCouncilAI(top.map((t) => t.title));
+  const sentimentSource: 'council-ai' | 'keyword-fallback' = aiSentiments ? 'council-ai' : 'keyword-fallback';
+
+  const items: NewsItem[] = top.map((item, i) => {
+    const s = aiSentiments ? aiSentiments[i] : keywordSentiment(item.title);
+    return { ...item, sentiment: s.sentiment, reason: s.reason };
+  });
+
+  return { items, sentimentSource };
+}
+
+// Berita PER-EMITEN (bukan pasar umum) - dipakai di halaman Technical Analyzer/AI
+// Council per saham. Sengaja TIDAK pakai Google News RSS search meski jauh lebih
+// relevan/lengkap, karena feed itu berlisensi "personal, non-commercial use" saja
+// (lihat copyright di response-nya) - SahamLens produk komersial (ada tier Pro).
+// Jadi sumbernya tetap RSS_FEEDS yang sama, difilter berdasarkan penyebutan kode
+// ticker/nama perusahaan di judul. Konsekuensinya: cakupan tipis untuk emiten yang
+// jarang diberitakan - itu jujur lebih baik daripada menampilkan berita tidak terkait.
+export async function getStockNews(symbol: string, companyName?: string): Promise<{ items: NewsItem[]; sentimentSource: 'council-ai' | 'keyword-fallback' }> {
+  const code = symbol.replace('.JK', '').toUpperCase();
+  const results = await Promise.all(RSS_FEEDS.map((f) => fetchFeed(f, 40)));
+  const merged = results.flat();
+
+  // Ambil kata-kata distingtif dari nama perusahaan (buang kata generik PT/Tbk/Indonesia
+  // dkk yang muncul di hampir semua nama emiten dan tidak membantu filter).
+  const GENERIC_WORDS = new Set(['pt', 'tbk', 'indonesia', 'persero', 'the']);
+  const nameWords = (companyName || '')
+    .toLowerCase()
+    .replace(/[.,()]/g, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 3 && !GENERIC_WORDS.has(w));
+
+  const matched = merged.filter((item) => {
+    const t = item.title.toLowerCase();
+    if (t.includes(code.toLowerCase())) return true;
+    return nameWords.some((w) => t.includes(w));
+  });
+
+  const seen = new Set<string>();
+  const deduped = matched.filter((item) => {
+    if (!item.title || seen.has(item.title)) return false;
+    seen.add(item.title);
+    return true;
+  });
+  deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  const top = deduped.slice(0, 8);
 
   const aiSentiments = await classifyWithCouncilAI(top.map((t) => t.title));
   const sentimentSource: 'council-ai' | 'keyword-fallback' = aiSentiments ? 'council-ai' : 'keyword-fallback';

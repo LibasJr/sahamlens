@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Target, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
-import AskAIButton from './AskAIButton';
 
 interface IntrinsicValueProps {
   symbol: string;
@@ -91,7 +90,6 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
             <Target className="w-5 h-5 text-tv-accent" />
             Intrinsic Value Engine
           </h3>
-          <AskAIButton prompt={`Jelaskan valuasi saham ${symbol} berdasarkan hasil perhitungan intrinsic value dari aplikasi.`} />
         </div>
         <div className="text-xs font-mono text-tv-muted px-2 py-1 rounded bg-tv-bg border border-tv-border">
           Sector: {sektor || 'Unknown'}

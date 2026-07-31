@@ -5,7 +5,6 @@ import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, ShieldC
 import calendarData from '@/data/calendar.json';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
-import AskAIButton from '@/components/AskAIButton';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -359,9 +358,8 @@ export default function Recommendations() {
                         {item.foreignFlow || 'NEUTRAL'}
                       </div>
                     </td>
-                    <td className="p-4 text-right font-mono text-tv-muted flex flex-col items-end gap-2">
+                    <td className="p-4 text-right font-mono text-tv-muted">
                       <div><span className="text-tv-green">{item.bullishVotes}</span> : <span className="text-tv-red">{item.bearishVotes}</span></div>
-                      <AskAIButton prompt={`Berdasarkan rekomendasi sistem screener, saham ${item.ticker} memiliki konsensus ${item.consensus} dengan confidence ${item.confidence}%. Foreign flow: ${item.foreignFlow}. Sentimen momentum: ${item.sentimentLabel}. Tolong analisis mendalam apakah saham ini layak dibeli atau harus dihindari hari ini?`} />
                     </td>
                   </tr>
                 ))}
