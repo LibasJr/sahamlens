@@ -84,16 +84,21 @@ export default function AIChat() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: userPrompt, 
-          context: context 
+        body: JSON.stringify({
+          prompt: userPrompt,
+          context: context,
+          // Kirim riwayat percakapan sebelumnya (bukan cuma pesan terakhir) supaya AI
+          // tidak "amnesia" begitu satu giliran gagal/error - sebelumnya balasan singkat
+          // seperti "lah"/"waduh error" dikirim tanpa konteks sama sekali dan AI menjawab
+          // ngasal/generik karena tidak tahu topik yang sedang dibahas.
+          history: messages.slice(-8),
         })
       });
       const data = await res.json();
-      
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
     } finally {
       setIsLoading(false);
     }

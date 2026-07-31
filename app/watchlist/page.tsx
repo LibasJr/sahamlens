@@ -227,8 +227,8 @@ export default function WatchlistPage() {
   };
 
   const positioned = watchlist.filter(w => w.buy_price > 0 && (w.lot || 0) > 0);
-  const totalInvested = positioned.reduce((sum, w) => sum + w.buy_price * (w.lot || 0), 0);
-  const totalCurrent = positioned.reduce((sum, w) => sum + (liveData[w.symbol]?.price || 0) * (w.lot || 0), 0);
+  const totalInvested = positioned.reduce((sum, w) => sum + w.buy_price * (w.lot || 0) * 100, 0);
+  const totalCurrent = positioned.reduce((sum, w) => sum + (liveData[w.symbol]?.price || 0) * (w.lot || 0) * 100, 0);
   const totalPnlPct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
   const activeAlertsCount = alerts.filter(a => a.isActive).length;
 
@@ -421,11 +421,11 @@ export default function WatchlistPage() {
             </div>
 
             <form onSubmit={addAlert} className="space-y-3 mb-6">
-              <input 
-                type="text" 
-                placeholder="Simbol (BBCA)" 
+              <SymbolAutocomplete
+                containerClassName="relative w-full"
+                placeholder="Simbol (BBCA)"
                 value={alertSymbol}
-                onChange={(e) => setAlertSymbol(e.target.value)}
+                onChange={(val) => setAlertSymbol(val)}
                 className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-yellow-500"
                 required
               />
