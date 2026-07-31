@@ -24,7 +24,9 @@ android {
 
 dependencies {
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.retrofit.core)
+    // api (bukan implementation) - HttpException dipakai pemanggil (mis. StockDetailViewModel
+    // di :app) untuk membedakan 401/402/kegagalan jaringan biasa, jadi harus terlihat transitif.
+    api(libs.retrofit.core)
     implementation(libs.retrofit.kotlinx.serialization)
     // api (bukan implementation) - CookieJar adalah supertype publik SessionCookieJar,
     // modul yang menyimpan referensi ke SessionCookieJar (mis. :app) perlu melihatnya juga.

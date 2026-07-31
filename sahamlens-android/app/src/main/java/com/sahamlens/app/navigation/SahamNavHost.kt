@@ -16,14 +16,17 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sahamlens.app.aicopilot.AiCopilotScreen
+import com.sahamlens.app.data.AppGraph
 import com.sahamlens.app.home.HomeScreen
-import com.sahamlens.app.home.SampleHomeUiState
+import com.sahamlens.app.home.HomeViewModel
 import com.sahamlens.app.market.MarketScreen
 import com.sahamlens.app.portfolio.PortfolioScreen
 import com.sahamlens.app.profile.ProfileScreen
 import com.sahamlens.app.stockdetail.StockDetailScreen
-import com.sahamlens.app.stockdetail.sampleStockDetail
 import com.sahamlens.app.ui.showcase.DesignSystemShowcaseScreen
 import com.sahamlens.app.watchlist.WatchlistScreen
 
@@ -55,8 +58,17 @@ fun SahamNavHost(
             popExitTransition = { fadeOut(tween(FADE_THROUGH_MS)) },
         ) {
             composable(SahamDestination.HOME.route) {
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = HomeViewModel.factory(
+                        AppGraph.authRepository,
+                        AppGraph.portfolioRepository,
+                        AppGraph.marketRepository,
+                        AppGraph.watchlistRepository,
+                    ),
+                )
+                val homeState by homeViewModel.uiState.collectAsState()
                 HomeScreen(
-                    state = SampleHomeUiState,
+                    state = homeState,
                     listState = homeListState ?: rememberLazyListState(),
                     sharedTransitionScope = sharedScope,
                     animatedContentScope = this,
@@ -68,8 +80,12 @@ fun SahamNavHost(
             composable(SahamDestination.AI.route) {
                 AiCopilotScreen()
             }
-            composable(SahamDestination.MARKET.route) { MarketScreen() }
-            composable(SahamDestination.PORTFOLIO.route) { PortfolioScreen() }
+            composable(SahamDestination.MARKET.route) {
+                MarketScreen(onStockClick = { ticker -> navController.navigate(SahamNestedRoute.stockDetail(ticker)) })
+            }
+            composable(SahamDestination.PORTFOLIO.route) {
+                PortfolioScreen(onStockClick = { ticker -> navController.navigate(SahamNestedRoute.stockDetail(ticker)) })
+            }
             composable(SahamDestination.WATCHLIST.route) {
                 WatchlistScreen(
                     onStockClick = { ticker -> navController.navigate(SahamNestedRoute.stockDetail(ticker)) },
@@ -90,10 +106,11 @@ fun SahamNavHost(
             ) { backStackEntry ->
                 val ticker = backStackEntry.arguments?.getString("ticker") ?: "BBCA"
                 StockDetailScreen(
-                    state = sampleStockDetail(ticker),
+                    ticker = ticker,
                     sharedTransitionScope = sharedScope,
                     animatedContentScope = this,
                     onBack = { navController.popBackStack() },
+                    onRequireLogin = { navController.popBackStack() },
                 )
             }
 
