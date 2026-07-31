@@ -15,13 +15,15 @@ const RATE_LIMIT_CONFIG = {
 };
 
 // Halaman analisis mendalam - wajib login. TIDAK termasuk /portfolio (punya sistem
-// akun demo terpisah sendiri via DEMO_SESSION_COOKIE) dan TIDAK termasuk '/' atau
-// '/screener' (ringkasan pasar publik, sengaja gratis).
+// akun demo terpisah sendiri via DEMO_SESSION_COOKIE), TIDAK termasuk '/' atau
+// '/screener' (ringkasan pasar publik, sengaja gratis), dan TIDAK termasuk '/technical'
+// (grafik + insight teknikal dasar sengaja dibuka publik sebagai daya tarik sebelum
+// signup - AI Council 10-agen penuh tetap digated di belakang /api/council sendiri
+// via checkProAccess, lihat app/api/council/route.ts).
 const PROTECTED_PAGES = [
   '/home',
   '/dashboard',
   '/fundamental',
-  '/technical',
   '/watchlist',
   '/compare',
   '/backtest',
@@ -98,7 +100,6 @@ export const config = {
     '/home/:path*',
     '/dashboard/:path*',
     '/fundamental/:path*',
-    '/technical/:path*',
     '/watchlist/:path*',
     '/compare/:path*',
     '/backtest/:path*',

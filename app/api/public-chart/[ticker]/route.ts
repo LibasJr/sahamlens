@@ -8,10 +8,14 @@ export async function GET(
 ) {
   const { searchParams } = new URL(request.url);
   const tf = searchParams.get('tf') || '1M';
-  
+
   let range = '6mo';
   let interval = '1d';
-  if (tf === '1M') { range = '1mo'; interval = '1d'; }
+  let sliceLastNDays: number | null = null;
+  if (tf === '1D') { range = '1d'; interval = '5m'; }
+  else if (tf === '3D') { range = '5d'; interval = '15m'; sliceLastNDays = 3; }
+  else if (tf === '7D') { range = '5d'; interval = '15m'; }
+  else if (tf === '1M') { range = '1mo'; interval = '1d'; }
   else if (tf === '3M') { range = '3mo'; interval = '1d'; }
   else if (tf === '1Y') { range = '1y'; interval = '1wk'; }
   else if (tf === 'ALL') { range = '15y'; interval = '1mo'; }
@@ -36,12 +40,14 @@ export async function GET(
 
     const timestamps = result.timestamp || [];
     const quote = result.indicators?.quote?.[0] || {};
-    
-    const history = [];
+    const isIntraday = interval.endsWith('m') || interval.endsWith('h');
+
+    let history = [];
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close[i] !== null) {
+        const iso = new Date(timestamps[i] * 1000).toISOString();
         history.push({
-          time: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
+          time: isIntraday ? iso : iso.split('T')[0],
           open: quote.open[i] || quote.close[i],
           high: quote.high[i] || quote.close[i],
           low: quote.low[i] || quote.close[i],
@@ -50,6 +56,12 @@ export async function GET(
           volume: quote.volume[i] || 0
         });
       }
+    }
+
+    if (sliceLastNDays != null) {
+      const uniqueDays = Array.from(new Set(history.map((h) => h.time.slice(0, 10))));
+      const keepDays = new Set(uniqueDays.slice(-sliceLastNDays));
+      history = history.filter((h) => keepDays.has(h.time.slice(0, 10)));
     }
 
     return NextResponse.json({

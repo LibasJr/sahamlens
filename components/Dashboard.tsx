@@ -2,10 +2,12 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, LineChart, Sparkles, Moon, Sun, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, LineChart, Sparkles, Activity } from 'lucide-react';
 import AskAIButton from '@/components/AskAIButton';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
+import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
+import { pickTrendingTicker } from '@/lib/trendingTickers';
 
 type CardItem = { code: string; change: string; value: string; dir: 'up' | 'down' | 'neutral'; href: string };
 type CardDef = { id: string; title: string; sub: string; accent: string; Icon: any; key: string; listPath: string };
@@ -20,8 +22,10 @@ const CARD_DEFS: CardDef[] = [
   { id: 'weeklyLoser', title: 'Pelemahan Mingguan Terdalam', sub: 'Top Loser • 5 Hari', accent: 'red', Icon: ArrowDownRight, key: 'topWeeklyLosers', listPath: '/market/weekly-loser' },
   { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'indigo', Icon: Sparkles, key: 'topTechnical', listPath: '/market/technical-bullish' },
   { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'topTechnicalBearish', listPath: '/market/technical-bearish' },
-  { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) < 30', accent: 'amber', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
+  { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'amber', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
 ];
+
+const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y'];
 
 function formatCardItems(id: string, arr: any[]): CardItem[] {
   return (arr || []).slice(0, 4).map((s: any) => {
@@ -52,104 +56,6 @@ function formatCardItems(id: string, arr: any[]): CardItem[] {
   });
 }
 
-function sma(values: number[], period: number): number | null {
-  if (values.length < period) return null;
-  const slice = values.slice(-period);
-  return slice.reduce((a, b) => a + b, 0) / period;
-}
-
-function calcRsi(closes: number[], period = 14): number | null {
-  if (closes.length < period + 1) return null;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gains += diff; else losses -= diff;
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  return 100 - 100 / (1 + avgGain / avgLoss);
-}
-
-type Indicators = {
-  time: string; price: number; prevClose: number; change: number; changePct: number;
-  ma20: number | null; ma50: number | null; rsi14: number | null; rsiLabel: string;
-  volume: number; value: number; volRatio: number; score: number;
-  signal: 'BUY' | 'HOLD' | 'SELL'; crossLabel: string;
-};
-
-// Computes real technical indicators as of a given index in a real OHLC series -
-// used both for "today" (last index) and for whatever candle the user hovers on the chart.
-function computeIndicators(time: string, closes: number[], volumes: number[]): Indicators {
-  const price = closes[closes.length - 1];
-  const prev = closes.length > 1 ? closes[closes.length - 2] : price;
-  const change = price - prev;
-  const changePct = prev ? (change / prev) * 100 : 0;
-  const ma20 = sma(closes, 20);
-  const ma50 = sma(closes, 50);
-  const rsi14 = calcRsi(closes, 14);
-  const volume = volumes[volumes.length - 1] || 0;
-  const avgVolume20 = volumes.length >= 20
-    ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
-    : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
-  const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
-  const value = volume * price;
-
-  let conditionsMet = 0;
-  if (ma20 != null && price > ma20) conditionsMet++;
-  if (ma20 != null && ma50 != null && ma20 > ma50) conditionsMet++;
-  if (volRatio > 1) conditionsMet++;
-  const score = Math.round((conditionsMet / 3) * 100);
-
-  let signal: 'BUY' | 'HOLD' | 'SELL' = 'HOLD';
-  if (ma20 != null && ma50 != null) {
-    if (price > ma20 && ma20 > ma50) signal = 'BUY';
-    else if (price < ma20 && ma20 < ma50) signal = 'SELL';
-  }
-  const crossLabel = (ma20 != null && ma50 != null)
-    ? (ma20 > ma50 ? 'Golden Cross (MA20 di atas MA50)' : 'Death Cross (MA20 di bawah MA50)')
-    : 'Data historis belum cukup';
-
-  let rsiLabel = 'Netral';
-  if (rsi14 != null) {
-    if (rsi14 >= 70) rsiLabel = 'Overbought';
-    else if (rsi14 <= 30) rsiLabel = 'Oversold';
-    else if (rsi14 > 50) rsiLabel = 'Netral Cenderung Beli';
-    else rsiLabel = 'Netral Cenderung Jual';
-  }
-
-  return { time, price, prevClose: prev, change, changePct, ma20, ma50, rsi14, rsiLabel, volume, value, volRatio, score, signal, crossLabel };
-}
-
-// Real, rule-based insight from actual indicator values - no canned/hardcoded copy.
-// Each rule is independently checked so multiple observations can apply at once;
-// falls back to a neutral statement only when nothing meaningful triggers.
-function generateInsight(ind: Indicators): string {
-  const notes: string[] = [];
-  const { price, ma20, ma50, rsi14, volRatio } = ind;
-
-  if (ma20 != null && ma50 != null) {
-    if (price < ma20 && ma20 < ma50) {
-      notes.push('Downtrend terkonfirmasi, harga berada di bawah MA20 dan MA50. Tekanan jual masih dominan.');
-    } else if (price > ma20 && ma20 > ma50) {
-      notes.push('Uptrend terkonfirmasi, harga berada di atas MA20 dan MA50. Tekanan beli masih dominan.');
-    } else {
-      notes.push('Harga sedang sideways di sekitar MA20/MA50, belum ada tren jangka pendek yang jelas.');
-    }
-  }
-
-  if (rsi14 != null) {
-    if (rsi14 < 30) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi oversold (di bawah 30), potensi technical rebound.`);
-    else if (rsi14 > 70) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi overbought (di atas 70), potensi technical pullback.`);
-  }
-
-  if (volRatio > 1.2) notes.push(`Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat.`);
-  else if (volRatio < 0.8) notes.push(`Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata 20 hari, minat pasar cenderung sepi.`);
-
-  if (notes.length === 0) return 'Belum cukup data historis untuk menghasilkan insight teknikal pada titik ini.';
-  return notes.join(' ');
-}
-
 function isMarketOpen(d: Date): boolean {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jakarta', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
   const map: any = {};
@@ -164,16 +70,26 @@ function isMarketOpen(d: Date): boolean {
 }
 
 export default function Dashboard() {
-  const [isDark, setIsDark] = useState(false);
+  // Emiten unggulan dipilih acak sekali per kunjungan dari daftar saham likuid/trending -
+  // bukan selalu BBCA. Lazy initializer -> hanya jalan sekali saat mount, tidak berubah
+  // ulang setiap re-render.
+  const [ticker] = useState(() => pickTrendingTicker());
   const [timeframe, setTimeframe] = useState('1M');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  // Halaman ini (landing page publik "/") sebelumnya SELALU menampilkan tombol "Login"
+  // di header, walau user sedang login - jadi begitu user (yang sudah login) balik ke
+  // "/" (mis. lewat logo Sidebar atau tombol back), tampilannya terlihat seperti sesinya
+  // hilang. Sekarang dicek statusnya, sama seperti Sidebar melakukannya di /api/auth/me.
+  const [authUser, setAuthUser] = useState<{ email?: string; role?: string } | null>(null);
 
   React.useEffect(() => {
-    if (isDark) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [isDark]);
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((d) => { if (d.authenticated && d.user) setAuthUser(d.user); })
+      .catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     setNow(new Date());
@@ -201,7 +117,7 @@ export default function Dashboard() {
 
   React.useEffect(() => {
     setHoveredTime(null); // stale hover position from the previous series wouldn't line up
-    fetch(`/api/public-chart/BBCA?tf=${timeframe}`)
+    fetch(`/api/public-chart/${ticker.symbol}?tf=${timeframe}`)
       .then(r => r.json())
       .then(data => {
          if (data && data.history && data.history.length > 0) {
@@ -209,29 +125,40 @@ export default function Dashboard() {
          }
       })
       .catch(console.error);
-  }, [timeframe]);
+  }, [timeframe, ticker.symbol]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
   const prevClose = chartData.length > 1 ? chartData[chartData.length - 2].price : null;
   const change = (currentPrice != null && prevClose != null) ? currentPrice - prevClose : null;
   const changePct = (change != null && prevClose) ? (change / prevClose) * 100 : null;
 
-  // Real technical indicators for the featured BBCA card, recomputed for whichever candle
+  // Real technical indicators for the featured card, recomputed for whichever candle
   // is currently hovered on the chart (or the latest one, when nothing is hovered).
-  const bbca: Indicators | null = React.useMemo(() => {
-    if (chartData.length < 2) return null;
+  const upToChartData = React.useMemo(() => {
+    if (chartData.length < 2) return chartData;
     let idx = chartData.length - 1;
     if (hoveredTime) {
       const found = chartData.findIndex((c: any) => c.time === hoveredTime);
       if (found >= 0) idx = found;
     }
-    const upTo = chartData.slice(0, idx + 1);
-    const closes = upTo.map((h: any) => h.close);
-    const volumes = upTo.map((h: any) => h.volume || 0);
-    return computeIndicators(chartData[idx].time, closes, volumes);
+    return chartData.slice(0, idx + 1);
   }, [chartData, hoveredTime]);
 
-  const isHovering = hoveredTime != null && bbca != null && chartData.length > 0 && bbca.time !== chartData[chartData.length - 1].time;
+  const ind: Indicators | null = React.useMemo(() => {
+    if (upToChartData.length < 2) return null;
+    const closes = upToChartData.map((h: any) => h.close);
+    const volumes = upToChartData.map((h: any) => h.volume || 0);
+    return computeIndicators(upToChartData[upToChartData.length - 1].time, closes, volumes);
+  }, [upToChartData]);
+
+  // Council AI: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
+  // ringkasan analisis, supaya insight yang ditampilkan tidak pernah mengarang.
+  const council = React.useMemo(() => computeMiniCouncil(upToChartData as any), [upToChartData]);
+
+  const isHovering = hoveredTime != null && ind != null && chartData.length > 0 && ind.time !== chartData[chartData.length - 1].time;
+
+  const insightText = council ? council.summary : (ind ? generateInsight(ind) : 'Memuat analisis teknikal real-time...');
+  const finalSignal = council?.finalSignal ?? ind?.signal ?? 'HOLD';
 
   const [marketCards, setMarketCards] = useState<Card[]>(CARD_DEFS.map(def => ({ ...def, items: [] })));
   const [cardsLoaded, setCardsLoaded] = useState(false);
@@ -254,16 +181,14 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121] text-slate-900 dark:text-slate-100 selection:bg-[#3A86FF]/20">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap'); *{font-family:'Plus Jakarta Sans', Inter, sans-serif}`}</style>
-
       {/* HEADER DEEP NAVY */}
       <header className="sticky top-0 z-50 bg-[#0A1931] text-white border-b border-white/10">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <div className="flex h-[64px] items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-[#3A86FF] grid place-items-center font-bold text-[14px] tracking-tight">SL</div>
-                <span className="font-bold text-[16px] tracking-tight">SahamLens</span>
+                <div className="h-8 w-8 rounded-lg bg-[#3A86FF] grid place-items-center font-bold text-[14px] tracking-tight font-heading">SL</div>
+                <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
 
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
@@ -273,7 +198,7 @@ export default function Dashboard() {
                 </div>
                 {ihsg ? (
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[18px] font-bold tracking-tight">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className="text-[18px] font-bold tracking-tight font-number">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${ihsg.change >= 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>
                       {ihsg.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />} {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                     </span>
@@ -288,9 +213,6 @@ export default function Dashboard() {
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
                 <CommandPalette />
               </div>
-              <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white" title="Toggle Dark Mode">
-                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </button>
               <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-2.5 py-1">
                 <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-emerald-400' : 'bg-slate-400'}`} />
                 <span className="text-[11px] font-medium text-white">{marketOpen ? 'Live' : 'Tutup'}</span>
@@ -299,9 +221,15 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Memuat waktu...'}</span>
                 <span className="sm:hidden">{jakartaTime || '--:--'}</span>
               </div>
-              <Link href="/login" className="ml-2 rounded-lg bg-[#3A86FF] hover:bg-[#2f6fd6] px-4 py-1.5 text-[12px] font-bold text-white transition-colors border border-[#3A86FF]">
-                Login
-              </Link>
+              {authUser ? (
+                <Link href="/home" className="ml-2 flex items-center gap-2 rounded-lg bg-[#3A86FF] hover:bg-[#2f6fd6] px-4 py-1.5 text-[12px] font-bold text-white transition-colors border border-[#3A86FF]">
+                  Buka Dashboard
+                </Link>
+              ) : (
+                <Link href="/login" className="ml-2 rounded-lg bg-[#3A86FF] hover:bg-[#2f6fd6] px-4 py-1.5 text-[12px] font-bold text-white transition-colors border border-[#3A86FF]">
+                  Login
+                </Link>
+              )}
             </div>
           </div>
           {/* mobile IHSG */}
@@ -327,14 +255,14 @@ export default function Dashboard() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-[24px] sm:text-[28px] font-bold tracking-tight text-[#0A1931] dark:text-white">Ringkasan Pasar Hari Ini</h1>
+              <h1 className="text-[24px] sm:text-[28px] font-bold tracking-tight text-[#0A1931] dark:text-white font-heading">Ringkasan Pasar Hari Ini</h1>
               <AskAIButton prompt="Tolong berikan ringkasan kondisi pasar IHSG hari ini, serta saham-saham apa saja yang menarik untuk diperhatikan berdasarkan data terkini." />
             </div>
             <p className="mt-1 text-[13px] sm:text-[14px] text-slate-500 dark:text-slate-400 font-medium">Data real-time dari Bursa Efek Indonesia (via Yahoo Finance) • {lastUpdated ? <span className="text-[#3A86FF] font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Powered by</span>
-            <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] px-3 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm">SahamLens</span>
+            <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] px-3 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm">Council AI</span>
           </div>
         </div>
 
@@ -345,30 +273,30 @@ export default function Dashboard() {
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-[#0A1931] text-white grid place-items-center font-bold text-[13px]">BBCA</div>
+                  <div className="h-12 w-12 rounded-xl bg-[#0A1931] text-white grid place-items-center font-bold text-[13px] font-heading">{ticker.symbol}</div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-[18px] font-bold text-[#0A1931] dark:text-white tracking-tight">BBCA.JK — Bank Central Asia Tbk</h2>
-                      <span className="hidden sm:inline-flex rounded-full bg-[#0A1931] px-2 py-0.5 text-[10px] font-bold tracking-widest text-white">LQ45 • UNGGULAN</span>
+                      <h2 className="text-[18px] font-bold text-[#0A1931] dark:text-white tracking-tight font-heading">{ticker.symbol}.JK — {ticker.name}</h2>
+                      <span className="hidden sm:inline-flex rounded-full bg-[#0A1931] px-2 py-0.5 text-[10px] font-bold tracking-widest text-white">LQ45 • TRENDING</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
-                      <span className="font-semibold text-slate-900 dark:text-slate-100">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100 font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
                       {change != null && changePct != null && (
-                        <span className={`inline-flex items-center gap-1 font-semibold ${change>=0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <span className={`inline-flex items-center gap-1 font-semibold font-number ${change>=0 ? 'text-emerald-600' : 'text-red-600'}`}>
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
                         </span>
                       )}
-                      <span className="text-slate-400">{bbca ? `Vol: ${(bbca.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(bbca.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
-                      {isHovering && bbca && (
+                      <span className="text-slate-400">{ind ? `Vol: ${(ind.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(ind.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
+                      {isHovering && ind && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#3A86FF]/10 text-[#3A86FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                          Data per {bbca.time}
+                          Data per {ind.time}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800/80 p-1">
-                  {['1M','3M','1Y','ALL'].map(t=>(
+                  {TIMEFRAMES.map(t=>(
                     <button key={t} onClick={()=>setTimeframe(t)} className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-wide transition ${timeframe===t ? 'bg-[#0A1931] text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100'}`}>{t}</button>
                   ))}
                 </div>
@@ -378,15 +306,15 @@ export default function Dashboard() {
               <div className="relative mt-6 rounded-xl overflow-hidden shadow-1 border border-slate-100 dark:border-slate-800/50">
                 {chartData.length > 0 ? (
                   <TradingViewChart
-                    symbol="BBCA"
+                    symbol={ticker.symbol}
                     candles={chartData}
                     height={340}
                     timeframe={timeframe}
                     onHoverCandle={setHoveredTime}
                     technical={{
-                      cross_status: bbca?.ma20 != null && bbca?.ma50 != null ? (bbca.ma20 > bbca.ma50 ? 'BULLISH' : 'BEARISH') : 'NETRAL',
-                      broker_flow_status: bbca?.volRatio != null ? (bbca.volRatio > 1 ? 'AKUMULASI' : 'DISTRIBUSI') : 'NETRAL',
-                      ma50: bbca?.ma50 ?? undefined,
+                      cross_status: ind?.ma20 != null && ind?.ma50 != null ? (ind.ma20 > ind.ma50 ? 'BULLISH' : 'BEARISH') : 'NETRAL',
+                      broker_flow_status: ind?.volRatio != null ? (ind.volRatio > 1 ? 'AKUMULASI' : 'DISTRIBUSI') : 'NETRAL',
+                      ma50: ind?.ma50 ?? undefined,
                       ma200: undefined
                     }}
                   />
@@ -397,10 +325,10 @@ export default function Dashboard() {
 
               <div className="mt-4 flex flex-wrap gap-4 items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30">
                 <div className="text-blue-800 dark:text-blue-300 font-semibold text-[13px] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${bbca?.time}` : 'Insight BBCA Terkini'}
+                  <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${ind?.time}` : `Insight ${ticker.symbol} Terkini`}
                 </div>
                 <p className="text-[12px] text-blue-700 dark:text-blue-200">
-                  {bbca ? generateInsight(bbca) : 'Memuat analisis teknikal real-time...'}
+                  {insightText}
                 </p>
               </div>
             </div>
@@ -409,9 +337,9 @@ export default function Dashboard() {
             <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-[#FBFDFF] p-5 sm:p-7 flex flex-col">
               <div className="flex items-center justify-between">
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Analisis Teknikal Real-Time</h3>
-                {bbca && (
-                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${bbca.signal === 'BUY' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : bbca.signal === 'SELL' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
-                    {bbca.signal === 'BUY' ? `TREN MENGUAT (${bbca.score}%)` : bbca.signal === 'SELL' ? `TREN MELEMAH (${bbca.score}%)` : `NETRAL (${bbca.score}%)`}
+                {ind && (
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${finalSignal === 'BUY' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : finalSignal === 'SELL' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                    {finalSignal === 'BUY' ? `TREN MENGUAT (${council?.confidence ?? ind.score}%)` : finalSignal === 'SELL' ? `TREN MELEMAH (${council?.confidence ?? ind.score}%)` : `NETRAL (${council?.confidence ?? ind.score}%)`}
                   </span>
                 )}
               </div>
@@ -419,28 +347,30 @@ export default function Dashboard() {
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-white dark:bg-[#152238] border border-slate-200 dark:border-slate-800 p-3 shadow-sm">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Harga Terakhir</div>
-                  <div className="mt-1 text-[20px] font-bold tracking-tight text-[#0A1931] dark:text-white">{bbca ? `Rp ${Math.round(bbca.price).toLocaleString('id-ID')}` : '...'}</div>
-                  {bbca && <div className={`text-[11px] font-semibold ${bbca.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{bbca.changePct >= 0 ? '+' : ''}{bbca.changePct.toFixed(2)}% hari ini</div>}
+                  <div className="mt-1 text-[20px] font-bold tracking-tight text-[#0A1931] dark:text-white font-number">{ind ? `Rp ${Math.round(ind.price).toLocaleString('id-ID')}` : '...'}</div>
+                  {ind && <div className={`text-[11px] font-semibold ${ind.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{ind.changePct >= 0 ? '+' : ''}{ind.changePct.toFixed(2)}% hari ini</div>}
                 </div>
                 <div className="rounded-xl bg-[#0A1931] p-3 text-white">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/60">Sinyal SahamLens AI</div>
-                  {bbca ? (
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/60">Sinyal Council AI</div>
+                  {ind ? (
                     <>
                       <div className="mt-1 flex items-center gap-1.5 text-[15px] font-bold">
-                        <span className={`h-5 w-5 rounded-full grid place-items-center text-[#0A1931] text-[11px] ${bbca.signal === 'BUY' ? 'bg-emerald-400' : bbca.signal === 'SELL' ? 'bg-red-400' : 'bg-slate-300'}`}>{bbca.signal === 'BUY' ? '↑' : bbca.signal === 'SELL' ? '↓' : '→'}</span> {bbca.signal}
+                        <span className={`h-5 w-5 rounded-full grid place-items-center text-[#0A1931] text-[11px] ${finalSignal === 'BUY' ? 'bg-emerald-400' : finalSignal === 'SELL' ? 'bg-red-400' : 'bg-slate-300'}`}>{finalSignal === 'BUY' ? '↑' : finalSignal === 'SELL' ? '↓' : '→'}</span> {finalSignal}
                       </div>
-                      <div className="text-[11px] text-white/70">{bbca.crossLabel}</div>
+                      <div className="text-[11px] text-white/70">
+                        {council ? `${council.confidence}% dari 10 agen sepakat` : ind.crossLabel}
+                      </div>
                     </>
                   ) : <div className="mt-1 text-[13px] text-white/60">Memuat...</div>}
                 </div>
               </div>
 
               <div className="mt-4 space-y-3">
-                {bbca ? [
-                  { k: 'MA20', v: bbca.ma20 != null ? Math.round(bbca.ma20).toLocaleString('id-ID') : '-', s: bbca.ma20 != null ? (bbca.price > bbca.ma20 ? 'Harga berada di atas MA20' : 'Harga berada di bawah MA20') : 'Data belum cukup', c: bbca.ma20 != null && bbca.price > bbca.ma20 ? 'emerald' : 'slate' },
-                  { k: 'MA50', v: bbca.ma50 != null ? Math.round(bbca.ma50).toLocaleString('id-ID') : '-', s: bbca.crossLabel, c: bbca.ma20 != null && bbca.ma50 != null && bbca.ma20 > bbca.ma50 ? 'blue' : 'slate' },
-                  { k: 'RSI (14)', v: bbca.rsi14 != null ? bbca.rsi14.toFixed(1) : '-', s: `Status ${bbca.rsiLabel}`, c: 'slate' },
-                  { k: 'Volume', v: `${(bbca.volume / 1e6).toFixed(1)} Jt`, s: bbca.volRatio >= 1 ? `Naik ${((bbca.volRatio - 1) * 100).toFixed(0)}% dari rata-rata` : `Turun ${((1 - bbca.volRatio) * 100).toFixed(0)}% dari rata-rata`, c: bbca.volRatio >= 1 ? 'emerald' : 'slate' },
+                {ind ? [
+                  { k: 'MA20', v: ind.ma20 != null ? Math.round(ind.ma20).toLocaleString('id-ID') : '-', s: ind.ma20 != null ? (ind.price > ind.ma20 ? 'Harga berada di atas MA20' : 'Harga berada di bawah MA20') : 'Data belum cukup', c: ind.ma20 != null && ind.price > ind.ma20 ? 'emerald' : 'slate' },
+                  { k: 'MA50', v: ind.ma50 != null ? Math.round(ind.ma50).toLocaleString('id-ID') : '-', s: ind.crossLabel, c: ind.ma20 != null && ind.ma50 != null && ind.ma20 > ind.ma50 ? 'blue' : 'slate' },
+                  { k: 'RSI (14)', v: ind.rsi14 != null ? ind.rsi14.toFixed(1) : '-', s: `Status ${ind.rsiLabel}`, c: 'slate' },
+                  { k: 'Volume', v: `${(ind.volume / 1e6).toFixed(1)} Jt`, s: ind.volRatio >= 1 ? `Naik ${((ind.volRatio - 1) * 100).toFixed(0)}% dari rata-rata` : `Turun ${((1 - ind.volRatio) * 100).toFixed(0)}% dari rata-rata`, c: ind.volRatio >= 1 ? 'emerald' : 'slate' },
                 ].map(r=>(
                   <div key={r.k} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800/50 bg-white dark:bg-[#152238] px-3 py-2.5">
                     <div className="flex items-center gap-2.5">
@@ -450,7 +380,7 @@ export default function Dashboard() {
                         <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{r.s}</div>
                       </div>
                     </div>
-                    <div className="text-[12px] font-bold text-[#0A1931] dark:text-white">{r.v}</div>
+                    <div className="text-[12px] font-bold text-[#0A1931] dark:text-white font-number">{r.v}</div>
                   </div>
                 )) : (
                   <div className="text-[12px] text-slate-400 py-4 text-center">Memuat indikator teknikal...</div>
@@ -461,15 +391,15 @@ export default function Dashboard() {
                 <div className="rounded-xl bg-gradient-to-br from-[#0A1931] to-[#1E293B] p-4 text-white">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-[11px] font-bold uppercase tracking-widest text-white/60">Ringkasan Analisis Teknikal</div>
+                      <div className="text-[11px] font-bold uppercase tracking-widest text-white/60">Ringkasan Analisis Teknikal (Council AI • 10 Agen)</div>
                       <p className="mt-1.5 text-[12px] leading-[1.5] text-white/85">
-                        {bbca ? generateInsight(bbca) : 'Memuat ringkasan analisis...'}
+                        {ind ? insightText : 'Memuat ringkasan analisis...'}
                       </p>
                     </div>
                     <LineChart className="h-4 w-4 text-white/40 shrink-0 mt-1" />
                   </div>
                 </div>
-                <Link href="/technical/BBCA.JK" className="mt-3 group flex w-full items-center justify-center gap-2 rounded-full bg-[#3A86FF] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-8px_#3A86FF] hover:bg-[#2f6fd6] transition">
+                <Link href={`/technical/${ticker.symbol}.JK`} className="mt-3 group flex w-full items-center justify-center gap-2 rounded-full bg-[#3A86FF] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-8px_#3A86FF] hover:bg-[#2f6fd6] transition">
                   Lihat Analisis Lengkap
                   <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>

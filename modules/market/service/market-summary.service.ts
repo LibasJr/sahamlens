@@ -154,8 +154,12 @@ export async function getMarketSummary() {
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
 
+  // Diranking berdasarkan RSI14 terendah (bukan filter keras rsi14 < 30) - saat kondisi
+  // pasar sedang tidak ada saham yang benar-benar oversold, filter keras itu bisa
+  // menyisakan cuma 1-2 saham sementara kartu lain (top gainer, dst.) selalu tampil 4+.
+  // Merangking tetap 100% data RSI riil, cuma tidak lagi dibuang kalau sedikit di atas 30.
   const topRsiOversold = [...quotes]
-    .filter(s => s.rsi14 !== null && s.rsi14 < 30)
+    .filter(s => s.rsi14 !== null)
     .sort((a, b) => (a.rsi14 as number) - (b.rsi14 as number))
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), rsi: parseFloat((s.rsi14 as number).toFixed(1)), changePct: s.changePct, price: s.price }));

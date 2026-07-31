@@ -10,7 +10,7 @@ import {
   LineChart,
   Building2,
   GitCompare,
-  History,
+  Filter,
   Sparkles,
   Radar,
   Bell,
@@ -62,7 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'dashboard', name: 'Technical Analyzer', subtitle: '10 Pure Math Filters', path: '/dashboard', icon: LineChart },
       { id: 'fundamental', name: 'Fundamental Analyzer', subtitle: 'Value & Health Metrics', path: '/fundamental', icon: Building2 },
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },
-      { id: 'backtest', name: 'Strategy Builder', subtitle: 'Simulasi Performa Historis', path: '/backtest', icon: History },
+      { id: 'screener', name: 'Stock Screener', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
     ],
   },
   {

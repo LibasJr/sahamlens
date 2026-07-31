@@ -6,18 +6,22 @@ import Header from '@/components/Header';
 import { Calculator, DollarSign, TrendingUp, Table, CheckCircle, AlertTriangle, ArrowUpRight } from 'lucide-react';
 
 export default function DcfPage() {
-  const [ticker, setTicker] = useState('BBCA');
+  // Default bukan saham bank - DCF berbasis Free Cash Flow secara sengaja tidak berlaku
+  // untuk sektor keuangan (lihat calculateDcfModel), jadi kalau default-nya bank (mis.
+  // BBCA) halaman ini akan selalu tampak kosong saat pertama dibuka.
+  const [ticker, setTicker] = useState('TLKM');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
 
   const fetchDcf = async (symbol: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/live/' + ticker);
+      const res = await fetch('/api/dcf/' + symbol);
       const json = await res.json();
-      setData(json);
+      setData(res.ok ? json : null);
     } catch (e) {
       console.error(e);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -38,8 +42,8 @@ export default function DcfPage() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="Morgan Stanley DCF Intrinsic Valuation"
-        moduleBank="MORGAN STANLEY"
+        moduleTitle="Council AI DCF Intrinsic Valuation"
+        moduleBank="COUNCIL AI"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
@@ -52,7 +56,7 @@ export default function DcfPage() {
             <div>
               <h1 className="text-xl font-bold text-white font-mono">{stock.symbol || ticker}.JK Intrinsic Valuation</h1>
               <p className="text-xs text-tv-muted font-mono">
-                WACC {quant.wacc_pct || 8.85}% (SBN 10Y Yield {quant.sbn_10y_yield || 6.7}% + Risk Premium {quant.risk_premium || 5.2}%)
+                WACC {quant.wacc_pct != null ? `${quant.wacc_pct}%` : '-'} (SBN 10Y Yield {quant.sbn_10y_yield != null ? `${quant.sbn_10y_yield}%` : '-'} + Risk Premium {quant.risk_premium != null ? `${quant.risk_premium}%` : '-'})
               </p>
             </div>
           </div>
@@ -64,7 +68,7 @@ export default function DcfPage() {
               <div className="text-xl font-bold text-white">Rp {quant.current_price?.toLocaleString('id-ID') || '-'}</div>
             </div>
             <div>
-              <div className="text-[10px] text-tv-muted uppercase">MORGAN STANLEY FAIR VALUE</div>
+              <div className="text-[10px] text-tv-muted uppercase">COUNCIL AI FAIR VALUE</div>
               <div className="text-xl font-extrabold text-tv-green">Rp {quant.fair_value?.toLocaleString('id-ID') || '-'}</div>
             </div>
             <div className="pl-4 border-l border-tv-border">
@@ -72,15 +76,29 @@ export default function DcfPage() {
               <div className={`text-lg font-extrabold px-3 py-1 rounded border ${
                 quant.valuation_status === 'UNDERVALUED'
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                  : 'bg-tv-red/20 text-tv-red border-tv-red'
+                  : quant.valuation_status === 'OVERVALUED'
+                  ? 'bg-tv-red/20 text-tv-red border-tv-red'
+                  : 'bg-tv-border text-tv-muted border-tv-border'
               }`}>
-                {quant.valuation_status || 'UNDERVALUED'}
+                {quant.valuation_status || '-'}
               </div>
             </div>
           </div>
         </div>
 
+        {/* DCF tidak berlaku (bank / data FCF tidak tersedia) */}
+        {quant.not_applicable && (
+          <div className="bg-tv-card border border-tv-yellow/40 rounded-xl p-6 flex items-start gap-4">
+            <AlertTriangle className="w-6 h-6 text-tv-yellow shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-white font-bold mb-1">Model DCF Tidak Berlaku untuk {stock.symbol || ticker}.JK</h3>
+              <p className="text-sm text-tv-muted leading-relaxed">{ai.executive_summary}</p>
+            </div>
+          </div>
+        )}
+
         {/* 5-Year FCF Projections Table */}
+        {!quant.not_applicable && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3 font-mono">
@@ -153,13 +171,14 @@ export default function DcfPage() {
             </div>
 
             <div className="p-4 rounded-lg bg-tv-bg border border-tv-border space-y-2">
-              <h4 className="text-xs font-bold text-white font-mono uppercase">Ringkasan Analisis Morgan Stanley</h4>
+              <h4 className="text-xs font-bold text-white font-mono uppercase">Ringkasan Analisis Council AI</h4>
               <p className="text-xs text-tv-text leading-relaxed">
-                {ai.executive_summary || 'Valuasi mengindikasikan harga saham saham ini berada di bawah nilai intrinsiknya.'}
+                {ai.executive_summary || (loading ? 'Menghitung model DCF...' : 'Data FCF tidak tersedia untuk simbol ini (mis. sektor bank tidak memakai model DCF FCF-based).')}
               </p>
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

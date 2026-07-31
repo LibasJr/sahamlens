@@ -32,10 +32,10 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        heading: ['Sora', 'Inter', 'sans-serif'],
-        display: ['Sora', 'Inter', 'sans-serif'],
-        number: ['"Space Grotesk"', 'Inter', 'sans-serif'],
+        sans: ['var(--font-jakarta)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        heading: ['var(--font-sora)', 'Inter', 'sans-serif'],
+        display: ['var(--font-sora)', 'Inter', 'sans-serif'],
+        number: ['var(--font-space-grotesk)', 'Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'Monaco', 'monospace'],
       },
       borderRadius: {

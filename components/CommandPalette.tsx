@@ -186,7 +186,7 @@ export default function CommandPalette() {
 
             <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
               <span>↑↓ navigasi • Enter buka analisis</span>
-              <span>Analisis lengkap butuh login</span>
+              <span>Grafik & indikator gratis • Council AI penuh perlu akun</span>
             </div>
           </div>
         </div>
