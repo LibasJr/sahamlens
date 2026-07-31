@@ -13,47 +13,18 @@ import {
   analyzeSupport,
   analyzeSma,
   analyzeTrend,
+  fetchYahooHistory,
 } from '@/modules/technical';
 
+// BUILD 009 (Performance) - fetch+parse OHLC dipindah ke modules/technical/service/
+// yahoo-history.service.ts (sebelumnya diduplikasi persis di sini dan di
+// modules/ai/service/orchestrator.service.ts). Logika di bawah (analyzer + MA
+// khusus kebutuhan council) TIDAK diubah.
 async function getTechnicalData(ticker: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      signal: controller.signal
-    }).catch(e => {
-      clearTimeout(timeoutId);
-      throw e;
-    });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    const result = data.chart.result?.[0];
-    if (!result) return null;
-
-    const currentPrice = result.meta.regularMarketPrice;
-    const timestamps = result.timestamp || [];
-    const quote = result.indicators.quote[0];
-    
-    const history = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close[i] !== null) {
-        history.push({
-          Date: new Date(timestamps[i] * 1000).toISOString(),
-          Open: quote.open[i],
-          High: quote.high[i],
-          Low: quote.low[i],
-          Close: quote.close[i],
-          Volume: quote.volume[i]
-        });
-      }
-    }
-
-    if (history.length === 0) return null;
+    const chartData = await fetchYahooHistory(ticker, '1y');
+    if (!chartData) return null;
+    const { history, currentPrice } = chartData;
 
     const closes = history.map(h => h.Close);
     const emaData = analyzeEma(history, currentPrice);

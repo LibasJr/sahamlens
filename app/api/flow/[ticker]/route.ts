@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { getSession, checkProAccess } from '@/modules/user';
 
 // Pseudo-random generator based on string
 const seedRandom = (str: string) => {
@@ -20,8 +21,19 @@ export async function GET(
   request: Request,
   { params }: { params: { ticker: string } }
 ) {
+  // BUILD 003 (API Standard) - fitur ini bagian dari BandarFlowPro (Pro-only di UI),
+  // tapi endpoint-nya sendiri sebelumnya bisa diakses siapa pun tanpa login - paywall
+  // di UI gampang dilewati dengan memanggil API ini langsung.
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+  }
+  if (!checkProAccess(session)) {
+    return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+  }
+
   const ticker = params.ticker.toUpperCase().replace('.JK', '');
-  
+
   // Create deterministic but pseudo-random data based on ticker
   const rand1 = seedRandom(ticker + '1');
   const rand2 = seedRandom(ticker + '2');

@@ -1,15 +1,18 @@
 import type { PoolClient } from 'pg';
 import { pool } from '../../../shared/database/postgres.client';
+import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import type { Holding } from '../types/portfolio.types';
 
 type Queryable = { query: (typeof pool)['query'] };
 
 export async function getHoldings(portfolioId: string, db: Queryable = pool): Promise<Holding[]> {
+  await ensureSharedSchema();
   const { rows } = await db.query('SELECT * FROM holdings WHERE portfolio_id = $1 AND lots > 0 ORDER BY symbol', [portfolioId]);
   return rows;
 }
 
 export async function getHoldingForUpdate(portfolioId: string, symbol: string, client: PoolClient): Promise<Holding | null> {
+  await ensureSharedSchema();
   const { rows } = await client.query('SELECT * FROM holdings WHERE portfolio_id = $1 AND symbol = $2 FOR UPDATE', [portfolioId, symbol]);
   return rows[0] || null;
 }
@@ -25,6 +28,7 @@ export async function upsertHoldingAfterBuy(
   buyPrice: number,
   client: PoolClient
 ): Promise<void> {
+  await ensureSharedSchema();
   await client.query(
     `INSERT INTO holdings (portfolio_id, symbol, lots, avg_price)
      VALUES ($1, $2, $3, $4)
@@ -37,5 +41,6 @@ export async function upsertHoldingAfterBuy(
 }
 
 export async function reduceHoldingAfterSell(portfolioId: string, symbol: string, removeLots: number, client: PoolClient): Promise<void> {
+  await ensureSharedSchema();
   await client.query('UPDATE holdings SET lots = lots - $3 WHERE portfolio_id = $1 AND symbol = $2', [portfolioId, symbol, removeLots]);
 }

@@ -1,4 +1,5 @@
 import { pool } from '../database/postgres.client';
+import { ensureSharedSchema } from '../database/schema.service';
 
 export type JobStatus = 'RUNNING' | 'SUCCESS' | 'FAILED';
 
@@ -14,6 +15,7 @@ export interface JobRunLog {
 }
 
 export async function startJobRun(jobName: string, itemKey: string | null = null): Promise<number> {
+  await ensureSharedSchema();
   const { rows } = await pool.query(
     `INSERT INTO job_run_log (job_name, item_key, status) VALUES ($1, $2, 'RUNNING') RETURNING id`,
     [jobName, itemKey]
@@ -22,6 +24,7 @@ export async function startJobRun(jobName: string, itemKey: string | null = null
 }
 
 export async function finishJobRun(id: number, status: 'SUCCESS' | 'FAILED', errorMessage?: string, meta?: Record<string, unknown>): Promise<void> {
+  await ensureSharedSchema();
   await pool.query(
     `UPDATE job_run_log SET status = $2, finished_at = now(), error_message = $3, meta = $4 WHERE id = $1`,
     [id, status, errorMessage ?? null, meta ? JSON.stringify(meta) : null]
@@ -31,6 +34,7 @@ export async function finishJobRun(id: number, status: 'SUCCESS' | 'FAILED', err
 // Dipakai dashboard admin (Scheduler Architecture Fase 4) & alerting - "kapan
 // terakhir job ini sukses" adalah sinyal kesehatan scheduler paling dasar.
 export async function getLastRun(jobName: string): Promise<JobRunLog | null> {
+  await ensureSharedSchema();
   const { rows } = await pool.query(
     `SELECT * FROM job_run_log WHERE job_name = $1 ORDER BY started_at DESC LIMIT 1`,
     [jobName]

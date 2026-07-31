@@ -4,6 +4,10 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccess } from '@/modules/user';
 import { scanBreakouts } from '@/modules/recommendation';
+import { cacheGet } from '@/shared/cache/redis-cache';
+
+// BUILD 006/007 - baca cache-first (diisi app/api/cron/breakout-scan setiap 5 menit).
+const CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
 export async function GET() {
   try {
@@ -18,6 +22,11 @@ export async function GET() {
       // "Limit analisa harian habis" menyesatkan karena tidak ada penghitung kuota
       // sungguhan untuk fitur ini (temuan H9, API Guideline poin 2 prioritas adopsi).
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+    }
+
+    const cached = await cacheGet<any>(CACHE_KEY);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     const data = await scanBreakouts();

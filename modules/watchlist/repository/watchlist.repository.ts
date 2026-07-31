@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { pool } from '../../../shared/database/postgres.client';
+import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import type { WatchlistItem } from '../types/watchlist.types';
 
 // Kolom buy_price/alert_price NUMERIC - pg driver mengembalikannya sebagai string.
@@ -15,11 +16,13 @@ function mapRow(row: any): WatchlistItem {
 }
 
 export async function listWatchlist(userId: string): Promise<WatchlistItem[]> {
+  await ensureSharedSchema();
   const { rows } = await pool.query('SELECT * FROM watchlists WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
   return rows.map(mapRow);
 }
 
 export async function countWatchlist(userId: string): Promise<number> {
+  await ensureSharedSchema();
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM watchlists WHERE user_id = $1', [userId]);
   return rows[0].count;
 }
@@ -28,6 +31,7 @@ export async function upsertWatchlistItem(
   userId: string,
   input: { symbol: string; buy_price?: number | null; alert_price?: number | null; lot?: number | null }
 ): Promise<WatchlistItem> {
+  await ensureSharedSchema();
   const { rows } = await pool.query(
     `INSERT INTO watchlists (id, user_id, symbol, buy_price, alert_price, lot)
      VALUES ($1,$2,$3,$4,$5,$6)
@@ -40,6 +44,7 @@ export async function upsertWatchlistItem(
 }
 
 export async function deleteWatchlistItem(userId: string, symbol: string): Promise<void> {
+  await ensureSharedSchema();
   await pool.query('DELETE FROM watchlists WHERE user_id = $1 AND symbol = $2', [userId, symbol]);
 }
 
@@ -53,6 +58,7 @@ export interface PaginatedWatchlists {
 // poin 5: jangan lagi dump semua baris tanpa batas). Cursor-based sama seperti
 // modules/portfolio/repository/transaction.repository.ts.
 export async function listAllWatchlistsPaginated(opts: { cursor?: string; limit?: number }): Promise<PaginatedWatchlists> {
+  await ensureSharedSchema();
   const limit = Math.min(opts.limit || 50, 200);
   const params: any[] = [];
   let where = '1=1';
