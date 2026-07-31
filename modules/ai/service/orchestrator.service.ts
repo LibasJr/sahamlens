@@ -1,5 +1,6 @@
 import YahooFinanceClass from 'yahoo-finance2';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { pickGeminiModelName } from '@/lib/gemini';
 import {
   analyzeEma,
   analyzeRsi,
@@ -157,7 +158,7 @@ async function buildAiSummary(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.6-flash',
+      model: pickGeminiModelName(),
       systemInstruction: `Kamu adalah Master Agent yang merangkum hasil 9 agen kuantitatif SahamLens untuk saham ${ticker}.
 Aturan WAJIB:
 1. HANYA gunakan angka/data pada "Data Agen" di bawah - dilarang keras mengarang berita, rumor, atau data yang tidak ada di sana.

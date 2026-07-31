@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Target, Activity, ArrowUpRight, Clock, ChevronRight } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
-import AskAIButton from '@/components/AskAIButton';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -166,8 +165,7 @@ export default function BreakoutRadarPage() {
                           </td>
                           <td className="py-4 px-4 text-right">
                             <div className="flex items-center justify-end gap-2 ml-auto">
-                              <AskAIButton prompt={`Saham ${item.symbol} saat ini masuk dalam Breakout Radar dengan skor ${item.score}/8 dan sinyal: ${item.signals?.join(', ')}. Harga saat ini Rp ${item.price} (${item.change}). Risk to reward ratio (RR) adalah ${item.rr}. Tolong berikan analisa mendalam apakah saham ini layak dibeli untuk breakout atau hanya false breakout?`} />
-                              <button 
+                              <button
                                 onClick={() => router.push(`/dashboard?symbol=${item.symbol}`)}
                                 className="bg-teal-500 hover:bg-teal-400 text-[#0f172a] text-xs font-bold font-mono px-3 py-1.5 rounded flex items-center justify-center gap-1 transition-colors"
                               >

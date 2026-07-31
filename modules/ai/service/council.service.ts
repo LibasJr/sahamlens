@@ -1,4 +1,4 @@
-import { jsonModel } from "@/lib/gemini";
+import { getJsonModel } from "@/lib/gemini";
 import { runLocalCouncil } from "./local-council.service";
 import { getCouncilCache, setCouncilCache } from "./council-cache.service";
 
@@ -68,6 +68,7 @@ export async function getCouncil(symbol: string, data: any) {
       .replace(/\$\{score\}/g, promptData.score.toString());
 
     // 2. Coba Gemini Pro
+    const jsonModel = getJsonModel();
     if (!jsonModel) {
       console.warn("[COUNCIL] GEMINI_API_KEY missing, using local fallback", symbol);
       return runLocalCouncil(symbol, data);

@@ -4,6 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getSession } from '@/modules/user';
+import { pickGeminiModelName } from '@/lib/gemini';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -18,7 +19,7 @@ function buildChatModel(context: string) {
   if (!apiKey) return null;
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: 'gemini-3.6-flash',
+    model: pickGeminiModelName(),
     systemInstruction: `Kamu adalah Analis Senior SahamLens — platform analisis saham Indonesia.
 
 ## Aturan Menjawab:
@@ -73,9 +74,12 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("Chat API Error:", error);
+    // JANGAN teruskan error.message mentah ke user - sebelumnya ini membocorkan detail
+    // internal provider (URL API Google, quota metric, JSON error lengkap) langsung ke
+    // chat window. Satu pesan generik yang aman untuk semua jenis kegagalan.
     return NextResponse.json({
       role: 'assistant',
-      content: 'Maaf, terjadi kesalahan saat menghubungi AI: ' + error.message
+      content: 'Maaf, Council AI sedang mengalami gangguan koneksi. Coba lagi sebentar lagi.',
     }, { status: 500 });
   }
 }

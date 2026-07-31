@@ -43,6 +43,17 @@ function DashboardContent() {
   const [marketClosed, setMarketClosed] = useState(false);
   const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(true);
+
+  // Timeframe chart terpisah dari /api/stock (yang selalu histori 1 tahun untuk
+  // kebutuhan 10 analyzer/scoring) - sama seperti dashboard publik & halaman
+  // teknikal, chart di sini pakai /api/public-chart yang mendukung parameter tf.
+  const [timeframe, setTimeframe] = useState('1M');
+  const [chartCandles, setChartCandles] = useState<any[]>([]);
+
+  // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
+  // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
+  const [stockNews, setStockNews] = useState<any[]>([]);
+  const [loadingStockNews, setLoadingStockNews] = useState(true);
   
   // AI Explain Modal State
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -65,11 +76,6 @@ function DashboardContent() {
   const [adminReady, setAdminReady] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
-
-  const handleAskAI = async (algo: any) => {
-    const prompt = `Tolong jelaskan analisis dari metrik ${algo.label} yang bernilai ${algo.value} (Keputusan: ${algo.decision}, Keyakinan: ${algo.confidence}%) untuk saham ${ticker}?`;
-    window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt } }));
-  };
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -262,6 +268,27 @@ function DashboardContent() {
     return () => clearInterval(interval);
   }, [ticker, mounted, adminReady]);
 
+  useEffect(() => {
+    if (!mounted) return;
+    const code = ticker.replace('.JK', '');
+    fetch(`/api/public-chart/${code}?tf=${timeframe}`)
+      .then((r) => r.json())
+      .then((d) => { if (d?.history?.length > 0) setChartCandles(d.history); })
+      .catch(() => {});
+  }, [ticker, timeframe, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !data?.stock?.symbol) return;
+    setLoadingStockNews(true);
+    const code = ticker.replace('.JK', '');
+    const name = data.stock.name || '';
+    fetch(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStockNews(d?.items || []))
+      .catch(() => {})
+      .finally(() => setLoadingStockNews(false));
+  }, [ticker, mounted, data?.stock?.symbol]);
+
   const downloadTechnicalPDF = async () => {
     if (!data?.scoring) return;
     
@@ -321,7 +348,7 @@ function DashboardContent() {
 
   const stock = data?.stock || {};
   const tech = data?.technical || {};
-  const candles = data?.stock?.history || [];
+  const candles = chartCandles.length > 0 ? chartCandles : (data?.stock?.history || []);
   let analyzers = data?.analyzers || [];
 
   if (sortByConfidence) {
@@ -729,11 +756,25 @@ function DashboardContent() {
             );
           })()}
 
-          <div className="w-full">
+          <div className="w-full space-y-3">
+            <div className="flex items-center gap-1.5 rounded-full bg-tv-card border border-tv-border p-1 w-fit">
+              {['1D', '3D', '7D', '1M', '1Y'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTimeframe(t)}
+                  className={`rounded-full px-3 py-1 text-[11px] font-bold font-mono tracking-wide transition ${
+                    timeframe === t ? 'bg-tv-blue text-white shadow' : 'text-tv-muted hover:text-white'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
             <TradingViewChart
               candles={candles}
               technical={tech}
               symbol={stock.symbol || ticker}
+              timeframe={timeframe}
               height={600}
             />
           </div>
@@ -752,7 +793,6 @@ function DashboardContent() {
               sortByConfidence={sortByConfidence}
               setSortByConfidence={setSortByConfidence}
               getAccuracyPct={getAccuracyPct}
-              onAskAI={handleAskAI}
               isAdmin={isAdminUser}
             />
           </div>
@@ -790,13 +830,41 @@ function DashboardContent() {
           </Link>
         </div>
 
-        {/* News - jujur: belum ada sumber berita nyata di backend */}
-        <div className="flex items-center gap-3 bg-tv-card/50 border border-dashed border-tv-border rounded-lg p-4">
-          <Newspaper className="w-4 h-4 text-tv-muted shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-tv-text">Berita & Sentimen Pasar</p>
-            <p className="text-xs text-tv-muted">Segera hadir.</p>
+        {/* Berita spesifik emiten ini (bukan berita pasar umum - itu ada di Beranda) */}
+        <div className="bg-tv-card border border-tv-border rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Newspaper className="w-4 h-4 text-tv-muted" />
+            <h3 className="font-heading text-sm font-semibold text-white">Berita {displayTicker(stock.symbol || ticker)}</h3>
           </div>
+          {loadingStockNews ? (
+            <div className="flex items-center gap-2 text-xs text-tv-muted py-2">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Mencari berita terkait...
+            </div>
+          ) : stockNews.length === 0 ? (
+            <p className="text-xs text-tv-muted py-1">Belum ada berita spesifik untuk saham ini dalam beberapa hari terakhir.</p>
+          ) : (
+            <div className="divide-y divide-tv-border/50">
+              {stockNews.map((n: any) => (
+                <a
+                  key={n.link || n.title}
+                  href={n.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
+                    <p className="text-[10px] text-tv-muted mt-1">{n.source} • {n.reason}</p>
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                    n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green' : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'
+                  }`}>
+                    {n.sentiment}
+                  </span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

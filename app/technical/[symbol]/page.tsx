@@ -2,7 +2,6 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
-import AskAIButton from '@/components/AskAIButton';
 import { Brain, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
 import { cookies, headers } from 'next/headers';
 
@@ -128,7 +127,6 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
               <div className="flex justify-between items-center mb-2">
                 <h3 className="font-bold text-white text-sm flex items-center gap-2">
                   {agent.name}
-                  <AskAIButton prompt={`Tolong jelaskan secara mendalam tentang analisis dari ${agent.name} yang memberikan sinyal ${agent.signal} pada saham ${symbol} berdasarkan alasan: ${agent.reason}. Apakah pandangan ini cukup akurat?`} />
                 </h3>
                 <span className={`text-xs px-2 py-0.5 rounded font-mono font-semibold ${
                   isBuy ? 'bg-tv-green/20 text-tv-green border border-tv-green/30' :

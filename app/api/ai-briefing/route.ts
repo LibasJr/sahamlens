@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
-import { model } from '@/lib/gemini';
+import { getModel } from '@/lib/gemini';
 
 interface BriefingInput {
   cash: number;
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
 
   const input = (await req.json()) as BriefingInput;
 
+  const model = getModel();
   if (!model) {
     return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
   }
