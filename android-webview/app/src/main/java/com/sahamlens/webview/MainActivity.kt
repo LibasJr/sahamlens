@@ -42,6 +42,11 @@ class MainActivity : AppCompatActivity() {
 
         setupWebView()
 
+        // Tanpa ini, SwipeRefreshLayout memicu refresh di posisi scroll manapun di dalam
+        // halaman (bukan cuma waktu benar-benar di paling atas) karena WebView tidak
+        // otomatis melaporkan posisi scroll-nya sendiri ke parent view. Refresh cuma
+        // boleh terpicu kalau webView.scrollY == 0 (halaman benar-benar di atas).
+        swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.scrollY > 0 }
         swipeRefresh.setOnRefreshListener { webView.reload() }
         retryButton.setOnClickListener { loadHomeIfOnline() }
 
