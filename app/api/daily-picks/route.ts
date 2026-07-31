@@ -9,6 +9,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 // dihitung ulang dari data real yang SUDAH dipakai fitur lain (bukan metrik baru yang
 // dikarang) - lihat komentar per kategori di bawah.
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const MARKET_SUMMARY_CACHE_KEY = 'sahamlens:cache:computed:market-summary';
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';

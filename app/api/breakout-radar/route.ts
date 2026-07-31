@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccess } from '@/modules/user';
-import { scanBreakouts } from '@/modules/recommendation';
+import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { cacheGet } from '@/shared/cache/redis-cache';
 
 // BUILD 006/007 - baca cache-first (diisi app/api/cron/breakout-scan setiap 5 menit).
@@ -29,10 +29,11 @@ export async function GET() {
       return NextResponse.json(cached);
     }
 
-    const data = await scanBreakouts();
+    const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
 
     return NextResponse.json({
       data,
+      crossSignals,
       lastUpdate: new Date().toISOString()
     });
   } catch (error) {

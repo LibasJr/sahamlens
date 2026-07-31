@@ -1,2 +1,2 @@
 export { analyzeStock } from './service/recommendation.service';
-export { scanBreakouts, type BreakoutEntry } from './service/breakout.service';
+export { scanBreakouts, scanCrossSignals, type BreakoutEntry, type CrossEntry } from './service/breakout.service';

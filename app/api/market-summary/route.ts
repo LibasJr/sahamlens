@@ -17,6 +17,10 @@ const CACHE_KEY = 'sahamlens:cache:computed:market-summary';
 // jadi percuma karena getMarketSummary() cuma pernah jalan sekali, saat build,
 // bukan per-request). Pola sama seperti app/api/alerts/check/route.ts.
 export const dynamic = 'force-dynamic';
+// Universe naik dari 50 -> 250 saham (lihat market-summary.service.ts) - beri jatah waktu
+// lebih longgar untuk komputasi cache-miss (25 saham per chunk, ~10 putaran) supaya tidak
+// timeout di platform serverless yang mendukung durasi lebih panjang dari default.
+export const maxDuration = 60;
 
 export async function GET() {
   try {
