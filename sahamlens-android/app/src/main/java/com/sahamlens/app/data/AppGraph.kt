@@ -2,13 +2,19 @@ package com.sahamlens.app.data
 
 import android.content.Context
 import com.sahamlens.app.data.auth.AuthRepository
+import com.sahamlens.app.data.chat.ChatRepository
+import com.sahamlens.app.data.market.MarketRepository
+import com.sahamlens.app.data.portfolio.PortfolioRepository
+import com.sahamlens.app.data.stockdetail.StockDetailRepository
 import com.sahamlens.app.data.watchlist.WatchlistRepository
 import com.sahamlens.core.database.SahamLensDatabase
 import com.sahamlens.core.network.NetworkModule
 
 /**
- * Penyedia dependency manual (Build 007) - dipakai sementara sampai Hilt terpasang penuh di
- * Build 010. Satu tempat, satu inisialisasi di [com.sahamlens.app.SahamLensApplication].
+ * Penyedia dependency manual - dipakai sementara sampai Hilt terpasang penuh (keputusan sadar:
+ * AppGraph sudah teruji jalan untuk Login+Watchlist, migrasi Hilt murni-refactor berisiko tanpa
+ * manfaat fungsional baru, jadi ditunda sampai ada modul :feature:* yang benar-benar butuh
+ * scoping DI per-fitur). Satu tempat, satu inisialisasi di [com.sahamlens.app.SahamLensApplication].
  */
 object AppGraph {
     private lateinit var appContext: Context
@@ -30,4 +36,12 @@ object AppGraph {
             dao = SahamLensDatabase.getInstance(appContext).watchlistDao(),
         )
     }
+
+    val portfolioRepository: PortfolioRepository by lazy { PortfolioRepository(NetworkModule.api) }
+
+    val marketRepository: MarketRepository by lazy { MarketRepository(NetworkModule.api) }
+
+    val stockDetailRepository: StockDetailRepository by lazy { StockDetailRepository(NetworkModule.api) }
+
+    val chatRepository: ChatRepository by lazy { ChatRepository(NetworkModule.api) }
 }

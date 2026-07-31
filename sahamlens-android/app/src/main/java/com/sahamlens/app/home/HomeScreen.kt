@@ -36,6 +36,7 @@ import com.sahamlens.core.designsystem.component.SahamBadge
 import com.sahamlens.core.designsystem.component.SahamBadgeVariant
 import com.sahamlens.core.designsystem.component.SahamCard
 import com.sahamlens.core.designsystem.component.SahamCardVariant
+import com.sahamlens.core.designsystem.component.ShimmerBox
 import com.sahamlens.core.designsystem.component.ShimmerLineRow
 import com.sahamlens.core.designsystem.theme.SahamLensTheme
 
@@ -45,10 +46,13 @@ private fun badgeVariantFor(consensus: String) = when {
     else -> SahamBadgeVariant.Neutral
 }
 
+private fun rupiah(value: Double) = "Rp ${"%,.0f".format(value).replace(',', '.')}"
+
 /**
- * Build 003 - Home. Terbaca habis dalam 10 detik: sapaan, AI Opportunity, Portfolio ringkas,
- * Market Hari Ini, Top AI Picks (carousel), Watchlist ringkas (maksimal 3 baris, bukan tabel),
- * Berita ("Segera Hadir" - jujur, belum ada sumber berita nyata di backend).
+ * Home - terbaca habis dalam 10 detik: sapaan, AI Opportunity (real, dari Portfolio+Market),
+ * Portfolio ringkas, IHSG, Top AI Picks (bullish teratas hari ini), Watchlist ringkas (maks 3
+ * baris), Berita ("Segera Hadir" - jujur, belum ada sumber berita nyata di client Android).
+ * Tiap bagian punya skeleton sendiri sehingga bagian yang sudah siap tidak menunggu yang lain.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -56,7 +60,6 @@ fun HomeScreen(
     state: HomeUiState,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
-    loadingWatchlist: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedContentScope: AnimatedContentScope? = null,
     onStockClick: (String) -> Unit = {},
@@ -70,19 +73,37 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { GreetingRow(state) }
-        item { AiOpportunityBanner(state.aiOpportunityText, onClick = onOpenAiCopilot) }
-        item { PortfolioSummaryCard(state.portfolioValue, state.portfolioChangePct) }
-        item { MarketTodayStrip(state.indices) }
         item {
-            TopAiPicksCarousel(
-                picks = state.topPicks,
-                onStockClick = onStockClick,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedContentScope = animatedContentScope,
-            )
+            if (state.isLoadingPortfolio || state.isLoadingMarket) {
+                AiOpportunityLoading()
+            } else {
+                AiOpportunityBanner(state.aiOpportunityText ?: "Menganalisa pasar...", onClick = onOpenAiCopilot)
+            }
         }
         item {
-            if (loadingWatchlist) {
+            if (state.isLoadingPortfolio) LoadingCard() else PortfolioSummaryCard(state.portfolioValue, state.portfolioChangePct)
+        }
+        item {
+            if (state.isLoadingMarket) {
+                ShimmerBox(modifier = Modifier.width(120.dp).height(28.dp))
+            } else if (state.ihsgPrice != null) {
+                MarketTodayStrip(state.ihsgPrice, state.ihsgChangePct ?: 0.0)
+            }
+        }
+        item {
+            if (state.isLoadingMarket) {
+                TopPicksLoading()
+            } else {
+                TopAiPicksCarousel(
+                    picks = state.topPicks,
+                    onStockClick = onStockClick,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedContentScope = animatedContentScope,
+                )
+            }
+        }
+        item {
+            if (state.isLoadingWatchlist) {
                 WatchlistLoading()
             } else {
                 WatchlistCompact(state.watchlist, onStockClick, onSeeAllWatchlist)
@@ -96,9 +117,9 @@ fun HomeScreen(
 private fun GreetingRow(state: HomeUiState) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("Halo, ${state.userName}", style = MaterialTheme.typography.headlineSmall)
+            Text("Halo, ${state.userName.ifBlank { "Investor" }}", style = MaterialTheme.typography.headlineSmall)
             Text(
-                if (state.marketOpen) "Pasar buka" else "Pasar tutup",
+                "Ringkasan hari ini",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -123,7 +144,29 @@ private fun AiOpportunityBanner(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PortfolioSummaryCard(value: Double, changePct: Double) {
+private fun AiOpportunityLoading() {
+    SahamCard(variant = SahamCardVariant.Filled) {
+        Row(verticalAlignment = Alignment.Top) {
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+            Spacer(Modifier.width(10.dp))
+            ShimmerBox(modifier = Modifier.fillMaxWidth().height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun LoadingCard() {
+    SahamCard(variant = SahamCardVariant.Elevated) {
+        Column {
+            ShimmerBox(modifier = Modifier.width(100.dp).height(12.dp))
+            Spacer(Modifier.height(8.dp))
+            ShimmerBox(modifier = Modifier.width(180.dp).height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun PortfolioSummaryCard(value: Double?, changePct: Double?) {
     val extra = SahamLensTheme.extraColors
     SahamCard(variant = SahamCardVariant.Elevated) {
         Column {
@@ -133,27 +176,27 @@ private fun PortfolioSummaryCard(value: Double, changePct: Double) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "Rp ${"%,.0f".format(value).replace(',', '.')}",
+                value?.let { rupiah(it) } ?: "Belum ada posisi",
                 style = MaterialTheme.typography.displaySmall,
             )
-            Text(
-                text = "${if (changePct >= 0) "+" else ""}${"%.2f".format(changePct)}% hari ini",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (changePct >= 0) extra.success else MaterialTheme.colorScheme.error,
-            )
+            if (changePct != null && value != null) {
+                Text(
+                    text = "${if (changePct >= 0) "+" else ""}${"%.2f".format(changePct)}% hari ini",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (changePct >= 0) extra.success else MaterialTheme.colorScheme.error,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun MarketTodayStrip(indices: List<MarketIndex>) {
+private fun MarketTodayStrip(ihsgPrice: Double, ihsgChangePct: Double) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        indices.forEach { idx ->
-            SahamBadge(
-                text = "${idx.name} ${if (idx.changePct >= 0) "+" else ""}${"%.1f".format(idx.changePct)}%",
-                variant = if (idx.changePct >= 0) SahamBadgeVariant.Success else SahamBadgeVariant.Danger,
-            )
-        }
+        SahamBadge(
+            text = "IHSG ${"%,.0f".format(ihsgPrice).replace(',', '.')} (${if (ihsgChangePct >= 0) "+" else ""}${"%.2f".format(ihsgChangePct)}%)",
+            variant = if (ihsgChangePct >= 0) SahamBadgeVariant.Success else SahamBadgeVariant.Danger,
+        )
     }
 }
 
@@ -168,6 +211,14 @@ private fun TopAiPicksCarousel(
     Column {
         Text("Top AI Picks", style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(8.dp))
+        if (picks.isEmpty()) {
+            Text(
+                "Belum ada sinyal bullish kuat hari ini.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return
+        }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(picks) { pick ->
                 var cardModifier: Modifier = Modifier
@@ -191,13 +242,24 @@ private fun TopAiPicksCarousel(
                         SahamBadge(pick.consensus, variant = badgeVariantFor(pick.consensus))
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "${pick.confidencePct}% confidence",
+                            "Skor ${pick.confidencePct}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TopPicksLoading() {
+    Column {
+        Text("Top AI Picks", style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(3) { ShimmerBox(modifier = Modifier.width(140.dp).height(88.dp)) }
         }
     }
 }
@@ -222,6 +284,13 @@ private fun WatchlistCompact(
             }
         }
         Spacer(Modifier.height(4.dp))
+        if (rows.isEmpty()) {
+            Text(
+                "Watchlist kosong. Tambahkan saham untuk dipantau di sini.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         rows.take(3).forEach { row ->
             Row(
                 modifier = Modifier
@@ -232,7 +301,7 @@ private fun WatchlistCompact(
             ) {
                 Text(row.ticker, style = MaterialTheme.typography.bodyMedium)
                 Row {
-                    Text("Rp ${"%,.0f".format(row.price).replace(',', '.')}", style = MaterialTheme.typography.bodyMedium)
+                    Text(rupiah(row.price), style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "${if (row.changePct >= 0) "+" else ""}${"%.1f".format(row.changePct)}%",
@@ -245,7 +314,6 @@ private fun WatchlistCompact(
     }
 }
 
-/** Skeleton (Build 006) untuk Watchlist saat memuat - dipasang nyata begitu Build 007 menyambungkan data. */
 @Composable
 private fun WatchlistLoading() {
     Column {

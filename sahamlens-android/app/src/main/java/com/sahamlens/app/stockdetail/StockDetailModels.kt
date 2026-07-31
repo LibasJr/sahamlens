@@ -1,32 +1,31 @@
 package com.sahamlens.app.stockdetail
 
-/** Bentuk data Detail Saham (Build 004) - dipetakan ke /api/stock/[ticker], /fundamental, DCF, Bandar Flow nyata di Build 007. */
+import com.sahamlens.core.designsystem.component.Candle
+
+/** State Detail Saham - diisi dari GET /api/stock/[ticker] (analyzers, scoring, chart) +
+ * GET /api/dcf/[ticker], lewat [StockDetailViewModel]. Bukan lagi data contoh tetap. */
 data class StockDetailUiState(
-    val ticker: String,
-    val name: String,
-    val sector: String,
-    val price: Double,
-    val changePct: Double,
-    val consensus: String,
-    val confidencePct: Int,
-    val aiSummary: String,
-    val technicalNote: String,
-    val fundamentalNote: String,
-    val dcfNote: String,
-    val bandarNote: String,
+    val ticker: String = "",
+    val isLoading: Boolean = true,
+    /** 401 = belum login, 402 = fitur Pro, lainnya = kegagalan jaringan biasa. */
+    val errorCode: Int? = null,
+    val price: Double = 0.0,
+    val changePct: Double = 0.0,
+    val consensus: String = "HOLD",
+    val totalScore: Int = 0,
+    val aiSummary: String = "",
+    val candles: List<Candle> = emptyList(),
+    val technicalRows: List<AnalyzerRow> = emptyList(),
+    val bandarNote: String? = null,
+    val dcf: DcfUiState? = null,
+    val tradeMessage: String? = null,
 )
 
-fun sampleStockDetail(ticker: String) = StockDetailUiState(
-    ticker = ticker,
-    name = "Bank Central Asia Tbk",
-    sector = "Financials",
-    price = 8_925.0,
-    changePct = 1.2,
-    consensus = "STRONG BUY",
-    confidencePct = 92,
-    aiSummary = "Uptrend terkonfirmasi, harga berada di atas MA20 dan MA50. Volume 18% di atas rata-rata 20 hari, minat pasar meningkat.",
-    technicalNote = "8 dari 10 filter menunjukkan sinyal BULLISH. RSI 58 - netral cenderung beli.",
-    fundamentalNote = "PBV 4.2x, ROE 21%, dividend yield 2.8% - valuasi wajar untuk bank kelas kakap.",
-    dcfNote = "Nilai intrinsik estimasi Rp 9.400 - margin of safety tipis di harga saat ini.",
-    bandarNote = "Net foreign flow 5 hari terakhir: NET BUY, akumulasi terlihat di volume sesi 2.",
+data class AnalyzerRow(val label: String, val value: String, val decision: String)
+
+data class DcfUiState(
+    val fairValue: Double? = null,
+    val valuationStatus: String? = null,
+    val notApplicableReason: String? = null,
+    val executiveSummary: String = "",
 )
