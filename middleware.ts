@@ -32,6 +32,7 @@ const PROTECTED_PAGES = [
   '/recommendations',
   '/calendar',
   '/multi-agent',
+  '/risk-calculator',
 ];
 
 function isProtectedPage(pathname: string): boolean {
@@ -108,5 +109,6 @@ export const config = {
     '/recommendations/:path*',
     '/calendar/:path*',
     '/multi-agent/:path*',
+    '/risk-calculator/:path*',
   ],
 };
