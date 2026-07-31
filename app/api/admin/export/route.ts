@@ -2,9 +2,15 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isAdminFromRequestCookies } from '@/lib/auth';
 
 export async function GET() {
+  if (!isAdminFromRequestCookies(cookies())) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const [users, watchlists, payments] = await Promise.all([
       supabaseAdmin.from('users').select('*'),

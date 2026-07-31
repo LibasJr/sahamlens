@@ -3,14 +3,23 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getSession } from '@/lib/session';
 
 export async function POST(request: Request) {
   try {
+    // telegram_id WAJIB berasal dari sesi terverifikasi, bukan dari body request -
+    // sebelumnya klien bisa menulis ke watchlist siapa pun dengan menebak telegram_id (IDOR).
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+    }
+    const telegram_id = Number(session.id) || null;
+
     const body = await request.json();
-    const { telegram_id, watchlist } = body;
+    const { watchlist } = body;
 
     if (!telegram_id || !watchlist || !Array.isArray(watchlist)) {
-      return NextResponse.json({ error: 'telegram_id and watchlist array are required' }, { status: 400 });
+      return NextResponse.json({ error: 'watchlist array are required' }, { status: 400 });
     }
 
     const { error } = await supabaseAdmin

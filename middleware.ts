@@ -63,13 +63,13 @@ export async function middleware(req: NextRequest) {
 
   let isAdminOrTrial = false;
 
-  // Legacy cookies check
-  if (
-    req.cookies.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE ||
-    req.cookies.get('saham_admin')?.value === 'true' ||
-    req.cookies.get('role')?.value === 'admin' ||
-    req.cookies.get('role')?.value === 'pro'
-  ) {
+  // HANYA cookie HttpOnly (diset & diverifikasi server, lihat app/admin-login/key/route.ts)
+  // yang boleh dipercaya untuk keputusan otorisasi. 'saham_admin' dan 'role' sengaja TIDAK
+  // dicek di sini lagi - keduanya non-HttpOnly (dibaca document.cookie untuk UI badge saja,
+  // lihat lib/auth.ts) sehingga bisa ditulis langsung oleh siapa pun dari devtools/browser
+  // console. Mempercayainya di sini berarti siapa pun bisa mem-bypass rate limit dengan
+  // mengetik `document.cookie = 'role=admin'`.
+  if (req.cookies.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE) {
     isAdminOrTrial = true;
   }
 

@@ -1,7 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretKey = process.env.JWT_SECRET_KEY || 'sahamlens-super-secret-key-for-local-dev';
+const secretKey = process.env.JWT_SECRET_KEY;
+if (!secretKey) {
+  throw new Error('JWT_SECRET_KEY env var wajib diset - lihat .env.local. Aplikasi tidak boleh berjalan dengan secret hardcoded.');
+}
 const key = new TextEncoder().encode(secretKey);
 
 export interface SessionPayload {

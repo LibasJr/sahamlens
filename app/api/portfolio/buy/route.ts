@@ -14,8 +14,17 @@ export async function POST(req: Request) {
 
     const { symbol, price, lots, note } = await req.json();
 
-    if (!symbol || !price || !lots) {
+    if (!symbol || typeof symbol !== 'string') {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    }
+    // Validasi numerik ketat: sebelumnya hanya `if (!price || !lots)`, jadi price/lots
+    // negatif lolos dan `portfolio.cash -= cost` dengan cost negatif justru MENAMBAH kas
+    // pengguna (mencetak uang virtual tanpa batas).
+    if (!Number.isFinite(price) || price <= 0) {
+      return NextResponse.json({ error: 'Harga tidak valid' }, { status: 400 });
+    }
+    if (!Number.isInteger(lots) || lots <= 0) {
+      return NextResponse.json({ error: 'Jumlah lot tidak valid' }, { status: 400 });
     }
 
     const portfolios = readJson('data/portfolios.json') || [];
