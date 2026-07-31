@@ -14,8 +14,15 @@ export async function POST(req: Request) {
 
     const { symbol, price, lots, note } = await req.json();
 
-    if (!symbol || !price || !lots) {
+    if (!symbol || typeof symbol !== 'string') {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    }
+    // Sama seperti /api/portfolio/buy: cegah price/lots negatif atau non-integer.
+    if (!Number.isFinite(price) || price <= 0) {
+      return NextResponse.json({ error: 'Harga tidak valid' }, { status: 400 });
+    }
+    if (!Number.isInteger(lots) || lots <= 0) {
+      return NextResponse.json({ error: 'Jumlah lot tidak valid' }, { status: 400 });
     }
 
     const portfolios = readJson('data/portfolios.json') || [];

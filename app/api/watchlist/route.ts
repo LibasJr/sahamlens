@@ -5,11 +5,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/session';
 
+// PENTING: sebelumnya baca `session.userId` yang TIDAK PERNAH ada di payload JWT
+// (lihat lib/session.ts - fieldnya `id`), jadi Number(undefined) || 12345 membuat
+// SEMUA pengguna non-admin berbagi telegram_id 12345 yang sama (watchlist bocor
+// lintas-user). Sekarang pakai session.id yang unik per akun.
 async function getTelegramId() {
   const session = await getSession();
   if (session) {
-    if (session.role === 'admin') return 999999;
-    return Number(session.userId) || 12345;
+    return Number(session.id) || null;
   }
   return null;
 }

@@ -14,3 +14,12 @@ converted.png
 
 .vercel
 scratch/
+
+# Data files berisi PII (email, password hash) & data transaksi user - jangan pernah
+# ter-commit. File-file ini tetap dipakai di local dev (lib/dbLocal.ts / lib/supabase.ts
+# shim menciptakannya otomatis kalau belum ada).
+data/users.json
+data/portfolios.json
+data/transactions.json
+data/council_cache.json
+local_db.json

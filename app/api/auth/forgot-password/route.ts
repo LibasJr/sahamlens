@@ -58,16 +58,14 @@ export async function POST(req: Request) {
         console.log(`[AUTH] Email reset berhasil dikirim ke ${user.email}`);
       } catch (emailError: any) {
         console.error(`[AUTH] Gagal mengirim email: ${emailError.message}`);
-        // Fallback to terminal if email fails
-        console.log(`\n========================================`);
-        console.log(`[AUTH] Kode Reset Password untuk ${user.email}: ${resetCode}`);
-        console.log(`========================================\n`);
+        // Kode reset TIDAK PERNAH dicetak ke log produksi - lihat catatan yang sama di
+        // app/api/auth/signup/route.ts.
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[AUTH][DEV ONLY] Kode Reset Password untuk ${user.email}: ${resetCode}`);
+        }
       }
-    } else {
-      // Print to terminal if no SMTP config (Development mode)
-      console.log(`\n========================================`);
-      console.log(`[AUTH] Kode Reset Password untuk ${user.email}: ${resetCode}`);
-      console.log(`========================================\n`);
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.log(`[AUTH][DEV ONLY] Kode Reset Password untuk ${user.email}: ${resetCode}`);
     }
 
     return NextResponse.json({ success: true, message: 'Instruksi reset password telah dikirim.' });

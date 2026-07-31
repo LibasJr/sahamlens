@@ -74,14 +74,14 @@ export async function POST(req: Request) {
         console.log(`[AUTH] Email verifikasi berhasil dikirim ke ${email}`);
       } catch (emailError: any) {
         console.error(`[AUTH] Gagal mengirim email verifikasi: ${emailError.message}`);
-        console.log(`\n========================================`);
-        console.log(`[AUTH] Kode Verifikasi untuk ${email}: ${code}`);
-        console.log(`========================================\n`);
+        // Kode verifikasi TIDAK PERNAH dicetak ke log produksi (bisa dibaca siapa pun
+        // dengan akses log Vercel = takeover akun). Hanya tampil di terminal dev lokal.
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[AUTH][DEV ONLY] Kode Verifikasi untuk ${email}: ${code}`);
+        }
       }
-    } else {
-      console.log(`\n========================================`);
-      console.log(`[AUTH] Kode Verifikasi untuk ${email}: ${code}`);
-      console.log(`========================================\n`);
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.log(`[AUTH][DEV ONLY] Kode Verifikasi untuk ${email}: ${code}`);
     }
 
     return NextResponse.json({ success: true, message: 'Kode verifikasi telah dikirim ke email Anda.' });

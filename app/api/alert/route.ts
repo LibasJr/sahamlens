@@ -5,11 +5,12 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/session';
 
+// Lihat catatan yang sama di app/api/watchlist/route.ts: session.userId tidak pernah
+// ada, jadi ini dulu membuat semua pengguna non-admin berbagi telegram_id 12345.
 async function getTelegramId() {
   const session = await getSession();
   if (session) {
-    if (session.role === 'admin') return 999999;
-    return Number(session.userId) || 12345;
+    return Number(session.id) || null;
   }
   return null;
 }
