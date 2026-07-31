@@ -1,0 +1,50 @@
+name: CI
+
+# Gate dasar sebelum production - sampai sekarang deploy 100% manual (`vercel --prod`
+# dari terminal), tanpa satu pun pemeriksaan otomatis (Production Checklist poin 11,
+# risikonya sudah tinggi HARI INI, bukan menunggu skala 100k user).
+#
+# CATATAN: job `build` butuh secret JWT_SECRET_KEY & DATABASE_URL di GitHub repo
+# settings (Settings > Secrets and variables > Actions) - shared/auth/jwt.ts sengaja
+# throw di module-load kalau JWT_SECRET_KEY kosong (fail-fast, bukan diam-diam pakai
+# default tidak aman), jadi `next build` butuh secret itu. typecheck/lint/test TIDAK
+# butuh secret apa pun - aman jalan tanpa konfigurasi tambahan.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: typecheck-lint-test
+    # Tidak menggagalkan seluruh workflow kalau secret belum diset - beri sinyal
+    # jelas di log alih-alih merah membingungkan sebelum secret dikonfigurasi.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY }}

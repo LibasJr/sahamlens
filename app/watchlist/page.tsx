@@ -67,8 +67,8 @@ export default function WatchlistPage() {
     try {
       const res = await fetch('/api/watchlist');
       if (res.ok) {
-        const data = await res.json();
-        setWatchlist(data || []);
+        const json = await res.json();
+        setWatchlist(json?.data || []);
       }
     } catch (e) {
       console.error('Failed to fetch watchlist', e);
@@ -89,7 +89,7 @@ export default function WatchlistPage() {
       const res = await fetch('/api/alert');
       if (res.ok) {
         const json = await res.json();
-        setAlerts(json.alerts || []);
+        setAlerts(json?.data || []);
       }
     } catch (e) {
       console.error('Failed to fetch alerts', e);

@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
-import { getSession, checkProAccess } from '@/lib/session';
+import { getSession, checkProAccess } from '@/modules/user';
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
 const WATCHLIST = [
@@ -21,7 +21,10 @@ export async function GET() {
 
     const hasPro = checkProAccess(session);
     if (!hasPro) {
-      return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
+      // 402 (bukan 429) - ini soal akses langganan, bukan rate limit. Pesan lama
+      // "Limit analisa harian habis" menyesatkan karena tidak ada penghitung kuota
+      // sungguhan untuk fitur ini (temuan H9, API Guideline poin 2 prioritas adopsi).
+      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
     const results = [];

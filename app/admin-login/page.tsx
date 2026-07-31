@@ -62,7 +62,7 @@ function AdminLoginContent() {
             </button>
           </div>
           <p className="text-gray-600 text-[11px] font-mono mt-2">
-            Key salah menampilkan halaman "Not found" biasa (disengaja, biar gak ketebak apakah
+            Key salah menampilkan halaman &quot;Not found&quot; biasa (disengaja, biar gak ketebak apakah
             key-nya salah atau route ini memang tidak ada) - tekan tombol back browser buat coba lagi.
           </p>
         </form>

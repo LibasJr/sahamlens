@@ -103,7 +103,7 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
               {maWarning.text}
             </div>
             <div className="text-[11px] font-mono text-tv-muted italic mt-1">
-              Rekomendasi: "{maWarning.recom}"
+              Rekomendasi: &quot;{maWarning.recom}&quot;
             </div>
           </div>
         )}

@@ -56,7 +56,7 @@ export default function Dashboard() {
       const jsonStock = await resStock.json();
       const jsonAlgo = await resAlgo.json();
       
-      if (resStock.status === 429 || jsonStock.error === 'Limit analisa harian habis') {
+      if (resStock.status === 402 || jsonStock.code === 'SUBSCRIPTION_REQUIRED') {
         setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
         return;

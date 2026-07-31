@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hitungPnL, hitungRR } from '../lib/calculator';
+import { hitungPnL, hitungRR } from '../modules/portfolio/utils/pnl-calculator';
 
 describe('SahamLens Logic Tests', () => {
   it('hitungPnL(buy:369, current:280) == -23.91', () => {

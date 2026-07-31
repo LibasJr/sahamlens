@@ -1,0 +1,4 @@
+export const INITIAL_CASH = 100_000_000;
+export const LOT_SIZE = 100;
+export const TRANSACTIONS_DEFAULT_PAGE_SIZE = 20;
+export const TRANSACTIONS_MAX_PAGE_SIZE = 100;

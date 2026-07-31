@@ -91,7 +91,7 @@ function DashboardContent() {
       const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store' });
       const jsonAlgo = await resAlgo.json();
       
-      if (resAlgo.status === 429 || jsonAlgo.error === 'Limit analisa harian habis') {
+      if (resAlgo.status === 402 || jsonAlgo.code === 'SUBSCRIPTION_REQUIRED') {
         setShowPaywall(true);
         return;
       }

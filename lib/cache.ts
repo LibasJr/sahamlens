@@ -1,31 +1,17 @@
-const fs = eval('require("fs")');
-const path = eval('require("path")');
+import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 
-const CACHE_FILE = path.join(process.cwd(), 'data', 'council_cache.json');
+// Redis (Cache Layer Tier 2 AI Result), bukan lagi file data/council_cache.json.
+// File itu gagal ditulis DIAM-DIAM di Vercel (filesystem read-only, error di-
+// swallow try/catch) - artinya cache council TIDAK PERNAH benar-benar menyala di
+// production, setiap request bayar penuh ke Gemini. Signature fungsi (nama,
+// parameter) dipertahankan sama supaya pemanggil (councilFinal.ts, council/route.ts)
+// cuma perlu ditambah `await`, bukan ditulis ulang.
+const TTL_24H_SEC = 24 * 60 * 60;
 
-export function getCouncilCache(symbol: string, date: string) {
-  try {
-    if (!fs.existsSync(CACHE_FILE)) {
-      return null;
-    }
-    const data = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
-    const key = `${symbol}_${date}`;
-    return data[key] || null;
-  } catch (e) {
-    return null;
-  }
+export async function getCouncilCache(symbol: string, date: string): Promise<any | null> {
+  return cacheGet(`sahamlens:cache:computed:ai-result:council:${symbol}:${date}`);
 }
 
-export function setCouncilCache(symbol: string, date: string, councilData: any) {
-  try {
-    let data: Record<string, any> = {};
-    if (fs.existsSync(CACHE_FILE)) {
-      data = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
-    }
-    const key = `${symbol}_${date}`;
-    data[key] = councilData;
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) {
-    console.error("Failed to save council cache", e);
-  }
+export async function setCouncilCache(symbol: string, date: string, councilData: any): Promise<void> {
+  await cacheSet(`sahamlens:cache:computed:ai-result:council:${symbol}:${date}`, councilData, TTL_24H_SEC);
 }
