@@ -5,19 +5,22 @@ import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 
 // Publik (tanpa login) - dipakai widget "Hari Ini AI Menemukan" di halaman utama (Dashboard.tsx)
-// untuk menarik pengunjung buka aplikasi tiap hari SEBELUM signup. Semua angka di sini
-// dihitung ulang dari data real yang SUDAH dipakai fitur lain (bukan metrik baru yang
-// dikarang) - lihat komentar per kategori di bawah.
+// DAN halaman AI Pick (app/breakout-radar/page.tsx, tab per kategori via ?cat=) untuk
+// menarik pengunjung buka aplikasi tiap hari SEBELUM signup. Semua angka di sini dihitung
+// ulang dari data real yang SUDAH dipakai fitur lain (bukan metrik baru yang dikarang) -
+// lihat komentar per kategori di bawah. `items` = daftar simbol saja (dipakai widget
+// ringkas di halaman utama), `detail` = baris lengkap (harga+metrik, dipakai tab AI Pick).
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const MARKET_SUMMARY_CACHE_KEY = 'sahamlens:cache:computed:market-summary';
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
+const DETAIL_CAP = 20;
 
 export async function GET() {
   try {
     // Reuse cache key yang sama dengan /api/market-summary supaya tidak scan ulang
-    // 50 saham dua kali (cache-nya sudah dipenuhi request landing page yang sama).
+    // 250 saham dua kali (cache-nya sudah dipenuhi request landing page yang sama).
     const summary = await getOrCompute(MARKET_SUMMARY_CACHE_KEY, CACHE_TTL_SEC.MARKET_SUMMARY, getMarketSummary);
 
     // Breakout radar & cross signals di-refresh cron tiap 5 menit (app/api/cron/breakout-scan)
@@ -35,14 +38,24 @@ export async function GET() {
     // topWeeklyGainers yang sudah real (bukan metrik baru, cuma threshold tambahan).
     const weeklyMomentumList = (summary.topWeeklyGainers || []).filter((s: any) => s.changePct > 5);
 
+    const category = (items: any[], mapDetail: (x: any) => any) => ({
+      count: items.length,
+      items: items.slice(0, 5).map((s: any) => (s.symbol || '').replace('.JK', '')),
+      detail: items.slice(0, DETAIL_CAP).map(mapDetail),
+    });
+
     return NextResponse.json({
-      attractive: { count: summary.topTechnical.length, items: summary.topTechnical.slice(0, 5).map((s: any) => s.symbol) },
-      risky: { count: summary.topTechnicalBearish.length, items: summary.topTechnicalBearish.slice(0, 5).map((s: any) => s.symbol) },
-      undervalue: { count: undervalueList.length, items: undervalueList.slice(0, 5).map((s: any) => s.symbol) },
-      breakout: { count: breakoutList.length, items: breakoutList.slice(0, 5).map((b: any) => b.symbol) },
-      goldenCross: { count: crossSignals.golden.length, items: crossSignals.golden.slice(0, 5).map((s: any) => s.symbol.replace('.JK', '')) },
-      deadCross: { count: crossSignals.dead.length, items: crossSignals.dead.slice(0, 5).map((s: any) => s.symbol.replace('.JK', '')) },
-      weeklyMomentum: { count: weeklyMomentumList.length, items: weeklyMomentumList.slice(0, 5).map((s: any) => s.symbol) },
+      attractive: category(summary.topTechnical, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `Skor ${s.score}` })),
+      risky: category(summary.topTechnicalBearish, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `Skor ${s.score}` })),
+      undervalue: category(undervalueList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `RSI ${s.rsi}` })),
+      breakout: {
+        count: breakoutList.length,
+        items: breakoutList.slice(0, 5).map((b: any) => b.symbol.replace('.JK', '')),
+        detail: breakoutList.slice(0, DETAIL_CAP).map((b: any) => ({ symbol: b.symbol.replace('.JK', ''), price: b.price, changePct: parseFloat(b.change), metric: `Skor ${b.score} • RR ${b.rr}` })),
+      },
+      goldenCross: category(crossSignals.golden, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Golden Cross' })),
+      deadCross: category(crossSignals.dead, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Dead Cross' })),
+      weeklyMomentum: category(weeklyMomentumList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `+${s.changePct}% 5D` })),
       timestamp: summary.timestamp,
     });
   } catch (error: any) {
