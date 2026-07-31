@@ -361,13 +361,13 @@ export default function Dashboard() {
 
               <div className="mt-5 space-y-3 flex-1">
                 {[
-                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'emerald', href: '/breakout-radar' },
+                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'emerald', href: '/breakout-radar?cat=attractive' },
                   { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'indigo', href: '/breakout-radar' },
-                  { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar' },
-                  { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar' },
-                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'emerald', href: '/breakout-radar' },
-                  { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar' },
-                  { key: 'weeklyMomentum', label: 'saham momentum mingguan', desc: 'Penguatan mingguan di atas +5%', Icon: ArrowUpRight, accent: 'amber', href: '/breakout-radar' },
+                  { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar?cat=undervalue' },
+                  { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar?cat=risky' },
+                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'emerald', href: '/breakout-radar?cat=goldenCross' },
+                  { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar?cat=deadCross' },
+                  { key: 'weeklyMomentum', label: 'saham momentum mingguan', desc: 'Penguatan mingguan di atas +5%', Icon: ArrowUpRight, accent: 'amber', href: '/breakout-radar?cat=weeklyMomentum' },
                 ].map((row) => {
                   const accentMap: any = {
                     emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
