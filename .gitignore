@@ -15,6 +15,13 @@ converted.png
 .vercel
 scratch/
 
+# Konfigurasi tool lokal (Claude Code) di root - bukan bagian dari aplikasi. Diberi
+# awalan "/" supaya HANYA root yang di-ignore, bukan sahamlens-android/.claude/
+# (error-learning log itu dokumentasi kerja Android yang sengaja tetap di-commit).
+/.claude/
+/.agents/
+/skills-lock.json
+
 # Data files berisi PII (email, password hash) & data transaksi user - jangan pernah
 # ter-commit. File-file ini tetap dipakai di local dev (lib/dbLocal.ts / lib/supabase.ts
 # shim menciptakannya otomatis kalau belum ada).
