@@ -1,13 +1,15 @@
 'use client';
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertTriangle, TrendingUp, TrendingDown, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
+const RESEND_COOLDOWN_SEC = 45;
+
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const initialEmail = searchParams.get('email') || '';
-  
+
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -15,7 +17,44 @@ function ResetPasswordForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(initialEmail ? RESEND_COOLDOWN_SEC : 0);
+  const [resetDone, setResetDone] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  const handleResend = async () => {
+    if (!email) {
+      setError('Isi email terlebih dahulu.');
+      return;
+    }
+    if (resendCooldown > 0 || resending) return;
+    setError('');
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Gagal mengirim ulang kode.');
+      } else {
+        setSuccess('Kode reset baru telah dikirim (jika email terdaftar).');
+        setResendCooldown(RESEND_COOLDOWN_SEC);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +85,9 @@ function ResetPasswordForm() {
         throw new Error(data.error || 'Terjadi kesalahan.');
       }
 
-      setSuccess('Password berhasil diubah. Mengarahkan ke halaman login...');
-      
+      setSuccess('Password berhasil diubah.');
+      setResetDone(true);
+
       setTimeout(() => {
         router.push('/login');
       }, 2000);
@@ -88,12 +128,28 @@ function ResetPasswordForm() {
 
         {/* Card */}
         <div className="bg-[#121822]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-6 sm:p-8 shadow-2xl">
+          {resetDone ? (
+            <div className="text-center py-2">
+              <div className="w-12 h-12 rounded-full bg-teal-500/10 border border-teal-500/30 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-6 h-6 text-teal-400" />
+              </div>
+              <p className="text-sm text-white font-semibold mb-1">Password berhasil diubah</p>
+              <p className="text-xs text-slate-400 mb-6">Mengarahkan otomatis ke halaman login...</p>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2 w-full py-3 bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold rounded-lg transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)]"
+              >
+                Login Sekarang <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          ) : (
+          <>
           <p className="text-sm text-slate-400 mb-6 text-center">
             Masukkan kode verifikasi 6 digit yang baru saja dikirimkan, lalu buat password baru.
           </p>
 
           <form onSubmit={handleReset} className="space-y-4">
-            
+
             {error && (
               <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3 rounded-lg">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -132,6 +188,18 @@ function ResetPasswordForm() {
                 maxLength={6}
                 className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors font-mono tracking-widest"
               />
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending || resendCooldown > 0}
+                className="mt-1.5 text-xs text-teal-400 hover:text-teal-300 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {resending
+                  ? 'Mengirim ulang...'
+                  : resendCooldown > 0
+                  ? `Kirim ulang kode (${resendCooldown}s)`
+                  : 'Kirim ulang kode'}
+              </button>
             </div>
 
             <div>
@@ -158,17 +226,19 @@ function ResetPasswordForm() {
 
             <button
               type="submit"
-              disabled={loading || !!success}
+              disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-3 mt-6 bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold rounded-lg transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Memproses...' : 'Ubah Password'}
               {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
-          
+
           <div className="mt-6 text-center text-xs text-slate-500">
             Kembali ke <Link href="/login" className="text-teal-400 hover:text-teal-300 transition-colors">Login</Link>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

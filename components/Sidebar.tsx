@@ -20,6 +20,8 @@ import {
   TrendingDown,
   PanelLeftClose,
   PanelLeftOpen,
+  LogOut,
+  User,
 } from 'lucide-react';
 
 // Redesign Sidebar - Design System "Nucleus" (2026-07-31).
@@ -88,6 +90,19 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((d) => { if (d.authenticated && d.user) setUser(d.user); })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
 
   useEffect(() => {
     const handleToggle = () => setIsOpen((prev) => !prev);
@@ -236,15 +251,44 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* Footer - status feed */}
-        <div className={`p-3 border-t border-white/5 ${isCollapsed ? 'md:flex md:justify-center' : ''}`}>
+        {/* Footer - akun & status feed */}
+        <div className="p-3 border-t border-white/5 space-y-2">
+          {user && (
+            <div className={`flex items-center gap-2 rounded-lg bg-white/[0.03] ${isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'} py-2`}>
+              <div className="w-7 h-7 rounded-full bg-tv-blue/15 text-tv-blue flex items-center justify-center shrink-0">
+                <User className="w-3.5 h-3.5" />
+              </div>
+              <div className={`flex-1 min-w-0 ${isCollapsed ? 'md:hidden' : ''}`}>
+                <p className="text-xs font-medium text-white truncate">{user.email?.split('@')[0]}</p>
+                <p className="text-[9px] uppercase tracking-wide text-white/35">{user.role}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Logout"
+                className={`shrink-0 p-1.5 rounded-md text-white/40 hover:text-tv-red hover:bg-tv-red/10 transition-colors ${isCollapsed ? 'md:hidden' : ''}`}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {user && isCollapsed && (
+            <button
+              onClick={handleLogout}
+              title="Logout"
+              className="hidden md:flex w-full items-center justify-center p-2 rounded-md text-white/40 hover:text-tv-red hover:bg-tv-red/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
+
           <div className={`flex items-center gap-1.5 text-[10px] text-white/35 ${isCollapsed ? 'md:hidden' : ''}`}>
             <span className="w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse shrink-0" />
             <span className="truncate">IDX Live Feed &middot; yfinance</span>
           </div>
-          <span className={`hidden ${isCollapsed ? 'md:block' : ''} w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse`} />
+          <span className={`hidden ${isCollapsed ? 'md:flex md:justify-center' : ''} w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse`} />
           {!isCollapsed && (
-            <p className="text-[10px] text-white/25 mt-2 text-center">&copy; 2026 SahamLens</p>
+            <p className="text-[10px] text-white/25 text-center">&copy; 2026 SahamLens</p>
           )}
         </div>
       </aside>

@@ -1,8 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+
+const RESEND_COOLDOWN_SEC = 45;
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -11,12 +13,20 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [code, setCode] = useState('');
-  
+
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +36,7 @@ export default function Signup() {
     }
     setError('');
     setLoading(true);
-    
+
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -34,17 +44,42 @@ export default function Signup() {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         setError(data.error || 'Terjadi kesalahan');
       } else {
         setSuccessMsg(data.message);
         setStep(2);
+        setResendCooldown(RESEND_COOLDOWN_SEC);
       }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resending) return;
+    setError('');
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Gagal mengirim ulang kode');
+      } else {
+        setSuccessMsg('Kode verifikasi baru telah dikirim.');
+        setResendCooldown(RESEND_COOLDOWN_SEC);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -175,14 +210,26 @@ export default function Signup() {
               <p className="text-xs text-tv-muted mt-2 text-center">Cek kotak masuk (atau folder Spam) email Anda untuk melihat kode verifikasi</p>
             </div>
             
-            <button 
+            <button
               type="submit"
               disabled={loading}
               className="w-full bg-tv-green hover:bg-tv-green/90 text-black font-bold py-3 rounded-lg transition-colors disabled:opacity-50 mt-4"
             >
               {loading ? 'Memverifikasi...' : 'Verifikasi & Login'}
             </button>
-            <button 
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending || resendCooldown > 0}
+              className="w-full text-tv-green hover:text-tv-green/80 py-2 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {resending
+                ? 'Mengirim ulang...'
+                : resendCooldown > 0
+                ? `Kirim ulang kode (${resendCooldown}s)`
+                : 'Kirim ulang kode'}
+            </button>
+            <button
               type="button"
               onClick={() => { setStep(1); setSuccessMsg(''); }}
               className="w-full text-tv-muted hover:text-white py-2 text-sm transition-colors"
