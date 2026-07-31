@@ -328,12 +328,12 @@ export default function HomePage() {
                 <Target className="w-4 h-4 text-tv-blue" />
                 <CardTitle>AI Picks</CardTitle>
               </div>
-              <Link href="/recommendations" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+              <Link href="/breakout-radar?cat=recommendations" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
             </CardHeader>
             {loadingPicks ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
             ) : picksNeedPro ? (
-              <UpgradeTeaser label="Stock Recommendations" />
+              <UpgradeTeaser label="AI Pick" />
             ) : aiPicks.length ? (
               <div className="space-y-1.5">
                 {aiPicks.map((p) => (
