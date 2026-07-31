@@ -169,6 +169,9 @@ export default function Dashboard() {
     risky: { count: number; items: string[] };
     undervalue: { count: number; items: string[] };
     breakout: { count: number; items: string[] };
+    goldenCross: { count: number; items: string[] };
+    deadCross: { count: number; items: string[] };
+    weeklyMomentum: { count: number; items: string[] };
   } | null>(null);
 
   React.useEffect(() => {
@@ -354,7 +357,7 @@ export default function Dashboard() {
                 <span className="text-lg leading-none">🔥</span>
                 <h3 className="text-[13px] font-bold text-slate-900 dark:text-white">Hari Ini AI Menemukan</h3>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Dipindai dari 50+ saham likuid IDX, diperbarui berkala.</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Dipindai dari 250+ saham likuid IDX, diperbarui berkala.</p>
 
               <div className="mt-5 space-y-3 flex-1">
                 {[
@@ -362,12 +365,16 @@ export default function Dashboard() {
                   { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'indigo', href: '/breakout-radar' },
                   { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar' },
                   { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar' },
+                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'emerald', href: '/breakout-radar' },
+                  { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar' },
+                  { key: 'weeklyMomentum', label: 'saham momentum mingguan', desc: 'Penguatan mingguan di atas +5%', Icon: ArrowUpRight, accent: 'amber', href: '/breakout-radar' },
                 ].map((row) => {
                   const accentMap: any = {
                     emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
                     red: { bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-700 dark:text-red-400', border: 'border-red-200 dark:border-red-500/30' },
                     blue: { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-500/30' },
                     indigo: { bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/30' },
+                    amber: { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/30' },
                   };
                   const accent = accentMap[row.accent];
                   const data = dailyPicks ? (dailyPicks as any)[row.key] : null;
