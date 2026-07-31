@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.os.Bundle
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -22,12 +23,44 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 private const val BASE_URL = "https://sahamlens.vercel.app/"
 private const val BASE_HOST = "sahamlens.vercel.app"
 
+// Kebanyakan halaman dashboard app ini scroll di DALAM sebuah div (mis. "overflow-y-auto"
+// di bawah Sidebar tetap), BUKAN scroll dokumen/window level - jadi webView.scrollY (posisi
+// scroll window) selalu 0 walau kontennya sudah di-scroll jauh ke bawah. Jembatan JS ini
+// mendengarkan event scroll di FASE CAPTURE pada `document` (scroll TIDAK bubble secara
+// default, tapi capture-phase listener tetap menangkapnya dari elemen turunan manapun),
+// lalu melaporkan status "di paling atas atau tidak" ke Android lewat JavascriptInterface.
+class ScrollStateBridge {
+    @Volatile
+    var isAtTop: Boolean = true
+        private set
+
+    @JavascriptInterface
+    fun report(atTop: Boolean) {
+        isAtTop = atTop
+    }
+}
+
+private const val SCROLL_TRACKER_JS = """
+(function() {
+  if (window.__sahamlensScrollTrackerInstalled) return;
+  window.__sahamlensScrollTrackerInstalled = true;
+  function report(target) {
+    if (!window.AndroidScrollBridge) return;
+    var scrollTop = (target === document) ? (window.scrollY || document.documentElement.scrollTop || 0) : (target.scrollTop || 0);
+    window.AndroidScrollBridge.report(scrollTop <= 0);
+  }
+  document.addEventListener('scroll', function(e) { report(e.target); }, true);
+  report(document);
+})();
+"""
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
     private lateinit var offlineView: android.widget.LinearLayout
+    private val scrollBridge = ScrollStateBridge()
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,11 +75,9 @@ class MainActivity : AppCompatActivity() {
 
         setupWebView()
 
-        // Tanpa ini, SwipeRefreshLayout memicu refresh di posisi scroll manapun di dalam
-        // halaman (bukan cuma waktu benar-benar di paling atas) karena WebView tidak
-        // otomatis melaporkan posisi scroll-nya sendiri ke parent view. Refresh cuma
-        // boleh terpicu kalau webView.scrollY == 0 (halaman benar-benar di atas).
-        swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.scrollY > 0 }
+        // Refresh cuma boleh terpicu kalau konten yang sedang tampil (window ATAU div
+        // internal yang scroll) benar-benar di posisi paling atas - lihat ScrollStateBridge.
+        swipeRefresh.setOnChildScrollUpCallback { _, _ -> !scrollBridge.isAtTop }
         swipeRefresh.setOnRefreshListener { webView.reload() }
         retryButton.setOnClickListener { loadHomeIfOnline() }
 
@@ -80,6 +111,8 @@ class MainActivity : AppCompatActivity() {
         cookieManager.setAcceptCookie(true)
         cookieManager.setAcceptThirdPartyCookies(webView, true)
 
+        webView.addJavascriptInterface(scrollBridge, "AndroidScrollBridge")
+
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 progressBar.progress = newProgress
@@ -105,6 +138,11 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 swipeRefresh.isRefreshing = false
                 offlineView.visibility = android.view.View.GONE
+                // Next.js pakai client-side routing (Link/router.push tidak memicu
+                // onPageFinished lagi), tapi listener ini terpasang di `document` yang
+                // tidak pernah diganti antar navigasi SPA, jadi cukup sekali pasang di
+                // sini dan tetap berfungsi untuk semua halaman berikutnya di dalam app.
+                view?.evaluateJavascript(SCROLL_TRACKER_JS, null)
             }
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
