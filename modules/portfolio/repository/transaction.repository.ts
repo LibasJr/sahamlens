@@ -1,11 +1,13 @@
 import type { PoolClient } from 'pg';
 import { pool } from '../../../shared/database/postgres.client';
+import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import { TRANSACTIONS_DEFAULT_PAGE_SIZE, TRANSACTIONS_MAX_PAGE_SIZE } from '../constants/portfolio.constants';
 import type { Transaction } from '../types/portfolio.types';
 
 type Queryable = { query: (typeof pool)['query'] };
 
 export async function insertTransaction(tx: Transaction, client: PoolClient): Promise<void> {
+  await ensureSharedSchema();
   await client.query(
     `INSERT INTO transactions (id, portfolio_id, symbol, type, price, lots, pnl, note, created_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -27,6 +29,7 @@ export async function listTransactions(
   opts: { cursor?: string; limit?: number },
   db: Queryable = pool
 ): Promise<PaginatedTransactions> {
+  await ensureSharedSchema();
   const limit = Math.min(opts.limit || TRANSACTIONS_DEFAULT_PAGE_SIZE, TRANSACTIONS_MAX_PAGE_SIZE);
   const params: any[] = [portfolioId];
   let where = 'portfolio_id = $1';

@@ -10,3 +10,7 @@ export { analyze as analyzeDividend } from './service/analyzers/dividend-analyze
 export { analyze as analyzeEpsGrowth } from './service/analyzers/eps-growth-analyzer';
 export { analyze as analyzeGrossMargin } from './service/analyzers/gross-margin-analyzer';
 export { analyze as analyzeNetMargin } from './service/analyzers/net-margin-analyzer';
+
+// BUILD 004 (AI Architecture) - dipindah dari app/api/intrinsic/[ticker]/route.ts, dipakai
+// baik oleh route itu sendiri maupun Valuation Agent di orkestrator multi-agent.
+export { calculateIntrinsicValue } from './service/dcf-valuation.service';

@@ -2,9 +2,19 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { getSession } from '@/modules/user';
 
 export async function POST(request: Request) {
   try {
+    // BUILD 003 (API Standard) - halaman /backtest ada di PROTECTED_PAGES (wajib
+    // login), tapi API-nya sendiri sebelumnya bisa dipanggil tanpa login sama
+    // sekali. Disamakan levelnya (login saja, bukan Pro - /backtest tidak
+    // Pro-gated di UI manapun).
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { filters, modal, period } = body;
 

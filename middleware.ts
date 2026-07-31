@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, SESSION_COOKIE } from '@/shared/constants/cookie-names';
 import { decrypt } from '@/shared/auth/jwt';
-import { checkRateLimit } from '@/shared/middleware/rate-limiter';
+import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 
 // Edge Runtime (lihat export const config di bawah) - HANYA boleh mengimpor modul
 // yang Edge-safe (tanpa next/headers, tanpa pg/bcryptjs). Itu sebabnya file ini
@@ -78,7 +78,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const ip = getClientIp(req);
-  const result = checkRateLimit(ip, Date.now(), RATE_LIMIT_CONFIG);
+  const result = await checkRateLimitShared(ip, Date.now(), RATE_LIMIT_CONFIG);
 
   if (!result.allowed) {
     return NextResponse.json(

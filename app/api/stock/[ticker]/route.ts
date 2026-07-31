@@ -20,6 +20,7 @@ import { getSession, checkProAccess } from '@/modules/user';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { checkAnalisaLimit, decrementAnalisaLimit } from '@/lib/limits';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -29,7 +30,7 @@ const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSu
 // pernah membersihkan entry basi (memory leak lambat). Kalau Redis belum
 // dikonfigurasi / sedang down, cacheGet/cacheSet degrade aman ke cache-miss/no-op
 // (lihat shared/cache/redis-cache.ts) - endpoint tetap jalan, cuma tanpa cache.
-const CACHE_TTL_SEC = 3 * 60; // 3 minutes
+const CACHE_TTL_SEC = TTL.TECHNICAL;
 
 export async function GET(
   request: Request,
@@ -343,7 +344,7 @@ export async function GET(
     }
 
     await cacheSet(cacheKey, resultPayload, CACHE_TTL_SEC);
-    await cacheSet(staleFallbackKey, resultPayload, 24 * 60 * 60);
+    await cacheSet(staleFallbackKey, resultPayload, TTL.STALE_FALLBACK);
 
     return NextResponse.json(resultPayload);
 

@@ -4,6 +4,14 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccess } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
+import { cacheGet } from '@/shared/cache/redis-cache';
+
+// BUILD 006/007 - simbol yang rutin di-scan app/api/cron/recommendation-scan dibaca
+// cache-first (per simbol); simbol lain di luar daftar itu tetap dihitung live
+// seperti sebelumnya - tidak ada regresi untuk simbol yang belum pernah di-cache.
+function cacheKeyFor(symbol: string): string {
+  return `sahamlens:cache:computed:recommendation:${symbol}`;
+}
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +34,13 @@ export async function GET(request: Request) {
     const chunkSize = 5;
     for (let i = 0; i < symbols.length; i += chunkSize) {
       const chunk = symbols.slice(i, i + chunkSize);
-      const chunkResults = await Promise.all(chunk.map(t => analyzeStock(t)));
+      const chunkResults = await Promise.all(
+        chunk.map(async (t) => {
+          const cached = await cacheGet<any>(cacheKeyFor(t));
+          if (cached) return cached;
+          return analyzeStock(t);
+        })
+      );
       results.push(...chunkResults.filter(Boolean));
     }
 

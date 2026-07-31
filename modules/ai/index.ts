@@ -6,3 +6,4 @@
 export { getCouncil } from './service/council.service';
 export { runLocalCouncil } from './service/local-council.service';
 export { getCouncilCache, setCouncilCache } from './service/council-cache.service';
+export { runMultiAgentOrchestrator, type OrchestratorResult } from './service/orchestrator.service';

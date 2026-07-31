@@ -9,6 +9,11 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['pg', 'bcryptjs', 'nodemailer', 'yahoo-finance2'],
   },
+  // BUILD 010 (Production Ready) - dipakai Dockerfile (jalur deploy alternatif di
+  // luar Vercel, mis. self-host) untuk image runtime minimal (.next/standalone +
+  // node_modules yang benar-benar terpakai saja). TIDAK memengaruhi deploy Vercel -
+  // Vercel punya pipeline build sendiri dan mengabaikan opsi ini.
+  output: 'standalone',
 };
 
 // silent:true - jangan berisik di log build kalau SENTRY_AUTH_TOKEN (untuk upload

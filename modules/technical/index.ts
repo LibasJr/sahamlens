@@ -16,3 +16,7 @@ export { analyze as analyzeMarketFlow } from './service/analyzers/market-flow';
 
 export { calculateConsensus } from './service/consensus.service';
 export { calculateScore } from './service/scoring.service';
+
+// BUILD 009 (Performance) - fetch+parse OHLC Yahoo yang sebelumnya diduplikasi di
+// app/api/council/route.ts dan modules/ai/service/orchestrator.service.ts.
+export { fetchYahooHistory, type OhlcRow, type YahooHistoryResult } from './service/yahoo-history.service';
