@@ -94,6 +94,7 @@ export const config = {
   matcher: [
     '/api/stock/:path*',
     '/api/fundamental/:path*',
+    '/api/chat/:path*',
     '/home/:path*',
     '/dashboard/:path*',
     '/fundamental/:path*',

@@ -1,6 +1,6 @@
-import { jsonModel } from "../gemini";
-import { runLocalCouncil } from "./localCouncil";
-import { getCouncilCache, setCouncilCache } from "../cache";
+import { jsonModel } from "@/lib/gemini";
+import { runLocalCouncil } from "./local-council.service";
+import { getCouncilCache, setCouncilCache } from "./council-cache.service";
 
 const TUNED_PROMPT = `
 Kamu adalah Dewan 10 Ahli Saham Indonesia. Analisa \${symbol}.

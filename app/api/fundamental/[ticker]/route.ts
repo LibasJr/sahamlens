@@ -6,16 +6,18 @@ import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
-import { analyze as analyzePe } from '@/lib/fundamentals/pe-analyzer';
-import { analyze as analyzePbv } from '@/lib/fundamentals/pbv-analyzer';
-import { analyze as analyzeRoe } from '@/lib/fundamentals/roe-analyzer';
-import { analyze as analyzeRoa } from '@/lib/fundamentals/roa-analyzer';
-import { analyze as analyzeDer } from '@/lib/fundamentals/der-analyzer';
-import { analyze as analyzeCurrentRatio } from '@/lib/fundamentals/current-ratio-analyzer';
-import { analyze as analyzeDividend } from '@/lib/fundamentals/dividend-analyzer';
-import { analyze as analyzeEpsGrowth } from '@/lib/fundamentals/eps-growth-analyzer';
-import { analyze as analyzeGrossMargin } from '@/lib/fundamentals/gross-margin-analyzer';
-import { analyze as analyzeNetMargin } from '@/lib/fundamentals/net-margin-analyzer';
+import {
+  analyzePe,
+  analyzePbv,
+  analyzeRoe,
+  analyzeRoa,
+  analyzeDer,
+  analyzeCurrentRatio,
+  analyzeDividend,
+  analyzeEpsGrowth,
+  analyzeGrossMargin,
+  analyzeNetMargin,
+} from '@/modules/fundamental';
 
 export async function GET(
   request: Request,
