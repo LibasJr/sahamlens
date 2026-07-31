@@ -150,6 +150,18 @@ export async function GET() {
       .slice(0, LIST_CAP)
       .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
 
+    const topTechnicalBearish = [...quotes]
+      .filter(s => s.technicalSignal === 'BEARISH')
+      .sort((a, b) => a.changePct - b.changePct)
+      .slice(0, LIST_CAP)
+      .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
+
+    const topRsiOversold = [...quotes]
+      .filter(s => s.rsi14 !== null && s.rsi14 < 30)
+      .sort((a, b) => (a.rsi14 as number) - (b.rsi14 as number))
+      .slice(0, LIST_CAP)
+      .map(s => ({ symbol: strip(s), rsi: parseFloat((s.rsi14 as number).toFixed(1)), changePct: s.changePct, price: s.price }));
+
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       topGainers,
@@ -159,6 +171,8 @@ export async function GET() {
       topWeeklyGainers,
       topWeeklyLosers,
       topTechnical,
+      topTechnicalBearish,
+      topRsiOversold,
     });
 
   } catch (error: any) {

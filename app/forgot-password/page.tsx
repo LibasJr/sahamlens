@@ -35,11 +35,11 @@ export default function ForgotPassword() {
         throw new Error(data.error || 'Terjadi kesalahan.');
       }
 
-      setSuccess('Jika email terdaftar, instruksi reset telah dikirim ke email Anda. Silakan gunakan untuk reset password Anda.');
-      
+      setSuccess('Jika email terdaftar, kode reset telah dikirim. Mengarahkan ke halaman verifikasi...');
+
       setTimeout(() => {
         router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-      }, 3000);
+      }, 2000);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -93,7 +93,15 @@ export default function ForgotPassword() {
             {success && (
               <div className="flex items-start gap-2 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs p-3 rounded-lg">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>{success}</p>
+                <div>
+                  <p>{success}</p>
+                  <Link
+                    href={`/reset-password?email=${encodeURIComponent(email)}`}
+                    className="inline-block mt-1.5 font-semibold underline underline-offset-2 hover:text-teal-300"
+                  >
+                    Lanjut sekarang &rarr;
+                  </Link>
+                </div>
               </div>
             )}
 

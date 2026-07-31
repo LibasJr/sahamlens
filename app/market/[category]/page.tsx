@@ -3,11 +3,11 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, DollarSign, BarChart3, Sparkles } from 'lucide-react';
+import { ArrowLeft, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, DollarSign, BarChart3, Sparkles, Activity } from 'lucide-react';
 
-type Row = { symbol: string; price: number; changePct?: number; value?: number; volume?: number; score?: number };
+type Row = { symbol: string; price: number; changePct?: number; value?: number; volume?: number; score?: number; rsi?: number };
 
-const CATEGORY_CONFIG: Record<string, { title: string; sub: string; dataKey: string; Icon: any; metricLabel: string; metricKey: 'changePct' | 'value' | 'volume' | 'score' }> = {
+const CATEGORY_CONFIG: Record<string, { title: string; sub: string; dataKey: string; Icon: any; metricLabel: string; metricKey: 'changePct' | 'value' | 'volume' | 'score' | 'rsi' }> = {
   'top-gainer': { title: 'Top Gainer', sub: 'Saham dengan kenaikan harian tertinggi', dataKey: 'topGainers', Icon: TrendingUp, metricLabel: 'Perubahan Harian', metricKey: 'changePct' },
   'top-loser': { title: 'Top Loser', sub: 'Saham dengan penurunan harian terdalam', dataKey: 'topLosers', Icon: TrendingDown, metricLabel: 'Perubahan Harian', metricKey: 'changePct' },
   'top-value': { title: 'Top Value', sub: 'Berdasarkan nilai transaksi (harga × volume) hari ini', dataKey: 'topValue', Icon: DollarSign, metricLabel: 'Nilai Transaksi', metricKey: 'value' },
@@ -15,6 +15,8 @@ const CATEGORY_CONFIG: Record<string, { title: string; sub: string; dataKey: str
   'weekly-gainer': { title: 'Top Gainer Mingguan', sub: 'Penguatan tertinggi dalam 5 hari perdagangan terakhir', dataKey: 'topWeeklyGainers', Icon: TrendingUp, metricLabel: 'Perubahan 5 Hari', metricKey: 'changePct' },
   'weekly-loser': { title: 'Top Loser Mingguan', sub: 'Pelemahan terdalam dalam 5 hari perdagangan terakhir', dataKey: 'topWeeklyLosers', Icon: TrendingDown, metricLabel: 'Perubahan 5 Hari', metricKey: 'changePct' },
   'technical-bullish': { title: 'Sinyal Teknikal Bullish', sub: 'Harga di atas MA20, MA20 di atas MA50, volume di atas rata-rata', dataKey: 'topTechnical', Icon: Sparkles, metricLabel: 'Skor Teknikal', metricKey: 'score' },
+  'technical-bearish': { title: 'Sinyal Teknikal Bearish', sub: 'Harga di bawah MA20, MA20 di bawah MA50', dataKey: 'topTechnicalBearish', Icon: TrendingDown, metricLabel: 'Perubahan Harian', metricKey: 'changePct' },
+  'rsi-oversold': { title: 'RSI Oversold', sub: 'RSI (14) di bawah 30, potensi technical rebound', dataKey: 'topRsiOversold', Icon: Activity, metricLabel: 'RSI (14)', metricKey: 'rsi' },
 };
 
 function formatMetric(row: Row, metricKey: string): string {
@@ -23,6 +25,7 @@ function formatMetric(row: Row, metricKey: string): string {
     case 'value': return `Rp ${((row.value ?? 0) / 1e12).toFixed(2)} T`;
     case 'volume': return `${Math.round((row.volume ?? 0) / 100).toLocaleString('id-ID')} lot`;
     case 'score': return `${row.score ?? 0}%`;
+    case 'rsi': return `${(row.rsi ?? 0).toFixed(1)}`;
     default: return '-';
   }
 }
