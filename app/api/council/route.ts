@@ -2,18 +2,18 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getCouncil } from '@/lib/agents/councilFinal';
-import { runLocalCouncil } from '@/lib/agents/localCouncil';
-import { getCouncilCache, setCouncilCache } from '@/lib/cache';
+import { getCouncil, runLocalCouncil, getCouncilCache } from '@/modules/ai';
 import { getSession, checkProAccess } from '@/modules/user';
 
 // Minimal technical analyzer functions from existing codebase
-import { analyze as analyzeEma } from '@/lib/analyzers/ema-analyzer';
-import { analyze as analyzeRsi } from '@/lib/analyzers/rsi-analyzer';
-import { analyze as analyzeMacd } from '@/lib/analyzers/macd-analyzer';
-import { analyze as analyzeSupport } from '@/lib/analyzers/support-resistance';
-import { analyze as analyzeSma } from '@/lib/analyzers/moving-average';
-import { analyze as analyzeTrend } from '@/lib/analyzers/trend-analyzer';
+import {
+  analyzeEma,
+  analyzeRsi,
+  analyzeMacd,
+  analyzeSupport,
+  analyzeSma,
+  analyzeTrend,
+} from '@/modules/technical';
 
 async function getTechnicalData(ticker: string) {
   try {

@@ -2,18 +2,20 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { analyze as analyzeEma } from '@/lib/analyzers/ema-analyzer';
-import { analyze as analyzeRsi } from '@/lib/analyzers/rsi-analyzer';
-import { analyze as analyzeMacd } from '@/lib/analyzers/macd-analyzer';
-import { analyze as analyzeVolume } from '@/lib/analyzers/volume-analyzer';
-import { analyze as analyzeTrend } from '@/lib/analyzers/trend-analyzer';
-import { analyze as analyzeVolatility } from '@/lib/analyzers/volatility-analyzer';
-import { analyze as analyzeMomentum } from '@/lib/analyzers/momentum-analyzer';
-import { analyze as analyzeSupport } from '@/lib/analyzers/support-resistance';
-import { analyze as analyzeSma } from '@/lib/analyzers/moving-average';
-import { analyze as analyzeMarketFlow } from '@/lib/analyzers/market-flow';
-import { calculateScore } from '@/lib/scoring-engine';
-import { calculateConsensus } from '@/lib/consensus-engine';
+import {
+  analyzeEma,
+  analyzeRsi,
+  analyzeMacd,
+  analyzeVolume,
+  analyzeTrend,
+  analyzeVolatility,
+  analyzeMomentum,
+  analyzeSupport,
+  analyzeSma,
+  analyzeMarketFlow,
+  calculateScore,
+  calculateConsensus,
+} from '@/modules/technical';
 import { getSession, checkProAccess } from '@/modules/user';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { checkAnalisaLimit, decrementAnalisaLimit } from '@/lib/limits';
