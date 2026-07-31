@@ -97,6 +97,17 @@ export default function TradingViewChart({
 
     chartRef.current = chart;
 
+    // lightweight-charts requires either a 'yyyy-mm-dd' business-day string (daily/weekly/
+    // monthly candles) or a Unix-seconds number (intraday candles) - it rejects a full ISO
+    // datetime string. Our API returns full ISO strings for intraday timeframes (1D/3D/7D)
+    // so they can be told apart from other same-day candles; convert here for the chart
+    // library only, and keep a reverse lookup so hover callbacks can report back the
+    // original c.time string the rest of the app (indicator lookups) expects.
+    const isIntradayTime = (t: string) => t.includes('T');
+    const toChartTime = (t: string): any => (isIntradayTime(t) ? Math.floor(new Date(t).getTime() / 1000) : t);
+    const reverseTimeMap = new Map<string | number, string>();
+    candles.forEach((c) => reverseTimeMap.set(toChartTime(c.time), c.time));
+
     // Candlestick Series
     const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#089981',
@@ -107,7 +118,7 @@ export default function TradingViewChart({
     });
 
     const formattedCandles = candles.map((c) => ({
-      time: c.time,
+      time: toChartTime(c.time),
       open: c.open,
       high: c.high,
       low: c.low,
@@ -133,7 +144,7 @@ export default function TradingViewChart({
     });
 
     const formattedVolume = candles.map((c) => ({
-      time: c.time,
+      time: toChartTime(c.time),
       value: c.volume,
       color: c.close >= c.open ? 'rgba(8, 153, 129, 0.4)' : 'rgba(242, 54, 69, 0.4)'
     }));
@@ -151,8 +162,8 @@ export default function TradingViewChart({
         if (i < 49) return null;
         const slice = candles.slice(i - 49, i + 1);
         const avg = slice.reduce((sum, item) => sum + item.close, 0) / 50;
-        return { time: c.time, value: avg };
-      }).filter((item): item is { time: string; value: number } => item !== null);
+        return { time: toChartTime(c.time), value: avg };
+      }).filter((item): item is { time: any; value: number } => item !== null);
       ma50Series.setData(ma50Data);
     }
 
@@ -166,8 +177,8 @@ export default function TradingViewChart({
         if (i < 199) return null;
         const slice = candles.slice(i - 199, i + 1);
         const avg = slice.reduce((sum, item) => sum + item.close, 0) / 200;
-        return { time: c.time, value: avg };
-      }).filter((item): item is { time: string; value: number } => item !== null);
+        return { time: toChartTime(c.time), value: avg };
+      }).filter((item): item is { time: any; value: number } => item !== null);
       ma200Series.setData(ma200Data);
     }
 
@@ -197,7 +208,8 @@ export default function TradingViewChart({
     chart.timeScale().fitContent();
 
     const handleCrosshairMove = (param: any) => {
-      onHoverCandleRef.current?.(param.time ? String(param.time) : null);
+      const original = param.time != null ? reverseTimeMap.get(param.time) : null;
+      onHoverCandleRef.current?.(original ?? null);
     };
     chart.subscribeCrosshairMove(handleCrosshairMove);
 

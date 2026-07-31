@@ -22,6 +22,6 @@ export function runLocalCouncil(symbol: string, data: any) {
     ],
     final_suggestion: `${trendSignal} based on Trend, but RSI says ${rsiSignal}`,
     final_confidence: 65,
-    summary_id: "Fallback lokal berjalan karena Gemini API tidak tersedia atau kena limit."
+    summary_id: "Fallback lokal berjalan karena Council AI tidak tersedia atau kena limit."
   };
 }

@@ -12,15 +12,20 @@ function loadEmiten() {
   const lines = fs.readFileSync(csvPath, 'utf8').split('\n').filter(Boolean);
   const rows = lines.slice(1).map((line) => {
     const parts = line.split(',');
+    const symbol = (parts[1] || '').trim();
+    const rawName = (parts[2] || '').trim();
+    // The source CSV pads ~650 codes with a synthetic "XXXX Company Tbk." placeholder
+    // instead of a real company name. We still want every listed code searchable (all
+    // 900+ are real IDX tickers), so we keep the row but show the ticker code itself
+    // instead of the fabricated name - never surface fake company names in the UI.
+    const isPlaceholder = / Company Tbk\.?$/.test(rawName);
     return {
-      symbol: (parts[1] || '').trim(),
-      name: (parts[2] || '').trim(),
+      symbol,
+      name: isPlaceholder ? symbol : rawName,
       board: (parts[4] || '').trim(),
     };
   });
-  // The source CSV pads unlisted codes with a synthetic "XXXX Company Tbk." placeholder
-  // name instead of a real company name - drop those so search never surfaces fake data.
-  cached = rows.filter((r) => r.symbol && r.name && !/ Company Tbk\.?$/.test(r.name));
+  cached = rows.filter((r) => r.symbol && r.name);
   return cached;
 }
 

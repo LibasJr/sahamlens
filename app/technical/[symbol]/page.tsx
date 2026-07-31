@@ -1,10 +1,12 @@
 import React, { Suspense } from 'react';
+import Link from 'next/link';
 import ClientHeader from './ClientHeader';
+import StockChartPanel from '@/components/StockChartPanel';
 import AskAIButton from '@/components/AskAIButton';
-import { Brain, AlertTriangle, Loader2 } from 'lucide-react';
+import { Brain, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
 import { cookies, headers } from 'next/headers';
 
-async function getCouncilData(symbol: string) {
+async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
   // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
   // http://localhost:3001 in production - a server-to-server fetch to a port nothing
   // listens on there, which always failed. Derive the base URL from the actual
@@ -17,27 +19,53 @@ async function getCouncilData(symbol: string) {
   const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
 
   try {
-    const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, { 
+    const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, {
       cache: 'no-store',
       headers: {
         'Cookie': cookieHeader
       }
     });
     if (!res.ok) {
-      console.error('Council API returned:', res.status);
-      return null;
+      return { data: null, status: res.status };
     }
-    return await res.json();
+    return { data: await res.json(), status: 200 };
   } catch (e) {
     console.error('Council API fetch error:', e);
-    return null;
+    return { data: null, status: 500 };
   }
 }
 
 async function CouncilDisplay({ symbol }: { symbol: string }) {
-  const council = await getCouncilData(symbol);
+  const { data: council, status } = await getCouncilData(symbol);
 
   if (!council) {
+    // Chart + indikator dasar tetap tampil publik (lihat StockChartPanel di atas) -
+    // hanya ringkasan 10-agent Council AI Pro yang butuh login/upgrade, jadi teaser-nya
+    // spesifik per alasan (belum login vs belum Pro) alih-alih pesan error generik.
+    if (status === 401) {
+      return (
+        <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
+          <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
+          <p className="text-white font-semibold mb-1">Login untuk membuka Council AI</p>
+          <p className="text-tv-muted text-sm mb-4">Grafik & indikator di atas gratis untuk semua orang. Ringkasan 10 AI Agent Council butuh akun.</p>
+          <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
+            Login Sekarang
+          </Link>
+        </div>
+      );
+    }
+    if (status === 402) {
+      return (
+        <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
+          <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
+          <p className="text-white font-semibold mb-1">Council AI adalah fitur Pro</p>
+          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap 10 AI Agent Council pada {symbol}.</p>
+          <a href="https://wa.me/?text=Halo%2C%20saya%20mau%20upgrade%20ke%20SahamLens%20Pro" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-tv-gold px-5 py-2.5 text-sm font-bold text-tv-bg hover:opacity-90 transition">
+            Upgrade Pro
+          </a>
+        </div>
+      );
+    }
     return (
       <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center text-tv-muted">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-50" />
@@ -150,9 +178,11 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
           </div>
           <div>
             <h1 className="font-bold text-2xl text-white tracking-tight">AI Council: {symbol}</h1>
-            <p className="text-sm text-tv-muted font-mono">10 AI Agents Debating Stock Analysis (Gemini Pro)</p>
+            <p className="text-sm text-tv-muted font-mono">10 AI Agents Debating Stock Analysis (Council AI)</p>
           </div>
         </div>
+
+        <StockChartPanel symbol={symbol} />
 
         <Suspense fallback={<CouncilSkeleton symbol={symbol} />}>
           <CouncilDisplay symbol={symbol} />

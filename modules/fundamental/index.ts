@@ -13,4 +13,4 @@ export { analyze as analyzeNetMargin } from './service/analyzers/net-margin-anal
 
 // BUILD 004 (AI Architecture) - dipindah dari app/api/intrinsic/[ticker]/route.ts, dipakai
 // baik oleh route itu sendiri maupun Valuation Agent di orkestrator multi-agent.
-export { calculateIntrinsicValue } from './service/dcf-valuation.service';
+export { calculateIntrinsicValue, calculateDcfModel } from './service/dcf-valuation.service';
