@@ -1,8 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import React from 'react';
-import * as xlsx from 'xlsx';
 import { redirect } from 'next/navigation';
-import { isAdminServer } from '@/lib/auth';
+import { isAdminServer } from '@/modules/user';
 import ExportButton from './ExportButton';
 
 export default async function AdminPage() {

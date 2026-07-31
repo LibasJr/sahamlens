@@ -2,9 +2,14 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { listPendingAlerts, markTriggered } from '@/modules/watchlist';
 
-// Helper function removed (no more telegram)
+// WAJIB - route ini tidak memanggil cookies()/headers() sama sekali, jadi tanpa
+// penanda ini Next.js men-static-generate-nya SEKALI saat `next build` dan
+// menyajikan hasil beku itu ke SEMUA request selamanya (ditemukan lewat smoke
+// test: endpoint selalu balas checked:0 walau ada alert baru di DB). Route yang
+// melakukan efek samping (query DB live, tulis triggered=true) tidak boleh statis.
+export const dynamic = 'force-dynamic';
 
 async function fetchJson(url: string) {
   try {
@@ -95,12 +100,10 @@ const STOCK_BASED_TYPES = ['PRICE_BELOW', 'PRICE_ABOVE', 'CONSENSUS_STRONG_BUY',
 
 export async function GET(req: Request) {
   try {
-    const { data: active, error } = await supabaseAdmin
-      .from('alerts')
-      .select('*')
-      .eq('triggered', false);
-
-    if (error) throw error;
+    // Sumber data alert sekarang tabel Postgres modules/watchlist (sebelumnya shim
+    // lib/supabase.ts) - WAJIB disamakan dengan sumber data /api/alert POST, kalau
+    // tidak alert yang dibuat user tidak pernah ketemu di sini (data disconnected).
+    const active = await listPendingAlerts();
     if (!active || active.length === 0) {
       return NextResponse.json({ checked: 0, triggered: 0 });
     }
@@ -109,26 +112,26 @@ export async function GET(req: Request) {
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
     const origin = `${protocol}://${host}`;
 
-    // Alert berbasis saham (fetch /api/stock/[symbol], di-batch per simbol unik)
     const stockSymbols = Array.from(new Set<string>(active.filter((a: any) => STOCK_BASED_TYPES.includes(a.condition_type)).map((a: any) => a.symbol)));
     const stockBySymbol = new Map<string, any>();
-    for (const symbol of stockSymbols) {
-      const data = await fetchJson(`${origin}/api/stock/${symbol}`);
-      if (data) stockBySymbol.set(symbol, data);
-    }
+    // Paralel, bukan for-await sekuensial (Performance Roadmap Fase 1 poin 4) -
+    // sebelumnya total waktu = JUMLAH semua fetch simbol unik, bukan MAKSIMUM
+    // salah satu (pola yang sama sudah benar di breakout-radar, disamakan di sini).
+    const stockResults = await Promise.all(stockSymbols.map((symbol) => fetchJson(`${origin}/api/stock/${symbol}`)));
+    stockSymbols.forEach((symbol, i) => {
+      if (stockResults[i]) stockBySymbol.set(symbol, stockResults[i]);
+    });
 
-    // Alert breakout radar
     const hasBreakoutAlert = active.some((a: any) => a.condition_type === 'BREAKOUT_SCORE_ABOVE');
     const breakoutData = hasBreakoutAlert ? await fetchJson(`${origin}/api/breakout-radar`) : null;
     const breakoutBySymbol = new Map<string, any>((breakoutData?.data || []).map((e: any) => [e.symbol.replace('.JK', ''), e]));
 
-    // Alert breadth
     const hasBreadthAlert = active.some((a: any) => a.condition_type === 'BREADTH_ADVANCING_BELOW');
     const pulseData = hasBreadthAlert ? await fetchJson(`${origin}/api/market-pulse`) : null;
 
     let triggeredCount = 0;
     let triggeredAlertsData = [];
-    
+
     for (const alert of active) {
       const ctx = {
         stock: stockBySymbol.get(alert.symbol),
@@ -140,19 +143,13 @@ export async function GET(req: Request) {
         : alert.condition_type === 'BREAKOUT_SCORE_ABOVE' ? !!ctx.breakoutEntry
         : alert.condition_type === 'BREADTH_ADVANCING_BELOW' ? !!ctx.breadth
         : false;
-        
+
       if (!hasData) continue;
 
       if (isTriggered(alert, ctx)) {
         const msg = formatMessage(alert, ctx);
-        // Instead of telegram, we collect it
-        triggeredAlertsData.push({ id: alert.id, message: msg.replace(/<[^>]*>?/gm, '') }); // strip HTML for native notification
-        
-        await supabaseAdmin
-          .from('alerts')
-          .update({ triggered: true })
-          .eq('id', alert.id);
-          
+        triggeredAlertsData.push({ id: alert.id, message: msg.replace(/<[^>]*>?/gm, '') });
+        await markTriggered(alert.id);
         triggeredCount++;
       }
     }

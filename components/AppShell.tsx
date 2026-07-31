@@ -26,10 +26,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  React.useEffect(() => {
-    // Clean up event listeners if any
-  }, []);
-
   return (
     <div className="flex min-h-screen w-full">
       <Sidebar />

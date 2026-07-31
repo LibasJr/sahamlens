@@ -41,8 +41,8 @@ Output JSON valid saja.
 export async function getCouncil(symbol: string, data: any) {
   const today = new Date().toISOString().split('T')[0];
   
-  // 1. Cek cache local data/council_cache.json
-  const cached = getCouncilCache(symbol, today);
+  // 1. Cek cache Redis (Cache Layer Tier 2 AI Result)
+  const cached = await getCouncilCache(symbol, today);
   if (cached) return cached;
 
   try {
@@ -72,12 +72,19 @@ export async function getCouncil(symbol: string, data: any) {
       console.warn("[COUNCIL] GEMINI_API_KEY missing, using local fallback", symbol);
       return runLocalCouncil(symbol, data);
     }
-    const result = await jsonModel.generateContent(prompt);
+    // Timeout 8 detik - pola sama seperti fetch Yahoo di seluruh app (Performance
+    // Roadmap Fase 2 poin 5). Tanpa ini, kalau Gemini hang, request menunggu penuh
+    // batas waktu function serverless alih-alih gagal cepat ke fallback lokal
+    // (runLocalCouncil) yang sudah tersedia dan jauh lebih murah.
+    const result = await Promise.race([
+      jsonModel.generateContent(prompt),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 8000)),
+    ]) as Awaited<ReturnType<typeof jsonModel.generateContent>>;
     const jsonStr = result.response.text();
     const json = JSON.parse(jsonStr);
     
     // Save cache
-    setCouncilCache(symbol, today, json);
+    await setCouncilCache(symbol, today, json);
     return json;
   } catch (e) {
     console.log("Gemini limit atau error, pakai local fallback", e);

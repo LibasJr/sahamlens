@@ -1,15 +1,9 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import { runController } from '@/shared/http/next-response.adapter';
+import { handleMe } from '@/modules/user';
 
 export async function GET() {
-  const session = await getSession();
-
-  if (session) {
-    return NextResponse.json({ authenticated: true, user: session });
-  }
-
-  return NextResponse.json({ authenticated: false }, { status: 401 });
+  return runController(async () => handleMe());
 }

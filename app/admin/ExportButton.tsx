@@ -9,7 +9,12 @@ export default function ExportButton() {
   const handleExport = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/export');
+      // limit=200 eksplisit - /api/admin/export sekarang dipaginasi (bukan lagi
+      // dump semua baris tanpa batas). Tombol ini genuinely butuh "semua data"
+      // dalam sekali klik (bukan UI berpaginasi), jadi minta cap besar daripada
+      // diam-diam kepotong di limit default. Kalau data sudah >200 baris, ini
+      // perlu diubah jadi loop multi-halaman - dicatat, bukan masalah sekarang.
+      const res = await fetch('/api/admin/export?limit=200');
       const data = await res.json();
 
       if (!data.success) {

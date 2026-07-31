@@ -14,16 +14,20 @@ import { analyze as analyzeSma } from '@/lib/analyzers/moving-average';
 import { analyze as analyzeMarketFlow } from '@/lib/analyzers/market-flow';
 import { calculateScore } from '@/lib/scoring-engine';
 import { calculateConsensus } from '@/lib/consensus-engine';
-import { getSession } from '@/lib/session';
+import { getSession, checkProAccess } from '@/modules/user';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { checkAnalisaLimit, decrementAnalisaLimit } from '@/lib/limits';
-import { checkProAccess } from '@/lib/session';
+import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
-const cache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+// Redis (Cache Layer Tier 2 Technical), bukan lagi Map in-memory - temuan H3/M10
+// lama: Map per-instance tidak konsisten lintas instance serverless dan tidak
+// pernah membersihkan entry basi (memory leak lambat). Kalau Redis belum
+// dikonfigurasi / sedang down, cacheGet/cacheSet degrade aman ke cache-miss/no-op
+// (lihat shared/cache/redis-cache.ts) - endpoint tetap jalan, cuma tanpa cache.
+const CACHE_TTL_SEC = 3 * 60; // 3 minutes
 
 export async function GET(
   request: Request,
@@ -37,7 +41,8 @@ export async function GET(
     
     const hasPro = checkProAccess(session);
     if (!hasPro) {
-      return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
+      // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
+      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
     let telegram_id = Number(session.id);
     let ticker = params.ticker.toUpperCase();
@@ -50,12 +55,28 @@ export async function GET(
       || 'unknown';
     recordAnalisaHit(ip, ticker);
 
-    const cached = cache.get(ticker);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return NextResponse.json(cached.data);
+    // Parameter range OPSIONAL (Performance Roadmap Fase 2 poin 7, samakan pola
+    // dengan public-chart/[ticker]) - default TETAP 20y kalau tidak diisi, supaya
+    // caller lama (dashboard/portfolio yang belum kirim ?range=) tidak berubah
+    // perilakunya. Caller baru bisa minta rentang lebih kecil = payload lebih kecil.
+    const ALLOWED_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '3y', '5y', '20y']);
+    const requestUrl = new URL(request.url);
+    const rangeParam = requestUrl.searchParams.get('range');
+    const range = rangeParam && ALLOWED_RANGES.has(rangeParam) ? rangeParam : '20y';
+
+    const cacheKey = `sahamlens:cache:computed:technical:${ticker}:${range}`;
+    // Key kedua, TTL jauh lebih panjang - HANYA dibaca kalau fetch Yahoo gagal
+    // (lihat blok catch di bawah). Mempertahankan perilaku lama: lebih baik
+    // sajikan data basi (bisa >3 menit) daripada error keras saat Yahoo down,
+    // yang hilang kalau cuma mengandalkan TTL pendek cacheKey di atas.
+    const staleFallbackKey = `sahamlens:cache:computed:technical-stale-fallback:${ticker}:${range}`;
+
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=20y&interval=1d`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
     
     // Add timeout to prevent infinite spinning if Yahoo hangs
     const controller = new AbortController();
@@ -89,9 +110,10 @@ export async function GET(
     try {
       [data, quoteSummary] = await Promise.all([chartPromise, quotePromise]);
     } catch (error) {
-      if (cached) {
-        console.warn(`yfinance fetch failed, returning last cached data for ${ticker}`);
-        return NextResponse.json(cached.data);
+      const stale = await cacheGet<any>(staleFallbackKey);
+      if (stale) {
+        console.warn(`yfinance fetch failed, returning stale fallback cache for ${ticker}`);
+        return NextResponse.json(stale);
       }
       return NextResponse.json({ error: 'Failed to fetch Yahoo data' }, { status: 500 });
     }
@@ -132,18 +154,25 @@ export async function GET(
       }
     }
 
+    // Window 200 hari terakhir untuk analyzer/scoring (Performance Roadmap Fase 2
+    // poin 6) - indikator standar (RSI/MACD/EMA/dst.) tidak butuh histori 20 tahun
+    // penuh, cukup ~200 hari. `history` PENUH tetap dipakai apa adanya untuk
+    // `stock.history` di response (data chart, beda kebutuhan dari analyzer).
+    const ANALYZER_HISTORY_DAYS = 200;
+    const analyzerHistory = history.slice(-ANALYZER_HISTORY_DAYS);
+
     // Run all 10 analyzers
     const analyzersResult = await Promise.all([
-      Promise.resolve(analyzeEma(history, currentPrice)),
-      Promise.resolve(analyzeRsi(history, currentPrice)),
-      Promise.resolve(analyzeMacd(history, currentPrice)),
-      Promise.resolve(analyzeVolume(history, currentPrice)),
-      Promise.resolve(analyzeTrend(history, currentPrice)),
-      Promise.resolve(analyzeVolatility(history, currentPrice)),
-      Promise.resolve(analyzeMomentum(history, currentPrice)),
-      Promise.resolve(analyzeSupport(history, currentPrice)),
-      Promise.resolve(analyzeSma(history, currentPrice)),
-      Promise.resolve(analyzeMarketFlow(history, currentPrice))
+      Promise.resolve(analyzeEma(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeRsi(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeMacd(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeVolume(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeTrend(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeVolatility(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeMomentum(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeSupport(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeSma(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeMarketFlow(analyzerHistory, currentPrice))
     ]);
 
     // === FOREIGN FLOW: Pseudo-random logic to match BandarFlowPro ===
@@ -236,7 +265,7 @@ export async function GET(
     const consensus = consensusData.konsensus;
 
     // === SCORING ENGINE: Hitung skor komposit 0-100 ===
-    const closes = history.map(h => h.Close);
+    const closes = analyzerHistory.map(h => h.Close);
     const sum20 = closes.slice(-20).reduce((a, b) => a + b, 0);
     const sum50 = closes.slice(-50).reduce((a, b) => a + b, 0);
     const sum200 = closes.slice(-Math.min(200, closes.length)).reduce((a, b) => a + b, 0);
@@ -260,8 +289,8 @@ export async function GET(
       }
     }
 
-    const volToday = history[history.length - 1]?.Volume || 0;
-    const volAvg20v = history.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, history.length);
+    const volToday = analyzerHistory[analyzerHistory.length - 1]?.Volume || 0;
+    const volAvg20v = analyzerHistory.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, analyzerHistory.length);
 
     const scoringResult = calculateScore(
       ticker,
@@ -310,6 +339,9 @@ export async function GET(
     if (!hasPro && !cached && session) {
       // Free users decrement logic can be added here if implemented
     }
+
+    await cacheSet(cacheKey, resultPayload, CACHE_TTL_SEC);
+    await cacheSet(staleFallbackKey, resultPayload, 24 * 60 * 60);
 
     return NextResponse.json(resultPayload);
 

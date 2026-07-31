@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
-import { WA_NUMBER } from '@/lib/constants';
+import { WA_NUMBER } from '@/shared/constants/app.constants';
 
 interface PaywallModalProps {
   open: boolean;

@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
-import { getSession, checkProAccess } from '@/lib/session';
+import { getSession, checkProAccess } from '@/modules/user';
 import { checkAnalisaLimit } from '@/lib/limits';
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 import { analyze as analyzeEma } from '@/lib/analyzers/ema-analyzer';
@@ -179,8 +179,8 @@ export async function GET(request: Request) {
 
     const hasPro = checkProAccess(session);
     if (!hasPro) {
-      // Fitur ini butuh Pro atau masa trial aktif
-      return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
+      // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
+      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
     const url = new URL(request.url);

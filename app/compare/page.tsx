@@ -39,7 +39,7 @@ function CompareContent() {
       const res = await fetch(`/api/compare?symbol1=${symbol1}&symbol2=${symbol2}`);
       const json = await res.json();
       
-      if (res.status === 429 || res.status === 403 || json.error === 'Limit analisa harian habis') {
+      if (res.status === 402 || res.status === 403 || json.code === 'SUBSCRIPTION_REQUIRED') {
         setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
         return;
@@ -208,7 +208,7 @@ function CompareContent() {
               <div className="p-6 bg-slate-900 border-t border-[#1e293b]">
                 <h3 className="text-sm font-bold text-gray-400 font-mono mb-2">KESIMPULAN AI</h3>
                 <p className="text-lg text-white font-serif leading-relaxed">
-                  "{data.conclusion}"
+                  &quot;{data.conclusion}&quot;
                 </p>
               </div>
             </div>

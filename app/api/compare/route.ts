@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccess } from '@/lib/session';
+import { getSession, checkProAccess } from '@/modules/user';
 
 async function fetchYahooData(symbol: string) {
   try {
@@ -77,7 +77,8 @@ export async function GET(request: Request) {
 
   const hasPro = checkProAccess(session);
   if (!hasPro) {
-    return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
+    // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
+    return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
 
   const { searchParams } = new URL(request.url);

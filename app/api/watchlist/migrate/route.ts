@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getSession } from '@/lib/session';
+import { getSession } from '@/modules/user';
 
 export async function POST(request: Request) {
   try {

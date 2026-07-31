@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { getCouncil } from '@/lib/agents/councilFinal';
 import { runLocalCouncil } from '@/lib/agents/localCouncil';
 import { getCouncilCache, setCouncilCache } from '@/lib/cache';
-import { getSession, checkProAccess } from '@/lib/session';
+import { getSession, checkProAccess } from '@/modules/user';
 
 // Minimal technical analyzer functions from existing codebase
 import { analyze as analyzeEma } from '@/lib/analyzers/ema-analyzer';
@@ -100,13 +100,14 @@ export async function GET(req: Request) {
 
     const hasPro = checkProAccess(session);
     if (!hasPro) {
-      return NextResponse.json({ error: 'Limit analisa harian habis' }, { status: 429 });
+      // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
+      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
     const today = new Date().toISOString().split('T')[0];
     
     // Check Cache First
-    const cached = getCouncilCache(symbol, today);
+    const cached = await getCouncilCache(symbol, today);
     if (cached) {
       return NextResponse.json(cached);
     }

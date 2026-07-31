@@ -62,7 +62,7 @@ export default function Recommendations() {
         const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store' });
         
         const json = await res.json();
-        if (res.status === 429 || json.error === 'Limit analisa harian habis') {
+        if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
           setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
           return;
