@@ -265,7 +265,7 @@ export default function Dashboard() {
 
 
         {/* Top Summary Banner */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
               <Zap className="w-6 h-6" />
@@ -301,7 +301,7 @@ export default function Dashboard() {
              )}
             <div className="text-right">
               <div className="text-[10px] font-mono text-tv-muted uppercase">HASIL ANALISA 10 AGENT AI</div>
-              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-lg flex items-center gap-2 ${
+              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
                 data?.consensus?.includes('BULLISH')
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
                   : data?.consensus?.includes('BEARISH')
@@ -318,7 +318,7 @@ export default function Dashboard() {
         {/* Main Layout */}
         <div className="flex flex-col gap-6">
           {/* Company Profile & Fundamentals */}
-          <div className="w-full bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg">
+          <div className="w-full bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
             <h3 className="text-xl font-extrabold text-white font-mono mb-4 border-b border-tv-border pb-3 flex items-center gap-2">
               <Layers className="w-5 h-5 text-tv-accent" />
               Profil Perusahaan & Data Fundamental
@@ -392,7 +392,7 @@ export default function Dashboard() {
 
           <div className="w-full">
             {/* Algo Breakdown Table */}
-            <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg">
+            <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
               <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Layers className="w-5 h-5 text-tv-accent" />

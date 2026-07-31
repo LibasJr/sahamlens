@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 
@@ -25,13 +26,25 @@ export default function PaywallModal({
   ctaLabel = 'Upgrade Pro - Rp149k',
   secondaryLabel = 'Nanti',
 }: PaywallModalProps) {
-  if (!open) return null;
-
   const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText)}`;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md bg-[#0a0a0f] border border-[#14b8a6]/40 rounded-2xl shadow-[0_0_50px_rgba(20,184,166,0.15)] p-6">
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        className="relative w-full max-w-md bg-[#0a0a0f] border border-[#14b8a6]/40 rounded-2xl shadow-[0_0_50px_rgba(20,184,166,0.15)] p-6"
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -73,7 +86,9 @@ export default function PaywallModal({
             {secondaryLabel}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

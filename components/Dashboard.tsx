@@ -369,7 +369,7 @@ export default function Dashboard() {
               </div>
 
               {/* Chart */}
-              <div className="relative mt-6 rounded-xl overflow-hidden shadow-lg border border-slate-100 dark:border-slate-800/50">
+              <div className="relative mt-6 rounded-xl overflow-hidden shadow-1 border border-slate-100 dark:border-slate-800/50">
                 {chartData.length > 0 ? (
                   <TradingViewChart
                     symbol="BBCA"

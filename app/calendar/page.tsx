@@ -166,7 +166,7 @@ export default function CalendarPage() {
           
           {/* Calendar Section */}
           <div className="lg:col-span-2">
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-lg">
+            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-1">
               <div className="flex justify-between items-center mb-6 border-b border-[#1e293b] pb-4">
                 <h3 className="text-lg font-bold text-white font-mono">
                   {currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
@@ -187,7 +187,7 @@ export default function CalendarPage() {
 
           {/* Event List Section */}
           <div>
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-lg sticky top-[100px]">
+            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-1 sticky top-[100px]">
               <h3 className="text-base font-bold text-white flex items-center justify-between mb-4 border-b border-[#1e293b] pb-3">
                 <span>Event pada {selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 <span className="text-xs bg-[#1e293b] text-gray-400 px-2 py-1 rounded font-mono">

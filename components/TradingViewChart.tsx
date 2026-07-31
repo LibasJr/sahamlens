@@ -218,7 +218,7 @@ export default function TradingViewChart({
   }, [candles, technical, height]);
 
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-4 flex flex-col gap-3 shadow-lg">
+    <div className="bg-tv-card border border-tv-border rounded-xl p-4 flex flex-col gap-3 shadow-1">
       {/* Chart Top Information Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
         <div className="flex items-center gap-3">

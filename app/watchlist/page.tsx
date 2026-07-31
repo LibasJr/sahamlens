@@ -265,7 +265,7 @@ export default function WatchlistPage() {
             })} 
           />
 
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
             <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4 border-b border-[#1e293b] pb-3">
               <Activity className="w-5 h-5 text-blue-400" />
               My Watchlist
@@ -392,7 +392,7 @@ export default function WatchlistPage() {
 
         {/* Alerts Section */}
         <div className="space-y-6">
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-lg">
+          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
             <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <Bell className="w-5 h-5 text-yellow-400" />

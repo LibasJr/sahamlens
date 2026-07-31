@@ -41,7 +41,7 @@ export default function ScreenerPage() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Risk Profile Selection Bar */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400">
               <Sliders className="w-6 h-6" />
@@ -72,7 +72,7 @@ export default function ScreenerPage() {
         </div>
 
         {/* Screener Results Table */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-lg space-y-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
           <div className="flex items-center justify-between border-b border-tv-border pb-3">
             <div className="flex items-center gap-2">
               <Award className="w-5 h-5 text-amber-400" />
