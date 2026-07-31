@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
@@ -161,6 +161,21 @@ export default function Dashboard() {
 
   const [marketCards, setMarketCards] = useState<Card[]>(CARD_DEFS.map(def => ({ ...def, items: [] })));
   const [cardsLoaded, setCardsLoaded] = useState(false);
+
+  // Widget "Hari Ini AI Menemukan" - ringkasan temuan pasar hari ini (bukan indikator
+  // 1 saham) supaya halaman utama punya alasan dibuka tiap hari sebelum login/signup.
+  const [dailyPicks, setDailyPicks] = useState<{
+    attractive: { count: number; items: string[] };
+    risky: { count: number; items: string[] };
+    undervalue: { count: number; items: string[] };
+    breakout: { count: number; items: string[] };
+  } | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/daily-picks').then(r => r.json()).then(data => {
+      if (data && !data.error) setDailyPicks(data);
+    }).catch(console.error);
+  }, []);
 
   React.useEffect(() => {
     fetch('/api/market-summary').then(r => r.json()).then(data => {
@@ -331,74 +346,59 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Right Panel - Institutional Analysis */}
+            {/* Right Panel - "Hari Ini AI Menemukan": ringkasan temuan pasar hari ini (bukan
+                indikator 1 saham) - hook supaya pengunjung buka aplikasi tiap hari sebelum
+                login/signup. Setiap angka real (bukan dikarang), lihat app/api/daily-picks. */}
             <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-[#FBFDFF] dark:bg-[#152238] p-5 sm:p-7 flex flex-col">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[12px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Analisis Teknikal Real-Time</h3>
-                {ind && (
-                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${finalSignal === 'BUY' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : finalSignal === 'SELL' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
-                    {finalSignal === 'BUY' ? `TREN MENGUAT (${council?.confidence ?? ind.score}%)` : finalSignal === 'SELL' ? `TREN MELEMAH (${council?.confidence ?? ind.score}%)` : `NETRAL (${council?.confidence ?? ind.score}%)`}
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <span className="text-lg leading-none">🔥</span>
+                <h3 className="text-[13px] font-bold text-slate-900 dark:text-white">Hari Ini AI Menemukan</h3>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Dipindai dari 50+ saham likuid IDX, diperbarui berkala.</p>
+
+              <div className="mt-5 space-y-3 flex-1">
+                {[
+                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'emerald', href: '/market/technical-bullish' },
+                  { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'indigo', href: '/breakout-radar' },
+                  { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/market/rsi-oversold' },
+                  { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/market/technical-bearish' },
+                ].map((row) => {
+                  const accentMap: any = {
+                    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
+                    red: { bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-700 dark:text-red-400', border: 'border-red-200 dark:border-red-500/30' },
+                    blue: { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-500/30' },
+                    indigo: { bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/30' },
+                  };
+                  const accent = accentMap[row.accent];
+                  const data = dailyPicks ? (dailyPicks as any)[row.key] : null;
+                  return (
+                    <Link
+                      key={row.key}
+                      href={row.href}
+                      className="group flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800/50 bg-white dark:bg-[#152238] px-3.5 py-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`h-9 w-9 rounded-xl grid place-items-center border shrink-0 ${accent.bg} ${accent.border} ${accent.text}`}>
+                          <row.Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-bold text-slate-900 dark:text-white">
+                            {data ? data.count : '-'} {row.label}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                            {data && data.items?.length ? data.items.join(', ') : row.desc}
+                          </div>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0 group-hover:translate-x-0.5 transition" />
+                    </Link>
+                  );
+                })}
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-white dark:bg-[#152238] border border-slate-200 dark:border-slate-800 p-3 shadow-sm">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Harga Terakhir</div>
-                  <div className="mt-1 text-[20px] font-bold tracking-tight text-[#0A1931] dark:text-white font-number">{ind ? `Rp ${Math.round(ind.price).toLocaleString('id-ID')}` : '...'}</div>
-                  {ind && <div className={`text-[11px] font-semibold ${ind.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{ind.changePct >= 0 ? '+' : ''}{ind.changePct.toFixed(2)}% hari ini</div>}
-                </div>
-                <div className="rounded-xl bg-[#0A1931] p-3 text-white">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/60">Sinyal Council AI</div>
-                  {ind ? (
-                    <>
-                      <div className="mt-1 flex items-center gap-1.5 text-[15px] font-bold">
-                        <span className={`h-5 w-5 rounded-full grid place-items-center text-[#0A1931] text-[11px] ${finalSignal === 'BUY' ? 'bg-emerald-400' : finalSignal === 'SELL' ? 'bg-red-400' : 'bg-slate-300'}`}>{finalSignal === 'BUY' ? '↑' : finalSignal === 'SELL' ? '↓' : '→'}</span> {finalSignal}
-                      </div>
-                      <div className="text-[11px] text-white/70">
-                        {ind.crossLabel}
-                      </div>
-                    </>
-                  ) : <div className="mt-1 text-[13px] text-white/60">Memuat...</div>}
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {ind ? [
-                  { k: 'MA20', v: ind.ma20 != null ? Math.round(ind.ma20).toLocaleString('id-ID') : '-', s: ind.ma20 != null ? (ind.price > ind.ma20 ? 'Harga berada di atas MA20' : 'Harga berada di bawah MA20') : 'Data belum cukup', c: ind.ma20 != null && ind.price > ind.ma20 ? 'emerald' : 'slate' },
-                  { k: 'MA50', v: ind.ma50 != null ? Math.round(ind.ma50).toLocaleString('id-ID') : '-', s: ind.crossLabel, c: ind.ma20 != null && ind.ma50 != null && ind.ma20 > ind.ma50 ? 'blue' : 'slate' },
-                  { k: 'RSI (14)', v: ind.rsi14 != null ? ind.rsi14.toFixed(1) : '-', s: `Status ${ind.rsiLabel}`, c: 'slate' },
-                  { k: 'Volume', v: `${(ind.volume / 1e6).toFixed(1)} Jt`, s: ind.volRatio >= 1 ? `Naik ${((ind.volRatio - 1) * 100).toFixed(0)}% dari rata-rata` : `Turun ${((1 - ind.volRatio) * 100).toFixed(0)}% dari rata-rata`, c: ind.volRatio >= 1 ? 'emerald' : 'slate' },
-                  // Indikator tambahan dari agen Council AI lain (MACD, S/R, Money Flow,
-                  // Volatilitas) - menggantikan kotak "Ringkasan Analisis Teknikal" yang
-                  // dulu isinya duplikat persis dengan kartu Insight di kolom kiri.
-                  ...(council ? council.agents
-                    .filter(a => ['MACD', 'Support/Resistance', 'Money Flow', 'Volatilitas'].includes(a.name))
-                    .map(a => ({
-                      k: a.name,
-                      v: a.signal,
-                      s: a.reason,
-                      c: a.signal === 'BUY' ? 'emerald' : a.signal === 'SELL' ? 'red' : 'slate',
-                    })) : []),
-                ].map(r=>(
-                  <div key={r.k} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800/50 bg-white dark:bg-[#152238] px-3 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`h-7 w-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 ${r.c==='emerald'?'bg-emerald-50 text-emerald-700': r.c==='blue'?'bg-blue-50 text-blue-700': r.c==='red'?'bg-red-50 text-red-700':'bg-slate-100 dark:bg-slate-800/80 text-slate-600'}`}>{r.k[0]}</div>
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-bold text-slate-900 dark:text-slate-100">{r.k}</div>
-                        <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{r.s}</div>
-                      </div>
-                    </div>
-                    <div className="text-[12px] font-bold text-[#0A1931] dark:text-white font-number shrink-0 pl-2">{r.v}</div>
-                  </div>
-                )) : (
-                  <div className="text-[12px] text-slate-400 py-4 text-center">Memuat indikator teknikal...</div>
-                )}
-              </div>
-
-              <div className="mt-auto pt-5">
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/50">
                 <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#3A86FF] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-8px_#3A86FF] hover:bg-[#2f6fd6] transition">
-                  Lihat Analisis Lengkap
+                  Lihat Analisis {ticker.symbol}
                   <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>
               </div>

@@ -20,7 +20,10 @@ import {
   PanelLeftOpen,
   LogOut,
   User,
+  Users,
+  ShieldAlert,
 } from 'lucide-react';
+import { pickTrendingTicker } from '@/lib/trendingTickers';
 
 // Redesign Sidebar - Design System "Nucleus" (2026-07-31).
 // Semua 11 tujuan navigasi yang ada sebelumnya DIPERTAHANKAN UTUH - yang
@@ -59,8 +62,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'dashboard', name: 'Technical Analyzer', subtitle: '10 Pure Math Filters', path: '/dashboard', icon: LineChart },
       { id: 'fundamental', name: 'Fundamental Analyzer', subtitle: 'Value & Health Metrics', path: '/fundamental', icon: Building2 },
+      { id: 'council', name: 'Council AI', subtitle: 'Stock Analysis Council AI', path: '/technical/BBCA.JK', icon: Users },
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },
       { id: 'screener', name: 'Stock Screener', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
+      { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position Size & Risk/Reward', path: '/risk-calculator', icon: ShieldAlert },
     ],
   },
   {
@@ -89,6 +94,9 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+  // Link menu Council AI mengarah ke emiten trending acak (bukan selalu BBCA), konsisten
+  // dengan perilaku "emiten unggulan acak" di Dashboard.tsx.
+  const [councilTicker] = useState(() => pickTrendingTicker());
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -180,13 +188,14 @@ export default function Sidebar() {
 
               <div className="space-y-0.5">
                 {group.items.map((item) => {
-                  const isActive = pathname === item.path;
+                  const href = item.id === 'council' ? `/technical/${councilTicker.symbol}.JK` : item.path;
+                  const isActive = item.id === 'council' ? pathname.startsWith('/technical') : pathname === item.path;
                   const Icon = item.icon;
 
                   return (
                     <Link
                       key={item.id}
-                      href={item.path}
+                      href={href}
                       className={`group relative flex items-center gap-3 rounded-lg text-xs transition-all duration-150 ease-out ${
                         isCollapsed ? 'md:justify-center md:px-0 md:py-2.5 px-3 py-2.5' : 'px-2.5 py-2.5'
                       } ${
