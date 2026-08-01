@@ -4,6 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession } from '../../../modules/user';
 import { logger } from '../../../shared/logger/logger';
+import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '../../../shared/auth/anonymous-trial';
 import {
   readBacktestCache,
   precomputeBacktestData,
@@ -50,8 +51,12 @@ async function getCache(): Promise<BacktestIndicatorCache> {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+    let anonTrial: AnonTrialState | null = null;
     if (!session) {
-      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+      anonTrial = await readOrIssueAnonymousTrial();
+      if (!anonTrial.active) {
+        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+      }
     }
 
     const body = await request.json();
@@ -78,7 +83,7 @@ export async function POST(request: Request) {
         periodMonths: LIVE_SIGNAL_PERIOD_MONTHS,
       });
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         dataAsOf: liveResult.dataAsOf,
         matches: liveResult.matches,
         historicalStats: {
@@ -88,6 +93,8 @@ export async function POST(request: Request) {
           totalTrades: historical.totalTrades,
         },
       });
+      if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+      return response;
     }
 
     const modal = Number(body?.modal);
@@ -124,7 +131,9 @@ export async function POST(request: Request) {
       responseBody.message = 'Tidak ada saham yang memenuhi kriteria filter ini dalam periode terpilih.';
     }
 
-    return NextResponse.json(responseBody);
+    const response = NextResponse.json(responseBody);
+    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+    return response;
   } catch (error) {
     logger.error('Backtest gagal', { error });
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
