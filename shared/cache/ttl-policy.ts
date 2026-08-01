@@ -43,4 +43,9 @@ export const CACHE_TTL_SEC = {
   // jadi TTL lebih panjang dari MARKET_SUMMARY wajar. Skor per profil risiko dihitung
   // ulang dari universe yang sama (murah), jadi TTL ini cuma menutupi fetch mentahnya.
   SCREENER_UNIVERSE: 30 * 60,
+
+  // Deret keputusan indikator harian utk 100 saham universe backtest (diisi cron
+  // app/api/cron/backtest-precompute sekali sehari) - BARU. TTL lebih panjang dari
+  // interval cron (24 jam) sebagai toleransi kalau satu run cron sempat gagal/telat.
+  BACKTEST_INDICATORS: 36 * 60 * 60,
 } as const;
