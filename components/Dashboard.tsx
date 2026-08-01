@@ -2,26 +2,29 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag, Flame } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
 import { pickTrendingTicker } from '@/lib/trendingTickers';
+import { SegmentedControl } from '@/components/ui';
+import { fadeUp, staggerContainer } from '@/lib/motion';
 
 type CardItem = { code: string; change: string; value: string; dir: 'up' | 'down' | 'neutral'; href: string };
 type CardDef = { id: string; title: string; sub: string; accent: string; Icon: any; key: string; listPath: string };
 type Card = CardDef & { items: CardItem[] };
 
 const CARD_DEFS: CardDef[] = [
-  { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'emerald', Icon: TrendingUp, key: 'topGainers', listPath: '/market/top-gainer' },
+  { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'topGainers', listPath: '/market/top-gainer' },
   { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'topLosers', listPath: '/market/top-loser' },
   { id: 'value', title: 'Berdasarkan Nilai Transaksi', sub: 'Top Value • Rp Triliun', accent: 'blue', Icon: DollarSign, key: 'topValue', listPath: '/market/top-value' },
   { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'topVolume', listPath: '/market/top-volume' },
-  { id: 'weeklyGainer', title: 'Penguatan Mingguan Tertinggi', sub: 'Top Gainer • 5 Hari', accent: 'emerald', Icon: ArrowUpRight, key: 'topWeeklyGainers', listPath: '/market/weekly-gainer' },
+  { id: 'weeklyGainer', title: 'Penguatan Mingguan Tertinggi', sub: 'Top Gainer • 5 Hari', accent: 'green', Icon: ArrowUpRight, key: 'topWeeklyGainers', listPath: '/market/weekly-gainer' },
   { id: 'weeklyLoser', title: 'Pelemahan Mingguan Terdalam', sub: 'Top Loser • 5 Hari', accent: 'red', Icon: ArrowDownRight, key: 'topWeeklyLosers', listPath: '/market/weekly-loser' },
-  { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'indigo', Icon: Sparkles, key: 'topTechnical', listPath: '/market/technical-bullish' },
+  { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'purple', Icon: Sparkles, key: 'topTechnical', listPath: '/market/technical-bullish' },
   { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'topTechnicalBearish', listPath: '/market/technical-bearish' },
-  { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'amber', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
+  { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
 ];
 
 const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y', 'ALL'];
@@ -73,8 +76,8 @@ function isMarketOpen(d: Date): boolean {
 function TickerTape({ items }: { items: { symbol: string; price: number; changePct: number }[] }) {
   if (!items.length) {
     return (
-      <div className="bg-[#0A1931] border-b border-white/10 h-[34px] flex items-center px-4">
-        <span className="text-[11px] text-white/40 font-mono">Memuat harga saham...</span>
+      <div className="bg-tv-surface border-b border-tv-border h-[34px] flex items-center px-4">
+        <span className="text-[11px] text-tv-muted font-mono">Memuat harga saham...</span>
       </div>
     );
   }
@@ -87,21 +90,21 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
   const durationSec = Math.max(60, Math.round(items.length * 3.2));
 
   return (
-    <div className="bg-[#0A1931] border-b border-white/10 overflow-hidden">
+    <div className="bg-tv-surface border-b border-tv-border overflow-hidden">
       <div className="sahamlens-ticker-track flex whitespace-nowrap py-2" style={{ animationDuration: `${durationSec}s` }}>
         {loopItems.map((item, i) => (
           <Link
             key={`${item.symbol}-${i}`}
             href={`/technical/${item.symbol}.JK`}
-            className="flex items-center gap-1.5 px-4 text-[12px] font-mono shrink-0 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1.5 px-4 text-[12px] font-number shrink-0 hover:opacity-80 transition-opacity"
           >
-            <span className="font-bold text-white">{item.symbol}</span>
-            <span className="text-white/50">Rp {Math.round(item.price || 0).toLocaleString('id-ID')}</span>
-            <span className={`font-semibold flex items-center gap-0.5 ${item.changePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className="font-bold text-tv-text">{item.symbol}</span>
+            <span className="text-tv-muted">Rp {Math.round(item.price || 0).toLocaleString('id-ID')}</span>
+            <span className={`font-semibold flex items-center gap-0.5 ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
               {item.changePct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
               {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
             </span>
-            <span className="text-white/20 ml-3">|</span>
+            <span className="text-tv-border ml-3">|</span>
           </Link>
         ))}
       </div>
@@ -114,6 +117,15 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
     </div>
   );
 }
+
+const ACCENT_MAP: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  green: { bg: 'bg-tv-green/10', text: 'text-tv-green', border: 'border-tv-green/25', dot: 'bg-tv-green' },
+  red: { bg: 'bg-tv-red/10', text: 'text-tv-red', border: 'border-tv-red/25', dot: 'bg-tv-red' },
+  blue: { bg: 'bg-tv-blue/10', text: 'text-tv-blue', border: 'border-tv-blue/25', dot: 'bg-tv-blue' },
+  purple: { bg: 'bg-tv-purple/10', text: 'text-tv-purple', border: 'border-tv-purple/25', dot: 'bg-tv-purple' },
+  warning: { bg: 'bg-tv-warning/10', text: 'text-tv-warning', border: 'border-tv-warning/25', dot: 'bg-tv-warning' },
+  slate: { bg: 'bg-tv-hover', text: 'text-tv-muted', border: 'border-tv-border', dot: 'bg-tv-muted' },
+};
 
 export default function Dashboard() {
   // Emiten unggulan dipilih acak sekali per kunjungan dari daftar saham likuid/trending -
@@ -260,26 +272,25 @@ export default function Dashboard() {
   const marketOpen = now ? isMarketOpen(now) : false;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121] text-slate-900 dark:text-slate-100 selection:bg-[#3A86FF]/20">
-      {/* HEADER DEEP NAVY */}
-      <header className="sticky top-0 z-50 bg-[#0A1931] text-white border-b border-white/10">
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-tv-bg text-tv-text selection:bg-tv-blue/20">
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 bg-tv-surface text-white border-b border-tv-border">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
           <div className="flex h-[64px] items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5">
-                <img src="/icon-192x192.png" alt="SahamLens" className="h-8 w-8 rounded-lg object-cover" />
+                <img src="/icon-192x192.png" alt="SahamLens" className="h-8 w-8 rounded-md object-cover" />
                 <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
-
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] uppercase tracking-widest text-white/60 font-semibold">IHSG Hari Ini</span>
-                  <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-1 w-1 rounded-full bg-tv-green animate-pulse" />
                 </div>
                 {ihsg ? (
                   <div className="flex items-baseline gap-2">
                     <span className="text-[18px] font-bold tracking-tight font-number">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${ihsg.change >= 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'}`}>
                       {ihsg.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />} {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                     </span>
                   </div>
@@ -294,7 +305,7 @@ export default function Dashboard() {
                 <CommandPalette />
               </div>
               <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-2.5 py-1">
-                <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />
                 <span className="text-[11px] font-medium text-white">{marketOpen ? 'Live' : 'Tutup'}</span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-medium text-white/50">
@@ -302,11 +313,11 @@ export default function Dashboard() {
                 <span className="sm:hidden">{jakartaTime || '--:--'}</span>
               </div>
               {authUser ? (
-                <Link href="/home" className="ml-2 flex items-center gap-2 rounded-lg bg-[#3A86FF] hover:bg-[#2f6fd6] px-4 py-1.5 text-[12px] font-bold text-white transition-colors border border-[#3A86FF]">
+                <Link href="/home" className="ml-2 flex items-center gap-2 rounded-md bg-gradient-accent hover:brightness-110 px-4 py-1.5 text-[12px] font-bold text-white transition-all">
                   Buka Dashboard
                 </Link>
               ) : (
-                <Link href="/login" className="ml-2 rounded-lg bg-[#3A86FF] hover:bg-[#2f6fd6] px-4 py-1.5 text-[12px] font-bold text-white transition-colors border border-[#3A86FF]">
+                <Link href="/login" className="ml-2 rounded-md bg-gradient-accent hover:brightness-110 px-4 py-1.5 text-[12px] font-bold text-white transition-all">
                   Login
                 </Link>
               )}
@@ -319,72 +330,71 @@ export default function Dashboard() {
               {ihsg ? (
                 <>
                   <span className="text-[14px] font-bold">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                  <span className={`text-[11px] font-semibold ${ihsg.change >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
+                  <span className={`text-[11px] font-semibold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
                 </>
               ) : (
                 <span className="text-[12px] text-white/50">Memuat...</span>
               )}
             </div>
-            <span className={`text-[10px] flex items-center gap-1 ${marketOpen ? 'text-emerald-300' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-emerald-400' : 'bg-slate-400'}`} />{marketOpen ? 'Market Buka' : 'Market Tutup'}</span>
+            <span className={`text-[10px] flex items-center gap-1 ${marketOpen ? 'text-tv-green' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />{marketOpen ? 'Market Buka' : 'Market Tutup'}</span>
           </div>
         </div>
       </header>
 
       <TickerTape items={tickerItems} />
 
-      <main className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <main className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Title Block */}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-[24px] sm:text-[28px] font-bold tracking-tight text-[#0A1931] dark:text-white font-heading">Ringkasan Pasar Hari Ini</h1>
-            </div>
-            <p className="mt-1 text-[13px] sm:text-[14px] text-slate-500 dark:text-slate-400 font-medium">Data real-time dari Bursa Efek Indonesia (via Yahoo Finance) • {lastUpdated ? <span className="text-[#3A86FF] font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
+            <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
+            <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">Data real-time dari Bursa Efek Indonesia (via Yahoo Finance) • {lastUpdated ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Powered by</span>
-            <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] px-3 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm">SahamLens</span>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-tv-muted">Powered by</span>
+            <span className="rounded-full border border-tv-border bg-tv-card px-3 py-1 text-[11px] font-bold text-tv-text shadow-1">SahamLens</span>
           </div>
         </div>
 
         {/* FEATURED CHART CARD */}
-        <div className="relative overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] shadow-[0_10px_40px_-12px_rgba(10,25,49,0.12)]">
+        <div className="relative overflow-hidden rounded-xl border border-tv-border bg-tv-card shadow-2">
           <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_0.9fr]">
             {/* Left Chart */}
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-[#0A1931] text-white grid place-items-center font-bold text-[13px] font-heading">{ticker.symbol}</div>
+                  <div className="h-12 w-12 rounded-lg bg-gradient-accent text-white grid place-items-center font-bold text-[13px] font-heading">{ticker.symbol}</div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-[18px] font-bold text-[#0A1931] dark:text-white tracking-tight font-heading">{ticker.symbol}.JK — {ticker.name}</h2>
-                      <span className="hidden sm:inline-flex rounded-full bg-[#0A1931] px-2 py-0.5 text-[10px] font-bold tracking-widest text-white">LQ45 • TRENDING</span>
+                      <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{ticker.symbol}.JK — {ticker.name}</h2>
+                      <span className="hidden sm:inline-flex rounded-full bg-gradient-accent px-2 py-0.5 text-[10px] font-bold tracking-widest text-white">LQ45 • TRENDING</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
-                      <span className="font-semibold text-slate-900 dark:text-slate-100 font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
+                      <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
                       {change != null && changePct != null && (
-                        <span className={`inline-flex items-center gap-1 font-semibold font-number ${change>=0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <span className={`inline-flex items-center gap-1 font-semibold font-number ${change>=0 ? 'text-tv-green' : 'text-tv-red'}`}>
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
                         </span>
                       )}
-                      <span className="text-slate-400">{ind ? `Vol: ${(ind.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(ind.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
+                      <span className="text-tv-muted">{ind ? `Vol: ${(ind.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(ind.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
                       {isHovering && ind && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#3A86FF]/10 text-[#3A86FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-tv-blue/10 text-tv-blue px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                           Data per {ind.time}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800/80 p-1">
-                  {TIMEFRAMES.map(t=>(
-                    <button key={t} onClick={()=>setTimeframe(t)} className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-wide transition ${timeframe===t ? 'bg-[#0A1931] text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100'}`}>{t}</button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  options={TIMEFRAMES.map(t => ({ label: t, value: t }))}
+                  value={timeframe}
+                  onChange={setTimeframe}
+                  layoutId="landing-timeframe"
+                />
               </div>
 
               {/* Chart */}
-              <div className="relative mt-6 rounded-xl overflow-hidden shadow-1 border border-slate-100 dark:border-slate-800/50">
+              <div className="relative mt-6 rounded-lg overflow-hidden shadow-1 border border-tv-border/50">
                 {chartData.length > 0 ? (
                   <TradingViewChart
                     symbol={ticker.symbol}
@@ -400,15 +410,15 @@ export default function Dashboard() {
                     }}
                   />
                 ) : (
-                  <div className="h-[340px] flex items-center justify-center bg-[#131722] text-white">Memuat grafik...</div>
+                  <div className="h-[340px] flex items-center justify-center bg-tv-bg text-tv-muted">Memuat grafik...</div>
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-4 items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30">
-                <div className="text-blue-800 dark:text-blue-300 font-semibold text-[13px] flex items-center gap-2">
+              <div className="mt-4 flex flex-wrap gap-4 items-center bg-gradient-accent-soft p-4 rounded-lg border border-tv-blue/20">
+                <div className="text-tv-blue font-semibold text-[13px] flex items-center gap-2">
                   <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${ind?.time}` : `Insight ${ticker.symbol} Terkini`}
                 </div>
-                <p className="text-[12px] text-blue-700 dark:text-blue-200">
+                <p className="text-[12px] text-tv-text/80">
                   {insightText}
                 </p>
               </div>
@@ -417,59 +427,52 @@ export default function Dashboard() {
             {/* Right Panel - "Hari Ini AI Menemukan": ringkasan temuan pasar hari ini (bukan
                 indikator 1 saham) - hook supaya pengunjung buka aplikasi tiap hari sebelum
                 login/signup. Setiap angka real (bukan dikarang), lihat app/api/daily-picks. */}
-            <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 bg-[#FBFDFF] dark:bg-[#152238] p-5 sm:p-7 flex flex-col">
+            <div className="border-t lg:border-t-0 lg:border-l border-tv-border bg-tv-bg/40 p-5 sm:p-7 flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="text-lg leading-none">🔥</span>
-                <h3 className="text-[13px] font-bold text-slate-900 dark:text-white">Hari Ini AI Menemukan</h3>
+                <h3 className="font-heading text-[13px] font-bold text-tv-text">Hari Ini AI Menemukan</h3>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Dipindai dari 250+ saham likuid IDX, diperbarui berkala.</p>
+              <p className="text-[11px] text-tv-muted mt-1">Dipindai dari 250+ saham likuid IDX, diperbarui berkala.</p>
 
               <div className="mt-5 space-y-3 flex-1">
                 {[
-                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'emerald', href: '/breakout-radar?cat=attractive' },
-                  { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'indigo', href: '/breakout-radar' },
+                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'green', href: '/breakout-radar?cat=attractive' },
+                  { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'purple', href: '/breakout-radar' },
                   { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar?cat=undervalue' },
                   { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar?cat=risky' },
-                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'emerald', href: '/breakout-radar?cat=goldenCross' },
+                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'green', href: '/breakout-radar?cat=goldenCross' },
                   { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar?cat=deadCross' },
-                  { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'amber', href: '/breakout-radar?cat=foreignAccumulation' },
+                  { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'warning', href: '/breakout-radar?cat=foreignAccumulation' },
                 ].map((row) => {
-                  const accentMap: any = {
-                    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
-                    red: { bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-700 dark:text-red-400', border: 'border-red-200 dark:border-red-500/30' },
-                    blue: { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-500/30' },
-                    indigo: { bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/30' },
-                    amber: { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/30' },
-                  };
-                  const accent = accentMap[row.accent];
+                  const accent = ACCENT_MAP[row.accent];
                   const data = dailyPicks ? (dailyPicks as any)[row.key] : null;
                   return (
                     <Link
                       key={row.key}
                       href={row.href}
-                      className="group flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800/50 bg-white dark:bg-[#152238] px-3.5 py-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                      className="group flex items-center justify-between gap-3 rounded-lg border border-tv-border/60 bg-tv-card px-3.5 py-3 hover:border-tv-borderLight transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-9 w-9 rounded-xl grid place-items-center border shrink-0 ${accent.bg} ${accent.border} ${accent.text}`}>
+                        <div className={`h-9 w-9 rounded-lg grid place-items-center border shrink-0 ${accent.bg} ${accent.border} ${accent.text}`}>
                           <row.Icon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[13px] font-bold text-slate-900 dark:text-white">
+                          <div className="text-[13px] font-bold text-tv-text">
                             {data ? data.count : '-'} {row.label}
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                          <div className="text-[10px] text-tv-muted truncate">
                             {data && data.items?.length ? data.items.join(', ') : row.desc}
                           </div>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0 group-hover:translate-x-0.5 transition" />
+                      <ChevronRight className="h-4 w-4 text-tv-muted shrink-0 group-hover:translate-x-0.5 transition" />
                     </Link>
                   );
                 })}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/50">
-                <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#3A86FF] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-8px_#3A86FF] hover:bg-[#2f6fd6] transition">
+              <div className="mt-4 pt-4 border-t border-tv-border/60">
+                <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-accent px-5 py-3 text-[13px] font-bold text-white shadow-1 hover:brightness-110 transition">
                   Lihat Analisis {ticker.symbol}
                   <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>
@@ -479,79 +482,80 @@ export default function Dashboard() {
         </div>
 
         {/* GRID CARDS */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={staggerContainer}
+          className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5"
+        >
           {marketCards.map((card) => {
-            const accentMap: any = {
-              emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-              red: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' },
-              blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-[#3A86FF]' },
-              slate: { bg: 'bg-slate-100 dark:bg-slate-800/80', text: 'text-slate-700 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-800', dot: 'bg-slate-600' },
-              indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
-              amber: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
-            };
-            const accent = accentMap[card.accent] || accentMap.slate;
+            const accent = ACCENT_MAP[card.accent] || ACCENT_MAP.slate;
 
             return (
-              <div key={card.id} className="group relative rounded-[18px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] p-5 shadow-[0_6px_24px_-12px_rgba(10,25,49,0.08)] hover:shadow-[0_12px_32px_-10px_rgba(10,25,49,0.14)] hover:-translate-y-[1px] transition-all">
+              <motion.div
+                key={card.id}
+                variants={fadeUp}
+                className="group relative rounded-lg border border-tv-border bg-tv-card p-5 shadow-1 hover:shadow-2 hover:-translate-y-0.5 transition-all"
+              >
                 {/* header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className={`h-9 w-9 rounded-xl grid place-items-center border ${accent.bg} ${accent.border} ${accent.text}`}>
+                    <div className={`h-9 w-9 rounded-lg grid place-items-center border ${accent.bg} ${accent.border} ${accent.text}`}>
                       <card.Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <h4 className="text-[13px] font-bold leading-tight tracking-tight text-[#0A1931] dark:text-white max-w-[180px]">{card.title}</h4>
+                      <h4 className="font-heading text-[13px] font-bold leading-tight tracking-tight text-tv-text max-w-[180px]">{card.title}</h4>
                       <span className={`mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${accent.bg} ${accent.text}`}>{card.sub}</span>
                     </div>
                   </div>
-                  <span className={`h-2 w-2 rounded-full ${accent.dot} shadow-[0_0_0_4px_rgba(0,0,0,0.04)]`} />
+                  <span className={`h-2 w-2 rounded-full ${accent.dot}`} />
                 </div>
 
                 {/* list */}
-                <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100 dark:border-slate-800/50 overflow-hidden bg-slate-50 dark:bg-slate-800/50/50">
+                <div className="mt-4 divide-y divide-tv-border/60 rounded-lg border border-tv-border/60 overflow-hidden">
                   {card.items.length === 0 && (
-                    <div className="bg-white dark:bg-[#152238] px-3 py-6 text-center text-[11px] text-slate-400">
+                    <div className="bg-tv-card px-3 py-6 text-center text-[11px] text-tv-muted">
                       {cardsLoaded ? 'Belum ada data untuk kategori ini' : 'Memuat data...'}
                     </div>
                   )}
                   {card.items.map((it, idx) => (
-                    <Link key={it.code} href={it.href} className="flex items-center justify-between gap-2 bg-white dark:bg-[#152238] px-3 py-[11px] hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                    <Link key={it.code} href={it.href} className="flex items-center justify-between gap-2 bg-tv-card px-3 py-[11px] hover:bg-tv-hover transition">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#0A1931] text-[10px] font-bold text-white shrink-0">{idx+1}</span>
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-tv-surface text-[10px] font-bold text-white shrink-0">{idx+1}</span>
                         <div className="min-w-0">
-                          <span className="text-[12px] font-bold tracking-tight text-[#0A1931] dark:text-white">{it.code}</span>
+                          <span className="text-[12px] font-bold tracking-tight text-tv-text">{it.code}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className={`text-[12px] font-bold tracking-tight flex items-center justify-end gap-1 ${it.dir === 'down' ? 'text-red-600' : it.dir === 'up' ? 'text-emerald-600' : 'text-[#0A1931] dark:text-white'}`}>
-                          {it.dir !== 'neutral' && <span className={`h-1 w-1 rounded-full ${it.dir === 'down' ? 'bg-red-500' : 'bg-emerald-500'}`} />}
+                        <div className={`text-[12px] font-bold tracking-tight flex items-center justify-end gap-1 font-number ${it.dir === 'down' ? 'text-tv-red' : it.dir === 'up' ? 'text-tv-green' : 'text-tv-text'}`}>
+                          {it.dir !== 'neutral' && <span className={`h-1 w-1 rounded-full ${it.dir === 'down' ? 'bg-tv-red' : 'bg-tv-green'}`} />}
                           {it.change}
                         </div>
-                        <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{it.value}</div>
+                        <div className="text-[10px] font-medium text-tv-muted">{it.value}</div>
                       </div>
                     </Link>
                   ))}
                 </div>
 
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Update {lastUpdated || '--:--'} • IDX</span>
-                  <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-[#3A86FF] hover:text-[#0A1931] transition">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Update {lastUpdated || '--:--'} • IDX</span>
+                  <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-tv-blue hover:text-tv-text transition">
                     Lihat Seluruhnya <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Bottom Meta */}
-        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] px-5 py-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+        <div className="mt-8 rounded-lg border border-tv-border bg-tv-card px-5 py-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-tv-muted">
           <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-tv-muted'}`} />
             <span className="font-medium">Data disinkronisasi secara real-time dari Bursa Efek Indonesia • Keterlambatan waktu maksimal 15 menit • Sumber: Yahoo Finance</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
+            <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
           </div>
         </div>
       </main>

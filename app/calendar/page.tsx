@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  Briefcase, 
-  Coins, 
-  Users, 
-  Building 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Briefcase,
+  Coins,
+  Users,
+  Building
 } from 'lucide-react';
 import calendarData from '@/data/calendar.json';
 
@@ -33,7 +33,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 28)); // July 28, 2026 (Mock "Today")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(2026, 6, 28));
   const [activeTab, setActiveTab] = useState('ALL');
-  
+
   // Format YYYY-MM-DD
   const formatDate = (d: Date) => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -72,14 +72,14 @@ export default function CalendarPage() {
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
-    
+
     const days = [];
     const weekdays = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    
+
     // Header
     weekdays.forEach(day => {
       days.push(
-        <div key={`h-${day}`} className="text-center font-bold text-xs text-gray-500 py-2">
+        <div key={`h-${day}`} className="text-center font-bold text-xs text-tv-muted py-2">
           {day}
         </div>
       );
@@ -103,15 +103,15 @@ export default function CalendarPage() {
           key={`day-${i}`}
           onClick={() => setSelectedDate(d)}
           className={`
-            relative flex flex-col items-center justify-center p-2 h-12 w-12 rounded-lg mx-auto font-mono text-sm transition-all
-            ${isSelected ? 'bg-blue-600 text-white font-bold' : 'text-gray-300 hover:bg-[#1e293b]'}
-            ${isToday && !isSelected ? 'border border-blue-500 text-blue-400' : ''}
+            relative flex flex-col items-center justify-center p-2 h-12 w-12 rounded-md mx-auto font-number text-sm transition-all
+            ${isSelected ? 'bg-gradient-accent text-white font-bold' : 'text-tv-text hover:bg-tv-hover'}
+            ${isToday && !isSelected ? 'border border-tv-blue text-tv-blue' : ''}
           `}
         >
           <span>{i}</span>
           {hasEvents && (
             <div className="absolute bottom-1.5 flex gap-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-tv-yellow"></span>
             </div>
           )}
         </button>
@@ -125,15 +125,15 @@ export default function CalendarPage() {
   const selectedEvents = filteredData[selectedDateStr] || [];
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0f172a] min-h-screen">
-      <header className="bg-[#131c2e] border-b border-[#1e293b] px-6 py-4 sticky top-0 z-20 shadow-md">
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-md bg-purple-500/10 border border-purple-500/30 text-purple-400">
+          <div className="p-2 rounded-md bg-gradient-accent text-white">
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-bold text-lg text-white tracking-tight">Corporate Calendar</h2>
-            <p className="text-xs text-gray-500 font-mono">Jadwal Dividen, RUPS, & Aksi Korporasi</p>
+            <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Corporate Calendar</h2>
+            <p className="text-xs text-tv-muted">Jadwal Dividen, RUPS, & Aksi Korporasi</p>
           </div>
         </div>
       </header>
@@ -148,10 +148,10 @@ export default function CalendarPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-sm whitespace-nowrap transition-colors border
-                  ${isActive 
-                    ? 'bg-purple-600/20 text-purple-400 border-purple-500/50' 
-                    : 'bg-[#131c2e] text-gray-400 border-[#1e293b] hover:bg-[#1e293b]'
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm whitespace-nowrap transition-colors border
+                  ${isActive
+                    ? 'bg-tv-purple/20 text-tv-purple border-tv-purple/50'
+                    : 'bg-tv-card text-tv-muted border-tv-border hover:bg-tv-hover'
                   }
                 `}
               >
@@ -163,19 +163,19 @@ export default function CalendarPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Calendar Section */}
           <div className="lg:col-span-2">
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-1">
-              <div className="flex justify-between items-center mb-6 border-b border-[#1e293b] pb-4">
-                <h3 className="text-lg font-bold text-white font-mono">
+            <div className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-1">
+              <div className="flex justify-between items-center mb-6 border-b border-tv-border pb-4">
+                <h3 className="font-heading text-lg font-bold text-tv-text">
                   {currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
                 </h3>
                 <div className="flex gap-2">
-                  <button onClick={prevMonth} className="p-2 rounded-lg bg-[#0f172a] border border-[#1e293b] text-gray-400 hover:text-white transition-colors">
+                  <button onClick={prevMonth} className="p-2 rounded-md bg-tv-bg border border-tv-border text-tv-muted hover:text-tv-text transition-colors">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <button onClick={nextMonth} className="p-2 rounded-lg bg-[#0f172a] border border-[#1e293b] text-gray-400 hover:text-white transition-colors">
+                  <button onClick={nextMonth} className="p-2 rounded-md bg-tv-bg border border-tv-border text-tv-muted hover:text-tv-text transition-colors">
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
@@ -187,10 +187,10 @@ export default function CalendarPage() {
 
           {/* Event List Section */}
           <div>
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-6 shadow-1 sticky top-[100px]">
-              <h3 className="text-base font-bold text-white flex items-center justify-between mb-4 border-b border-[#1e293b] pb-3">
+            <div className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-1 sticky top-[100px]">
+              <h3 className="font-heading text-base font-bold text-tv-text flex items-center justify-between mb-4 border-b border-tv-border pb-3">
                 <span>Event pada {selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                <span className="text-xs bg-[#1e293b] text-gray-400 px-2 py-1 rounded font-mono">
+                <span className="text-xs bg-tv-hover text-tv-muted px-2 py-1 rounded font-number">
                   {selectedEvents.length} Event
                 </span>
               </h3>
@@ -198,19 +198,19 @@ export default function CalendarPage() {
               <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
                 {selectedEvents.length > 0 ? (
                   selectedEvents.map((event, idx) => (
-                    <div key={idx} className="p-4 rounded-lg bg-[#0f172a] border border-[#1e293b] hover:border-purple-500/30 transition-colors">
+                    <div key={idx} className="p-4 rounded-lg bg-tv-bg border border-tv-border hover:border-tv-purple/30 transition-colors">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold text-white font-mono">{event.symbol}</span>
-                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        <span className="font-bold text-tv-text font-number">{event.symbol}</span>
+                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-tv-purple/10 text-tv-purple border border-tv-purple/20">
                           {event.type}
                         </span>
                       </div>
-                      <h4 className="text-sm text-gray-200 font-bold mb-1">{event.title}</h4>
-                      <p className="text-xs text-gray-400">{event.description}</p>
+                      <h4 className="text-sm text-tv-text font-bold mb-1">{event.title}</h4>
+                      <p className="text-xs text-tv-muted">{event.description}</p>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-10 text-gray-500 font-mono text-sm">
+                  <div className="text-center py-10 text-tv-muted text-sm">
                     <CalendarIcon className="w-8 h-8 mx-auto mb-3 opacity-20" />
                     Tidak ada agenda corporate action<br/>pada tanggal ini.
                   </div>

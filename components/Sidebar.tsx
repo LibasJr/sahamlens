@@ -218,14 +218,14 @@ export default function Sidebar() {
                       {isActive && (
                         <motion.span
                           layoutId="sidebar-active-indicator"
-                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-tv-blue"
+                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-gradient-accent"
                           transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                         />
                       )}
 
                       <div
                         className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150 ${
-                          isActive ? 'bg-tv-blue/15 text-tv-blue' : 'text-white/40 group-hover:text-white group-hover:scale-110'
+                          isActive ? 'bg-gradient-accent-soft text-tv-blue' : 'text-white/40 group-hover:text-white group-hover:scale-110'
                         }`}
                       >
                         <Icon className="w-[18px] h-[18px]" />

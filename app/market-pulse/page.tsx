@@ -8,6 +8,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { hasProAccess, refreshAdminStatus, getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
+import { Badge } from '@/components/ui';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -47,12 +48,12 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
   const size = Math.max(1, Math.sqrt(marketCap / (maxMcap || 1))) * 100;
   const isUp = changePct >= 0;
   const intensity = Math.min(Math.abs(changePct) * 40, 100);
-  
+
   const bg = isUp
-    ? `rgba(20, 184, 166, ${0.1 + intensity / 200})`
+    ? `rgba(16, 185, 129, ${0.1 + intensity / 200})`
     : `rgba(239, 68, 68, ${0.1 + intensity / 200})`;
   const border = isUp
-    ? `rgba(20, 184, 166, ${0.2 + intensity / 250})`
+    ? `rgba(16, 185, 129, ${0.2 + intensity / 250})`
     : `rgba(239, 68, 68, ${0.2 + intensity / 250})`;
 
   return (
@@ -66,8 +67,8 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
       }}
     >
       <div>
-        <div className="text-xs font-bold text-white truncate">{sector}</div>
-        <div className={`text-lg font-extrabold font-mono ${isUp ? 'text-[#14b8a6]' : 'text-red-400'}`}>
+        <div className="text-xs font-bold text-tv-text truncate">{sector}</div>
+        <div className={`text-lg font-extrabold font-number ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
           {isUp ? '+' : ''}{changePct.toFixed(2)}%
         </div>
       </div>
@@ -75,8 +76,8 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
         {stocks?.slice(0, 4).map((s: any) => (
           <span
             key={s.symbol}
-            className={`text-[9px] font-mono px-1 py-0.5 rounded ${
-              s.changePct >= 0 ? 'bg-[#14b8a6]/20 text-[#14b8a6]' : 'bg-red-500/20 text-red-400'
+            className={`text-[9px] font-number px-1 py-0.5 rounded ${
+              s.changePct >= 0 ? 'bg-tv-green/20 text-tv-green' : 'bg-tv-red/20 text-tv-red'
             }`}
           >
             {s.symbol} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%
@@ -96,20 +97,20 @@ function BreadthBar({ advancing, declining, unchanged, total }: any) {
   return (
     <div className="space-y-2">
       <div className="flex h-5 rounded-full overflow-hidden">
-        <div className="bg-[#14b8a6] transition-all flex items-center justify-center" style={{ width: `${advPct}%` }}>
-          {advPct > 10 && <span className="text-[9px] font-mono font-bold text-white">{advancing}</span>}
+        <div className="bg-tv-green transition-all flex items-center justify-center" style={{ width: `${advPct}%` }}>
+          {advPct > 10 && <span className="text-[9px] font-number font-bold text-white">{advancing}</span>}
         </div>
-        <div className="bg-gray-600 transition-all flex items-center justify-center" style={{ width: `${uncPct}%` }}>
-          {uncPct > 10 && <span className="text-[9px] font-mono font-bold text-white">{unchanged}</span>}
+        <div className="bg-tv-muted transition-all flex items-center justify-center" style={{ width: `${uncPct}%` }}>
+          {uncPct > 10 && <span className="text-[9px] font-number font-bold text-white">{unchanged}</span>}
         </div>
-        <div className="bg-red-500 transition-all flex items-center justify-center" style={{ width: `${decPct}%` }}>
-          {decPct > 10 && <span className="text-[9px] font-mono font-bold text-white">{declining}</span>}
+        <div className="bg-tv-red transition-all flex items-center justify-center" style={{ width: `${decPct}%` }}>
+          {decPct > 10 && <span className="text-[9px] font-number font-bold text-white">{declining}</span>}
         </div>
       </div>
-      <div className="flex justify-between text-[10px] font-mono">
-        <span className="text-[#14b8a6]">▲ Naik: {advancing} ({advPct.toFixed(0)}%)</span>
-        <span className="text-gray-400">— Stagnan: {unchanged}</span>
-        <span className="text-red-400">▼ Turun: {declining} ({decPct.toFixed(0)}%)</span>
+      <div className="flex justify-between text-[10px] font-number">
+        <span className="text-tv-green">▲ Naik: {advancing} ({advPct.toFixed(0)}%)</span>
+        <span className="text-tv-muted">— Stagnan: {unchanged}</span>
+        <span className="text-tv-red">▼ Turun: {declining} ({decPct.toFixed(0)}%)</span>
       </div>
     </div>
   );
@@ -136,13 +137,13 @@ export default function MarketPulse() {
     try {
       const res = await fetch('/api/market-pulse', { cache: 'no-store' });
       const json = await res.json();
-      
+
       if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
         setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
         return;
       }
-      
+
       const res2 = await fetch('/api/breakout-radar');
       if (res2.ok) {
         const json2 = await res2.json();
@@ -174,38 +175,34 @@ export default function MarketPulse() {
   const formatTime = (date: Date) => date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0f172a] min-h-screen">
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       {/* Top Header */}
-      <header className="bg-[#131c2e] border-b border-[#1e293b] px-6 py-3 sticky top-0 z-20 shadow-md">
+      <header className="bg-tv-surface border-b border-tv-border px-6 py-3 sticky top-0 z-20 shadow-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-[#14b8a6]/10 border border-[#14b8a6]/30 text-[#14b8a6]">
+            <div className="p-2 rounded-md bg-gradient-accent text-white">
               <Activity className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-lg text-white tracking-tight">Market Pulse</h2>
-              <p className="text-xs text-gray-500 font-mono">IDX Algorithmic Suite — Real-time Market Overview</p>
+              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Market Pulse</h2>
+              <p className="text-xs text-tv-muted">IDX Algorithmic Suite — Real-time Market Overview</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="flex items-center gap-3 text-xs">
             {isClient && (
               pro ? (
-                <div className="bg-[#14b8a6]/10 border border-[#14b8a6]/30 px-3 py-1.5 rounded-full text-[#14b8a6] font-bold">
-                  REALTIME
-                </div>
+                <Badge variant="success" dot>Realtime</Badge>
               ) : (
-                <div className="bg-tv-yellow/10 border border-tv-yellow/30 px-3 py-1.5 rounded-full text-tv-yellow font-bold">
-                  DELAY 15m - Realtime di Pro
-                </div>
+                <Badge variant="warning">Delay 15m - Realtime di Pro</Badge>
               )
             )}
-            <div className="bg-[#1e293b] border border-[#334155] px-3 py-1.5 rounded-full text-gray-400">
+            <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
               Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
             </div>
             <button
               onClick={fetchData}
               disabled={loading}
-              className="bg-[#1e293b] border border-[#334155] hover:bg-[#334155] px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
+              className="bg-tv-hover border border-tv-border hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-tv-text flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -222,52 +219,51 @@ export default function MarketPulse() {
             return (
               <div
                 key={idx.name}
-                className={`bg-[#131c2e] border rounded-xl p-4 shadow-1 transition-all hover:shadow-xl ${
-                  isUp ? 'border-[#14b8a6]/30' : 'border-red-500/30'
+                className={`bg-tv-card border rounded-lg p-4 shadow-1 transition-all hover:shadow-2 ${
+                  isUp ? 'border-tv-green/30' : 'border-tv-red/30'
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-[10px] font-mono text-gray-500 uppercase">{idx.fullName}</div>
-                    <div className="text-lg font-extrabold text-white font-mono">{idx.name}</div>
+                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">{idx.fullName}</div>
+                    <div className="text-lg font-extrabold text-tv-text font-number">{idx.name}</div>
                   </div>
-                  <div className={`flex items-center gap-1 text-sm font-bold font-mono ${isUp ? 'text-[#14b8a6]' : 'text-red-400'}`}>
+                  <div className={`flex items-center gap-1 text-sm font-bold font-number ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
                     {isUp ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                     {isUp ? '+' : ''}{idx.changePct}%
                   </div>
                 </div>
                 <div className="flex items-end justify-between">
-                  <div className="text-2xl font-extrabold text-white font-mono">
+                  <div className="text-2xl font-extrabold text-tv-text font-number">
                     {idx.price?.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
                   </div>
-                  <Sparkline data={idx.sparkline} color={isUp ? '#14b8a6' : '#ef4444'} />
+                  <Sparkline data={idx.sparkline} color={isUp ? '#10B981' : '#EF4444'} />
                 </div>
               </div>
             );
           }) : (
-            // Skeleton
             [1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-4 shadow-1 animate-pulse">
-                <div className="h-4 bg-[#1e293b] rounded w-20 mb-2" />
-                <div className="h-6 bg-[#1e293b] rounded w-16 mb-3" />
-                <div className="h-8 bg-[#1e293b] rounded w-full" />
+              <div key={i} className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1 animate-pulse">
+                <div className="h-4 bg-tv-hover rounded w-20 mb-2" />
+                <div className="h-6 bg-tv-hover rounded w-16 mb-3" />
+                <div className="h-8 bg-tv-hover rounded w-full" />
               </div>
             ))
           )}
         </div>
 
         {/* === SECTION 1.5: BREAKOUT WIDGET === */}
-        <div className="bg-[#131c2e] border border-teal-500/30 rounded-xl p-5 shadow-1 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-bl-full -z-10" />
-          <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
+        <div className="bg-tv-card border border-tv-blue/30 rounded-lg p-5 shadow-1 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-glow-blue -z-10" />
+          <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Zap className="w-5 h-5 text-teal-400" />
+              <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
+                <Zap className="w-5 h-5 text-tv-blue" />
                 Top 3 Breakout Hari Ini
-                <span className="text-[9px] bg-red-500 text-white px-2 py-0.5 rounded font-mono animate-pulse">LIVE</span>
+                <Badge variant="danger" dot>Live</Badge>
               </h3>
             </div>
-            <a href="/breakout-radar" className="text-xs font-mono text-teal-400 hover:text-teal-300 flex items-center gap-1">
+            <a href="/breakout-radar" className="text-xs text-tv-blue hover:text-tv-text flex items-center gap-1 transition-colors">
               Lihat Semua Radar &rarr;
             </a>
           </div>
@@ -275,28 +271,28 @@ export default function MarketPulse() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {loading ? (
               [1, 2, 3].map(i => (
-                <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 animate-pulse h-24" />
+                <div key={i} className="bg-tv-hover/50 border border-tv-border rounded-lg p-4 animate-pulse h-24" />
               ))
             ) : breakoutData.length > 0 ? (
               breakoutData.slice(0, 3).map((item, idx) => (
-                <a key={item.symbol} href={`/?symbol=${item.symbol}`} className="bg-slate-800/50 border border-slate-700 hover:border-teal-500/50 transition-colors rounded-lg p-4 group">
+                <a key={item.symbol} href={`/?symbol=${item.symbol}`} className="bg-tv-hover/50 border border-tv-border hover:border-tv-blue/50 transition-colors rounded-lg p-4 group">
                   <div className="flex justify-between items-start mb-2">
-                    <div className="font-bold text-white font-mono flex items-center gap-2">
-                      <span className="text-xs text-slate-500">#{idx + 1}</span> {item.symbol}
+                    <div className="font-bold text-tv-text font-number flex items-center gap-2">
+                      <span className="text-xs text-tv-muted">#{idx + 1}</span> {item.symbol}
                     </div>
-                    <div className="text-xs font-bold text-teal-400">{item.change}</div>
+                    <div className="text-xs font-bold text-tv-blue font-number">{item.change}</div>
                   </div>
-                  <div className="text-[10px] font-mono text-slate-400 line-clamp-1 mb-2">
+                  <div className="text-[10px] text-tv-muted line-clamp-1 mb-2">
                     {item.reason}
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700">
-                    <span className="text-xs font-mono text-white">Score: {item.score}/8</span>
-                    <span className="text-[9px] font-mono text-slate-300 bg-slate-700 px-2 rounded">RR {item.rr}</span>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-tv-border">
+                    <span className="text-xs text-tv-text font-number">Score: {item.score}/8</span>
+                    <span className="text-[9px] text-tv-muted bg-tv-hover px-2 rounded font-number">RR {item.rr}</span>
                   </div>
                 </a>
               ))
             ) : (
-              <div className="col-span-3 text-center py-6 text-sm text-slate-500 font-mono">
+              <div className="col-span-3 text-center py-6 text-sm text-tv-muted">
                 Belum ada saham yang masuk radar breakout.
               </div>
             )}
@@ -304,13 +300,13 @@ export default function MarketPulse() {
         </div>
 
         {/* === SECTION 2: SECTOR HEATMAP === */}
-        <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
-          <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-[#14b8a6]" />
+        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+          <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
+            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
+              <Layers className="w-5 h-5 text-tv-green" />
               Sector Heatmap IDX
             </h3>
-            <span className="text-[10px] font-mono text-gray-500">
+            <span className="text-[10px] text-tv-muted">
               11 Sektor • Ukuran ~ Market Cap • Warna ~ % Perubahan Hari Ini
             </span>
           </div>
@@ -324,7 +320,7 @@ export default function MarketPulse() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {[...Array(11)].map((_, i) => (
-                <div key={i} className="bg-[#1e293b] rounded-lg h-24 animate-pulse" />
+                <div key={i} className="bg-tv-hover rounded-lg h-24 animate-pulse" />
               ))}
             </div>
           )}
@@ -335,13 +331,13 @@ export default function MarketPulse() {
           {/* Breadth Overview + Top Volume/Value - dikelompokkan di kolom kiri supaya
               tingginya seimbang dengan kartu Top Movers di sebelah kanan */}
           <div className="lg:col-span-2 space-y-4">
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
-            <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-[#14b8a6]" />
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
+              <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-tv-green" />
                 Market Breadth
               </h3>
-              <span className="text-[10px] font-mono text-gray-500">
+              <span className="text-[10px] text-tv-muted">
                 {data?.breadth?.total || 0} Saham Terpantau
               </span>
             </div>
@@ -352,38 +348,38 @@ export default function MarketPulse() {
 
                 {/* Metrics Row */}
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-[#0f172a] border border-[#14b8a6]/20 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-extrabold text-[#14b8a6] font-mono">{data.breadth.advancing}</div>
-                    <div className="text-[10px] font-mono text-gray-500 uppercase mt-1">Naik (Advance)</div>
+                  <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-4 text-center">
+                    <div className="text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
+                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
                   </div>
-                  <div className="bg-[#0f172a] border border-[#334155] rounded-lg p-4 text-center">
-                    <div className="text-3xl font-extrabold text-gray-400 font-mono">{data.breadth.unchanged}</div>
-                    <div className="text-[10px] font-mono text-gray-500 uppercase mt-1">Stagnan</div>
+                  <div className="bg-tv-bg border border-tv-border rounded-lg p-4 text-center">
+                    <div className="text-3xl font-extrabold text-tv-muted font-number">{data.breadth.unchanged}</div>
+                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
                   </div>
-                  <div className="bg-[#0f172a] border border-red-500/20 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-extrabold text-red-400 font-mono">{data.breadth.declining}</div>
-                    <div className="text-[10px] font-mono text-gray-500 uppercase mt-1">Turun (Decline)</div>
+                  <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-4 text-center">
+                    <div className="text-3xl font-extrabold text-tv-red font-number">{data.breadth.declining}</div>
+                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
                   </div>
                 </div>
 
                 {/* A/D Ratio */}
-                <div className="flex items-center gap-4 bg-[#0f172a] border border-[#1e293b] rounded-lg p-4">
+                <div className="flex items-center gap-4 bg-tv-bg border border-tv-border rounded-lg p-4">
                   <div className="flex-1">
-                    <div className="text-[10px] font-mono text-gray-500 uppercase">Advance / Decline Ratio</div>
-                    <div className={`text-2xl font-extrabold font-mono ${
-                      data.breadth.advanceDeclineRatio >= 1 ? 'text-[#14b8a6]' : 'text-red-400'
+                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Advance / Decline Ratio</div>
+                    <div className={`text-2xl font-extrabold font-number ${
+                      data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
                     }`}>
                       {data.breadth.advanceDeclineRatio}
                     </div>
                   </div>
-                  <div className={`px-4 py-2 rounded-lg border text-sm font-bold font-mono ${
+                  <div className={`px-4 py-2 rounded-lg border text-sm font-bold ${
                     data.breadth.advanceDeclineRatio > 1.5
-                      ? 'bg-[#14b8a6]/20 text-[#14b8a6] border-[#14b8a6]/30'
+                      ? 'bg-tv-green/20 text-tv-green border-tv-green/30'
                       : data.breadth.advanceDeclineRatio >= 1
-                      ? 'bg-blue-400/20 text-blue-400 border-blue-400/30'
+                      ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/30'
                       : data.breadth.advanceDeclineRatio >= 0.7
-                      ? 'bg-yellow-400/20 text-yellow-400 border-yellow-400/30'
-                      : 'bg-red-500/20 text-red-400 border-red-500/30'
+                      ? 'bg-tv-warning/20 text-tv-warning border-tv-warning/30'
+                      : 'bg-tv-red/20 text-tv-red border-tv-red/30'
                   }`}>
                     {data.breadth.advanceDeclineRatio > 1.5 ? 'SANGAT BULLISH'
                       : data.breadth.advanceDeclineRatio >= 1 ? 'BULLISH'
@@ -393,18 +389,18 @@ export default function MarketPulse() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-                <RefreshCw className="w-6 h-6 animate-spin text-[#14b8a6] mb-3" />
-                <span className="text-sm font-mono">Memuat data breadth...</span>
+              <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
+                <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
+                <span className="text-sm">Memuat data breadth...</span>
               </div>
             )}
           </div>
 
           {/* Top Volume & Top Value - dipindah ke sini (bawah Market Breadth) dari kartu
               Top Movers supaya tinggi kolom kiri/kanan lebih seimbang */}
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
-            <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-[#1e293b] pb-3 mb-4">
-              <BarChart3 className="w-5 h-5 text-blue-400" />
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3 mb-4">
+              <BarChart3 className="w-5 h-5 text-tv-blue" />
               Top Volume & Value Transaksi
             </h3>
 
@@ -412,7 +408,7 @@ export default function MarketPulse() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Top Volume */}
                 <div>
-                  <div className="text-[10px] font-mono text-blue-400 uppercase mb-2 flex items-center gap-1">
+                  <div className="text-[10px] text-tv-blue uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
                     <BarChart3 className="w-3 h-3" /> Top Volume
                   </div>
                   <div className="space-y-1.5">
@@ -420,13 +416,13 @@ export default function MarketPulse() {
                       <div
                         key={s.symbol}
                         onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-blue-500/10 cursor-pointer hover:bg-[#131c2e]"
+                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-blue/10 cursor-pointer hover:bg-tv-hover transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono text-gray-600 w-4">{i + 1}</span>
-                          <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
+                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
+                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
                         </div>
-                        <span className="text-sm font-bold text-blue-400 font-mono">{Math.round((s.volume || 0) / 100).toLocaleString('id-ID')} lot</span>
+                        <span className="text-sm font-bold text-tv-blue font-number">{Math.round((s.volume || 0) / 100).toLocaleString('id-ID')} lot</span>
                       </div>
                     ))}
                   </div>
@@ -434,7 +430,7 @@ export default function MarketPulse() {
 
                 {/* Top Value */}
                 <div>
-                  <div className="text-[10px] font-mono text-amber-400 uppercase mb-2 flex items-center gap-1">
+                  <div className="text-[10px] text-tv-warning uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
                     <Zap className="w-3 h-3" /> Top Value Transaksi
                   </div>
                   <div className="space-y-1.5">
@@ -442,31 +438,31 @@ export default function MarketPulse() {
                       <div
                         key={s.symbol}
                         onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-amber-500/10 cursor-pointer hover:bg-[#131c2e]"
+                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-warning/10 cursor-pointer hover:bg-tv-hover transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono text-gray-600 w-4">{i + 1}</span>
-                          <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
+                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
+                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
                         </div>
-                        <span className="text-sm font-bold text-amber-400 font-mono">Rp {((s.value || 0) / 1e12).toFixed(2)} T</span>
+                        <span className="text-sm font-bold text-tv-warning font-number">Rp {((s.value || 0) / 1e12).toFixed(2)} T</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-                <RefreshCw className="w-6 h-6 animate-spin text-[#14b8a6] mb-3" />
-                <span className="text-sm font-mono">Memuat...</span>
+              <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
+                <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
+                <span className="text-sm">Memuat...</span>
               </div>
             )}
           </div>
           </div>
 
           {/* Top Movers */}
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
-            <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-[#1e293b] pb-3 mb-4">
-              <Zap className="w-5 h-5 text-yellow-400" />
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3 mb-4">
+              <Zap className="w-5 h-5 text-tv-yellow" />
               Top Movers
             </h3>
 
@@ -474,21 +470,21 @@ export default function MarketPulse() {
               <div className="space-y-4">
                 {/* Top Gainers */}
                 <div>
-                  <div className="text-[10px] font-mono text-[#14b8a6] uppercase mb-2 flex items-center gap-1">
+                  <div className="text-[10px] text-tv-green uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" /> Top Gainers
                   </div>
                   <div className="space-y-1.5">
                     {data.breadth.topGainers?.map((s: any, i: number) => (
-                      <div 
-                        key={s.symbol} 
+                      <div
+                        key={s.symbol}
                         onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-[#14b8a6]/10 cursor-pointer hover:bg-[#131c2e]"
+                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-green/10 cursor-pointer hover:bg-tv-hover transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono text-gray-600 w-4">{i + 1}</span>
-                          <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
+                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
+                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
                         </div>
-                        <span className="text-sm font-bold text-[#14b8a6] font-mono">+{s.changePct}%</span>
+                        <span className="text-sm font-bold text-tv-green font-number">+{s.changePct}%</span>
                       </div>
                     ))}
                   </div>
@@ -496,7 +492,7 @@ export default function MarketPulse() {
 
                 {/* Top Losers */}
                 <div>
-                  <div className="text-[10px] font-mono text-red-400 uppercase mb-2 flex items-center gap-1">
+                  <div className="text-[10px] text-tv-red uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
                     <TrendingDown className="w-3 h-3" /> Top Losers
                   </div>
                   <div className="space-y-1.5">
@@ -504,22 +500,22 @@ export default function MarketPulse() {
                       <div
                         key={s.symbol}
                         onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-[#0f172a] rounded-lg px-3 py-2 border border-red-500/10 cursor-pointer hover:bg-[#131c2e]"
+                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-red/10 cursor-pointer hover:bg-tv-hover transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono text-gray-600 w-4">{i + 1}</span>
-                          <span className="text-sm font-bold text-white font-mono">{s.symbol}</span>
+                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
+                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
                         </div>
-                        <span className="text-sm font-bold text-red-400 font-mono">{s.changePct}%</span>
+                        <span className="text-sm font-bold text-tv-red font-number">{s.changePct}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-                <RefreshCw className="w-6 h-6 animate-spin text-[#14b8a6] mb-3" />
-                <span className="text-sm font-mono">Memuat...</span>
+              <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
+                <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
+                <span className="text-sm">Memuat...</span>
               </div>
             )}
           </div>

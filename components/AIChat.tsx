@@ -127,27 +127,27 @@ export default function AIChat() {
       
       {/* Chat Window */}
       {isOpen && (
-        <div className={`bg-[#0f172a] border border-[#1e293b] rounded-2xl shadow-2xl overflow-hidden flex flex-col mb-4 transition-all duration-300 origin-bottom-right ${isExpanded ? 'w-[600px] h-[700px]' : 'w-[400px] h-[500px]'}`}>
-          
+        <div className={`bg-tv-bg border border-tv-border rounded-xl shadow-2 overflow-hidden flex flex-col mb-4 transition-all duration-300 origin-bottom-right ${isExpanded ? 'w-[600px] h-[700px]' : 'w-[400px] h-[500px]'}`}>
+
           {/* Header */}
-          <div className="bg-[#1e293b] p-4 flex items-center justify-between border-b border-gray-800">
+          <div className="bg-tv-card p-4 flex items-center justify-between border-b border-tv-border">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center border border-teal-500/30">
-                <Sparkles className="w-4 h-4 text-teal-400" />
+              <div className="w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Tanya AI</h3>
-                <p className="text-xs text-teal-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
+                <h3 className="font-heading font-bold text-tv-text text-sm">Tanya AI</h3>
+                <p className="text-xs text-tv-green flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse"></span>
                   AI sedang aktif
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsExpanded(!isExpanded)} className="text-gray-400 hover:text-white p-1 rounded-md hover:bg-gray-800">
+              <button onClick={() => setIsExpanded(!isExpanded)} className="text-tv-muted hover:text-tv-text p-1 rounded-md hover:bg-tv-hover">
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white p-1 rounded-md hover:bg-gray-800">
+              <button onClick={() => setIsOpen(false)} className="text-tv-muted hover:text-tv-text p-1 rounded-md hover:bg-tv-hover">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -157,16 +157,16 @@ export default function AIChat() {
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-tv-bg">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-teal-500/10 flex items-center justify-center mb-2">
-                  <Bot className="w-8 h-8 text-teal-500" />
+                <div className="w-16 h-16 rounded-full bg-gradient-accent-soft flex items-center justify-center mb-2">
+                  <Bot className="w-8 h-8 text-tv-blue" />
                 </div>
-                <h4 className="text-lg font-bold text-white">SahamLens AI Analyst</h4>
+                <h4 className="font-heading text-lg font-bold text-tv-text">SahamLens AI Analyst</h4>
                 <p className="text-sm text-tv-muted max-w-xs">
                   Tanyakan apapun tentang teknikal, fundamental, atau aliran dana asing saham yang sedang Anda buka.
                 </p>
-                <button 
+                <button
                   onClick={setDemoPrompt}
-                  className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-xs rounded-full text-gray-300 border border-gray-700 transition-colors text-left"
+                  className="mt-4 px-4 py-2 bg-tv-hover hover:bg-tv-borderLight text-xs rounded-full text-tv-muted border border-tv-border transition-colors text-left"
                 >
                   {(() => {
                     const segments = pathname.split('/');
@@ -179,9 +179,9 @@ export default function AIChat() {
               messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] rounded-2xl p-4 text-sm ${
-                    msg.role === 'user' 
-                      ? 'bg-blue-600 text-white rounded-tr-none' 
-                      : 'bg-[#134e4a] border border-[#0f766e] text-[#ccfbf1] rounded-tl-none'
+                    msg.role === 'user'
+                      ? 'bg-tv-blue text-white rounded-tr-none'
+                      : 'bg-teal-950/60 border border-teal-800/60 text-teal-100 rounded-tl-none'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
@@ -197,7 +197,7 @@ export default function AIChat() {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-[#134e4a] border border-[#0f766e] rounded-2xl rounded-tl-none p-4 text-teal-200 text-sm flex items-center gap-3">
+                <div className="bg-teal-950/60 border border-teal-800/60 rounded-2xl rounded-tl-none p-4 text-teal-200 text-sm flex items-center gap-3">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   AI sedang menganalisis...
                 </div>
@@ -207,20 +207,20 @@ export default function AIChat() {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 bg-[#1e293b] border-t border-gray-800">
+          <div className="p-3 bg-tv-card border-t border-tv-border">
             <div className="relative flex items-center">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Tanya AI tentang saham ini..."
-                className="w-full bg-[#0f172a] text-white border border-gray-700 rounded-full py-3 pl-4 pr-12 focus:outline-none focus:border-teal-500 text-sm"
+                className="w-full bg-tv-bg/60 text-tv-text border border-tv-border rounded-full py-3 pl-4 pr-12 focus:outline-none focus:border-tv-blue transition-colors text-sm"
               />
-              <button 
+              <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 p-2 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 text-white rounded-full transition-colors"
+                className="absolute right-2 p-2 bg-gradient-accent hover:brightness-110 disabled:opacity-40 text-white rounded-full transition-all"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -232,9 +232,9 @@ export default function AIChat() {
 
       {/* Floating Button */}
       {!isOpen && (
-        <button 
+        <button
           onClick={() => setIsOpen(true)}
-          className="group flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white p-4 rounded-full shadow-[0_0_20px_rgba(13,148,136,0.4)] transition-all hover:scale-105"
+          className="group flex items-center gap-2 bg-gradient-accent text-white p-4 rounded-full shadow-2 transition-all hover:scale-105 hover:brightness-110"
         >
           <Sparkles className="w-6 h-6" />
         </button>

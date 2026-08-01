@@ -36,7 +36,7 @@ module.exports = {
         heading: ['var(--font-sora)', 'Inter', 'sans-serif'],
         display: ['var(--font-sora)', 'Inter', 'sans-serif'],
         number: ['var(--font-space-grotesk)', 'Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Consolas', 'Monaco', 'monospace'],
+        mono: ['var(--font-jetbrains-mono)', 'Consolas', 'Monaco', 'monospace'],
       },
       borderRadius: {
         sm: '6px',
@@ -54,6 +54,12 @@ module.exports = {
         'glow-blue': 'radial-gradient(circle, rgba(58,134,255,0.15) 0%, rgba(10,25,49,0) 70%)',
         'glow-gold': 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(10,25,49,0) 70%)',
         'glow-purple': 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, rgba(10,25,49,0) 70%)',
+        // Redesign UI/UX Fase 1 - aksen signature baru: gradient biru->ungu, dua warna
+        // yang sudah ada di tv.* (blue #3A86FF, purple #8B5CF6) tapi belum pernah
+        // dikombinasikan. Dipakai untuk CTA utama/indikator aktif/badge "AI", bukan
+        // warna baru yang menambah kerumitan palet.
+        'gradient-accent': 'linear-gradient(135deg, #3A86FF 0%, #8B5CF6 100%)',
+        'gradient-accent-soft': 'linear-gradient(135deg, rgba(58,134,255,0.12) 0%, rgba(139,92,246,0.12) 100%)',
       },
       transitionTimingFunction: {
         settle: 'cubic-bezier(0.16,1,0.3,1)',
@@ -61,6 +67,15 @@ module.exports = {
       },
       transitionDuration: {
         250: '250ms',
+      },
+      keyframes: {
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 1.6s ease-in-out infinite',
       },
     },
   },

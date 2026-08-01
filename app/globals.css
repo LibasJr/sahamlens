@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -20,16 +18,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #131722;
+  background: #0F141D; /* tv-bg */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2e39;
+  background: #2C3A5A; /* tv-border */
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #363a45;
+  background: #3A4B75; /* tv-borderLight */
 }
 
 .tv-glass {
@@ -52,6 +50,15 @@ h1, h2, h3 {
   font-family: 'Space Grotesk', 'Inter', sans-serif;
   font-variant-numeric: tabular-nums;
 }
+
+/* Redesign UI/UX Fase 1 - skala tipografi resmi (dipakai konsisten dari sini,
+   bukan aturan baru per halaman):
+   - Judul halaman (h1): font-heading, 700, text-xl md:text-2xl, tracking-tight
+   - Judul section/CardTitle: font-heading, 600, text-sm md:text-base
+   - Body/teks UI: font-sans (Jakarta), 400/500, text-sm
+   - Angka/harga/metric: font-number, 600, tabular-nums
+   - Eyebrow/label mikro: font-sans, 600, text-[10px]/[11px] uppercase tracking-wide text-tv-muted
+   - font-mono: HANYA untuk data tabular/kode, jangan untuk teks/label biasa. */
 
 .glow-ring {
   box-shadow: 0 0 0 1px rgba(58, 134, 255, 0.4), 0 0 24px 0 rgba(58, 134, 255, 0.15);

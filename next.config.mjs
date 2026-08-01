@@ -14,6 +14,14 @@ const nextConfig = {
   // node_modules yang benar-benar terpakai saja). TIDAK memengaruhi deploy Vercel -
   // Vercel punya pipeline build sendiri dan mengabaikan opsi ini.
   output: 'standalone',
+  // Redesign UI/UX Fase 1 - app/citadel/page.tsx sebelumnya cuma re-export 2 baris
+  // dari app/page.tsx (duplikat, bukan halaman terpisah). Redirect permanen (bukan
+  // dihapus) supaya link lama/bookmark ke /citadel tidak 404.
+  async redirects() {
+    return [
+      { source: '/citadel', destination: '/', permanent: true },
+    ];
+  },
 };
 
 // silent:true - jangan berisik di log build kalau SENTRY_AUTH_TOKEN (untuk upload

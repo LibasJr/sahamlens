@@ -71,7 +71,7 @@ export default function SymbolAutocomplete({
       />
       
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 mt-1 w-full bg-[#1e293b] border border-[#334155] rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-1 w-full bg-tv-card border border-tv-borderLight rounded-lg shadow-2 z-50 overflow-hidden">
           {suggestions.map((item) => (
             <div 
               key={item.symbol}
