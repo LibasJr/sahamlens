@@ -19,18 +19,22 @@ export interface SessionPayload {
   [key: string]: any;
 }
 
-export async function encrypt(payload: SessionPayload, expires = '24h'): Promise<string> {
-  return await new SignJWT(payload)
+// Generic (bukan cuma SessionPayload) - dipakai juga oleh shared/auth/anonymous-trial.ts
+// untuk menandatangani payload trial pengunjung anonim, bukan cuma sesi login. Default
+// generic tetap SessionPayload supaya pemanggil lama (shared/auth/session.ts,
+// middleware.ts) tidak perlu diubah sama sekali.
+export async function encrypt<T extends object>(payload: T, expires = '24h'): Promise<string> {
+  return await new SignJWT(payload as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expires)
     .sign(key);
 }
 
-export async function decrypt(input: string): Promise<SessionPayload | null> {
+export async function decrypt<T = SessionPayload>(input: string): Promise<T | null> {
   try {
     const { payload } = await jwtVerify(input, key, { algorithms: ['HS256'] });
-    return payload as unknown as SessionPayload;
+    return payload as unknown as T;
   } catch {
     return null;
   }
