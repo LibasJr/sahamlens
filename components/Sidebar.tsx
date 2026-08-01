@@ -22,7 +22,7 @@ import {
   Users,
   ShieldAlert,
 } from 'lucide-react';
-import { pickTrendingTicker } from '@/lib/trendingTickers';
+import { pickTrendingTicker, getTickerName } from '@/lib/trendingTickers';
 
 // Redesign Sidebar - Design System "Nucleus" (2026-07-31).
 // Semua 11 tujuan navigasi yang ada sebelumnya DIPERTAHANKAN UTUH - yang
@@ -92,9 +92,19 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
-  // Link menu Council AI mengarah ke emiten trending acak (bukan selalu BBCA), konsisten
-  // dengan perilaku "emiten unggulan acak" di Dashboard.tsx.
-  const [councilTicker] = useState(() => pickTrendingTicker());
+  // Link menu Council AI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
+  // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "Council AI"
+  // membuka emiten yang sama, bukan emiten trending acak. Fallback ke trending acak kalau
+  // belum ada riwayat pencarian sama sekali.
+  const [councilTicker, setCouncilTicker] = useState(() => pickTrendingTicker());
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('last_searched_ticker');
+    if (saved) {
+      const symbol = saved.replace('.JK', '').toUpperCase();
+      setCouncilTicker({ symbol, name: getTickerName(symbol) });
+    }
+  }, [pathname]);
 
   useEffect(() => {
     fetch('/api/auth/me')
