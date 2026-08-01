@@ -6,12 +6,15 @@ import { getSession, checkProAccess } from '@/modules/user';
 import { runMultiAgentOrchestrator } from '@/modules/ai';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 
 // BUILD 004 (AI Architecture) - endpoint ini SEBELUMNYA TIDAK PERNAH ADA.
 // app/multi-agent/page.tsx sudah lama memanggil POST /api/agents/orchestrator
 // dan selalu dapat 404 diam-diam (agentRes.ok === false, halaman stuck di
 // "WAITING..."/skor 0) - baru terlihat setelah audit BUILD 001. Gerbang login+Pro
 // disamakan dengan fitur AI/analisa premium lain (app/api/council, app/api/stock).
+// Pengunjung tanpa akun bisa akses selama trial 7 hari (lihat
+// shared/auth/anonymous-trial.ts) - trial aktif melewati gerbang Pro juga.
 //
 // BUILD 007 (Cache Layer) - getOrCompute (single-flight), bukan cacheGet/cacheSet
 // manual: orkestrator ini menjalankan Yahoo Finance x2 + DCF + (opsional) Gemini
@@ -22,10 +25,17 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+
+    let anonTrial: AnonTrialState | null = null;
     if (!session) {
-      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+      anonTrial = await readOrIssueAnonymousTrial();
+      if (!anonTrial.active) {
+        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+      }
     }
-    if (!checkProAccess(session)) {
+
+    const hasPro = !!anonTrial || checkProAccess(session);
+    if (!hasPro) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
@@ -37,7 +47,9 @@ export async function POST(request: Request) {
 
     const cacheKey = `sahamlens:cache:computed:orchestrator:${ticker.toUpperCase()}`;
     const result = await getOrCompute(cacheKey, CACHE_TTL_SEC.TECHNICAL, () => runMultiAgentOrchestrator(ticker));
-    return NextResponse.json(result);
+    const response = NextResponse.json(result);
+    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+    return response;
   } catch (error: any) {
     console.error('Orchestrator error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
