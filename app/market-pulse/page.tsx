@@ -182,24 +182,24 @@ export default function MarketPulse() {
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       {/* Top Header */}
-      <header className="bg-tv-surface border-b border-tv-border px-6 py-3 sticky top-0 z-20 shadow-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="bg-tv-surface border-b border-tv-border px-4 sm:px-6 py-3 sticky top-0 z-20 shadow-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+              className="md:hidden p-2 -ml-2 shrink-0 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="p-2 rounded-md bg-tv-blue text-white">
+            <div className="p-2 rounded-md bg-tv-blue text-white shrink-0">
               <Activity className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Ringkasan Pasar</h2>
-              <p className="text-xs text-tv-muted">IDX Algorithmic Suite — Real-time Market Overview</p>
+            <div className="min-w-0">
+              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight truncate">Ringkasan Pasar</h2>
+              <p className="text-xs text-tv-muted truncate">IDX Algorithmic Suite — Real-time Market Overview</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-2 sm:gap-3 text-xs flex-wrap">
             {isClient && (
               pro ? (
                 <Badge variant="success" dot>Realtime</Badge>
@@ -207,13 +207,13 @@ export default function MarketPulse() {
                 <Badge variant="warning">Delay 15m - Realtime di Pro</Badge>
               )
             )}
-            <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
+            <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted whitespace-nowrap">
               Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
             </div>
             <button
               onClick={fetchData}
               disabled={loading}
-              className="bg-tv-hover border border-tv-border hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-tv-text flex items-center gap-2 transition-colors disabled:opacity-50"
+              className="bg-tv-hover border border-tv-border hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-tv-text flex items-center gap-2 transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
               Refresh
