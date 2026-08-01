@@ -71,10 +71,30 @@ POST /api/backtest {filters, modal, period}
 - Unit test `precompute.service.ts` dengan `fetchYahooHistory` di-mock — cover: satu saham gagal fetch tidak menggagalkan saham lain, saham dengan data historis lebih pendek dari window (IPO baru) tidak crash.
 - Tidak perlu integration test yang benar-benar hit Yahoo Finance di CI (lambat, flaky, tergantung koneksi eksternal) — cukup unit test dengan data yang sudah di-mock/di-construct.
 
+## Pemetaan filter UI -> analyzer asli
+
+Saat verifikasi exact signature untuk plan implementasi, ditemukan 2 dari 9 nama filter di UI **tidak punya analyzer asli yang cocok** (`'Bollinger Bands'` dan `'Trend Price vs MA200'` tidak dihitung oleh fungsi manapun di `modules/technical`). Diputuskan me-rename 2 filter itu supaya jujur sesuai analyzer yang benar-benar ada, bukan memetakannya diam-diam ke indikator yang berbeda konsepnya. Pemetaan final (9 filter, 1:1 ke 9 dari 10 analyzer di `modules/technical` — `analyzeMomentum`/`'Momentum 1D/5D'` sengaja tidak dipakai filter manapun):
+
+| Nama filter UI (final) | Fungsi analyzer | Catatan |
+|---|---|---|
+| `EMA 20/50 Cross` | `analyzeEma` | tidak berubah |
+| `Volume vs Avg 20D` | `analyzeVolume` | tidak berubah |
+| `RSI 14` | `analyzeRsi` | tidak berubah |
+| `MACD` | `analyzeMacd` | tidak berubah |
+| `Volatility (ATR 14)` | `analyzeVolatility` | **rename dari `'Bollinger Bands'`** — tidak ada analyzer Bollinger Bands asli, ATR adalah analyzer volatilitas terdekat yang ada |
+| `MA Trend IDX (20,50,200)` | `analyzeTrend` | tidak berubah |
+| `Support & Resistance` | `analyzeSupport` | tidak berubah |
+| `Market Flow Index` | `analyzeMarketFlow` | tidak berubah |
+| `SMA Score (5,10,20)` | `analyzeSma` | **rename dari `'Trend Price vs MA200'`** — konsep MA200 sudah tercakup di `MA Trend IDX (20,50,200)`, ini analyzer SMA jangka pendek yang sebelumnya nganggur |
+
+Semua analyzer punya signature seragam `analyze(history: OhlcRow[], currentPrice: number) -> {label, value, decision: 'BULLISH'|'BEARISH'|'NEUTRAL', confidence: number}` — dikonfirmasi dari `modules/technical/index.ts` dan isi tiap file analyzer. `analyzeMarketFlow` hanya butuh OHLCV (tidak butuh data eksternal lain), aman dipakai apa adanya di precompute harian.
+
 ## Perubahan frontend (`app/backtest/page.tsx`)
 
-- Hapus `'Foreign Flow'` dari array `availableFilters` (9 filter tersisa, bukan 10).
+- Hapus `'Foreign Flow'` dari array `availableFilters`, dan rename `'Bollinger Bands'` -> `'Volatility (ATR 14)'`, `'Trend Price vs MA200'` -> `'SMA Score (5,10,20)'` (lihat tabel pemetaan di atas). Hasil akhir 9 filter tersisa (dari 10 semula).
 - Preset "Bandar Accumulation" (`applyPreset('Accumulation')`), sebelumnya `['Foreign Flow', 'Market Flow Index', 'MACD']`, diganti jadi `['Market Flow Index', 'MACD', 'Volume vs Avg 20D']`.
+- Preset "Oversold Bounce" (`applyPreset('Oversold')`), sebelumnya `['RSI 14', 'Bollinger Bands', 'Support & Resistance']`, diganti jadi `['RSI 14', 'Volatility (ATR 14)', 'Support & Resistance']` (ikut rename filter di atas).
+- Preset "Bank BUMN Momentum" (`applyPreset('Momentum')`) = `['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14']` — tidak berubah, tidak memakai filter yang di-rename/dihapus.
 - Judul tabel "Simulated Trades (Sample)" diganti jadi "Riwayat Trade" — karena sekarang daftar trade asli hasil simulasi, bukan 5 sampel acak. Tabel menampilkan trade terbaru (dibatasi ~30) dengan catatan jumlah total kalau lebih banyak dari itu.
 - Tambah indikator kecil di panel hasil: "Data per [tanggal terakhir cron precompute jalan]" — supaya user tahu ini berbasis data harian (di-update sekali sehari), bukan real-time.
 - Tidak ada perubahan pada input Modal Awal / Periode / mekanisme submit (`POST /api/backtest` dengan body yang sama).
