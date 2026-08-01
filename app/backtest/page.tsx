@@ -105,7 +105,7 @@ export default function BacktestPage() {
                 <Target className="w-5 h-5 text-tv-purple" /> Presets
               </h3>
               <div className="flex flex-col gap-2">
-                <button onClick={() => applyPreset('Momentum')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Bank BUMN Momentum</button>
+                <button onClick={() => applyPreset('Momentum')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Momentum Breakout</button>
                 <button onClick={() => applyPreset('Accumulation')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Bandar Accumulation</button>
                 <button onClick={() => applyPreset('Oversold')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Oversold Bounce</button>
               </div>
