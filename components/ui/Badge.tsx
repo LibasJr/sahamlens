@@ -3,10 +3,18 @@ import { cn } from '../../lib/utils/cn';
 
 type BadgeVariant = 'neutral' | 'success' | 'danger' | 'warning' | 'gold' | 'info';
 
+type BadgeSize = 'sm' | 'md';
+
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
   dot?: boolean;
+  size?: BadgeSize;
 }
+
+const SIZES: Record<BadgeSize, string> = {
+  sm: 'text-[10px] px-2 py-0.5',
+  md: 'text-[11px] px-2.5 py-1',
+};
 
 const VARIANTS: Record<BadgeVariant, string> = {
   neutral: 'bg-tv-hover text-tv-muted',
@@ -26,11 +34,12 @@ const DOT_COLOR: Record<BadgeVariant, string> = {
   info: 'bg-tv-blue',
 };
 
-export function Badge({ variant = 'neutral', dot = false, className, children, ...props }: BadgeProps) {
+export function Badge({ variant = 'neutral', dot = false, size = 'sm', className, children, ...props }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+        'inline-flex items-center gap-1 rounded-full font-semibold uppercase tracking-wide',
+        SIZES[size],
         VARIANTS[variant],
         className
       )}

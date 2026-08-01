@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, DollarSign, BarChart3, Sparkles, Activity } from 'lucide-react';
+import { Input, Skeleton, EmptyState } from '@/components/ui';
 
 type Row = { symbol: string; price: number; changePct?: number; value?: number; volume?: number; score?: number; rsi?: number };
 
@@ -81,10 +82,10 @@ export default function MarketCategoryPage() {
 
   if (!config) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-tv-bg flex items-center justify-center p-6">
         <div className="text-center">
-          <p className="text-[#0A1931] dark:text-white font-bold text-lg">Kategori tidak ditemukan</p>
-          <Link href="/" className="mt-3 inline-block text-[#3A86FF] font-semibold text-sm hover:underline">&larr; Kembali ke Dashboard</Link>
+          <p className="text-tv-text font-bold text-lg font-heading">Kategori tidak ditemukan</p>
+          <Link href="/" className="mt-3 inline-block text-tv-blue font-semibold text-sm hover:underline">&larr; Kembali ke Dashboard</Link>
         </div>
       </div>
     );
@@ -93,60 +94,60 @@ export default function MarketCategoryPage() {
   const Icon = config.Icon;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121] text-slate-900 dark:text-slate-100">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap'); *{font-family:'Plus Jakarta Sans', Inter, sans-serif}`}</style>
-
-      <header className="sticky top-0 z-50 bg-[#0A1931] text-white border-b border-white/10">
+    <div className="min-h-screen bg-tv-bg text-tv-text">
+      <header className="sticky top-0 z-50 bg-tv-surface text-white border-b border-tv-border">
         <div className="mx-auto max-w-[1000px] px-4 sm:px-6 lg:px-8 h-[64px] flex items-center gap-4">
           <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-[#3A86FF] grid place-items-center font-bold text-[13px] tracking-tight">SL</div>
-            <span className="font-bold text-[15px] tracking-tight">SahamLens</span>
+            <div className="h-8 w-8 rounded-md bg-gradient-accent grid place-items-center font-bold text-[13px] tracking-tight">SL</div>
+            <span className="font-bold text-[15px] tracking-tight font-heading">SahamLens</span>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-[1000px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="flex items-start gap-3 mb-1">
-          <div className="h-11 w-11 rounded-xl bg-[#3A86FF]/10 border border-[#3A86FF]/20 text-[#3A86FF] grid place-items-center shrink-0">
+          <div className="h-11 w-11 rounded-lg bg-tv-blue/10 border border-tv-blue/20 text-tv-blue grid place-items-center shrink-0">
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[26px] font-bold tracking-tight text-[#0A1931] dark:text-white">{config.title}</h1>
-            <p className="text-[13px] text-slate-500 dark:text-slate-400">{config.sub}</p>
+            <h1 className="text-[22px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">{config.title}</h1>
+            <p className="text-[13px] text-tv-muted">{config.sub}</p>
           </div>
         </div>
-        <p className="text-[11px] text-slate-400 mb-6">
+        <p className="text-[11px] text-tv-muted mb-6">
           {loading ? 'Memuat data...' : `${displayRows.length} saham • Update ${lastUpdated || '--:--'} • Sumber: Yahoo Finance`}
         </p>
 
-        <div className="relative mb-4">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari kode saham..."
-            className="w-full bg-white dark:bg-[#152238] border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-[14px] text-[#0A1931] dark:text-white focus:outline-none focus:border-[#3A86FF] transition-colors"
-          />
-        </div>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Cari kode saham..."
+          leftIcon={<Search className="h-4 w-4" />}
+          className="mb-4"
+        />
 
-        <div className="rounded-[18px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#152238] overflow-hidden shadow-[0_6px_24px_-12px_rgba(10,25,49,0.08)]">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50 dark:bg-slate-800/30 text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        <div className="rounded-lg border border-tv-border bg-tv-card overflow-hidden shadow-1">
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/60 bg-tv-hover/40 text-[11px] font-bold uppercase tracking-widest text-tv-muted">
             <span>#</span>
-            <button onClick={() => toggleSort('symbol')} className="flex items-center gap-1 text-left hover:text-[#0A1931] dark:hover:text-white transition-colors">Kode <SortIcon active={sortKey === 'symbol'} dir={sortDir} /></button>
-            <button onClick={() => toggleSort('price')} className="flex items-center gap-1 text-left hover:text-[#0A1931] dark:hover:text-white transition-colors">Harga <SortIcon active={sortKey === 'price'} dir={sortDir} /></button>
-            <button onClick={() => toggleSort('metric')} className="flex items-center gap-1 text-right justify-end hover:text-[#0A1931] dark:hover:text-white transition-colors">{config.metricLabel} <SortIcon active={sortKey === 'metric'} dir={sortDir} /></button>
+            <button onClick={() => toggleSort('symbol')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Kode <SortIcon active={sortKey === 'symbol'} dir={sortDir} /></button>
+            <button onClick={() => toggleSort('price')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Harga <SortIcon active={sortKey === 'price'} dir={sortDir} /></button>
+            <button onClick={() => toggleSort('metric')} className="flex items-center gap-1 text-right justify-end hover:text-tv-text transition-colors">{config.metricLabel} <SortIcon active={sortKey === 'metric'} dir={sortDir} /></button>
           </div>
 
           {loading && (
-            <div className="px-4 py-10 text-center text-[13px] text-slate-400">Memuat data real-time...</div>
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} variant="text" className="w-full" />)}
+            </div>
           )}
           {!loading && displayRows.length === 0 && (
-            <div className="px-4 py-10 text-center text-[13px] text-slate-400">
-              {search ? 'Tidak ada saham yang cocok.' : 'Tidak ada data untuk kategori ini saat ini.'}
-            </div>
+            <EmptyState
+              icon={<Search className="w-5 h-5" />}
+              title={search ? 'Tidak ada saham yang cocok' : 'Belum ada data'}
+              description={search ? 'Coba kata kunci lain.' : 'Tidak ada data untuk kategori ini saat ini.'}
+            />
           )}
           {!loading && displayRows.map((row, idx) => {
             const metricVal = config.metricKey === 'value' || config.metricKey === 'volume' ? 0 : (row[config.metricKey] ?? 0) as number;
@@ -156,12 +157,12 @@ export default function MarketCategoryPage() {
               <Link
                 key={row.symbol}
                 href={`/technical/${row.symbol}.JK`}
-                className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-slate-50 dark:border-slate-800/30 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors items-center"
+                className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/40 last:border-b-0 hover:bg-tv-hover transition-colors items-center"
               >
-                <span className="text-[11px] font-mono text-slate-400">{idx + 1}</span>
-                <span className="text-[13px] font-bold text-[#0A1931] dark:text-white">{row.symbol}</span>
-                <span className="text-[13px] text-slate-600 dark:text-slate-300">Rp {Math.round(row.price).toLocaleString('id-ID')}</span>
-                <span className={`text-[13px] font-bold text-right ${isDown ? 'text-red-600' : isUp ? 'text-emerald-600' : 'text-[#0A1931] dark:text-white'}`}>
+                <span className="text-[11px] font-number text-tv-muted">{idx + 1}</span>
+                <span className="text-[13px] font-bold text-tv-text">{row.symbol}</span>
+                <span className="text-[13px] text-tv-muted font-number">Rp {Math.round(row.price).toLocaleString('id-ID')}</span>
+                <span className={`text-[13px] font-bold text-right font-number ${isDown ? 'text-tv-red' : isUp ? 'text-tv-green' : 'text-tv-text'}`}>
                   {formatMetric(row, config.metricKey)}
                 </span>
               </Link>

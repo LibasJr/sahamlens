@@ -39,32 +39,34 @@ export default function PaywallModal({
       transition={{ duration: 0.2 }}
     >
       <motion.div
-        className="relative w-full max-w-md bg-[#0a0a0f] border border-[#14b8a6]/40 rounded-2xl shadow-[0_0_50px_rgba(20,184,166,0.15)] p-6"
+        className="relative w-full max-w-md bg-tv-bg border border-tv-blue/40 rounded-xl shadow-2 p-6 overflow-hidden"
         initial={{ opacity: 0, scale: 0.95, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       >
+        <div className="absolute top-0 right-0 w-40 h-40 bg-glow-purple -z-10" />
+
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+          className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
           aria-label="Tutup"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-12 h-12 rounded-xl bg-[#14b8a6]/10 border border-[#14b8a6]/30 flex items-center justify-center text-2xl mb-4">
+        <div className="w-12 h-12 rounded-lg bg-gradient-accent flex items-center justify-center text-2xl mb-4">
           🔒
         </div>
 
-        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-sm text-gray-400 font-mono leading-relaxed mb-5">{body}</p>
+        <h3 className="font-heading text-xl font-bold text-tv-text mb-2">{title}</h3>
+        <p className="text-sm text-tv-muted leading-relaxed mb-5">{body}</p>
 
         {benefits.length > 0 && (
           <ul className="space-y-2 mb-6">
             {benefits.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-sm text-white font-mono">
-                <span className="text-[#14b8a6] flex-shrink-0">✓</span> {b}
+              <li key={b} className="flex items-start gap-2 text-sm text-tv-text">
+                <span className="text-tv-blue flex-shrink-0">✓</span> {b}
               </li>
             ))}
           </ul>
@@ -75,13 +77,13 @@ export default function PaywallModal({
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 text-center bg-[#14b8a6] hover:bg-[#0d9488] text-white font-bold py-3 rounded-lg transition-colors"
+            className="flex-1 text-center bg-gradient-accent hover:brightness-110 text-white font-bold py-3 rounded-md transition-all"
           >
             {ctaLabel}
           </a>
           <button
             onClick={onClose}
-            className="flex-1 border border-gray-700 text-gray-300 hover:bg-gray-800 font-bold py-3 rounded-lg transition-colors"
+            className="flex-1 border border-tv-border text-tv-muted hover:bg-tv-hover hover:text-tv-text font-bold py-3 rounded-md transition-colors"
           >
             {secondaryLabel}
           </button>
