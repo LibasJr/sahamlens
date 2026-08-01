@@ -21,7 +21,6 @@ export {
 
 export {
   handleAdminLoginByKey,
-  handleTelegramLogin,
   handleAdminStatus,
   handleAdminStats,
   handleAdminExport,

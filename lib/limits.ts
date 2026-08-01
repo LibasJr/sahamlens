@@ -1,82 +1,8 @@
-import { supabaseAdmin } from './supabase';
-export async function checkAnalisaLimit(telegram_id?: number, isAdmin: boolean = false) {
-  if (isAdmin || Number(telegram_id) === 660211525) {
-    return { allowed: true, remaining: 999 };
-  }
-
-  if (!telegram_id) return { allowed: false, error: 'telegram_id is required' };
-
-  try {
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('telegram_id', telegram_id)
-      .single();
-
-    if (error || !user) {
-      console.error("User not found or error:", error);
-      return { allowed: false, error: 'User not found' };
-    }
-
-    if (user.role === 'admin' || user.role === 'pro') {
-      return { allowed: true, remaining: 999 };
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    let currentSisa = user.sisa_analisa;
-    
-    // Check if we need to reset
-    if (user.last_reset < today) {
-      currentSisa = 5;
-      await supabaseAdmin
-        .from('users')
-        .update({ sisa_analisa: currentSisa, last_reset: today })
-        .eq('telegram_id', telegram_id);
-    }
-
-    if (currentSisa <= 0) {
-      return { allowed: false, remaining: 0 };
-    }
-
-    return { allowed: true, remaining: currentSisa };
-  } catch (error) {
-    console.error("Error in checkAnalisaLimit:", error);
-    return { allowed: false, error: 'Internal server error' };
-  }
-}
-
-export async function decrementAnalisaLimit(telegram_id: number, symbol: string) {
-  if (!telegram_id) return;
-  
-  try {
-    const { data: user } = await supabaseAdmin
-      .from('users')
-      .select('role, sisa_analisa')
-      .eq('telegram_id', telegram_id)
-      .single();
-      
-    if (!user) return;
-    
-    // Log the usage
-    await supabaseAdmin.from('usage_logs').insert({
-      telegram_id,
-      symbol,
-      action: 'analisa'
-    });
-
-    if (user.role === 'admin' || user.role === 'pro') {
-      return; // No need to decrement
-    }
-
-    await supabaseAdmin
-      .from('users')
-      .update({ sisa_analisa: Math.max(0, user.sisa_analisa - 1) })
-      .eq('telegram_id', telegram_id);
-      
-  } catch (error) {
-    console.error("Error in decrementAnalisaLimit:", error);
-  }
-}
+// checkAnalisaLimit/decrementAnalisaLimit (limit analisa bot Telegram, berbasis
+// shim lib/supabase.ts) dihapus - login/bot Telegram sudah tidak dipakai, dan kedua
+// fungsi ini sudah jadi dead code (di-import tapi tidak pernah dipanggil di
+// app/api/stock/[ticker]/route.ts). Limit yang aktif sekarang murni checkProAccess
+// (shared/auth/session.ts).
 
 export const FREE_LIMITS = {
   WATCHLIST: 3,
