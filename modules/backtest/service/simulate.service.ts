@@ -16,6 +16,7 @@ interface OpenPosition {
   entryDate: string;
   entryPrice: number;
   shares: number;
+  lastKnownPrice: number;
 }
 
 interface TickerDayData {
@@ -64,7 +65,13 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     let equity = cash;
     for (const pos of openPositions) {
       const day = findIndex(pos.symbol).get(dateStr);
-      equity += pos.shares * (day?.close ?? pos.entryPrice);
+      if (day) {
+        // Bawa harga terakhir yang diketahui - dipakai kalau ticker ini halt/kosong
+        // di hari-hari berikutnya (lihat cabang else di bawah), supaya mark-to-market
+        // tidak diam-diam "reset" ke harga entry saat ada gap data.
+        pos.lastKnownPrice = day.close;
+      }
+      equity += pos.shares * (day?.close ?? pos.lastKnownPrice);
     }
     return equity;
   }
@@ -109,7 +116,7 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
         if (shares <= 0 || shares * day.close > cash) continue;
 
         cash -= shares * day.close;
-        openPositions.push({ symbol: ticker, entryDate: date, entryPrice: day.close, shares });
+        openPositions.push({ symbol: ticker, entryDate: date, entryPrice: day.close, shares, lastKnownPrice: day.close });
       }
     }
 

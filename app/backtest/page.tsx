@@ -26,6 +26,7 @@ export default function BacktestPage() {
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleFilter = (f: string) => {
     if (selectedFilters.includes(f)) {
@@ -47,6 +48,7 @@ export default function BacktestPage() {
 
   const runBacktest = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/backtest', {
         method: 'POST',
@@ -54,9 +56,16 @@ export default function BacktestPage() {
         body: JSON.stringify({ filters: selectedFilters, modal, period })
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || 'Gagal menjalankan backtest');
+        setResults(null);
+        setLoading(false);
+        return;
+      }
       setResults(data);
     } catch (e) {
       console.error(e);
+      setError('Gagal menjalankan backtest');
     }
     setLoading(false);
   };
@@ -147,7 +156,13 @@ export default function BacktestPage() {
 
           {/* Results Panel */}
           <div className="lg:col-span-2 space-y-6">
-            {!results && !loading && (
+            {error && (
+              <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
+                {error}
+              </div>
+            )}
+
+            {!results && !loading && !error && (
               <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-muted">
                 <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
                 <p className="text-sm">Pilih filter dan klik Backtest untuk melihat hasil simulasi.</p>

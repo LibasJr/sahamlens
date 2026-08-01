@@ -6,12 +6,13 @@ vi.mock('../../../../modules/user', () => ({
 vi.mock('../../../../modules/backtest', () => ({
   readBacktestCache: vi.fn(),
   precomputeBacktestData: vi.fn(),
+  writeBacktestCache: vi.fn(),
   simulateBacktest: vi.fn(),
 }));
 
 import { POST } from '../route';
 import { getSession } from '../../../../modules/user';
-import { readBacktestCache, precomputeBacktestData, simulateBacktest } from '../../../../modules/backtest';
+import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '../../../../modules/backtest';
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/backtest', {
@@ -66,6 +67,8 @@ describe('POST /api/backtest', () => {
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
 
     expect(precomputeBacktestData).toHaveBeenCalledTimes(1);
+    expect(writeBacktestCache).toHaveBeenCalledTimes(1);
+    expect(writeBacktestCache).toHaveBeenCalledWith({ computedAt: 'y', ihsg: [], tickers: [] });
     expect(res.status).toBe(200);
   });
 
@@ -91,5 +94,13 @@ describe('POST /api/backtest', () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
     const res = await POST(makeRequest({ filters: [], modal: 100_000_000, period: 3 }));
     expect(res.status).toBe(400);
+  });
+
+  it('menolak filter tidak dikenal dengan 400 (bukan diam-diam di-drop)', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    const res = await POST(makeRequest({ filters: ['RSI 14', 'Bollinger Bands'], modal: 100_000_000, period: 3 }));
+    const json = await res.json();
+    expect(res.status).toBe(400);
+    expect(json.error).toBe('Filter tidak dikenal');
   });
 });
