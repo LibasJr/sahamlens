@@ -48,6 +48,11 @@ export async function GET() {
 
     return NextResponse.json({
       attractive: category(summary.topTechnical, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `Skor ${s.score}` })),
+      // BARU (2026-08-01) - kategori ke-8 widget "Hari Ini AI Menemukan" (menggantikan
+      // tombol "Lihat Analisis {ticker}" yang dihapus, supaya tidak ada ruang kosong).
+      // Sudah dihitung di getMarketSummary() (topWeeklyGainers, real dari 250 saham),
+      // tidak butuh fetch/hitung baru.
+      weeklyGainer: category(summary.topWeeklyGainers, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `+${s.changePct.toFixed(1)}% / 5D` })),
       risky: category(summary.topTechnicalBearish, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `Skor ${s.score}` })),
       undervalue: category(undervalueList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `RSI ${s.rsi}` })),
       breakout: {

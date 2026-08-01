@@ -7,7 +7,15 @@ import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
 
-export default function CommandPalette() {
+interface CommandPaletteProps {
+  // Kalau diisi, memilih saham (klik/Enter) memanggil ini alih-alih pindah halaman ke
+  // Council AI (/technical/[symbol]) - dipakai halaman depan (components/Dashboard.tsx)
+  // supaya chart utama di halaman itu sendiri yang berubah, bukan navigasi keluar.
+  // Halaman lain yang belum diisi prop ini tetap pakai perilaku lama (navigasi).
+  onSelect?: (symbol: string, name: string) => void;
+}
+
+export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -91,16 +99,20 @@ export default function CommandPalette() {
       .finally(() => { if (activeSymbolRef.current === symbol) setPreviewLoading(false); });
   }, [active?.symbol]);
 
-  const goTo = (symbol: string) => {
+  const goTo = (emiten: Emiten) => {
     setOpen(false);
     setQuery('');
-    router.push(`/technical/${symbol}.JK`);
+    if (onSelect) {
+      onSelect(emiten.symbol, emiten.name);
+    } else {
+      router.push(`/technical/${emiten.symbol}.JK`);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, results.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); if (active) goTo(active.symbol); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (active) goTo(active); }
   };
 
   // Focus trap - tanpa ini Tab bisa memindahkan fokus keyboard ke elemen di belakang
@@ -177,7 +189,7 @@ export default function CommandPalette() {
                   <button
                     key={r.symbol}
                     onMouseEnter={() => setActiveIdx(idx)}
-                    onClick={() => goTo(r.symbol)}
+                    onClick={() => goTo(r)}
                     className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${idx === activeIdx ? 'bg-[#3A86FF]/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
                   >
                     <div className="min-w-0">
@@ -220,8 +232,8 @@ export default function CommandPalette() {
             </div>
 
             <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
-              <span>↑↓ navigasi • Enter buka analisis</span>
-              <span>Grafik & indikator gratis • Council AI penuh perlu akun</span>
+              <span>↑↓ navigasi • {onSelect ? 'Enter tampilkan di chart' : 'Enter buka analisis'}</span>
+              {!onSelect && <span>Grafik & indikator gratis • Council AI penuh perlu akun</span>}
             </div>
           </div>
         </div>

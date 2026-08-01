@@ -130,8 +130,10 @@ const ACCENT_MAP: Record<string, { bg: string; text: string; border: string; dot
 export default function Dashboard() {
   // Emiten unggulan dipilih acak sekali per kunjungan dari daftar saham likuid/trending -
   // bukan selalu BBCA. Lazy initializer -> hanya jalan sekali saat mount, tidak berubah
-  // ulang setiap re-render.
-  const [ticker] = useState(() => pickTrendingTicker());
+  // ulang setiap re-render KECUALI user pilih saham lain lewat search (lihat CommandPalette
+  // onSelect di bawah) - permintaan eksplisit: search di halaman depan cukup ganti chart
+  // di halaman ini sendiri, jangan pindah ke Council AI.
+  const [ticker, setTicker] = useState(() => pickTrendingTicker());
   const [timeframe, setTimeframe] = useState('1M');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
@@ -235,6 +237,7 @@ export default function Dashboard() {
     goldenCross: { count: number; items: string[] };
     deadCross: { count: number; items: string[] };
     foreignAccumulation: { count: number; items: string[] };
+    weeklyGainer: { count: number; items: string[] };
   } | null>(null);
 
   React.useEffect(() => {
@@ -302,7 +305,7 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-3">
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
-                <CommandPalette />
+                <CommandPalette onSelect={(symbol, name) => setTicker({ symbol, name })} />
               </div>
               <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-2.5 py-1">
                 <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />
@@ -443,6 +446,7 @@ export default function Dashboard() {
                   { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'green', href: '/breakout-radar?cat=goldenCross' },
                   { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar?cat=deadCross' },
                   { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'warning', href: '/breakout-radar?cat=foreignAccumulation' },
+                  { key: 'weeklyGainer', label: 'penguat mingguan', desc: 'Kenaikan harga tertinggi 5 hari terakhir', Icon: ArrowUpRight, accent: 'green', href: '/market/weekly-gainer' },
                 ].map((row) => {
                   const accent = ACCENT_MAP[row.accent];
                   const data = dailyPicks ? (dailyPicks as any)[row.key] : null;
@@ -469,13 +473,6 @@ export default function Dashboard() {
                     </Link>
                   );
                 })}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-tv-border/60">
-                <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-tv-blue px-5 py-3 text-[13px] font-bold text-white shadow-1 hover:bg-tv-blueHover transition">
-                  Lihat Analisis {ticker.symbol}
-                  <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                </Link>
               </div>
             </div>
           </div>

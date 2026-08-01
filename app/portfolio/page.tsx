@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, Bell, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, Bell, ArrowUpRight, ArrowDownRight, Clock, Menu } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -44,12 +44,19 @@ export default function PortfolioPage() {
   const [badges, setBadges] = useState<string[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ username: string; role: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ email: string; role: string } | null>(null);
+  // BUG FIX (2026-08-01, audit dummy-data): form ini sebelumnya kirim {username,
+  // password} tapi loginSchema/signupSchema (modules/user/validator/auth.validator.ts)
+  // mewajibkan {email, password} - login/signup lewat form ini selalu gagal validasi.
+  // Signup juga butuh verifikasi OTP (handleSignup TIDAK langsung membuat sesi) -
+  // step ini sebelumnya tidak ada sama sekali di form, ditambahkan di bawah.
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
 
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderType, setOrderType] = useState<'BUY' | 'SELL'>('BUY');
@@ -99,7 +106,7 @@ export default function PortfolioPage() {
       const data = await res.json();
       if (res.ok) {
         setIsLoggedIn(true);
-        setCurrentUser({ username: data.username, role: data.role });
+        setCurrentUser({ email: data.user?.email, role: data.user?.role });
         loadData();
       } else {
         setLoading(false);
@@ -124,14 +131,43 @@ export default function PortfolioPage() {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (authMode === 'SIGNUP') {
+          // Signup TIDAK membuat sesi - butuh verifikasi kode OTP dulu (dikirim ke
+          // email), baru login sungguhan lewat /api/auth/verify.
+          setPendingVerification(true);
+        } else {
+          setIsLoggedIn(true);
+          window.location.reload();
+        }
+      } else {
+        setLoginError(data.error || (authMode === 'SIGNUP' ? 'Gagal daftar' : 'Login gagal'));
+      }
+    } catch (e) {
+      setLoginError('Network error');
+    }
+    setAuthLoading(false);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setAuthLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: otpCode })
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setIsLoggedIn(true);
         window.location.reload();
       } else {
-        setLoginError(data.error || (authMode === 'SIGNUP' ? 'Gagal daftar' : 'Login gagal'));
+        setLoginError(data.error || 'Kode verifikasi salah/kadaluarsa');
       }
     } catch (e) {
       setLoginError('Network error');
@@ -231,54 +267,78 @@ export default function PortfolioPage() {
             </div>
           </div>
           <h2 className="text-2xl font-bold text-center text-white mb-2">Akun Demo</h2>
-          <p className="text-sm text-tv-muted text-center mb-6">
-            {authMode === 'LOGIN' ? 'Masuk ke akun demo kamu.' : 'Daftar akun demo gratis.'}
-          </p>
 
-          <div className="flex bg-tv-bg p-1 rounded-lg mb-6 border border-tv-border">
-            <button
-              onClick={() => { setAuthMode('LOGIN'); setLoginError(''); }}
-              className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'LOGIN' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-gray-300'}`}
-            >
-              Login
-            </button>
-            <button
-              onClick={() => { setAuthMode('SIGNUP'); setLoginError(''); }}
-              className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'SIGNUP' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-gray-300'}`}
-            >
-              Daftar
-            </button>
-          </div>
+          {pendingVerification ? (
+            <>
+              <p className="text-sm text-tv-muted text-center mb-6">
+                Kode verifikasi sudah dikirim ke {email}. Masukkan kodenya untuk selesaikan pendaftaran.
+              </p>
+              <form onSubmit={handleVerify} className="space-y-4">
+                <Input
+                  label="Kode Verifikasi"
+                  type="text"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value)}
+                  placeholder="6 digit dari email"
+                />
+                {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
+                <Button type="submit" variant="success" loading={authLoading} className="w-full mt-2">
+                  {authLoading ? 'Memverifikasi...' : 'Verifikasi & Masuk'}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-tv-muted text-center mb-6">
+                {authMode === 'LOGIN' ? 'Masuk ke akun demo kamu.' : 'Daftar akun demo gratis.'}
+              </p>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              label="Username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Username kamu"
-            />
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Password"
-            />
-            {authMode === 'SIGNUP' && (
-              <Input
-                label="Konfirmasi Password"
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Ulangi password"
-              />
-            )}
-            {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
-            <Button type="submit" variant="success" loading={authLoading} className="w-full mt-2">
-              {authLoading ? 'Loading...' : authMode === 'LOGIN' ? 'Masuk' : 'Daftar'}
-            </Button>
-          </form>
+              <div className="flex bg-tv-bg p-1 rounded-lg mb-6 border border-tv-border">
+                <button
+                  onClick={() => { setAuthMode('LOGIN'); setLoginError(''); }}
+                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'LOGIN' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-gray-300'}`}
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => { setAuthMode('SIGNUP'); setLoginError(''); }}
+                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'SIGNUP' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-gray-300'}`}
+                >
+                  Daftar
+                </button>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <Input
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Alamat email kamu"
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Password"
+                />
+                {authMode === 'SIGNUP' && (
+                  <Input
+                    label="Konfirmasi Password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Ulangi password"
+                  />
+                )}
+                {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
+                <Button type="submit" variant="success" loading={authLoading} className="w-full mt-2">
+                  {authLoading ? 'Loading...' : authMode === 'LOGIN' ? 'Masuk' : 'Daftar'}
+                </Button>
+              </form>
+            </>
+          )}
           <div className="mt-6 text-center">
             <button onClick={() => router.push('/')} className="text-xs text-tv-muted hover:text-white font-medium">
               Kembali ke Beranda
@@ -302,11 +362,19 @@ export default function PortfolioPage() {
     <div className="min-h-screen bg-tv-bg text-white font-sans pb-20">
       {/* Top Navbar */}
       <nav className="bg-tv-card border-b border-tv-border px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/dashboard')}>
-          <div className="w-8 h-8 rounded-full bg-tv-green flex items-center justify-center">
-            <span className="text-white font-bold text-sm">SL</span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+            className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/dashboard')}>
+            <div className="w-8 h-8 rounded-full bg-tv-green flex items-center justify-center">
+              <span className="text-white font-bold text-sm">SL</span>
+            </div>
+            <span className="font-bold text-lg text-white tracking-tight">Akun Demo</span>
           </div>
-          <span className="font-bold text-lg text-white tracking-tight">Akun Demo</span>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="bg-tv-blue hover:opacity-90 text-white px-3 py-1.5 rounded text-xs font-bold transition-opacity">BUY</button>
@@ -314,7 +382,7 @@ export default function PortfolioPage() {
           <Search className="w-5 h-5 text-tv-muted hidden sm:block" />
           <Bell className="w-5 h-5 text-tv-muted hidden sm:block" />
           <div className="flex flex-col text-right">
-            <span className="text-xs font-bold text-white">{currentUser?.username}</span>
+            <span className="text-xs font-bold text-white">{currentUser?.email}</span>
             <span className="text-[10px] text-tv-muted">{currentUser?.role === 'admin' ? 'Admin' : 'Virtual'}</span>
           </div>
         </div>
