@@ -160,7 +160,11 @@ function FundamentalContent() {
     setMounted(true);
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
-      setTickerState(urlSymbol.toUpperCase());
+      // WAJIB pakai setTicker (bukan setTickerState) - sebelumnya dibuka via
+      // link ?symbol= dari halaman lain (mis. dari Dashboard) menampilkan ticker
+      // yang benar TAPI tidak ikut menulis localStorage, jadi DCF/halaman lain
+      // yang membaca localStorage yang sama tidak pernah tahu emiten ini baru dilihat.
+      setTicker(urlSymbol.toUpperCase());
       return;
     }
     const savedTicker = localStorage.getItem('last_searched_ticker');
