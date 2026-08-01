@@ -44,7 +44,8 @@ trading), bukan fitur utama.
 - Tidak menambah modul Gradle baru untuk fitur ini (kecuali DataStore preference tema, opsional
   bisa numpang di `:core:database` yang sudah ada Room).
 - Tidak mengubah desain tools yang sudah ada (Compare, Screener, Risk Calculator, Market Pulse) —
-  cuma lokasi aksesnya pindah dari "Profil → Alat & Analisis" ke grup Drawer "Analisis".
+  cuma lokasi aksesnya pindah dari "Profil → Alat & Analisis" (label "Alat & Analisis" di
+  `ProfileScreen.kt:107` diganti **"Tools"**, bukan "Alat", per arahan) ke grup Drawer "Analisis".
 
 ## Arsitektur Navigasi
 
@@ -110,8 +111,10 @@ warna per ticker (hash kode ticker → 1 dari 8 warna tetap di token desain, det
   Technical Analyzer →", "Lihat Fundamental Analyzer →"). Section lain (AI Summary, Chart, DCF,
   Bandar Flow, News, Discussion) tetap accordion seperti sekarang.
 - Chart: `CandlestickChart` yang sudah ada dipertahankan penuh, ditambah segmented control periode
-  di atasnya (1D/1W/1M/YTD/1Y/3Y/5Y) — menggantikan toggle "Grafik Harga Beli/Jual" di mockup
-  (tidak relevan untuk data IDX riil).
+  di atasnya — menggantikan toggle "Grafik Harga Beli/Jual" di mockup (tidak relevan untuk data
+  IDX riil). **Koreksi:** nilainya `1mo/3mo/6mo/1y/3y/5y/20y` (persis `ALLOWED_RANGES` di
+  `app/api/stock/[ticker]/route.ts:63`, sudah didukung backend via `?range=`), BUKAN
+  `1D/1W/1M/YTD/1Y/3Y/5Y` seperti disebut sebelumnya — nilai itu tidak didukung backend.
 
 ### Technical Analyzer (baru)
 Mirror `/dashboard` web ("10 Pure Math Filters"). Data: `api/stock/{ticker}` (field technical yang
@@ -126,8 +129,14 @@ carousel ringkas seperti sekarang; AI Pick jadi versi lengkapnya, diakses dari D
 
 ### Fundamental Analyzer (baru)
 Mirror `/fundamental` web. Data: `api/fundamental/{ticker}` (endpoint dedicated yang sudah ada).
-Termasuk tabel Revenue/Operating Profit per tahun (2021/2022/2023 dst., dari mockup) — levelnya
-memang fundamental, bukan technical. Diakses sama seperti Technical Analyzer.
+
+**Koreksi (ditemukan saat penulisan implementation plan):** endpoint ini **TIDAK**
+menyediakan histori Revenue/Operating Profit per tahun — `fundamentals.totalRevenue` cuma
+satu angka TTM (trailing twelve months), bukan array 2021/2022/2023 seperti diasumsikan
+dari mockup. Tabel tahunan itu **tidak diimplementasikan** (tidak ada data pendukung
+nyata, sesuai prinsip "jujur, bukan dikarang" project ini). Yang ditampilkan: rasio
+valuasi/profitabilitas real (PER, PBV, ROE, ROA, DER, Dividend Yield, Profit Margin) +
+sektor/industri + 10 analyzer fundamental. Lihat `docs/superpowers/plans/2026-08-01-android-redesign.md` Task 4.
 
 ## Theming
 
