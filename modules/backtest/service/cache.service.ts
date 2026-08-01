@@ -11,6 +11,11 @@ interface CacheMeta {
   tickers: string[];
 }
 
+// Batch write ~100 ticker key sekaligus (bukan satu-satu sekuensial) - dieksekusi
+// paralel per chunk supaya tidak menembak 100 request Upstash REST bersamaan dalam
+// satu ledakan (pola BATCH_SIZE sama seperti precompute.service.ts).
+const WRITE_BATCH_SIZE = 15;
+
 export async function writeBacktestCache(data: BacktestIndicatorCache): Promise<void> {
   const meta: CacheMeta = {
     computedAt: data.computedAt,
@@ -18,8 +23,12 @@ export async function writeBacktestCache(data: BacktestIndicatorCache): Promise<
     tickers: data.tickers.map((t) => t.ticker),
   };
   await cacheSet(META_KEY, meta, CACHE_TTL_SEC.BACKTEST_INDICATORS);
-  for (const series of data.tickers) {
-    await cacheSet(tickerKey(series.ticker), series, CACHE_TTL_SEC.BACKTEST_INDICATORS);
+
+  for (let i = 0; i < data.tickers.length; i += WRITE_BATCH_SIZE) {
+    const chunk = data.tickers.slice(i, i + WRITE_BATCH_SIZE);
+    await Promise.all(
+      chunk.map((series) => cacheSet(tickerKey(series.ticker), series, CACHE_TTL_SEC.BACKTEST_INDICATORS))
+    );
   }
 }
 

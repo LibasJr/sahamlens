@@ -3,12 +3,16 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { getSession } from '../../../modules/user';
+import { logger } from '../../../shared/logger/logger';
 import {
   readBacktestCache,
   precomputeBacktestData,
+  writeBacktestCache,
   simulateBacktest,
   type IndicatorName,
 } from '../../../modules/backtest';
+
+export const maxDuration = 60;
 
 const VALID_FILTERS: IndicatorName[] = [
   'EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14', 'MACD', 'Volatility (ATR 14)',
@@ -30,9 +34,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const filters: IndicatorName[] = Array.isArray(body?.filters)
-      ? body.filters.filter((f: unknown): f is IndicatorName => VALID_FILTERS.includes(f as IndicatorName))
-      : [];
+    const rawFilters: unknown[] = Array.isArray(body?.filters) ? body.filters : [];
+    const hasUnknownFilter = rawFilters.some(
+      (f): boolean => !(typeof f === 'string' && VALID_FILTERS.includes(f as IndicatorName))
+    );
+    if (hasUnknownFilter) {
+      return NextResponse.json({ error: 'Filter tidak dikenal' }, { status: 400 });
+    }
+    const filters = rawFilters as IndicatorName[];
     const modal = Number(body?.modal);
     const period = Number(body?.period);
 
@@ -51,6 +60,10 @@ export async function POST(request: Request) {
       // Cron belum pernah jalan / cache kadaluarsa - hitung langsung (lambat, tapi
       // tetap data asli, bukan gagal). Pola sama seperti market-pulse/breakout-radar.
       cache = await precomputeBacktestData();
+      // Simpan hasilnya supaya request cache-miss berikutnya tidak ikut menghitung ulang
+      // seluruh universe dari nol (tanpa distributed lock/stampede protection - di luar
+      // scope fix ini, lihat catatan review).
+      await writeBacktestCache(cache);
     }
 
     const result = simulateBacktest(cache, { filters, modal, periodMonths: period });
@@ -79,6 +92,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(responseBody);
   } catch (error) {
+    logger.error('Backtest gagal', { error });
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }
 }

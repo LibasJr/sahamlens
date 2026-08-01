@@ -11,6 +11,7 @@ import {
   analyzeSma,
   type OhlcRow,
 } from '../../technical';
+import { logger } from '../../../shared/logger/logger';
 import { BACKTEST_UNIVERSE } from '../constants/backtest-universe';
 import type {
   IndicatorName,
@@ -88,7 +89,12 @@ export function computeTickerSeries(ticker: string, history: OhlcRow[]): TickerI
 
 async function fetchTickerSeries(ticker: string): Promise<TickerIndicatorSeries | null> {
   const result = await fetchYahooHistory(ticker, '5y');
-  if (!result) return null; // fetch gagal - saham ini di-skip, tidak melempar error
+  if (!result) {
+    // fetch gagal - saham ini di-skip, tidak melempar error (spec: satu saham gagal
+    // tidak boleh menggagalkan seluruh precompute harian) - tapi dicatat di log.
+    logger.warn('Backtest precompute: gagal fetch histori', { ticker });
+    return null;
+  }
   return computeTickerSeries(ticker, result.history);
 }
 
