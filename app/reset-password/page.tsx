@@ -2,7 +2,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertTriangle, TrendingUp, TrendingDown, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { AuthAlert } from '@/components/auth/AuthAlert';
+import { Input, Button } from '@/components/ui';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -60,7 +63,7 @@ function ResetPasswordForm() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    
+
     if (!email || !code || !newPassword) {
       setError('Semua field wajib diisi.');
       return;
@@ -80,7 +83,7 @@ function ResetPasswordForm() {
         body: JSON.stringify({ email, code, newPassword })
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'Terjadi kesalahan.');
       }
@@ -98,156 +101,96 @@ function ResetPasswordForm() {
     }
   };
 
+  if (resetDone) {
+    return (
+      <AuthShell eyebrow="Pemulihan Akun" title="Reset Password">
+        <div className="text-center py-2">
+          <div className="w-12 h-12 rounded-full bg-tv-green/10 border border-tv-green/30 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-6 h-6 text-tv-green" />
+          </div>
+          <p className="text-sm text-tv-text font-semibold mb-1">Password berhasil diubah</p>
+          <p className="text-xs text-tv-muted mb-6">Mengarahkan otomatis ke halaman login...</p>
+          <Link href="/login">
+            <Button variant="primary" size="lg" className="w-full">
+              Login Sekarang <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0B0E14] px-4 font-sans relative overflow-hidden">
-      {/* Background decorations */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-teal-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-rose-500/10 rounded-full blur-[100px] pointer-events-none" />
+    <AuthShell eyebrow="Pemulihan Akun" title="Reset Password" subtitle="Masukkan kode verifikasi dan buat password baru">
+      {error && <AuthAlert variant="error">{error}</AuthAlert>}
+      {success && <AuthAlert variant="success">{success}</AuthAlert>}
 
-      <div className="w-full max-w-md z-10">
-        
-        {/* Logo */}
-        <div className="flex justify-center items-center gap-3 mb-8">
-          <div className="flex items-center -space-x-1">
-            <div className="bg-teal-500/20 p-2 rounded-l-lg border border-teal-500/30">
-              <TrendingUp className="w-5 h-5 text-teal-400" />
-            </div>
-            <div className="bg-rose-500/20 p-2 rounded-r-lg border border-rose-500/30">
-              <TrendingDown className="w-5 h-5 text-rose-400" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-rose-400">
-              SahamLens
-            </h1>
-            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest text-center">
-              Reset Password
-            </p>
-          </div>
+      <form onSubmit={handleReset} className="space-y-4">
+        <Input
+          type="email"
+          label="Alamat Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          readOnly={!!initialEmail}
+          className={initialEmail ? 'opacity-50 cursor-not-allowed' : ''}
+        />
+
+        <div>
+          <Input
+            type="text"
+            label="Kode Verifikasi (6 Digit)"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            maxLength={6}
+            className="font-number tracking-widest"
+          />
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending || resendCooldown > 0}
+            className="mt-1.5 text-xs text-tv-blue hover:text-tv-blue/80 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {resending
+              ? 'Mengirim ulang...'
+              : resendCooldown > 0
+              ? `Kirim ulang kode (${resendCooldown}s)`
+              : 'Kirim ulang kode'}
+          </button>
         </div>
 
-        {/* Card */}
-        <div className="bg-[#121822]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-6 sm:p-8 shadow-2xl">
-          {resetDone ? (
-            <div className="text-center py-2">
-              <div className="w-12 h-12 rounded-full bg-teal-500/10 border border-teal-500/30 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-6 h-6 text-teal-400" />
-              </div>
-              <p className="text-sm text-white font-semibold mb-1">Password berhasil diubah</p>
-              <p className="text-xs text-slate-400 mb-6">Mengarahkan otomatis ke halaman login...</p>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 w-full py-3 bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold rounded-lg transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)]"
-              >
-                Login Sekarang <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          ) : (
-          <>
-          <p className="text-sm text-slate-400 mb-6 text-center">
-            Masukkan kode verifikasi 6 digit yang baru saja dikirimkan, lalu buat password baru.
-          </p>
-
-          <form onSubmit={handleReset} className="space-y-4">
-
-            {error && (
-              <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3 rounded-lg">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>{error}</p>
-              </div>
-            )}
-
-            {success && (
-              <div className="flex items-start gap-2 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs p-3 rounded-lg">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>{success}</p>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Alamat Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                readOnly={!!initialEmail}
-                className={`w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-colors ${initialEmail ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Kode Verifikasi (6 Digit)
-              </label>
-              <input
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                maxLength={6}
-                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors font-mono tracking-widest"
-              />
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resending || resendCooldown > 0}
-                className="mt-1.5 text-xs text-teal-400 hover:text-teal-300 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {resending
-                  ? 'Mengirim ulang...'
-                  : resendCooldown > 0
-                  ? `Kirim ulang kode (${resendCooldown}s)`
-                  : 'Kirim ulang kode'}
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Password Baru
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
-                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 mt-6 bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold rounded-lg transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Memproses...' : 'Ubah Password'}
-              {!loading && <ArrowRight className="w-4 h-4" />}
+        <Input
+          type={showPassword ? 'text' : 'password'}
+          label="Password Baru"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Minimal 6 karakter"
+          rightIcon={
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-          </form>
+          }
+        />
 
-          <div className="mt-6 text-center text-xs text-slate-500">
-            Kembali ke <Link href="/login" className="text-teal-400 hover:text-teal-300 transition-colors">Login</Link>
-          </div>
-          </>
+        <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
+          {!loading && (
+            <>
+              Ubah Password <ArrowRight className="w-4 h-4" />
+            </>
           )}
-        </div>
+          {loading && 'Memproses...'}
+        </Button>
+      </form>
+
+      <div className="mt-6 text-center text-xs text-tv-muted">
+        Kembali ke <Link href="/login" className="text-tv-blue hover:underline">Login</Link>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
 export default function ResetPassword() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0B0E14] flex items-center justify-center"><div className="text-teal-400">Loading...</div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-tv-bg" />}>
       <ResetPasswordForm />
     </Suspense>
   );

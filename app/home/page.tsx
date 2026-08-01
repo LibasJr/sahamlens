@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion, type Variants } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Bell,
@@ -16,16 +16,10 @@ import {
   Loader2,
   Flame,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
+import { fadeUp, staggerContainer } from '@/lib/motion';
 
 const fmtRp = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
-};
 
 interface WatchlistItemDto {
   symbol: string;
@@ -63,7 +57,7 @@ function UpgradeTeaser({ label }: { label: string }) {
       <Lock className="w-5 h-5 text-tv-gold" />
       <p className="text-xs text-tv-muted max-w-[220px]">{label} adalah fitur Pro.</p>
       <Link href="/watchlist">
-        <Button variant="secondary" size="sm">Upgrade ke Pro</Button>
+        <Button variant="primary" size="sm">Upgrade ke Pro</Button>
       </Link>
     </div>
   );
@@ -185,8 +179,8 @@ export default function HomePage() {
       <motion.div variants={fadeUp} initial="hidden" animate="show">
         <Card variant="default" padding="lg" className="border-tv-blue/30 bg-glow-blue shadow-2">
           <div className="flex items-start gap-3">
-            <div className="shrink-0 w-10 h-10 rounded-lg bg-tv-blue/15 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-tv-blue" />
+            <div className="shrink-0 w-10 h-10 rounded-lg bg-gradient-accent flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -217,11 +211,11 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Ringkasan Pasar - IHSG + top gainer/loser, publik (bukan Portfolio -
             SahamLens alat analisis/screener, bukan sekuritas; posisi trading ada
             di Akun Demo). Menggantikan card Portfolio yang sebelumnya di sini. */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <motion.div variants={fadeUp}>
           <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -278,7 +272,7 @@ export default function HomePage() {
         </motion.div>
 
         {/* Watchlist */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <motion.div variants={fadeUp}>
           <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -309,7 +303,7 @@ export default function HomePage() {
         {/* Hari Ini AI Menemukan - dipakai ulang dari widget landing page publik,
             mengisi ruang yang sebelumnya Market Pulse (sudah punya menu sendiri
             di Sidebar, tidak perlu diduplikasi di sini). */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <motion.div variants={fadeUp}>
           <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -345,7 +339,7 @@ export default function HomePage() {
         </motion.div>
 
         {/* AI Picks */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <motion.div variants={fadeUp}>
           <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -377,7 +371,7 @@ export default function HomePage() {
             )}
           </Card>
         </motion.div>
-      </div>
+      </motion.div>
 
       {/* Berita & Sentimen Pasar - RSS publik (CNBC Indonesia, Detik Finance) + sentimen
           dari Council AI (fallback heuristik kata kunci kalau Council AI tidak tersedia) */}

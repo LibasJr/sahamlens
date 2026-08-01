@@ -65,8 +65,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   let insightMessage = 'Belum ada tren arus dana yang konsisten dalam 3 hari terakhir.';
 
   if (summary.status === 'AKUMULASI') {
-    insightColor = 'bg-[#14b8a6]/10 border-[#14b8a6]/50 text-[#14b8a6]';
-    insightBadge = 'bg-[#14b8a6] text-white';
+    insightColor = 'bg-tv-green/10 border-tv-green/50 text-tv-green';
+    insightBadge = 'bg-tv-green text-white';
     insightTitle = 'TEKANAN BELI KONSISTEN';
     insightMessage = summary.streak >= 3
       ? `Akumulasi ${summary.streak} hari berturut-turut - volume di hari naik lebih besar dari hari turun.`

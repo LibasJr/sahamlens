@@ -2,7 +2,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { AuthAlert } from '@/components/auth/AuthAlert';
+import { Input, Button } from '@/components/ui';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -55,100 +58,74 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121] flex items-center justify-center p-4">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap'); *{font-family:'Plus Jakarta Sans', Inter, sans-serif}`}</style>
+    <AuthShell
+      eyebrow="Selamat Datang Kembali"
+      title="Masuk ke Akun Anda"
+      subtitle="Analisis teknikal & fundamental lengkap menunggu Anda"
+    >
+      {error && <AuthAlert variant="error">{error}</AuthAlert>}
 
-      <div className="w-full max-w-md">
-        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="h-9 w-9 rounded-lg bg-[#3A86FF] grid place-items-center font-bold text-[15px] text-white tracking-tight">SL</div>
-          <span className="font-bold text-[18px] tracking-tight text-[#0A1931] dark:text-white">SahamLens</span>
-        </Link>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          type="email"
+          label="Email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="nama@email.com"
+        />
 
-        <div className="bg-white dark:bg-[#152238] border border-slate-200 dark:border-slate-800 rounded-[20px] w-full p-8 shadow-[0_10px_40px_-12px_rgba(10,25,49,0.12)]">
-          <div className="text-center mb-7">
-            <h1 className="text-[22px] font-bold text-[#0A1931] dark:text-white tracking-tight">Masuk ke Akun Anda</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1.5 text-[13px]">Analisis teknikal &amp; fundamental lengkap menunggu Anda</p>
+        <div>
+          <div className="flex justify-between items-center mb-1.5">
+            <label className="block text-xs font-medium text-tv-muted">Password</label>
+            <Link href="/forgot-password" className="text-[11px] font-semibold text-tv-blue hover:underline">Lupa Password?</Link>
           </div>
-
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 text-red-700 dark:text-red-300 p-3 rounded-xl mb-5 text-[13px] flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-widest mb-2">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#F8FAFC] dark:bg-[#0B1121] border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-[14px] text-[#0A1931] dark:text-white focus:outline-none focus:border-[#3A86FF] transition-colors"
-                placeholder="nama@email.com"
-              />
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-widest">Password</label>
-                <Link href="/forgot-password" className="text-[11px] font-semibold text-[#3A86FF] hover:underline">Lupa Password?</Link>
-              </div>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#F8FAFC] dark:bg-[#0B1121] border border-slate-200 dark:border-slate-800 rounded-xl pl-4 pr-12 py-3 text-[14px] text-[#0A1931] dark:text-white focus:outline-none focus:border-[#3A86FF] transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#0A1931] dark:hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 mt-3">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-[#3A86FF] focus:ring-[#3A86FF]"
-                />
-                <label htmlFor="remember" className="text-[13px] text-slate-500 dark:text-slate-400 cursor-pointer select-none">
-                  Ingat Saya
-                </label>
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#3A86FF] hover:bg-[#2f6fd6] text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 text-[14px] shadow-[0_8px_20px_-8px_#3A86FF] mt-2"
-            >
-              {loading ? 'Memproses...' : 'Login'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-[13px] text-slate-500 dark:text-slate-400">
-            Belum punya akun? <Link href="/signup" className="text-[#3A86FF] font-semibold hover:underline">Daftar</Link>
-          </div>
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            rightIcon={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="pointer-events-auto text-tv-muted hover:text-tv-text transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            }
+          />
         </div>
 
-        <p className="text-center text-[11px] text-slate-400 mt-6">
-          <Link href="/" className="hover:text-[#3A86FF] transition-colors">&larr; Kembali ke Ringkasan Pasar</Link>
-        </p>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="remember"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="w-4 h-4 rounded border-tv-border bg-tv-bg text-tv-blue focus:ring-tv-blue accent-tv-blue"
+          />
+          <label htmlFor="remember" className="text-[13px] text-tv-muted cursor-pointer select-none">
+            Ingat Saya
+          </label>
+        </div>
+
+        <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
+          {loading ? 'Memproses...' : 'Login'}
+        </Button>
+      </form>
+
+      <div className="mt-6 text-center text-[13px] text-tv-muted">
+        Belum punya akun? <Link href="/signup" className="text-tv-blue font-semibold hover:underline">Daftar</Link>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
 export default function Login() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-tv-bg" />}>
       <LoginForm />
     </Suspense>
   );

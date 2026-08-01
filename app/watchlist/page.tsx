@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, BellRing, Settings, ShieldCheck, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
+import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
 import { getTickerName } from '@/lib/trendingTickers';
+import { Input, Select, Button, Badge, EmptyState } from '@/components/ui';
 
 interface WatchlistItem {
   symbol: string;
@@ -34,7 +35,7 @@ export default function WatchlistPage() {
   const [newSymbol, setNewSymbol] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
   const [lotAmount, setLotAmount] = useState('');
-  
+
   const [alertSymbol, setAlertSymbol] = useState('');
   const [alertCondition, setAlertCondition] = useState('PRICE_BELOW');
   const [alertValue, setAlertValue] = useState('');
@@ -152,7 +153,7 @@ export default function WatchlistPage() {
     try {
       await fetch(`/api/watchlist?symbol=${symbol}`, { method: 'DELETE' });
       fetchWatchlist();
-      
+
       const newLiveData = { ...liveData };
       delete newLiveData[symbol];
       setLiveData(newLiveData);
@@ -220,7 +221,7 @@ export default function WatchlistPage() {
     try {
       const res = await fetch('/api/alerts/check');
       const json = await res.json();
-      
+
       if (json.triggeredAlerts && json.triggeredAlerts.length > 0) {
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
           json.triggeredAlerts.forEach((alert: any) => {
@@ -234,7 +235,7 @@ export default function WatchlistPage() {
       } else {
         alert(`Cron triggered. No new alerts triggered. (Checked ${json.checked})`);
       }
-      
+
       fetchAlerts();
     } catch (e) {
       console.error('Failed to trigger cron', e);
@@ -248,22 +249,22 @@ export default function WatchlistPage() {
   const activeAlertsCount = alerts.filter(a => a.isActive).length;
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0B1121] min-h-screen">
-      <header className="bg-gradient-to-r from-[#0A1931] to-[#131c2e] border-b border-[#1e293b] px-6 py-6 sticky top-0 z-20 shadow-md">
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <header className="bg-tv-surface border-b border-tv-border px-6 py-6 sticky top-0 z-20 shadow-2">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400">
+            <div className="p-2.5 rounded-lg bg-gradient-accent text-white">
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-xl text-white tracking-tight font-heading">Watchlist & Alerts</h2>
-              <p className="text-xs text-gray-400 font-mono">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
+              <h2 className="font-heading font-bold text-xl text-white tracking-tight">Watchlist & Alerts</h2>
+              <p className="text-xs text-white/50">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
             </div>
           </div>
           <button
             onClick={fetchLiveData}
             disabled={loading}
-            className="bg-white/5 border border-white/10 hover:bg-white/10 px-4 py-2 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50 text-xs font-mono font-semibold"
+            className="bg-white/5 border border-white/10 hover:bg-white/10 px-4 py-2 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50 text-xs font-semibold"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
@@ -272,19 +273,19 @@ export default function WatchlistPage() {
 
         {/* Stat tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Wallet className="w-3 h-3" /> Nilai Posisi</div>
             <div className="mt-1 text-[16px] font-bold text-white font-number">{totalCurrent > 0 ? `Rp ${Math.round(totalCurrent).toLocaleString('id-ID')}` : '-'}</div>
           </div>
-          <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">{totalPnlPct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} Total P&L</div>
-            <div className={`mt-1 text-[16px] font-bold font-number ${totalPnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{totalInvested > 0 ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%` : '-'}</div>
+            <div className={`mt-1 text-[16px] font-bold font-number ${totalPnlPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{totalInvested > 0 ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%` : '-'}</div>
           </div>
-          <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Activity className="w-3 h-3" /> Saham Dipantau</div>
             <div className="mt-1 text-[16px] font-bold text-white font-number">{watchlist.length} / {FREE_LIMITS.WATCHLIST === Infinity ? '∞' : FREE_LIMITS.WATCHLIST}</div>
           </div>
-          <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><BellRing className="w-3 h-3" /> Alert Aktif</div>
             <div className="mt-1 text-[16px] font-bold text-white font-number">{activeAlertsCount}</div>
           </div>
@@ -307,41 +308,38 @@ export default function WatchlistPage() {
             })}
           />
 
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
-            <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4 border-b border-[#1e293b] pb-3">
-              <Activity className="w-5 h-5 text-blue-400" />
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
+              <Activity className="w-5 h-5 text-tv-blue" />
               My Watchlist
             </h3>
 
-            <form onSubmit={addWatchlist} className="flex gap-3 mb-6">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <SymbolAutocomplete 
-                  containerClassName="relative flex-1"
-                  placeholder="Simbol (contoh: BBCA)" 
-                  value={newSymbol}
-                  onChange={(val) => setNewSymbol(val)}
-                  className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded-lg pl-9 pr-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-              <input 
-                type="number" 
-                placeholder="Harga Beli (opsional)" 
+            <form onSubmit={addWatchlist} className="flex flex-wrap gap-3 mb-6">
+              <SymbolAutocomplete
+                containerClassName="relative flex-1 min-w-[160px]"
+                placeholder="Simbol (contoh: BBCA)"
+                value={newSymbol}
+                onChange={(val) => setNewSymbol(val)}
+                className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-tv-blue transition-colors"
+                required
+              />
+              <Input
+                type="number"
+                placeholder="Harga Beli (opsional)"
                 value={buyPrice}
                 onChange={(e) => setBuyPrice(e.target.value)}
-                className="w-48 bg-[#0f172a] border border-[#1e293b] text-white rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
+                className="w-40 font-number"
               />
-              <input 
-                type="number" 
-                placeholder="Total Lot" 
+              <Input
+                type="number"
+                placeholder="Total Lot"
                 value={lotAmount}
                 onChange={(e) => setLotAmount(e.target.value)}
-                className="w-32 bg-[#0f172a] border border-[#1e293b] text-white rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
+                className="w-28 font-number"
               />
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-colors">
+              <Button type="submit" variant="primary">
                 <Plus className="w-4 h-4" /> Add
-              </button>
+              </Button>
             </form>
 
             <div className="space-y-2.5">
@@ -360,31 +358,31 @@ export default function WatchlistPage() {
                 const supportTarget = supportMatch ? supportMatch[1] : '';
 
                 const scoreVal = data?.scoring?.total_score;
-                const scoreColor = scoreVal == null ? '#64748b' : scoreVal < 40 ? '#ef4444' : scoreVal < 60 ? '#f59e0b' : '#10b981';
+                const scoreColor = scoreVal == null ? '#8B94B6' : scoreVal < 40 ? '#EF4444' : scoreVal < 60 ? '#F59E0B' : '#10B981';
                 const scoreLabel = scoreVal == null ? '...' : scoreVal < 40 ? 'SELL' : scoreVal < 60 ? 'HOLD' : 'BUY';
 
                 return (
-                  <div key={item.symbol} className="group rounded-xl border border-[#1e293b] bg-[#0f172a] hover:border-blue-500/40 hover:bg-[#111d33] transition-colors p-3.5 flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-blue-500/10 border border-blue-500/25 flex items-center justify-center shrink-0 text-blue-400 font-bold text-[11px] font-mono">
+                  <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-tv-blue/10 border border-tv-blue/25 flex items-center justify-center shrink-0 text-tv-blue font-bold text-[11px] font-number">
                       {code.slice(0, 4)}
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white font-mono">{code}</span>
+                        <span className="font-bold text-tv-text font-number">{code}</span>
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono border"
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded border"
                           style={{ backgroundColor: `${scoreColor}22`, borderColor: scoreColor, color: scoreColor }}
                         >
                           {scoreLabel}
                         </span>
                       </div>
-                      <div className="text-[11px] text-gray-500 truncate">{companyName}</div>
+                      <div className="text-[11px] text-tv-muted truncate">{companyName}</div>
                       {pnl < -20 && data?.scoring?.kategori?.includes('SELL') && supportTarget && (
                         <button
                           type="button"
                           onClick={() => { setAlertSymbol(item.symbol); setAlertCondition('PRICE_BELOW'); setAlertValue(supportTarget); }}
-                          className="mt-1 flex items-center gap-1 text-[10px] text-yellow-400 hover:text-yellow-300"
+                          className="mt-1 flex items-center gap-1 text-[10px] text-tv-warning hover:text-tv-warning/80"
                         >
                           <AlertCircle className="w-3 h-3" /> Suggest: Alert Support {supportTarget}
                         </button>
@@ -392,31 +390,32 @@ export default function WatchlistPage() {
                     </div>
 
                     <div className="hidden sm:flex flex-col items-end text-right shrink-0 w-28">
-                      <span className="text-white font-mono font-bold text-sm">{currentPrice ? `Rp ${currentPrice.toLocaleString('id-ID')}` : '-'}</span>
-                      <span className="text-[10px] text-gray-500 font-mono">Beli: {item.buy_price ? `Rp ${item.buy_price.toLocaleString('id-ID')}` : '-'} {item.lot ? `• ${item.lot} lot` : ''}</span>
+                      <span className="text-tv-text font-bold text-sm font-number">{currentPrice ? `Rp ${currentPrice.toLocaleString('id-ID')}` : '-'}</span>
+                      <span className="text-[10px] text-tv-muted font-number">Beli: {item.buy_price ? `Rp ${item.buy_price.toLocaleString('id-ID')}` : '-'} {item.lot ? `• ${item.lot} lot` : ''}</span>
                     </div>
 
                     <div className="shrink-0 w-20 text-right">
                       {item.buy_price ? (
-                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-1 rounded-lg text-xs font-number ${isProfit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-1 rounded-md text-xs font-number ${isProfit ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'}`}>
                           {isProfit ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
                           {pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%
                         </span>
-                      ) : <span className="text-gray-600 text-xs">-</span>}
+                      ) : <span className="text-tv-muted text-xs">-</span>}
                     </div>
 
-                    <button onClick={() => removeWatchlist(item.symbol)} className="shrink-0 p-2 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                    <button onClick={() => removeWatchlist(item.symbol)} className="shrink-0 p-2 text-tv-muted hover:text-tv-red hover:bg-tv-red/10 rounded-md transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 );
               })}
               {watchlist.length === 0 && (
-                <div className="py-10 text-center rounded-xl border border-dashed border-[#1e293b]">
-                  <Sparkles className="w-6 h-6 mx-auto mb-2 text-gray-600" />
-                  <p className="text-sm font-mono text-gray-500">Belum ada saham di watchlist</p>
-                  <p className="text-[11px] text-gray-600 mt-1">Tambahkan simbol saham lewat form di atas untuk mulai memantau.</p>
-                </div>
+                <EmptyState
+                  icon={<Sparkles className="w-5 h-5" />}
+                  title="Belum ada saham di watchlist"
+                  description="Tambahkan simbol saham lewat form di atas untuk mulai memantau."
+                  className="rounded-lg border border-dashed border-tv-border"
+                />
               )}
             </div>
           </div>
@@ -424,13 +423,13 @@ export default function WatchlistPage() {
 
         {/* Alerts Section */}
         <div className="space-y-6">
-          <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-5 shadow-1">
-            <div className="flex items-center justify-between border-b border-[#1e293b] pb-3 mb-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Bell className="w-5 h-5 text-yellow-400" />
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
+              <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
+                <Bell className="w-5 h-5 text-tv-yellow" />
                 Push Notifications (HP/Browser)
               </h3>
-              <button onClick={triggerCron} className="text-[10px] font-mono text-gray-500 hover:text-white underline">
+              <button onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
                 Test Cron
               </button>
             </div>
@@ -441,32 +440,28 @@ export default function WatchlistPage() {
                 placeholder="Simbol (BBCA)"
                 value={alertSymbol}
                 onChange={(val) => setAlertSymbol(val)}
-                className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-yellow-500"
+                className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-tv-yellow transition-colors"
                 required
               />
-              <select 
-                value={alertCondition}
-                onChange={(e) => setAlertCondition(e.target.value)}
-                className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-yellow-500"
-              >
+              <Select value={alertCondition} onChange={(e) => setAlertCondition(e.target.value)}>
                 <option value="PRICE_BELOW">Harga Turun Di Bawah</option>
                 <option value="PRICE_ABOVE">Harga Naik Di Atas</option>
                 <option value="CONSENSUS_STRONG_BUY">Konsensus STRONG BUY</option>
                 <option value="RSI_OVERSOLD">RSI Oversold (&lt; 30)</option>
-              </select>
+              </Select>
               {(alertCondition === 'PRICE_BELOW' || alertCondition === 'PRICE_ABOVE') && (
-                <input 
-                  type="number" 
-                  placeholder="Target Nilai" 
+                <Input
+                  type="number"
+                  placeholder="Target Nilai"
                   value={alertValue}
                   onChange={(e) => setAlertValue(e.target.value)}
-                  className="w-full bg-[#0f172a] border border-[#1e293b] text-white rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-yellow-500"
                   required
+                  className="font-number"
                 />
               )}
-              <button type="submit" className="w-full bg-yellow-500/20 border border-yellow-500/50 hover:bg-yellow-500/40 text-yellow-500 px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-colors font-mono">
+              <Button type="submit" variant="secondary" className="w-full">
                 <Plus className="w-4 h-4" /> Set Alert
-              </button>
+              </Button>
             </form>
 
             <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
@@ -476,19 +471,17 @@ export default function WatchlistPage() {
                   : alert.conditionType === 'RSI_OVERSOLD' ? Gauge
                   : Sparkles;
                 return (
-                  <div key={alert.id} className={`p-3 rounded-lg border flex flex-col gap-2 ${alert.isActive ? 'bg-[#0f172a] border-[#1e293b]' : 'bg-[#0f172a]/50 border-[#1e293b]/50 opacity-50'}`}>
+                  <div key={alert.id} className={`p-3 rounded-md border flex flex-col gap-2 ${alert.isActive ? 'bg-tv-bg border-tv-border' : 'bg-tv-bg/50 border-tv-border/50 opacity-50'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-white font-mono">{displayTicker(alert.symbol)}</span>
+                      <span className="font-bold text-tv-text font-number">{displayTicker(alert.symbol)}</span>
                       <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${alert.isActive ? 'bg-tv-green/20 text-tv-green' : 'bg-gray-500/20 text-gray-400'}`}>
-                          {alert.isActive ? 'ACTIVE' : 'TRIGGERED'}
-                        </span>
-                        <button onClick={() => removeAlert(alert.id)} className="text-gray-500 hover:text-red-400">
+                        <Badge variant={alert.isActive ? 'success' : 'neutral'}>{alert.isActive ? 'Active' : 'Triggered'}</Badge>
+                        <button onClick={() => removeAlert(alert.id)} className="text-tv-muted hover:text-tv-red">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 font-mono flex items-center gap-1.5">
+                    <div className="text-xs text-tv-muted flex items-center gap-1.5">
                       <AlertIcon className="w-3.5 h-3.5 shrink-0" />
                       {alert.conditionType === 'PRICE_BELOW' && `Harga < ${alert.targetValue}`}
                       {alert.conditionType === 'PRICE_ABOVE' && `Harga > ${alert.targetValue}`}
@@ -499,7 +492,7 @@ export default function WatchlistPage() {
                 );
               })}
               {alerts.length === 0 && (
-                <div className="text-center text-sm font-mono text-gray-500 py-4">
+                <div className="text-center text-sm text-tv-muted py-4">
                   Belum ada alert aktif
                 </div>
               )}

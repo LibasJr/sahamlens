@@ -2,7 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { AuthAlert } from '@/components/auth/AuthAlert';
+import { Input, Button } from '@/components/ui';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -87,7 +90,7 @@ export default function Signup() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const res = await fetch('/api/auth/verify', {
         method: 'POST',
@@ -95,7 +98,7 @@ export default function Signup() {
         body: JSON.stringify({ email, code }),
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         setError(data.error || 'Terjadi kesalahan');
       } else {
@@ -109,142 +112,103 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4">
-      <div className="bg-tv-card border border-tv-border rounded-2xl w-full max-w-md p-8 shadow-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-white font-mono">SahamLens</h1>
-          <p className="text-tv-muted mt-2 text-sm">
-            {step === 1 ? 'Buat Akun (Free Trial 7 Hari)' : 'Verifikasi Email'}
-          </p>
+    <AuthShell
+      eyebrow="Free Trial 7 Hari"
+      title={step === 1 ? 'Buat Akun Baru' : 'Verifikasi Email'}
+      subtitle={step === 1 ? 'Gratis, tanpa kartu kredit' : `Kode dikirim ke ${email}`}
+    >
+      {error && <AuthAlert variant="error">{error}</AuthAlert>}
+      {successMsg && <AuthAlert variant="success">{successMsg}</AuthAlert>}
+
+      {step === 1 ? (
+        <form onSubmit={handleSendCode} className="space-y-4">
+          <Input
+            type="email"
+            label="Email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="nama@email.com"
+          />
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            label="Password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Minimal 6 karakter"
+            rightIcon={
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            }
+          />
+          <Input
+            type={showConfirmPassword ? 'text' : 'password'}
+            label="Konfirmasi Password"
+            required
+            minLength={6}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Ulangi password"
+            rightIcon={
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            }
+          />
+          <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
+            {loading ? 'Memproses...' : 'Kirim Kode Verifikasi'}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div>
+            <Input
+              type="text"
+              label="Kode Verifikasi 6 Digit"
+              required
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="text-center text-2xl tracking-[0.5em] font-number"
+            />
+            <p className="text-xs text-tv-muted mt-2 text-center">Cek kotak masuk (atau folder Spam) email Anda untuk melihat kode verifikasi</p>
+          </div>
+
+          <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
+            {loading ? 'Memverifikasi...' : 'Verifikasi & Login'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
+            onClick={handleResend}
+            disabled={resending || resendCooldown > 0}
+            className="w-full"
+          >
+            {resending
+              ? 'Mengirim ulang...'
+              : resendCooldown > 0
+              ? `Kirim ulang kode (${resendCooldown}s)`
+              : 'Kirim ulang kode'}
+          </Button>
+          <button
+            type="button"
+            onClick={() => { setStep(1); setSuccessMsg(''); }}
+            className="w-full text-tv-muted hover:text-tv-text py-2 text-sm transition-colors"
+          >
+            Kembali
+          </button>
+        </form>
+      )}
+
+      {step === 1 && (
+        <div className="mt-6 text-center text-sm text-tv-muted">
+          Sudah punya akun? <Link href="/login" className="text-tv-blue font-semibold hover:underline">Login</Link>
         </div>
-
-        {error && (
-          <div className="bg-tv-red/10 border border-tv-red/30 text-tv-red p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 min-w-4" />
-            {error}
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="bg-tv-green/10 border border-tv-green/30 text-tv-green p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 min-w-4" />
-            {successMsg}
-          </div>
-        )}
-
-        {step === 1 ? (
-          <form onSubmit={handleSendCode} className="space-y-5">
-            <div>
-              <label className="block text-tv-muted text-xs font-mono uppercase mb-2">Email</label>
-              <input 
-                type="email" 
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-tv-bg border border-tv-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-tv-green transition-colors"
-                placeholder="nama@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-tv-muted text-xs font-mono uppercase mb-2">Password</label>
-              <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-tv-bg border border-tv-border rounded-lg pl-4 pr-12 py-3 text-white focus:outline-none focus:border-tv-green transition-colors"
-                  placeholder="Minimal 6 karakter"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-tv-muted hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-tv-muted text-xs font-mono uppercase mb-2">Konfirmasi Password</label>
-              <div className="relative">
-                <input 
-                  type={showConfirmPassword ? "text" : "password"} 
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-tv-bg border border-tv-border rounded-lg pl-4 pr-12 py-3 text-white focus:outline-none focus:border-tv-green transition-colors"
-                  placeholder="Ulangi password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-tv-muted hover:text-white transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <button 
-              type="submit"
-              disabled={loading}
-              className="w-full bg-tv-green hover:bg-tv-green/90 text-black font-bold py-3 rounded-lg transition-colors disabled:opacity-50 mt-4"
-            >
-              {loading ? 'Memproses...' : 'Kirim Kode Verifikasi'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerify} className="space-y-5">
-            <div>
-              <label className="block text-tv-muted text-xs font-mono uppercase mb-2">Kode Verifikasi 6 Digit</label>
-              <input 
-                type="text" 
-                required
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full bg-tv-bg border border-tv-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-tv-green text-center text-2xl tracking-[0.5em] transition-colors"
-              />
-              <p className="text-xs text-tv-muted mt-2 text-center">Cek kotak masuk (atau folder Spam) email Anda untuk melihat kode verifikasi</p>
-            </div>
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-tv-green hover:bg-tv-green/90 text-black font-bold py-3 rounded-lg transition-colors disabled:opacity-50 mt-4"
-            >
-              {loading ? 'Memverifikasi...' : 'Verifikasi & Login'}
-            </button>
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={resending || resendCooldown > 0}
-              className="w-full text-tv-green hover:text-tv-green/80 py-2 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {resending
-                ? 'Mengirim ulang...'
-                : resendCooldown > 0
-                ? `Kirim ulang kode (${resendCooldown}s)`
-                : 'Kirim ulang kode'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setStep(1); setSuccessMsg(''); }}
-              className="w-full text-tv-muted hover:text-white py-2 text-sm transition-colors"
-            >
-              Kembali
-            </button>
-          </form>
-        )}
-
-        {step === 1 && (
-          <div className="mt-6 text-center text-sm text-tv-muted">
-            Sudah punya akun? <Link href="/login" className="text-tv-green hover:underline">Login</Link>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </AuthShell>
   );
 }
