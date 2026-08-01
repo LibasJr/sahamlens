@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Activity, TrendingUp, TrendingDown, BarChart3,
-  RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap
+  RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, Menu
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { hasProAccess, refreshAdminStatus, getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
@@ -76,8 +76,8 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
         {stocks?.slice(0, 4).map((s: any) => (
           <span
             key={s.symbol}
-            className={`text-[9px] font-number px-1 py-0.5 rounded ${
-              s.changePct >= 0 ? 'bg-tv-green/20 text-tv-green' : 'bg-tv-red/20 text-tv-red'
+            className={`text-[9px] font-number font-semibold px-1 py-0.5 rounded text-white ${
+              s.changePct >= 0 ? 'bg-tv-green/60' : 'bg-tv-red/60'
             }`}
           >
             {s.symbol} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%
@@ -125,6 +125,7 @@ export default function MarketPulse() {
   const [isClient, setIsClient] = useState(false);
   const [pro, setPro] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
 
   useEffect(() => {
@@ -136,6 +137,10 @@ export default function MarketPulse() {
     setLoading(true);
     try {
       const res = await fetch('/api/market-pulse', { cache: 'no-store' });
+      if (res.status === 401) {
+        setShowLoginPrompt(true);
+        return;
+      }
       const json = await res.json();
 
       if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
@@ -180,11 +185,17 @@ export default function MarketPulse() {
       <header className="bg-tv-surface border-b border-tv-border px-6 py-3 sticky top-0 z-20 shadow-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div className="p-2 rounded-md bg-tv-blue text-white">
               <Activity className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Market Pulse</h2>
+              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Ringkasan Pasar</h2>
               <p className="text-xs text-tv-muted">IDX Algorithmic Suite — Real-time Market Overview</p>
             </div>
           </div>
@@ -533,6 +544,15 @@ export default function MarketPulse() {
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
+      />
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Ringkasan Pasar"
+        body="Ringkasan Pasar butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
       />
     </div>
   );

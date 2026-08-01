@@ -27,10 +27,10 @@ function FundamentalContent() {
   const [marketClosed, setMarketClosed] = useState(false);
   const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(false);
-  const [backtestAccuracy, setBacktestAccuracy] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -60,6 +60,10 @@ function FundamentalContent() {
       const jsonStock = await resStock.json();
       const jsonAlgo = await resAlgo.json();
       
+      if (resStock.status === 401) {
+        setShowLoginPrompt(true);
+        return;
+      }
       if (resStock.status === 402 || jsonStock.code === 'SUBSCRIPTION_REQUIRED') {
         setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
@@ -137,23 +141,6 @@ function FundamentalContent() {
 
   const handleRefresh = () => {
     fetchAnalyzerData(ticker);
-    fetchBacktestAccuracy(ticker);
-  };
-
-  const fetchBacktestAccuracy = async (symbol: string) => {
-    try {
-      const res = await fetch('/api/backtest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols: [symbol], months: 12 })
-      });
-      const json = await res.json();
-      if (json && json.metrics) {
-        setBacktestAccuracy(json.metrics.winRate.toFixed(0) + '%');
-      }
-    } catch (e) {
-      console.error('Failed to fetch backtest', e);
-    }
   };
 
   useEffect(() => {
@@ -178,7 +165,6 @@ function FundamentalContent() {
     if (!mounted) return;
     setMarketClosed(!isMarketOpen());
     fetchAnalyzerData(ticker);
-    fetchBacktestAccuracy(ticker);
 
     const interval = setInterval(() => {
       const closed = !isMarketOpen();
@@ -230,6 +216,15 @@ function FundamentalContent() {
             'Fundamental Analyzer + Watchlist unlimited',
           ]}
         />
+        <PaywallModal
+          open={showLoginPrompt}
+          onClose={() => setShowLoginPrompt(false)}
+          title="Daftar Dulu untuk Lihat Hasil"
+          body="Analisa fundamental butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+          ctaHref="/signup"
+          ctaLabel="Daftar Gratis"
+          secondaryLabel="Nanti"
+        />
       </div>
     );
   }
@@ -238,14 +233,17 @@ function FundamentalContent() {
     analyzers = [...analyzers].sort((a, b) => b.confidence - a.confidence);
   }
 
-  const getAccuracyPct = (algoName: string) => {
-    // Generate pseudo-random consistent accuracy between 64-88% based on algoName
-    let hash = 0;
-    for (let i = 0; i < algoName.length; i++) {
-      hash = algoName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const randomPct = 64 + (Math.abs(hash) % 25);
-    return `${randomPct}%`;
+  // Akurasi real dari tracking lokal (localStorage, lihat trackAccuracy) - prediksi
+  // BULLISH/BEARISH terakhir dicocokkan ke pergerakan harga kunjungan berikutnya.
+  // Butuh minimal 20 sampel sebelum dianggap representatif; di bawah itu null
+  // (bukan angka karangan) supaya UI bisa menampilkan "belum cukup data" apa adanya.
+  const getAccuracyPct = (algoName: string): string | null => {
+    const score = scores[algoName];
+    if (!score) return null;
+    const total = score.correct + score.wrong;
+    if (total < 20) return null;
+    const acc = Math.min(95, Math.max(45, Math.round((score.correct / total) * 100)));
+    return `${acc}%`;
   };
 
   return (
@@ -449,7 +447,7 @@ function FundamentalContent() {
                       </div>
                       <div className="pt-2 border-t border-tv-hover text-[10px]">
                         <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
-                        <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
+                        <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? '-'}</span>
                       </div>
                     </div>
                   );
@@ -483,7 +481,16 @@ function FundamentalContent() {
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
       />
-      
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Hasil"
+        body="Analisa fundamental butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
+      />
+
       <style dangerouslySetInnerHTML={{__html:`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #131722; }

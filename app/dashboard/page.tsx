@@ -72,6 +72,11 @@ function DashboardContent() {
   // Free-tier "analisa per hari" limit
   const [analisaRemaining, setAnalisaRemaining] = useState<number>(FREE_LIMITS.analisaPerHari);
   const [showPaywall, setShowPaywall] = useState(false);
+  // ATURAN BARU (2026-08-01) - halaman ini sekarang bisa dibuka tanpa login (lihat
+  // middleware.ts), tapi /api/stock/[ticker] tetap wajib login. State terpisah dari
+  // showPaywall (itu utk trial/Pro habis) supaya pesannya jelas beda: ajakan DAFTAR,
+  // bukan upgrade Pro (user belum tentu punya akun sama sekali).
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [adminReady, setAdminReady] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
@@ -100,6 +105,10 @@ function DashboardContent() {
       const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store' });
       const jsonAlgo = await resAlgo.json();
       
+      if (resAlgo.status === 401) {
+        setShowLoginPrompt(true);
+        return;
+      }
       if (resAlgo.status === 402 || jsonAlgo.code === 'SUBSCRIPTION_REQUIRED') {
         setShowPaywall(true);
         return;
@@ -441,30 +450,19 @@ function DashboardContent() {
     }
     if (macdTotal > 0) results['MACD (12,26,9)'] = ((macdCorrect / macdTotal) * 100).toFixed(0) + '%';
 
-    // For other analyzers, estimate from price momentum correlation
-    const genericLabels = ['EMA 9/21 Cross', 'Bollinger Bands', 'Momentum Score', 'Support/Resistance', 'SMA 50/200 Cross', 'Market Flow Index', 'Foreign Flow (Estimasi Asing)', 'Trend Price vs MA200'];
-    genericLabels.forEach(label => {
-      // Use a hash-like approach from symbol + label for consistent pseudo-backtest
-      let seed = 0;
-      for (let c = 0; c < (ticker + label).length; c++) seed += (ticker + label).charCodeAt(c);
-      const pct = 45 + (seed % 30); // Range 45-74%
-      results[label] = pct + '%';
-    });
-
     return results;
   }, [data, ticker]);
 
-  const calcAccuracy = (wins: number, total: number, label: string) => {
-    if (total < 20) {
-      let seed = 0; 
-      for(let i = 0; i < label.length; i++) seed += label.charCodeAt(i);
-      return (62 + (seed % 10)); // dummy 62-72%
-    }
+  // Butuh minimal 20 sampel tracking (localStorage, lihat trackAccuracy) sebelum
+  // persentase akurasi dianggap cukup representatif - di bawah itu kembalikan null
+  // (bukan angka karangan) supaya UI bisa menampilkan "belum cukup data" apa adanya.
+  const calcAccuracy = (wins: number, total: number): number | null => {
+    if (total < 20) return null;
     const acc = (wins / total) * 100;
     return Math.min(95, Math.max(45, Math.round(acc)));
   };
 
-  const getAccuracyPct = (label: string) => {
+  const getAccuracyPct = (label: string): string | null => {
     if (backtestAccuracy[label]) {
       // Extract number from '72%' and clamp just in case
       const val = parseInt(backtestAccuracy[label]);
@@ -473,9 +471,10 @@ function DashboardContent() {
     if (scores[label]) {
       const wins = scores[label].correct;
       const total = scores[label].correct + scores[label].wrong;
-      return calcAccuracy(wins, total, label) + '%';
+      const acc = calcAccuracy(wins, total);
+      return acc !== null ? acc + '%' : null;
     }
-    return calcAccuracy(0, 0, label) + '%';
+    return null;
   };
 
   if (loading && !data) {
@@ -509,6 +508,15 @@ function DashboardContent() {
             'AI Pick LIVE',
             'Fundamental Analyzer + Watchlist unlimited',
           ]}
+        />
+        <PaywallModal
+          open={showLoginPrompt}
+          onClose={() => setShowLoginPrompt(false)}
+          title="Daftar Dulu untuk Lihat Hasil"
+          body="Analisa teknikal butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+          ctaHref="/signup"
+          ctaLabel="Daftar Gratis"
+          secondaryLabel="Nanti"
         />
       </div>
     );
@@ -1041,6 +1049,15 @@ function DashboardContent() {
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
+      />
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Hasil"
+        body="Analisa teknikal butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
       />
 
       <style dangerouslySetInnerHTML={{__html:`

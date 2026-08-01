@@ -4,9 +4,8 @@ import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Target, Activity, ArrowUpRight, ArrowDownRight, Clock, ChevronRight,
-  RefreshCw, Search, ArrowUpDown, ChevronUp, ChevronDown, ShieldCheck, Calendar,
+  RefreshCw, Search, ArrowUpDown, ChevronUp, ChevronDown, ShieldCheck, Calendar, Menu,
 } from 'lucide-react';
-import calendarData from '@/data/calendar.json';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -123,6 +122,7 @@ function BreakoutRadarContent() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [dailyPicks, setDailyPicks] = useState<DailyPicks | null>(null);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
 
@@ -144,6 +144,23 @@ function BreakoutRadarContent() {
   type CategorySortKey = 'symbol' | 'price' | 'changePct';
   const [categorySortConfig, setCategorySortConfig] = useState<{ key: CategorySortKey; direction: 'asc' | 'desc' } | null>(null);
 
+  // Badge "Ada Corporate Action Hari Ini" - sebelumnya pakai data/calendar.json dummy
+  // + tanggal hardcode '2026-07-28' (jadi "hari ini" beku permanen). Sekarang pakai
+  // kalender real (/api/calendar, dividen+earnings dari Yahoo Finance) dan tanggal
+  // hari ini yang sesungguhnya.
+  const [stocksWithEventToday, setStocksWithEventToday] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch('/api/calendar')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.events) return;
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayEvents = data.events[todayStr] || [];
+        setStocksWithEventToday(new Set(todayEvents.map((e: any) => e.symbol)));
+      })
+      .catch(() => {});
+  }, []);
+
   const initialTab = useMemo(() => {
     const cat = searchParams.get('cat');
     return CATEGORY_TABS.some((t) => t.key === cat) ? (cat as TabKey) : 'breakout';
@@ -158,6 +175,10 @@ function BreakoutRadarContent() {
         const res = await fetch('/api/breakout-radar', { cache: 'no-store' });
         const json = await res.json();
 
+        if (res.status === 401) {
+          setShowLoginPrompt(true);
+          return;
+        }
         if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
           setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
@@ -210,6 +231,10 @@ function BreakoutRadarContent() {
         const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store' });
 
         const json = await res.json();
+        if (res.status === 401) {
+          setShowLoginPrompt(true);
+          return;
+        }
         if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
           setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
@@ -395,10 +420,6 @@ function BreakoutRadarContent() {
     return result;
   }, [dailyPicks, activeTab, categorySortConfig]);
 
-  const TODAY = '2026-07-28';
-  const todayEvents = (calendarData as any)[TODAY] || [];
-  const stocksWithEventToday = new Set(todayEvents.map((e: any) => e.symbol.replace('.JK', '')));
-
   const activeCategory = (activeTab !== 'breakout' && activeTab !== 'recommendations') ? dailyPicks?.[activeTab] : null;
   const activeLabel = CATEGORY_TABS.find((t) => t.key === activeTab)?.label || '';
 
@@ -410,6 +431,12 @@ function BreakoutRadarContent() {
         <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+                className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
               <div className="p-2 rounded-md bg-tv-blue text-white">
                 <Target className="w-6 h-6" />
               </div>
@@ -825,6 +852,15 @@ function BreakoutRadarContent() {
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
+      />
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Hasil"
+        body="AI Pick butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
       />
     </div>
   );

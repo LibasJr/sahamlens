@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
-import { Target, Search, RefreshCw, ChevronLeft, ArrowRightLeft } from 'lucide-react';
+import { Target, Search, RefreshCw, ArrowRightLeft, Menu } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -38,6 +38,7 @@ function CompareContent() {
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   // Effect restore-dari-localStorage (di bawah) dan effect fetch (setelahnya) sama-sama
   // jalan saat mount - fetch pertama berangkat dengan symbol1 default 'BBCA.JK' SEBELUM
   // state ke-update dari localStorage, jadi dua request keluar. Sequence number ini
@@ -71,6 +72,10 @@ function CompareContent() {
 
       if (seq !== fetchSeqRef.current) return; // response basi, sudah ada request lebih baru
 
+      if (res.status === 401) {
+        setShowLoginPrompt(true);
+        return;
+      }
       if (res.status === 402 || res.status === 403 || json.code === 'SUBSCRIPTION_REQUIRED') {
         setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
@@ -112,6 +117,12 @@ function CompareContent() {
         <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+                className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
               <div className="p-2 rounded-md bg-tv-blue text-white">
                 <ArrowRightLeft className="w-5 h-5" />
               </div>
@@ -120,9 +131,6 @@ function CompareContent() {
                 <p className="text-xs text-tv-muted">Head-to-head Fundamental & Technical Analysis</p>
               </div>
             </div>
-            <button onClick={() => router.push('/')} className="text-sm text-tv-muted hover:text-tv-text flex items-center gap-1 transition-colors">
-              <ChevronLeft className="w-4 h-4" /> Back to Dashboard
-            </button>
           </div>
         </header>
 
@@ -231,6 +239,15 @@ function CompareContent() {
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
+      />
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Hasil"
+        body="Compare Tool butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
       />
     </div>
   );

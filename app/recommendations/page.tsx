@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, ShieldCheck, Search, ArrowUpDown, ChevronUp, ChevronDown, Calendar, Bot } from 'lucide-react';
-import calendarData from '@/data/calendar.json';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -48,6 +47,23 @@ export default function Recommendations() {
   
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  // Badge "Ada Corporate Action Hari Ini" - sebelumnya pakai data/calendar.json dummy
+  // + tanggal hardcode '2026-07-28'. Sekarang pakai kalender real (/api/calendar,
+  // dividen+earnings dari Yahoo Finance) dan tanggal hari ini yang sesungguhnya.
+  const [stocksWithEventToday, setStocksWithEventToday] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch('/api/calendar')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((resData) => {
+        if (!resData?.events) return;
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayEvents = resData.events[todayStr] || [];
+        setStocksWithEventToday(new Set(todayEvents.map((e: any) => e.symbol)));
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchRecommendations = async () => {
     setLoading(true);
@@ -61,6 +77,10 @@ export default function Recommendations() {
         const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store' });
         
         const json = await res.json();
+        if (res.status === 401) {
+          setShowLoginPrompt(true);
+          return;
+        }
         if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
           setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
@@ -172,10 +192,6 @@ export default function Recommendations() {
 
     return result.slice(0, 50);
   }, [data, searchTerm, sortConfig]);
-
-  const TODAY = '2026-07-28';
-  const todayEvents = (calendarData as any)[TODAY] || [];
-  const stocksWithEventToday = new Set(todayEvents.map((e: any) => e.symbol.replace('.JK', '')));
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -381,6 +397,15 @@ export default function Recommendations() {
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
+      />
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Hasil"
+        body="Rekomendasi saham butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
       />
     </div>
   );

@@ -63,6 +63,23 @@ function UpgradeTeaser({ label }: { label: string }) {
   );
 }
 
+// ATURAN BARU (2026-08-01) - halaman ini terbuka tanpa login, tapi widget yang
+// datanya personal (Watchlist) atau butuh sesi (AI Picks) tetap gerbang API-level.
+// Beranda gabungan banyak widget independen - kalau satu widget 401, tampilkan
+// ajakan login INLINE di widget itu saja (bukan modal full-page yang memblokir
+// widget lain yang justru publik dan sudah berhasil dimuat).
+function LoginTeaser({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center gap-2 py-6">
+      <Lock className="w-5 h-5 text-tv-blue" />
+      <p className="text-xs text-tv-muted max-w-[220px]">Login untuk lihat {label}.</p>
+      <Link href="/signup">
+        <Button variant="primary" size="sm">Daftar Gratis</Button>
+      </Link>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [watchlist, setWatchlist] = useState<WatchlistItemDto[]>([]);
   const [aiPicks, setAiPicks] = useState<AiPick[]>([]);
@@ -76,14 +93,19 @@ export default function HomePage() {
   const [loadingPicks, setLoadingPicks] = useState(true);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
   const [picksNeedPro, setPicksNeedPro] = useState(false);
+  const [watchlistLoginRequired, setWatchlistLoginRequired] = useState(false);
+  const [picksLoginRequired, setPicksLoginRequired] = useState(false);
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
 
   useEffect(() => {
     fetch('/api/v1/watchlists', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setWatchlist(d?.data || []))
+      .then((r) => {
+        if (r.status === 401) { setWatchlistLoginRequired(true); return null; }
+        return r.ok ? r.json() : null;
+      })
+      .then((d) => { if (d) setWatchlist(d.data || []); })
       .catch(() => {})
       .finally(() => setLoadingWatchlist(false));
 
@@ -104,6 +126,7 @@ export default function HomePage() {
 
     fetch(`/api/recommendations?symbols=${PICK_UNIVERSE}`, { cache: 'no-store' })
       .then((r) => {
+        if (r.status === 401) { setPicksLoginRequired(true); return null; }
         if (r.status === 402) { setPicksNeedPro(true); return null; }
         return r.ok ? r.json() : null;
       })
@@ -158,7 +181,7 @@ export default function HomePage() {
   }, [loadingMarket, loadingPicks, loadingDailyPicks]);
 
   return (
-    <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full space-y-5">
+    <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full space-y-5 min-h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -193,6 +216,8 @@ export default function HomePage() {
                 </p>
               ) : aiBriefing ? (
                 <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
+              ) : picksLoginRequired ? (
+                <p className="text-sm text-tv-muted mt-1.5">Login untuk melihat sinyal AI harian.</p>
               ) : picksNeedPro ? (
                 <p className="text-sm text-tv-muted mt-1.5">Upgrade ke Pro untuk melihat sinyal AI harian.</p>
               ) : topPick ? (
@@ -283,6 +308,8 @@ export default function HomePage() {
             </CardHeader>
             {loadingWatchlist ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+            ) : watchlistLoginRequired ? (
+              <LoginTeaser label="watchlist" />
             ) : watchlist.length ? (
               <div className="space-y-1.5">
                 {watchlist.slice(0, 5).map((w) => (
@@ -350,6 +377,8 @@ export default function HomePage() {
             </CardHeader>
             {loadingPicks ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+            ) : picksLoginRequired ? (
+              <LoginTeaser label="AI Picks" />
             ) : picksNeedPro ? (
               <UpgradeTeaser label="AI Pick" />
             ) : aiPicks.length ? (
@@ -375,8 +404,8 @@ export default function HomePage() {
 
       {/* Berita & Sentimen Pasar - RSS publik (CNBC Indonesia, Detik Finance) + sentimen
           dari Council AI (fallback heuristik kata kunci kalau Council AI tidak tersedia) */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card>
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex-1 flex flex-col">
+        <Card className="flex-1 flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Newspaper className="w-4 h-4 text-tv-muted" />
