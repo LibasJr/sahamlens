@@ -75,4 +75,11 @@ object SahamNestedRoute {
     const val STOCK_DETAIL = "stock_detail/{ticker}"
     fun stockDetail(ticker: String) = "stock_detail/$ticker"
     const val DESIGN_SYSTEM_SHOWCASE = "design_system_showcase"
+
+    // Alat Analisis - dijangkau dari Profil ("Alat & Analisis"), bukan tujuan Bottom Nav
+    // ke-7 (tetap 6 sesuai batas Build 002).
+    const val RISK_CALCULATOR = "risk_calculator"
+    const val SCREENER = "screener"
+    const val COMPARE = "compare"
+    const val MARKET_PULSE = "market_pulse"
 }

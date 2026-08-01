@@ -145,7 +145,7 @@ fun SahamAppScaffold(
                 }
             },
         ) { innerPadding ->
-            // Beberapa tujuan (StockDetail, AI Copilot, Design System Showcase) punya
+            // Beberapa tujuan (StockDetail, AI Council, Design System Showcase) punya
             // Scaffold/TopAppBar sendiri di dalam - padding ini terutama menjaga layar
             // tanpa Scaffold sendiri (Home, Market, Portfolio, Watchlist, Profil) tidak
             // tertutup Bottom Navigation.

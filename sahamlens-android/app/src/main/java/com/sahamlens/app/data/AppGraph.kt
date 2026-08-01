@@ -6,6 +6,7 @@ import com.sahamlens.app.data.chat.ChatRepository
 import com.sahamlens.app.data.market.MarketRepository
 import com.sahamlens.app.data.portfolio.PortfolioRepository
 import com.sahamlens.app.data.stockdetail.StockDetailRepository
+import com.sahamlens.app.data.tools.ToolsRepository
 import com.sahamlens.app.data.watchlist.WatchlistRepository
 import com.sahamlens.core.database.SahamLensDatabase
 import com.sahamlens.core.network.NetworkModule
@@ -44,4 +45,6 @@ object AppGraph {
     val stockDetailRepository: StockDetailRepository by lazy { StockDetailRepository(NetworkModule.api) }
 
     val chatRepository: ChatRepository by lazy { ChatRepository(NetworkModule.api) }
+
+    val toolsRepository: ToolsRepository by lazy { ToolsRepository(NetworkModule.api) }
 }

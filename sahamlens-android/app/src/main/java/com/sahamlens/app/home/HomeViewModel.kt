@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.sahamlens.app.aicopilot.aiOpportunitySentence
 import com.sahamlens.app.data.auth.AuthRepository
 import com.sahamlens.app.data.market.MarketRepository
 import com.sahamlens.app.data.portfolio.PortfolioRepository
 import com.sahamlens.app.data.watchlist.WatchlistRepository
+import com.sahamlens.core.network.model.DailyPicksResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +34,10 @@ class HomeViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    // Sumber yang SAMA dipakai AiCopilotViewModel untuk sapaan pembuka AI Council - lihat
+    // aiOpportunitySentence() di app/aicopilot/AiBriefing.kt.
+    private var dailyPicks: DailyPicksResponse? = null
 
     init {
         _uiState.update { it.copy(userName = authRepository.userEmail.value?.substringBefore("@") ?: "Investor") }
@@ -95,13 +101,15 @@ class HomeViewModel(
             val picks = summary?.topTechnical?.take(3)?.map { row ->
                 AiPick(ticker = row.symbol, consensus = "BUY", confidencePct = row.score)
             } ?: emptyList()
+            dailyPicks = marketRepository.getDailyPicks().getOrNull()
             _uiState.update { it.copy(isLoadingMarket = false, topPicks = picks) }
             buildAiOpportunityText()
         }
     }
 
     /** Sapaan "AI menemukan peluang hari ini" - dirangkai dari data yang SUDAH nyata (Portfolio
-     * P/L + jumlah saham menarik hari ini), bukan kalimat tetap yang ditulis di kode. */
+     * P/L + daily-picks), lewat [aiOpportunitySentence] yang SAMA dipakai sapaan pembuka AI
+     * Council supaya keduanya menyebut angka yang identik, bukan dua sumber kebenaran. */
     private fun buildAiOpportunityText() {
         _uiState.update { state ->
             if (state.isLoadingPortfolio || state.isLoadingMarket) return@update state
@@ -109,12 +117,7 @@ class HomeViewModel(
                 val word = if (pct >= 0) "naik" else "turun"
                 "Portofolio Anda $word ${"%.1f".format(kotlin.math.abs(pct))}% hari ini. "
             } ?: ""
-            val picksPart = if (state.topPicks.isNotEmpty()) {
-                "Saya menemukan ${state.topPicks.size} saham dengan sinyal bullish kuat hari ini."
-            } else {
-                "Belum ada sinyal bullish kuat yang terdeteksi hari ini."
-            }
-            state.copy(aiOpportunityText = pnlPart + picksPart)
+            state.copy(aiOpportunityText = pnlPart + aiOpportunitySentence(dailyPicks))
         }
     }
 

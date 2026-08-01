@@ -12,7 +12,7 @@ val DarkOnPrimary = Color(0xFF0A1119)
 val DarkPrimaryContainer = Color(0xFF12294F)
 val DarkOnPrimaryContainer = Color(0xFFD7E6FF)
 
-val DarkTertiary = Color(0xFFE3C567) // AI Copilot / Premium - sengaja dipisah dari Primary
+val DarkTertiary = Color(0xFFE3C567) // AI Council / Premium - sengaja dipisah dari Primary
 val DarkOnTertiary = Color(0xFF3A3116)
 val DarkTertiaryContainer = Color(0xFF3A3116)
 val DarkOnTertiaryContainer = Color(0xFFF3E4B8)

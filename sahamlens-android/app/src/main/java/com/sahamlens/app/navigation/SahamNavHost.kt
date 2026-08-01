@@ -27,6 +27,10 @@ import com.sahamlens.app.market.MarketScreen
 import com.sahamlens.app.portfolio.PortfolioScreen
 import com.sahamlens.app.profile.ProfileScreen
 import com.sahamlens.app.stockdetail.StockDetailScreen
+import com.sahamlens.app.tools.compare.CompareScreen
+import com.sahamlens.app.tools.marketpulse.MarketPulseScreen
+import com.sahamlens.app.tools.riskcalculator.RiskCalculatorScreen
+import com.sahamlens.app.tools.screener.ScreenerScreen
 import com.sahamlens.app.ui.showcase.DesignSystemShowcaseScreen
 import com.sahamlens.app.watchlist.WatchlistScreen
 
@@ -94,6 +98,10 @@ fun SahamNavHost(
             composable(SahamDestination.PROFILE.route) {
                 ProfileScreen(
                     onOpenDesignSystemShowcase = { navController.navigate(SahamNestedRoute.DESIGN_SYSTEM_SHOWCASE) },
+                    onOpenRiskCalculator = { navController.navigate(SahamNestedRoute.RISK_CALCULATOR) },
+                    onOpenScreener = { navController.navigate(SahamNestedRoute.SCREENER) },
+                    onOpenCompare = { navController.navigate(SahamNestedRoute.COMPARE) },
+                    onOpenMarketPulse = { navController.navigate(SahamNestedRoute.MARKET_PULSE) },
                 )
             }
 
@@ -116,6 +124,28 @@ fun SahamNavHost(
 
             composable(SahamNestedRoute.DESIGN_SYSTEM_SHOWCASE) {
                 DesignSystemShowcaseScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(SahamNestedRoute.RISK_CALCULATOR) {
+                RiskCalculatorScreen(onBack = { navController.popBackStack() })
+            }
+            composable(SahamNestedRoute.SCREENER) {
+                ScreenerScreen(
+                    onBack = { navController.popBackStack() },
+                    onStockClick = { ticker -> navController.navigate(SahamNestedRoute.stockDetail(ticker)) },
+                )
+            }
+            composable(SahamNestedRoute.COMPARE) {
+                CompareScreen(
+                    onBack = { navController.popBackStack() },
+                    onRequireLogin = { navController.popBackStack() },
+                )
+            }
+            composable(SahamNestedRoute.MARKET_PULSE) {
+                MarketPulseScreen(
+                    onBack = { navController.popBackStack() },
+                    onRequireLogin = { navController.popBackStack() },
+                )
             }
         }
     }

@@ -41,7 +41,7 @@ import com.sahamlens.core.designsystem.theme.SahamLensTheme
 import kotlinx.coroutines.launch
 
 /**
- * AI Copilot layar penuh. Pesan pertama SELALU sapaan proaktif nyata (Portfolio+Market),
+ * AI Council layar penuh. Pesan pertama SELALU sapaan proaktif nyata (Portfolio+Market),
  * dan setiap giliran berikutnya benar-benar memanggil POST /api/chat (AiCopilotViewModel) -
  * bukan lagi gema lokal.
  */

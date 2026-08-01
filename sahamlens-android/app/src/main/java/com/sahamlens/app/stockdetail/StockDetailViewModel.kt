@@ -8,6 +8,7 @@ import com.sahamlens.app.data.portfolio.PortfolioRepository
 import com.sahamlens.app.data.stockdetail.StockDetailRepository
 import com.sahamlens.core.designsystem.component.Candle
 import com.sahamlens.core.network.model.DcfResponse
+import com.sahamlens.core.network.model.FundamentalResponse
 import com.sahamlens.core.network.model.StockDetailResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,12 +43,23 @@ class StockDetailViewModel(
             val detailResult = stockDetailRepository.getDetail(ticker)
             val dcfResult = stockDetailRepository.getDcf(ticker)
             val dcfState = dcfResult.getOrNull()?.let(::mapDcf)
+            val fundamentalResponse = stockDetailRepository.getFundamental(ticker).getOrNull()
+            val fundamentalRows = fundamentalResponse?.analyzers?.map { AnalyzerRow(it.label, it.value, it.decision) } ?: emptyList()
+            val fundamentalConsensus = fundamentalResponse?.consensus
 
             detailResult.fold(
-                onSuccess = { response -> _uiState.value = response.toState(dcfState) },
+                onSuccess = { response -> _uiState.value = response.toState(dcfState, fundamentalRows, fundamentalConsensus) },
                 onFailure = { error ->
                     val code = (error as? HttpException)?.code()
-                    _uiState.update { it.copy(isLoading = false, errorCode = code ?: -1, dcf = dcfState) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorCode = code ?: -1,
+                            dcf = dcfState,
+                            fundamentalRows = fundamentalRows,
+                            fundamentalConsensus = fundamentalConsensus,
+                        )
+                    }
                 },
             )
         }
@@ -80,7 +92,11 @@ class StockDetailViewModel(
         executiveSummary = dcf.analysis?.executiveSummary ?: "",
     )
 
-    private fun StockDetailResponse.toState(dcf: DcfUiState?): StockDetailUiState {
+    private fun StockDetailResponse.toState(
+        dcf: DcfUiState?,
+        fundamentalRows: List<AnalyzerRow>,
+        fundamentalConsensus: String?,
+    ): StockDetailUiState {
         val candles = stock?.history?.takeLast(60)?.map {
             Candle(open = it.open, high = it.high, low = it.low, close = it.close)
         } ?: emptyList()
@@ -97,6 +113,8 @@ class StockDetailViewModel(
             technicalRows = analyzers
                 .filterNot { it.label.contains("Foreign Flow") }
                 .map { AnalyzerRow(it.label, it.value, it.decision) },
+            fundamentalRows = fundamentalRows,
+            fundamentalConsensus = fundamentalConsensus,
             bandarNote = bandar?.let { "${it.value} (estimasi, bukan data broker resmi)" },
             dcf = dcf,
         )

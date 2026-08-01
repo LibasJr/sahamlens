@@ -12,7 +12,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.Compare
+import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Password
@@ -55,12 +59,22 @@ private enum class ProfileDialog { NONE, PASSWORD, NOTIFICATIONS, ABOUT }
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     onOpenDesignSystemShowcase: () -> Unit = {},
+    onOpenRiskCalculator: () -> Unit = {},
+    onOpenScreener: () -> Unit = {},
+    onOpenCompare: () -> Unit = {},
+    onOpenMarketPulse: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val email by AppGraph.authRepository.userEmail.collectAsState()
     val role by AppGraph.authRepository.userRole.collectAsState()
     var dialog by remember { mutableStateOf(ProfileDialog.NONE) }
 
+    val toolsMenu = listOf(
+        ProfileMenuItem("Stock Screener", Icons.Outlined.FilterAlt, onOpenScreener),
+        ProfileMenuItem("Compare Tool", Icons.Outlined.Compare, onOpenCompare),
+        ProfileMenuItem("Market Pulse", Icons.Outlined.Insights, onOpenMarketPulse),
+        ProfileMenuItem("Risk Calculator", Icons.Outlined.Calculate, onOpenRiskCalculator),
+    )
     val menu = listOf(
         ProfileMenuItem("Design System Showcase", Icons.Outlined.Palette, onOpenDesignSystemShowcase),
         ProfileMenuItem("Ubah Password", Icons.Outlined.Password) { dialog = ProfileDialog.PASSWORD },
@@ -88,6 +102,24 @@ fun ProfileScreen(
             }
             HorizontalDivider()
         }
+        item {
+            Text(
+                "Alat & Analisis",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+        items(toolsMenu) { item ->
+            ListItem(
+                headlineContent = { Text(item.label) },
+                leadingContent = { Icon(item.icon, contentDescription = null) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = item.onClick),
+            )
+        }
+        item { HorizontalDivider() }
         items(menu) { item ->
             ListItem(
                 headlineContent = { Text(item.label) },

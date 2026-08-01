@@ -35,6 +35,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -60,9 +63,13 @@ import com.sahamlens.core.designsystem.component.SahamCardVariant
 import com.sahamlens.core.designsystem.component.ShimmerBox
 import com.sahamlens.core.designsystem.theme.SahamLensTheme
 
+// Dipakai untuk dua kosakata backend yang beda: konsensus skor komposit ("STRONG BUY"/"SELL"/
+// "HOLD") DAN keputusan per-analyzer teknikal/fundamental ("BULLISH"/"BEARISH"/"NEUTRAL",
+// "UNDERVALUED (BULLISH ..)"/"OVERVALUED (BEARISH ..)") - keduanya perlu dikenali di sini,
+// bukan cuma BUY/SELL, supaya badge Technical & Fundamental tidak selalu jatuh ke abu-abu.
 private fun badgeVariantFor(consensus: String) = when {
-    consensus.contains("BUY") -> SahamBadgeVariant.Success
-    consensus.contains("SELL") -> SahamBadgeVariant.Danger
+    consensus.contains("BUY") || consensus.contains("BULLISH") || consensus.contains("UNDERVALUED") -> SahamBadgeVariant.Success
+    consensus.contains("SELL") || consensus.contains("BEARISH") || consensus.contains("OVERVALUED") -> SahamBadgeVariant.Danger
     else -> SahamBadgeVariant.Neutral
 }
 
@@ -88,10 +95,15 @@ fun StockDetailScreen(
     )
     val state by viewModel.uiState.collectAsState()
     var tradeDialog by remember { mutableStateOf<TradeAction?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    // Sukses/gagal transaksi lewat Snackbar auto-dismiss (bukan AlertDialog yang memaksa tap
+    // "OK") - hasil yang sudah pasti (bukan pilihan) tidak perlu memblokir aksi berikutnya.
     LaunchedEffect(state.tradeMessage) {
-        // Placeholder hook - pesan transaksi ditampilkan lewat dialog di bawah, bukan Snackbar
-        // (Scaffold Detail Saham sudah dipakai BottomSheetScaffold, satu Scaffold per layar).
+        state.tradeMessage?.let { message ->
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            viewModel.clearTradeMessage()
+        }
     }
 
     when (state.errorCode) {
@@ -126,6 +138,7 @@ fun StockDetailScreen(
         modifier = modifier,
         scaffoldState = scaffoldState,
         sheetPeekHeight = 420.dp,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(ticker) },
@@ -159,15 +172,6 @@ fun StockDetailScreen(
                 if (action == TradeAction.BUY) viewModel.buy(lots) else viewModel.sell(lots)
                 tradeDialog = null
             },
-        )
-    }
-
-    state.tradeMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = viewModel::clearTradeMessage,
-            confirmButton = { SahamButton("OK", onClick = viewModel::clearTradeMessage, variant = SahamButtonVariant.Text) },
-            title = { Text("Transaksi") },
-            text = { Text(message) },
         )
     }
 }
@@ -336,6 +340,29 @@ private fun StockDetailSheetContent(state: StockDetailUiState, onBuySell: (Trade
                 Text("Belum ada data.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 state.technicalRows.forEach { row ->
+                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(row.label, style = MaterialTheme.typography.bodyMedium)
+                            Text(row.value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        SahamBadge(row.decision, variant = badgeVariantFor(row.decision))
+                    }
+                }
+            }
+        }
+
+        ExpandableSection(
+            title = "Fundamental",
+            initiallyExpanded = false,
+        ) {
+            if (state.fundamentalRows.isEmpty()) {
+                Text("Belum ada data.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                state.fundamentalConsensus?.let {
+                    SahamBadge(it, variant = badgeVariantFor(it))
+                    Spacer(Modifier.height(6.dp))
+                }
+                state.fundamentalRows.forEach { row ->
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text(row.label, style = MaterialTheme.typography.bodyMedium)
