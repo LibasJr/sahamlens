@@ -63,6 +63,35 @@ export async function cacheDel(keyOrPattern: string): Promise<void> {
   }
 }
 
+/** SCAN penuh (paginasi sampai cursor balik ke 0) - dipakai untuk key dengan jumlah
+ * kecil (mis. presence user aktif), BUKAN untuk pattern yang bisa cocok ribuan key. */
+export async function scanKeys(pattern: string): Promise<string[]> {
+  const client = getClient();
+  if (!client) return [];
+  try {
+    let cursor = 0;
+    const keys: string[] = [];
+    do {
+      const result: [string | number, string[]] = await client.scan(cursor, { match: pattern, count: 100 });
+      keys.push(...result[1]);
+      cursor = Number(result[0]);
+    } while (cursor !== 0);
+    return keys;
+  } catch {
+    return [];
+  }
+}
+
+export async function cacheMGet<T>(keys: string[]): Promise<(T | null)[]> {
+  const client = getClient();
+  if (!client || keys.length === 0) return [];
+  try {
+    return await client.mget<T[]>(...keys);
+  } catch {
+    return keys.map(() => null);
+  }
+}
+
 /**
  * Single-flight getOrCompute (Cache Layer Strategy poin 4 - proteksi stampede):
  * kalau banyak request bersamaan cache-miss di key yang sama, cuma SATU yang

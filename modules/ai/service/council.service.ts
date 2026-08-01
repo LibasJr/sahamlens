@@ -7,6 +7,7 @@ Kamu adalah Dewan 10 Ahli Saham Indonesia. Analisa \${symbol}.
 
 DATA REAL:
 Symbol: \${symbol} - Price \${price}, MA50 \${ma50}, MA200 \${ma200}, EMA \${ema}, RSI \${rsi}, Support \${support}, Res \${resistance}, Score \${score}
+Fundamental: EPS \${eps}, Laporan Kuartal Terakhir \${lastQuarter}
 
 CONTOH OUTPUT YANG GUE MAU (JANGAN GENERIC):
 
@@ -38,11 +39,15 @@ ATURAN:
 Output JSON valid saja.
 `;
 
-export async function getCouncil(symbol: string, data: any) {
+// cacheKey opsional (dari app/api/council/route.ts, biasanya "tanggal:kuartal-terakhir-
+// dilaporkan") - kalau tidak diberi, fallback ke tanggal kalender hari ini seperti semula
+// (dipertahankan supaya pemanggil lama tanpa cacheKey tetap jalan).
+export async function getCouncil(symbol: string, data: any, cacheKey?: string) {
   const today = new Date().toISOString().split('T')[0];
-  
+  const key = cacheKey || today;
+
   // 1. Cek cache Redis (Cache Layer Tier 2 AI Result)
-  const cached = await getCouncilCache(symbol, today);
+  const cached = await getCouncilCache(symbol, key);
   if (cached) return cached;
 
   try {
@@ -54,7 +59,9 @@ export async function getCouncil(symbol: string, data: any) {
       rsi: data?.rsi || 0,
       support: data?.support || 0,
       resistance: data?.resistance || 0,
-      score: data?.score || 0
+      score: data?.score || 0,
+      eps: data?.fundamentalSnapshot?.trailingEps ?? 'N/A',
+      lastQuarter: data?.fundamentalSnapshot?.mostRecentQuarter ?? 'N/A',
     };
 
     let prompt = TUNED_PROMPT.replace(/\$\{symbol\}/g, symbol)
@@ -65,7 +72,9 @@ export async function getCouncil(symbol: string, data: any) {
       .replace(/\$\{rsi\}/g, typeof promptData.rsi === 'number' ? promptData.rsi.toFixed(2) : '0')
       .replace(/\$\{support\}/g, promptData.support.toString())
       .replace(/\$\{resistance\}/g, promptData.resistance.toString())
-      .replace(/\$\{score\}/g, promptData.score.toString());
+      .replace(/\$\{score\}/g, promptData.score.toString())
+      .replace(/\$\{eps\}/g, String(promptData.eps))
+      .replace(/\$\{lastQuarter\}/g, String(promptData.lastQuarter));
 
     // 2. Coba Council AI - cascade lintas provider (Gemini/Groq/OpenRouter, lihat
     // lib/aiProviders.ts), bukan cuma satu model - kalau satu provider kena limit,
@@ -82,7 +91,7 @@ export async function getCouncil(symbol: string, data: any) {
     const json = JSON.parse(jsonStr);
 
     // Save cache
-    await setCouncilCache(symbol, today, json);
+    await setCouncilCache(symbol, key, json);
     return json;
   } catch (e) {
     console.log("AI provider error, pakai local fallback", e);

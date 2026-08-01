@@ -634,14 +634,10 @@ function DashboardContent() {
               <h2 className="font-heading text-sm font-semibold text-white">AI Summary</h2>
             </div>
             <div className="flex flex-col md:flex-row gap-6 relative">
-              {/* Action Buttons */}
+              {/* Action Buttons - tombol "Council AI" sengaja dihapus dari sini (2026-08-01):
+                  sudah ada menu Council AI tersendiri di Sidebar, duplikasi tautan di dalam
+                  AI Summary cuma bikin bingung ("ini AI Summary atau Council AI?"). */}
               <div className="absolute top-0 right-0 flex gap-2 z-10">
-                <button
-                  onClick={() => router.push(`/technical/${stock.symbol || ticker}`)}
-                  className="flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-tv-yellow px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
-                >
-                  <Users className="w-3.5 h-3.5" /> Council AI
-                </button>
                 <button
                   onClick={downloadTechnicalPDF}
                   className="hidden md:flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-white px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"

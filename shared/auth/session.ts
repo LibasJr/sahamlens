@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { decrypt, type SessionPayload } from './jwt';
 import { SESSION_COOKIE } from '../constants/cookie-names';
+import { touchPresence } from './presence';
 
 export type { SessionPayload };
 
@@ -11,7 +12,11 @@ export type { SessionPayload };
 export async function getSession(): Promise<SessionPayload | null> {
   const session = cookies().get(SESSION_COOKIE)?.value;
   if (!session) return null;
-  return await decrypt(session);
+  const payload = await decrypt(session);
+  // Fire-and-forget - "siapa sedang aktif" untuk panel admin, tidak boleh pernah
+  // menahan atau menggagalkan request pengguna biasa kalau Redis lambat/down.
+  if (payload) touchPresence(payload).catch(() => {});
+  return payload;
 }
 
 export function checkProAccess(session: SessionPayload | null): boolean {

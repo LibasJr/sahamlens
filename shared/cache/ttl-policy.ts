@@ -25,9 +25,13 @@ export const CACHE_TTL_SEC = {
   // teknikal mentah.
   RECOMMENDATION: 15 * 60,
 
-  // Hasil AI Council (Gemini) - dikunci per simbol+tanggal, jadi TTL cuma perlu
-  // menutupi hari berjalan. Panggilan Gemini paling mahal di aplikasi ini.
-  AI_COUNCIL: 24 * 60 * 60,
+  // Hasil AI Council (Gemini) - dikunci per simbol+tanggal+kuartal-terakhir-dilaporkan
+  // (lihat app/api/council/route.ts), jadi laporan keuangan baru sudah otomatis
+  // membuat key lama basi lebih cepat dari ini. TTL diperpendek dari 24 jam -> 6 jam
+  // (2026-08-01, permintaan eksplisit "AI Council selalu update data terbaru") supaya
+  // pergerakan teknikal intraday juga tidak tertahan cache semalaman, tanpa membuat
+  // Gemini dipanggil berlebihan (panggilan AI paling mahal di aplikasi ini).
+  AI_COUNCIL: 6 * 60 * 60,
 
   // Fallback basi kalau Yahoo Finance sedang down - lebih baik data lama daripada
   // error keras (app/api/stock/[ticker]).

@@ -34,9 +34,11 @@ export async function GET() {
     // bukan metrik baru.
     const undervalueList = (summary.topRsiOversold || []).filter((s: any) => s.rsi < 30);
 
-    // "Momentum mingguan": penguatan mingguan > 5% - ambang batas sederhana di atas data
-    // topWeeklyGainers yang sudah real (bukan metrik baru, cuma threshold tambahan).
-    const weeklyMomentumList = (summary.topWeeklyGainers || []).filter((s: any) => s.changePct > 5);
+    // "Akumulasi Asing Berkelanjutan" (2026-08-01, gantikan "Momentum Mingguan" -
+    // proxy harga saja, kurang berguna sebagai sinyal berbeda dari Top Gainer) - saham
+    // dengan streak >=3 hari netValue positif (volume x arah harga), lihat
+    // modules/market/service/foreign-flow-proxy.ts. Sudah dihitung di getMarketSummary().
+    const foreignAccumulationList = summary.topForeignAccumulation || [];
 
     const category = (items: any[], mapDetail: (x: any) => any) => ({
       count: items.length,
@@ -55,7 +57,7 @@ export async function GET() {
       },
       goldenCross: category(crossSignals.golden, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Golden Cross' })),
       deadCross: category(crossSignals.dead, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Dead Cross' })),
-      weeklyMomentum: category(weeklyMomentumList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `+${s.changePct}% 5D` })),
+      foreignAccumulation: category(foreignAccumulationList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `${s.streak} hari akumulasi` })),
       timestamp: summary.timestamp,
     });
   } catch (error: any) {

@@ -1,3 +1,5 @@
+import { computeDailyNetFlow, computeAccumulationStreak } from './foreign-flow-proxy';
+
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-summary/route.ts, verbatim.
 // Rute publik (tanpa login) - ringkasan pasar untuk landing page & halaman /market/[category].
 // Universe diperluas dari 50 -> 250 saham atas permintaan eksplisit. 250 ticker ini BUKAN
@@ -84,10 +86,12 @@ async function fetchQuote(symbol: string) {
 
     const closes: number[] = [];
     const volumes: number[] = [];
+    const dates: string[] = [];
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close?.[i] !== null && quote.close?.[i] !== undefined) {
         closes.push(quote.close[i]);
         volumes.push(quote.volume?.[i] || 0);
+        dates.push(new Date(timestamps[i] * 1000).toISOString().split('T')[0]);
       }
     }
     if (closes.length < 5) return null;
@@ -111,6 +115,13 @@ async function fetchQuote(symbol: string) {
       : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
     const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
 
+    // Proxy "akumulasi asing berkelanjutan" - streak hari berturut-turut netValue
+    // (volume x arah harga) positif, dari modules/market/service/foreign-flow-proxy.ts
+    // (definisi SAMA dipakai /api/flow/[ticker] Bandar Flow) - BUKAN data broker resmi.
+    const history = dates.map((date, i) => ({ date, close: closes[i], volume: volumes[i] }));
+    const dailyFlow = computeDailyNetFlow(history).slice(-20);
+    const foreignAccumStreak = computeAccumulationStreak(dailyFlow);
+
     let technicalSignal: 'BULLISH' | 'BEARISH' | 'NETRAL' = 'NETRAL';
     let technicalScore = 0;
     if (ma20 !== null && ma50 !== null) {
@@ -131,6 +142,7 @@ async function fetchQuote(symbol: string) {
       ma20, ma50, rsi14,
       technicalSignal,
       technicalScore,
+      foreignAccumStreak,
     };
   } catch {
     return null;
@@ -199,6 +211,14 @@ export async function getMarketSummary() {
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), rsi: parseFloat((s.rsi14 as number).toFixed(1)), changePct: s.changePct, price: s.price }));
 
+  // "Akumulasi Asing Berkelanjutan" - streak >= 3 hari (proxy volume, lihat
+  // foreign-flow-proxy.ts), diranking dari yang paling panjang streak-nya.
+  const topForeignAccumulation = [...quotes]
+    .filter(s => (s.foreignAccumStreak || 0) >= 3)
+    .sort((a, b) => (b.foreignAccumStreak || 0) - (a.foreignAccumStreak || 0))
+    .slice(0, LIST_CAP)
+    .map(s => ({ symbol: strip(s), streak: s.foreignAccumStreak, changePct: s.changePct, price: s.price }));
+
   return {
     timestamp: new Date().toISOString(),
     topGainers,
@@ -210,5 +230,6 @@ export async function getMarketSummary() {
     topTechnical,
     topTechnicalBearish,
     topRsiOversold,
+    topForeignAccumulation,
   };
 }
