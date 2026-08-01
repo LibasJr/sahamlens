@@ -4,6 +4,7 @@
 export { precomputeBacktestData, computeTickerSeries } from './service/precompute.service';
 export { writeBacktestCache, readBacktestCache } from './service/cache.service';
 export { simulateBacktest } from './service/simulate.service';
+export { computeLiveSignal } from './service/live-signal.service';
 export type {
   IndicatorName,
   Decision,
@@ -14,3 +15,4 @@ export type {
   TradeRecord,
   SimulateResult,
 } from './types/backtest.types';
+export type { LiveSignalMatch, LiveSignalResult } from './service/live-signal.service';
