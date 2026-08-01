@@ -799,7 +799,7 @@ function DashboardContent() {
             2 halaman besar yang sudah stabil. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
-            href="/fundamental"
+            href={`/fundamental?symbol=${displayTicker(stock.symbol || ticker)}`}
             className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
           >
             <div className="w-10 h-10 rounded-md bg-tv-blue/15 flex items-center justify-center text-tv-blue shrink-0">
@@ -812,7 +812,7 @@ function DashboardContent() {
             <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-blue transition-colors" />
           </Link>
           <Link
-            href="/dcf"
+            href={`/dcf?symbol=${displayTicker(stock.symbol || ticker)}`}
             className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
           >
             <div className="w-10 h-10 rounded-md bg-tv-gold/15 flex items-center justify-center text-tv-gold shrink-0">
