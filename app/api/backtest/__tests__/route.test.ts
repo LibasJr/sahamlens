@@ -8,11 +8,12 @@ vi.mock('../../../../modules/backtest', () => ({
   precomputeBacktestData: vi.fn(),
   writeBacktestCache: vi.fn(),
   simulateBacktest: vi.fn(),
+  computeLiveSignal: vi.fn(),
 }));
 
 import { POST } from '../route';
 import { getSession } from '../../../../modules/user';
-import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '../../../../modules/backtest';
+import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest, computeLiveSignal } from '../../../../modules/backtest';
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/backtest', {
@@ -102,5 +103,81 @@ describe('POST /api/backtest', () => {
     const json = await res.json();
     expect(res.status).toBe(400);
     expect(json.error).toBe('Filter tidak dikenal');
+  });
+});
+
+describe('POST /api/backtest (mode: live-signal)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const sampleLiveSignal = {
+    dataAsOf: '2026-08-01T16:00:00.000Z',
+    matches: [{ symbol: 'BBCA.JK', price: 9500, score: 6 }],
+  };
+  const sampleHistorical = {
+    returnPct: 15.5, ihsgReturnPct: 2.1, alphaPct: 13.4, winRatePct: 62,
+    totalTrades: 8, maxDrawdownPct: -5.5,
+    equityCurve: [], ihsgCurve: [], trades: [],
+    computedAt: '2026-08-01T16:00:00.000Z',
+  };
+
+  it('menolak request tanpa session dengan 401', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    const res = await POST(makeRequest({ filters: ['RSI 14'], mode: 'live-signal' }));
+    expect(res.status).toBe(401);
+  });
+
+  it('menolak filters kosong dengan 400', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    const res = await POST(makeRequest({ filters: [], mode: 'live-signal' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('menolak filter tidak dikenal dengan 400', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    const res = await POST(makeRequest({ filters: ['Bollinger Bands'], mode: 'live-signal' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('mengembalikan matches + historicalStats dari cache yang ada, tidak butuh modal/period', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
+    vi.mocked(computeLiveSignal).mockReturnValue(sampleLiveSignal as any);
+    vi.mocked(simulateBacktest).mockReturnValue(sampleHistorical as any);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], mode: 'live-signal' }));
+    const json = await res.json();
+
+    expect(precomputeBacktestData).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(json.dataAsOf).toBe('2026-08-01T16:00:00.000Z');
+    expect(json.matches).toEqual([{ symbol: 'BBCA.JK', price: 9500, score: 6 }]);
+    expect(json.historicalStats).toEqual({ winRatePct: 62, returnPct: 15.5, alphaPct: 13.4, totalTrades: 8 });
+  });
+
+  it('fallback ke precompute sinkron kalau cache kosong', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    vi.mocked(readBacktestCache).mockResolvedValue(null);
+    vi.mocked(precomputeBacktestData).mockResolvedValue({ computedAt: 'y', ihsg: [], tickers: [] } as any);
+    vi.mocked(computeLiveSignal).mockReturnValue(sampleLiveSignal as any);
+    vi.mocked(simulateBacktest).mockReturnValue(sampleHistorical as any);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], mode: 'live-signal' }));
+
+    expect(precomputeBacktestData).toHaveBeenCalledTimes(1);
+    expect(writeBacktestCache).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(200);
+  });
+
+  it('default mode (tanpa field mode) tetap jalan seperti kontrak lama', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
+    vi.mocked(simulateBacktest).mockReturnValue(sampleHistorical as any);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
+    const json = await res.json();
+
+    expect(computeLiveSignal).not.toHaveBeenCalled();
+    expect(json.matches).toBeUndefined();
+    expect(res.status).toBe(200);
   });
 });
