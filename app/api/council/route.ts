@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
 import { getCouncil, runLocalCouncil, getCouncilCache } from '@/modules/ai';
 import { getSession, checkProAccess } from '@/modules/user';
+import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -149,14 +150,19 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const symbol = url.searchParams.get('symbol') || 'DGWG.JK';
-    
-    // Check limits
+
+    // Check limits - pengunjung tanpa akun bisa akses selama trial 7 hari (lihat
+    // shared/auth/anonymous-trial.ts) - trial aktif melewati gerbang Pro juga.
     const session = await getSession();
+    let anonTrial: AnonTrialState | null = null;
     if (!session) {
-      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+      anonTrial = await readOrIssueAnonymousTrial();
+      if (!anonTrial.active) {
+        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+      }
     }
 
-    const hasPro = checkProAccess(session);
+    const hasPro = !!anonTrial || checkProAccess(session);
     if (!hasPro) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
@@ -173,13 +179,17 @@ export async function GET(req: Request) {
     // Check Cache First
     const cached = await getCouncilCache(symbol, cacheKey);
     if (cached) {
-      return NextResponse.json(cached);
+      const response = NextResponse.json(cached);
+      if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+      return response;
     }
 
     // Ambil data teknikal dari yfinance
     const technicalData = await getTechnicalData(symbol);
     if (!technicalData) {
-      return NextResponse.json(runLocalCouncil(symbol, { price: 0, fundamentalSnapshot }), { status: 200 });
+      const response = NextResponse.json(runLocalCouncil(symbol, { price: 0, fundamentalSnapshot }), { status: 200 });
+      if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+      return response;
     }
     (technicalData as any).fundamentalSnapshot = fundamentalSnapshot;
 
@@ -220,10 +230,14 @@ export async function GET(req: Request) {
     try {
       // Run Gemini API via getCouncil (handles caching and fallback internally)
       const council = await getCouncil(symbol, technicalData, cacheKey);
-      return NextResponse.json(council);
+      const response = NextResponse.json(council);
+      if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+      return response;
     } catch (e) {
       console.warn("Gemini API failed, using local fallback", e);
-      return NextResponse.json(runLocalCouncil(symbol, technicalData));
+      const response = NextResponse.json(runLocalCouncil(symbol, technicalData));
+      if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+      return response;
     }
   } catch (e: any) {
     console.error('Council API error:', e);
