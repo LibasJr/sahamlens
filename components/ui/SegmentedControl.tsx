@@ -39,7 +39,7 @@ export function SegmentedControl({ options, value, onChange, layoutId = 'segment
             {active && (
               <motion.span
                 layoutId={layoutId}
-                className="absolute inset-0 z-0 bg-gradient-accent rounded-sm"
+                className="absolute inset-0 z-0 bg-tv-blue rounded-sm"
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               />
             )}

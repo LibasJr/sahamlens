@@ -45,8 +45,6 @@ export default function PaywallModal({
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="absolute top-0 right-0 w-40 h-40 bg-glow-purple -z-10" />
-
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
@@ -55,7 +53,7 @@ export default function PaywallModal({
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-12 h-12 rounded-lg bg-gradient-accent flex items-center justify-center text-2xl mb-4">
+        <div className="w-12 h-12 rounded-lg bg-tv-blue flex items-center justify-center text-2xl mb-4">
           🔒
         </div>
 
@@ -77,7 +75,7 @@ export default function PaywallModal({
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 text-center bg-gradient-accent hover:brightness-110 text-white font-bold py-3 rounded-md transition-all"
+            className="flex-1 text-center bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-3 rounded-md transition-all"
           >
             {ctaLabel}
           </a>

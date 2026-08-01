@@ -101,7 +101,7 @@ export default function MarketCategoryPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-md bg-gradient-accent grid place-items-center font-bold text-[13px] tracking-tight">SL</div>
+            <div className="h-8 w-8 rounded-md bg-tv-blue grid place-items-center font-bold text-[13px] tracking-tight">SL</div>
             <span className="font-bold text-[15px] tracking-tight font-heading">SahamLens</span>
           </div>
         </div>

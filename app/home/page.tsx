@@ -177,9 +177,9 @@ export default function HomePage() {
 
       {/* AI Insight - hero */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="default" padding="lg" className="border-tv-blue/30 bg-glow-blue shadow-2">
+        <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
           <div className="flex items-start gap-3">
-            <div className="shrink-0 w-10 h-10 rounded-lg bg-gradient-accent flex items-center justify-center">
+            <div className="shrink-0 w-10 h-10 rounded-lg bg-tv-blue flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">

@@ -104,7 +104,7 @@ export default function CalendarPage() {
           onClick={() => setSelectedDate(d)}
           className={`
             relative flex flex-col items-center justify-center p-2 h-12 w-12 rounded-md mx-auto font-number text-sm transition-all
-            ${isSelected ? 'bg-gradient-accent text-white font-bold' : 'text-tv-text hover:bg-tv-hover'}
+            ${isSelected ? 'bg-tv-blue text-white font-bold' : 'text-tv-text hover:bg-tv-hover'}
             ${isToday && !isSelected ? 'border border-tv-blue text-tv-blue' : ''}
           `}
         >
@@ -128,7 +128,7 @@ export default function CalendarPage() {
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-md bg-gradient-accent text-white">
+          <div className="p-2 rounded-md bg-tv-blue text-white">
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
