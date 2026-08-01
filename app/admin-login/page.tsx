@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
-import TelegramLogin from '@/components/TelegramLogin';
 
 function AdminLoginContent() {
   const searchParams = useSearchParams();
@@ -15,10 +14,9 @@ function AdminLoginContent() {
         <div className="w-14 h-14 mx-auto rounded-2xl bg-[#14b8a6]/10 border border-[#14b8a6]/30 flex items-center justify-center mb-4">
           <ShieldCheck className="w-7 h-7 text-[#14b8a6]" />
         </div>
-        <h1 className="text-white font-bold text-xl mb-2">Login via Telegram</h1>
+        <h1 className="text-white font-bold text-xl mb-2">Admin Login</h1>
         <p className="text-gray-500 text-sm font-mono mb-6">
-          Login via Telegram untuk akses admin. Akun dengan Telegram ID yang terdaftar sebagai
-          admin akan otomatis dapat akses unlimited.
+          Masuk pakai Admin Secret Key untuk akses panel admin.
         </p>
 
         {error && (
@@ -26,21 +24,6 @@ function AdminLoginContent() {
             Login gagal / kadaluarsa, coba lagi.
           </p>
         )}
-
-        <div className="flex justify-center">
-          <TelegramLogin />
-        </div>
-
-        <p className="text-gray-600 text-[11px] font-mono mt-6">
-          Widget di atas cuma muncul kalau domain halaman ini sudah didaftarkan ke bot lewat
-          @BotFather (/setdomain). Tidak akan tampil di localhost.
-        </p>
-
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-tv-border" />
-          <span className="text-gray-600 text-[11px] font-mono">ATAU</span>
-          <div className="flex-1 h-px bg-tv-border" />
-        </div>
 
         <form action="/admin-login/key" method="GET" className="text-left">
           <label className="text-xs font-mono text-gray-500 uppercase mb-1 block">

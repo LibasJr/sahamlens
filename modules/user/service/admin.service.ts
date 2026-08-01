@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from '../../../shared/constants/cookie-names';
 import { getStatsToday } from '../../../lib/serverStats';
-import { supabaseAdmin } from '../../../lib/supabase';
 import { listAllWatchlistsPaginated } from '../../watchlist';
 
 /** Dipanggil di server (route handler / server component) - baca cookie HttpOnly. */
@@ -30,26 +29,24 @@ export interface AdminExportOptions {
   limit?: number;
 }
 
-// watchlists sekarang dari Postgres asli (modules/watchlist), dipaginasi - API
-// Guideline poin 5: admin/export dulu dump SEMUA baris sekaligus tanpa batas,
-// risiko nyata response meledak begitu data bertambah.
+// watchlists dari Postgres asli (modules/watchlist), dipaginasi - API Guideline
+// poin 5: admin/export dulu dump SEMUA baris sekaligus tanpa batas, risiko nyata
+// response meledak begitu data bertambah.
 //
-// users/payments TETAP dari shim lib/supabase.ts (file lokal, lihat audit H2) -
-// itu tabel "user" versi bot Telegram (telegram_id), sistem yang genuinely
-// terpisah dari tabel `users` Postgres asli yang dipakai login web. Menyatukan
-// keduanya itu keputusan produk besar, di luar cakupan migrasi ini - dibiarkan
-// full-dump apa adanya sampai ada keputusan sadar soal itu.
+// users/payments dulu dari shim lib/supabase.ts (file lokal, bukan Supabase asli -
+// datanya hilang tiap cold start di Vercel) - itu tabel "user" versi bot Telegram
+// (telegram_id). Bot/login Telegram sudah tidak dipakai (dihapus bersama
+// modules/user/service/telegram-auth.service.ts), jadi field ini sekarang selalu
+// kosong alih-alih membaca data yang tidak pernah nyata/persisten. Dipertahankan
+// di response (bukan dihapus dari tipe) supaya app/admin/ExportButton.tsx yang
+// sudah null-check data.users/data.payments tidak perlu ikut diubah.
 export async function getAdminExportData(opts: AdminExportOptions = {}) {
-  const [usersResult, watchlistsPage, paymentsResult] = await Promise.all([
-    supabaseAdmin.from('users').select('*'),
-    listAllWatchlistsPaginated(opts),
-    supabaseAdmin.from('payments').select('*'),
-  ]);
+  const watchlistsPage = await listAllWatchlistsPaginated(opts);
 
   return {
-    users: usersResult.data || [],
+    users: [] as unknown[],
     watchlists: watchlistsPage.items,
     watchlistsPagination: { nextCursor: watchlistsPage.nextCursor, hasMore: watchlistsPage.hasMore },
-    payments: paymentsResult.data || [],
+    payments: [] as unknown[],
   };
 }

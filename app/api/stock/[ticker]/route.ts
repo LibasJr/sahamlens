@@ -18,7 +18,6 @@ import {
 } from '@/modules/technical';
 import { getSession, checkProAccess } from '@/modules/user';
 import { recordAnalisaHit } from '@/lib/serverStats';
-import { checkAnalisaLimit, decrementAnalisaLimit } from '@/lib/limits';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import YahooFinanceClass from 'yahoo-finance2';
@@ -47,7 +46,6 @@ export async function GET(
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
-    let telegram_id = Number(session.id);
     let ticker = params.ticker.toUpperCase();
     if (!ticker.includes('.')) {
       ticker = `${ticker}.JK`;
