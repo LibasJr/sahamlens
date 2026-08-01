@@ -86,7 +86,7 @@ export default function Header({
           />
           <button
             type="submit"
-            className="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gradient-accent hover:brightness-110 text-white text-[10px] rounded font-semibold transition-all"
+            className="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-tv-blue hover:bg-tv-blueHover text-white text-[10px] rounded font-semibold transition-all"
           >
             CARI
           </button>

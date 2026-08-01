@@ -313,11 +313,11 @@ export default function Dashboard() {
                 <span className="sm:hidden">{jakartaTime || '--:--'}</span>
               </div>
               {authUser ? (
-                <Link href="/home" className="ml-2 flex items-center gap-2 rounded-md bg-gradient-accent hover:brightness-110 px-4 py-1.5 text-[12px] font-bold text-white transition-all">
+                <Link href="/home" className="ml-2 flex items-center gap-2 rounded-md bg-tv-blue hover:bg-tv-blueHover px-4 py-1.5 text-[12px] font-bold text-white transition-all">
                   Buka Dashboard
                 </Link>
               ) : (
-                <Link href="/login" className="ml-2 rounded-md bg-gradient-accent hover:brightness-110 px-4 py-1.5 text-[12px] font-bold text-white transition-all">
+                <Link href="/login" className="ml-2 rounded-md bg-tv-blue hover:bg-tv-blueHover px-4 py-1.5 text-[12px] font-bold text-white transition-all">
                   Login
                 </Link>
               )}
@@ -363,11 +363,11 @@ export default function Dashboard() {
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-gradient-accent text-white grid place-items-center font-bold text-[13px] font-heading">{ticker.symbol}</div>
+                  <div className="h-12 w-12 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-heading">{ticker.symbol}</div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{ticker.symbol}.JK — {ticker.name}</h2>
-                      <span className="hidden sm:inline-flex rounded-full bg-gradient-accent px-2 py-0.5 text-[10px] font-bold tracking-widest text-white">LQ45 • TRENDING</span>
+                      <span className="hidden sm:inline-flex rounded-full bg-tv-gold/15 text-tv-gold px-2 py-0.5 text-[10px] font-bold tracking-widest">LQ45 • TRENDING</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
                       <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
@@ -414,7 +414,7 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-4 items-center bg-gradient-accent-soft p-4 rounded-lg border border-tv-blue/20">
+              <div className="mt-4 flex flex-wrap gap-4 items-center bg-tv-blue/10 p-4 rounded-lg border border-tv-blue/20">
                 <div className="text-tv-blue font-semibold text-[13px] flex items-center gap-2">
                   <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${ind?.time}` : `Insight ${ticker.symbol} Terkini`}
                 </div>
@@ -472,7 +472,7 @@ export default function Dashboard() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-tv-border/60">
-                <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-accent px-5 py-3 text-[13px] font-bold text-white shadow-1 hover:brightness-110 transition">
+                <Link href={`/technical/${ticker.symbol}.JK`} className="group flex w-full items-center justify-center gap-2 rounded-full bg-tv-blue px-5 py-3 text-[13px] font-bold text-white shadow-1 hover:bg-tv-blueHover transition">
                   Lihat Analisis {ticker.symbol}
                   <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>

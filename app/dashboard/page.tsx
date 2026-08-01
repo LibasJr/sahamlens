@@ -568,7 +568,7 @@ function DashboardContent() {
 
 
         {/* Hero */}
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4 bg-glow-gold">
+        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
               <Zap className="w-6 h-6" />

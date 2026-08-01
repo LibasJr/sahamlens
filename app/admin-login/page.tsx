@@ -11,7 +11,7 @@ function AdminLoginContent() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-tv-bg p-6">
       <div className="w-full max-w-sm text-center">
-        <div className="w-14 h-14 mx-auto rounded-xl bg-gradient-accent flex items-center justify-center mb-4">
+        <div className="w-14 h-14 mx-auto rounded-xl bg-tv-blue flex items-center justify-center mb-4">
           <ShieldCheck className="w-7 h-7 text-white" />
         </div>
         <h1 className="font-heading text-tv-text font-bold text-xl mb-2">Admin Login</h1>
@@ -39,7 +39,7 @@ function AdminLoginContent() {
             />
             <button
               type="submit"
-              className="bg-gradient-accent hover:brightness-110 text-white font-bold px-4 py-2 rounded-md text-sm transition-all whitespace-nowrap"
+              className="bg-tv-blue hover:bg-tv-blueHover text-white font-bold px-4 py-2 rounded-md text-sm transition-all whitespace-nowrap"
             >
               Masuk
             </button>

@@ -410,7 +410,7 @@ function BreakoutRadarContent() {
         <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-gradient-accent text-white">
+              <div className="p-2 rounded-md bg-tv-blue text-white">
                 <Target className="w-6 h-6" />
               </div>
               <div>
@@ -440,7 +440,7 @@ function BreakoutRadarContent() {
                   }}
                   className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-bold transition-colors ${
                     activeTab === tab.key
-                      ? 'bg-gradient-accent text-white'
+                      ? 'bg-tv-blue text-white'
                       : 'bg-tv-card border border-tv-border text-tv-muted hover:border-tv-blue/40 hover:text-tv-text'
                   }`}
                 >
@@ -544,7 +544,7 @@ function BreakoutRadarContent() {
                               <div className="flex items-center justify-end gap-2 ml-auto">
                                 <button
                                   onClick={() => router.push(`/dashboard?symbol=${item.symbol}`)}
-                                  className="bg-gradient-accent hover:brightness-110 text-white text-xs font-bold px-3 py-1.5 rounded flex items-center justify-center gap-1 transition-all"
+                                  className="bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-bold px-3 py-1.5 rounded flex items-center justify-center gap-1 transition-all"
                                 >
                                   Analisa <ChevronRight className="w-3 h-3" />
                                 </button>
@@ -783,7 +783,7 @@ function BreakoutRadarContent() {
                             <td className="py-4 px-4 text-right">
                               <button
                                 onClick={() => router.push(`/dashboard?symbol=${item.symbol}`)}
-                                className="bg-gradient-accent hover:brightness-110 text-white text-xs font-bold px-3 py-1.5 rounded inline-flex items-center justify-center gap-1 transition-all"
+                                className="bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-bold px-3 py-1.5 rounded inline-flex items-center justify-center gap-1 transition-all"
                               >
                                 Analisa <ChevronRight className="w-3 h-3" />
                               </button>
