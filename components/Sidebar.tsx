@@ -21,6 +21,7 @@ import {
   User,
   Users,
   ShieldAlert,
+  History,
 } from 'lucide-react';
 import { pickTrendingTicker, getTickerName } from '@/lib/trendingTickers';
 
@@ -65,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },
       { id: 'screener', name: 'Stock Screener', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
       { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position Size & Risk/Reward', path: '/risk-calculator', icon: ShieldAlert },
+      { id: 'backtest', name: 'Backtest', subtitle: 'Simulasi Strategi dari Data Historis', path: '/backtest', icon: History },
     ],
   },
   {
