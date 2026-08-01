@@ -1,31 +1,48 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { TICKERS } from '../../../lib/tickers';
 
 export const revalidate = 3600; // company list barely changes
 
 let cached: { symbol: string; name: string; board: string }[] | null = null;
 
+const PLACEHOLDER_NAME = /\s+Company Tbk\.?$/;
+
+// Beberapa sumber nama emiten (baik CSV maupun lib/tickers.ts) mengisi kode yang belum
+// punya nama resmi dengan placeholder "XXXX Company Tbk." - jangan pernah tampilkan
+// placeholder itu sebagai nama perusahaan (fabrikasi), tampilkan kode sahamnya sendiri.
+function normalizeName(symbol: string, rawName: string): string {
+  return PLACEHOLDER_NAME.test(rawName) ? symbol : rawName;
+}
+
 function loadEmiten() {
   if (cached) return cached;
   const csvPath = path.join(process.cwd(), 'idx_emiten_900.csv');
   const lines = fs.readFileSync(csvPath, 'utf8').split('\n').filter(Boolean);
-  const rows = lines.slice(1).map((line) => {
+  const csvRows = lines.slice(1).map((line) => {
     const parts = line.split(',');
     const symbol = (parts[1] || '').trim();
     const rawName = (parts[2] || '').trim();
-    // The source CSV pads ~650 codes with a synthetic "XXXX Company Tbk." placeholder
-    // instead of a real company name. We still want every listed code searchable (all
-    // 900+ are real IDX tickers), so we keep the row but show the ticker code itself
-    // instead of the fabricated name - never surface fake company names in the UI.
-    const isPlaceholder = / Company Tbk\.?$/.test(rawName);
     return {
       symbol,
-      name: isPlaceholder ? symbol : rawName,
+      name: normalizeName(symbol, rawName),
       board: (parts[4] || '').trim(),
     };
-  });
-  cached = rows.filter((r) => r.symbol && r.name);
+  }).filter((r) => r.symbol && r.name);
+
+  // idx_emiten_900.csv ketinggalan ~350 kode yang ada di lib/tickers.ts (dipakai
+  // search Teknikal/Fundamental, mis. IRRA/DGWG) - gabungkan supaya search di halaman
+  // depan mencakup emiten yang sama lengkapnya, bukan cuma subset dari CSV.
+  const seen = new Set(csvRows.map((r) => r.symbol));
+  const extraRows = TICKERS
+    .map((t) => {
+      const symbol = t.symbol.replace('.JK', '');
+      return { symbol, name: normalizeName(symbol, t.name), board: '' };
+    })
+    .filter((r) => r.symbol && r.name && !seen.has(r.symbol));
+
+  cached = [...csvRows, ...extraRows];
   return cached;
 }
 

@@ -10,7 +10,7 @@ import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 
 const RATE_LIMIT_CONFIG = {
   windowMs: 24 * 60 * 60 * 1000,
-  maxPerWindow: 20,
+  maxPerWindow: 50,
   blockMs: 60 * 60 * 1000,
 };
 
