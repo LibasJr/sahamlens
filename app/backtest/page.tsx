@@ -13,14 +13,13 @@ export default function BacktestPage() {
   const availableFilters = [
     'EMA 20/50 Cross',
     'Volume vs Avg 20D',
-    'Foreign Flow',
     'RSI 14',
     'MACD',
-    'Bollinger Bands',
+    'Volatility (ATR 14)',
     'MA Trend IDX (20,50,200)',
     'Support & Resistance',
     'Market Flow Index',
-    'Trend Price vs MA200'
+    'SMA Score (5,10,20)'
   ];
 
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14']);
@@ -40,9 +39,9 @@ export default function BacktestPage() {
     if (preset === 'Momentum') {
       setSelectedFilters(['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14']);
     } else if (preset === 'Accumulation') {
-      setSelectedFilters(['Foreign Flow', 'Market Flow Index', 'MACD']);
+      setSelectedFilters(['Market Flow Index', 'MACD', 'Volume vs Avg 20D']);
     } else if (preset === 'Oversold') {
-      setSelectedFilters(['RSI 14', 'Bollinger Bands', 'Support & Resistance']);
+      setSelectedFilters(['RSI 14', 'Volatility (ATR 14)', 'Support & Resistance']);
     }
   };
 
@@ -67,6 +66,10 @@ export default function BacktestPage() {
     Strategy: eq,
     IHSG: results.ihsgCurve[idx]
   })) || [];
+
+  const dataAsOfLabel = results?.dataAsOf
+    ? new Date(results.dataAsOf).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
 
   return (
     <div className="flex h-screen bg-tv-bg">
@@ -160,6 +163,14 @@ export default function BacktestPage() {
 
             {results && !loading && (
               <>
+                {dataAsOfLabel && (
+                  <p className="text-[11px] text-tv-muted">Data per {dataAsOfLabel} (diperbarui otomatis tiap hari, bukan real-time).</p>
+                )}
+                {results.message && (
+                  <div className="bg-tv-card border border-tv-yellow/30 rounded-lg p-4 text-sm text-tv-yellow">
+                    {results.message}
+                  </div>
+                )}
                 {/* Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-tv-card border border-tv-border rounded-lg p-4">
@@ -217,7 +228,9 @@ export default function BacktestPage() {
                 {/* Trades */}
                 <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
                   <div className="p-4 border-b border-tv-border bg-tv-bg/40">
-                    <h3 className="font-heading text-sm font-bold text-tv-text">Simulated Trades (Sample)</h3>
+                    <h3 className="font-heading text-sm font-bold text-tv-text">
+                      Riwayat Trade {results.totalTrades > 30 ? `(30 terbaru dari ${results.totalTrades})` : ''}
+                    </h3>
                   </div>
                   <table className="w-full text-left border-collapse">
                     <thead>
