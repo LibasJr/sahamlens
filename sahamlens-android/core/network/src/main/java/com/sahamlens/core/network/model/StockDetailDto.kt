@@ -53,6 +53,17 @@ data class CandleDto(
     val volume: Long = 0,
 )
 
+/** Bentuk asli GET /api/fundamental/[ticker] (publik, tanpa login/Pro - beda dari
+ * GET /api/stock/[ticker]). 10 analyzer fundamental (PE/PBV/ROE/ROA/DER/dst.) - bentuknya
+ * sama persis dengan [AnalyzerDto] di atas karena backend memang memakai pola analyzer yang
+ * sama untuk technical maupun fundamental, cuma modul sumbernya beda. */
+@Serializable
+data class FundamentalResponse(
+    val ticker: String = "",
+    val analyzers: List<AnalyzerDto> = emptyList(),
+    val consensus: String = "NEUTRAL",
+)
+
 /** Bentuk asli GET /api/dcf/[ticker] (publik). Beberapa field opsional - bank/data FCF
  * tidak tersedia mengembalikan `not_applicable_reason` alih-alih tabel kosong diam-diam. */
 @Serializable

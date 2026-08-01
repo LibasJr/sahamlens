@@ -16,6 +16,8 @@ data class StockDetailUiState(
     val aiSummary: String = "",
     val candles: List<Candle> = emptyList(),
     val technicalRows: List<AnalyzerRow> = emptyList(),
+    val fundamentalRows: List<AnalyzerRow> = emptyList(),
+    val fundamentalConsensus: String? = null,
     val bandarNote: String? = null,
     val dcf: DcfUiState? = null,
     val tradeMessage: String? = null,

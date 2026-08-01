@@ -23,7 +23,7 @@ data class AiCopilotUiState(
 private const val MAX_HISTORY_TURNS = 8
 
 /**
- * AI Copilot ("AI Council") - sapaan pertama dirangkai dari Portfolio+Market REAL (bukan
+ * AI Council - sapaan pertama dirangkai dari Portfolio+Market REAL (bukan
  * SampleHomeUiState), lalu tiap giliran berikutnya benar-benar memanggil POST /api/chat
  * (sama seperti web) dengan riwayat percakapan disertakan - server tidak menyimpan sesi chat.
  */
@@ -49,10 +49,8 @@ class AiCopilotViewModel(
                 if (portfolio != null && portfolio.holdings.isNotEmpty()) {
                     append("Anda punya ${portfolio.holdings.size} posisi terbuka. ")
                 }
-                if (picks != null) {
-                    append("Hari ini saya menemukan ${picks.attractive.count} saham menarik, ${picks.breakout.count} breakout, dan ${picks.risky.count} berisiko. ")
-                }
-                append("Tanya apa saja tentang saham yang Anda minati.")
+                append(aiOpportunitySentence(picks))
+                append(" Tanya apa saja tentang saham yang Anda minati.")
             }
 
             _uiState.update {
@@ -72,7 +70,7 @@ class AiCopilotViewModel(
             }
             _uiState.update { it.copy(messages = it.messages + ChatMessage(MessageSender.USER, question), isSending = true) }
 
-            val result = chatRepository.send(prompt = question, context = "Pengguna sedang di AI Copilot, tidak melihat saham tertentu.", history = history)
+            val result = chatRepository.send(prompt = question, context = "Pengguna sedang di AI Council, tidak melihat saham tertentu.", history = history)
             val reply = result.getOrNull() ?: "Maaf, Council AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda."
 
             _uiState.update { it.copy(messages = it.messages + ChatMessage(MessageSender.AI, reply), isSending = false) }
