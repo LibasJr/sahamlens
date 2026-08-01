@@ -34,6 +34,7 @@ export async function GET() {
     const emiten = loadEmiten();
     return NextResponse.json({ count: emiten.length, emiten });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Emiten API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

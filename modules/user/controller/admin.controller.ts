@@ -1,9 +1,14 @@
 import crypto from 'crypto';
 import { ForbiddenError } from '../../../shared/errors/app-error';
-import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE, TELEGRAM_USER_COOKIE } from '../../../shared/constants/cookie-names';
-import { getAdminSecret, getAdminTelegramIds, verifyTelegramAuth, upsertTelegramUser } from '../service/telegram-auth.service';
+import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
 import { isAdminFromRequestCookies, getAdminStatsToday, getAdminExportData } from '../service/admin.service';
 import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
+
+// getAdminSecret dipindah dari service/telegram-auth.service.ts (dihapus - login via
+// Telegram sudah tidak dipakai) supaya handleAdminLoginByKey tetap jalan.
+function getAdminSecret(): string | undefined {
+  return process.env.ADMIN_SECRET_KEY;
+}
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
@@ -35,30 +40,6 @@ export async function handleAdminLoginByKey(key: string | null): Promise<HttpRes
     return { status: 404, body: { error: 'Not found' } };
   }
   return { status: 302, body: null, redirectTo: '/dashboard', cookiesToSet: adminCookies() };
-}
-
-export async function handleTelegramLogin(params: Record<string, string>): Promise<HttpResult> {
-  if (!params.hash || !params.id || !verifyTelegramAuth(params)) {
-    return { status: 302, body: null, redirectTo: '/admin-login?error=invalid' };
-  }
-
-  const telegram_id = Number(params.id);
-  const isAdmin = getAdminTelegramIds().includes(String(params.id));
-
-  // Akses data dipindah ke service (code review H2) - controller cuma orkestrasi
-  // HTTP (verifikasi, redirect, cookie), bukan menyentuh supabaseAdmin langsung.
-  await upsertTelegramUser(telegram_id, { username: params.username, first_name: params.first_name }, isAdmin);
-
-  const cookiesToSet: CookieToSet[] = [
-    {
-      name: TELEGRAM_USER_COOKIE,
-      value: JSON.stringify({ id: params.id, name: params.first_name || params.username || 'User', username: params.username || null }),
-      options: { httpOnly: false, sameSite: 'lax', path: '/', maxAge: THIRTY_DAYS },
-    },
-  ];
-  if (isAdmin) cookiesToSet.push(...adminCookies());
-
-  return { status: 302, body: null, redirectTo: '/dashboard', cookiesToSet };
 }
 
 export async function handleAdminStatus(cookieStore: { get(name: string): { value: string } | undefined }): Promise<HttpResult> {

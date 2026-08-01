@@ -15,6 +15,7 @@ export async function GET() {
     const data = await getOrCompute(CACHE_KEY, TTL_SEC, getMarketNews);
     return NextResponse.json(data);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('News API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

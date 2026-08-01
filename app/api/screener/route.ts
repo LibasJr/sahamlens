@@ -24,6 +24,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ profile, analysis: { top_10_stocks: top10 } });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Screener API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
