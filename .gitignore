@@ -31,6 +31,7 @@ scratch/
 /skills-lock.json
 /.worktrees/
 /.superpowers/
+scripts/.backtest-universe-candidates.json
 
 # Data files berisi PII (email, password hash) & data transaksi user - jangan pernah
 # ter-commit. File-file ini tetap dipakai di local dev (lib/dbLocal.ts / lib/supabase.ts
