@@ -17,6 +17,7 @@ import {
   calculateConsensus,
 } from '@/modules/technical';
 import { getSession, checkProAccess } from '@/modules/user';
+import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
@@ -36,12 +37,13 @@ export async function GET(
   { params }: { params: { ticker: string } }
 ) {
   try {
-    const session = await getSession();
-    if (!session) {
+    const isInternal = isInternalServiceRequest(request);
+    const session = isInternal ? null : await getSession();
+    if (!isInternal && !session) {
       return NextResponse.json({ error: 'Belum login' }, { status: 401 });
     }
-    
-    const hasPro = checkProAccess(session);
+
+    const hasPro = isInternal ? true : checkProAccess(session);
     if (!hasPro) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
@@ -51,10 +53,12 @@ export async function GET(
       ticker = `${ticker}.JK`;
     }
 
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
-      || request.headers.get('x-real-ip')
-      || 'unknown';
-    recordAnalisaHit(ip, ticker);
+    if (!isInternal) {
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
+      recordAnalisaHit(ip, ticker);
+    }
 
     // Parameter range OPSIONAL (Performance Roadmap Fase 2 poin 7, samakan pola
     // dengan public-chart/[ticker]) - default TETAP 20y kalau tidak diisi, supaya

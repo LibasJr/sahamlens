@@ -25,7 +25,7 @@ function AdminLoginContent() {
           </p>
         )}
 
-        <form action="/admin-login/key" method="GET" className="text-left">
+        <form action="/admin-login/key" method="POST" className="text-left">
           <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide mb-1.5 block">
             Admin Secret Key
           </label>

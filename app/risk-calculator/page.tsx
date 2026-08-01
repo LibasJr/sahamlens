@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 
@@ -10,14 +11,41 @@ import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 // Ukuran posisi dibatasi oleh DUA hal sekaligus: budget risiko (modal x risk%) DAN modal
 // yang tersedia - lot final adalah yang lebih kecil dari keduanya, supaya tidak pernah
 // menyarankan posisi yang sebenarnya tidak terjangkau modal.
-export default function RiskCalculatorPage() {
-  const [symbol, setSymbol] = useState('BBCA.JK');
+//
+// BUG FIX (2026-08-01): symbol sebelumnya hardcode 'BBCA.JK' - buka Risk Calculator
+// setelah analisis TLKM di halaman lain tetap mulai dari BBCA. Sekarang ikut pola yang
+// sama dengan /compare, /dcf, /fundamental: ?symbol= di URL dulu, lalu localStorage
+// 'last_searched_ticker' (dipakai bersama lintas halaman analisa), baru default BBCA.
+function RiskCalculatorContent() {
+  const searchParams = useSearchParams();
+  const [symbol, setSymbolState] = useState('BBCA.JK');
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [modal, setModal] = useState('10000000');
   const [riskPct, setRiskPct] = useState('1');
   const [entry, setEntry] = useState('');
   const [stopLoss, setStopLoss] = useState('');
   const [target, setTarget] = useState('');
+
+  const setSymbol = (newSymbol: string) => {
+    const formatted = newSymbol.includes('.JK') ? newSymbol : `${newSymbol}.JK`;
+    setSymbolState(formatted);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('last_searched_ticker', formatted);
+    }
+  };
+
+  useEffect(() => {
+    const urlSymbol = searchParams.get('symbol');
+    if (urlSymbol) {
+      setSymbol(urlSymbol.toUpperCase());
+      return;
+    }
+    const savedTicker = typeof window !== 'undefined' ? localStorage.getItem('last_searched_ticker') : null;
+    if (savedTicker) {
+      setSymbolState(savedTicker.includes('.JK') ? savedTicker : `${savedTicker}.JK`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchLivePrice = async () => {
     if (!symbol) return;
@@ -235,5 +263,13 @@ export default function RiskCalculatorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RiskCalculatorPage() {
+  return (
+    <Suspense fallback={null}>
+      <RiskCalculatorContent />
+    </Suspense>
   );
 }

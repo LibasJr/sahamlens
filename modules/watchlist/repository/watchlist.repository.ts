@@ -3,6 +3,11 @@ import { pool } from '../../../shared/database/postgres.client';
 import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import type { WatchlistItem } from '../types/watchlist.types';
 
+// Queryable = pool biasa (baca di luar transaksi) ATAU PoolClient yang sedang
+// dalam satu BEGIN/COMMIT (dipakai watchlist.service.ts addToWatchlist supaya
+// count+insert atomik per user - pola sama dengan modules/portfolio/repository).
+type Queryable = { query: (typeof pool)['query'] };
+
 // Kolom buy_price/alert_price NUMERIC - pg driver mengembalikannya sebagai string.
 // Di-cast di sini (satu titik), bukan dibiarkan bocor ke controller/frontend -
 // ditemukan lewat smoke test: `item.buy_price.toLocaleString()` pada string tidak
@@ -15,24 +20,25 @@ function mapRow(row: any): WatchlistItem {
   return { ...row, buy_price: toNumberOrNull(row.buy_price), alert_price: toNumberOrNull(row.alert_price) };
 }
 
-export async function listWatchlist(userId: string): Promise<WatchlistItem[]> {
+export async function listWatchlist(userId: string, db: Queryable = pool): Promise<WatchlistItem[]> {
   await ensureSharedSchema();
-  const { rows } = await pool.query('SELECT * FROM watchlists WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+  const { rows } = await db.query('SELECT * FROM watchlists WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
   return rows.map(mapRow);
 }
 
-export async function countWatchlist(userId: string): Promise<number> {
+export async function countWatchlist(userId: string, db: Queryable = pool): Promise<number> {
   await ensureSharedSchema();
-  const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM watchlists WHERE user_id = $1', [userId]);
+  const { rows } = await db.query('SELECT COUNT(*)::int AS count FROM watchlists WHERE user_id = $1', [userId]);
   return rows[0].count;
 }
 
 export async function upsertWatchlistItem(
   userId: string,
-  input: { symbol: string; buy_price?: number | null; alert_price?: number | null; lot?: number | null }
+  input: { symbol: string; buy_price?: number | null; alert_price?: number | null; lot?: number | null },
+  db: Queryable = pool
 ): Promise<WatchlistItem> {
   await ensureSharedSchema();
-  const { rows } = await pool.query(
+  const { rows } = await db.query(
     `INSERT INTO watchlists (id, user_id, symbol, buy_price, alert_price, lot)
      VALUES ($1,$2,$3,$4,$5,$6)
      ON CONFLICT (user_id, symbol) DO UPDATE SET

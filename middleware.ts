@@ -40,6 +40,12 @@ function isProtectedPage(pathname: string): boolean {
 }
 
 function getClientIp(req: NextRequest): string {
+  // req.ip diisi platform (Vercel Edge) dari koneksi TCP asli, TIDAK bisa dipalsukan
+  // klien - beda dari header x-forwarded-for yang bisa dikirim bebas oleh caller kalau
+  // request sampai ke origin tanpa proxy tepercaya di depannya. Fallback ke header
+  // hanya untuk `next dev` lokal (req.ip selalu undefined di situ, rate limit lokal
+  // bukan target ancaman nyata).
+  if (req.ip) return req.ip;
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0].trim();
   return req.headers.get('x-real-ip') || 'unknown';
@@ -69,7 +75,11 @@ export async function middleware(req: NextRequest) {
   }
 
   if (payload) {
-    if (payload.role === 'admin' || payload.role === 'pro') {
+    // is_pro disamakan dengan checkProAccess() (shared/auth/session.ts) - sebelumnya
+    // middleware cuma cek role/trial, jadi user yang di-grant is_pro=true tanpa role
+    // diubah ke 'pro' tetap kena rate limit 20/hari di sini walau route lain (mis.
+    // /api/council) sudah menganggapnya Pro.
+    if (payload.role === 'admin' || payload.role === 'pro' || payload.is_pro) {
       isAdminOrTrial = true;
     } else if (payload.trial_ends_at && new Date(payload.trial_ends_at).getTime() > Date.now()) {
       isAdminOrTrial = true;

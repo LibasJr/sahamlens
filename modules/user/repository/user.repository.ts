@@ -26,6 +26,10 @@ function ensureSchema(): Promise<void> {
         reset_code_expires TIMESTAMPTZ
       );
       CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
+      -- Kolom ditambah belakangan (audit bug 2026-08-01, temuan: OTP signup sebelumnya
+      -- tidak pernah expire) - ADD COLUMN IF NOT EXISTS supaya aman dijalankan berkali-kali
+      -- baik di DB baru (sudah kena CREATE TABLE di atas) maupun DB lama yang sudah ada.
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires TIMESTAMPTZ;
     `
       )
       .then(() => {});
@@ -54,8 +58,8 @@ export async function getAllUsers(): Promise<User[]> {
 export async function createUser(user: User): Promise<void> {
   await ensureSchema();
   await pool.query(
-    `INSERT INTO users (id, email, password_hash, role, is_verified, is_pro, created_at, trial_ends_at, demo_ends_at, verification_code, reset_code, reset_code_expires)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+    `INSERT INTO users (id, email, password_hash, role, is_verified, is_pro, created_at, trial_ends_at, demo_ends_at, verification_code, verification_code_expires, reset_code, reset_code_expires)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
     [
       user.id,
       user.email,
@@ -67,6 +71,7 @@ export async function createUser(user: User): Promise<void> {
       user.trial_ends_at,
       user.demo_ends_at,
       user.verification_code,
+      user.verification_code_expires,
       user.reset_code,
       user.reset_code_expires,
     ]
@@ -86,6 +91,7 @@ const UPDATABLE_COLUMNS = new Set<keyof User>([
   'trial_ends_at',
   'demo_ends_at',
   'verification_code',
+  'verification_code_expires',
   'reset_code',
   'reset_code_expires',
 ]);

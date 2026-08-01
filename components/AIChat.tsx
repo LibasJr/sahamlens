@@ -108,6 +108,14 @@ export default function AIChat() {
       });
       const data = await res.json();
 
+      if (!res.ok || !data?.content) {
+        // Response error (rate limit/paywall/500) sering tetap balas JSON, jadi tanpa
+        // cek res.ok bubble chat akan dirender dengan content=undefined - kosong tanpa
+        // indikasi ada yang salah, bukan pesan error yang ramah di blok catch di bawah.
+        setMessages(prev => [...prev, { role: 'assistant', content: data?.error || 'Maaf, sistem AI sedang mengalami gangguan. Silakan coba lagi.' }]);
+        return;
+      }
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);

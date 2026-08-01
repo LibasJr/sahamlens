@@ -11,6 +11,7 @@ export interface User {
   trial_ends_at: string | null;
   demo_ends_at: string | null;
   verification_code: string | null;
+  verification_code_expires: string | null;
   reset_code: string | null;
   reset_code_expires: string | null;
 }

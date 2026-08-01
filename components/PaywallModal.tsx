@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
@@ -27,6 +27,44 @@ export default function PaywallModal({
   secondaryLabel = 'Nanti',
 }: PaywallModalProps) {
   const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText)}`;
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Escape untuk tutup + focus trap - sebelumnya tidak ada satu pun, Tab bisa
+  // memindahkan fokus keyboard ke elemen halaman di belakang overlay yang secara
+  // visual tertutup tapi tetap ada di tab order (user keyboard-only bisa "tersesat").
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const container = modalRef.current;
+      if (!container) return;
+      const focusable = Array.from(
+        container.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ).filter((el) => !el.hasAttribute('disabled'));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    const focusTimer = setTimeout(() => {
+      modalRef.current?.querySelector<HTMLElement>('button, [href]')?.focus();
+    }, 30);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(focusTimer);
+    };
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>
@@ -39,6 +77,10 @@ export default function PaywallModal({
       transition={{ duration: 0.2 }}
     >
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="relative w-full max-w-md bg-tv-bg border border-tv-blue/40 rounded-xl shadow-2 p-6 overflow-hidden"
         initial={{ opacity: 0, scale: 0.95, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

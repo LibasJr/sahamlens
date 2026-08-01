@@ -5,8 +5,9 @@ import { provisionPortfolio } from '../../portfolio';
 import { getUserByEmail, createUser, updateUser } from '../repository/user.repository';
 import { sendVerificationEmail } from '../repository/email.repository';
 import { generateOtp } from '../utils/otp-generator';
-import { TRIAL_DAYS } from '../constants/user.constants';
-import { InvalidCredentialsError, EmailNotVerifiedError, EmailAlreadyRegisteredError, InvalidVerificationCodeError } from '../types/user.errors';
+import { TRIAL_DAYS, VERIFICATION_CODE_TTL_MIN } from '../constants/user.constants';
+import { InvalidCredentialsError, EmailNotVerifiedError, EmailAlreadyRegisteredError, InvalidVerificationCodeError, VerificationCodeExpiredError } from '../types/user.errors';
+import { timingSafeStringEqual } from '../../../shared/security/timing-safe-equal';
 import { NotFoundError, ValidationError } from '../../../shared/errors/app-error';
 import type { LoginInput, SignupInput, VerifyInput } from '../validator/auth.validator';
 
@@ -49,11 +50,12 @@ export async function login(input: LoginInput): Promise<AuthSessionResult> {
 export async function signup(input: SignupInput): Promise<void> {
   const existing = await getUserByEmail(input.email);
   const code = generateOtp();
+  const codeExpires = new Date(Date.now() + VERIFICATION_CODE_TTL_MIN * 60 * 1000).toISOString();
   const hashed = await bcrypt.hash(input.password, 10);
 
   if (existing) {
     if (existing.is_verified) throw new EmailAlreadyRegisteredError();
-    await updateUser(existing.id, { password_hash: hashed, verification_code: code });
+    await updateUser(existing.id, { password_hash: hashed, verification_code: code, verification_code_expires: codeExpires });
   } else {
     await createUser({
       id: crypto.randomUUID(),
@@ -66,6 +68,7 @@ export async function signup(input: SignupInput): Promise<void> {
       trial_ends_at: null,
       demo_ends_at: null,
       verification_code: code,
+      verification_code_expires: codeExpires,
       reset_code: null,
       reset_code_expires: null,
     });
@@ -78,13 +81,18 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
   const user = await getUserByEmail(input.email);
   if (!user) throw new NotFoundError('Email tidak ditemukan');
   if (user.is_verified) throw new ValidationError('Akun sudah terverifikasi');
-  if (user.verification_code !== input.code) throw new InvalidVerificationCodeError();
+  if (!user.verification_code || !timingSafeStringEqual(user.verification_code, input.code)) {
+    throw new InvalidVerificationCodeError();
+  }
+  if (user.verification_code_expires && new Date(user.verification_code_expires).getTime() < Date.now()) {
+    throw new VerificationCodeExpiredError();
+  }
 
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
   const trialEndsAtIso = trialEndsAt.toISOString();
 
-  await updateUser(user.id, { is_verified: true, verification_code: null, trial_ends_at: trialEndsAtIso });
+  await updateUser(user.id, { is_verified: true, verification_code: null, verification_code_expires: null, trial_ends_at: trialEndsAtIso });
 
   // Provisioning portofolio virtual lewat public API modules/portfolio - sebelumnya
   // reach-through langsung ke lib/dbLocal (file JSON), sekarang Postgres sungguhan

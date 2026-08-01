@@ -4,6 +4,7 @@ import { sendResetPasswordEmail } from '../repository/email.repository';
 import { generateOtp } from '../utils/otp-generator';
 import { RESET_CODE_TTL_MIN } from '../constants/user.constants';
 import { InvalidResetCodeError, ResetCodeExpiredError } from '../types/user.errors';
+import { timingSafeStringEqual } from '../../../shared/security/timing-safe-equal';
 import type { ForgotPasswordInput, ResetPasswordInput } from '../validator/auth.validator';
 
 export async function requestPasswordReset(input: ForgotPasswordInput): Promise<void> {
@@ -21,7 +22,7 @@ export async function requestPasswordReset(input: ForgotPasswordInput): Promise<
 
 export async function resetPassword(input: ResetPasswordInput): Promise<void> {
   const user = await getUserByEmail(input.email);
-  if (!user || !user.reset_code || user.reset_code !== input.code) {
+  if (!user || !user.reset_code || !timingSafeStringEqual(user.reset_code, input.code)) {
     throw new InvalidResetCodeError();
   }
   if (user.reset_code_expires && new Date(user.reset_code_expires).getTime() < Date.now()) {

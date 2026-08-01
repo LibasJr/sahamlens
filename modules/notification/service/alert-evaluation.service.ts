@@ -1,4 +1,5 @@
 import { listPendingAlerts, markTriggered } from '@/modules/watchlist';
+import { internalServiceHeaders } from '@/shared/auth/internal-service';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/alerts/check/route.ts, verbatim.
 // modules/notification bergantung SATU ARAH ke modules/watchlist (baca daftar alert +
@@ -7,7 +8,11 @@ import { listPendingAlerts, markTriggered } from '@/modules/watchlist';
 
 async function fetchJson(url: string) {
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    // Header internal (lihat shared/auth/internal-service.ts) - tanpa ini panggilan
+    // server-to-server ke /api/stock, /api/breakout-radar, /api/market-pulse selalu
+    // 401/402 karena route-route itu di-gate session+Pro yang ditujukan buat request
+    // browser user, bukan job evaluasi alert ini.
+    const res = await fetch(url, { cache: 'no-store', headers: internalServiceHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch {
