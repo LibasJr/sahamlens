@@ -5,7 +5,9 @@
 
 ## Keputusan produk (hasil brainstorming)
 
-1. **Cakupan strategi: scan seluruh universe screener** (~49 saham dari `fetchScreenerUniverse`), bukan satu saham spesifik. Tidak perlu ubah UI untuk tambah field pilih ticker.
+1. **Cakupan strategi: scan universe 100 saham khusus backtest**, bukan satu saham spesifik. Tidak perlu ubah UI untuk tambah field pilih ticker.
+   - **Bukan** `fetchScreenerUniverse()`/`SCREENER_UNIVERSE` yang sudah ada (51 saham) — itu sengaja dibatasi kecil karena dipakai fetch LIVE per-request (halaman Screener, `pickSameSectorPeer` di Compare) dan memperbesarnya akan ikut memperlambat/menambah risiko rate-limit fitur-fitur itu.
+   - Universe backtest pakai **daftar hardcode terpisah** (`modules/backtest/constants/backtest-universe.ts`), dikurasi manual ke 100 ticker likuid (boleh superset dari 51 ticker `SCREENER_UNIVERSE` yang sudah ada + ~49 ticker likuid lain) — aman diperbesar karena hanya dipakai cron harian (async, bukan per-request), bukan sumber dinamis dari `idx_emiten_900.csv` (ditolak - butuh logic ranking tambahan & risiko kualitas data emiten kecil yang jarang diperdagangkan).
 2. **Entry rule:** beli saham pada hari dimana SEMUA filter/indikator yang dipilih user menunjukkan keputusan BULLISH untuk saham itu di hari itu.
 3. **Exit rule:** jual saat kondisi entry tidak lagi terpenuhi — mirror persis dari entry (entry butuh SEMUA filter terpilih BULLISH; exit terjadi begitu SALAH SATU filter yang sama tidak lagi BULLISH untuk saham itu di hari itu). Bukan stop-loss/take-profit tetap atau holding period tetap.
 4. **Position sizing:** equal-weight FIXED per slot, maksimal 5 posisi terbuka bersamaan. Ukuran satu slot = (ekuitas total portofolio saat itu — kas + posisi terbuka di-mark-to-market) / 5, dihitung ulang tiap kali ada slot kosong yang mau diisi sinyal baru (bukan modal awal statis dibagi 5 selamanya — supaya P/L dari trade sebelumnya ikut compounding, konsisten dengan bentuk equity curve yang sudah ada di UI). Slot yang kosong berarti bagian kas itu menganggur (tidak dialokasikan ke posisi lain) sampai ada sinyal baru mengisi slot tersebut.
@@ -18,14 +20,18 @@ Precompute harian via cron + simulasi cepat on-demand saat request (bukan hitung
 
 ### Komponen baru
 
-1. **`modules/backtest/service/precompute.service.ts`**
-   Untuk tiap saham di universe screener: ambil OHLCV historis via `fetchYahooHistory(ticker, '3y')` (3 tahun — cukup untuk periode backtest maksimal 24 bulan + buffer ~200 hari perdagangan lookback yang dibutuhkan indikator seperti MA200 sejak hari pertama window). Jalankan 9 analyzer asli (`analyzeEma`, `analyzeRsi`, `analyzeMacd`, `analyzeVolume`, `analyzeTrend`, `analyzeVolatility`, `analyzeMomentum`, `analyzeSupport`, `analyzeSma`) **hari-per-hari** (rolling window per hari, bukan cuma snapshot hari terakhir seperti di `/api/stock`). `analyzeMarketFlow` diverifikasi saat implementasi apakah butuh data selain OHLCV — kalau ya, disesuaikan atau dikeluarkan dari daftar filter backtest dengan catatan yang sama seperti Foreign Flow.
-   Hasilkan deret keputusan `{date, ticker, indicator, decision}` per saham. IHSG (`^JKSE`) diambil & diproses bersamaan sebagai data benchmark alpha.
+1. **`modules/backtest/constants/backtest-universe.ts`**
+   Daftar hardcode 100 ticker likuid IDX khusus backtest (superset dari `SCREENER_UNIVERSE` yang sudah ada + ~49 ticker likuid lain, dikurasi manual sekali). Terpisah dari `SCREENER_UNIVERSE` supaya tidak mempengaruhi performa fitur live (Screener, Compare) yang sengaja dibatasi kecil.
 
-2. **`app/api/cron/backtest-precompute/route.ts`**
+2. **`modules/backtest/service/precompute.service.ts`**
+   Untuk tiap saham di `backtest-universe.ts` (100 ticker): ambil OHLCV historis via `fetchYahooHistory(ticker, '3y')` (3 tahun — cukup untuk periode backtest maksimal 24 bulan + buffer ~200 hari perdagangan lookback yang dibutuhkan indikator seperti MA200 sejak hari pertama window). Jalankan 9 analyzer asli (`analyzeEma`, `analyzeRsi`, `analyzeMacd`, `analyzeVolume`, `analyzeTrend`, `analyzeVolatility`, `analyzeMomentum`, `analyzeSupport`, `analyzeSma`) **hari-per-hari** (rolling window per hari, bukan cuma snapshot hari terakhir seperti di `/api/stock`). `analyzeMarketFlow` diverifikasi saat implementasi apakah butuh data selain OHLCV — kalau ya, disesuaikan atau dikeluarkan dari daftar filter backtest dengan catatan yang sama seperti Foreign Flow.
+   Hasilkan deret keputusan `{date, ticker, indicator, decision}` per saham. IHSG (`^JKSE`) diambil & diproses bersamaan sebagai data benchmark alpha.
+   Catatan biaya: 100 ticker x 3 tahun history ~2x lebih berat dari perkiraan awal 51 ticker — tetap wajar untuk cron async sekali sehari, tapi runtime cron & permukaan kegagalan-per-ticker jadi lebih besar (lihat "Error handling").
+
+3. **`app/api/cron/backtest-precompute/route.ts`**
    Endpoint cron baru, pola sama seperti `app/api/cron/watchlist-alert` (`verifyQStashSignature`, `withJobRunLog`). Jalan sekali sehari. Panggil precompute service, simpan hasil ke Redis (`shared/cache/redis-cache.ts`) dengan key `sahamlens:cache:computed:backtest-indicators:v1`, TTL ~36 jam (buffer kalau cron sempat telat/gagal sekali).
 
-3. **`modules/backtest/service/simulate.service.ts`**
+4. **`modules/backtest/service/simulate.service.ts`**
    Baca deret indikator dari cache. Iterasi hari demi hari sepanjang periode terpilih (3/6/12/24 bulan):
    - Cek posisi terbuka: exit di harga penutupan hari itu begitu salah satu filter terpilih tidak lagi BULLISH untuk saham itu.
    - Cari kandidat baru di slot kosong (maks 5): entry kalau semua filter terpilih BULLISH, ukuran posisi = ekuitas total saat itu / 5 (fixed per slot, dihitung ulang tiap pengisian slot baru — lihat detail compounding di bagian "Keputusan produk").
@@ -33,14 +39,14 @@ Precompute harian via cron + simulasi cepat on-demand saat request (bukan hitung
    - Equity curve dihitung harian secara internal, disampling per-bulan untuk kompatibilitas dengan bentuk data chart yang sudah ada di frontend (`equityCurve[]` sepanjang `period+1`).
    - Hasilkan: return %, win rate, total trades, max drawdown, alpha vs IHSG, equity curve (strategi + IHSG), daftar trade (tanggal, simbol, harga beli/jual, P/L%).
 
-4. **`app/api/backtest/route.ts`** (rewrite total, ganti logic `Math.random()`)
+5. **`app/api/backtest/route.ts`** (rewrite total, ganti logic `Math.random()`)
    Baca cache indikator dari Redis, panggil `simulate.service` dengan `{filters, modal, period}` dari body request. Kalau cache kosong (deploy pertama / cron belum pernah jalan): fallback panggil precompute langsung secara sinkron (lambat, tapi tetap menghasilkan data asli, bukan gagal) — pola sama seperti `market-pulse`/`breakout-radar` yang sudah ada di codebase ini.
 
 ### Alur data
 
 ```
 Cron (harian, QStash)
-  -> fetchYahooHistory x 49 saham + IHSG (3 tahun OHLCV)
+  -> fetchYahooHistory x 100 saham (backtest-universe.ts) + IHSG (3 tahun OHLCV)
   -> 9 analyzer dijalankan per-hari per-saham (bukan cuma hari terakhir)
   -> Redis: deret keputusan {date, ticker, indicator, decision} + harga penutupan harian
        |
@@ -55,7 +61,7 @@ POST /api/backtest {filters, modal, period}
 
 - **Kombinasi filter tidak pernah cocok (0 trade):** balas metrik nol dengan pesan eksplisit ("Tidak ada saham yang memenuhi kriteria filter ini dalam periode terpilih"), bukan `NaN`/`Infinity` dari pembagian oleh nol saat hitung win rate.
 - **Saham baru IPO** (belum listing di sebagian window backtest): dilewati untuk hari-hari sebelum data historisnya mulai, tidak menggagalkan precompute saham itu untuk hari-hari setelahnya.
-- **Satu saham gagal fetch dari Yahoo saat cron jalan:** di-skip dengan warning log, 48 saham lain tetap lanjut diproses — satu kegagalan tidak menggagalkan seluruh precompute harian.
+- **Satu saham gagal fetch dari Yahoo saat cron jalan:** di-skip dengan warning log, 99 saham lain tetap lanjut diproses — satu kegagalan tidak menggagalkan seluruh precompute harian.
 - **Modal/alokasi per slot terlalu kecil untuk 1 lot (100 lembar):** sinyal itu dilewati diam-diam, pola sama seperti kasus `finalLot === 0` yang sudah ada di Risk Calculator.
 - **Cache-miss di `/api/backtest`:** fallback precompute sinkron (lebih lambat, tapi tetap data asli) — degradasi yang sama seperti pola existing di `market-pulse`/`breakout-radar`, bukan error ke user.
 
@@ -75,7 +81,7 @@ POST /api/backtest {filters, modal, period}
 
 ## Alternatif yang dipertimbangkan (ditolak)
 
-- **Hitung semua langsung per-request tanpa cache:** lebih sederhana dibangun, tapi fetch+hitung indikator 49 saham x hingga 3 tahun history dalam satu request berisiko sangat lambat/timeout di Vercel serverless (endpoint lain di codebase ini sudah defensif pakai timeout 8 detik untuk SATU saham saja) dan boros/rawan rate-limit Yahoo Finance kalau banyak user pakai backtest bersamaan.
+- **Hitung semua langsung per-request tanpa cache:** lebih sederhana dibangun, tapi fetch+hitung indikator 100 saham x hingga 3 tahun history dalam satu request berisiko sangat lambat/timeout di Vercel serverless (endpoint lain di codebase ini sudah defensif pakai timeout 8 detik untuk SATU saham saja) dan boros/rawan rate-limit Yahoo Finance kalau banyak user pakai backtest bersamaan.
 - **Precompute cuma untuk 3 preset yang ada (bukan filter bebas):** lebih murah dihitung, tapi menghilangkan fitur inti "Strategy Builder" (kombinasi filter bebas) yang jadi pembeda halaman ini.
 
 ## Scope check
