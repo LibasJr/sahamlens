@@ -420,7 +420,7 @@ export default function BacktestPage() {
                             {liveSignalResults.matches.map((m: any) => (
                               <tr key={m.symbol} className="hover:bg-tv-hover/30">
                                 <td className="py-3 px-4 text-tv-text font-bold font-number">{m.symbol}</td>
-                                <td className="py-3 px-4 text-tv-muted font-number">Rp {m.price}</td>
+                                <td className="py-3 px-4 text-tv-muted font-number">Rp {Math.round(m.price).toLocaleString('id-ID')}</td>
                                 <td className="py-3 px-4 text-right font-bold font-number text-tv-text">{m.score}/9</td>
                               </tr>
                             ))}
