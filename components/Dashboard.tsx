@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag, Flame } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
@@ -66,6 +66,48 @@ function isMarketOpen(d: Date): boolean {
   const session1 = minutes >= 9 * 60 && minutes <= 11 * 60 + 30;
   const session2 = isFriday ? (minutes >= 14 * 60 && minutes <= 15 * 60 + 49) : (minutes >= 13 * 60 + 30 && minutes <= 15 * 60 + 49);
   return isWeekday && (session1 || session2);
+}
+
+// Running text ticker - saham + harga terkini, scroll otomatis di bawah header. List
+// digandakan 2x supaya loop-nya mulus (translateX 0 -> -50% = tepat 1 putaran list asli).
+function TickerTape({ items }: { items: { symbol: string; price: number; changePct: number }[] }) {
+  if (!items.length) {
+    return (
+      <div className="bg-[#0A1931] border-b border-white/10 h-[34px] flex items-center px-4">
+        <span className="text-[11px] text-white/40 font-mono">Memuat harga saham...</span>
+      </div>
+    );
+  }
+
+  const loopItems = [...items, ...items];
+
+  return (
+    <div className="bg-[#0A1931] border-b border-white/10 overflow-hidden">
+      <div className="sahamlens-ticker-track flex whitespace-nowrap py-2">
+        {loopItems.map((item, i) => (
+          <Link
+            key={`${item.symbol}-${i}`}
+            href={`/technical/${item.symbol}.JK`}
+            className="flex items-center gap-1.5 px-4 text-[12px] font-mono shrink-0 hover:opacity-80 transition-opacity"
+          >
+            <span className="font-bold text-white">{item.symbol}</span>
+            <span className="text-white/50">Rp {Math.round(item.price || 0).toLocaleString('id-ID')}</span>
+            <span className={`font-semibold flex items-center gap-0.5 ${item.changePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {item.changePct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
+            </span>
+            <span className="text-white/20 ml-3">|</span>
+          </Link>
+        ))}
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sahamlens-ticker-track { animation: sahamlens-ticker-scroll 70s linear infinite; width: max-content; }
+        .sahamlens-ticker-track:hover { animation-play-state: paused; }
+        @keyframes sahamlens-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @media (prefers-reduced-motion: reduce) { .sahamlens-ticker-track { animation: none; overflow-x: auto; } }
+      `}} />
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -162,6 +204,10 @@ export default function Dashboard() {
   const [marketCards, setMarketCards] = useState<Card[]>(CARD_DEFS.map(def => ({ ...def, items: [] })));
   const [cardsLoaded, setCardsLoaded] = useState(false);
 
+  // Running text ticker (header strip) - saham paling aktif ditransaksikan (topValue,
+  // dari /api/market-summary yang SUDAH dipanggil di bawah, tidak ada fetch tambahan).
+  const [tickerItems, setTickerItems] = useState<{ symbol: string; price: number; changePct: number }[]>([]);
+
   // Widget "Hari Ini AI Menemukan" - ringkasan temuan pasar hari ini (bukan indikator
   // 1 saham) supaya halaman utama punya alasan dibuka tiap hari sebelum login/signup.
   const [dailyPicks, setDailyPicks] = useState<{
@@ -171,7 +217,7 @@ export default function Dashboard() {
     breakout: { count: number; items: string[] };
     goldenCross: { count: number; items: string[] };
     deadCross: { count: number; items: string[] };
-    weeklyMomentum: { count: number; items: string[] };
+    foreignAccumulation: { count: number; items: string[] };
   } | null>(null);
 
   React.useEffect(() => {
@@ -185,6 +231,18 @@ export default function Dashboard() {
       if (data && !data.error) {
         setMarketCards(CARD_DEFS.map(def => ({ ...def, items: formatCardItems(def.id, data[def.key]) })));
         setCardsLoaded(true);
+        // topGainers + topLosers (bukan topValue - itu tidak punya field changePct)
+        // digabung supaya ticker menampilkan campuran saham naik & turun, dideduplikasi.
+        const combined = [...(data.topGainers || []), ...(data.topLosers || [])];
+        const seen = new Set<string>();
+        const uniqueTicker = combined.filter((s: any) => {
+          if (seen.has(s.symbol)) return false;
+          seen.add(s.symbol);
+          return true;
+        });
+        if (uniqueTicker.length) {
+          setTickerItems(uniqueTicker.map((s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct })));
+        }
         if (data.timestamp) {
           setLastUpdated(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.timestamp)) + ' WIB');
         }
@@ -266,6 +324,8 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      <TickerTape items={tickerItems} />
 
       <main className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Title Block */}
@@ -367,7 +427,7 @@ export default function Dashboard() {
                   { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar?cat=risky' },
                   { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'emerald', href: '/breakout-radar?cat=goldenCross' },
                   { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar?cat=deadCross' },
-                  { key: 'weeklyMomentum', label: 'saham momentum mingguan', desc: 'Penguatan mingguan di atas +5%', Icon: ArrowUpRight, accent: 'amber', href: '/breakout-radar?cat=weeklyMomentum' },
+                  { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'amber', href: '/breakout-radar?cat=foreignAccumulation' },
                 ].map((row) => {
                   const accentMap: any = {
                     emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },

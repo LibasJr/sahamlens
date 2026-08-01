@@ -17,8 +17,10 @@ export async function GET(
   else if (tf === '7D') { range = '5d'; interval = '15m'; }
   else if (tf === '1M') { range = '1mo'; interval = '1d'; }
   else if (tf === '3M') { range = '3mo'; interval = '1d'; }
-  else if (tf === '1Y') { range = '1y'; interval = '1wk'; }
-  else if (tf === 'ALL') { range = '15y'; interval = '1mo'; }
+  // 1Y & ALL sengaja TETAP candle harian (bukan mingguan/bulanan) - permintaan eksplisit
+  // supaya pergerakan harian tetap terlihat penuh di rentang panjang, bukan diringkas.
+  else if (tf === '1Y') { range = '1y'; interval = '1d'; }
+  else if (tf === 'ALL') { range = '20y'; interval = '1d'; }
 
   let ticker = params.ticker;
   if (!ticker.endsWith('.JK') && !ticker.includes('^')) {

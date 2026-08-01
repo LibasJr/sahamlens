@@ -22,7 +22,7 @@ type DailyPicks = {
   breakout: DailyPickCategory;
   goldenCross: DailyPickCategory;
   deadCross: DailyPickCategory;
-  weeklyMomentum: DailyPickCategory;
+  foreignAccumulation: DailyPickCategory;
 };
 type TabKey = keyof DailyPicks | 'recommendations';
 
@@ -40,7 +40,7 @@ const CATEGORY_TABS: { key: TabKey; label: string }[] = [
   { key: 'risky', label: 'Berisiko' },
   { key: 'goldenCross', label: 'Golden Cross' },
   { key: 'deadCross', label: 'Dead Cross' },
-  { key: 'weeklyMomentum', label: 'Momentum Mingguan' },
+  { key: 'foreignAccumulation', label: 'Akumulasi Asing' },
 ];
 
 // Gauge "Sentimen Momentum" yang sama seperti di tab Rekomendasi (yang punya sentimentScore
@@ -96,7 +96,15 @@ const REC_LIQUID_STOCKS = [
   'HOKI.JK', 'AISA.JK', 'ALTO.JK', 'CAMP.JK', 'CEKA.JK', 'DLTA.JK', 'GOOD.JK', 'KINO.JK', 'MLBI.JK', 'PCAR.JK'
 ];
 
-type RecSortKey = 'ticker' | 'sector' | 'price' | 'changePct' | 'consensus' | 'sentimentScore' | 'bullishVotes' | 'foreignFlow';
+type RecSortKey = 'ticker' | 'sector' | 'price' | 'changePct' | 'consensus' | 'sentimentScore' | 'bullishVotes' | 'foreignFlow' | 'marketCap' | 'totalScore';
+
+// Rp -> "12,3 T" / "850 M" - dipakai kolom Market Cap (filter >=Rp500M sudah diterapkan
+// di modules/recommendation/service/recommendation.service.ts, kolom ini cuma menampilkan).
+function formatMarketCap(value: number | null | undefined): string {
+  if (value == null) return '-';
+  if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} T`;
+  return `${(value / 1_000_000_000).toFixed(0)} M`;
+}
 
 export default function BreakoutRadarPage() {
   return (
@@ -513,8 +521,14 @@ function BreakoutRadarContent() {
                         <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('changePct')}>
                           <div className="flex items-center justify-end gap-1.5">{getRecSortIcon('changePct')} Perubahan (%)</div>
                         </th>
+                        <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('marketCap')}>
+                          <div className="flex items-center justify-end gap-1.5">{getRecSortIcon('marketCap')} Market Cap</div>
+                        </th>
                         <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('consensus')}>
                           <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('consensus')} Konsensus 10 AI</div>
+                        </th>
+                        <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('totalScore')} title="Technical + Fundamental + Flow (0-100), sama seperti Detail Saham">
+                          <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('totalScore')} Skor AI (F+T+A)</div>
                         </th>
                         <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('sentimentScore')}>
                           <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('sentimentScore')} Sentimen Momentum</div>
@@ -530,7 +544,7 @@ function BreakoutRadarContent() {
                     <tbody className="text-sm">
                       {recData.length === 0 && recLoading ? (
                         <tr>
-                          <td colSpan={8} className="p-10 text-center text-gray-500">
+                          <td colSpan={10} className="p-10 text-center text-gray-500">
                             <div className="flex flex-col items-center gap-3">
                               <RefreshCw className="w-6 h-6 animate-spin text-teal-400" />
                               <span>Mulai memindai {REC_LIQUID_STOCKS.length} saham aktif. Mohon tunggu...</span>
@@ -539,7 +553,7 @@ function BreakoutRadarContent() {
                         </tr>
                       ) : recProcessedData.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-10 text-center text-gray-500">
+                          <td colSpan={10} className="p-10 text-center text-gray-500">
                             <div className="flex flex-col items-center gap-3">
                               <Search className="w-6 h-6 text-gray-500 opacity-50" />
                               <span>{recLoading ? 'Menyaring rekomendasi terbaik...' : `Tidak ada data saham yang cocok dengan pencarian "${recSearchTerm}"`}</span>
@@ -575,12 +589,27 @@ function BreakoutRadarContent() {
                               {item.changePct}%
                             </span>
                           </td>
+                          <td className="p-4 text-right font-mono text-gray-300 text-xs">
+                            {formatMarketCap(item.marketCap)}
+                          </td>
                           <td className="p-4 text-center">
                             <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-mono text-xs ${item.consensus?.includes('BUY') ? 'bg-teal-500/20 text-teal-400 border border-teal-500' :
                                 item.consensus?.includes('SELL') ? 'bg-red-500/20 text-red-400 border border-red-500' :
                                   'bg-yellow-500/20 text-yellow-400 border border-yellow-500'
                               }`}>
                               {item.consensus} ({item.confidence}%)
+                            </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <div
+                              className={`inline-flex flex-col items-center justify-center px-3 py-1 rounded font-bold font-mono text-xs ${item.totalScore > 75 ? 'bg-teal-500/20 text-teal-400 border border-teal-500' :
+                                  item.totalScore >= 60 ? 'bg-teal-500/10 text-teal-300 border border-teal-500/40' :
+                                    item.totalScore >= 45 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500' :
+                                      'bg-red-500/20 text-red-400 border border-red-500'
+                                }`}
+                              title={`Fundamental: ${item.fundamentalScore}/30 (Valuasi: ${item.valuationScore}/10) - Technical + Flow melengkapi sisanya`}
+                            >
+                              {item.totalScore ?? '-'}
                             </div>
                           </td>
                           <td className="p-4 text-center">

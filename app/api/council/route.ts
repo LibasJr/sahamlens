@@ -2,8 +2,11 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import YahooFinanceClass from 'yahoo-finance2';
 import { getCouncil, runLocalCouncil, getCouncilCache } from '@/modules/ai';
 import { getSession, checkProAccess } from '@/modules/user';
+
+const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
 // Minimal technical analyzer functions from existing codebase
 import {
@@ -58,6 +61,29 @@ async function getTechnicalData(ticker: string) {
   }
 }
 
+// Proxy freshness (2026-08-01) - Council sebelumnya cache per KALENDER HARI penuh (24 jam),
+// jadi kalau ada laporan keuangan baru dirilis emiten hari yang sama, Council tetap
+// menyajikan analisa basi sampai lewat tengah malam. Tidak ada feed/webhook resmi BEI
+// gratis untuk trigger instan, jadi solusinya proxy jujur: ambil snapshot ringan
+// "kuartal terakhir yang dilaporkan" dari Yahoo Finance (mostRecentQuarter) - begitu
+// Yahoo mendeteksi kuartal baru (yang biasanya update dalam 1-2 hari setelah rilis resmi
+// emiten), fingerprint ini berubah dan cache lama otomatis dianggap basi & dihitung ulang,
+// TANPA menunggu hari kalender berikutnya.
+async function getFundamentalSnapshot(ticker: string): Promise<{ mostRecentQuarter: string | null; trailingEps: number | null } | null> {
+  try {
+    const quoteSummary = await yahooFinance.quoteSummary(ticker, {
+      modules: ['defaultKeyStatistics'],
+    });
+    const mrq = quoteSummary?.defaultKeyStatistics?.mostRecentQuarter;
+    return {
+      mostRecentQuarter: mrq ? new Date(mrq).toISOString().split('T')[0] : null,
+      trailingEps: quoteSummary?.defaultKeyStatistics?.trailingEps ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -76,9 +102,15 @@ export async function GET(req: Request) {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    
+
+    // Snapshot fundamental ringan (lihat getFundamentalSnapshot) - dipakai membangun
+    // cache key, BUKAN cuma tanggal kalender, supaya laporan keuangan baru langsung
+    // membuat cache lama basi tanpa menunggu hari berikutnya.
+    const fundamentalSnapshot = await getFundamentalSnapshot(symbol);
+    const cacheKey = `${today}:${fundamentalSnapshot?.mostRecentQuarter || 'na'}`;
+
     // Check Cache First
-    const cached = await getCouncilCache(symbol, today);
+    const cached = await getCouncilCache(symbol, cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
@@ -86,12 +118,13 @@ export async function GET(req: Request) {
     // Ambil data teknikal dari yfinance
     const technicalData = await getTechnicalData(symbol);
     if (!technicalData) {
-      return NextResponse.json(runLocalCouncil(symbol, { price: 0 }), { status: 200 });
+      return NextResponse.json(runLocalCouncil(symbol, { price: 0, fundamentalSnapshot }), { status: 200 });
     }
+    (technicalData as any).fundamentalSnapshot = fundamentalSnapshot;
 
     try {
       // Run Gemini API via getCouncil (handles caching and fallback internally)
-      const council = await getCouncil(symbol, technicalData);
+      const council = await getCouncil(symbol, technicalData, cacheKey);
       return NextResponse.json(council);
     } catch (e) {
       console.warn("Gemini API failed, using local fallback", e);
