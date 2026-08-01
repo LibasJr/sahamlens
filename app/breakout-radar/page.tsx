@@ -135,6 +135,14 @@ function BreakoutRadarContent() {
   const [recSearchTerm, setRecSearchTerm] = useState('');
   const [recSortConfig, setRecSortConfig] = useState<{ key: RecSortKey; direction: 'asc' | 'desc' } | null>(null);
 
+  // Sorting klik-header untuk tab Breakout & tab kategori (Menarik/Undervalue/Berisiko/
+  // Golden Cross/Dead Cross/Akumulasi Asing) - sebelumnya cuma tab Rekomendasi yang bisa
+  // disortir, permintaan eksplisit supaya tab lain ikut bisa (mis. klik kolom "Perubahan").
+  type BreakoutSortKey = 'symbol' | 'price' | 'score' | 'rr';
+  const [breakoutSortConfig, setBreakoutSortConfig] = useState<{ key: BreakoutSortKey; direction: 'asc' | 'desc' } | null>(null);
+  type CategorySortKey = 'symbol' | 'price' | 'changePct';
+  const [categorySortConfig, setCategorySortConfig] = useState<{ key: CategorySortKey; direction: 'asc' | 'desc' } | null>(null);
+
   const initialTab = useMemo(() => {
     const cat = searchParams.get('cat');
     return CATEGORY_TABS.some((t) => t.key === cat) ? (cat as TabKey) : 'breakout';
@@ -312,6 +320,80 @@ function BreakoutRadarContent() {
     return result.slice(0, 50);
   }, [recData, recSearchTerm, recSortConfig]);
 
+  const handleBreakoutSort = (key: BreakoutSortKey) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (breakoutSortConfig && breakoutSortConfig.key === key && breakoutSortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setBreakoutSortConfig({ key, direction });
+  };
+
+  const getBreakoutSortIcon = (key: BreakoutSortKey) => {
+    if (breakoutSortConfig?.key === key) {
+      return breakoutSortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />;
+    }
+    return <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />;
+  };
+
+  const breakoutSortValue = (item: any, key: BreakoutSortKey): number | string => {
+    switch (key) {
+      case 'symbol': return item?.symbol || '';
+      case 'score': return item?.score || 0;
+      case 'rr': return parseFloat(String(item?.rr).split(':')[1]) || 0;
+      case 'price': return item?.price || 0;
+    }
+  };
+
+  const breakoutProcessedData = React.useMemo(() => {
+    if (!breakoutSortConfig) return data;
+    const { key, direction } = breakoutSortConfig;
+    const result = [...data];
+    result.sort((a, b) => {
+      const aValue = breakoutSortValue(a, key);
+      const bValue = breakoutSortValue(b, key);
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [data, breakoutSortConfig]);
+
+  const handleCategorySort = (key: CategorySortKey) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (categorySortConfig && categorySortConfig.key === key && categorySortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setCategorySortConfig({ key, direction });
+  };
+
+  const getCategorySortIcon = (key: CategorySortKey) => {
+    if (categorySortConfig?.key === key) {
+      return categorySortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />;
+    }
+    return <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />;
+  };
+
+  // Reset sort saat ganti tab kategori - kolom "Metrik" berarti beda-beda per kategori
+  // (Skor/RSI/hari akumulasi), sort lama gampang jadi tidak relevan begitu ganti tab.
+  useEffect(() => {
+    setCategorySortConfig(null);
+  }, [activeTab]);
+
+  const categoryProcessedData = React.useMemo(() => {
+    const rows = (activeTab !== 'breakout' && activeTab !== 'recommendations') ? dailyPicks?.[activeTab]?.detail : null;
+    if (!categorySortConfig || !rows) return rows;
+    const { key, direction } = categorySortConfig;
+    const result = [...rows];
+    result.sort((a: any, b: any) => {
+      const aValue = key === 'symbol' ? (a?.symbol || '') : (a?.[key] ?? 0);
+      const bValue = key === 'symbol' ? (b?.symbol || '') : (b?.[key] ?? 0);
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [dailyPicks, activeTab, categorySortConfig]);
+
   const TODAY = '2026-07-28';
   const todayEvents = (calendarData as any)[TODAY] || [];
   const stocksWithEventToday = new Set(todayEvents.map((e: any) => e.symbol.replace('.JK', '')));
@@ -384,11 +466,19 @@ function BreakoutRadarContent() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0f172a] text-gray-400 text-xs uppercase font-mono tracking-wider border-b border-[#1e293b]">
-                      <th className="py-3 px-4">Symbol</th>
-                      <th className="py-3 px-4">Price</th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('symbol')}>
+                        <div className="flex items-center gap-1.5">Symbol {getBreakoutSortIcon('symbol')}</div>
+                      </th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('price')}>
+                        <div className="flex items-center gap-1.5">Price {getBreakoutSortIcon('price')}</div>
+                      </th>
                       <th className="py-3 px-4">Signal</th>
-                      <th className="py-3 px-4">Score (0-8)</th>
-                      <th className="py-3 px-4">RR Ratio</th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('score')}>
+                        <div className="flex items-center gap-1.5">Score (0-8) {getBreakoutSortIcon('score')}</div>
+                      </th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('rr')}>
+                        <div className="flex items-center gap-1.5">RR Ratio {getBreakoutSortIcon('rr')}</div>
+                      </th>
                       <th className="py-3 px-4 text-center">Sentimen Momentum</th>
                       <th className="py-3 px-4 text-right">Action</th>
                     </tr>
@@ -401,8 +491,8 @@ function BreakoutRadarContent() {
                           Scanning Market...
                         </td>
                       </tr>
-                    ) : data.length > 0 ? (
-                      data.map((item, idx) => {
+                    ) : breakoutProcessedData.length > 0 ? (
+                      breakoutProcessedData.map((item, idx) => {
                         const isHighConf = item.score >= 5;
                         const isUp = item.change && !item.change.startsWith('-');
                         const sentiment = sentimentFromChangePct(parseFloat(item.change) || 0);
@@ -645,9 +735,15 @@ function BreakoutRadarContent() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0f172a] text-gray-400 text-xs uppercase font-mono tracking-wider border-b border-[#1e293b]">
-                      <th className="py-3 px-4">Symbol</th>
-                      <th className="py-3 px-4">Price</th>
-                      <th className="py-3 px-4">Perubahan</th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleCategorySort('symbol')}>
+                        <div className="flex items-center gap-1.5">Symbol {getCategorySortIcon('symbol')}</div>
+                      </th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleCategorySort('price')}>
+                        <div className="flex items-center gap-1.5">Price {getCategorySortIcon('price')}</div>
+                      </th>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleCategorySort('changePct')}>
+                        <div className="flex items-center gap-1.5">Perubahan {getCategorySortIcon('changePct')}</div>
+                      </th>
                       <th className="py-3 px-4">Metrik</th>
                       <th className="py-3 px-4 text-center">Sentimen Momentum</th>
                       <th className="py-3 px-4 text-right">Action</th>
@@ -661,8 +757,8 @@ function BreakoutRadarContent() {
                           Memuat...
                         </td>
                       </tr>
-                    ) : activeCategory && activeCategory.detail.length > 0 ? (
-                      activeCategory.detail.map((item, idx) => {
+                    ) : categoryProcessedData && categoryProcessedData.length > 0 ? (
+                      categoryProcessedData.map((item, idx) => {
                         const isUp = item.changePct >= 0;
                         const sentiment = sentimentFromChangePct(item.changePct);
                         return (
