@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import TradingViewChart from '@/components/TradingViewChart';
 import IntrinsicValue from '@/components/IntrinsicValue';
 import PaywallModal from '@/components/PaywallModal';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
-import { 
+import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
   RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp
 } from 'lucide-react';
@@ -14,7 +15,11 @@ import {
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
-export default function Dashboard() {
+// BUG FIX (2026-08-01): sama seperti /dcf - dulu tidak baca ?symbol= dari URL sama
+// sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
+// Analyzer (yang sekarang mengirim ?symbol=<ticker aktif>) langsung akurat.
+function FundamentalContent() {
+  const searchParams = useSearchParams();
   const [ticker, setTickerState] = useState('BBCA');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -153,10 +158,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
+    const urlSymbol = searchParams.get('symbol');
+    if (urlSymbol) {
+      setTickerState(urlSymbol.toUpperCase());
+      return;
+    }
     const savedTicker = localStorage.getItem('last_searched_ticker');
     if (savedTicker && savedTicker !== ticker) {
       setTickerState(savedTicker);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -475,6 +486,14 @@ export default function Dashboard() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #2A2E39; border-radius: 4px; }
       `}} />
     </div>
+  );
+}
+
+export default function FundamentalPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 bg-tv-bg min-h-screen" />}>
+      <FundamentalContent />
+    </Suspense>
   );
 }
 

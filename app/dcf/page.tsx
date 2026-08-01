@@ -1,17 +1,45 @@
 'use me';
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { Calculator, DollarSign, TrendingUp, Table, CheckCircle, AlertTriangle, ArrowUpRight } from 'lucide-react';
 
-export default function DcfPage() {
+// BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
+// 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
+// klik kartu "DCF Valuation" di bagian bawah, halaman ini diam-diam ganti balik ke
+// TLKM. Sekarang ikut pola yang sama dengan /dashboard & /fundamental: prioritas
+// ?symbol= di URL, lalu localStorage 'last_searched_ticker' (dipakai bersama lintas
+// 3 halaman ini), baru default TLKM kalau memang belum pernah cari apa-apa.
+function DcfContent() {
+  const searchParams = useSearchParams();
   // Default bukan saham bank - DCF berbasis Free Cash Flow secara sengaja tidak berlaku
   // untuk sektor keuangan (lihat calculateDcfModel), jadi kalau default-nya bank (mis.
   // BBCA) halaman ini akan selalu tampak kosong saat pertama dibuka.
-  const [ticker, setTicker] = useState('TLKM');
+  const [ticker, setTickerState] = useState('TLKM');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+
+  const setTicker = (newTicker: string) => {
+    setTickerState(newTicker);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('last_searched_ticker', newTicker);
+    }
+  };
+
+  useEffect(() => {
+    const urlSymbol = searchParams.get('symbol');
+    if (urlSymbol) {
+      setTickerState(urlSymbol.toUpperCase());
+      return;
+    }
+    const savedTicker = typeof window !== 'undefined' ? localStorage.getItem('last_searched_ticker') : null;
+    if (savedTicker) {
+      setTickerState(savedTicker);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchDcf = async (symbol: string) => {
     setLoading(true);
@@ -181,5 +209,13 @@ export default function DcfPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DcfPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 bg-tv-bg min-h-screen" />}>
+      <DcfContent />
+    </Suspense>
   );
 }
