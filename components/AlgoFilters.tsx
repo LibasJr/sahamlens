@@ -16,7 +16,7 @@ interface AlgoFiltersProps {
   analyzers: any[];
   sortByConfidence: boolean;
   setSortByConfidence: (v: boolean) => void;
-  getAccuracyPct: (label: string) => string;
+  getAccuracyPct: (label: string) => string | null;
   isAdmin?: boolean;
 }
 
@@ -97,7 +97,7 @@ export default function AlgoFilters({
               </div>
               <div className="pt-2 border-t border-tv-hover text-[10px]">
                 <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
-                <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
+                <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? '-'}</span>
               </div>
             </div>
           );

@@ -14,26 +14,19 @@ const RATE_LIMIT_CONFIG = {
   blockMs: 60 * 60 * 1000,
 };
 
-// Halaman analisis mendalam - wajib login. TIDAK termasuk /portfolio (punya sistem
-// akun demo terpisah sendiri via DEMO_SESSION_COOKIE), TIDAK termasuk '/' atau
-// '/screener' (ringkasan pasar publik, sengaja gratis), dan TIDAK termasuk '/technical'
-// (grafik + insight teknikal dasar sengaja dibuka publik sebagai daya tarik sebelum
-// signup - AI Council 10-agen penuh tetap digated di belakang /api/council sendiri
-// via checkProAccess, lihat app/api/council/route.ts).
-const PROTECTED_PAGES = [
-  '/home',
-  '/dashboard',
-  '/fundamental',
-  '/watchlist',
-  '/compare',
-  '/backtest',
-  '/breakout-radar',
-  '/market-pulse',
-  '/recommendations',
-  '/calendar',
-  '/multi-agent',
-  '/risk-calculator',
-];
+// ATURAN BARU (2026-08-01, keputusan produk): halaman analisis dibuka TANPA wajib
+// login dulu, supaya pengunjung bisa lihat & coba fitur sebelum diminta daftar (dulu
+// wajib login di sini SEBELUM sempat tahu apa isinya - dianggap terlalu tinggi
+// friction-nya). Login/Pro-access TETAP di-gate di level API masing-masing
+// (getSession()/checkProAccess() - lihat app/api/*/route.ts) - saat API menolak,
+// halaman menampilkan ajakan daftar (pola PaywallModal yang sudah ada), bukan data
+// asli gratis tanpa batas. Begitu user daftar & verifikasi email, trial 7 hari
+// otomatis aktif (TRIAL_DAYS, modules/user/constants/user.constants.ts) - itu yang
+// jadi "gratis semua 7 hari" sebelum pop-up upgrade muncul, bukan mekanisme baru.
+//
+// TIDAK termasuk /portfolio (Akun Demo, paper trading - data personal per-user,
+// WAJIB tetap login, formulir login/signup-nya sendiri sudah ada di halaman itu).
+const PROTECTED_PAGES: string[] = [];
 
 function isProtectedPage(pathname: string): boolean {
   return PROTECTED_PAGES.some((p) => pathname === p || pathname.startsWith(p + '/'));

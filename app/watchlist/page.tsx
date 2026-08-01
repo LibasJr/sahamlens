@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
+import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles, Menu } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
@@ -42,6 +42,7 @@ export default function WatchlistPage() {
   const [alertValue, setAlertValue] = useState('');
 
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -69,6 +70,10 @@ export default function WatchlistPage() {
   const fetchWatchlist = async () => {
     try {
       const res = await fetch('/api/watchlist');
+      if (res.status === 401) {
+        setShowLoginPrompt(true);
+        return;
+      }
       if (res.ok) {
         const json = await res.json();
         setWatchlist(json?.data || []);
@@ -108,17 +113,20 @@ export default function WatchlistPage() {
 
   const fetchLiveData = async () => {
     setLoading(true);
-    const newData: Record<string, any> = {};
-    for (const item of watchlist) {
+    // BUG FIX (2026-08-01, audit dummy-data): sebelumnya for-await sekuensial - total
+    // waktu = JUMLAH semua fetch simbol di watchlist, bukan MAKSIMUM salah satu (pola
+    // sama yang sudah diperbaiki di modules/notification/service/alert-evaluation.service.ts).
+    const results = await Promise.all(watchlist.map(async (item) => {
       try {
         const res = await fetch(`/api/stock/${item.symbol.replace('.JK', '')}`);
-        if (res.ok) {
-          newData[item.symbol] = await res.json();
-        }
+        if (res.ok) return [item.symbol, await res.json()] as const;
       } catch (e) {
         console.error(`Failed to fetch data for ${item.symbol}`);
       }
-    }
+      return null;
+    }));
+    const newData: Record<string, any> = {};
+    results.forEach((r) => { if (r) newData[r[0]] = r[1]; });
     setLiveData(newData);
     setLoading(false);
   };
@@ -261,6 +269,12 @@ export default function WatchlistPage() {
       <header className="bg-tv-surface border-b border-tv-border px-6 py-6 sticky top-0 z-20 shadow-2">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div className="p-2.5 rounded-lg bg-tv-blue text-white">
               <Bell className="w-5 h-5" />
             </div>
@@ -529,6 +543,15 @@ export default function WatchlistPage() {
         ]}
         waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit watchlist"
         ctaLabel="Upgrade Pro"
+        secondaryLabel="Nanti"
+      />
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Pakai Watchlist"
+        body="Watchlist & Alerts butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
       />
     </div>

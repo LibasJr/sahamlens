@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { 
+import PaywallModal from '@/components/PaywallModal';
+import {
   Zap, 
   Target, 
   Activity, 
@@ -23,7 +24,8 @@ export default function MultiAgentPage() {
   const [agentData, setAgentData] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [marketStatus, setMarketStatus] = useState<'OPEN' | 'CLOSED'>('CLOSED');
-  
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
   const checkMarketStatus = () => {
     // Check if market is open (09:00 - 15:00 WIB)
     const now = new Date();
@@ -65,11 +67,15 @@ export default function MultiAgentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: symbol })
       });
+      if (agentRes.status === 401) {
+        setShowLoginPrompt(true);
+        return;
+      }
       if (agentRes.ok) {
         const agentJson = await agentRes.json();
         setAgentData(agentJson);
       }
-      
+
       const nowWib = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' });
       setLastUpdated(nowWib);
     } catch (e) {
@@ -250,6 +256,15 @@ export default function MultiAgentPage() {
           </>
         )}
       </div>
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Konsensus AI"
+        body="Multi-Agent AI Consensus butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
+      />
     </div>
   );
 }
