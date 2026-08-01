@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, type Variants } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, Bell, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import { Input, Button } from '@/components/ui';
+import { fadeUp } from '@/lib/motion';
 
 const formatIDR = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
@@ -31,11 +33,6 @@ function tickerAvatarColor(symbol: string) {
 }
 
 const tickerCode = (symbol: string) => symbol.replace('.JK', '');
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
-};
 
 export default function PortfolioPage() {
   const router = useRouter();
@@ -254,46 +251,33 @@ export default function PortfolioPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-tv-muted uppercase mb-1 block">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                className="w-full bg-tv-bg border border-tv-border rounded-lg px-4 py-2.5 text-white outline-none focus:border-tv-green focus:ring-1 focus:ring-tv-green"
-                placeholder="Username kamu"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-tv-muted uppercase mb-1 block">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-tv-bg border border-tv-border rounded-lg px-4 py-2.5 text-white outline-none focus:border-tv-green focus:ring-1 focus:ring-tv-green"
-                placeholder="Password"
-              />
-            </div>
+            <Input
+              label="Username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="Username kamu"
+            />
+            <Input
+              label="Password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+            />
             {authMode === 'SIGNUP' && (
-              <div>
-                <label className="text-xs font-semibold text-tv-muted uppercase mb-1 block">Konfirmasi Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  className="w-full bg-tv-bg border border-tv-border rounded-lg px-4 py-2.5 text-white outline-none focus:border-tv-green focus:ring-1 focus:ring-tv-green"
-                  placeholder="Ulangi password"
-                />
-              </div>
+              <Input
+                label="Konfirmasi Password"
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Ulangi password"
+              />
             )}
             {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="w-full bg-tv-green hover:opacity-90 text-white font-bold py-2.5 rounded-lg transition-opacity mt-2"
-            >
+            <Button type="submit" variant="success" loading={authLoading} className="w-full mt-2">
               {authLoading ? 'Loading...' : authMode === 'LOGIN' ? 'Masuk' : 'Daftar'}
-            </button>
+            </Button>
           </form>
           <div className="mt-6 text-center">
             <button onClick={() => router.push('/')} className="text-xs text-tv-muted hover:text-white font-medium">
@@ -524,30 +508,24 @@ export default function PortfolioPage() {
       {showOrderModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-tv-card border border-tv-border rounded-xl w-full max-w-sm p-6">
-            <h2 className={`text-xl font-bold mb-4 ${orderType === 'BUY' ? 'text-tv-blue' : 'text-tv-red'}`}>{orderType === 'BUY' ? 'Beli' : 'Jual'} Saham</h2>
+            <h2 className={`font-heading text-xl font-bold mb-4 ${orderType === 'BUY' ? 'text-tv-blue' : 'text-tv-red'}`}>{orderType === 'BUY' ? 'Beli' : 'Jual'} Saham</h2>
             <form onSubmit={submitOrder} className="space-y-4">
               <div>
-                <label className="text-xs text-tv-muted block mb-1">Simbol (mis. BBCA)</label>
+                <label className="text-xs text-tv-muted block mb-1.5">Simbol (mis. BBCA)</label>
                 <SymbolAutocomplete
                   required
                   value={orderSymbol}
                   onChange={(val)=>setOrderSymbol(val)}
-                  className="w-full bg-tv-bg border border-tv-border text-white rounded p-2"
+                  className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md p-2 focus:outline-none focus:border-tv-blue transition-colors"
                 />
               </div>
-              <div>
-                <label className="text-xs text-tv-muted block mb-1">Harga (Rp)</label>
-                <input required type="number" value={orderPrice} onChange={e=>setOrderPrice(e.target.value)} className="w-full bg-tv-bg border border-tv-border text-white rounded p-2" />
-              </div>
-              <div>
-                <label className="text-xs text-tv-muted block mb-1">Lot</label>
-                <input required type="number" value={orderLots} onChange={e=>setOrderLots(e.target.value)} className="w-full bg-tv-bg border border-tv-border text-white rounded p-2" />
-              </div>
+              <Input label="Harga (Rp)" required type="number" value={orderPrice} onChange={e=>setOrderPrice(e.target.value)} className="font-number" />
+              <Input label="Lot" required type="number" value={orderLots} onChange={e=>setOrderLots(e.target.value)} className="font-number" />
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 py-2 rounded bg-tv-bg border border-tv-border text-white">Batal</button>
-                <button type="submit" disabled={orderLoading} className={`flex-1 py-2 rounded text-white font-bold transition-opacity hover:opacity-90 ${orderType === 'BUY' ? 'bg-tv-blue' : 'bg-tv-red'}`}>
+                <Button type="button" variant="secondary" onClick={() => setShowOrderModal(false)} className="flex-1">Batal</Button>
+                <Button type="submit" variant={orderType === 'BUY' ? 'primary' : 'danger'} loading={orderLoading} className="flex-1">
                   {orderLoading ? 'Memproses...' : 'Konfirmasi'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

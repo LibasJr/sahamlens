@@ -11,7 +11,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-tv-blue text-white hover:bg-tv-blueHover shadow-1',
+  // Redesign UI/UX Fase 1 - CTA utama pakai gradient-accent (biru->ungu) sebagai
+  // aksen signature, bukan lagi biru flat. hover:brightness menghindari perlu
+  // mendefinisikan gradient hover terpisah.
+  primary: 'bg-gradient-accent text-white hover:brightness-110 shadow-1',
   secondary: 'bg-tv-hover text-tv-text border border-tv-border hover:bg-tv-card hover:border-tv-borderLight',
   ghost: 'bg-transparent text-tv-muted hover:text-tv-text hover:bg-white/5',
   danger: 'bg-tv-red text-white hover:bg-tv-redHover shadow-1',

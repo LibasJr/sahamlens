@@ -24,16 +24,16 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
 
   const risk = currentPrice - support;
   const reward = resistance - currentPrice;
-  
+
   // Prevent division by zero or negative risk
   if (risk <= 0) {
     return (
-      <div className="bg-tv-card border border-[#14b8a6]/20 rounded-xl p-5 shadow-1 mb-6">
-         <h3 className="text-base font-bold text-white flex items-center gap-2 mb-3">
-          <Target className="w-5 h-5 text-[#14b8a6]" />
-          RISK/REWARD AUTO
+      <div className="bg-tv-card border border-tv-green/20 rounded-lg p-5 shadow-1 mb-6">
+         <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-3">
+          <Target className="w-5 h-5 text-tv-green" />
+          Risk/Reward Auto
         </h3>
-        <p className="text-sm font-mono text-tv-muted">Harga di bawah atau sama dengan support. Tunggu konsolidasi.</p>
+        <p className="text-sm text-tv-muted">Harga di bawah atau sama dengan support. Tunggu konsolidasi.</p>
       </div>
     );
   }
@@ -42,13 +42,13 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
   const riskPct = (risk / currentPrice) * 100;
   const rewardPct = (reward / currentPrice) * 100;
 
-  let badgeColor = "bg-red-500/20 text-red-400 border-red-500/30";
+  let badgeColor = "bg-tv-red/20 text-tv-red border-tv-red/30";
   let label = "TIDAK LAYAK";
   if (rrRatio >= 2) {
-    badgeColor = "bg-[#14b8a6]/20 text-[#14b8a6] border-[#14b8a6]/30";
+    badgeColor = "bg-tv-green/20 text-tv-green border-tv-green/30";
     label = "LAYAK";
   } else if (rrRatio >= 1) {
-    badgeColor = "bg-yellow-400/20 text-yellow-400 border-yellow-400/30";
+    badgeColor = "bg-tv-yellow/20 text-tv-yellow border-tv-yellow/30";
     label = "LUMAYAN";
   }
 
@@ -63,31 +63,31 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
   }
 
   return (
-    <div className="bg-tv-card border border-[#14b8a6]/20 rounded-xl p-5 shadow-1 mb-6">
-      <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
-        <Target className="w-5 h-5 text-[#14b8a6]" />
-        RISK/REWARD AUTO
+    <div className="bg-tv-card border border-tv-green/20 rounded-lg p-5 shadow-1 mb-6">
+      <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
+        <Target className="w-5 h-5 text-tv-green" />
+        Risk/Reward Auto
       </h3>
-      
+
       <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
         <div className="flex-1 w-full space-y-4">
-          <div className="flex items-center justify-between text-sm font-mono bg-tv-bg p-3 rounded-lg border border-tv-border">
+          <div className="flex items-center justify-between text-sm font-number bg-tv-bg p-3 rounded-lg border border-tv-border">
             <div className="flex flex-col">
               <span className="text-tv-muted text-xs">Entry</span>
-              <span className="text-white font-bold">Rp {currentPrice.toLocaleString()}</span>
+              <span className="text-tv-text font-bold">Rp {currentPrice.toLocaleString()}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-tv-muted text-xs flex items-center gap-1"><TrendingDown className="w-3 h-3 text-red-400"/> SL</span>
-              <span className="text-red-400 font-bold">Rp {support.toLocaleString()} <span className="text-[10px]">(-{riskPct.toFixed(1)}%)</span></span>
+              <span className="text-tv-muted text-xs flex items-center gap-1"><TrendingDown className="w-3 h-3 text-tv-red"/> SL</span>
+              <span className="text-tv-red font-bold">Rp {support.toLocaleString()} <span className="text-[10px]">(-{riskPct.toFixed(1)}%)</span></span>
             </div>
             <div className="flex flex-col items-end">
-              <span className="text-tv-muted text-xs flex items-center gap-1"><TrendingUp className="w-3 h-3 text-[#14b8a6]"/> TP</span>
-              <span className="text-[#14b8a6] font-bold">Rp {resistance.toLocaleString()} <span className="text-[10px]">(+{rewardPct.toFixed(1)}%)</span></span>
+              <span className="text-tv-muted text-xs flex items-center gap-1"><TrendingUp className="w-3 h-3 text-tv-green"/> TP</span>
+              <span className="text-tv-green font-bold">Rp {resistance.toLocaleString()} <span className="text-[10px]">(+{rewardPct.toFixed(1)}%)</span></span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-white font-mono">RR Ratio: 1:{rrRatio.toFixed(2)}</span>
+            <span className="text-sm font-bold text-tv-text font-number">RR Ratio: 1:{rrRatio.toFixed(2)}</span>
             <span className={`text-[10px] font-bold px-2 py-1 rounded border ${badgeColor}`}>
               [{label}]
             </span>
@@ -95,14 +95,14 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
         </div>
 
         {maWarning && (
-          <div className="flex-1 w-full bg-red-900/10 border border-red-500/20 rounded-lg p-3 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-yellow-400">
+          <div className="flex-1 w-full bg-tv-red/10 border border-tv-red/20 rounded-lg p-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-tv-yellow">
               <AlertCircle className="w-4 h-4" /> Posisi MA20
             </div>
-            <div className="text-xs font-mono text-white opacity-80">
+            <div className="text-xs text-tv-text opacity-80">
               {maWarning.text}
             </div>
-            <div className="text-[11px] font-mono text-tv-muted italic mt-1">
+            <div className="text-[11px] text-tv-muted italic mt-1">
               Rekomendasi: &quot;{maWarning.recom}&quot;
             </div>
           </div>

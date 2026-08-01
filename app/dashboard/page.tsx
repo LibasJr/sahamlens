@@ -9,7 +9,7 @@ import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
-import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
+import { AnimatedNumber, SegmentedControl, Input, Select } from '@/components/ui';
 import { incrementAnalisa, getUsedSymbolsToday, refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
@@ -303,7 +303,7 @@ function DashboardContent() {
     if (chartEl) {
       try {
         const html2canvas = (await import('html2canvas')).default;
-        const canvas = await html2canvas(chartEl as HTMLElement, { scale: 1.5, useCORS: true, backgroundColor: '#0a0a0f' });
+        const canvas = await html2canvas(chartEl as HTMLElement, { scale: 1.5, useCORS: true, backgroundColor: '#0F141D' });
         const imgData = canvas.toDataURL('image/png');
         const imgHeight = (canvas.height * 180) / canvas.width;
         doc.addImage(imgData, 'PNG', 14, 30, 180, imgHeight);
@@ -552,15 +552,15 @@ function DashboardContent() {
             ⚔️ Compare
           </button>
           
-          <button 
+          <button
             onClick={() => { setTradeType('BUY'); setTradeModalOpen(true); }}
-            className="bg-tv-green/10 border border-tv-green/30 hover:bg-tv-green hover:text-black text-tv-green px-4 py-1.5 rounded-full font-bold font-mono transition-colors"
+            className="bg-tv-green/10 border border-tv-green/30 hover:bg-tv-green hover:text-white text-tv-green px-4 py-1.5 rounded-full font-bold transition-colors"
           >
             BUY Virtual
           </button>
-          <button 
+          <button
             onClick={() => { setTradeType('SELL'); setTradeModalOpen(true); }}
-            className="bg-tv-red/10 border border-tv-red/30 hover:bg-tv-red hover:text-white text-tv-red px-4 py-1.5 rounded-full font-bold font-mono transition-colors"
+            className="bg-tv-red/10 border border-tv-red/30 hover:bg-tv-red hover:text-white text-tv-red px-4 py-1.5 rounded-full font-bold transition-colors"
           >
             SELL Virtual
           </button>
@@ -753,19 +753,12 @@ function DashboardContent() {
           })()}
 
           <div className="w-full space-y-3">
-            <div className="flex items-center gap-1.5 rounded-full bg-tv-card border border-tv-border p-1 w-fit">
-              {['1D', '3D', '7D', '1M', '1Y', 'ALL'].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTimeframe(t)}
-                  className={`rounded-full px-3 py-1 text-[11px] font-bold font-mono tracking-wide transition ${
-                    timeframe === t ? 'bg-tv-blue text-white shadow' : 'text-tv-muted hover:text-white'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              options={['1D', '3D', '7D', '1M', '1Y', 'ALL'].map((t) => ({ label: t, value: t }))}
+              value={timeframe}
+              onChange={setTimeframe}
+              layoutId="dashboard-timeframe"
+            />
             <TradingViewChart
               candles={candles}
               technical={tech}
@@ -867,41 +860,41 @@ function DashboardContent() {
       {/* AI Explain Modal */}
       {aiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0f172a] border-2 border-teal-500/50 rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+          <div className="bg-tv-bg border-2 border-tv-blue/50 rounded-xl w-full max-w-md overflow-hidden shadow-2 flex flex-col">
+            <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
                 <span className="text-xl">✨</span>
-                <h3 className="text-white font-bold font-mono">
+                <h3 className="font-heading text-tv-text font-bold">
                   AI Explain: {aiModalData?.algo?.label}
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setAiModalOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-tv-muted hover:text-tv-text transition-colors"
               >
                 ✕
               </button>
             </div>
-            
+
             <div className="p-5 flex-1 overflow-y-auto">
               {aiLoading ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <RefreshCw className="w-8 h-8 text-teal-400 animate-spin" />
-                  <span className="text-sm text-slate-400 font-mono">Menganalisis sinyal...</span>
+                  <RefreshCw className="w-8 h-8 text-tv-blue animate-spin" />
+                  <span className="text-sm text-tv-muted">Menganalisis sinyal...</span>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-                    <h4 className="text-xs font-mono text-slate-400 mb-2 uppercase">Penjelasan Logika</h4>
-                    <p className="text-sm text-slate-200 leading-relaxed font-mono">
+                  <div className="bg-tv-hover/50 border border-tv-border rounded-lg p-4">
+                    <h4 className="text-xs text-tv-muted mb-2 uppercase font-semibold tracking-wide">Penjelasan Logika</h4>
+                    <p className="text-sm text-tv-text leading-relaxed">
                       {aiModalData?.explanation}
                     </p>
                   </div>
-                  
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-                    <h4 className="text-xs font-mono text-slate-400 mb-2 uppercase">Data Historis</h4>
-                    <p className="text-sm text-slate-200 leading-relaxed font-mono flex items-start gap-2">
-                      <TrendingUp className="w-4 h-4 text-teal-400 mt-0.5" />
+
+                  <div className="bg-tv-hover/50 border border-tv-border rounded-lg p-4">
+                    <h4 className="text-xs text-tv-muted mb-2 uppercase font-semibold tracking-wide">Data Historis</h4>
+                    <p className="text-sm text-tv-text leading-relaxed flex items-start gap-2">
+                      <TrendingUp className="w-4 h-4 text-tv-blue mt-0.5" />
                       {aiModalData?.historical}
                     </p>
                   </div>
@@ -909,10 +902,10 @@ function DashboardContent() {
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
-              <button 
+            <div className="p-4 border-t border-tv-border bg-tv-card flex justify-end gap-3">
+              <button
                 onClick={() => setAiModalOpen(false)}
-                className="px-4 py-2 text-sm font-mono text-slate-300 hover:text-white transition-colors"
+                className="px-4 py-2 text-sm text-tv-muted hover:text-tv-text transition-colors"
               >
                 Tutup
               </button>
@@ -928,82 +921,75 @@ function DashboardContent() {
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
                 <span className="text-xl">💰</span>
-                <h3 className="text-white font-bold font-mono">
+                <h3 className="font-heading text-tv-text font-bold">
                   {tradeType} Virtual Trade
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setTradeModalOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-tv-muted hover:text-tv-text transition-colors"
               >
                 ✕
               </button>
             </div>
-            
+
             <div className="p-5 space-y-4">
                <div>
-                 <label className="text-xs font-mono text-gray-500 uppercase">Symbol</label>
-                 <div className="font-bold text-white font-mono text-lg">{ticker}</div>
-               </div>
-               
-               <div>
-                 <label className="text-xs font-mono text-gray-500 uppercase">Current Price</label>
-                 <div className="font-bold text-white font-mono text-lg">Rp {(stock?.current_price || 0).toLocaleString('id-ID')}</div>
+                 <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide">Symbol</label>
+                 <div className="font-bold text-tv-text font-number text-lg">{ticker}</div>
                </div>
 
                <div>
-                 <div className="flex justify-between items-center mb-1 block">
-                   <label className="text-xs font-mono text-gray-500 uppercase">Lots (1 Lot = 100 lembar)</label>
+                 <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide">Current Price</label>
+                 <div className="font-bold text-tv-text font-number text-lg">Rp {(stock?.current_price || 0).toLocaleString('id-ID')}</div>
+               </div>
+
+               <div>
+                 <div className="flex justify-between items-center mb-1.5">
+                   <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide">Lots (1 Lot = 100 lembar)</label>
                    {tradeType === 'SELL' && (
-                     <span className="text-[10px] font-mono text-[#14b8a6] bg-[#14b8a6]/10 px-2 py-0.5 rounded border border-[#14b8a6]/20">
+                     <span className="text-[10px] text-tv-green bg-tv-green/10 px-2 py-0.5 rounded border border-tv-green/20 font-number">
                        Tersedia: {portfolioData?.holdings?.find((h: any) => h.symbol === ticker)?.lots || 0} Lot
                      </span>
                    )}
                  </div>
-                 <input 
-                   type="number" 
+                 <Input
+                   type="number"
                    value={tradeLots}
                    onChange={e => setTradeLots(e.target.value)}
-                   className="w-full bg-tv-card border border-tv-border rounded px-3 py-2 text-white font-mono outline-none focus:border-[#14b8a6]"
+                   className="font-number"
                  />
                </div>
 
-               <div>
-                 <label className="text-xs font-mono text-gray-500 uppercase mb-1 block">Trade Reason / Note</label>
-                 <select 
-                   value={tradeNote}
-                   onChange={e => setTradeNote(e.target.value)}
-                   className="w-full bg-tv-card border border-tv-border rounded px-3 py-2 text-white font-mono outline-none focus:border-[#14b8a6]"
-                 >
-                   <option value="Algo Signal">Algo Signal (Analyzer)</option>
-                   <option value="Breakout">Breakout MA/Resist</option>
-                   <option value="Manual / Feeling">Manual / Feeling</option>
-                 </select>
-               </div>
-               
+               <Select label="Trade Reason / Note" value={tradeNote} onChange={e => setTradeNote(e.target.value)}>
+                 <option value="Algo Signal">Algo Signal (Analyzer)</option>
+                 <option value="Breakout">Breakout MA/Resist</option>
+                 <option value="Manual / Feeling">Manual / Feeling</option>
+               </Select>
+
                <div className="pt-4 border-t border-tv-border">
                  <div className="flex justify-between items-center mb-1">
-                   <span className="text-xs font-mono text-gray-500">Total Value:</span>
-                   <span className="font-bold text-white font-mono text-lg">Rp {((stock?.current_price || 0) * (parseInt(tradeLots)||0) * 100).toLocaleString('id-ID')}</span>
+                   <span className="text-xs text-tv-muted">Total Value:</span>
+                   <span className="font-bold text-tv-text font-number text-lg">Rp {((stock?.current_price || 0) * (parseInt(tradeLots)||0) * 100).toLocaleString('id-ID')}</span>
                  </div>
                  {portfolioData && (
                    <div className="flex justify-between items-center">
-                     <span className="text-xs font-mono text-gray-500">Sisa Cash (Virtual):</span>
-                     <span className="font-mono text-xs text-gray-300">Rp {portfolioData?.portfolio?.cash?.toLocaleString('id-ID')}</span>
+                     <span className="text-xs text-tv-muted">Sisa Cash (Virtual):</span>
+                     <span className="text-xs text-tv-muted font-number">Rp {portfolioData?.portfolio?.cash?.toLocaleString('id-ID')}</span>
                    </div>
                  )}
                </div>
             </div>
 
             <div className="p-4 border-t border-tv-border bg-tv-card flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setTradeModalOpen(false)}
-                className="px-4 py-2 text-sm font-mono text-gray-400 hover:text-white transition-colors"
+                className="px-4 py-2 text-sm text-tv-muted hover:text-tv-text transition-colors"
                 disabled={tradeLoading}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={async () => {
                   setTradeLoading(true);
                   try {
@@ -1031,8 +1017,8 @@ function DashboardContent() {
                   setTradeLoading(false);
                 }}
                 disabled={tradeLoading}
-                className={`px-6 py-2 text-sm font-mono font-bold rounded transition-colors ${
-                  tradeType === 'BUY' ? 'bg-tv-green hover:bg-tv-green/80 text-black' : 'bg-tv-red hover:bg-tv-red/80 text-white'
+                className={`px-6 py-2 text-sm font-bold rounded-md transition-colors text-white ${
+                  tradeType === 'BUY' ? 'bg-tv-green hover:bg-tv-greenHover' : 'bg-tv-red hover:bg-tv-redHover'
                 }`}
               >
                 {tradeLoading ? 'Processing...' : `Confirm ${tradeType}`}

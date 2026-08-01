@@ -10,6 +10,7 @@ import calendarData from '@/data/calendar.json';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import { Badge, Input } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -61,11 +62,11 @@ function sentimentFromChangePct(changePct: number): { score: number; label: stri
 function SentimentGauge({ score, label }: { score: number; label: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1">
-      <span className={`text-xs font-bold ${score >= 55 ? 'text-teal-400' : score <= 45 ? 'text-red-400' : 'text-yellow-400'}`}>
+      <span className={`text-xs font-bold ${score >= 55 ? 'text-tv-green' : score <= 45 ? 'text-tv-red' : 'text-tv-warning'}`}>
         {label}
       </span>
-      <div className="w-24 h-1.5 bg-[#0f172a] rounded-full overflow-hidden flex">
-        <div className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-teal-500" style={{ width: `${score}%` }} />
+      <div className="w-24 h-1.5 bg-tv-bg rounded-full overflow-hidden flex">
+        <div className="h-full bg-gradient-to-r from-tv-red via-tv-warning to-tv-green" style={{ width: `${score}%` }} />
       </div>
     </div>
   );
@@ -108,7 +109,7 @@ function formatMarketCap(value: number | null | undefined): string {
 
 export default function BreakoutRadarPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen bg-[#0f172a]" />}>
+    <Suspense fallback={<div className="flex h-screen bg-tv-bg" />}>
       <BreakoutRadarContent />
     </Suspense>
   );
@@ -402,22 +403,22 @@ function BreakoutRadarContent() {
   const activeLabel = CATEGORY_TABS.find((t) => t.key === activeTab)?.label || '';
 
   return (
-    <div className="flex h-screen bg-[#0f172a]">
+    <div className="flex h-screen bg-tv-bg">
       {/* Sidebar removed, handled by layout */}
       <div className="flex-1 flex flex-col min-h-screen overflow-y-auto custom-scrollbar">
         {/* Header */}
-        <header className="bg-[#131c2e] border-b border-[#1e293b] px-6 py-4 sticky top-0 z-20 shadow-md">
+        <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-teal-500/10 border border-teal-500/30 text-teal-400">
+              <div className="p-2 rounded-md bg-gradient-accent text-white">
                 <Target className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="font-bold text-xl text-white tracking-tight flex items-center gap-2">
-                  AI PICK LIVE
-                  <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-mono animate-pulse">LIVE</span>
+                <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight flex items-center gap-2">
+                  AI Pick Live
+                  <Badge variant="danger" dot>Live</Badge>
                 </h1>
-                <p className="text-xs text-gray-400 font-mono flex items-center gap-1 mt-1">
+                <p className="text-xs text-tv-muted flex items-center gap-1 mt-1">
                   <Clock className="w-3 h-3" /> Update: {lastUpdate ? formatTime(lastUpdate) : 'Loading...'} - No Polling
                 </p>
               </div>
@@ -437,57 +438,57 @@ function BreakoutRadarContent() {
                     setActiveTab(tab.key);
                     router.replace(tab.key === 'breakout' ? '/breakout-radar' : `/breakout-radar?cat=${tab.key}`);
                   }}
-                  className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold font-mono transition-colors ${
+                  className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-bold transition-colors ${
                     activeTab === tab.key
-                      ? 'bg-teal-500 text-[#0f172a]'
-                      : 'bg-[#131c2e] border border-[#1e293b] text-gray-300 hover:border-teal-500/40'
+                      ? 'bg-gradient-accent text-white'
+                      : 'bg-tv-card border border-tv-border text-tv-muted hover:border-tv-blue/40 hover:text-tv-text'
                   }`}
                 >
                   {tab.label}
-                  {count != null && <span className={activeTab === tab.key ? 'opacity-70' : 'text-gray-500'}>({count})</span>}
+                  {count != null && <span className={activeTab === tab.key ? 'opacity-70' : 'text-tv-muted'}>({count})</span>}
                 </button>
               );
             })}
           </div>
 
           {activeTab === 'breakout' ? (
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl shadow-2xl overflow-hidden">
-              <div className="p-5 border-b border-[#1e293b] flex items-center justify-between bg-slate-900/50">
+            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2 overflow-hidden">
+              <div className="p-5 border-b border-tv-border flex items-center justify-between bg-tv-bg/40">
                 <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-teal-400" />
+                  <h2 className="font-heading text-lg font-bold text-tv-text flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-tv-green" />
                     Top LQ45 Breakout Watchlist
                   </h2>
-                  <p className="text-xs text-gray-500 font-mono mt-1">Scanning 15 bluechip stocks based on momentum algorithms</p>
+                  <p className="text-xs text-tv-muted mt-1">Scanning 15 bluechip stocks based on momentum algorithms</p>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#0f172a] text-gray-400 text-xs uppercase font-mono tracking-wider border-b border-[#1e293b]">
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('symbol')}>
+                    <tr className="bg-tv-bg text-tv-muted text-xs uppercase font-semibold tracking-wide border-b border-tv-border">
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleBreakoutSort('symbol')}>
                         <div className="flex items-center gap-1.5">Symbol {getBreakoutSortIcon('symbol')}</div>
                       </th>
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('price')}>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleBreakoutSort('price')}>
                         <div className="flex items-center gap-1.5">Price {getBreakoutSortIcon('price')}</div>
                       </th>
                       <th className="py-3 px-4">Signal</th>
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('score')}>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleBreakoutSort('score')}>
                         <div className="flex items-center gap-1.5">Score (0-8) {getBreakoutSortIcon('score')}</div>
                       </th>
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleBreakoutSort('rr')}>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleBreakoutSort('rr')}>
                         <div className="flex items-center gap-1.5">RR Ratio {getBreakoutSortIcon('rr')}</div>
                       </th>
                       <th className="py-3 px-4 text-center">Sentimen Momentum</th>
                       <th className="py-3 px-4 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1e293b]">
+                  <tbody className="divide-y divide-tv-border">
                     {loading ? (
                       <tr>
-                        <td colSpan={7} className="py-20 text-center text-gray-500 font-mono">
-                          <Activity className="w-8 h-8 text-teal-500/50 animate-spin mx-auto mb-3" />
+                        <td colSpan={7} className="py-20 text-center text-tv-muted">
+                          <Activity className="w-8 h-8 text-tv-green/50 animate-spin mx-auto mb-3" />
                           Scanning Market...
                         </td>
                       </tr>
@@ -497,14 +498,14 @@ function BreakoutRadarContent() {
                         const isUp = item.change && !item.change.startsWith('-');
                         const sentiment = sentimentFromChangePct(parseFloat(item.change) || 0);
                         return (
-                          <tr key={item.symbol} className="hover:bg-[#1e293b]/50 transition-colors group">
-                            <td className="py-4 px-4 font-bold text-white font-mono flex items-center gap-3">
-                              <span className="text-gray-500 text-xs w-4">{idx + 1}</span>
+                          <tr key={item.symbol} className="hover:bg-tv-hover/50 transition-colors group">
+                            <td className="py-4 px-4 font-bold text-tv-text font-number flex items-center gap-3">
+                              <span className="text-tv-muted text-xs w-4">{idx + 1}</span>
                               {item.symbol}
                             </td>
-                            <td className="py-4 px-4 font-mono">
-                              <div className="text-white font-bold">Rp {item.price.toLocaleString()}</div>
-                              <div className={`text-[10px] ${isUp ? 'text-teal-400' : 'text-red-400'} flex items-center`}>
+                            <td className="py-4 px-4 font-number">
+                              <div className="text-tv-text font-bold">Rp {item.price.toLocaleString()}</div>
+                              <div className={`text-[10px] ${isUp ? 'text-tv-green' : 'text-tv-red'} flex items-center`}>
                                 {isUp && <ArrowUpRight className="w-3 h-3 mr-0.5" />}
                                 {item.change}
                               </div>
@@ -512,7 +513,7 @@ function BreakoutRadarContent() {
                             <td className="py-4 px-4">
                               <div className="flex flex-wrap gap-1.5 max-w-[250px]">
                                 {item.signals?.map((sig: string) => (
-                                  <span key={sig} className="text-[9px] font-mono font-bold bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded">
+                                  <span key={sig} className="text-[9px] font-bold bg-tv-green/10 text-tv-green border border-tv-green/20 px-2 py-0.5 rounded">
                                     {sig}
                                   </span>
                                 ))}
@@ -520,19 +521,19 @@ function BreakoutRadarContent() {
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-3 w-40">
-                                <span className={`font-bold font-mono text-sm ${isHighConf ? 'text-teal-400' : 'text-yellow-400'}`}>
+                                <span className={`font-bold font-number text-sm ${isHighConf ? 'text-tv-green' : 'text-tv-warning'}`}>
                                   {item.score}
                                 </span>
-                                <div className="flex-1 bg-[#0f172a] rounded-full h-2.5 border border-[#1e293b] overflow-hidden">
+                                <div className="flex-1 bg-tv-bg rounded-full h-2.5 border border-tv-border overflow-hidden">
                                   <div
-                                    className={`h-full rounded-full transition-all duration-1000 ${isHighConf ? 'bg-gradient-to-r from-teal-500 to-teal-400' : 'bg-gradient-to-r from-yellow-500 to-yellow-400'}`}
+                                    className={`h-full rounded-full transition-all duration-1000 ${isHighConf ? 'bg-gradient-to-r from-tv-green to-tv-green/70' : 'bg-gradient-to-r from-tv-warning to-tv-warning/70'}`}
                                     style={{ width: `${(item.score / 8) * 100}%` }}
                                   ></div>
                                 </div>
                               </div>
                             </td>
                             <td className="py-4 px-4">
-                              <span className="bg-[#1e293b] text-gray-300 font-mono text-xs px-2 py-1 rounded border border-[#334155]">
+                              <span className="bg-tv-hover text-tv-muted text-xs px-2 py-1 rounded border border-tv-borderLight font-number">
                                 {item.rr}
                               </span>
                             </td>
@@ -543,7 +544,7 @@ function BreakoutRadarContent() {
                               <div className="flex items-center justify-end gap-2 ml-auto">
                                 <button
                                   onClick={() => router.push(`/dashboard?symbol=${item.symbol}`)}
-                                  className="bg-teal-500 hover:bg-teal-400 text-[#0f172a] text-xs font-bold font-mono px-3 py-1.5 rounded flex items-center justify-center gap-1 transition-colors"
+                                  className="bg-gradient-accent hover:brightness-110 text-white text-xs font-bold px-3 py-1.5 rounded flex items-center justify-center gap-1 transition-all"
                                 >
                                   Analisa <ChevronRight className="w-3 h-3" />
                                 </button>
@@ -554,7 +555,7 @@ function BreakoutRadarContent() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={7} className="py-10 text-center text-gray-500 font-mono">
+                        <td colSpan={7} className="py-10 text-center text-tv-muted">
                           Tidak ada sinyal breakout saat ini.
                         </td>
                       </tr>
@@ -566,67 +567,64 @@ function BreakoutRadarContent() {
           ) : activeTab === 'recommendations' ? (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
                   <button
                     onClick={fetchRecommendations}
                     disabled={recLoading}
-                    className="bg-[#131c2e] border border-[#1e293b] hover:border-teal-500/40 px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
+                    className="bg-tv-card border border-tv-border hover:border-tv-blue/40 px-3 py-1.5 rounded-full text-tv-text flex items-center gap-2 transition-colors disabled:opacity-50"
                   >
                     <RefreshCw className={`w-3 h-3 ${recLoading ? 'animate-spin' : ''}`} />
                     {recLoading ? 'Sedang Memindai...' : 'Refresh Data'}
                   </button>
-                  <div className="bg-[#131c2e] border border-[#1e293b] px-3 py-1.5 rounded-full text-gray-400">
+                  <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
                     Update: {recLastUpdate ? formatTime(recLastUpdate) : 'Menunggu...'}
                     {recLoading && ` (Scanned: ${recData.length}/${REC_LIQUID_STOCKS.length})`}
                   </div>
                 </div>
 
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <SymbolAutocomplete
-                    containerClassName=""
-                    value={recSearchTerm}
-                    onChange={(val) => setRecSearchTerm(val)}
-                    onFocus={(e: any) => e.target.select()}
-                    placeholder="Cari simbol, sinyal..."
-                    className="w-full bg-[#131c2e] border border-[#1e293b] rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 font-mono transition-colors"
-                  />
-                </div>
+                <Input
+                  size="sm"
+                  value={recSearchTerm}
+                  onChange={(e) => setRecSearchTerm(e.target.value)}
+                  placeholder="Cari simbol, sinyal..."
+                  leftIcon={<Search className="w-4 h-4" />}
+                  className="w-full sm:w-64"
+                />
               </div>
 
-              <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl shadow-2xl overflow-hidden">
+              <div className="bg-tv-card border border-tv-border rounded-lg shadow-2 overflow-hidden">
                 <div className="overflow-x-auto min-h-[400px]">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#0f172a] border-b border-[#1e293b] text-xs font-mono text-gray-400 uppercase tracking-wider select-none">
-                        <th className="p-4 font-semibold cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('ticker')}>
+                      <tr className="bg-tv-bg border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide select-none">
+                        <th className="p-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('ticker')}>
                           <div className="flex items-center gap-1.5">Simbol {getRecSortIcon('ticker')}</div>
                         </th>
-                        <th className="p-4 font-semibold cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('sector')}>
+                        <th className="p-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('sector')}>
                           <div className="flex items-center gap-1.5">Sektor {getRecSortIcon('sector')}</div>
                         </th>
-                        <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('price')}>
+                        <th className="p-4 text-right cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('price')}>
                           <div className="flex items-center justify-end gap-1.5">{getRecSortIcon('price')} Harga (Rp)</div>
                         </th>
-                        <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('changePct')}>
+                        <th className="p-4 text-right cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('changePct')}>
                           <div className="flex items-center justify-end gap-1.5">{getRecSortIcon('changePct')} Perubahan (%)</div>
                         </th>
-                        <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('marketCap')}>
+                        <th className="p-4 text-right cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('marketCap')}>
                           <div className="flex items-center justify-end gap-1.5">{getRecSortIcon('marketCap')} Market Cap</div>
                         </th>
-                        <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('consensus')}>
+                        <th className="p-4 text-center cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('consensus')}>
                           <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('consensus')} Konsensus 10 AI</div>
                         </th>
-                        <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('totalScore')} title="Technical + Fundamental + Flow (0-100), sama seperti Detail Saham">
+                        <th className="p-4 text-center cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('totalScore')} title="Technical + Fundamental + Flow (0-100), sama seperti Detail Saham">
                           <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('totalScore')} Skor AI (F+T+A)</div>
                         </th>
-                        <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('sentimentScore')}>
+                        <th className="p-4 text-center cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('sentimentScore')}>
                           <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('sentimentScore')} Sentimen Momentum</div>
                         </th>
-                        <th className="p-4 font-semibold text-center cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('foreignFlow')}>
+                        <th className="p-4 text-center cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('foreignFlow')}>
                           <div className="flex items-center justify-center gap-1.5">{getRecSortIcon('foreignFlow')} Estimasi Asing</div>
                         </th>
-                        <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleRecSort('bullishVotes')}>
+                        <th className="p-4 text-right cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleRecSort('bullishVotes')}>
                           <div className="flex items-center justify-end gap-1.5">{getRecSortIcon('bullishVotes')} Vote (Bull:Bear)</div>
                         </th>
                       </tr>
@@ -634,68 +632,68 @@ function BreakoutRadarContent() {
                     <tbody className="text-sm">
                       {recData.length === 0 && recLoading ? (
                         <tr>
-                          <td colSpan={10} className="p-10 text-center text-gray-500">
+                          <td colSpan={10} className="p-10 text-center text-tv-muted">
                             <div className="flex flex-col items-center gap-3">
-                              <RefreshCw className="w-6 h-6 animate-spin text-teal-400" />
+                              <RefreshCw className="w-6 h-6 animate-spin text-tv-green" />
                               <span>Mulai memindai {REC_LIQUID_STOCKS.length} saham aktif. Mohon tunggu...</span>
                             </div>
                           </td>
                         </tr>
                       ) : recProcessedData.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="p-10 text-center text-gray-500">
+                          <td colSpan={10} className="p-10 text-center text-tv-muted">
                             <div className="flex flex-col items-center gap-3">
-                              <Search className="w-6 h-6 text-gray-500 opacity-50" />
+                              <Search className="w-6 h-6 text-tv-muted opacity-50" />
                               <span>{recLoading ? 'Menyaring rekomendasi terbaik...' : `Tidak ada data saham yang cocok dengan pencarian "${recSearchTerm}"`}</span>
                             </div>
                           </td>
                         </tr>
                       ) : recProcessedData.map((item, idx) => (
-                        <tr key={item.ticker} className="border-b border-[#1e293b]/50 hover:bg-[#1e293b]/50 transition-colors">
+                        <tr key={item.ticker} className="border-b border-tv-border/50 hover:bg-tv-hover/50 transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-white text-base">{item.ticker}</span>
+                              <span className="font-bold text-tv-text text-base font-number">{item.ticker}</span>
                               {idx < 3 && item.consensus?.includes('BUY') && recSortConfig === null && !recSearchTerm && (
                                 <span title="Top Pick">
-                                  <ShieldCheck className="w-4 h-4 text-teal-400" />
+                                  <ShieldCheck className="w-4 h-4 text-tv-green" />
                                 </span>
                               )}
                               {stocksWithEventToday.has(item.ticker) && (
                                 <span title="Ada Corporate Action Hari Ini">
-                                  <Calendar className="w-4 h-4 text-amber-400" />
+                                  <Calendar className="w-4 h-4 text-tv-warning" />
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="p-4 text-xs font-mono text-gray-400 max-w-[150px] truncate" title={item.sector}>
+                          <td className="p-4 text-xs text-tv-muted max-w-[150px] truncate" title={item.sector}>
                             {item.sector || '-'}
                           </td>
-                          <td className="p-4 text-right font-mono text-white font-semibold">
+                          <td className="p-4 text-right font-number text-tv-text font-semibold">
                             {item.price?.toLocaleString('id-ID')}
                           </td>
-                          <td className="p-4 text-right font-mono flex justify-end items-center gap-1">
-                            <span className={`font-bold flex items-center ${item.changePct >= 0 ? 'text-teal-400' : 'text-red-400'}`}>
+                          <td className="p-4 text-right font-number flex justify-end items-center gap-1">
+                            <span className={`font-bold flex items-center ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                               {item.changePct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                               {item.changePct}%
                             </span>
                           </td>
-                          <td className="p-4 text-right font-mono text-gray-300 text-xs">
+                          <td className="p-4 text-right font-number text-tv-muted text-xs">
                             {formatMarketCap(item.marketCap)}
                           </td>
                           <td className="p-4 text-center">
-                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-mono text-xs ${item.consensus?.includes('BUY') ? 'bg-teal-500/20 text-teal-400 border border-teal-500' :
-                                item.consensus?.includes('SELL') ? 'bg-red-500/20 text-red-400 border border-red-500' :
-                                  'bg-yellow-500/20 text-yellow-400 border border-yellow-500'
+                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold text-xs ${item.consensus?.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green' :
+                                item.consensus?.includes('SELL') ? 'bg-tv-red/20 text-tv-red border border-tv-red' :
+                                  'bg-tv-warning/20 text-tv-warning border border-tv-warning'
                               }`}>
                               {item.consensus} ({item.confidence}%)
                             </div>
                           </td>
                           <td className="p-4 text-center">
                             <div
-                              className={`inline-flex flex-col items-center justify-center px-3 py-1 rounded font-bold font-mono text-xs ${item.totalScore > 75 ? 'bg-teal-500/20 text-teal-400 border border-teal-500' :
-                                  item.totalScore >= 60 ? 'bg-teal-500/10 text-teal-300 border border-teal-500/40' :
-                                    item.totalScore >= 45 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500' :
-                                      'bg-red-500/20 text-red-400 border border-red-500'
+                              className={`inline-flex flex-col items-center justify-center px-3 py-1 rounded font-bold text-xs ${item.totalScore > 75 ? 'bg-tv-green/20 text-tv-green border border-tv-green' :
+                                  item.totalScore >= 60 ? 'bg-tv-green/10 text-tv-green border border-tv-green/40' :
+                                    item.totalScore >= 45 ? 'bg-tv-warning/20 text-tv-warning border border-tv-warning' :
+                                      'bg-tv-red/20 text-tv-red border border-tv-red'
                                 }`}
                               title={`Fundamental: ${item.fundamentalScore}/30 (Valuasi: ${item.valuationScore}/10) - Technical + Flow melengkapi sisanya`}
                             >
@@ -706,15 +704,15 @@ function BreakoutRadarContent() {
                             <SentimentGauge score={item.sentimentScore} label={item.sentimentLabel} />
                           </td>
                           <td className="p-4 text-center">
-                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-mono text-[11px] ${item.foreignFlow?.includes('BUY') ? 'bg-teal-500/10 text-teal-400 border border-teal-500/50' :
-                                item.foreignFlow?.includes('SELL') ? 'bg-red-500/10 text-red-400 border border-red-500/50' :
-                                  'bg-yellow-500/10 text-yellow-400 border border-yellow-500/50'
+                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold text-[11px] ${item.foreignFlow?.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/50' :
+                                item.foreignFlow?.includes('SELL') ? 'bg-tv-red/10 text-tv-red border border-tv-red/50' :
+                                  'bg-tv-warning/10 text-tv-warning border border-tv-warning/50'
                               }`}>
                               {item.foreignFlow || 'NEUTRAL'}
                             </div>
                           </td>
-                          <td className="p-4 text-right font-mono text-gray-400">
-                            <div><span className="text-teal-400">{item.bullishVotes}</span> : <span className="text-red-400">{item.bearishVotes}</span></div>
+                          <td className="p-4 text-right font-number text-tv-muted">
+                            <div><span className="text-tv-green">{item.bullishVotes}</span> : <span className="text-tv-red">{item.bearishVotes}</span></div>
                           </td>
                         </tr>
                       ))}
@@ -724,24 +722,24 @@ function BreakoutRadarContent() {
               </div>
             </div>
           ) : (
-            <div className="bg-[#131c2e] border border-[#1e293b] rounded-xl shadow-2xl overflow-hidden">
-              <div className="p-5 border-b border-[#1e293b] bg-slate-900/50">
-                <h2 className="text-lg font-bold text-white">{activeLabel}</h2>
-                <p className="text-xs text-gray-500 font-mono mt-1">
+            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2 overflow-hidden">
+              <div className="p-5 border-b border-tv-border bg-tv-bg/40">
+                <h2 className="font-heading text-lg font-bold text-tv-text">{activeLabel}</h2>
+                <p className="text-xs text-tv-muted mt-1">
                   {activeCategory ? `${activeCategory.count} saham memenuhi kriteria ${activeLabel.toLowerCase()}` : 'Memuat...'}
                 </p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#0f172a] text-gray-400 text-xs uppercase font-mono tracking-wider border-b border-[#1e293b]">
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleCategorySort('symbol')}>
+                    <tr className="bg-tv-bg text-tv-muted text-xs uppercase font-semibold tracking-wide border-b border-tv-border">
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleCategorySort('symbol')}>
                         <div className="flex items-center gap-1.5">Symbol {getCategorySortIcon('symbol')}</div>
                       </th>
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleCategorySort('price')}>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleCategorySort('price')}>
                         <div className="flex items-center gap-1.5">Price {getCategorySortIcon('price')}</div>
                       </th>
-                      <th className="py-3 px-4 cursor-pointer group hover:bg-[#1e293b] transition-colors" onClick={() => handleCategorySort('changePct')}>
+                      <th className="py-3 px-4 cursor-pointer group hover:bg-tv-hover transition-colors" onClick={() => handleCategorySort('changePct')}>
                         <div className="flex items-center gap-1.5">Perubahan {getCategorySortIcon('changePct')}</div>
                       </th>
                       <th className="py-3 px-4">Metrik</th>
@@ -749,11 +747,11 @@ function BreakoutRadarContent() {
                       <th className="py-3 px-4 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1e293b]">
+                  <tbody className="divide-y divide-tv-border">
                     {loadingDailyPicks ? (
                       <tr>
-                        <td colSpan={6} className="py-20 text-center text-gray-500 font-mono">
-                          <Activity className="w-8 h-8 text-teal-500/50 animate-spin mx-auto mb-3" />
+                        <td colSpan={6} className="py-20 text-center text-tv-muted">
+                          <Activity className="w-8 h-8 text-tv-green/50 animate-spin mx-auto mb-3" />
                           Memuat...
                         </td>
                       </tr>
@@ -762,20 +760,20 @@ function BreakoutRadarContent() {
                         const isUp = item.changePct >= 0;
                         const sentiment = sentimentFromChangePct(item.changePct);
                         return (
-                          <tr key={item.symbol} className="hover:bg-[#1e293b]/50 transition-colors group">
-                            <td className="py-4 px-4 font-bold text-white font-mono flex items-center gap-3">
-                              <span className="text-gray-500 text-xs w-4">{idx + 1}</span>
+                          <tr key={item.symbol} className="hover:bg-tv-hover/50 transition-colors group">
+                            <td className="py-4 px-4 font-bold text-tv-text font-number flex items-center gap-3">
+                              <span className="text-tv-muted text-xs w-4">{idx + 1}</span>
                               {item.symbol}
                             </td>
-                            <td className="py-4 px-4 font-mono text-white font-bold">Rp {item.price?.toLocaleString('id-ID')}</td>
+                            <td className="py-4 px-4 font-number text-tv-text font-bold">Rp {item.price?.toLocaleString('id-ID')}</td>
                             <td className="py-4 px-4">
-                              <span className={`flex items-center gap-1 font-mono text-xs font-bold ${isUp ? 'text-teal-400' : 'text-red-400'}`}>
+                              <span className={`flex items-center gap-1 font-number text-xs font-bold ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
                                 {isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                                 {isUp ? '+' : ''}{item.changePct}%
                               </span>
                             </td>
                             <td className="py-4 px-4">
-                              <span className="text-[10px] font-mono font-bold bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded">
+                              <span className="text-[10px] font-bold bg-tv-green/10 text-tv-green border border-tv-green/20 px-2 py-0.5 rounded">
                                 {item.metric}
                               </span>
                             </td>
@@ -785,7 +783,7 @@ function BreakoutRadarContent() {
                             <td className="py-4 px-4 text-right">
                               <button
                                 onClick={() => router.push(`/dashboard?symbol=${item.symbol}`)}
-                                className="bg-teal-500 hover:bg-teal-400 text-[#0f172a] text-xs font-bold font-mono px-3 py-1.5 rounded inline-flex items-center justify-center gap-1 transition-colors"
+                                className="bg-gradient-accent hover:brightness-110 text-white text-xs font-bold px-3 py-1.5 rounded inline-flex items-center justify-center gap-1 transition-all"
                               >
                                 Analisa <ChevronRight className="w-3 h-3" />
                               </button>
@@ -795,7 +793,7 @@ function BreakoutRadarContent() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={6} className="py-10 text-center text-gray-500 font-mono">
+                        <td colSpan={6} className="py-10 text-center text-tv-muted">
                           Tidak ada saham di kategori {activeLabel} saat ini.
                         </td>
                       </tr>
@@ -809,9 +807,9 @@ function BreakoutRadarContent() {
       </div>
       <style dangerouslySetInnerHTML={{__html:`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0F141D; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2C3A5A; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3A4B75; }
       `}} />
 
       <PaywallModal
