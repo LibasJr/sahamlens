@@ -30,7 +30,11 @@ function DcfContent() {
   useEffect(() => {
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
-      setTickerState(urlSymbol.toUpperCase());
+      // WAJIB pakai setTicker (bukan setTickerState) - sebelumnya dibuka via
+      // link ?symbol= dari halaman lain menampilkan ticker yang benar TAPI tidak
+      // ikut menulis localStorage, jadi kunjungan berikutnya ke /dcf tanpa
+      // ?symbol= jatuh ke default TLKM lagi walau baru saja lihat emiten lain.
+      setTicker(urlSymbol.toUpperCase());
       return;
     }
     const savedTicker = typeof window !== 'undefined' ? localStorage.getItem('last_searched_ticker') : null;
