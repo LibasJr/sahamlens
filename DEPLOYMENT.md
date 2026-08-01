@@ -61,6 +61,14 @@ Set lewat `printf '%s' "$VALUE" | npx vercel env add NAME production` (ganti `pr
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `DATABASE_URL` | ❌ belum di-set di Vercel | nilai di `.env.local` lokal sekarang **kelihatan seperti placeholder/dummy** (terlalu pendek buat JWT/connection string asli). App belum benar-benar jalan di atas Supabase - lihat bagian "Arsitektur data" di bawah. Isi env ini di Vercel HANYA kalau sudah migrasi ke Supabase project yang beneran. |
 | `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | ❌ belum di-set | dipakai `components/TelegramLogin.tsx`, fallback ke `'LibasBot'` kalau kosong. Widget Telegram Login **gak akan render/jalan** kecuali domain production didaftarkan ke bot itu lewat `/setdomain` di @BotFather. Verifikasi dulu `LibasBot` itu emang bot yang benar sebelum daftar domain. |
 
+> **UPDATE (audit keamanan, sesi ini):** `lib/supabase.ts` (layer 2 di bawah) SUDAH DIHAPUS,
+> begitu juga seluruh integrasi login/bot Telegram (`components/TelegramLogin.tsx`,
+> `modules/user/service/telegram-auth.service.ts`, `app/api/auth/telegram`,
+> `app/api/watchlist/migrate`) - semuanya dead code yang cuma nulis ke shim lokal itu, bukan data
+> nyata. Section "Gating akses" dan "Kenapa menu admin dev hilang" di bawah ini JUGA SUDAH BASI
+> (gating sekarang murni `checkProAccess`/session, bukan `telegram_id`) - jangan dipercaya tanpa
+> cek ulang source-nya langsung. `app/admin/page.tsx` juga sudah tidak lagi baca tabel palsu itu.
+
 ## Arsitektur data (biar gak ketuker istilah "Supabase")
 
 Ada 3 layer penyimpanan berbeda di project ini, JANGAN dianggap sama:
