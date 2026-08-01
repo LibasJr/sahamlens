@@ -24,9 +24,9 @@ Precompute harian via cron + simulasi cepat on-demand saat request (bukan hitung
    Daftar hardcode 100 ticker likuid IDX khusus backtest (superset dari `SCREENER_UNIVERSE` yang sudah ada + ~49 ticker likuid lain, dikurasi manual sekali). Terpisah dari `SCREENER_UNIVERSE` supaya tidak mempengaruhi performa fitur live (Screener, Compare) yang sengaja dibatasi kecil.
 
 2. **`modules/backtest/service/precompute.service.ts`**
-   Untuk tiap saham di `backtest-universe.ts` (100 ticker): ambil OHLCV historis via `fetchYahooHistory(ticker, '3y')` (3 tahun — cukup untuk periode backtest maksimal 24 bulan + buffer ~200 hari perdagangan lookback yang dibutuhkan indikator seperti MA200 sejak hari pertama window). Jalankan 9 analyzer asli (`analyzeEma`, `analyzeRsi`, `analyzeMacd`, `analyzeVolume`, `analyzeTrend`, `analyzeVolatility`, `analyzeMomentum`, `analyzeSupport`, `analyzeSma`) **hari-per-hari** (rolling window per hari, bukan cuma snapshot hari terakhir seperti di `/api/stock`). `analyzeMarketFlow` diverifikasi saat implementasi apakah butuh data selain OHLCV — kalau ya, disesuaikan atau dikeluarkan dari daftar filter backtest dengan catatan yang sama seperti Foreign Flow.
+   Untuk tiap saham di `backtest-universe.ts` (100 ticker): ambil OHLCV historis via `fetchYahooHistory(ticker, '5y')` (5 tahun — memberi buffer aman ~200 hari perdagangan lookback yang dibutuhkan indikator seperti MA200 sejak hari pertama window, di atas kebutuhan periode backtest maksimal 24 bulan). Jalankan 9 analyzer asli (`analyzeEma`, `analyzeRsi`, `analyzeMacd`, `analyzeVolume`, `analyzeTrend`, `analyzeVolatility`, `analyzeMomentum`, `analyzeSupport`, `analyzeSma`) **hari-per-hari** (rolling window per hari, bukan cuma snapshot hari terakhir seperti di `/api/stock`). `analyzeMarketFlow` diverifikasi saat implementasi apakah butuh data selain OHLCV — kalau ya, disesuaikan atau dikeluarkan dari daftar filter backtest dengan catatan yang sama seperti Foreign Flow.
    Hasilkan deret keputusan `{date, ticker, indicator, decision}` per saham. IHSG (`^JKSE`) diambil & diproses bersamaan sebagai data benchmark alpha.
-   Catatan biaya: 100 ticker x 3 tahun history ~2x lebih berat dari perkiraan awal 51 ticker — tetap wajar untuk cron async sekali sehari, tapi runtime cron & permukaan kegagalan-per-ticker jadi lebih besar (lihat "Error handling").
+   Catatan biaya: 100 ticker x 5 tahun history ~2x lebih berat dari perkiraan awal 51 ticker — tetap wajar untuk cron async sekali sehari, tapi runtime cron & permukaan kegagalan-per-ticker jadi lebih besar (lihat "Error handling").
 
 3. **`app/api/cron/backtest-precompute/route.ts`**
    Endpoint cron baru, pola sama seperti `app/api/cron/watchlist-alert` (`verifyQStashSignature`, `withJobRunLog`). Jalan sekali sehari. Panggil precompute service, simpan hasil ke Redis (`shared/cache/redis-cache.ts`) dengan key `sahamlens:cache:computed:backtest-indicators:v1`, TTL ~36 jam (buffer kalau cron sempat telat/gagal sekali).
@@ -46,7 +46,7 @@ Precompute harian via cron + simulasi cepat on-demand saat request (bukan hitung
 
 ```
 Cron (harian, QStash)
-  -> fetchYahooHistory x 100 saham (backtest-universe.ts) + IHSG (3 tahun OHLCV)
+  -> fetchYahooHistory x 100 saham (backtest-universe.ts) + IHSG (5 tahun OHLCV)
   -> 9 analyzer dijalankan per-hari per-saham (bukan cuma hari terakhir)
   -> Redis: deret keputusan {date, ticker, indicator, decision} + harga penutupan harian
        |
@@ -101,7 +101,7 @@ Semua analyzer punya signature seragam `analyze(history: OhlcRow[], currentPrice
 
 ## Alternatif yang dipertimbangkan (ditolak)
 
-- **Hitung semua langsung per-request tanpa cache:** lebih sederhana dibangun, tapi fetch+hitung indikator 100 saham x hingga 3 tahun history dalam satu request berisiko sangat lambat/timeout di Vercel serverless (endpoint lain di codebase ini sudah defensif pakai timeout 8 detik untuk SATU saham saja) dan boros/rawan rate-limit Yahoo Finance kalau banyak user pakai backtest bersamaan.
+- **Hitung semua langsung per-request tanpa cache:** lebih sederhana dibangun, tapi fetch+hitung indikator 100 saham x hingga 5 tahun history dalam satu request berisiko sangat lambat/timeout di Vercel serverless (endpoint lain di codebase ini sudah defensif pakai timeout 8 detik untuk SATU saham saja) dan boros/rawan rate-limit Yahoo Finance kalau banyak user pakai backtest bersamaan.
 - **Precompute cuma untuk 3 preset yang ada (bukan filter bebas):** lebih murah dihitung, tapi menghilangkan fitur inti "Strategy Builder" (kombinasi filter bebas) yang jadi pembeda halaman ini.
 
 ## Scope check
