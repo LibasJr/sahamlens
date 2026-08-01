@@ -5,6 +5,41 @@ import { NextResponse } from 'next/server';
 import { getSession, checkProAccess } from '@/modules/user';
 import { fetchYahooHistory } from '@/modules/technical';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
+import { fetchScreenerUniverse } from '@/modules/market/service/screener.service';
+import { getOrCompute } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+
+const SCREENER_CACHE_KEY = 'sahamlens:cache:computed:screener-universe';
+
+// Sebelumnya symbol2 default hardcode 'BBRI.JK' apa pun symbol1-nya - kalau user
+// baru saja lihat TLKM (telekomunikasi) lalu buka /compare tanpa pilih simbol
+// kedua, yang muncul malah BBRI (perbankan), tidak nyambung sama sekali. Sekarang
+// cari peer 1 sektor dari universe screener yang sama (cached 30 menit, lihat
+// app/api/screener/route.ts) - kalau symbol1 tidak ada di universe 49 saham itu,
+// fallback fetch sector live sekali saja untuk simbol itu.
+async function pickSameSectorPeer(symbol1: string): Promise<string | null> {
+  const code1 = symbol1.replace('.JK', '').toUpperCase();
+  try {
+    const universe = await getOrCompute(SCREENER_CACHE_KEY, CACHE_TTL_SEC.SCREENER_UNIVERSE, fetchScreenerUniverse);
+    let entry1 = universe.find((s) => s.ticker.toUpperCase() === code1);
+
+    if (!entry1) {
+      const YahooFinanceClass = (await import('yahoo-finance2')).default;
+      const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
+      const q = await yahooFinance.quoteSummary(symbol1, { modules: ['assetProfile'] }).catch(() => null);
+      const sector = q?.assetProfile?.sector;
+      if (!sector) return null;
+      entry1 = { ticker: code1, sector } as any;
+      const peer = universe.find((s) => s.sector === sector && s.ticker.toUpperCase() !== code1);
+      return peer ? `${peer.ticker}.JK` : null;
+    }
+
+    const peer = universe.find((s) => s.sector === entry1!.sector && s.ticker.toUpperCase() !== code1);
+    return peer ? `${peer.ticker}.JK` : null;
+  } catch {
+    return null;
+  }
+}
 
 // REWRITE TOTAL - versi sebelumnya (generateData()) menghasilkan SEMUA angka
 // (Score, MA Status, PER, PBV, Foreign Flow, Risk/Reward) dari seeded pseudo-random
@@ -141,7 +176,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const symbol1 = searchParams.get('symbol1') || 'BBCA.JK';
-  const symbol2 = searchParams.get('symbol2') || 'BBRI.JK';
+  const rawSymbol2 = searchParams.get('symbol2');
+  const symbol2 = rawSymbol2 || (await pickSameSectorPeer(symbol1)) || 'BBRI.JK';
 
   const [data1, data2] = await Promise.all([buildStockData(symbol1), buildStockData(symbol2)]);
   if (!data1 || !data2) {

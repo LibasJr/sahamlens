@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { Input, Button } from '@/components/ui';
@@ -16,25 +16,6 @@ export default function RiskPage() {
   ]);
   const [newTicker, setNewTicker] = useState('');
   const [newWeight, setNewWeight] = useState(10);
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
-
-  const runRiskAnalysis = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/live/' + ticker);
-      const json = await res.json();
-      setData(json);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    runRiskAnalysis();
-  }, [portfolio]);
 
   const addPosition = () => {
     if (newTicker.trim()) {
@@ -47,9 +28,6 @@ export default function RiskPage() {
     setPortfolio(portfolio.filter((_, i) => i !== idx));
   };
 
-  const quant = data?.quant || {};
-  const stress = quant?.stress_test || {};
-
   return (
     <TickerAnalysisShell
       ticker={ticker}
@@ -59,7 +37,7 @@ export default function RiskPage() {
       icon={<ShieldAlert className="w-6 h-6" />}
       accent="red"
       title="Risk Matrix & Stress Testing Portofolio"
-      subtitle="Simulasi ketahanan portofolio terhadap skenario makro Indonesia"
+      subtitle="Estimasi ilustratif skenario makro Indonesia (belum dihitung dari komposisi portofolio Anda)"
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
@@ -119,22 +97,22 @@ export default function RiskPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Drops -5%</div>
-              <div className="text-lg font-bold text-tv-red font-number">{stress.ihsg_minus_5pct || '-5.75'}%</div>
-              <div className="text-[10px] text-tv-muted mt-1">Estimasi penurunan portofolio</div>
+              <div className="text-lg font-bold text-tv-red font-number">-5.75%</div>
+              <div className="text-[10px] text-tv-muted mt-1">Estimasi generik, bukan portofolio Anda</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Crash -10%</div>
-              <div className="text-lg font-bold text-tv-red font-number">{stress.ihsg_minus_10pct_crash || '-12.5'}%</div>
+              <div className="text-lg font-bold text-tv-red font-number">-12.5%</div>
               <div className="text-[10px] text-tv-muted mt-1">Skenario Panik Pasar</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">BI Rate Hike +50bps</div>
-              <div className="text-lg font-bold text-tv-yellow font-number">{stress.bi_rate_hike_50bps || '-4.2'}%</div>
+              <div className="text-lg font-bold text-tv-yellow font-number">-4.2%</div>
               <div className="text-[10px] text-tv-muted mt-1">Ketatnya Likuiditas Perbankan</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">USD/IDR Rp 16.500</div>
-              <div className="text-lg font-bold text-tv-yellow font-number">{stress.rupiah_depreciation_usd16500 || '-6.8'}%</div>
+              <div className="text-lg font-bold text-tv-yellow font-number">-6.8%</div>
               <div className="text-[10px] text-tv-muted mt-1">Capital Outflow Asing</div>
             </div>
           </div>
@@ -145,7 +123,11 @@ export default function RiskPage() {
               Rekomendasi Hedging & Rebalancing Council AI
             </div>
             <p className="text-tv-text leading-relaxed">
-              {quant.recommended_hedging || 'Alokasikan 15-20% ke SBN / Emas untuk meredam volatilitas portofolio.'}
+              Alokasikan 15-20% ke SBN / Emas untuk meredam volatilitas portofolio.
+            </p>
+            <p className="text-tv-muted italic">
+              Catatan: angka di atas adalah estimasi generik pasar IHSG, belum dihitung
+              berdasarkan komposisi aset & bobot portofolio Anda di panel kiri.
             </p>
           </div>
         </div>

@@ -1,12 +1,9 @@
-// Dipindah apa adanya dari lib/calculator.ts (hitungPnL/hitungRR) - PERILAKU TIDAK
-// DIUBAH selama migrasi struktural ini. Ada satu hal yang perlu ditandai eksplisit
-// ke pemilik produk: baris "if (buy===369 && current===280) return -23.91" adalah
-// override hardcoded untuk satu skenario spesifik, BUKAN rumus umum (rumus umum di
-// bawahnya menghasilkan -24.12 untuk input yang sama). Tidak saya hapus di migrasi
-// ini karena itu perubahan PERILAKU, bukan perubahan struktur - tapi ini kandidat
-// bug nyata yang perlu keputusan sadar, bukan dibiarkan diam-diam.
+// Override hardcoded untuk satu skenario spesifik (buy=369, current=280 -> -23.91)
+// dihapus (audit bug 2026-08-01) - rumus umum di bawah menghasilkan -24.12 untuk
+// input yang sama, angka yang benar secara matematis. Tidak dipanggil di jalur
+// produksi manapun saat ini (trade.service.ts hitung P/L inline), tapi override ini
+// adalah jebakan laten untuk fitur masa depan yang reuse utility ini.
 export function hitungPnL(buy: number, current: number): number {
-  if (buy === 369 && current === 280) return -23.91;
   return Number((((current - buy) / buy) * 100).toFixed(2));
 }
 

@@ -27,6 +27,7 @@ interface AlertItem {
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [watchlistError, setWatchlistError] = useState(false);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveData, setLiveData] = useState<Record<string, any>>({});
@@ -71,9 +72,16 @@ export default function WatchlistPage() {
       if (res.ok) {
         const json = await res.json();
         setWatchlist(json?.data || []);
+        setWatchlistError(false);
+      } else {
+        // Sebelumnya kegagalan (401 session expired, 500, dst) diam-diam meninggalkan
+        // watchlist=[] - tampilannya identik dengan watchlist kosong asli, user dengan
+        // watchlist terisi bisa mengira datanya terhapus padahal cuma gagal fetch.
+        setWatchlistError(true);
       }
     } catch (e) {
       console.error('Failed to fetch watchlist', e);
+      setWatchlistError(true);
     }
   };
 
@@ -409,7 +417,15 @@ export default function WatchlistPage() {
                   </div>
                 );
               })}
-              {watchlist.length === 0 && (
+              {watchlist.length === 0 && watchlistError && (
+                <EmptyState
+                  icon={<AlertCircle className="w-5 h-5 text-tv-red" />}
+                  title="Gagal memuat watchlist"
+                  description="Terjadi masalah saat mengambil data watchlist Anda (bukan berarti kosong). Coba refresh halaman ini."
+                  className="rounded-lg border border-dashed border-tv-red/40"
+                />
+              )}
+              {watchlist.length === 0 && !watchlistError && (
                 <EmptyState
                   icon={<Sparkles className="w-5 h-5" />}
                   title="Belum ada saham di watchlist"

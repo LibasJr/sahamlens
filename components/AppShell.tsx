@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import AIChat from '@/components/AIChat';
 
-const BARE_AUTH_PAGES = ['/login', '/signup', '/forgot-password', '/reset-password', '/admin-login'];
+const BARE_AUTH_PAGES = ['/login', '/signup', '/forgot-password', '/reset-password', '/admin-login', '/admin'];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

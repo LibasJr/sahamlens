@@ -134,10 +134,10 @@ export default function Signup() {
             type={showPassword ? 'text' : 'password'}
             label="Password"
             required
-            minLength={6}
+            minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimal 6 karakter"
+            placeholder="Minimal 8 karakter"
             rightIcon={
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -148,7 +148,7 @@ export default function Signup() {
             type={showConfirmPassword ? 'text' : 'password'}
             label="Konfirmasi Password"
             required
-            minLength={6}
+            minLength={8}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Ulangi password"

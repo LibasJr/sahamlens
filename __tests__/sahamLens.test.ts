@@ -2,10 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { hitungPnL, hitungRR } from '../modules/portfolio/utils/pnl-calculator';
 
 describe('SahamLens Logic Tests', () => {
-  it('hitungPnL(buy:369, current:280) == -23.91', () => {
-    // Memastikan perhitungannya akurat -23.91, bukan hasil asal-asalan (-24%)
+  it('hitungPnL(buy:369, current:280) == -24.12 (rumus umum, bukan override hardcoded)', () => {
+    // Sebelumnya test ini menegaskan -23.91, angka dari override hardcoded khusus
+    // pasangan (369, 280) yang sudah dihapus (audit bug 2026-08-01) - -24.12 adalah
+    // hasil rumus ((current-buy)/buy)*100 yang sebenarnya, dan itu yang benar secara
+    // matematis untuk input ini.
     const pnl = hitungPnL(369, 280);
-    expect(pnl).toBe(-23.91);
+    expect(pnl).toBe(-24.12);
   });
 
   it('hitungRR(support:274, res:306, entry:280) == {risk:2.14, reward:9.29, rr:4.33}', () => {

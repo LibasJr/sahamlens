@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { Target, Search, RefreshCw, ChevronLeft, ArrowRightLeft } from 'lucide-react';
@@ -15,29 +15,61 @@ function CompareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const initialSym1 = searchParams.get('symbol1') || 'BBCA.JK';
-  const initialSym2 = searchParams.get('symbol2') || 'BBRI.JK';
+  const urlSym1 = searchParams.get('symbol1');
+  const urlSym2 = searchParams.get('symbol2');
 
-  const [symbol1, setSymbol1] = useState(initialSym1);
-  const [symbol2, setSymbol2] = useState(initialSym2);
+  // BUG FIX (2026-08-01): symbol1 sebelumnya hardcode 'BBCA.JK' dan symbol2 hardcode
+  // 'BBRI.JK' apa pun ticker yang sedang dilihat user di Teknikal/Fundamental/DCF -
+  // buka /compare tanpa ?symbol1= selalu jatuh ke BBCA, bukan ticker terakhir dicari.
+  // Sekarang ikut pola yang sama dengan /dcf & /fundamental: ?symbol1= dulu, lalu
+  // localStorage 'last_searched_ticker' (dipakai bersama lintas halaman analisa),
+  // baru default BBCA kalau memang belum pernah cari apa-apa.
+  const [symbol1, setSymbol1] = useState(urlSym1 || 'BBCA.JK');
+  // symbol2 SENGAJA tidak di-hardcode BBRI - kalau user belum pilih simbol kedua,
+  // dikosongkan supaya /api/compare yang pilihkan peer 1 sektor dengan symbol1
+  // (lihat pickSameSectorPeer di app/api/compare/route.ts), bukan default bank
+  // yang bisa saja beda sektor total dari symbol1.
+  const [symbol2, setSymbol2] = useState(urlSym2 || '');
 
-  const [input1, setInput1] = useState(initialSym1);
-  const [input2, setInput2] = useState(initialSym2);
+  const [input1, setInput1] = useState(urlSym1 || 'BBCA.JK');
+  const [input2, setInput2] = useState(urlSym2 || '');
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  // Effect restore-dari-localStorage (di bawah) dan effect fetch (setelahnya) sama-sama
+  // jalan saat mount - fetch pertama berangkat dengan symbol1 default 'BBCA.JK' SEBELUM
+  // state ke-update dari localStorage, jadi dua request keluar. Sequence number ini
+  // memastikan hanya response dari request TERAKHIR yang dipakai, walau response duluan
+  // (BBCA) resolve belakangan karena jitter jaringan.
+  const fetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (!urlSym1) {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('last_searched_ticker') : null;
+      if (saved) {
+        setSymbol1(saved);
+        setInput1(saved);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchCompare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol1, symbol2]);
 
   const fetchCompare = async () => {
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
-      const res = await fetch(`/api/compare?symbol1=${symbol1}&symbol2=${symbol2}`);
+      const qs = `symbol1=${symbol1}${symbol2 ? `&symbol2=${symbol2}` : ''}`;
+      const res = await fetch(`/api/compare?${qs}`);
       const json = await res.json();
+
+      if (seq !== fetchSeqRef.current) return; // response basi, sudah ada request lebih baru
 
       if (res.status === 402 || res.status === 403 || json.code === 'SUBSCRIPTION_REQUIRED') {
         setUsedSymbolsToday(getUsedSymbolsToday());
@@ -47,19 +79,29 @@ function CompareContent() {
 
       if (res.ok) {
         setData(json);
+        // symbol2 mungkin dipilihkan otomatis oleh server (peer 1 sektor) - sinkronkan
+        // balik ke state/input supaya kotak kedua tidak kosong dan klik "Bandingkan"
+        // berikutnya tidak diam-diam ganti peer lagi.
+        if (!symbol2 && json.data2?.symbol) {
+          setSymbol2(json.data2.symbol);
+          setInput2(json.data2.symbol);
+        }
       }
     } catch (e) {
-      console.error(e);
+      if (seq === fetchSeqRef.current) console.error(e);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
   };
 
   const handleCompare = (e: React.FormEvent) => {
     e.preventDefault();
-    setSymbol1(input1.toUpperCase());
-    setSymbol2(input2.toUpperCase());
-    router.push(`/compare?symbol1=${input1.toUpperCase()}&symbol2=${input2.toUpperCase()}`);
+    const sym1 = input1.toUpperCase();
+    const sym2 = input2.toUpperCase();
+    setSymbol1(sym1);
+    setSymbol2(sym2);
+    if (typeof window !== 'undefined') localStorage.setItem('last_searched_ticker', sym1);
+    router.push(`/compare?symbol1=${sym1}&symbol2=${sym2}`);
   };
 
   return (

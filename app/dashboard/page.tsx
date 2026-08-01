@@ -546,7 +546,7 @@ function DashboardContent() {
           </button>
           
           <button 
-            onClick={() => router.push(`/compare?symbol1=${ticker}&symbol2=BBRI.JK`)}
+            onClick={() => router.push(`/compare?symbol1=${ticker}`)}
             className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors ml-auto"
           >
             ⚔️ Compare

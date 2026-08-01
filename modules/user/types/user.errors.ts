@@ -27,6 +27,12 @@ export class InvalidVerificationCodeError extends ValidationError {
   }
 }
 
+export class VerificationCodeExpiredError extends ValidationError {
+  constructor() {
+    super('Kode verifikasi sudah kedaluwarsa. Silakan minta kode baru.');
+  }
+}
+
 export class InvalidResetCodeError extends ValidationError {
   constructor() {
     super('Kode reset salah atau kedaluwarsa.');

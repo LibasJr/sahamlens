@@ -18,6 +18,8 @@ export default function CommandPalette() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const previewCache = useRef<Map<string, Preview>>(new Map());
+  const modalRef = useRef<HTMLDivElement>(null);
+  const activeSymbolRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -58,28 +60,35 @@ export default function CommandPalette() {
   const active = results[activeIdx];
 
   useEffect(() => {
+    activeSymbolRef.current = active?.symbol;
     if (!active) { setPreview(null); return; }
-    const cached = previewCache.current.get(active.symbol);
+    const symbol = active.symbol;
+    const cached = previewCache.current.get(symbol);
     if (cached !== undefined) { setPreview(cached); return; }
     setPreviewLoading(true);
-    fetch(`/api/public-chart/${active.symbol}?tf=1M`)
+    fetch(`/api/public-chart/${symbol}?tf=1M`)
       .then((r) => r.json())
       .then((data) => {
+        // Kalau user sudah hover ke baris lain sebelum response ini balik, jangan timpa
+        // preview yang sedang ditampilkan dengan data saham yang sudah tidak di-hover
+        // (race condition - lihat ref activeSymbolRef, bukan `active` yang di-closure
+        // saat effect ini jalan).
+        if (activeSymbolRef.current !== symbol) return;
         if (data && data.history && data.history.length > 1) {
           const closes = data.history.map((h: any) => h.close);
           const price = closes[closes.length - 1];
           const prev = closes[closes.length - 2];
           const changePct = prev ? ((price - prev) / prev) * 100 : 0;
           const result = { closes, price, changePct };
-          previewCache.current.set(active.symbol, result);
+          previewCache.current.set(symbol, result);
           setPreview(result);
         } else {
-          previewCache.current.set(active.symbol, null);
+          previewCache.current.set(symbol, null);
           setPreview(null);
         }
       })
-      .catch(() => setPreview(null))
-      .finally(() => setPreviewLoading(false));
+      .catch(() => { if (activeSymbolRef.current === symbol) setPreview(null); })
+      .finally(() => { if (activeSymbolRef.current === symbol) setPreviewLoading(false); });
   }, [active?.symbol]);
 
   const goTo = (symbol: string) => {
@@ -92,6 +101,28 @@ export default function CommandPalette() {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, results.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); if (active) goTo(active.symbol); }
+  };
+
+  // Focus trap - tanpa ini Tab bisa memindahkan fokus keyboard ke elemen di belakang
+  // overlay (yang cuma tertutup visual, bukan aria-hidden), user keyboard-only bisa
+  // "tersesat" fokus di luar dialog padahal dialog masih terlihat terbuka.
+  const handleModalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const container = modalRef.current;
+    if (!container) return;
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.hasAttribute('disabled'));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   };
 
   return (
@@ -110,8 +141,12 @@ export default function CommandPalette() {
       {open && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
           <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
             className="w-full max-w-[560px] rounded-2xl bg-white dark:bg-[#152238] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleModalKeyDown}
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
               <Search className="h-4 w-4 text-slate-400 shrink-0" />

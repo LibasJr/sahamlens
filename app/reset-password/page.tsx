@@ -69,8 +69,8 @@ function ResetPasswordForm() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('Password minimal 6 karakter.');
+    if (newPassword.length < 8) {
+      setError('Password minimal 8 karakter.');
       return;
     }
 
@@ -163,7 +163,7 @@ function ResetPasswordForm() {
           label="Password Baru"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="Minimal 6 karakter"
+          placeholder="Minimal 8 karakter"
           rightIcon={
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

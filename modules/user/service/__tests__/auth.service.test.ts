@@ -40,6 +40,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     trial_ends_at: null,
     demo_ends_at: null,
     verification_code: null,
+    verification_code_expires: null,
     reset_code: null,
     reset_code_expires: null,
     ...overrides,

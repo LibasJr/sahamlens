@@ -40,6 +40,14 @@ export default function Header({
   const [searchInput, setSearchInput] = useState(currentTicker);
   const [user, setUser] = useState<any>(null);
 
+  // Resync saat currentTicker berubah lewat navigasi yang tidak lewat search box ini
+  // (CommandPalette, dashboard, watchlist, dst) - tanpa ini search box menampilkan
+  // ticker lama walau body halaman sudah pindah ke ticker baru, dan submit Enter di
+  // situ akan salah navigasi balik ke ticker lama.
+  useEffect(() => {
+    setSearchInput(currentTicker);
+  }, [currentTicker]);
+
   useEffect(() => {
     fetch('/api/auth/me')
       .then(res => res.json())

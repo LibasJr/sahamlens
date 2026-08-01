@@ -115,7 +115,11 @@ export async function calculateIntrinsicValue(rawTicker: string) {
       if (roe > 20) {
         pbvWajar = (roe / 11) * 1.3; // Specific rule for high ROE banks
       }
-      pbvWajar = Math.max(2.5, Math.min(pbvWajar, 3.2)); // Clamp 2.5 - 3.2 for banks
+      // Cap saja di 3.2 (hindari valuasi ekstrem untuk ROE sangat tinggi) - TANPA floor
+      // 2.5. Floor unconditional sebelumnya memaksa bank ber-ROE rendah (mis. 3% -> PBV
+      // mentah 0.35x) tetap dinilai 2.5x, melambungkan fair value/MoS dan berpotensi
+      // menandai bank yang fundamentalnya lemah sebagai "undervalued".
+      pbvWajar = Math.min(pbvWajar, 3.2);
       intrinsic_pbv = pbvWajar * calcBvps;
     } else {
       let pbvWajar = (roe / 12) * 0.85;
