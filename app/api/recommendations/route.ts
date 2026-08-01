@@ -46,6 +46,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ recommendations: results });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Recommendations API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

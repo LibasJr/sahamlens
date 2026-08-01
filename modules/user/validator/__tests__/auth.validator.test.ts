@@ -25,13 +25,13 @@ describe('auth.validator', () => {
       expect(result.success).toBe(false);
     });
 
-    it('menolak password kurang dari 6 karakter', () => {
-      const result = signupSchema.safeParse({ email: 'user@test.com', password: '12345' });
+    it('menolak password kurang dari 8 karakter', () => {
+      const result = signupSchema.safeParse({ email: 'user@test.com', password: '1234567' });
       expect(result.success).toBe(false);
     });
 
     it('menerima email dan password valid', () => {
-      const result = signupSchema.safeParse({ email: 'user@test.com', password: '123456' });
+      const result = signupSchema.safeParse({ email: 'user@test.com', password: '12345678' });
       expect(result.success).toBe(true);
     });
   });
@@ -44,7 +44,7 @@ describe('auth.validator', () => {
   });
 
   describe('resetPasswordSchema', () => {
-    it('menolak password baru kurang dari 6 karakter', () => {
+    it('menolak password baru kurang dari 8 karakter', () => {
       const result = resetPasswordSchema.safeParse({ email: 'user@test.com', code: '123456', newPassword: '123' });
       expect(result.success).toBe(false);
     });

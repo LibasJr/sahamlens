@@ -61,6 +61,7 @@ export async function GET() {
       timestamp: summary.timestamp,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Daily picks API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
