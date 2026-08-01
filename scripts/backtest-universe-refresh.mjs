@@ -2,9 +2,15 @@
 // melengkapi 51 ticker seed (disalin dari SCREENER_UNIVERSE di
 // modules/market/service/screener.service.ts) jadi 100 ticker universe backtest.
 // Dijalankan sekali (atau ulang berkala) secara manual: `node scripts/backtest-universe-refresh.mjs`
+// Kandidat harus lolos DUA syarat: (1) rata-rata nilai transaksi harian 3 bulan
+// terakhir (buat ranking) DAN (2) rata-rata harga close 3 bulan terakhir >= Rp 200
+// (price floor) - supaya saham gorengan/micro-cap murah yang gampang lolos ranking
+// nilai transaksi (karena volume besar tapi harga receh) tidak ikut masuk universe
+// backtest. Lihat temuan review: CNKO, BTEK, ALKA, APLI, BLTA, AISA, BBRM, SICO,
+// SPRE, LABA, COCO sempat lolos sebelum price floor ini ditambahkan.
 // Output: scripts/.backtest-universe-candidates.json (49 ticker teratas berdasarkan
-// rata-rata nilai transaksi harian 3 bulan terakhir) - salin manual ke
-// modules/backtest/constants/backtest-universe.ts setelah dicek.
+// rata-rata nilai transaksi harian 3 bulan terakhir, setelah difilter price floor) -
+// salin manual ke modules/backtest/constants/backtest-universe.ts setelah dicek.
 
 import fs from 'fs';
 
@@ -28,6 +34,8 @@ function parseCsv(path) {
   });
 }
 
+const MIN_AVG_PRICE = 200;
+
 async function fetchAvgDailyValue(ticker) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3mo&interval=1d`;
   try {
@@ -38,16 +46,18 @@ async function fetchAvgDailyValue(ticker) {
     if (!result) return null;
     const closes = result.indicators?.quote?.[0]?.close || [];
     const volumes = result.indicators?.quote?.[0]?.volume || [];
-    let sum = 0;
+    let sumValue = 0;
+    let sumClose = 0;
     let n = 0;
     for (let i = 0; i < closes.length; i++) {
       if (closes[i] != null && volumes[i] != null) {
-        sum += closes[i] * volumes[i];
+        sumValue += closes[i] * volumes[i];
+        sumClose += closes[i];
         n++;
       }
     }
     if (n < 30) return null;
-    return sum / n;
+    return { avgDailyValue: sumValue / n, avgClose: sumClose / n };
   } catch {
     return null;
   }
@@ -63,18 +73,30 @@ async function main() {
   for (let i = 0; i < candidates.length; i += BATCH) {
     const batch = candidates.slice(i, i + BATCH);
     const values = await Promise.all(
-      batch.map(async (t) => ({ ticker: t, avgDailyValue: await fetchAvgDailyValue(t) }))
+      batch.map(async (t) => {
+        const stats = await fetchAvgDailyValue(t);
+        return stats ? { ticker: t, avgDailyValue: stats.avgDailyValue, avgClose: stats.avgClose } : null;
+      })
     );
-    results.push(...values.filter((v) => v.avgDailyValue != null));
+    results.push(...values.filter((v) => v != null));
     console.log(`  ${Math.min(i + BATCH, candidates.length)}/${candidates.length} dicek, ${results.length} valid sejauh ini`);
     await new Promise((r) => setTimeout(r, 300));
   }
 
-  results.sort((a, b) => b.avgDailyValue - a.avgDailyValue);
-  const top49 = results.slice(0, 49);
+  const belowFloor = results.filter((r) => r.avgClose < MIN_AVG_PRICE);
+  const eligible = results.filter((r) => r.avgClose >= MIN_AVG_PRICE);
+  console.log(`\n${belowFloor.length} kandidat dibuang karena avg close 3bln < Rp${MIN_AVG_PRICE} (price floor).`);
+  console.log(`${eligible.length} kandidat lolos price floor, dari total ${results.length} valid.`);
 
-  console.log('\n=== TOP 49 KANDIDAT (rata-rata nilai transaksi harian tertinggi, 3 bulan terakhir) ===');
-  top49.forEach((r, i) => console.log(`${i + 1}. ${r.ticker} - avg daily value: ${Math.round(r.avgDailyValue).toLocaleString('id-ID')}`));
+  eligible.sort((a, b) => b.avgDailyValue - a.avgDailyValue);
+  const top49 = eligible.slice(0, 49);
+
+  if (top49.length < 49) {
+    console.log(`\nPERINGATAN: hanya ${top49.length} kandidat yang lolos ranking + price floor (target 49).`);
+  }
+
+  console.log(`\n=== TOP ${top49.length} KANDIDAT (rata-rata nilai transaksi harian tertinggi, 3 bulan terakhir, avg close >= Rp${MIN_AVG_PRICE}) ===`);
+  top49.forEach((r, i) => console.log(`${i + 1}. ${r.ticker} - avg daily value: ${Math.round(r.avgDailyValue).toLocaleString('id-ID')} - avg close: ${Math.round(r.avgClose).toLocaleString('id-ID')}`));
 
   fs.writeFileSync(
     'scripts/.backtest-universe-candidates.json',
