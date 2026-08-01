@@ -1,110 +1,84 @@
-import { guard } from '@/lib/sahamLensGuard';
+import { guard } from '../../../lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession } from '@/modules/user';
+import { getSession } from '../../../modules/user';
+import {
+  readBacktestCache,
+  precomputeBacktestData,
+  simulateBacktest,
+  type IndicatorName,
+} from '../../../modules/backtest';
+
+const VALID_FILTERS: IndicatorName[] = [
+  'EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14', 'MACD', 'Volatility (ATR 14)',
+  'MA Trend IDX (20,50,200)', 'Support & Resistance', 'Market Flow Index', 'SMA Score (5,10,20)',
+];
+const VALID_PERIODS = [3, 6, 12, 24];
+const MAX_TRADES_IN_RESPONSE = 30;
+
+function fmtPct(n: number): string {
+  const formatted = n.toFixed(2).replace(/\.?0+$/, '');
+  return `${n >= 0 ? '+' : ''}${formatted}%`;
+}
 
 export async function POST(request: Request) {
   try {
-    // BUILD 003 (API Standard) - halaman /backtest ada di PROTECTED_PAGES (wajib
-    // login), tapi API-nya sendiri sebelumnya bisa dipanggil tanpa login sama
-    // sekali. Disamakan levelnya (login saja, bukan Pro - /backtest tidak
-    // Pro-gated di UI manapun).
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Belum login' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { filters, modal, period } = body;
+    const filters: IndicatorName[] = Array.isArray(body?.filters)
+      ? body.filters.filter((f: unknown): f is IndicatorName => VALID_FILTERS.includes(f as IndicatorName))
+      : [];
+    const modal = Number(body?.modal);
+    const period = Number(body?.period);
 
-    // In a real application, we would fetch historical data for multiple stocks, 
-    // run the filters day by day, and simulate trades. 
-    // Here we use pseudo-random mock logic based on the filters selected to demonstrate the UI.
-    
-    // Base returns
-    let baseReturn = -0.89; // IHSG return
-    let winRate = 45;
-    let totalTrades = 0;
-    let maxDD = -15.5;
-
-    // Adjust based on filters selected
-    const filterCount = filters?.length || 0;
-    if (filterCount > 0) {
-      baseReturn = 5 + (filterCount * 5.2);
-      winRate = 55 + (filterCount * 3.5);
-      totalTrades = 12 * filterCount;
-      maxDD = -10 + (filterCount * 0.5);
+    if (filters.length === 0) {
+      return NextResponse.json({ error: 'Pilih minimal 1 filter' }, { status: 400 });
     }
-    
-    // Preset overrides for screenshot-like consistency
-    const hasMA = filters?.includes('EMA 20/50 Cross');
-    const hasVol = filters?.includes('Volume vs Avg 20D');
-    const hasRSI = filters?.includes('RSI 14');
-    
-    if (hasMA && hasVol && filters.length === 3) {
-      baseReturn = 22.4;
-      winRate = 67;
-      totalTrades = 24;
-      maxDD = -8.2;
+    if (!Number.isFinite(modal) || modal <= 0) {
+      return NextResponse.json({ error: 'Modal awal harus lebih dari 0' }, { status: 400 });
+    }
+    if (!VALID_PERIODS.includes(period)) {
+      return NextResponse.json({ error: 'Periode tidak valid' }, { status: 400 });
     }
 
-    const alpha = baseReturn - (-0.89); // Assuming IHSG is -0.89%
-
-    // Generate Equity Curve
-    let currentEquity = modal || 100000000;
-    const equityCurve = [];
-    const ihsgCurve = [];
-    let ihsgEquity = modal || 100000000;
-    const p = period || 12;
-
-    for (let i = 0; i <= p; i++) {
-      equityCurve.push(Math.round(currentEquity));
-      ihsgCurve.push(Math.round(ihsgEquity));
-      
-      // Add random variation but trending towards the final return
-      const stepReturn = (baseReturn / p) + (Math.random() * 4 - 2);
-      currentEquity *= (1 + (stepReturn / 100));
-      
-      const ihsgStep = (-0.89 / p) + (Math.random() * 2 - 1);
-      ihsgEquity *= (1 + (ihsgStep / 100));
+    let cache = await readBacktestCache();
+    if (!cache) {
+      // Cron belum pernah jalan / cache kadaluarsa - hitung langsung (lambat, tapi
+      // tetap data asli, bukan gagal). Pola sama seperti market-pulse/breakout-radar.
+      cache = await precomputeBacktestData();
     }
 
-    // Ensure final matches exactly
-    equityCurve[equityCurve.length - 1] = Math.round((modal || 100000000) * (1 + (baseReturn / 100)));
-    ihsgCurve[ihsgCurve.length - 1] = Math.round((modal || 100000000) * (1 - 0.0089));
+    const result = simulateBacktest(cache, { filters, modal, periodMonths: period });
 
-    // Generate sample trades
-    const trades = [];
-    const symbols = ['BBCA', 'BBRI', 'BMRI', 'GGRM', 'DGWG', 'ADRO'];
-    for (let i = 0; i < 5; i++) {
-      const sym = symbols[Math.floor(Math.random() * symbols.length)];
-      const isWin = Math.random() < (winRate / 100);
-      const pnlPct = isWin ? 3 + Math.random() * 15 : -(2 + Math.random() * 5);
-      trades.push({
-        date: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toISOString().split('T')[0],
-        symbol: sym + '.JK',
-        buy: 1000 + Math.floor(Math.random() * 5000),
-        pnl: `${pnlPct > 0 ? '+' : ''}${pnlPct.toFixed(2)}%`
-      });
+    const responseBody: Record<string, unknown> = {
+      return: fmtPct(result.returnPct),
+      ihsgReturn: fmtPct(result.ihsgReturnPct),
+      alpha: fmtPct(result.alphaPct),
+      winRate: `${result.winRatePct.toFixed(0)}%`,
+      totalTrades: result.totalTrades,
+      maxDD: fmtPct(result.maxDrawdownPct),
+      equityCurve: result.equityCurve,
+      ihsgCurve: result.ihsgCurve,
+      trades: result.trades.slice(0, MAX_TRADES_IN_RESPONSE).map((t) => ({
+        date: t.date,
+        symbol: t.symbol,
+        buy: Math.round(t.buy),
+        pnl: fmtPct(t.pnlPct),
+      })),
+      dataAsOf: result.computedAt,
+    };
+
+    if (result.totalTrades === 0) {
+      responseBody.message = 'Tidak ada saham yang memenuhi kriteria filter ini dalam periode terpilih.';
     }
 
-    // Sort trades by date
-    trades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    return NextResponse.json({
-      return: `${baseReturn > 0 ? '+' : ''}${baseReturn.toFixed(1)}%`,
-      ihsgReturn: `-0.89%`,
-      alpha: `+${alpha.toFixed(2)}%`,
-      winRate: `${winRate.toFixed(0)}%`,
-      totalTrades,
-      maxDD: `${maxDD.toFixed(1)}%`,
-      equityCurve,
-      ihsgCurve,
-      trades
-    });
-
+    return NextResponse.json(responseBody);
   } catch (error) {
-    return NextResponse.json({ error: "Server Error" }, { status: 500 });
+    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }
 }
