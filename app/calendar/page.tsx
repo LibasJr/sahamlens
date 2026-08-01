@@ -7,12 +7,12 @@ import {
   Calendar as CalendarIcon,
   Briefcase,
   Coins,
-  Users,
-  Building
+  Loader2,
+  Menu
 } from 'lucide-react';
-import calendarData from '@/data/calendar.json';
+import PaywallModal from '@/components/PaywallModal';
 
-type EventType = 'DIVIDEND' | 'EARNINGS' | 'RUPS' | 'CORP_ACTION';
+type EventType = 'DIVIDEND' | 'EARNINGS';
 
 interface CalendarEvent {
   symbol: string;
@@ -25,14 +25,33 @@ const TABS = [
   { id: 'ALL', label: 'Semua', icon: CalendarIcon },
   { id: 'DIVIDEND', label: 'Dividen', icon: Coins },
   { id: 'EARNINGS', label: 'Earnings', icon: Briefcase },
-  { id: 'RUPS', label: 'RUPS', icon: Users },
-  { id: 'CORP_ACTION', label: 'Corp Action', icon: Building },
 ];
 
 export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 28)); // July 28, 2026 (Mock "Today")
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2026, 6, 28));
+  const today = useMemo(() => new Date(), []);
+  const [currentDate, setCurrentDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [activeTab, setActiveTab] = useState('ALL');
+  const [calendarData, setCalendarData] = useState<Record<string, CalendarEvent[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/calendar')
+      .then((res) => {
+        if (res.status === 401) { setShowLoginPrompt(true); return null; }
+        return res.json().then((data) => ({ ok: res.ok, data }));
+      })
+      .then((result) => {
+        if (!result) return;
+        const { ok, data } = result;
+        if (!ok) { setError(data?.error || 'Gagal memuat kalender'); return; }
+        setCalendarData(data.events || {});
+      })
+      .catch(() => setError('Gagal memuat kalender'))
+      .finally(() => setLoading(false));
+  }, []);
 
   // Format YYYY-MM-DD
   const formatDate = (d: Date) => {
@@ -96,7 +115,7 @@ export default function CalendarPage() {
       const dateStr = formatDate(d);
       const hasEvents = !!filteredData[dateStr];
       const isSelected = formatDate(selectedDate) === dateStr;
-      const isToday = formatDate(new Date(2026, 6, 28)) === dateStr; // Mock "Today"
+      const isToday = formatDate(today) === dateStr;
 
       days.push(
         <button
@@ -128,17 +147,34 @@ export default function CalendarPage() {
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+            className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <div className="p-2 rounded-md bg-tv-blue text-white">
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
             <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Corporate Calendar</h2>
-            <p className="text-xs text-tv-muted">Jadwal Dividen, RUPS, & Aksi Korporasi</p>
+            <p className="text-xs text-tv-muted">Jadwal Dividen & Rilis Laporan Keuangan (Yahoo Finance)</p>
           </div>
         </div>
       </header>
 
       <div className="p-6 max-w-[1600px] mx-auto w-full">
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-tv-muted mb-4">
+            <Loader2 className="w-4 h-4 animate-spin" /> Memuat kalender dari Yahoo Finance...
+          </div>
+        )}
+        {error && (
+          <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red mb-4">
+            {error}
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex overflow-x-auto gap-2 mb-8 pb-2 custom-scrollbar">
           {TABS.map(tab => {
@@ -221,6 +257,15 @@ export default function CalendarPage() {
 
         </div>
       </div>
+      <PaywallModal
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Daftar Dulu untuk Lihat Kalender"
+        body="Corporate Calendar butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        ctaHref="/signup"
+        ctaLabel="Daftar Gratis"
+        secondaryLabel="Nanti"
+      />
     </div>
   );
 }

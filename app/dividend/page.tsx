@@ -11,15 +11,28 @@ export default function DividendPage() {
   const [ticker, setTicker] = useState('BBCA');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Catatan: kalkulator ini menghitung rata-rata dari 15-20 saham dividen IDX terbaik
+  // (universe likuid, lihat modules/fundamental/service/dividend-plan.service.ts),
+  // BUKAN dividend yield khusus `ticker` yang dipilih di header - input ticker di sini
+  // sengaja tetap ada untuk konsistensi shell (TickerAnalysisShellProps mewajibkannya),
+  // tapi tidak memengaruhi hasil simulasi di bawah.
   const fetchDividendPlan = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch('/api/live/' + ticker);
+      const res = await fetch(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
       const json = await res.json();
+      if (!res.ok) {
+        setError(json?.error || 'Gagal memuat simulasi dividen');
+        setData(null);
+        return;
+      }
       setData(json);
     } catch (e) {
       console.error(e);
+      setError('Gagal memuat simulasi dividen');
     } finally {
       setLoading(false);
     }
@@ -64,6 +77,15 @@ export default function DividendPage() {
         </div>
       }
     >
+      {error && (
+        <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
+          {error}
+        </div>
+      )}
+      {loading && !data && (
+        <div className="text-sm text-tv-muted">Menghitung simulasi dari data dividen real...</div>
+      )}
+
       {/* Dynamic Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-lg bg-tv-card border border-tv-border shadow-1">
@@ -81,7 +103,7 @@ export default function DividendPage() {
         <div className="p-4 rounded-lg bg-tv-card border border-tv-border shadow-1">
           <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Rata-rata Dividend Yield</div>
           <div className="text-xl font-bold text-tv-text mt-1 font-number">
-            {quant.average_portfolio_yield || '7.1'}%
+            {quant.average_portfolio_yield ?? '-'}%
           </div>
         </div>
         <div className="p-4 rounded-lg bg-tv-card border border-tv-border shadow-1">
