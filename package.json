@@ -14,7 +14,6 @@
     "@ai-sdk/google": "^4.0.26",
     "@google/generative-ai": "^0.24.1",
     "@sentry/nextjs": "^10.69.0",
-    "@supabase/supabase-js": "^2.45.6",
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
     "ai": "^7.0.40",
