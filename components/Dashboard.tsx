@@ -80,10 +80,15 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
   }
 
   const loopItems = [...items, ...items];
+  // Durasi proporsional ke jumlah item (bukan angka tetap) - dulu 70s fix terlalu cepat
+  // begitu daftarnya panjang (~100 saham gabungan gainer+loser jadi cuma ~1.4 detik per
+  // saham, kebaca sekilas doang). ~3.2 detik/saham konstan, minimum 60s biar daftar
+  // pendek pun tetap santai dibaca.
+  const durationSec = Math.max(60, Math.round(items.length * 3.2));
 
   return (
     <div className="bg-[#0A1931] border-b border-white/10 overflow-hidden">
-      <div className="sahamlens-ticker-track flex whitespace-nowrap py-2">
+      <div className="sahamlens-ticker-track flex whitespace-nowrap py-2" style={{ animationDuration: `${durationSec}s` }}>
         {loopItems.map((item, i) => (
           <Link
             key={`${item.symbol}-${i}`}
@@ -101,7 +106,7 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
         ))}
       </div>
       <style dangerouslySetInnerHTML={{ __html: `
-        .sahamlens-ticker-track { animation: sahamlens-ticker-scroll 70s linear infinite; width: max-content; }
+        .sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; width: max-content; }
         .sahamlens-ticker-track:hover { animation-play-state: paused; }
         @keyframes sahamlens-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @media (prefers-reduced-motion: reduce) { .sahamlens-ticker-track { animation: none; overflow-x: auto; } }
