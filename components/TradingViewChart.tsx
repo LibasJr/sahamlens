@@ -1,7 +1,7 @@
 'use me';
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts';
 
 interface CandleData {
@@ -48,8 +48,16 @@ export default function TradingViewChart({
   const onHoverCandleRef = useRef(onHoverCandle);
   onHoverCandleRef.current = onHoverCandle;
 
+  // Kotak info Open/High/Low/Close di kiri-atas canvas - update saat kursor digerakkan
+  // di atas candle (lihat handleCrosshairMove), balik ke candle terakhir saat kursor
+  // keluar dari chart. State ini SENGAJA tidak masuk dependency effect di bawah -
+  // updatenya cuma re-render JSX overlay, bukan bikin ulang chart (lihat catatan
+  // dependency array effect di bawah soal kenapa itu penting).
+  const [hoverOhlc, setHoverOhlc] = useState<CandleData | null>(candles[candles.length - 1] ?? null);
+
   useEffect(() => {
     if (!chartContainerRef.current || !candles || candles.length === 0) return;
+    setHoverOhlc(candles[candles.length - 1]);
 
     chartContainerRef.current.innerHTML = '';
 
@@ -210,6 +218,8 @@ export default function TradingViewChart({
     const handleCrosshairMove = (param: any) => {
       const original = param.time != null ? reverseTimeMap.get(param.time) : null;
       onHoverCandleRef.current?.(original ?? null);
+      const candle = original ? candles.find((c) => c.time === original) : null;
+      setHoverOhlc(candle ?? candles[candles.length - 1] ?? null);
     };
     chart.subscribeCrosshairMove(handleCrosshairMove);
 
@@ -227,7 +237,18 @@ export default function TradingViewChart({
       chart.unsubscribeCrosshairMove(handleCrosshairMove);
       chart.remove();
     };
-  }, [candles, technical, height]);
+    // BUG FIX: dependency sebelumnya `technical` (seluruh objek), bukan field yang
+    // benar-benar dipakai di effect ini (cuma support_1/resistance_1 - dipakai untuk
+    // price line). Pemanggil (Dashboard.tsx, StockChartPanel.tsx) selalu bikin object
+    // literal `technical={{...}}` baru di setiap render, termasuk render yang dipicu
+    // onHoverCandle (hover -> setState di parent -> re-render -> object baru).
+    // Akibatnya effect ini jalan ulang di HAMPIR SETIAP gerakan mouse, chart di-teardown
+    // total (`innerHTML=''` + createChart lagi) lalu fitContent() lagi - jadi pan/zoom
+    // user langsung "dilempar balik" ke fit-all, kelihatan seperti chart timeframe
+    // panjang (1Y) "tidak bisa digeser". Depend ke primitif yang benar-benar dipakai
+    // saja supaya chart tidak dibuat ulang gara-gara hover.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candles, height, technical.support_1, technical.resistance_1]);
 
   return (
     <div className="bg-tv-card border border-tv-border rounded-xl p-4 flex flex-col gap-3 shadow-1">
@@ -264,8 +285,21 @@ export default function TradingViewChart({
         </div>
       </div>
 
-      {/* Lightweight Chart Render Canvas */}
-      <div ref={chartContainerRef} className="w-full rounded-lg overflow-hidden relative" />
+      {/* Lightweight Chart Render Canvas - wrapper terpisah dari chartContainerRef supaya
+          overlay OHLC (React-rendered) tidak ikut kehapus saat effect di atas menjalankan
+          chartContainerRef.current.innerHTML = '' (itu langsung memanipulasi DOM di luar
+          React, kalau overlay ada di DALAM node yang sama React bisa kehilangan jejak node-nya). */}
+      <div className="w-full rounded-lg overflow-hidden relative">
+        <div ref={chartContainerRef} className="w-full" />
+        {hoverOhlc && (
+          <div className="absolute top-2 left-2 z-10 flex items-center gap-2 text-[11px] font-mono bg-tv-card/80 backdrop-blur-sm px-2 py-1 rounded pointer-events-none">
+            <span className="text-tv-muted">O <span className="text-tv-text">{hoverOhlc.open.toLocaleString('id-ID')}</span></span>
+            <span className="text-tv-muted">H <span className="text-tv-green">{hoverOhlc.high.toLocaleString('id-ID')}</span></span>
+            <span className="text-tv-muted">L <span className="text-tv-red">{hoverOhlc.low.toLocaleString('id-ID')}</span></span>
+            <span className="text-tv-muted">C <span className={hoverOhlc.close >= hoverOhlc.open ? 'text-tv-green' : 'text-tv-red'}>{hoverOhlc.close.toLocaleString('id-ID')}</span></span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

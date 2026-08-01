@@ -205,21 +205,21 @@ export async function getMarketPulse() {
       declining,
       unchanged,
       advanceDeclineRatio: declining > 0 ? parseFloat((advancing / declining).toFixed(2)) : advancing,
-      topGainers: [...breadthQuotes].sort((a, b) => b.changePct - a.changePct).slice(0, 10).map(s => ({
+      topGainers: [...breadthQuotes].sort((a, b) => b.changePct - a.changePct).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
         changePct: s.changePct,
         price: s.price
       })),
-      topLosers: [...breadthQuotes].sort((a, b) => a.changePct - b.changePct).slice(0, 10).map(s => ({
+      topLosers: [...breadthQuotes].sort((a, b) => a.changePct - b.changePct).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
         changePct: s.changePct,
         price: s.price
       })),
-      topVolume: [...breadthQuotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 10).map(s => ({
+      topVolume: [...breadthQuotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
         volume: s.volume || 0
       })),
-      topValue: [...breadthQuotes].sort((a, b) => ((b.volume || 0) * (b.price || 0)) - ((a.volume || 0) * (a.price || 0))).slice(0, 10).map(s => ({
+      topValue: [...breadthQuotes].sort((a, b) => ((b.volume || 0) * (b.price || 0)) - ((a.volume || 0) * (a.price || 0))).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
         value: (s.volume || 0) * (s.price || 0)
       })),

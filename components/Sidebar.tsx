@@ -53,7 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Beranda',
     items: [
       { id: 'home', name: 'Beranda', subtitle: 'AI Insight & Ringkasan Akun', path: '/home', icon: LayoutDashboard },
-      { id: 'market-pulse', name: 'Market Pulse', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true },
+      { id: 'market-pulse', name: 'Ringkasan Pasar', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true },
     ],
   },
   {
