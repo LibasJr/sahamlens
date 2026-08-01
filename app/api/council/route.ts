@@ -131,6 +131,7 @@ export async function GET(req: Request) {
       return NextResponse.json(runLocalCouncil(symbol, technicalData));
     }
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
+    console.error('Council API error:', e);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

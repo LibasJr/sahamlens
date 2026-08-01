@@ -349,6 +349,7 @@ export async function GET(
     return NextResponse.json(resultPayload);
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Stock API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
