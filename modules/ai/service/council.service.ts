@@ -2,28 +2,36 @@ import { generateAI, hasAnyAIProvider } from "@/lib/aiProviders";
 import { runLocalCouncil } from "./local-council.service";
 import { getCouncilCache, setCouncilCache } from "./council-cache.service";
 
+// AUDIT 2026-08-01: sebelumnya "Score" di DATA REAL adalah mock hardcode (selalu 30
+// utk semua saham, lihat riwayat commit) tapi diklaim "REAL" ke AI, dan Volume/Bandar
+// di contoh output mengarang narasi spesifik padahal tidak ada angka volume/flow yang
+// dikasih sama sekali. Sekarang Score = skor komposit REAL dari calculateScore()
+// (modules/technical/service/scoring.service.ts - Technical+Fundamental+Flow), dan
+// ATR/Volume ratio/Foreign Flow proxy REAL ditambahkan ke DATA REAL supaya agent
+// Volatility/Volume/Bandar juga py angka asli untuk dirujuk (bukan dihapus - lebih
+// baik dikasih data asli daripada agent-nya ditiadakan begitu saja).
 const TUNED_PROMPT = `
 Kamu adalah Dewan 10 Ahli Saham Indonesia. Analisa \${symbol}.
 
-DATA REAL:
-Symbol: \${symbol} - Price \${price}, MA50 \${ma50}, MA200 \${ma200}, EMA \${ema}, RSI \${rsi}, Support \${support}, Res \${resistance}, Score \${score}
+DATA REAL (JANGAN sebut angka lain di luar daftar ini - kalau suatu dimensi tidak ada datanya, bilang "data belum cukup" alih-alih mengarang):
+Symbol: \${symbol} - Price \${price}, MA50 \${ma50}, MA200 \${ma200}, EMA \${ema}, RSI \${rsi}, Support \${support}, Res \${resistance}, ATR \${atr}, Volume vs Avg20D \${volRatio}x, Foreign Flow (proxy dari harga+volume, bukan data broker resmi) \${foreignFlow}, Skor Komposit \${score}/100
 Fundamental: EPS \${eps}, Laporan Kuartal Terakhir \${lastQuarter}
 
-CONTOH OUTPUT YANG GUE MAU (JANGAN GENERIC):
+CONTOH OUTPUT YANG GUE MAU (JANGAN GENERIC, TAPI SEMUA ANGKA HARUS DARI DATA REAL DI ATAS):
 
-Untuk DGWG.JK:
+Untuk DGWG.JK (Price 280, MA50 300, MA200 369, RSI 31.25, Support 274, Res 306, ATR 8.2, Volume 1.8x, Foreign Flow NET SELL, Score 42):
 {
   "agents": [
     {"name": "Trend Follower", "signal": "SELL", "confidence": 92, "reason": "Death cross MA50 300 < MA200 369, harga 280 masih dibawah, jangan lawan trend"},
     {"name": "Mean Reversion", "signal": "BUY", "confidence": 78, "reason": "RSI 31.25 oversold + nempel support 274, pantulan ke 286-306 mungkin"},
-    {"name": "Volume", "signal": "WAIT", "confidence": 60, "reason": "Volume turun pas turun, seller mulai capek"},
+    {"name": "Volume", "signal": "WAIT", "confidence": 60, "reason": "Volume 1.8x avg, mulai ramai tapi arahnya belum jelas ikut trend"},
     {"name": "Momentum", "signal": "SELL", "confidence": 68, "reason": "EMA 286 masih SELL, momentum belum balik"},
     {"name": "S/R Hunter", "signal": "WAIT", "confidence": 85, "reason": "Tunggu 274 jebol atau hold, RR 1:4.33 baru enak di 274 bukan 280"},
     {"name": "Risk Manager", "signal": "BUY", "confidence": 70, "reason": "Risk 2.14% kecil kalau cut bawah 274, reward 9.29% ke 306, cicil boleh"},
-    {"name": "Breakout", "signal": "SELL", "confidence": 90, "reason": "Score 31 SELL, belum ada tenaga breakout"},
-    {"name": "Volatility", "signal": "HOLD", "confidence": 55, "reason": "ATR mengecil, siap-siap volatile di 274"},
+    {"name": "Breakout", "signal": "SELL", "confidence": 90, "reason": "Skor komposit 42/100 SELL, belum ada tenaga breakout"},
+    {"name": "Volatility", "signal": "HOLD", "confidence": 55, "reason": "ATR 8.2 (~2.9% dari harga), volatilitas sedang, siap-siap gerak di 274"},
     {"name": "Pattern", "signal": "SELL", "confidence": 65, "reason": "Lower low, belum bikin higher low"},
-    {"name": "Bandar", "signal": "WAIT", "confidence": 50, "reason": "Distribusi masih ada, tunggu akumulasi di 274"}
+    {"name": "Bandar", "signal": "WAIT", "confidence": 50, "reason": "Foreign Flow NET SELL, tunggu tanda akumulasi dulu di 274"}
   ],
   "final_suggestion": "WAIT & SPECULATIVE BUY di 274",
   "final_confidence": 73,
@@ -31,8 +39,8 @@ Untuk DGWG.JK:
 }
 
 ATURAN:
-- Reason max 20 kata, bahasa Indonesia gaul trader (jangan formal)
-- Sebut angka real (seperti \${price}, \${ma200}, \${rsi}, \${support})
+- Reason max 20 kata, bahasa Indonesia gaul trader (jangan formal), langsung to the point, tanpa basa-basi
+- HANYA sebut angka yang ada di DATA REAL di atas - dilarang keras mengarang angka (ATR, volume, foreign flow, dst) yang tidak diberikan
 - Confidence jangan semua 80, variasi 50-92
 - Final suggestion harus actionable: BUY di harga berapa, WAIT dimana
 
@@ -59,6 +67,9 @@ export async function getCouncil(symbol: string, data: any, cacheKey?: string) {
       rsi: data?.rsi || 0,
       support: data?.support || 0,
       resistance: data?.resistance || 0,
+      atr: data?.atr ?? 'N/A',
+      volRatio: data?.volRatio != null ? data.volRatio.toFixed(2) : 'N/A',
+      foreignFlow: data?.foreignFlow ?? 'N/A',
       score: data?.score || 0,
       eps: data?.fundamentalSnapshot?.trailingEps ?? 'N/A',
       lastQuarter: data?.fundamentalSnapshot?.mostRecentQuarter ?? 'N/A',
@@ -72,6 +83,9 @@ export async function getCouncil(symbol: string, data: any, cacheKey?: string) {
       .replace(/\$\{rsi\}/g, typeof promptData.rsi === 'number' ? promptData.rsi.toFixed(2) : '0')
       .replace(/\$\{support\}/g, promptData.support.toString())
       .replace(/\$\{resistance\}/g, promptData.resistance.toString())
+      .replace(/\$\{atr\}/g, String(promptData.atr))
+      .replace(/\$\{volRatio\}/g, String(promptData.volRatio))
+      .replace(/\$\{foreignFlow\}/g, String(promptData.foreignFlow))
       .replace(/\$\{score\}/g, promptData.score.toString())
       .replace(/\$\{eps\}/g, String(promptData.eps))
       .replace(/\$\{lastQuarter\}/g, String(promptData.lastQuarter));

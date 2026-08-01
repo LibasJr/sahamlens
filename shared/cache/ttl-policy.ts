@@ -48,4 +48,17 @@ export const CACHE_TTL_SEC = {
   // app/api/cron/backtest-precompute sekali sehari) - BARU. TTL lebih panjang dari
   // interval cron (24 jam) sebagai toleransi kalau satu run cron sempat gagal/telat.
   BACKTEST_INDICATORS: 36 * 60 * 60,
+
+  // Kalender dividen+earnings (app/api/calendar) - BARU. Batch quoteSummary
+  // calendarEvents utk ~50 saham, dan tanggal ex-dividend/earnings itu sendiri jarang
+  // berubah dalam hitungan jam - 6 jam cukup segar tanpa membebani Yahoo Finance
+  // di setiap buka halaman /calendar atau /breakout-radar.
+  CORPORATE_CALENDAR: 6 * 60 * 60,
+
+  // Universe saham dividen (yield/payout/consistency per saham, app/api/dividend-plan)
+  // - BARU. Batch quoteSummary+chart(events:dividends) utk ~50 saham, sama mahalnya
+  // dengan SCREENER_UNIVERSE - TTL sama (30 menit). Matematika compounding/income
+  // dari input modal user DIHITUNG ULANG tiap request dari universe yang di-cache ini,
+  // tidak ikut di-cache (beda per user/input).
+  DIVIDEND_UNIVERSE: 30 * 60,
 } as const;

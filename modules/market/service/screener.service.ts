@@ -15,8 +15,10 @@ import YahooFinanceClass from 'yahoo-finance2';
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
 // Saham likuid LQ45/blue-chip - universe yang sama dipakai getMarketSummary(), supaya
-// screener ini tidak perlu scan 900+ emiten (lambat & rawan rate-limit Yahoo).
-const SCREENER_UNIVERSE = [
+// screener ini tidak perlu scan 900+ emiten (lambat & rawan rate-limit Yahoo). Diexport
+// supaya modul lain yang butuh universe likuid yang sama (mis. corporate-calendar.service.ts)
+// tidak duplikat daftar ini.
+export const SCREENER_UNIVERSE = [
   'BBCA.JK','BBRI.JK','BMRI.JK','BBNI.JK','TLKM.JK','ASII.JK','GOTO.JK','ADRO.JK','UNTR.JK',
   'ICBP.JK','KLBF.JK','PGAS.JK','PTBA.JK','ANTM.JK','BRPT.JK','INKP.JK','INDF.JK','ITMG.JK',
   'CPIN.JK','UNVR.JK','AKRA.JK','BRIS.JK','SMGR.JK','INTP.JK','CTRA.JK','BSDE.JK','SMRA.JK',

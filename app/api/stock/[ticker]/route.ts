@@ -17,6 +17,7 @@ import {
   calculateConsensus,
 } from '@/modules/technical';
 import { getSession, checkProAccess } from '@/modules/user';
+import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
@@ -180,68 +181,49 @@ export async function GET(
       Promise.resolve(analyzeMarketFlow(analyzerHistory, currentPrice))
     ]);
 
-    // === FOREIGN FLOW: Pseudo-random logic to match BandarFlowPro ===
-    const cleanTicker = ticker.replace('.JK', '');
-    const seedRandom = (str: string) => {
-      let h = 0xdeadbeef;
-      for (let i = 0; i < str.length; i++)
-        h = Math.imul(h ^ str.charCodeAt(i), 2654435761);
-      return (h ^ h >>> 16) / 2 ** 32 + 0.5;
-    };
-    
-    const rand1 = seedRandom(cleanTicker + '1');
-    const rand2 = seedRandom(cleanTicker + '2');
-    let foreignNetBuy20D = 0;
-    for(let i=0; i<20; i++) {
-       foreignNetBuy20D += (seedRandom(cleanTicker + 'flow' + i) - 0.5) * 100;
+    // === FOREIGN FLOW (ESTIMASI): proxy dari harga+volume Yahoo Finance yang REAL ===
+    // Sebelumnya seedRandom(ticker) murni - angka yang SELALU SAMA untuk ticker yang
+    // sama, tidak pernah mencerminkan pergerakan pasar (ditemukan saat audit dummy-data
+    // 2026-08-01, pola identik dengan yang sudah diperbaiki di app/api/flow/[ticker]).
+    // IDX tidak menyediakan feed broker asing gratis, jadi ini tetap PROXY (bukan data
+    // broker sungguhan) - dihitung dari computeDailyNetFlow (modules/market), sama
+    // seperti /api/flow/[ticker] dan kategori "Akumulasi Asing" di AI Pick, supaya
+    // ketiga fitur konsisten satu sama lain.
+    const flowHistory = analyzerHistory.map((h: any) => ({
+      date: h.Date.split('T')[0],
+      close: h.Close,
+      volume: h.Volume,
+    }));
+    const dailyFlow = computeDailyNetFlow(flowHistory).slice(-20);
+    const net5D = dailyFlow.slice(-5).reduce((sum, d) => sum + d.netValueBillion, 0);
+    const buyStreak = computeAccumulationStreak(dailyFlow);
+    let sellStreak = 0;
+    for (let i = dailyFlow.length - 1; i >= 0; i--) {
+      if (dailyFlow[i].netValueBillion < 0) sellStreak++;
+      else break;
     }
-    const isOverallPositive = rand1 > 0.4;
-    
-    const b1 = Math.floor(rand1 * 500000) + 100000;
-    const b2 = Math.floor(rand2 * 300000) + 50000;
-    const b3 = Math.floor(rand1 * 200000) + 20000;
-    const s1 = Math.floor(rand2 * 450000) + 80000;
-    const s2 = Math.floor(rand1 * 250000) + 40000;
-    const s3 = Math.floor(rand2 * 150000) + 10000;
-    
-    let actualS1 = s1; let actualB1 = b1;
-    if (isOverallPositive) {
-      actualS1 = Math.floor(b1 * 0.7);
-    } else {
-      actualB1 = Math.floor(s1 * 0.7);
-    }
-    const totalBuyVol = actualB1 + b2 + b3;
-    const totalSellVol = actualS1 + s2 + s3;
+    const last3 = dailyFlow.slice(-3);
+    const isAccumulation3D = last3.length === 3 && last3.every((d) => d.netValueBillion > 0);
+    const isDistribution3D = last3.length === 3 && last3.every((d) => d.netValueBillion < 0);
 
+    // Status kanonik dikonsumsi calculateScore (FlowInput.foreignFlow) - lihat
+    // modules/technical/service/scoring.service.ts untuk 5 nilai yang diharapkan.
+    let foreignFlowStatus: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
     let ffDecision = 'NEUTRAL';
     let ffConfidence = 50;
-    let foreignFlow = 'NEUTRAL';
-
-    if (foreignNetBuy20D > 10) {
+    if (isAccumulation3D) {
+      foreignFlowStatus = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
       ffDecision = 'BULLISH';
-      ffConfidence = 65;
-      foreignFlow = `NET BUY +${foreignNetBuy20D.toFixed(2)}M`;
-    } else if (foreignNetBuy20D < -10) {
+      ffConfidence = buyStreak >= 4 ? 80 : 65;
+    } else if (isDistribution3D) {
+      foreignFlowStatus = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
       ffDecision = 'BEARISH';
-      ffConfidence = 65;
-      foreignFlow = `NET SELL ${foreignNetBuy20D.toFixed(2)}M`;
+      ffConfidence = sellStreak >= 4 ? 80 : 65;
     }
+    const foreignFlow = `${foreignFlowStatus} | Net 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(2)}M | Streak: ${buyStreak > 0 ? `${buyStreak}D akumulasi` : sellStreak > 0 ? `${sellStreak}D distribusi` : 'netral'}`;
 
-    // Override based on Brokers (Top 3 Buyers vs Sellers)
-    if (totalBuyVol > totalSellVol) {
-      ffDecision = 'BULLISH';
-      ffConfidence = 85;
-      foreignFlow = `Sangat Positif (Top Buyers > Sellers) | Net 20D: ${foreignNetBuy20D > 0 ? '+' : ''}${foreignNetBuy20D.toFixed(2)}M`;
-    } else if (totalSellVol > totalBuyVol * 1.1) {
-      ffDecision = 'BEARISH';
-      ffConfidence = 85;
-      foreignFlow = `Sangat Negatif (Top Sellers > Buyers) | Net 20D: ${foreignNetBuy20D > 0 ? '+' : ''}${foreignNetBuy20D.toFixed(2)}M`;
-    }
-
-    // Keep these variables for calculateScore
-    const consecutiveBuyDays = 0;
-    const consecutiveSellDays = 0;
-    const volRatio = 1;
+    const consecutiveBuyDays = buyStreak;
+    const consecutiveSellDays = sellStreak;
 
     analyzersResult.push({
       label: 'Foreign Flow (Estimasi Asing)',
@@ -312,7 +294,7 @@ export async function GET(
         volAvg20: volAvg20v
       },
       { per, pbv, roe, der, currentRatio, revenueGrowth },
-      { foreignFlow, consecutiveBuyDays, consecutiveSellDays, volRatio }
+      { foreignFlow: foreignFlowStatus, consecutiveBuyDays, consecutiveSellDays, volRatio: volAvg20v > 0 ? volToday / volAvg20v : 1 }
     );
 
     const resultPayload = {

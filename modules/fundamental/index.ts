@@ -14,3 +14,7 @@ export { analyze as analyzeNetMargin } from './service/analyzers/net-margin-anal
 // BUILD 004 (AI Architecture) - dipindah dari app/api/intrinsic/[ticker]/route.ts, dipakai
 // baik oleh route itu sendiri maupun Valuation Agent di orkestrator multi-agent.
 export { calculateIntrinsicValue, calculateDcfModel } from './service/dcf-valuation.service';
+
+// Backend real halaman /dividend (2026-08-01) - lihat dividend-plan.service.ts untuk
+// alasan lengkap (menggantikan /api/live/[ticker] yang tidak pernah punya field quant.*).
+export { fetchDividendUniverse, buildDividendPlan, type DividendStock, type DividendPlanResult } from './service/dividend-plan.service';

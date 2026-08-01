@@ -13,7 +13,9 @@ import {
   analyzeSma,
   analyzeMarketFlow,
   fetchYahooHistory,
+  type OhlcRow,
 } from '@/modules/technical';
+import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 import {
   analyzePe,
   analyzePbv,
@@ -36,7 +38,8 @@ import {
 // kebenaran yang bisa diverifikasi (bukan menciptakan halaman baru untuk dokumen).
 //
 // 8 dari 9 agent memakai data pasar/keuangan REAL (Yahoo Finance) lewat analyzer
-// modules/technical + modules/fundamental + modules/fundamental/dcf-valuation yang
+// modules/technical + modules/fundamental + modules/fundamental/dcf-valuation +
+// modules/market (proxy arus asing dari harga/volume, bukan feed broker resmi) yang
 // sudah ada. News Agent JUJUR ditandai belum tersedia (skor 0, weight 0%) karena
 // tidak ada sumber data berita real-time yang terhubung di backend ini - sesuai
 // instruksi "dilarang ngarang" yang berlaku di seluruh fitur AI aplikasi ini.
@@ -74,37 +77,42 @@ async function fetchFundamentals(ticker: string): Promise<any | null> {
   }
 }
 
-// Pseudo-random deterministik berbasis string ticker - SAMA PERSIS dengan pola yang
-// sudah dipakai di app/api/flow/[ticker]/route.ts dan modules/recommendation
-// (keputusan produk yang sudah ada, bukan fabrikasi baru di sini).
-function seedRandom(str: string): number {
-  let h = 0xdeadbeef;
-  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 2654435761);
-  return (h ^ (h >>> 16)) / 2 ** 32 + 0.5;
-}
+// Proxy dari harga+volume Yahoo Finance yang REAL (bukan data broker asing sungguhan -
+// IDX tidak menyediakan feed itu gratis), sama seperti app/api/flow/[ticker]/route.ts
+// dan Foreign Flow di app/api/stock/[ticker] - satu logika (computeDailyNetFlow di
+// modules/market), bukan tiga cara berbeda yang bisa saling tidak konsisten.
+// SEBELUMNYA di sini murni seedRandom(ticker) - angka yang SELALU SAMA untuk ticker
+// yang sama, tidak pernah mencerminkan pasar (ditemukan saat audit dummy-data
+// 2026-08-01) - bertentangan dengan komentar file ini sendiri yang mengklaim "8 dari 9
+// agent memakai data REAL".
+function buildBandarAgent(history: OhlcRow[] | null): AgentResult {
+  if (!history || history.length < 6) {
+    return { weight_pct: 0, score: 50, summary: 'Data harga tidak tersedia untuk menghitung estimasi arus asing.', available: false };
+  }
 
-function buildBandarAgent(cleanTicker: string): AgentResult {
-  const rand1 = seedRandom(cleanTicker + '1');
-  const rand2 = seedRandom(cleanTicker + '2');
-  let net20D = 0;
-  for (let i = 0; i < 20; i++) net20D += (seedRandom(cleanTicker + 'flow' + i) - 0.5) * 100;
-
-  const isOverallPositive = rand1 > 0.4;
-  const b1 = Math.floor(rand1 * 500000) + 100000;
-  const s1 = Math.floor(rand2 * 450000) + 80000;
-  const totalBuyVol = isOverallPositive ? b1 : Math.floor(s1 * 0.7);
-  const totalSellVol = isOverallPositive ? Math.floor(b1 * 0.7) : s1;
+  const flowHistory = history.map((h) => ({ date: h.Date.split('T')[0], close: h.Close, volume: h.Volume }));
+  const dailyFlow = computeDailyNetFlow(flowHistory).slice(-20);
+  const net5D = dailyFlow.slice(-5).reduce((sum, d) => sum + d.netValueBillion, 0);
+  const buyStreak = computeAccumulationStreak(dailyFlow);
+  let sellStreak = 0;
+  for (let i = dailyFlow.length - 1; i >= 0; i--) {
+    if (dailyFlow[i].netValueBillion < 0) sellStreak++;
+    else break;
+  }
+  const last3 = dailyFlow.slice(-3);
+  const isAccumulation3D = last3.length === 3 && last3.every((d) => d.netValueBillion > 0);
+  const isDistribution3D = last3.length === 3 && last3.every((d) => d.netValueBillion < 0);
 
   let score = 50;
-  let summary = `Estimasi net asing 20D: ${net20D > 0 ? '+' : ''}${net20D.toFixed(1)}M.`;
-  if (totalBuyVol > totalSellVol) {
-    score = 78;
-    summary += ' Broker besar terindikasi akumulasi (buyer > seller).';
-  } else if (totalSellVol > totalBuyVol * 1.1) {
-    score = 25;
-    summary += ' Broker besar terindikasi distribusi (seller > buyer).';
+  let summary = `Estimasi net value 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(1)}M (proxy dari harga+volume, bukan data broker resmi).`;
+  if (isAccumulation3D) {
+    score = buyStreak >= 4 ? 82 : 68;
+    summary += ` Terindikasi akumulasi ${buyStreak}D berturut.`;
+  } else if (isDistribution3D) {
+    score = sellStreak >= 4 ? 18 : 32;
+    summary += ` Terindikasi distribusi ${sellStreak}D berturut.`;
   } else {
-    summary += ' Aliran broker relatif seimbang.';
+    summary += ' Aliran relatif seimbang.';
   }
 
   return { weight_pct: 10, score, summary, available: true };
@@ -181,7 +189,6 @@ Final Score: ${finalScore}/100. Decision: ${decision}.`,
 export async function runMultiAgentOrchestrator(rawTicker: string): Promise<OrchestratorResult> {
   let ticker = rawTicker.toUpperCase();
   if (!ticker.includes('.')) ticker = `${ticker}.JK`;
-  const cleanTicker = ticker.replace('.JK', '');
 
   const [chartData, fundamentals, dcf] = await Promise.all([
     fetchYahooHistory(ticker, '1y'),
@@ -269,7 +276,7 @@ export async function runMultiAgentOrchestrator(rawTicker: string): Promise<Orch
     agentBreakdown.valuation_agent = { weight_pct: 0, score: 50, summary: 'Data valuasi tidak cukup untuk dihitung saat ini.', available: false };
   }
 
-  agentBreakdown.bandar_agent = buildBandarAgent(cleanTicker);
+  agentBreakdown.bandar_agent = buildBandarAgent(chartData?.history ?? null);
   agentBreakdown.news_agent = buildNewsAgent();
 
   const weightedEntries = Object.values(agentBreakdown).filter((a) => a.available && a.weight_pct > 0);
