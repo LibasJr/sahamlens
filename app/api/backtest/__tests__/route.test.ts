@@ -168,6 +168,17 @@ describe('POST /api/backtest (mode: live-signal)', () => {
     expect(res.status).toBe(200);
   });
 
+  it('mengabaikan modal/period yang tidak valid - tidak relevan untuk mode live-signal', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
+    vi.mocked(computeLiveSignal).mockReturnValue(sampleLiveSignal as any);
+    vi.mocked(simulateBacktest).mockReturnValue(sampleHistorical as any);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], mode: 'live-signal', modal: -1, period: 99 }));
+
+    expect(res.status).toBe(200);
+  });
+
   it('default mode (tanpa field mode) tetap jalan seperti kontrak lama', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
     vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);

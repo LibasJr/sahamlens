@@ -24,17 +24,22 @@ export interface LiveSignalResult {
 function lastDayDecisions(series: TickerIndicatorSeries, lastIdx: number): Record<IndicatorName, Decision> {
   const decisions = {} as Record<IndicatorName, Decision>;
   ALL_INDICATORS.forEach((name) => {
-    decisions[name] = series.decisions[name][lastIdx];
+    decisions[name] = series.decisions[name]?.[lastIdx] ?? 'NEUTRAL';
   });
   return decisions;
 }
 
 export function computeLiveSignal(cache: BacktestIndicatorCache, filters: IndicatorName[]): LiveSignalResult {
   const matches: LiveSignalMatch[] = [];
+  const latestTradingDate = cache.ihsg[cache.ihsg.length - 1]?.date;
 
   for (const series of cache.tickers) {
     const lastIdx = series.bars.length - 1;
     if (lastIdx < 0) continue;
+    // Saham suspend/halt masih punya bar lama di cache - jangan tampil sebagai
+    // "cocok HARI INI" dengan harga basi kalau bar terakhirnya bukan hari bursa
+    // terakhir (dipakai IHSG sebagai kalender acuan, sama seperti simulateBacktest).
+    if (latestTradingDate && series.bars[lastIdx].date !== latestTradingDate) continue;
 
     const decisions = lastDayDecisions(series, lastIdx);
     const isMatch = filters.every((f) => decisions[f] === 'BULLISH');

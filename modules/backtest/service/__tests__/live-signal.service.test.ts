@@ -104,4 +104,40 @@ describe('computeLiveSignal', () => {
 
     expect(result.matches).toEqual([]);
   });
+
+  it('saham dengan bar terakhir BUKAN hari bursa terakhir (suspend/halt) tidak ikut cocok', () => {
+    const cache: BacktestIndicatorCache = {
+      computedAt: '2026-08-01T16:00:00.000Z',
+      ihsg: [
+        { date: '2026-07-30', close: 7000 },
+        { date: '2026-07-31', close: 7010 },
+        { date: '2026-08-01', close: 7020 }, // hari bursa terakhir
+      ],
+      tickers: [
+        makeTicker('STALE.JK', 1000, { 'RSI 14': 'BULLISH' }), // bar terakhirnya 2026-08-01 juga di helper - override di bawah
+      ],
+    };
+    // makeTicker's last bar date is '2026-08-01' - force it stale by rewriting the last bar's date
+    cache.tickers[0].bars[2].date = '2026-07-25'; // saham ini berhenti update jauh sebelum hari bursa terakhir
+
+    const result = computeLiveSignal(cache, ['RSI 14']);
+
+    expect(result.matches).toEqual([]);
+  });
+
+  it('saham dengan bar terakhir SAMA dengan hari bursa terakhir tetap cocok', () => {
+    const cache: BacktestIndicatorCache = {
+      computedAt: '2026-08-01T16:00:00.000Z',
+      ihsg: [
+        { date: '2026-07-31', close: 7010 },
+        { date: '2026-08-01', close: 7020 },
+      ],
+      tickers: [makeTicker('FRESH.JK', 9000, { 'RSI 14': 'BULLISH' })], // last bar date is '2026-08-01' per makeTicker
+    };
+
+    const result = computeLiveSignal(cache, ['RSI 14']);
+
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0].symbol).toBe('FRESH.JK');
+  });
 });
