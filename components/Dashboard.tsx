@@ -138,18 +138,6 @@ export default function Dashboard() {
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  // Halaman ini (landing page publik "/") sebelumnya SELALU menampilkan tombol "Login"
-  // di header, walau user sedang login - jadi begitu user (yang sudah login) balik ke
-  // "/" (mis. lewat logo Sidebar atau tombol back), tampilannya terlihat seperti sesinya
-  // hilang. Sekarang dicek statusnya, sama seperti Sidebar melakukannya di /api/auth/me.
-  const [authUser, setAuthUser] = useState<{ email?: string; role?: string } | null>(null);
-
-  React.useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((d) => { if (d.authenticated && d.user) setAuthUser(d.user); })
-      .catch(() => {});
-  }, []);
 
   React.useEffect(() => {
     setNow(new Date());
@@ -315,15 +303,13 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Memuat waktu...'}</span>
                 <span className="sm:hidden">{jakartaTime || '--:--'}</span>
               </div>
-              {authUser ? (
-                <Link href="/home" className="ml-2 flex items-center gap-2 rounded-md bg-tv-blue hover:bg-tv-blueHover px-4 py-1.5 text-[12px] font-bold text-white transition-all">
-                  Buka Dashboard
-                </Link>
-              ) : (
-                <Link href="/login" className="ml-2 rounded-md bg-tv-blue hover:bg-tv-blueHover px-4 py-1.5 text-[12px] font-bold text-white transition-all">
-                  Login
-                </Link>
-              )}
+              {/* "Buka Dashboard" untuk SEMUA pengunjung (bukan cuma yang sudah login) -
+                  /home bisa dibuka tanpa akun (aturan akses eksplorasi 2026-08-01), jadi
+                  ajakan menjelajah lebih pas daripada "Login" yang terkesan wajib akun
+                  dari awal. Menu yang memang butuh akun akan minta daftar saat dipakai. */}
+              <Link href="/home" className="ml-2 flex items-center gap-2 rounded-md bg-tv-blue hover:bg-tv-blueHover px-4 py-1.5 text-[12px] font-bold text-white transition-all">
+                Buka Dashboard
+              </Link>
             </div>
           </div>
           {/* mobile IHSG */}
