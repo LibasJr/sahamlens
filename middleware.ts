@@ -50,7 +50,12 @@ function getClientIp(req: NextRequest): string {
 
 export async function middleware(req: NextRequest) {
   const sessionCookie = req.cookies.get(SESSION_COOKIE)?.value;
-  const payload = sessionCookie ? await decrypt(sessionCookie) : null;
+  const decrypted = sessionCookie ? await decrypt(sessionCookie) : null;
+  // Guard yang sama dengan shared/auth/session.ts getSession() - token lain yang
+  // tanda tangannya valid tapi bukan sesi login asli (mis. cookie trial anonim yang
+  // salah ditempel sebagai "session") tidak boleh lolos sebagai payload sesi di sini,
+  // bahkan kalau PROTECTED_PAGES diisi lagi nanti.
+  const payload = decrypted && typeof decrypted.id === 'string' && decrypted.id ? decrypted : null;
 
   if (isProtectedPage(req.nextUrl.pathname)) {
     if (!payload) {
