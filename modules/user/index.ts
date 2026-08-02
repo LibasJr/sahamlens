@@ -17,6 +17,7 @@ export {
   handleResetPassword,
   handleLogout,
   handleMe,
+  handleGetProfile,
 } from './controller/auth.controller';
 
 export {

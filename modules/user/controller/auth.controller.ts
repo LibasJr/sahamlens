@@ -5,6 +5,8 @@ import { loginSchema, signupSchema, verifySchema, forgotPasswordSchema, resetPas
 import { login, signup, verifyAccount, type AuthSessionResult } from '../service/auth.service';
 import { requestPasswordReset, resetPassword } from '../service/password-reset.service';
 import type { HttpResult } from '../../../shared/types/http-result.types';
+import { getUserById } from '../repository/user.repository';
+import { getActiveUsers } from '../../../shared/auth/presence';
 
 function sessionCookies(result: AuthSessionResult) {
   return [
@@ -61,4 +63,27 @@ export async function handleMe(): Promise<HttpResult> {
   const session = await getSession();
   if (!session) return { status: 401, body: { authenticated: false } };
   return { status: 200, body: { authenticated: true, user: session } };
+}
+
+export async function handleGetProfile(): Promise<HttpResult> {
+  const session = await getSession();
+  if (!session) return { status: 401, body: { error: 'Belum login' } };
+
+  const user = await getUserById(session.id);
+  if (!user) return { status: 401, body: { error: 'Belum login' } };
+
+  const body: Record<string, unknown> = {
+    email: user.email,
+    role: user.role,
+    isPro: user.is_pro,
+    isVerified: user.is_verified,
+    trialEndsAt: user.trial_ends_at,
+    createdAt: user.created_at,
+  };
+
+  if (user.role === 'admin') {
+    body.activeUsers = await getActiveUsers();
+  }
+
+  return { status: 200, body };
 }
