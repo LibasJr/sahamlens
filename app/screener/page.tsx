@@ -83,7 +83,7 @@ export default function ScreenerPage() {
               </h3>
             </div>
             <span className="text-xs font-mono text-tv-muted">
-              Filter: PER vs Sektor • ROE &gt; 15% • Bandarmology (Chaikin Money Flow) Accumulation
+              Ranking skor komposit (bobot beda per profil): PER vs Sektor, ROE, DER, Div Yield, Revenue Growth, Bandarmology (Chaikin Money Flow)
             </span>
           </div>
 
@@ -102,7 +102,7 @@ export default function ScreenerPage() {
                   <th className="p-3 text-right">Div Yield</th>
                   <th className="p-3">Bandarmology</th>
                   <th className="p-3">Moat Rating</th>
-                  <th className="p-3 text-right">Target Bull/Bear</th>
+                  <th className="p-3 text-right">52W High/Low</th>
                   <th className="p-3 text-right">Entry / StopLoss</th>
                 </tr>
               </thead>
@@ -129,14 +129,16 @@ export default function ScreenerPage() {
                     <td className="p-3 text-right font-bold text-white font-number">
                       {item.per}x <span className="text-[10px] text-tv-muted font-normal">({item.per_sector}x)</span>
                     </td>
-                    <td className="p-3 text-right text-tv-green font-bold font-number">{item.rev_growth_5yr}</td>
+                    <td className="p-3 text-right text-tv-green font-bold font-number">{item.rev_growth_ttm}</td>
                     <td className="p-3 text-right text-tv-accent font-bold font-number">{item.roe}</td>
                     <td className="p-3 text-right text-tv-text font-number">{item.der}</td>
                     <td className="p-3 text-right text-tv-yellow font-bold font-number">{item.div_yield}</td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        item.bandarmology.includes('Big')
+                        item.bandarmology === 'Akumulasi'
                           ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
+                          : item.bandarmology === 'Distribusi'
+                          ? 'bg-tv-red/20 text-tv-red border border-tv-red/30'
                           : 'bg-tv-hover text-tv-text'
                       }`}>
                         {item.bandarmology}
@@ -144,8 +146,8 @@ export default function ScreenerPage() {
                     </td>
                     <td className="p-3 text-tv-text">{item.moat}</td>
                     <td className="p-3 text-right text-white">
-                      <span className="text-tv-green font-bold font-number">Rp {item.target_bull?.toLocaleString('id-ID')}</span> /{' '}
-                      <span className="text-tv-red font-bold font-number">Rp {item.target_bear?.toLocaleString('id-ID')}</span>
+                      <span className="text-tv-green font-bold font-number">Rp {item.week52_high?.toLocaleString('id-ID')}</span> /{' '}
+                      <span className="text-tv-red font-bold font-number">Rp {item.week52_low?.toLocaleString('id-ID')}</span>
                     </td>
                     <td className="p-3 text-right text-white">
                       <span className="text-tv-yellow font-bold font-number">Rp {item.entry?.toLocaleString('id-ID')}</span> /{' '}

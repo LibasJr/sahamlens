@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology } from '../foreign-flow-proxy';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '../foreign-flow-proxy';
 
 describe('computeDailyNetFlow (Chaikin Money Flow)', () => {
   it('menghitung MFM/netValueBillion sesuai contoh: High 280, Low 260, Close 275, Volume 10jt', () => {
@@ -74,5 +74,51 @@ describe('analyzeBandarmology', () => {
     const result = analyzeBandarmology([]);
     expect(result.status).toBe('NEUTRAL');
     expect(result.cmf20).toBe(0);
+  });
+});
+
+describe('analyzeAccumulationSignal (konfirmasi 4-lapis)', () => {
+  function makeDays(count: number, clv: number, volume: number): { date: string; high: number; low: number; close: number; volume: number }[] {
+    const high = 120;
+    const low = 100;
+    const close = low + clv * (high - low);
+    return Array.from({ length: count }, (_, i) => ({ date: `d${i}`, high, low, close, volume }));
+  }
+
+  it('lolos semua 4 syarat (CMF20, CLV kuat, volume spike, tren MFM) -> AKUMULASI confirmed', () => {
+    const days = makeDays(20, 0.9, 1_000_000);
+    days[days.length - 1].volume = 2_000_000; // spike hari terakhir > 1.5x rata-rata
+    const result = analyzeAccumulationSignal(days);
+    expect(result.status).toBe('AKUMULASI');
+    expect(result.confirmed).toBe(true);
+  });
+
+  it('"fake akumulasi" - CLV cuma positif tipis (0.55, gagal ambang >0.6) -> NETRAL, bukan AKUMULASI', () => {
+    const days = makeDays(20, 0.55, 1_000_000);
+    days[days.length - 1].volume = 2_000_000;
+    const result = analyzeAccumulationSignal(days);
+    expect(result.status).toBe('NETRAL');
+    expect(result.confirmed).toBe(false);
+  });
+
+  it('CLV & CMF kuat tapi TIDAK ada lonjakan volume -> tidak confirmed (syarat volume gagal)', () => {
+    const days = makeDays(20, 0.9, 1_000_000); // semua hari volume sama, tidak ada spike
+    const result = analyzeAccumulationSignal(days);
+    expect(result.status).toBe('NETRAL');
+    expect(result.confirmed).toBe(false);
+  });
+
+  it('simetris untuk DISTRIBUSI (CLV rendah + volume spike)', () => {
+    const days = makeDays(20, 0.1, 1_000_000);
+    days[days.length - 1].volume = 2_000_000;
+    const result = analyzeAccumulationSignal(days);
+    expect(result.status).toBe('DISTRIBUSI');
+    expect(result.confirmed).toBe(true);
+  });
+
+  it('history < 3 hari -> NETRAL, tidak error', () => {
+    const result = analyzeAccumulationSignal(makeDays(2, 0.9, 1_000_000));
+    expect(result.status).toBe('NETRAL');
+    expect(result.confirmed).toBe(false);
   });
 });
