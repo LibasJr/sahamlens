@@ -28,9 +28,9 @@ function makeTicker(
   return {
     ticker,
     bars: [
-      { date: '2026-07-30', close: price - 10 },
-      { date: '2026-07-31', close: price - 5 },
-      { date: '2026-08-01', close: price },
+      { date: '2026-07-30', close: price - 10, open: price - 10 },
+      { date: '2026-07-31', close: price - 5, open: price - 5 },
+      { date: '2026-08-01', close: price, open: price },
     ],
     decisions,
   };
@@ -109,9 +109,9 @@ describe('computeLiveSignal', () => {
     const cache: BacktestIndicatorCache = {
       computedAt: '2026-08-01T16:00:00.000Z',
       ihsg: [
-        { date: '2026-07-30', close: 7000 },
-        { date: '2026-07-31', close: 7010 },
-        { date: '2026-08-01', close: 7020 }, // hari bursa terakhir
+        { date: '2026-07-30', close: 7000, open: 7000 },
+        { date: '2026-07-31', close: 7010, open: 7010 },
+        { date: '2026-08-01', close: 7020, open: 7020 }, // hari bursa terakhir
       ],
       tickers: [
         makeTicker('STALE.JK', 1000, { 'RSI 14': 'BULLISH' }), // bar terakhirnya 2026-08-01 juga di helper - override di bawah
@@ -129,8 +129,8 @@ describe('computeLiveSignal', () => {
     const cache: BacktestIndicatorCache = {
       computedAt: '2026-08-01T16:00:00.000Z',
       ihsg: [
-        { date: '2026-07-31', close: 7010 },
-        { date: '2026-08-01', close: 7020 },
+        { date: '2026-07-31', close: 7010, open: 7010 },
+        { date: '2026-08-01', close: 7020, open: 7020 },
       ],
       tickers: [makeTicker('FRESH.JK', 9000, { 'RSI 14': 'BULLISH' })], // last bar date is '2026-08-01' per makeTicker
     };

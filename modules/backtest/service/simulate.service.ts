@@ -11,16 +11,36 @@ import type {
 const MAX_SLOTS = 5;
 const TRADING_DAYS_PER_MONTH = 22; // aproksimasi - dipakai konsisten utk periode & sampling chart
 
+// REWRITE (2026-08-03) - dulu simulasi ini beli/jual di CLOSE hari yang sama dengan
+// sinyalnya sendiri (look-ahead bias: jam 9 pagi kamu belum tahu close hari itu), dan
+// tidak menghitung fee transaksi sama sekali (return kelihatan 15-20% lebih besar dari
+// aslinya). Diperbaiki: sinyal dari keputusan hari D baru dieksekusi di OPEN hari D+1,
+// plus slippage & fee broker. Persentase di bawah perkiraan retail IDX umum (bisa beda
+// tipis per broker), didokumentasikan eksplisit supaya bisa di-tuning, bukan disembunyikan
+// sebagai konstanta ajaib.
+const SLIPPAGE_PCT = 0.002; // 0.2% - order pasar biasanya meleset dari harga acuan
+const FEE_BUY_PCT = 0.0015; // 0.15% - fee broker beli
+const FEE_SELL_PCT = 0.0025; // 0.25% - fee broker jual (lebih tinggi: ada levy bursa 0.1%)
+
+function buyExecutionPrice(openPrice: number): number {
+  return openPrice * (1 + SLIPPAGE_PCT) * (1 + FEE_BUY_PCT);
+}
+
+function sellExecutionPrice(openPrice: number): number {
+  return openPrice * (1 - SLIPPAGE_PCT) * (1 - FEE_SELL_PCT);
+}
+
 interface OpenPosition {
   symbol: string;
   entryDate: string;
-  entryPrice: number;
+  entryPrice: number; // sudah net slippage+fee (lihat buyExecutionPrice)
   shares: number;
   lastKnownPrice: number;
 }
 
 interface TickerDayData {
   close: number;
+  open: number;
   decisions: Record<IndicatorName, Decision>;
 }
 
@@ -34,7 +54,7 @@ function buildTickerIndex(series: TickerIndicatorSeries): Map<string, TickerDayD
     (Object.keys(series.decisions) as IndicatorName[]).forEach((name) => {
       decisions[name] = series.decisions[name][idx];
     });
-    map.set(bar.date, { close: bar.close, decisions });
+    map.set(bar.date, { close: bar.close, open: bar.open, decisions });
   });
   return map;
 }
@@ -88,47 +108,78 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     });
   }
 
+  // Antrean order dari sinyal hari D, baru dieksekusi di OPEN hari D+1 (giliran
+  // berikutnya loop ini) - inti dari fix look-ahead bias. pendingExits simpan referensi
+  // OpenPosition langsung (masih dianggap "dipegang" & di-mark-to-market sampai
+  // benar-benar terjual), pendingEntries cukup simpan simbolnya.
+  const pendingExits: OpenPosition[] = [];
+  const pendingEntries: string[] = [];
+
   for (const { date } of ihsgWindow) {
-    // 1. Exit - cek posisi terbuka, mundur supaya splice aman
-    for (let i = openPositions.length - 1; i >= 0; i--) {
-      const pos = openPositions[i];
+    // 1. Eksekusi order dari sinyal KEMARIN, di OPEN hari ini - exit dulu baru entry
+    // supaya kas & slot dari hasil jual ikut tersedia untuk beli di hari yang sama.
+    for (let i = pendingExits.length - 1; i >= 0; i--) {
+      const pos = pendingExits[i];
       const day = findIndex(pos.symbol).get(date);
-      if (!day) continue; // ticker ini halt/kosong hari itu - tidak bisa dieksekusi
-      if (!allBullish(day, filters)) {
-        closePosition(pos, date, day.close);
-        openPositions.splice(i, 1);
-      }
+      if (!day) continue; // masih halt/kosong - coba lagi hari berikutnya, tetap di antrean
+      const exitPrice = sellExecutionPrice(day.open);
+      closePosition(pos, date, exitPrice);
+      openPositions.splice(openPositions.indexOf(pos), 1);
+      pendingExits.splice(i, 1);
     }
 
-    // 2. Entry - isi slot kosong (equal-weight dari ekuitas SAAT INI, bukan modal awal
-    // statis - supaya P/L trade sebelumnya ikut compounding di ukuran posisi berikutnya)
-    if (openPositions.length < MAX_SLOTS) {
+    for (let i = pendingEntries.length - 1; i >= 0; i--) {
+      const symbol = pendingEntries[i];
+      const day = findIndex(symbol).get(date);
+      if (!day) continue; // masih halt/kosong - coba lagi hari berikutnya
+      pendingEntries.splice(i, 1);
+
+      // Equal-weight dari ekuitas SAAT INI (bukan modal awal statis) - supaya P/L
+      // trade sebelumnya ikut compounding di ukuran posisi berikutnya.
       const currentEquity = portfolioEquity(date);
       const slotSize = currentEquity / MAX_SLOTS;
+      const buyPrice = buyExecutionPrice(day.open);
+      const shares = Math.floor(slotSize / buyPrice / 100) * 100; // bulatkan ke kelipatan 1 lot
+      if (shares <= 0 || shares * buyPrice > cash) continue;
 
+      cash -= shares * buyPrice;
+      openPositions.push({ symbol, entryDate: date, entryPrice: buyPrice, shares, lastKnownPrice: buyPrice });
+    }
+
+    // 2. Evaluasi sinyal HARI INI (dari keputusan yang dihitung sampai close hari ini)
+    // - bukan dieksekusi sekarang, cuma diantre untuk OPEN besok.
+    for (const pos of openPositions) {
+      if (pendingExits.includes(pos)) continue; // sudah diantre, jangan dobel
+      const day = findIndex(pos.symbol).get(date);
+      if (!day) continue;
+      if (!allBullish(day, filters)) pendingExits.push(pos);
+    }
+
+    const occupiedOrQueued = openPositions.length + pendingEntries.length;
+    let freeSlots = MAX_SLOTS - occupiedOrQueued;
+    if (freeSlots > 0) {
       for (const { ticker, index } of tickerIndexes) {
-        if (openPositions.length >= MAX_SLOTS) break;
-        if (openPositions.some((p) => p.symbol === ticker)) continue;
+        if (freeSlots <= 0) break;
+        if (openPositions.some((p) => p.symbol === ticker) || pendingEntries.includes(ticker)) continue;
         const day = index.get(date);
         if (!day || !allBullish(day, filters)) continue;
-
-        const shares = Math.floor(slotSize / day.close / 100) * 100; // bulatkan ke kelipatan 1 lot
-        if (shares <= 0 || shares * day.close > cash) continue;
-
-        cash -= shares * day.close;
-        openPositions.push({ symbol: ticker, entryDate: date, entryPrice: day.close, shares, lastKnownPrice: day.close });
+        pendingEntries.push(ticker);
+        freeSlots--;
       }
     }
 
     equityCurveDaily.push(portfolioEquity(date));
   }
 
-  // 3. Force-close posisi yang masih terbuka saat periode berakhir
+  // 3. Force-close posisi yang masih terbuka saat periode berakhir - tidak ada "besok"
+  // lagi untuk dieksekusi di open, jadi dilikuidasi di close hari terakhir (tetap kena
+  // fee/slippage jual, ini transaksi nyata bukan cuma angka mark-to-market).
   const lastDate = ihsgWindow[ihsgWindow.length - 1]?.date;
   if (lastDate) {
     for (const pos of [...openPositions]) {
       const day = findIndex(pos.symbol).get(lastDate);
-      closePosition(pos, lastDate, day?.close ?? pos.entryPrice);
+      const exitPrice = sellExecutionPrice(day?.close ?? pos.entryPrice);
+      closePosition(pos, lastDate, exitPrice);
     }
   }
 

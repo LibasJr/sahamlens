@@ -70,7 +70,7 @@ export function computeTickerSeries(ticker: string, history: OhlcRow[]): TickerI
     const windowHistory = history.slice(windowStart, i + 1);
     const currentPrice = history[i].Close;
 
-    bars.push({ date: history[i].Date.split('T')[0], close: currentPrice });
+    bars.push({ date: history[i].Date.split('T')[0], close: currentPrice, open: history[i].Open });
 
     INDICATOR_NAMES.forEach((name) => {
       const result = INDICATOR_ANALYZERS[name](windowHistory, currentPrice);
@@ -115,7 +115,7 @@ export async function precomputeBacktestData(): Promise<BacktestIndicatorCache> 
 
   const ihsgResult = await fetchYahooHistory('^JKSE', '5y');
   const ihsg: DailyBar[] = ihsgResult
-    ? ihsgResult.history.slice(LOOKBACK_DAYS).slice(-RETAIN_DAYS).map((h) => ({ date: h.Date.split('T')[0], close: h.Close }))
+    ? ihsgResult.history.slice(LOOKBACK_DAYS).slice(-RETAIN_DAYS).map((h) => ({ date: h.Date.split('T')[0], close: h.Close, open: h.Open }))
     : [];
 
   return { computedAt: new Date().toISOString(), ihsg, tickers };
