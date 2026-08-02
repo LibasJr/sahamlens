@@ -1,5 +1,7 @@
 import React from 'react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import ExportButton from './ExportButton';
@@ -17,6 +19,13 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-tv-bg text-tv-text p-8 font-sans">
       <div className="max-w-7xl mx-auto">
+        <Link
+          href="/home"
+          className="inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text transition-colors mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali ke Beranda
+        </Link>
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-heading text-3xl font-bold text-tv-text">SahamLens Admin Panel</h1>
           <ExportButton />
