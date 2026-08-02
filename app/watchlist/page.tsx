@@ -552,7 +552,7 @@ export default function WatchlistPage() {
           'Sinkronisasi alert ke Telegram (Libas Bot)',
           'Semua fitur Pro lainnya',
         ]}
-        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit watchlist"
+        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp99.000/bulan) - kena limit watchlist"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Nanti"
       />

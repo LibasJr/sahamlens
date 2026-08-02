@@ -489,7 +489,7 @@ function DashboardContent() {
           currentTicker={ticker}
           onTickerChange={setTicker}
           moduleTitle="Technical AI Analytics"
-          moduleBank="INSTITUTIONAL AI"
+          moduleBank="SMART AI"
           analisaRemaining={analisaRemaining}
           analisaTotal={FREE_LIMITS.analisaPerHari}
           isAdmin={isAdminUser}
@@ -502,7 +502,7 @@ function DashboardContent() {
           open={showPaywall}
           onClose={() => { if (!isTrialExpired) setShowPaywall(false); }}
           title={isTrialExpired ? "Masa Trial 7 Hari Habis" : "Limit Gratis Habis"}
-          body={isTrialExpired ? "Masa trial gratis 7 hari Anda telah berakhir. Upgrade ke Pro sekarang untuk terus menggunakan fitur Institutional AI dari SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
+          body={isTrialExpired ? "Masa trial gratis 7 hari Anda telah berakhir. Upgrade ke Pro sekarang untuk terus menggunakan fitur Smart AI dari SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
           benefits={[
             'Unlimited Technical Analyzer (10 filter)',
             'AI Pick LIVE',
@@ -528,7 +528,7 @@ function DashboardContent() {
         currentTicker={ticker}
         onTickerChange={setTicker}
         moduleTitle="Pure Algorithmic Trading (TS Analyzers)"
-        moduleBank="INSTITUTIONAL AI"
+        moduleBank="SMART AI"
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}
@@ -1040,13 +1040,13 @@ function DashboardContent() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
           'AI Pick LIVE',
           'Fundamental Analyzer + Watchlist unlimited',
         ]}
-        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
+        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp99.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
       />
