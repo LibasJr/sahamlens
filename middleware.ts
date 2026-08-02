@@ -8,9 +8,13 @@ import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 // mengimpor langsung dari shared/auth/jwt & shared/constants/cookie-names,
 // BUKAN dari modules/user (barrel-nya menyeret next/headers lewat shared/auth/session).
 
+// 150 (bukan 50) - halaman Breakout Radar tab Recommendations sendirian memecah
+// pemindaian 220 saham jadi ~22 request ke /api/recommendations sekali buka tab
+// (lihat app/breakout-radar/page.tsx fetchRecommendations), jadi limit harus cukup
+// longgar untuk itu ditambah pemakaian wajar lain di hari yang sama.
 const RATE_LIMIT_CONFIG = {
   windowMs: 24 * 60 * 60 * 1000,
-  maxPerWindow: 50,
+  maxPerWindow: 150,
   blockMs: 60 * 60 * 1000,
 };
 
