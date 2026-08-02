@@ -96,10 +96,19 @@ export async function middleware(req: NextRequest) {
   const result = await checkRateLimitShared(ip, Date.now(), RATE_LIMIT_CONFIG);
 
   if (!result.allowed) {
-    return NextResponse.json(
-      { error: 'Terlalu banyak request. Coba lagi nanti.' },
-      { status: 429, headers: result.retryAfterSec ? { 'Retry-After': String(result.retryAfterSec) } : undefined }
-    );
+    // Cuma balas JSON mentah untuk panggilan API (fetch() di frontend sudah bisa
+    // menangani body JSON + status 429). Untuk navigasi HALAMAN (mis. /breakout-radar),
+    // JSON mentah tampil sebagai teks polos di browser - bukan halaman error yang bisa
+    // dipahami. Biarkan HTML halamannya tetap ter-load; data sesungguhnya di halaman
+    // itu tetap digerbang lewat rate limit di panggilan API-nya sendiri (matcher path
+    // /api/... di atas), jadi membiarkan shell HTML lewat di sini tidak membuka apa pun
+    // yang berharga.
+    if (req.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak request. Coba lagi nanti.' },
+        { status: 429, headers: result.retryAfterSec ? { 'Retry-After': String(result.retryAfterSec) } : undefined }
+      );
+    }
   }
 
   return NextResponse.next();
