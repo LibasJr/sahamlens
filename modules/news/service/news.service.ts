@@ -134,16 +134,21 @@ export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSou
     return true;
   });
 
-  // Filter relevansi dulu, baru urut+ambil 12 - supaya berita non-pasar (sosial/
+  // Filter relevansi dulu, baru urut+ambil 40 - supaya berita non-pasar (sosial/
   // politik yang kebetulan ada di kanal Ekonomi/News umum) tidak ikut lolos hanya
   // karena kebetulan terbaru. Fallback ke pool tanpa filter kalau hasil relevan
   // terlalu sedikit (<5) - lebih baik ada berita ekonomi umum daripada widget
   // kosong total pada hari yang sepi berita pasar spesifik.
+  //
+  // 40 (bukan 12) - satu fungsi ini dipakai BERSAMA oleh widget ringkas di Beranda
+  // (app/home/page.tsx, slice sendiri ke 12 di sisi client) DAN halaman Berita penuh
+  // (app/news/page.tsx, tampilkan semua). Menghitung 40 sekali lalu cache 15 menit
+  // lebih murah daripada dua cache/panggilan AI terpisah untuk hal yang sama.
   const relevant = deduped.filter((item) => isMarketRelevant(item.title));
   const pool = relevant.length >= 5 ? relevant : deduped;
 
   pool.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-  const top = pool.slice(0, 12);
+  const top = pool.slice(0, 40);
 
   const aiSentiments = await classifyWithCouncilAI(top.map((t) => t.title));
   const sentimentSource: 'council-ai' | 'keyword-fallback' = aiSentiments ? 'council-ai' : 'keyword-fallback';

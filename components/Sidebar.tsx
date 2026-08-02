@@ -23,6 +23,8 @@ import {
   ShieldAlert,
   History,
   ShieldCheck,
+  Newspaper,
+  LogIn,
 } from 'lucide-react';
 import { pickTrendingTicker, getTickerName } from '@/lib/trendingTickers';
 import UserProfileModal from './UserProfileModal';
@@ -56,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'home', name: 'Beranda', subtitle: 'AI Insight & Ringkasan Akun', path: '/home', icon: LayoutDashboard },
       { id: 'market-pulse', name: 'Ringkasan Pasar', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true },
+      { id: 'news', name: 'Berita', subtitle: 'Berita & Sentimen Pasar', path: '/news', icon: Newspaper },
     ],
   },
   {
@@ -108,6 +111,7 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   // Link menu Council AI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
   // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "Council AI"
   // membuka emiten yang sama, bukan emiten trending acak. Fallback ke trending acak kalau
@@ -128,7 +132,8 @@ export default function Sidebar() {
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((d) => { if (d.authenticated && d.user) setUser(d.user); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
   }, []);
 
   const handleLogout = async () => {
@@ -224,6 +229,7 @@ export default function Sidebar() {
                     <Link
                       key={item.id}
                       href={href}
+                      onClick={() => window.dispatchEvent(new Event('close-sidebar'))}
                       className={`group relative flex items-center gap-3 rounded-lg text-xs transition-all duration-150 ease-out ${
                         isCollapsed ? 'md:justify-center md:px-0 md:py-2.5 px-3 py-2.5' : 'px-2.5 py-2.5'
                       } ${
@@ -315,6 +321,20 @@ export default function Sidebar() {
             >
               <LogOut className="w-4 h-4" />
             </button>
+          )}
+
+          {/* Belum login (termasuk sesudah cookie hilang, mis. app di-uninstall lalu
+              pasang ulang) - tanpa ini, tidak ada jalan sama sekali dari dalam Sidebar
+              untuk mencapai /login, karena slot akun di atas kosong total kalau user null. */}
+          {authChecked && !user && (
+            <Link
+              href="/login"
+              onClick={() => window.dispatchEvent(new Event('close-sidebar'))}
+              className={`flex items-center gap-2 rounded-lg bg-tv-blue/10 hover:bg-tv-blue/20 text-tv-blue transition-colors ${isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'} py-2`}
+            >
+              <LogIn className="w-3.5 h-3.5 shrink-0" />
+              <span className={`text-xs font-medium ${isCollapsed ? 'md:hidden' : ''}`}>Masuk / Daftar</span>
+            </Link>
           )}
 
           <div className={`flex items-center gap-1.5 text-[10px] text-white/35 ${isCollapsed ? 'md:hidden' : ''}`}>

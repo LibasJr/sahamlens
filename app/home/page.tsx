@@ -302,28 +302,36 @@ export default function HomePage() {
           ) : newsItems.length === 0 ? (
             <p className="text-xs text-tv-muted py-2">Berita tidak tersedia saat ini.</p>
           ) : (
-            <div className="divide-y divide-tv-border/50">
-              {newsItems.slice(0, 12).map((n) => (
-                <a
-                  key={n.link || n.title}
-                  href={n.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                    <p className="text-[10px] text-tv-muted mt-1">{n.source} • {n.reason}</p>
-                  </div>
-                  <Badge
-                    variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
-                    className="shrink-0"
+            <>
+              <div className="divide-y divide-tv-border/50">
+                {newsItems.slice(0, 12).map((n) => (
+                  <a
+                    key={n.link || n.title}
+                    href={n.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
                   >
-                    {n.sentiment}
-                  </Badge>
-                </a>
-              ))}
-            </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
+                      <p className="text-[10px] text-tv-muted mt-1">{n.source} • {n.reason}</p>
+                    </div>
+                    <Badge
+                      variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
+                      className="shrink-0"
+                    >
+                      {n.sentiment}
+                    </Badge>
+                  </a>
+                ))}
+              </div>
+              <Link
+                href="/news"
+                className="block text-center text-xs text-tv-blue hover:underline pt-3 mt-1 border-t border-tv-border/50"
+              >
+                Lihat Semua Berita
+              </Link>
+            </>
           )}
         </Card>
       </motion.div>
