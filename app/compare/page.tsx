@@ -211,7 +211,7 @@ function CompareContent() {
               </div>
 
               <div className="p-6 bg-tv-bg border-t border-tv-border">
-                <h3 className="text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan Council AI</h3>
+                <h3 className="font-heading text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan Council AI</h3>
                 <p className="text-base text-tv-text leading-relaxed">
                   {data.conclusion}
                 </p>

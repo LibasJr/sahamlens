@@ -160,7 +160,7 @@ export default function MarketCategoryPage() {
                 className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/40 last:border-b-0 hover:bg-tv-hover transition-colors items-center"
               >
                 <span className="text-[11px] font-number text-tv-muted">{idx + 1}</span>
-                <span className="text-[13px] font-bold text-tv-text">{row.symbol}</span>
+                <span className="text-[13px] font-bold text-tv-text font-number">{row.symbol}</span>
                 <span className="text-[13px] text-tv-muted font-number">Rp {Math.round(row.price).toLocaleString('id-ID')}</span>
                 <span className={`text-[13px] font-bold text-right font-number ${isDown ? 'text-tv-red' : isUp ? 'text-tv-green' : 'text-tv-text'}`}>
                   {formatMetric(row, config.metricKey)}

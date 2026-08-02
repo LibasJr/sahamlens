@@ -202,7 +202,7 @@ export default function Recommendations() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-lg text-white tracking-tight">Rekomendasi Top 50 (Screener AI)</h2>
+              <h2 className="font-heading font-bold text-lg text-white tracking-tight">Rekomendasi Top 50 (Screener AI)</h2>
               <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">
                 SYSTEM AI
               </span>

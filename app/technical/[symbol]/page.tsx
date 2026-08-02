@@ -108,7 +108,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-6">
       <div className="bg-tv-card border border-tv-border rounded-xl p-6">
-        <h2 className="text-white font-bold mb-4">Final Suggestion</h2>
+        <h2 className="font-heading text-white font-bold mb-4">Final Suggestion</h2>
         
         {total > 0 && (
           <div className="mb-6">
@@ -142,7 +142,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
           return (
             <div key={idx} className="bg-tv-hover border border-tv-border rounded-lg p-4">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <h3 className="font-heading font-bold text-white text-sm flex items-center gap-2">
                   {agent.name}
                 </h3>
                 <span className={`text-xs px-2 py-0.5 rounded font-mono font-semibold ${
@@ -192,7 +192,7 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-2xl text-white tracking-tight">Council AI: {symbol}</h1>
+            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">Council AI: {symbol}</h1>
             <p className="text-sm text-tv-muted font-mono">Stock Analysis Council AI</p>
           </div>
         </div>

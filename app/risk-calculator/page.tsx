@@ -102,7 +102,7 @@ function RiskCalculatorContent() {
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-bold text-2xl text-white tracking-tight">Risk Calculator</h1>
+            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">Risk Calculator</h1>
             <p className="text-tv-muted text-sm">Hitung ukuran posisi & rasio risk/reward sebelum entry - murni matematika dari input Anda.</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ function RiskCalculatorContent() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Input Form */}
           <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
+            <h3 className="font-heading text-sm font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
               <Calculator className="w-4 h-4 text-tv-blue" />
               Parameter Trade
             </h3>
@@ -201,7 +201,7 @@ function RiskCalculatorContent() {
 
           {/* Result */}
           <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
+            <h3 className="font-heading text-sm font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
               <ShieldAlert className="w-4 h-4 text-red-400" />
               Hasil Perhitungan
             </h3>
@@ -213,12 +213,12 @@ function RiskCalculatorContent() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-tv-bg border border-tv-border">
                     <div className="text-[10px] text-tv-muted uppercase tracking-wide">Ukuran Posisi Maksimal</div>
-                    <div className="text-xl font-bold text-white font-mono mt-1">{finalLot.toLocaleString('id-ID')} lot</div>
+                    <div className="text-xl font-bold text-white font-number mt-1">{finalLot.toLocaleString('id-ID')} lot</div>
                     <div className="text-[10px] text-tv-muted mt-0.5">{finalShares.toLocaleString('id-ID')} lembar</div>
                   </div>
                   <div className="p-3 rounded-lg bg-tv-bg border border-tv-border">
                     <div className="text-[10px] text-tv-muted uppercase tracking-wide">Modal Dibutuhkan</div>
-                    <div className="text-xl font-bold text-white font-mono mt-1">{fmtRp(capitalNeeded)}</div>
+                    <div className="text-xl font-bold text-white font-number mt-1">{fmtRp(capitalNeeded)}</div>
                     <div className="text-[10px] text-tv-muted mt-0.5">dari {fmtRp(modalNum)} tersedia</div>
                   </div>
                 </div>
@@ -234,7 +234,7 @@ function RiskCalculatorContent() {
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-red">
                     <TrendingDown className="w-3.5 h-3.5" /> Jika Kena Stop Loss
                   </div>
-                  <div className="text-lg font-bold text-tv-red font-mono mt-1">-{fmtRp(maxLossRp)} ({maxLossPct.toFixed(2)}% dari modal)</div>
+                  <div className="text-lg font-bold text-tv-red font-number mt-1">-{fmtRp(maxLossRp)} ({maxLossPct.toFixed(2)}% dari modal)</div>
                 </div>
 
                 {rewardPerShare != null && (
@@ -242,7 +242,7 @@ function RiskCalculatorContent() {
                     <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-green">
                       <TrendingUp className="w-3.5 h-3.5" /> Jika Kena Target
                     </div>
-                    <div className="text-lg font-bold text-tv-green font-mono mt-1">
+                    <div className="text-lg font-bold text-tv-green font-number mt-1">
                       {potentialProfitRp != null && potentialProfitRp >= 0 ? '+' : ''}{potentialProfitRp != null ? fmtRp(potentialProfitRp) : '-'}
                     </div>
                   </div>

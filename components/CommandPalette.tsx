@@ -193,7 +193,7 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
                     className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${idx === activeIdx ? 'bg-[#3A86FF]/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
                   >
                     <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0A1931] dark:text-white">{r.symbol}</div>
+                      <div className="text-[13px] font-bold text-[#0A1931] dark:text-white font-mono">{r.symbol}</div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{r.name}</div>
                     </div>
                     <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 shrink-0">{r.board}</span>
@@ -207,15 +207,15 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
                   <div className="m-auto text-[11px] text-slate-400 text-center">Arahkan kursor ke saham untuk melihat preview chart</div>
                 ) : (
                   <>
-                    <div className="text-[13px] font-bold text-[#0A1931] dark:text-white">{active.symbol}</div>
+                    <div className="text-[13px] font-bold text-[#0A1931] dark:text-white font-mono">{active.symbol}</div>
                     <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mb-3">{active.name}</div>
                     {previewLoading ? (
                       <div className="flex-1 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-slate-400" /></div>
                     ) : preview ? (
                       <>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-[16px] font-bold text-[#0A1931] dark:text-white">Rp {Math.round(preview.price).toLocaleString('id-ID')}</span>
-                          <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <span className="font-number text-[16px] font-bold text-[#0A1931] dark:text-white">Rp {Math.round(preview.price).toLocaleString('id-ID')}</span>
+                          <span className={`font-number inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             {preview.changePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                             {preview.changePct >= 0 ? '+' : ''}{preview.changePct.toFixed(2)}%
                           </span>

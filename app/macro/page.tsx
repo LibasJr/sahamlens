@@ -48,7 +48,7 @@ export default function MacroPage() {
               <Globe className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white font-mono">Outlook Makroekonomi Indonesia & Proyeksi IHSG</h1>
+              <h1 className="text-xl font-bold text-white font-heading">Outlook Makroekonomi Indonesia & Proyeksi IHSG</h1>
               <p className="text-xs text-tv-muted font-mono">
                 Analisis Dampak BI Rate, Fed Rate, Inflation Rate, & Kurs Rupiah terhadap Laba Emiten.
               </p>
@@ -73,7 +73,7 @@ export default function MacroPage() {
         {/* Macro Summary & Target IHSG */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono">
           <div className="lg:col-span-2 bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
+            <h3 className="font-heading text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
               <Compass className="w-5 h-5 text-indigo-400" />
               Rekomendasi Rotasi Sektor McKinsey Matrix
             </h3>
@@ -115,7 +115,7 @@ export default function MacroPage() {
           </div>
 
           <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
-            <h3 className="text-base font-bold text-white border-b border-tv-border pb-3">
+            <h3 className="font-heading text-base font-bold text-white border-b border-tv-border pb-3">
               Proyeksi Target IHSG (12 Bulan)
             </h3>
 

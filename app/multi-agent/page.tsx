@@ -149,15 +149,15 @@ export default function MultiAgentPage() {
             {/* Top Header Stats */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-tv-border pb-6">
               <div>
-                <h1 className="text-3xl font-bold font-mono tracking-tight flex items-center gap-3">
-                  {ticker} 
+                <h1 className="text-3xl font-bold font-heading tracking-tight flex items-center gap-3">
+                  {ticker}
                 </h1>
               </div>
               <div className="text-right">
-                <div className="text-4xl font-bold font-mono tracking-tight">
+                <div className="text-4xl font-bold font-number tracking-tight">
                   Rp {liveData?.price?.toLocaleString('id-ID') || 0}
                 </div>
-                <div className={`text-lg font-mono font-semibold flex items-center justify-end gap-1 ${
+                <div className={`text-lg font-number font-semibold flex items-center justify-end gap-1 ${
                   (liveData?.changePercent || 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
                 }`}>
                   {(liveData?.changePercent || 0) >= 0 ? '+' : ''}{liveData?.changePercent || 0}%
@@ -172,7 +172,7 @@ export default function MultiAgentPage() {
               </div>
               <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
                 <div className="flex-1">
-                  <h2 className="text-xl text-tv-muted mb-2 font-mono uppercase">Master AI Recommendation</h2>
+                  <h2 className="text-xl text-tv-muted mb-2 font-heading uppercase">Master AI Recommendation</h2>
                   <div className="text-5xl font-bold mb-4">
                     {quant.decision || 'WAITING...'}
                   </div>
@@ -192,7 +192,7 @@ export default function MultiAgentPage() {
             </div>
 
             {/* Individual Agents */}
-            <h3 className="text-lg font-bold font-mono mt-8 mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold font-heading mt-8 mb-4 flex items-center gap-2">
               <Users className="w-5 h-5 text-tv-green" /> 9 Specialized AI Agents Breakdown
             </h3>
             

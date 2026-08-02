@@ -86,7 +86,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
       <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
         <div className="flex items-center gap-3">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
+          <h3 className="font-heading text-base font-bold text-white flex items-center gap-2">
             <Target className="w-5 h-5 text-tv-accent" />
             Intrinsic Value Engine
           </h3>
@@ -101,11 +101,11 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
         <div className="col-span-1 flex flex-col justify-center space-y-4">
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4 text-center relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-full h-1 ${mosBg}`}></div>
-            <div className="text-xs text-tv-muted font-mono uppercase mb-2">Estimasi Harga Wajar (Median)</div>
-            <div className="text-3xl font-bold text-white mb-1">
+            <div className="text-xs text-tv-muted uppercase mb-2">Estimasi Harga Wajar (Median)</div>
+            <div className="font-number text-3xl font-bold text-white mb-1">
               Rp {formatIDR(fair_value)}
             </div>
-            <div className="text-sm font-mono text-tv-muted flex items-center justify-center gap-2">
+            <div className="font-number text-sm text-tv-muted flex items-center justify-center gap-2">
               Harga saat ini: Rp {formatIDR(harga)}
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
               <Icon className="w-5 h-5" />
               <span className="font-bold">Margin of Safety (MOS)</span>
             </div>
-            <div className="text-2xl font-extrabold">
+            <div className="font-number text-2xl font-extrabold">
               {mos > 0 ? '+' : ''}{mos.toFixed(2)}%
             </div>
             <div className="text-xs mt-1 opacity-80">
