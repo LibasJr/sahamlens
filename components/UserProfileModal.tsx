@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, User, ShieldCheck, Users, Loader2 } from 'lucide-react';
+import { X, User, ShieldCheck, Users, Loader2, Crown } from 'lucide-react';
+import PaywallModal from './PaywallModal';
 
 interface ProfileData {
   email: string;
@@ -39,7 +40,13 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleUpgradeClick = () => {
+    onClose();
+    setShowPaywall(true);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -95,6 +102,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
   }, [open, onClose]);
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -179,6 +187,16 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                   </div>
                 </div>
 
+                {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && (
+                  <button
+                    onClick={handleUpgradeClick}
+                    className="w-full flex items-center justify-center gap-2 bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-2.5 rounded-md transition-all mb-5"
+                  >
+                    <Crown className="w-4 h-4" />
+                    Upgrade ke Pro
+                  </button>
+                )}
+
                 {data.activeUsers && (
                   <div className="border-t border-tv-border pt-4">
                     <h4 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2 mb-3">
@@ -207,5 +225,17 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
         </motion.div>
       )}
     </AnimatePresence>
+    <PaywallModal
+      open={showPaywall}
+      onClose={() => setShowPaywall(false)}
+      title="Upgrade ke SahamLens Pro"
+      body="Buka semua fitur Pro tanpa batas: Council AI, Backtest, Breakout Radar, Fundamental Analyzer, dan lainnya."
+      benefits={[
+        'Unlimited Technical Analyzer (10 filter)',
+        'AI Pick LIVE',
+        'Fundamental Analyzer + Watchlist unlimited',
+      ]}
+    />
+    </>
   );
 }
