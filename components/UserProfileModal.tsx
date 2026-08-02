@@ -44,6 +44,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
     if (!open) return;
     setLoading(true);
     setError(null);
+    setData(null);
     fetch('/api/user/profile')
       .then((res) => {
         if (res.status === 401) {
@@ -82,7 +83,13 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const focusTimer = setTimeout(() => {
+      modalRef.current?.querySelector<HTMLElement>('button, [href]')?.focus();
+    }, 30);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(focusTimer);
+    };
   }, [open, onClose]);
 
   return (
