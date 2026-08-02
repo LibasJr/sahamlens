@@ -1,7 +1,8 @@
 import crypto from 'crypto';
-import { ForbiddenError } from '../../../shared/errors/app-error';
+import { ForbiddenError, ValidationError, NotFoundError } from '../../../shared/errors/app-error';
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
 import { isAdminFromRequestCookies, getAdminStatsToday, getAdminExportData } from '../service/admin.service';
+import { getUserByEmail, updateUser } from '../repository/user.repository';
 import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
 
 // getAdminSecret dipindah dari service/telegram-auth.service.ts (dihapus - login via
@@ -58,4 +59,18 @@ export async function handleAdminExport(
   if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   const data = await getAdminExportData({ cursor: query.cursor, limit: query.limit ? Number(query.limit) : undefined });
   return { status: 200, body: { success: true, ...data } };
+}
+
+export async function handleSetProStatus(
+  cookieStore: { get(name: string): { value: string } | undefined },
+  body: { email?: unknown; isPro?: unknown }
+): Promise<HttpResult> {
+  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (typeof body.email !== 'string' || !body.email || typeof body.isPro !== 'boolean') {
+    throw new ValidationError('email dan isPro wajib diisi dengan tipe yang benar');
+  }
+  const user = await getUserByEmail(body.email);
+  if (!user) throw new NotFoundError('User tidak ditemukan');
+  await updateUser(user.id, { is_pro: body.isPro });
+  return { status: 200, body: { email: body.email, isPro: body.isPro } };
 }
