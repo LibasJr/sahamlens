@@ -122,7 +122,7 @@ export default function CalendarPage() {
           key={`day-${i}`}
           onClick={() => setSelectedDate(d)}
           className={`
-            relative flex flex-col items-center justify-center p-2 h-12 w-12 rounded-md mx-auto font-number text-sm transition-all
+            relative flex flex-col items-center justify-center p-1 sm:p-2 h-9 w-9 sm:h-12 sm:w-12 rounded-md mx-auto font-number text-xs sm:text-sm transition-all
             ${isSelected ? 'bg-tv-blue text-white font-bold' : 'text-tv-text hover:bg-tv-hover'}
             ${isToday && !isSelected ? 'border border-tv-blue text-tv-blue' : ''}
           `}

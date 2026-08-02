@@ -357,18 +357,18 @@ export default function MarketPulse() {
                 <BreadthBar {...data.breadth} />
 
                 {/* Metrics Row */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
-                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
+                    <div className="text-xl sm:text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
+                    <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
                   </div>
-                  <div className="bg-tv-bg border border-tv-border rounded-lg p-4 text-center">
-                    <div className="text-3xl font-extrabold text-tv-muted font-number">{data.breadth.unchanged}</div>
-                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
+                  <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center">
+                    <div className="text-xl sm:text-3xl font-extrabold text-tv-muted font-number">{data.breadth.unchanged}</div>
+                    <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
                   </div>
-                  <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-extrabold text-tv-red font-number">{data.breadth.declining}</div>
-                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
+                  <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-2 sm:p-4 text-center">
+                    <div className="text-xl sm:text-3xl font-extrabold text-tv-red font-number">{data.breadth.declining}</div>
+                    <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
                   </div>
                 </div>
 
