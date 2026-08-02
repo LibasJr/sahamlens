@@ -28,10 +28,16 @@ scratch/
 # (error-learning log itu dokumentasi kerja Android yang sengaja tetap di-commit).
 /.claude/
 /.agents/
+/.antigravity/
+/.artifacts/
 /skills-lock.json
 /.worktrees/
 /.superpowers/
 scripts/.backtest-universe-candidates.json
+
+# Artefak build/dev lokal - regenerate otomatis, tidak perlu di-commit.
+tsconfig.tsbuildinfo
+.next-dev.log
 
 # Data files berisi PII (email, password hash) & data transaksi user - jangan pernah
 # ter-commit. File-file ini tetap dipakai di local dev (lib/dbLocal.ts / lib/supabase.ts
