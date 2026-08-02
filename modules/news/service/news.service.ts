@@ -124,7 +124,13 @@ Balas HANYA dalam format JSON array, urut sesuai nomor, tanpa teks lain:
 }
 
 export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSource: 'council-ai' | 'keyword-fallback' }> {
-  const results = await Promise.all(RSS_FEEDS.map(fetchFeed));
+  // limit 30 (bukan default 15) - filter isMarketRelevant() di bawah cukup ketat
+  // (istilah pasar saham spesifik), jadi dari 15 judul/sumber sering cuma segelintir
+  // yang lolos (diverifikasi live: 10 sumber x 15 = ~150 mentah -> cuma 8 lolos filter,
+  // jauh dari target 40 buat halaman /news). Fetch tetap 1x per sumber (parser.parseURL
+  // ambil seluruh feed lalu baru di-slice), jadi menaikkan angka ini TIDAK menambah
+  // waktu/panggilan HTTP - murni memperbesar kandidat sebelum difilter.
+  const results = await Promise.all(RSS_FEEDS.map((feed) => fetchFeed(feed, 30)));
   const merged = results.flat();
 
   const seen = new Set<string>();

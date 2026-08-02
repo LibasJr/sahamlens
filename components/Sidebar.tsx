@@ -155,6 +155,42 @@ export default function Sidebar() {
     };
   }, []);
 
+  // Swipe dari tepi kiri layar (mobile) buka sidebar tanpa perlu tap ikon garis 3 -
+  // pola umum di app native. Cuma dipasang kalau sidebar TERTUTUP (isOpen false),
+  // supaya tidak mengganggu scroll/swipe biasa di dalam sidebar yang sudah terbuka.
+  useEffect(() => {
+    if (isOpen) return;
+    const EDGE_ZONE_PX = 24; // swipe harus MULAI dekat tepi kiri, bukan dari tengah layar
+    const MIN_SWIPE_PX = 60; // jarak geser horizontal minimal supaya tidak salah pencet
+    let startX = 0;
+    let startY = 0;
+    let startedAtEdge = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startedAtEdge = startX <= EDGE_ZONE_PX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!startedAtEdge) return;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - startX;
+      const dy = Math.abs(touch.clientY - startY);
+      if (dx >= MIN_SWIPE_PX && dy < MIN_SWIPE_PX) {
+        setIsOpen(true);
+      }
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOpen]);
+
   // Baca preferensi collapse dari localStorage setelah mount (bukan di
   // useState langsung) - supaya render pertama di server & client sama
   // persis (hindari hydration mismatch), preferensi baru diterapkan sesaat
