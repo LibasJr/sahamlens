@@ -336,31 +336,42 @@ export default function WatchlistPage() {
               My Watchlist
             </h3>
 
-            <form onSubmit={addWatchlist} className="flex flex-wrap gap-3 mb-6">
-              <SymbolAutocomplete
-                containerClassName="relative flex-1 min-w-[160px]"
-                placeholder="Simbol (contoh: BBCA)"
-                value={newSymbol}
-                onChange={(val) => setNewSymbol(val)}
-                className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-tv-blue transition-colors"
-                required
-              />
-              <Input
-                type="number"
-                placeholder="Harga Beli (opsional)"
-                value={buyPrice}
-                onChange={(e) => setBuyPrice(e.target.value)}
-                className="w-40 font-number"
-              />
-              <Input
-                type="number"
-                placeholder="Total Lot"
-                value={lotAmount}
-                onChange={(e) => setLotAmount(e.target.value)}
-                className="w-28 font-number"
-              />
-              <Button type="submit" variant="primary">
-                <Plus className="w-4 h-4" /> Add
+            <form onSubmit={addWatchlist} className="space-y-3 mb-6">
+              <div>
+                <label className="text-[11px] font-mono text-tv-muted uppercase tracking-wide mb-1 block">Simbol Saham</label>
+                <SymbolAutocomplete
+                  containerClassName="relative w-full"
+                  placeholder="Contoh: BBCA"
+                  value={newSymbol}
+                  onChange={(val) => setNewSymbol(val)}
+                  className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-tv-blue transition-colors"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-mono text-tv-muted uppercase tracking-wide mb-1 block">Harga Beli (opsional)</label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={buyPrice}
+                    onChange={(e) => setBuyPrice(e.target.value)}
+                    className="w-full font-number"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-mono text-tv-muted uppercase tracking-wide mb-1 block">Total Lot</label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={lotAmount}
+                    onChange={(e) => setLotAmount(e.target.value)}
+                    className="w-full font-number"
+                  />
+                </div>
+              </div>
+              <Button type="submit" variant="primary" className="w-full">
+                <Plus className="w-4 h-4" /> Tambah ke Watchlist
               </Button>
             </form>
 
