@@ -162,7 +162,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const hasPro = !!anonTrial || checkProAccess(session);
+    const hasPro = anonTrial?.active === true || checkProAccess(session);
     if (!hasPro) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const hasPro = !!anonTrial || checkProAccess(session);
+    const hasPro = anonTrial?.active === true || checkProAccess(session);
     if (!hasPro) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }

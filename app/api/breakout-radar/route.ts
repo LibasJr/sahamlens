@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const hasPro = isInternal || !!anonTrial || checkProAccess(session);
+    const hasPro = isInternal || anonTrial?.active === true || checkProAccess(session);
     if (!hasPro) {
       // 402 (bukan 429) - ini soal akses langganan, bukan rate limit. Pesan lama
       // "Limit analisa harian habis" menyesatkan karena tidak ada penghitung kuota

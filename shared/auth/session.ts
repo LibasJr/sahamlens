@@ -13,6 +13,11 @@ export async function getSession(): Promise<SessionPayload | null> {
   const session = cookies().get(SESSION_COOKIE)?.value;
   if (!session) return null;
   const payload = await decrypt(session);
+  // Guard terhadap token yang valid tanda tangannya tapi bukan sesi login asli (mis.
+  // payload trial anonim yang salah ditempel sebagai cookie "session" secara manual) -
+  // sesi asli SELALU punya id user string, payload lain harus ditolak di sini, bukan
+  // lolos sebagai "user yang login" dengan id kosong.
+  if (!payload || typeof payload.id !== 'string' || !payload.id) return null;
   // Fire-and-forget - "siapa sedang aktif" untuk panel admin, tidak boleh pernah
   // menahan atau menggagalkan request pengguna biasa kalau Redis lambat/down.
   if (payload) touchPresence(payload).catch(() => {});
