@@ -188,6 +188,25 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             </div>
           </div>
 
+          {/* CMF20/Net Pressure - dari analyzeBandarmology() (foreign-flow-proxy.ts),
+              indikator baku sama yang dipakai Screener. Ditambah biar kartu ini tidak
+              cuma 2 angka di atas ruang kosong lebar (dulu kartu ini kalah gemuk dari
+              tetangganya di kolom kiri walau sudah items-start di grid luar). */}
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
+              <div className="text-[10px] font-mono text-tv-muted uppercase">CMF 20 Hari</div>
+              <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-white'}`}>
+                {summary.cmf20 > 0 ? '+' : ''}{summary.cmf20}%
+              </div>
+            </div>
+            <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
+              <div className="text-[10px] font-mono text-tv-muted uppercase">Tekanan Beli/Jual Hari Ini</div>
+              <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-white'}`}>
+                {summary.netPressurePct > 0 ? '+' : ''}{summary.netPressurePct}%
+              </div>
+            </div>
+          </div>
+
           <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-mono text-tv-muted leading-relaxed">
             Dihitung dari Chaikin Money Flow (posisi close di range High-Low harian, Yahoo Finance) - proxy tekanan beli/jual pasar, BUKAN data broker/asing resmi (IDX tidak menyediakan feed broker gratis).
           </div>

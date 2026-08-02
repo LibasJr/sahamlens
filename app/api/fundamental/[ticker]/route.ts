@@ -13,9 +13,12 @@ import {
   analyzeRoa,
   analyzeDer,
   analyzeCurrentRatio,
+  analyzeQuickRatio,
   analyzeDividend,
   analyzeEpsGrowth,
+  analyzeRevenueGrowth,
   analyzeGrossMargin,
+  analyzeOperatingMargin,
   analyzeNetMargin,
 } from '@/modules/fundamental';
 
@@ -86,7 +89,7 @@ export async function GET(
     }
     // ------------------------------------------------
 
-    // Run all 10 fundamental analyzers
+    // Run all 13 fundamental analyzers
     const analyzersResult = await Promise.all([
       Promise.resolve(analyzePe(quoteSummary)),
       Promise.resolve(analyzePbv(quoteSummary)),
@@ -94,9 +97,12 @@ export async function GET(
       Promise.resolve(analyzeRoa(quoteSummary)),
       Promise.resolve(analyzeDer(quoteSummary)),
       Promise.resolve(analyzeCurrentRatio(quoteSummary)),
+      Promise.resolve(analyzeQuickRatio(quoteSummary)),
       Promise.resolve(analyzeDividend(quoteSummary)),
       Promise.resolve(analyzeEpsGrowth(quoteSummary)),
+      Promise.resolve(analyzeRevenueGrowth(quoteSummary)),
       Promise.resolve(analyzeGrossMargin(quoteSummary)),
+      Promise.resolve(analyzeOperatingMargin(quoteSummary)),
       Promise.resolve(analyzeNetMargin(quoteSummary))
     ]);
 
@@ -171,7 +177,10 @@ export async function GET(
         dividendYield: quoteSummary.summaryDetail?.dividendYield || 0,
         // Gross margin fallback for non-banks if needed by UI
         grossMargins: quoteSummary.financialData?.grossMargins || 0,
-        nim: quoteSummary.financialData?.netInterestMargin || (ticker.includes('BBCA') ? 0.0546 : 0.055)
+        // Dulu ada fallback angka karangan (0.0546/0.055) kalau Yahoo tidak punya NIM -
+        // dihapus, biarkan 0/falsy supaya UI tampil "N/A" jujur (lihat app/fundamental/
+        // page.tsx) daripada angka tebakan yang dikira data asli.
+        nim: quoteSummary.financialData?.netInterestMargin || 0
       }
     });
 
