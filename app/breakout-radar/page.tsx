@@ -133,6 +133,7 @@ function BreakoutRadarContent() {
   const [recLoading, setRecLoading] = useState(false);
   const [recFetched, setRecFetched] = useState(false);
   const [recLastUpdate, setRecLastUpdate] = useState<Date | null>(null);
+  const [recError, setRecError] = useState<string | null>(null);
   const [recSearchTerm, setRecSearchTerm] = useState('');
   const [recSortConfig, setRecSortConfig] = useState<{ key: RecSortKey; direction: 'asc' | 'desc' } | null>(null);
 
@@ -222,6 +223,7 @@ function BreakoutRadarContent() {
   const fetchRecommendations = async () => {
     setRecLoading(true);
     setRecData([]);
+    setRecError(null);
     setRecLastUpdate(new Date());
 
     try {
@@ -230,7 +232,7 @@ function BreakoutRadarContent() {
         const chunk = REC_LIQUID_STOCKS.slice(i, i + chunkSize);
         const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store' });
 
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
         if (res.status === 401) {
           setShowLoginPrompt(true);
           return;
@@ -239,6 +241,14 @@ function BreakoutRadarContent() {
           setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
           return;
+        }
+        if (res.status === 429) {
+          // Pemindaian ini memecah 220 saham jadi ~22 request - visitor tanpa akun
+          // (limit per-IP) bisa kena batas di tengah pemindaian. Berhenti di sini
+          // (bukan diam-diam skip macam status gagal lain) supaya user tahu kenapa
+          // datanya cuma sebagian, bukan mengira fiturnya rusak.
+          setRecError('Terlalu banyak permintaan - coba lagi beberapa saat lagi.');
+          break;
         }
         if (!res.ok) continue;
 
@@ -593,6 +603,11 @@ function BreakoutRadarContent() {
             </div>
           ) : activeTab === 'recommendations' ? (
             <div className="space-y-4">
+              {recError && (
+                <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
+                  {recError}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   <button
