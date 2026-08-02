@@ -152,13 +152,13 @@ export default function BacktestPage() {
           <div className="inline-flex bg-tv-card border border-tv-border rounded-lg p-1 gap-1">
             <button
               onClick={() => setActiveTab('backtest')}
-              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'backtest' ? 'bg-tv-purple text-white' : 'text-tv-muted hover:text-tv-text'}`}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'backtest' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
             >
               Backtest
             </button>
             <button
               onClick={() => setActiveTab('live-signal')}
-              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'live-signal' ? 'bg-tv-purple text-white' : 'text-tv-muted hover:text-tv-text'}`}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'live-signal' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
             >
               Sinyal Hari Ini
             </button>
@@ -171,7 +171,7 @@ export default function BacktestPage() {
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
               <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
-                <Target className="w-5 h-5 text-tv-purple" /> Presets
+                <Target className="w-5 h-5 text-tv-blue" /> Presets
               </h3>
               <div className="flex flex-col gap-2">
                 <button onClick={() => applyPreset('Momentum')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Momentum Breakout</button>
@@ -182,7 +182,7 @@ export default function BacktestPage() {
 
             <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
               <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
-                <Settings2 className="w-5 h-5 text-tv-purple" /> Algo Filters
+                <Settings2 className="w-5 h-5 text-tv-blue" /> Algo Filters
               </h3>
               <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                 {availableFilters.map(f => {
@@ -191,10 +191,10 @@ export default function BacktestPage() {
                     <div
                       key={f}
                       onClick={() => toggleFilter(f)}
-                      className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors border ${isSelected ? 'bg-tv-purple/10 border-tv-purple/30' : 'bg-tv-bg border-tv-border hover:border-tv-borderLight'}`}
+                      className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors border ${isSelected ? 'bg-tv-blue/10 border-tv-blue/30' : 'bg-tv-bg border-tv-border hover:border-tv-borderLight'}`}
                     >
-                      {isSelected ? <CheckSquare className="w-4 h-4 text-tv-purple" /> : <Square className="w-4 h-4 text-tv-muted" />}
-                      <span className={`text-sm ${isSelected ? 'text-tv-purple font-bold' : 'text-tv-muted'}`}>{f}</span>
+                      {isSelected ? <CheckSquare className="w-4 h-4 text-tv-blue" /> : <Square className="w-4 h-4 text-tv-muted" />}
+                      <span className={`text-sm ${isSelected ? 'text-tv-blue font-bold' : 'text-tv-muted'}`}>{f}</span>
                     </div>
                   )
                 })}
@@ -218,7 +218,7 @@ export default function BacktestPage() {
                   disabled={(activeTab === 'backtest' ? loading : liveSignalLoading) || selectedFilters.length === 0}
                   loading={activeTab === 'backtest' ? loading : liveSignalLoading}
                   variant="secondary"
-                  className="w-full !bg-tv-purple !text-white hover:!bg-tv-purple/90 mt-4"
+                  className="w-full !bg-tv-blue !text-white hover:!bg-tv-blue/90 mt-4"
                 >
                   {!(activeTab === 'backtest' ? loading : liveSignalLoading) && <Play className="w-5 h-5" />}
                   {activeTab === 'backtest' ? 'Backtest Sekarang' : 'Cek Saham Cocok Hari Ini'}
@@ -240,14 +240,14 @@ export default function BacktestPage() {
                 {!results && !loading && !error && (
                   <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-muted">
                     <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
-                    <p className="text-sm">Pilih filter dan klik Backtest untuk melihat hasil simulasi.</p>
+                    <p className="text-sm text-center px-6">Pilih filter dan klik Backtest untuk melihat hasil simulasi.</p>
                   </div>
                 )}
 
                 {loading && (
-                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-purple">
+                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-blue">
                     <Activity className="w-16 h-16 mb-4 animate-spin" />
-                    <p className="text-sm">Memproses data historis & menjalankan algoritma...</p>
+                    <p className="text-sm text-center px-6">Memproses data historis & menjalankan algoritma...</p>
                   </div>
                 )}
 
@@ -363,14 +363,14 @@ export default function BacktestPage() {
                 {!liveSignalResults && !liveSignalLoading && !liveSignalError && (
                   <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-muted">
                     <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
-                    <p className="text-sm">Pilih filter dan klik Cek Saham Cocok Hari Ini untuk melihat saham yang cocok sekarang.</p>
+                    <p className="text-sm text-center px-6">Pilih filter dan klik Cek Saham Cocok Hari Ini untuk melihat saham yang cocok sekarang.</p>
                   </div>
                 )}
 
                 {liveSignalLoading && (
-                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-purple">
+                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-blue">
                     <Activity className="w-16 h-16 mb-4 animate-spin" />
-                    <p className="text-sm">Mencocokkan filter ke data harga hari ini...</p>
+                    <p className="text-sm text-center px-6">Mencocokkan filter ke data harga hari ini...</p>
                   </div>
                 )}
 
