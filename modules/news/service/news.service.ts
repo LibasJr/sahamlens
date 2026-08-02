@@ -2,16 +2,32 @@ import Parser from 'rss-parser';
 import { generateAI } from '@/lib/aiProviders';
 
 // Berita & Sentimen Pasar - sebelumnya cuma placeholder "Segera hadir" di app/home,
-// tidak ada backend sama sekali. Sumber berita: RSS publik gratis (CNBC Indonesia
-// & Detik Finance, keduanya sudah dites reachable), bukan API berbayar. Sentimen
-// dinilai oleh Council AI dalam SATU panggilan batch untuk semua judul sekaligus
-// (bukan per-artikel) supaya hemat kuota, dengan cascade lintas provider (Gemini/
-// Groq/OpenRouter - lib/aiProviders.ts); kalau semua provider tidak tersedia/gagal,
-// fallback ke heuristik kata kunci rule-based (bukan default netral kosong).
-
+// tidak ada backend sama sekali. Sumber berita: RSS publik gratis (bukan API
+// berbayar). Sentimen dinilai oleh Council AI dalam SATU panggilan batch untuk
+// semua judul sekaligus (bukan per-artikel) supaya hemat kuota, dengan cascade
+// lintas provider (Gemini/Groq/OpenRouter - lib/aiProviders.ts); kalau semua
+// provider tidak tersedia/gagal, fallback ke heuristik kata kunci rule-based
+// (bukan default netral kosong).
+//
+// 10 sumber (2026-08-02, permintaan eksplisit "minim 10 sumber, harus kredibel") -
+// sebelumnya cuma 2 (CNBC Indonesia + Detik Finance), jadi kalau salah satu/dua
+// gagal fetch (rate-limit dari cloud IP, timeout, dst) hasilnya sering kosong
+// total selama TTL cache 15 menit. Sekarang 10 media massa nasional yang sudah
+// terverifikasi reachable + RSS-nya valid (dicoba manual sebelum ditambah ke sini,
+// bukan ditebak) - kegagalan 1-2 sumber tidak lagi membuat widget kosong.
+// IDX resmi (idx.co.id) TIDAK ada di daftar - situsnya SPA tanpa endpoint RSS
+// publik yang bisa diandalkan (dicoba, hasilnya 503/HTML shell, bukan XML).
 const RSS_FEEDS = [
   { name: 'CNBC Indonesia', url: 'https://www.cnbcindonesia.com/market/rss' },
+  { name: 'CNBC Indonesia', url: 'https://www.cnbcindonesia.com/news/rss' },
   { name: 'Detik Finance', url: 'https://finance.detik.com/rss' },
+  { name: 'CNN Indonesia', url: 'https://www.cnnindonesia.com/ekonomi/rss' },
+  { name: 'Republika', url: 'https://www.republika.co.id/rss/ekonomi' },
+  { name: 'IDX Channel', url: 'https://www.idxchannel.com/rss' },
+  { name: 'Katadata', url: 'https://katadata.co.id/rss' },
+  { name: 'Sindonews', url: 'https://ekbis.sindonews.com/rss' },
+  { name: 'Liputan6', url: 'https://www.liputan6.com/feed/rss/bisnis' },
+  { name: 'Warta Ekonomi', url: 'https://www.wartaekonomi.co.id/rss' },
 ];
 
 const parser = new Parser({
@@ -42,6 +58,29 @@ async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
     console.warn(`[news] Gagal fetch RSS ${feed.name}:`, e);
     return [];
   }
+}
+
+// Filter relevansi market - BARU (2026-08-02, permintaan eksplisit "lebih sering
+// tampilkan berita yang berhubungan dengan market"). Dengan 10 sumber (beberapa di
+// antaranya kanal "Ekonomi"/"News" umum, bukan spesifik saham), mengurutkan semua
+// item cuma berdasarkan tanggal terbit membiarkan berita yang sama sekali bukan
+// pasar modal (mis. berita sosial/politik yang kebetulan ada di kanal Ekonomi) ikut
+// lolos ke widget "Berita & Sentimen Pasar". Filter ini dijalankan SEBELUM sorting/
+// slice, bukan tebakan AI - murni kecocokan kata kunci pada judul.
+const MARKET_KEYWORDS = [
+  'saham', 'ihsg', 'bei', 'bursa efek', 'emiten', 'reksadana', 'reksa dana',
+  'obligasi', 'dividen', 'ipo', 'right issue', 'buyback', 'kuartal', 'laba bersih',
+  'laba ', 'rugi bersih', 'kinerja keuangan', 'kapitalisasi pasar', 'market cap',
+  'investor', 'valuasi', 'rupiah', 'valas', 'kurs', 'komoditas', 'crude', 'cpo',
+  'batu bara', 'nikel', 'emas antam', 'bank indonesia', 'suku bunga', 'inflasi',
+  'net sell', 'net buy', 'asing keluar', 'asing masuk', 'foreign flow', 'akuisisi',
+  'merger', 'delisting', 'suspensi saham', 'ojk', 'fed rate', 'the fed', 'wall street',
+  'nasdaq', 'dow jones', 'indeks saham', 'harga saham', 'gocap', 'top gainer', 'top loser',
+];
+
+function isMarketRelevant(title: string): boolean {
+  const lower = title.toLowerCase();
+  return MARKET_KEYWORDS.some((k) => lower.includes(k));
 }
 
 // Fallback rule-based - dipakai kalau Council AI (Gemini) tidak tersedia/gagal.
@@ -95,8 +134,16 @@ export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSou
     return true;
   });
 
-  deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-  const top = deduped.slice(0, 12);
+  // Filter relevansi dulu, baru urut+ambil 12 - supaya berita non-pasar (sosial/
+  // politik yang kebetulan ada di kanal Ekonomi/News umum) tidak ikut lolos hanya
+  // karena kebetulan terbaru. Fallback ke pool tanpa filter kalau hasil relevan
+  // terlalu sedikit (<5) - lebih baik ada berita ekonomi umum daripada widget
+  // kosong total pada hari yang sepi berita pasar spesifik.
+  const relevant = deduped.filter((item) => isMarketRelevant(item.title));
+  const pool = relevant.length >= 5 ? relevant : deduped;
+
+  pool.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  const top = pool.slice(0, 12);
 
   const aiSentiments = await classifyWithCouncilAI(top.map((t) => t.title));
   const sentimentSource: 'council-ai' | 'keyword-fallback' = aiSentiments ? 'council-ai' : 'keyword-fallback';
