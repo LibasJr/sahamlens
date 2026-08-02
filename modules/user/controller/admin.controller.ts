@@ -43,7 +43,13 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 // docs/superpowers/specs/2026-08-02-admin-secret-self-service-design.md). Salah
 // satu cocok sudah cukup.
 async function verifyAdminSecret(key: string): Promise<boolean> {
-  const dbHash = await getAdminSecretHash();
+  let dbHash: string | null = null;
+  try {
+    dbHash = await getAdminSecretHash();
+  } catch {
+    // DB tidak terjangkau/gagal - jatuh ke env var, jangan biarkan masalah
+    // database mengunci admin keluar dari satu-satunya jalur darurat yang ada.
+  }
   if (dbHash && (await bcrypt.compare(key, dbHash))) return true;
 
   const envSecret = getAdminSecret();
