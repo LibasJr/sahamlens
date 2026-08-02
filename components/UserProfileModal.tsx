@@ -8,6 +8,7 @@ interface ProfileData {
   email: string;
   role: string;
   isPro: boolean;
+  hasProAccess: boolean;
   isVerified: boolean;
   trialEndsAt: string | null;
   createdAt: string;
@@ -51,6 +52,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
           onClose();
           return null;
         }
+        if (!res.ok) throw new Error('Gagal memuat profil');
         return res.json();
       })
       .then((json) => { if (json) setData(json); })
@@ -158,7 +160,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-tv-muted">Status Akun</span>
-                    <span className="text-tv-text font-medium">{data.isPro ? 'Pro' : 'Free'}</span>
+                    <span className="text-tv-text font-medium">{data.hasProAccess ? 'Pro' : 'Free'}</span>
                   </div>
                   {data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
                     <div className="flex justify-between items-center text-sm">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -101,6 +101,7 @@ export default function Sidebar() {
   // belum ada riwayat pencarian sama sekali.
   const [councilTicker, setCouncilTicker] = useState(() => pickTrendingTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 
   useEffect(() => {
     const saved = window.localStorage.getItem('last_searched_ticker');
@@ -311,7 +312,7 @@ export default function Sidebar() {
           )}
         </div>
       </aside>
-      <UserProfileModal open={showProfileModal} onClose={() => setShowProfileModal(false)} />
+      <UserProfileModal open={showProfileModal} onClose={closeProfileModal} />
     </>
   );
 }
