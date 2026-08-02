@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
+import ProPromoBanner from '@/components/ProPromoBanner';
 
 interface AiPick {
   ticker: string;
@@ -182,6 +183,8 @@ export default function HomePage() {
           </div>
         </Card>
       </motion.div>
+
+      <ProPromoBanner />
 
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Ringkasan Pasar - IHSG + top gainer/loser, publik (bukan Portfolio -
