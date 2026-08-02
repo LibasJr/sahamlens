@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/modules/user', () => ({
   getSession: vi.fn(),
-  checkProAccess: vi.fn(),
+  checkProAccessLive: vi.fn(),
 }));
 vi.mock('@/modules/ai', () => ({
   runMultiAgentOrchestrator: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
 }));
 
 import { POST } from '../route';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 
@@ -52,7 +52,7 @@ describe('POST /api/agents/orchestrator', () => {
     const res = await POST(makeRequest());
     const json = await res.json();
 
-    expect(checkProAccess).not.toHaveBeenCalled();
+    expect(checkProAccessLive).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(json).toEqual({ quant: { decision: 'BUY' } });
     expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
@@ -60,7 +60,7 @@ describe('POST /api/agents/orchestrator', () => {
 
   it('session valid tapi bukan Pro/trial -> 402, tidak menyentuh logic trial anonim', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
-    vi.mocked(checkProAccess).mockReturnValue(false);
+    vi.mocked(checkProAccessLive).mockResolvedValue(false);
 
     const res = await POST(makeRequest());
 
@@ -70,7 +70,7 @@ describe('POST /api/agents/orchestrator', () => {
 
   it('session valid dengan Pro -> 200, tidak menyentuh logic trial anonim', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
-    vi.mocked(checkProAccess).mockReturnValue(true);
+    vi.mocked(checkProAccessLive).mockResolvedValue(true);
     vi.mocked(getOrCompute).mockResolvedValue({ quant: {} } as any);
 
     const res = await POST(makeRequest());

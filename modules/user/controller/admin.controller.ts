@@ -3,6 +3,7 @@ import { ForbiddenError, ValidationError, NotFoundError } from '../../../shared/
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
 import { isAdminFromRequestCookies, getAdminStatsToday, getAdminExportData } from '../service/admin.service';
 import { getUserByEmail, updateUser } from '../repository/user.repository';
+import { logger } from '../../../shared/logger/logger';
 import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
 
 // getAdminSecret dipindah dari service/telegram-auth.service.ts (dihapus - login via
@@ -72,5 +73,6 @@ export async function handleSetProStatus(
   const user = await getUserByEmail(body.email);
   if (!user) throw new NotFoundError('User tidak ditemukan');
   await updateUser(user.id, { is_pro: body.isPro });
+  logger.info('Admin set-pro', { email: body.email, isPro: body.isPro });
   return { status: 200, body: { email: body.email, isPro: body.isPro } };
 }

@@ -126,6 +126,7 @@ export const config = {
     '/api/recommendations/:path*',
     '/api/agents/:path*',
     '/api/council/:path*',
+    '/api/payment/:path*',
     '/home/:path*',
     '/dashboard/:path*',
     '/fundamental/:path*',

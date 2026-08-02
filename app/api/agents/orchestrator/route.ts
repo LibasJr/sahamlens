@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { runMultiAgentOrchestrator } from '@/modules/ai';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const hasPro = anonTrial?.active === true || checkProAccess(session);
+    const hasPro = anonTrial?.active === true || await checkProAccessLive(session);
     if (!hasPro) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }

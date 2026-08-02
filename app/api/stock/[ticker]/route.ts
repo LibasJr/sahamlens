@@ -16,7 +16,7 @@ import {
   calculateScore,
   calculateConsensus,
 } from '@/modules/technical';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
@@ -44,7 +44,7 @@ export async function GET(
       return NextResponse.json({ error: 'Belum login' }, { status: 401 });
     }
 
-    const hasPro = isInternal ? true : checkProAccess(session);
+    const hasPro = isInternal ? true : await checkProAccessLive(session);
     if (!hasPro) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });

@@ -5,7 +5,7 @@ import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 // mengimpor modules/watchlist untuk admin/export, jadi arah sebaliknya (watchlist
 // -> user) akan bikin circular dependency antar-module. checkProAccess memang
 // aslinya didefinisikan di shared/auth/session, modules/user cuma re-export.
-import { checkProAccess } from '../../../shared/auth/session';
+import { checkProAccess, checkProAccessLive } from '../../../shared/auth/session';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../service/watchlist.service';
 import { addWatchlistSchema } from '../validator/watchlist.validator';
 import type { HttpResult } from '../../../shared/types/http-result.types';
@@ -19,7 +19,7 @@ export async function handleListWatchlist(): Promise<HttpResult> {
 export async function handleAddWatchlist(rawBody: unknown): Promise<HttpResult> {
   const session = await requireUser();
   const input = parseOrThrow(addWatchlistSchema, rawBody);
-  const item = await addToWatchlist(session.id, checkProAccess(session), input);
+  const item = await addToWatchlist(session.id, await checkProAccessLive(session), input);
   return { status: 200, body: { success: true, item } };
 }
 

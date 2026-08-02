@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { decrypt, type SessionPayload } from './jwt';
 import { SESSION_COOKIE } from '../constants/cookie-names';
 import { touchPresence } from './presence';
+import { fetchLiveProFields } from './pro-status';
 
 export type { SessionPayload };
 
@@ -29,4 +30,24 @@ export function checkProAccess(session: SessionPayload | null): boolean {
   if (session.role === 'admin' || session.role === 'pro' || session.is_pro) return true;
   if (session.trial_ends_at && new Date(session.trial_ends_at) > new Date()) return true;
   return false;
+}
+
+// checkProAccess() sinkron cuma baca snapshot JWT - basi sampai TTL sesi (s/d
+// 30 hari dengan "ingat saya") kalau admin baru saja mengaktifkan Pro lewat
+// /admin (lihat modules/user/controller/admin.controller.ts
+// handleSetProStatus). Versi ini re-check sekali ke DB HANYA kalau JWT bilang
+// "tidak" - kalau JWT sudah bilang "ya", tidak ada query DB tambahan sama
+// sekali (jalur cepat untuk mayoritas request Pro user yang sesinya masih
+// segar). Gagal-aman: DB error -> tetap tolak (fail-closed), bukan meloloskan
+// user yang mestinya tidak akses.
+export async function checkProAccessLive(session: SessionPayload | null): Promise<boolean> {
+  if (checkProAccess(session)) return true;
+  if (!session) return false;
+  try {
+    const live = await fetchLiveProFields(session.id);
+    if (!live) return false;
+    return checkProAccess({ ...session, role: live.role, is_pro: live.is_pro, trial_ends_at: live.trial_ends_at });
+  } catch {
+    return false;
+  }
 }

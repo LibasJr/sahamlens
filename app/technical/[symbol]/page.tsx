@@ -4,6 +4,8 @@ import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
 import { Users, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
 import { cookies, headers } from 'next/headers';
+import { WA_NUMBER } from '@/shared/constants/app.constants';
+import { getPaymentMethods } from '@/shared/config/payment';
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
   // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
@@ -54,13 +56,28 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
       );
     }
     if (status === 402) {
+      const paymentMethods = getPaymentMethods();
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
           <p className="text-white font-semibold mb-1">Council AI adalah fitur Pro</p>
           <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap Council AI pada {symbol}.</p>
-          <a href="https://wa.me/?text=Halo%2C%20saya%20mau%20upgrade%20ke%20SahamLens%20Pro" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-tv-gold px-5 py-2.5 text-sm font-bold text-tv-bg hover:opacity-90 transition">
-            Upgrade Pro
+          {paymentMethods.length > 0 && (
+            <div className="text-left max-w-xs mx-auto mb-4 space-y-1">
+              {paymentMethods.map((m) => (
+                <p key={m.id} className="text-xs text-tv-muted">
+                  <span className="font-bold text-tv-text">{m.label}</span>: {m.accountNumber} (a.n. {m.accountName})
+                </p>
+              ))}
+            </div>
+          )}
+          <a
+            href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('Halo, saya sudah transfer untuk upgrade ke SahamLens Pro (Rp99.000/bulan). Ini bukti transfernya.')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-tv-gold px-5 py-2.5 text-sm font-bold text-tv-bg hover:opacity-90 transition"
+          >
+            Kirim Bukti Transfer via WhatsApp
           </a>
         </div>
       );

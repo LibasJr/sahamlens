@@ -28,9 +28,14 @@ function CopyRow({ label, value, name }: { label: string; value: string; name: s
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API tidak tersedia (non-HTTPS/no permission) - biarkan diam,
+      // user masih bisa select-and-copy manual dari teks yang tampil.
+    }
   };
 
   return (

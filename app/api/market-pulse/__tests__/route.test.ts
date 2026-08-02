@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/modules/user', () => ({
   getSession: vi.fn(),
-  checkProAccess: vi.fn(),
+  checkProAccessLive: vi.fn(),
 }));
 vi.mock('@/shared/auth/internal-service', () => ({
   isInternalServiceRequest: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
 }));
 
 import { GET } from '../route';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
@@ -54,7 +54,7 @@ describe('GET /api/market-pulse', () => {
     const res = await GET(makeRequest());
     const json = await res.json();
 
-    expect(checkProAccess).not.toHaveBeenCalled();
+    expect(checkProAccessLive).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(json).toEqual({ indices: [] });
     expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
@@ -62,7 +62,7 @@ describe('GET /api/market-pulse', () => {
 
   it('session valid tapi bukan Pro/trial -> 402, tidak menyentuh logic trial anonim', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
-    vi.mocked(checkProAccess).mockReturnValue(false);
+    vi.mocked(checkProAccessLive).mockResolvedValue(false);
 
     const res = await GET(makeRequest());
     const json = await res.json();
@@ -74,7 +74,7 @@ describe('GET /api/market-pulse', () => {
 
   it('session valid dengan Pro -> 200, tidak menyentuh logic trial anonim', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
-    vi.mocked(checkProAccess).mockReturnValue(true);
+    vi.mocked(checkProAccessLive).mockResolvedValue(true);
     vi.mocked(cacheGet).mockResolvedValue({ indices: [] } as any);
 
     const res = await GET(makeRequest());
