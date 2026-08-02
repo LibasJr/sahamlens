@@ -6,6 +6,7 @@ import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
+import ChangeSecretForm from './ChangeSecretForm';
 
 export default async function AdminPage() {
   if (!isAdminServer()) {
@@ -31,6 +32,7 @@ export default async function AdminPage() {
           <ExportButton />
         </div>
         <SetProForm />
+        <ChangeSecretForm />
 
         <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-tv-border flex items-center justify-between">
