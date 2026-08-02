@@ -57,6 +57,12 @@ function hasSeenPromoToday(): boolean {
   return window.localStorage.getItem(PROMO_STORAGE_KEY) === todayJakarta();
 }
 
+function formatNewsDate(pubDate: string): string {
+  const d = new Date(pubDate);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+}
+
 export default function HomePage() {
   const [aiPicks, setAiPicks] = useState<AiPick[]>([]);
   const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
@@ -70,7 +76,7 @@ export default function HomePage() {
   const [picksNeedPro, setPicksNeedPro] = useState(false);
   const [picksLoginRequired, setPicksLoginRequired] = useState(false);
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
-  const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string }[]>([]);
+  const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string; pubDate: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoPlan, setPromoPlan] = useState<'monthly' | 'annual'>('monthly');
@@ -358,7 +364,7 @@ export default function HomePage() {
                   >
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                      <p className="text-[10px] text-tv-muted mt-1">{n.source} • {n.reason}</p>
+                      <p className="text-[10px] text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
                     </div>
                     <Badge
                       variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}

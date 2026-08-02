@@ -83,7 +83,7 @@ export default function ScreenerPage() {
               </h3>
             </div>
             <span className="text-xs font-mono text-tv-muted">
-              Filter: PER vs Sektor • ROE &gt; 15% • Bandarmology Accumulation
+              Filter: PER vs Sektor • ROE &gt; 15% • Bandarmology (proxy volume) Accumulation
             </span>
           </div>
 
@@ -96,7 +96,7 @@ export default function ScreenerPage() {
                   <th className="p-3">Nama Emiten</th>
                   <th className="p-3">Sektor</th>
                   <th className="p-3 text-right">PER / Sektor</th>
-                  <th className="p-3 text-right">Rev 5Yr</th>
+                  <th className="p-3 text-right">Rev Growth (TTM)</th>
                   <th className="p-3 text-right">ROE</th>
                   <th className="p-3 text-right">DER</th>
                   <th className="p-3 text-right">Div Yield</th>
@@ -156,6 +156,9 @@ export default function ScreenerPage() {
               </tbody>
             </table>
           </div>
+          <p className="text-[10px] text-tv-muted">
+            Bandarmology = estimasi tekanan beli/jual dari rasio volume harian, BUKAN data broker/asing resmi (IDX tidak menyediakan feed itu gratis).
+          </p>
         </div>
       </div>
     </div>

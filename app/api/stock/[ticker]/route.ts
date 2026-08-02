@@ -20,8 +20,10 @@ import { getSession, checkProAccessLive } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
+import { FREE_LIMITS } from '@/lib/limits';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
+import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@/shared/usage/daily-analisa-quota';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -32,6 +34,18 @@ const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSu
 // dikonfigurasi / sedang down, cacheGet/cacheSet degrade aman ke cache-miss/no-op
 // (lihat shared/cache/redis-cache.ts) - endpoint tetap jalan, cuma tanpa cache.
 const CACHE_TTL_SEC = TTL.TECHNICAL;
+
+// Kuota TIDAK ikut disimpan di cacheKey (dia dibagi semua requester, lintas user) -
+// dicatat & ditempel terpisah setiap kali payload (cache hit ATAU compute baru)
+// benar-benar dikembalikan ke user non-Pro, supaya "sisa jatah hari ini" akurat
+// per user, bukan ikut ke-cache dari user pertama yang memicu komputasi.
+async function withQuotaInfo(payload: any, ticker: string, userId: string | undefined, hasPro: boolean, isInternal: boolean) {
+  if (hasPro || isInternal || !userId) return payload;
+  await recordDailyAnalisa(userId, ticker);
+  const used = await peekDailyAnalisaUsed(userId);
+  const usedSymbols = await getUsedSymbolsToday(userId);
+  return { ...payload, _quota: { used, limit: FREE_LIMITS.analisaPerHari, remaining: Math.max(0, FREE_LIMITS.analisaPerHari - used), usedSymbols } };
+}
 
 export async function GET(
   request: Request,
@@ -46,8 +60,19 @@ export async function GET(
 
     const hasPro = isInternal ? true : await checkProAccessLive(session);
     if (!hasPro) {
-      // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
-      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+      // Bukan langsung 402 - user gratis dapat jatah FREE_LIMITS.analisaPerHari/hari
+      // dulu (dulu di sini blok total di percobaan PERTAMA, lihat catatan di
+      // shared/usage/daily-analisa-quota.ts). session pasti ada di titik ini (baris
+      // di atas sudah 401 kalau tidak).
+      const used = await peekDailyAnalisaUsed(session!.id);
+      if (used >= FREE_LIMITS.analisaPerHari) {
+        // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
+        const usedSymbols = await getUsedSymbolsToday(session!.id);
+        return NextResponse.json(
+          { error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED', usedToday: used, limit: FREE_LIMITS.analisaPerHari, usedSymbols },
+          { status: 402 }
+        );
+      }
     }
     let ticker = params.ticker.toUpperCase();
     if (!ticker.includes('.')) {
@@ -79,7 +104,7 @@ export async function GET(
 
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return NextResponse.json(cached);
+      return NextResponse.json(await withQuotaInfo(cached, ticker, session?.id, hasPro, isInternal));
     }
 
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
@@ -119,7 +144,7 @@ export async function GET(
       const stale = await cacheGet<any>(staleFallbackKey);
       if (stale) {
         console.warn(`yfinance fetch failed, returning stale fallback cache for ${ticker}`);
-        return NextResponse.json(stale);
+        return NextResponse.json(await withQuotaInfo(stale, ticker, session?.id, hasPro, isInternal));
       }
       return NextResponse.json({ error: 'Failed to fetch Yahoo data' }, { status: 500 });
     }
@@ -323,14 +348,10 @@ export async function GET(
       technical: {}
     };
 
-    if (!hasPro && !cached && session) {
-      // Free users decrement logic can be added here if implemented
-    }
-
     await cacheSet(cacheKey, resultPayload, CACHE_TTL_SEC);
     await cacheSet(staleFallbackKey, resultPayload, TTL.STALE_FALLBACK);
 
-    return NextResponse.json(resultPayload);
+    return NextResponse.json(await withQuotaInfo(resultPayload, ticker, session?.id, hasPro, isInternal));
 
   } catch (error: any) {
     console.error('Stock API error:', error);

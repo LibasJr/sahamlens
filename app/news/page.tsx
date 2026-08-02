@@ -12,6 +12,13 @@ interface NewsItemDto {
   source: string;
   sentiment: string;
   reason: string;
+  pubDate: string;
+}
+
+function formatNewsDate(pubDate: string): string {
+  const d = new Date(pubDate);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
 }
 
 // Halaman Berita penuh - widget "Berita & Sentimen Pasar" di Beranda cuma tampilkan
@@ -83,7 +90,7 @@ export default function NewsPage() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-tv-text leading-snug">{n.title}</p>
-                    <p className="text-xs text-tv-muted mt-1">{n.source} • {n.reason}</p>
+                    <p className="text-xs text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
                   </div>
                   <Badge
                     variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}

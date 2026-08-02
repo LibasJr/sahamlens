@@ -47,3 +47,4 @@ data/portfolios.json
 data/transactions.json
 data/council_cache.json
 local_db.json
+.env*

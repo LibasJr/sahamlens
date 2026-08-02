@@ -53,6 +53,48 @@ export async function cacheSet<T>(key: string, value: T, ttlSec: number): Promis
   }
 }
 
+/**
+ * INCR atomik + EXPIRE (dipasang cuma sekali, saat hitungan baru jadi 1 - INCR
+ * di call berikutnya tidak mereset TTL) - dipakai untuk kuota harian (mis. limit
+ * analisa gratis/hari). Kalau Redis tidak dikonfigurasi/gagal, return null supaya
+ * caller tahu harus fail-open (jangan pernah mengunci user gratis gara-gara Redis
+ * down - ini kuota bisnis, bukan gerbang keamanan).
+ */
+export async function incrWithExpiry(key: string, ttlSec: number): Promise<number | null> {
+  const client = getClient();
+  if (!client) return null;
+  try {
+    const count = await client.incr(key);
+    if (count === 1) await client.expire(key, ttlSec);
+    return count;
+  } catch {
+    return null;
+  }
+}
+
+/** SADD + EXPIRE (dipasang tiap kali, aman - SET kecil per hari per user) - dipakai
+ * mencatat simbol apa saja yang sudah dianalisa hari ini untuk pesan paywall. */
+export async function addToSetWithExpiry(key: string, member: string, ttlSec: number): Promise<void> {
+  const client = getClient();
+  if (!client) return;
+  try {
+    await client.sadd(key, member);
+    await client.expire(key, ttlSec);
+  } catch {
+    // no-op - daftar simbol cuma kosmetik untuk pesan paywall, tidak boleh gagalkan request.
+  }
+}
+
+export async function getSetMembers(key: string): Promise<string[]> {
+  const client = getClient();
+  if (!client) return [];
+  try {
+    return await client.smembers(key);
+  } catch {
+    return [];
+  }
+}
+
 export async function cacheDel(keyOrPattern: string): Promise<void> {
   const client = getClient();
   if (!client) return;

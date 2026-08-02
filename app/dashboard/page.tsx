@@ -10,11 +10,11 @@ import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import { AnimatedNumber, SegmentedControl, Input, Select } from '@/components/ui';
-import { incrementAnalisa, getUsedSymbolsToday, refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
+import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Building2, Calculator, Newspaper
+  Sparkles, Calculator, Newspaper
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -22,6 +22,12 @@ import autoTable from 'jspdf-autotable';
 // Normalisasi simbol: pastikan hanya 1x .JK
 const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
+
+function formatNewsDate(pubDate: string): string {
+  const d = new Date(pubDate);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+}
 
 // BUG 3 FIX: MA Status Badge
 const getMAStatus = (price: number, ma50: number, ma200: number) => {
@@ -110,6 +116,8 @@ function DashboardContent() {
         return;
       }
       if (resAlgo.status === 402 || jsonAlgo.code === 'SUBSCRIPTION_REQUIRED') {
+        setAnalisaRemaining(0);
+        setUsedSymbolsToday(jsonAlgo.usedSymbols || []);
         setShowPaywall(true);
         return;
       }
@@ -117,6 +125,15 @@ function DashboardContent() {
       if (jsonAlgo?.stock) {
         setData(jsonAlgo);
         setLastUpdate(new Date());
+        if (jsonAlgo._quota) {
+          setAnalisaRemaining(jsonAlgo._quota.remaining);
+          setUsedSymbolsToday(jsonAlgo._quota.usedSymbols || []);
+        } else {
+          // Tidak ada _quota di response = Pro/internal (lihat withQuotaInfo di
+          // route) - Infinity supaya badge limit di Header disembunyikan
+          // (Number.isFinite check), bukan nyangkut di angka lama.
+          setAnalisaRemaining(Infinity);
+        }
         
         // Kirim data 10 Agent Council ke AI Chat supaya jawaban AI lebih substantif
         window.dispatchEvent(new CustomEvent('update-ai-context', { 
@@ -250,16 +267,11 @@ function DashboardContent() {
     // sebagai pemakaian free-tier biasa sebelum cache admin ke-update (lihat lib/limits.ts).
     if (!mounted || !adminReady) return;
 
-    // Free-tier: tiap buka simbol baru menghabiskan 1 kuota "analisa/hari".
-    // Simbol yang sudah dianalisa hari ini tidak menghabiskan kuota lagi (lihat lib/limits.ts).
-    const limit = incrementAnalisa(ticker);
-    setAnalisaRemaining(limit.remaining);
-    setUsedSymbolsToday(getUsedSymbolsToday());
-    if (!limit.allowed) {
-      setShowPaywall(true);
-      return;
-    }
-
+    // Kuota "analisa/hari" free-tier sekarang ditegakkan & dihitung di server
+    // (app/api/stock/[ticker]/route.ts, lihat shared/usage/daily-analisa-quota.ts) -
+    // dulu incrementAnalisa() di sini cuma stub client (selalu allowed, remaining
+    // statis), state analisaRemaining/usedSymbolsToday di-update dari response asli
+    // di fetchAnalyzerData (field _quota saat sukses, usedSymbols saat 402).
     setMarketClosed(!isMarketOpen());
     fetchAnalyzerData(ticker);
 
@@ -795,23 +807,37 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Fundamental & DCF - fitur lengkap ada di halaman terpisah, ditautkan jelas
-            di sini supaya alur Detail Saham terasa menyatu tanpa menggabung ulang
-            2 halaman besar yang sudah stabil. */}
+        {/* Fundamental (link-out) diganti Sentimen Berita AI - tabel Fundamental
+            lengkap sudah punya halaman sendiri (/fundamental), jadi kartu ini dulu
+            cuma duplikat pintu masuk. Sentimen dihitung langsung dari stockNews yang
+            sudah di-fetch untuk section "Berita" di bawah (bukan panggilan baru,
+            bukan data dummy) - vote mayoritas dari n.sentiment tiap artikel. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            href={`/fundamental?symbol=${displayTicker(stock.symbol || ticker)}`}
-            className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
-          >
-            <div className="w-10 h-10 rounded-md bg-tv-blue/15 flex items-center justify-center text-tv-blue shrink-0">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-heading text-sm font-semibold text-white">Fundamental</h3>
-              <p className="text-xs text-tv-muted">Value & Health Metrics per saham</p>
-            </div>
-            <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-blue transition-colors" />
-          </Link>
+          {(() => {
+            const positif = stockNews.filter((n: any) => n.sentiment === 'POSITIF').length;
+            const negatif = stockNews.filter((n: any) => n.sentiment === 'NEGATIF').length;
+            const netral = stockNews.length - positif - negatif;
+            const overall = stockNews.length === 0 ? null : positif > negatif ? 'POSITIF' : negatif > positif ? 'NEGATIF' : 'NETRAL';
+            return (
+              <div className="flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4">
+                <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${
+                  overall === 'POSITIF' ? 'bg-tv-green/15 text-tv-green' : overall === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'
+                }`}>
+                  <Newspaper className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-heading text-sm font-semibold text-white">Sentimen Berita AI</h3>
+                  <p className="text-xs text-tv-muted">
+                    {loadingStockNews
+                      ? 'Menganalisis berita...'
+                      : overall === null
+                      ? 'Belum ada berita spesifik untuk dianalisis'
+                      : `${overall} • ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
           <Link
             href={`/dcf?symbol=${displayTicker(stock.symbol || ticker)}`}
             className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
@@ -851,7 +877,7 @@ function DashboardContent() {
                 >
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                    <p className="text-[10px] text-tv-muted mt-1">{n.source} • {n.reason}</p>
+                    <p className="text-[10px] text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
                   </div>
                   <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                     n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green' : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'

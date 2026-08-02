@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag, Flame } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag, Flame } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
@@ -18,10 +18,7 @@ type Card = CardDef & { items: CardItem[] };
 const CARD_DEFS: CardDef[] = [
   { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'topGainers', listPath: '/market/top-gainer' },
   { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'topLosers', listPath: '/market/top-loser' },
-  { id: 'value', title: 'Berdasarkan Nilai Transaksi', sub: 'Top Value • Rp Triliun', accent: 'blue', Icon: DollarSign, key: 'topValue', listPath: '/market/top-value' },
   { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'topVolume', listPath: '/market/top-volume' },
-  { id: 'weeklyGainer', title: 'Penguatan Mingguan Tertinggi', sub: 'Top Gainer • 5 Hari', accent: 'green', Icon: ArrowUpRight, key: 'topWeeklyGainers', listPath: '/market/weekly-gainer' },
-  { id: 'weeklyLoser', title: 'Pelemahan Mingguan Terdalam', sub: 'Top Loser • 5 Hari', accent: 'red', Icon: ArrowDownRight, key: 'topWeeklyLosers', listPath: '/market/weekly-loser' },
   { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'purple', Icon: Sparkles, key: 'topTechnical', listPath: '/market/technical-bullish' },
   { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'topTechnicalBearish', listPath: '/market/technical-bearish' },
   { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
@@ -421,7 +418,7 @@ export default function Dashboard() {
                 <span className="text-lg leading-none">🔥</span>
                 <h3 className="font-heading text-[13px] font-bold text-tv-text">Hari Ini AI Menemukan</h3>
               </div>
-              <p className="text-[11px] text-tv-muted mt-1">Dipindai dari 250+ saham likuid IDX, diperbarui berkala.</p>
+              <p className="text-[11px] text-tv-muted mt-1">Dipindai dari 250+ saham likuid IDX (Breakout, Golden/Dead Cross dari 15 saham blue-chip), diperbarui berkala.</p>
 
               <div className="mt-5 space-y-3 flex-1">
                 {[

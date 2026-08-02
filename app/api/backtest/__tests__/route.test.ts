@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../../../modules/user', () => ({
   getSession: vi.fn(),
+  checkProAccessLive: vi.fn(),
 }));
 vi.mock('../../../../modules/backtest', () => ({
   readBacktestCache: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('../../../../shared/auth/anonymous-trial', () => ({
 }));
 
 import { POST } from '../route';
-import { getSession } from '../../../../modules/user';
+import { getSession, checkProAccessLive } from '../../../../modules/user';
 import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest, computeLiveSignal } from '../../../../modules/backtest';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
 
@@ -37,7 +38,10 @@ const sampleResult = {
 };
 
 describe('POST /api/backtest', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(checkProAccessLive).mockResolvedValue(true);
+  });
 
   it('menolak request tanpa session dengan 401', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
@@ -46,6 +50,18 @@ describe('POST /api/backtest', () => {
     });
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
     expect(res.status).toBe(401);
+  });
+
+  it('session ada tapi bukan Pro/trial -> 402 (dulu tidak ada gerbang Pro sama sekali)', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    vi.mocked(checkProAccessLive).mockResolvedValue(false);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
+    const json = await res.json();
+
+    expect(res.status).toBe(402);
+    expect(json.code).toBe('SUBSCRIPTION_REQUIRED');
+    expect(readBacktestCache).not.toHaveBeenCalled();
   });
 
   it('pakai cache kalau ada, dan format response sesuai kontrak lama (string bertanda +/-)', async () => {
@@ -115,7 +131,10 @@ describe('POST /api/backtest', () => {
 });
 
 describe('POST /api/backtest (mode: live-signal)', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(checkProAccessLive).mockResolvedValue(true);
+  });
 
   const sampleLiveSignal = {
     dataAsOf: '2026-08-01T16:00:00.000Z',
@@ -205,7 +224,10 @@ describe('POST /api/backtest (mode: live-signal)', () => {
 });
 
 describe('POST /api/backtest (trial anonim)', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(checkProAccessLive).mockResolvedValue(true);
+  });
 
   it('tanpa session, trial anonim kadaluarsa -> 401', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
