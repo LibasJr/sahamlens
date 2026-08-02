@@ -1,4 +1,4 @@
-import { getSession } from '../../../shared/auth/session';
+import { getSession, checkProAccess } from '../../../shared/auth/session';
 import { SESSION_COOKIE, DEMO_SESSION_COOKIE } from '../../../shared/constants/cookie-names';
 import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 import { loginSchema, signupSchema, verifySchema, forgotPasswordSchema, resetPasswordSchema } from '../validator/auth.validator';
@@ -72,17 +72,27 @@ export async function handleGetProfile(): Promise<HttpResult> {
   const user = await getUserById(session.id);
   if (!user) return { status: 401, body: { error: 'Belum login' } };
 
+  const hasProAccess = checkProAccess({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    is_pro: user.is_pro,
+    trial_ends_at: user.trial_ends_at,
+  });
+
   const body: Record<string, unknown> = {
     email: user.email,
     role: user.role,
     isPro: user.is_pro,
+    hasProAccess,
     isVerified: user.is_verified,
     trialEndsAt: user.trial_ends_at,
     createdAt: user.created_at,
   };
 
   if (user.role === 'admin') {
-    body.activeUsers = await getActiveUsers();
+    const allActive = await getActiveUsers();
+    body.activeUsers = allActive.filter((u) => u.id !== user.id);
   }
 
   return { status: 200, body };
