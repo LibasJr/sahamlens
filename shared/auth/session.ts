@@ -20,7 +20,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!payload || typeof payload.id !== 'string' || !payload.id) return null;
   // Fire-and-forget - "siapa sedang aktif" untuk panel admin, tidak boleh pernah
   // menahan atau menggagalkan request pengguna biasa kalau Redis lambat/down.
-  if (payload) touchPresence(payload).catch(() => {});
+  touchPresence(payload).catch(() => {});
   return payload;
 }
 
