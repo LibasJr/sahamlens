@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Search, AlertCircle, TrendingUp, RefreshCw, BarChart2, Bell, Menu, LogOut, User } from 'lucide-react';
+import { Search, AlertCircle, TrendingUp, RefreshCw, BarChart2, Menu } from 'lucide-react';
 import SymbolAutocomplete from './SymbolAutocomplete';
 
 interface HeaderProps {
@@ -38,7 +37,6 @@ export default function Header({
   isAdmin = false
 }: HeaderProps) {
   const [searchInput, setSearchInput] = useState(currentTicker);
-  const [user, setUser] = useState<any>(null);
 
   // Resync saat currentTicker berubah lewat navigasi yang tidak lewat search box ini
   // (CommandPalette, dashboard, watchlist, dst) - tanpa ini search box menampilkan
@@ -47,17 +45,6 @@ export default function Header({
   useEffect(() => {
     setSearchInput(currentTicker);
   }, [currentTicker]);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then(res => res.json())
-      .then(d => {
-        if (d.authenticated && d.user) {
-          setUser(d.user);
-        }
-      })
-      .catch(e => console.error(e));
-  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,29 +112,9 @@ export default function Header({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Email Auth Status & Logout */}
-          {user && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-tv-hover/60 border border-tv-border text-tv-text text-xs shrink-0">
-              <User className="w-4 h-4 text-tv-muted" />
-              <span className="hidden sm:inline font-bold">
-                {user.email?.split('@')[0]}
-              </span>
-              <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${user.role === 'admin' ? 'bg-tv-warning/20 text-tv-warning border border-tv-warning/30' : 'bg-tv-green/20 text-tv-green border border-tv-green/30'}`}>
-                {user.role}
-              </span>
-              <button
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                  window.location.href = '/login';
-                }}
-                className="ml-2 text-tv-red hover:text-tv-red/80 p-0.5 rounded hover:bg-tv-hover transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
+          {/* Profil, badge role, dan logout sudah tersedia konsisten di footer Sidebar
+              (semua halaman, termasuk halaman ini) - dihapus dari sini supaya tidak
+              dobel di satu layar. Lihat components/Sidebar.tsx + UserProfileModal.tsx. */}
           {!isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining) && (
             <span className={`px-3 py-1.5 rounded-md border text-xs font-bold whitespace-nowrap ${
               analisaRemaining <= 0
@@ -157,11 +124,6 @@ export default function Header({
               <span className="hidden sm:inline">Limit: </span>{analisaRemaining}/{analisaTotal}
             </span>
           )}
-
-          <Link href="/watchlist" className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-tv-blue/10 border border-tv-blue/30 text-tv-blue text-xs hover:bg-tv-blue/20 transition-colors shrink-0">
-            <Bell className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline font-bold">Watchlist</span>
-          </Link>
         </div>
       </div>
     </header>
