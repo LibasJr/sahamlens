@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccessLive } from '@/modules/user';
-import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology } from '@/modules/market';
 
 // REWRITE TOTAL (2026-08-01) - versi sebelumnya (BUILD 003) menghasilkan SEMUA angka
 // (foreignFlow20D, nama broker, volume beli/jual, status AKUMULASI/DISTRIBUSI) dari
@@ -80,6 +80,8 @@ export async function GET(
     if (isAccumulation3D) status = 'AKUMULASI';
     else if (isDistribution3D) status = 'DISTRIBUSI';
 
+    const bandarmology = analyzeBandarmology(history.slice(-20));
+
     return NextResponse.json({
       ticker,
       foreignFlow20D: dailyFlow,
@@ -93,6 +95,8 @@ export async function GET(
         downDays20D: downDays.length,
         avgUpValueBillion,
         avgDownValueBillion,
+        cmf20: bandarmology.cmf20,
+        netPressurePct: bandarmology.netPressurePct,
       },
     });
   } catch (error: any) {

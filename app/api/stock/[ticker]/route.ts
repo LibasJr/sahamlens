@@ -17,7 +17,7 @@ import {
   calculateConsensus,
 } from '@/modules/technical';
 import { getSession, checkProAccessLive } from '@/modules/user';
-import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { FREE_LIMITS } from '@/lib/limits';
@@ -257,6 +257,19 @@ export async function GET(
       value: foreignFlow,
       decision: ffDecision,
       confidence: ffConfidence
+    });
+
+    // Bandarmology (Chaikin Money Flow) - definisi SAMA dipakai Screener & Bandar Flow
+    // (modules/market/service/foreign-flow-proxy.ts), dari flowHistory yang sudah
+    // dihitung di atas untuk Foreign Flow (bukan fetch/hitung ulang).
+    const bandarmology = analyzeBandarmology(flowHistory.slice(-20));
+    const bandarmologyDecision = bandarmology.status === 'BULLISH' ? 'BULLISH' : bandarmology.status === 'BEARISH' ? 'BEARISH' : 'NEUTRAL';
+    const bandarmologyConfidence = Math.round(50 + Math.min(45, Math.abs(bandarmology.cmf20)));
+    analyzersResult.push({
+      label: 'Bandarmology (CMF)',
+      value: `CMF20: ${bandarmology.cmf20 > 0 ? '+' : ''}${bandarmology.cmf20}% | Tekanan: ${bandarmology.netPressurePct > 0 ? '+' : ''}${bandarmology.netPressurePct}%`,
+      decision: bandarmologyDecision,
+      confidence: bandarmologyConfidence,
     });
 
     let bullish = 0;

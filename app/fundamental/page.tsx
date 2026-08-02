@@ -424,7 +424,7 @@ function FundamentalContent() {
                   if (algo.value === 'N/A' && algo.confidence === 0) return false;
                   // Sembunyikan DER & CR untuk sektor bank
                   if (data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) {
-                    if (algo.label?.includes('Debt') || algo.label?.includes('Current Ratio')) return false;
+                    if (algo.label?.includes('Debt') || algo.label?.includes('Current Ratio') || algo.label?.includes('Quick Ratio')) return false;
                   }
                   return true;
                 }).map((algo: any, idx: number) => {

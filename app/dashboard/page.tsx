@@ -23,12 +23,6 @@ import autoTable from 'jspdf-autotable';
 const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
-function formatNewsDate(pubDate: string): string {
-  const d = new Date(pubDate);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
-}
-
 // BUG 3 FIX: MA Status Badge
 const getMAStatus = (price: number, ma50: number, ma200: number) => {
   if (!price || !ma50 || !ma200) return { label: 'N/A', color: 'text-tv-muted', bg: 'bg-tv-hover' };
@@ -851,43 +845,6 @@ function DashboardContent() {
             </div>
             <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-gold transition-colors" />
           </Link>
-        </div>
-
-        {/* Berita spesifik emiten ini (bukan berita pasar umum - itu ada di Beranda) */}
-        <div className="bg-tv-card border border-tv-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Newspaper className="w-4 h-4 text-tv-muted" />
-            <h3 className="font-heading text-sm font-semibold text-white">Berita {displayTicker(stock.symbol || ticker)}</h3>
-          </div>
-          {loadingStockNews ? (
-            <div className="flex items-center gap-2 text-xs text-tv-muted py-2">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Mencari berita terkait...
-            </div>
-          ) : stockNews.length === 0 ? (
-            <p className="text-xs text-tv-muted py-1">Belum ada berita spesifik untuk saham ini dalam beberapa hari terakhir.</p>
-          ) : (
-            <div className="divide-y divide-tv-border/50">
-              {stockNews.map((n: any) => (
-                <a
-                  key={n.link || n.title}
-                  href={n.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                    <p className="text-[10px] text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
-                  </div>
-                  <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                    n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green' : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'
-                  }`}>
-                    {n.sentiment}
-                  </span>
-                </a>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
