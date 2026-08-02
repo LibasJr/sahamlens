@@ -23,7 +23,9 @@ describe('readOrIssueAnonymousTrial', () => {
 
   it('cookie ada, firstSeenAt 3 hari lalu -> masih aktif, bukan baru', async () => {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const token = await encrypt({ firstSeenAt: threeDaysAgo }, '7d');
+    // '180d' harus sama dengan ANON_TOKEN_TTL_DAYS di anonymous-trial.ts (umur token
+    // produksi sekarang, jauh lebih panjang dari jendela bisnis 7 hari - lihat Fix 1).
+    const token = await encrypt({ typ: 'anon_trial', firstSeenAt: threeDaysAgo }, '180d');
     mockCookieStore.get.mockReturnValue({ value: token });
 
     const trial = await readOrIssueAnonymousTrial();
@@ -35,7 +37,7 @@ describe('readOrIssueAnonymousTrial', () => {
 
   it('cookie ada, firstSeenAt 8 hari lalu -> tidak aktif lagi', async () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
-    const token = await encrypt({ firstSeenAt: eightDaysAgo }, '30d');
+    const token = await encrypt({ typ: 'anon_trial', firstSeenAt: eightDaysAgo }, '180d');
     mockCookieStore.get.mockReturnValue({ value: token });
 
     const trial = await readOrIssueAnonymousTrial();
@@ -45,6 +47,27 @@ describe('readOrIssueAnonymousTrial', () => {
 
   it('cookie ada tapi gagal decrypt (rusak/token acak) -> diperlakukan sama seperti tidak ada cookie', async () => {
     mockCookieStore.get.mockReturnValue({ value: 'not-a-real-jwt' });
+
+    const trial = await readOrIssueAnonymousTrial();
+
+    expect(trial.isNew).toBe(true);
+    expect(trial.active).toBe(true);
+  });
+
+  it('REGRESI: cookie 8 hari lalu yang MASIH bisa di-decrypt (belum dihapus browser) harus terbaca expired, bukan baru', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const token = await encrypt({ typ: 'anon_trial', firstSeenAt: eightDaysAgo }, '180d');
+    mockCookieStore.get.mockReturnValue({ value: token });
+
+    const trial = await readOrIssueAnonymousTrial();
+
+    expect(trial.isNew).toBe(false);
+    expect(trial.active).toBe(false);
+  });
+
+  it('token valid tapi tanpa typ anon_trial (mis. token jenis lain) ditolak, diperlakukan sebagai belum pernah lihat', async () => {
+    const token = await encrypt({ id: 'u1', email: 'a@b.com', role: 'user', is_pro: false, trial_ends_at: null } as any);
+    mockCookieStore.get.mockReturnValue({ value: token });
 
     const trial = await readOrIssueAnonymousTrial();
 
