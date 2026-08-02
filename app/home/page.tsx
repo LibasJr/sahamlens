@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
-import ProPromoBanner from '@/components/ProPromoBanner';
+import PromoUpgradeModal from '@/components/PromoUpgradeModal';
+import PaywallModal from '@/components/PaywallModal';
 
 interface AiPick {
   ticker: string;
@@ -40,6 +41,18 @@ interface DailyPickCounts {
 
 const PICK_UNIVERSE = 'BBCA.JK,BBRI.JK,BMRI.JK,TLKM.JK,ASII.JK,GOTO.JK,ADRO.JK,ICBP.JK,ANTM.JK,UNTR.JK';
 
+const PROMO_STORAGE_KEY = 'sahamlens_promo_last_seen';
+
+function markPromoSeenToday() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PROMO_STORAGE_KEY, new Date().toISOString().slice(0, 10));
+}
+
+function hasSeenPromoToday(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.localStorage.getItem(PROMO_STORAGE_KEY) === new Date().toISOString().slice(0, 10);
+}
+
 export default function HomePage() {
   const [aiPicks, setAiPicks] = useState<AiPick[]>([]);
   const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
@@ -55,6 +68,9 @@ export default function HomePage() {
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [promoPlan, setPromoPlan] = useState<'monthly' | 'annual'>('monthly');
+  const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
 
   useEffect(() => {
     // Ringkasan pasar (IHSG + top gainer/loser) - publik, tanpa gerbang Pro, jadi
@@ -101,7 +117,30 @@ export default function HomePage() {
       .finally(() => setLoadingNews(false));
   }, []);
 
+  useEffect(() => {
+    fetch('/api/user/profile')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((profile) => {
+        if (profile && !profile.hasProAccess && !hasSeenPromoToday()) {
+          setShowPromoModal(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const topPick = aiPicks.find((p) => p.consensus === 'STRONG BUY') || aiPicks[0];
+
+  const handleClosePromo = () => {
+    markPromoSeenToday();
+    setShowPromoModal(false);
+  };
+
+  const handleSelectPlan = (plan: 'monthly' | 'annual') => {
+    markPromoSeenToday();
+    setPromoPlan(plan);
+    setShowPromoModal(false);
+    setShowPaywallFromPromo(true);
+  };
 
   // AI Experience: setelah semua data pasar siap, minta Gemini merangkai satu
   // paragraf naratif (bukan sekadar gabungan angka) - gagal diam-diam ke pesan
@@ -183,8 +222,6 @@ export default function HomePage() {
           </div>
         </Card>
       </motion.div>
-
-      <ProPromoBanner />
 
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Ringkasan Pasar - IHSG + top gainer/loser, publik (bukan Portfolio -
@@ -338,6 +375,28 @@ export default function HomePage() {
           )}
         </Card>
       </motion.div>
+
+      <PromoUpgradeModal open={showPromoModal} onClose={handleClosePromo} onSelectPlan={handleSelectPlan} />
+      <PaywallModal
+        open={showPaywallFromPromo}
+        onClose={() => setShowPaywallFromPromo(false)}
+        title={promoPlan === 'annual' ? 'Upgrade ke Tahunan Pro' : 'Upgrade ke Bulanan Pro'}
+        body={
+          promoPlan === 'annual'
+            ? 'Rp990.000/tahun - buka semua fitur Pro SahamLens, hemat setara 2 bulan dibanding bulanan.'
+            : 'Rp99.000/bulan - buka semua fitur Pro SahamLens.'
+        }
+        benefits={[
+          'Unlimited Technical Analyzer (10 filter)',
+          'AI Pick LIVE, Council AI & Compare Tool',
+          'Watchlist & Alert unlimited',
+        ]}
+        waText={
+          promoPlan === 'annual'
+            ? 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro TAHUNAN (Rp990.000/tahun). Ini bukti transfernya.'
+            : 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro BULANAN (Rp99.000/bulan). Ini bukti transfernya.'
+        }
+      />
     </div>
   );
 }
