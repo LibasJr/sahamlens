@@ -391,8 +391,8 @@ export default function Recommendations() {
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE',
-          'Fundamental Analyzer + Watchlist unlimited',
+          'AI Pick LIVE, Council AI & Compare Tool',
+          'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"
       />

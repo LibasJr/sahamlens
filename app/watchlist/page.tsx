@@ -549,8 +549,8 @@ export default function WatchlistPage() {
         body={`Kamu sudah punya ${watchlist.slice(0, 3).map(w => displayTicker(w.symbol)).join(', ')}. Upgrade Pro untuk watchlist unlimited + sync Telegram.`}
         benefits={[
           'Watchlist unlimited (bukan cuma 3 saham)',
-          'Sinkronisasi alert ke Telegram (Libas Bot)',
-          'Semua fitur Pro lainnya',
+          'Alert unlimited (bukan cuma 2)',
+          'AI Pick LIVE, Council AI & fitur Pro lainnya',
         ]}
         secondaryLabel="Nanti"
       />
