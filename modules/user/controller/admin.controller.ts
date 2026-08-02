@@ -46,11 +46,18 @@ async function verifyAdminSecret(key: string): Promise<boolean> {
   let dbHash: string | null = null;
   try {
     dbHash = await getAdminSecretHash();
-  } catch {
+  } catch (err) {
     // DB tidak terjangkau/gagal - jatuh ke env var, jangan biarkan masalah
     // database mengunci admin keluar dari satu-satunya jalur darurat yang ada.
+    logger.warn('Gagal baca admin secret dari DB, jatuh ke env var', { err });
   }
-  if (dbHash && (await bcrypt.compare(key, dbHash))) return true;
+  if (dbHash) {
+    // bcrypt.compare juga dibungkus try/catch (bukan cuma pembacaan DB di atas) -
+    // hash rusak/tidak valid tidak boleh melempar error yang lolos dari fallback
+    // env var di bawah (code review final: risiko lockout yang sama, sumber beda).
+    const matchesDb = await bcrypt.compare(key, dbHash).catch(() => false);
+    if (matchesDb) return true;
+  }
 
   const envSecret = getAdminSecret();
   if (envSecret && timingSafeStringEqual(key, envSecret)) return true;
@@ -100,6 +107,7 @@ export async function handleSetProStatus(
 }
 
 const MIN_ADMIN_SECRET_LENGTH = 12;
+const MAX_ADMIN_SECRET_LENGTH = 128;
 
 export async function handleChangeAdminSecret(
   cookieStore: { get(name: string): { value: string } | undefined },
@@ -111,6 +119,9 @@ export async function handleChangeAdminSecret(
   }
   if (body.newKey.length < MIN_ADMIN_SECRET_LENGTH) {
     throw new ValidationError(`Password baru minimal ${MIN_ADMIN_SECRET_LENGTH} karakter`);
+  }
+  if (body.newKey.length > MAX_ADMIN_SECRET_LENGTH) {
+    throw new ValidationError(`Password baru maksimal ${MAX_ADMIN_SECRET_LENGTH} karakter`);
   }
   if (!(await verifyAdminSecret(body.currentKey))) {
     throw new ValidationError('Password saat ini salah');

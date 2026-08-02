@@ -8,8 +8,9 @@ export const SESSION_COOKIE = 'session';
 
 // Cookie admin HttpOnly - satu-satunya yang boleh dipercaya untuk keputusan
 // otorisasi (lihat shared/middleware/require-auth.ts). Diset lewat
-// modules/user/controller/admin.controller.ts setelah verifikasi ADMIN_SECRET_KEY
-// atau Telegram Login Widget.
+// modules/user/controller/admin.controller.ts setelah verifikasi password admin
+// (hash di database ATAU ADMIN_SECRET_KEY env var sebagai jalur darurat). Login
+// via Telegram Login Widget sudah tidak ada lagi.
 export const ADMIN_COOKIE = 'sahamlens_admin';
 export const ADMIN_COOKIE_VALUE = '1';
 

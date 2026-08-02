@@ -116,6 +116,7 @@ breakout-radar, recommendations, watchlist, market-pulse, compare - lihat masing
 disengaja** (produk paywall-first, harus login Telegram dulu buat dapet kuota gratis), bukan bug
 Vercel - tapi kalau owner sendiri (`ADMIN_TELEGRAM_ID`) juga kena, berarti belum ada cara gampang
 buat dia login sebagai admin di production. Solusi sekarang: pakai `/admin-login/key?key=<ADMIN_SECRET_KEY>`.
+(Catatan: lihat baris ADMIN_SECRET_KEY di tabel environment variables untuk cara login admin yang akurat saat ini.)
 
 Kalau ke depannya mau ada mode "preview tanpa login" buat visitor anonim, itu perubahan logic di
 baris di atas - **tanyakan dulu ke pemilik produk**, jangan diubah sepihak, karena ini keputusan
@@ -129,6 +130,7 @@ bisnis (paywall vs freemium terbuka), bukan bug teknis.
 
 1. **`/admin-login/key?key=<ADMIN_SECRET_KEY>`** - set httpOnly cookie langsung, gak perlu Telegram.
    Ini yang paling gampang dipakai sekarang (env var sudah di-set, lihat tabel di atas).
+   (Catatan: lihat baris ADMIN_SECRET_KEY di tabel environment variables untuk cara login admin yang akurat saat ini.)
 2. **Telegram Login Widget** (`/admin-login`) - perlu `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` di-set
    dan domain production didaftarkan ke bot itu lewat `/setdomain` di @BotFather. Belum
    dikonfigurasi saat dokumen ini ditulis.

@@ -15,6 +15,7 @@ export default function ChangeSecretForm() {
       setMessage({ text: 'Isi password saat ini dan password baru', isError: true });
       return;
     }
+    // Harus tetap sinkron dengan MIN_ADMIN_SECRET_LENGTH di modules/user/controller/admin.controller.ts
     if (newKey.length < 12) {
       setMessage({ text: 'Password baru minimal 12 karakter', isError: true });
       return;
