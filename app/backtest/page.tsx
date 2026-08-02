@@ -61,6 +61,19 @@ export default function BacktestPage() {
       // filter lebih ketat = sinyal lebih jarang tapi historis biasanya lebih konsisten.
       // Angka win rate tetap dihitung live, bukan diklaim tetap di sini.
       setSelectedFilters(['EMA 20/50 Cross', 'MACD', 'MA Trend IDX (20,50,200)', 'Volume vs Avg 20D']);
+    } else if (preset === 'AkumulasiReal') {
+      // Pengganti konsep "Akumulasi Asing" - CMF (Market Flow) + volume gede + nahan
+      // support + MACD bullish, semua dari indikator real yang sudah ada.
+      setSelectedFilters(['Market Flow Index', 'Volume vs Avg 20D', 'Support & Resistance', 'MACD']);
+    } else if (preset === 'BreakoutHariIni') {
+      // Breakout anti false-breakout: jebol resistance + volume + ATR melebar.
+      setSelectedFilters(['Volume vs Avg 20D', 'Support & Resistance', 'SMA Score (5,10,20)', 'Volatility (ATR 14)']);
+    } else if (preset === 'GoldenCrossLive') {
+      // Golden cross fresh yang baru terjadi + volume konfirmasi.
+      setSelectedFilters(['MA Trend IDX (20,50,200)', 'EMA 20/50 Cross', 'SMA Score (5,10,20)', 'Volume vs Avg 20D']);
+    } else if (preset === 'ReboundAkurat') {
+      // Rebound dari support + RSI oversold + ada money flow masuk.
+      setSelectedFilters(['RSI 14', 'Support & Resistance', 'Market Flow Index', 'Volatility (ATR 14)']);
     }
   };
 
@@ -195,12 +208,19 @@ export default function BacktestPage() {
               </h3>
               <p className="text-[10px] text-tv-muted mb-3">Win rate dihitung live dari data historis tiap kombinasi - bisa berubah, bukan angka tetap.</p>
               <div className="flex flex-col gap-2">
+                <p className="text-[10px] text-tv-muted uppercase font-bold mt-1">Backtest Classic</p>
                 <button onClick={() => applyPreset('Momentum')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Momentum Breakout</button>
                 <button onClick={() => applyPreset('Accumulation')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Bandar Accumulation</button>
                 <button onClick={() => applyPreset('Oversold')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Oversold Bounce</button>
                 <button onClick={() => applyPreset('TrendFollowing')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Trend Following</button>
                 <button onClick={() => applyPreset('BreakoutVolume')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Breakout Volume</button>
                 <button onClick={() => applyPreset('StrictConfirm')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Konfirmasi Ketat (4 Indikator)</button>
+
+                <p className="text-[10px] text-tv-blue uppercase font-bold mt-4">Sinyal Hari Ini - Akurat</p>
+                <button onClick={() => applyPreset('AkumulasiReal')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Akumulasi Real (CMF) - Pengganti Asing</button>
+                <button onClick={() => applyPreset('BreakoutHariIni')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Breakout Hari Ini Valid</button>
+                <button onClick={() => applyPreset('GoldenCrossLive')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Golden Cross Fresh + Vol</button>
+                <button onClick={() => applyPreset('ReboundAkurat')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Rebound Oversold Akurat</button>
               </div>
             </div>
 
