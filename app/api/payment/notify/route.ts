@@ -20,7 +20,7 @@ export async function POST() {
     // menjatuhkan seluruh request (best-effort, lihat komentar di atas fungsi ini).
   }
   await sendTelegramMessage(
-    `💰 <b>Klaim Transfer Pro</b>\n${identifier} klaim sudah transfer Rp99.000/bulan untuk upgrade Pro.\nCek WhatsApp untuk bukti transfer, lalu aktifkan di /admin.`
+    `💰 <b>Klaim Transfer Pro</b>\n${identifier} klaim sudah transfer untuk upgrade Pro.\nCek WhatsApp untuk detail paket & bukti transfer, lalu aktifkan di /admin.`
   );
   return NextResponse.json({ ok: true });
 }

@@ -546,7 +546,7 @@ export default function WatchlistPage() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title={`Watchlist Free Max ${FREE_LIMITS.WATCHLIST} Saham`}
-        body={`Kamu sudah punya ${watchlist.slice(0, 3).map(w => displayTicker(w.symbol)).join(', ')}. Upgrade Pro untuk watchlist unlimited + sync Telegram.`}
+        body={`Kamu sudah punya ${watchlist.slice(0, 3).map(w => displayTicker(w.symbol)).join(', ')}. Upgrade Pro untuk watchlist & alert unlimited.`}
         benefits={[
           'Watchlist unlimited (bukan cuma 3 saham)',
           'Alert unlimited (bukan cuma 2)',
