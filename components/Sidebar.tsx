@@ -24,6 +24,7 @@ import {
   History,
 } from 'lucide-react';
 import { pickTrendingTicker, getTickerName } from '@/lib/trendingTickers';
+import UserProfileModal from './UserProfileModal';
 
 // Redesign Sidebar - Design System "Nucleus" (2026-07-31).
 // Semua 11 tujuan navigasi yang ada sebelumnya DIPERTAHANKAN UTUH - yang
@@ -99,6 +100,7 @@ export default function Sidebar() {
   // membuka emiten yang sama, bukan emiten trending acak. Fallback ke trending acak kalau
   // belum ada riwayat pencarian sama sekali.
   const [councilTicker, setCouncilTicker] = useState(() => pickTrendingTicker());
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem('last_searched_ticker');
@@ -265,13 +267,20 @@ export default function Sidebar() {
         <div className="p-3 border-t border-white/5 space-y-2">
           {user && (
             <div className={`flex items-center gap-2 rounded-lg bg-white/[0.03] ${isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'} py-2`}>
-              <div className="w-7 h-7 rounded-full bg-tv-blue/15 text-tv-blue flex items-center justify-center shrink-0">
-                <User className="w-3.5 h-3.5" />
-              </div>
-              <div className={`flex-1 min-w-0 ${isCollapsed ? 'md:hidden' : ''}`}>
-                <p className="text-xs font-medium text-white truncate">{user.email?.split('@')[0]}</p>
-                <p className="text-[9px] uppercase tracking-wide text-white/35">{user.role}</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(true)}
+                title="Lihat detail profil"
+                className={`flex items-center gap-2 flex-1 min-w-0 text-left rounded-md transition-colors hover:bg-white/[0.04] ${isCollapsed ? 'justify-center' : ''}`}
+              >
+                <div className="w-7 h-7 rounded-full bg-tv-blue/15 text-tv-blue flex items-center justify-center shrink-0">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+                <div className={`flex-1 min-w-0 ${isCollapsed ? 'md:hidden' : ''}`}>
+                  <p className="text-xs font-medium text-white truncate">{user.email?.split('@')[0]}</p>
+                  <p className="text-[9px] uppercase tracking-wide text-white/35">{user.role}</p>
+                </div>
+              </button>
               <button
                 onClick={handleLogout}
                 title="Logout"
@@ -302,6 +311,7 @@ export default function Sidebar() {
           )}
         </div>
       </aside>
+      <UserProfileModal open={showProfileModal} onClose={() => setShowProfileModal(false)} />
     </>
   );
 }
