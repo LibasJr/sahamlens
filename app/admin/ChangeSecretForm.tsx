@@ -65,7 +65,7 @@ export default function ChangeSecretForm() {
           onChange={(e) => setCurrentKey(e.target.value)}
           placeholder="Password saat ini"
           autoComplete="off"
-          className="bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
         />
         <input
           type="password"
@@ -73,7 +73,7 @@ export default function ChangeSecretForm() {
           onChange={(e) => setNewKey(e.target.value)}
           placeholder="Password baru (min. 12 karakter)"
           autoComplete="off"
-          className="bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
         />
         <input
           type="password"
@@ -81,7 +81,7 @@ export default function ChangeSecretForm() {
           onChange={(e) => setConfirmKey(e.target.value)}
           placeholder="Konfirmasi password baru"
           autoComplete="off"
-          className="bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
         />
         <button
           type="submit"
