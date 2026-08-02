@@ -284,7 +284,7 @@ function FundamentalContent() {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-extrabold text-white font-mono">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                <h1 className="text-2xl font-extrabold text-white font-heading">{displayTicker(stock.symbol || ticker)}.JK</h1>
                 <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
               </div>
               <div className="flex items-center gap-3 mt-1 font-mono">
@@ -331,7 +331,7 @@ function FundamentalContent() {
         <div className="flex flex-col gap-6">
           {/* Company Profile & Fundamentals */}
           <div className="w-full bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
-            <h3 className="text-xl font-extrabold text-white font-mono mb-4 border-b border-tv-border pb-3 flex items-center gap-2">
+            <h3 className="text-xl font-extrabold text-white font-heading mb-4 border-b border-tv-border pb-3 flex items-center gap-2">
               <Layers className="w-5 h-5 text-tv-accent" />
               Profil Perusahaan & Data Fundamental
             </h3>
@@ -359,42 +359,42 @@ function FundamentalContent() {
               {/* Fundamentals Grid - adaptif untuk sektor bank */}
               <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                  <span className="text-[10px] text-tv-muted font-mono uppercase">Market Cap</span>
-                  <span className="text-lg font-bold text-white">Rp {((data?.fundamentals?.marketCap || 0) / 1e12).toFixed(2)} T</span>
+                  <span className="text-[10px] text-tv-muted uppercase">Market Cap</span>
+                  <span className="font-number text-lg font-bold text-white">Rp {((data?.fundamentals?.marketCap || 0) / 1e12).toFixed(2)} T</span>
                 </div>
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                  <span className="text-[10px] text-tv-muted font-mono uppercase">P/E Ratio (TTM)</span>
-                  <span className="text-lg font-bold text-white">{(data?.fundamentals?.trailingPE || 0).toFixed(2)}x</span>
+                  <span className="text-[10px] text-tv-muted uppercase">P/E Ratio (TTM)</span>
+                  <span className="font-number text-lg font-bold text-white">{(data?.fundamentals?.trailingPE || 0).toFixed(2)}x</span>
                 </div>
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                  <span className="text-[10px] text-tv-muted font-mono uppercase">Price to Book (PBV)</span>
-                  <span className="text-lg font-bold text-white">{(data?.fundamentals?.priceToBook || 0).toFixed(2)}x</span>
+                  <span className="text-[10px] text-tv-muted uppercase">Price to Book (PBV)</span>
+                  <span className="font-number text-lg font-bold text-white">{(data?.fundamentals?.priceToBook || 0).toFixed(2)}x</span>
                 </div>
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                  <span className="text-[10px] text-tv-muted font-mono uppercase">Return on Equity (ROE)</span>
-                  <span className={`text-lg font-bold ${((data?.fundamentals?.returnOnEquity || 0) * 100) > 0 ? 'text-tv-green' : 'text-tv-red'}`}>{((data?.fundamentals?.returnOnEquity || 0) * 100).toFixed(2)}%</span>
+                  <span className="text-[10px] text-tv-muted uppercase">Return on Equity (ROE)</span>
+                  <span className={`font-number text-lg font-bold ${((data?.fundamentals?.returnOnEquity || 0) * 100) > 0 ? 'text-tv-green' : 'text-tv-red'}`}>{((data?.fundamentals?.returnOnEquity || 0) * 100).toFixed(2)}%</span>
                 </div>
                 {/* BUG 2 FIX: Sembunyikan DER & CR untuk bank, tampilkan rasio bank */}
                 {!(data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) ? (
                   <>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                      <span className="text-[10px] text-tv-muted font-mono uppercase">Gross Margin</span>
-                      <span className="text-lg font-bold text-white">{(data?.fundamentals?.grossMargins ? (data.fundamentals.grossMargins * 100).toFixed(2) : 'N/A')}%</span>
+                      <span className="text-[10px] text-tv-muted uppercase">Gross Margin</span>
+                      <span className="font-number text-lg font-bold text-white">{(data?.fundamentals?.grossMargins ? (data.fundamentals.grossMargins * 100).toFixed(2) : 'N/A')}%</span>
                     </div>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                      <span className="text-[10px] text-tv-muted font-mono uppercase">Pendapatan (Revenue)</span>
-                      <span className="text-lg font-bold text-white">Rp {((data?.fundamentals?.totalRevenue || 0) / 1e12).toFixed(2)} T</span>
+                      <span className="text-[10px] text-tv-muted uppercase">Pendapatan (Revenue)</span>
+                      <span className="font-number text-lg font-bold text-white">Rp {((data?.fundamentals?.totalRevenue || 0) / 1e12).toFixed(2)} T</span>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                      <span className="text-[10px] text-tv-muted font-mono uppercase">NIM (Net Interest Margin)</span>
-                      <span className="text-lg font-bold text-tv-green">{(data?.fundamentals?.nim ? (data.fundamentals.nim * 100).toFixed(2) : 'N/A')}%</span>
+                      <span className="text-[10px] text-tv-muted uppercase">NIM (Net Interest Margin)</span>
+                      <span className="font-number text-lg font-bold text-tv-green">{(data?.fundamentals?.nim ? (data.fundamentals.nim * 100).toFixed(2) : 'N/A')}%</span>
                     </div>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
-                      <span className="text-[10px] text-tv-muted font-mono uppercase">Pendapatan (Revenue)</span>
-                      <span className="text-lg font-bold text-white">Rp {((data?.fundamentals?.totalRevenue || 0) / 1e12).toFixed(2)} T</span>
+                      <span className="text-[10px] text-tv-muted uppercase">Pendapatan (Revenue)</span>
+                      <span className="font-number text-lg font-bold text-white">Rp {((data?.fundamentals?.totalRevenue || 0) / 1e12).toFixed(2)} T</span>
                     </div>
                   </>
                 )}
@@ -406,7 +406,7 @@ function FundamentalContent() {
             {/* Algo Breakdown Table */}
             <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
               <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <h3 className="text-base font-bold text-white font-heading flex items-center gap-2">
                   <Layers className="w-5 h-5 text-tv-accent" />
                   Algo Filters
                 </h3>

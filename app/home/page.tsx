@@ -220,7 +220,7 @@ export default function HomePage() {
                     <div className="space-y-1">
                       {topGainers.map((s) => (
                         <div key={s.symbol} className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-tv-text">{s.symbol}</span>
+                          <span className="font-medium text-tv-text font-number">{s.symbol}</span>
                           <span className="font-number text-tv-green tabular-nums">+{s.changePct.toFixed(2)}%</span>
                         </div>
                       ))}
@@ -231,7 +231,7 @@ export default function HomePage() {
                     <div className="space-y-1">
                       {topLosers.map((s) => (
                         <div key={s.symbol} className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-tv-text">{s.symbol}</span>
+                          <span className="font-medium text-tv-text font-number">{s.symbol}</span>
                           <span className="font-number text-tv-red tabular-nums">{s.changePct.toFixed(2)}%</span>
                         </div>
                       ))}

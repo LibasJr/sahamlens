@@ -266,7 +266,7 @@ export default function PortfolioPage() {
               <Wallet className="w-8 h-8" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-center text-white mb-2">Akun Demo</h2>
+          <h2 className="font-heading text-2xl font-bold text-center text-white mb-2">Akun Demo</h2>
 
           {pendingVerification ? (
             <>
@@ -489,7 +489,7 @@ export default function PortfolioPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-white leading-tight">{tickerCode(h.symbol)}</span>
+                              <span className="font-bold text-white leading-tight font-number">{tickerCode(h.symbol)}</span>
                               {h.scoreLabel && (
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
                                   {h.scoreLabel}
@@ -550,7 +550,7 @@ export default function PortfolioPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-sm">{tickerCode(t.symbol)}</span>
+                            <span className="font-bold text-white text-sm font-number">{tickerCode(t.symbol)}</span>
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
                           </div>
                           <div className="text-[11px] text-tv-muted">

@@ -686,7 +686,7 @@ function DashboardContent() {
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-all" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
                   </div>
-                  <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.technical_score}</span>
+                  <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.technical_score}</span>
                 </div>
                 {/* Fundamental */}
                 <div className="flex items-center gap-3">
@@ -694,7 +694,7 @@ function DashboardContent() {
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-blue-400/80 to-blue-400 rounded-full transition-all" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
                   </div>
-                  <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.fundamental_score}</span>
+                  <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.fundamental_score}</span>
                 </div>
                 {/* Flow */}
                 <div className="flex items-center gap-3">
@@ -702,7 +702,7 @@ function DashboardContent() {
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
                   </div>
-                  <span className="text-sm font-bold text-white font-mono w-8 text-right">{data.scoring.flow_score}</span>
+                  <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.flow_score}</span>
                 </div>
               </div>
 
@@ -749,7 +749,7 @@ function DashboardContent() {
                   <div className="text-[10px] font-mono text-tv-muted uppercase">MA STATUS</div>
                   <div className={`text-sm font-bold font-mono ${status.color}`}>{status.label}</div>
                 </div>
-                <div className="ml-auto text-right text-xs font-mono text-tv-muted">
+                <div className="ml-auto text-right text-xs font-number text-tv-muted">
                   <span>MA50: <strong className="text-white">{ma50 || '-'}</strong></span>
                   <span className="mx-2">|</span>
                   <span>MA200: <strong className="text-white">{ma200 || '-'}</strong></span>

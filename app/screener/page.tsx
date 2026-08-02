@@ -49,7 +49,7 @@ export default function ScreenerPage() {
               <Sliders className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Seleksi Profil Risiko Investor</h1>
+              <h1 className="font-heading text-xl font-bold text-white tracking-tight">Seleksi Profil Risiko Investor</h1>
               <p className="text-xs text-tv-muted font-mono">
                 Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif Council AI.
               </p>
@@ -78,7 +78,7 @@ export default function ScreenerPage() {
           <div className="flex items-center justify-between border-b border-tv-border pb-3">
             <div className="flex items-center gap-2">
               <Award className="w-5 h-5 text-amber-400" />
-              <h3 className="font-bold text-base text-white">
+              <h3 className="font-heading font-bold text-base text-white">
                 Top 10 Saham IDX - Profil {riskProfile}
               </h3>
             </div>
@@ -126,13 +126,13 @@ export default function ScreenerPage() {
                     </td>
                     <td className="p-3 text-tv-text font-sans font-medium">{item.name}</td>
                     <td className="p-3 text-tv-muted">{item.sector}</td>
-                    <td className="p-3 text-right font-bold text-white">
+                    <td className="p-3 text-right font-bold text-white font-number">
                       {item.per}x <span className="text-[10px] text-tv-muted font-normal">({item.per_sector}x)</span>
                     </td>
-                    <td className="p-3 text-right text-tv-green font-bold">{item.rev_growth_5yr}</td>
-                    <td className="p-3 text-right text-tv-accent font-bold">{item.roe}</td>
-                    <td className="p-3 text-right text-tv-text">{item.der}</td>
-                    <td className="p-3 text-right text-tv-yellow font-bold">{item.div_yield}</td>
+                    <td className="p-3 text-right text-tv-green font-bold font-number">{item.rev_growth_5yr}</td>
+                    <td className="p-3 text-right text-tv-accent font-bold font-number">{item.roe}</td>
+                    <td className="p-3 text-right text-tv-text font-number">{item.der}</td>
+                    <td className="p-3 text-right text-tv-yellow font-bold font-number">{item.div_yield}</td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         item.bandarmology.includes('Big')
@@ -144,12 +144,12 @@ export default function ScreenerPage() {
                     </td>
                     <td className="p-3 text-tv-text">{item.moat}</td>
                     <td className="p-3 text-right text-white">
-                      <span className="text-tv-green font-bold">Rp {item.target_bull?.toLocaleString('id-ID')}</span> /{' '}
-                      <span className="text-tv-red font-bold">Rp {item.target_bear?.toLocaleString('id-ID')}</span>
+                      <span className="text-tv-green font-bold font-number">Rp {item.target_bull?.toLocaleString('id-ID')}</span> /{' '}
+                      <span className="text-tv-red font-bold font-number">Rp {item.target_bear?.toLocaleString('id-ID')}</span>
                     </td>
                     <td className="p-3 text-right text-white">
-                      <span className="text-tv-yellow font-bold">Rp {item.entry?.toLocaleString('id-ID')}</span> /{' '}
-                      <span className="text-tv-red font-bold">Rp {item.stop_loss?.toLocaleString('id-ID')}</span>
+                      <span className="text-tv-yellow font-bold font-number">Rp {item.entry?.toLocaleString('id-ID')}</span> /{' '}
+                      <span className="text-tv-red font-bold font-number">Rp {item.stop_loss?.toLocaleString('id-ID')}</span>
                     </td>
                   </tr>
                 ))}

@@ -74,7 +74,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
         <CardTitle className="flex items-center gap-2 text-base">
           <Activity className="w-5 h-5 text-tv-blue" /> Portfolio Health Check
         </CardTitle>
-        <Badge variant={diversificationScore > 60 ? 'success' : 'danger'}>
+        <Badge variant={diversificationScore > 60 ? 'success' : 'danger'} className="font-number">
           Skor: {Math.round(diversificationScore)}/100
         </Badge>
       </CardHeader>
@@ -84,11 +84,11 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-tv-bg border border-tv-border rounded-lg p-3">
               <div className="text-xs text-tv-muted font-mono mb-1">Total Value</div>
-              <div className="text-xl font-bold text-white font-mono">Rp {totalValue.toLocaleString()}</div>
+              <div className="text-xl font-bold text-white font-number">Rp {totalValue.toLocaleString()}</div>
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-3">
               <div className="text-xs text-tv-muted font-mono mb-1">Total PnL</div>
-              <div className={`text-xl font-bold font-mono ${totalPnLPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+              <div className={`text-xl font-bold font-number ${totalPnLPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 {totalPnLPct >= 0 ? '+' : ''}{totalPnLPct.toFixed(2)}%
                 <span className="text-xs ml-2 text-tv-muted opacity-80">({totalPnLAmount < 0 ? '-' : '+'}Rp {Math.abs(totalPnLAmount).toLocaleString()})</span>
               </div>
@@ -108,7 +108,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           <div className="flex items-start gap-3">
             {isHighRisk ? <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" /> : <ShieldCheck className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />}
             <div>
-              <h3 className={`font-bold text-sm mb-1 ${isHighRisk ? 'text-red-400' : 'text-blue-400'}`}>
+              <h3 className={`font-heading font-bold text-sm mb-1 ${isHighRisk ? 'text-red-400' : 'text-blue-400'}`}>
                 {isHighRisk ? 'High Concentration Risk' : 'Healthy Portfolio Allocation'}
               </h3>
               <p className="text-xs font-mono text-gray-300 leading-relaxed">

@@ -318,7 +318,7 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">IHSG</span>
               {ihsg ? (
                 <>
-                  <span className="text-[14px] font-bold">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  <span className="text-[14px] font-bold font-number">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   <span className={`text-[11px] font-semibold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
                 </>
               ) : (
@@ -352,7 +352,7 @@ export default function Dashboard() {
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-heading">{ticker.symbol}</div>
+                  <div className="h-12 w-12 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-number">{ticker.symbol}</div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{ticker.symbol}.JK — {ticker.name}</h2>
