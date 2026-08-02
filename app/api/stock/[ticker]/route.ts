@@ -216,6 +216,8 @@ export async function GET(
     // ketiga fitur konsisten satu sama lain.
     const flowHistory = analyzerHistory.map((h: any) => ({
       date: h.Date.split('T')[0],
+      high: h.High,
+      low: h.Low,
       close: h.Close,
       volume: h.Volume,
     }));

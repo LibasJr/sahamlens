@@ -769,7 +769,7 @@ function BreakoutRadarContent() {
                 <h2 className="font-heading text-lg font-bold text-tv-text">{activeLabel}</h2>
                 <p className="text-xs text-tv-muted mt-1">
                   {activeCategory ? `${activeCategory.count} saham memenuhi kriteria ${activeLabel.toLowerCase()}` : 'Memuat...'}
-                  {activeTab === 'foreignAccumulation' && ' - estimasi dari volume+arah harga, BUKAN data broker/asing resmi.'}
+                  {activeTab === 'foreignAccumulation' && ' - estimasi Chaikin Money Flow dari posisi close di range High-Low, BUKAN data broker/asing resmi.'}
                 </p>
               </div>
               <div className="overflow-x-auto">

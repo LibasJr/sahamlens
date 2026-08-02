@@ -90,7 +90,7 @@ function buildBandarAgent(history: OhlcRow[] | null): AgentResult {
     return { weight_pct: 0, score: 50, summary: 'Data harga tidak tersedia untuk menghitung estimasi arus asing.', available: false };
   }
 
-  const flowHistory = history.map((h) => ({ date: h.Date.split('T')[0], close: h.Close, volume: h.Volume }));
+  const flowHistory = history.map((h) => ({ date: h.Date.split('T')[0], high: h.High, low: h.Low, close: h.Close, volume: h.Volume }));
   const dailyFlow = computeDailyNetFlow(flowHistory).slice(-20);
   const net5D = dailyFlow.slice(-5).reduce((sum, d) => sum + d.netValueBillion, 0);
   const buyStreak = computeAccumulationStreak(dailyFlow);
