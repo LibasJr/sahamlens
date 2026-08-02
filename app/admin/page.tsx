@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import ExportButton from './ExportButton';
+import SetProForm from './SetProForm';
 
 export default async function AdminPage() {
   if (!isAdminServer()) {
@@ -16,6 +17,7 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-tv-bg text-tv-text p-8 font-sans">
       <div className="max-w-7xl mx-auto">
+        <SetProForm />
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-heading text-3xl font-bold text-tv-text">SahamLens Admin Panel</h1>
           <ExportButton />
