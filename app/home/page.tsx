@@ -5,28 +5,16 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Sparkles,
-  Bell,
   Activity,
-  Target,
   Newspaper,
   Menu,
   ArrowUpRight,
   ArrowDownRight,
-  Lock,
   Loader2,
   Flame,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
-
-const fmtRp = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
-
-interface WatchlistItemDto {
-  symbol: string;
-  buy_price: number | null;
-  alert_price: number | null;
-  lot: number | null;
-}
 
 interface AiPick {
   ticker: string;
@@ -51,64 +39,23 @@ interface DailyPickCounts {
 
 const PICK_UNIVERSE = 'BBCA.JK,BBRI.JK,BMRI.JK,TLKM.JK,ASII.JK,GOTO.JK,ADRO.JK,ICBP.JK,ANTM.JK,UNTR.JK';
 
-function UpgradeTeaser({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center text-center gap-2 py-6">
-      <Lock className="w-5 h-5 text-tv-gold" />
-      <p className="text-xs text-tv-muted max-w-[220px]">{label} adalah fitur Pro.</p>
-      <Link href="/watchlist">
-        <Button variant="primary" size="sm">Upgrade ke Pro</Button>
-      </Link>
-    </div>
-  );
-}
-
-// ATURAN BARU (2026-08-01) - halaman ini terbuka tanpa login, tapi widget yang
-// datanya personal (Watchlist) atau butuh sesi (AI Picks) tetap gerbang API-level.
-// Beranda gabungan banyak widget independen - kalau satu widget 401, tampilkan
-// ajakan login INLINE di widget itu saja (bukan modal full-page yang memblokir
-// widget lain yang justru publik dan sudah berhasil dimuat).
-function LoginTeaser({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center text-center gap-2 py-6">
-      <Lock className="w-5 h-5 text-tv-blue" />
-      <p className="text-xs text-tv-muted max-w-[220px]">Login untuk lihat {label}.</p>
-      <Link href="/signup">
-        <Button variant="primary" size="sm">Daftar Gratis</Button>
-      </Link>
-    </div>
-  );
-}
-
 export default function HomePage() {
-  const [watchlist, setWatchlist] = useState<WatchlistItemDto[]>([]);
   const [aiPicks, setAiPicks] = useState<AiPick[]>([]);
   const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
   const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
   const [dailyPicks, setDailyPicks] = useState<DailyPickCounts | null>(null);
 
-  const [loadingWatchlist, setLoadingWatchlist] = useState(true);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
   const [picksNeedPro, setPicksNeedPro] = useState(false);
-  const [watchlistLoginRequired, setWatchlistLoginRequired] = useState(false);
   const [picksLoginRequired, setPicksLoginRequired] = useState(false);
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
 
   useEffect(() => {
-    fetch('/api/v1/watchlists', { cache: 'no-store' })
-      .then((r) => {
-        if (r.status === 401) { setWatchlistLoginRequired(true); return null; }
-        return r.ok ? r.json() : null;
-      })
-      .then((d) => { if (d) setWatchlist(d.data || []); })
-      .catch(() => {})
-      .finally(() => setLoadingWatchlist(false));
-
     // Ringkasan pasar (IHSG + top gainer/loser) - publik, tanpa gerbang Pro, jadi
     // Beranda tidak lagi menampilkan teaser upgrade untuk sekadar lihat kondisi pasar.
     Promise.all([
@@ -296,37 +243,6 @@ export default function HomePage() {
           </Card>
         </motion.div>
 
-        {/* Watchlist */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-tv-gold" />
-                <CardTitle>Watchlist</CardTitle>
-              </div>
-              <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
-            </CardHeader>
-            {loadingWatchlist ? (
-              <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
-            ) : watchlistLoginRequired ? (
-              <LoginTeaser label="watchlist" />
-            ) : watchlist.length ? (
-              <div className="space-y-1.5">
-                {watchlist.slice(0, 5).map((w) => (
-                  <div key={w.symbol} className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-tv-text">{w.symbol}</span>
-                    <span className="font-number text-tv-muted tabular-nums">
-                      {w.buy_price ? `Beli @ ${fmtRp(w.buy_price)}` : 'Tanpa harga beli'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-tv-muted">Watchlist kosong. Tambahkan saham untuk dipantau.</p>
-            )}
-          </Card>
-        </motion.div>
-
         {/* Hari Ini AI Menemukan - dipakai ulang dari widget landing page publik,
             mengisi ruang yang sebelumnya Market Pulse (sudah punya menu sendiri
             di Sidebar, tidak perlu diduplikasi di sini). */}
@@ -365,41 +281,6 @@ export default function HomePage() {
           </Card>
         </motion.div>
 
-        {/* AI Picks */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-tv-blue" />
-                <CardTitle>AI Picks</CardTitle>
-              </div>
-              <Link href="/breakout-radar?cat=recommendations" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
-            </CardHeader>
-            {loadingPicks ? (
-              <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
-            ) : picksLoginRequired ? (
-              <LoginTeaser label="AI Picks" />
-            ) : picksNeedPro ? (
-              <UpgradeTeaser label="AI Pick" />
-            ) : aiPicks.length ? (
-              <div className="space-y-1.5">
-                {aiPicks.map((p) => (
-                  <div key={p.ticker} className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-tv-text">{p.ticker}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={p.consensus.includes('BUY') ? 'success' : p.consensus.includes('SELL') ? 'danger' : 'neutral'}>
-                        {p.consensus}
-                      </Badge>
-                      <span className="font-number text-tv-muted tabular-nums w-9 text-right">{p.confidence}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-tv-muted">Belum ada rekomendasi.</p>
-            )}
-          </Card>
-        </motion.div>
       </motion.div>
 
       {/* Berita & Sentimen Pasar - RSS publik (CNBC Indonesia, Detik Finance) + sentimen
@@ -422,7 +303,7 @@ export default function HomePage() {
             <p className="text-xs text-tv-muted py-2">Berita tidak tersedia saat ini.</p>
           ) : (
             <div className="divide-y divide-tv-border/50">
-              {newsItems.slice(0, 6).map((n) => (
+              {newsItems.slice(0, 12).map((n) => (
                 <a
                   key={n.link || n.title}
                   href={n.link}

@@ -337,7 +337,7 @@ export default function Dashboard() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
-            <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">Data real-time dari Bursa Efek Indonesia (via Yahoo Finance) • {lastUpdated ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
+            <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">{lastUpdated ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-tv-muted">Powered by</span>

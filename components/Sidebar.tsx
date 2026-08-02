@@ -22,6 +22,7 @@ import {
   Users,
   ShieldAlert,
   History,
+  ShieldCheck,
 } from 'lucide-react';
 import { pickTrendingTicker, getTickerName } from '@/lib/trendingTickers';
 import UserProfileModal from './UserProfileModal';
@@ -88,6 +89,18 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// Hanya ditambahkan ke menu kalau user.role === 'admin' (lihat visibleGroups di
+// bawah) - halaman /admin sendiri tetap digerbang isAdminServer() (cookie admin
+// terpisah dari role akun biasa, lihat modules/user/service/admin.service.ts),
+// jadi link ini cuma soal *penemuan* menu, bukan jalur akses baru.
+const ADMIN_NAV_GROUP: NavGroup = {
+  id: 'admin',
+  label: 'Admin',
+  items: [
+    { id: 'admin', name: 'Admin Panel', subtitle: 'Aktivasi Pro & User Aktif', path: '/admin', icon: ShieldCheck },
+  ],
+};
+
 const COLLAPSE_STORAGE_KEY = 'sahamlens_sidebar_collapsed';
 
 export default function Sidebar() {
@@ -122,6 +135,8 @@ export default function Sidebar() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
   };
+
+  const visibleGroups = user?.role === 'admin' ? [...NAV_GROUPS, ADMIN_NAV_GROUP] : NAV_GROUPS;
 
   useEffect(() => {
     const handleToggle = () => setIsOpen((prev) => !prev);
@@ -189,7 +204,7 @@ export default function Sidebar() {
 
         {/* Nav Groups */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-5">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.id}>
               {/* Section label - hilang saat collapsed, diganti divider tipis */}
               {!isCollapsed && (
