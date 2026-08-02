@@ -20,7 +20,16 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 // WebView wrapper murni untuk https://sahamlens.vercel.app - BUKAN pengganti app native
 // di folder sahamlens-android (yang punya UI Compose sendiri). Ini shell tipis supaya
 // web app yang sudah ada bisa dipasang sebagai APK tanpa menulis ulang UI-nya.
-private const val BASE_URL = "https://sahamlens.vercel.app/"
+//
+// BUG FIX: BASE_URL sebelumnya "/" (root) - itu me-render components/Dashboard.tsx,
+// halaman landing/preview PUBLIK yang SENGAJA tidak punya Sidebar sama sekali (lihat
+// app/page.tsx). Akibatnya "menu akun" di app WebView tidak pernah muncul apa pun status
+// login-nya, dan pull-to-refresh ikut aneh karena halaman ini scroll di level window,
+// beda dari halaman ber-Sidebar (mis. /home) yang scroll di dalam div - lihat komentar
+// SCROLL_TRACKER_JS di bawah, script itu didesain untuk pola scroll-dalam-div itu.
+// "/home" adalah shell aplikasi sesungguhnya (Sidebar + menu akun selalu ada kalau
+// sudah login, dan halamannya sendiri bisa dibuka tanpa login juga).
+private const val BASE_URL = "https://sahamlens.vercel.app/home"
 private const val BASE_HOST = "sahamlens.vercel.app"
 
 // Kebanyakan halaman dashboard app ini scroll di DALAM sebuah div (mis. "overflow-y-auto"
