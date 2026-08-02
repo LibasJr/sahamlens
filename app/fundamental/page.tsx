@@ -199,7 +199,7 @@ function FundamentalContent() {
           currentTicker={ticker}
           onTickerChange={setTicker}
           moduleTitle="Fundamental AI Analytics"
-          moduleBank="INSTITUTIONAL AI"
+          moduleBank="SMART AI"
         />
         <div className="flex flex-col items-center justify-center p-20 text-slate-400">
           <TrendingUp className="w-12 h-12 mb-4 text-slate-600" />
@@ -209,7 +209,7 @@ function FundamentalContent() {
           open={showPaywall}
           onClose={() => setShowPaywall(false)}
           title="Limit Gratis Habis"
-          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
+          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
           benefits={[
             'Unlimited Technical Analyzer (10 filter)',
             'AI Pick LIVE',
@@ -252,7 +252,7 @@ function FundamentalContent() {
         currentTicker={ticker}
         onTickerChange={setTicker}
         moduleTitle="Pure Algorithmic Trading (TS Analyzers)"
-        moduleBank="INSTITUTIONAL AI"
+        moduleBank="SMART AI"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
@@ -471,13 +471,13 @@ function FundamentalContent() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 149k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
           'AI Pick LIVE',
           'Fundamental Analyzer + Watchlist unlimited',
         ]}
-        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan) - kena limit analisa harian"
+        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp99.000/bulan) - kena limit analisa harian"
         ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
       />

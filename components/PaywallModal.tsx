@@ -29,8 +29,8 @@ export default function PaywallModal({
   title,
   body,
   benefits = [],
-  waText = 'Halo, saya mau upgrade ke SahamLens Pro (Rp149.000/bulan)',
-  ctaLabel = 'Upgrade Pro - Rp149k',
+  waText = 'Halo, saya mau upgrade ke SahamLens Pro (Rp99.000/bulan)',
+  ctaLabel = 'Upgrade Pro - Rp99k',
   secondaryLabel = 'Nanti',
   ctaHref,
 }: PaywallModalProps) {

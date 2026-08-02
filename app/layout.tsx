@@ -18,8 +18,8 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-jetbrains-mono' });
 
 export const metadata = {
-  title: 'SahamLens - Stock Screener IDX Institutional AI',
-  description: 'Stock Screener IDX Institutional AI. Pure Algorithmic Trading (10 TS Analyzers) - Empowered by yfinance IDX Market Data (.JK) & AI Agent Engine. Bukan saran finansial, untuk edukasi.',
+  title: 'SahamLens - Stock Screener IDX Smart AI',
+  description: 'Stock Screener IDX Smart AI. Pure Algorithmic Trading (10 TS Analyzers) - Empowered by yfinance IDX Market Data (.JK) & AI Agent Engine. Bukan saran finansial, untuk edukasi.',
   manifest: '/manifest.json',
 };
 
