@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
+import { getPaymentMethods } from '@/shared/config/payment';
 
 interface PaywallModalProps {
   open: boolean;
@@ -23,19 +24,54 @@ interface PaywallModalProps {
   ctaHref?: string;
 }
 
+function CopyRow({ label, value, name }: { label: string; value: string; name: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-tv-border bg-tv-card px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-xs text-tv-muted">{label}</p>
+        <p className="text-sm font-bold text-tv-text truncate">{value}</p>
+        <p className="text-xs text-tv-muted truncate">a.n. {name}</p>
+      </div>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="flex-shrink-0 flex items-center gap-1 text-xs font-bold text-tv-blue hover:text-tv-blueHover transition-colors"
+      >
+        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        {copied ? 'Tersalin' : 'Salin'}
+      </button>
+    </div>
+  );
+}
+
 export default function PaywallModal({
   open,
   onClose,
   title,
   body,
   benefits = [],
-  waText = 'Halo, saya mau upgrade ke SahamLens Pro (Rp99.000/bulan)',
-  ctaLabel = 'Upgrade Pro - Rp99k',
+  waText = 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro (Rp99.000/bulan). Ini bukti transfernya.',
+  ctaLabel = 'Kirim Bukti Transfer via WhatsApp',
   secondaryLabel = 'Nanti',
   ctaHref,
 }: PaywallModalProps) {
   const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText)}`;
   const modalRef = useRef<HTMLDivElement>(null);
+  const paymentMethods = ctaHref ? [] : getPaymentMethods();
+
+  const handleSendProof = () => {
+    // Fire-and-forget - notifikasi Telegram cuma nilai tambah, kegagalan/lambatnya
+    // tidak boleh menghalangi user membuka WhatsApp untuk kirim bukti transfer.
+    fetch('/api/payment/notify', { method: 'POST' }).catch(() => {});
+  };
 
   // Escape untuk tutup + focus trap - sebelumnya tidak ada satu pun, Tab bisa
   // memindahkan fokus keyboard ke elemen halaman di belakang overlay yang secara
@@ -89,7 +125,7 @@ export default function PaywallModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative w-full max-w-md bg-tv-bg border border-tv-blue/40 rounded-xl shadow-2 p-6 overflow-hidden"
+        className="relative w-full max-w-md bg-tv-bg border border-tv-blue/40 rounded-xl shadow-2 p-6 overflow-hidden max-h-[90vh] overflow-y-auto"
         initial={{ opacity: 0, scale: 0.95, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -120,6 +156,17 @@ export default function PaywallModal({
           </ul>
         )}
 
+        {paymentMethods.length > 0 && (
+          <div className="mb-5">
+            <p className="text-xs font-bold text-tv-muted uppercase tracking-wide mb-2">Metode Pembayaran</p>
+            <div className="space-y-2">
+              {paymentMethods.map((m) => (
+                <CopyRow key={m.id} label={m.label} value={m.accountNumber} name={m.accountName} />
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           {ctaHref ? (
             <Link
@@ -133,6 +180,7 @@ export default function PaywallModal({
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleSendProof}
               className="flex-1 text-center bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-3 rounded-md transition-all"
             >
               {ctaLabel}

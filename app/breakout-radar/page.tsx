@@ -864,8 +864,6 @@ function BreakoutRadarContent() {
           'AI Pick LIVE',
           'Fundamental Analyzer + Watchlist unlimited',
         ]}
-        waText="Halo, saya mau upgrade ke SahamLens Pro (Rp99.000/bulan) - kena limit analisa harian"
-        ctaLabel="Upgrade Pro"
         secondaryLabel="Tunggu Besok"
       />
       <PaywallModal
