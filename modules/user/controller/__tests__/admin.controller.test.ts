@@ -156,7 +156,10 @@ describe('handleAdminLoginByKey', () => {
 
   it('hash di DB rusak (bcrypt.compare gagal) -> tetap jatuh ke env var, tidak melempar error', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockResolvedValue('hash-rusak-bukan-bcrypt-valid');
+    // bcryptjs cuma melempar kalau string-nya persis 60 karakter tapi isinya bukan
+    // hash valid (mis. salt version salah) - string pendek biasa cuma resolve false
+    // lewat length guard, tidak pernah memicu jalur throw yang mau diuji di sini.
+    vi.mocked(getAdminSecretHash).mockResolvedValue('x'.repeat(60));
 
     const result = await handleAdminLoginByKey('env-secret-darurat');
 
