@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -43,14 +43,18 @@ const PICK_UNIVERSE = 'BBCA.JK,BBRI.JK,BMRI.JK,TLKM.JK,ASII.JK,GOTO.JK,ADRO.JK,I
 
 const PROMO_STORAGE_KEY = 'sahamlens_promo_last_seen';
 
+function todayJakarta(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
+
 function markPromoSeenToday() {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(PROMO_STORAGE_KEY, new Date().toISOString().slice(0, 10));
+  window.localStorage.setItem(PROMO_STORAGE_KEY, todayJakarta());
 }
 
 function hasSeenPromoToday(): boolean {
   if (typeof window === 'undefined') return true;
-  return window.localStorage.getItem(PROMO_STORAGE_KEY) === new Date().toISOString().slice(0, 10);
+  return window.localStorage.getItem(PROMO_STORAGE_KEY) === todayJakarta();
 }
 
 export default function HomePage() {
@@ -118,7 +122,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/user/profile')
+    fetch('/api/user/profile', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((profile) => {
         if (profile && !profile.hasProAccess && !hasSeenPromoToday()) {
@@ -130,17 +134,17 @@ export default function HomePage() {
 
   const topPick = aiPicks.find((p) => p.consensus === 'STRONG BUY') || aiPicks[0];
 
-  const handleClosePromo = () => {
+  const handleClosePromo = useCallback(() => {
     markPromoSeenToday();
     setShowPromoModal(false);
-  };
+  }, []);
 
-  const handleSelectPlan = (plan: 'monthly' | 'annual') => {
+  const handleSelectPlan = useCallback((plan: 'monthly' | 'annual') => {
     markPromoSeenToday();
     setPromoPlan(plan);
     setShowPromoModal(false);
     setShowPaywallFromPromo(true);
-  };
+  }, []);
 
   // AI Experience: setelah semua data pasar siap, minta Gemini merangkai satu
   // paragraf naratif (bukan sekadar gabungan angka) - gagal diam-diam ke pesan
