@@ -96,7 +96,11 @@ describe('handleAdminLoginByKey', () => {
 
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => {
-    process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_ENV === undefined) {
+      delete process.env.ADMIN_SECRET_KEY;
+    } else {
+      process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
+    }
   });
 
   it('key null -> 404', async () => {
@@ -149,6 +153,15 @@ describe('handleAdminLoginByKey', () => {
 
     expect(result.status).toBe(302);
   });
+
+  it('hash di DB rusak (bcrypt.compare gagal) -> tetap jatuh ke env var, tidak melempar error', async () => {
+    process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
+    vi.mocked(getAdminSecretHash).mockResolvedValue('hash-rusak-bukan-bcrypt-valid');
+
+    const result = await handleAdminLoginByKey('env-secret-darurat');
+
+    expect(result.status).toBe(302);
+  });
 });
 
 describe('handleChangeAdminSecret', () => {
@@ -156,7 +169,11 @@ describe('handleChangeAdminSecret', () => {
 
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => {
-    process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_ENV === undefined) {
+      delete process.env.ADMIN_SECRET_KEY;
+    } else {
+      process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
+    }
   });
 
   it('tanpa cookie admin valid -> ForbiddenError, setAdminSecretHash tidak dipanggil', async () => {

@@ -33,7 +33,7 @@ function AdminLoginContent() {
             <input
               type="password"
               name="key"
-              placeholder="Paste ADMIN_SECRET_KEY"
+              placeholder="Password admin"
               className="flex-1 bg-tv-bg/60 border border-tv-border rounded-md px-3 py-2 text-tv-text text-sm outline-none focus:border-tv-blue focus:ring-1 focus:ring-tv-blue/40 transition-colors"
               autoComplete="off"
             />
