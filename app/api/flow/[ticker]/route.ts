@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 
 // REWRITE TOTAL (2026-08-01) - versi sebelumnya (BUILD 003) menghasilkan SEMUA angka
@@ -25,7 +25,7 @@ export async function GET(
   if (!session) {
     return NextResponse.json({ error: 'Belum login' }, { status: 401 });
   }
-  if (!checkProAccess(session)) {
+  if (!(await checkProAccessLive(session))) {
     return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
 

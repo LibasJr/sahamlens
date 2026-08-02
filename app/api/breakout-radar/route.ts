@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { cacheGet } from '@/shared/cache/redis-cache';
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const hasPro = isInternal || anonTrial?.active === true || checkProAccess(session);
+    const hasPro = isInternal || anonTrial?.active === true || await checkProAccessLive(session);
     if (!hasPro) {
       // 402 (bukan 429) - ini soal akses langganan, bukan rate limit. Pesan lama
       // "Limit analisa harian habis" menyesatkan karena tidak ada penghitung kuota

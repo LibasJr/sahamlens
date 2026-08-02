@@ -3,7 +3,7 @@ import { ValidationError } from '../../../shared/errors/app-error';
 import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 // Lihat catatan yang sama di watchlist.controller.ts - impor langsung dari shared/
 // untuk menghindari circular dependency dengan modules/user (admin/export).
-import { checkProAccess } from '../../../shared/auth/session';
+import { checkProAccess, checkProAccessLive } from '../../../shared/auth/session';
 import { getAlerts, addAlert, removeAlert } from '../service/alert.service';
 import { alertSchema } from '../validator/watchlist.validator';
 import type { HttpResult } from '../../../shared/types/http-result.types';
@@ -17,7 +17,7 @@ export async function handleListAlerts(): Promise<HttpResult> {
 export async function handleCreateAlert(rawBody: unknown): Promise<HttpResult> {
   const session = await requireUser();
   const input = parseOrThrow(alertSchema, rawBody);
-  const alert = await addAlert(session.id, checkProAccess(session), input);
+  const alert = await addAlert(session.id, await checkProAccessLive(session), input);
   return { status: 200, body: { success: true, alert } };
 }
 

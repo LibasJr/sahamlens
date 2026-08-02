@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const hasPro = anonTrial?.active === true || checkProAccess(session);
+    const hasPro = anonTrial?.active === true || await checkProAccessLive(session);
     if (!hasPro) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });

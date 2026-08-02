@@ -2,7 +2,7 @@
 // Jangan pernah import langsung dari modules/user/service/*, modules/user/repository/*
 // dst dari luar module ini.
 
-export { getSession, checkProAccess } from '../../shared/auth/session';
+export { getSession, checkProAccess, checkProAccessLive } from '../../shared/auth/session';
 export type { SessionPayload } from '../../shared/auth/jwt';
 
 export { isAdminServer, isAdminFromRequestCookies } from './service/admin.service';

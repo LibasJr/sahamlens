@@ -20,7 +20,13 @@ export default function SetProForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), isPro }),
       });
-      const data = await res.json();
+      let data: { email?: string; isPro?: boolean; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setMessage({ text: `Server error (HTTP ${res.status})`, isError: true });
+        return;
+      }
       if (!res.ok) {
         setMessage({ text: data.error || 'Gagal memproses', isError: true });
         return;

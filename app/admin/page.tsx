@@ -17,11 +17,11 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-tv-bg text-tv-text p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-        <SetProForm />
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-heading text-3xl font-bold text-tv-text">SahamLens Admin Panel</h1>
           <ExportButton />
         </div>
+        <SetProForm />
 
         <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-tv-border flex items-center justify-between">

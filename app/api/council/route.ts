@@ -4,7 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
 import { getCouncil, runLocalCouncil, getCouncilCache } from '@/modules/ai';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -162,7 +162,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const hasPro = anonTrial?.active === true || checkProAccess(session);
+    const hasPro = anonTrial?.active === true || await checkProAccessLive(session);
     if (!hasPro) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });

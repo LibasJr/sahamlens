@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccess } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { fetchYahooHistory } from '@/modules/technical';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { fetchScreenerUniverse } from '@/modules/market/service/screener.service';
@@ -169,7 +169,7 @@ export async function GET(request: Request) {
   if (!session) {
     return NextResponse.json({ error: 'Belum login' }, { status: 401 });
   }
-  const hasPro = checkProAccess(session);
+  const hasPro = await checkProAccessLive(session);
   if (!hasPro) {
     return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
