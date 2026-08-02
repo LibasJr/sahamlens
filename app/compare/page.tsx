@@ -137,29 +137,31 @@ function CompareContent() {
         <div className="p-6 max-w-[1200px] mx-auto w-full space-y-6">
 
           <form onSubmit={handleCompare} className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
-            <div className="relative">
-              <Search className="w-5 h-5 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2 z-10" />
-              <SymbolAutocomplete
-                value={input1}
-                onChange={(val) => setInput1(val)}
-                className="bg-tv-bg/60 border border-tv-border text-tv-text pl-10 pr-4 py-3 rounded-md focus:outline-none focus:border-tv-blue font-number text-center w-full sm:w-64 font-bold transition-colors"
-                placeholder="Symbol 1 (e.g. BBCA)"
-              />
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="relative flex-1 min-w-0 sm:flex-initial">
+                <Search className="w-5 h-5 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+                <SymbolAutocomplete
+                  value={input1}
+                  onChange={(val) => setInput1(val)}
+                  className="bg-tv-bg/60 border border-tv-border text-tv-text pl-10 pr-4 py-3 rounded-md focus:outline-none focus:border-tv-blue font-number text-center w-full sm:w-64 font-bold transition-colors"
+                  placeholder="Symbol 1 (e.g. BBCA)"
+                />
+              </div>
+
+              <div className="bg-tv-hover text-tv-muted font-bold px-3 sm:px-4 py-2 rounded-md italic shrink-0">VS</div>
+
+              <div className="relative flex-1 min-w-0 sm:flex-initial">
+                <Search className="w-5 h-5 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+                <SymbolAutocomplete
+                  value={input2}
+                  onChange={(val) => setInput2(val)}
+                  className="bg-tv-bg/60 border border-tv-border text-tv-text pl-10 pr-4 py-3 rounded-md focus:outline-none focus:border-tv-blue font-number text-center w-full sm:w-64 font-bold transition-colors"
+                  placeholder="Symbol 2 (e.g. BBRI)"
+                />
+              </div>
             </div>
 
-            <div className="bg-tv-hover text-tv-muted font-bold px-4 py-2 rounded-md italic">VS</div>
-
-            <div className="relative">
-              <Search className="w-5 h-5 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2 z-10" />
-              <SymbolAutocomplete
-                value={input2}
-                onChange={(val) => setInput2(val)}
-                className="bg-tv-bg/60 border border-tv-border text-tv-text pl-10 pr-4 py-3 rounded-md focus:outline-none focus:border-tv-blue font-number text-center w-full sm:w-64 font-bold transition-colors"
-                placeholder="Symbol 2 (e.g. BBRI)"
-              />
-            </div>
-
-            <Button type="submit" variant="primary" size="lg" loading={loading}>
+            <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full sm:w-auto">
               {!loading && <Target className="w-5 h-5" />}
               Bandingkan
             </Button>
