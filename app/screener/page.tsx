@@ -83,7 +83,7 @@ export default function ScreenerPage() {
               </h3>
             </div>
             <span className="text-xs font-mono text-tv-muted">
-              Filter: PER vs Sektor • ROE &gt; 15% • Bandarmology (proxy volume) Accumulation
+              Filter: PER vs Sektor • ROE &gt; 15% • Bandarmology (Chaikin Money Flow) Accumulation
             </span>
           </div>
 
@@ -157,7 +157,7 @@ export default function ScreenerPage() {
             </table>
           </div>
           <p className="text-[10px] text-tv-muted">
-            Bandarmology = estimasi tekanan beli/jual dari rasio volume harian, BUKAN data broker/asing resmi (IDX tidak menyediakan feed itu gratis).
+            Bandarmology = Chaikin Money Flow (posisi close di range High-Low + rasio volume 20 hari), estimasi tekanan beli/jual - BUKAN data broker/asing resmi (IDX tidak menyediakan feed itu gratis).
           </p>
         </div>
       </div>

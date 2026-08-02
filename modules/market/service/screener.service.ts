@@ -1,4 +1,5 @@
 import YahooFinanceClass from 'yahoo-finance2';
+import { analyzeBandarmology, type BandarmologyStatus } from './foreign-flow-proxy';
 
 // Backend nyata untuk /screener - sebelumnya halaman itu memanggil /api/live/[ticker]
 // (cuma quote harga satu simbol), padahal UI-nya butuh 10 saham teratas dengan 10+
@@ -6,9 +7,10 @@ import YahooFinanceClass from 'yahoo-finance2';
 // pernah ada di response manapun, jadi tabelnya selalu kosong. Semua angka di bawah
 // dihitung dari data Yahoo Finance riil per simbol, tidak ada yang dikarang:
 // - PER/ROE/DER/Dividend Yield/Revenue Growth: langsung dari quoteSummary
-// - "Bandarmology": proxy akumulasi/distribusi dari rasio volume vs rata-rata 10 hari
-//   (bukan data flow broker sungguhan - IDX broker summary tidak tersedia gratis -
-//   makanya labelnya "Akumulasi/Distribusi", bukan "Big Player Confirmed" dsb.)
+// - "Bandarmology": Chaikin Money Flow (CLV/CMF20) dari histori High/Low/Close/Volume 20
+//   hari - definisi SAMA dipakai Bandar Flow & AI Pick (lihat foreign-flow-proxy.ts),
+//   bukan data flow broker sungguhan (IDX broker summary tidak tersedia gratis) - makanya
+//   labelnya "Akumulasi/Distribusi", bukan "Big Player Confirmed" dsb.
 // - "Moat Rating": heuristik dari ROE & gross margin (ambang batas didokumentasikan
 //   di bawah), bukan penilaian kualitatif yang dikarang
 // - Target Bull/Bear: 52-week high/low riil, bukan angka proyeksi rekaan
@@ -41,15 +43,47 @@ type RawStock = {
   rev_growth: number | null;
   gross_margin: number | null;
   vol_ratio: number;
+  bandarmology_status: BandarmologyStatus;
   fifty_two_week_low: number | null;
   fifty_two_week_high: number | null;
 };
 
+/** 25 hari kalender cukup untuk 20 hari bursa (CMF20) + buffer libur/weekend. */
+async function fetchDailyOhlcv(ticker: string): Promise<{ date: string; high: number; low: number; close: number; volume: number }[]> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1mo&interval=1d`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 300 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    const timestamps: number[] = result?.timestamp || [];
+    const quote = result?.indicators?.quote?.[0] || {};
+    const history: { date: string; high: number; low: number; close: number; volume: number }[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      if (quote.close?.[i] != null) {
+        history.push({
+          date: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
+          high: quote.high?.[i] ?? quote.close[i],
+          low: quote.low?.[i] ?? quote.close[i],
+          close: quote.close[i],
+          volume: quote.volume?.[i] || 0,
+        });
+      }
+    }
+    return history;
+  } catch {
+    return [];
+  }
+}
+
 async function fetchOne(ticker: string): Promise<RawStock | null> {
   try {
-    const q = await yahooFinance.quoteSummary(ticker, {
-      modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail', 'price'],
-    });
+    const [q, ohlcv] = await Promise.all([
+      yahooFinance.quoteSummary(ticker, {
+        modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail', 'price'],
+      }),
+      fetchDailyOhlcv(ticker),
+    ]);
     if (!q) return null;
     const price = q.price?.regularMarketPrice || 0;
     if (!price) return null;
@@ -67,6 +101,7 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       rev_growth: q.financialData?.revenueGrowth != null ? q.financialData.revenueGrowth * 100 : null,
       gross_margin: q.financialData?.grossMargins != null ? q.financialData.grossMargins * 100 : null,
       vol_ratio: avgVolume > 0 ? volume / avgVolume : 1,
+      bandarmology_status: analyzeBandarmology(ohlcv).status,
       fifty_two_week_low: q.summaryDetail?.fiftyTwoWeekLow || null,
       fifty_two_week_high: q.summaryDetail?.fiftyTwoWeekHigh || null,
     };
@@ -88,10 +123,9 @@ function moatRating(roe: number | null, grossMargin: number | null): string {
   return 'Sempit';
 }
 
-function bandarmologyLabel(volRatio: number): string {
-  if (volRatio >= 1.5) return 'Big Volume Akumulasi';
-  if (volRatio >= 1.1) return 'Akumulasi';
-  if (volRatio <= 0.7) return 'Distribusi';
+function bandarmologyLabel(status: BandarmologyStatus): string {
+  if (status === 'BULLISH') return 'Akumulasi';
+  if (status === 'BEARISH') return 'Distribusi';
   return 'Netral';
 }
 
@@ -147,7 +181,7 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         roe: s.roe != null ? `${s.roe.toFixed(1)}%` : 'N/A',
         der: s.der != null ? `${s.der.toFixed(2)}x` : 'N/A',
         div_yield: s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : 'N/A',
-        bandarmology: bandarmologyLabel(s.vol_ratio),
+        bandarmology: bandarmologyLabel(s.bandarmology_status),
         moat: moatRating(s.roe, s.gross_margin),
         target_bull: s.fifty_two_week_high,
         target_bear: s.fifty_two_week_low,

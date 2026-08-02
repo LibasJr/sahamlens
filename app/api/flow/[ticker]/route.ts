@@ -47,11 +47,13 @@ export async function GET(
     const timestamps: number[] = result.timestamp || [];
     const quote = result.indicators?.quote?.[0] || {};
 
-    const history: { date: string; close: number; volume: number }[] = [];
+    const history: { date: string; high: number; low: number; close: number; volume: number }[] = [];
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close?.[i] != null) {
         history.push({
           date: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
+          high: quote.high?.[i] ?? quote.close[i],
+          low: quote.low?.[i] ?? quote.close[i],
           close: quote.close[i],
           volume: quote.volume?.[i] || 0,
         });

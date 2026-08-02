@@ -189,7 +189,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
 
           <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-mono text-tv-muted leading-relaxed">
-            Dihitung dari volume transaksi x arah harga harian (Yahoo Finance) - proxy tekanan beli/jual pasar, BUKAN data broker/asing resmi (IDX tidak menyediakan feed broker gratis).
+            Dihitung dari Chaikin Money Flow (posisi close di range High-Low harian, Yahoo Finance) - proxy tekanan beli/jual pasar, BUKAN data broker/asing resmi (IDX tidak menyediakan feed broker gratis).
           </div>
         </div>
       </div>

@@ -85,11 +85,15 @@ async function fetchQuote(symbol: string) {
     const quote = result.indicators?.quote?.[0] || {};
 
     const closes: number[] = [];
+    const highs: number[] = [];
+    const lows: number[] = [];
     const volumes: number[] = [];
     const dates: string[] = [];
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close?.[i] !== null && quote.close?.[i] !== undefined) {
         closes.push(quote.close[i]);
+        highs.push(quote.high?.[i] ?? quote.close[i]);
+        lows.push(quote.low?.[i] ?? quote.close[i]);
         volumes.push(quote.volume?.[i] || 0);
         dates.push(new Date(timestamps[i] * 1000).toISOString().split('T')[0]);
       }
@@ -116,9 +120,10 @@ async function fetchQuote(symbol: string) {
     const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
 
     // Proxy "akumulasi asing berkelanjutan" - streak hari berturut-turut netValue
-    // (volume x arah harga) positif, dari modules/market/service/foreign-flow-proxy.ts
-    // (definisi SAMA dipakai /api/flow/[ticker] Bandar Flow) - BUKAN data broker resmi.
-    const history = dates.map((date, i) => ({ date, close: closes[i], volume: volumes[i] }));
+    // (Chaikin Money Flow: posisi close di range High-Low, bukan cuma arah harga)
+    // positif, dari modules/market/service/foreign-flow-proxy.ts (definisi SAMA dipakai
+    // /api/flow/[ticker] Bandar Flow & Bandarmology di Screener) - BUKAN data broker resmi.
+    const history = dates.map((date, i) => ({ date, high: highs[i], low: lows[i], close: closes[i], volume: volumes[i] }));
     const dailyFlow = computeDailyNetFlow(history).slice(-20);
     const foreignAccumStreak = computeAccumulationStreak(dailyFlow);
 

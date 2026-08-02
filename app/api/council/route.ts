@@ -66,7 +66,7 @@ async function getTechnicalData(ticker: string) {
     // Foreign Flow (proxy dari harga+volume real, bukan data broker resmi) - logika
     // sama dengan app/api/stock/[ticker] dan modules/ai orchestrator, satu sumber
     // kebenaran (modules/market/service/foreign-flow-proxy.ts).
-    const flowHistory = history.map((h) => ({ date: h.Date.split('T')[0], close: h.Close, volume: h.Volume }));
+    const flowHistory = history.map((h) => ({ date: h.Date.split('T')[0], high: h.High, low: h.Low, close: h.Close, volume: h.Volume }));
     const dailyFlow = computeDailyNetFlow(flowHistory).slice(-20);
     const buyStreak = computeAccumulationStreak(dailyFlow);
     let sellStreak = 0;

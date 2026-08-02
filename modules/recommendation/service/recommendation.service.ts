@@ -132,7 +132,7 @@ export async function analyzeStock(ticker: string) {
     // Proxy akumulasi berkelanjutan - definisi SAMA dipakai Bandar Flow (/api/flow) &
     // kategori "Akumulasi Asing" di AI Pick, dihitung dari history yang sama (bukan
     // fetch tambahan).
-    const dailyHistory = history.map(h => ({ date: h.Date.split('T')[0], close: h.Close, volume: h.Volume }));
+    const dailyHistory = history.map(h => ({ date: h.Date.split('T')[0], high: h.High, low: h.Low, close: h.Close, volume: h.Volume }));
     const dailyFlow = computeDailyNetFlow(dailyHistory).slice(-20);
     const foreignAccumStreak = computeAccumulationStreak(dailyFlow);
 
