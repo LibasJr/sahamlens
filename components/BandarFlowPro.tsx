@@ -146,7 +146,11 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 const heightPct = (Math.abs(d.netValueBillion) / (maxAbs || 1)) * 100;
                 const isPos = d.netValueBillion >= 0;
                 return (
-                  <div key={i} className="flex-1 flex flex-col justify-end items-center group relative">
+                  // h-full wajib di sini: tanpa ini, tinggi anak dalam persen (di bawah)
+                  // tidak bisa dihitung browser (parent tanpa tinggi eksplisit karena
+                  // items-end tidak men-stretch flex item) - akibatnya semua bar tidak
+                  // muncul sama sekali walau heightPct terhitung benar.
+                  <div key={i} className="flex-1 h-full flex flex-col justify-end items-center group relative">
                     <div
                       className={`w-full rounded-t-sm transition-all duration-300 ${isPos ? 'bg-tv-green' : 'bg-tv-red'}`}
                       style={{ height: `${Math.max(5, heightPct)}%`, opacity: isPos ? 0.8 : 0.7 }}

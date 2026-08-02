@@ -2,7 +2,7 @@ import { guard } from '../../../lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession } from '../../../modules/user';
+import { getSession, checkProAccessLive } from '../../../modules/user';
 import { logger } from '../../../shared/logger/logger';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '../../../shared/auth/anonymous-trial';
 import {
@@ -57,6 +57,14 @@ export async function POST(request: Request) {
       if (!anonTrial.active) {
         return NextResponse.json({ error: 'Belum login' }, { status: 401 });
       }
+    }
+
+    // Dulu tidak ada gerbang Pro sama sekali di sini - akun gratis terdaftar (bukan
+    // trial) dapat Backtest unlimited selamanya, beda dari Market Pulse/Compare/Council
+    // yang tetap minta Pro setelah trial habis. Disamakan (lihat app/api/market-pulse/route.ts).
+    const hasPro = anonTrial?.active === true || (await checkProAccessLive(session));
+    if (!hasPro) {
+      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
     const body = await request.json();

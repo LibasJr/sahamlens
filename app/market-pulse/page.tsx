@@ -5,8 +5,7 @@ import {
   Activity, TrendingUp, TrendingDown, BarChart3,
   RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, Menu
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { hasProAccess, refreshAdminStatus, getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import { Badge } from '@/components/ui';
 
@@ -67,8 +66,17 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
       }}
     >
       <div>
-        <div className="text-xs font-bold text-tv-text truncate">{sector}</div>
-        <div className={`text-lg font-extrabold font-number ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
+        <div className="text-xs font-bold text-white truncate">{sector}</div>
+        {/* Angka % dulu pakai text-tv-green/text-tv-red di atas background yang juga
+            hijau/merah (hue sama) - kontras rendah, apalagi saat perubahan besar bikin
+            background makin pekat. Ganti jadi putih (kontras tinggi di kedua background)
+            + ikon arah kecil yang tetap pakai warna hijau/merah untuk isyarat visual. */}
+        <div className="text-lg font-extrabold font-number text-white flex items-center gap-1">
+          {isUp ? (
+            <TrendingUp className="w-3.5 h-3.5 text-tv-green shrink-0" />
+          ) : (
+            <TrendingDown className="w-3.5 h-3.5 text-tv-red shrink-0" />
+          )}
           {isUp ? '+' : ''}{changePct.toFixed(2)}%
         </div>
       </div>
@@ -117,20 +125,17 @@ function BreadthBar({ advancing, declining, unchanged, total }: any) {
 }
 
 export default function MarketPulse() {
-  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [breakoutData, setBreakoutData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [pro, setPro] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
 
   useEffect(() => {
     setIsClient(true);
-    refreshAdminStatus().then(() => setPro(hasProAccess()));
   }, []);
 
   const fetchData = async () => {
@@ -196,16 +201,16 @@ export default function MarketPulse() {
             </div>
             <div className="min-w-0">
               <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight truncate">Ringkasan Pasar</h2>
-              <p className="text-xs text-tv-muted truncate">IDX Algorithmic Suite — Real-time Market Overview</p>
+              <p className="text-xs text-tv-muted truncate">IDX Algorithmic Suite — diperbarui tiap 5 menit</p>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-xs flex-wrap">
+            {/* Data sama untuk semua tier (satu cache dari cron 5 menit, sumber Yahoo
+                Finance) - dulu ada badge "Realtime" (Pro) vs "Delay 15m" (gratis) yang
+                menyiratkan Pro dapat data lebih baru, padahal keduanya baca cache yang
+                sama persis (lihat app/api/market-pulse/route.ts). */}
             {isClient && (
-              pro ? (
-                <Badge variant="success" dot>Realtime</Badge>
-              ) : (
-                <Badge variant="warning">Delay 15m - Realtime di Pro</Badge>
-              )
+              <Badge variant="neutral">Update tiap 5 menit • Yahoo Finance</Badge>
             )}
             <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted whitespace-nowrap">
               Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
@@ -337,198 +342,73 @@ export default function MarketPulse() {
         </div>
 
         {/* === SECTION 3: MARKET BREADTH === */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-          {/* Breadth Overview + Top Volume/Value - dikelompokkan di kolom kiri supaya
-              tingginya seimbang dengan kartu Top Movers di sebelah kanan */}
-          <div className="lg:col-span-2 space-y-4">
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
-            <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
-              <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-tv-green" />
-                Market Breadth
-              </h3>
-              <span className="text-[10px] text-tv-muted">
-                {data?.breadth?.total || 0} Saham Terpantau
-              </span>
-            </div>
+        {/* Top Volume/Value dan Top Movers dihapus dari sini - sudah ada versi yang
+            sama di halaman utama (components/Dashboard.tsx: "Berdasarkan Volume Lembar
+            Saham", "Saham dengan Kenaikan Tertinggi", "Saham dengan Penurunan Terdalam"),
+            duplikat murni. Market Breadth (naik/turun/stagnan) tidak ada di halaman lain,
+            jadi tetap di sini - dulu dibungkus max-w-2xl (sisa dari layout 3-kolom lama)
+            jadi nyisa banyak ruang kosong di kanan setelah 2 kartu tetangganya hilang.
+            Sekarang full width, breadth bar + 4 angka (naik/stagnan/turun/AD ratio)
+            disusun 1 baris di layar besar supaya lebar kartu terisi proporsional. */}
+        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+          <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
+            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-tv-green" />
+              Market Breadth
+            </h3>
+            <span className="text-[10px] text-tv-muted">
+              {data?.breadth?.total || 0} Saham Terpantau
+            </span>
+          </div>
 
-            {data?.breadth ? (
-              <div className="space-y-6">
-                <BreadthBar {...data.breadth} />
+          {data?.breadth ? (
+            <div className="space-y-6">
+              <BreadthBar {...data.breadth} />
 
-                {/* Metrics Row */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                  <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
-                    <div className="text-xl sm:text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
-                    <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
-                  </div>
-                  <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center">
-                    <div className="text-xl sm:text-3xl font-extrabold text-tv-muted font-number">{data.breadth.unchanged}</div>
-                    <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
-                  </div>
-                  <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-2 sm:p-4 text-center">
-                    <div className="text-xl sm:text-3xl font-extrabold text-tv-red font-number">{data.breadth.declining}</div>
-                    <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
-                  </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
+                  <div className="text-xl sm:text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
+                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
                 </div>
-
-                {/* A/D Ratio */}
-                <div className="flex items-center gap-4 bg-tv-bg border border-tv-border rounded-lg p-4">
-                  <div className="flex-1">
-                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Advance / Decline Ratio</div>
-                    <div className={`text-2xl font-extrabold font-number ${
-                      data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
-                    }`}>
-                      {data.breadth.advanceDeclineRatio}
-                    </div>
-                  </div>
-                  <div className={`px-4 py-2 rounded-lg border text-sm font-bold ${
-                    data.breadth.advanceDeclineRatio > 1.5
-                      ? 'bg-tv-green/20 text-tv-green border-tv-green/30'
-                      : data.breadth.advanceDeclineRatio >= 1
-                      ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/30'
-                      : data.breadth.advanceDeclineRatio >= 0.7
-                      ? 'bg-tv-warning/20 text-tv-warning border-tv-warning/30'
-                      : 'bg-tv-red/20 text-tv-red border-tv-red/30'
+                <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center">
+                  <div className="text-xl sm:text-3xl font-extrabold text-tv-muted font-number">{data.breadth.unchanged}</div>
+                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
+                </div>
+                <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-2 sm:p-4 text-center">
+                  <div className="text-xl sm:text-3xl font-extrabold text-tv-red font-number">{data.breadth.declining}</div>
+                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
+                </div>
+                <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center flex flex-col items-center justify-center">
+                  <div className={`text-xl sm:text-3xl font-extrabold font-number ${
+                    data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
                   }`}>
-                    {data.breadth.advanceDeclineRatio > 1.5 ? 'SANGAT BULLISH'
-                      : data.breadth.advanceDeclineRatio >= 1 ? 'BULLISH'
-                      : data.breadth.advanceDeclineRatio >= 0.7 ? 'NETRAL'
-                      : 'BEARISH'}
+                    {data.breadth.advanceDeclineRatio}
                   </div>
+                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">AD Ratio</div>
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
-                <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
-                <span className="text-sm">Memuat data breadth...</span>
+
+              <div className={`flex items-center justify-center gap-2 rounded-lg border py-2 text-sm font-bold ${
+                data.breadth.advanceDeclineRatio > 1.5
+                  ? 'bg-tv-green/20 text-tv-green border-tv-green/30'
+                  : data.breadth.advanceDeclineRatio >= 1
+                  ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/30'
+                  : data.breadth.advanceDeclineRatio >= 0.7
+                  ? 'bg-tv-warning/20 text-tv-warning border-tv-warning/30'
+                  : 'bg-tv-red/20 text-tv-red border-tv-red/30'
+              }`}>
+                {data.breadth.advanceDeclineRatio > 1.5 ? 'SANGAT BULLISH'
+                  : data.breadth.advanceDeclineRatio >= 1 ? 'BULLISH'
+                  : data.breadth.advanceDeclineRatio >= 0.7 ? 'NETRAL'
+                  : 'BEARISH'}
               </div>
-            )}
-          </div>
-
-          {/* Top Volume & Top Value - dipindah ke sini (bawah Market Breadth) dari kartu
-              Top Movers supaya tinggi kolom kiri/kanan lebih seimbang */}
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
-            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3 mb-4">
-              <BarChart3 className="w-5 h-5 text-tv-blue" />
-              Top Volume & Value Transaksi
-            </h3>
-
-            {data?.breadth ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Top Volume */}
-                <div>
-                  <div className="text-[10px] text-tv-blue uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
-                    <BarChart3 className="w-3 h-3" /> Top Volume
-                  </div>
-                  <div className="space-y-1.5">
-                    {data.breadth.topVolume?.map((s: any, i: number) => (
-                      <div
-                        key={s.symbol}
-                        onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-blue/10 cursor-pointer hover:bg-tv-hover transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
-                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
-                        </div>
-                        <span className="text-sm font-bold text-tv-blue font-number">{Math.round((s.volume || 0) / 100).toLocaleString('id-ID')} lot</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Top Value */}
-                <div>
-                  <div className="text-[10px] text-tv-warning uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> Top Value Transaksi
-                  </div>
-                  <div className="space-y-1.5">
-                    {data.breadth.topValue?.map((s: any, i: number) => (
-                      <div
-                        key={s.symbol}
-                        onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-warning/10 cursor-pointer hover:bg-tv-hover transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
-                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
-                        </div>
-                        <span className="text-sm font-bold text-tv-warning font-number">Rp {((s.value || 0) / 1e12).toFixed(2)} T</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
-                <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
-                <span className="text-sm">Memuat...</span>
-              </div>
-            )}
-          </div>
-          </div>
-
-          {/* Top Movers */}
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
-            <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3 mb-4">
-              <Zap className="w-5 h-5 text-tv-yellow" />
-              Top Movers
-            </h3>
-
-            {data?.breadth ? (
-              <div className="space-y-4">
-                {/* Top Gainers */}
-                <div>
-                  <div className="text-[10px] text-tv-green uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> Top Gainers
-                  </div>
-                  <div className="space-y-1.5">
-                    {data.breadth.topGainers?.map((s: any, i: number) => (
-                      <div
-                        key={s.symbol}
-                        onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-green/10 cursor-pointer hover:bg-tv-hover transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
-                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
-                        </div>
-                        <span className="text-sm font-bold text-tv-green font-number">+{s.changePct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Top Losers */}
-                <div>
-                  <div className="text-[10px] text-tv-red uppercase font-semibold tracking-wide mb-2 flex items-center gap-1">
-                    <TrendingDown className="w-3 h-3" /> Top Losers
-                  </div>
-                  <div className="space-y-1.5">
-                    {data.breadth.topLosers?.map((s: any, i: number) => (
-                      <div
-                        key={s.symbol}
-                        onClick={() => router.push(`/dashboard?symbol=${s.symbol}`)}
-                        className="flex items-center justify-between bg-tv-bg rounded-lg px-3 py-2 border border-tv-red/10 cursor-pointer hover:bg-tv-hover transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-tv-muted w-4 font-number">{i + 1}</span>
-                          <span className="text-sm font-bold text-tv-text font-number">{s.symbol}</span>
-                        </div>
-                        <span className="text-sm font-bold text-tv-red font-number">{s.changePct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
-                <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
-                <span className="text-sm">Memuat...</span>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
+              <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
+              <span className="text-sm">Memuat data breadth...</span>
+            </div>
+          )}
         </div>
       </div>
       <PaywallModal

@@ -102,7 +102,7 @@ export default function Signup() {
       if (!res.ok) {
         setError(data.error || 'Terjadi kesalahan');
       } else {
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (err: any) {
       setError(err.message);

@@ -11,6 +11,8 @@ interface IntrinsicValueProps {
 export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,6 +31,32 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     fetchData();
     return () => { cancelled = true; };
   }, [symbol]);
+
+  // Penjelasan Council AI - dipanggil terpisah setelah angka intrinsic value siap,
+  // supaya kartu tetap tampil cepat walau penjelasan AI-nya lebih lambat.
+  useEffect(() => {
+    if (!data || data.error) return;
+    let cancelled = false;
+    setLoadingExplanation(true);
+    fetch('/api/intrinsic-explain', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol,
+        fairValue: data.fair_value,
+        harga: data.harga,
+        mos: data.mos,
+        sektor: data.sektor,
+        methods: data.methods,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.explanation) setExplanation(d.explanation); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingExplanation(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   if (loading) {
     return (
@@ -172,6 +200,22 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Penjelasan Council AI - substantif tapi mudah dipahami, kenapa harga wajar
+          bisa segitu (bukan cuma ulang angka). Fallback rule-based kalau Gemini
+          tidak tersedia, lihat app/api/intrinsic-explain/route.ts. */}
+      <div className="mt-4 pt-4 border-t border-tv-border">
+        <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading mb-2 flex items-center gap-1.5">
+          <Target className="w-3 h-3 text-tv-accent" /> Penjelasan Council AI
+        </h4>
+        {loadingExplanation ? (
+          <div className="text-xs text-tv-muted animate-pulse">Council AI sedang menganalisis...</div>
+        ) : explanation ? (
+          <p className="text-xs text-tv-text leading-relaxed">{explanation}</p>
+        ) : (
+          <p className="text-xs text-tv-muted">Penjelasan belum tersedia.</p>
+        )}
       </div>
     </div>
   );

@@ -16,7 +16,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') || '/dashboard';
+  const next = searchParams.get('next') || '/';
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('saham_remember_email');

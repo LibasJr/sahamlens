@@ -35,6 +35,7 @@ export default function BacktestPage() {
   const [liveSignalError, setLiveSignalError] = useState<string | null>(null);
 
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const toggleFilter = (f: string) => {
     if (selectedFilters.includes(f)) {
@@ -51,6 +52,15 @@ export default function BacktestPage() {
       setSelectedFilters(['Market Flow Index', 'MACD', 'Volume vs Avg 20D']);
     } else if (preset === 'Oversold') {
       setSelectedFilters(['RSI 14', 'Volatility (ATR 14)', 'Support & Resistance']);
+    } else if (preset === 'TrendFollowing') {
+      setSelectedFilters(['MA Trend IDX (20,50,200)', 'SMA Score (5,10,20)', 'EMA 20/50 Cross']);
+    } else if (preset === 'BreakoutVolume') {
+      setSelectedFilters(['Volume vs Avg 20D', 'MACD', 'SMA Score (5,10,20)']);
+    } else if (preset === 'StrictConfirm') {
+      // 4 indikator harus BULLISH bareng (lihat allBullish() di simulate.service.ts) -
+      // filter lebih ketat = sinyal lebih jarang tapi historis biasanya lebih konsisten.
+      // Angka win rate tetap dihitung live, bukan diklaim tetap di sini.
+      setSelectedFilters(['EMA 20/50 Cross', 'MACD', 'MA Trend IDX (20,50,200)', 'Volume vs Avg 20D']);
     }
   };
 
@@ -65,6 +75,11 @@ export default function BacktestPage() {
       });
       if (res.status === 401) {
         setShowLoginPrompt(true);
+        setLoading(false);
+        return;
+      }
+      if (res.status === 402) {
+        setShowPaywall(true);
         setLoading(false);
         return;
       }
@@ -94,6 +109,11 @@ export default function BacktestPage() {
       });
       if (res.status === 401) {
         setShowLoginPrompt(true);
+        setLiveSignalLoading(false);
+        return;
+      }
+      if (res.status === 402) {
+        setShowPaywall(true);
         setLiveSignalLoading(false);
         return;
       }
@@ -170,13 +190,17 @@ export default function BacktestPage() {
           {/* Builder Panel */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
-              <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
+              <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-1 border-b border-tv-border pb-3">
                 <Target className="w-5 h-5 text-tv-blue" /> Presets
               </h3>
+              <p className="text-[10px] text-tv-muted mb-3">Win rate dihitung live dari data historis tiap kombinasi - bisa berubah, bukan angka tetap.</p>
               <div className="flex flex-col gap-2">
                 <button onClick={() => applyPreset('Momentum')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Momentum Breakout</button>
                 <button onClick={() => applyPreset('Accumulation')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Bandar Accumulation</button>
                 <button onClick={() => applyPreset('Oversold')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Oversold Bounce</button>
+                <button onClick={() => applyPreset('TrendFollowing')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Trend Following</button>
+                <button onClick={() => applyPreset('BreakoutVolume')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Breakout Volume</button>
+                <button onClick={() => applyPreset('StrictConfirm')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Konfirmasi Ketat (4 Indikator)</button>
               </div>
             </div>
 
@@ -447,6 +471,17 @@ export default function BacktestPage() {
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
+      />
+      <PaywallModal
+        open={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        title="Masa Trial 7 Hari Habis"
+        body="Backtest & Sinyal Hari Ini butuh akun Pro setelah trial 7 hari berakhir."
+        benefits={[
+          'Unlimited Technical Analyzer (10 filter)',
+          'AI Pick LIVE, Council AI & Compare Tool',
+          'Watchlist & Alert unlimited',
+        ]}
       />
       <style dangerouslySetInnerHTML={{__html:`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
