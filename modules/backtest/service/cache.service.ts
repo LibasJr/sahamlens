@@ -2,8 +2,11 @@ import { cacheGet, cacheSet, cacheMGet } from '../../../shared/cache/redis-cache
 import { CACHE_TTL_SEC } from '../../../shared/cache/ttl-policy';
 import type { BacktestIndicatorCache, TickerIndicatorSeries, DailyBar } from '../types/backtest.types';
 
-const META_KEY = 'sahamlens:cache:computed:backtest-indicators:v1:meta';
-const tickerKey = (ticker: string) => `sahamlens:cache:computed:backtest-indicators:v1:ticker:${ticker}`;
+// v2 (2026-08-03): DailyBar nambah field `open` (wajib untuk eksekusi anti-look-ahead
+// di simulate.service.ts) - naikkan versi supaya cache lama (tanpa `open`, bikin harga
+// NaN kalau kepakai) otomatis cache-miss dan dihitung ulang, bukan dibaca apa adanya.
+const META_KEY = 'sahamlens:cache:computed:backtest-indicators:v2:meta';
+const tickerKey = (ticker: string) => `sahamlens:cache:computed:backtest-indicators:v2:ticker:${ticker}`;
 
 interface CacheMeta {
   computedAt: string;

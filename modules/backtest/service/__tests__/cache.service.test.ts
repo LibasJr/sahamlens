@@ -12,11 +12,11 @@ import type { BacktestIndicatorCache } from '../../types/backtest.types';
 
 const sampleCache: BacktestIndicatorCache = {
   computedAt: '2026-08-01T00:00:00.000Z',
-  ihsg: [{ date: '2026-07-31', close: 7000 }],
+  ihsg: [{ date: '2026-07-31', close: 7000, open: 7000 }],
   tickers: [
     {
       ticker: 'BBCA.JK',
-      bars: [{ date: '2026-07-31', close: 9000 }],
+      bars: [{ date: '2026-07-31', close: 9000, open: 9000 }],
       decisions: {
         'EMA 20/50 Cross': ['BULLISH'], 'Volume vs Avg 20D': ['BULLISH'], 'RSI 14': ['NEUTRAL'],
         'MACD': ['BULLISH'], 'Volatility (ATR 14)': ['NEUTRAL'], 'MA Trend IDX (20,50,200)': ['BULLISH'],

@@ -19,6 +19,10 @@ export type Decision = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 export interface DailyBar {
   date: string; // YYYY-MM-DD
   close: number;
+  /** Harga pembukaan hari yang sama - dipakai sebagai harga eksekusi (bukan close)
+   * supaya simulasi tidak look-ahead: sinyal dihitung dari close hari D, tapi baru
+   * bisa dieksekusi paling cepat di open hari D+1 (lihat simulate.service.ts). */
+  open: number;
 }
 
 // Deret keputusan harian 1 saham, sudah dipangkas ke window backtest (tanpa bagian
