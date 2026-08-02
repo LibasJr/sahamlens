@@ -162,7 +162,12 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                     <span className="text-tv-muted">Status Akun</span>
                     <span className="text-tv-text font-medium">{data.hasProAccess ? 'Pro' : 'Free'}</span>
                   </div>
-                  {data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
+                  {/* Tanggal trial cuma relevan kalau itu SATU-SATUNYA alasan akses Pro-nya
+                      aktif - admin/role pro/is_pro punya akses permanen yang tidak bergantung
+                      tanggal ini sama sekali, jadi jangan ditampilkan seolah akun itu akan
+                      "kehabisan" akses pada tanggal tersebut (memang ada nilainya di database,
+                      tapi tidak dipakai untuk keputusan akses akun ini). */}
+                  {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-tv-muted">Trial Berakhir</span>
                       <span className="text-tv-text font-medium">{formatDate(data.trialEndsAt)}</span>
