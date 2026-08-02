@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccessLive } from '@/modules/user';
-import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 
 // REWRITE TOTAL (2026-08-01) - versi sebelumnya (BUILD 003) menghasilkan SEMUA angka
 // (foreignFlow20D, nama broker, volume beli/jual, status AKUMULASI/DISTRIBUSI) dari
@@ -65,9 +65,6 @@ export async function GET(
     }
 
     const dailyFlow = computeDailyNetFlow(history).slice(-20);
-    const last3 = dailyFlow.slice(-3);
-    const isAccumulation3D = last3.length === 3 && last3.every((d) => d.netValueBillion > 0);
-    const isDistribution3D = last3.length === 3 && last3.every((d) => d.netValueBillion < 0);
     const net5D = parseFloat(dailyFlow.slice(-5).reduce((sum, d) => sum + d.netValueBillion, 0).toFixed(2));
     const streak = computeAccumulationStreak(dailyFlow);
 
@@ -76,9 +73,14 @@ export async function GET(
     const avgUpValueBillion = upDays.length ? parseFloat((upDays.reduce((s, d) => s + d.netValueBillion, 0) / upDays.length).toFixed(2)) : 0;
     const avgDownValueBillion = downDays.length ? parseFloat((downDays.reduce((s, d) => s + Math.abs(d.netValueBillion), 0) / downDays.length).toFixed(2)) : 0;
 
-    let status: 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL' = 'NETRAL';
-    if (isAccumulation3D) status = 'AKUMULASI';
-    else if (isDistribution3D) status = 'DISTRIBUSI';
+    // Dulu status AKUMULASI/DISTRIBUSI cuma dari "3 hari netValue positif berturut-turut"
+    // - gampang lolos meski sinyalnya lemah (positif tipis-tipis). Diganti konfirmasi
+    // 4-lapis (CMF20 + CLV kuat 3 hari + volume spike + tren MFM menguat) - harus lolos
+    // SEMUA baru diklaim "KONSISTEN", bukan cuma 1 syarat lemah.
+    const accumulation = analyzeAccumulationSignal(history.slice(-20));
+    const isAccumulation3D = accumulation.status === 'AKUMULASI';
+    const isDistribution3D = accumulation.status === 'DISTRIBUSI';
+    const status = accumulation.status;
 
     const bandarmology = analyzeBandarmology(history.slice(-20));
 
@@ -97,6 +99,7 @@ export async function GET(
         avgDownValueBillion,
         cmf20: bandarmology.cmf20,
         netPressurePct: bandarmology.netPressurePct,
+        volRatio: accumulation.volRatio,
       },
     });
   } catch (error: any) {

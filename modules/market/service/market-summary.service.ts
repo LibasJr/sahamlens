@@ -1,4 +1,4 @@
-import { computeDailyNetFlow, computeAccumulationStreak } from './foreign-flow-proxy';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal } from './foreign-flow-proxy';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-summary/route.ts, verbatim.
 // Rute publik (tanpa login) - ringkasan pasar untuk landing page & halaman /market/[category].
@@ -126,6 +126,11 @@ async function fetchQuote(symbol: string) {
     const history = dates.map((date, i) => ({ date, high: highs[i], low: lows[i], close: closes[i], volume: volumes[i] }));
     const dailyFlow = computeDailyNetFlow(history).slice(-20);
     const foreignAccumStreak = computeAccumulationStreak(dailyFlow);
+    // Streak mentah ("berapa hari netValue positif berturut-turut") gampang lolos
+    // meski sinyalnya lemah - kualifikasi kategori "Akumulasi Asing" sekarang pakai
+    // konfirmasi 4-lapis (CMF20 + CLV kuat + volume spike + tren MFM), streak tetap
+    // ditampilkan sebagai angka informasi, bukan syarat kelulusan.
+    const accumulationConfirmed = analyzeAccumulationSignal(history.slice(-20)).status === 'AKUMULASI';
 
     let technicalSignal: 'BULLISH' | 'BEARISH' | 'NETRAL' = 'NETRAL';
     let technicalScore = 0;
@@ -148,6 +153,7 @@ async function fetchQuote(symbol: string) {
       technicalSignal,
       technicalScore,
       foreignAccumStreak,
+      accumulationConfirmed,
     };
   } catch {
     return null;
@@ -216,10 +222,12 @@ export async function getMarketSummary() {
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), rsi: parseFloat((s.rsi14 as number).toFixed(1)), changePct: s.changePct, price: s.price }));
 
-  // "Akumulasi Asing Berkelanjutan" - streak >= 3 hari (proxy volume, lihat
-  // foreign-flow-proxy.ts), diranking dari yang paling panjang streak-nya.
+  // "Akumulasi Asing Berkelanjutan" - lolos konfirmasi 4-lapis analyzeAccumulationSignal
+  // (CMF20 + CLV kuat 3 hari + volume spike + tren MFM menguat), bukan cuma streak
+  // mentah >= 3 hari (dulu gampang lolos meski sinyalnya lemah). Diranking dari streak
+  // terpanjang di antara yang sudah terkonfirmasi.
   const topForeignAccumulation = [...quotes]
-    .filter(s => (s.foreignAccumStreak || 0) >= 3)
+    .filter(s => s.accumulationConfirmed)
     .sort((a, b) => (b.foreignAccumStreak || 0) - (a.foreignAccumStreak || 0))
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), streak: s.foreignAccumStreak, changePct: s.changePct, price: s.price }));

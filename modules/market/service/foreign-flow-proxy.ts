@@ -97,3 +97,61 @@ export function analyzeBandarmology(history: OhlcvPoint[]): BandarmologyResult {
     netPressurePct: parseFloat(netPressurePct.toFixed(1)),
   };
 }
+
+export type AccumulationStatus = 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL';
+export interface AccumulationSignal {
+  status: AccumulationStatus;
+  /** true kalau lolos SEMUA 4 syarat (bukan cuma 1) - dipakai gantikan cek lama
+   * "3 hari netValue positif berturut-turut" yang gampang lolos meski sinyalnya lemah. */
+  confirmed: boolean;
+  cmf20: number;
+  avgMfm3D: number;
+  volRatio: number;
+}
+
+/** Konfirmasi akumulasi/distribusi 4-lapis - lebih ketat dari analyzeBandarmology()
+ * (yang cuma 2 syarat: CMF20 + CLV hari terakhir). Dipakai untuk klaim yang lebih kuat
+ * ("tekanan beli KONSISTEN", "akumulasi berkelanjutan"), bukan pengganti Bandarmology.
+ * Harus lolos SEMUA: (1) CMF20 > 15%/< -15%, (2) 3 hari terakhir MFM & CLV searah kuat
+ * (CLV > 0.6/< 0.4, bukan cuma > 0), (3) volume hari ini > 1.5x rata-rata 20 hari
+ * (konfirmasi partisipasi nyata, bukan harga naik di volume sepi), (4) jumlah MFM 3 hari
+ * terakhir menguat searah (> 0.5/< -0.5). */
+export function analyzeAccumulationSignal(history: OhlcvPoint[]): AccumulationSignal {
+  if (history.length < 3) {
+    return { status: 'NETRAL', confirmed: false, cmf20: 0, avgMfm3D: 0, volRatio: 1 };
+  }
+  const window20 = history.slice(-20);
+  const cmf20 = chaikinMoneyFlow20(history);
+  const last3 = window20.slice(-3);
+  const avgVol20 = window20.reduce((s, h) => s + h.volume, 0) / window20.length;
+  const lastDay = history[history.length - 1];
+  const volRatio = avgVol20 > 0 ? lastDay.volume / avgVol20 : 1;
+  const mfmSum3D = last3.reduce((s, h) => s + moneyFlowMultiplier(h.high, h.low, h.close), 0);
+  const volConfirmed = volRatio > 1.5;
+
+  const bullish = [
+    cmf20 > 15,
+    last3.every((h) => moneyFlowMultiplier(h.high, h.low, h.close) > 0 && closeLocationValue(h.high, h.low, h.close) > 0.6),
+    volConfirmed,
+    mfmSum3D > 0.5,
+  ].every(Boolean);
+
+  const bearish = [
+    cmf20 < -15,
+    last3.every((h) => moneyFlowMultiplier(h.high, h.low, h.close) < 0 && closeLocationValue(h.high, h.low, h.close) < 0.4),
+    volConfirmed,
+    mfmSum3D < -0.5,
+  ].every(Boolean);
+
+  let status: AccumulationStatus = 'NETRAL';
+  if (bullish) status = 'AKUMULASI';
+  else if (bearish) status = 'DISTRIBUSI';
+
+  return {
+    status,
+    confirmed: bullish || bearish,
+    cmf20: parseFloat(cmf20.toFixed(1)),
+    avgMfm3D: parseFloat((mfmSum3D / 3).toFixed(2)),
+    volRatio: parseFloat(volRatio.toFixed(2)),
+  };
+}

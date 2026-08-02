@@ -13,7 +13,9 @@ import { analyzeBandarmology, type BandarmologyStatus } from './foreign-flow-pro
 //   labelnya "Akumulasi/Distribusi", bukan "Big Player Confirmed" dsb.
 // - "Moat Rating": heuristik dari ROE & gross margin (ambang batas didokumentasikan
 //   di bawah), bukan penilaian kualitatif yang dikarang
-// - Target Bull/Bear: 52-week high/low riil, bukan angka proyeksi rekaan
+// - 52W High/Low: harga tertinggi/terendah riil 52 minggu terakhir (fakta historis,
+//   BUKAN target/proyeksi harga ke depan - dulu dilabel "Target Bull/Bear" yang
+//   menyesatkan seolah itu prediksi AI, sudah diperbaiki jadi apa adanya)
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
 // Saham likuid LQ45/blue-chip - universe yang sama dipakai getMarketSummary(), supaya
@@ -48,7 +50,7 @@ type RawStock = {
   fifty_two_week_high: number | null;
 };
 
-/** 25 hari kalender cukup untuk 20 hari bursa (CMF20) + buffer libur/weekend. */
+/** range=1mo (~21 hari bursa) cukup untuk jendela CMF20 + buffer libur/weekend. */
 async function fetchDailyOhlcv(ticker: string): Promise<{ date: string; high: number; low: number; close: number; volume: number }[]> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1mo&interval=1d`;
@@ -177,14 +179,14 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         sector: s.sector,
         per: s.per != null ? parseFloat(s.per.toFixed(1)) : null,
         per_sector: parseFloat(sectorAvgPer(s.sector).toFixed(1)),
-        rev_growth_5yr: s.rev_growth != null ? `${s.rev_growth >= 0 ? '+' : ''}${s.rev_growth.toFixed(1)}%` : 'N/A',
+        rev_growth_ttm: s.rev_growth != null ? `${s.rev_growth >= 0 ? '+' : ''}${s.rev_growth.toFixed(1)}%` : 'N/A',
         roe: s.roe != null ? `${s.roe.toFixed(1)}%` : 'N/A',
         der: s.der != null ? `${s.der.toFixed(2)}x` : 'N/A',
         div_yield: s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : 'N/A',
         bandarmology: bandarmologyLabel(s.bandarmology_status),
         moat: moatRating(s.roe, s.gross_margin),
-        target_bull: s.fifty_two_week_high,
-        target_bear: s.fifty_two_week_low,
+        week52_high: s.fifty_two_week_high,
+        week52_low: s.fifty_two_week_low,
         entry: s.price,
         stop_loss: Math.round(s.price * (1 - stopLossPct)),
       };

@@ -17,7 +17,7 @@ import {
   calculateConsensus,
 } from '@/modules/technical';
 import { getSession, checkProAccessLive } from '@/modules/user';
-import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { FREE_LIMITS } from '@/lib/limits';
@@ -229,9 +229,12 @@ export async function GET(
       if (dailyFlow[i].netValueBillion < 0) sellStreak++;
       else break;
     }
-    const last3 = dailyFlow.slice(-3);
-    const isAccumulation3D = last3.length === 3 && last3.every((d) => d.netValueBillion > 0);
-    const isDistribution3D = last3.length === 3 && last3.every((d) => d.netValueBillion < 0);
+    // Dulu "3 hari netValue positif berturut-turut" saja - gampang lolos meski
+    // sinyalnya lemah. Diganti konfirmasi 4-lapis (CMF20 + CLV kuat 3 hari + volume
+    // spike + tren MFM menguat), lihat analyzeAccumulationSignal di foreign-flow-proxy.ts.
+    const accumulation = analyzeAccumulationSignal(flowHistory.slice(-20));
+    const isAccumulation3D = accumulation.status === 'AKUMULASI';
+    const isDistribution3D = accumulation.status === 'DISTRIBUSI';
 
     // Status kanonik dikonsumsi calculateScore (FlowInput.foreignFlow) - lihat
     // modules/technical/service/scoring.service.ts untuk 5 nilai yang diharapkan.
