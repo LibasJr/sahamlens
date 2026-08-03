@@ -20,7 +20,7 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
   const handleTickerChange = (newTicker: string) => {
     const formattedTicker = newTicker.includes('.JK') ? newTicker : `${newTicker}.JK`;
     // Simpan ke key yang sama dipakai Teknikal/Fundamental/DCF supaya emiten yang
-    // dicari di Council AI juga ikut ke halaman lain (dan sidebar), bukan cuma satu arah.
+    // dicari di LensAI juga ikut ke halaman lain (dan sidebar), bukan cuma satu arah.
     window.localStorage.setItem('last_searched_ticker', formattedTicker);
     router.push(`/technical/${formattedTicker}`);
   };

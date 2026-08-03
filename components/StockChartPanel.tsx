@@ -7,7 +7,7 @@ import { computeIndicators, computeMiniCouncil, type Indicators } from '@/lib/mi
 
 const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y', 'ALL'];
 
-// Grafik candlestick + timeframe switcher + ringkasan Council AI (10 agen), dipakai
+// Grafik candlestick + timeframe switcher + ringkasan LensAI (10 agen), dipakai
 // baik di halaman /technical/[symbol] maupun bisa dipakai ulang di tempat lain yang
 // butuh chart+insight ringkas untuk satu simbol.
 export default function StockChartPanel({ symbol }: { symbol: string }) {
@@ -86,7 +86,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
       <div className="flex items-start gap-2 rounded-lg bg-tv-hover border border-tv-border p-3">
         <Sparkles className="w-4 h-4 text-tv-blue shrink-0 mt-0.5" />
         <p className="text-[12px] leading-[1.5] text-tv-muted">
-          {council ? council.summary : ind ? 'Menghitung ringkasan Council AI...' : 'Memuat data teknikal...'}
+          {council ? council.summary : ind ? 'Menghitung ringkasan LensAI...' : 'Memuat data teknikal...'}
         </p>
       </div>
     </div>

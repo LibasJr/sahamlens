@@ -72,7 +72,7 @@ function DcfContent() {
     <TickerAnalysisShell
       ticker={ticker}
       onTickerChange={setTicker}
-      moduleTitle="Council AI DCF Intrinsic Valuation"
+      moduleTitle="LensAI DCF Intrinsic Valuation"
       moduleBank="COUNCIL AI"
       icon={<Calculator className="w-6 h-6" />}
       accent="blue"
@@ -85,7 +85,7 @@ function DcfContent() {
             <div className="text-xl font-bold text-tv-text font-number">Rp {quant.current_price?.toLocaleString('id-ID') || '-'}</div>
           </div>
           <div>
-            <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Council AI Fair Value</div>
+            <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">LensAI Fair Value</div>
             <div className="text-xl font-extrabold text-tv-green font-number">Rp {quant.fair_value?.toLocaleString('id-ID') || '-'}</div>
           </div>
           <div className="pl-4 border-l border-tv-border">
@@ -188,7 +188,7 @@ function DcfContent() {
           </div>
 
           <div className="p-4 rounded-lg bg-tv-bg border border-tv-border space-y-2">
-            <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading">Ringkasan Analisis Council AI</h4>
+            <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading">Ringkasan Analisis LensAI</h4>
             <p className="text-xs text-tv-text leading-relaxed">
               {ai.executive_summary || (loading ? 'Menghitung model DCF...' : 'Data FCF tidak tersedia untuk simbol ini (mis. sektor bank tidak memakai model DCF FCF-based).')}
             </p>

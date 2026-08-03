@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         // murni oleh !hasAnyAIProvider(), sebelum context/prompt diproses). Diganti
         // pesan jujur tanpa klaim valuasi atau rekomendasi yang tidak berdasar.
         role: 'assistant',
-        content: `Council AI belum terkonfigurasi di server ini, jadi saya tidak bisa memberi analisis atau rekomendasi untuk pertanyaan ini. Silakan gunakan **Technical Analyzer** atau **Fundamental Analyzer** yang menghitung langsung dari data pasar real-time, atau hubungi admin untuk mengaktifkan Council AI.`
+        content: `LensAI belum terkonfigurasi di server ini, jadi saya tidak bisa memberi analisis atau rekomendasi untuk pertanyaan ini. Silakan gunakan **Technical Analyzer** atau **Fundamental Analyzer** yang menghitung langsung dari data pasar real-time, atau hubungi admin untuk mengaktifkan LensAI.`
       });
     }
 
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       // jangan diam-diam lanjut ke giliran berikutnya seolah tidak terjadi apa-apa.
       return NextResponse.json({
         role: 'assistant',
-        content: 'Maaf, Council AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda beberapa saat lagi.',
+        content: 'Maaf, LensAI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda beberapa saat lagi.',
       }, { status: 500 });
     }
 
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     // chat window. Satu pesan generik yang aman untuk semua jenis kegagalan.
     return NextResponse.json({
       role: 'assistant',
-      content: 'Maaf, Council AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda beberapa saat lagi.',
+      content: 'Maaf, LensAI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda beberapa saat lagi.',
     }, { status: 500 });
   }
 }

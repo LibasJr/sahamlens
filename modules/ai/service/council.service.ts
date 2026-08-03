@@ -10,6 +10,13 @@ import { getCouncilCache, setCouncilCache } from "./council-cache.service";
 // ATR/Volume ratio/Foreign Flow proxy REAL ditambahkan ke DATA REAL supaya agent
 // Volatility/Volume/Bandar juga py angka asli untuk dirujuk (bukan dihapus - lebih
 // baik dikasih data asli daripada agent-nya ditiadakan begitu saja).
+// BUG FIX (audit BUILD 003 2026-08-03, item Confidence): field "confidence" per-agent
+// dan "final_confidence" SEBELUMNYA ada di sini, dan ATURAN di bawah literal menyuruh
+// LLM MENGARANG angka ("Confidence jangan semua 80, variasi 50-92") - persis pola yang
+// dilarang audit ("AI Confidence 92%" tanpa formula yang bisa dijelaskan). Dihapus total
+// (bukan diganti formula) - signal (BUY/SELL/WAIT/HOLD) + reason berbasis DATA REAL
+// sudah cukup menjelaskan pendapat tiap agent, tanpa angka presisi palsu yang terlihat
+// terukur padahal dikarang bebas oleh model.
 const TUNED_PROMPT = `
 Kamu adalah Dewan 10 Ahli Saham Indonesia. Analisa \${symbol}.
 
@@ -22,26 +29,25 @@ CONTOH OUTPUT YANG GUE MAU (JANGAN GENERIC, TAPI SEMUA ANGKA HARUS DARI DATA REA
 Untuk DGWG.JK (Price 280, MA50 300, MA200 369, RSI 31.25, Support 274, Res 306, ATR 8.2, Volume 1.8x, Foreign Flow NET SELL, Score 42):
 {
   "agents": [
-    {"name": "Trend Follower", "signal": "SELL", "confidence": 92, "reason": "Death cross MA50 300 < MA200 369, harga 280 masih dibawah, jangan lawan trend"},
-    {"name": "Mean Reversion", "signal": "BUY", "confidence": 78, "reason": "RSI 31.25 oversold + nempel support 274, pantulan ke 286-306 mungkin"},
-    {"name": "Volume", "signal": "WAIT", "confidence": 60, "reason": "Volume 1.8x avg, mulai ramai tapi arahnya belum jelas ikut trend"},
-    {"name": "Momentum", "signal": "SELL", "confidence": 68, "reason": "EMA 286 masih SELL, momentum belum balik"},
-    {"name": "S/R Hunter", "signal": "WAIT", "confidence": 85, "reason": "Tunggu 274 jebol atau hold, RR 1:4.33 baru enak di 274 bukan 280"},
-    {"name": "Risk Manager", "signal": "BUY", "confidence": 70, "reason": "Risk 2.14% kecil kalau cut bawah 274, reward 9.29% ke 306, cicil boleh"},
-    {"name": "Breakout", "signal": "SELL", "confidence": 90, "reason": "Skor komposit 42/100 SELL, belum ada tenaga breakout"},
-    {"name": "Volatility", "signal": "HOLD", "confidence": 55, "reason": "ATR 8.2 (~2.9% dari harga), volatilitas sedang, siap-siap gerak di 274"},
-    {"name": "Pattern", "signal": "SELL", "confidence": 65, "reason": "Lower low, belum bikin higher low"},
-    {"name": "Bandar", "signal": "WAIT", "confidence": 50, "reason": "Foreign Flow NET SELL, tunggu tanda akumulasi dulu di 274"}
+    {"name": "Trend Follower", "signal": "SELL", "reason": "Death cross MA50 300 < MA200 369, harga 280 masih dibawah, jangan lawan trend"},
+    {"name": "Mean Reversion", "signal": "BUY", "reason": "RSI 31.25 oversold + nempel support 274, pantulan ke 286-306 mungkin"},
+    {"name": "Volume", "signal": "WAIT", "reason": "Volume 1.8x avg, mulai ramai tapi arahnya belum jelas ikut trend"},
+    {"name": "Momentum", "signal": "SELL", "reason": "EMA 286 masih SELL, momentum belum balik"},
+    {"name": "S/R Hunter", "signal": "WAIT", "reason": "Tunggu 274 jebol atau hold, RR 1:4.33 baru enak di 274 bukan 280"},
+    {"name": "Risk Manager", "signal": "BUY", "reason": "Risk 2.14% kecil kalau cut bawah 274, reward 9.29% ke 306, cicil boleh"},
+    {"name": "Breakout", "signal": "SELL", "reason": "Skor komposit 42/100 SELL, belum ada tenaga breakout"},
+    {"name": "Volatility", "signal": "HOLD", "reason": "ATR 8.2 (~2.9% dari harga), volatilitas sedang, siap-siap gerak di 274"},
+    {"name": "Pattern", "signal": "SELL", "reason": "Lower low, belum bikin higher low"},
+    {"name": "Bandar", "signal": "WAIT", "reason": "Foreign Flow NET SELL, tunggu tanda akumulasi dulu di 274"}
   ],
   "final_suggestion": "WAIT & SPECULATIVE BUY di 274",
-  "final_confidence": 73,
   "summary_id": "4 SELL 3 WAIT 3 BUY. Trend masih SELL gara2 MA200 369, tapi RSI 31.25 & RR 1:4.33 bikin 3 agent BUY. Saran: jangan beli di 280, tunggu 274 hold baru cicil, target 306 cut bawah 268."
 }
 
 ATURAN:
 - Reason max 20 kata, bahasa Indonesia gaul trader (jangan formal), langsung to the point, tanpa basa-basi
 - HANYA sebut angka yang ada di DATA REAL di atas - dilarang keras mengarang angka (ATR, volume, foreign flow, dst) yang tidak diberikan
-- Confidence jangan semua 80, variasi 50-92
+- JANGAN sertakan field confidence/skor kepercayaan apa pun - signal + reason saja
 - Final suggestion harus actionable: BUY di harga berapa, WAIT dimana
 
 Output JSON valid saja.

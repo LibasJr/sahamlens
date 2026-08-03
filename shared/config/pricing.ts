@@ -58,7 +58,7 @@ export function formatRupiah(n: number): string {
 export const FULL_FEATURE_LIST: string[] = [
   'Technical Analyzer - 10 filter murni matematika',
   'Fundamental Analyzer - valuasi & kesehatan keuangan',
-  'Council AI - 10 agen analisis per saham',
+  'LensAI - 10 agen analisis per saham',
   'Multi-Agent Orchestrator - 9 agen kuantitatif',
   'Compare Tool - bandingkan 2 saham berdampingan',
   'Stock Screener - filter multi-faktor',

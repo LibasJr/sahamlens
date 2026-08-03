@@ -54,7 +54,7 @@ export default function NewsPage() {
           </div>
           <div>
             <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight">Berita & Sentimen Pasar</h1>
-            <p className="text-xs text-tv-muted">Berita pasar dari 10 sumber kredibel, sentimen dinilai Council AI</p>
+            <p className="text-xs text-tv-muted">Berita pasar dari 10 sumber kredibel, sentimen dinilai LensAI</p>
           </div>
         </div>
       </header>
@@ -69,7 +69,7 @@ export default function NewsPage() {
           <h2 className="font-heading text-sm font-bold text-tv-text">
             Semua Berita{newsItems.length > 0 ? ` (${newsItems.length})` : ''}
           </h2>
-          <Badge variant="info">Council AI</Badge>
+          <Badge variant="info">LensAI</Badge>
         </div>
 
         {loading ? (

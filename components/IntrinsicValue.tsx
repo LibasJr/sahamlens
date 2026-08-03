@@ -32,7 +32,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     return () => { cancelled = true; };
   }, [symbol]);
 
-  // Penjelasan Council AI - dipanggil terpisah setelah angka intrinsic value siap,
+  // Penjelasan LensAI - dipanggil terpisah setelah angka intrinsic value siap,
   // supaya kartu tetap tampil cepat walau penjelasan AI-nya lebih lambat.
   useEffect(() => {
     if (!data || data.error) return;
@@ -202,15 +202,15 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
         </div>
       </div>
 
-      {/* Penjelasan Council AI - substantif tapi mudah dipahami, kenapa harga wajar
+      {/* Penjelasan LensAI - substantif tapi mudah dipahami, kenapa harga wajar
           bisa segitu (bukan cuma ulang angka). Fallback rule-based kalau Gemini
           tidak tersedia, lihat app/api/intrinsic-explain/route.ts. */}
       <div className="mt-4 pt-4 border-t border-tv-border">
         <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading mb-2 flex items-center gap-1.5">
-          <Target className="w-3 h-3 text-tv-accent" /> Penjelasan Council AI
+          <Target className="w-3 h-3 text-tv-accent" /> Penjelasan LensAI
         </h4>
         {loadingExplanation ? (
-          <div className="text-xs text-tv-muted animate-pulse">Council AI sedang menganalisis...</div>
+          <div className="text-xs text-tv-muted animate-pulse">LensAI sedang menganalisis...</div>
         ) : explanation ? (
           <p className="text-xs text-tv-text leading-relaxed">{explanation}</p>
         ) : (

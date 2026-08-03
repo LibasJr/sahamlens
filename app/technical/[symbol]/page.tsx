@@ -41,14 +41,14 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
 
   if (!council) {
     // Chart + indikator dasar tetap tampil publik (lihat StockChartPanel di atas) -
-    // hanya ringkasan 10-agent Council AI Pro yang butuh login/upgrade, jadi teaser-nya
+    // hanya ringkasan 10-agent LensAI Pro yang butuh login/upgrade, jadi teaser-nya
     // spesifik per alasan (belum login vs belum Pro) alih-alih pesan error generik.
     if (status === 401) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
-          <p className="text-white font-semibold mb-1">Login untuk membuka Council AI</p>
-          <p className="text-tv-muted text-sm mb-4">Grafik & indikator di atas gratis untuk semua orang. Ringkasan Stock Analysis Council AI butuh akun.</p>
+          <p className="text-white font-semibold mb-1">Login untuk membuka LensAI</p>
+          <p className="text-tv-muted text-sm mb-4">Grafik & indikator di atas gratis untuk semua orang. Ringkasan Stock Analysis LensAI butuh akun.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Login Sekarang
           </Link>
@@ -60,8 +60,8 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
-          <p className="text-white font-semibold mb-1">Council AI adalah fitur Pro</p>
-          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap Council AI pada {symbol}.</p>
+          <p className="text-white font-semibold mb-1">LensAI adalah fitur Pro</p>
+          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap LensAI pada {symbol}.</p>
           {paymentMethods.length > 0 && (
             <div className="text-left max-w-xs mx-auto mb-4 space-y-1">
               {paymentMethods.map((m) => (
@@ -128,7 +128,11 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
         )}
 
         <div className="mt-4 p-4 bg-tv-hover rounded-lg border border-tv-borderLight">
-          <p className="text-lg text-white font-mono mb-2">Kesimpulan: <span className="text-tv-green">{council.final_suggestion}</span> (Confidence: {council.final_confidence}%)</p>
+          {/* BUG FIX (audit BUILD 003 2026-08-03): "Confidence: X%" DIHAPUS - angka itu
+              dikarang bebas oleh LLM tanpa formula (lihat council.service.ts), bukan
+              dihitung dari data. Persentase BUY/SELL/HOLD/WAIT di atas TETAP tampil -
+              itu vote riil dari signal 10 agent, bukan angka karangan. */}
+          <p className="text-lg text-white font-mono mb-2">Kesimpulan: <span className="text-tv-green">{council.final_suggestion}</span></p>
           {/* whitespace-pre-line: summary_id dari Gemini saat ini satu kalimat padat
               tanpa newline by design, tapi HTML mengciutkan \n jadi spasi tunggal secara
               default - kalau prompt berubah atau model sesekali mengembalikan newline,
@@ -155,7 +159,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
                   isWait ? 'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow/30' :
                   'bg-tv-border text-tv-muted'
                 }`}>
-                  {agent.signal} ({agent.confidence}%)
+                  {agent.signal}
                 </span>
               </div>
               <p className="text-sm text-tv-muted whitespace-pre-line">{agent.reason}</p>
@@ -172,7 +176,7 @@ function CouncilSkeleton({ symbol }: { symbol: string }) {
     <div className="space-y-6 animate-pulse">
       <div className="bg-tv-card border border-tv-border rounded-xl p-12 flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-tv-green animate-spin mb-4" />
-        <p className="text-tv-muted font-mono text-sm">Council AI sedang merapatkan saham {symbol}, mohon tunggu (5-10 detik)...</p>
+        <p className="text-tv-muted font-mono text-sm">LensAI sedang merapatkan saham {symbol}, mohon tunggu (5-10 detik)...</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[...Array(6)].map((_, i) => (
@@ -198,8 +202,8 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">Council AI: {symbol}</h1>
-            <p className="text-sm text-tv-muted font-mono">Stock Analysis Council AI</p>
+            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">LensAI: {symbol}</h1>
+            <p className="text-sm text-tv-muted font-mono">Stock Analysis LensAI</p>
           </div>
         </div>
 

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     .map((m) => `${m.name}: Rp ${Math.round(m.value).toLocaleString('id-ID')}`)
     .join(', ') || 'tidak tersedia';
 
-  const prompt = `Kamu adalah anggota Council AI SahamLens yang bertugas menjelaskan hasil valuasi ke investor awam. Tulis SATU paragraf pendek (maksimal 4 kalimat, Bahasa Indonesia, substantif tapi mudah dipahami orang yang baru belajar saham) yang menjelaskan KENAPA harga wajar saham ${input.symbol} sebesar Rp ${Math.round(input.fairValue).toLocaleString('id-ID')} bisa muncul dari data berikut. Jangan cuma mengulang angka, jelaskan logikanya. Jangan beri anjuran beli/jual eksplisit.
+  const prompt = `Kamu adalah anggota LensAI SahamLens yang bertugas menjelaskan hasil valuasi ke investor awam. Tulis SATU paragraf pendek (maksimal 4 kalimat, Bahasa Indonesia, substantif tapi mudah dipahami orang yang baru belajar saham) yang menjelaskan KENAPA harga wajar saham ${input.symbol} sebesar Rp ${Math.round(input.fairValue).toLocaleString('id-ID')} bisa muncul dari data berikut. Jangan cuma mengulang angka, jelaskan logikanya. Jangan beri anjuran beli/jual eksplisit.
 
 Data:
 - Sektor: ${input.sektor || 'tidak diketahui'}

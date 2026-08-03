@@ -37,7 +37,7 @@ export default function ScreenerPage() {
       <Header
         currentTicker=""
         onTickerChange={(t) => router.push(`/technical/${t.replace('.JK', '')}.JK`)}
-        moduleTitle="Council AI Multi-Factor Screener"
+        moduleTitle="LensAI Multi-Factor Screener"
         moduleBank="COUNCIL AI"
       />
 
@@ -51,7 +51,7 @@ export default function ScreenerPage() {
             <div>
               <h1 className="font-heading text-xl font-bold text-white tracking-tight">Seleksi Profil Risiko Investor</h1>
               <p className="text-xs text-tv-muted font-mono">
-                Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif Council AI.
+                Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif LensAI.
               </p>
             </div>
           </div>
