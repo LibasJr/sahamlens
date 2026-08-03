@@ -9,12 +9,13 @@ import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
+import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, SegmentedControl, Input, Select } from '@/components/ui';
 import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper
+  Sparkles, Calculator, Newspaper, ChevronRight
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -54,6 +55,9 @@ function DashboardContent() {
   // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
   const [stockNews, setStockNews] = useState<any[]>([]);
   const [loadingStockNews, setLoadingStockNews] = useState(true);
+  // Judul beritanya dulu tidak pernah ditampilkan di mana pun - stockNews cuma dipakai
+  // menghitung angka di kartu Sentimen. Modal ini menampilkan data yang memang sudah ada.
+  const [newsModalOpen, setNewsModalOpen] = useState(false);
   
   // AI Explain Modal State
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -813,7 +817,13 @@ function DashboardContent() {
             const netral = stockNews.length - positif - negatif;
             const overall = stockNews.length === 0 ? null : positif > negatif ? 'POSITIF' : negatif > positif ? 'NEGATIF' : 'NETRAL';
             return (
-              <div className="flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4">
+              // <button>, bukan <div onClick> - supaya bisa difokus keyboard dan terbaca
+              // pembaca layar sebagai elemen yang memang bisa ditekan.
+              <button
+                type="button"
+                onClick={() => setNewsModalOpen(true)}
+                className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 text-left w-full hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
+              >
                 <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${
                   overall === 'POSITIF' ? 'bg-tv-green/15 text-tv-green' : overall === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'
                 }`}>
@@ -829,7 +839,8 @@ function DashboardContent() {
                       : `${overall} • ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
                   </p>
                 </div>
-              </div>
+                <ChevronRight className="w-4 h-4 text-tv-muted group-hover:text-tv-text transition-colors shrink-0" />
+              </button>
             );
           })()}
           <Link
@@ -1019,6 +1030,13 @@ function DashboardContent() {
         </div>
       )}
       
+      <StockNewsModal
+        open={newsModalOpen}
+        onClose={() => setNewsModalOpen(false)}
+        symbol={displayTicker(data?.stock?.symbol || ticker)}
+        items={stockNews}
+      />
+
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
