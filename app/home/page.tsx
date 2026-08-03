@@ -98,8 +98,8 @@ export default function HomePage() {
       .then(([liveJkse, summary]) => {
         if (liveJkse) setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
         if (summary) {
-          setTopGainers((summary.topGainers || []).slice(0, 3));
-          setTopLosers((summary.topLosers || []).slice(0, 3));
+          setTopGainers((summary.topGainers || []).slice(0, 10));
+          setTopLosers((summary.topLosers || []).slice(0, 10));
         }
       })
       .finally(() => setLoadingMarket(false));
@@ -201,6 +201,8 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingMarket, loadingPicks, loadingDailyPicks]);
 
+  const moverRowCount = Math.max(calendarEvents?.length || 0, 3);
+
   return (
     <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full space-y-5 min-h-full flex flex-col">
       {/* Header */}
@@ -257,6 +259,9 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
+      {/* moverRowCount: jumlah baris Top Gainer/Loser ikut jumlah baris Jadwal
+          Terdekat di sebelahnya, biar dua kartu setinggi grid-stretch sama-sama
+          terisi tanpa hardcode angka tetap. Minimal 3 baris kalau kalender kosong. */}
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Ringkasan Pasar - IHSG + top gainer/loser, publik (bukan Portfolio -
             SahamLens alat analisis/screener, bukan sekuritas; posisi trading ada
@@ -273,7 +278,7 @@ export default function HomePage() {
             {loadingMarket ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
             ) : (
-              <div className="space-y-3 flex-1 flex flex-col justify-between">
+              <div className="space-y-3">
                 <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
                   <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
                   {ihsg ? (
@@ -292,7 +297,7 @@ export default function HomePage() {
                   <div>
                     <div className="text-[10px] text-tv-muted uppercase tracking-wide mb-1">Top Gainer</div>
                     <div className="space-y-1">
-                      {topGainers.map((s) => (
+                      {topGainers.slice(0, moverRowCount).map((s) => (
                         <div key={s.symbol} className="flex items-center justify-between text-xs">
                           <span className="font-medium text-tv-text font-number">{s.symbol}</span>
                           <span className="font-number text-tv-green tabular-nums">+{s.changePct.toFixed(2)}%</span>
@@ -303,7 +308,7 @@ export default function HomePage() {
                   <div>
                     <div className="text-[10px] text-tv-muted uppercase tracking-wide mb-1">Top Loser</div>
                     <div className="space-y-1">
-                      {topLosers.map((s) => (
+                      {topLosers.slice(0, moverRowCount).map((s) => (
                         <div key={s.symbol} className="flex items-center justify-between text-xs">
                           <span className="font-medium text-tv-text font-number">{s.symbol}</span>
                           <span className="font-number text-tv-red tabular-nums">{s.changePct.toFixed(2)}%</span>
