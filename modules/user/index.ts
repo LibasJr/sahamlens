@@ -26,5 +26,6 @@ export {
   handleAdminStats,
   handleAdminExport,
   handleSetProStatus,
+  handleGetProStatus,
   handleChangeAdminSecret,
 } from './controller/admin.controller';

@@ -4,6 +4,7 @@ import { ForbiddenError, ValidationError, NotFoundError } from '../../../shared/
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
 import { isAdminFromRequestCookies, getAdminStatsToday, getAdminExportData } from '../service/admin.service';
 import { getUserByEmail, updateUser } from '../repository/user.repository';
+import { extendProExpiry } from '../service/pro-expiry.service';
 import { getAdminSecretHash, setAdminSecretHash } from '../repository/admin-secret.repository';
 import { logger } from '../../../shared/logger/logger';
 import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
@@ -93,7 +94,7 @@ export async function handleAdminExport(
 
 export async function handleSetProStatus(
   cookieStore: { get(name: string): { value: string } | undefined },
-  body: { email?: unknown; isPro?: unknown }
+  body: { email?: unknown; isPro?: unknown; months?: unknown; expiresAt?: unknown }
 ): Promise<HttpResult> {
   if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   if (typeof body.email !== 'string' || !body.email || typeof body.isPro !== 'boolean') {
@@ -101,9 +102,43 @@ export async function handleSetProStatus(
   }
   const user = await getUserByEmail(body.email);
   if (!user) throw new NotFoundError('User tidak ditemukan');
-  await updateUser(user.id, { is_pro: body.isPro });
-  logger.info('Admin set-pro', { email: body.email, isPro: body.isPro });
-  return { status: 200, body: { email: body.email, isPro: body.isPro } };
+
+  let proExpiresAt: string | null = null;
+  if (body.isPro) {
+    if (typeof body.expiresAt === 'string' && body.expiresAt) {
+      // Tanggal bebas dipakai apa adanya - termasuk tanggal di masa lalu, yang efeknya
+      // sama dengan mencabut akses. Itu bisa disengaja, jadi tidak ditolak.
+      proExpiresAt = new Date(body.expiresAt).toISOString();
+    } else {
+      const months = typeof body.months === 'number' && body.months > 0 ? body.months : 1;
+      proExpiresAt = extendProExpiry(user.pro_expires_at ?? null, months);
+    }
+  }
+
+  // Saat dicabut, tanggal ikut dikosongkan - menyisakan tanggal lama pada akun non-Pro
+  // membingungkan dan bisa menghidupkan akses lagi kalau is_pro dinyalakan tanpa durasi.
+  await updateUser(user.id, { is_pro: body.isPro, pro_expires_at: proExpiresAt });
+  logger.info('Admin set-pro', { email: body.email, isPro: body.isPro, proExpiresAt });
+  return { status: 200, body: { email: body.email, isPro: body.isPro, proExpiresAt } };
+}
+
+export async function handleGetProStatus(
+  cookieStore: { get(name: string): { value: string } | undefined },
+  query: { email?: unknown }
+): Promise<HttpResult> {
+  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (typeof query.email !== 'string' || !query.email) {
+    throw new ValidationError('email wajib diisi');
+  }
+  const user = await getUserByEmail(query.email);
+  if (!user) throw new NotFoundError('User tidak ditemukan');
+
+  // Hanya tiga field - JANGAN kembalikan objek user apa adanya, di dalamnya ada
+  // password_hash, verification_code, dan reset_code.
+  return {
+    status: 200,
+    body: { email: user.email, isPro: user.is_pro, proExpiresAt: user.pro_expires_at ?? null },
+  };
 }
 
 const MIN_ADMIN_SECRET_LENGTH = 12;
