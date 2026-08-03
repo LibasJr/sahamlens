@@ -56,7 +56,7 @@ export function formatRupiah(n: number): string {
 // supaya modal upgrade menampilkan SEMUA yang didapat, bukan cuma teaser 3 baris yang
 // diulang identik di ~10 halaman berbeda.
 export const FULL_FEATURE_LIST: string[] = [
-  'Technical Analyzer - 10 filter murni matematika',
+  'LensTechnical - 10 filter murni matematika',
   'Fundamental Analyzer - valuasi & kesehatan keuangan',
   'LensAI - 10 agen analisis per saham',
   'Multi-Agent Orchestrator - 9 agen kuantitatif',
