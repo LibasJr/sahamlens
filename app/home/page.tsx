@@ -231,7 +231,7 @@ export default function HomePage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="font-heading text-sm font-semibold text-white">AI Insight</h2>
+                <h2 className="font-heading text-sm font-semibold text-white">LensAI</h2>
                 <Badge variant="info" dot>Live</Badge>
               </div>
               {loadingPicks ? (

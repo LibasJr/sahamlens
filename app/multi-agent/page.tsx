@@ -107,7 +107,7 @@ export default function MultiAgentPage() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="Multi-Agent AI Consensus"
+        moduleTitle="LensAI — Multi-Agent Consensus"
         moduleBank="ENSEMBLE AI"
       />
 
@@ -260,7 +260,7 @@ export default function MultiAgentPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Konsensus AI"
-        body="Multi-Agent AI Consensus butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="LensAI — Multi-Agent Consensus butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"

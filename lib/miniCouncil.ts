@@ -242,7 +242,7 @@ export function computeMiniCouncil(candles: Candle[]): CouncilResult | null {
   const verdictText = finalSignal === 'BUY' ? 'layak dipertimbangkan untuk dibeli'
     : finalSignal === 'SELL' ? 'sebaiknya diwaspadai / dipertimbangkan untuk dijual'
     : 'masih dalam fase wait-and-see (tahan dulu)';
-  let summary = `Council AI menilai saham ini ${verdictText}.`;
+  let summary = `LensAI menilai saham ini ${verdictText}.`;
   if (supporting.length) summary += ` ${supporting.join(' ')}`;
   if (opposing) summary += ` Yang perlu diwaspadai: ${opposing.reason}`;
 
