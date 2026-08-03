@@ -16,6 +16,10 @@ export interface SessionPayload {
   role: 'admin' | 'user' | 'free' | 'pro' | string;
   is_pro: boolean;
   trial_ends_at: string | null;
+  /** Opsional supaya JWT lama yang belum memuatnya tetap bisa didekode - nilainya
+   * undefined, diperlakukan sama dengan null, lalu dikoreksi checkProAccessLive()
+   * yang membaca ulang dari database. */
+  pro_expires_at?: string | null;
   [key: string]: any;
 }
 
