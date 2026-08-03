@@ -53,14 +53,28 @@ export default function AIChat() {
     setIsLoading(true);
 
     const segments = pathname.split('/');
-    const currentSymbol = segments.length > 2 ? segments[segments.length - 1] : 'Umum';
-    let context = `Pengguna saat ini sedang melihat halaman saham: ${currentSymbol}. Jika bertanya tanpa menyebut kode, asumsikan saham ini.`;
+    const pathSymbol = segments.length > 2 ? segments[segments.length - 1] : 'Umum';
+    // Beranda (Dashboard.tsx) dispatch 'update-ai-context' dengan symbol+isIndex chart
+    // yang SEDANG tampil (IHSG atau saham hasil search) - dipakai dulu kalau ada, baru
+    // fallback ke kode di URL (halaman /technical/[symbol] dst yang tidak dispatch
+    // symbol/isIndex secara eksplisit).
+    const currentSymbol: string = activeContextData?.symbol ?? pathSymbol;
+    const isIndex: boolean = activeContextData?.isIndex ?? currentSymbol.startsWith('^');
+
+    // BUG FIX (permintaan eksplisit): index (mis. IHSG) BUKAN saham/emiten - sebelumnya
+    // context SELALU bilang "halaman saham: X" apa pun X-nya, jadi saat X = index, AI
+    // ikut memperlakukannya seperti saham (nyari fundamental/EPS, kesimpulan
+    // BELI/JUAL/TAHAN per lot, dst) padahal itu tidak masuk akal untuk sebuah indeks.
+    let context = isIndex
+      ? `Pengguna saat ini sedang melihat INDEKS ${activeContextData?.name || 'IHSG'} (BUKAN saham/emiten individual - indeks adalah rata-rata tertimbang pergerakan seluruh/sebagian saham di bursa, tidak punya laporan keuangan/EPS/PER sendiri, dan tidak bisa "dibeli 1 lot" langsung seperti saham). Jika bertanya tanpa menyebut kode, asumsikan indeks ini.`
+      : `Pengguna saat ini sedang melihat halaman saham: ${currentSymbol}. Jika bertanya tanpa menyebut kode, asumsikan saham ini.`;
 
     // Nama resmi emiten HARUS diambil dari data terverifikasi (lib/tickers.ts), BUKAN
     // ditebak/diingat sendiri oleh model - sebelumnya context ini tidak menyertakan nama
     // perusahaan sama sekali, jadi AI mengarang nama yang salah (mis. DGWG dijawab sebagai
-    // "Dwi Guna Laksana Tbk" padahal nama resminya "Delta Giri Wacana Tbk").
-    if (currentSymbol && currentSymbol !== 'Umum') {
+    // "Dwi Guna Laksana Tbk" padahal nama resminya "Delta Giri Wacana Tbk"). Tidak berlaku
+    // untuk index (tidak ada "nama resmi emiten" untuk IHSG).
+    if (!isIndex && currentSymbol && currentSymbol !== 'Umum') {
       const officialName = getTickerName(currentSymbol);
       if (officialName && officialName !== currentSymbol.replace('.JK', '')) {
         context += `\nNama resmi emiten ${currentSymbol.replace('.JK', '')}: "${officialName}". WAJIB pakai nama ini persis, JANGAN pernah menyebut nama perusahaan lain/versi lama/tebakan.`;

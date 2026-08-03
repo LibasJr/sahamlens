@@ -219,12 +219,31 @@ export default function Dashboard() {
 
   // LensAI: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
   // ringkasan analisis, supaya insight yang ditampilkan tidak pernah mengarang.
-  const council = React.useMemo(() => computeMiniCouncil(upToChartData as any), [upToChartData]);
+  const council = React.useMemo(() => computeMiniCouncil(upToChartData as any, isIndex), [upToChartData, isIndex]);
 
   const isHovering = hoveredTime != null && ind != null && chartData.length > 0 && ind.time !== chartData[chartData.length - 1].time;
 
   const insightText = council ? council.summary : (ind ? generateInsight(ind) : 'Memuat analisis teknikal real-time...');
   const finalSignal = council?.finalSignal ?? ind?.signal ?? 'HOLD';
+
+  // Kirim konteks chart yang sedang tampil ke AI Chat (permintaan eksplisit: LensAI
+  // sebelumnya tidak tahu apa-apa soal chart di Beranda - halaman ini TIDAK PERNAH
+  // dispatch 'update-ai-context' sama sekali, jadi saat user tanya soal IHSG di
+  // Beranda, LensAI menjawab dari pengetahuan umumnya sendiri tanpa tahu index sedang
+  // ditampilkan, dan tanpa penanda "ini index bukan saham" - lihat app/api/chat/route.ts
+  // untuk aturan index vs saham di system prompt).
+  React.useEffect(() => {
+    window.dispatchEvent(new CustomEvent('update-ai-context', {
+      detail: {
+        symbol: ticker.symbol,
+        name: ticker.name,
+        isIndex,
+        price: currentPrice,
+        changePct,
+        consensus: finalSignal,
+      },
+    }));
+  }, [ticker.symbol, ticker.name, isIndex, currentPrice, changePct, finalSignal]);
 
   const [marketCards, setMarketCards] = useState<Card[]>(CARD_DEFS.map(def => ({ ...def, items: [] })));
   const [cardsLoaded, setCardsLoaded] = useState(false);
