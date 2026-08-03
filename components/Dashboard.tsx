@@ -7,7 +7,6 @@ import { TrendingUp, TrendingDown, BarChart3, ChevronRight, ArrowUpRight, ArrowD
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
-import { pickTrendingTicker } from '@/lib/trendingTickers';
 import { SegmentedControl } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 
@@ -142,12 +141,17 @@ const ACCENT_MAP: Record<string, { bg: string; text: string; border: string; dot
 };
 
 export default function Dashboard() {
-  // Emiten unggulan dipilih acak sekali per kunjungan dari daftar saham likuid/trending -
-  // bukan selalu BBCA. Lazy initializer -> hanya jalan sekali saat mount, tidak berubah
-  // ulang setiap re-render KECUALI user pilih saham lain lewat search (lihat CommandPalette
-  // onSelect di bawah) - permintaan eksplisit: search di halaman depan cukup ganti chart
-  // di halaman ini sendiri, jangan pindah ke LensAI.
-  const [ticker, setTicker] = useState(() => pickTrendingTicker());
+  // Default chart beranda = IHSG (permintaan eksplisit) - bukan lagi saham trending
+  // acak. User tetap bisa ketik nama emiten di search (CommandPalette onSelect di
+  // bawah) untuk mengganti chart ke saham tertentu; ticker.symbol yang diawali '^'
+  // (mis. '^JKSE') dipakai sebagai penanda "ini indeks, bukan saham" di seluruh
+  // kartu chart di bawah (lihat isIndex).
+  const [ticker, setTicker] = useState<{ symbol: string; name: string }>({
+    symbol: '^JKSE',
+    name: 'Indeks Harga Saham Gabungan',
+  });
+  const isIndex = ticker.symbol.startsWith('^');
+  const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
   const [timeframe, setTimeframe] = useState('1M');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
@@ -179,7 +183,7 @@ export default function Dashboard() {
 
   React.useEffect(() => {
     setHoveredTime(null); // stale hover position from the previous series wouldn't line up
-    fetch(`/api/public-chart/${ticker.symbol}?tf=${timeframe}`)
+    fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`)
       .then(r => r.json())
       .then(data => {
          if (data && data.history && data.history.length > 0) {
@@ -393,11 +397,15 @@ export default function Dashboard() {
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-number">{ticker.symbol}</div>
+                  <div className="h-12 w-12 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-number">{displaySymbol}</div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{ticker.symbol}.JK — {ticker.name}</h2>
-                      <span className="hidden sm:inline-flex rounded-full bg-tv-gold/15 text-tv-gold px-2 py-0.5 text-[10px] font-bold tracking-widest">LQ45 • TRENDING</span>
+                      <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{displaySymbol} — {ticker.name}</h2>
+                      {isIndex ? (
+                        <span className="hidden sm:inline-flex rounded-full bg-tv-blue/15 text-tv-blue px-2 py-0.5 text-[10px] font-bold tracking-widest">INDEKS UTAMA</span>
+                      ) : (
+                        <span className="hidden sm:inline-flex rounded-full bg-tv-gold/15 text-tv-gold px-2 py-0.5 text-[10px] font-bold tracking-widest">SAHAM PILIHAN</span>
+                      )}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
                       <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
@@ -446,7 +454,7 @@ export default function Dashboard() {
 
               <div className="mt-4 flex flex-wrap gap-4 items-center bg-tv-blue/10 p-4 rounded-lg border border-tv-blue/20">
                 <div className="text-tv-blue font-semibold text-[13px] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${ind?.time}` : `Insight ${ticker.symbol} Terkini`}
+                  <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${ind?.time}` : `Insight ${displaySymbol} Terkini`}
                 </div>
                 <p className="text-[12px] text-tv-text/80">
                   {insightText}
