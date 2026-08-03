@@ -11,15 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.26",
     "@google/generative-ai": "^0.24.1",
     "@sentry/nextjs": "^10.69.0",
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
-    "ai": "^7.0.40",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
-    "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.43.0",
     "html2canvas": "^1.4.1",
     "jose": "^6.2.4",
