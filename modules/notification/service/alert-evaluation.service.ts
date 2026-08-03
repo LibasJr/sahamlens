@@ -66,7 +66,7 @@ function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; brea
       const score = ctx.stock?.scoring?.total_score;
       const kategori = ctx.stock?.scoring?.kategori;
       return [
-        '🚨 <b>ALERT SahamLens</b>',
+        '🚨 <b>SahamLens LensAlert</b>',
         `${alert.symbol} ${label}!`,
         `Price: ${price.toLocaleString('id-ID')}${score != null ? ` | Score: ${score} ${kategori || ''}` : ''}`,
         `Cek: /dashboard?symbol=${alert.symbol}`,
@@ -75,7 +75,7 @@ function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; brea
     case 'BREAKOUT_SCORE_ABOVE': {
       const e = ctx.breakoutEntry;
       return [
-        '🚨 <b>ALERT SahamLens - Breakout Radar</b>',
+        '🚨 <b>SahamLens LensAlert - LensRadar</b>',
         `${alert.symbol} Score ${e?.score}/8 (target >= ${alert.condition_value})!`,
         `Price: ${e?.price?.toLocaleString?.('id-ID') ?? e?.price} | Change: ${e?.change} | RR: ${e?.rr}`,
         `Sinyal: ${e?.reason || '-'}`,
@@ -85,13 +85,13 @@ function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; brea
     case 'BREADTH_ADVANCING_BELOW': {
       const b = ctx.breadth;
       return [
-        '🚨 <b>ALERT SahamLens - Market Breadth</b>',
+        '🚨 <b>SahamLens LensAlert - LensMarket Breadth</b>',
         `Breadth IDX bearish: ${b?.advancing} saham naik vs ${b?.declining} turun (target advancing < ${alert.condition_value}).`,
         `Cek: /market-pulse`,
       ].join('\n');
     }
     default:
-      return `🚨 ALERT SahamLens: ${alert.symbol} (${alert.condition_type})`;
+      return `🚨 SahamLens LensAlert: ${alert.symbol} (${alert.condition_type})`;
   }
 }
 

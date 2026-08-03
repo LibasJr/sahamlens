@@ -85,7 +85,7 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'portofolio',
     label: 'Portofolio Saya',
     items: [
-      { id: 'watchlist', name: 'Watchlist & Alerts', subtitle: 'Portfolio & Telegram Bot', path: '/watchlist', icon: Bell },
+      { id: 'watchlist', name: 'LensWatch', subtitle: 'Portfolio & Notifikasi', path: '/watchlist', icon: Bell },
       { id: 'portfolio', name: 'Akun Demo', subtitle: 'Paper Trading & P/L', path: '/portfolio', icon: Wallet },
       { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, & Corp Action', path: '/calendar', icon: CalendarDays },
     ],

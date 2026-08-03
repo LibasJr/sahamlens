@@ -241,7 +241,7 @@ export default function WatchlistPage() {
       if (json.triggeredAlerts && json.triggeredAlerts.length > 0) {
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
           json.triggeredAlerts.forEach((alert: any) => {
-            new Notification('SahamLens Alert', {
+            new Notification('SahamLens LensAlert', {
               body: alert.message
             });
           });
@@ -279,7 +279,7 @@ export default function WatchlistPage() {
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-heading font-bold text-xl text-white tracking-tight">Watchlist & Alerts</h2>
+              <h2 className="font-heading font-bold text-xl text-white tracking-tight">LensWatch</h2>
               <p className="text-xs text-white/50">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
             </div>
           </div>
@@ -472,7 +472,7 @@ export default function WatchlistPage() {
             <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
               <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
                 <Bell className="w-5 h-5 text-tv-yellow" />
-                Push Notifications (HP/Browser)
+                LensAlert
               </h3>
               <button onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
                 Test Cron
@@ -555,8 +555,8 @@ export default function WatchlistPage() {
         title={`Watchlist Free Max ${FREE_LIMITS.WATCHLIST} Saham`}
         body={`Kamu sudah punya ${watchlist.slice(0, 3).map(w => displayTicker(w.symbol)).join(', ')}. Upgrade Pro untuk watchlist & alert unlimited.`}
         benefits={[
-          'Watchlist unlimited (bukan cuma 3 saham)',
-          'Alert unlimited (bukan cuma 2)',
+          'LensWatch unlimited (bukan cuma 3 saham)',
+          'LensAlert unlimited (bukan cuma 2)',
           'LensRadar LIVE, LensAI & fitur Pro lainnya',
         ]}
         secondaryLabel="Nanti"
@@ -565,7 +565,7 @@ export default function WatchlistPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Pakai Watchlist"
-        body="Watchlist & Alerts butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="LensWatch butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
