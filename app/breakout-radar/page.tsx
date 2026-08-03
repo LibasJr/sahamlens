@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Target, Clock, Menu, TrendingUp } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
@@ -136,8 +137,13 @@ export default function AiPickPage() {
                       {items.map((it, idx) => (
                         <tr key={it.symbol} className="hover:bg-tv-hover/30">
                           <td className="py-3 px-4 text-tv-muted">{idx + 1}</td>
-                          <td className="py-3 px-4 font-bold font-number text-tv-text whitespace-nowrap">
-                            {displayTicker(it.symbol)}
+                          <td className="py-3 px-4 font-bold font-number whitespace-nowrap">
+                            <Link
+                              href={`/technical/${it.symbol}`}
+                              className="text-tv-text hover:text-tv-blue transition-colors"
+                            >
+                              {displayTicker(it.symbol)}
+                            </Link>
                             {it.flagged && (
                               <span className="ml-2 text-tv-red text-xs font-normal">! {it.flagReason}</span>
                             )}
