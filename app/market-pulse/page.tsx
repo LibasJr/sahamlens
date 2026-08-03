@@ -314,26 +314,32 @@ export default function MarketPulse() {
           </div>
         </div>
 
+        {/* Heatmap & Breadth bersebelahan di layar lebar (2026-08-03) - sebelumnya
+            bertumpuk atas-bawah sehingga halaman jadi panjang padahal keduanya cuma
+            butuh setengah lebar. Tetap bertumpuk di bawah lg supaya terbaca di HP
+            (aplikasi dibuka lewat WebView). items-stretch bawaan grid membuat kedua
+            kartu setinggi yang tertinggi, jadi tidak ada ruang kosong menganggur. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* === SECTION 2: SECTOR HEATMAP === */}
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
-          <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
+        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 flex flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3 mb-4">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <Layers className="w-5 h-5 text-tv-green" />
               Sector Heatmap IDX
             </h3>
             <span className="text-[10px] text-tv-muted">
-              11 Sektor • Ukuran ~ Market Cap • Warna ~ % Perubahan Hari Ini
+              11 Sektor • Ukuran ~ Market Cap • Warna ~ % Perubahan
             </span>
           </div>
 
           {data?.sectorHeatmap ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
               {data.sectorHeatmap.map((sector: any) => (
                 <HeatmapTile key={sector.sector} {...sector} maxMcap={maxMcap} />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
               {[...Array(11)].map((_, i) => (
                 <div key={i} className="bg-tv-hover rounded-lg h-24 animate-pulse" />
               ))}
@@ -343,15 +349,10 @@ export default function MarketPulse() {
 
         {/* === SECTION 3: MARKET BREADTH === */}
         {/* Top Volume/Value dan Top Movers dihapus dari sini - sudah ada versi yang
-            sama di halaman utama (components/Dashboard.tsx: "Berdasarkan Volume Lembar
-            Saham", "Saham dengan Kenaikan Tertinggi", "Saham dengan Penurunan Terdalam"),
-            duplikat murni. Market Breadth (naik/turun/stagnan) tidak ada di halaman lain,
-            jadi tetap di sini - dulu dibungkus max-w-2xl (sisa dari layout 3-kolom lama)
-            jadi nyisa banyak ruang kosong di kanan setelah 2 kartu tetangganya hilang.
-            Sekarang full width, breadth bar + 4 angka (naik/stagnan/turun/AD ratio)
-            disusun 1 baris di layar besar supaya lebar kartu terisi proporsional. */}
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
-          <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
+            sama di halaman utama (components/Dashboard.tsx), duplikat murni. Market
+            Breadth (naik/turun/stagnan) tidak ada di halaman lain, jadi tetap di sini. */}
+        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 flex flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3 mb-4">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-tv-green" />
               Market Breadth
@@ -362,10 +363,12 @@ export default function MarketPulse() {
           </div>
 
           {data?.breadth ? (
-            <div className="space-y-6">
+            <div className="space-y-5 flex-1 flex flex-col">
               <BreadthBar {...data.breadth} />
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+              {/* 2 kolom saja - kartu ini sekarang setengah lebar layar, 4 kolom membuat
+                  angkanya terlalu sempit dan terpotong di layar sedang. */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1 content-start">
                 <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
                   <div className="text-xl sm:text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
                   <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
@@ -404,11 +407,12 @@ export default function MarketPulse() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-tv-muted">
+            <div className="flex flex-col items-center justify-center py-10 text-tv-muted flex-1">
               <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
               <span className="text-sm">Memuat data breadth...</span>
             </div>
           )}
+        </div>
         </div>
       </div>
       <PaywallModal

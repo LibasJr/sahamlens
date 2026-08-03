@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, BarChart3, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity, AlertTriangle, Zap, Tag, Flame } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
@@ -87,7 +87,7 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
   const durationSec = Math.max(60, Math.round(items.length * 3.2));
 
   return (
-    <div className="bg-tv-surface border-b border-tv-border overflow-hidden">
+    <div className="sahamlens-ticker-wrap bg-tv-surface border-b border-tv-border overflow-hidden">
       <div className="sahamlens-ticker-track flex whitespace-nowrap py-2" style={{ animationDuration: `${durationSec}s` }}>
         {loopItems.map((item, i) => (
           <Link
@@ -109,7 +109,16 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
         .sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; width: max-content; }
         .sahamlens-ticker-track:hover { animation-play-state: paused; }
         @keyframes sahamlens-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        @media (prefers-reduced-motion: reduce) { .sahamlens-ticker-track { animation: none; overflow-x: auto; } }
+        /* Pengguna yang mematikan animasi di sistemnya (Windows: Settings > Accessibility >
+           Visual effects > Animation effects) tidak boleh kehilangan isinya. Dulu
+           'overflow-x: auto' dipasang di TRACK, padahal track itu width:max-content -
+           isinya tidak pernah melebihi dirinya sendiri, jadi tidak ada yang bisa digeser,
+           sementara pembungkusnya overflow-hidden. Hasilnya: teks diam DAN tidak bisa
+           di-scroll. Scroll harus dipasang di pembungkusnya. */
+        @media (prefers-reduced-motion: reduce) {
+          .sahamlens-ticker-track { animation: none; }
+          .sahamlens-ticker-wrap { overflow-x: auto; }
+        }
       `}} />
     </div>
   );
@@ -212,23 +221,24 @@ export default function Dashboard() {
   // dari /api/market-summary yang SUDAH dipanggil di bawah, tidak ada fetch tambahan).
   const [tickerItems, setTickerItems] = useState<{ symbol: string; price: number; changePct: number }[]>([]);
 
-  // Widget "Hari Ini AI Menemukan" - ringkasan temuan pasar hari ini (bukan indikator
-  // 1 saham) supaya halaman utama punya alasan dibuka tiap hari sebelum login/signup.
-  const [dailyPicks, setDailyPicks] = useState<{
-    attractive: { count: number; items: string[] };
-    risky: { count: number; items: string[] };
-    undervalue: { count: number; items: string[] };
-    breakout: { count: number; items: string[] };
-    goldenCross: { count: number; items: string[] };
-    deadCross: { count: number; items: string[] };
-    foreignAccumulation: { count: number; items: string[] };
-    weeklyGainer: { count: number; items: string[] };
-  } | null>(null);
+  // Cuplikan 5 teratas AI Pick - menggantikan widget "Hari Ini AI Menemukan" yang tiap
+  // barisnya dulu menuju kategori berbeda di halaman AI Pick. Setelah 8 tab itu dilebur
+  // jadi satu daftar berperingkat (2026-08-03), tautan per-kategori tidak punya tujuan
+  // lagi dan semua baris mengarah ke halaman yang sama - membingungkan. Sekarang beranda
+  // langsung menampilkan isi peringkatnya, dan tiap kode saham menuju analisis teknikalnya.
+  const [aiPicks, setAiPicks] = useState<
+    { symbol: string; changePct: number; finalScore: number; bonuses: { label: string; points: number }[] }[] | null
+  >(null);
 
   React.useEffect(() => {
-    fetch('/api/daily-picks').then(r => r.json()).then(data => {
-      if (data && !data.error) setDailyPicks(data);
-    }).catch(console.error);
+    fetch('/api/ai-pick')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        // Butuh akun/trial - pengunjung yang trialnya habis dapat 402. Tampilkan daftar
+        // kosong dengan pesan, bukan error, supaya beranda tetap utuh.
+        setAiPicks(data && !data.error ? (data.items || []).slice(0, 5) : []);
+      })
+      .catch(() => setAiPicks([]));
   }, []);
 
   React.useEffect(() => {
@@ -414,48 +424,53 @@ export default function Dashboard() {
                 indikator 1 saham) - hook supaya pengunjung buka aplikasi tiap hari sebelum
                 login/signup. Setiap angka real (bukan dikarang), lihat app/api/daily-picks. */}
             <div className="border-t lg:border-t-0 lg:border-l border-tv-border bg-tv-bg/40 p-5 sm:p-7 flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-lg leading-none">🔥</span>
-                <h3 className="font-heading text-[13px] font-bold text-tv-text">Hari Ini AI Menemukan</h3>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg leading-none">🔥</span>
+                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Kandidat Terkuat Hari Ini</h3>
+                </div>
+                <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline shrink-0">
+                  Lihat semua
+                </Link>
               </div>
-              <p className="text-[11px] text-tv-muted mt-1">Dipindai dari 250+ saham likuid IDX (Breakout, Golden/Dead Cross dari 15 saham blue-chip), diperbarui berkala.</p>
+              <p className="text-[11px] text-tv-muted mt-1">
+                Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
+                Klik kode saham untuk analisis teknikalnya.
+              </p>
 
-              <div className="mt-5 space-y-3 flex-1">
-                {[
-                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'green', href: '/breakout-radar' },
-                  { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'purple', href: '/breakout-radar' },
-                  { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar' },
-                  { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar' },
-                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'green', href: '/breakout-radar' },
-                  { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar' },
-                  { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'warning', href: '/breakout-radar' },
-                  { key: 'weeklyGainer', label: 'penguat mingguan', desc: 'Kenaikan harga tertinggi 5 hari terakhir', Icon: ArrowUpRight, accent: 'green', href: '/market/weekly-gainer' },
-                ].map((row) => {
-                  const accent = ACCENT_MAP[row.accent];
-                  const data = dailyPicks ? (dailyPicks as any)[row.key] : null;
-                  return (
+              <div className="mt-4 flex flex-col gap-2 flex-1">
+                {aiPicks === null ? (
+                  <p className="text-[11px] text-tv-muted py-6 text-center">Memuat kandidat...</p>
+                ) : aiPicks.length === 0 ? (
+                  <p className="text-[11px] text-tv-muted py-6 text-center">
+                    Belum ada saham yang mencapai ambang skor hari ini.
+                  </p>
+                ) : (
+                  aiPicks.map((p, idx) => (
                     <Link
-                      key={row.key}
-                      href={row.href}
-                      className="group flex items-center justify-between gap-3 rounded-lg border border-tv-border/60 bg-tv-card px-3.5 py-3 hover:border-tv-borderLight transition-colors"
+                      key={p.symbol}
+                      href={`/technical/${p.symbol}`}
+                      className="group flex items-center justify-between gap-2 rounded-lg border border-tv-border/60 bg-tv-card px-3 py-2.5 hover:border-tv-borderLight transition-colors"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-9 w-9 rounded-lg grid place-items-center border shrink-0 ${accent.bg} ${accent.border} ${accent.text}`}>
-                          <row.Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-bold text-tv-text">
-                            {data ? data.count : '-'} {row.label}
-                          </div>
-                          <div className="text-[10px] text-tv-muted truncate">
-                            {data && data.items?.length ? data.items.join(', ') : row.desc}
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-[11px] text-tv-muted font-number w-4 shrink-0">{idx + 1}</span>
+                        <span className="text-[13px] font-bold font-number text-tv-text shrink-0">
+                          {p.symbol.replace('.JK', '')}
+                        </span>
+                        <span className={`text-[11px] font-number shrink-0 ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                          {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(1)}%
+                        </span>
+                        <span className="text-[10px] text-tv-muted truncate hidden sm:inline">
+                          {p.bonuses.length > 0 ? p.bonuses.map((b) => b.label).join(', ') : 'skor dasar'}
+                        </span>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-tv-muted shrink-0 group-hover:translate-x-0.5 transition" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[13px] font-bold font-number text-tv-text">{p.finalScore}</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-tv-muted group-hover:translate-x-0.5 transition" />
+                      </div>
                     </Link>
-                  );
-                })}
+                  ))
+                )}
               </div>
             </div>
           </div>
