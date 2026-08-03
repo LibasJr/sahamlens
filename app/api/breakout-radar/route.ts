@@ -4,7 +4,6 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
-import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 
@@ -41,15 +40,12 @@ export async function GET(request: Request) {
       return response;
     }
 
-    const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
-
-    const response = NextResponse.json({
-      data,
-      crossSignals,
-      lastUpdate: new Date().toISOString()
-    });
-    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
-    return response;
+    // Cache belum terisi - jawab kosong, JANGAN memindai. Pemindaian adalah tugas
+    // /api/cron/breakout-scan; menjalankannya di request pengguna berarti satu orang
+    // menanggung ~109 fetch Yahoo dan halaman menggantung puluhan detik.
+    const empty = NextResponse.json({ data: [], crossSignals: { golden: [], dead: [] }, lastUpdate: null });
+    if (anonTrial) await applyAnonymousTrialCookie(empty, anonTrial);
+    return empty;
   } catch (error) {
     return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
