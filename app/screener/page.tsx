@@ -37,8 +37,8 @@ export default function ScreenerPage() {
       <Header
         currentTicker=""
         onTickerChange={(t) => router.push(`/technical/${t.replace('.JK', '')}.JK`)}
-        moduleTitle="LensAI Multi-Factor Screener"
-        moduleBank="LENSAI"
+        moduleTitle="LensScanner Multi-Factor"
+        moduleBank="LENSSCANNER"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">

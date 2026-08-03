@@ -69,7 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'fundamental', name: 'Fundamental Analyzer', subtitle: 'Value & Health Metrics', path: '/fundamental', icon: Building2 },
       { id: 'council', name: 'LensAI', subtitle: 'Stock Analysis LensAI', path: '/technical/BBCA.JK', icon: Users },
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },
-      { id: 'screener', name: 'Stock Screener', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
+      { id: 'screener', name: 'LensScanner', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
       { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position Size & Risk/Reward', path: '/risk-calculator', icon: ShieldAlert },
       { id: 'backtest', name: 'Backtest', subtitle: 'Simulasi Strategi dari Data Historis', path: '/backtest', icon: History },
     ],

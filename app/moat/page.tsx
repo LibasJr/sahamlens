@@ -41,7 +41,7 @@ export default function MoatPage() {
           di backend ini - SahamLens tidak mengarang penilaian kualitatif tanpa dasar data.
           Untuk proxy kuantitatif moat (ROE + gross margin), lihat kolom &quot;Moat&quot;
           di{' '}
-          <a href="/screener" className="text-tv-blue hover:underline">Stock Screener</a>.
+          <a href="/screener" className="text-tv-blue hover:underline">LensScanner</a>.
         </p>
       </div>
     </TickerAnalysisShell>
