@@ -5,7 +5,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Status live
 
-- **Production URL**: https://trading-three-liard.vercel.app
+- **Production URL**: https://sahamlens.vercel.app
+  (2026-08-03: pindah dari `trading-three-liard.vercel.app`. Kalau menemukan URL lama di
+  catatan/skrip lain, itu sudah usang - ganti ke domain ini.)
 - **Vercel project**: `libas/trading` (projectId `prj_buCsXaT6sXen6LwAmeMcNLCBkYSO`, orgId `team_L8xvUeG8WKjNY8R0o9h8k8wE` - lihat `.vercel/project.json`)
 - **GitHub**: `github.com/LibasJr/sahamlens`, branch `main`, sudah di-connect ke project Vercel di atas lewat `vercel link`.
 - Vercel CLI di mesin dev sudah login sebagai akun `libasjr`. Kalau sesi expired, perlu `npx vercel login` ulang (device auth flow, buka browser).
@@ -26,10 +28,10 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
    ```
 4. Smoke test setelah deploy (ganti URL kalau domain berubah):
    ```
-   curl -s -o /dev/null -w "%{http_code}\n" https://trading-three-liard.vercel.app/
-   curl -s https://trading-three-liard.vercel.app/api/portfolio -H "Cookie: sahamlens_demo_session=%7B%22id%22%3A1%2C%22username%22%3A%22test%22%2C%22role%22%3A%22free%22%7D"
-   curl -s -o /dev/null -w "%{http_code}\n" https://trading-three-liard.vercel.app/technical/DGWG.JK
-   curl -s https://trading-three-liard.vercel.app/api/council?symbol=DGWG.JK -H "Cookie: role=admin"
+   curl -s -o /dev/null -w "%{http_code}\n" https://sahamlens.vercel.app/
+   curl -s https://sahamlens.vercel.app/api/portfolio -H "Cookie: sahamlens_demo_session=%7B%22id%22%3A1%2C%22username%22%3A%22test%22%2C%22role%22%3A%22free%22%7D"
+   curl -s -o /dev/null -w "%{http_code}\n" https://sahamlens.vercel.app/technical/DGWG.JK
+   curl -s https://sahamlens.vercel.app/api/council?symbol=DGWG.JK -H "Cookie: role=admin"
    ```
    `/api/council` dan `/api/stock/[ticker]` **selalu 429** tanpa cookie admin/login (lihat bagian
    "Gating akses" di bawah) - itu bukan bug, pakai `-H "Cookie: role=admin"` buat smoke test.
