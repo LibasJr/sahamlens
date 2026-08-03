@@ -68,7 +68,7 @@ export const FULL_FEATURE_LIST: string[] = [
   'Dividend Compounding Planner',
   'Risk Matrix & Stress Testing (beta portofolio riil)',
   'Risk Calculator - position sizing & risk/reward',
-  'Watchlist & Alert unlimited - notifikasi Telegram real-time untuk harga turun/naik dari target, RSI oversold, & konsensus STRONG BUY',
+  'LensWatch & LensAlert unlimited - notifikasi in-app/browser untuk harga turun/naik dari target, RSI oversold, & konsensus STRONG BUY',
   'Corporate Calendar - dividen & earnings',
   'Akun Demo - paper trading unlimited',
 ];
