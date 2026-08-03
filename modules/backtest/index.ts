@@ -4,6 +4,7 @@
 export { precomputeBacktestData, computeTickerSeries } from './service/precompute.service';
 export { writeBacktestCache, readBacktestCache } from './service/cache.service';
 export { simulateBacktest } from './service/simulate.service';
+export { scanLiveFilterCheck, type LiveFilterMatch, type LiveFilterCheckResult } from './service/live-filter-check.service';
 export type {
   IndicatorName,
   Decision,

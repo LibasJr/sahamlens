@@ -35,6 +35,10 @@ export interface OhlcRow {
 export interface YahooHistoryResult {
   history: OhlcRow[];
   currentPrice: number;
+  /** Unix seconds - `meta.regularMarketTime` dari Yahoo, waktu bar harga SESUNGGUHNYA
+   * (bukan `Date.now()` server) - dipakai pemanggil yang butuh melaporkan seberapa
+   * segar data ini (lihat shared/http/freshness.ts:classifyFreshness). */
+  regularMarketTime: number | null;
 }
 
 export async function fetchYahooHistory(ticker: string, range: string = '1y'): Promise<YahooHistoryResult | null> {
@@ -74,7 +78,8 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
       }
     }
     if (history.length === 0) return null;
-    return { history, currentPrice };
+    const regularMarketTime = typeof result.meta.regularMarketTime === 'number' ? result.meta.regularMarketTime : null;
+    return { history, currentPrice, regularMarketTime };
   } catch (e) {
     clearTimeout(timeoutId);
     return null;
