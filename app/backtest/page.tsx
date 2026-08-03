@@ -202,7 +202,7 @@ export default function BacktestPage() {
 
             <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
               <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
-                <Settings2 className="w-5 h-5 text-tv-blue" /> Algo Filters
+                <Settings2 className="w-5 h-5 text-tv-blue" /> LensTechnical
               </h3>
               <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                 {availableFilters.map(f => {
@@ -457,7 +457,7 @@ export default function BacktestPage() {
         title="Masa Trial 7 Hari Habis"
         body="Backtest butuh akun Pro setelah trial 7 hari berakhir."
         benefits={[
-          'Unlimited Technical Analyzer (10 filter)',
+          'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}

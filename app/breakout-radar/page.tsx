@@ -261,7 +261,7 @@ export default function AiPickPage() {
         title="Masa Trial Habis"
         body="LensRadar Live butuh akun Pro setelah trial 7 hari berakhir."
         benefits={[
-          'Unlimited Technical Analyzer (10 filter)',
+          'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}

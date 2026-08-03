@@ -248,7 +248,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
       title="Upgrade ke SahamLens Pro"
       body="Buka semua fitur Pro tanpa batas: LensAI, LensRadar LIVE, Compare Tool, Market Pulse, dan lainnya."
       benefits={[
-        'Unlimited Technical Analyzer (10 filter)',
+        'Unlimited LensTechnical (10 filter)',
         'LensRadar LIVE, LensAI & Compare Tool',
         'Watchlist & Alert unlimited',
       ]}

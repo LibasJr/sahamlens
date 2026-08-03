@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         // murni oleh !hasAnyAIProvider(), sebelum context/prompt diproses). Diganti
         // pesan jujur tanpa klaim valuasi atau rekomendasi yang tidak berdasar.
         role: 'assistant',
-        content: `LensAI belum terkonfigurasi di server ini, jadi saya tidak bisa memberi analisis atau rekomendasi untuk pertanyaan ini. Silakan gunakan **Technical Analyzer** atau **Fundamental Analyzer** yang menghitung langsung dari data pasar real-time, atau hubungi admin untuk mengaktifkan LensAI.`
+        content: `LensAI belum terkonfigurasi di server ini, jadi saya tidak bisa memberi analisis atau rekomendasi untuk pertanyaan ini. Silakan gunakan **LensTechnical** atau **Fundamental Analyzer** yang menghitung langsung dari data pasar real-time, atau hubungi admin untuk mengaktifkan LensAI.`
       });
     }
 
