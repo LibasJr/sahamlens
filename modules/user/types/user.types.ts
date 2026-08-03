@@ -9,6 +9,9 @@ export interface User {
   is_pro: boolean;
   created_at: string;
   trial_ends_at: string | null;
+  /** null = tanpa batas waktu. Dipakai akun admin dan akun lama sebelum migrasi
+   * 2026-08-03 - bukan jalan pintas memberi akses abadi ke pengguna biasa. */
+  pro_expires_at: string | null;
   demo_ends_at: string | null;
   verification_code: string | null;
   verification_code_expires: string | null;
