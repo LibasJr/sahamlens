@@ -186,7 +186,9 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <ClientHeader symbol={symbol} />
       
-      <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
+      {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
+          max-w-7xl = 1280px). */}
+      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 rounded-lg bg-tv-card border border-tv-borderLight text-tv-green">
             <Users className="w-6 h-6" />

@@ -94,7 +94,9 @@ export default function AiPickPage() {
           </div>
         </header>
 
-        <div className="p-6 max-w-[1200px] mx-auto w-full">
+        {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
+            1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
+        <div className="p-6 max-w-[1600px] mx-auto w-full">
           <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
