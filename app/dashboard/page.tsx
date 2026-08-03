@@ -48,7 +48,7 @@ function DashboardContent() {
   // Timeframe chart terpisah dari /api/stock (yang selalu histori 1 tahun untuk
   // kebutuhan 10 analyzer/scoring) - sama seperti dashboard publik & halaman
   // teknikal, chart di sini pakai /api/public-chart yang mendukung parameter tf.
-  const [timeframe, setTimeframe] = useState('1M');
+  const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<any[]>([]);
 
   // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
@@ -772,7 +772,7 @@ function DashboardContent() {
 
           <div className="w-full space-y-3">
             <SegmentedControl
-              options={['1D', '3D', '7D', '1M', '1Y', 'ALL'].map((t) => ({ label: t, value: t }))}
+              options={['1D', '3D', '7D', '1Y', '10Y', 'ALL'].map((t) => ({ label: t, value: t }))}
               value={timeframe}
               onChange={setTimeframe}
               layoutId="dashboard-timeframe"

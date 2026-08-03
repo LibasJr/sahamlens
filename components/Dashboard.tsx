@@ -23,7 +23,7 @@ const CARD_DEFS: CardDef[] = [
   { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
 ];
 
-const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y', 'ALL'];
+const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
 
 function formatCardItems(id: string, arr: any[]): CardItem[] {
   return (arr || []).slice(0, 4).map((s: any) => {
@@ -152,7 +152,7 @@ export default function Dashboard() {
   });
   const isIndex = ticker.symbol.startsWith('^');
   const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
-  const [timeframe, setTimeframe] = useState('1M');
+  const [timeframe, setTimeframe] = useState('1Y');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -469,7 +469,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg leading-none">🔥</span>
-                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Rekomendasi AI Hari Ini</h3>
+                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Rekomendasi LensRadar</h3>
                 </div>
                 <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline shrink-0">
                   Lihat semua

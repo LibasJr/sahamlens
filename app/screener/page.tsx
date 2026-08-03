@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { Sliders, Award, Shield, Zap, RefreshCw, Filter, CheckCircle } from 'lucide-react';
@@ -124,11 +125,18 @@ export default function ScreenerPage() {
                   <tr key={item.ticker} className="hover:bg-tv-hover/50 transition-colors">
                     <td className="p-3 text-tv-muted font-bold">{idx + 1}</td>
                     <td className="p-3">
-                      <span className="font-bold text-white px-2 py-0.5 rounded bg-tv-hover border border-tv-borderLight">
+                      <Link
+                        href={`/technical/${item.ticker}.JK`}
+                        className="font-bold text-white px-2 py-0.5 rounded bg-tv-hover border border-tv-borderLight hover:border-tv-blue hover:text-tv-blue transition-colors"
+                      >
                         {item.ticker}
-                      </span>
+                      </Link>
                     </td>
-                    <td className="p-3 text-tv-text font-sans font-medium">{item.name}</td>
+                    <td className="p-3 text-tv-text font-sans font-medium">
+                      <Link href={`/technical/${item.ticker}.JK`} className="hover:text-tv-blue transition-colors">
+                        {item.name}
+                      </Link>
+                    </td>
                     <td className="p-3 text-tv-muted">{item.sector}</td>
                     <td className="p-3 text-right font-bold text-white font-number">
                       {item.per}x <span className="text-[10px] text-tv-muted font-normal">({item.per_sector}x)</span>

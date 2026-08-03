@@ -5,14 +5,14 @@ import { Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import { computeIndicators, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
 
-const TIMEFRAMES = ['1D', '3D', '7D', '1M', '1Y', 'ALL'];
+const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
 
 // Grafik candlestick + timeframe switcher + ringkasan LensAI (10 agen), dipakai
 // baik di halaman /technical/[symbol] maupun bisa dipakai ulang di tempat lain yang
 // butuh chart+insight ringkas untuk satu simbol.
 export default function StockChartPanel({ symbol }: { symbol: string }) {
   const code = symbol.replace('.JK', '');
-  const [timeframe, setTimeframe] = useState('1M');
+  const [timeframe, setTimeframe] = useState('1Y');
   const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
