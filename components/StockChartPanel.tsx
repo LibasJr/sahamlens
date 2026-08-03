@@ -12,6 +12,7 @@ const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
 // butuh chart+insight ringkas untuk satu simbol.
 export default function StockChartPanel({ symbol }: { symbol: string }) {
   const code = symbol.replace('.JK', '');
+  const isIndex = code.startsWith('^');
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartData, setChartData] = useState<any[]>([]);
 
@@ -32,7 +33,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
     return computeIndicators(chartData[chartData.length - 1].time, closes, volumes);
   }, [chartData]);
 
-  const council = useMemo(() => computeMiniCouncil(chartData as any), [chartData]);
+  const council = useMemo(() => computeMiniCouncil(chartData as any, isIndex), [chartData, isIndex]);
   const finalSignal = council?.finalSignal ?? ind?.signal ?? 'HOLD';
 
   return (

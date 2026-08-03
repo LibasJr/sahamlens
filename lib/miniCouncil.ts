@@ -98,7 +98,7 @@ export type CouncilResult = {
 
 // 10 agen Council AI, masing-masing satu lensa teknikal independen - semua dihitung
 // dari array OHLCV yang sama, tidak ada satupun yang mengarang kesimpulan.
-export function computeMiniCouncil(candles: Candle[]): CouncilResult | null {
+export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false): CouncilResult | null {
   if (candles.length < 5) return null;
   const closes = candles.map(c => c.close);
   const volumes = candles.map(c => c.volume || 0);
@@ -239,10 +239,16 @@ export function computeMiniCouncil(candles: Candle[]): CouncilResult | null {
   // menjelaskan pendapatnya - bukan hasil pemungutan suara.
   const supporting = agents.filter(a => a.signal === finalSignal).slice(0, 2).map(a => a.reason);
   const opposing = agents.find(a => a.signal !== finalSignal && a.signal !== 'HOLD');
-  const verdictText = finalSignal === 'BUY' ? 'layak dipertimbangkan untuk dibeli'
-    : finalSignal === 'SELL' ? 'sebaiknya diwaspadai / dipertimbangkan untuk dijual'
-    : 'masih dalam fase wait-and-see (tahan dulu)';
-  let summary = `LensAI menilai saham ini ${verdictText}.`;
+  // BUG FIX (permintaan eksplisit): index (mis. IHSG) BUKAN saham - tidak ada "beli/jual
+  // 1 lot indeks", jadi wording verdict untuk index dibuat beda dari saham individual
+  // (arah momentum, bukan ajakan transaksi).
+  const subject = isIndex ? 'IHSG' : 'saham ini';
+  const verdictText = finalSignal === 'BUY'
+    ? (isIndex ? 'menunjukkan momentum menguat' : 'layak dipertimbangkan untuk dibeli')
+    : finalSignal === 'SELL'
+    ? (isIndex ? 'menunjukkan tekanan pelemahan' : 'sebaiknya diwaspadai / dipertimbangkan untuk dijual')
+    : (isIndex ? 'masih bergerak sideways (wait-and-see)' : 'masih dalam fase wait-and-see (tahan dulu)');
+  let summary = `LensAI menilai ${subject} ${verdictText}.`;
   if (supporting.length) summary += ` ${supporting.join(' ')}`;
   if (opposing) summary += ` Yang perlu diwaspadai: ${opposing.reason}`;
 
