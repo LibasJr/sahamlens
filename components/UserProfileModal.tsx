@@ -12,6 +12,8 @@ interface ProfileData {
   hasProAccess: boolean;
   isVerified: boolean;
   trialEndsAt: string | null;
+  /** null = tanpa batas waktu (admin, atau akun lama sebelum migrasi 2026-08-03). */
+  proExpiresAt: string | null;
   createdAt: string;
   activeUsers?: { id: string; email: string; role: string; lastSeen: string }[];
 }
@@ -170,11 +172,26 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                     <span className="text-tv-muted">Status Akun</span>
                     <span className="text-tv-text font-medium">{data.hasProAccess ? 'Pro' : 'Free'}</span>
                   </div>
+                  {/* Masa berlaku Pro (2026-08-03). null berarti tanpa batas - akun admin dan
+                      akun lama sebelum migrasi - jadi barisnya disembunyikan alih-alih
+                      menampilkan tanggal palsu. */}
+                  {data.isPro && data.proExpiresAt && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-tv-muted">Pro Berakhir</span>
+                      <span className="text-tv-text font-medium">
+                        {formatDate(data.proExpiresAt)}
+                        {new Date(data.proExpiresAt) > new Date() && (
+                          <span className="text-tv-muted font-normal">
+                            {' '}({Math.ceil((new Date(data.proExpiresAt).getTime() - Date.now()) / 86_400_000)} hari lagi)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
                   {/* Tanggal trial cuma relevan kalau itu SATU-SATUNYA alasan akses Pro-nya
-                      aktif - admin/role pro/is_pro punya akses permanen yang tidak bergantung
-                      tanggal ini sama sekali, jadi jangan ditampilkan seolah akun itu akan
-                      "kehabisan" akses pada tanggal tersebut (memang ada nilainya di database,
-                      tapi tidak dipakai untuk keputusan akses akun ini). */}
+                      aktif - akun Pro punya barisnya sendiri di atas, admin tidak bergantung
+                      tanggal sama sekali. Jangan tampilkan seolah akun itu akan "kehabisan"
+                      akses pada tanggal trial. */}
                   {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-tv-muted">Trial Berakhir</span>

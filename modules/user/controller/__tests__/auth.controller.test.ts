@@ -80,14 +80,18 @@ describe('handleGetProfile', () => {
       hasProAccess: true,
       isVerified: true,
       trialEndsAt: '2026-12-31T00:00:00.000Z',
+      proExpiresAt: null,
       createdAt: '2026-01-15T00:00:00.000Z',
     });
+    // pro_expires_at WAJIB ikut - kalau tidak, hasProAccess di sini bisa bilang "Pro"
+    // padahal gerbang yang sama menolaknya di route lain.
     expect(checkProAccess).toHaveBeenCalledWith({
       id: 'user-1',
       email: 'user@test.com',
       role: 'free',
       is_pro: true,
       trial_ends_at: '2026-12-31T00:00:00.000Z',
+      pro_expires_at: null,
     });
     expect(getActiveUsers).not.toHaveBeenCalled();
   });
