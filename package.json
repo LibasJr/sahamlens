@@ -16,6 +16,7 @@
     "@sentry/nextjs": "^10.69.0",
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "^7.0.40",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
