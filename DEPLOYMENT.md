@@ -191,3 +191,41 @@ halaman/server action admin baru, selalu pasang guard yang sama dari awal.
 - `lib/dbLocal.ts`, `lib/supabase.ts`, `lib/sahamLensGuard.ts`, `lib/cache.ts` - semua punya
   guard `isVercel`/try-catch buat filesystem read-only. Kalau nambah file baru yang nulis ke
   disk (`fs.writeFileSync` dkk), tiru pola yang sama, jangan nulis fs langsung tanpa guard.
+
+## Jadwal QStash
+
+Cron dijalankan lewat QStash (bukan Vercel Cron) dan diverifikasi dengan
+`verifyQStashSignature()` di tiap route. Nama job di kolom kedua sama persis dengan
+argumen `withJobRunLog()`, jadi riwayat jalannya bisa ditelusuri lewat log job.
+
+| Endpoint | Nama job | Cron (UTC) | Setara WIB |
+|---|---|---|---|
+| `/api/cron/ai-pick-scan` | `ai-pick-scan` | `*/5 2-9 * * 1-5` | tiap 5 menit, 09:00-16:00 hari bursa |
+| `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 22 * * 0-4` | 05:00 hari bursa |
+
+QStash menjadwalkan dalam UTC; WIB = UTC+7. Karena itu jadwal harian ditulis di hari
+sebelumnya (`0-4` = Minggu-Kamis UTC menghasilkan Senin-Jumat WIB).
+
+Mendaftarkan jadwal baru - ganti `<DOMAIN>` dengan domain produksi, `QSTASH_TOKEN` diambil
+dari dashboard Upstash:
+
+```bash
+curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/ai-pick-scan" \
+  -H "Authorization: Bearer $QSTASH_TOKEN" \
+  -H "Upstash-Cron: */5 2-9 * * 1-5"
+
+curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/fundamental-snapshot" \
+  -H "Authorization: Bearer $QSTASH_TOKEN" \
+  -H "Upstash-Cron: 0 22 * * 0-4"
+```
+
+Memeriksa jadwal yang aktif:
+
+```bash
+curl -s "https://qstash.upstash.io/v2/schedules" -H "Authorization: Bearer $QSTASH_TOKEN"
+```
+
+Kalau `ai-pick-scan` belum pernah jalan, `/api/ai-pick` menjawab `ready: false` dan halaman
+AI Pick menampilkan "Data sedang disiapkan" - itu perilaku yang disengaja, bukan error.
+Endpoint sengaja TIDAK memindai sendiri saat cache kosong, karena satu request pengguna
+akan menanggung ~109 fetch Yahoo.
