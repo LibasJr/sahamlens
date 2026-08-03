@@ -1,5 +1,6 @@
 import YahooFinanceClass from 'yahoo-finance2';
 import { analyzeBandarmology, type BandarmologyStatus } from './foreign-flow-proxy';
+import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
 
 // Backend nyata untuk /screener - sebelumnya halaman itu memanggil /api/live/[ticker]
 // (cuma quote harga satu simbol), padahal UI-nya butuh 10 saham teratas dengan 10+
@@ -49,6 +50,45 @@ type RawStock = {
   fifty_two_week_low: number | null;
   fifty_two_week_high: number | null;
 };
+
+// Daftar ticker yang boleh DIREKOMENDASIKAN - sama dengan universe AI Pick karena
+// keduanya menjawab pertanyaan yang sama: saham ini layak disarankan atau tidak.
+// Syaratnya: harga rata-rata 3 bulan >= Rp 200, nilai transaksi >= Rp 1 M/hari,
+// volatilitas 12 bulan <= 120%/tahun.
+//
+// SCREENER_UNIVERSE sengaja TIDAK disaring - daftar itu juga dipakai Compare Tool,
+// Dividend, dan Corporate Calendar yang semuanya alat PENCARIAN, bukan pemberi saran.
+// Pengguna berhak membandingkan atau melihat jadwal dividen GOTO meski GOTO tidak
+// layak direkomendasikan.
+const CURATED_TICKERS = new Set(AI_PICK_UNIVERSE.map((t) => t.replace('.JK', '')));
+
+/** ATR 14 sebagai persen dari harga terakhir. null kalau data kurang dari 15 bar
+ * (butuh 14 True Range, masing-masing perlu close hari sebelumnya) atau harga nol.
+ *
+ * Menggantikan kolom stop loss yang dulu memberi angka tetap 5%/8%/12%: pengujian
+ * 4.705 sampel menunjukkan stop 5% tersentuh di 77% transaksi dan memangkas hampir
+ * seluruh keuntungan (+0,02% vs +1,34% tanpa stop). Angka ATR memberi tahu ruang gerak
+ * wajar saham supaya pengguna menetapkan batasnya sendiri, bukan menuruti angka yang
+ * terdengar otoritatif tapi tidak berdasar. */
+export function atr14Pct(ohlcv: { high: number; low: number; close: number }[]): number | null {
+  if (ohlcv.length < 15) return null;
+  const last = ohlcv[ohlcv.length - 1].close;
+  if (!last) return null;
+
+  let sum = 0;
+  for (let i = ohlcv.length - 14; i < ohlcv.length; i++) {
+    const { high, low } = ohlcv[i];
+    const prevClose = ohlcv[i - 1].close;
+    sum += Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+  }
+  return (sum / 14 / last) * 100;
+}
+
+/** Sisakan hanya saham yang boleh direkomendasikan. Menerima ticker dengan maupun
+ * tanpa akhiran .JK karena RawStock menyimpannya sudah dibuang. */
+export function filterCurated<T extends { ticker: string }>(stocks: T[]): T[] {
+  return stocks.filter((s) => CURATED_TICKERS.has(s.ticker.replace('.JK', '')));
+}
 
 /** range=1mo (~21 hari bursa) cukup untuk jendela CMF20 + buffer libur/weekend. */
 async function fetchDailyOhlcv(ticker: string): Promise<{ date: string; high: number; low: number; close: number; volume: number }[]> {
