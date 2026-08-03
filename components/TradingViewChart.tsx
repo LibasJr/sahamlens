@@ -256,7 +256,7 @@ export default function TradingViewChart({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
         <div className="flex items-center gap-3">
           <span className="font-bold font-mono text-base text-white tracking-wider">
-            {symbol.endsWith('.JK') ? symbol : `${symbol}.JK`}
+            {symbol.startsWith('^') ? symbol : (symbol.endsWith('.JK') ? symbol : `${symbol}.JK`)}
           </span>
           <span className="text-xs text-tv-muted font-mono">{timeframe === 'ALL' ? '15Y' : timeframe} Candlestick</span>
           <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${
