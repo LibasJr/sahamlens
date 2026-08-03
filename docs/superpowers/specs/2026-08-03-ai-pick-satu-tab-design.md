@@ -75,13 +75,32 @@ QStash 5 menit ──> /api/cron/breakout-scan
                      universe: AI_PICK_UNIVERSE
                           └──> Redis: sahamlens:cache:computed:breakout-radar
 
-QStash         ──> market-summary + skor komposit per saham
-                     universe: AI_PICK_UNIVERSE
-                          └──> Redis: sahamlens:cache:computed:market-summary
+QStash harian  ──> /api/cron/fundamental-snapshot
+                     yahooFinance.quoteSummary() per saham
+                          └──> Redis: ...:fundamental-snapshot   (TTL 24 jam)
 
-        /api/ai-pick ◄── baca DUA cache, tidak memindai apa pun
-              └──> lebur + skor + urutkan + potong ambang ──> UI satu tabel
+QStash 5 menit ──> /api/cron/ai-pick-scan
+                     per saham: indikator + calculateScore()
+                          └──> Redis: ...:ai-pick-scores
+
+        /api/ai-pick ◄── baca ai-pick-scores + breakout-radar, tidak memindai apa pun
+              └──> lebur + urutkan + potong ambang ──> UI satu tabel
 ```
+
+### Kenapa butuh cache skor sendiri
+
+`getMarketSummary()` hanya mengembalikan **top-N list** (`topTechnical`, `topRsiOversold`,
+dan seterusnya), bukan data per saham, dan tidak menghitung MA200 maupun MACD. Padahal
+`calculateScore()` mensyaratkan keduanya lewat `TechnicalInput`. Jadi membaca cache
+market-summary saja tidak cukup — nilai yang dibutuhkan memang tidak ada di sana.
+
+Perhitungan per saham dipindah ke cron `/api/cron/ai-pick-scan` yang menyimpan hasil
+`calculateScore()` siap pakai. Ini juga yang membuat halaman berhenti memindai sendiri:
+pekerjaan yang dulu dilakukan 22 request per klik di tab Rekomendasi sekarang dikerjakan
+sekali oleh cron untuk seluruh universe.
+
+`getMarketSummary()` dan `/api/daily-picks` tidak diubah — keduanya masih melayani widget
+beranda dan `/api/ai-briefing`.
 
 ### Komponen
 
@@ -121,7 +140,8 @@ per kuartal mengikuti laporan keuangan, bukan per 5 menit. Menyegarkannya semeni
 bersama harga adalah pemborosan tanpa manfaat.
 
 - Key: `sahamlens:cache:computed:fundamental-snapshot`, TTL 24 jam
-- Diisi cron harian terpisah, bukan oleh breakout-scan yang berjalan tiap 5 menit
+- Diisi cron harian `/api/cron/fundamental-snapshot`, bukan oleh cron yang berjalan tiap
+  5 menit; dibaca oleh `/api/cron/ai-pick-scan` sebagai masukan `calculateScore()`
 - Kalau snapshot fundamental belum ada, `calculateScore()` tetap dipanggil dengan
   fundamental `null` — `scoreValuasi`/`scoreProfitabilitas`/`scoreKesehatan` sudah
   menangani itu dengan mengembalikan 0 dan alasan "DATA TIDAK LENGKAP"
@@ -202,7 +222,7 @@ saat tombol diklik seolah-olah waktu data dihitung.
 |---|---|
 | Kedua cache kosong | `{ items: [], ready: false }`, UI: "data sedang disiapkan" |
 | Hanya cache breakout kosong | Peringkat jalan tanpa bonus breakout/golden cross, UI memberi catatan |
-| Hanya market-summary kosong | `ready: false` — tanpa skor dasar tidak ada peringkat yang bermakna |
+| Hanya `ai-pick-scores` kosong | `ready: false` — tanpa skor dasar tidak ada peringkat yang bermakna |
 | Saham ada di breakout tapi tidak di market-summary | Dilewati, dicatat di log; menandakan universe kedua cache tidak sinkron |
 | Skor tertinggi di bawah 60 | Daftar kosong + "belum ada sinyal kuat hari ini" |
 | Snapshot fundamental kosong/kadaluarsa | Skor dihitung dari teknikal + flow saja, UI memberi catatan; bukan error |
