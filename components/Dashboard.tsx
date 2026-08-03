@@ -109,16 +109,13 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
         .sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; width: max-content; }
         .sahamlens-ticker-track:hover { animation-play-state: paused; }
         @keyframes sahamlens-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        /* Pengguna yang mematikan animasi di sistemnya (Windows: Settings > Accessibility >
-           Visual effects > Animation effects) tidak boleh kehilangan isinya. Dulu
-           'overflow-x: auto' dipasang di TRACK, padahal track itu width:max-content -
-           isinya tidak pernah melebihi dirinya sendiri, jadi tidak ada yang bisa digeser,
-           sementara pembungkusnya overflow-hidden. Hasilnya: teks diam DAN tidak bisa
-           di-scroll. Scroll harus dipasang di pembungkusnya. */
-        @media (prefers-reduced-motion: reduce) {
-          .sahamlens-ticker-track { animation: none; }
-          .sahamlens-ticker-wrap { overflow-x: auto; }
-        }
+        /* SENGAJA tidak menghormati prefers-reduced-motion di sini. Ini ticker harga
+           berjalan (live data), bukan animasi dekoratif - sama seperti running text
+           kurs/skor pertandingan, pengguna mengharapkannya bergerak terus. Percobaan
+           sebelumnya mematikan animasi lewat media query itu, dan hasilnya persis
+           keluhan "diam total" karena fallback overflow-scroll-nya juga salah pasang
+           (ada di TRACK yang width:max-content, bukan di pembungkus) - dua lapis
+           kegagalan sekaligus. Dibuang semua, ticker sekarang selalu jalan. */
       `}} />
     </div>
   );
@@ -239,6 +236,32 @@ export default function Dashboard() {
         setAiPicks(data && !data.error ? (data.items || []).slice(0, 5) : []);
       })
       .catch(() => setAiPicks([]));
+  }, []);
+
+  // Sinyal Golden Cross / Dead Cross - beda dari 5 kandidat AI Pick di atas (itu skor
+  // komposit teknikal+fundamental+arus dana), ini murni kejadian crossover MA20/MA50 hari
+  // ini. Mengisi ruang kosong di bawah daftar kandidat dengan informasi yang benar-benar
+  // berbeda, bukan perpanjangan data yang sama. Sumbernya cache breakout-scan yang sama
+  // dipakai /api/ai-pick, jadi tidak ada pemindaian baru.
+  const [crossSignals, setCrossSignals] = useState<{
+    golden: { symbol: string; price: number }[];
+    dead: { symbol: string; price: number }[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/daily-picks')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || data.error) {
+          setCrossSignals({ golden: [], dead: [] });
+          return;
+        }
+        setCrossSignals({
+          golden: (data.goldenCross?.detail || []).map((d: any) => ({ symbol: d.symbol, price: d.price })),
+          dead: (data.deadCross?.detail || []).map((d: any) => ({ symbol: d.symbol, price: d.price })),
+        });
+      })
+      .catch(() => setCrossSignals({ golden: [], dead: [] }));
   }, []);
 
   React.useEffect(() => {
@@ -427,7 +450,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg leading-none">🔥</span>
-                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Kandidat Terkuat Hari Ini</h3>
+                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Rekomendasi AI Hari Ini</h3>
                 </div>
                 <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline shrink-0">
                   Lihat semua
@@ -438,7 +461,7 @@ export default function Dashboard() {
                 Klik kode saham untuk analisis teknikalnya.
               </p>
 
-              <div className="mt-4 flex flex-col gap-2 flex-1">
+              <div className="mt-4 flex flex-col gap-2">
                 {aiPicks === null ? (
                   <p className="text-[11px] text-tv-muted py-6 text-center">Memuat kandidat...</p>
                 ) : aiPicks.length === 0 ? (
@@ -471,6 +494,59 @@ export default function Dashboard() {
                     </Link>
                   ))
                 )}
+              </div>
+
+              {/* Sinyal Golden Cross / Dead Cross - beda dari skor komposit di atas, murni
+                  kejadian crossover MA20/MA50 hari ini. Tanpa gembok Premium: siapa pun yang
+                  sampai di beranda dan melihat panel ini sudah lolos gerbang Pro/trial di
+                  /api/ai-pick di atasnya, mengunci lagi tidak ada gunanya. */}
+              <div className="mt-5 pt-4 border-t border-tv-border flex-1 flex flex-col">
+                <h4 className="font-heading text-[12px] font-bold text-tv-text flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-tv-green" />
+                  Sinyal Cross Hari Ini
+                </h4>
+                <div className="mt-3 flex flex-col gap-2">
+                  {crossSignals === null ? (
+                    <p className="text-[11px] text-tv-muted py-4 text-center">Memuat sinyal...</p>
+                  ) : crossSignals.golden.length === 0 && crossSignals.dead.length === 0 ? (
+                    <p className="text-[11px] text-tv-muted py-4 text-center">
+                      Belum ada Golden/Dead Cross baru hari ini.
+                    </p>
+                  ) : (
+                    <>
+                      {crossSignals.golden.map((s) => (
+                        <Link
+                          key={`golden-${s.symbol}`}
+                          href={`/technical/${s.symbol}.JK`}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-tv-border/60 bg-tv-card px-3 py-2 hover:border-tv-borderLight transition-colors"
+                        >
+                          <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
+                          <span className="text-[11px] font-number text-tv-muted">
+                            Rp {Math.round(s.price).toLocaleString('id-ID')}
+                          </span>
+                          <span className="text-[10px] font-bold text-tv-green bg-tv-green/15 rounded px-1.5 py-0.5">
+                            Golden Cross
+                          </span>
+                        </Link>
+                      ))}
+                      {crossSignals.dead.map((s) => (
+                        <Link
+                          key={`dead-${s.symbol}`}
+                          href={`/technical/${s.symbol}.JK`}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-tv-border/60 bg-tv-card px-3 py-2 hover:border-tv-borderLight transition-colors"
+                        >
+                          <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
+                          <span className="text-[11px] font-number text-tv-muted">
+                            Rp {Math.round(s.price).toLocaleString('id-ID')}
+                          </span>
+                          <span className="text-[10px] font-bold text-tv-red bg-tv-red/15 rounded px-1.5 py-0.5">
+                            Dead Cross
+                          </span>
+                        </Link>
+                      ))}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
