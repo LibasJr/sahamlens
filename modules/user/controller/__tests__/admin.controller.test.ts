@@ -30,6 +30,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     is_pro: false,
     created_at: '2026-01-15T00:00:00.000Z',
     trial_ends_at: null,
+    pro_expires_at: null,
     demo_ends_at: null,
     verification_code: null,
     verification_code_expires: null,

@@ -38,6 +38,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     is_pro: false,
     created_at: new Date().toISOString(),
     trial_ends_at: null,
+    pro_expires_at: null,
     demo_ends_at: null,
     verification_code: null,
     verification_code_expires: null,

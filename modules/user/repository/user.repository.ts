@@ -30,6 +30,15 @@ function ensureSchema(): Promise<void> {
       -- tidak pernah expire) - ADD COLUMN IF NOT EXISTS supaya aman dijalankan berkali-kali
       -- baik di DB baru (sudah kena CREATE TABLE di atas) maupun DB lama yang sudah ada.
       ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires TIMESTAMPTZ;
+      -- Masa berlaku Pro (2026-08-03). Sebelumnya is_pro cuma boolean tanpa batas waktu,
+      -- sehingga akun yang membayar satu bulan mendapat akses selamanya.
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_expires_at TIMESTAMPTZ;
+      -- Akun Pro yang sudah ada diberi masa berlaku 1 bulan sejak migrasi ini jalan.
+      -- Admin dilewati supaya tidak mengunci diri sendiri. Kondisi IS NULL membuat
+      -- pernyataan ini aman dijalankan berkali-kali - akun yang sudah punya tanggal
+      -- tidak akan tertimpa.
+      UPDATE users SET pro_expires_at = NOW() + INTERVAL '1 month'
+      WHERE is_pro = true AND pro_expires_at IS NULL AND role <> 'admin';
     `
       )
       .then(() => {});
@@ -89,6 +98,7 @@ const UPDATABLE_COLUMNS = new Set<keyof User>([
   'is_verified',
   'is_pro',
   'trial_ends_at',
+  'pro_expires_at',
   'demo_ends_at',
   'verification_code',
   'verification_code_expires',

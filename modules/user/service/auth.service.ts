@@ -40,7 +40,14 @@ export async function login(input: LoginInput): Promise<AuthSessionResult> {
   const maxAgeSec = input.remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
   const sessionExpires = input.remember ? '30d' : '24h';
   const token = await encrypt(
-    { id: user.id, email: user.email, role: user.role, is_pro: user.is_pro, trial_ends_at: user.trial_ends_at },
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      is_pro: user.is_pro,
+      trial_ends_at: user.trial_ends_at,
+      pro_expires_at: user.pro_expires_at,
+    },
     sessionExpires
   );
 
@@ -66,6 +73,7 @@ export async function signup(input: SignupInput): Promise<void> {
       is_pro: false,
       created_at: new Date().toISOString(),
       trial_ends_at: null,
+      pro_expires_at: null,
       demo_ends_at: null,
       verification_code: code,
       verification_code_expires: codeExpires,
@@ -99,7 +107,16 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
   // dengan boundary module yang benar (temuan M4 code review, sekarang tertutup).
   await provisionPortfolio(user.id);
 
-  const token = await encrypt({ id: user.id, email: user.email, role: user.role, is_pro: user.is_pro, trial_ends_at: trialEndsAtIso });
+  // Akun baru belum pernah Pro, jadi pro_expires_at null - masa berlakunya baru ada
+  // kalau admin mengaktifkan lewat /admin.
+  const token = await encrypt({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    is_pro: user.is_pro,
+    trial_ends_at: trialEndsAtIso,
+    pro_expires_at: null,
+  });
 
   return { token, maxAgeSec: 24 * 60 * 60, role: user.role, userId: user.id, email: user.email };
 }
