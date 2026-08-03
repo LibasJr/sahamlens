@@ -9,10 +9,26 @@ export const CACHE_TTL_SEC = {
   // pendek. Dipakai app/api/stock/[ticker], app/api/agents/orchestrator.
   TECHNICAL: 3 * 60,
 
-  // Snapshot pasar (indeks/sektor/breadth) & breakout scan - diisi cron tiap 5
-  // menit (lihat app/api/cron/market-pulse, app/api/cron/breakout-scan), TTL
-  // sedikit lebih panjang dari interval jadwal sebagai toleransi keterlambatan run.
+  // Snapshot pasar (indeks/sektor/breadth) - diisi cron tiap 5 menit (app/api/cron/
+  // market-pulse), TTL sedikit lebih panjang dari interval jadwal sebagai toleransi
+  // keterlambatan run. AMAN pendek karena route-nya (app/api/market-pulse) punya
+  // fallback live-scan saat cache miss - beda dari BREAKOUT_RADAR di bawah.
   MARKET: 6 * 60,
+
+  // BUG FIX (audit integritas data 2026-08-03, ditemukan setelah user lapor "Live AI
+  // Pick" kosong): breakout-scan cron (app/api/cron/breakout-scan) SEBELUMNYA memakai
+  // TTL yang SAMA dengan MARKET di atas (6 menit) - tapi route pembacanya (app/api/
+  // ai-pick, app/api/daily-picks) SENGAJA TIDAK punya fallback live-scan (1 request
+  // pengguna bisa menanggung ~109 fetch Yahoo kalau fallback). Cron cuma jalan jam
+  // bursa (09:00-15:00 WIB) - begitu bursa tutup, TTL 6 menit itu expired dalam
+  // hitungan menit dan kategori breakout/golden cross/dead cross tampil KOSONG total
+  // sampai bursa buka lagi besok (atau Senin kalau Jumat sore). TTL diperpanjang ke 3
+  // hari (cukup untuk gap akhir pekan Jumat sore -> Senin pagi + margin) - cron tetap
+  // menyegarkan tiap 5 menit selama jam bursa seperti biasa, TTL panjang ini HANYA
+  // jadi lantai "data sesi terakhir" di luar jam bursa, bukan mengubah kesegaran saat
+  // bursa buka. Pemanggil menandai `stale`/`asOf` dari `computedAt` supaya UI jujur
+  // bilang "data sesi terakhir", bukan diam-diam menampilkan seolah live.
+  BREAKOUT_RADAR: 3 * 24 * 60 * 60,
 
   // Ringkasan pasar publik (app/api/market-summary) - BARU: sebelumnya TIDAK ADA
   // cache sama sekali meski endpoint ini public/no-auth (paling rawan traffic

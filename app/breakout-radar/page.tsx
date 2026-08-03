@@ -33,6 +33,7 @@ export default function AiPickPage() {
   const [ready, setReady] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [computedAt, setComputedAt] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -56,6 +57,7 @@ export default function AiPickPage() {
         setReady(d.ready !== false);
         setNote(d.note || null);
         setComputedAt(d.computedAt || null);
+        setStale(d.stale === true);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -85,10 +87,15 @@ export default function AiPickPage() {
             <div>
               <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight flex items-center gap-2">
                 AI Pick Live
-                <Badge variant="danger" dot>Live</Badge>
+                {/* BUG FIX (audit integritas data 2026-08-03): badge "Live" dulu TETAP
+                    tampil walau data sebenarnya dari sesi bursa sebelumnya (bisa 2+ hari
+                    basi di akhir pekan, setelah TTL cache diperpanjang supaya tidak
+                    kosong total di luar jam bursa - lihat shared/cache/ai-pick-cache.ts).
+                    Sekarang badge jujur: "Live" cuma kalau data benar-benar segar. */}
+                {stale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
               </h1>
               <p className="text-xs text-tv-muted flex items-center gap-1 mt-1">
-                <Clock className="w-3 h-3" /> {updateLabel ? `Data per ${updateLabel}` : 'Memuat...'}
+                <Clock className="w-3 h-3" /> {updateLabel ? `${stale ? 'Data sesi terakhir' : 'Data'} per ${updateLabel}` : 'Memuat...'}
               </p>
             </div>
           </div>

@@ -30,6 +30,13 @@ export async function GET() {
     // menanggung ~109 fetch Yahoo.
     const breakoutList: any[] = cachedBreakout?.data || (Array.isArray(cachedBreakout) ? cachedBreakout : null) || [];
     const crossSignals = cachedBreakout?.crossSignals || { golden: [], dead: [] };
+    // BUG FIX (audit integritas data 2026-08-03): TTL cache ini diperpanjang ke 3 hari
+    // (lihat shared/cache/ttl-policy.ts BREAKOUT_RADAR) supaya kategori breakout/golden/
+    // dead cross tidak kosong total di luar jam bursa - konsekuensinya data yang
+    // disajikan bisa dari sesi sebelumnya. `breakoutStale`/`breakoutAsOf` memberi tahu
+    // UI kapan harus bilang jujur "data sesi terakhir".
+    const breakoutAsOf: string | null = cachedBreakout?.lastUpdate || null;
+    const breakoutStale = breakoutAsOf ? (Date.now() - new Date(breakoutAsOf).getTime()) / 60000 > 20 : true;
 
     // "Undervalue": proxy RSI oversold MURNI (rsi < 30) - definisi yang sama persis
     // dipakai fitur RSI Oversold sebelum diperlonggar jadi ranking (lihat market-summary.service.ts),
@@ -61,9 +68,11 @@ export async function GET() {
         count: breakoutList.length,
         items: breakoutList.slice(0, 5).map((b: any) => b.symbol.replace('.JK', '')),
         detail: breakoutList.slice(0, DETAIL_CAP).map((b: any) => ({ symbol: b.symbol.replace('.JK', ''), price: b.price, changePct: parseFloat(b.change), metric: `Skor ${b.score} • RR ${b.rr}` })),
+        stale: breakoutStale,
+        asOf: breakoutAsOf,
       },
-      goldenCross: category(crossSignals.golden, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Golden Cross' })),
-      deadCross: category(crossSignals.dead, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Dead Cross' })),
+      goldenCross: { ...category(crossSignals.golden, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Golden Cross' })), stale: breakoutStale, asOf: breakoutAsOf },
+      deadCross: { ...category(crossSignals.dead, (s: any) => ({ symbol: s.symbol.replace('.JK', ''), price: s.price, changePct: parseFloat(s.change), metric: 'Dead Cross' })), stale: breakoutStale, asOf: breakoutAsOf },
       foreignAccumulation: category(foreignAccumulationList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `${s.streak} hari akumulasi` })),
       timestamp: summary.timestamp,
     });

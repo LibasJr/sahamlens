@@ -48,10 +48,19 @@ export async function GET(request: Request) {
 
     const items = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols);
 
+    // BUG FIX (audit integritas data 2026-08-03): TTL cache skor diperpanjang ke 3 hari
+    // (lihat shared/cache/ai-pick-cache.ts) supaya halaman ini tidak kosong total di
+    // luar jam bursa - tapi itu berarti data yang disajikan BISA jadi data sesi
+    // kemarin/Jumat, bukan hari ini. `stale` memberi tahu UI kapan harus bilang jujur
+    // "data sesi terakhir" alih-alih diam-diam menampilkannya seolah baru saja dihitung.
+    const ageMinutes = (Date.now() - new Date(scoreData.computedAt).getTime()) / 60000;
+    const stale = ageMinutes > 20;
+
     const response = NextResponse.json({
       ready: true,
       items,
       computedAt: scoreData.computedAt,
+      stale,
       note: cachedBreakout ? null : 'Data breakout belum siap - peringkat sementara tanpa bonus breakout & golden cross.',
     });
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
