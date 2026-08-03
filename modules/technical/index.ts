@@ -15,7 +15,13 @@ export { analyze as analyzeSma } from './service/analyzers/moving-average';
 export { analyze as analyzeMarketFlow } from './service/analyzers/market-flow';
 
 export { calculateConsensus } from './service/consensus.service';
-export { calculateScore } from './service/scoring.service';
+export {
+  calculateScore,
+  type TechnicalInput,
+  type FundamentalInput,
+  type FlowInput,
+  type ScoringResult,
+} from './service/scoring.service';
 
 // BUILD 009 (Performance) - fetch+parse OHLC Yahoo yang sebelumnya diduplikasi di
 // app/api/council/route.ts dan modules/ai/service/orchestrator.service.ts.

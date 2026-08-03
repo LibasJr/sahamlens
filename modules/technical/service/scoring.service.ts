@@ -11,7 +11,7 @@
  * Jika data null/kosong → skor 0, bukan tebakan.
  */
 
-interface TechnicalInput {
+export interface TechnicalInput {
   currentPrice: number;
   ma20: number;
   ma50: number;
@@ -24,7 +24,7 @@ interface TechnicalInput {
   volAvg20: number;
 }
 
-interface FundamentalInput {
+export interface FundamentalInput {
   per: number | null;
   pbv: number | null;
   roe: number | null;  // already in % (e.g. 18.2)
@@ -33,14 +33,14 @@ interface FundamentalInput {
   revenueGrowth: number | null; // yoy %
 }
 
-interface FlowInput {
+export interface FlowInput {
   foreignFlow: string;       // 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL'
   consecutiveBuyDays: number;
   consecutiveSellDays: number;
   volRatio: number;
 }
 
-interface ScoringResult {
+export interface ScoringResult {
   simbol: string;
   harga: number;
   technical_score: number;
