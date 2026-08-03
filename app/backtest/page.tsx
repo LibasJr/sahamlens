@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Menu } from 'lucide-react';
+import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Menu, Zap } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Input, Select, Button } from '@/components/ui';
@@ -54,6 +54,14 @@ export default function BacktestPage() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
+  // "Live Filter Check" - BUKAN versi lama "Sinyal Hari Ini" yang dihapus 2026-08-03
+  // (itu baca cache precompute harian, bisa berjam-jam basi). Ini fetch LIVE ke Yahoo
+  // saat tombol diklik - state terpisah dari `results` (historis) supaya dua mode
+  // tidak saling menimpa tampilan.
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveResults, setLiveResults] = useState<any>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+
   const toggleFilter = (f: string) => {
     if (selectedFilters.includes(f)) {
       setSelectedFilters(selectedFilters.filter(item => item !== f));
@@ -101,6 +109,40 @@ export default function BacktestPage() {
     setLoading(false);
   };
 
+  const runLiveFilterCheck = async () => {
+    setLiveLoading(true);
+    setLiveError(null);
+    try {
+      const res = await fetch('/api/backtest/live-filter-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filters: selectedFilters })
+      });
+      if (res.status === 401) {
+        setShowLoginPrompt(true);
+        setLiveLoading(false);
+        return;
+      }
+      if (res.status === 402) {
+        setShowPaywall(true);
+        setLiveLoading(false);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        setLiveError(data?.error || 'Gagal menjalankan Live Filter Check');
+        setLiveResults(null);
+        setLiveLoading(false);
+        return;
+      }
+      setLiveResults(data);
+    } catch (e) {
+      console.error(e);
+      setLiveError('Gagal menjalankan Live Filter Check');
+    }
+    setLiveLoading(false);
+  };
+
   const chartData = results?.equityCurve?.map((eq: number, idx: number) => ({
     month: `M${idx}`,
     Strategy: eq,
@@ -133,16 +175,18 @@ export default function BacktestPage() {
           </div>
         </header>
 
-        {/* Tab "Sinyal Hari Ini" dihapus 2026-08-03: fungsinya "saham mana yang cocok
-            kriteria hari ini" sekarang dijawab halaman AI Pick dengan peringkat yang lebih
-            kaya (skor komposit + bonus sinyal langka), tanpa pengguna perlu menyusun
-            kombinasi filter sendiri. Halaman ini kembali fokus ke satu hal: menguji
-            strategi ke data masa lalu. */}
+        {/* Tab "Sinyal Hari Ini" (baca cache precompute harian, bisa berjam-jam basi)
+            dihapus 2026-08-03, dianggap tumpang tindih dengan AI Pick. Dibangun ulang
+            sebagai "Live Filter Check" (arsitektur beda: fetch live ke Yahoo saat
+            diklik, bukan baca cache) - beda dari AI Pick karena mengecek kombinasi
+            filter SPESIFIK pilihan pengguna sendiri (mis. buat menerjemahkan bonus
+            "Golden Cross" AI Pick ke saham lain yang kondisinya serupa SEKARANG),
+            bukan skor komposit generik. */}
         <div className="px-6 pt-6 max-w-[1600px] mx-auto w-full">
           <p className="text-xs text-tv-muted">
-            Uji kombinasi filter ini ke data masa lalu - berapa return, win rate, dan drawdown-nya
-            kalau dijalankan 3-24 bulan terakhir. Untuk melihat saham yang menarik hari ini, buka
-            halaman AI Pick.
+            <b>Backtest Sekarang</b>: uji kombinasi filter ini ke data masa lalu (return, win rate,
+            drawdown, 3-24 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi
+            kombinasi filter yang sama SEKARANG (data live, bukan simulasi).
           </p>
         </div>
 
@@ -208,12 +252,87 @@ export default function BacktestPage() {
                   {!loading && <Play className="w-5 h-5" />}
                   Backtest Sekarang
                 </Button>
+
+                <Button
+                  onClick={runLiveFilterCheck}
+                  disabled={liveLoading || selectedFilters.length === 0}
+                  loading={liveLoading}
+                  variant="secondary"
+                  className="w-full !bg-tv-green !text-white hover:!bg-tv-green/90"
+                >
+                  {!liveLoading && <Zap className="w-5 h-5" />}
+                  Live Filter Check
+                </Button>
+                <p className="text-[10px] text-tv-muted -mt-2">
+                  Cek saham mana di universe yang memenuhi kombinasi filter ini SEKARANG (data live, bukan simulasi historis).
+                </p>
               </div>
             </div>
           </div>
 
           {/* Results Panel */}
           <div className="lg:col-span-2 space-y-6">
+                {/* Live Filter Check - hasil TERPISAH dari Backtest historis di bawah,
+                    supaya dua konsep (live vs simulasi masa lalu) tidak tercampur
+                    tampilannya. Muncul cuma kalau pengguna sudah klik tombolnya. */}
+                {(liveLoading || liveError || liveResults) && (
+                  <div className="bg-tv-card border border-tv-green/30 rounded-lg shadow-1 overflow-hidden">
+                    <div className="p-4 border-b border-tv-border bg-tv-green/5 flex items-center justify-between flex-wrap gap-2">
+                      <h3 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-tv-green" /> Live Filter Check
+                      </h3>
+                      {liveResults?.matches?.[0]?.freshness && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-tv-green/10 text-tv-green border border-tv-green/30">
+                          {liveResults.matches[0].freshness === 'DELAYED' ? 'Data ~15-20 menit' : liveResults.matches[0].freshness === 'EOD' ? 'Data Penutupan (EOD)' : 'Data Basi'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      {liveLoading && (
+                        <p className="text-sm text-tv-muted flex items-center gap-2"><Activity className="w-4 h-4 animate-spin" /> Mengecek {selectedFilters.length} filter ke seluruh universe...</p>
+                      )}
+                      {liveError && <p className="text-sm text-tv-red">{liveError}</p>}
+                      {liveResults && !liveLoading && (
+                        <>
+                          {liveResults.message ? (
+                            <p className="text-sm text-tv-muted">{liveResults.message}</p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-tv-muted mb-3">
+                                {liveResults.matches.length} saham cocok kombinasi ini sekarang, dari {liveResults.filters.length} filter dipilih
+                                {liveResults.skippedCount > 0 ? ` (${liveResults.skippedCount} saham gagal diambil, dilewati)` : ''}.
+                                {liveResults.matches[0]?.dataTimestamp && (
+                                  <> Data per {new Date(liveResults.matches[0].dataTimestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB.</>
+                                )}
+                              </p>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
+                                      <th className="py-2 px-3">Saham</th>
+                                      <th className="py-2 px-3 text-right">Harga</th>
+                                      <th className="py-2 px-3 text-right">Indikator Bullish</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-tv-border text-sm">
+                                    {liveResults.matches.map((m: any) => (
+                                      <tr key={m.ticker} className="hover:bg-tv-hover/30">
+                                        <td className="py-2 px-3 font-bold font-number text-tv-text">{m.ticker}</td>
+                                        <td className="py-2 px-3 text-right font-number text-tv-muted">Rp {m.price.toLocaleString('id-ID')}</td>
+                                        <td className="py-2 px-3 text-right font-number text-tv-green">{m.bullishCount}/9</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {error && (
                   <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
                     {error}
