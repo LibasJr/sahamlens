@@ -49,6 +49,7 @@ type RawStock = {
   bandarmology_status: BandarmologyStatus;
   fifty_two_week_low: number | null;
   fifty_two_week_high: number | null;
+  atr_pct: number | null;
 };
 
 // Daftar ticker yang boleh DIREKOMENDASIKAN - sama dengan universe AI Pick karena
@@ -146,6 +147,9 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       bandarmology_status: analyzeBandarmology(ohlcv).status,
       fifty_two_week_low: q.summaryDetail?.fiftyTwoWeekLow || null,
       fifty_two_week_high: q.summaryDetail?.fiftyTwoWeekHigh || null,
+      // Dihitung dari OHLCV yang SUDAH diambil untuk Bandarmology - tidak ada request
+      // tambahan. range=1mo memberi ~21 bar, cukup untuk ATR 14.
+      atr_pct: atr14Pct(ohlcv),
     };
   } catch {
     return null;
@@ -154,8 +158,17 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
 
 // Universe mentah (fundamental+teknikal per saham) - TIDAK bergantung pada profil
 // risiko, jadi di-cache terpisah dan dipakai ulang untuk skoring 3 profil sekaligus.
+//
+// Mengambil GABUNGAN dua universe (114 saham) dalam satu kali jalan, bukan dua kali:
+// SCREENER_UNIVERSE (51, dipakai Compare Tool sebagai alat pencarian) dan universe
+// tersaring (109, satu-satunya yang boleh direkomendasikan). Keduanya beririsan 46
+// saham - mengambilnya terpisah berarti 46 saham di-fetch dua kali tiap 30 menit.
+//
+// Penyaringan TIDAK dilakukan di sini, melainkan di rankScreener(), supaya /api/compare
+// tetap bisa melihat seluruh 114.
 export async function fetchScreenerUniverse(): Promise<RawStock[]> {
-  const results = await Promise.all(SCREENER_UNIVERSE.map(fetchOne));
+  const tickers = Array.from(new Set([...SCREENER_UNIVERSE, ...AI_PICK_UNIVERSE]));
+  const results = await Promise.all(tickers.map(fetchOne));
   return results.filter((r): r is RawStock => r !== null);
 }
 
@@ -193,8 +206,12 @@ function scoreStock(s: RawStock, sectorAvgPer: number, profile: RiskProfile): nu
 }
 
 export function rankScreener(universe: RawStock[], profile: RiskProfile) {
+  // Disaring SEBELUM skor dihitung - rata-rata PER sektor pun hanya boleh dihitung dari
+  // saham yang layak direkomendasikan, supaya pembandingnya konsisten.
+  const curated = filterCurated(universe);
+
   const bySector = new Map<string, number[]>();
-  universe.forEach((s) => {
+  curated.forEach((s) => {
     if (s.per && s.per > 0) {
       const list = bySector.get(s.sector) || [];
       list.push(s.per);
@@ -207,12 +224,11 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
     return list.reduce((a, b) => a + b, 0) / list.length;
   };
 
-  const ranked = universe
+  const ranked = curated
     .map((s) => ({ s, score: scoreStock(s, sectorAvgPer(s.sector), profile) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 10)
     .map(({ s }) => {
-      const stopLossPct = profile === 'Konservatif' ? 0.05 : profile === 'Moderat' ? 0.08 : 0.12;
       return {
         ticker: s.ticker,
         name: s.name,
@@ -228,7 +244,8 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         week52_high: s.fifty_two_week_high,
         week52_low: s.fifty_two_week_low,
         entry: s.price,
-        stop_loss: Math.round(s.price * (1 - stopLossPct)),
+        // Menggantikan stop_loss - lihat alasannya di komentar atr14Pct().
+        atr_pct: s.atr_pct != null ? parseFloat(s.atr_pct.toFixed(1)) : null,
       };
     });
 
