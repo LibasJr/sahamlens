@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
-import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 
@@ -26,8 +25,11 @@ export async function GET() {
     // Breakout radar & cross signals di-refresh cron tiap 5 menit (app/api/cron/breakout-scan)
     // - baca cache dulu, fallback live scan kalau cache belum pernah terisi.
     const cachedBreakout = await cacheGet<any>(BREAKOUT_CACHE_KEY);
-    const breakoutList: any[] = cachedBreakout?.data || (Array.isArray(cachedBreakout) ? cachedBreakout : null) || (await scanBreakouts());
-    const crossSignals = cachedBreakout?.crossSignals || (await scanCrossSignals());
+    // Tanpa fallback live-scan: kalau cache belum terisi, kategori breakout & cross
+    // tampil kosong sampai cron mengisinya. Memindai di sini berarti request pengguna
+    // menanggung ~109 fetch Yahoo.
+    const breakoutList: any[] = cachedBreakout?.data || (Array.isArray(cachedBreakout) ? cachedBreakout : null) || [];
+    const crossSignals = cachedBreakout?.crossSignals || { golden: [], dead: [] };
 
     // "Undervalue": proxy RSI oversold MURNI (rsi < 30) - definisi yang sama persis
     // dipakai fitur RSI Oversold sebelum diperlonggar jadi ranking (lihat market-summary.service.ts),
