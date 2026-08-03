@@ -34,7 +34,7 @@ export default function AlgoFilters({
       <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
         <h3 className="font-heading text-base font-bold text-white flex items-center gap-2">
           <Layers className="w-5 h-5 text-tv-accent" />
-          Algo Filters
+          LensTechnical
         </h3>
         <button
           onClick={() => setSortByConfidence(!sortByConfidence)}
@@ -104,7 +104,7 @@ export default function AlgoFilters({
         }) : (
           <div className="col-span-full text-center py-10 text-tv-muted text-sm flex flex-col items-center gap-2">
             <RefreshCw className="w-6 h-6 animate-spin text-tv-borderLight" />
-            Running AI Algorithms...
+            Menjalankan Filter Teknikal...
           </div>
         )}
       </div>

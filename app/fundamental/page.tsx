@@ -211,7 +211,7 @@ function FundamentalContent() {
           title="Limit Gratis Habis"
           body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
           benefits={[
-            'Unlimited Technical Analyzer (10 filter)',
+            'Unlimited LensTechnical (10 filter)',
             'LensRadar LIVE, LensAI & Compare Tool',
             'Watchlist & Alert unlimited',
           ]}
@@ -408,7 +408,7 @@ function FundamentalContent() {
               <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
                 <h3 className="text-base font-bold text-white font-heading flex items-center gap-2">
                   <Layers className="w-5 h-5 text-tv-accent" />
-                  Algo Filters
+                  LensTechnical
                 </h3>
                 <button 
                   onClick={() => setSortByConfidence(!sortByConfidence)}
@@ -473,7 +473,7 @@ function FundamentalContent() {
         title="Limit Gratis Habis"
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
-          'Unlimited Technical Analyzer (10 filter)',
+          'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}

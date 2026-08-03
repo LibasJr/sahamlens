@@ -65,7 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'analisis',
     label: 'Analisis',
     items: [
-      { id: 'dashboard', name: 'Technical Analyzer', subtitle: '10 Pure Math Filters', path: '/dashboard', icon: LineChart },
+      { id: 'dashboard', name: 'LensTechnical', subtitle: '10 Pure Math Filters', path: '/dashboard', icon: LineChart },
       { id: 'fundamental', name: 'Fundamental Analyzer', subtitle: 'Value & Health Metrics', path: '/fundamental', icon: Building2 },
       { id: 'council', name: 'LensAI', subtitle: 'Stock Analysis LensAI', path: '/technical/BBCA.JK', icon: Users },
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },

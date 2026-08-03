@@ -405,7 +405,7 @@ export default function Recommendations() {
         title="Limit Gratis Habis"
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
-          'Unlimited Technical Analyzer (10 filter)',
+          'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
