@@ -39,3 +39,27 @@ export function classifyFreshness(marketTimeSec: number | null | undefined): Fre
 
   return { freshness, dataTimestamp: new Date(marketTimeMs).toISOString(), ageSeconds };
 }
+
+// Klasifikasi umur CACHE (BUKAN umur data pasar per-simbol seperti classifyFreshness
+// di atas) - untuk endpoint yang meng-cache HASIL HITUNGAN BATCH (Screener/
+// Recommendations/Market Summary/Compare), bukan satu quote. Dipakai bersama
+// shared/cache/redis-cache.ts:getCacheTtlRemaining() - audit BUILD 001 2026-08-03,
+// item "timestamp & data freshness": endpoint2 ini sebelumnya TIDAK melaporkan sama
+// sekali seberapa lama hasilnya sudah dihitung, jadi user tidak tahu bedanya "baru saja
+// dihitung" vs "cache 29 menit lagi".
+export type CacheFreshness = 'FRESH' | 'CACHED' | 'STALE';
+
+export interface CacheAgeInfo {
+  freshness: CacheFreshness;
+  cachedAgeSec: number;
+  cacheTtlSec: number;
+}
+
+/** `ttlRemainingSec` dari getCacheTtlRemaining() - null berarti key baru saja
+ * dihitung ulang (cache miss) ATAU Redis tidak dikonfigurasi, diperlakukan sebagai
+ * umur 0 (bukan error/STALE), sesuai kontrak getCacheTtlRemaining(). */
+export function describeCacheAge(ttlRemainingSec: number | null, cacheTtlSec: number): CacheAgeInfo {
+  const cachedAgeSec = ttlRemainingSec !== null ? Math.max(0, cacheTtlSec - ttlRemainingSec) : 0;
+  const freshness: CacheFreshness = cachedAgeSec < 60 ? 'FRESH' : cachedAgeSec < cacheTtlSec ? 'CACHED' : 'STALE';
+  return { freshness, cachedAgeSec, cacheTtlSec };
+}

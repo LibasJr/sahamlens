@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { fetchScreenerUniverse, rankScreener, type RiskProfile } from '@/modules/market/service/screener.service';
-import { getOrCompute } from '@/shared/cache/redis-cache';
+import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { describeCacheAge } from '@/shared/http/freshness';
 
 // Publik (alat gratis, konsisten dengan /dcf & /screener page itu sendiri). Universe
 // mentah (fetch fundamental ~50 saham) di-cache 30 menit dan dipakai ulang untuk
@@ -25,7 +26,12 @@ export async function GET(request: Request) {
     const universe = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.SCREENER_UNIVERSE, fetchScreenerUniverse);
     const top10 = rankScreener(universe, profile);
 
-    return NextResponse.json({ profile, analysis: { top_10_stocks: top10 } });
+    // Audit BUILD 001 (item timestamp/freshness) - _meta ADDITIF, tidak mengubah
+    // bentuk `analysis` yang sudah ada, supaya frontend lama tidak patah.
+    const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
+    const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.SCREENER_UNIVERSE);
+
+    return NextResponse.json({ profile, analysis: { top_10_stocks: top10 }, _meta });
   } catch (error: any) {
     console.error('Screener API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

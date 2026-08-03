@@ -95,6 +95,23 @@ export async function getSetMembers(key: string): Promise<string[]> {
   }
 }
 
+/** Sisa TTL (detik) key cache - dipakai turunkan "berapa lama data ini sudah
+ * dihitung" TANPA mengubah bentuk value yang di-cache (tidak menyentuh kontrak
+ * getOrCompute yang dipakai banyak caller). Null kalau Redis tidak dikonfigurasi
+ * ATAU key tidak ada (baru saja dihitung ulang lewat compute(), atau memang belum
+ * pernah di-cache) - caller memperlakukan null sebagai "anggap baru saja dihitung",
+ * BUKAN error. */
+export async function getCacheTtlRemaining(key: string): Promise<number | null> {
+  const client = getClient();
+  if (!client) return null;
+  try {
+    const ttl = await client.ttl(key);
+    return ttl >= 0 ? ttl : null; // -2 = key tidak ada, -1 = key ada tanpa TTL (tidak dipakai app ini)
+  } catch {
+    return null;
+  }
+}
+
 export async function cacheDel(keyOrPattern: string): Promise<void> {
   const client = getClient();
   if (!client) return;

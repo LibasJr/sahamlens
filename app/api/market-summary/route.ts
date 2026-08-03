@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
-import { getOrCompute } from '@/shared/cache/redis-cache';
+import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { describeCacheAge } from '@/shared/http/freshness';
 
 // BUILD 007 (Cache Layer) - sebelumnya endpoint ini (public/no-auth, dipakai landing
 // page) TIDAK PERNAH di-cache sama sekali. getOrCompute (single-flight) dipakai,
@@ -25,7 +26,11 @@ export const maxDuration = 60;
 export async function GET() {
   try {
     const data = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.MARKET_SUMMARY, getMarketSummary);
-    return NextResponse.json(data);
+    // Audit BUILD 001 (timestamp/freshness) - _meta ADDITIF, tidak menyentuh field
+    // yang sudah ada di `data`.
+    const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
+    const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.MARKET_SUMMARY);
+    return NextResponse.json({ ...data, _meta });
   } catch (error: any) {
     console.error('Market summary API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
