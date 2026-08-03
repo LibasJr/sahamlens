@@ -2,6 +2,7 @@ import './globals.css';
 import { Plus_Jakarta_Sans, Sora, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import React from 'react';
 import AppShell from '@/components/AppShell';
+import { Analytics } from '@vercel/analytics/next';
 
 // Trio font untuk kesan lebih modern/Gen Z: Jakarta Sans buat body (tetap, sudah
 // enak dibaca), Sora buat heading (lebih tebal & punya karakter), Space Grotesk
@@ -62,6 +63,7 @@ export default function RootLayout({
     <html lang="id" className={`dark ${jakarta.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <body className={`${jakarta.className} bg-[#0F141D] text-slate-100 antialiased min-h-screen relative overflow-x-hidden selection:bg-[#3A86FF]/20`}>
         <AppShell>{children}</AppShell>
+        <Analytics />
       </body>
     </html>
   );
