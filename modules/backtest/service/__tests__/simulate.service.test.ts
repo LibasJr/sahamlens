@@ -45,10 +45,12 @@ describe('simulateBacktest', () => {
     const decisions = cache.tickers[0].decisions;
     const bars = cache.tickers[0].bars;
 
-    // BULLISH terus dari hari 0 sampai hari 20, lalu balik NEUTRAL - harga naik terus
+    // BULLISH terus dari hari 0 sampai hari 20, lalu balik BEARISH - harga naik terus
     // supaya trade ini profit (memverifikasi arah pnl juga benar setelah fee/slippage).
+    // Harus BEARISH, bukan NEUTRAL: sejak aturan exit majorityBearish, sinyal yang cuma
+    // meluruh ke NEUTRAL tidak memicu jual sama sekali (lihat test khusus di bawah).
     for (let i = 0; i < days; i++) {
-      decisions['RSI 14'][i] = i <= 20 ? 'BULLISH' : 'NEUTRAL';
+      decisions['RSI 14'][i] = i <= 20 ? 'BULLISH' : 'BEARISH';
       bars[i].close = 1000 + i * 10;
       bars[i].open = 1000 + i * 10;
     }
@@ -62,6 +64,57 @@ describe('simulateBacktest', () => {
     expect(result.trades[0].date).toBe(dateAt(22));
     expect(result.trades[0].pnlPct).toBeGreaterThan(0);
     expect(result.winRatePct).toBe(100);
+  });
+
+  // Aturan exit: posisi dijual hanya kalau LEBIH DARI SEPARUH filter terpilih benar-benar
+  // BEARISH. Dulu satu filter yang berhenti BULLISH sudah cukup untuk jual - dengan filter
+  // yang berfluktuasi harian (mis. Volume vs Avg 20D) itu bikin rata-rata hold ~3 hari dan
+  // hasil backtest habis digerus fee bolak-balik, bukan oleh arah harga.
+  const threeFilters: IndicatorName[] = ['RSI 14', 'MACD', 'EMA 20/50 Cross'];
+
+  function makeCacheWithFilters(days: number, decide: (name: IndicatorName, day: number) => Decision) {
+    const cache = makeCache(days);
+    ALL_INDICATORS.forEach((name) => {
+      cache.tickers[0].decisions[name] = Array.from({ length: days }, (_, i) => decide(name, i));
+    });
+    return cache;
+  }
+
+  it('satu filter berbalik BEARISH belum cukup untuk jual - posisi tetap dipegang', () => {
+    const days = 66;
+    const cache = makeCacheWithFilters(days, (name, i) =>
+      name === 'MACD' && i >= 20 ? 'BEARISH' : 'BULLISH'
+    );
+
+    const result = simulateBacktest(cache, { filters: threeFilters, modal: 100_000_000, periodMonths: 3 });
+
+    expect(result.totalTrades).toBe(1);
+    // 1 dari 3 filter BEARISH - belum mayoritas, jadi posisi baru lepas saat force-close
+    // di hari terakhir periode, bukan sehari setelah MACD berbalik.
+    expect(result.trades[0].date).toBe(dateAt(days - 1));
+  });
+
+  it('mayoritas filter BEARISH memicu jual, dieksekusi di open hari berikutnya', () => {
+    const days = 66;
+    const cache = makeCacheWithFilters(days, (name, i) =>
+      (name === 'MACD' || name === 'EMA 20/50 Cross') && i >= 20 ? 'BEARISH' : 'BULLISH'
+    );
+
+    const result = simulateBacktest(cache, { filters: threeFilters, modal: 100_000_000, periodMonths: 3 });
+
+    expect(result.totalTrades).toBe(1);
+    // 2 dari 3 filter BEARISH di hari 20 - order jual diantre, tereksekusi open hari 21.
+    expect(result.trades[0].date).toBe(dateAt(21));
+  });
+
+  it('filter yang cuma meluruh ke NEUTRAL tidak memicu jual - NEUTRAL bukan BEARISH', () => {
+    const days = 66;
+    const cache = makeCacheWithFilters(days, (_name, i) => (i >= 20 ? 'NEUTRAL' : 'BULLISH'));
+
+    const result = simulateBacktest(cache, { filters: threeFilters, modal: 100_000_000, periodMonths: 3 });
+
+    expect(result.totalTrades).toBe(1);
+    expect(result.trades[0].date).toBe(dateAt(days - 1));
   });
 
   it('buy/sell price sudah net slippage+fee, bukan harga open mentah', () => {
@@ -107,6 +160,36 @@ describe('simulateBacktest', () => {
     expect(result.totalTrades).toBe(5);
   });
 
+  it('saat kandidat lebih banyak dari slot, yang dibeli adalah sinyal terkuat - bukan yang paling awal di daftar universe', () => {
+    const days = 66;
+    // 8 saham sama-sama lolos filter 'RSI 14', tapi jumlah indikator BULLISH lainnya
+    // berbeda: T0 paling lemah (cuma RSI), T7 paling kuat. Sengaja disusun terbalik dari
+    // urutan array supaya seleksi yang cuma mengikuti urutan universe langsung ketahuan.
+    const extraBullishByIndex = [0, 0, 0, 1, 2, 3, 4, 5];
+    const cache: BacktestIndicatorCache = {
+      computedAt: '2026-08-01T00:00:00.000Z',
+      ihsg: Array.from({ length: days }, (_, i) => ({ date: dateAt(i), close: 1000, open: 1000 })),
+      tickers: extraBullishByIndex.map((extra, tIdx) => ({
+        ticker: `T${tIdx}.JK`,
+        bars: Array.from({ length: days }, (_, i) => ({ date: dateAt(i), close: 1000, open: 1000 })),
+        decisions: (() => {
+          const m = {} as Record<IndicatorName, Decision[]>;
+          const others = ALL_INDICATORS.filter((n) => n !== 'RSI 14');
+          ALL_INDICATORS.forEach((name) => {
+            const isBullish = name === 'RSI 14' || others.indexOf(name) < extra;
+            m[name] = new Array(days).fill(isBullish ? 'BULLISH' : 'NEUTRAL');
+          });
+          return m;
+        })(),
+      })),
+    };
+
+    const result = simulateBacktest(cache, { filters: ['RSI 14'], modal: 100_000_000, periodMonths: 3 });
+
+    const bought = Array.from(new Set(result.trades.map((t) => t.symbol))).sort();
+    expect(bought).toEqual(['T3.JK', 'T4.JK', 'T5.JK', 'T6.JK', 'T7.JK']);
+  });
+
   it('posisi yang masih terbuka di akhir periode di-force-close, bukan diabaikan', () => {
     const days = 66;
     const cache = makeCache(days);
@@ -118,6 +201,52 @@ describe('simulateBacktest', () => {
 
     expect(result.totalTrades).toBe(1);
     expect(result.trades[0].date).toBe(dateAt(days - 1)); // exit dipaksa di hari terakhir
+  });
+
+  // endDate memungkinkan uji jendela NON-OVERLAP (walk-forward). Tanpa ini setiap
+  // periode selalu berakhir di bar terakhir, jadi hasil 3/6/12/24 bulan saling tumpang
+  // tindih dan bukan bukti yang saling bebas.
+  it('endDate menggeser jendela simulasi ke masa lalu, tidak selalu berakhir di bar terakhir', () => {
+    const days = 100;
+    const cache = makeCache(days);
+    cache.tickers[0].decisions['RSI 14'] = new Array(days).fill('BULLISH');
+    cache.tickers[0].bars.forEach((b, i) => { b.close = 1000 + i; b.open = 1000 + i; });
+
+    const cutoff = dateAt(70);
+    const result = simulateBacktest(cache, {
+      filters: ['RSI 14'],
+      modal: 100_000_000,
+      periodMonths: 3,
+      endDate: cutoff,
+    });
+
+    expect(result.totalTrades).toBe(1);
+    // Posisi di-force-close di hari terakhir JENDELA (cutoff), bukan hari terakhir data.
+    expect(result.trades[0].date).toBe(cutoff);
+  });
+
+  it('tanpa endDate perilaku tidak berubah - jendela tetap berakhir di bar terakhir', () => {
+    const days = 100;
+    const cache = makeCache(days);
+    cache.tickers[0].decisions['RSI 14'] = new Array(days).fill('BULLISH');
+
+    const result = simulateBacktest(cache, { filters: ['RSI 14'], modal: 100_000_000, periodMonths: 3 });
+
+    expect(result.trades[0].date).toBe(dateAt(days - 1));
+  });
+
+  it('dua jendela endDate yang berbeda menghasilkan periode trade yang tidak tumpang tindih', () => {
+    const days = 200;
+    const cache = makeCache(days);
+    cache.tickers[0].decisions['RSI 14'] = new Array(days).fill('BULLISH');
+
+    const older = simulateBacktest(cache, { filters: ['RSI 14'], modal: 100_000_000, periodMonths: 3, endDate: dateAt(65) });
+    const newer = simulateBacktest(cache, { filters: ['RSI 14'], modal: 100_000_000, periodMonths: 3, endDate: dateAt(131) });
+
+    expect(older.trades[0].date).toBe(dateAt(65));
+    expect(newer.trades[0].date).toBe(dateAt(131));
+    // Entry jendela kedua harus SETELAH exit jendela pertama - benar-benar terpisah.
+    expect(newer.trades[0].entryDate > older.trades[0].date).toBe(true);
   });
 
   it('alpha vs IHSG dihitung dari perbandingan return strategi vs return IHSG di window yang sama', () => {
