@@ -131,11 +131,18 @@ export default function AIChat() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-      
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
+
       {/* Chat Window */}
+      {/* Lebar dulu w-[400px]/w-[600px] TETAP tanpa breakpoint sama sekali - di layar HP
+          (~375px, termasuk WebView yang disebut eksplisit dipakai) panel 400px + margin
+          24px kanan-kiri MELUBER keluar viewport, terpotong/tumpang tindih. Markdown dan
+          CSS .ai-response-nya sudah benar (ReactMarkdown + spacing lengkap di globals.css)
+          - yang rusak adalah kontainernya, bukan isinya, sehingga teks yang sebenarnya
+          terformat rapi terlihat "berantakan" karena lebar sisa yang tidak menentu.
+          calc(100vw-2rem) di layar sempit, kembali ke ukuran tetap mulai breakpoint sm. */}
       {isOpen && (
-        <div className={`bg-tv-bg border border-tv-border rounded-xl shadow-2 overflow-hidden flex flex-col mb-4 transition-all duration-300 origin-bottom-right ${isExpanded ? 'w-[600px] h-[700px]' : 'w-[400px] h-[500px]'}`}>
+        <div className={`bg-tv-bg border border-tv-border rounded-xl shadow-2 overflow-hidden flex flex-col mb-4 transition-all duration-300 origin-bottom-right w-[calc(100vw-2rem)] max-h-[80vh] ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
 
           {/* Header */}
           <div className="bg-tv-card p-4 flex items-center justify-between border-b border-tv-border">

@@ -15,18 +15,6 @@ interface HeaderProps {
   isAdmin?: boolean;
 }
 
-const QUICK_TICKERS = [
-  { symbol: 'BBCA', name: 'Bank BCA' },
-  { symbol: 'BBRI', name: 'Bank BRI' },
-  { symbol: 'BMRI', name: 'Bank Mandiri' },
-  { symbol: 'TLKM', name: 'Telkom ID' },
-  { symbol: 'ASII', name: 'Astra Intl' },
-  { symbol: 'AMRT', name: 'Alfamart' },
-  { symbol: 'ICBP', name: 'Indofood CBP' },
-  { symbol: 'ADRO', name: 'Adaro Energy' },
-  { symbol: 'GOTO', name: 'GoTo Tech' }
-];
-
 export default function Header({
   currentTicker,
   onTickerChange,
@@ -90,26 +78,6 @@ export default function Header({
 
       {/* Right side controls */}
       <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-
-        {/* Quick Ticker Chips (Hidden on small mobile) */}
-        <div className="hidden xl:flex items-center gap-1.5 overflow-x-auto max-w-sm py-1 mr-2 scrollbar-hide">
-          {QUICK_TICKERS.map((t) => (
-            <button
-              key={t.symbol}
-              onClick={() => {
-                setSearchInput(t.symbol);
-                onTickerChange(t.symbol);
-              }}
-              className={`px-2 py-1 rounded text-[11px] font-number transition-all border shrink-0 ${
-                currentTicker === t.symbol
-                  ? 'bg-tv-green text-white border-tv-green font-bold'
-                  : 'bg-tv-hover/60 text-tv-muted hover:bg-tv-hover border-tv-border'
-              }`}
-            >
-              {t.symbol}
-            </button>
-          ))}
-        </div>
 
         <div className="flex items-center gap-3">
           {/* Profil, badge role, dan logout sudah tersedia konsisten di footer Sidebar
