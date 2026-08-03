@@ -24,7 +24,29 @@ export default function BacktestPage() {
     'SMA Score (5,10,20)'
   ];
 
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14']);
+  // Dulu ada 10 preset, tapi 5 di antaranya duplikat: 'Bandar Accumulation',
+  // 'Trend Following' dan 'Oversold Bounce' masing-masing adalah SUBSET persis dari
+  // preset 4-filter di bawah (kombinasi sama, cuma kurang satu filter - hasilnya selalu
+  // superset sinyal, bukan strategi beda). 'Konfirmasi Ketat' beririsan 3 dari 4 filter
+  // dengan Trend Following Kuat. 'Breakout Hari Ini' dihapus karena kontradiktif: filter
+  // Support & Resistance BULLISH artinya harga DEKAT SUPPORT dan Volatility BULLISH
+  // artinya ATR RENDAH - dua-duanya kebalikan dari kondisi breakout.
+  // Sisa 5 preset di bawah: tidak ada yang jadi subset preset lain, irisan maksimal 2 filter.
+  const presets: { label: string; filters: string[] }[] = [
+    { label: 'Momentum Breakout', filters: ['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14'] },
+    { label: 'Breakout Volume', filters: ['Volume vs Avg 20D', 'MACD', 'SMA Score (5,10,20)'] },
+    // Nama sebelumnya "Akumulasi Real (CMF)" - indikatornya bukan Chaikin Money Flow,
+    // melainkan rasio volume hari naik vs hari turun 14D (lihat market-flow.ts).
+    { label: 'Akumulasi (A/D Volume)', filters: ['Market Flow Index', 'Volume vs Avg 20D', 'Support & Resistance', 'MACD'] },
+    // Nama sebelumnya "Golden Cross Fresh" - analyzer EMA cuma bandingkan EMA20 vs EMA50
+    // hari ini (kondisi tren), tidak mendeteksi cross yang BARU terjadi.
+    { label: 'Trend Following Kuat', filters: ['MA Trend IDX (20,50,200)', 'EMA 20/50 Cross', 'SMA Score (5,10,20)', 'Volume vs Avg 20D'] },
+    // Nama sebelumnya "Rebound Oversold" - RSI analyzer menyalakan BULLISH di dua rentang
+    // (rsi < 40 DAN 50-70), jadi saham non-oversold ikut lolos. Klaim oversold dibuang.
+    { label: 'Rebound Support', filters: ['RSI 14', 'Support & Resistance', 'Market Flow Index', 'Volatility (ATR 14)'] },
+  ];
+
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(presets[0].filters);
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
@@ -45,37 +67,10 @@ export default function BacktestPage() {
     }
   };
 
-  const applyPreset = (preset: string) => {
-    if (preset === 'Momentum') {
-      setSelectedFilters(['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14']);
-    } else if (preset === 'Accumulation') {
-      setSelectedFilters(['Market Flow Index', 'MACD', 'Volume vs Avg 20D']);
-    } else if (preset === 'Oversold') {
-      setSelectedFilters(['RSI 14', 'Volatility (ATR 14)', 'Support & Resistance']);
-    } else if (preset === 'TrendFollowing') {
-      setSelectedFilters(['MA Trend IDX (20,50,200)', 'SMA Score (5,10,20)', 'EMA 20/50 Cross']);
-    } else if (preset === 'BreakoutVolume') {
-      setSelectedFilters(['Volume vs Avg 20D', 'MACD', 'SMA Score (5,10,20)']);
-    } else if (preset === 'StrictConfirm') {
-      // 4 indikator harus BULLISH bareng (lihat allBullish() di simulate.service.ts) -
-      // filter lebih ketat = sinyal lebih jarang tapi historis biasanya lebih konsisten.
-      // Angka win rate tetap dihitung live, bukan diklaim tetap di sini.
-      setSelectedFilters(['EMA 20/50 Cross', 'MACD', 'MA Trend IDX (20,50,200)', 'Volume vs Avg 20D']);
-    } else if (preset === 'AkumulasiReal') {
-      // Pengganti konsep "Akumulasi Asing" - CMF (Market Flow) + volume gede + nahan
-      // support + MACD bullish, semua dari indikator real yang sudah ada.
-      setSelectedFilters(['Market Flow Index', 'Volume vs Avg 20D', 'Support & Resistance', 'MACD']);
-    } else if (preset === 'BreakoutHariIni') {
-      // Breakout anti false-breakout: jebol resistance + volume + ATR melebar.
-      setSelectedFilters(['Volume vs Avg 20D', 'Support & Resistance', 'SMA Score (5,10,20)', 'Volatility (ATR 14)']);
-    } else if (preset === 'GoldenCrossLive') {
-      // Golden cross fresh yang baru terjadi + volume konfirmasi.
-      setSelectedFilters(['MA Trend IDX (20,50,200)', 'EMA 20/50 Cross', 'SMA Score (5,10,20)', 'Volume vs Avg 20D']);
-    } else if (preset === 'ReboundAkurat') {
-      // Rebound dari support + RSI oversold + ada money flow masuk.
-      setSelectedFilters(['RSI 14', 'Support & Resistance', 'Market Flow Index', 'Volatility (ATR 14)']);
-    }
-  };
+  // Semua filter preset harus BULLISH bareng (lihat allBullish() di simulate.service.ts) -
+  // makin banyak filter, sinyal makin jarang. Win rate tetap dihitung live dari data
+  // historis tiap kombinasi, bukan angka tetap yang diklaim di sini.
+  const applyPreset = (filters: string[]) => setSelectedFilters(filters);
 
   const runBacktest = async () => {
     setLoading(true);
@@ -196,6 +191,14 @@ export default function BacktestPage() {
               Sinyal Hari Ini
             </button>
           </div>
+          {/* Dua tab ini sering dikira fitur yang sama karena memakai daftar filter yang
+              sama persis - bedanya arah waktu: Backtest melihat ke belakang (simulasi),
+              Sinyal Hari Ini melihat kondisi hari bursa terakhir (computeLiveSignal). */}
+          <p className="text-xs text-tv-muted mt-3">
+            {activeTab === 'backtest'
+              ? 'Uji kombinasi filter ini ke data masa lalu - berapa return, win rate, dan drawdown-nya kalau dijalankan 3-24 bulan terakhir.'
+              : 'Pakai kombinasi filter yang sama ke data hari bursa terakhir - saham mana yang kondisinya cocok sekarang, bukan simulasi masa lalu.'}
+          </p>
         </div>
 
         <div className="p-6 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -208,19 +211,16 @@ export default function BacktestPage() {
               </h3>
               <p className="text-[10px] text-tv-muted mb-3">Win rate dihitung live dari data historis tiap kombinasi - bisa berubah, bukan angka tetap.</p>
               <div className="flex flex-col gap-2">
-                <p className="text-[10px] text-tv-muted uppercase font-bold mt-1">Backtest Classic</p>
-                <button onClick={() => applyPreset('Momentum')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Momentum Breakout</button>
-                <button onClick={() => applyPreset('Accumulation')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Bandar Accumulation</button>
-                <button onClick={() => applyPreset('Oversold')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Oversold Bounce</button>
-                <button onClick={() => applyPreset('TrendFollowing')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Trend Following</button>
-                <button onClick={() => applyPreset('BreakoutVolume')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Breakout Volume</button>
-                <button onClick={() => applyPreset('StrictConfirm')} className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors">Konfirmasi Ketat (4 Indikator)</button>
-
-                <p className="text-[10px] text-tv-blue uppercase font-bold mt-4">Sinyal Hari Ini - Akurat</p>
-                <button onClick={() => applyPreset('AkumulasiReal')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Akumulasi Real (CMF) - Pengganti Asing</button>
-                <button onClick={() => applyPreset('BreakoutHariIni')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Breakout Hari Ini Valid</button>
-                <button onClick={() => applyPreset('GoldenCrossLive')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Golden Cross Fresh + Vol</button>
-                <button onClick={() => applyPreset('ReboundAkurat')} className="text-left px-4 py-2 bg-tv-blue/10 hover:bg-tv-blue/20 border border-tv-blue/20 rounded-md text-sm text-tv-blue font-bold transition-colors">Rebound Oversold Akurat</button>
+                {presets.map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => applyPreset(p.filters)}
+                    className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors"
+                  >
+                    {p.label}
+                    <span className="block text-[10px] text-tv-muted font-normal">{p.filters.length} filter</span>
+                  </button>
+                ))}
               </div>
             </div>
 
