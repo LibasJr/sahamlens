@@ -557,7 +557,7 @@ export default function WatchlistPage() {
         benefits={[
           'Watchlist unlimited (bukan cuma 3 saham)',
           'Alert unlimited (bukan cuma 2)',
-          'AI Pick LIVE, LensAI & fitur Pro lainnya',
+          'LensRadar LIVE, LensAI & fitur Pro lainnya',
         ]}
         secondaryLabel="Nanti"
       />

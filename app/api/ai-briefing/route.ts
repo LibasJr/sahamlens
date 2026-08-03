@@ -29,7 +29,7 @@ function fallbackBriefing(input: BriefingInput): string {
   if (input.pickCounts && (input.pickCounts.attractive || input.pickCounts.breakout)) {
     parts.push(`AI menemukan ${input.pickCounts.attractive} saham menarik dan ${input.pickCounts.breakout} sinyal breakout hari ini.`);
   }
-  return parts.length ? parts.join(' ') : 'Belum ada sinyal kuat hari ini. Cek AI Pick untuk detail lengkap.';
+  return parts.length ? parts.join(' ') : 'Belum ada sinyal kuat hari ini. Cek LensRadar untuk detail lengkap.';
 }
 
 export async function POST(req: NextRequest) {
