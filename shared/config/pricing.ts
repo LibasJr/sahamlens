@@ -57,7 +57,7 @@ export function formatRupiah(n: number): string {
 // diulang identik di ~10 halaman berbeda.
 export const FULL_FEATURE_LIST: string[] = [
   'LensTechnical - 10 filter murni matematika',
-  'Fundamental Analyzer - valuasi & kesehatan keuangan',
+  'LensFundamental - valuasi & kesehatan keuangan',
   'LensAI - 10 agen analisis per saham',
   'Multi-Agent Orchestrator - 9 agen kuantitatif',
   'Compare Tool - bandingkan 2 saham berdampingan',

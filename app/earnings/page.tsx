@@ -57,7 +57,7 @@ export default function EarningsPage() {
             & laba bersih yang belum tersambung di backend ini. Untuk analisis fundamental
             riil saham ini, lihat{' '}
             <a href={`/fundamental?symbol=${ticker}`} className="text-tv-blue hover:underline">
-              Fundamental Analyzer
+              LensFundamental
             </a>.
           </p>
         </div>
