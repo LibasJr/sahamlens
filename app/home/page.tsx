@@ -272,9 +272,9 @@ export default function HomePage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-tv-purple" />
-                <CardTitle>Ringkasan Pasar</CardTitle>
+                <CardTitle>LensMarket</CardTitle>
               </div>
-              <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">Market Pulse</Link>
+              <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
             </CardHeader>
             {loadingMarket ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
