@@ -44,6 +44,11 @@ export interface SimulateInput {
   filters: IndicatorName[];
   modal: number;
   periodMonths: number; // 3 | 6 | 12 | 24
+  /** Hari bursa terakhir jendela simulasi (YYYY-MM-DD). Default: bar terakhir yang ada
+   * di cache - itu perilaku yang dipakai /api/backtest. Diisi untuk uji walk-forward:
+   * tanpa ini setiap periode selalu berakhir di hari yang sama, sehingga hasil 3/6/12/24
+   * bulan saling tumpang tindih dan bukan empat bukti yang saling bebas. */
+  endDate?: string;
 }
 
 export interface TradeRecord {

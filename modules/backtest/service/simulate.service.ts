@@ -63,14 +63,40 @@ function allBullish(day: TickerDayData, filters: IndicatorName[]): boolean {
   return filters.every((f) => day.decisions[f] === 'BULLISH');
 }
 
+// Syarat JUAL sengaja tidak simetris dengan syarat BELI. Beli tetap butuh SEMUA filter
+// BULLISH, tapi jual baru dipicu kalau LEBIH DARI SEPARUH filter benar-benar BEARISH.
+// Dulu aturannya "jual begitu satu filter berhenti BULLISH" - dengan filter yang
+// berfluktuasi harian (Volume vs Avg 20D, dsb) posisi rata-rata cuma bertahan ~3 hari,
+// dan hasil backtest 12 bulan hampir seluruhnya habis oleh fee+slippage bolak-balik
+// (360 trade x 0.8% biaya round-trip atas 1/5 modal ~= -57%), bukan oleh arah harga.
+// NEUTRAL TIDAK dihitung sebagai alasan jual: sinyal yang meluruh pelan tidak sama
+// dengan sinyal yang berbalik arah.
+function majorityBearish(day: TickerDayData, filters: IndicatorName[]): boolean {
+  const bearish = filters.filter((f) => day.decisions[f] === 'BEARISH').length;
+  return bearish > filters.length / 2;
+}
+
 export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateInput): SimulateResult {
-  const { filters, modal, periodMonths } = input;
+  const { filters, modal, periodMonths, endDate } = input;
   const tradingDays = periodMonths * TRADING_DAYS_PER_MONTH;
 
-  const ihsgWindow = cache.ihsg.slice(-tradingDays);
+  // Tanggal string YYYY-MM-DD aman dibandingkan leksikografis (zero-padded, urutan
+  // besar-ke-kecil), jadi tidak perlu parsing Date sama sekali.
+  const ihsgAll = endDate ? cache.ihsg.filter((b) => b.date <= endDate) : cache.ihsg;
+  const ihsgWindow = ihsgAll.slice(-tradingDays);
   const tickerIndexes = cache.tickers
     .map((series) => ({ ticker: series.ticker, index: buildTickerIndex(series) }))
-    .filter(({ index }) => index.size >= tradingDays);
+    // Yang dihitung adalah bar DI DALAM jendela, bukan total bar yang dipunya ticker:
+    // saham dengan 5 tahun histori tetap harus punya data cukup di jendela masa lalu
+    // yang sedang diuji, bukan lolos hanya karena datanya panjang di masa kini.
+    .filter(({ index }) => {
+      if (!endDate) return index.size >= tradingDays;
+      let inWindow = 0;
+      index.forEach((_day, date) => {
+        if (date <= endDate) inWindow++;
+      });
+      return inWindow >= tradingDays;
+    });
 
   let cash = modal;
   const openPositions: OpenPosition[] = [];
@@ -152,19 +178,29 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
       if (pendingExits.includes(pos)) continue; // sudah diantre, jangan dobel
       const day = findIndex(pos.symbol).get(date);
       if (!day) continue;
-      if (!allBullish(day, filters)) pendingExits.push(pos);
+      if (majorityBearish(day, filters)) pendingExits.push(pos);
     }
 
     const occupiedOrQueued = openPositions.length + pendingEntries.length;
-    let freeSlots = MAX_SLOTS - occupiedOrQueued;
+    const freeSlots = MAX_SLOTS - occupiedOrQueued;
     if (freeSlots > 0) {
+      // Kandidat yang lolos filter biasanya lebih banyak dari slot yang tersisa. Dulu
+      // pemenangnya ditentukan urutan BACKTEST_UNIVERSE (ambil sampai slot penuh lalu
+      // break) - artinya hasil backtest ikut berubah kalau urutan array konstanta itu
+      // diubah, dan saham di awal daftar selalu menang. Sekarang diurutkan dulu dari
+      // sinyal terkuat: jumlah SEMUA indikator yang BULLISH hari itu, tie-break simbol
+      // (definisi skor sama dengan computeLiveSignal di live-signal.service.ts).
+      const candidates: { ticker: string; score: number }[] = [];
       for (const { ticker, index } of tickerIndexes) {
-        if (freeSlots <= 0) break;
         if (openPositions.some((p) => p.symbol === ticker) || pendingEntries.includes(ticker)) continue;
         const day = index.get(date);
         if (!day || !allBullish(day, filters)) continue;
+        const score = Object.values(day.decisions).filter((d) => d === 'BULLISH').length;
+        candidates.push({ ticker, score });
+      }
+      candidates.sort((a, b) => (b.score !== a.score ? b.score - a.score : a.ticker.localeCompare(b.ticker)));
+      for (const { ticker } of candidates.slice(0, freeSlots)) {
         pendingEntries.push(ticker);
-        freeSlots--;
       }
     }
 
