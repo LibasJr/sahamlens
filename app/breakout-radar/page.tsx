@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Target, Clock, Menu, TrendingUp } from 'lucide-react';
+import { Target, Clock, Menu, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
 import { Badge } from '@/components/ui';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui';
 const displayTicker = (s: string) => s.replace('.JK', '');
 
 type PickBonus = { label: string; points: number };
+type ScoreBreakdown = { technical: number; fundamental: number; flow: number };
 
 type AiPickItem = {
   symbol: string;
@@ -20,6 +21,11 @@ type AiPickItem = {
   finalScore: number;
   flagged: boolean;
   flagReason: string | null;
+  // Audit BUILD 003 (Explainable AI) - opsional (bukan required) supaya frontend
+  // tidak error kalau response API sempat berasal dari cache lama sebelum field ini
+  // ada (lihat guard `?? fallback` di ai-pick.service.ts rankAiPicks()).
+  breakdown?: ScoreBreakdown;
+  topReasons?: string[];
 };
 
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
@@ -37,6 +43,10 @@ export default function AiPickPage() {
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  // Audit BUILD 003 (Explainable AI) - baris diklik untuk buka rincian
+  // Technical/Fundamental/Arus Dana + 3 alasan teratas, bukan halaman/modal terpisah
+  // (perubahan UI minimal, bukan redesign).
+  const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/ai-pick')
@@ -140,11 +150,15 @@ export default function AiPickPage() {
                         <th className="py-3 px-4 text-right">Chg</th>
                         <th className="py-3 px-4 text-right">Skor</th>
                         <th className="py-3 px-4">Rincian</th>
+                        <th className="py-3 px-4 text-center">Kenapa</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-tv-border text-sm">
-                      {items.map((it, idx) => (
-                        <tr key={it.symbol} className="hover:bg-tv-hover/30">
+                      {items.map((it, idx) => {
+                        const isExpanded = expandedSymbol === it.symbol;
+                        return (
+                        <React.Fragment key={it.symbol}>
+                        <tr className="hover:bg-tv-hover/30">
                           <td className="py-3 px-4 text-tv-muted">{idx + 1}</td>
                           <td className="py-3 px-4 font-bold font-number whitespace-nowrap">
                             <Link
@@ -170,8 +184,53 @@ export default function AiPickPage() {
                             {it.baseScore}
                             {it.bonuses.map((b) => ` +${b.points} ${b.label}`).join('')}
                           </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
+                              className="inline-flex items-center gap-1 text-[11px] text-tv-blue hover:text-tv-text transition-colors"
+                            >
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          </td>
                         </tr>
-                      ))}
+                        {isExpanded && (
+                          <tr className="bg-tv-bg/60">
+                            <td colSpan={7} className="py-3 px-4">
+                              <div className="flex flex-col md:flex-row gap-4 text-xs">
+                                <div className="flex gap-4 shrink-0">
+                                  <div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">Technical</div>
+                                    <div className="font-bold font-number text-tv-text">{it.breakdown?.technical ?? 'N/A'}/40</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">Fundamental</div>
+                                    <div className="font-bold font-number text-tv-text">{it.breakdown?.fundamental ?? 'N/A'}/30</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">Arus Dana</div>
+                                    <div className="font-bold font-number text-tv-text">{it.breakdown?.flow ?? 'N/A'}/30</div>
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">Alasan Utama</div>
+                                  {it.topReasons && it.topReasons.length > 0 ? (
+                                    <ul className="space-y-0.5">
+                                      {it.topReasons.map((r, i) => (
+                                        <li key={i} className="text-tv-text">✓ {r}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <span className="text-tv-muted">Rincian belum tersedia untuk saham ini.</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

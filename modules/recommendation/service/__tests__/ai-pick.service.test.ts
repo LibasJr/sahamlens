@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { rankAiPicks, type ScoredStock, type BreakoutInfo } from '../ai-pick.service';
 
 function stock(symbol: string, totalScore: number, extra: Partial<ScoredStock> = {}): ScoredStock {
-  return { symbol, price: 1000, changePct: 0, totalScore, rsi: 50, accumulationConfirmed: false, ...extra };
+  return {
+    symbol, price: 1000, changePct: 0, totalScore, rsi: 50, accumulationConfirmed: false,
+    breakdown: { technical: 0, fundamental: 0, flow: 0 }, topReasons: [],
+    ...extra,
+  };
 }
 
 const noSignals: BreakoutInfo = { breakoutSymbols: [], goldenCrossSymbols: [], deadCrossSymbols: [] };

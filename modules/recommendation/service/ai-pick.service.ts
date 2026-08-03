@@ -17,6 +17,17 @@ const BONUS_GOLDEN_CROSS = 10;
 const BONUS_OVERSOLD = 5;
 const RSI_OVERSOLD = 30;
 
+// Audit BUILD 003 (Explainable AI): calculateScore() SUDAH menghitung breakdown
+// (technical/fundamental/flow) dan 3 alasan teratas (alasan_3_poin) - sebelumnya
+// dibuang begitu saja sebelum sampai ke UI (cuma totalScore yang diteruskan), jadi
+// user cuma lihat "84" tanpa tahu kenapa. Field di bawah SEMUA berasal dari data
+// nyata yang sudah dihitung scoring.service.ts, bukan teks baru yang dikarang AI.
+export type ScoreBreakdown = {
+  technical: number;
+  fundamental: number;
+  flow: number;
+};
+
 export type ScoredStock = {
   symbol: string;
   price: number;
@@ -24,6 +35,10 @@ export type ScoredStock = {
   totalScore: number;
   rsi: number;
   accumulationConfirmed: boolean;
+  breakdown: ScoreBreakdown;
+  /** 3 alasan berbobot tertinggi dari calculateScore() (mis. "MACD bullish (Hist:12.30)",
+   * "RSI 61.2 zona BUY ideal") - urut dari kontribusi skor terbesar, bukan diacak. */
+  topReasons: string[];
 };
 
 export type BreakoutInfo = {
@@ -43,6 +58,8 @@ export type AiPickItem = {
   finalScore: number;
   flagged: boolean;
   flagReason: string | null;
+  breakdown: ScoreBreakdown;
+  topReasons: string[];
 };
 
 export function rankAiPicks(
@@ -73,6 +90,13 @@ export function rankAiPicks(
       finalScore: s.totalScore + bonuses.reduce((sum, b) => sum + b.points, 0),
       flagged: flagReason !== null,
       flagReason,
+      // `?? fallback` (BUKAN required tanpa guard) - cache ai-pick-scores punya TTL 3
+      // hari (lihat shared/cache/ai-pick-cache.ts) dan cron cuma jalan jam bursa, jadi
+      // entri lama tanpa field ini (dari sebelum fitur ini ada) bisa masih terbaca
+      // sampai cron berikutnya menimpanya. Redis tidak menegakkan tipe TypeScript -
+      // tanpa guard ini, UI yang mengakses item.breakdown.technical akan crash.
+      breakdown: s.breakdown ?? { technical: 0, fundamental: 0, flow: 0 },
+      topReasons: s.topReasons ?? [],
     };
   });
 

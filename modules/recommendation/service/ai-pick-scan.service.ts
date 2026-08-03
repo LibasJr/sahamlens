@@ -122,6 +122,14 @@ async function scoreOne(
       totalScore: scoring.total_score,
       rsi: parseFloat(rsi.toFixed(1)),
       accumulationConfirmed,
+      // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari
+      // calculateScore(), bukan dihitung ulang/dikarang di sini.
+      breakdown: {
+        technical: scoring.technical_score,
+        fundamental: scoring.fundamental_score,
+        flow: scoring.flow_score,
+      },
+      topReasons: scoring.alasan_3_poin,
     },
     bearish,
   };
