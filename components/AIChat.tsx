@@ -175,7 +175,7 @@ export default function AIChat() {
                 <div className="w-16 h-16 rounded-full bg-gradient-accent-soft flex items-center justify-center mb-2">
                   <Bot className="w-8 h-8 text-tv-blue" />
                 </div>
-                <h4 className="font-heading text-lg font-bold text-tv-text">SahamLens AI Analyst</h4>
+                <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
                 <p className="text-sm text-tv-muted max-w-xs">
                   Tanyakan apapun tentang teknikal, fundamental, atau aliran dana asing saham yang sedang Anda buka.
                 </p>

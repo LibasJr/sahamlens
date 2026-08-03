@@ -198,8 +198,8 @@ function FundamentalContent() {
         <Header
           currentTicker={ticker}
           onTickerChange={setTicker}
-          moduleTitle="Fundamental AI Analytics"
-          moduleBank="SMART AI"
+          moduleTitle="LensFundamental"
+          moduleBank="LENSFUNDAMENTAL"
         />
         <div className="flex flex-col items-center justify-center p-20 text-slate-400">
           <TrendingUp className="w-12 h-12 mb-4 text-slate-600" />
@@ -251,8 +251,8 @@ function FundamentalContent() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="Pure Algorithmic Trading (TS Analyzers)"
-        moduleBank="SMART AI"
+        moduleTitle="LensFundamental"
+        moduleBank="LENSFUNDAMENTAL"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">

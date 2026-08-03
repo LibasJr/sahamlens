@@ -303,7 +303,7 @@ export async function calculateDcfModel(rawTicker: string) {
       stock: { symbol: ticker },
       quant: { current_price: price, not_applicable: true },
       analysis: {
-        executive_summary: `${ticker} adalah emiten sektor keuangan/bank - model DCF berbasis Free Cash Flow tidak berlaku untuk sektor ini (arus kasnya didominasi kredit & simpanan, bukan capex operasional biasa). Gunakan Fundamental Analyzer (metode PBV/DDM) untuk valuasi saham bank.`,
+        executive_summary: `${ticker} adalah emiten sektor keuangan/bank - model DCF berbasis Free Cash Flow tidak berlaku untuk sektor ini (arus kasnya didominasi kredit & simpanan, bukan capex operasional biasa). Gunakan LensFundamental (metode PBV/DDM) untuk valuasi saham bank.`,
       },
       not_applicable_reason: 'SECTOR_BANK',
     };
@@ -330,7 +330,7 @@ export async function calculateDcfModel(rawTicker: string) {
       stock: { symbol: ticker },
       quant: { current_price: price, not_applicable: true },
       analysis: {
-        executive_summary: `Data Free Cash Flow untuk ${ticker} tidak tersedia dari sumber data (Yahoo Finance) saat ini, sehingga model DCF tidak dapat dihitung. Coba metode valuasi lain di Fundamental Analyzer.`,
+        executive_summary: `Data Free Cash Flow untuk ${ticker} tidak tersedia dari sumber data (Yahoo Finance) saat ini, sehingga model DCF tidak dapat dihitung. Coba metode valuasi lain di LensFundamental.`,
       },
       not_applicable_reason: 'NO_FCF_DATA',
     };
