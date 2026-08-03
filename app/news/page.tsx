@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Newspaper, Menu, Loader2 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 
 interface NewsItemDto {
@@ -59,50 +59,57 @@ export default function NewsPage() {
         </div>
       </header>
 
-      <div className="p-6 max-w-[900px] mx-auto w-full">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Newspaper className="w-4 h-4 text-tv-muted" />
-              <CardTitle>Semua Berita{newsItems.length > 0 ? ` (${newsItems.length})` : ''}</CardTitle>
-            </div>
-            <Badge variant="info">Council AI</Badge>
-          </CardHeader>
+      {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. Isinya SENGAJA
+          tetap grid 2 kolom (bukan satu Card selebar 1600px) - kalau satu baris judul
+          berita direntangkan sepanjang itu, terlalu lebar untuk dibaca nyaman. Lebar
+          kontainer dan lebar baris teks dua urusan berbeda. */}
+      <div className="p-6 max-w-[1600px] mx-auto w-full">
+        <div className="flex items-center gap-2 mb-4">
+          <Newspaper className="w-4 h-4 text-tv-muted" />
+          <h2 className="font-heading text-sm font-bold text-tv-text">
+            Semua Berita{newsItems.length > 0 ? ` (${newsItems.length})` : ''}
+          </h2>
+          <Badge variant="info">Council AI</Badge>
+        </div>
 
-          {loading ? (
-            <div className="flex items-center gap-2 py-8 text-sm text-tv-muted justify-center">
-              <Loader2 className="w-4 h-4 animate-spin" /> Memuat berita terkini...
-            </div>
-          ) : error ? (
-            <p className="text-sm text-tv-red py-4 text-center">{error}</p>
-          ) : newsItems.length === 0 ? (
-            <p className="text-sm text-tv-muted py-4 text-center">Berita tidak tersedia saat ini.</p>
-          ) : (
-            <motion.div initial="hidden" animate="show" variants={staggerContainer} className="divide-y divide-tv-border/50">
-              {newsItems.map((n) => (
-                <motion.a
-                  key={n.link || n.title}
-                  variants={fadeUp}
-                  href={n.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
+        {loading ? (
+          <div className="flex items-center gap-2 py-8 text-sm text-tv-muted justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Memuat berita terkini...
+          </div>
+        ) : error ? (
+          <p className="text-sm text-tv-red py-4 text-center">{error}</p>
+        ) : newsItems.length === 0 ? (
+          <p className="text-sm text-tv-muted py-4 text-center">Berita tidak tersedia saat ini.</p>
+        ) : (
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={staggerContainer}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-3"
+          >
+            {newsItems.map((n) => (
+              <motion.a
+                key={n.link || n.title}
+                variants={fadeUp}
+                href={n.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start justify-between gap-3 p-4 rounded-lg border border-tv-border bg-tv-card hover:border-tv-borderLight transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-tv-text leading-snug">{n.title}</p>
+                  <p className="text-xs text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
+                </div>
+                <Badge
+                  variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
+                  className="shrink-0"
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-tv-text leading-snug">{n.title}</p>
-                    <p className="text-xs text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
-                  </div>
-                  <Badge
-                    variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
-                    className="shrink-0"
-                  >
-                    {n.sentiment}
-                  </Badge>
-                </motion.a>
-              ))}
-            </motion.div>
-          )}
-        </Card>
+                  {n.sentiment}
+                </Badge>
+              </motion.a>
+            ))}
+          </motion.div>
+        )}
       </div>
     </div>
   );

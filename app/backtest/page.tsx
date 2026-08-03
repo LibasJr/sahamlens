@@ -138,7 +138,7 @@ export default function BacktestPage() {
             kaya (skor komposit + bonus sinyal langka), tanpa pengguna perlu menyusun
             kombinasi filter sendiri. Halaman ini kembali fokus ke satu hal: menguji
             strategi ke data masa lalu. */}
-        <div className="px-6 pt-6 max-w-[1400px] mx-auto w-full">
+        <div className="px-6 pt-6 max-w-[1600px] mx-auto w-full">
           <p className="text-xs text-tv-muted">
             Uji kombinasi filter ini ke data masa lalu - berapa return, win rate, dan drawdown-nya
             kalau dijalankan 3-24 bulan terakhir. Untuk melihat saham yang menarik hari ini, buka
@@ -146,7 +146,7 @@ export default function BacktestPage() {
           </p>
         </div>
 
-        <div className="p-6 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="p-6 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Builder Panel */}
           <div className="lg:col-span-1 space-y-6">

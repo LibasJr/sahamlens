@@ -388,7 +388,13 @@ export default function PortfolioPage() {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto mt-4 px-2 space-y-4">
+      {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. Isinya direstruktur
+          jadi 2 kolom di layar lebar (kartu ekuitas sticky di kiri, holdings/riwayat di
+          kanan) - sebelumnya max-w-4xl (896px) satu kolom menyisakan ruang kosong besar
+          di kanan-kiri pada layar lebar. */}
+      <main className="max-w-[1600px] mx-auto mt-4 px-4 lg:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
+        <div className="space-y-4 lg:sticky lg:top-[73px]">
         {/* Hero Equity Card */}
         <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-tv-card rounded-xl shadow-1 border border-tv-border overflow-hidden">
           <div className="p-5">
@@ -441,7 +447,9 @@ export default function PortfolioPage() {
             </div>
           </div>
         </motion.div>
+        </div>
 
+        <div className="space-y-4">
         {/* Tabs - "Order" (dulu selalu kosong, tidak menampilkan apa pun) diganti
             "Riwayat" yang benar-benar menampilkan transaksi nyata (data sudah
             difetch sejak awal tapi sebelumnya tidak pernah dirender). */}
@@ -570,6 +578,8 @@ export default function PortfolioPage() {
             )}
           </div>
         )}
+        </div>
+        </div>
       </main>
 
       {/* Order Modal */}

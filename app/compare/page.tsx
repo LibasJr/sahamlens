@@ -134,7 +134,8 @@ function CompareContent() {
           </div>
         </header>
 
-        <div className="p-6 max-w-[1200px] mx-auto w-full space-y-6">
+        {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
+        <div className="p-6 max-w-[1600px] mx-auto w-full space-y-6">
 
           <form onSubmit={handleCompare} className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">

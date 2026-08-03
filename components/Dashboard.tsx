@@ -505,7 +505,13 @@ export default function Dashboard() {
                   <TrendingUp className="w-3.5 h-3.5 text-tv-green" />
                   Sinyal Cross Hari Ini
                 </h4>
-                <div className="mt-3 flex flex-col gap-2">
+                {/* justify-between (bukan gap tetap) - panel kanan ini disamakan tingginya
+                    dengan chart di kiri lewat grid items-stretch, dan jumlah sinyal
+                    cross harian tidak tentu (bisa 1, bisa 6). gap tetap menyisakan ruang
+                    kosong menganggur di bawah kalau sinyalnya sedikit; justify-between
+                    menyebar baris yang ADA merata mengisi tinggi yang tersedia, berapa
+                    pun jumlahnya. */}
+                <div className="mt-3 flex-1 flex flex-col justify-between gap-2">
                   {crossSignals === null ? (
                     <p className="text-[11px] text-tv-muted py-4 text-center">Memuat sinyal...</p>
                   ) : crossSignals.golden.length === 0 && crossSignals.dead.length === 0 ? (
