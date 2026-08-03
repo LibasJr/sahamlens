@@ -44,20 +44,31 @@ export async function GET(
     const currentPrice = quoteSummary.price?.regularMarketPrice || 0;
 
     // --- BUG FIX: CURRENCY MISMATCH (USD vs IDR) ---
-    // Mencegah nilai P/E Ratio hancur (160.000x) untuk emiten seperti ERTX, ITMG
+    // Emiten seperti ADRO, ITMG, MEDC melapor dalam USD tapi harga sahamnya dalam IDR.
+    //
+    // BUG FIX (audit integritas data 2026-08-03, temuan C-06): baris ini SEBELUMNYA juga
+    // mengalikan trailingEps/forwardEps/dividendRate dengan exchangeRate. Diverifikasi
+    // empiris (yahoo-finance2, 2026-08-03): EPS Yahoo untuk emiten pelapor USD SUDAH
+    // dalam IDR (ADRO price=2470, eps=310.45, dan 2470/310.45=7.96 = persis summaryDetail
+    // .trailingPE yang dikembalikan Yahoo apa adanya) - konsisten dengan
+    // modules/fundamental/service/dcf-valuation.service.ts:70-71 ("Yahoo Finance EPS &
+    // DPS are ALREADY in IDR. Only BVPS and FCF are in USD."). Mengalikan EPS lagi dengan
+    // kurs (~16.300) membuat PER ADRO/ITMG hancur dari ~8x menjadi ~0,0005x, dan membuat
+    // analyzePe() memvote BULLISH confidence 95 untuk SETIAP emiten pelapor USD tanpa
+    // peduli valuasi sesungguhnya. Sekarang HANYA BVPS dan item arus kas (yang memang
+    // dalam USD) yang dikonversi - EPS, dividendRate, trailingPE, forwardPE dibiarkan
+    // apa adanya dari Yahoo (sudah IDR, sudah benar).
     const priceCurrency = quoteSummary.price?.currency || 'IDR';
     const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
-    
+
     if (priceCurrency === 'IDR' && finCurrency === 'USD') {
        let exchangeRate = 15500;
        try {
          const fx = await yahooFinance.quote('USDIDR=X');
          if (fx && fx.regularMarketPrice) exchangeRate = fx.regularMarketPrice;
        } catch(e) {}
-       
+
        if (quoteSummary.defaultKeyStatistics) {
-         if (quoteSummary.defaultKeyStatistics.trailingEps) quoteSummary.defaultKeyStatistics.trailingEps *= exchangeRate;
-         if (quoteSummary.defaultKeyStatistics.forwardEps) quoteSummary.defaultKeyStatistics.forwardEps *= exchangeRate;
          if (quoteSummary.defaultKeyStatistics.bookValue) quoteSummary.defaultKeyStatistics.bookValue *= exchangeRate;
        }
        if (quoteSummary.financialData) {
@@ -68,23 +79,12 @@ export async function GET(
          if (quoteSummary.financialData.totalCash) quoteSummary.financialData.totalCash *= exchangeRate;
          if (quoteSummary.financialData.totalDebt) quoteSummary.financialData.totalDebt *= exchangeRate;
        }
-       if (quoteSummary.summaryDetail) {
-         if (quoteSummary.summaryDetail.dividendRate) quoteSummary.summaryDetail.dividendRate *= exchangeRate;
-       }
-       
-       // Recalculate PE and PBV since price is IDR and we updated EPS/BV
-       if (currentPrice > 0) {
-         if (quoteSummary.defaultKeyStatistics?.trailingEps) {
-           if (!quoteSummary.summaryDetail) quoteSummary.summaryDetail = {};
-           quoteSummary.summaryDetail.trailingPE = currentPrice / quoteSummary.defaultKeyStatistics.trailingEps;
-         }
-         if (quoteSummary.defaultKeyStatistics?.forwardEps) {
-           if (!quoteSummary.summaryDetail) quoteSummary.summaryDetail = {};
-           quoteSummary.summaryDetail.forwardPE = currentPrice / quoteSummary.defaultKeyStatistics.forwardEps;
-         }
-         if (quoteSummary.defaultKeyStatistics?.bookValue) {
-           quoteSummary.defaultKeyStatistics.priceToBook = currentPrice / quoteSummary.defaultKeyStatistics.bookValue;
-         }
+
+       // Recalculate PBV saja (BVPS baru saja dikonversi ke IDR di atas). PER TIDAK
+       // dihitung ulang - summaryDetail.trailingPE/forwardPE dari Yahoo sudah benar
+       // (EPS sudah IDR sejak awal).
+       if (currentPrice > 0 && quoteSummary.defaultKeyStatistics?.bookValue) {
+         quoteSummary.defaultKeyStatistics.priceToBook = currentPrice / quoteSummary.defaultKeyStatistics.bookValue;
        }
     }
     // ------------------------------------------------

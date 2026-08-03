@@ -22,7 +22,7 @@ interface TickerAnalysisShellProps {
   ticker: string;
   onTickerChange: (ticker: string) => void;
   moduleTitle: string;
-  moduleBank: string;
+  moduleBank?: string;
   icon: React.ReactNode;
   accent: ShellAccent;
   title: React.ReactNode;

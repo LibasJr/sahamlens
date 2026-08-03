@@ -1,4 +1,6 @@
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
+import { calculateRsi } from '../../technical';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/breakout-radar/route.ts, verbatim.
 // 2026-08-03: dulu 15 ticker hardcoded di sini, sementara kategori AI Pick lain memindai
@@ -60,6 +62,7 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close[i] !== null) {
         history.push({
+          date: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
           high: quote.high[i],
           low: quote.low[i],
           close: quote.close[i],
@@ -68,7 +71,15 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
       }
     }
 
-    if (history.length < 25) return null;
+    // BUG FIX (audit integritas data 2026-08-03, temuan H-02): penjaga sebelumnya
+    // `history.length < 25` mengizinkan saham dengan 25-50 bar histori lewat, padahal
+    // ma50/prevMa50 di bawah membagi dengan 50 TETAP walau `closes.slice(-50)` cuma
+    // mengembalikan sejumlah elemen yang ADA (mis. 30 bar -> ma50 dihitung
+    // (30 x harga)/50 = 60% dari harga sesungguhnya). Karena ma50 jadi jauh lebih kecil
+    // dari harga, `ma20 > ma50` selalu true dan bisa memicu GOLDEN CROSS PALSU (+3 poin
+    // skor breakout) untuk saham yang histori panjangnya belum cukup. prevMa50 butuh
+    // jendela 50 bar berakhir SATU hari sebelum hari ini, jadi minimal 51 bar total.
+    if (history.length < 51) return null;
 
     const closes = history.map(h => h.close);
     const vols = history.map(h => h.volume);
@@ -87,19 +98,19 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const isDeadCross = ma20 < ma50 && prevMa20 >= prevMa50;
 
     // Volume Spike
-    const currentVol = vols[vols.length - 1];
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): volume hari ini selama
+    // jam bursa masih PARSIAL - dibandingkan mentah dengan rata-rata 20 hari PENUH,
+    // "VOL SPIKE" (>2x avg, bobot terbesar skor breakout) bias tidak pernah terpicu di
+    // pagi/siang hari walau volumenya sedang menuju spike sungguhan.
+    const lastBar = history[history.length - 1];
+    const isLiveFormingBar = lastBar.date === todayDateKeyWIB() && isIdxMarketHoursNow();
+    const currentVol = isLiveFormingBar ? estimateFullDayVolume(vols[vols.length - 1]) : vols[vols.length - 1];
     const avgVol20 = vols.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const isVolSpike = currentVol > avgVol20 * 2;
 
-    // RSI 14 (approximate)
-    let gains = 0; let losses = 0;
-    for (let i = closes.length - 14; i < closes.length; i++) {
-      const diff = closes[i] - closes[i - 1];
-      if (diff > 0) gains += diff;
-      else losses -= diff;
-    }
-    const rs = gains / (losses === 0 ? 1 : losses);
-    const rsi = 100 - (100 / (1 + rs));
+    // RSI 14 - Wilder smoothing baku (lihat modules/technical/service/rsi.ts), bukan
+    // rata-rata aritmatik sederhana yang dulu di sini (bias, lihat H-01 di audit).
+    const rsi = calculateRsi(closes, 14) ?? 50;
     const isRsiBreakout = rsi >= 52 && rsi <= 60;
 
     // Dekat Resistance

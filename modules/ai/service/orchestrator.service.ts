@@ -1,6 +1,5 @@
 import YahooFinanceClass from 'yahoo-finance2';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { pickGeminiModelName } from '@/lib/gemini';
+import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import {
   analyzeEma,
   analyzeRsi,
@@ -15,6 +14,7 @@ import {
   fetchYahooHistory,
   type OhlcRow,
 } from '@/modules/technical';
+import { ORCHESTRATOR_SCORE_THRESHOLDS } from '@/modules/technical/service/decision-thresholds';
 import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 import {
   analyzePe,
@@ -137,11 +137,17 @@ export interface OrchestratorResult {
   };
 }
 
+// Ambang batas dipusatkan di modules/technical/service/decision-thresholds.ts (audit
+// integritas data 2026-08-03, temuan M-04) - SENGAJA berbeda dari
+// SCORING_KATEGORI_THRESHOLDS (scoring.service.ts:getKategori), baca komentar di file
+// itu untuk alasannya (dua skor komposit berbeda, bukan cutoff berbeda dari kuantitas
+// yang sama - final_score di sini dari 9 agen kuantitatif termasuk valuation/pattern/
+// risk/bandar/news yang tidak ada di scoring engine biasa).
 function decisionFromScore(score: number): string {
-  if (score >= 65) return 'STRONG BUY';
-  if (score >= 55) return 'BUY';
-  if (score > 45) return 'HOLD';
-  if (score > 35) return 'SELL';
+  if (score >= ORCHESTRATOR_SCORE_THRESHOLDS.STRONG_BUY) return 'STRONG BUY';
+  if (score >= ORCHESTRATOR_SCORE_THRESHOLDS.BUY) return 'BUY';
+  if (score > ORCHESTRATOR_SCORE_THRESHOLDS.HOLD) return 'HOLD';
+  if (score > ORCHESTRATOR_SCORE_THRESHOLDS.SELL) return 'SELL';
   return 'STRONG SELL';
 }
 
@@ -153,21 +159,22 @@ function buildLocalSummary(agentBreakdown: Record<string, AgentResult>, decision
   return `Konsensus ${ranked.length} agen kuantitatif (data teknikal, fundamental, valuasi, dan flow riil) mengarah ke ${decision}. Sinyal paling dominan berasal dari agen ${top || 'teknikal'}. Ringkasan ini dihitung langsung dari data pasar, bukan opini bebas.`;
 }
 
+// BUG FIX (audit integritas data 2026-08-03, temuan M-05): sebelumnya membuat client
+// Gemini sendiri dengan pickGeminiModelName() - HANYA satu model acak, tanpa retry ke
+// model/provider lain kalau gagal. Disamakan dengan chat/council (generateAI() di
+// lib/aiProviders.ts, mencoba semua kombinasi Gemini+Groq+OpenRouter yang terkonfigurasi
+// sebelum menyerah), supaya satu nama model yang kadaluarsa tidak langsung menjatuhkan
+// summary ke fallback lokal padahal model/provider lain masih tersedia.
 async function buildAiSummary(
   ticker: string,
   agentBreakdown: Record<string, AgentResult>,
   finalScore: number,
   decision: string
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
   const localSummary = buildLocalSummary(agentBreakdown, decision);
-  if (!apiKey) return localSummary;
+  if (!hasAnyAIProvider()) return localSummary;
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: pickGeminiModelName(),
-      systemInstruction: `Kamu adalah Master Agent yang merangkum hasil 9 agen kuantitatif SahamLens untuk saham ${ticker}.
+  const system = `Kamu adalah Master Agent yang merangkum hasil 9 agen kuantitatif SahamLens untuk saham ${ticker}.
 Aturan WAJIB:
 1. HANYA gunakan angka/data pada "Data Agen" di bawah - dilarang keras mengarang berita, rumor, atau data yang tidak ada di sana.
 2. Jawab langsung ke inti, substantif, mudah dipahami, dalam Bahasa Indonesia, maksimal 3 kalimat.
@@ -176,14 +183,10 @@ Aturan WAJIB:
 Data Agen (JSON):
 ${JSON.stringify(agentBreakdown)}
 
-Final Score: ${finalScore}/100. Decision: ${decision}.`,
-    });
-    const result = await model.generateContent('Ringkas hasil analisa ini untuk investor ritel.');
-    const text = result.response.text().trim();
-    return text || localSummary;
-  } catch (e) {
-    return localSummary;
-  }
+Final Score: ${finalScore}/100. Decision: ${decision}.`;
+
+  const text = await generateAI({ system, prompt: 'Ringkas hasil analisa ini untuk investor ritel.', timeoutMs: 8000 });
+  return text?.trim() || localSummary;
 }
 
 export async function runMultiAgentOrchestrator(rawTicker: string): Promise<OrchestratorResult> {
@@ -235,8 +238,16 @@ export async function runMultiAgentOrchestrator(rawTicker: string): Promise<Orch
       summary: `${support.label}: ${support.value}.`,
       available: true,
     };
+    // BUG FIX (audit integritas data 2026-08-03, temuan H-08): volatility.decision
+    // sekarang SELALU 'NEUTRAL' (ATR mengukur besaran gerak, bukan arah - lihat
+    // volatility-analyzer.ts) - scoreFromDecision('NEUTRAL', x) selalu mengembalikan 50
+    // berapa pun confidence-nya, jadi risk_agent tidak lagi ikut menimbang final_score
+    // ke arah manapun berdasarkan info yang bukan sinyal arah. weight_pct diset 0 (tetap
+    // ditampilkan sebagai konteks risiko di agent_breakdown, tapi dikeluarkan dari
+    // weightedEntries di bawah) - sebelumnya diam-diam menghukum saham yang bergerak
+    // agresif ke ATAS sama seperti yang bergerak ke bawah.
     agentBreakdown.risk_agent = {
-      weight_pct: 10,
+      weight_pct: 0,
       score: scoreFromDecision(volatility.decision, volatility.confidence),
       summary: `${volatility.label}: ${volatility.value}.`,
       available: true,

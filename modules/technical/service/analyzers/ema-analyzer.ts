@@ -1,7 +1,14 @@
+// BUG FIX (audit integritas data 2026-08-03, temuan M-03): `raw` (angka asli) disediakan
+// supaya pemanggil (app/api/council/route.ts) tidak perlu parse string `value`.
 export function analyze(history: any[], currentPrice: number) {
-  if (history.length < 50) return { label: 'EMA 20/50 Cross', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
-  
-  const closes = history.map(h => h.Close);
+  if (history.length < 50) return { label: 'EMA 20/50 Cross', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { ema20: null as number | null, ema50: null as number | null } };
+
+  // BUG FIX (audit integritas data 2026-08-03, temuan M-01): pakai AdjClose (disesuaikan
+  // dividen, lihat yahoo-history.service.ts) kalau tersedia - MA/EMA trend murni
+  // mengukur arah harga, bukan level harga sungguhan untuk order, jadi tidak boleh
+  // "salah baca" penurunan harga di tanggal ex-dividend sebagai sinyal bearish pasar.
+  // Fallback ke Close untuk pemanggil yang belum menyediakan AdjClose.
+  const closes = history.map(h => h.AdjClose ?? h.Close);
   const ema20 = calculateEMA(closes, 20);
   const ema50 = calculateEMA(closes, 50);
 
@@ -23,7 +30,8 @@ export function analyze(history: any[], currentPrice: number) {
     label: 'EMA 20/50 Cross',
     value: `EMA20: ${lastEMA20.toFixed(0)}, EMA50: ${lastEMA50.toFixed(0)}`,
     decision,
-    confidence: Math.round(confidence)
+    confidence: Math.round(confidence),
+    raw: { ema20: lastEMA20, ema50: lastEMA50 },
   };
 }
 

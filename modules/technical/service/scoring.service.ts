@@ -11,6 +11,8 @@
  * Jika data null/kosong → skor 0, bukan tebakan.
  */
 
+import { SCORING_KATEGORI_THRESHOLDS } from './decision-thresholds';
+
 export interface TechnicalInput {
   currentPrice: number;
   ma20: number;
@@ -38,6 +40,12 @@ export interface FlowInput {
   consecutiveBuyDays: number;
   consecutiveSellDays: number;
   volRatio: number;
+  // Chaikin Money Flow 20 hari (dari modules/market/service/foreign-flow-proxy.ts),
+  // opsional - kalau tidak dikirim, scoreBandar() jatuh ke heuristik lama (lihat
+  // komentar temuan H-07 di scoreBandar). Dimensi INI yang membedakan "Bandar" dari
+  // "Asing"/"Volume": posisi close dalam range High-Low dibobot volume selama 20 hari,
+  // bukan volRatio/arah foreignFlow yang sudah dinilai penuh di scoreVolume/scoreAsing.
+  cmf20?: number;
 }
 
 export interface ScoringResult {
@@ -110,16 +118,23 @@ function scoreRsiMacd(t: TechnicalInput): { score: number; reason: string } {
     parts.push(`RSI ${t.rsi.toFixed(1)} OVERSOLD zona SELL/hati-hati`);
   }
 
-  // MACD (0-7 poin) - IDX Threshold: histogram > 0 DAN MACD > Signal
-  if (t.macdHist > 0 && t.macdLine > t.macdSignal) {
+  // MACD (0-7 poin).
+  // BUG FIX (audit integritas data 2026-08-03, temuan H-06): histogram didefinisikan
+  // sebagai `macdLine - macdSignal` (lihat modules/technical/service/analyzers/
+  // macd-analyzer.ts) - maka `macdHist > 0` dan `macdLine > macdSignal` adalah kondisi
+  // yang SECARA MATEMATIS IDENTIK. Cabang tengah `macdHist > 0 || macdLine > macdSignal`
+  // sebelumnya TIDAK PERNAH bisa true kalau cabang pertama (yang pakai `&&`) sudah
+  // false - kode mati, teks "MACD mixed signal" tidak pernah muncul ke pengguna, dan
+  // MACD cuma pernah menghasilkan 7 atau 0 poin (bukan gradasi 3 tingkat yang diniatkan).
+  // Cabang tengah dihapus (bukan dipalsukan jadi "terlihat" tercapai) - butuh histogram
+  // hari sebelumnya sebagai input tambahan untuk membedakan "menguat"/"melemah" secara
+  // jujur, yang belum tersedia di TechnicalInput saat ini.
+  if (t.macdHist > 0) {
     score += 7;
     parts.push(`MACD bullish (Hist:${t.macdHist.toFixed(2)})`);
-  } else if (t.macdHist > 0 || t.macdLine > t.macdSignal) {
-    score += 3;
-    parts.push(`MACD mixed signal`);
   } else {
     score += 0;
-    parts.push(`MACD bearish`);
+    parts.push(`MACD bearish (Hist:${t.macdHist.toFixed(2)})`);
   }
 
   return { score: Math.min(15, score), reason: parts.join(', ') };
@@ -245,12 +260,35 @@ function scoreAsing(flow: FlowInput): { score: number; reason: string } {
   if (flow.foreignFlow === 'STRONG NET SELL') {
     return { score: 0, reason: `Asing STRONG NET SELL (distribusi berat)` };
   }
-  return { score: 5, reason: 'Asing N/A' };
+  // BUG FIX (audit integritas data 2026-08-03, temuan H-04): cabang ini sebelumnya
+  // memberi 5 dari 15 poin ("gratis") untuk foreignFlow yang tidak dikenali/tidak ada -
+  // pemanggil sekarang selalu mengirim salah satu dari 5 nilai kanonik di atas, jadi
+  // cabang ini murni penjaga data rusak/tak terduga. Skor 0 (bukan 5), bukan skor tengah
+  // yang menyamarkan ketiadaan data sebagai kondisi netral.
+  return { score: 0, reason: 'Asing N/A - data tidak lengkap' };
 }
 
 function scoreBandar(flow: FlowInput): { score: number; reason: string } {
-  // Bandar/broker accumulation estimated from volume + price action
-  // Strong volume with price up = accumulation
+  // BUG FIX (audit integritas data 2026-08-03, temuan H-07): versi lama fungsi ini
+  // menyekor kombinasi `volRatio` (SUDAH dinilai penuh 0-10 poin di scoreVolume()) dan
+  // `foreignFlow` (SUDAH dinilai penuh 0-15 poin di scoreAsing()) TANPA satu pun input
+  // baru - volume tinggi dihitung dua kali (10+15=25/100), arah flow dihitung dua kali
+  // (15+15=30/100). Sekarang memakai cmf20 (Chaikin Money Flow 20 hari, posisi close
+  // dalam range High-Low dibobot volume) kalau tersedia - dimensi yang BELUM dinilai
+  // analyzer lain manapun di scoring ini. Kalau cmf20 tidak dikirim pemanggil (belum
+  // semua pemanggil di-upgrade), jatuh ke heuristik volume lama SEBAGAI FALLBACK yang
+  // didokumentasikan sebagai duplikatif, bukan disembunyikan.
+  if (flow.cmf20 != null) {
+    const cmf = flow.cmf20;
+    if (cmf > 20) return { score: 15, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli kuat & konsisten` };
+    if (cmf > 5) return { score: 10, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli moderat` };
+    if (cmf >= -5) return { score: 5, reason: `CMF20 ${cmf.toFixed(1)}% - netral` };
+    if (cmf >= -20) return { score: 2, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual moderat` };
+    return { score: 0, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual kuat & konsisten` };
+  }
+
+  // Fallback (cmf20 belum dikirim pemanggil) - heuristik lama, sengaja dijaga tetap
+  // tumpang tindih dengan scoreVolume/scoreAsing sampai seluruh pemanggil mengirim cmf20.
   if (flow.volRatio >= 2.0 && flow.foreignFlow.includes('BUY')) {
     return { score: 15, reason: `Akumulasi kuat (Vol ${flow.volRatio.toFixed(1)}x + Net Buy)` };
   }
@@ -268,10 +306,14 @@ function scoreBandar(flow: FlowInput): { score: number; reason: string } {
 
 // ==================== STEP 4: FINAL SCORING ====================
 
+// Ambang batas dipusatkan di modules/technical/service/decision-thresholds.ts (audit
+// integritas data 2026-08-03, temuan M-04) - baca komentar di file itu untuk kenapa
+// nilainya SENGAJA berbeda dari ORCHESTRATOR_SCORE_THRESHOLDS (dua skor komposit yang
+// berbeda, bukan cutoff berbeda dari kuantitas yang sama).
 function getKategori(total: number): 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' {
-  if (total > 75) return 'STRONG BUY';
-  if (total >= 60) return 'BUY';
-  if (total >= 45) return 'HOLD';
+  if (total > SCORING_KATEGORI_THRESHOLDS.STRONG_BUY) return 'STRONG BUY';
+  if (total >= SCORING_KATEGORI_THRESHOLDS.BUY) return 'BUY';
+  if (total >= SCORING_KATEGORI_THRESHOLDS.HOLD) return 'HOLD';
   return 'SELL';
 }
 

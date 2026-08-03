@@ -87,6 +87,16 @@ async function fetchDividendStock(ticker: string): Promise<DividendStock | null>
   }
 }
 
+// BUG FIX (audit integritas data 2026-08-03, temuan M-08): dulu di-slice ke 18 saham
+// dividen TERTINGGI di sini SEBELUM buildDividendPlan() menghitung avgYield - artinya
+// "rata-rata yield portofolio" yang dipakai memproyeksikan penghasilan bulanan & modal
+// yang dibutuhkan sebenarnya adalah rata-rata KUARTIL TERATAS universe (saham dividen
+// tertinggi), bukan yield yang realistis untuk portofolio biasa. Modal yang dibutuhkan
+// untuk target penghasilan jadi terlalu rendah, proyeksi penghasilan terlalu tinggi.
+// Sekarang mengembalikan SELURUH saham dividen yang ditemukan (tidak di-slice) - potong
+// ke daftar tampilan dilakukan terpisah di buildDividendPlan() di bawah, avgYield
+// dihitung dari universe PENUH.
+//
 // Bagian mahal (batch quoteSummary+chart utk ~50 saham) - di-cache di route handler
 // (app/api/dividend-plan) lewat getOrCompute, dipakai ulang lintas request/user karena
 // tidak bergantung input modal/target siapa pun.
@@ -101,12 +111,18 @@ export async function fetchDividendUniverse(): Promise<DividendStock[]> {
   }
 
   results.sort((a, b) => b.yield_pct - a.yield_pct);
-  return results.slice(0, 18);
+  return results;
 }
+
+// Saham ditampilkan di tabel UI - dibatasi supaya tabel tidak terlalu panjang, TAPI
+// batasan ini TIDAK BOLEH ikut mempengaruhi avgYield (lihat temuan M-08 di atas).
+const DISPLAY_CAP = 18;
 
 // Bagian murah (matematika dari input modal/target user) - DIHITUNG ULANG tiap
 // request dari universe yang di-cache, tidak ikut di-cache (beda per user/input).
 export function buildDividendPlan(universe: DividendStock[], capital: number, targetMonthly: number): DividendPlanResult {
+  // avgYield dari SELURUH universe (bukan cuma yang ditampilkan) - representatif untuk
+  // "portofolio saham dividen" pada umumnya, bukan cuma yield tertinggi.
   const avgYield = universe.length > 0
     ? universe.reduce((sum, s) => sum + s.yield_pct, 0) / universe.length
     : 0;
@@ -135,7 +151,9 @@ export function buildDividendPlan(universe: DividendStock[], capital: number, ta
     est_monthly_income_now: Math.round(estMonthlyIncomeNow),
     est_annual_income_now: Math.round(estAnnualIncomeNow),
     required_capital_for_target: Math.round(requiredCapitalForTarget),
-    div_stocks: universe,
+    // Ditampilkan hanya DISPLAY_CAP teratas (sudah terurut yield desc dari
+    // fetchDividendUniverse) - avgYield DI ATAS tetap dari universe penuh.
+    div_stocks: universe.slice(0, DISPLAY_CAP),
     compounding_schedule: compoundingSchedule,
   };
 }

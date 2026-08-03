@@ -5,6 +5,8 @@
 // statis. Council AI Pro (10 agen Gemini penuh di /api/council) tetap ada terpisah
 // untuk analisis mendalam yang butuh akun Pro.
 
+import { calculateRsi } from '@/modules/technical/service/rsi';
+
 export type Candle = { time: string; open: number; high: number; low: number; close: number; volume: number };
 export type Signal = 'BUY' | 'HOLD' | 'SELL';
 export type MiniAgent = { name: string; signal: Signal; reason: string };
@@ -37,17 +39,12 @@ function stddev(values: number[]): number {
   return Math.sqrt(variance);
 }
 
+// BUG FIX (audit integritas data 2026-08-03, temuan H-01): sebelumnya rata-rata
+// aritmatik sederhana (bias, lihat modules/technical/service/rsi.ts untuk bukti
+// empiris) - diganti calculateRsi() bersama (Wilder smoothing), satu hasil RSI di
+// seluruh aplikasi untuk saham yang sama.
 function calcRsi(closes: number[], period = 14): number | null {
-  if (closes.length < period + 1) return null;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gains += diff; else losses -= diff;
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  return 100 - 100 / (1 + avgGain / avgLoss);
+  return calculateRsi(closes, period);
 }
 
 // Indikator inti (dipakai untuk badge harga/MA/RSI/volume) - real, dari OHLCV asli.

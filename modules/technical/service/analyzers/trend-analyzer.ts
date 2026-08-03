@@ -1,13 +1,23 @@
+// BUG FIX (audit integritas data 2026-08-03, temuan M-01): MA20/50/200 dihitung dari
+// AdjClose (disesuaikan dividen) kalau tersedia, bukan Close mentah - konsisten dengan
+// `currentPrice` yang dibandingkan di bawah: AdjClose di bar TERAKHIR selalu identik
+// dengan Close (rasio penyesuaian = 1 di tanggal paling baru, diverifikasi empiris),
+// jadi membandingkan `currentPrice` (harga live sungguhan) dengan MA dari AdjClose TIDAK
+// mencampur dua basis yang beda - keduanya "harga hari ini" di titik yang sama, cuma
+// historinya yang disesuaikan supaya penurunan harga di tanggal ex-dividend (peristiwa
+// korporasi) tidak terbaca sebagai sinyal BEARISH pasar murni. Fallback ke Close untuk
+// pemanggil yang belum menyediakan AdjClose (lihat yahoo-history.service.ts).
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 200) return { label: 'Trend MA (20,50,200)', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
-  const sum20 = history.slice(-20).reduce((acc, h) => acc + h.Close, 0);
+  const closeOf = (h: any) => h.AdjClose ?? h.Close;
+  const sum20 = history.slice(-20).reduce((acc, h) => acc + closeOf(h), 0);
   const ma20 = sum20 / 20;
 
-  const sum50 = history.slice(-50).reduce((acc, h) => acc + h.Close, 0);
+  const sum50 = history.slice(-50).reduce((acc, h) => acc + closeOf(h), 0);
   const ma50 = sum50 / 50;
 
-  const sum200 = history.slice(-200).reduce((acc, h) => acc + h.Close, 0);
+  const sum200 = history.slice(-200).reduce((acc, h) => acc + closeOf(h), 0);
   const ma200 = sum200 / 200;
 
   let decision = 'NEUTRAL';

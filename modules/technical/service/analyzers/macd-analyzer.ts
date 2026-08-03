@@ -1,7 +1,15 @@
+// BUG FIX (audit integritas data 2026-08-03, temuan M-03): sama seperti rsi-analyzer.ts
+// - pemanggil sebelumnya mem-parse macdLine/macdSignal/macdHist dari string `value`
+// pakai regex (`/MACD: ([\-\d.]+), Sig: ([\-\d.]+), Hist: ([\-\d.]+)/`). Kalau regex
+// tidak match (mis. format berubah), kegagalan DIAM-DIAM menghasilkan 0/0/0 yang masuk
+// ke scoring sebagai "MACD bearish" - bukan error yang terlihat. `raw` (angka asli)
+// disediakan supaya pemanggil tidak perlu regex sama sekali.
 export function analyze(history: any[], currentPrice: number) {
-  if (history.length < 35) return { label: 'MACD', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (history.length < 35) return { label: 'MACD', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
 
-  const closes = history.map(h => h.Close);
+  // AdjClose (disesuaikan dividen, temuan M-01 - lihat yahoo-history.service.ts) kalau
+  // tersedia, fallback ke Close untuk pemanggil yang belum menyediakannya.
+  const closes = history.map(h => h.AdjClose ?? h.Close);
   const ema12 = calculateEMA(closes, 12);
   const ema26 = calculateEMA(closes, 26);
   
@@ -28,7 +36,8 @@ export function analyze(history: any[], currentPrice: number) {
     label: 'MACD (12,26,9)',
     value: `MACD: ${lastMacd.toFixed(2)}, Sig: ${lastSignal.toFixed(2)}, Hist: ${histogram.toFixed(2)}`,
     decision,
-    confidence: Math.round(confidence)
+    confidence: Math.round(confidence),
+    raw: { macdLine: lastMacd, macdSignal: lastSignal, macdHist: histogram },
   };
 }
 

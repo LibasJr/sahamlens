@@ -20,22 +20,18 @@ import {
 } from '@/modules/technical';
 import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
 
-// AUDIT 2026-08-01: RSI/EMA sebelumnya diisi langsung dari analyzer.value ("RSI: 65.23",
-// bukan angka) - typeof check di council.service.ts (butuh number) gagal diam-diam dan
-// RSI selalu terkirim sebagai "0" ke Council AI, dan rsiSignal di local-council.service.ts
-// (perbandingan numerik terhadap string) selalu jatuh ke "HOLD". Sekarang di-parse jadi
-// angka mentah, sama seperti pola yang sudah dipakai app/api/stock/[ticker]/route.ts.
-function parseNumberAfter(value: string | undefined, label: string): number {
-  if (!value) return 0;
-  const match = value.match(new RegExp(`${label}:\\s*([\\-\\d.]+)`));
-  return match ? parseFloat(match[1]) : 0;
-}
-
 // BUILD 009 (Performance) - fetch+parse OHLC dipindah ke modules/technical/service/
 // yahoo-history.service.ts (sebelumnya diduplikasi persis di sini dan di
 // modules/ai/service/orchestrator.service.ts). Logika analyzer/MA khusus kebutuhan
-// council DIPERLUAS 2026-08-01 (audit dummy-data) - lihat parseNumberAfter di atas
-// dan catatan "Skor Komposit" di GET handler untuk apa yang berubah.
+// council DIPERLUAS 2026-08-01 (audit dummy-data) - lihat catatan "Skor Komposit" di
+// GET handler untuk apa yang berubah.
+//
+// BUG FIX (audit integritas data 2026-08-03, temuan M-03): EMA/RSI/MACD/ATR di bawah
+// SEBELUMNYA diambil lewat `parseNumberAfter()` - regex ad-hoc yang mem-parse string
+// `value` (mis. "RSI: 65.23") milik analyzer. Fungsi itu sendiri lahir dari perbaikan
+// bug parsing sebelumnya (2026-08-01) - pola regex-di-atas-string tetap rapuh terhadap
+// perubahan format `value`. Analyzer sekarang menyediakan `raw` (angka asli, lihat
+// modules/technical/service/analyzers/*.ts) - dipakai langsung di bawah, tanpa regex.
 async function getTechnicalData(ticker: string) {
   try {
     const chartData = await fetchYahooHistory(ticker, '1y');
@@ -86,12 +82,12 @@ async function getTechnicalData(ticker: string) {
       ma20,
       ma50,
       ma200,
-      ema: parseNumberAfter(emaData?.value, 'EMA20'),
-      rsi: parseNumberAfter(rsiData?.value, 'RSI'),
-      macdLine: parseNumberAfter(macdData?.value, 'MACD'),
-      macdSignal: parseNumberAfter(macdData?.value, 'Sig'),
-      macdHist: parseNumberAfter(macdData?.value, 'Hist'),
-      atr: parseNumberAfter(volatilityData?.value, 'ATR'),
+      ema: (emaData as any)?.raw?.ema20 ?? 0,
+      rsi: (rsiData as any)?.raw?.rsi ?? 0,
+      macdLine: (macdData as any)?.raw?.macdLine ?? 0,
+      macdSignal: (macdData as any)?.raw?.macdSignal ?? 0,
+      macdHist: (macdData as any)?.raw?.macdHist ?? 0,
+      atr: (volatilityData as any)?.raw?.atr ?? null,
       support,
       resistance,
       volToday,

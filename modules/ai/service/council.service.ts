@@ -59,34 +59,42 @@ export async function getCouncil(symbol: string, data: any, cacheKey?: string) {
   if (cached) return cached;
 
   try {
+    // BUG FIX (audit integritas data 2026-08-03, temuan H-11): enam field di bawah
+    // SEBELUMNYA pakai `data?.x || 0` - kalau field-nya hilang/undefined, prompt
+    // menerima angka 0 dan AI memperlakukannya sebagai "DATA REAL" (mis. "MA200 0" ->
+    // AI menyimpulkan harga jauh di atas MA200 = uptrend ekstrem; "RSI 0" -> disimpulkan
+    // oversold ekstrem). Judul blok data di TUNED_PROMPT eksplisit menyuruh AI bilang
+    // "data belum cukup" kalau suatu dimensi tidak ada datanya - tapi aturan itu tidak
+    // pernah terpicu karena dari sudut pandang AI datanya ADA (nilainya kebetulan nol).
+    // atr/volRatio/foreignFlow/eps di baris bawah SUDAH benar pakai 'N/A' - disamakan.
     const promptData = {
-      price: data?.currentPrice || data?.price || 0,
-      ma50: data?.ma50 || 0,
-      ma200: data?.ma200 || 0,
-      ema: data?.ema || 0,
-      rsi: data?.rsi || 0,
-      support: data?.support || 0,
-      resistance: data?.resistance || 0,
+      price: data?.currentPrice ?? data?.price ?? 'N/A',
+      ma50: data?.ma50 ?? 'N/A',
+      ma200: data?.ma200 ?? 'N/A',
+      ema: data?.ema ?? 'N/A',
+      rsi: typeof data?.rsi === 'number' ? data.rsi : 'N/A',
+      support: data?.support ?? 'N/A',
+      resistance: data?.resistance ?? 'N/A',
       atr: data?.atr ?? 'N/A',
       volRatio: data?.volRatio != null ? data.volRatio.toFixed(2) : 'N/A',
       foreignFlow: data?.foreignFlow ?? 'N/A',
-      score: data?.score || 0,
+      score: data?.score ?? 'N/A',
       eps: data?.fundamentalSnapshot?.trailingEps ?? 'N/A',
       lastQuarter: data?.fundamentalSnapshot?.mostRecentQuarter ?? 'N/A',
     };
 
     let prompt = TUNED_PROMPT.replace(/\$\{symbol\}/g, symbol)
-      .replace(/\$\{price\}/g, promptData.price.toString())
-      .replace(/\$\{ma50\}/g, promptData.ma50.toString())
-      .replace(/\$\{ma200\}/g, promptData.ma200.toString())
-      .replace(/\$\{ema\}/g, promptData.ema.toString())
-      .replace(/\$\{rsi\}/g, typeof promptData.rsi === 'number' ? promptData.rsi.toFixed(2) : '0')
-      .replace(/\$\{support\}/g, promptData.support.toString())
-      .replace(/\$\{resistance\}/g, promptData.resistance.toString())
+      .replace(/\$\{price\}/g, String(promptData.price))
+      .replace(/\$\{ma50\}/g, String(promptData.ma50))
+      .replace(/\$\{ma200\}/g, String(promptData.ma200))
+      .replace(/\$\{ema\}/g, String(promptData.ema))
+      .replace(/\$\{rsi\}/g, typeof promptData.rsi === 'number' ? promptData.rsi.toFixed(2) : 'N/A')
+      .replace(/\$\{support\}/g, String(promptData.support))
+      .replace(/\$\{resistance\}/g, String(promptData.resistance))
       .replace(/\$\{atr\}/g, String(promptData.atr))
       .replace(/\$\{volRatio\}/g, String(promptData.volRatio))
       .replace(/\$\{foreignFlow\}/g, String(promptData.foreignFlow))
-      .replace(/\$\{score\}/g, promptData.score.toString())
+      .replace(/\$\{score\}/g, String(promptData.score))
       .replace(/\$\{eps\}/g, String(promptData.eps))
       .replace(/\$\{lastQuarter\}/g, String(promptData.lastQuarter));
 

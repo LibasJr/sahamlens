@@ -14,6 +14,8 @@
  * - Skor asli model TIDAK diubah, hanya digabungkan.
  */
 
+import { CONSENSUS_VOTE_THRESHOLDS } from './decision-thresholds';
+
 interface AnalyzerVote {
   label: string;
   decision: string;      // 'BULLISH' | 'BEARISH' | 'NEUTRAL'
@@ -29,6 +31,7 @@ interface ConsensusResult {
   neutral_count: number;
   total_models: number;
   bull_pct: number;             // percentage bullish
+  bear_pct: number;             // percentage bearish (BUKAN cuma 100-bull_pct - ada neutral_count)
   kategori: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG SELL';
 }
 
@@ -53,6 +56,7 @@ export function calculateConsensus(analyzers: AnalyzerVote[]): ConsensusResult {
       neutral_count: 0,
       total_models: 0,
       bull_pct: 0,
+      bear_pct: 0,
       kategori: 'HOLD'
     };
   }
@@ -80,16 +84,16 @@ export function calculateConsensus(analyzers: AnalyzerVote[]): ConsensusResult {
   let kategori: ConsensusResult['kategori'] = 'HOLD';
   let konsensusLabel = '';
 
-  if (bullPct >= 80) {
+  if (bullPct >= CONSENSUS_VOTE_THRESHOLDS.STRONG) {
     kategori = 'STRONG BUY';
     konsensusLabel = `STRONG BUY (${bullPct}%)`;
-  } else if (bullPct >= 60) {
+  } else if (bullPct >= CONSENSUS_VOTE_THRESHOLDS.NORMAL) {
     kategori = 'BUY';
     konsensusLabel = `BUY (${bullPct}%)`;
-  } else if (bearPct >= 80) {
+  } else if (bearPct >= CONSENSUS_VOTE_THRESHOLDS.STRONG) {
     kategori = 'STRONG SELL';
     konsensusLabel = `STRONG SELL (${bearPct}%)`;
-  } else if (bearPct >= 60) {
+  } else if (bearPct >= CONSENSUS_VOTE_THRESHOLDS.NORMAL) {
     kategori = 'SELL';
     konsensusLabel = `SELL (${bearPct}%)`;
   } else {
@@ -106,6 +110,7 @@ export function calculateConsensus(analyzers: AnalyzerVote[]): ConsensusResult {
     neutral_count: neutralCount,
     total_models: totalModels,
     bull_pct: bullPct,
+    bear_pct: bearPct,
     kategori
   };
 }
