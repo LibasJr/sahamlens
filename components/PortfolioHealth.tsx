@@ -122,7 +122,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           </div>
           
           <button 
-            onClick={() => router.push('/breakout-radar?cat=recommendations')}
+            onClick={() => router.push('/breakout-radar')}
             className={`mt-4 text-xs font-bold font-mono px-4 py-2 rounded self-start transition-colors ${
               isHighRisk ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}

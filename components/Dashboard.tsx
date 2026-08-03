@@ -422,13 +422,13 @@ export default function Dashboard() {
 
               <div className="mt-5 space-y-3 flex-1">
                 {[
-                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'green', href: '/breakout-radar?cat=attractive' },
+                  { key: 'attractive', label: 'saham menarik', desc: 'Sinyal teknikal bullish (MA20 > MA50)', Icon: Sparkles, accent: 'green', href: '/breakout-radar' },
                   { key: 'breakout', label: 'saham breakout', desc: 'Momentum breakout (MA cross, volume spike)', Icon: Zap, accent: 'purple', href: '/breakout-radar' },
-                  { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar?cat=undervalue' },
-                  { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar?cat=risky' },
-                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'green', href: '/breakout-radar?cat=goldenCross' },
-                  { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar?cat=deadCross' },
-                  { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'warning', href: '/breakout-radar?cat=foreignAccumulation' },
+                  { key: 'undervalue', label: 'saham undervalue', desc: 'RSI (14) oversold, potensi rebound', Icon: Tag, accent: 'blue', href: '/breakout-radar' },
+                  { key: 'risky', label: 'saham berisiko', desc: 'Sinyal teknikal bearish (MA20 < MA50)', Icon: AlertTriangle, accent: 'red', href: '/breakout-radar' },
+                  { key: 'goldenCross', label: 'sinyal Golden Cross', desc: 'MA20 baru memotong ke atas MA50', Icon: TrendingUp, accent: 'green', href: '/breakout-radar' },
+                  { key: 'deadCross', label: 'sinyal Dead Cross', desc: 'MA20 baru memotong ke bawah MA50', Icon: TrendingDown, accent: 'red', href: '/breakout-radar' },
+                  { key: 'foreignAccumulation', label: 'saham akumulasi asing', desc: 'Streak >=3 hari tekanan beli (proxy volume)', Icon: Flame, accent: 'warning', href: '/breakout-radar' },
                   { key: 'weeklyGainer', label: 'penguat mingguan', desc: 'Kenaikan harga tertinggi 5 hari terakhir', Icon: ArrowUpRight, accent: 'green', href: '/market/weekly-gainer' },
                 ].map((row) => {
                   const accent = ACCENT_MAP[row.accent];
