@@ -640,7 +640,10 @@ export default function Dashboard() {
         <div className="mt-8 rounded-lg border border-tv-border bg-tv-card px-5 py-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-tv-muted">
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-tv-muted'}`} />
-            <span className="font-medium">Data disinkronisasi secara real-time dari Bursa Efek Indonesia • Keterlambatan waktu maksimal 15 menit • Sumber: Yahoo Finance</span>
+            {/* BUG FIX (audit BUILD 002, item disclaimer sumber data): wording lama "real-time
+                dari Bursa Efek Indonesia" memberi kesan feed langsung IDX, padahal sumbernya
+                Yahoo Finance (pihak ketiga, ada delay) - IDX tidak menyediakan feed gratis. */}
+            <span className="font-medium">Data bersumber dari Yahoo Finance (pihak ketiga), dapat mengalami keterlambatan hingga ~15 menit • Informasi &amp; rekomendasi di aplikasi ini bersifat informatif, bukan nasihat investasi</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
