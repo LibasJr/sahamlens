@@ -458,7 +458,7 @@ export default function BacktestPage() {
         body="Backtest butuh akun Pro setelah trial 7 hari berakhir."
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE, LensAI & Compare Tool',
+          'LensRadar LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
       />

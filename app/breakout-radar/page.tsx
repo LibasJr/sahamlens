@@ -96,7 +96,7 @@ export default function AiPickPage() {
             </div>
             <div>
               <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight flex items-center gap-2">
-                AI Pick Live
+                LensRadar Live
                 {/* BUG FIX (audit integritas data 2026-08-03): badge "Live" dulu TETAP
                     tampil walau data sebenarnya dari sesi bursa sebelumnya (bisa 2+ hari
                     basi di akhir pekan, setelah TTL cache diperpanjang supaya tidak
@@ -259,10 +259,10 @@ export default function AiPickPage() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Masa Trial Habis"
-        body="AI Pick Live butuh akun Pro setelah trial 7 hari berakhir."
+        body="LensRadar Live butuh akun Pro setelah trial 7 hari berakhir."
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE, LensAI & Compare Tool',
+          'LensRadar LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"
@@ -271,7 +271,7 @@ export default function AiPickPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="AI Pick butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="LensRadar butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"

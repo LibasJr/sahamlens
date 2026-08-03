@@ -78,7 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'sinyal',
     label: 'Sinyal AI',
     items: [
-      { id: 'breakout-radar', name: 'AI Pick', subtitle: 'Breakout, Rekomendasi & Lainnya', path: '/breakout-radar', icon: Radar, live: true },
+      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Breakout & Opportunity Scanner', path: '/breakout-radar', icon: Radar, live: true },
     ],
   },
   {
