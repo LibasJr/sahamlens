@@ -261,8 +261,8 @@ export default function HomePage() {
         {/* Ringkasan Pasar - IHSG + top gainer/loser, publik (bukan Portfolio -
             SahamLens alat analisis/screener, bukan sekuritas; posisi trading ada
             di Akun Demo). Menggantikan card Portfolio yang sebelumnya di sini. */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
+        <motion.div variants={fadeUp} className="h-full">
+          <Card hoverable className="h-full flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-tv-purple" />
@@ -273,7 +273,7 @@ export default function HomePage() {
             {loadingMarket ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 flex-1 flex flex-col justify-between">
                 <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
                   <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
                   {ihsg ? (
@@ -322,8 +322,8 @@ export default function HomePage() {
             page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
             punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
             corporate-calendar.service.ts). */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
+        <motion.div variants={fadeUp} className="h-full">
+          <Card hoverable className="h-full flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-tv-gold" />
@@ -336,7 +336,7 @@ export default function HomePage() {
             ) : calendarEvents.length === 0 ? (
               <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1">
                 {calendarEvents.map((e, i) => (
                   <Link
                     key={`${e.symbol}-${e.date}-${i}`}
