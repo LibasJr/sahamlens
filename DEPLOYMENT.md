@@ -107,13 +107,13 @@ Dikelompokkan REQUIRED / OPTIONAL / LEGACY (audit BUILD 002) - diverifikasi lewa
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | **BUKAN login Telegram** (itu sudah dihapus total) - dipakai `lib/telegram.ts sendTelegramMessage()`, satu-satunya pemanggil `app/api/payment/notify/route.ts` (notifikasi ke admin saat ada bukti bayar manual masuk). |
 | `NEXT_PUBLIC_PAYMENT_*` (BANK_ACCOUNT_NAME/NUMBER, BANK_NAME, GOPAY_NAME/NUMBER, DANA_NAME/NUMBER) | Metode pembayaran manual di `PaywallModal` (`shared/config/payment.ts`). Baris otomatis disembunyikan kalau salah satu metode belum diisi. |
 
-**LEGACY** (0 pemakaian di kode, diverifikasi grep 2026-08-03 - aman dihapus dari Vercel, TIDAK
-dihapus di sesi ini karena butuh konfirmasi eksplisit pemilik produk sebelum menyentuh env
-production):
-| Var | Kenapa legacy |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Sisa rencana Supabase yang tidak pernah jadi dipakai - `@supabase/supabase-js` bahkan tidak ada di `package.json`. |
-| `ADMIN_TELEGRAM_ID` / `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | Sisa sistem login Telegram (`TelegramLogin.tsx` dkk) yang sudah dihapus total - beda dari `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` di atas yang MASIH dipakai untuk notifikasi pembayaran. |
+**LEGACY - SUDAH DIHAPUS dari Vercel (2026-08-03, dikonfirmasi pemilik produk):**
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (sisa
+rencana Supabase yang tidak pernah jadi dipakai), `ADMIN_TELEGRAM_ID`, `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`
+(sisa sistem login Telegram yang sudah dihapus total - beda dari `TELEGRAM_BOT_TOKEN`/
+`TELEGRAM_CHAT_ID` di atas yang MASIH dipakai untuk notifikasi pembayaran). Diverifikasi 0
+pemakaian di kode sebelum dihapus, lalu dihapus lewat `npx vercel env rm <NAME> production`
+(+ `preview` untuk 3 var Supabase yang scope-nya dua-duanya).
 
 `INTERNAL_API_SECRET` (`shared/auth/internal-service.ts`, dipakai cron/alert evaluation supaya
 panggilan server-to-server ke `/api/stock`, dst bisa lewati gate session) - **cek ulang statusnya
