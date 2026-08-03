@@ -8,6 +8,7 @@ import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { fetchScreenerUniverse } from '@/modules/market/service/screener.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { classifyFreshness } from '@/shared/http/freshness';
 
 const SCREENER_CACHE_KEY = 'sahamlens:cache:computed:screener-universe';
 
@@ -110,6 +111,11 @@ async function buildStockData(rawSymbol: string) {
   const per = eps > 0 ? price / eps : null;
   const pbv = bvps > 0 ? price / bvps : null;
 
+  // Audit BUILD 001 (timestamp/freshness) - /compare fetch LIVE tiap request (tidak
+  // di-cache seperti Screener/Recommendations), jadi freshness-nya dari timestamp
+  // quote Yahoo per simbol (regularMarketTime), bukan umur cache.
+  const fresh = classifyFreshness(hist.regularMarketTime);
+
   return {
     symbol,
     price,
@@ -123,6 +129,7 @@ async function buildStockData(rawSymbol: string) {
     resistance,
     fairValue: intrinsic?.fair_value || null,
     mos: intrinsic?.mos ?? null,
+    _meta: { freshness: fresh.freshness, dataTimestamp: fresh.dataTimestamp, ageSeconds: fresh.ageSeconds },
   };
 }
 
@@ -212,8 +219,8 @@ export async function GET(request: Request) {
     : `${data1.symbol} dan ${data2.symbol} sama-sama unggul di ${winCount1} dari ${rows.length} metrik - keduanya punya profil risk/reward yang sebanding saat ini, pertimbangkan preferensi sektor/valuasi Anda.`;
 
   return NextResponse.json({
-    data1: { symbol: data1.symbol, price: data1.price },
-    data2: { symbol: data2.symbol, price: data2.price },
+    data1: { symbol: data1.symbol, price: data1.price, _meta: data1._meta },
+    data2: { symbol: data2.symbol, price: data2.price, _meta: data2._meta },
     rows,
     conclusion,
   });

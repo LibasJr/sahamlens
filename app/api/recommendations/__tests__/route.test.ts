@@ -9,6 +9,7 @@ vi.mock('@/modules/recommendation', () => ({
 }));
 vi.mock('@/shared/cache/redis-cache', () => ({
   cacheGet: vi.fn(),
+  getCacheTtlRemaining: vi.fn(),
 }));
 vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
@@ -18,7 +19,7 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
 import { GET } from '../route';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
-import { cacheGet } from '@/shared/cache/redis-cache';
+import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 
 function makeRequest(): Request {
@@ -45,13 +46,17 @@ describe('GET /api/recommendations', () => {
     const trial = { firstSeenAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-09T00:00:00.000Z', active: true, isNew: true };
     vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(trial);
     vi.mocked(cacheGet).mockResolvedValue({ ticker: 'BBCA.JK', consensus: 'HOLD' } as any);
+    vi.mocked(getCacheTtlRemaining).mockResolvedValue(null);
 
     const res = await GET(makeRequest());
     const json = await res.json();
 
     expect(checkProAccessLive).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
-    expect(json.recommendations).toEqual([{ ticker: 'BBCA.JK', consensus: 'HOLD' }]);
+    expect(json.recommendations).toEqual([{
+      ticker: 'BBCA.JK', consensus: 'HOLD',
+      _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: 15 * 60 },
+    }]);
     expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
   });
 
@@ -69,6 +74,7 @@ describe('GET /api/recommendations', () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
     vi.mocked(checkProAccessLive).mockResolvedValue(true);
     vi.mocked(cacheGet).mockResolvedValue({ ticker: 'BBCA.JK' } as any);
+    vi.mocked(getCacheTtlRemaining).mockResolvedValue(null);
 
     const res = await GET(makeRequest());
 

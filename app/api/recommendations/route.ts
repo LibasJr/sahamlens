@@ -4,7 +4,9 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
-import { cacheGet } from '@/shared/cache/redis-cache';
+import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { describeCacheAge } from '@/shared/http/freshness';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 
 // BUILD 006/007 - simbol yang rutin di-scan app/api/cron/recommendation-scan dibaca
@@ -45,8 +47,15 @@ export async function GET(request: Request) {
       const chunkResults = await Promise.all(
         chunk.map(async (t) => {
           const cached = await cacheGet<any>(cacheKeyFor(t));
-          if (cached) return cached;
-          return analyzeStock(t);
+          if (cached) {
+            // Audit BUILD 001 (timestamp/freshness) - hasil dari cron-scan cache bisa
+            // berumur sampai 15 menit (TTL.RECOMMENDATION); ditandai per-simbol supaya
+            // UI bisa bilang jujur "data 12 menit lalu", bukan tersirat baru dihitung.
+            const ttlRemaining = await getCacheTtlRemaining(cacheKeyFor(t));
+            return { ...cached, _meta: describeCacheAge(ttlRemaining, CACHE_TTL_SEC.RECOMMENDATION) };
+          }
+          const fresh = await analyzeStock(t);
+          return fresh ? { ...fresh, _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION } } : fresh;
         })
       );
       results.push(...chunkResults.filter(Boolean));
