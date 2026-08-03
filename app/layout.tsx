@@ -17,10 +17,35 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space
 // next/font + fetch CDN Google Fonts terpisah untuk font yang sama-sama dipakai).
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-jetbrains-mono' });
 
+// Audit BUILD 002 (SEO) - sebelumnya cuma title+description di root layout, tanpa
+// metadataBase/OpenGraph/robots/canonical, dan tanpa tagline resmi ("Lihat Peluang
+// Lebih Jelas.") di mana pun. metadataBase WAJIB diisi supaya path relatif di
+// openGraph.images/robots di bawah di-resolve ke domain absolut, bukan localhost.
+const SITE_URL = 'https://sahamlens.vercel.app';
+const TAGLINE = 'Lihat Peluang Lebih Jelas.';
+
 export const metadata = {
-  title: 'SahamLens - Stock Screener IDX Smart AI',
-  description: 'Stock Screener IDX Smart AI. Pure Algorithmic Trading (10 TS Analyzers) - Empowered by yfinance IDX Market Data (.JK) & AI Agent Engine. Bukan saran finansial, untuk edukasi.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `SahamLens - ${TAGLINE}`,
+    template: '%s | SahamLens',
+  },
+  description: `SahamLens - ${TAGLINE} Screener & analisis saham IDX berbasis data riil (Yahoo Finance) dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi. Bukan saran finansial, untuk edukasi.`,
   manifest: '/manifest.json',
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: 'website',
+    locale: 'id_ID',
+    url: SITE_URL,
+    siteName: 'SahamLens',
+    title: `SahamLens - ${TAGLINE}`,
+    description: `Screener & analisis saham IDX berbasis data riil dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi.`,
+  },
+  twitter: {
+    card: 'summary',
+    title: `SahamLens - ${TAGLINE}`,
+    description: `Screener & analisis saham IDX berbasis data riil dan AI.`,
+  },
 };
 
 // Dark mode PERMANEN di seluruh app - sengaja tidak ada toggle. Nyaris semua halaman
