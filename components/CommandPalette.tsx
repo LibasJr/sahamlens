@@ -9,7 +9,7 @@ type Preview = { closes: number[]; price: number; changePct: number } | null;
 
 interface CommandPaletteProps {
   // Kalau diisi, memilih saham (klik/Enter) memanggil ini alih-alih pindah halaman ke
-  // Council AI (/technical/[symbol]) - dipakai halaman depan (components/Dashboard.tsx)
+  // LensAI (/technical/[symbol]) - dipakai halaman depan (components/Dashboard.tsx)
   // supaya chart utama di halaman itu sendiri yang berubah, bukan navigasi keluar.
   // Halaman lain yang belum diisi prop ini tetap pakai perilaku lama (navigasi).
   onSelect?: (symbol: string, name: string) => void;
@@ -233,7 +233,7 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
 
             <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
               <span>↑↓ navigasi • {onSelect ? 'Enter tampilkan di chart' : 'Enter buka analisis'}</span>
-              {!onSelect && <span>Grafik & indikator gratis • Council AI penuh perlu akun</span>}
+              {!onSelect && <span>Grafik & indikator gratis • LensAI penuh perlu akun</span>}
             </div>
           </div>
         </div>

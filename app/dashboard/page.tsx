@@ -515,7 +515,7 @@ function DashboardContent() {
           body={isTrialExpired ? "Masa trial gratis 7 hari Anda telah berakhir. Upgrade ke Pro sekarang untuk terus menggunakan fitur Smart AI dari SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
           benefits={[
             'Unlimited Technical Analyzer (10 filter)',
-            'AI Pick LIVE, Council AI & Compare Tool',
+            'AI Pick LIVE, LensAI & Compare Tool',
             'Watchlist & Alert unlimited',
           ]}
         />
@@ -652,9 +652,9 @@ function DashboardContent() {
               <h2 className="font-heading text-sm font-semibold text-white">AI Summary</h2>
             </div>
             <div className="flex flex-col md:flex-row gap-6 relative">
-              {/* Action Buttons - tombol "Council AI" sengaja dihapus dari sini (2026-08-01):
-                  sudah ada menu Council AI tersendiri di Sidebar, duplikasi tautan di dalam
-                  AI Summary cuma bikin bingung ("ini AI Summary atau Council AI?"). */}
+              {/* Action Buttons - tombol "LensAI" sengaja dihapus dari sini (2026-08-01):
+                  sudah ada menu LensAI tersendiri di Sidebar, duplikasi tautan di dalam
+                  AI Summary cuma bikin bingung ("ini AI Summary atau LensAI?"). */}
               <div className="absolute top-0 right-0 flex gap-2 z-10">
                 <button
                   onClick={downloadTechnicalPDF}
@@ -1044,7 +1044,7 @@ function DashboardContent() {
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE, Council AI & Compare Tool',
+          'AI Pick LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

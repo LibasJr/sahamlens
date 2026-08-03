@@ -67,7 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'dashboard', name: 'Technical Analyzer', subtitle: '10 Pure Math Filters', path: '/dashboard', icon: LineChart },
       { id: 'fundamental', name: 'Fundamental Analyzer', subtitle: 'Value & Health Metrics', path: '/fundamental', icon: Building2 },
-      { id: 'council', name: 'Council AI', subtitle: 'Stock Analysis Council AI', path: '/technical/BBCA.JK', icon: Users },
+      { id: 'council', name: 'LensAI', subtitle: 'Stock Analysis LensAI', path: '/technical/BBCA.JK', icon: Users },
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },
       { id: 'screener', name: 'Stock Screener', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
       { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position Size & Risk/Reward', path: '/risk-calculator', icon: ShieldAlert },
@@ -112,8 +112,8 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  // Link menu Council AI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
-  // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "Council AI"
+  // Link menu LensAI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
+  // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "LensAI"
   // membuka emiten yang sama, bukan emiten trending acak. Fallback ke trending acak kalau
   // belum ada riwayat pencarian sama sekali.
   const [councilTicker, setCouncilTicker] = useState(() => pickTrendingTicker());

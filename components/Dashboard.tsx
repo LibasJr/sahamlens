@@ -146,7 +146,7 @@ export default function Dashboard() {
   // bukan selalu BBCA. Lazy initializer -> hanya jalan sekali saat mount, tidak berubah
   // ulang setiap re-render KECUALI user pilih saham lain lewat search (lihat CommandPalette
   // onSelect di bawah) - permintaan eksplisit: search di halaman depan cukup ganti chart
-  // di halaman ini sendiri, jangan pindah ke Council AI.
+  // di halaman ini sendiri, jangan pindah ke LensAI.
   const [ticker, setTicker] = useState(() => pickTrendingTicker());
   const [timeframe, setTimeframe] = useState('1M');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
@@ -213,7 +213,7 @@ export default function Dashboard() {
     return computeIndicators(upToChartData[upToChartData.length - 1].time, closes, volumes);
   }, [upToChartData]);
 
-  // Council AI: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
+  // LensAI: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
   // ringkasan analisis, supaya insight yang ditampilkan tidak pernah mengarang.
   const council = React.useMemo(() => computeMiniCouncil(upToChartData as any), [upToChartData]);
 

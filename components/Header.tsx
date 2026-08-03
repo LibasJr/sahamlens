@@ -18,7 +18,7 @@ interface HeaderProps {
 export default function Header({
   currentTicker,
   onTickerChange,
-  moduleTitle = 'Council AI Technical + Bandarmology',
+  moduleTitle = 'LensAI Technical + Bandarmology',
   moduleBank = 'COUNCIL AI',
   analisaRemaining,
   analisaTotal = 5,

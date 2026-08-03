@@ -262,7 +262,7 @@ export default function AiPickPage() {
         body="AI Pick Live butuh akun Pro setelah trial 7 hari berakhir."
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE, Council AI & Compare Tool',
+          'AI Pick LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

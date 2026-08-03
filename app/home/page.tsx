@@ -371,7 +371,7 @@ export default function HomePage() {
       </motion.div>
 
       {/* Berita & Sentimen Pasar - RSS publik (CNBC Indonesia, Detik Finance) + sentimen
-          dari Council AI (fallback heuristik kata kunci kalau Council AI tidak tersedia) */}
+          dari LensAI (fallback heuristik kata kunci kalau LensAI tidak tersedia) */}
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex-1 flex flex-col">
         <Card className="flex-1 flex flex-col">
           <CardHeader>
@@ -379,7 +379,7 @@ export default function HomePage() {
               <Newspaper className="w-4 h-4 text-tv-muted" />
               <CardTitle>Berita & Sentimen Pasar</CardTitle>
             </div>
-            <Badge variant="info">Council AI</Badge>
+            <Badge variant="info">LensAI</Badge>
           </CardHeader>
 
           {loadingNews ? (

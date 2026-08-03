@@ -184,7 +184,7 @@ function CompareContent() {
                       <th className="py-4 px-6 text-tv-muted text-sm font-normal uppercase tracking-wide w-1/5">Metric</th>
                       <th className="py-4 px-6 text-xl text-center border-l border-tv-border text-tv-text font-bold font-number">{data.data1.symbol}</th>
                       <th className="py-4 px-6 text-xl text-center border-l border-tv-border text-tv-text font-bold font-number">{data.data2.symbol}</th>
-                      <th className="py-4 px-6 text-tv-blue text-sm font-bold uppercase tracking-wide text-center border-l border-tv-border w-1/3">Penjelasan Council AI</th>
+                      <th className="py-4 px-6 text-tv-blue text-sm font-bold uppercase tracking-wide text-center border-l border-tv-border w-1/3">Penjelasan LensAI</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-tv-border">
@@ -212,7 +212,7 @@ function CompareContent() {
               </div>
 
               <div className="p-6 bg-tv-bg border-t border-tv-border">
-                <h3 className="font-heading text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan Council AI</h3>
+                <h3 className="font-heading text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan LensAI</h3>
                 <p className="text-base text-tv-text leading-relaxed">
                   {data.conclusion}
                 </p>
@@ -236,7 +236,7 @@ function CompareContent() {
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + AI Pick LIVE.`}
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE, Council AI & Compare Tool',
+          'AI Pick LIVE, LensAI & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"
