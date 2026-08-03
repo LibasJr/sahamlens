@@ -62,7 +62,7 @@ export const FULL_FEATURE_LIST: string[] = [
   'Multi-Agent Orchestrator - 9 agen kuantitatif',
   'Compare Tool - bandingkan 2 saham berdampingan',
   'Stock Screener - filter multi-faktor',
-  'AI Pick LIVE - breakout, golden cross, rekomendasi harian',
+  'LensRadar LIVE - breakout, golden cross, rekomendasi harian',
   'Backtest - simulasi strategi dari 9 filter teknikal (kombinasi bebas/preset) atas data historis riil, lengkap win rate, return, alpha vs IHSG & max drawdown',
   'DCF Intrinsic Valuation',
   'Dividend Compounding Planner',
