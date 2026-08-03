@@ -165,7 +165,7 @@ Cron dijalankan lewat QStash (bukan Vercel Cron) dan diverifikasi dengan
 `verifyQStashSignature()` di tiap route. Nama job di kolom kedua sama persis dengan
 argumen `withJobRunLog()`, jadi riwayat jalannya bisa ditelusuri lewat log job.
 
-7 jadwal AKTIF (diverifikasi live lewat `GET /v2/schedules` 2026-08-03, semua status SUCCESS
+8 jadwal AKTIF (diverifikasi live lewat `GET /v2/schedules`, semua status SUCCESS
 terakhir jalan):
 
 | Endpoint | Nama job | Cron (UTC) | Setara WIB |
@@ -177,18 +177,16 @@ terakhir jalan):
 | `/api/cron/watchlist-alert` | `watchlist-alert` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
 | `/api/cron/macro` | `macro` | `0 3 * * 1-5` | 10:00 hari bursa |
 | `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 22 * * 0-4` | 05:00 hari bursa (Senin-Jumat) |
+| `/api/cron/backtest-precompute` | `backtest-precompute` | `30 22 * * 0-4` | 05:30 hari bursa (Senin-Jumat) |
 
 QStash menjadwalkan dalam UTC; WIB = UTC+7. Karena itu jadwal harian ditulis di hari
 sebelumnya (`0-4` = Minggu-Kamis UTC menghasilkan Senin-Jumat WIB).
 
-> **TEMUAN (audit BUILD 001/002, 2026-08-03):** `app/api/cron/backtest-precompute/route.ts`
-> **ADA di kode** (komentarnya sendiri bilang "didaftarkan sebagai QStash schedule terpisah")
-> tapi **TIDAK MUNCUL** di 7 jadwal live di atas (diverifikasi lewat `GET /v2/schedules`
-> 2026-08-03). Konsekuensi: `/api/backtest` kemungkinan selalu jatuh ke precompute SINKRON di
-> dalam request (jalur lambat yang disebut komentar route itu sendiri), bukan baca cache harian
-> yang seharusnya sudah diisi cron. Belum didaftarkan di sesi ini - registrasi jadwal baru
-> mengubah beban produksi (butuh keputusan frekuensi/jam yang sesuai), jadi dikonfirmasi dulu
-> ke pemilik produk sebelum dieksekusi.
+`backtest-precompute` didaftarkan 2026-08-03 (sebelumnya ADA di kode tapi TIDAK terdaftar
+di QStash - `/api/backtest` selalu jatuh ke precompute sinkron lambat di dalam request).
+Dijadwalkan 30 menit setelah `fundamental-snapshot` (murni supaya tidak start di detik yang
+sama, keduanya independen satu sama lain) - cache `BACKTEST_INDICATORS` TTL 36 jam
+(`shared/cache/ttl-policy.ts`), cukup untuk gap harian + buffer akhir pekan.
 
 Mendaftarkan jadwal baru - ganti `<DOMAIN>` dengan domain produksi, `QSTASH_TOKEN` diambil
 dari dashboard Upstash:
