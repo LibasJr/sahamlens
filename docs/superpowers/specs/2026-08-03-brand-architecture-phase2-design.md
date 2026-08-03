@@ -50,6 +50,20 @@ Semua perubahan adalah **teks label/subtitle/moduleTitle saja**. Tidak ada perub
 - **Risiko #14/#15:** label `Foreign Flow (Estimasi Asing)` adalah *value* yang dibaca balik oleh `app/api/explain/route.ts` untuk mencocokkan filter — kalau salah satu diganti tanpa yang lain, fitur "AI Explain Modal" untuk filter itu berhenti berfungsi (silent break, bukan error). Wajib diubah dalam commit yang sama, dan match lama dipertahankan sebagai fallback.
 - **Tidak ada perubahan logic/formula/route** — hanya string. Risiko regresi fungsional rendah, risiko utama adalah *missed consumer* (string dipakai di tempat lain yang belum ke-grep).
 
+## Addendum (ditulis saat menyusun implementation plan)
+
+Grep menyeluruh saat menulis plan menemukan realita berbeda dari audit awal:
+
+- **Sudah dikerjakan lebih dulu** (di luar sesi ini, sebelum spec ini ditulis): `components/Sidebar.tsx:70` (nav "LensAI"), `components/Header.tsx:21` (`moduleTitle` default), `app/technical/[symbol]/page.tsx:205-206`, `app/screener/page.tsx:40`, `app/dcf/page.tsx:75` — semua sudah "LensAI", tidak perlu diubah lagi. Baris #1, #3 (sebagian), #4, #10, #11 di tabel mapping di atas SUDAH selesai untuk bagian judul; yang tersisa di file-file itu hanya `moduleBank="COUNCIL AI"` (belum ikut berubah).
+- **"AI Pick" jauh lebih tersebar** dari yang tercatat di audit awal (audit awal hanya menangkap Sidebar nav + h1 breakout-radar). Grep penuh menemukan string identik `'AI Pick LIVE, LensAI & Compare Tool'` terpakai berulang (literal, bukan konstanta bersama) di 12 file berbeda — semua adalah body copy modal upgrade Pro (`UserProfileModal`, `watchlist`, `dashboard` x2, `recommendations`, `backtest`, `compare`, `fundamental` x2, `market-pulse`, plus 3 string variasi di `breakout-radar/page.tsx`). Kalau hanya nav+h1 yang diganti, semua modal upgrade Pro di seluruh app akan tetap menyebut "AI Pick LIVE" sementara nav sudah bilang "LensRadar" — brand pecah di titik yang paling sering dilihat user (paywall). Semua occurrence ini masuk scope Task LensRadar di plan.
+- Tambahan literal "Council AI"/"COUNCIL AI" yang belum tercatat: `components/Header.tsx:22`, `app/screener/page.tsx:41`, `app/dcf/page.tsx:76` (semua `moduleBank`), dan `app/fundamental/page.tsx:315` ("HASIL ANALISA COUNCIL AI").
+- Tambahan "AI Insight": `components/Sidebar.tsx:59` (subtitle "AI Insight & Ringkasan Akun" untuk nav "Beranda").
+- Tambahan "Multi-Agent AI Consensus": `app/multi-agent/page.tsx:263` (body modal, bukan cuma `moduleTitle` line 110).
+- Tambahan "AI Pick" di teks bantuan: `app/screener/page.tsx:200`.
+- Dicek: tidak ada test di `__tests__/**` yang mereferensikan string-string ini — aman dari breakage otomatis, tapi tetap perlu smoke test manual (lihat Testing).
+
+Daftar final lengkap (menggantikan tabel Scope di atas untuk eksekusi) ada di plan: `docs/superpowers/plans/2026-08-03-brand-architecture-phase2.md`.
+
 ## Testing
 
 - Grep ulang `"Council AI"` dan `"Foreign Flow"` setelah perubahan — pastikan hanya sisa di file yang sengaja di-skip (komentar, docs historis, `sahamlens-android/`).
