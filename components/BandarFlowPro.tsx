@@ -88,7 +88,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             <Building className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h3 className="font-heading font-bold text-white text-lg">Bandar & Foreign Flow</h3>
+            <h3 className="font-heading font-bold text-white text-lg">Bandar & Arus Dana</h3>
             <p className="text-xs text-tv-muted font-mono">Estimasi arus dana dari volume transaksi - bukan data broker resmi</p>
           </div>
         </div>
