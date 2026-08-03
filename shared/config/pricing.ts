@@ -61,7 +61,7 @@ export const FULL_FEATURE_LIST: string[] = [
   'LensAI - 10 agen analisis per saham',
   'Multi-Agent Orchestrator - 9 agen kuantitatif',
   'Compare Tool - bandingkan 2 saham berdampingan',
-  'Stock Screener - filter multi-faktor',
+  'LensScanner - filter multi-faktor',
   'LensRadar LIVE - breakout, golden cross, rekomendasi harian',
   'Backtest - simulasi strategi dari 9 filter teknikal (kombinasi bebas/preset) atas data historis riil, lengkap win rate, return, alpha vs IHSG & max drawdown',
   'DCF Intrinsic Valuation',
