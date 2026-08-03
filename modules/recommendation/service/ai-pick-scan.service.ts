@@ -130,11 +130,17 @@ async function scoreOne(
   };
 }
 
-export async function scanAiPickScores(): Promise<{ scores: ScoredStock[]; bearishSymbols: string[] }> {
+/**
+ * @param injectedSnapshot Dipakai pengujian untuk memasok snapshot fundamental tanpa
+ * Redis. Produksi memanggil tanpa argumen sehingga snapshot dibaca dari cache.
+ */
+export async function scanAiPickScores(
+  injectedSnapshot?: FundamentalSnapshot | null
+): Promise<{ scores: ScoredStock[]; bearishSymbols: string[] }> {
   // Snapshot fundamental boleh kosong - calculateScore() menangani null dengan skor 0
   // dan alasan "DATA TIDAK LENGKAP", jadi peringkat tetap jalan dari teknikal + flow
   // saja alih-alih menggagalkan seluruh halaman.
-  const snapshot = await readFundamentalSnapshot();
+  const snapshot = injectedSnapshot !== undefined ? injectedSnapshot : await readFundamentalSnapshot();
 
   const scores: ScoredStock[] = [];
   const bearishSymbols: string[] = [];
