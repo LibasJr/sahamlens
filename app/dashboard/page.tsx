@@ -708,7 +708,7 @@ function DashboardContent() {
                 </div>
                 {/* Flow */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-tv-muted font-mono w-28">Flow Asing (0-30)</span>
+                  <span className="text-xs text-tv-muted font-mono w-28">Arus Dana (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
                   </div>

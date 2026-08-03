@@ -35,6 +35,21 @@ const LIQUID_STOCKS = [
 
 type SortKey = 'ticker' | 'sector' | 'price' | 'changePct' | 'consensus' | 'sentimentScore' | 'bullishVotes' | 'foreignFlow';
 
+// Audit BUILD 001 (item terminologi Money Flow): IDX tidak menyediakan feed broker
+// asing gratis - nilai `foreignFlow` (dari analyzeAccumulationSignal, proxy Chaikin
+// Money Flow + volume) SEBELUMNYA ditampilkan apa adanya sebagai "STRONG NET BUY"/
+// "NET SELL" dst, istilah yang lazim dipakai untuk data broker asing SUNGGUHAN dan
+// bisa menyesatkan pengguna mengira ini data resmi. Field/tipe internal TIDAK diubah
+// (dipakai calculateScore() di banyak modul) - cuma label TAMPILAN diganti jujur,
+// konsisten dengan wording "Akumulasi/Distribusi" yang sudah dipakai Bandarmology.
+const FOREIGN_FLOW_LABEL: Record<string, string> = {
+  'STRONG NET BUY': 'AKUMULASI KUAT',
+  'NET BUY': 'AKUMULASI',
+  'NEUTRAL': 'NETRAL',
+  'NET SELL': 'DISTRIBUSI',
+  'STRONG NET SELL': 'DISTRIBUSI KUAT',
+};
+
 export default function Recommendations() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -289,7 +304,7 @@ export default function Recommendations() {
                     className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
                     onClick={() => handleSort('foreignFlow')}
                   >
-                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('foreignFlow')} Estimasi Asing</div>
+                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('foreignFlow')} Sinyal Arus Dana</div>
                   </th>
                   <th
                     className="p-4 font-semibold text-right cursor-pointer group hover:bg-tv-border transition-colors"
@@ -371,7 +386,7 @@ export default function Recommendations() {
                           item.foreignFlow?.includes('SELL') ? 'bg-tv-red/10 text-tv-red border border-tv-red/50' :
                             'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/50'
                         }`}>
-                        {item.foreignFlow || 'NEUTRAL'}
+                        {FOREIGN_FLOW_LABEL[item.foreignFlow] || item.foreignFlow || 'NETRAL'}
                       </div>
                     </td>
                     <td className="p-4 text-right font-mono text-tv-muted">
