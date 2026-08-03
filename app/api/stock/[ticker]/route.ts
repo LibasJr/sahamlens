@@ -325,7 +325,7 @@ export async function GET(
     const consecutiveSellDays = sellStreak;
 
     analyzersResult.push({
-      label: 'Foreign Flow (Estimasi Asing)',
+      label: 'LensFlow (Estimasi Arus Dana Asing)',
       value: foreignFlow,
       decision: ffDecision,
       confidence: ffConfidence
