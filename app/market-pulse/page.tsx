@@ -200,7 +200,7 @@ export default function MarketPulse() {
               <Activity className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight truncate">Ringkasan Pasar</h2>
+              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight truncate">LensMarket</h2>
               <p className="text-xs text-tv-muted truncate">IDX Algorithmic Suite — diperbarui tiap 5 menit</p>
             </div>
           </div>
@@ -438,8 +438,8 @@ export default function MarketPulse() {
       <PaywallModal
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat Ringkasan Pasar"
-        body="Ringkasan Pasar butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        title="Daftar Dulu untuk Lihat LensMarket"
+        body="LensMarket butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
