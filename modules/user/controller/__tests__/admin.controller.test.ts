@@ -13,7 +13,7 @@ vi.mock('../../../../shared/database/postgres.client', () => ({
   pool: { query: vi.fn() },
 }));
 
-import { handleSetProStatus, handleAdminLoginByKey, handleChangeAdminSecret } from '../admin.controller';
+import { handleSetProStatus, handleGetProStatus, handleAdminLoginByKey, handleChangeAdminSecret } from '../admin.controller';
 import { getUserByEmail, updateUser } from '../../repository/user.repository';
 import { getAdminSecretHash, setAdminSecretHash } from '../../repository/admin-secret.repository';
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from '../../../../shared/constants/cookie-names';
@@ -86,9 +86,13 @@ describe('handleSetProStatus', () => {
 
     const result = await handleSetProStatus(adminCookieStore(true), { email: 'user@test.com', isPro: true });
 
-    expect(updateUser).toHaveBeenCalledWith('user-42', { is_pro: true });
+    // Tanpa months/expiresAt, defaultnya 1 bulan - aktivasi tidak boleh lagi menghasilkan
+    // akses tanpa batas waktu.
+    const arg = vi.mocked(updateUser).mock.calls[0][1] as any;
+    expect(arg.is_pro).toBe(true);
+    expect(new Date(arg.pro_expires_at).getTime()).toBeGreaterThan(Date.now());
     expect(result.status).toBe(200);
-    expect(result.body).toEqual({ email: 'user@test.com', isPro: true });
+    expect(result.body).toMatchObject({ email: 'user@test.com', isPro: true });
   });
 });
 
@@ -239,5 +243,71 @@ describe('handleChangeAdminSecret', () => {
     });
 
     expect(result.status).toBe(200);
+  });
+});
+
+describe('handleSetProStatus - durasi', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('months: 1 menulis is_pro true beserta tanggal berakhir', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', pro_expires_at: null }));
+    vi.mocked(updateUser).mockResolvedValue(undefined);
+
+    await handleSetProStatus(adminCookieStore(true), { email: 'a@b.com', isPro: true, months: 1 });
+
+    const arg = vi.mocked(updateUser).mock.calls[0][1] as any;
+    expect(arg.is_pro).toBe(true);
+    expect(new Date(arg.pro_expires_at).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('isPro false mengosongkan tanggal, bukan menyisakannya', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', pro_expires_at: '2027-01-01T00:00:00.000Z' }));
+    vi.mocked(updateUser).mockResolvedValue(undefined);
+
+    await handleSetProStatus(adminCookieStore(true), { email: 'a@b.com', isPro: false });
+
+    expect(updateUser).toHaveBeenCalledWith('user-42', { is_pro: false, pro_expires_at: null });
+  });
+
+  it('expiresAt eksplisit dipakai apa adanya', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', pro_expires_at: null }));
+    vi.mocked(updateUser).mockResolvedValue(undefined);
+    const target = '2027-06-30T00:00:00.000Z';
+
+    await handleSetProStatus(adminCookieStore(true), { email: 'a@b.com', isPro: true, expiresAt: target });
+
+    const arg = vi.mocked(updateUser).mock.calls[0][1] as any;
+    expect(arg.pro_expires_at).toBe(target);
+  });
+});
+
+describe('handleGetProStatus', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('tanpa cookie admin -> ForbiddenError', async () => {
+    await expect(
+      handleGetProStatus(adminCookieStore(false), { email: 'a@b.com' })
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('mengembalikan status dan tanggal, tanpa field sensitif', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(
+      makeUser({
+        id: 'user-42',
+        email: 'a@b.com',
+        is_pro: true,
+        pro_expires_at: '2027-01-01T00:00:00.000Z',
+        password_hash: 'RAHASIA',
+        verification_code: '123456',
+        reset_code: '654321',
+      })
+    );
+
+    const res = await handleGetProStatus(adminCookieStore(true), { email: 'a@b.com' });
+
+    expect(res.body).toEqual({ email: 'a@b.com', isPro: true, proExpiresAt: '2027-01-01T00:00:00.000Z' });
+    expect(JSON.stringify(res.body)).not.toContain('RAHASIA');
+    expect(JSON.stringify(res.body)).not.toContain('123456');
+    expect(JSON.stringify(res.body)).not.toContain('654321');
   });
 });
