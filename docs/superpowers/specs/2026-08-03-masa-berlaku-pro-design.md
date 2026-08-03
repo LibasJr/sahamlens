@@ -52,7 +52,7 @@ baris lama di database.
 | Paket | 1 bulan, 1 tahun, plus tanggal bebas untuk kasus khusus |
 | Perpanjangan sebelum habis | Ditambahkan dari tanggal berakhir — sisa hari tidak hangus |
 | Yang dilihat pengguna | Tanggal berakhir + sisa hari |
-| Yang dilihat admin | Kolom tanggal berakhir di daftar user, dengan penanda kedaluwarsa |
+| Yang dilihat admin | Status Pro saat ini muncul setelah email dicek, sebelum memilih durasi |
 
 ## Arsitektur
 
@@ -146,8 +146,26 @@ Menggantikan tombol aktivasi boolean yang ada sekarang:
 | **Tanggal bebas** | `is_pro = true`, `pro_expires_at = <tanggal pilihan>` |
 | **Cabut** | `is_pro = false`, `pro_expires_at = null` |
 
-Daftar user mendapat kolom tanggal berakhir, dengan penanda merah untuk yang sudah lewat
-supaya admin bisa melihat sekilas siapa yang perlu ditagih.
+Admin panel **tidak punya daftar user dari database** — satu-satunya tabel di sana
+("Aktif Sekarang") diisi dari presence Redis dan hanya memuat email, role, dan waktu
+aktivitas terakhir. Karena itu masa berlaku ditampilkan di tempat yang memang dibutuhkan:
+di form aktivasi itu sendiri.
+
+Tombol **Cek** di samping kolom email menampilkan keadaan sekarang sebelum admin memilih
+durasi:
+
+```
+budi@example.com  →  Pro sampai 3 September 2026 (31 hari lagi)
+andi@example.com  →  Pro sudah berakhir 12 Juli 2026
+citra@example.com →  Bukan Pro
+```
+
+Dengan begitu admin tahu apakah ia sedang memperpanjang atau mengaktifkan dari nol, dan
+tahu berapa sisa yang akan ditumpuk.
+
+Endpoint pengecekan memakai gerbang admin yang sama dengan `handleSetProStatus()`
+(`isAdminFromRequestCookies`), dan hanya mengembalikan tiga field: `email`, `isPro`,
+`proExpiresAt`. Tidak mengembalikan hash kata sandi, kode verifikasi, atau kolom lain.
 
 ### Migrasi akun lama
 
@@ -203,6 +221,10 @@ Ditulis lebih dulu, masing-masing harus gagal sebelum implementasi ada:
 9. `extendProExpiry()` menghitung dari sekarang saat tanggal sudah lewat.
 10. `extendProExpiry()` menghitung dari sekarang saat `current` null.
 11. `extendProExpiry(current, 12)` menghasilkan tahun berikutnya.
+12. `handleSetProStatus()` dengan `months: 1` menulis `is_pro = true` beserta tanggal.
+13. `handleSetProStatus()` dengan `isPro: false` mengosongkan tanggal, bukan menyisakannya.
+14. Endpoint cek status menolak permintaan tanpa cookie admin.
+15. Endpoint cek status tidak mengembalikan `password_hash` maupun kode verifikasi.
 
 ## Yang sengaja tidak dikerjakan
 
