@@ -76,6 +76,15 @@ export default function Header({
         </form>
       </div>
 
+      {/* Module title/bank - sebelumnya diterima sebagai prop tapi tidak pernah
+          dirender (dead prop, ditemukan saat smoke test brand rename 2026-08-03).
+          Disembunyikan di mobile (layar sempit sudah penuh hamburger+search),
+          konteks halaman di mobile tetap didapat dari Sidebar. */}
+      <div className="hidden md:flex flex-col min-w-0 flex-1 px-2">
+        <span className="text-[10px] font-mono text-tv-blue uppercase tracking-wider font-bold">{moduleBank}</span>
+        <h2 className="text-sm font-heading font-bold text-tv-text truncate">{moduleTitle}</h2>
+      </div>
+
       {/* Right side controls */}
       <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
 
