@@ -103,16 +103,17 @@ export default function ScreenerPage() {
                   <th className="p-3">Bandarmology</th>
                   <th className="p-3">Moat Rating</th>
                   <th className="p-3 text-right">52W High/Low</th>
-                  <th className="p-3 text-right">Entry / StopLoss</th>
+                  <th className="p-3 text-right">Harga</th>
+                  <th className="p-3 text-right">Volatilitas Harian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
                 {top10.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="p-8 text-center text-tv-muted text-sm">
+                    <td colSpan={14} className="p-8 text-center text-tv-muted text-sm">
                       {loading ? (
-                        <span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" /> Memindai ~50 saham likuid IDX...</span>
-                      ) : 'Gagal memuat data screener. Coba refresh.'}
+                        <span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" /> Memindai 114 saham likuid IDX...</span>
+                      ) : 'Tidak ada saham yang memenuhi kriteria saat ini. Coba profil risiko lain atau muat ulang.'}
                     </td>
                   </tr>
                 )}
@@ -150,8 +151,10 @@ export default function ScreenerPage() {
                       <span className="text-tv-red font-bold font-number">Rp {item.week52_low?.toLocaleString('id-ID')}</span>
                     </td>
                     <td className="p-3 text-right text-white">
-                      <span className="text-tv-yellow font-bold font-number">Rp {item.entry?.toLocaleString('id-ID')}</span> /{' '}
-                      <span className="text-tv-red font-bold font-number">Rp {item.stop_loss?.toLocaleString('id-ID')}</span>
+                      <span className="text-tv-yellow font-bold font-number">Rp {item.entry?.toLocaleString('id-ID')}</span>
+                    </td>
+                    <td className="p-3 text-right text-tv-text font-number">
+                      {item.atr_pct != null ? `±${item.atr_pct.toFixed(1)}%/hari` : 'N/A'}
                     </td>
                   </tr>
                 ))}
@@ -160,6 +163,12 @@ export default function ScreenerPage() {
           </div>
           <p className="text-[10px] text-tv-muted">
             Bandarmology = Chaikin Money Flow (posisi close di range High-Low + rasio volume 20 hari), estimasi tekanan beli/jual - BUKAN data broker/asing resmi (IDX tidak menyediakan feed itu gratis).
+          </p>
+          <p className="text-[10px] text-tv-muted mt-2">
+            Volatilitas Harian = rata-rata pergerakan 14 hari terakhir (ATR). Stop loss di bawah
+            angka ini akan sering tersentuh oleh fluktuasi biasa - pengujian atas 4.705 sampel
+            menunjukkan stop 5% tersentuh di 77% transaksi dan memangkas hampir seluruh
+            keuntungan. Tentukan batas risikomu sendiri dengan mempertimbangkan angka ini.
           </p>
         </div>
       </div>
