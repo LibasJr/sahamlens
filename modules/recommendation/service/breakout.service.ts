@@ -1,9 +1,11 @@
+import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
+
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/breakout-radar/route.ts, verbatim.
-const WATCHLIST = [
-  'BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'TLKM.JK', 'ASII.JK',
-  'AMRT.JK', 'ICBP.JK', 'ADRO.JK', 'GOTO.JK', 'GGRM.JK',
-  'EXCL.JK', 'ISAT.JK', 'TBIG.JK', 'ANTM.JK', 'BRIS.JK'
-];
+// 2026-08-03: dulu 15 ticker hardcoded di sini, sementara kategori AI Pick lain memindai
+// 250 saham - akibatnya "Breakout (7)" dan "Menarik (50)" tidak sebanding, dan hanya 15
+// saham itu yang pernah bisa mendapat bonus breakout di peringkat. Sekarang memakai
+// universe bersama, lihat modules/market/constants/ai-pick-universe.ts.
+const WATCHLIST = AI_PICK_UNIVERSE;
 
 export interface BreakoutEntry {
   symbol: string;
