@@ -25,9 +25,19 @@ export async function getSession(): Promise<SessionPayload | null> {
   return payload;
 }
 
+function isProExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return false; // null/undefined = tanpa batas
+  return new Date(expiresAt) <= new Date();
+}
+
+// role === 'pro' SENGAJA tidak lagi memberi akses sendiri: tidak ada satu baris kode pun
+// yang menulis nilai itu (hanya is_pro yang pernah ditulis), sementara membiarkannya
+// berarti menyisakan jalur akses yang kebal terhadap tanggal kedaluwarsa. Admin tetap
+// lolos tanpa syarat lewat cabang pertama.
 export function checkProAccess(session: SessionPayload | null): boolean {
   if (!session) return false;
-  if (session.role === 'admin' || session.role === 'pro' || session.is_pro) return true;
+  if (session.role === 'admin') return true;
+  if (session.is_pro && !isProExpired(session.pro_expires_at)) return true;
   if (session.trial_ends_at && new Date(session.trial_ends_at) > new Date()) return true;
   return false;
 }
@@ -46,7 +56,13 @@ export async function checkProAccessLive(session: SessionPayload | null): Promis
   try {
     const live = await fetchLiveProFields(session.id);
     if (!live) return false;
-    return checkProAccess({ ...session, role: live.role, is_pro: live.is_pro, trial_ends_at: live.trial_ends_at });
+    return checkProAccess({
+      ...session,
+      role: live.role,
+      is_pro: live.is_pro,
+      trial_ends_at: live.trial_ends_at,
+      pro_expires_at: live.pro_expires_at,
+    });
   } catch {
     return false;
   }
