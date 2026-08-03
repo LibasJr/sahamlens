@@ -11,8 +11,10 @@ import {
   analyzeSma,
   analyzeMarketFlow,
   calculateScore,
+  calculateConsensus,
 } from '@/modules/technical';
-import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '@/modules/market';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -58,60 +60,77 @@ export async function analyzeStock(ticker: string) {
     const currentPrice = result.meta.regularMarketPrice;
     const timestamps = result.timestamp || [];
     const quote = result.indicators.quote[0];
+    // AdjClose (disesuaikan dividen, temuan M-01 - lihat yahoo-history.service.ts).
+    const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
 
     const history = [];
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close[i] !== null) {
+        const adj = adjcloseArr?.[i];
         history.push({
           Date: new Date(timestamps[i] * 1000).toISOString(),
           Open: quote.open[i],
           High: quote.high[i],
           Low: quote.low[i],
           Close: quote.close[i],
-          Volume: quote.volume[i]
+          Volume: quote.volume[i],
+          AdjClose: typeof adj === 'number' ? adj : quote.close[i],
         });
       }
     }
 
     if (history.length < 30) return null;
 
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): bar terakhir selama jam
+    // bursa masih volume PARSIAL (baru sebagian sesi terkumpul) - dibandingkan mentah
+    // dengan rata-rata harian PENUH di bawah (avgVolume/volRatio), rasio volume bias ke
+    // bawah sepanjang hari. Array terpisah dipakai KHUSUS untuk analyzer yang membaca
+    // Volume (analyzeVolume/analyzeMarketFlow) - lihat shared/market/trading-session.ts
+    // dan pola yang sama di app/api/stock/[ticker]/route.ts.
+    const lastBar = history[history.length - 1];
+    const isLiveFormingBar = !!lastBar && lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
+    const volumeAdjustedHistory = isLiveFormingBar
+      ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
+      : history;
+
     const analyzersResult = await Promise.all([
       Promise.resolve(analyzeEma(history, currentPrice)),
       Promise.resolve(analyzeRsi(history, currentPrice)),
       Promise.resolve(analyzeMacd(history, currentPrice)),
-      Promise.resolve(analyzeVolume(history, currentPrice)),
+      Promise.resolve(analyzeVolume(volumeAdjustedHistory, currentPrice)),
       Promise.resolve(analyzeTrend(history, currentPrice)),
       Promise.resolve(analyzeVolatility(history, currentPrice)),
       Promise.resolve(analyzeMomentum(history, currentPrice)),
       Promise.resolve(analyzeSupport(history, currentPrice)),
       Promise.resolve(analyzeSma(history, currentPrice)),
-      Promise.resolve(analyzeMarketFlow(history, currentPrice))
+      Promise.resolve(analyzeMarketFlow(volumeAdjustedHistory, currentPrice))
     ]);
 
-    let bullish = 0;
-    let bearish = 0;
-
-    analyzersResult.forEach(res => {
-      if (res.decision === 'BULLISH') bullish++;
-      else if (res.decision === 'BEARISH') bearish++;
-    });
-
-    const totalVotes = bullish + bearish;
-    let consensus = 'NEUTRAL';
-    let confidence = 0;
-
-    if (totalVotes > 0) {
-      const bullPct = (bullish / totalVotes) * 100;
-      if (bullPct >= 70) { consensus = 'STRONG BUY'; confidence = bullPct; }
-      else if (bullPct >= 50) { consensus = 'BUY'; confidence = bullPct; }
-      else if (bullPct <= 30) { consensus = 'STRONG SELL'; confidence = 100 - bullPct; }
-      else if (bullPct <= 50) { consensus = 'SELL'; confidence = 100 - bullPct; }
-      else { consensus = 'HOLD'; confidence = Math.max(bullPct, 100 - bullPct); }
-    }
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-04): blok ini SEBELUMNYA
+    // menghitung ULANG persentase vote bullish/bearish dari 10 analyzer yang SAMA
+    // persis dipakai calculateConsensus() (modules/technical/service/consensus.service.ts)
+    // - tapi dengan ambang batas BERBEDA (70/50/30 di sini vs 80/60 di sana) untuk
+    // KUANTITAS YANG IDENTIK (persentase vote). Akibatnya saham yang sama bisa
+    // dilabeli "STRONG BUY" di halaman Rekomendasi (cukup 70% vote bullish) tapi cuma
+    // "BUY" di halaman Detail Saham (butuh 80%) - bukan karena datanya beda, murni
+    // karena dua salinan logika yang lupa disinkronkan. Dihapus, dipanggil satu fungsi
+    // yang sama supaya kedua halaman selalu sepakat untuk saham yang sama.
+    const consensusVote = calculateConsensus(analyzersResult);
+    const bullish = consensusVote.bull_count;
+    const bearish = consensusVote.bear_count;
+    const consensus = consensusVote.kategori;
+    const confidence = consensus.includes('SELL')
+      ? consensusVote.bear_pct
+      : consensus === 'HOLD'
+        ? Math.max(consensusVote.bull_pct, consensusVote.bear_pct)
+        : consensusVote.bull_pct;
 
     const prevClose = quote.close[quote.close.length - 2];
     const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
-    const volume = quote.volume[quote.volume.length - 1] || 0;
+    // Volume yang SUDAH disesuaikan (lihat volumeAdjustedHistory di atas, temuan M-02) -
+    // dipakai konsisten untuk volRatio/avgVolume di bawah, sama seperti analyzeVolume/
+    // analyzeMarketFlow di atas.
+    const volume = volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume || 0;
 
     const sentimentScore = Math.min(100, Math.max(0, 50 + (changePct * 3) + (bullish - bearish) * 2.5));
     let sentimentLabel = 'Neutral';
@@ -123,18 +142,34 @@ export async function analyzeStock(ticker: string) {
     const avgVolume = history.reduce((sum, h) => sum + h.Volume, 0) / history.length;
     const volRatio = volume / (avgVolume || 1);
 
-    let foreignFlow = 'NEUTRAL';
-    if (changePct > 0.5 && volRatio > 1.2) foreignFlow = 'STRONG NET BUY';
-    else if (changePct > 0) foreignFlow = 'NET BUY';
-    else if (changePct < -0.5 && volRatio > 1.2) foreignFlow = 'STRONG NET SELL';
-    else if (changePct < 0) foreignFlow = 'NET SELL';
-
-    // Proxy akumulasi berkelanjutan - definisi SAMA dipakai Bandar Flow (/api/flow) &
-    // kategori "Akumulasi Asing" di AI Pick, dihitung dari history yang sama (bukan
-    // fetch tambahan).
+    // BUG FIX (audit integritas data 2026-08-03, temuan H-03): `foreignFlow` di sini
+    // SEBELUMNYA murni arah perubahan harga hari ini (`changePct`/`volRatio`) yang
+    // di-relabel "STRONG NET BUY/SELL" - tidak ada komponen arus dana sama sekali,
+    // persis logika biner yang sudah ditinggalkan di foreign-flow-proxy.ts (lihat
+    // komentar di file itu: "sebelumnya netValueBillion cuma biner ... Diganti Chaikin
+    // Money Flow"). Rewrite itu tidak pernah sampai ke sini, sehingga saham yang cuma
+    // naik harga (bukan berdasar posisi close dalam range/volume) diklaim "Asing STRONG
+    // NET BUY" ke calculateScore() dan ke Council AI. Disamakan sekarang dengan
+    // app/api/stock/[ticker]/route.ts: status dari analyzeAccumulationSignal (CMF20 +
+    // CLV 3 hari + volume spike + tren MFM, konfirmasi 4-lapis), bukan arah harga.
     const dailyHistory = history.map(h => ({ date: h.Date.split('T')[0], high: h.High, low: h.Low, close: h.Close, volume: h.Volume }));
     const dailyFlow = computeDailyNetFlow(dailyHistory).slice(-20);
-    const foreignAccumStreak = computeAccumulationStreak(dailyFlow);
+    const buyStreak = computeAccumulationStreak(dailyFlow);
+    let sellStreak = 0;
+    for (let i = dailyFlow.length - 1; i >= 0; i--) {
+      if (dailyFlow[i].netValueBillion < 0) sellStreak++;
+      else break;
+    }
+    const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
+    // Dari history yang sama (bukan fetch tambahan) - dikirim ke scoreBandar() sebagai
+    // dimensi terpisah dari volRatio/foreignFlow, lihat temuan H-07 di audit.
+    const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
+
+    let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
+    if (accumulation.status === 'AKUMULASI') foreignFlow = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
+    else if (accumulation.status === 'DISTRIBUSI') foreignFlow = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
+
+    const foreignAccumStreak = buyStreak;
 
     let sector = 'Umum';
     let marketCap: number | null = null;
@@ -146,7 +181,7 @@ export async function analyzeStock(ticker: string) {
     let revenueGrowth: number | null = null;
     try {
       const quoteSummary = await yahooFinance.quoteSummary(ticker, {
-        modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData']
+        modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData', 'price']
       });
       if (quoteSummary?.assetProfile?.sector) {
         sector = quoteSummary.assetProfile.sector;
@@ -158,6 +193,27 @@ export async function analyzeStock(ticker: string) {
       der = quoteSummary?.financialData?.debtToEquity != null ? quoteSummary.financialData.debtToEquity / 100 : null;
       currentRatio = quoteSummary?.financialData?.currentRatio || null;
       revenueGrowth = quoteSummary?.financialData?.revenueGrowth != null ? quoteSummary.financialData.revenueGrowth * 100 : null;
+
+      // BUG FIX (audit integritas data 2026-08-03, temuan C-07): defaultKeyStatistics
+      // .priceToBook untuk emiten pelapor USD (ADRO, ITMG, dst.) membandingkan harga IDR
+      // dengan book value USD mentah - diverifikasi empiris menghasilkan PBV s/d 14.529x
+      // (seharusnya ~0,89x). Nilai ini langsung mempengaruhi scoreValuasi() di
+      // calculateScore() - saham yang diperdagangkan DI BAWAH nilai buku dilabeli
+      // "premium" dan kehilangan skor valuasi. Dikoreksi dengan pola yang sama seperti
+      // modules/fundamental/service/dcf-valuation.service.ts: hitung ulang PBV dari
+      // bookValue x kurs USD/IDR untuk emiten yang mismatch mata uangnya.
+      const priceCurrency = quoteSummary?.price?.currency || 'IDR';
+      const finCurrencyForPbv = quoteSummary?.financialData?.financialCurrency || 'IDR';
+      const bookValueRaw = quoteSummary?.defaultKeyStatistics?.bookValue;
+      if (priceCurrency === 'IDR' && finCurrencyForPbv === 'USD' && bookValueRaw) {
+        try {
+          const fx = await yahooFinance.quote('USDIDR=X');
+          const rate = fx?.regularMarketPrice || 15500;
+          pbv = currentPrice / (bookValueRaw * rate);
+        } catch {
+          pbv = null; // kurs gagal diambil - lebih baik N/A daripada PBV yang salah satuan
+        }
+      }
     } catch (err) {
       // Ignore errors to not break the whole recommendation scan
     }
@@ -169,24 +225,22 @@ export async function analyzeStock(ticker: string) {
       return null;
     }
 
-    const closes = history.map(h => h.Close);
+    // AdjClose (temuan M-01) - konsisten dengan analyzer tren di atas (analyzeEma/
+    // analyzeTrend/dst. yang menerima `history` yang sama dan sudah membaca AdjClose).
+    const closes = history.map(h => h.AdjClose ?? h.Close);
     const ma20 = sma(closes, 20);
     const ma50 = sma(closes, 50);
     const ma200 = sma(closes, Math.min(200, closes.length));
 
-    const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI'));
-    const rsiVal = rsiResult ? parseFloat(rsiResult.value?.replace('RSI: ', '') || '50') : 50;
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-03): sama seperti app/api/stock/
+    // [ticker]/route.ts - dulu parse string `value`, sekarang pakai `raw` (angka asli).
+    const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI')) as any;
+    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
 
-    const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD'));
-    let macdLineVal = 0, macdSigVal = 0, macdHistVal = 0;
-    if (macdResult?.value) {
-      const macdMatch = macdResult.value.match(/MACD: ([\-\d.]+), Sig: ([\-\d.]+), Hist: ([\-\d.]+)/);
-      if (macdMatch) {
-        macdLineVal = parseFloat(macdMatch[1]);
-        macdSigVal = parseFloat(macdMatch[2]);
-        macdHistVal = parseFloat(macdMatch[3]);
-      }
-    }
+    const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD')) as any;
+    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
+    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
+    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
 
     const volAvg20 = closes.length >= 20
       ? history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20
@@ -209,9 +263,10 @@ export async function analyzeStock(ticker: string) {
       { per, pbv, roe, der, currentRatio, revenueGrowth },
       {
         foreignFlow,
-        consecutiveBuyDays: foreignFlow.includes('BUY') ? foreignAccumStreak : 0,
-        consecutiveSellDays: 0,
+        consecutiveBuyDays: buyStreak,
+        consecutiveSellDays: sellStreak,
         volRatio,
+        cmf20: bandarmology.cmf20,
       },
     );
 

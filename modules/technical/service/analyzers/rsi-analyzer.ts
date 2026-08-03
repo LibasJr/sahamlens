@@ -1,15 +1,27 @@
+import { calculateRsi } from '../rsi';
+
+// BUG FIX (audit integritas data 2026-08-03, temuan H-01): sebelumnya menghitung RSI
+// dengan rata-rata aritmatik sederhana (bias ke atas, lihat rsi.ts untuk detail &
+// bukti empiris) - diganti Wilder smoothing baku, satu implementasi dipakai ulang oleh
+// seluruh aplikasi (market-summary.service.ts, breakout.service.ts, lib/miniCouncil.ts).
+// BUG FIX (audit integritas data 2026-08-03, temuan M-03): pemanggil (app/api/stock/
+// [ticker]/route.ts, recommendation.service.ts) SEBELUMNYA mengambil kembali nilai RSI
+// numerik dengan mem-parse string `value` yang diformat untuk tampilan manusia
+// (`rsiResult.value.replace('RSI: ', '')` lalu `parseFloat`). Kalau format string
+// berubah (mis. analyzer mengembalikan 'N/A') atau ada perubahan spasi/pemisah ribuan,
+// parseFloat mengembalikan NaN secara DIAM-DIAM dan mengalir ke scoring engine tanpa
+// error - satu perubahan kosmetik pada `value` bisa mematikan scoring tanpa terlihat.
+// `raw.rsi` (angka asli, bukan string) sekarang disediakan di samping `value` supaya
+// pemanggil tidak perlu parsing string sama sekali.
 export function analyze(history: any[], currentPrice: number) {
-  if (history.length < 15) return { label: 'RSI 14', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
-  
-  let gains = 0, losses = 0;
-  for (let i = history.length - 14; i < history.length; i++) {
-    const diff = history[i].Close - history[i - 1].Close;
-    if (diff > 0) gains += diff;
-    else losses -= diff;
-  }
-  
-  let rs = gains / losses;
-  let rsi = losses === 0 ? 100 : 100 - (100 / (1 + rs));
+  if (history.length < 15) return { label: 'RSI 14', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { rsi: null as number | null } };
+
+  // AdjClose (disesuaikan dividen, temuan M-01) kalau tersedia - hari ex-dividend tidak
+  // boleh dihitung sebagai "loss" murni di RSI kalau penurunannya semata pembagian
+  // dividen, bukan tekanan jual pasar.
+  const closes = history.map((h) => h.AdjClose ?? h.Close);
+  const rsi = calculateRsi(closes, 14);
+  if (rsi === null) return { label: 'RSI 14', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { rsi: null as number | null } };
 
   let decision = 'NEUTRAL';
   let confidence = 50;
@@ -35,6 +47,7 @@ export function analyze(history: any[], currentPrice: number) {
     label: 'RSI 14',
     value: `RSI: ${rsi.toFixed(2)}`,
     decision,
-    confidence
+    confidence,
+    raw: { rsi },
   };
 }

@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
-import { getModel } from '@/lib/gemini';
+import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 
 // BUG FIX (2026-08-01): dulu prompt ini merangkai "kondisi akun & pasar" (cash, jumlah
 // posisi) - Beranda sekarang sengaja tidak lagi menampilkan portofolio (SahamLens
@@ -40,13 +40,18 @@ export async function POST(req: NextRequest) {
 
   const input = (await req.json()) as BriefingInput;
 
-  const model = getModel();
-  if (!model) {
+  // BUG FIX (audit integritas data 2026-08-03, temuan M-05): sebelumnya lewat
+  // getModel() (lib/gemini.ts, sudah dihapus - dead code sejak migrasi ini) - HANYA
+  // memilih SATU model Gemini acak, tanpa retry
+  // lintas model/provider. Kalau model yang terpilih gagal (kuota habis/nama model
+  // sudah tidak berlaku), endpoint langsung jatuh ke fallback meski model/provider lain
+  // masih tersedia. generateAI() (lib/aiProviders.ts) sudah mencoba SEMUA kombinasi
+  // Gemini+Groq+OpenRouter yang terkonfigurasi sebelum menyerah - dipakai di sini juga.
+  if (!hasAnyAIProvider()) {
     return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
   }
 
-  try {
-    const prompt = `Kamu adalah asisten AI investasi SahamLens. Tulis SATU paragraf pendek (maksimal 3 kalimat, Bahasa Indonesia santai tapi profesional) yang merangkum kondisi PASAR hari ini berdasarkan data berikut. Jangan mengulang angka mentah persis seperti daftar, rangkai jadi kalimat natural. Jangan beri saran beli/jual eksplisit di luar data yang ada. Jangan menyebut portofolio/akun pengguna - aplikasi ini alat analisis/screener, bukan platform sekuritas.
+  const prompt = `Kamu adalah asisten AI investasi SahamLens. Tulis SATU paragraf pendek (maksimal 3 kalimat, Bahasa Indonesia santai tapi profesional) yang merangkum kondisi PASAR hari ini berdasarkan data berikut. Jangan mengulang angka mentah persis seperti daftar, rangkai jadi kalimat natural. Jangan beri saran beli/jual eksplisit di luar data yang ada. Jangan menyebut portofolio/akun pengguna - aplikasi ini alat analisis/screener, bukan platform sekuritas.
 
 Data:
 - Indeks pasar: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'tidak tersedia'}
@@ -55,14 +60,9 @@ Data:
 
 Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;
 
-    const result = await model.generateContent(prompt, { timeout: 8000 });
-    const text = result.response.text().trim();
-
-    if (!text) {
-      return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
-    }
-    return NextResponse.json({ briefing: text, source: 'ai' });
-  } catch {
+  const text = await generateAI({ prompt, timeoutMs: 8000 });
+  if (!text) {
     return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
   }
+  return NextResponse.json({ briefing: text.trim(), source: 'ai' });
 }

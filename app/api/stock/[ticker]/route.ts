@@ -24,6 +24,8 @@ import { FREE_LIMITS } from '@/lib/limits';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@/shared/usage/daily-analisa-quota';
+import { classifyFreshness } from '@/shared/http/freshness';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -129,7 +131,7 @@ export async function GET(
 
     const quotePromise = Promise.race([
       yahooFinance.quoteSummary(ticker, {
-        modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail']
+        modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('quoteSummary timeout')), 8000))
     ]).catch((e: any) => {
@@ -144,7 +146,24 @@ export async function GET(
       const stale = await cacheGet<any>(staleFallbackKey);
       if (stale) {
         console.warn(`yfinance fetch failed, returning stale fallback cache for ${ticker}`);
-        return NextResponse.json(await withQuotaInfo(stale, ticker, session?.id, hasPro, isInternal));
+        // BUG FIX (audit integritas data 2026-08-03, temuan M-06): payload basi ini
+        // (bisa berumur s/d 24 jam, lihat TTL.STALE_FALLBACK) SEBELUMNYA dikembalikan
+        // dengan bentuk IDENTIK dengan data segar - tidak ada penanda apa pun yang
+        // membedakan "harga hari ini" dari "harga terakhir yang berhasil diambil,
+        // mungkin kemarin/minggu lalu". Ditambahkan `_meta` supaya UI/pemanggil bisa
+        // menampilkan peringatan kesegaran, bukan diam-diam menyajikan data lama
+        // seolah terkini.
+        const staleComputedAt = stale?._meta?.computedAt;
+        const stalePayload = {
+          ...stale,
+          _meta: {
+            ...(stale?._meta || {}),
+            source: 'stale-cache',
+            staleReason: 'Yahoo Finance fetch gagal - menyajikan data terakhir yang berhasil diambil',
+            ageSeconds: staleComputedAt ? Math.round((Date.now() - new Date(staleComputedAt).getTime()) / 1000) : null,
+          },
+        };
+        return NextResponse.json(await withQuotaInfo(stalePayload, ticker, session?.id, hasPro, isInternal));
       }
       return NextResponse.json({ error: 'Failed to fetch Yahoo data' }, { status: 500 });
     }
@@ -161,26 +180,59 @@ export async function GET(
     if (quoteSummary) {
       per = quoteSummary.summaryDetail?.trailingPE || quoteSummary.summaryDetail?.forwardPE || null;
       pbv = quoteSummary.defaultKeyStatistics?.priceToBook || null;
-      roe = quoteSummary.financialData?.returnOnEquity || null;
-      der = quoteSummary.financialData?.debtToEquity || null;
+      // BUG FIX (audit integritas data 2026-08-03, temuan C-05): Yahoo mengembalikan
+      // returnOnEquity/revenueGrowth sebagai FRAKSI (0.218 = 21.8%) dan debtToEquity
+      // sebagai PERSEN/rasio x100 (59.98 = 0.60x) - field ini diteruskan MENTAH ke
+      // calculateScore(), padahal kontrak FundamentalInput (scoring.service.ts) eksplisit
+      // menyatakan "roe: already in % (e.g. 18.2)" dan "der: ratio (e.g. 0.4)". Akibatnya
+      // ROE 21.8% terbaca sebagai 0.22% ("lemah") dan DER 0.60x terbaca sebagai 59.98x
+      // ("berisiko tinggi") - kebalikan dari kenyataan. Modul lain di aplikasi ini
+      // (screener.service.ts, recommendation.service.ts, roe-analyzer.ts, der-analyzer.ts)
+      // sudah melakukan konversi ini dengan benar - disamakan di sini.
+      roe = quoteSummary.financialData?.returnOnEquity != null ? quoteSummary.financialData.returnOnEquity * 100 : null;
+      der = quoteSummary.financialData?.debtToEquity != null ? quoteSummary.financialData.debtToEquity / 100 : null;
       currentRatio = quoteSummary.financialData?.currentRatio || null;
-      revenueGrowth = quoteSummary.financialData?.revenueGrowth || null;
+      revenueGrowth = quoteSummary.financialData?.revenueGrowth != null ? quoteSummary.financialData.revenueGrowth * 100 : null;
+
+      // BUG FIX (audit integritas data 2026-08-03, temuan C-07): priceToBook mentah untuk
+      // emiten pelapor USD membandingkan harga IDR dengan book value USD - koreksi sama
+      // seperti recommendation.service.ts/dcf-valuation.service.ts.
+      const priceCurrency = quoteSummary.price?.currency || 'IDR';
+      const finCurrencyForPbv = quoteSummary.financialData?.financialCurrency || 'IDR';
+      const bookValueRaw = quoteSummary.defaultKeyStatistics?.bookValue;
+      if (priceCurrency === 'IDR' && finCurrencyForPbv === 'USD' && bookValueRaw) {
+        try {
+          const fx = await yahooFinance.quote('USDIDR=X');
+          const rate = fx?.regularMarketPrice || 15500;
+          pbv = currentPrice / (bookValueRaw * rate);
+        } catch {
+          pbv = null;
+        }
+      }
     }
     
     const timestamps = result.timestamp || [];
     const quote = result.indicators.quote[0];
-    
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-01): AdjClose (disesuaikan
+    // dividen, langsung dari Yahoo `indicators.adjclose`) - dipakai analyzer tren
+    // (EMA/MACD/RSI/MA/Momentum/Market Flow) supaya hari ex-dividend tidak terbaca
+    // sebagai sinyal bearish murni dari pasar. `Close` TETAP dipakai apa adanya untuk
+    // stock.history (candlestick yang ditampilkan ke pengguna) dan support/resistance.
+    const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
+
     // Convert to history array for analyzers
     const history = [];
     for (let i = 0; i < timestamps.length; i++) {
       if (quote.close[i] !== null) {
+        const adj = adjcloseArr?.[i];
         history.push({
           Date: new Date(timestamps[i] * 1000).toISOString(),
           Open: quote.open[i],
           High: quote.high[i],
           Low: quote.low[i],
           Close: quote.close[i],
-          Volume: quote.volume[i]
+          Volume: quote.volume[i],
+          AdjClose: typeof adj === 'number' ? adj : quote.close[i],
         });
       }
     }
@@ -192,18 +244,35 @@ export async function GET(
     const ANALYZER_HISTORY_DAYS = 200;
     const analyzerHistory = history.slice(-ANALYZER_HISTORY_DAYS);
 
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): kalau bar terakhir adalah
+    // bar HARI INI dan bursa sedang buka SEKARANG, volume-nya masih PARSIAL (baru
+    // sebagian sesi terkumpul) - dibandingkan mentah dengan rata-rata 20 hari PENUH,
+    // rasio volume bias ke bawah sepanjang jam bursa (lihat shared/market/trading-session.ts).
+    // Array TERPISAH (bukan menimpa `analyzerHistory` asli) dibuat khusus untuk analyzer
+    // yang memakai Volume (analyzeVolume, analyzeMarketFlow) - analyzer lain (RSI/MACD/
+    // EMA/dst, yang cuma pakai Close/High/Low) tetap memakai `analyzerHistory` asli tanpa
+    // perubahan. `modules/technical/service/analyzers/*.ts` SENGAJA tidak disentuh -
+    // fungsi itu dipakai ulang oleh backtest/precompute atas bar HISTORIS yang sudah
+    // closed, bukan cuma live, jadi estimasi ini HARUS diterapkan di titik pemanggilan
+    // (di sini), bukan di dalam analyzer bersama.
+    const lastBar = analyzerHistory[analyzerHistory.length - 1];
+    const isLiveFormingBar = !!lastBar && lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
+    const volumeAdjustedHistory = isLiveFormingBar
+      ? [...analyzerHistory.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
+      : analyzerHistory;
+
     // Run all 10 analyzers
     const analyzersResult = await Promise.all([
       Promise.resolve(analyzeEma(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeRsi(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeMacd(analyzerHistory, currentPrice)),
-      Promise.resolve(analyzeVolume(analyzerHistory, currentPrice)),
+      Promise.resolve(analyzeVolume(volumeAdjustedHistory, currentPrice)),
       Promise.resolve(analyzeTrend(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeVolatility(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeMomentum(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeSupport(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeSma(analyzerHistory, currentPrice)),
-      Promise.resolve(analyzeMarketFlow(analyzerHistory, currentPrice))
+      Promise.resolve(analyzeMarketFlow(volumeAdjustedHistory, currentPrice))
     ]);
 
     // === FOREIGN FLOW (ESTIMASI): proxy dari harga+volume Yahoo Finance yang REAL ===
@@ -277,7 +346,12 @@ export async function GET(
 
     let bullish = 0;
     let bearish = 0;
-    let bestPerformer = analyzersResult[0];
+    // Anotasi `any` - analyzersResult sekarang berisi analyzer dengan bentuk `raw` yang
+    // beda-beda per indikator (ema20/ema50 vs rsi vs macdLine/Signal/Hist vs atr, lihat
+    // temuan M-03) - TS akan mencoba menyatukan tipe literal semuanya kalau tidak
+    // dilonggarkan di sini, padahal field yang benar-benar dipakai (decision/confidence)
+    // sama di semua analyzer.
+    let bestPerformer: any = analyzersResult[0];
 
     analyzersResult.forEach(res => {
       if (res.decision === 'BULLISH') bullish++;
@@ -295,7 +369,10 @@ export async function GET(
     const consensus = consensusData.konsensus;
 
     // === SCORING ENGINE: Hitung skor komposit 0-100 ===
-    const closes = analyzerHistory.map(h => h.Close);
+    // AdjClose (temuan M-01) - konsisten dengan MA Trend analyzer di atas, supaya
+    // komponen MA Trend scoring engine dan vote analyzer tidak dihitung dari basis
+    // harga yang berbeda untuk saham yang sama.
+    const closes = analyzerHistory.map(h => h.AdjClose ?? h.Close);
     const sum20 = closes.slice(-20).reduce((a, b) => a + b, 0);
     const sum50 = closes.slice(-50).reduce((a, b) => a + b, 0);
     const sum200 = closes.slice(-Math.min(200, closes.length)).reduce((a, b) => a + b, 0);
@@ -303,23 +380,24 @@ export async function GET(
     const ma50 = sum50 / Math.min(50, closes.length);
     const ma200v = sum200 / Math.min(200, closes.length);
 
-    // Extract RSI value from analyzer output
-    const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI'));
-    const rsiVal = rsiResult ? parseFloat(rsiResult.value?.replace('RSI: ', '') || '50') : 50;
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-03): sebelumnya nilai RSI/MACD
+    // diambil kembali dengan mem-parse string `value` yang diformat untuk tampilan
+    // (regex/replace) - kalau format berubah atau analyzer mengembalikan 'N/A', kegagalan
+    // parse DIAM-DIAM menghasilkan NaN/0 yang mengalir ke scoring tanpa error terlihat.
+    // Sekarang pakai `raw` (angka asli) yang disediakan analyzer, tanpa parsing string.
+    const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI')) as any;
+    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
 
-    // Extract MACD values from analyzer output
-    const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD'));
-    let macdLineVal = 0, macdSigVal = 0, macdHistVal = 0;
-    if (macdResult?.value) {
-      const macdMatch = macdResult.value.match(/MACD: ([\-\d.]+), Sig: ([\-\d.]+), Hist: ([\-\d.]+)/);
-      if (macdMatch) {
-        macdLineVal = parseFloat(macdMatch[1]);
-        macdSigVal = parseFloat(macdMatch[2]);
-        macdHistVal = parseFloat(macdMatch[3]);
-      }
-    }
+    const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD')) as any;
+    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
+    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
+    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
 
-    const volToday = analyzerHistory[analyzerHistory.length - 1]?.Volume || 0;
+    // volToday dipakai untuk scoring engine di bawah - pakai bar yang SUDAH disesuaikan
+    // (volumeAdjustedHistory, dibangun di atas dekat analyzerHistory) kalau bar terakhir
+    // adalah bar hari ini yang masih berjalan, sama seperti yang dipakai analyzeVolume/
+    // analyzeMarketFlow, supaya scoring engine & vote analyzer konsisten satu sama lain.
+    const volToday = isLiveFormingBar ? volumeAdjustedHistory[volumeAdjustedHistory.length - 1].Volume : (lastBar?.Volume || 0);
     const volAvg20v = analyzerHistory.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, analyzerHistory.length);
 
     const scoringResult = calculateScore(
@@ -337,8 +415,19 @@ export async function GET(
         volAvg20: volAvg20v
       },
       { per, pbv, roe, der, currentRatio, revenueGrowth },
-      { foreignFlow: foreignFlowStatus, consecutiveBuyDays, consecutiveSellDays, volRatio: volAvg20v > 0 ? volToday / volAvg20v : 1 }
+      {
+        foreignFlow: foreignFlowStatus, consecutiveBuyDays, consecutiveSellDays,
+        volRatio: volAvg20v > 0 ? volToday / volAvg20v : 1,
+        // cmf20 sudah dihitung di atas untuk kartu "Bandarmology (CMF)" - dikirim ulang
+        // ke scoreBandar() supaya "Bandar" mengukur dimensi BERBEDA dari "Asing"/"Volume"
+        // (lihat temuan H-07 di audit), bukan menyekor volRatio/foreignFlow dua kali.
+        cmf20: bandarmology.cmf20,
+      }
     );
+
+    // Klasifikasi kesegaran (temuan M-07) dari timestamp bar SESUNGGUHNYA (Yahoo
+    // `meta.regularMarketTime`), bukan `Date.now()` di server - lihat shared/http/freshness.ts.
+    const freshness = classifyFreshness(result.meta?.regularMarketTime);
 
     const resultPayload = {
       ticker,
@@ -351,7 +440,7 @@ export async function GET(
       stock: {
         symbol: ticker,
         current_price: currentPrice,
-        change_pct: quote.close[quote.close.length - 1] && quote.close[quote.close.length - 2] ? 
+        change_pct: quote.close[quote.close.length - 1] && quote.close[quote.close.length - 2] ?
           parseFloat((((quote.close[quote.close.length - 1] - quote.close[quote.close.length - 2]) / quote.close[quote.close.length - 2]) * 100).toFixed(2)) : 0,
         volume: quote.volume[quote.volume.length - 1] || 0,
         history: history.map(h => ({
@@ -363,7 +452,17 @@ export async function GET(
           volume: h.Volume
         }))
       },
-      technical: {}
+      technical: {},
+      // BUG FIX (audit integritas data 2026-08-03, temuan M-06/M-07): metadata kesegaran
+      // data - dipakai blok stale-fallback di atas untuk menghitung umur data, dan bisa
+      // ditampilkan UI ("Data per 15:30 WIB - EOD") alih-alih diam-diam menganggap semua
+      // response ini "live".
+      _meta: {
+        source: 'live',
+        computedAt: new Date().toISOString(),
+        dataTimestamp: freshness.dataTimestamp,
+        freshness: freshness.freshness,
+      },
     };
 
     await cacheSet(cacheKey, resultPayload, CACHE_TTL_SEC);

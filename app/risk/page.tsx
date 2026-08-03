@@ -1,9 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { Input, Button } from '@/components/ui';
+
+// AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
+// SEBELUMNYA angka TETAP ("-5.75%", "-12.5%", "-4.2%", "-6.8%") - halaman sudah jujur
+// mengakui ini lewat disclaimer ("belum dihitung dari portofolio Anda"), tapi angkanya
+// sendiri tetap karangan, tidak pernah berubah walau alokasi diedit. Sekarang memanggil
+// /api/risk-analysis yang menghitung BETA HISTORIS riil (regresi return harian 1 tahun,
+// data Yahoo Finance) tiap saham terhadap IHSG dan kurs USD/IDR, dibobot alokasi
+// portofolio pengguna. BI Rate TETAP tidak ditampilkan sebagai angka - aplikasi ini
+// tidak punya data historis BI Rate, jadi endpoint mengembalikan status "tidak
+// tersedia" dan itu yang ditampilkan, bukan angka tebakan.
+interface RiskAnalysisResult {
+  portfolioBetaIhsg: number | null;
+  portfolioBetaUsdIdr: number | null;
+  scenarios: {
+    ihsgDrop5Pct: number | null;
+    ihsgDrop10Pct: number | null;
+    usdIdrWeaken1Pct: number | null;
+  };
+  biRateAvailable: boolean;
+}
 
 export default function RiskPage() {
   const [ticker, setTicker] = useState('BBCA');
@@ -16,6 +36,39 @@ export default function RiskPage() {
   ]);
   const [newTicker, setNewTicker] = useState('');
   const [newWeight, setNewWeight] = useState(10);
+  const [analysis, setAnalysis] = useState<RiskAnalysisResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const runAnalysis = useCallback(async () => {
+    if (portfolio.length === 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/risk-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portfolio }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json?.error || 'Gagal menghitung analisis risiko');
+        setAnalysis(null);
+        return;
+      }
+      setAnalysis(json);
+    } catch (e) {
+      setError('Gagal menghubungi server analisis risiko');
+      setAnalysis(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [portfolio]);
+
+  useEffect(() => {
+    runAnalysis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addPosition = () => {
     if (newTicker.trim()) {
@@ -28,16 +81,17 @@ export default function RiskPage() {
     setPortfolio(portfolio.filter((_, i) => i !== idx));
   };
 
+  const fmtPct = (v: number | null) => (v == null ? 'N/A' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
+
   return (
     <TickerAnalysisShell
       ticker={ticker}
       onTickerChange={setTicker}
-      moduleTitle="Council AI Risk Matrix & Stress Testing"
-      moduleBank="COUNCIL AI"
+      moduleTitle="Risk Matrix & Stress Testing"
       icon={<ShieldAlert className="w-6 h-6" />}
       accent="red"
       title="Risk Matrix & Stress Testing Portofolio"
-      subtitle="Estimasi ilustratif skenario makro Indonesia (belum dihitung dari komposisi portofolio Anda)"
+      subtitle="Beta historis 1 tahun (regresi return harian terhadap IHSG & USD/IDR, data Yahoo Finance) - dihitung dari komposisi portofolio Anda"
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
@@ -85,49 +139,68 @@ export default function RiskPage() {
               <Plus className="w-4 h-4" /> Tambah
             </Button>
           </div>
+
+          <Button size="sm" variant="secondary" onClick={runAnalysis} disabled={loading} className="w-full">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Menghitung...' : 'Hitung Ulang Beta Portofolio'}
+          </Button>
         </div>
 
         {/* Stress Testing Results */}
         <div className="lg:col-span-2 bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <Activity className="w-5 h-5 text-tv-yellow" />
-            Hasil Stress Test IHSG Crash & Makro Indonesia
+            Hasil Stress Test (Beta Historis Portofolio)
           </h3>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {error && (
+            <div className="p-3 rounded-md bg-tv-red/10 border border-tv-red/30 text-xs text-tv-red">{error}</div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Drops -5%</div>
-              <div className="text-lg font-bold text-tv-red font-number">-5.75%</div>
-              <div className="text-[10px] text-tv-muted mt-1">Estimasi generik, bukan portofolio Anda</div>
+              <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop5Pct ?? null)}</div>
+              <div className="text-[10px] text-tv-muted mt-1">Beta portofolio x -5%</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Crash -10%</div>
-              <div className="text-lg font-bold text-tv-red font-number">-12.5%</div>
-              <div className="text-[10px] text-tv-muted mt-1">Skenario Panik Pasar</div>
+              <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop10Pct ?? null)}</div>
+              <div className="text-[10px] text-tv-muted mt-1">Beta portofolio x -10%</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted font-semibold tracking-wide">BI Rate Hike +50bps</div>
-              <div className="text-lg font-bold text-tv-yellow font-number">-4.2%</div>
-              <div className="text-[10px] text-tv-muted mt-1">Ketatnya Likuiditas Perbankan</div>
+              <div className="text-[10px] text-tv-muted font-semibold tracking-wide">USD/IDR Melemah 1%</div>
+              <div className="text-lg font-bold text-tv-yellow font-number">{fmtPct(analysis?.scenarios.usdIdrWeaken1Pct ?? null)}</div>
+              <div className="text-[10px] text-tv-muted mt-1">Beta portofolio vs USDIDR=X</div>
             </div>
-            <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted font-semibold tracking-wide">USD/IDR Rp 16.500</div>
-              <div className="text-lg font-bold text-tv-yellow font-number">-6.8%</div>
-              <div className="text-[10px] text-tv-muted mt-1">Capital Outflow Asing</div>
+          </div>
+
+          <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border text-xs text-tv-muted">
+            <span className="font-bold text-tv-text">BI Rate Hike:</span> Data tidak tersedia - SahamLens belum
+            memiliki sumber data historis BI Rate untuk menghitung sensitivitas riil (lihat{' '}
+            <code className="text-tv-text">modules/macro/</code>, hanya kurs USD/IDR yang tersinkronkan). Angka
+            sensitivitas BI Rate tidak ditampilkan supaya tidak mengarang.
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
+              <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs IHSG</div>
+              <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaIhsg ?? 'N/A'}</div>
+            </div>
+            <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
+              <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs USD/IDR</div>
+              <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>
             </div>
           </div>
 
           <div className="p-4 rounded-lg bg-tv-bg border border-tv-border space-y-2 text-xs">
             <div className="text-tv-yellow font-bold uppercase flex items-center gap-1.5 tracking-wide">
               <AlertTriangle className="w-4 h-4 text-tv-yellow" />
-              Rekomendasi Hedging & Rebalancing Council AI
+              Metodologi
             </div>
-            <p className="text-tv-text leading-relaxed">
-              Alokasikan 15-20% ke SBN / Emas untuk meredam volatilitas portofolio.
-            </p>
-            <p className="text-tv-muted italic">
-              Catatan: angka di atas adalah estimasi generik pasar IHSG, belum dihitung
-              berdasarkan komposisi aset & bobot portofolio Anda di panel kiri.
+            <p className="text-tv-muted leading-relaxed">
+              Beta dihitung dari regresi return harian 1 tahun tiap saham terhadap IHSG/USD=X (data historis Yahoo
+              Finance), dibobot alokasi portofolio Anda. Ini estimasi statistik dari histori masa lalu, bukan
+              jaminan pergerakan yang akan terjadi.
             </p>
           </div>
         </div>

@@ -21,12 +21,26 @@ export function analyze(history: any[], currentPrice: number) {
   } else if (distToResistance < 2 && distToSupport > 5) {
     decision = 'BEARISH'; // Near resistance, far from support
     confidence = Math.min(90, 95 - distToResistance * 10);
-  } else if (distToSupport < distToResistance) {
-    decision = 'BULLISH';
-    confidence = 60;
   } else {
-    decision = 'BEARISH';
-    confidence = 60;
+    // BUG FIX (audit integritas data 2026-08-03, temuan H-09): dua cabang terakhir
+    // SEBELUMNYA hanya `distToSupport < distToResistance ? BULLISH : BEARISH` - TIDAK
+    // ADA kondisi NEUTRAL sama sekali di luar dua cabang di atas, jadi kurang lebih 50%
+    // saham (yang harganya berada di paruh atas range 20 hari) otomatis divote BEARISH
+    // hanya karena posisinya, bukan karena ada sinyal berarti. Ditambah pita netral di
+    // tengah range (40%-60% dari support ke resistance) supaya posisi ambigu jujur
+    // dilaporkan NEUTRAL, bukan dipaksa memilih salah satu arah.
+    const range = distToSupport + distToResistance;
+    const posFromSupport = range > 0 ? distToSupport / range : 0.5; // 0 = di support, 1 = di resistance
+    if (posFromSupport < 0.4) {
+      decision = 'BULLISH';
+      confidence = 60;
+    } else if (posFromSupport > 0.6) {
+      decision = 'BEARISH';
+      confidence = 60;
+    } else {
+      decision = 'NEUTRAL';
+      confidence = 50;
+    }
   }
 
   return {

@@ -1,4 +1,6 @@
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal } from './foreign-flow-proxy';
+import { calculateRsi } from '@/modules/technical';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-summary/route.ts, verbatim.
 // Rute publik (tanpa login) - ringkasan pasar untuk landing page & halaman /market/[category].
@@ -51,19 +53,12 @@ function sma(values: number[], period: number): number | null {
   return slice.reduce((a, b) => a + b, 0) / period;
 }
 
-function rsi(closes: number[], period = 14): number | null {
-  if (closes.length < period + 1) return null;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gains += diff; else losses -= diff;
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - 100 / (1 + rs);
-}
+// BUG FIX (audit integritas data 2026-08-03, temuan H-01): fungsi RSI lokal di sini
+// (rata-rata aritmatik sederhana) diganti calculateRsi() bersama (Wilder smoothing) dari
+// modules/technical - lihat modules/technical/service/rsi.ts untuk bukti empiris deviasi
+// dan alasan penyatuannya (saham yang sama sebelumnya bisa punya RSI berbeda di halaman
+// ini vs Detail Saham vs AI Pick).
+const rsi = calculateRsi;
 
 async function fetchQuote(symbol: string) {
   try {
@@ -106,7 +101,14 @@ async function fetchQuote(symbol: string) {
     const prevClose = closes[closes.length - 2] || closes[0];
     const currentPrice = meta.regularMarketPrice || closes[closes.length - 1];
     const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
-    const volume = meta.regularMarketVolume || volumes[volumes.length - 1] || 0;
+    const rawVolume = meta.regularMarketVolume || volumes[volumes.length - 1] || 0;
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): volume hari ini selama
+    // jam bursa masih PARSIAL - dibandingkan mentah dengan avgVolume20 (rata-rata 20
+    // hari PENUH) di bawah, volRatio (dipakai "Top Volume"/technicalScore di halaman
+    // utama) bias ke bawah sepanjang jam bursa.
+    const volume = (dates[dates.length - 1] === todayDateKeyWIB() && isIdxMarketHoursNow())
+      ? estimateFullDayVolume(rawVolume)
+      : rawVolume;
 
     const weekAgoClose = closes.length >= 6 ? closes[closes.length - 6] : closes[0];
     const weeklyChangePct = weekAgoClose ? ((currentPrice - weekAgoClose) / weekAgoClose) * 100 : 0;

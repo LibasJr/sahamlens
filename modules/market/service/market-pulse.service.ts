@@ -1,10 +1,19 @@
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-pulse/route.ts, verbatim.
 // IDX Indices
+//
+// BUG FIX (audit integritas data 2026-08-03, temuan L-03): field `symbol` untuk LQ45/
+// IDX30/Kompas100 di sini TIDAK dipakai untuk fetch sungguhan (getMarketPulse() di bawah
+// meng-override lewat tryFetchQuote() dengan daftar simbol sendiri per nama) - tapi
+// sebelumnya field ini salah/menyesatkan: Kompas100 dideklarasikan dengan simbol '^JKSE'
+// (simbol IHSG) dan fullName "(proxy IHSG)", padahal sejak C-01 tidak ada lagi proxy
+// dari IHSG (lihat komentar tryFetchQuote di bawah - kalau Kompas100.JK gagal, quote
+// tetap null, TIDAK di-derive dari IHSG). Disamakan dengan simbol yang benar-benar
+// dipakai supaya field ini tidak menyesatkan pembaca kode.
 const IDX_INDICES = [
   { symbol: '^JKSE', name: 'IHSG', fullName: 'Jakarta Composite Index' },
   { symbol: '^JKLQ45', name: 'LQ45', fullName: 'LQ45 Index' },
-  { symbol: '^JKIDX30', name: 'IDX30', fullName: 'IDX30 Index' },
-  { symbol: '^JKSE', name: 'Kompas100', fullName: 'Kompas 100 (proxy IHSG)' },
+  { symbol: 'IDX30.JK', name: 'IDX30', fullName: 'IDX30 Index' },
+  { symbol: 'Kompas100.JK', name: 'Kompas100', fullName: 'Kompas 100 Index' },
 ];
 
 // IDX Sector representatives (top stocks per sector for heatmap)
@@ -102,6 +111,20 @@ async function fetchQuoteSimple(symbol: string) {
   }
 }
 
+// Coba tiap simbol berurutan, pakai quote PERTAMA yang benar-benar punya harga (> 0).
+// Sebelumnya ini ditulis sebagai `await fetchYahooQuote(a) || await fetchYahooQuote(b)` -
+// operator || gagal karena Yahoo sering mengembalikan OBJEK truthy dengan price: 0 untuk
+// simbol yang ada tapi tanpa data intraday (mis. 'LQ45.JK'), jadi fallback ke simbol yang
+// benar-benar berfungsi ('^JKLQ45') tidak pernah tereksekusi - macet di angka dummy di
+// bawah. Sekarang eksplisit cek price > 0 di tiap kandidat.
+async function tryFetchQuote(...symbols: string[]) {
+  for (const s of symbols) {
+    const q = await fetchYahooQuote(s);
+    if (q && q.price > 0) return q;
+  }
+  return null;
+}
+
 export async function getMarketPulse() {
   // 1. Fetch indices with sparkline
   const indicesData = await Promise.all(
@@ -109,38 +132,32 @@ export async function getMarketPulse() {
       let quote = null;
 
       if (idx.name === 'IDX30') {
-        quote = await fetchYahooQuote('IDX30.JK') || await fetchYahooQuote('^IDX30.JK');
-        if (!quote || quote.price === 0) {
-          console.error('Failed to fetch IDX30, using dummy data');
-          quote = { price: 462.5, changePct: 0.12, sparkline: [], volume: 0 } as any;
-        }
+        // Urutan simbol dicoba: keduanya valid di Yahoo, IDX30.JK didahulukan karena
+        // biasanya lebih lengkap datanya (sparkline interval 5m).
+        quote = await tryFetchQuote('IDX30.JK', '^IDX30.JK');
       } else if (idx.name === 'LQ45') {
-        quote = await fetchYahooQuote('LQ45.JK') || await fetchYahooQuote('^JKLQ45');
-        if (!quote || quote.price === 0) {
-          console.error('Failed to fetch LQ45, using dummy data');
-          quote = { price: 608, changePct: -1.1, sparkline: [], volume: 0 } as any;
-        }
+        // '^JKLQ45' didahulukan - terverifikasi konsisten mengembalikan harga (LQ45.JK
+        // sering price:0), lihat catatan tryFetchQuote di atas.
+        quote = await tryFetchQuote('^JKLQ45', 'LQ45.JK');
       } else if (idx.name === 'Kompas100') {
-        quote = await fetchYahooQuote('Kompas100.JK');
-        if (!quote || quote.price === 0) {
-          let ihsg = await fetchYahooQuote('^JKSE');
-          if (ihsg && ihsg.price > 0) {
-            quote = { ...ihsg, price: parseFloat((ihsg.price / 5.42).toFixed(2)) };
-          } else {
-            console.error('Failed to fetch Kompas100, using dummy data');
-            quote = { price: 1132.4, changePct: -0.89, sparkline: [], volume: 0 } as any;
-          }
-        }
+        quote = await tryFetchQuote('Kompas100.JK');
+        // TIDAK ADA proxy dari IHSG/konstanta - Kompas100 dan IHSG adalah indeks
+        // berbeda (basis & anggota beda), membaginya dengan konstanta ajaib (dulu 5.42)
+        // menghasilkan angka yang kelihatan masuk akal tapi bukan Kompas100 sungguhan.
+        // Kalau Yahoo tidak punya datanya, quote tetap null -> UI tampilkan N/A.
       } else {
         quote = await fetchYahooQuote(idx.symbol);
       }
 
+      // TIDAK ADA fallback angka dummy - kalau quote gagal/null, price/changePct/volume
+      // dikembalikan null (bukan 0) supaya UI bisa membedakan "pasar flat" dari "data
+      // tidak tersedia", dan tidak ada angka dummy yang bisa keliru dianggap data asli.
       return {
         ...idx,
-        price: quote?.price || 0,
-        changePct: quote?.changePct || 0,
+        price: quote?.price ?? null,
+        changePct: quote?.changePct ?? null,
         sparkline: quote?.sparkline || [],
-        volume: quote?.volume || 0
+        volume: quote?.volume ?? null,
       };
     })
   );

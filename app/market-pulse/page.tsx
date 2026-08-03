@@ -231,12 +231,16 @@ export default function MarketPulse() {
         {/* === SECTION 1: INDEX CARDS === */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {data?.indices ? data.indices.map((idx: any) => {
-            const isUp = idx.changePct >= 0;
+            // price/changePct sekarang bisa null (data tidak tersedia dari Yahoo, BUKAN
+            // di-fallback ke angka dummy - lihat market-pulse.service.ts) - render N/A
+            // eksplisit, jangan anggap null sebagai 0/naik.
+            const hasData = idx.price != null && idx.changePct != null;
+            const isUp = hasData && idx.changePct >= 0;
             return (
               <div
                 key={idx.name}
                 className={`bg-tv-card border rounded-lg p-4 shadow-1 transition-all hover:shadow-2 ${
-                  isUp ? 'border-tv-green/30' : 'border-tv-red/30'
+                  !hasData ? 'border-tv-border' : isUp ? 'border-tv-green/30' : 'border-tv-red/30'
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -244,16 +248,20 @@ export default function MarketPulse() {
                     <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">{idx.fullName}</div>
                     <div className="text-lg font-extrabold text-tv-text font-number">{idx.name}</div>
                   </div>
-                  <div className={`flex items-center gap-1 text-sm font-bold font-number ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
-                    {isUp ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                    {isUp ? '+' : ''}{idx.changePct}%
-                  </div>
+                  {hasData ? (
+                    <div className={`flex items-center gap-1 text-sm font-bold font-number ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
+                      {isUp ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                      {isUp ? '+' : ''}{idx.changePct}%
+                    </div>
+                  ) : (
+                    <div className="text-sm font-bold font-number text-tv-muted">N/A</div>
+                  )}
                 </div>
                 <div className="flex items-end justify-between">
                   <div className="text-2xl font-extrabold text-tv-text font-number">
-                    {idx.price?.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                    {hasData ? idx.price.toLocaleString('id-ID', { maximumFractionDigits: 0 }) : 'Data tidak tersedia'}
                   </div>
-                  <Sparkline data={idx.sparkline} color={isUp ? '#10B981' : '#EF4444'} />
+                  {hasData && <Sparkline data={idx.sparkline} color={isUp ? '#10B981' : '#EF4444'} />}
                 </div>
               </div>
             );

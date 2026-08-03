@@ -3,6 +3,7 @@
 // dan scoring (skor komposit 0-100: Technical 40 + Fundamental 30 + Flow 30 - scoring.service
 // SENGAJA tetap di sini meski menyentuh data fundamental, karena konsumennya selalu bersamaan
 // dengan analyzer teknikal di app/api/stock/[ticker], bukan dipisah ke modules/fundamental).
+export { calculateRsi } from './service/rsi';
 export { analyze as analyzeEma } from './service/analyzers/ema-analyzer';
 export { analyze as analyzeRsi } from './service/analyzers/rsi-analyzer';
 export { analyze as analyzeMacd } from './service/analyzers/macd-analyzer';

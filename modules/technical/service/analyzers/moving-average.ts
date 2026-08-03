@@ -1,10 +1,13 @@
+// AdjClose (disesuaikan dividen, temuan M-01) dipakai konsisten dengan trend-analyzer.ts
+// - lihat komentar di sana untuk kenapa membandingkan `currentPrice` (live) dengan SMA
+// dari AdjClose TIDAK mencampur basis yang beda (rasio penyesuaian = 1 di bar terakhir).
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 20) return { label: 'Moving Average Score', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   const getSMA = (period: number) => {
     if (history.length < period) return currentPrice;
     let sum = 0;
-    for (let i = history.length - period; i < history.length; i++) sum += history[i].Close;
+    for (let i = history.length - period; i < history.length; i++) sum += (history[i].AdjClose ?? history[i].Close);
     return sum / period;
   };
 

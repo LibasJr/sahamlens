@@ -65,7 +65,13 @@ async function callGemini(model: string, system: string | undefined, prompt: str
     ]);
     const text = (result as Awaited<ReturnType<typeof gModel.generateContent>>).response.text();
     return text || null;
-  } catch {
+  } catch (e: any) {
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-05): kegagalan sebelumnya
+    // ditelan total tanpa jejak - kalau salah satu nama model di GEMINI_MODELS ternyata
+    // sudah tidak berlaku (404 model-not-found) atau kena limit, tidak ada cara tahu
+    // dari log produksi. `generateAI()` di atas SUDAH resilien (mencoba kombinasi
+    // berikutnya), jadi ini murni visibilitas diagnostik, bukan perbaikan perilaku.
+    console.warn(`[Gemini] Model "${model}" gagal: ${e?.message || e}`);
     return null;
   }
 }

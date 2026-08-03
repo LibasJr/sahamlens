@@ -1,6 +1,7 @@
 import YahooFinanceClass from 'yahoo-finance2';
 import { analyzeBandarmology, type BandarmologyStatus } from './foreign-flow-proxy';
 import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
+import { estimateFullDayVolume, isIdxMarketHoursNow } from '@/shared/market/trading-session';
 
 // Backend nyata untuk /screener - sebelumnya halaman itu memanggil /api/live/[ticker]
 // (cuma quote harga satu simbol), padahal UI-nya butuh 10 saham teratas dengan 10+
@@ -130,7 +131,14 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     if (!q) return null;
     const price = q.price?.regularMarketPrice || 0;
     if (!price) return null;
-    const volume = q.price?.regularMarketVolume || 0;
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): `regularMarketVolume`
+    // ADALAH volume sesi hari ini per definisi Yahoo - selama bursa buka, angkanya
+    // PARSIAL (baru sebagian sesi terkumpul) tapi dibandingkan dengan rata-rata 10 hari
+    // PENUH di bawah, membuat vol_ratio bias ke bawah sepanjang jam bursa (lihat
+    // shared/market/trading-session.ts). Tidak perlu cek tanggal terpisah seperti di
+    // route lain - field ini SELALU merepresentasikan sesi HARI INI selama bursa buka.
+    const rawVolume = q.price?.regularMarketVolume || 0;
+    const volume = isIdxMarketHoursNow() ? estimateFullDayVolume(rawVolume) : rawVolume;
     const avgVolume = q.summaryDetail?.averageVolume10days || q.summaryDetail?.averageVolume || 0;
     return {
       ticker: ticker.replace('.JK', ''),
@@ -189,11 +197,20 @@ function bandarmologyLabel(status: BandarmologyStatus): string {
 // volume. Semua komponen skor dinormalisasi 0-100 relatif terhadap universe yang sama
 // sebelum dibobot, supaya skala antar metrik (mis. PER vs ROE) sebanding.
 function scoreStock(s: RawStock, sectorAvgPer: number, profile: RiskProfile): number {
-  const perScore = s.per != null && s.per > 0 ? Math.max(0, 100 - Math.abs(s.per - sectorAvgPer) / sectorAvgPer * 100) : 30;
-  const roeScore = s.roe != null ? Math.min(100, Math.max(0, s.roe * 3)) : 20;
-  const derScore = s.der != null ? Math.max(0, 100 - s.der * 40) : 50;
-  const divScore = s.div_yield != null ? Math.min(100, s.div_yield * 15) : 10;
-  const growthScore = s.rev_growth != null ? Math.min(100, Math.max(0, 50 + s.rev_growth * 5)) : 30;
+  // BUG FIX (audit integritas data 2026-08-03, temuan H-05): rumus lama
+  // (100 - |per - sectorAvgPer|/sectorAvgPer*100) menghukum PENYIMPANGAN KE DUA ARAH
+  // secara simetris - saham dengan PER SETENGAH dari rata-rata sektor (jelas lebih
+  // murah) mendapat skor SAMA (50) dengan saham yang 50% LEBIH MAHAL dari sektor.
+  // Kolom UI-nya ("PER (Valuasi)") mengomunikasikan "lebih rendah = lebih baik", tapi
+  // rumusnya tidak melakukan itu. Sekarang monoton: PER di bawah/sama rata-rata sektor
+  // selalu dapat skor penuh, hanya PER yang LEBIH MAHAL dari sektor yang mengurangi skor.
+  const perScore = s.per != null && s.per > 0
+    ? (s.per <= sectorAvgPer ? 100 : Math.max(0, 100 - ((s.per - sectorAvgPer) / sectorAvgPer) * 100))
+    : null;
+  const roeScore = s.roe != null ? Math.min(100, Math.max(0, s.roe * 3)) : null;
+  const derScore = s.der != null ? Math.max(0, 100 - s.der * 40) : null;
+  const divScore = s.div_yield != null ? Math.min(100, s.div_yield * 15) : null;
+  const growthScore = s.rev_growth != null ? Math.min(100, Math.max(0, 50 + s.rev_growth * 5)) : null;
   const momentumScore = Math.min(100, Math.max(0, s.vol_ratio * 50));
 
   const weights: Record<RiskProfile, Record<string, number>> = {
@@ -202,7 +219,22 @@ function scoreStock(s: RawStock, sectorAvgPer: number, profile: RiskProfile): nu
     Agresif: { growth: 0.35, momentum: 0.30, roe: 0.20, per: 0.15, der: 0, div: 0 },
   };
   const w = weights[profile];
-  return perScore * w.per + roeScore * w.roe + derScore * w.der + divScore * w.div + growthScore * w.growth + momentumScore * w.momentum;
+
+  // BUG FIX (audit integritas data 2026-08-03, temuan H-04): komponen yang datanya
+  // TIDAK ADA (mis. bank tanpa DER/current ratio ke Yahoo) SEBELUMNYA diisi angka
+  // tebakan (30/20/50/10/30) - persis pola `data ?? ANGKA_DEFAULT` yang dilarang untuk
+  // data finansial (bisa membuat saham TANPA data valuasi tampak lebih baik daripada
+  // saham DENGAN data valuasi yang buruk). Sekarang komponen yang null dikeluarkan dari
+  // perhitungan dan bobot sisanya dinormalisasi ulang - ketiadaan data tidak lagi diam-
+  // diam disamakan dengan skor rata-rata.
+  const parts: [number | null, number][] = [
+    [perScore, w.per], [roeScore, w.roe], [derScore, w.der],
+    [divScore, w.div], [growthScore, w.growth], [momentumScore, w.momentum],
+  ];
+  const available = parts.filter((p): p is [number, number] => p[0] != null && p[1] > 0);
+  const totalWeight = available.reduce((sum, [, wt]) => sum + wt, 0);
+  if (totalWeight === 0) return 0;
+  return available.reduce((sum, [score, wt]) => sum + score * (wt / totalWeight), 0);
 }
 
 export function rankScreener(universe: RawStock[], profile: RiskProfile) {

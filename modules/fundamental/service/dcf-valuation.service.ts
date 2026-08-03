@@ -41,17 +41,16 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   let roe = (quoteSummary.financialData?.returnOnEquity || 0) * 100;
   let dps = quoteSummary.summaryDetail?.dividendRate || 0;
 
-  // Fetch NIM if available
-  let nim = 0.055; // default bank
-  if (quoteSummary.financialData?.profitMargins) {
-    // Sometimes NIM is stored in profitMargins for banks
-    nim = quoteSummary.financialData.profitMargins;
-  }
-
   // Fallback FCF
   let fcf = quoteSummary.financialData?.freeCashflow || null;
-  let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding || 1;
-  let fcf_per_share = fcf ? fcf / shares : null;
+  // BUG FIX (audit integritas data 2026-08-03, temuan C-09): `|| 1` di sini berarti kalau
+  // Yahoo tidak mengembalikan sharesOutstanding, FCF PER SAHAM diam-diam menjadi FCF TOTAL
+  // perusahaan (bisa belasan triliun rupiah "per lembar") - nilai itu tetap > 0 sehingga
+  // lolos ke intrinsic_dcf/validFairValues dan meledakkan fair_value. sharesOutstanding
+  // yang hilang sekarang membuat fcf_per_share null (metode DCF dilewati), bukan angka
+  // fiktif berskala triliunan.
+  let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding;
+  let fcf_per_share = (fcf && shares && shares > 0) ? fcf / shares : null;
 
   // --- BUG FIX: CURRENCY MISMATCH (USD vs IDR) ---
   // Emiten seperti ERTX, ITMG, MEDC melapor dalam USD. Yahoo Finance memberikan EPS dalam USD tapi Harga dalam IDR.
@@ -286,9 +285,12 @@ export async function calculateDcfModel(rawTicker: string) {
   const payoutRatio = quoteSummary.summaryDetail?.payoutRatio ?? null;
   const sector = quoteSummary.assetProfile?.sector || '';
   const isBank = sector.toLowerCase().includes('bank') || sector.toLowerCase().includes('financial');
-  let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding || 1;
+  // BUG FIX (audit integritas data 2026-08-03, temuan C-09): sama seperti
+  // calculateIntrinsicValue() di atas - `|| 1` membuat FCF total perusahaan lolos
+  // sebagai "FCF per lembar" saat sharesOutstanding hilang, meledakkan fair value DCF.
+  let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding;
   let fcf = quoteSummary.financialData?.freeCashflow || null;
-  let fcfPerShare = fcf ? fcf / shares : null;
+  let fcfPerShare = (fcf && shares && shares > 0) ? fcf / shares : null;
 
   // Bank/institusi keuangan tidak punya "Free Cash Flow" dalam pengertian yang sama
   // (arus kas operasionalnya didominasi penempatan kredit/simpanan, bukan capex vs
