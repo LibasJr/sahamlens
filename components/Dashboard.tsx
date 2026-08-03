@@ -87,7 +87,17 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
   const durationSec = Math.max(60, Math.round(items.length * 3.2));
 
   return (
-    <div className="sahamlens-ticker-wrap bg-tv-surface border-b border-tv-border overflow-hidden">
+    // Bar warnanya SENGAJA tetap penuh layar (bg-tv-surface di div terluar) - itu bagian
+    // dari desain full-bleed header+ticker, bukan bug. Yang bug adalah batas KONTEN-nya:
+    // header pakai max-w-[1600px] mx-auto (di layar lebar, logo "SahamLens" mulai jauh
+    // dari tepi sungguhan), tapi ticker cuma px-4 tanpa batas lebar - item pertamanya
+    // mulai nyaris di tepi layar, terlihat "menembus" lewat batas tulisan SahamLens.
+    // overflow-hidden dipindah ke wrapper max-w-[1600px] yang sama supaya area scroll
+    // ticker sejajar dengan konten lain, warnanya tetap penuh.
+    <div className="sahamlens-ticker-wrap bg-tv-surface border-b border-tv-border">
+      {/* px-4 sm:px-6 lg:px-8 sama persis dengan header (baris ~299) supaya item
+          pertama ticker sejajar tepat dengan huruf "S" di logo, bukan cuma mendekati. */}
+      <div className="max-w-[1600px] mx-auto overflow-hidden px-4 sm:px-6 lg:px-8">
       <div className="sahamlens-ticker-track flex whitespace-nowrap py-2" style={{ animationDuration: `${durationSec}s` }}>
         {loopItems.map((item, i) => (
           <Link
@@ -104,6 +114,7 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
             <span className="text-tv-border ml-3">|</span>
           </Link>
         ))}
+      </div>
       </div>
       <style dangerouslySetInnerHTML={{ __html: `
         .sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; width: max-content; }

@@ -129,7 +129,11 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
 
         <div className="mt-4 p-4 bg-tv-hover rounded-lg border border-tv-borderLight">
           <p className="text-lg text-white font-mono mb-2">Kesimpulan: <span className="text-tv-green">{council.final_suggestion}</span> (Confidence: {council.final_confidence}%)</p>
-          <p className="text-sm text-tv-muted leading-relaxed">{council.summary_id}</p>
+          {/* whitespace-pre-line: summary_id dari Gemini saat ini satu kalimat padat
+              tanpa newline by design, tapi HTML mengciutkan \n jadi spasi tunggal secara
+              default - kalau prompt berubah atau model sesekali mengembalikan newline,
+              ini mencegahnya berubah jadi satu paragraf raksasa tanpa jeda. */}
+          <p className="text-sm text-tv-muted leading-relaxed whitespace-pre-line">{council.summary_id}</p>
         </div>
       </div>
 
@@ -154,7 +158,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
                   {agent.signal} ({agent.confidence}%)
                 </span>
               </div>
-              <p className="text-sm text-tv-muted">{agent.reason}</p>
+              <p className="text-sm text-tv-muted whitespace-pre-line">{agent.reason}</p>
             </div>
           );
         })}

@@ -69,6 +69,12 @@ export default function HomePage() {
   const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
   const [dailyPicks, setDailyPicks] = useState<DailyPickCounts | null>(null);
+  // Menggantikan tampilan widget "Hari Ini AI Menemukan" (dailyPicks-nya sendiri TETAP
+  // di-fetch di atas - masih dipakai payload /api/ai-briefing) - jadwal Corporate
+  // Calendar terdekat belum ada baik di halaman ini maupun landing page "/".
+  const [calendarEvents, setCalendarEvents] = useState<
+    { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
+  >(null);
 
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
@@ -125,6 +131,24 @@ export default function HomePage() {
       .then((d) => setNewsItems(d?.items || []))
       .catch(() => {})
       .finally(() => setLoadingNews(false));
+
+    // Jadwal Corporate Calendar terdekat (Dividen/Earnings) - respons endpoint berbentuk
+    // { events: Record<'YYYY-MM-DD', CalendarEvent[]> }, diratakan dan diurutkan di sini
+    // supaya widget cukup ambil 5 teratas.
+    fetch('/api/calendar', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const map = d?.events as Record<string, { symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[]> | undefined;
+        if (!map) { setCalendarEvents([]); return; }
+        const today = todayJakarta();
+        const flat = Object.entries(map)
+          .filter(([date]) => date >= today)
+          .flatMap(([date, events]) => events.map((e) => ({ date, ...e })))
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(0, 5);
+        setCalendarEvents(flat);
+      })
+      .catch(() => setCalendarEvents([]));
   }, []);
 
   useEffect(() => {
@@ -293,40 +317,47 @@ export default function HomePage() {
           </Card>
         </motion.div>
 
-        {/* Hari Ini AI Menemukan - dipakai ulang dari widget landing page publik,
-            mengisi ruang yang sebelumnya Market Pulse (sudah punya menu sendiri
-            di Sidebar, tidak perlu diduplikasi di sini). */}
+        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
+            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
+            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
+            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
+            corporate-calendar.service.ts). */}
         <motion.div variants={fadeUp}>
           <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-tv-gold" />
-                <CardTitle>Hari Ini AI Menemukan</CardTitle>
+                <CardTitle>Jadwal Terdekat</CardTitle>
               </div>
-              <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
             </CardHeader>
-            {loadingDailyPicks ? (
+            {calendarEvents === null ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
-            ) : dailyPicks ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { key: 'attractive', label: 'Saham Menarik', href: '/breakout-radar' },
-                  { key: 'breakout', label: 'Breakout', href: '/breakout-radar' },
-                  { key: 'undervalue', label: 'Undervalue', href: '/breakout-radar' },
-                  { key: 'foreignAccumulation', label: 'Akumulasi Asing', href: '/breakout-radar' },
-                ].map((row) => (
+            ) : calendarEvents.length === 0 ? (
+              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
+            ) : (
+              <div className="space-y-2">
+                {calendarEvents.map((e, i) => (
                   <Link
-                    key={row.key}
-                    href={row.href}
-                    className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 hover:border-tv-borderLight transition-colors"
+                    key={`${e.symbol}-${e.date}-${i}`}
+                    href={`/technical/${e.symbol}.JK`}
+                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
                   >
-                    <div className="font-number text-lg font-semibold text-white tabular-nums">{(dailyPicks as any)[row.key]?.count ?? '-'}</div>
-                    <div className="text-[10px] text-tv-muted">{row.label}</div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
+                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
+                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                        </Badge>
+                      </div>
+                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                    </div>
+                    <span className="text-[11px] text-tv-muted font-number shrink-0">
+                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </span>
                   </Link>
                 ))}
               </div>
-            ) : (
-              <p className="text-xs text-tv-muted">Data belum tersedia.</p>
             )}
           </Card>
         </motion.div>

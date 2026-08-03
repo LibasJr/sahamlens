@@ -462,9 +462,13 @@ export default function WatchlistPage() {
           </div>
         </div>
 
-        {/* Alerts Section */}
-        <div className="space-y-6">
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+        {/* Alerts Section - h-full pada kartu ini WAJIB, bukan cuma pada pembungkusnya.
+            Grid 3 kolom di atas default align-items:stretch, jadi pembungkus
+            "space-y-6" ini sudah otomatis setinggi kolom kiri (Health Check + My
+            Watchlist) - tapi kartu di DALAMNYA tidak ikut memanjang tanpa h-full,
+            menyisakan celah kosong tak terlihat di bawah kartu sampai batas kolom. */}
+        <div className="space-y-6 h-full">
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 h-full flex flex-col">
             <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
               <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
                 <Bell className="w-5 h-5 text-tv-yellow" />
@@ -505,7 +509,10 @@ export default function WatchlistPage() {
               </Button>
             </form>
 
-            <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+            {/* flex-1 supaya area ini mengisi sisa tinggi kartu (bukan cuma numpuk di
+                atas), max-h-[400px] tetap dipertahankan untuk membatasi scroll kalau
+                alert-nya banyak. */}
+            <div className="space-y-2 flex-1 min-h-[120px] max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
               {alerts.map(alert => {
                 const AlertIcon = alert.conditionType === 'PRICE_BELOW' ? ArrowDownCircle
                   : alert.conditionType === 'PRICE_ABOVE' ? ArrowUpCircle
