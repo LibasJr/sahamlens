@@ -667,7 +667,7 @@ function DashboardContent() {
               {/* Score Circle */}
               <div className="flex flex-col items-center justify-center gap-2 min-w-[140px]">
                 <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
-                  SAHM LENS SCORE
+                  LensScore
                 </div>
                 <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-number ${
                   data.scoring.total_score > 75 ? 'border-tv-green text-tv-green bg-tv-green/10' :
