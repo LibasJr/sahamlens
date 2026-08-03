@@ -3,7 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccessLive } from '@/modules/user';
-import { fetchYahooHistory } from '@/modules/technical';
+import { fetchYahooHistory, analyzeRsi } from '@/modules/technical';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { fetchScreenerUniverse } from '@/modules/market/service/screener.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -54,19 +54,6 @@ function sma(closes: number[], period: number): number | null {
   return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
-function rsi14(closes: number[]): number | null {
-  if (closes.length < 15) return null;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - 14; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gains += diff; else losses -= diff;
-  }
-  const avgLoss = losses / 14;
-  if (avgLoss === 0) return 100;
-  const rs = (gains / 14) / avgLoss;
-  return 100 - 100 / (1 + rs);
-}
-
 function maStatusOf(price: number, ma50: number | null, ma200: number | null): string {
   if (ma50 == null || ma200 == null) return 'DATA BELUM CUKUP';
   if (price > ma50 && ma50 > ma200) return 'UPTREND KUAT';
@@ -84,15 +71,24 @@ async function buildStockData(rawSymbol: string) {
   ]);
   if (!hist) return null;
 
-  const closes = hist.history.map((h) => h.Close);
+  // AdjClose (disesuaikan dividen, pola M-01) untuk MA/RSI - konsisten dengan
+  // modules/technical/service/analyzers/*. highs/lows/price TETAP harga apa adanya
+  // (support/resistance harus harga sungguhan, bukan yang disesuaikan dividen).
+  const closes = hist.history.map((h) => h.AdjClose ?? h.Close);
   const highs = hist.history.map((h) => h.High);
   const lows = hist.history.map((h) => h.Low);
-  const price = hist.currentPrice || closes[closes.length - 1];
+  const price = hist.currentPrice || hist.history[hist.history.length - 1].Close;
 
   const ma20 = sma(closes, 20);
   const ma50 = sma(closes, 50);
   const ma200 = sma(closes, 200);
-  const rsi = rsi14(closes);
+  // BUG FIX (audit BUILD 001 2026-08-03): RSI sebelumnya dihitung ulang dengan rata-rata
+  // sederhana lokal (bukan Wilder) dari Close mentah - beda dari RSI yang ditampilkan di
+  // semua halaman lain (Stock Detail/Screener/Recommendations/AI Pick), jadi saham yang
+  // sama bisa punya RSI berbeda di /compare vs di tempat lain. Sekarang pakai
+  // analyzeRsi() (modules/technical, Wilder smoothing) - satu sumber kebenaran.
+  const rsiResult = analyzeRsi(hist.history, price);
+  const rsi = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
 
   const lookback = Math.min(20, hist.history.length);
   const support = Math.min(...lows.slice(-lookback));
