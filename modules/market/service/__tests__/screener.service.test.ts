@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { atr14Pct, filterCurated } from '../screener.service';
+import { atr14Pct, filterCurated, rankScreener } from '../screener.service';
 
 /** Bar dengan range harian tetap `range` dan close tetap `close`.
  * True Range tiap hari = max(high-low, |high-prevClose|, |low-prevClose|) = range,
@@ -56,5 +56,55 @@ describe('filterCurated', () => {
 
   it('array kosong menghasilkan array kosong, bukan error', () => {
     expect(filterCurated([])).toEqual([]);
+  });
+});
+
+function rawStock(ticker: string, over: Record<string, unknown> = {}) {
+  return {
+    ticker,
+    name: `PT ${ticker}`,
+    sector: 'Keuangan',
+    price: 1000,
+    per: 15,
+    roe: 18,
+    der: 0.4,
+    div_yield: 3,
+    rev_growth: 10,
+    gross_margin: 45,
+    vol_ratio: 1.2,
+    bandarmology_status: 'NEUTRAL' as const,
+    fifty_two_week_low: 800,
+    fifty_two_week_high: 1200,
+    atr_pct: 3.5,
+    ...over,
+  };
+}
+
+describe('rankScreener', () => {
+  it('tidak pernah mengembalikan saham di luar daftar tersaring', () => {
+    const universe = [rawStock('BBCA'), rawStock('GOTO'), rawStock('BUKA'), rawStock('TLKM')];
+
+    const result = rankScreener(universe as any, 'Moderat');
+
+    expect(result.map((r) => r.ticker).sort()).toEqual(['BBCA', 'TLKM']);
+  });
+
+  it('mengembalikan array kosong kalau seluruh universe tersaring habis', () => {
+    const universe = [rawStock('GOTO'), rawStock('BUKA'), rawStock('MEGA')];
+
+    expect(rankScreener(universe as any, 'Moderat')).toEqual([]);
+  });
+
+  it('meneruskan atr_pct ke hasil dan tidak lagi memuat stop_loss', () => {
+    const result = rankScreener([rawStock('BBCA', { atr_pct: 4.2 })] as any, 'Moderat');
+
+    expect(result[0].atr_pct).toBe(4.2);
+    expect(result[0]).not.toHaveProperty('stop_loss');
+  });
+
+  it('atr_pct null diteruskan apa adanya, tidak diganti angka lain', () => {
+    const result = rankScreener([rawStock('BBCA', { atr_pct: null })] as any, 'Moderat');
+
+    expect(result[0].atr_pct).toBeNull();
   });
 });
