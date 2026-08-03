@@ -48,3 +48,4 @@ data/transactions.json
 data/council_cache.json
 local_db.json
 .env*
+scripts/.backtest-universe-stats.json
