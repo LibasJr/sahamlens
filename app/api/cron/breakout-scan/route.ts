@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
     const result = await withJobRunLog('breakout-scan', async () => {
       const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
       const payload = { data, crossSignals, lastUpdate: new Date().toISOString() };
-      await cacheSet(CACHE_KEY, payload, TTL.MARKET);
+      // TTL.BREAKOUT_RADAR (3 hari), bukan TTL.MARKET (6 menit) - lihat komentar di
+      // shared/cache/ttl-policy.ts untuk kenapa route ini butuh TTL jauh lebih panjang
+      // dari cron intervalnya sendiri (tidak ada fallback live-scan di pemanggil).
+      await cacheSet(CACHE_KEY, payload, TTL.BREAKOUT_RADAR);
       return { scanned: data.length };
     });
     return NextResponse.json({ success: true, result });
