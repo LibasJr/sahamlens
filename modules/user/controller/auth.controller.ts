@@ -72,12 +72,16 @@ export async function handleGetProfile(): Promise<HttpResult> {
   const user = await getUserById(session.id);
   if (!user) return { status: 401, body: { error: 'Belum login' } };
 
+  // pro_expires_at WAJIB ikut - tanpa itu hasProAccess di sini bilang "Pro" padahal
+  // gerbang yang sama menolaknya di route lain, dan pengguna melihat status yang
+  // bertentangan dengan yang ia alami.
   const hasProAccess = checkProAccess({
     id: user.id,
     email: user.email,
     role: user.role,
     is_pro: user.is_pro,
     trial_ends_at: user.trial_ends_at,
+    pro_expires_at: user.pro_expires_at,
   });
 
   const body: Record<string, unknown> = {
@@ -87,6 +91,7 @@ export async function handleGetProfile(): Promise<HttpResult> {
     hasProAccess,
     isVerified: user.is_verified,
     trialEndsAt: user.trial_ends_at,
+    proExpiresAt: user.pro_expires_at ?? null,
     createdAt: user.created_at,
   };
 
