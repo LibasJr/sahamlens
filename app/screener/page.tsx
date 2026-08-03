@@ -38,7 +38,7 @@ export default function ScreenerPage() {
         currentTicker=""
         onTickerChange={(t) => router.push(`/technical/${t.replace('.JK', '')}.JK`)}
         moduleTitle="LensAI Multi-Factor Screener"
-        moduleBank="COUNCIL AI"
+        moduleBank="LENSAI"
       />
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">

@@ -120,6 +120,6 @@ export function runLocalCouncil(symbol: string, data: any) {
       fundamentalAgent,
     ],
     final_suggestion: `${trendSignal} based on Trend, but RSI says ${rsiSignal}`,
-    summary_id: 'Fallback lokal berjalan karena Council AI tidak tersedia atau kena limit.'
+    summary_id: 'Fallback lokal berjalan karena LensAI tidak tersedia atau kena limit.'
   };
 }

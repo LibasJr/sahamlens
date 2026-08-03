@@ -312,7 +312,7 @@ function FundamentalContent() {
                 </div>
              )}
             <div className="text-right">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">HASIL ANALISA COUNCIL AI</div>
+              <div className="text-[10px] font-mono text-tv-muted uppercase">HASIL ANALISA LENSAI</div>
               <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
                 data?.consensus?.includes('BULLISH')
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'

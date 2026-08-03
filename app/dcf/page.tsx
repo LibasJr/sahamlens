@@ -73,7 +73,7 @@ function DcfContent() {
       ticker={ticker}
       onTickerChange={setTicker}
       moduleTitle="LensAI DCF Intrinsic Valuation"
-      moduleBank="COUNCIL AI"
+      moduleBank="LENSAI"
       icon={<Calculator className="w-6 h-6" />}
       accent="blue"
       title={`${stock.symbol || ticker}.JK Intrinsic Valuation`}

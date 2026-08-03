@@ -19,7 +19,7 @@ export default function Header({
   currentTicker,
   onTickerChange,
   moduleTitle = 'LensAI Technical + Bandarmology',
-  moduleBank = 'COUNCIL AI',
+  moduleBank = 'LENSAI',
   analisaRemaining,
   analisaTotal = 5,
   isAdmin = false
