@@ -19,10 +19,16 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
    npx tsc --noEmit -p tsconfig.json
    npm run build
    ```
-2. Commit & push ke `main` seperti biasa. GitHub sudah ke-connect ke Vercel project ini, tapi
-   **auto-deploy dari push belum pernah kekonfirmasi jalan sendiri** - kalau setelah push gak ada
-   deployment baru muncul di `npx vercel ls`, deploy manual (step 3).
-3. Deploy manual dari root repo:
+2. Commit & push ke `main` seperti biasa. **Auto-deploy dari push TERKONFIRMASI jalan
+   sendiri** (diverifikasi 2026-08-03: dua push berturut-turut masing-masing memicu
+   deployment Production baru tanpa perintah manual apa pun). Cukup tunggu dan pantau:
+   ```
+   npx vercel ls
+   ```
+   Deployment baru muncul berstatus `● Building` dalam hitungan detik setelah push, lalu
+   `● Ready` sekitar 2 menit kemudian.
+3. Deploy manual **hanya kalau** setelah beberapa menit tidak ada deployment baru di
+   `npx vercel ls`:
    ```
    npx vercel --prod --yes
    ```
@@ -35,6 +41,18 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
    ```
    `/api/council` dan `/api/stock/[ticker]` **selalu 429** tanpa cookie admin/login (lihat bagian
    "Gating akses" di bawah) - itu bukan bug, pakai `-H "Cookie: role=admin"` buat smoke test.
+
+   Waktu respons acuan (diukur 2026-08-03, setelah deploy AI Pick satu tab):
+
+   | Endpoint | Waktu | Catatan |
+   |---|---|---|
+   | `/breakout-radar` | 0,28 s | halaman AI Pick, murni baca cache |
+   | `/` | 0,80 s | |
+   | `/api/ai-pick` | 0,97 s | murni baca cache |
+   | `/api/daily-picks` | 3,77 s | paling lambat - `getMarketSummary()` atas 250 saham, dipakai widget beranda |
+
+   Request pertama setelah deploy selalu lebih lambat karena cold start lambda; ukur yang
+   kedua kalau mau angka yang mewakili.
 
 ## ⚠️ Jebakan yang sudah pernah bikin deploy gagal
 
@@ -231,3 +249,22 @@ Kalau `ai-pick-scan` belum pernah jalan, `/api/ai-pick` menjawab `ready: false` 
 AI Pick menampilkan "Data sedang disiapkan" - itu perilaku yang disengaja, bukan error.
 Endpoint sengaja TIDAK memindai sendiri saat cache kosong, karena satu request pengguna
 akan menanggung ~109 fetch Yahoo.
+
+**Urutan pendaftaran penting: `fundamental-snapshot` dulu, baru `ai-pick-scan`.** Diukur
+2026-08-03 dengan universe yang sama: tanpa snapshot fundamental, `fundamental_score`
+selalu 0 sehingga skor maksimal cuma 70 (teknikal 40 + flow 30), dan **tidak satu pun dari
+109 saham mencapai ambang 60** - daftar tampil nyaris kosong. Dengan snapshot terisi,
+sebarannya `{">=75": 3, "60-74": 10, "45-59": 46, "<45": 50}` dan daftar penuh 10 baris
+berskor 64-91.
+
+Snapshot fundamental baru terisi saat jadwal hariannya jalan (05:00 WIB). Untuk memicunya
+sekali saat itu juga - misalnya tepat setelah deploy pertama - pakai `publish`, bukan
+`schedules`:
+
+```bash
+curl -XPOST "https://qstash.upstash.io/v2/publish/https://sahamlens.vercel.app/api/cron/fundamental-snapshot" \
+  -H "Authorization: Bearer $QSTASH_TOKEN"
+```
+
+Status per 2026-08-03: kedua jadwal **belum didaftarkan** di QStash. Sampai didaftarkan,
+halaman AI Pick akan terus menampilkan "Data sedang disiapkan".
