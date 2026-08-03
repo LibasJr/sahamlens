@@ -2,10 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
+import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 
 interface PaywallModalProps {
   open: boolean;
@@ -63,12 +64,25 @@ export default function PaywallModal({
   title,
   body,
   benefits = [],
-  waText = 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro (Rp99.000/bulan). Ini bukti transfernya.',
+  waText,
   ctaLabel = 'Kirim Bukti Transfer via WhatsApp',
   secondaryLabel = 'Nanti',
   ctaHref,
 }: PaywallModalProps) {
-  const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText)}`;
+  // BUG FIX (permintaan eksplisit 2026-08-03): dulu HANYA satu harga tetap (Rp99.000/
+  // bulan) hardcoded di sini, dipakai identik oleh ~10 halaman berbeda (backtest,
+  // compare, dashboard, fundamental, dst.) - tidak ada cara pengguna memilih durasi
+  // lain. Sekarang pemilih paket (1/3/6/12 bulan, dari shared/config/pricing.ts) dan
+  // daftar fitur LENGKAP ditambahkan di sini, satu tempat, otomatis berlaku ke semua
+  // pemanggil - bukan mengulang array 3-item yang sama di setiap halaman.
+  const [selectedPlanId, setSelectedPlanId] = useState<PricingPlan['id']>('1m');
+  const [showAllFeatures, setShowAllFeatures] = useState(false);
+  const selectedPlan = PRICING_PLANS.find((p) => p.id === selectedPlanId) || PRICING_PLANS[0];
+  const isUpgradeFlow = !ctaHref; // ctaHref dipakai untuk modal ajakan DAFTAR (bukan bayar) - tidak relevan pilih paket/harga di sana.
+  const resolvedWaText = waText || (isUpgradeFlow
+    ? `Halo, saya sudah transfer untuk upgrade ke SahamLens Pro paket ${selectedPlan.label} (${formatRupiah(selectedPlan.finalPrice)}). Ini bukti transfernya.`
+    : 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro. Ini bukti transfernya.');
+  const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(resolvedWaText)}`;
   const modalRef = useRef<HTMLDivElement>(null);
   const paymentMethods = ctaHref ? [] : getPaymentMethods();
 
@@ -152,13 +166,67 @@ export default function PaywallModal({
         <p className="text-sm text-tv-muted leading-relaxed mb-5">{body}</p>
 
         {benefits.length > 0 && (
-          <ul className="space-y-2 mb-6">
+          <ul className="space-y-2 mb-5">
             {benefits.map((b) => (
               <li key={b} className="flex items-start gap-2 text-sm text-tv-text">
                 <span className="text-tv-blue flex-shrink-0">✓</span> {b}
               </li>
             ))}
           </ul>
+        )}
+
+        {isUpgradeFlow && (
+          <div className="mb-5">
+            <p className="text-xs font-bold text-tv-muted uppercase tracking-wide mb-2">Pilih Paket</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PRICING_PLANS.map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => setSelectedPlanId(plan.id)}
+                  className={`relative text-left rounded-md border px-3 py-2 transition-colors ${
+                    selectedPlanId === plan.id
+                      ? 'border-tv-blue bg-tv-blue/10'
+                      : 'border-tv-border hover:bg-tv-hover'
+                  }`}
+                >
+                  {plan.badge && (
+                    <span className="absolute -top-2 right-2 bg-tv-blue text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded">
+                      {plan.badge}
+                    </span>
+                  )}
+                  <p className="text-xs font-bold text-tv-text">{plan.label}</p>
+                  {plan.discountPct > 0 && (
+                    <p className="text-[10px] text-tv-muted line-through font-number">{formatRupiah(plan.normalPrice)}</p>
+                  )}
+                  <p className="text-sm font-bold text-tv-blue font-number">{formatRupiah(plan.finalPrice)}</p>
+                  {plan.discountPct > 0 && <p className="text-[10px] text-tv-green font-bold">Hemat {plan.discountPct}%</p>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isUpgradeFlow && (
+          <div className="mb-5">
+            <button
+              type="button"
+              onClick={() => setShowAllFeatures((v) => !v)}
+              className="w-full flex items-center justify-between text-xs font-bold text-tv-muted uppercase tracking-wide mb-2 hover:text-tv-text transition-colors"
+            >
+              <span>Semua Fitur Pro ({FULL_FEATURE_LIST.length})</span>
+              {showAllFeatures ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            {showAllFeatures && (
+              <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {FULL_FEATURE_LIST.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-xs text-tv-text">
+                    <span className="text-tv-blue flex-shrink-0">✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         {paymentMethods.length > 0 && (

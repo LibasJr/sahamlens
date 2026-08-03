@@ -17,6 +17,7 @@ import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
+import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 
 interface AiPick {
   ticker: string;
@@ -85,7 +86,7 @@ export default function HomePage() {
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string; pubDate: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
   const [showPromoModal, setShowPromoModal] = useState(false);
-  const [promoPlan, setPromoPlan] = useState<'monthly' | 'annual'>('monthly');
+  const [promoPlan, setPromoPlan] = useState<PricingPlan['id']>('1m');
   const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
 
   useEffect(() => {
@@ -169,9 +170,9 @@ export default function HomePage() {
     setShowPromoModal(false);
   }, []);
 
-  const handleSelectPlan = useCallback((plan: 'monthly' | 'annual') => {
+  const handleSelectPlan = useCallback((planId: PricingPlan['id']) => {
     markPromoSeenToday();
-    setPromoPlan(plan);
+    setPromoPlan(planId);
     setShowPromoModal(false);
     setShowPaywallFromPromo(true);
   }, []);
@@ -423,26 +424,19 @@ export default function HomePage() {
       </motion.div>
 
       <PromoUpgradeModal open={showPromoModal} onClose={handleClosePromo} onSelectPlan={handleSelectPlan} />
-      <PaywallModal
-        open={showPaywallFromPromo}
-        onClose={() => setShowPaywallFromPromo(false)}
-        title={promoPlan === 'annual' ? 'Upgrade ke Tahunan Pro' : 'Upgrade ke Bulanan Pro'}
-        body={
-          promoPlan === 'annual'
-            ? 'Rp990.000/tahun - buka semua fitur Pro SahamLens, hemat setara 2 bulan dibanding bulanan.'
-            : 'Rp99.000/bulan - buka semua fitur Pro SahamLens.'
-        }
-        benefits={[
-          'Unlimited Technical Analyzer (10 filter)',
-          'AI Pick LIVE, Council AI & Compare Tool',
-          'Watchlist & Alert unlimited',
-        ]}
-        waText={
-          promoPlan === 'annual'
-            ? 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro TAHUNAN (Rp990.000/tahun). Ini bukti transfernya.'
-            : 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro BULANAN (Rp99.000/bulan). Ini bukti transfernya.'
-        }
-      />
+      {(() => {
+        const selectedPlan = PRICING_PLANS.find((p) => p.id === promoPlan) || PRICING_PLANS[0];
+        return (
+          <PaywallModal
+            open={showPaywallFromPromo}
+            onClose={() => setShowPaywallFromPromo(false)}
+            title={`Upgrade ke ${selectedPlan.label} Pro`}
+            body={`${formatRupiah(selectedPlan.finalPrice)}${selectedPlan.discountPct > 0 ? ` (hemat ${selectedPlan.discountPct}%)` : ''} - buka semua fitur Pro SahamLens.`}
+            benefits={FULL_FEATURE_LIST}
+            waText={`Halo, saya sudah transfer untuk upgrade ke SahamLens Pro paket ${selectedPlan.label} (${formatRupiah(selectedPlan.finalPrice)}). Ini bukti transfernya.`}
+          />
+        );
+      })()}
     </div>
   );
 }
