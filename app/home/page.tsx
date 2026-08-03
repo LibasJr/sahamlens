@@ -310,10 +310,10 @@ export default function HomePage() {
             ) : dailyPicks ? (
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { key: 'attractive', label: 'Saham Menarik', href: '/breakout-radar?cat=attractive' },
+                  { key: 'attractive', label: 'Saham Menarik', href: '/breakout-radar' },
                   { key: 'breakout', label: 'Breakout', href: '/breakout-radar' },
-                  { key: 'undervalue', label: 'Undervalue', href: '/breakout-radar?cat=undervalue' },
-                  { key: 'foreignAccumulation', label: 'Akumulasi Asing', href: '/breakout-radar?cat=foreignAccumulation' },
+                  { key: 'undervalue', label: 'Undervalue', href: '/breakout-radar' },
+                  { key: 'foreignAccumulation', label: 'Akumulasi Asing', href: '/breakout-radar' },
                 ].map((row) => (
                   <Link
                     key={row.key}
