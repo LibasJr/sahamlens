@@ -102,6 +102,9 @@ export default function ScreenerPage() {
                   <th className="p-3 text-right">Div Yield</th>
                   <th className="p-3">Bandarmology</th>
                   <th className="p-3">Moat Rating</th>
+                  <th className="p-3">Signal</th>
+                  <th className="p-3">Pola Backtest</th>
+                  <th className="p-3">Sentimen Berita</th>
                   <th className="p-3 text-right">52W High/Low</th>
                   <th className="p-3 text-right">Harga</th>
                   <th className="p-3 text-right">Volatilitas Harian</th>
@@ -110,7 +113,7 @@ export default function ScreenerPage() {
               <tbody className="divide-y divide-tv-border/50">
                 {top10.length === 0 && (
                   <tr>
-                    <td colSpan={14} className="p-8 text-center text-tv-muted text-sm">
+                    <td colSpan={17} className="p-8 text-center text-tv-muted text-sm">
                       {loading ? (
                         <span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" /> Memindai 114 saham likuid IDX...</span>
                       ) : 'Tidak ada saham yang memenuhi kriteria saat ini. Coba profil risiko lain atau muat ulang.'}
@@ -146,6 +149,35 @@ export default function ScreenerPage() {
                       </span>
                     </td>
                     <td className="p-3 text-tv-text">{item.moat}</td>
+                    <td className="p-3">
+                      {item.signal ? (
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-mono text-[10px] ${
+                          item.signal.includes('BUY')
+                            ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
+                            : item.signal === 'SELL'
+                            ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
+                            : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/40'
+                        }`}>
+                          {item.signal}
+                        </span>
+                      ) : (
+                        <span className="text-tv-muted text-[10px]">N/A</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-tv-text text-[11px]">
+                      {item.pattern_tag || <span className="text-tv-muted">Tidak ada pola cocok</span>}
+                    </td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        item.sentiment === 'POSITIF'
+                          ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
+                          : item.sentiment === 'NEGATIF'
+                          ? 'bg-tv-red/20 text-tv-red border border-tv-red/30'
+                          : 'bg-tv-hover text-tv-text'
+                      }`}>
+                        {item.sentiment ? item.sentiment.charAt(0) + item.sentiment.slice(1).toLowerCase() : 'N/A'}
+                      </span>
+                    </td>
                     <td className="p-3 text-right text-white">
                       <span className="text-tv-green font-bold font-number">Rp {item.week52_high?.toLocaleString('id-ID')}</span> /{' '}
                       <span className="text-tv-red font-bold font-number">Rp {item.week52_low?.toLocaleString('id-ID')}</span>
@@ -163,6 +195,9 @@ export default function ScreenerPage() {
           </div>
           <p className="text-[10px] text-tv-muted">
             Bandarmology = Chaikin Money Flow (posisi close di range High-Low + rasio volume 20 hari), estimasi tekanan beli/jual - BUKAN data broker/asing resmi (IDX tidak menyediakan feed itu gratis).
+          </p>
+          <p className="text-[10px] text-tv-muted">
+            Signal = skor komposit Teknikal+Fundamental+Flow yang sama dengan Detail Saham/AI Pick (bukan angka terpisah). Pola Backtest = preset filter di menu Backtest yang SAAT INI cocok untuk saham ini (semua indikatornya BULLISH bersamaan) - &ldquo;Tidak ada pola cocok&rdquo; berarti jujur tidak ada, bukan kosong karena error. Sentimen Berita = hasil klasifikasi AI/kata kunci atas judul berita RSS riil yang menyebut saham ini - &ldquo;N/A&rdquo; berarti saham ini tidak disebut media dalam siklus data terakhir, bukan sentimen netral yang terukur.
           </p>
           <p className="text-[10px] text-tv-muted mt-2">
             Volatilitas Harian = rata-rata pergerakan 14 hari terakhir (ATR). Stop loss di bawah

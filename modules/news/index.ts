@@ -1,1 +1,1 @@
-export { getMarketNews, getStockNews, type NewsItem, type Sentiment } from './service/news.service';
+export { getMarketNews, getStockNews, getBatchStockSentiment, type NewsItem, type Sentiment, type TickerSentiment } from './service/news.service';

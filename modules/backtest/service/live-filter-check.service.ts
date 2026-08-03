@@ -69,12 +69,12 @@ export interface LiveFilterCheckResult {
   skipped: string[];
 }
 
-async function checkOne(ticker: string, filters: IndicatorName[]): Promise<LiveFilterMatch | 'skip' | null> {
-  const data = await fetchYahooHistory(ticker, FETCH_RANGE);
-  if (!data || data.history.length < MIN_HISTORY_BARS) return 'skip';
-
-  const { history, currentPrice, regularMarketTime } = data;
-
+// Diekspor lewat barrel - dipakai juga oleh modules/market/service/screener.service.ts
+// (tag pola per saham di Stock Screener) supaya "BULLISH" per indikator dihitung dengan
+// definisi PERSIS SAMA yang dipakai Live Filter Check/preset Backtest, bukan cabang logika
+// ketiga yang bisa berbeda hasil (pelajaran M-04, sama alasannya dengan BACKTEST_PRESETS
+// di constants/presets.ts).
+export function evaluateIndicatorDecisions(history: any[], currentPrice: number): Record<IndicatorName, string> {
   // BUG FIX (audit integritas data 2026-08-03, pola M-02): volume hari ini masih
   // PARSIAL selama jam bursa - diestimasi ke volume penuh sehari SEBELUM dievaluasi
   // analyzer Volume/Market Flow, supaya sinyal "BULLISH" tidak bias tertunda sepanjang
@@ -86,10 +86,18 @@ async function checkOne(ticker: string, filters: IndicatorName[]): Promise<LiveF
     ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
     : history;
 
-  const decisions = ALL_INDICATORS.reduce((acc, name) => {
+  return ALL_INDICATORS.reduce((acc, name) => {
     acc[name] = INDICATOR_ANALYZERS[name](adjustedHistory, currentPrice).decision;
     return acc;
   }, {} as Record<IndicatorName, string>);
+}
+
+async function checkOne(ticker: string, filters: IndicatorName[]): Promise<LiveFilterMatch | 'skip' | null> {
+  const data = await fetchYahooHistory(ticker, FETCH_RANGE);
+  if (!data || data.history.length < MIN_HISTORY_BARS) return 'skip';
+
+  const { history, currentPrice, regularMarketTime } = data;
+  const decisions = evaluateIndicatorDecisions(history, currentPrice);
 
   const isMatch = filters.every((f) => decisions[f] === 'BULLISH');
   if (!isMatch) return null;
