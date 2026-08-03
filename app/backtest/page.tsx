@@ -8,7 +8,6 @@ import { Input, Select, Button } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 
 export default function BacktestPage() {
-  const [activeTab, setActiveTab] = useState<'backtest' | 'live-signal'>('backtest');
   const [modal, setModal] = useState(100000000);
   const [period, setPeriod] = useState(12);
 
@@ -51,10 +50,6 @@ export default function BacktestPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [liveSignalLoading, setLiveSignalLoading] = useState(false);
-  const [liveSignalResults, setLiveSignalResults] = useState<any>(null);
-  const [liveSignalError, setLiveSignalError] = useState<string | null>(null);
 
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -106,40 +101,6 @@ export default function BacktestPage() {
     setLoading(false);
   };
 
-  const runLiveSignal = async () => {
-    setLiveSignalLoading(true);
-    setLiveSignalError(null);
-    try {
-      const res = await fetch('/api/backtest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filters: selectedFilters, mode: 'live-signal' })
-      });
-      if (res.status === 401) {
-        setShowLoginPrompt(true);
-        setLiveSignalLoading(false);
-        return;
-      }
-      if (res.status === 402) {
-        setShowPaywall(true);
-        setLiveSignalLoading(false);
-        return;
-      }
-      const data = await res.json();
-      if (!res.ok) {
-        setLiveSignalError(data?.error || 'Gagal mengambil sinyal hari ini');
-        setLiveSignalResults(null);
-        setLiveSignalLoading(false);
-        return;
-      }
-      setLiveSignalResults(data);
-    } catch (e) {
-      console.error(e);
-      setLiveSignalError('Gagal mengambil sinyal hari ini');
-    }
-    setLiveSignalLoading(false);
-  };
-
   const chartData = results?.equityCurve?.map((eq: number, idx: number) => ({
     month: `M${idx}`,
     Strategy: eq,
@@ -148,10 +109,6 @@ export default function BacktestPage() {
 
   const dataAsOfLabel = results?.dataAsOf
     ? new Date(results.dataAsOf).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-    : null;
-
-  const liveSignalDataAsOfLabel = liveSignalResults?.dataAsOf
-    ? new Date(liveSignalResults.dataAsOf).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
   return (
@@ -176,28 +133,16 @@ export default function BacktestPage() {
           </div>
         </header>
 
+        {/* Tab "Sinyal Hari Ini" dihapus 2026-08-03: fungsinya "saham mana yang cocok
+            kriteria hari ini" sekarang dijawab halaman AI Pick dengan peringkat yang lebih
+            kaya (skor komposit + bonus sinyal langka), tanpa pengguna perlu menyusun
+            kombinasi filter sendiri. Halaman ini kembali fokus ke satu hal: menguji
+            strategi ke data masa lalu. */}
         <div className="px-6 pt-6 max-w-[1400px] mx-auto w-full">
-          <div className="inline-flex bg-tv-card border border-tv-border rounded-lg p-1 gap-1">
-            <button
-              onClick={() => setActiveTab('backtest')}
-              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'backtest' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
-            >
-              Backtest
-            </button>
-            <button
-              onClick={() => setActiveTab('live-signal')}
-              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${activeTab === 'live-signal' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
-            >
-              Sinyal Hari Ini
-            </button>
-          </div>
-          {/* Dua tab ini sering dikira fitur yang sama karena memakai daftar filter yang
-              sama persis - bedanya arah waktu: Backtest melihat ke belakang (simulasi),
-              Sinyal Hari Ini melihat kondisi hari bursa terakhir (computeLiveSignal). */}
-          <p className="text-xs text-tv-muted mt-3">
-            {activeTab === 'backtest'
-              ? 'Uji kombinasi filter ini ke data masa lalu - berapa return, win rate, dan drawdown-nya kalau dijalankan 3-24 bulan terakhir.'
-              : 'Pakai kombinasi filter yang sama ke data hari bursa terakhir - saham mana yang kondisinya cocok sekarang, bukan simulasi masa lalu.'}
+          <p className="text-xs text-tv-muted">
+            Uji kombinasi filter ini ke data masa lalu - berapa return, win rate, dan drawdown-nya
+            kalau dijalankan 3-24 bulan terakhir. Untuk melihat saham yang menarik hari ini, buka
+            halaman AI Pick.
           </p>
         </div>
 
@@ -245,27 +190,23 @@ export default function BacktestPage() {
               </div>
 
               <div className="space-y-4 pt-4 border-t border-tv-border">
-                {activeTab === 'backtest' && (
-                  <>
-                    <Input label="Modal Awal (Rp)" type="number" value={modal} onChange={e => setModal(Number(e.target.value))} className="font-number" />
-                    <Select label="Periode (Bulan)" value={period} onChange={e => setPeriod(Number(e.target.value))}>
-                      <option value={3}>3 Bulan</option>
-                      <option value={6}>6 Bulan</option>
-                      <option value={12}>12 Bulan</option>
-                      <option value={24}>24 Bulan</option>
-                    </Select>
-                  </>
-                )}
+                <Input label="Modal Awal (Rp)" type="number" value={modal} onChange={e => setModal(Number(e.target.value))} className="font-number" />
+                <Select label="Periode (Bulan)" value={period} onChange={e => setPeriod(Number(e.target.value))}>
+                  <option value={3}>3 Bulan</option>
+                  <option value={6}>6 Bulan</option>
+                  <option value={12}>12 Bulan</option>
+                  <option value={24}>24 Bulan</option>
+                </Select>
 
                 <Button
-                  onClick={activeTab === 'backtest' ? runBacktest : runLiveSignal}
-                  disabled={(activeTab === 'backtest' ? loading : liveSignalLoading) || selectedFilters.length === 0}
-                  loading={activeTab === 'backtest' ? loading : liveSignalLoading}
+                  onClick={runBacktest}
+                  disabled={loading || selectedFilters.length === 0}
+                  loading={loading}
                   variant="secondary"
                   className="w-full !bg-tv-blue !text-white hover:!bg-tv-blue/90 mt-4"
                 >
-                  {!(activeTab === 'backtest' ? loading : liveSignalLoading) && <Play className="w-5 h-5" />}
-                  {activeTab === 'backtest' ? 'Backtest Sekarang' : 'Cek Saham Cocok Hari Ini'}
+                  {!loading && <Play className="w-5 h-5" />}
+                  Backtest Sekarang
                 </Button>
               </div>
             </div>
@@ -273,8 +214,6 @@ export default function BacktestPage() {
 
           {/* Results Panel */}
           <div className="lg:col-span-2 space-y-6">
-            {activeTab === 'backtest' && (
-              <>
                 {error && (
                   <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
                     {error}
@@ -393,93 +332,7 @@ export default function BacktestPage() {
                     </div>
                   </>
                 )}
-              </>
-            )}
 
-            {activeTab === 'live-signal' && (
-              <>
-                {liveSignalError && (
-                  <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
-                    {liveSignalError}
-                  </div>
-                )}
-
-                {!liveSignalResults && !liveSignalLoading && !liveSignalError && (
-                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-muted">
-                    <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
-                    <p className="text-sm text-center px-6">Pilih filter dan klik Cek Saham Cocok Hari Ini untuk melihat saham yang cocok sekarang.</p>
-                  </div>
-                )}
-
-                {liveSignalLoading && (
-                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-blue">
-                    <Activity className="w-16 h-16 mb-4 animate-spin" />
-                    <p className="text-sm text-center px-6">Mencocokkan filter ke data harga hari ini...</p>
-                  </div>
-                )}
-
-                {liveSignalResults && !liveSignalLoading && (
-                  <>
-                    {liveSignalDataAsOfLabel && (
-                      <p className="text-[11px] text-tv-muted">Data per {liveSignalDataAsOfLabel} (diperbarui otomatis tiap hari, bukan real-time).</p>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-tv-card border border-tv-border rounded-lg p-4">
-                        <div className="text-xs text-tv-muted mb-1">Win Rate Historis (12 Bulan)</div>
-                        <div className="text-xl font-bold font-number text-tv-text">{liveSignalResults.historicalStats.winRatePct.toFixed(0)}%</div>
-                      </div>
-                      <div className="bg-tv-card border border-tv-border rounded-lg p-4">
-                        <div className="text-xs text-tv-muted mb-1">Return Historis (12 Bulan)</div>
-                        <div className={`text-xl font-bold font-number ${liveSignalResults.historicalStats.returnPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                          {liveSignalResults.historicalStats.returnPct >= 0 ? '+' : ''}{liveSignalResults.historicalStats.returnPct.toFixed(2)}%
-                        </div>
-                      </div>
-                      <div className="bg-tv-card border border-tv-border rounded-lg p-4">
-                        <div className="text-xs text-tv-muted mb-1">Alpha vs IHSG ({liveSignalResults.historicalStats.totalTrades} trades historis)</div>
-                        <div className={`text-xl font-bold font-number ${liveSignalResults.historicalStats.alphaPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                          {liveSignalResults.historicalStats.alphaPct >= 0 ? '+' : ''}{liveSignalResults.historicalStats.alphaPct.toFixed(2)}%
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
-                      <div className="p-4 border-b border-tv-border bg-tv-bg/40">
-                        <h3 className="font-heading text-sm font-bold text-tv-text">
-                          Saham Cocok Filter Ini Hari Ini ({liveSignalResults.matches.length})
-                        </h3>
-                      </div>
-                      {liveSignalResults.matches.length === 0 ? (
-                        <div className="p-6 text-sm text-tv-muted text-center">
-                          Tidak ada saham yang cocok kombinasi filter ini hari ini.
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-tv-card border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
-                              <th className="py-3 px-4">Symbol</th>
-                              <th className="py-3 px-4">Harga</th>
-                              <th className="py-3 px-4 text-right">Skor Indikator</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-tv-border text-sm">
-                            {liveSignalResults.matches.map((m: any) => (
-                              <tr key={m.symbol} className="hover:bg-tv-hover/30">
-                                <td className="py-3 px-4 text-tv-text font-bold font-number">{m.symbol}</td>
-                                <td className="py-3 px-4 text-tv-muted font-number">Rp {Math.round(m.price).toLocaleString('id-ID')}</td>
-                                <td className="py-3 px-4 text-right font-bold font-number text-tv-text">{m.score}/9</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -487,7 +340,7 @@ export default function BacktestPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="Backtest & Sinyal Hari Ini butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="Backtest butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
@@ -496,7 +349,7 @@ export default function BacktestPage() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Masa Trial 7 Hari Habis"
-        body="Backtest & Sinyal Hari Ini butuh akun Pro setelah trial 7 hari berakhir."
+        body="Backtest butuh akun Pro setelah trial 7 hari berakhir."
         benefits={[
           'Unlimited Technical Analyzer (10 filter)',
           'AI Pick LIVE, Council AI & Compare Tool',

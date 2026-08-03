@@ -10,7 +10,6 @@ import {
   precomputeBacktestData,
   writeBacktestCache,
   simulateBacktest,
-  computeLiveSignal,
   type IndicatorName,
   type BacktestIndicatorCache,
 } from '../../../modules/backtest';
@@ -23,11 +22,11 @@ const VALID_FILTERS: IndicatorName[] = [
 ];
 const VALID_PERIODS = [3, 6, 12, 24];
 const MAX_TRADES_IN_RESPONSE = 30;
-// Modal/periode historicalStats tab "Sinyal Hari Ini" - HANYA dipakai untuk menghitung
-// win rate/return %/alpha % (tidak bergantung skala modal), tidak pernah ditampilkan
-// sebagai modal ke user (lihat spec docs/superpowers/specs/2026-08-02-sinyal-hari-ini-design.md).
-const LIVE_SIGNAL_MODAL = 100_000_000;
-const LIVE_SIGNAL_PERIOD_MONTHS = 12;
+
+// Mode 'live-signal' dihapus 2026-08-03 bersama tab "Sinyal Hari Ini" di UI - pertanyaan
+// "saham mana yang menarik hari ini" sekarang dijawab /api/ai-pick dengan peringkat skor
+// komposit, tanpa pengguna perlu menyusun kombinasi filter sendiri. Endpoint ini kembali
+// mengerjakan satu hal saja: simulasi historis.
 
 function fmtPct(n: number): string {
   const formatted = n.toFixed(2).replace(/\.?0+$/, '');
@@ -68,7 +67,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const mode = body?.mode === 'live-signal' ? 'live-signal' : 'backtest';
 
     const rawFilters: unknown[] = Array.isArray(body?.filters) ? body.filters : [];
     const hasUnknownFilter = rawFilters.some(
@@ -80,29 +78,6 @@ export async function POST(request: Request) {
     const filters = rawFilters as IndicatorName[];
     if (filters.length === 0) {
       return NextResponse.json({ error: 'Pilih minimal 1 filter' }, { status: 400 });
-    }
-
-    if (mode === 'live-signal') {
-      const cache = await getCache();
-      const liveResult = computeLiveSignal(cache, filters);
-      const historical = simulateBacktest(cache, {
-        filters,
-        modal: LIVE_SIGNAL_MODAL,
-        periodMonths: LIVE_SIGNAL_PERIOD_MONTHS,
-      });
-
-      const response = NextResponse.json({
-        dataAsOf: liveResult.dataAsOf,
-        matches: liveResult.matches,
-        historicalStats: {
-          winRatePct: historical.winRatePct,
-          returnPct: historical.returnPct,
-          alphaPct: historical.alphaPct,
-          totalTrades: historical.totalTrades,
-        },
-      });
-      if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
-      return response;
     }
 
     const modal = Number(body?.modal);
