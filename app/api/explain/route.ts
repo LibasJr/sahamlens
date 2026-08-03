@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       } else {
         explanation = `RSI ${data.value} berada di area netral. Momentum belum menunjukkan kondisi ekstrem ke arah manapun.`;
       }
-    } else if ((filter === 'Foreign Flow (Estimasi Asing)' || filter === 'Foreign Flow') && status) {
+    } else if ((filter === 'LensFlow (Estimasi Arus Dana Asing)' || filter === 'Foreign Flow (Estimasi Asing)' || filter === 'Foreign Flow') && status) {
       // Proxy dari harga+volume Yahoo Finance (BUKAN data broker resmi - IDX tidak
       // menyediakan feed itu gratis), konsisten dengan label di seluruh aplikasi lain.
       explanation = status === 'BULLISH'
