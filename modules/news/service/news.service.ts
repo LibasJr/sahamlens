@@ -167,6 +167,90 @@ export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSou
   return { items, sentimentSource };
 }
 
+// `sentiment: null` = saham TIDAK disebut media dalam siklus data ini (tidak ada
+// artikel yang cocok) - berbeda dari 'NETRAL' (ADA artikel, tapi diklasifikasi
+// netral). Menyamakan keduanya jadi 'NETRAL' akan mengulang pola H-04 (ketiadaan data
+// disamarkan jadi nilai tengah yang terlihat terukur padahal cuma default).
+export type TickerSentiment = { sentiment: Sentiment | null; matchedHeadline: string | null; matchedCount: number };
+
+// Sentimen berita PER-EMITEN untuk SELURUH universe Stock Screener sekaligus (bukan
+// getStockNews() dipanggil satu-satu per ticker - untuk universe 114 saham itu berarti
+// 114x fetch ulang 10 RSS feed yang SAMA + berpotensi 114 panggilan AI terpisah, boros
+// dan lambat untuk data yang sama persis). RSS di-fetch SEKALI, dicocokkan ke tiap saham
+// (definisi pencocokan SAMA dengan getStockNews: kode ticker atau kata distingtif nama
+// perusahaan), lalu HANYA judul yang benar-benar cocok ke ticker mana pun yang dikirim ke
+// Council AI untuk diklasifikasi - juga cuma sekali per judul unik (satu judul sektor bisa
+// relevan ke banyak saham sekaligus).
+async function classifyInChunks(titles: string[]): Promise<{ sentiment: Sentiment; reason: string }[] | null> {
+  if (titles.length === 0) return [];
+  const CHUNK = 40; // sama seperti batas per-panggilan di getMarketNews()
+  const out: { sentiment: Sentiment; reason: string }[] = [];
+  for (let i = 0; i < titles.length; i += CHUNK) {
+    const chunk = titles.slice(i, i + CHUNK);
+    const classified = await classifyWithCouncilAI(chunk);
+    // Kalau SATU chunk gagal (AI tidak tersedia), seluruh batch jatuh ke fallback kata
+    // kunci - bukan campuran diam-diam AI+heuristik per potongan tanpa penanda, supaya
+    // pemanggil tahu pasti satu sumber metode per hasil (konsisten dgn getMarketNews).
+    if (!classified) return null;
+    out.push(...classified);
+  }
+  return out;
+}
+
+export async function getBatchStockSentiment(
+  stocks: { ticker: string; name: string }[]
+): Promise<Record<string, TickerSentiment>> {
+  const results = await Promise.all(RSS_FEEDS.map((f) => fetchFeed(f, 40)));
+  const merged = results.flat();
+  const seen = new Set<string>();
+  const deduped = merged.filter((item) => {
+    if (!item.title || seen.has(item.title)) return false;
+    seen.add(item.title);
+    return true;
+  });
+
+  const GENERIC_WORDS = new Set(['pt', 'tbk', 'indonesia', 'persero', 'the']);
+  const matchesByTicker = new Map<string, typeof deduped>();
+  for (const stock of stocks) {
+    const code = stock.ticker.replace('.JK', '').toUpperCase();
+    const nameWords = (stock.name || '')
+      .toLowerCase()
+      .replace(/[.,()]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 3 && !GENERIC_WORDS.has(w));
+    const matched = deduped
+      .filter((item) => {
+        const t = item.title.toLowerCase();
+        if (t.includes(code.toLowerCase())) return true;
+        return nameWords.some((w) => t.includes(w));
+      })
+      .slice(0, 5); // cukup 5 artikel terbaru per saham untuk sentimen agregat
+    if (matched.length > 0) matchesByTicker.set(stock.ticker, matched);
+  }
+
+  const uniqueTitles = Array.from(new Set(Array.from(matchesByTicker.values()).flat().map((i) => i.title)));
+  const aiSentiments = await classifyInChunks(uniqueTitles);
+  const sentimentByTitle = new Map<string, Sentiment>();
+  uniqueTitles.forEach((title, i) => {
+    sentimentByTitle.set(title, aiSentiments ? aiSentiments[i].sentiment : keywordSentiment(title).sentiment);
+  });
+
+  const result: Record<string, TickerSentiment> = {};
+  for (const stock of stocks) {
+    const matched = matchesByTicker.get(stock.ticker);
+    if (!matched || matched.length === 0) {
+      result[stock.ticker] = { sentiment: null, matchedHeadline: null, matchedCount: 0 };
+      continue;
+    }
+    const labels = matched.map((m) => sentimentByTitle.get(m.title) || 'NETRAL');
+    const posCount = labels.filter((l) => l === 'POSITIF').length;
+    const negCount = labels.filter((l) => l === 'NEGATIF').length;
+    const agg: Sentiment = posCount > negCount ? 'POSITIF' : negCount > posCount ? 'NEGATIF' : 'NETRAL';
+    result[stock.ticker] = { sentiment: agg, matchedHeadline: matched[0].title, matchedCount: matched.length };
+  }
+  return result;
+}
+
 // Berita PER-EMITEN (bukan pasar umum) - dipakai di halaman Technical Analyzer/AI
 // Council per saham. Sengaja TIDAK pakai Google News RSS search meski jauh lebih
 // relevan/lengkap, karena feed itu berlisensi "personal, non-commercial use" saja

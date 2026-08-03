@@ -8,6 +8,9 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 // skoring ketiga profil risiko - skoring itu sendiri murah/instan jadi tidak perlu
 // cache terpisah per profil.
 export const dynamic = 'force-dynamic';
+// Butuh lebih lama sejak universe menarik histori 1y per saham (Signal/Pattern Tag/
+// Sentimen, bukan cuma 1mo) - hanya kena saat cache 30 menit basi/pertama dihitung.
+export const maxDuration = 60;
 
 const CACHE_KEY = 'sahamlens:cache:computed:screener-universe';
 

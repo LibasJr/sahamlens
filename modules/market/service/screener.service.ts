@@ -1,7 +1,13 @@
 import YahooFinanceClass from 'yahoo-finance2';
-import { analyzeBandarmology, type BandarmologyStatus } from './foreign-flow-proxy';
+import {
+  analyzeBandarmology, computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal,
+  type BandarmologyStatus,
+} from './foreign-flow-proxy';
 import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
-import { estimateFullDayVolume, isIdxMarketHoursNow } from '@/shared/market/trading-session';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type ScoringResult } from '@/modules/technical';
+import { evaluateIndicatorDecisions, BACKTEST_PRESETS } from '@/modules/backtest';
+import { getBatchStockSentiment, type Sentiment as NewsSentiment } from '@/modules/news';
 
 // Backend nyata untuk /screener - sebelumnya halaman itu memanggil /api/live/[ticker]
 // (cuma quote harga satu simbol), padahal UI-nya butuh 10 saham teratas dengan 10+
@@ -41,8 +47,10 @@ type RawStock = {
   sector: string;
   price: number;
   per: number | null;
+  pbv: number | null;
   roe: number | null;
   der: number | null;
+  current_ratio: number | null;
   div_yield: number | null;
   rev_growth: number | null;
   gross_margin: number | null;
@@ -51,6 +59,16 @@ type RawStock = {
   fifty_two_week_low: number | null;
   fifty_two_week_high: number | null;
   atr_pct: number | null;
+  // Kolom BARU (permintaan eksplisit "signal streaght/netral/negatif" + "buy on weknes
+  // apa buy apa sell, tapi bukan dummy, harus pakai data real dan sentimen yg ada") -
+  // ketiganya null kalau data yang dibutuhkan tidak cukup (BUKAN ditebak/didefaultkan):
+  // signal & pattern_tag butuh histori >= 200 hari bursa (MA200/preset butuh itu, lihat
+  // MIN_HISTORY_BARS di live-filter-check.service.ts), sentiment null kalau saham tidak
+  // disebut di RSS manapun (lihat TickerSentiment di news.service.ts - beda dari
+  // 'NETRAL' yang berarti ADA berita tapi diklasifikasi netral).
+  signal: ScoringResult['kategori'] | null;
+  pattern_tag: string | null;
+  sentiment: NewsSentiment | null;
 };
 
 // Daftar ticker yang boleh DIREKOMENDASIKAN - sama dengan universe AI Pick karena
@@ -92,45 +110,39 @@ export function filterCurated<T extends { ticker: string }>(stocks: T[]): T[] {
   return stocks.filter((s) => CURATED_TICKERS.has(s.ticker.replace('.JK', '')));
 }
 
-/** range=1mo (~21 hari bursa) cukup untuk jendela CMF20 + buffer libur/weekend. */
-async function fetchDailyOhlcv(ticker: string): Promise<{ date: string; high: number; low: number; close: number; volume: number }[]> {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1mo&interval=1d`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 300 } });
-    if (!res.ok) return [];
-    const json = await res.json();
-    const result = json?.chart?.result?.[0];
-    const timestamps: number[] = result?.timestamp || [];
-    const quote = result?.indicators?.quote?.[0] || {};
-    const history: { date: string; high: number; low: number; close: number; volume: number }[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close?.[i] != null) {
-        history.push({
-          date: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
-          high: quote.high?.[i] ?? quote.close[i],
-          low: quote.low?.[i] ?? quote.close[i],
-          close: quote.close[i],
-          volume: quote.volume?.[i] || 0,
-        });
-      }
-    }
-    return history;
-  } catch {
-    return [];
-  }
+function sma(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
+
+// Histori butuh 200 bar (bukan lagi 1mo/~21 bar) - permintaan BARU untuk kolom Signal
+// (calculateScore butuh MA200) dan Pattern Tag (preset Backtest terpanjang butuh MA200,
+// lihat MIN_HISTORY_BARS di live-filter-check.service.ts). range=1y Yahoo memberi ~245
+// bar, cukup margin. fetchYahooHistory (modules/technical) dipakai (bukan fetch manual
+// terpisah lagi) - satu implementasi parsing AdjClose/regularMarketTime, bukan duplikat.
+const MIN_HISTORY_BARS = 200;
 
 async function fetchOne(ticker: string): Promise<RawStock | null> {
   try {
-    const [q, ohlcv] = await Promise.all([
+    const [q, yahooData] = await Promise.all([
       yahooFinance.quoteSummary(ticker, {
         modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail', 'price'],
       }),
-      fetchDailyOhlcv(ticker),
+      fetchYahooHistory(ticker, '1y'),
     ]);
     if (!q) return null;
     const price = q.price?.regularMarketPrice || 0;
     if (!price) return null;
+
+    const history = yahooData?.history || [];
+    const hasFullHistory = history.length >= MIN_HISTORY_BARS;
+
+    // Shape {date,high,low,close,volume} untuk Bandarmology/ATR/CMF - Close MENTAH
+    // (bukan AdjClose), konsisten dengan recommendation.service.ts (High/Low tidak
+    // disesuaikan dividen sama sekali, jadi mencampur AdjClose ke Close di sini akan
+    // membuat basis High/Low/Close tidak lagi sebasis).
+    const dailyHistory = history.map((h) => ({ date: h.Date.split('T')[0], high: h.High, low: h.Low, close: h.Close, volume: h.Volume }));
+
     // BUG FIX (audit integritas data 2026-08-03, temuan M-02): `regularMarketVolume`
     // ADALAH volume sesi hari ini per definisi Yahoo - selama bursa buka, angkanya
     // PARSIAL (baru sebagian sesi terkumpul) tapi dibandingkan dengan rata-rata 10 hari
@@ -140,24 +152,116 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     const rawVolume = q.price?.regularMarketVolume || 0;
     const volume = isIdxMarketHoursNow() ? estimateFullDayVolume(rawVolume) : rawVolume;
     const avgVolume = q.summaryDetail?.averageVolume10days || q.summaryDetail?.averageVolume || 0;
+    const volRatio = avgVolume > 0 ? volume / avgVolume : 1;
+
+    const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
+
+    let per: number | null = q.summaryDetail?.trailingPE || null;
+    let pbv: number | null = q.defaultKeyStatistics?.priceToBook || null;
+    const roe = q.financialData?.returnOnEquity != null ? q.financialData.returnOnEquity * 100 : null;
+    const der = q.financialData?.debtToEquity != null ? q.financialData.debtToEquity / 100 : null;
+    const currentRatio = q.financialData?.currentRatio || null;
+    const revGrowth = q.financialData?.revenueGrowth != null ? q.financialData.revenueGrowth * 100 : null;
+
+    // BUG FIX (audit integritas data 2026-08-03, temuan C-07): sama seperti
+    // recommendation.service.ts - emiten pelapor USD (ADRO, ITMG, INCO, dst. ada di
+    // universe screener ini) punya priceToBook Yahoo yang membandingkan harga IDR
+    // dengan book value USD mentah, hasilnya PBV salah satuan (bisa belasan kali lipat
+    // dari wajar). Dikoreksi dengan menghitung ulang dari bookValue x kurs USD/IDR.
+    const priceCurrency = q.price?.currency || 'IDR';
+    const finCurrencyForPbv = q.financialData?.financialCurrency || 'IDR';
+    const bookValueRaw = q.defaultKeyStatistics?.bookValue;
+    if (priceCurrency === 'IDR' && finCurrencyForPbv === 'USD' && bookValueRaw) {
+      try {
+        const fx = await yahooFinance.quote('USDIDR=X');
+        const rate = fx?.regularMarketPrice || 15500;
+        pbv = price / (bookValueRaw * rate);
+      } catch {
+        pbv = null;
+      }
+    }
+
+    // Signal (kategori STRONG BUY/BUY/HOLD/SELL) & Pattern Tag (preset Backtest yang
+    // cocok SEKARANG) - null kalau histori kurang dari MIN_HISTORY_BARS, bukan ditebak.
+    let signal: ScoringResult['kategori'] | null = null;
+    let patternTag: string | null = null;
+    if (hasFullHistory) {
+      const closes = history.map((h) => h.AdjClose ?? h.Close);
+      const ma20 = sma(closes, 20);
+      const ma50 = sma(closes, 50);
+      const ma200 = sma(closes, 200);
+
+      const rsiResult = analyzeRsi(history, price);
+      const macdResult = analyzeMacd(history, price);
+      const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
+      const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
+      const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
+      const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
+
+      const volAvg20 = history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20;
+
+      // Arus dana - definisi SAMA dengan recommendation.service.ts (analyzeAccumulationSignal
+      // 4-lapis untuk arah, computeAccumulationStreak untuk lama streak berturut-turut),
+      // duplikat yang didokumentasikan (bukan disatukan ke helper bersama karena di luar
+      // cakupan permintaan ini) supaya kategori foreignFlow yang sama artinya di kedua
+      // tempat, bukan cabang logika ketiga yang bisa berbeda hasil (pelajaran M-04).
+      const dailyFlow = computeDailyNetFlow(dailyHistory).slice(-20);
+      const buyStreak = computeAccumulationStreak(dailyFlow);
+      let sellStreak = 0;
+      for (let i = dailyFlow.length - 1; i >= 0; i--) {
+        if (dailyFlow[i].netValueBillion < 0) sellStreak++;
+        else break;
+      }
+      const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
+      let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
+      if (accumulation.status === 'AKUMULASI') foreignFlow = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
+      else if (accumulation.status === 'DISTRIBUSI') foreignFlow = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
+
+      const scoring = calculateScore(
+        ticker.replace('.JK', ''),
+        {
+          currentPrice: price,
+          ma20: ma20 ?? 0,
+          ma50: ma50 ?? 0,
+          ma200: ma200 ?? 0,
+          rsi: rsiVal,
+          macdHist: macdHistVal,
+          macdLine: macdLineVal,
+          macdSignal: macdSigVal,
+          volToday: volume,
+          volAvg20,
+        },
+        { per, pbv, roe, der, currentRatio, revenueGrowth: revGrowth },
+        { foreignFlow, consecutiveBuyDays: buyStreak, consecutiveSellDays: sellStreak, volRatio, cmf20: bandarmology.cmf20 },
+      );
+      signal = scoring.kategori;
+
+      const decisions = evaluateIndicatorDecisions(history, price);
+      const matchedPreset = BACKTEST_PRESETS.find((p) => p.filters.every((f) => decisions[f] === 'BULLISH'));
+      patternTag = matchedPreset ? matchedPreset.label : null;
+    }
+
     return {
       ticker: ticker.replace('.JK', ''),
       name: q.price?.longName || q.price?.shortName || ticker,
       sector: q.assetProfile?.sector || 'Lainnya',
       price,
-      per: q.summaryDetail?.trailingPE || null,
-      roe: q.financialData?.returnOnEquity != null ? q.financialData.returnOnEquity * 100 : null,
-      der: q.financialData?.debtToEquity != null ? q.financialData.debtToEquity / 100 : null,
+      per,
+      pbv,
+      roe,
+      der,
+      current_ratio: currentRatio,
       div_yield: q.summaryDetail?.dividendYield != null ? q.summaryDetail.dividendYield * 100 : null,
-      rev_growth: q.financialData?.revenueGrowth != null ? q.financialData.revenueGrowth * 100 : null,
+      rev_growth: revGrowth,
       gross_margin: q.financialData?.grossMargins != null ? q.financialData.grossMargins * 100 : null,
-      vol_ratio: avgVolume > 0 ? volume / avgVolume : 1,
-      bandarmology_status: analyzeBandarmology(ohlcv).status,
+      vol_ratio: volRatio,
+      bandarmology_status: bandarmology.status,
       fifty_two_week_low: q.summaryDetail?.fiftyTwoWeekLow || null,
       fifty_two_week_high: q.summaryDetail?.fiftyTwoWeekHigh || null,
-      // Dihitung dari OHLCV yang SUDAH diambil untuk Bandarmology - tidak ada request
-      // tambahan. range=1mo memberi ~21 bar, cukup untuk ATR 14.
-      atr_pct: atr14Pct(ohlcv),
+      atr_pct: atr14Pct(dailyHistory),
+      signal,
+      pattern_tag: patternTag,
+      sentiment: null, // diisi belakangan oleh fetchScreenerUniverse() - lihat komentar di sana
     };
   } catch {
     return null;
@@ -174,10 +278,34 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
 //
 // Penyaringan TIDAK dilakukan di sini, melainkan di rankScreener(), supaya /api/compare
 // tetap bisa melihat seluruh 114.
+//
+// BATCH_SIZE 15 (bukan lagi 114 paralel sekaligus) - konsisten dengan
+// precomputeBacktestData()/scanLiveFilterCheck() yang membatasi hal sama, supaya tidak
+// rate-limited Yahoo. Perlu sekarang karena tiap saham menarik histori 1y (~245 bar),
+// jauh lebih berat dari 1mo (~21 bar) sebelumnya.
+const FETCH_BATCH_SIZE = 15;
+
 export async function fetchScreenerUniverse(): Promise<RawStock[]> {
   const tickers = Array.from(new Set([...SCREENER_UNIVERSE, ...AI_PICK_UNIVERSE]));
-  const results = await Promise.all(tickers.map(fetchOne));
-  return results.filter((r): r is RawStock => r !== null);
+  const raw: RawStock[] = [];
+  for (let i = 0; i < tickers.length; i += FETCH_BATCH_SIZE) {
+    const batch = tickers.slice(i, i + FETCH_BATCH_SIZE);
+    const results = await Promise.all(batch.map(fetchOne));
+    results.forEach((r) => { if (r) raw.push(r); });
+  }
+
+  // Sentimen berita per saham - SATU panggilan batch untuk SELURUH universe (bukan
+  // per-ticker, lihat komentar getBatchStockSentiment()), dilakukan di sini (bukan di
+  // fetchOne) supaya RSS cuma di-fetch sekali per siklus cache, bukan berkali-kali.
+  try {
+    const sentimentMap = await getBatchStockSentiment(raw.map((s) => ({ ticker: s.ticker, name: s.name })));
+    raw.forEach((s) => { s.sentiment = sentimentMap[s.ticker]?.sentiment ?? null; });
+  } catch {
+    // Kegagalan sentimen (RSS/AI down) tidak boleh menggagalkan seluruh screener -
+    // field tetap null (bukan ditebak), kolom Sentimen di UI tampil "N/A".
+  }
+
+  return raw;
 }
 
 function moatRating(roe: number | null, grossMargin: number | null): string {
@@ -278,6 +406,11 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         entry: s.price,
         // Menggantikan stop_loss - lihat alasannya di komentar atr14Pct().
         atr_pct: s.atr_pct != null ? parseFloat(s.atr_pct.toFixed(1)) : null,
+        // Kolom BARU (permintaan eksplisit) - null/'N/A' kalau data kurang, BUKAN
+        // ditebak (lihat komentar RawStock.signal/pattern_tag/sentiment di atas).
+        signal: s.signal,
+        pattern_tag: s.pattern_tag,
+        sentiment: s.sentiment,
       };
     });
 

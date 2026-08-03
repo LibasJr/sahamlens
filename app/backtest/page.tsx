@@ -6,6 +6,13 @@ import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Menu
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Input, Select, Button } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
+// Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
+// disengaja: komponen ini 'use client', barrel modules/backtest re-export service yang
+// pakai fetch/logger server-only (precompute/simulate/live-filter-check), ikut kebawa ke
+// bundle client kalau lewat barrel. File ini murni data (cuma import type), aman diimpor
+// langsung. Sama BACKTEST_PRESETS dipakai modules/market/service/screener.service.ts
+// (server, lewat barrel) supaya preset Backtest & tag pola Screener tidak bercabang.
+import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
 
 export default function BacktestPage() {
   const [modal, setModal] = useState(100000000);
@@ -23,36 +30,7 @@ export default function BacktestPage() {
     'SMA Score (5,10,20)'
   ];
 
-  // Dulu ada 10 preset, tapi 5 di antaranya duplikat: 'Bandar Accumulation',
-  // 'Trend Following' dan 'Oversold Bounce' masing-masing adalah SUBSET persis dari
-  // preset 4-filter di bawah (kombinasi sama, cuma kurang satu filter - hasilnya selalu
-  // superset sinyal, bukan strategi beda). 'Konfirmasi Ketat' beririsan 3 dari 4 filter
-  // dengan Trend Following Kuat. 'Breakout Hari Ini' dihapus karena kontradiktif: filter
-  // Support & Resistance BULLISH artinya harga DEKAT SUPPORT dan Volatility BULLISH
-  // artinya ATR RENDAH - dua-duanya kebalikan dari kondisi breakout.
-  // 5 preset pertama di bawah: tidak ada yang jadi subset preset lain, irisan maksimal
-  // 2 filter. Preset ke-6 "Buy on Weakness" ditambah kemudian, lihat komentarnya sendiri.
-  const presets: { label: string; filters: string[] }[] = [
-    { label: 'Momentum Breakout', filters: ['EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14'] },
-    { label: 'Breakout Volume', filters: ['Volume vs Avg 20D', 'MACD', 'SMA Score (5,10,20)'] },
-    // Nama sebelumnya "Akumulasi Real (CMF)" - indikatornya bukan Chaikin Money Flow,
-    // melainkan rasio volume hari naik vs hari turun 14D (lihat market-flow.ts).
-    { label: 'Akumulasi (A/D Volume)', filters: ['Market Flow Index', 'Volume vs Avg 20D', 'Support & Resistance', 'MACD'] },
-    // Nama sebelumnya "Golden Cross Fresh" - analyzer EMA cuma bandingkan EMA20 vs EMA50
-    // hari ini (kondisi tren), tidak mendeteksi cross yang BARU terjadi.
-    { label: 'Trend Following Kuat', filters: ['MA Trend IDX (20,50,200)', 'EMA 20/50 Cross', 'SMA Score (5,10,20)', 'Volume vs Avg 20D'] },
-    // Nama sebelumnya "Rebound Oversold" - RSI analyzer menyalakan BULLISH di dua rentang
-    // (rsi < 40 DAN 50-70), jadi saham non-oversold ikut lolos. Klaim oversold dibuang.
-    { label: 'Rebound Support', filters: ['RSI 14', 'Support & Resistance', 'Market Flow Index', 'Volatility (ATR 14)'] },
-    // BARU (permintaan eksplisit) - "Buy on Weakness" sungguhan: beli LEMAH di DALAM
-    // tren yang masih naik, beda dari "Rebound Support" di atas yang cuma "oversold
-    // bounce" tanpa syarat tren besar (bisa kena falling knife, saham yang beneran
-    // downtrend). MA Trend memastikan tren besar masih naik, RSI menandai momentum
-    // lagi lemah/istirahat (bukan breakout), Support & Resistance memastikan harga
-    // masih di dekat support (bukan sudah jebol). Bukan subset preset manapun di atas
-    // (irisan maksimal 1 filter dengan Trend Following Kuat/Rebound Support).
-    { label: 'Buy on Weakness', filters: ['MA Trend IDX (20,50,200)', 'RSI 14', 'Support & Resistance'] },
-  ];
+  const presets = BACKTEST_PRESETS;
 
   const [selectedFilters, setSelectedFilters] = useState<string[]>(presets[0].filters);
 
