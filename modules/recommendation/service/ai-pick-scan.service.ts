@@ -1,7 +1,8 @@
-import { fetchYahooHistory, calculateScore, type FundamentalInput } from '../../technical';
-import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal } from '../../market';
+import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type FundamentalInput } from '../../technical';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '../../market';
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
 
@@ -21,40 +22,19 @@ export function resolveFundamental(
   return snapshot?.[ticker] ?? EMPTY_FUNDAMENTAL;
 }
 
-function sma(values: number[], period: number): number {
-  if (values.length < period) return 0;
-  return values.slice(-period).reduce((a, b) => a + b, 0) / period;
-}
-
-function rsi14(closes: number[]): number {
-  if (closes.length < 15) return 50;
-  let gains = 0;
-  let losses = 0;
-  for (let i = closes.length - 14; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff > 0) gains += diff;
-    else losses -= diff;
-  }
-  if (losses === 0) return 100;
-  return 100 - 100 / (1 + gains / losses);
-}
-
-function ema(values: number[], period: number): number[] {
-  const k = 2 / (period + 1);
-  const out = [values[0]];
-  for (let i = 1; i < values.length; i++) out.push(values[i] * k + out[i - 1] * (1 - k));
-  return out;
-}
-
-function macd(closes: number[]): { line: number; signal: number; hist: number } {
-  if (closes.length < 35) return { line: 0, signal: 0, hist: 0 };
-  const ema12 = ema(closes, 12);
-  const ema26 = ema(closes, 26);
-  const macdSeries = closes.map((_, i) => ema12[i] - ema26[i]);
-  const signalSeries = ema(macdSeries, 9);
-  const line = macdSeries[macdSeries.length - 1];
-  const signal = signalSeries[signalSeries.length - 1];
-  return { line, signal, hist: line - signal };
+// BUG FIX (audit BUILD 001 2026-08-03): fungsi sma/rsi14/ema/macd lokal di bawah ini
+// SEBELUMNYA menghitung ulang indikator dengan implementasi SENDIRI (RSI rata-rata
+// sederhana, bukan Wilder; Close mentah, bukan AdjClose; tanpa validasi minimum bar -
+// sma() balikin 0 kalau data kurang, bukan null) - terpisah total dari
+// modules/technical yang dipakai Stock Detail/Screener/Recommendations. Akibatnya AI
+// Pick (fitur paling utama) bisa menampilkan RSI/MACD/kategori BERBEDA untuk saham+hari
+// yang SAMA PERSIS dibanding halaman lain - persis pola "Technical=BUY, AI=STRONG BUY"
+// yang jadi keluhan utama audit. Sekarang pakai analyzeRsi/analyzeMacd (Wilder RSI +
+// AdjClose) yang sama, dan foreignFlow pakai analyzeAccumulationSignal (bukan heuristik
+// arah harga) - definisi SAMA dengan recommendation.service.ts/screener.service.ts.
+function sma(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
 async function scoreOne(
@@ -67,55 +47,72 @@ async function scoreOne(
     return null;
   }
 
-  const history = res.history;
-  const closes = history.map((h) => h.Close);
-  const volumes = history.map((h) => h.Volume);
-  const currentPrice = closes[closes.length - 1];
-  const prevClose = closes[closes.length - 2] || currentPrice;
-  const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+  const { history } = res;
+  // Harga LIVE (regularMarketPrice dari meta Yahoo), bukan Close bar harian terakhir -
+  // konsisten dengan Screener/Recommendations yang sama-sama pakai quote live, bukan
+  // harga EOD kemarin yang bisa basi selama jam bursa.
+  const currentPrice = res.currentPrice || history[history.length - 1].Close;
+  const closes = history.map((h) => h.AdjClose ?? h.Close);
+  const prevCloseRaw = history[history.length - 2]?.Close || currentPrice;
+  const changePct = prevCloseRaw ? ((currentPrice - prevCloseRaw) / prevCloseRaw) * 100 : 0;
 
   const ma20 = sma(closes, 20);
   const ma50 = sma(closes, 50);
   const ma200 = sma(closes, 200);
-  const rsi = rsi14(closes);
-  const m = macd(closes);
-  const volToday = volumes[volumes.length - 1] || 0;
-  const volAvg20 = sma(volumes, 20);
+  const rsiResult = analyzeRsi(history, currentPrice);
+  const macdResult = analyzeMacd(history, currentPrice);
+  const rsi = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
+  const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
+  const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
+  const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
+
+  // BUG FIX (pola M-02): volume bar terakhir masih PARSIAL selama jam bursa - sama
+  // seperti screener.service.ts/live-filter-check.service.ts.
+  const lastBar = history[history.length - 1];
+  const isLiveFormingBar = lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
+  const adjustedHistory = isLiveFormingBar
+    ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
+    : history;
+  const volToday = adjustedHistory[adjustedHistory.length - 1].Volume || 0;
+  const volAvg20 = adjustedHistory.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, adjustedHistory.length);
   const volRatio = volAvg20 > 0 ? volToday / volAvg20 : 1;
 
-  const ohlcv = history.map((h) => ({
-    date: h.Date, high: h.High, low: h.Low, close: h.Close, volume: h.Volume,
-  }));
-  const dailyFlow = computeDailyNetFlow(ohlcv).slice(-20);
-  const streak = computeAccumulationStreak(dailyFlow);
-  const accumulationConfirmed = analyzeAccumulationSignal(ohlcv.slice(-20)).status === 'AKUMULASI';
+  // Shape {date,high,low,close,volume} untuk Bandarmology/CMF/arus dana - Close MENTAH
+  // (bukan AdjClose), sama seperti recommendation.service.ts/screener.service.ts.
+  const dailyHistory = history.map((h) => ({ date: h.Date.split('T')[0], high: h.High, low: h.Low, close: h.Close, volume: h.Volume }));
+  const dailyFlow = computeDailyNetFlow(dailyHistory).slice(-20);
+  const buyStreak = computeAccumulationStreak(dailyFlow);
+  let sellStreak = 0;
+  for (let i = dailyFlow.length - 1; i >= 0; i--) {
+    if (dailyFlow[i].netValueBillion < 0) sellStreak++;
+    else break;
+  }
+  const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
+  const accumulationConfirmed = accumulation.status === 'AKUMULASI';
+  const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
 
-  // Label arus dana memakai ambang yang sama dengan recommendation.service.ts:126-130
-  // supaya scoreAsing() menerima masukan yang konsisten dengan fitur lain.
-  let foreignFlow = 'NEUTRAL';
-  if (changePct > 0.5 && volRatio > 1.2) foreignFlow = 'STRONG NET BUY';
-  else if (changePct > 0) foreignFlow = 'NET BUY';
-  else if (changePct < -0.5 && volRatio > 1.2) foreignFlow = 'STRONG NET SELL';
-  else if (changePct < 0) foreignFlow = 'NET SELL';
+  // BUG FIX (temuan H-03, sekarang disamakan ke AI Pick juga): foreignFlow dari status
+  // analyzeAccumulationSignal (CMF20 + CLV 3 hari + volume spike + tren MFM), BUKAN lagi
+  // dari arah changePct/volRatio - supaya scoreAsing()/scoreBandar() menerima masukan
+  // yang konsisten dengan Recommendations/Screener untuk saham+hari yang sama.
+  let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
+  if (accumulation.status === 'AKUMULASI') foreignFlow = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
+  else if (accumulation.status === 'DISTRIBUSI') foreignFlow = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
 
   const scoring = calculateScore(
     ticker.replace('.JK', ''),
     {
-      currentPrice, ma20, ma50, ma200, rsi,
-      macdHist: m.hist, macdLine: m.line, macdSignal: m.signal,
+      currentPrice, ma20: ma20 ?? 0, ma50: ma50 ?? 0, ma200: ma200 ?? 0, rsi,
+      macdHist: macdHistVal, macdLine: macdLineVal, macdSignal: macdSigVal,
       volToday, volAvg20,
     },
     fundamental,
-    {
-      foreignFlow,
-      consecutiveBuyDays: foreignFlow.includes('BUY') ? streak : 0,
-      consecutiveSellDays: 0,
-      volRatio,
-    }
+    { foreignFlow, consecutiveBuyDays: buyStreak, consecutiveSellDays: sellStreak, volRatio, cmf20: bandarmology.cmf20 }
   );
 
-  // Definisi bearish sama dengan market-summary.service.ts:141-142.
-  const bearish = currentPrice < ma20 && ma20 < ma50;
+  // Definisi bearish sama dengan market-summary.service.ts - null (data kurang)
+  // diperlakukan aman sebagai "bukan bearish", bukan ditebak.
+  const bearish = ma20 != null && ma50 != null && currentPrice < ma20 && ma20 < ma50;
 
   return {
     scored: {
