@@ -6,18 +6,21 @@ import { motion } from 'framer-motion';
 import {
   Sparkles,
   Activity,
-  Newspaper,
   Menu,
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
   Flame,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
+import { MarketMoverCard, formatCardItems, type CardDef } from '@/components/MarketMoverCard';
 
 interface AiPick {
   ticker: string;
@@ -31,6 +34,7 @@ interface MarketMover {
   symbol: string;
   changePct: number;
   price: number;
+  volume?: number;
 }
 
 interface DailyPickCounts {
@@ -58,17 +62,12 @@ function hasSeenPromoToday(): boolean {
   return window.localStorage.getItem(PROMO_STORAGE_KEY) === todayJakarta();
 }
 
-function formatNewsDate(pubDate: string): string {
-  const d = new Date(pubDate);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
-}
-
 export default function HomePage() {
   const [aiPicks, setAiPicks] = useState<AiPick[]>([]);
   const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
   const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
+  const [topVolume, setTopVolume] = useState<MarketMover[]>([]);
   const [dailyPicks, setDailyPicks] = useState<DailyPickCounts | null>(null);
   // Menggantikan tampilan widget "Hari Ini AI Menemukan" (dailyPicks-nya sendiri TETAP
   // di-fetch di atas - masih dipakai payload /api/ai-briefing) - jadwal Corporate
@@ -83,8 +82,6 @@ export default function HomePage() {
   const [picksNeedPro, setPicksNeedPro] = useState(false);
   const [picksLoginRequired, setPicksLoginRequired] = useState(false);
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
-  const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; reason: string; pubDate: string }[]>([]);
-  const [loadingNews, setLoadingNews] = useState(true);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoPlan, setPromoPlan] = useState<PricingPlan['id']>('1m');
   const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
@@ -101,6 +98,7 @@ export default function HomePage() {
         if (summary) {
           setTopGainers((summary.topGainers || []).slice(0, 10));
           setTopLosers((summary.topLosers || []).slice(0, 10));
+          setTopVolume((summary.topVolume || []).slice(0, 10));
         }
       })
       .finally(() => setLoadingMarket(false));
@@ -126,12 +124,6 @@ export default function HomePage() {
       .then((d) => { if (d && !d.error) setDailyPicks(d); })
       .catch(() => {})
       .finally(() => setLoadingDailyPicks(false));
-
-    fetch('/api/news', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setNewsItems(d?.items || []))
-      .catch(() => {})
-      .finally(() => setLoadingNews(false));
 
     // Jadwal Corporate Calendar terdekat (Dividen/Earnings) - respons endpoint berbentuk
     // { events: Record<'YYYY-MM-DD', CalendarEvent[]> }, diratakan dan diurutkan di sini
@@ -279,45 +271,19 @@ export default function HomePage() {
             {loadingMarket ? (
               <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
             ) : (
-              <div className="space-y-3">
-                <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
-                  <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
-                  {ihsg ? (
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
-                      <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                        {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                        {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-tv-muted">Data tidak tersedia</span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-[10px] text-tv-muted uppercase tracking-wide mb-1">Top Gainer</div>
-                    <div className="space-y-1">
-                      {topGainers.slice(0, moverRowCount).map((s) => (
-                        <div key={s.symbol} className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-tv-text font-number">{s.symbol}</span>
-                          <span className="font-number text-tv-green tabular-nums">+{s.changePct.toFixed(2)}%</span>
-                        </div>
-                      ))}
-                    </div>
+              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
+                <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
+                {ihsg ? (
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
+                    <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                      {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
+                    </span>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-tv-muted uppercase tracking-wide mb-1">Top Loser</div>
-                    <div className="space-y-1">
-                      {topLosers.slice(0, moverRowCount).map((s) => (
-                        <div key={s.symbol} className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-tv-text font-number">{s.symbol}</span>
-                          <span className="font-number text-tv-red tabular-nums">{s.changePct.toFixed(2)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  <span className="text-xs text-tv-muted">Data tidak tersedia</span>
+                )}
               </div>
             )}
           </Card>
@@ -370,58 +336,27 @@ export default function HomePage() {
 
       </motion.div>
 
-      {/* Berita & Sentimen Pasar - RSS publik (CNBC Indonesia, Detik Finance) + sentimen
-          dari LensAI (fallback heuristik kata kunci kalau LensAI tidak tersedia) */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex-1 flex flex-col">
-        <Card className="flex-1 flex flex-col">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Newspaper className="w-4 h-4 text-tv-muted" />
-              <CardTitle>Berita & Sentimen Pasar</CardTitle>
-            </div>
-            <Badge variant="info">LensAI</Badge>
-          </CardHeader>
-
-          {loadingNews ? (
-            <div className="flex items-center gap-2 py-4 text-xs text-tv-muted">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat berita terkini...
-            </div>
-          ) : newsItems.length === 0 ? (
-            <p className="text-xs text-tv-muted py-2">Berita tidak tersedia saat ini.</p>
-          ) : (
-            <>
-              <div className="divide-y divide-tv-border/50">
-                {newsItems.slice(0, 12).map((n) => (
-                  <a
-                    key={n.link || n.title}
-                    href={n.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                      <p className="text-[10px] text-tv-muted mt-1">{n.source} • {formatNewsDate(n.pubDate)} • {n.reason}</p>
-                    </div>
-                    <Badge
-                      variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
-                      className="shrink-0"
-                    >
-                      {n.sentiment}
-                    </Badge>
-                  </a>
-                ))}
-              </div>
-              <Link
-                href="/news"
-                className="block text-center text-xs text-tv-blue hover:underline pt-3 mt-1 border-t border-tv-border/50"
-              >
-                Lihat Semua Berita
-              </Link>
-            </>
-          )}
-        </Card>
-      </motion.div>
+      {/* Gainer/Loser/Volume - gaya sama persis dengan card yang sebelumnya ada di
+          landing page "/" (components/Dashboard.tsx), sekarang dipindah ke sini,
+          ditukar dengan card Berita yang pindah ke "/". */}
+      {(() => {
+        const HOME_CARD_DEFS: CardDef[] = [
+          { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'gainer', listPath: '/market/top-gainer' },
+          { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'loser', listPath: '/market/top-loser' },
+          { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'volume', listPath: '/market/top-volume' },
+        ];
+        const homeCards = HOME_CARD_DEFS.map((def) => ({
+          ...def,
+          items: formatCardItems(def.id, def.id === 'gainer' ? topGainers : def.id === 'loser' ? topLosers : topVolume),
+        }));
+        return (
+          <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+            {homeCards.map((card) => (
+              <MarketMoverCard key={card.id} card={card} lastUpdated={null} loaded={!loadingMarket} />
+            ))}
+          </motion.div>
+        );
+      })()}
 
       <PromoUpgradeModal open={showPromoModal} onClose={handleClosePromo} onSelectPlan={handleSelectPlan} />
       {(() => {
