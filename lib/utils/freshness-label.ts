@@ -10,7 +10,7 @@ interface FreshnessLabelResult {
   stale: boolean;
 }
 
-const STALE_VALUES: ReadonlySet<FreshnessValue> = new Set(['STALE', 'UNKNOWN']);
+const STALE_VALUES: ReadonlySet<FreshnessValue> = new Set<FreshnessValue>(['STALE', 'UNKNOWN']);
 
 export function formatFreshnessLabel({ freshness, timeLabel }: FormatFreshnessLabelInput): FreshnessLabelResult {
   if (freshness == null && !timeLabel) {
