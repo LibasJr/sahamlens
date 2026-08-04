@@ -96,6 +96,51 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
   );
 }
 
+// Running text vertikal - level TP1/TP2 (Golden Cross) / CL1/CL2 (Dead Cross) berbasis
+// ATR-14 (lihat breakout.service.ts + app/api/daily-picks/route.ts). Pola sama dengan
+// TickerTape di atas (translate + duplikasi list 2x untuk loop mulus, pause on hover),
+// cuma sumbu Y bukan X.
+function VerticalSignalTicker({ golden, dead }: {
+  golden: { symbol: string; price: number; tp1: number; tp2: number }[];
+  dead: { symbol: string; price: number; cl1: number; cl2: number }[];
+}) {
+  const items = [
+    ...golden.map((s) => ({ ...s, type: 'golden' as const })),
+    ...dead.map((s) => ({ ...s, type: 'dead' as const })),
+  ];
+  if (!items.length) {
+    return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada sinyal TP/CL hari ini.</p>;
+  }
+  const loopItems = [...items, ...items];
+  const durationSec = Math.max(20, Math.round(items.length * 2.5));
+  return (
+    <div className="relative flex-1 overflow-hidden min-h-[120px]">
+      <div className="sahamlens-vticker-track flex flex-col" style={{ animationDuration: `${durationSec}s` }}>
+        {loopItems.map((s, i) => (
+          <Link
+            key={`${s.type}-${s.symbol}-${i}`}
+            href={`/technical/${s.symbol}.JK`}
+            className="flex items-center justify-between gap-2 px-3 py-2 border-b border-tv-border/40 hover:bg-tv-hover/40 transition-colors shrink-0"
+          >
+            <span className="text-[12px] font-bold font-number text-tv-text">{s.symbol}</span>
+            <span className="text-[11px] font-number text-tv-muted">Rp {Math.round(s.price).toLocaleString('id-ID')}</span>
+            {s.type === 'golden' ? (
+              <span className="text-[10px] font-bold font-number text-tv-green">TP1 {s.tp1.toLocaleString('id-ID')} • TP2 {s.tp2.toLocaleString('id-ID')}</span>
+            ) : (
+              <span className="text-[10px] font-bold font-number text-tv-red">CL1 {s.cl1.toLocaleString('id-ID')} • CL2 {s.cl2.toLocaleString('id-ID')}</span>
+            )}
+          </Link>
+        ))}
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sahamlens-vticker-track { animation-name: sahamlens-vticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .sahamlens-vticker-track:hover { animation-play-state: paused; }
+        @keyframes sahamlens-vticker-scroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+      `}} />
+    </div>
+  );
+}
+
 export default function Dashboard() {
   // Default chart beranda = IHSG (permintaan eksplisit) - bukan lagi saham trending
   // acak. User tetap bisa ketik nama emiten di search (CommandPalette onSelect di
@@ -234,8 +279,8 @@ export default function Dashboard() {
   // berbeda, bukan perpanjangan data yang sama. Sumbernya cache breakout-scan yang sama
   // dipakai /api/ai-pick, jadi tidak ada pemindaian baru.
   const [crossSignals, setCrossSignals] = useState<{
-    golden: { symbol: string; price: number }[];
-    dead: { symbol: string; price: number }[];
+    golden: { symbol: string; price: number; tp1: number; tp2: number }[];
+    dead: { symbol: string; price: number; cl1: number; cl2: number }[];
   } | null>(null);
 
   React.useEffect(() => {
@@ -247,8 +292,12 @@ export default function Dashboard() {
           return;
         }
         setCrossSignals({
-          golden: (data.goldenCross?.detail || []).map((d: any) => ({ symbol: d.symbol, price: d.price })),
-          dead: (data.deadCross?.detail || []).map((d: any) => ({ symbol: d.symbol, price: d.price })),
+          golden: (data.goldenCross?.detail || [])
+            .filter((d: any) => d.tp1 != null && d.tp2 != null)
+            .map((d: any) => ({ symbol: d.symbol, price: d.price, tp1: d.tp1, tp2: d.tp2 })),
+          dead: (data.deadCross?.detail || [])
+            .filter((d: any) => d.cl1 != null && d.cl2 != null)
+            .map((d: any) => ({ symbol: d.symbol, price: d.price, cl1: d.cl1, cl2: d.cl2 })),
         });
       })
       .catch(() => setCrossSignals({ golden: [], dead: [] }));
@@ -501,63 +550,22 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Sinyal Golden Cross / Dead Cross - beda dari skor komposit di atas, murni
-                  kejadian crossover MA20/MA50 hari ini. Tanpa gembok Premium: siapa pun yang
-                  sampai di beranda dan melihat panel ini sudah lolos gerbang Pro/trial di
-                  /api/ai-pick di atasnya, mengunci lagi tidak ada gunanya. */}
+              {/* Sinyal TP/CL - proyeksi ATR-14 dari Golden/Dead Cross hari ini, running
+                  text vertikal (lihat VerticalSignalTicker). Tanpa gembok Premium, sama
+                  seperti sebelumnya. */}
               <div className="mt-5 pt-4 border-t border-tv-border flex-1 flex flex-col">
                 <h4 className="font-heading text-[12px] font-bold text-tv-text flex items-center gap-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-tv-green" />
-                  Sinyal Cross Hari Ini
+                  Sinyal TP/CL Hari Ini
                 </h4>
-                {/* justify-between (bukan gap tetap) - panel kanan ini disamakan tingginya
-                    dengan chart di kiri lewat grid items-stretch, dan jumlah sinyal
-                    cross harian tidak tentu (bisa 1, bisa 6). gap tetap menyisakan ruang
-                    kosong menganggur di bawah kalau sinyalnya sedikit; justify-between
-                    menyebar baris yang ADA merata mengisi tinggi yang tersedia, berapa
-                    pun jumlahnya. */}
-                <div className="mt-3 flex-1 flex flex-col justify-between gap-2">
-                  {crossSignals === null ? (
-                    <p className="text-[11px] text-tv-muted py-4 text-center">Memuat sinyal...</p>
-                  ) : crossSignals.golden.length === 0 && crossSignals.dead.length === 0 ? (
-                    <p className="text-[11px] text-tv-muted py-4 text-center">
-                      Belum ada Golden/Dead Cross baru hari ini.
-                    </p>
-                  ) : (
-                    <>
-                      {crossSignals.golden.map((s) => (
-                        <Link
-                          key={`golden-${s.symbol}`}
-                          href={`/technical/${s.symbol}.JK`}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-tv-border/60 bg-tv-card px-3 py-2 hover:border-tv-borderLight transition-colors"
-                        >
-                          <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
-                          <span className="text-[11px] font-number text-tv-muted">
-                            Rp {Math.round(s.price).toLocaleString('id-ID')}
-                          </span>
-                          <span className="text-[10px] font-bold text-tv-green bg-tv-green/15 rounded px-1.5 py-0.5">
-                            Golden Cross
-                          </span>
-                        </Link>
-                      ))}
-                      {crossSignals.dead.map((s) => (
-                        <Link
-                          key={`dead-${s.symbol}`}
-                          href={`/technical/${s.symbol}.JK`}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-tv-border/60 bg-tv-card px-3 py-2 hover:border-tv-borderLight transition-colors"
-                        >
-                          <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
-                          <span className="text-[11px] font-number text-tv-muted">
-                            Rp {Math.round(s.price).toLocaleString('id-ID')}
-                          </span>
-                          <span className="text-[10px] font-bold text-tv-red bg-tv-red/15 rounded px-1.5 py-0.5">
-                            Dead Cross
-                          </span>
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                </div>
+                <p className="text-[10px] text-tv-muted mt-1">
+                  Proyeksi ATR-14 dari sinyal Golden/Dead Cross - bukan jaminan harga akan tercapai.
+                </p>
+                {crossSignals === null ? (
+                  <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Memuat sinyal...</p>
+                ) : (
+                  <VerticalSignalTicker golden={crossSignals.golden} dead={crossSignals.dead} />
+                )}
               </div>
             </div>
           </div>
