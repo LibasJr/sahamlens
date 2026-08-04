@@ -15,6 +15,8 @@ import {
   TrendingDown,
   BarChart3,
   Radar,
+  Filter,
+  Eye,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState, SegmentedControl } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
@@ -84,6 +86,8 @@ export default function HomePage() {
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
   const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume'>('gainer');
+  const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
+  const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
 
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
@@ -170,6 +174,17 @@ export default function HomePage() {
   useEffect(() => {
     fetchRadar();
   }, [fetchRadar]);
+
+  useEffect(() => {
+    fetch('/api/watchlist', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const list = d?.data || [];
+        setWatchlistCount(list.length);
+        setWatchlistPreview(list.slice(0, 3));
+      })
+      .catch(() => setWatchlistCount(null));
+  }, []);
 
   useEffect(() => {
     fetch('/api/user/profile', { cache: 'no-store' })
@@ -479,6 +494,59 @@ export default function HomePage() {
           </motion.div>
         );
       })()}
+
+      {/* LensScanner - teaser, bukan full table (spec: full scanner sudah punya
+          halaman sendiri /screener). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card hoverable className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-tv-purple/10 border border-tv-purple/25 text-tv-purple flex items-center justify-center">
+              <Filter className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-heading text-sm font-bold text-white">LensScanner</h4>
+              <p className="text-xs text-tv-muted">Filter saham multi-faktor sesuai profil risiko Anda</p>
+            </div>
+          </div>
+          <Link href="/screener" className="shrink-0 px-3 py-1.5 rounded-md bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-semibold transition-colors">
+            Buka LensScanner
+          </Link>
+        </Card>
+      </motion.div>
+
+      {/* LensWatch - ringkasan singkat, EmptyState kalau watchlist masih kosong
+          (bukan "tidak ada data" polos). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-tv-blue" />
+              <CardTitle>LensWatch</CardTitle>
+            </div>
+            <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
+          </CardHeader>
+          {watchlistCount === null ? (
+            <Skeleton className="h-11 w-full" />
+          ) : watchlistCount === 0 ? (
+            <EmptyState
+              title="Belum ada saham di watchlist"
+              description="Tambahkan saham untuk mulai memantau harga & alert."
+              action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
+            />
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                {watchlistPreview.map((w) => (
+                  <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
+                    {w.symbol.replace('.JK', '')}
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       <PromoUpgradeModal open={showPromoModal} onClose={handleClosePromo} onSelectPlan={handleSelectPlan} />
       {(() => {
