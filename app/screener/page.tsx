@@ -1,17 +1,68 @@
 'use me';
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { Sliders, Award, Shield, Zap, RefreshCw, Filter, CheckCircle } from 'lucide-react';
+
+type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
+  | 'div_yield' | 'bandarmology' | 'moat' | 'signal' | 'pattern_tag' | 'sentiment'
+  | 'week52_high' | 'entry' | 'atr_pct';
+
+interface SortableColumn {
+  key: ColumnKey;
+  label: string;
+  align?: 'right';
+  getValue: (item: any) => string | number | null | undefined;
+}
+
+const SORTABLE_COLUMNS: SortableColumn[] = [
+  { key: 'ticker', label: 'Ticker', getValue: (i) => i.ticker },
+  { key: 'name', label: 'Nama Emiten', getValue: (i) => i.name },
+  { key: 'sector', label: 'Sektor', getValue: (i) => i.sector },
+  { key: 'per', label: 'PER / Sektor', align: 'right', getValue: (i) => i.per },
+  { key: 'rev_growth_ttm', label: 'Rev Growth (TTM)', align: 'right', getValue: (i) => i.rev_growth_ttm },
+  { key: 'roe', label: 'ROE', align: 'right', getValue: (i) => i.roe },
+  { key: 'der', label: 'DER', align: 'right', getValue: (i) => i.der },
+  { key: 'div_yield', label: 'Div Yield', align: 'right', getValue: (i) => i.div_yield },
+  { key: 'bandarmology', label: 'Bandarmology', getValue: (i) => i.bandarmology },
+  { key: 'moat', label: 'Moat Rating', getValue: (i) => i.moat },
+  { key: 'signal', label: 'Signal', getValue: (i) => i.signal },
+  { key: 'pattern_tag', label: 'Pola Backtest', getValue: (i) => i.pattern_tag },
+  { key: 'sentiment', label: 'Sentimen Berita', getValue: (i) => i.sentiment },
+  { key: 'week52_high', label: '52W High/Low', align: 'right', getValue: (i) => i.week52_high },
+  { key: 'entry', label: 'Harga', align: 'right', getValue: (i) => i.entry },
+  { key: 'atr_pct', label: 'Volatilitas Harian', align: 'right', getValue: (i) => i.atr_pct },
+];
+
+function compareValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  const result = typeof a === 'number' && typeof b === 'number'
+    ? a - b
+    : String(a).localeCompare(String(b), 'id');
+  return dir === 'asc' ? result : -result;
+}
 
 export default function ScreenerPage() {
   const router = useRouter();
   const [riskProfile, setRiskProfile] = useState<'Konservatif' | 'Moderat' | 'Agresif'>('Moderat');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: ColumnKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
 
   const runScreener = async (profile: string) => {
     setLoading(true);
@@ -32,6 +83,12 @@ export default function ScreenerPage() {
   }, [riskProfile]);
 
   const top10 = data?.analysis?.top_10_stocks || [];
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return top10;
+    const col = SORTABLE_COLUMNS.find((c) => c.key === sortKey)!;
+    return [...top10].sort((a: any, b: any) => compareValues(col.getValue(a), col.getValue(b), sortDir));
+  }, [top10, sortKey, sortDir]);
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -93,26 +150,24 @@ export default function ScreenerPage() {
               <thead>
                 <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase text-[10px]">
                   <th className="p-3">#</th>
-                  <th className="p-3">Ticker</th>
-                  <th className="p-3">Nama Emiten</th>
-                  <th className="p-3">Sektor</th>
-                  <th className="p-3 text-right">PER / Sektor</th>
-                  <th className="p-3 text-right">Rev Growth (TTM)</th>
-                  <th className="p-3 text-right">ROE</th>
-                  <th className="p-3 text-right">DER</th>
-                  <th className="p-3 text-right">Div Yield</th>
-                  <th className="p-3">Bandarmology</th>
-                  <th className="p-3">Moat Rating</th>
-                  <th className="p-3">Signal</th>
-                  <th className="p-3">Pola Backtest</th>
-                  <th className="p-3">Sentimen Berita</th>
-                  <th className="p-3 text-right">52W High/Low</th>
-                  <th className="p-3 text-right">Harga</th>
-                  <th className="p-3 text-right">Volatilitas Harian</th>
+                  {SORTABLE_COLUMNS.map((col) => (
+                    <th key={col.key} className={`p-3 ${col.align === 'right' ? 'text-right' : ''}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key)}
+                        className={`inline-flex items-center gap-1 hover:text-tv-text transition-colors ${col.align === 'right' ? 'flex-row-reverse' : ''}`}
+                      >
+                        {col.label}
+                        {sortKey === col.key && (
+                          <span className="text-tv-blue">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
-                {top10.length === 0 && (
+                {sortedRows.length === 0 && (
                   <tr>
                     <td colSpan={17} className="p-8 text-center text-tv-muted text-sm">
                       {loading ? (
@@ -121,7 +176,7 @@ export default function ScreenerPage() {
                     </td>
                   </tr>
                 )}
-                {top10.map((item: any, idx: number) => (
+                {sortedRows.map((item: any, idx: number) => (
                   <tr key={item.ticker} className="hover:bg-tv-hover/50 transition-colors">
                     <td className="p-3 text-tv-muted font-bold">{idx + 1}</td>
                     <td className="p-3">
