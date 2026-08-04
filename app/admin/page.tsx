@@ -9,7 +9,7 @@ import SetProForm from './SetProForm';
 import ChangeSecretForm from './ChangeSecretForm';
 
 export default async function AdminPage() {
-  if (!isAdminServer()) {
+  if (!(await isAdminServer())) {
     redirect('/admin-login');
   }
 

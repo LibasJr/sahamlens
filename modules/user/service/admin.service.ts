@@ -9,9 +9,9 @@ export function isAdminFromRequestCookies(cookieStore: { get(name: string): { va
 }
 
 /** Shortcut untuk dipakai di Server Component / Route Handler App Router. */
-export function isAdminServer(): boolean {
+export async function isAdminServer(): Promise<boolean> {
   try {
-    return isAdminFromRequestCookies(cookies());
+    return isAdminFromRequestCookies(await cookies());
   } catch {
     return false;
   }
