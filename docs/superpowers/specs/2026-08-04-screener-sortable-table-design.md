@@ -93,6 +93,15 @@ const handleSort = (key: ColumnKey) => {
 
 **Render `<th>`:** `<thead>` di-generate dari `SORTABLE_COLUMNS.map(...)` (ganti 16 `<th>` statis, kolom "#" tetap manual di depan) — tiap `<th>` jadi `<button onClick={() => handleSort(col.key)}>` isi label + panah kondisional kalau `sortKey === col.key`.
 
+## Addendum — perluasan scope ke halaman lain
+
+User minta pola sort yang sama diterapkan ke halaman list-ranking-saham lain, bukan cuma `/screener`. Audit `grep <table>` di `app/**/*.tsx` menemukan 8 halaman berisi tabel; yang benar-benar sepola (list ranking banyak baris, kolom angka+teks) cuma `/recommendations` dan `/breakout-radar`. Yang lain (`/compare` perbandingan 2 saham, `/dcf` sensitivity matrix, `/dividend` proyeksi tahun, `/backtest` hasil simulasi, `/admin` user management) beda struktur, tidak masuk scope (keputusan user, AskUserQuestion).
+
+- **`/recommendations`** (`app/recommendations/page.tsx:264-398`) — **SUDAH punya sort-klik-header berfungsi penuh** (`handleSort`, `getSortIcon`, `sortConfig`, `processedData`, 8 kolom: ticker/sector/price/changePct/consensus/sentimentScore/foreignFlow/bullishVotes). Tidak ada kerjaan tambahan di halaman ini.
+- **`/breakout-radar`** (`app/breakout-radar/page.tsx:144-236`, LensRadar) — **belum ada sort sama sekali**, table statis. Kolom yang ada: `#` (rank, tidak sortable), `Saham` (`it.symbol`, string), `Harga` (`it.price`, number), `Chg` (`it.changePct`, number), `Skor` (`it.finalScore`, number), `Rincian` (`it.baseScore` + `it.bonuses` digabung jadi 1 string berformat campur — TIDAK sortable, bukan nilai tunggal bersih), `Kenapa` (tombol expand/collapse detail — bukan data, TIDAK sortable). 4 kolom sortable: Saham/Harga/Chg/Skor.
+- Pola sort SAMA PERSIS dengan `/screener` (klik = ascending, klik lagi = toggle descending, klik kolom lain = reset ascending, null selalu di bawah) — comparator generik `compareValues` di-duplikasi ke file `breakout-radar/page.tsx` (bukan diekstrak ke shared util, karena cuma dipakai 2 tempat dan definisinya 6 baris — ekstraksi prematur untuk ukuran ini, YAGNI).
+- Baris expand-detail (`isExpanded` + `React.Fragment`) di breakout-radar TETAP bekerja sama seperti sebelumnya setelah sort — expand state dikunci ke `it.symbol` (bukan index), jadi urutan baris berubah tidak memengaruhi baris mana yang sedang ter-expand.
+
 ## Testing
 
 Tidak ada test otomatis baru — codebase ini tidak punya preseden test untuk logic di dalam page component (`__tests__` yang ada semua untuk `modules/*/service`), dan menambah infra test React Testing Library baru untuk 1 fitur kecil bukan proporsional (YAGNI). Verifikasi manual: `npm run dev`, buka `/screener`, klik tiap header, cek urutan berubah benar (angka naik/turun, teks A-Z/Z-A), cek kolom dengan nilai N/A (mis. `pattern_tag` kosong) tetap di bawah di kedua arah, cek panah muncul di kolom aktif.
