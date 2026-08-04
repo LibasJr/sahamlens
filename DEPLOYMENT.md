@@ -70,6 +70,25 @@ Fix-nya sudah ada di `.vercelignore` (root repo) yang exclude `mobile/` + bebera
 **Jangan hapus/skip `.vercelignore` ini**, dan kalau nambah folder besar baru yang gak perlu
 ikut ke-deploy, tambahkan di sana juga.
 
+**`output: 'standalone'` di `next.config.mjs` BIKIN DEPLOY VERCEL GAGAL** (ditemukan 2026-08-05,
+setelah 4 deploy Production berturut-turut gagal ~7 jam). Opsi ini ditambahkan buat `Dockerfile`
+(jalur self-host, BUILD 010) dengan komentar yang KELIRU bilang "tidak memengaruhi Vercel" - untuk
+Next.js 16 + Turbopack, mode standalone melewatkan `.next/next-server.js.nft.json` yang justru
+dibaca pipeline build Vercel sendiri setelah `next build` selesai, jadi build sukses penuh
+(compile+typecheck+prerender lolos semua) lalu tetap gagal `ENOENT` di step terakhir. Fix: gated
+lewat `output: process.env.VERCEL ? undefined : 'standalone'` (Vercel set `VERCEL=1` otomatis,
+Dockerfile tidak) - **kalau mengubah `next.config.mjs` lagi, jangan hapus guard `process.env.VERCEL`
+ini** kecuali sudah verifikasi ulang lewat `npx vercel ls` bahwa deploy tetap Ready.
+
+**`eslint-config-next` versi harus align sama `eslint`** - upgrade Next.js 14→16 (2026-08-04) naikin
+`eslint-config-next` ke `^16.3.0` yang butuh peer `eslint@>=9`, tapi `eslint` devDependency dibiarkan
+`^8.57.0`. Vercel selalu install bersih (tanpa cache `node_modules` lokal), jadi `npm install`
+ERESOLVE-fail keras di sana meskipun mesin dev lokal masih punya install lama yang "kelihatan" jalan.
+Fix sementara: root `.npmrc` isi `legacy-peer-deps=true`. **Perbaikan jangka panjang yang lebih
+benar**: upgrade `eslint` ke `^9` + migrasi `.eslintrc.json` ke flat config `eslint.config.mjs`
+(ESLint 9 default-nya tidak baca `.eslintrc.*` lagi) - belum dikerjakan, `.npmrc` cuma nge-relax
+resolusi peer-dep, bukan benerin akar masalahnya.
+
 ## Environment variables yang sudah di-set di Vercel (Production)
 
 **REWRITE TOTAL (audit BUILD 002, 2026-08-03)** - tabel dan seluruh bagian di bawah ini
