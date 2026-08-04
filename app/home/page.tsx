@@ -7,8 +7,6 @@ import {
   Sparkles,
   Activity,
   Menu,
-  ArrowUpRight,
-  ArrowDownRight,
   Flame,
   TrendingUp,
   TrendingDown,
@@ -23,15 +21,6 @@ import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
-import { formatFreshnessLabel } from '@/lib/utils/freshness-label';
-
-interface AiPick {
-  ticker: string;
-  price: number;
-  changePct: number;
-  consensus: string;
-  confidence: number;
-}
 
 interface MarketMover {
   symbol: string;
@@ -46,9 +35,9 @@ interface DailyPickCounts {
   breakout: { count: number };
   undervalue: { count: number };
   foreignAccumulation: { count: number };
+  goldenCross: { count: number; stale: boolean };
+  deadCross: { count: number; stale: boolean };
 }
-
-const PICK_UNIVERSE = 'BBCA.JK,BBRI.JK,BMRI.JK,TLKM.JK,ASII.JK,GOTO.JK,ADRO.JK,ICBP.JK,ANTM.JK,UNTR.JK';
 
 const PROMO_STORAGE_KEY = 'sahamlens_promo_last_seen';
 
@@ -67,7 +56,6 @@ function hasSeenPromoToday(): boolean {
 }
 
 export default function HomePage() {
-  const [aiPicks, setAiPicks] = useState<AiPick[]>([]);
   const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
   const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
@@ -87,18 +75,16 @@ export default function HomePage() {
   >([]);
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
+  const [radarStale, setRadarStale] = useState(false);
   const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold'>('gainer');
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
   const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
 
-  const [ihsgFreshness, setIhsgFreshness] = useState<string | null>(null);
-  const [ihsgTimeLabel, setIhsgTimeLabel] = useState<string | null>(null);
   const [moversFreshness, setMoversFreshness] = useState<string | null>(null);
   const [moversTimeLabel, setMoversTimeLabel] = useState<string | null>(null);
 
   const [marketError, setMarketError] = useState(false);
   const [loadingMarket, setLoadingMarket] = useState(true);
-  const [loadingPicks, setLoadingPicks] = useState(true);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
   const [picksNeedPro, setPicksNeedPro] = useState(false);
   const [picksLoginRequired, setPicksLoginRequired] = useState(false);
@@ -120,8 +106,6 @@ export default function HomePage() {
         if (!liveJkse && !summary) { setMarketError(true); return; }
         if (liveJkse) {
           setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
-          setIhsgFreshness(liveJkse.freshness ?? null);
-          setIhsgTimeLabel(liveJkse.lastUpdate ? new Date(liveJkse.lastUpdate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : null);
         }
         if (summary) {
           setTopGainers((summary.topGainers || []).slice(0, 10));
@@ -137,21 +121,35 @@ export default function HomePage() {
       .finally(() => setLoadingMarket(false));
   }, []);
 
-  useEffect(() => {
-    fetchMarket();
+  const [marketPulse, setMarketPulse] = useState<{
+    sectorHeatmap: { sector: string; color: string; changePct: number }[];
+    breadth: { advancing: number; declining: number; total: number };
+  } | null>(null);
+  const [marketPulseNeedPro, setMarketPulseNeedPro] = useState(false);
+  const [marketPulseLoginRequired, setMarketPulseLoginRequired] = useState(false);
+  const [marketPulseError, setMarketPulseError] = useState(false);
+  const [loadingMarketPulse, setLoadingMarketPulse] = useState(true);
 
-    fetch(`/api/recommendations?symbols=${PICK_UNIVERSE}`, { cache: 'no-store' })
+  const fetchMarketPulse = useCallback(() => {
+    setLoadingMarketPulse(true);
+    setMarketPulseError(false);
+    fetch('/api/market-pulse', { cache: 'no-store' })
       .then((r) => {
-        if (r.status === 401) { setPicksLoginRequired(true); return null; }
-        if (r.status === 402) { setPicksNeedPro(true); return null; }
-        return r.ok ? r.json() : null;
+        if (r.status === 401) { setMarketPulseLoginRequired(true); return null; }
+        if (r.status === 402) { setMarketPulseNeedPro(true); return null; }
+        if (!r.ok) { setMarketPulseError(true); return null; }
+        return r.json();
       })
       .then((d) => {
-        const sorted = (d?.recommendations || []).sort((a: AiPick, b: AiPick) => b.confidence - a.confidence);
-        setAiPicks(sorted.slice(0, 5));
+        if (d?.breadth && d?.sectorHeatmap) setMarketPulse({ sectorHeatmap: d.sectorHeatmap, breadth: d.breadth });
       })
-      .catch(() => {})
-      .finally(() => setLoadingPicks(false));
+      .catch(() => setMarketPulseError(true))
+      .finally(() => setLoadingMarketPulse(false));
+  }, []);
+
+  useEffect(() => {
+    fetchMarket();
+    fetchMarketPulse();
 
     // "Hari Ini AI Menemukan" - publik (sama seperti widget di landing page /),
     // dipakai ulang di sini supaya Beranda terisi info pasar, bukan sekadar kosong
@@ -186,10 +184,17 @@ export default function HomePage() {
     setLoadingRadar(true);
     setRadarError(false);
     fetch('/api/ai-pick', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (r.status === 401) { setPicksLoginRequired(true); return null; }
+        if (r.status === 402) { setPicksNeedPro(true); return null; }
+        if (!r.ok) { setRadarError(true); return null; }
+        return r.json();
+      })
       .then((d) => {
-        if (!d) { setRadarError(true); return; }
-        setRadarItems((d.items || []).slice(0, 5));
+        if (!d) return;
+        if (d.error || d.ready === false) { setRadarItems([]); setRadarStale(false); return; }
+        setRadarItems(d.items || []);
+        setRadarStale(!!d.stale);
       })
       .catch(() => setRadarError(true))
       .finally(() => setLoadingRadar(false));
@@ -221,7 +226,7 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const topPick = aiPicks.find((p) => p.consensus === 'STRONG BUY') || aiPicks[0];
+  const topPick = radarItems[0];
 
   const handleClosePromo = useCallback(() => {
     markPromoSeenToday();
@@ -240,12 +245,16 @@ export default function HomePage() {
   // rule-based di bawah kalau API/GEMINI_API_KEY tidak tersedia. Murni ringkasan
   // pasar (bukan akun) - lihat catatan di app/api/ai-briefing/route.ts.
   useEffect(() => {
-    if (loadingMarket || loadingPicks || loadingDailyPicks || aiBriefing) return;
+    if (loadingMarket || loadingRadar || loadingDailyPicks || aiBriefing) return;
     fetch('/api/ai-briefing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        topPick: topPick ? { ticker: topPick.ticker, consensus: topPick.consensus, confidence: topPick.confidence } : null,
+        topPick: topPick ? {
+          ticker: topPick.symbol.replace('.JK', ''),
+          consensus: topPick.flagged ? topPick.flagReason : 'Sinyal Kuat',
+          confidence: topPick.finalScore,
+        } : null,
         indices: ihsg ? [{ name: 'IHSG', changePct: ihsg.changePct }] : [],
         pickCounts: dailyPicks ? {
           attractive: dailyPicks.attractive.count,
@@ -258,7 +267,7 @@ export default function HomePage() {
       .then((d) => { if (d?.briefing) setAiBriefing(d.briefing); })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMarket, loadingPicks, loadingDailyPicks]);
+  }, [loadingMarket, loadingRadar, loadingDailyPicks]);
 
   return (
     <PageContainer className="p-4 md:p-6 space-y-5 min-h-full flex flex-col">
@@ -290,7 +299,7 @@ export default function HomePage() {
                 <h2 className="font-heading text-sm font-semibold text-white">LensAI</h2>
                 <Badge variant="info" dot>Live</Badge>
               </div>
-              {loadingPicks ? (
+              {loadingRadar ? (
                 <div className="mt-1.5 space-y-1.5">
                   <Skeleton variant="text" className="w-full max-w-md" />
                   <Skeleton variant="text" className="w-2/3 max-w-xs" />
@@ -303,11 +312,11 @@ export default function HomePage() {
                 <p className="text-sm text-tv-muted mt-1.5">Upgrade ke Pro untuk melihat sinyal AI harian.</p>
               ) : topPick ? (
                 <p className="text-sm text-tv-text mt-1.5 leading-relaxed">
-                  Sinyal AI hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.ticker}</span>{' '}
-                  <Badge variant={topPick.consensus.includes('BUY') ? 'success' : topPick.consensus.includes('SELL') ? 'danger' : 'neutral'} className="mx-1">
-                    {topPick.consensus}
+                  Sinyal AI hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.symbol.replace('.JK', '')}</span>{' '}
+                  <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
+                    {topPick.flagged ? topPick.flagReason : 'Sinyal Kuat'}
                   </Badge>
-                  dengan confidence <span className="font-number font-semibold">{topPick.confidence}%</span>.
+                  dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}</span>.
                 </p>
               ) : (
                 <p className="text-sm text-tv-muted mt-1.5">Belum ada sinyal kuat hari ini. Cek Stock Recommendations untuk detail lengkap.</p>
@@ -317,59 +326,10 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
-      {/* Today's Opportunities - aiPicks sudah di-fetch di atas tapi sebelumnya
-          cuma dipakai untuk derive topPick di briefing text, tidak pernah
-          dirender sebagai list sendiri (audit BUILD 001). */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-tv-green" />
-              <CardTitle>Today&apos;s Opportunities</CardTitle>
-            </div>
-            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
-          </CardHeader>
-          {loadingPicks ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : picksLoginRequired ? (
-            <EmptyState title="Login untuk melihat LensAI Picks" description="Sinyal AI harian butuh akun." />
-          ) : picksNeedPro ? (
-            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensAI Picks harian." />
-          ) : aiPicks.length === 0 ? (
-            <EmptyState title="Belum ada peluang kuat hari ini" description="Coba cek lagi nanti setelah jam bursa berjalan." />
-          ) : (
-            <div className="space-y-2">
-              {aiPicks.slice(0, 5).map((p) => (
-                <Link
-                  key={p.ticker}
-                  href={`/technical/${p.ticker}.JK`}
-                  className="flex items-center justify-between gap-3 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2.5 hover:border-tv-borderLight transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-number text-sm font-bold text-white shrink-0">{p.ticker}</span>
-                    <Badge variant={p.consensus.includes('BUY') ? 'success' : p.consensus.includes('SELL') ? 'danger' : 'neutral'}>
-                      {p.consensus}
-                    </Badge>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-number text-sm font-semibold text-white">LensScore {p.confidence}%</div>
-                    <div className={`text-[11px] font-number ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                      {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(2)}%
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* LensMarket sendiri di baris atas (ringkas, cuma 1 statistik IHSG) - dipisah
-          dari Jadwal Terdekat/LensRadar supaya 2 card isi-list yang tinggi (Jadwal
-          Terdekat & LensRadar) sejajar satu baris, bukan LensRadar numpuk di sebelah
-          LensMarket yang jauh lebih pendek (tinggi ketimpangan, keluhan user). */}
+      {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
+          sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat
+          upsell, bukan data kosong). IHSG dicabut dari sini (redundan - sudah tampil
+          terus-menerus di TopMarketBar global sejak Phase 1). */}
       <motion.div initial="hidden" animate="show" variants={fadeUp}>
         <Card hoverable>
           <CardHeader>
@@ -379,98 +339,117 @@ export default function HomePage() {
             </div>
             <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
           </CardHeader>
-          {marketError ? (
-            <EmptyState
-              title="Data pasar sementara tidak tersedia."
-              action={{ label: 'Coba lagi', onClick: fetchMarket }}
-            />
-          ) : loadingMarket ? (
+          {marketPulseLoginRequired ? (
+            <EmptyState title="Login untuk melihat LensMarket" description="Sector & breadth butuh akun." />
+          ) : marketPulseNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat sector strength & market breadth." />
+          ) : marketPulseError ? (
+            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
+          ) : loadingMarketPulse ? (
             <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
-              <Skeleton variant="text" className="w-16" />
-              <Skeleton className="h-6 w-32" />
+              <Skeleton variant="text" className="w-24" />
+              <Skeleton className="h-6 w-40" />
             </div>
+          ) : !marketPulse ? (
+            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
           ) : (
-            <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
-              <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
-              {ihsg ? (
-                <div className="flex items-baseline gap-2">
-                  <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
-                  <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                    {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
-                  </span>
+            <div className="space-y-2">
+              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
+                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Market Breadth</div>
+                <div className="text-sm text-white mt-1">
+                  <span className="font-number font-semibold text-tv-green">{marketPulse.breadth.advancing} naik</span>
+                  {' • '}
+                  <span className="font-number font-semibold text-tv-red">{marketPulse.breadth.declining} turun</span>
+                  {' '}dari {marketPulse.breadth.total} saham
                 </div>
-              ) : (
-                <span className="text-xs text-tv-muted">Data tidak tersedia</span>
-              )}
-              {ihsg && (() => {
-                const label = formatFreshnessLabel({ freshness: ihsgFreshness as any, timeLabel: ihsgTimeLabel });
-                return (
-                  <p className={`text-[10px] mt-1.5 ${label.stale ? 'text-tv-warning' : 'text-tv-muted'}`}>
-                    {label.text}
-                  </p>
-                );
-              })()}
+              </div>
+              <div className="space-y-1.5">
+                {marketPulse.sectorHeatmap.slice(0, 3).map((s) => (
+                  <div key={s.sector} className="flex items-center justify-between bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
+                    <span className="text-xs text-white">{s.sector}</span>
+                    <span className={`text-xs font-number font-semibold ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                      {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>
       </motion.div>
 
-      {/* Jadwal Terdekat & LensRadar sejajar 1 baris - dua-duanya card isi-list yang
-          tinggi, jadi align lebih rapi dibanding sebelumnya dipasangkan dengan
-          LensMarket yang pendek. */}
-      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
-            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
-            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
-            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
-            corporate-calendar.service.ts). */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-tv-gold" />
-                <CardTitle>Jadwal Terdekat</CardTitle>
-              </div>
-              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
-            </CardHeader>
-            {calendarEvents === null ? (
-              <div className="space-y-2">
-                {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
-              </div>
-            ) : calendarEvents.length === 0 ? (
-              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
-            ) : (
-              <div className="space-y-2">
-                {calendarEvents.map((e, i) => (
-                  <Link
-                    key={`${e.symbol}-${e.date}-${i}`}
-                    href={`/technical/${e.symbol}.JK`}
-                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
-                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
-                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
-                        </Badge>
-                      </div>
-                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+      {/* Hero Opportunity - item #1 dari /api/ai-pick (sama sumber data dengan
+          LensRadar di bawahnya; radarItems[0] di sini vs radarItems.slice(1,6) di
+          LensRadar supaya tidak ada saham yang tampil dobel). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
+          {loadingRadar ? (
+            <Skeleton className="h-24 w-full" />
+          ) : picksLoginRequired ? (
+            <EmptyState title="Login untuk melihat Today's Opportunities" description="Sinyal AI harian butuh akun." />
+          ) : picksNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat Today's Opportunities." />
+          ) : radarError ? (
+            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchRadar }} />
+          ) : !radarItems[0] ? (
+            <EmptyState title="Belum ada peluang kuat hari ini" description="Coba cek lagi nanti setelah jam bursa berjalan." />
+          ) : (() => {
+            const hero = radarItems[0];
+            return (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-tv-gold" />
+                    <CardTitle>Today&apos;s Opportunities</CardTitle>
+                  </div>
+                  {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
+                </div>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-number text-2xl font-bold text-white">{hero.symbol.replace('.JK', '')}</span>
+                      {hero.flagged ? (
+                        <Badge variant="danger">{hero.flagReason}</Badge>
+                      ) : (
+                        <Badge variant="success">Sinyal Kuat</Badge>
+                      )}
                     </div>
-                    <span className="text-[11px] text-tv-muted font-number shrink-0">
-                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                    </span>
+                    <div className={`font-number text-sm mt-1 ${hero.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                      Rp {Math.round(hero.price).toLocaleString('id-ID')} ({hero.changePct >= 0 ? '+' : ''}{hero.changePct.toFixed(2)}%)
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-tv-muted uppercase tracking-wide">LensScore</div>
+                    <div className="font-number text-3xl font-bold text-tv-blue">{hero.finalScore}</div>
+                  </div>
+                </div>
+                {(hero.topReasons?.length ?? 0) > 0 && (
+                  <ul className="text-xs text-tv-muted space-y-1">
+                    {hero.topReasons!.slice(0, 3).map((r, i) => <li key={i}>• {r}</li>)}
+                  </ul>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Link href={`/technical/${hero.symbol}`} className="px-3 py-1.5 rounded-md bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-semibold transition-colors">
+                    Buka Analisis
                   </Link>
-                ))}
+                  <button
+                    onClick={() => window.dispatchEvent(new Event('open-ai-chat'))}
+                    className="px-3 py-1.5 rounded-md bg-tv-blue/10 hover:bg-tv-blue/20 text-tv-blue text-xs font-semibold transition-colors"
+                  >
+                    Ask LensAI
+                  </button>
+                </div>
               </div>
-            )}
-          </Card>
-        </motion.div>
+            );
+          })()}
+        </Card>
+      </motion.div>
 
-        {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
-            LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
-            sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
-            WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
+      {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
+          LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
+          sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
+          WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
         <Card hoverable>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -483,16 +462,20 @@ export default function HomePage() {
             <div className="space-y-2">
               {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
             </div>
+          ) : picksLoginRequired ? (
+            <EmptyState title="Login untuk melihat LensRadar" description="Sinyal AI harian butuh akun." />
+          ) : picksNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensRadar." />
           ) : radarError ? (
             <EmptyState
               title="Data pasar sementara tidak tersedia."
               action={{ label: 'Coba lagi', onClick: fetchRadar }}
             />
-          ) : radarItems.length === 0 ? (
+          ) : radarItems.length <= 1 ? (
             <EmptyState title="Belum ada sinyal kuat hari ini." description="Cek LensRadar Live untuk daftar lengkap." />
           ) : (
             <div className="space-y-2">
-              {radarItems.map((it) => (
+              {radarItems.slice(1, 6).map((it) => (
                 <Link
                   key={it.symbol}
                   href={`/technical/${it.symbol}`}
@@ -568,6 +551,125 @@ export default function HomePage() {
         );
       })()}
 
+      {/* Insights - Golden/Dead Cross count dari dailyPicks (sudah di-fetch di atas
+          untuk teks AI briefing, sekarang juga dirender sebagai widget sendiri -
+          zero fetch baru). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-tv-blue" />
+              <CardTitle>Market Insights</CardTitle>
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
+          </CardHeader>
+          {loadingDailyPicks ? (
+            <Skeleton className="h-16 w-full" />
+          ) : !dailyPicks ? (
+            <EmptyState title="Data insight sementara tidak tersedia." />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-3">
+                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Golden Cross</div>
+                <div className="font-number text-2xl font-bold text-tv-green mt-1">{dailyPicks.goldenCross.count}</div>
+                {dailyPicks.goldenCross.stale && <div className="text-[10px] text-tv-warning mt-1">Data sesi terakhir</div>}
+              </div>
+              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-3">
+                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Dead Cross</div>
+                <div className="font-number text-2xl font-bold text-tv-red mt-1">{dailyPicks.deadCross.count}</div>
+                {dailyPicks.deadCross.stale && <div className="text-[10px] text-tv-warning mt-1">Data sesi terakhir</div>}
+              </div>
+            </div>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Jadwal Terdekat & LensWatch sejajar 1 baris - dua-duanya card isi-list yang
+          tinggi, jadi align lebih rapi dibanding sebelumnya dipasangkan dengan
+          LensMarket yang pendek. */}
+      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
+            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
+            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
+            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
+            corporate-calendar.service.ts). */}
+        <motion.div variants={fadeUp}>
+          <Card hoverable>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-tv-gold" />
+                <CardTitle>Jadwal Terdekat</CardTitle>
+              </div>
+              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+            </CardHeader>
+            {calendarEvents === null ? (
+              <div className="space-y-2">
+                {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : calendarEvents.length === 0 ? (
+              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
+            ) : (
+              <div className="space-y-2">
+                {calendarEvents.map((e, i) => (
+                  <Link
+                    key={`${e.symbol}-${e.date}-${i}`}
+                    href={`/technical/${e.symbol}.JK`}
+                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
+                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
+                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                        </Badge>
+                      </div>
+                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                    </div>
+                    <span className="text-[11px] text-tv-muted font-number shrink-0">
+                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+
+        {/* LensWatch - ringkasan singkat, EmptyState kalau watchlist masih kosong
+            (bukan "tidak ada data" polos). */}
+        <motion.div variants={fadeUp}>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-tv-blue" />
+                <CardTitle>LensWatch</CardTitle>
+              </div>
+              <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
+            </CardHeader>
+            {watchlistCount === null ? (
+              <Skeleton className="h-11 w-full" />
+            ) : watchlistCount === 0 ? (
+              <EmptyState
+                title="Belum ada saham di watchlist"
+                description="Tambahkan saham untuk mulai memantau harga & alert."
+                action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
+              />
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  {watchlistPreview.map((w) => (
+                    <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
+                      {w.symbol.replace('.JK', '')}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
+              </div>
+            )}
+          </Card>
+        </motion.div>
+      </motion.div>
+
       {/* LensScanner - teaser, bukan full table (spec: full scanner sudah punya
           halaman sendiri /screener). */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
@@ -584,40 +686,6 @@ export default function HomePage() {
           <Link href="/screener" className="shrink-0 px-3 py-1.5 rounded-md bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-semibold transition-colors">
             Buka LensScanner
           </Link>
-        </Card>
-      </motion.div>
-
-      {/* LensWatch - ringkasan singkat, EmptyState kalau watchlist masih kosong
-          (bukan "tidak ada data" polos). */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-tv-blue" />
-              <CardTitle>LensWatch</CardTitle>
-            </div>
-            <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
-          </CardHeader>
-          {watchlistCount === null ? (
-            <Skeleton className="h-11 w-full" />
-          ) : watchlistCount === 0 ? (
-            <EmptyState
-              title="Belum ada saham di watchlist"
-              description="Tambahkan saham untuk mulai memantau harga & alert."
-              action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
-            />
-          ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                {watchlistPreview.map((w) => (
-                  <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
-                    {w.symbol.replace('.JK', '')}
-                  </span>
-                ))}
-              </div>
-              <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
-            </div>
-          )}
         </Card>
       </motion.div>
 
