@@ -284,6 +284,30 @@ export default function Dashboard() {
       .finally(() => setLoadingNews(false));
   }, []);
 
+  // Jadwal Terdekat (Dividen/Earnings) - ngisi ruang kosong di bawah "Berita Terkini"
+  // (kolom kiri lebih pendek dari panel kanan LensRadar/TP-CL). Pola sama persis
+  // dengan app/home/page.tsx (fetch + flatten + sort sudah dipakai di sana).
+  const [calendarEvents, setCalendarEvents] = useState<
+    { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
+  >(null);
+
+  React.useEffect(() => {
+    fetch('/api/calendar', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const map = d?.events as Record<string, { symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[]> | undefined;
+        if (!map) { setCalendarEvents([]); return; }
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+        const flat = Object.entries(map)
+          .filter(([date]) => date >= today)
+          .flatMap(([date, events]) => events.map((e) => ({ date, ...e })))
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(0, 5);
+        setCalendarEvents(flat);
+      })
+      .catch(() => setCalendarEvents([]));
+  }, []);
+
   React.useEffect(() => {
     fetch('/api/market-summary').then(r => r.json()).then(data => {
       if (data && !data.error) {
@@ -501,6 +525,46 @@ export default function Dashboard() {
                         <p className="text-[10px] text-tv-muted mt-1">{n.source}</p>
                       </a>
                     ))
+                  )}
+                </div>
+              </Card>
+
+              {/* Jadwal Terdekat - dividen/earnings, sumber sama dengan widget di Beranda
+                  (/home). Cakupan cuma Dividen & Earnings, lihat catatan di
+                  corporate-calendar.service.ts soal RUPS/Stock Split. */}
+              <Card padding="md" className="mt-4 shadow-none">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-heading text-[13px] font-bold text-tv-text">Jadwal Terdekat</h4>
+                  <Link href="/calendar" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
+                </div>
+                <div className="mt-3">
+                  {calendarEvents === null ? (
+                    <div className="px-1 py-6 text-center text-[11px] text-tv-muted">Memuat jadwal...</div>
+                  ) : calendarEvents.length === 0 ? (
+                    <div className="px-1 py-6 text-center text-[11px] text-tv-muted">Belum ada jadwal dalam waktu dekat.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {calendarEvents.map((e, i) => (
+                        <Link
+                          key={`${e.symbol}-${e.date}-${i}`}
+                          href={`/technical/${e.symbol}.JK`}
+                          className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-number text-[12px] font-bold text-tv-text">{e.symbol}</span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${e.type === 'DIVIDEND' ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-blue/15 text-tv-blue'}`}>
+                                {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                          </div>
+                          <span className="text-[11px] text-tv-muted font-number shrink-0">
+                            {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
                   )}
                 </div>
               </Card>
