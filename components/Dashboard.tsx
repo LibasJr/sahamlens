@@ -3,18 +3,11 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, BarChart3, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles, Activity } from 'lucide-react';
+import { TrendingUp, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
 import { SegmentedControl } from '@/components/ui';
-import { fadeUp, staggerContainer } from '@/lib/motion';
-import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
-
-const CARD_DEFS: CardDef[] = [
-  { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'topTechnicalBearish', listPath: '/market/technical-bearish' },
-  { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
-];
 
 const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
 
@@ -256,9 +249,6 @@ export default function Dashboard() {
     }));
   }, [ticker.symbol, ticker.name, isIndex, currentPrice, changePct, finalSignal]);
 
-  const [marketCards, setMarketCards] = useState<MoverCard[]>(CARD_DEFS.map(def => ({ ...def, items: [] })));
-  const [cardsLoaded, setCardsLoaded] = useState(false);
-
   // Running text ticker (header strip) - saham paling aktif ditransaksikan (topValue,
   // dari /api/market-summary yang SUDAH dipanggil di bawah, tidak ada fetch tambahan).
   const [tickerItems, setTickerItems] = useState<{ symbol: string; price: number; changePct: number }[]>([]);
@@ -309,8 +299,6 @@ export default function Dashboard() {
   React.useEffect(() => {
     fetch('/api/market-summary').then(r => r.json()).then(data => {
       if (data && !data.error) {
-        setMarketCards(CARD_DEFS.map(def => ({ ...def, items: formatCardItems(def.id, data[def.key]) })));
-        setCardsLoaded(true);
         // topGainers + topLosers (bukan topValue - itu tidak punya field changePct)
         // digabung supaya ticker menampilkan campuran saham naik & turun, dideduplikasi.
         const combined = [...(data.topGainers || []), ...(data.topLosers || [])];
@@ -611,18 +599,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        {/* GRID CARDS */}
-        <motion.div
-          initial="hidden"
-          animate="show"
-          variants={staggerContainer}
-          className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5"
-        >
-          {marketCards.map((card) => (
-            <MarketMoverCard key={card.id} card={card} lastUpdated={lastUpdated} loaded={cardsLoaded} />
-          ))}
-        </motion.div>
 
         {/* Bottom Meta */}
         <div className="mt-8 rounded-lg border border-tv-border bg-tv-card px-5 py-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-tv-muted">

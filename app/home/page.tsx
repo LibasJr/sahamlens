@@ -73,6 +73,8 @@ export default function HomePage() {
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
   const [topVolume, setTopVolume] = useState<MarketMover[]>([]);
   const [topTechnical, setTopTechnical] = useState<MarketMover[]>([]);
+  const [topTechnicalBearish, setTopTechnicalBearish] = useState<MarketMover[]>([]);
+  const [topRsiOversold, setTopRsiOversold] = useState<MarketMover[]>([]);
   const [dailyPicks, setDailyPicks] = useState<DailyPickCounts | null>(null);
   // Menggantikan tampilan widget "Hari Ini AI Menemukan" (dailyPicks-nya sendiri TETAP
   // di-fetch di atas - masih dipakai payload /api/ai-briefing) - jadwal Corporate
@@ -85,7 +87,7 @@ export default function HomePage() {
   >([]);
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
-  const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume'>('gainer');
+  const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold'>('gainer');
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
   const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
 
@@ -126,6 +128,8 @@ export default function HomePage() {
           setTopLosers((summary.topLosers || []).slice(0, 10));
           setTopVolume((summary.topVolume || []).slice(0, 10));
           setTopTechnical((summary.topTechnical || []).slice(0, 10));
+          setTopTechnicalBearish((summary.topTechnicalBearish || []).slice(0, 10));
+          setTopRsiOversold((summary.topRsiOversold || []).slice(0, 10));
           setMoversFreshness(summary._meta?.freshness ?? null);
           setMoversTimeLabel(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB');
         }
@@ -362,105 +366,106 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
-      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        {/* Kolom kiri: LensMarket (IHSG) + Jadwal Terdekat ditumpuk vertikal - dulu
-            side-by-side dengan LensMarket, sekarang Jadwal pindah ke bawahnya supaya
-            slot kanan bisa dipakai card indikator (Sinyal Teknikal Bullish, dipindah
-            dari landing page "/"). */}
-        <div className="flex flex-col gap-5">
-          <motion.div variants={fadeUp}>
-            <Card hoverable>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-tv-purple" />
-                  <CardTitle>LensMarket</CardTitle>
-                </div>
-                <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
-              </CardHeader>
-              {marketError ? (
-                <EmptyState
-                  title="Data pasar sementara tidak tersedia."
-                  action={{ label: 'Coba lagi', onClick: fetchMarket }}
-                />
-              ) : loadingMarket ? (
-                <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
-                  <Skeleton variant="text" className="w-16" />
-                  <Skeleton className="h-6 w-32" />
+      {/* LensMarket sendiri di baris atas (ringkas, cuma 1 statistik IHSG) - dipisah
+          dari Jadwal Terdekat/LensRadar supaya 2 card isi-list yang tinggi (Jadwal
+          Terdekat & LensRadar) sejajar satu baris, bukan LensRadar numpuk di sebelah
+          LensMarket yang jauh lebih pendek (tinggi ketimpangan, keluhan user). */}
+      <motion.div initial="hidden" animate="show" variants={fadeUp}>
+        <Card hoverable>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-tv-purple" />
+              <CardTitle>LensMarket</CardTitle>
+            </div>
+            <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
+          </CardHeader>
+          {marketError ? (
+            <EmptyState
+              title="Data pasar sementara tidak tersedia."
+              action={{ label: 'Coba lagi', onClick: fetchMarket }}
+            />
+          ) : loadingMarket ? (
+            <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
+              <Skeleton variant="text" className="w-16" />
+              <Skeleton className="h-6 w-32" />
+            </div>
+          ) : (
+            <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
+              <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
+              {ihsg ? (
+                <div className="flex items-baseline gap-2">
+                  <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
+                  <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                    {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
+                  </span>
                 </div>
               ) : (
-                <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
-                  <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
-                  {ihsg ? (
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
-                      <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                        {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                        {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-tv-muted">Data tidak tersedia</span>
-                  )}
-                  {ihsg && (() => {
-                    const label = formatFreshnessLabel({ freshness: ihsgFreshness as any, timeLabel: ihsgTimeLabel });
-                    return (
-                      <p className={`text-[10px] mt-1.5 ${label.stale ? 'text-tv-warning' : 'text-tv-muted'}`}>
-                        {label.text}
-                      </p>
-                    );
-                  })()}
-                </div>
+                <span className="text-xs text-tv-muted">Data tidak tersedia</span>
               )}
-            </Card>
-          </motion.div>
+              {ihsg && (() => {
+                const label = formatFreshnessLabel({ freshness: ihsgFreshness as any, timeLabel: ihsgTimeLabel });
+                return (
+                  <p className={`text-[10px] mt-1.5 ${label.stale ? 'text-tv-warning' : 'text-tv-muted'}`}>
+                    {label.text}
+                  </p>
+                );
+              })()}
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
-          {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
-              yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
-              page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
-              punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
-              corporate-calendar.service.ts). */}
-          <motion.div variants={fadeUp}>
-            <Card hoverable>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-tv-gold" />
-                  <CardTitle>Jadwal Terdekat</CardTitle>
-                </div>
-                <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
-              </CardHeader>
-              {calendarEvents === null ? (
-                <div className="space-y-2">
-                  {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
-                </div>
-              ) : calendarEvents.length === 0 ? (
-                <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
-              ) : (
-                <div className="space-y-2">
-                  {calendarEvents.map((e, i) => (
-                    <Link
-                      key={`${e.symbol}-${e.date}-${i}`}
-                      href={`/technical/${e.symbol}.JK`}
-                      className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
-                          <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
-                            {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
-                          </Badge>
-                        </div>
-                        <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+      {/* Jadwal Terdekat & LensRadar sejajar 1 baris - dua-duanya card isi-list yang
+          tinggi, jadi align lebih rapi dibanding sebelumnya dipasangkan dengan
+          LensMarket yang pendek. */}
+      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
+            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
+            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
+            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
+            corporate-calendar.service.ts). */}
+        <motion.div variants={fadeUp}>
+          <Card hoverable>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-tv-gold" />
+                <CardTitle>Jadwal Terdekat</CardTitle>
+              </div>
+              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+            </CardHeader>
+            {calendarEvents === null ? (
+              <div className="space-y-2">
+                {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : calendarEvents.length === 0 ? (
+              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
+            ) : (
+              <div className="space-y-2">
+                {calendarEvents.map((e, i) => (
+                  <Link
+                    key={`${e.symbol}-${e.date}-${i}`}
+                    href={`/technical/${e.symbol}.JK`}
+                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
+                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
+                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                        </Badge>
                       </div>
-                      <span className="text-[11px] text-tv-muted font-number shrink-0">
-                        {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </motion.div>
-        </div>
+                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                    </div>
+                    <span className="text-[11px] text-tv-muted font-number shrink-0">
+                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.div>
 
         {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
             LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
@@ -518,13 +523,24 @@ export default function HomePage() {
           1 card ber-tab (spec BUILD 001: kurangi section panjang dengan tabs) -
           MarketMoverCard & formatCardItems tidak berubah, cuma dipilih satu per waktu. */}
       {(() => {
-        const MOVERS_DEFS: Record<'gainer' | 'loser' | 'volume', CardDef> = {
+        type MoversTabKey = 'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold';
+        const MOVERS_DEFS: Record<MoversTabKey, CardDef> = {
           gainer: { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'gainer', listPath: '/market/top-gainer' },
           loser: { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'loser', listPath: '/market/top-loser' },
           volume: { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'volume', listPath: '/market/top-volume' },
+          // Dipindah dari landing page "/" (components/Dashboard.tsx) - gabung ke tab
+          // Market Movers yang sama, bukan card terpisah lagi.
+          technicalBearish: { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'technicalBearish', listPath: '/market/technical-bearish' },
+          rsiOversold: { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'rsiOversold', listPath: '/market/rsi-oversold' },
         };
-        const sourceData = moversTab === 'gainer' ? topGainers : moversTab === 'loser' ? topLosers : topVolume;
-        const activeCard: MoverCard = { ...MOVERS_DEFS[moversTab], items: formatCardItems(moversTab, sourceData) };
+        const SOURCE_DATA: Record<MoversTabKey, MarketMover[]> = {
+          gainer: topGainers,
+          loser: topLosers,
+          volume: topVolume,
+          technicalBearish: topTechnicalBearish,
+          rsiOversold: topRsiOversold,
+        };
+        const activeCard: MoverCard = { ...MOVERS_DEFS[moversTab], items: formatCardItems(moversTab, SOURCE_DATA[moversTab]) };
         return (
           <motion.div initial="hidden" animate="show" variants={fadeUp} className="space-y-3">
             {marketError ? (
@@ -536,11 +552,13 @@ export default function HomePage() {
                 <SegmentedControl
                   layoutId="home-movers-tab"
                   value={moversTab}
-                  onChange={(v) => setMoversTab(v as 'gainer' | 'loser' | 'volume')}
+                  onChange={(v) => setMoversTab(v as MoversTabKey)}
                   options={[
                     { label: 'Top Gainer', value: 'gainer' },
                     { label: 'Top Loser', value: 'loser' },
                     { label: 'Top Volume', value: 'volume' },
+                    { label: 'Bearish', value: 'technicalBearish' },
+                    { label: 'RSI Oversold', value: 'rsiOversold' },
                   ]}
                 />
                 <MarketMoverCard card={activeCard} lastUpdated={moversTimeLabel} loaded={!loadingMarket} />
