@@ -7,6 +7,14 @@ import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
 
+// BUG FIX (search homepage harga basi, 2026-08-05): previewCache di bawah dulu gak
+// punya TTL - sekali simbol di-hover, hasilnya (termasuk harga) FROZEN di memori
+// browser sepanjang komponen ini mount, walau harga real sudah berubah (contoh nyata:
+// DGWG tetap tampil 290 di search walau harga sudah 300). /api/public-chart sendiri
+// sudah punya cache 60 detik (route revalidate) - PREVIEW_CACHE_TTL_MS disamakan
+// supaya cache client ini gak lebih lama hidup dari cache server yang membungkusnya.
+const PREVIEW_CACHE_TTL_MS = 60_000;
+
 interface CommandPaletteProps {
   // Kalau diisi, memilih saham (klik/Enter) memanggil ini alih-alih pindah halaman ke
   // LensAI (/technical/[symbol]) - dipakai halaman depan (components/Dashboard.tsx)
@@ -25,7 +33,7 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
   const [preview, setPreview] = useState<Preview>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const previewCache = useRef<Map<string, Preview>>(new Map());
+  const previewCache = useRef<Map<string, { data: Preview; fetchedAt: number }>>(new Map());
   const modalRef = useRef<HTMLDivElement>(null);
   const activeSymbolRef = useRef<string | undefined>(undefined);
 
@@ -72,7 +80,10 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
     if (!active) { setPreview(null); return; }
     const symbol = active.symbol;
     const cached = previewCache.current.get(symbol);
-    if (cached !== undefined) { setPreview(cached); return; }
+    if (cached !== undefined && Date.now() - cached.fetchedAt < PREVIEW_CACHE_TTL_MS) {
+      setPreview(cached.data);
+      return;
+    }
     setPreviewLoading(true);
     fetch(`/api/public-chart/${symbol}?tf=1M`)
       .then((r) => r.json())
@@ -88,10 +99,10 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
           const prev = closes[closes.length - 2];
           const changePct = prev ? ((price - prev) / prev) * 100 : 0;
           const result = { closes, price, changePct };
-          previewCache.current.set(symbol, result);
+          previewCache.current.set(symbol, { data: result, fetchedAt: Date.now() });
           setPreview(result);
         } else {
-          previewCache.current.set(symbol, null);
+          previewCache.current.set(symbol, { data: null, fetchedAt: Date.now() });
           setPreview(null);
         }
       })
