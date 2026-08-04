@@ -101,9 +101,14 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
 // TickerTape di atas (translate + duplikasi list 2x untuk loop mulus, pause on hover),
 // cuma sumbu Y bukan X.
 function VerticalSignalTicker({ golden, dead }: {
-  golden: { symbol: string; price: number; tp1: number; tp2: number }[];
-  dead: { symbol: string; price: number; cl1: number; cl2: number }[];
+  golden: { symbol: string; price: number; changePct: number; tp1: number; tp2: number }[];
+  dead: { symbol: string; price: number; changePct: number; cl1: number; cl2: number }[];
 }) {
+  // Golden (TP) dan Dead (CL) DIGABUNG apa adanya, tanpa bias urutan - kalau salah satu
+  // kosong itu murni kondisi pasar hari ini (tidak ada Golden/Dead Cross baru), bukan
+  // disaring kode. Format 3 baris per saham (Signal+harga, TP/CL) - permintaan user
+  // 2026-08-04 (contoh referensi: kode saham, Signal BUY/SELL, TP1/TP2 atau CL1/CL2,
+  // semua kebaca langsung tanpa gembok Premium).
   const items = [
     ...golden.map((s) => ({ ...s, type: 'golden' as const })),
     ...dead.map((s) => ({ ...s, type: 'dead' as const })),
@@ -112,25 +117,45 @@ function VerticalSignalTicker({ golden, dead }: {
     return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada sinyal TP/CL hari ini.</p>;
   }
   const loopItems = [...items, ...items];
-  const durationSec = Math.max(20, Math.round(items.length * 2.5));
+  const durationSec = Math.max(20, Math.round(items.length * 4));
   return (
     <div className="relative flex-1 overflow-hidden min-h-[120px]">
       <div className="sahamlens-vticker-track flex flex-col" style={{ animationDuration: `${durationSec}s` }}>
-        {loopItems.map((s, i) => (
-          <Link
-            key={`${s.type}-${s.symbol}-${i}`}
-            href={`/technical/${s.symbol}.JK`}
-            className="flex items-center justify-between gap-2 px-3 py-2 border-b border-tv-border/40 hover:bg-tv-hover/40 transition-colors shrink-0"
-          >
-            <span className="text-[12px] font-bold font-number text-tv-text">{s.symbol}</span>
-            <span className="text-[11px] font-number text-tv-muted">Rp {Math.round(s.price).toLocaleString('id-ID')}</span>
-            {s.type === 'golden' ? (
-              <span className="text-[10px] font-bold font-number text-tv-green">TP1 {s.tp1.toLocaleString('id-ID')} • TP2 {s.tp2.toLocaleString('id-ID')}</span>
-            ) : (
-              <span className="text-[10px] font-bold font-number text-tv-red">CL1 {s.cl1.toLocaleString('id-ID')} • CL2 {s.cl2.toLocaleString('id-ID')}</span>
-            )}
-          </Link>
-        ))}
+        {loopItems.map((s, i) => {
+          const color = s.type === 'golden' ? 'text-tv-green' : 'text-tv-red';
+          return (
+            <Link
+              key={`${s.type}-${s.symbol}-${i}`}
+              href={`/technical/${s.symbol}.JK`}
+              className="block px-3 py-2.5 border-b border-tv-border/40 hover:bg-tv-hover/40 transition-colors shrink-0"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
+                <span className="text-[12px] font-number text-tv-text">Rp {Math.round(s.price).toLocaleString('id-ID')}</span>
+              </div>
+              <div className="mt-0.5 flex items-center justify-between">
+                <span className={`text-[10px] font-bold ${color}`}>Signal: {s.type === 'golden' ? 'BUY' : 'SELL'}</span>
+                <span className={`text-[10px] font-number flex items-center gap-0.5 ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {s.changePct >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                  {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+                </span>
+              </div>
+              <div className="mt-0.5 flex items-center justify-between">
+                {s.type === 'golden' ? (
+                  <>
+                    <span className="text-[10px] font-bold font-number text-tv-green">TP1: {s.tp1.toLocaleString('id-ID')}</span>
+                    <span className="text-[10px] font-bold font-number text-tv-green">TP2: {s.tp2.toLocaleString('id-ID')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[10px] font-bold font-number text-tv-red">CL1: {s.cl1.toLocaleString('id-ID')}</span>
+                    <span className="text-[10px] font-bold font-number text-tv-red">CL2: {s.cl2.toLocaleString('id-ID')}</span>
+                  </>
+                )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
       <style dangerouslySetInnerHTML={{ __html: `
         .sahamlens-vticker-track { animation-name: sahamlens-vticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
@@ -261,6 +286,11 @@ export default function Dashboard() {
   const [aiPicks, setAiPicks] = useState<
     { symbol: string; changePct: number; finalScore: number; bonuses: { label: string; points: number }[] }[] | null
   >(null);
+  // Panel ini live (cron refresh tiap 5 menit ngikutin harga pasar) - ranking top-5 bisa
+  // geser antar refresh kalau beberapa menit sudah lewat. Label "Update HH:MM" bikin ini
+  // kelihatan sebagai data live yang wajar berubah, bukan seperti acak/bug (keluhan user
+  // 2026-08-04 - panel ini sebelumnya tidak punya indikator jam sama sekali).
+  const [aiPicksUpdatedAt, setAiPicksUpdatedAt] = useState<string | null>(null);
 
   React.useEffect(() => {
     fetch('/api/ai-pick')
@@ -269,6 +299,9 @@ export default function Dashboard() {
         // Butuh akun/trial - pengunjung yang trialnya habis dapat 402. Tampilkan daftar
         // kosong dengan pesan, bukan error, supaya beranda tetap utuh.
         setAiPicks(data && !data.error ? (data.items || []).slice(0, 5) : []);
+        if (data?.computedAt) {
+          setAiPicksUpdatedAt(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.computedAt)) + ' WIB');
+        }
       })
       .catch(() => setAiPicks([]));
   }, []);
@@ -279,8 +312,8 @@ export default function Dashboard() {
   // berbeda, bukan perpanjangan data yang sama. Sumbernya cache breakout-scan yang sama
   // dipakai /api/ai-pick, jadi tidak ada pemindaian baru.
   const [crossSignals, setCrossSignals] = useState<{
-    golden: { symbol: string; price: number; tp1: number; tp2: number }[];
-    dead: { symbol: string; price: number; cl1: number; cl2: number }[];
+    golden: { symbol: string; price: number; changePct: number; tp1: number; tp2: number }[];
+    dead: { symbol: string; price: number; changePct: number; cl1: number; cl2: number }[];
   } | null>(null);
 
   React.useEffect(() => {
@@ -294,10 +327,10 @@ export default function Dashboard() {
         setCrossSignals({
           golden: (data.goldenCross?.detail || [])
             .filter((d: any) => d.tp1 != null && d.tp2 != null)
-            .map((d: any) => ({ symbol: d.symbol, price: d.price, tp1: d.tp1, tp2: d.tp2 })),
+            .map((d: any) => ({ symbol: d.symbol, price: d.price, changePct: d.changePct, tp1: d.tp1, tp2: d.tp2 })),
           dead: (data.deadCross?.detail || [])
             .filter((d: any) => d.cl1 != null && d.cl2 != null)
-            .map((d: any) => ({ symbol: d.symbol, price: d.price, cl1: d.cl1, cl2: d.cl2 })),
+            .map((d: any) => ({ symbol: d.symbol, price: d.price, changePct: d.changePct, cl1: d.cl1, cl2: d.cl2 })),
         });
       })
       .catch(() => setCrossSignals({ golden: [], dead: [] }));
@@ -514,6 +547,9 @@ export default function Dashboard() {
                 Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
                 Klik kode saham untuk analisis teknikalnya.
               </p>
+              <p className="text-[10px] text-tv-muted mt-1">
+                Data live, update {aiPicksUpdatedAt || '--:--'} - ranking bisa berubah tiap beberapa menit ngikutin harga pasar.
+              </p>
 
               <div className="mt-4 flex flex-col gap-2">
                 {aiPicks === null ? (
@@ -581,7 +617,7 @@ export default function Dashboard() {
           {marketCards.map((card) => (
             <MarketMoverCard key={card.id} card={card} lastUpdated={lastUpdated} loaded={cardsLoaded} />
           ))}
-          <motion.div variants={fadeUp} className="rounded-lg border border-tv-border bg-tv-card p-5 shadow-1">
+          <motion.div variants={fadeUp} className="rounded-lg border border-tv-border bg-tv-card p-5 shadow-1 md:col-span-2 xl:col-span-3">
             <div className="flex items-center justify-between gap-3">
               <h4 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h4>
               <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
