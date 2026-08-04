@@ -59,6 +59,16 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
   const { summary } = data;
 
+  // 5-tier LensFlow status (spec BUILD 002 item 10) - turunan dari summary.status
+  // (3 nilai) + summary.streak (sudah dihitung, sudah dipakai badge "N HARI" di bawah),
+  // BUKAN status baru dari backend. STRONG cuma penanda visual (badge terisi penuh vs
+  // outline), bukan ambang beda formula.
+  const isStrong = summary.streak >= 3;
+  const flowTier =
+    summary.status === 'AKUMULASI' ? (isStrong ? 'STRONG ACCUMULATION' : 'ACCUMULATION') :
+    summary.status === 'DISTRIBUSI' ? (isStrong ? 'STRONG DISTRIBUTION' : 'DISTRIBUTION') :
+    'NEUTRAL';
+
   let insightColor = 'bg-gray-800/40 border-gray-600 text-gray-300';
   let insightBadge = 'bg-gray-500 text-white';
   let insightTitle = 'NETRAL';
@@ -68,7 +78,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     insightColor = 'bg-tv-green/10 border-tv-green/50 text-tv-green';
     insightBadge = 'bg-tv-green text-white';
     insightTitle = 'TEKANAN BELI KONSISTEN';
-    insightMessage = summary.streak >= 3
+    insightMessage = isStrong
       ? `Akumulasi ${summary.streak} hari berturut-turut - volume di hari naik lebih besar dari hari turun.`
       : 'Tekanan beli mendominasi 3 hari terakhir.';
   } else if (summary.status === 'DISTRIBUSI') {
@@ -78,8 +88,9 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     insightMessage = 'Volume di hari turun lebih besar dari hari naik 3 hari terakhir - waspada.';
   }
 
+  const borderAccent = summary.status === 'AKUMULASI' ? 'border-l-tv-green' : summary.status === 'DISTRIBUSI' ? 'border-l-tv-red' : 'border-l-tv-border';
   return (
-    <div className="bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col gap-6">
+    <div className={`bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col gap-6 border-l-4 ${borderAccent}`}>
 
       {/* Header & Status */}
       <div className="flex items-center justify-between border-b border-tv-border pb-4">
@@ -88,25 +99,25 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             <Building className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h3 className="font-heading font-bold text-white text-lg">LensFlow — Bandar & Arus Dana</h3>
+            <h3 className="font-heading font-bold text-white text-lg">LensFlow — Analisis Money Flow</h3>
             <p className="text-xs text-tv-muted font-mono">Estimasi arus dana dari volume transaksi - bukan data broker resmi</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           {summary.status === 'AKUMULASI' && (
-            <div className="px-4 py-1.5 rounded-full bg-tv-green/20 border border-tv-green text-tv-green font-bold text-sm font-mono animate-pulse">
-              AKUMULASI
+            <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-mono ${isStrong ? 'bg-tv-green/30 border-tv-green text-tv-green animate-pulse' : 'bg-tv-green/10 border-tv-green/60 text-tv-green'}`}>
+              {flowTier}
             </div>
           )}
           {summary.status === 'DISTRIBUSI' && (
-            <div className="px-4 py-1.5 rounded-full bg-tv-red/20 border border-tv-red text-tv-red font-bold text-sm font-mono">
-              DISTRIBUSI
+            <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-mono ${isStrong ? 'bg-tv-red/30 border-tv-red text-tv-red' : 'bg-tv-red/10 border-tv-red/60 text-tv-red'}`}>
+              {flowTier}
             </div>
           )}
           {summary.status === 'NETRAL' && (
             <div className="px-4 py-1.5 rounded-full bg-gray-500/20 border border-gray-500 text-gray-400 font-bold text-sm font-mono">
-              NETRAL
+              {flowTier}
             </div>
           )}
         </div>
