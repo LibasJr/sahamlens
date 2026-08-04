@@ -1,23 +1,23 @@
-# SahamLens Priority Fix Plan (RE-AUDIT)
+# SahamLens Fix Plan - Status Akhir (2026-08-04)
 
-Sebagian besar temuan dari audit awal ternyata **Telah Diperbaiki** (kemungkinan oleh tim sebelum audit kedua dijalankan) atau **Telah Dimigrasikan** ke struktur baru. 
+Semua item di `SAHAMLENS_BUG_LIST.md` sudah ditindaklanjuti: diperbaiki, diverifikasi bukan bug, atau didokumentasikan sebagai keputusan desain/tidak diprioritaskan. Tidak ada residual bug yang masih aktif menunggu perbaikan dari daftar audit ini.
 
-Berikut adalah sisa masalah (RESIDUAL BUGS) yang masih aktif dan perlu ditindaklanjuti.
+## Diperbaiki
+- **#3 MACD histogram netral** - `modules/technical/service/scoring.service.ts`
+- **#4 middleware → proxy** - rename sesuai migrasi resmi Next.js 16
+- **#5 next.config schema** - `serverComponentsExternalPackages` → `serverExternalPackages`
+- **#10 USDIDR fallback** - `dcf-valuation.service.ts`, kurs sukses terakhir di-cache Redis (TTL 7 hari) sebelum jatuh ke statis 15500
+- **#11 Sentry disableLogger** - dihapus (inert di Turbopack)
+- **#1, #2 dead code portfolio demo** - `lib/demo-portfolio.ts` dihapus (0 pemanggil, fitur aktif sudah aman di `modules/portfolio`)
 
-## PHASE 1 — Data Accuracy
-**1. DCF Margin of Safety calculation on <= 0 Fair Value**
-- **Priority**: Menengah (P2)
-- **Bug ID**: 7
-- **Files affected**: `modules/fundamental/service/dcf-valuation.service.ts`
-- **Recommended approach**: Ubah fallback ternary operator. Jangan set `mos = 0` jika `fair_value <= 0`. Set ke -100% atau berikan properti `is_negative_value` untuk merender peringatan "HIGH RISK / OVERVALUED" tanpa angka 0%.
-- **Risk**: User mungkin mengira margin of safety 0% = harga pasar wajar, padahal perusahaan sedang diproyeksi hancur (negatif value).
-- **Estimated complexity**: Rendah
+## Diverifikasi BUKAN bug (tidak diubah)
+- **#7 DCF MoS edge case** - setiap komponen intrinsic value sudah dijaga `> 0` sebelum masuk `fair_value`; skenario "fair_value negatif" tidak bisa terjadi di kode saat ini.
+- **#12 "dead code" transaction pagination** - `listTransactions()` sudah cursor-based dan dipakai benar, temuan awal tidak akurat.
 
-## PHASE 2 — Reliability
-**2. USDIDR Exchange Rate Fallback**
-- **Priority**: Rendah (P3)
-- **Bug ID**: 10
-- **Files affected**: `modules/fundamental/service/dcf-valuation.service.ts`
-- **Recommended approach**: Simpan last known USDIDR rate (saat Promise resolve) ke Upstash Redis dengan TTL sangat panjang (contoh: 30 hari). Saat Yahoo gagal, panggil cache terakhir dari Redis (stale data lebih baik daripada hardcode statis 15500).
-- **Risk**: Jika 3 tahun dari sekarang kurs jauh berubah dan API Yahoo down sementara, valuasi bank pelapor USD berantakan.
-- **Estimated complexity**: Menengah
+## Diketahui, sengaja tidak diprioritaskan
+- **#6 BIGINT cast precision** - ambang aman (Rp 9 kuadriliun) jauh di atas skala realistis portfolio virtual.
+- **#8 rate limit hanya di `/api/*`** - keputusan desain lama, didokumentasikan di `proxy.ts`.
+- **#9 estimasi volume linear** - aproksimasi yang diketahui, perbaikan sesungguhnya (model distribusi intraday historis) adalah proyek terpisah, bukan bugfix satu baris.
+
+## Catatan proses
+Draft sebelumnya file ini sempat berisi klaim "FIXED" untuk #9 dan #12 yang **tidak akurat** - tidak ada perubahan kode yang menyertainya (diverifikasi via `git diff` terhadap commit yang bersangkutan). Sudah dikoreksi di atas setelah verifikasi manual. Jangan percaya status di file ini tanpa mengecek kode aslinya kalau ada keraguan.
