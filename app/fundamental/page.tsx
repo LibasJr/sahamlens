@@ -7,6 +7,7 @@ import TradingViewChart from '@/components/TradingViewChart';
 import IntrinsicValue from '@/components/IntrinsicValue';
 import PaywallModal from '@/components/PaywallModal';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { isMarketOpen } from '@/lib/utils/market';
 import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
   RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp
@@ -38,15 +39,6 @@ function FundamentalContent() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('last_searched_ticker', newTicker);
     }
-  };
-
-  const isMarketOpen = () => {
-    const now = new Date();
-    const wibNow = new Date(now.getTime() + (now.getTimezoneOffset() + 420) * 60000);
-    const day = wibNow.getDay();
-    const hour = wibNow.getHours();
-    if (day === 0 || day === 6) return false; 
-    return hour >= 9 && hour < 16; 
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
@@ -164,16 +156,16 @@ function FundamentalContent() {
 
   useEffect(() => {
     if (!mounted) return;
-    setMarketClosed(!isMarketOpen());
+    setMarketClosed(!isMarketOpen(new Date()));
     fetchAnalyzerData(ticker);
 
     const interval = setInterval(() => {
-      const closed = !isMarketOpen();
+      const closed = !isMarketOpen(new Date());
       setMarketClosed(closed);
       if (!closed) {
         fetchAnalyzerData(ticker);
       }
-    }, 60000); 
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [ticker, mounted]);

@@ -9,6 +9,8 @@ import { isMarketOpen } from '@/lib/utils/market';
 export default function TopMarketBar() {
   const [ihsg, setIhsg] = useState<{ price: number; change: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
     setNow(new Date());
@@ -25,13 +27,21 @@ export default function TopMarketBar() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((d) => { if (d.authenticated && d.user) setAuthenticated(true); })
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
+  }, []);
+
   const marketOpen = now ? isMarketOpen(now) : false;
   const jakartaTime = now
     ? new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(now) + ' WIB'
     : '--:--';
 
   return (
-    <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-tv-border bg-tv-surface/90 px-4 py-2.5 backdrop-blur-md">
+    <div className="shrink-0 flex items-center gap-3 border-b border-tv-border bg-tv-surface/90 px-4 py-2.5 backdrop-blur-md">
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-[11px] font-sans font-semibold text-tv-muted uppercase tracking-wide">IHSG</span>
         {ihsg ? (
@@ -58,6 +68,8 @@ export default function TopMarketBar() {
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event('open-ai-chat'))}
+          title="Ask LensAI"
+          aria-label="Ask LensAI"
           className="hidden sm:flex items-center gap-1.5 rounded-full bg-tv-blue/10 hover:bg-tv-blue/20 text-tv-blue px-3 py-1.5 text-[11px] font-semibold transition-colors"
         >
           <Sparkles className="h-3.5 w-3.5" /> Ask LensAI
@@ -65,18 +77,35 @@ export default function TopMarketBar() {
         <Link
           href="/watchlist"
           title="Notifikasi & Alert"
+          aria-label="Notifikasi & Alert"
           className="p-2 rounded-md text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
         >
           <Bell className="h-4 w-4" />
         </Link>
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new Event('open-profile-modal'))}
-          title="Profil"
-          className="p-2 rounded-md text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
-        >
-          <UserIcon className="h-4 w-4" />
-        </button>
+        {!authChecked ? (
+          <span className="p-2 text-tv-muted opacity-50" aria-hidden="true">
+            <UserIcon className="h-4 w-4" />
+          </span>
+        ) : authenticated ? (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('open-profile-modal'))}
+            title="Profil"
+            aria-label="Profil"
+            className="p-2 rounded-md text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
+          >
+            <UserIcon className="h-4 w-4" />
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            title="Masuk"
+            aria-label="Masuk"
+            className="p-2 rounded-md text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
+          >
+            <UserIcon className="h-4 w-4" />
+          </Link>
+        )}
       </div>
     </div>
   );
