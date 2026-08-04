@@ -397,7 +397,7 @@ export default function Dashboard() {
             metadata (app/layout.tsx) tapi belum pernah dirender di halaman manapun.
             Section aditif, tidak mengubah struktur Title Block/ringkasan pasar di
             bawahnya. */}
-        <Card padding="none" className="mb-6 flex items-center justify-between gap-6 bg-tv-card/50 px-5 py-4 sm:px-8 sm:py-6">
+        <Card padding="none" className="mb-6 flex items-center justify-between gap-6 bg-tv-card/50 px-5 py-4 sm:px-8 sm:py-6 shadow-none">
           <div className="min-w-0">
             <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">Lihat Peluang Lebih Jelas.</h2>
             <p className="mt-1.5 text-[13px] sm:text-sm text-tv-muted max-w-md">
@@ -498,7 +498,7 @@ export default function Dashboard() {
                   bawah, nyisain ruang kosong sendirian di baris terakhir grid 3 kolom).
                   Ngisi ruang kosong di bawah Insight box juga (kolom kiri lebih pendek
                   dari panel kanan LensRadar/TP-CL). */}
-              <Card padding="md" className="mt-4">
+              <Card padding="md" className="mt-4 shadow-none">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h4>
                   <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
@@ -601,7 +601,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Bottom Meta */}
-        <Card padding="none" className="mt-8 flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-[11px] text-tv-muted">
+        <Card padding="none" className="mt-8 flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-[11px] text-tv-muted shadow-none">
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-tv-muted'}`} />
             {/* BUG FIX (audit BUILD 002, item disclaimer sumber data): wording lama "real-time
