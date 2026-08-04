@@ -13,12 +13,12 @@ async function getCouncilData(symbol: string): Promise<{ data: any; status: numb
   // http://localhost:3001 in production - a server-to-server fetch to a port nothing
   // listens on there, which always failed. Derive the base URL from the actual
   // incoming request instead so this works both locally and on any Vercel deployment.
-  const headersList = headers();
+  const headersList = await headers();
   const host = headersList.get('host');
   const protocol = host?.startsWith('localhost') || host?.startsWith('127.0.0.1') ? 'http' : 'https';
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
-  const cookieStore = cookies();
-  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.getAll().map((c: { name: string; value: string }) => `${c.name}=${c.value}`).join('; ');
 
   try {
     const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, {
@@ -188,8 +188,9 @@ function CouncilSkeleton({ symbol }: { symbol: string }) {
   );
 }
 
-export default function TechnicalPage({ params }: { params: { symbol: string } }) {
-  const symbol = params.symbol.toUpperCase();
+export default async function TechnicalPage({ params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol: rawSymbol } = await params;
+  const symbol = rawSymbol.toUpperCase();
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">

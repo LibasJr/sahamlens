@@ -11,7 +11,7 @@ export type { SessionPayload };
 // dan bukan di modules/user/ - hanya operasi MEMBUAT/MENGHAPUS sesi (login/logout)
 // yang jadi tanggung jawab domain modules/user (lihat modules/user/service/session.service.ts).
 export async function getSession(): Promise<SessionPayload | null> {
-  const session = cookies().get(SESSION_COOKIE)?.value;
+  const session = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!session) return null;
   const payload = await decrypt(session);
   // Guard terhadap token yang valid tanda tangannya tapi bukan sesi login asli (mis.

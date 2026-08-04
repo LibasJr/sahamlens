@@ -24,10 +24,11 @@ import {
 
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    let ticker = params.ticker.toUpperCase();
+    const { ticker: rawTicker } = await params;
+    let ticker = rawTicker.toUpperCase();
     if (!ticker.includes('.')) {
       ticker = `${ticker}.JK`;
     }

@@ -1,8 +1,33 @@
 import YahooFinanceClass from 'yahoo-finance2';
+import { cacheGet, cacheSet } from '../../../shared/cache/redis-cache';
 
 // BUILD 004 (AI Architecture) - dipindah verbatim dari app/api/intrinsic/[ticker]/route.ts
 // supaya bisa dipakai ulang oleh Valuation Agent di modules/ai/service/orchestrator.service.ts
 // tanpa endpoint itu memanggil dirinya sendiri lewat HTTP. Logika perhitungan TIDAK diubah.
+
+const USDIDR_CACHE_KEY = 'sahamlens:cache:computed:fx:usdidr';
+// 7 hari - kurs USD/IDR tidak bergerak drastis harian, cukup panjang untuk bertahan
+// dari outage Yahoo Finance multi-hari. Ditimpa setiap kali fetch live berhasil, jadi
+// tidak pernah lebih basi dari fetch sukses TERAKHIR selama itu masih dalam 7 hari.
+const USDIDR_CACHE_TTL_SEC = 7 * 24 * 60 * 60;
+// Jaring pengaman TERAKHIR - kepakai HANYA kalau belum pernah ada satu pun fetch
+// sukses tersimpan di cache (mis. Redis baru diset / fresh deploy) DAN Yahoo sedang
+// down bersamaan. Statis, tapi tidak lagi jadi satu-satunya fallback seperti sebelumnya.
+const USDIDR_STATIC_FALLBACK = 15500;
+
+async function getUsdIdrRate(): Promise<number> {
+  try {
+    const fx = await yahooFinance.quote('USDIDR=X');
+    if (fx && fx.regularMarketPrice) {
+      await cacheSet(USDIDR_CACHE_KEY, fx.regularMarketPrice, USDIDR_CACHE_TTL_SEC);
+      return fx.regularMarketPrice;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch USDIDR dari Yahoo, coba kurs cache terakhir');
+  }
+  const cached = await cacheGet<number>(USDIDR_CACHE_KEY);
+  return cached && cached > 0 ? cached : USDIDR_STATIC_FALLBACK;
+}
 
 const SECTOR_RULES: Record<string, any> = {
   "Banks - Regional": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
@@ -59,13 +84,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
 
   if (priceCurrency === 'IDR' && finCurrency === 'USD') {
-    let exchangeRate = 15500; // Safe fallback
-    try {
-      const fx = await yahooFinance.quote('USDIDR=X');
-      if (fx && fx.regularMarketPrice) exchangeRate = fx.regularMarketPrice;
-    } catch (e) {
-      console.warn("Failed to fetch USDIDR, using fallback 15500");
-    }
+    const exchangeRate = await getUsdIdrRate();
     // FIX: Yahoo Finance EPS & DPS are ALREADY in IDR.
     // Only BVPS and FCF are in USD.
     bvps *= exchangeRate;
@@ -315,13 +334,7 @@ export async function calculateDcfModel(rawTicker: string) {
   const priceCurrency = quoteSummary.price?.currency || 'IDR';
   const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
   if (priceCurrency === 'IDR' && finCurrency === 'USD' && fcfPerShare) {
-    let exchangeRate = 15500;
-    try {
-      const fx = await yahooFinance.quote('USDIDR=X');
-      if (fx && fx.regularMarketPrice) exchangeRate = fx.regularMarketPrice;
-    } catch (e) {
-      console.warn('Failed to fetch USDIDR, using fallback 15500');
-    }
+    const exchangeRate = await getUsdIdrRate();
     fcfPerShare *= exchangeRate;
   }
 

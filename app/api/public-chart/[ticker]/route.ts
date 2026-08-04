@@ -4,8 +4,9 @@ export const revalidate = 60;
 
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const { ticker: rawTicker } = await params;
   const { searchParams } = new URL(request.url);
   // Default '1Y' (bukan lagi '1M') - permintaan eksplisit supaya semua chart (Beranda,
   // Teknikal, Dashboard) default menampilkan histori 1 tahun.
@@ -26,7 +27,7 @@ export async function GET(
   else if (tf === '10Y') { range = '10y'; interval = '1d'; }
   else if (tf === 'ALL') { range = '20y'; interval = '1d'; }
 
-  let ticker = params.ticker;
+  let ticker = rawTicker;
   if (!ticker.endsWith('.JK') && !ticker.includes('^')) {
     ticker = `${ticker}.JK`;
   }
