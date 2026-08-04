@@ -13,9 +13,13 @@ const nextConfig = {
   agentRules: false,
   // BUILD 010 (Production Ready) - dipakai Dockerfile (jalur deploy alternatif di
   // luar Vercel, mis. self-host) untuk image runtime minimal (.next/standalone +
-  // node_modules yang benar-benar terpakai saja). TIDAK memengaruhi deploy Vercel -
-  // Vercel punya pipeline build sendiri dan mengabaikan opsi ini.
-  output: 'standalone',
+  // node_modules yang benar-benar terpakai saja). Sebelumnya diklaim "tidak
+  // memengaruhi deploy Vercel" - klaim itu salah untuk Next.js 16 + Turbopack:
+  // standalone output melewatkan `.next/next-server.js.nft.json` yang dibutuhkan
+  // pipeline build Vercel sendiri, bikin 4 deploy Production berturut-turut gagal.
+  // `VERCEL` di-set otomatis oleh platform Vercel saat build - dipakai di sini
+  // supaya Dockerfile (yang tidak set var ini) tetap dapat output standalone.
+  output: process.env.VERCEL ? undefined : 'standalone',
   // Redesign UI/UX Fase 1 - app/citadel/page.tsx sebelumnya cuma re-export 2 baris
   // dari app/page.tsx (duplikat, bukan halaman terpisah). Redirect permanen (bukan
   // dihapus) supaya link lama/bookmark ke /citadel tidak 404.
