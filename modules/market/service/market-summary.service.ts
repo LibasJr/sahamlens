@@ -65,9 +65,19 @@ async function fetchQuote(symbol: string) {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=3mo&interval=1d`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // BUG FIX (search halaman utama vs Teknikal beda harga, 2026-08-05): jangan cache
+    // fetch Yahoo ini sendiri. getMarketSummary() sudah dibungkus Redis getOrCompute
+    // TTL 2 menit (CACHE_TTL_SEC.MARKET_SUMMARY, lihat app/api/market-summary/route.ts).
+    // `next: { revalidate: 300 }` di sini nambah lapisan cache Next Data Cache 5 menit
+    // DI ATAS Redis - begitu Redis TTL habis dan recompute jalan, fetch ke Yahoo ini
+    // bisa tetap balikin respons basi sampai 5 menit, sedangkan /api/stock/[ticker]
+    // (dipakai halaman Teknikal) cuma punya 1 lapis cache (Redis 3 menit, fetch-nya
+    // sendiri no-cache) - makanya harga di search homepage bisa ketinggalan sampai
+    // 5 menit dibanding halaman Teknikal untuk saham yang sama. Redis TTL 2 menit
+    // sudah cukup jadi satu-satunya lapisan cache.
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 300 }, // cache 5 menit
+      cache: 'no-store',
       signal: controller.signal
     });
     clearTimeout(timeoutId);
