@@ -194,8 +194,6 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingMarket, loadingPicks, loadingDailyPicks]);
 
-  const moverRowCount = Math.max(calendarEvents?.length || 0, 3);
-
   return (
     <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full space-y-5 min-h-full flex flex-col">
       {/* Header */}
@@ -252,15 +250,14 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
-      {/* moverRowCount: jumlah baris Top Gainer/Loser ikut jumlah baris Jadwal
-          Terdekat di sebelahnya, biar dua kartu setinggi grid-stretch sama-sama
-          terisi tanpa hardcode angka tetap. Minimal 3 baris kalau kalender kosong. */}
-      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Ringkasan Pasar - IHSG + top gainer/loser, publik (bukan Portfolio -
-            SahamLens alat analisis/screener, bukan sekuritas; posisi trading ada
-            di Akun Demo). Menggantikan card Portfolio yang sebelumnya di sini. */}
-        <motion.div variants={fadeUp} className="h-full">
-          <Card hoverable className="h-full flex flex-col">
+      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Ringkasan Pasar - IHSG, publik (bukan Portfolio - SahamLens alat analisis/
+            screener, bukan sekuritas; posisi trading ada di Akun Demo). Gainer/Loser
+            pindah jadi card MarketMoverCard sendiri di bawah, card ini cuma IHSG jadi
+            SENGAJA tidak dipaksa h-full/stretch (dulu bikin banyak ruang kosong di
+            bawah IHSG kalau kartu "Jadwal Terdekat" di sebelahnya lebih tinggi). */}
+        <motion.div variants={fadeUp}>
+          <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-tv-purple" />
@@ -294,8 +291,8 @@ export default function HomePage() {
             page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
             punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
             corporate-calendar.service.ts). */}
-        <motion.div variants={fadeUp} className="h-full">
-          <Card hoverable className="h-full flex flex-col">
+        <motion.div variants={fadeUp}>
+          <Card hoverable>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-tv-gold" />
