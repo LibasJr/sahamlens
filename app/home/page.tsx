@@ -24,6 +24,7 @@ import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
+import { formatFreshnessLabel } from '@/lib/utils/freshness-label';
 
 interface AiPick {
   ticker: string;
@@ -89,6 +90,11 @@ export default function HomePage() {
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
   const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
 
+  const [ihsgFreshness, setIhsgFreshness] = useState<string | null>(null);
+  const [ihsgTimeLabel, setIhsgTimeLabel] = useState<string | null>(null);
+  const [moversFreshness, setMoversFreshness] = useState<string | null>(null);
+  const [moversTimeLabel, setMoversTimeLabel] = useState<string | null>(null);
+
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
@@ -107,12 +113,18 @@ export default function HomePage() {
       fetch('/api/market-summary', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([liveJkse, summary]) => {
-        if (liveJkse) setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
+        if (liveJkse) {
+          setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
+          setIhsgFreshness(liveJkse.freshness ?? null);
+          setIhsgTimeLabel(liveJkse.lastUpdate ? new Date(liveJkse.lastUpdate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : null);
+        }
         if (summary) {
           setTopGainers((summary.topGainers || []).slice(0, 10));
           setTopLosers((summary.topLosers || []).slice(0, 10));
           setTopVolume((summary.topVolume || []).slice(0, 10));
           setTopTechnical((summary.topTechnical || []).slice(0, 10));
+          setMoversFreshness(summary._meta?.freshness ?? null);
+          setMoversTimeLabel(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB');
         }
       })
       .finally(() => setLoadingMarket(false));
@@ -372,6 +384,14 @@ export default function HomePage() {
                   ) : (
                     <span className="text-xs text-tv-muted">Data tidak tersedia</span>
                   )}
+                  {ihsg && (() => {
+                    const label = formatFreshnessLabel({ freshness: ihsgFreshness as any, timeLabel: ihsgTimeLabel });
+                    return (
+                      <p className={`text-[10px] mt-1.5 ${label.stale ? 'text-tv-warning' : 'text-tv-muted'}`}>
+                        {label.text}
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
             </Card>
@@ -490,7 +510,7 @@ export default function HomePage() {
                 { label: 'Top Volume', value: 'volume' },
               ]}
             />
-            <MarketMoverCard card={activeCard} lastUpdated={null} loaded={!loadingMarket} />
+            <MarketMoverCard card={activeCard} lastUpdated={moversTimeLabel} loaded={!loadingMarket} />
           </motion.div>
         );
       })()}
