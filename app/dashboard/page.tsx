@@ -12,6 +12,7 @@ import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState } from '@/components/ui';
 import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
+import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
@@ -391,6 +392,12 @@ function DashboardContent() {
     analyzers = [...analyzers].sort((a, b) => b.confidence - a.confidence);
   }
 
+  // LensScore 5-category breakdown (BUILD 002) - turunan dari analyzer Momentum 1D/5D
+  // & Volatility (ATR 14) yang sudah dihitung di atas (bagian dari `analyzers`), bukan
+  // komputasi baru. Tidak ikut total_score/kategori BUY-SELL.
+  const momentum = data?.scoring ? momentumScore(analyzers) : null;
+  const risk = data?.scoring ? riskScore(analyzers, stock.current_price ?? data?.price) : null;
+
   // BUG 4 FIX: Backtest accuracy dari data historis 1 tahun
   // Setiap analyzer type punya estimasi akurasi berdasarkan backtest lokal
   const backtestAccuracy = React.useMemo(() => {
@@ -733,6 +740,17 @@ function DashboardContent() {
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.technical_score}</span>
                 </div>
+                {/* Momentum - baru (BUILD 002), turunan dari analyzer Momentum 1D/5D yang
+                    sudah dihitung tapi belum ditampilkan di sini. Tidak ikut total_score. */}
+                {momentum !== null && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-tv-muted font-mono w-28">Momentum (0-100)</span>
+                    <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-purple-400/80 to-purple-400 rounded-full transition-all" style={{width: `${momentum}%`}}></div>
+                    </div>
+                    <span className="text-sm font-bold text-white font-number w-8 text-right">{momentum}</span>
+                  </div>
+                )}
                 {/* Fundamental */}
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-mono w-28">Fundamental (0-30)</span>
@@ -743,12 +761,24 @@ function DashboardContent() {
                 </div>
                 {/* Flow */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-tv-muted font-mono w-28">Arus Dana (0-30)</span>
+                  <span className="text-xs text-tv-muted font-mono w-28">Money Flow (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.flow_score}</span>
                 </div>
+                {/* Risk - baru (BUILD 002), turunan dari analyzer Volatility (ATR 14).
+                    Makin tinggi = makin aman (konsisten "tinggi = baik" seperti kategori
+                    lain) - BUKAN raw volatility percentage. Tidak ikut total_score. */}
+                {risk !== null && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-tv-muted font-mono w-28">Risk (0-100)</span>
+                    <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-tv-red/80 to-tv-red rounded-full transition-all" style={{width: `${risk}%`}}></div>
+                    </div>
+                    <span className="text-sm font-bold text-white font-number w-8 text-right">{risk}</span>
+                  </div>
+                )}
               </div>
 
               {/* Reasons & Risk */}
