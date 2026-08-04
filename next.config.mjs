@@ -28,9 +28,13 @@ const nextConfig = {
 
 // silent:true - jangan berisik di log build kalau SENTRY_AUTH_TOKEN (untuk upload
 // source map) belum diset; DSN saja sudah cukup untuk error tracking jalan.
+//
+// disableLogger dihapus (bukan diganti webpack.treeshake.removeDebugLogging) - opsi
+// lama MAUPUN penggantinya sama-sama "Not supported with Turbopack" per warning
+// Sentry sendiri, dan proyek ini build dengan Turbopack (lihat next build/dev log) -
+// kedua opsi itu inert di sini, mempertahankan yang lama cuma menyisakan warning.
 export default withSentryConfig(nextConfig, {
   silent: true,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  disableLogger: true,
 });

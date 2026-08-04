@@ -132,9 +132,15 @@ function scoreRsiMacd(t: TechnicalInput): { score: number; reason: string } {
   if (t.macdHist > 0) {
     score += 7;
     parts.push(`MACD bullish (Hist:${t.macdHist.toFixed(2)})`);
-  } else {
+  } else if (t.macdHist < 0) {
     score += 0;
     parts.push(`MACD bearish (Hist:${t.macdHist.toFixed(2)})`);
+  } else {
+    // Histogram persis 0 (macdLine === macdSignal, termasuk saat data hilang dan
+    // pemanggil fallback ke 0) BUKAN "bearish" - itu klaim arah yang tidak didukung
+    // titik data flat. Skor tengah, bukan 0 atau 7 penuh.
+    score += 3;
+    parts.push(`MACD netral (Hist:0.00)`);
   }
 
   return { score: Math.min(15, score), reason: parts.join(', ') };
