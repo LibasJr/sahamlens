@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import * as xlsx from 'xlsx';
+// xlsx di-import dinamis (optimasi loading 2026-08-05), sama seperti app/portfolio -
+// hanya dibutuhkan saat tombol ini diklik.
 
 export default function ExportButton() {
   const [loading, setLoading] = useState(false);
@@ -9,6 +10,7 @@ export default function ExportButton() {
   const handleExport = async () => {
     setLoading(true);
     try {
+      const xlsx = await import('xlsx');
       // limit=200 eksplisit - /api/admin/export sekarang dipaginasi (bukan lagi
       // dump semua baris tanpa batas). Tombol ini genuinely butuh "semua data"
       // dalam sekali klik (bukan UI berpaginasi), jadi minta cap besar daripada

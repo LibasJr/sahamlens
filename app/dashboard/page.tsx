@@ -20,8 +20,12 @@ import {
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
   Sparkles, Calculator, Newspaper, ChevronRight, Radar
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// jsPDF/jspdf-autotable TIDAK di-import statis di sini (optimasi loading 2026-08-05) -
+// keduanya cukup berat dan sebelumnya dibundel ke JS awal /dashboard (halaman paling
+// sering dibuka setelah landing page) padahal cuma dipakai kalau pengguna benar-benar
+// klik "Download PDF Report". Sekarang di-import dinamis di dalam downloadTechnicalPDF()
+// - library itu baru diunduh & di-parse browser saat tombolnya diklik, bukan di setiap
+// kunjungan halaman.
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';
@@ -330,7 +334,11 @@ function DashboardContent() {
 
   const downloadTechnicalPDF = async () => {
     if (!data?.scoring) return;
-    
+
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} ${data.scoring.kategori}`, 14, 20);

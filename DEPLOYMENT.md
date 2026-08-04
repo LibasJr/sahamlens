@@ -184,19 +184,37 @@ Cron dijalankan lewat QStash (bukan Vercel Cron) dan diverifikasi dengan
 `verifyQStashSignature()` di tiap route. Nama job di kolom kedua sama persis dengan
 argumen `withJobRunLog()`, jadi riwayat jalannya bisa ditelusuri lewat log job.
 
-8 jadwal AKTIF (diverifikasi live lewat `GET /v2/schedules`, semua status SUCCESS
-terakhir jalan):
+9 jadwal (8 diverifikasi live lewat `GET /v2/schedules` semua status SUCCESS terakhir
+jalan, `market-summary` ditambahkan 2026-08-05 - lihat catatan optimasi loading di
+bawah tabel):
 
 | Endpoint | Nama job | Cron (UTC) | Setara WIB |
 |---|---|---|---|
 | `/api/cron/recommendation-scan` | `recommendation-scan` | `*/15 2-8 * * 1-5` | tiap 15 menit, 09:00-15:00 hari bursa |
 | `/api/cron/breakout-scan` | `breakout-scan` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
 | `/api/cron/market-pulse` | `market-pulse` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
+| `/api/cron/market-summary` | `market-summary` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
 | `/api/cron/ai-pick-scan` | `ai-pick-scan` | `*/5 2-9 * * 1-5` | tiap 5 menit, 09:00-16:00 hari bursa |
 | `/api/cron/watchlist-alert` | `watchlist-alert` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
 | `/api/cron/macro` | `macro` | `0 3 * * 1-5` | 10:00 hari bursa |
 | `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 22 * * 0-4` | 05:00 hari bursa (Senin-Jumat) |
 | `/api/cron/backtest-precompute` | `backtest-precompute` | `30 22 * * 0-4` | 05:30 hari bursa (Senin-Jumat) |
+
+**Optimasi loading 2026-08-05**: `market-summary` adalah satu-satunya endpoint publik
+berat (scan 250 saham) yang SEBELUMNYA tidak punya cron warmer - murni `getOrCompute()`
+on-demand dengan TTL 2 menit. Karena endpoint ini dipakai landing page `/` dan `/home`
+(halaman paling sering dibuka, tanpa login), pengunjung pertama tiap 2 menit menanggung
+scan live 250 saham (bisa berumur beberapa detik) - salah satu penyebab utama keluhan
+"aplikasi lemot". Sekarang dijadwalkan sama seperti `market-pulse`, TTL `MARKET_SUMMARY`
+diperpanjang ke 6 menit (`shared/cache/ttl-policy.ts`). **Jadwal ini masih perlu
+didaftarkan manual ke QStash** (lihat perintah `curl` di bawah) - kode dan cache TTL-nya
+sudah dideploy, tapi schedule baru tidak otomatis terdaftar hanya dari push kode.
+
+Sesi ini juga men-code-split `jsPDF`/`jspdf-autotable`/`xlsx` di `/dashboard`,
+`/portfolio`, dan `/admin` (ExportButton) - ketiga library itu sebelumnya di-import
+statis padahal hanya dipakai saat tombol Export/Download PDF diklik, jadi ikut terbundel
+ke JS awal dua halaman tersibuk aplikasi ini. Sekarang `import()` dinamis di dalam
+handler klik.
 
 QStash menjadwalkan dalam UTC; WIB = UTC+7. Karena itu jadwal harian ditulis di hari
 sebelumnya (`0-4` = Minggu-Kamis UTC menghasilkan Senin-Jumat WIB).
