@@ -136,6 +136,12 @@ export default function Sidebar() {
       .finally(() => setAuthChecked(true));
   }, []);
 
+  useEffect(() => {
+    const handleOpenProfile = () => setShowProfileModal(true);
+    window.addEventListener('open-profile-modal', handleOpenProfile);
+    return () => window.removeEventListener('open-profile-modal', handleOpenProfile);
+  }, []);
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
