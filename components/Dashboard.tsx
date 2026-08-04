@@ -12,7 +12,6 @@ import { fadeUp, staggerContainer } from '@/lib/motion';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
 
 const CARD_DEFS: CardDef[] = [
-  { id: 'technical', title: 'Sinyal Teknikal Bullish (MA20 > MA50)', sub: 'Technical Signal', accent: 'purple', Icon: Sparkles, key: 'topTechnical', listPath: '/market/technical-bullish' },
   { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'topTechnicalBearish', listPath: '/market/technical-bearish' },
   { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'topRsiOversold', listPath: '/market/rsi-oversold' },
 ];
@@ -100,62 +99,48 @@ function TickerTape({ items }: { items: { symbol: string; price: number; changeP
 // ATR-14 (lihat breakout.service.ts + app/api/daily-picks/route.ts). Pola sama dengan
 // TickerTape di atas (translate + duplikasi list 2x untuk loop mulus, pause on hover),
 // cuma sumbu Y bukan X.
-function VerticalSignalTicker({ golden, dead }: {
-  golden: { symbol: string; price: number; changePct: number; tp1: number; tp2: number }[];
-  dead: { symbol: string; price: number; changePct: number; cl1: number; cl2: number }[];
+function VerticalSignalTicker({ items }: {
+  items: { symbol: string; price: number; changePct: number; tp1: number; tp2: number; cl1: number; cl2: number }[];
 }) {
-  // Golden (TP) dan Dead (CL) DIGABUNG apa adanya, tanpa bias urutan - kalau salah satu
-  // kosong itu murni kondisi pasar hari ini (tidak ada Golden/Dead Cross baru), bukan
-  // disaring kode. Format 3 baris per saham (Signal+harga, TP/CL) - permintaan user
-  // 2026-08-04 (contoh referensi: kode saham, Signal BUY/SELL, TP1/TP2 atau CL1/CL2,
-  // semua kebaca langsung tanpa gembok Premium).
-  const items = [
-    ...golden.map((s) => ({ ...s, type: 'golden' as const })),
-    ...dead.map((s) => ({ ...s, type: 'dead' as const })),
-  ];
+  // Sumber emiten = hasil ranking LensRadar (aiPicks), BUKAN Golden/Dead Cross lagi
+  // (permintaan user 2026-08-04). Tiap saham nampilin TP1/TP2 DAN CL1/CL2 sekaligus -
+  // TP = target potensi naik, CL = level waspada/cut-loss, keduanya relevan buat saham
+  // manapun terlepas arah pergerakannya, bukan cuma salah satu tergantung tipe sinyal.
   if (!items.length) {
     return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada sinyal TP/CL hari ini.</p>;
   }
   const loopItems = [...items, ...items];
-  const durationSec = Math.max(20, Math.round(items.length * 4));
+  const durationSec = Math.max(20, Math.round(items.length * 4.5));
   return (
     <div className="relative flex-1 overflow-hidden min-h-[120px]">
       <div className="sahamlens-vticker-track flex flex-col" style={{ animationDuration: `${durationSec}s` }}>
-        {loopItems.map((s, i) => {
-          const color = s.type === 'golden' ? 'text-tv-green' : 'text-tv-red';
-          return (
-            <Link
-              key={`${s.type}-${s.symbol}-${i}`}
-              href={`/technical/${s.symbol}.JK`}
-              className="block px-3 py-2.5 border-b border-tv-border/40 hover:bg-tv-hover/40 transition-colors shrink-0"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
-                <span className="text-[12px] font-number text-tv-text">Rp {Math.round(s.price).toLocaleString('id-ID')}</span>
-              </div>
-              <div className="mt-0.5 flex items-center justify-between">
-                <span className={`text-[10px] font-bold ${color}`}>Signal: {s.type === 'golden' ? 'BUY' : 'SELL'}</span>
-                <span className={`text-[10px] font-number flex items-center gap-0.5 ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                  {s.changePct >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-                  {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
-                </span>
-              </div>
-              <div className="mt-0.5 flex items-center justify-between">
-                {s.type === 'golden' ? (
-                  <>
-                    <span className="text-[10px] font-bold font-number text-tv-green">TP1: {s.tp1.toLocaleString('id-ID')}</span>
-                    <span className="text-[10px] font-bold font-number text-tv-green">TP2: {s.tp2.toLocaleString('id-ID')}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[10px] font-bold font-number text-tv-red">CL1: {s.cl1.toLocaleString('id-ID')}</span>
-                    <span className="text-[10px] font-bold font-number text-tv-red">CL2: {s.cl2.toLocaleString('id-ID')}</span>
-                  </>
-                )}
-              </div>
-            </Link>
-          );
-        })}
+        {loopItems.map((s, i) => (
+          <Link
+            key={`${s.symbol}-${i}`}
+            href={`/technical/${s.symbol}.JK`}
+            className="block px-3 py-2.5 border-b border-tv-border/40 hover:bg-tv-hover/40 transition-colors shrink-0"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
+              <span className="text-[12px] font-number text-tv-text">Rp {Math.round(s.price).toLocaleString('id-ID')}</span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-tv-blue">LensRadar</span>
+              <span className={`text-[10px] font-number flex items-center gap-0.5 ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                {s.changePct >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+              </span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between">
+              <span className="text-[10px] font-bold font-number text-tv-green">TP1: {s.tp1.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] font-bold font-number text-tv-green">TP2: {s.tp2.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between">
+              <span className="text-[10px] font-bold font-number text-tv-red">CL1: {s.cl1.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] font-bold font-number text-tv-red">CL2: {s.cl2.toLocaleString('id-ID')}</span>
+            </div>
+          </Link>
+        ))}
       </div>
       <style dangerouslySetInnerHTML={{ __html: `
         .sahamlens-vticker-track { animation-name: sahamlens-vticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
@@ -284,7 +269,11 @@ export default function Dashboard() {
   // lagi dan semua baris mengarah ke halaman yang sama - membingungkan. Sekarang beranda
   // langsung menampilkan isi peringkatnya, dan tiap kode saham menuju analisis teknikalnya.
   const [aiPicks, setAiPicks] = useState<
-    { symbol: string; changePct: number; finalScore: number; bonuses: { label: string; points: number }[] }[] | null
+    {
+      symbol: string; price: number; changePct: number; finalScore: number;
+      bonuses: { label: string; points: number }[];
+      tp1: number | null; tp2: number | null; cl1: number | null; cl2: number | null;
+    }[] | null
   >(null);
   // Panel ini live (cron refresh tiap 5 menit ngikutin harga pasar) - ranking top-5 bisa
   // geser antar refresh kalau beberapa menit sudah lewat. Label "Update HH:MM" bikin ini
@@ -304,36 +293,6 @@ export default function Dashboard() {
         }
       })
       .catch(() => setAiPicks([]));
-  }, []);
-
-  // Sinyal Golden Cross / Dead Cross - beda dari 5 kandidat AI Pick di atas (itu skor
-  // komposit teknikal+fundamental+arus dana), ini murni kejadian crossover MA20/MA50 hari
-  // ini. Mengisi ruang kosong di bawah daftar kandidat dengan informasi yang benar-benar
-  // berbeda, bukan perpanjangan data yang sama. Sumbernya cache breakout-scan yang sama
-  // dipakai /api/ai-pick, jadi tidak ada pemindaian baru.
-  const [crossSignals, setCrossSignals] = useState<{
-    golden: { symbol: string; price: number; changePct: number; tp1: number; tp2: number }[];
-    dead: { symbol: string; price: number; changePct: number; cl1: number; cl2: number }[];
-  } | null>(null);
-
-  React.useEffect(() => {
-    fetch('/api/daily-picks')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data || data.error) {
-          setCrossSignals({ golden: [], dead: [] });
-          return;
-        }
-        setCrossSignals({
-          golden: (data.goldenCross?.detail || [])
-            .filter((d: any) => d.tp1 != null && d.tp2 != null)
-            .map((d: any) => ({ symbol: d.symbol, price: d.price, changePct: d.changePct, tp1: d.tp1, tp2: d.tp2 })),
-          dead: (data.deadCross?.detail || [])
-            .filter((d: any) => d.cl1 != null && d.cl2 != null)
-            .map((d: any) => ({ symbol: d.symbol, price: d.price, changePct: d.changePct, cl1: d.cl1, cl2: d.cl2 })),
-        });
-      })
-      .catch(() => setCrossSignals({ golden: [], dead: [] }));
   }, []);
 
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; pubDate: string }[]>([]);
@@ -528,12 +487,35 @@ export default function Dashboard() {
                   {insightText}
                 </p>
               </div>
+
+              {/* Berita Terkini - dipindah ke bawah Insight (sebelumnya di grid card
+                  bawah, nyisain ruang kosong sendirian di baris terakhir grid 3 kolom).
+                  Ngisi ruang kosong di bawah Insight box juga (kolom kiri lebih pendek
+                  dari panel kanan LensRadar/TP-CL). */}
+              <div className="mt-4 rounded-lg border border-tv-border bg-tv-card p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h4>
+                  <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
+                </div>
+                <div className="mt-3 divide-y divide-tv-border/60">
+                  {newsItems.length === 0 ? (
+                    <div className="px-1 py-6 text-center text-[11px] text-tv-muted">{loadingNews ? 'Memuat berita...' : 'Belum ada berita'}</div>
+                  ) : (
+                    newsItems.map((n) => (
+                      <a key={n.link || n.title} href={n.link} target="_blank" rel="noopener noreferrer" className="block py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity">
+                        <p className="text-[12px] font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
+                        <p className="text-[10px] text-tv-muted mt-1">{n.source}</p>
+                      </a>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Right Panel - "Hari Ini AI Menemukan": ringkasan temuan pasar hari ini (bukan
                 indikator 1 saham) - hook supaya pengunjung buka aplikasi tiap hari sebelum
                 login/signup. Setiap angka real (bukan dikarang), lihat app/api/daily-picks. */}
-            <div className="border-t lg:border-t-0 lg:border-l border-tv-border bg-tv-bg/40 p-5 sm:p-7 flex flex-col">
+            <div className="border-t lg:border-t-0 lg:border-l border-tv-border bg-tv-bg/40 p-5 sm:p-7 flex flex-col min-h-0">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg leading-none">🔥</span>
@@ -586,21 +568,26 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Sinyal TP/CL - proyeksi ATR-14 dari Golden/Dead Cross hari ini, running
-                  text vertikal (lihat VerticalSignalTicker). Tanpa gembok Premium, sama
-                  seperti sebelumnya. */}
-              <div className="mt-5 pt-4 border-t border-tv-border flex-1 flex flex-col">
+              {/* Sinyal TP/CL - proyeksi ATR-14 dari emiten LensRadar (aiPicks di atas,
+                  BUKAN Golden/Dead Cross lagi - permintaan user 2026-08-04), running
+                  text vertikal (lihat VerticalSignalTicker). Tanpa gembok Premium. */}
+              <div className="mt-5 pt-4 border-t border-tv-border flex-1 flex flex-col min-h-0">
                 <h4 className="font-heading text-[12px] font-bold text-tv-text flex items-center gap-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-tv-green" />
                   Sinyal TP/CL Hari Ini
                 </h4>
                 <p className="text-[10px] text-tv-muted mt-1">
-                  Proyeksi ATR-14 dari sinyal Golden/Dead Cross - bukan jaminan harga akan tercapai.
+                  Proyeksi ATR-14 dari emiten LensRadar - bukan jaminan harga akan tercapai.
                 </p>
-                {crossSignals === null ? (
+                {aiPicks === null ? (
                   <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Memuat sinyal...</p>
                 ) : (
-                  <VerticalSignalTicker golden={crossSignals.golden} dead={crossSignals.dead} />
+                  <VerticalSignalTicker
+                    items={aiPicks.filter(
+                      (p): p is typeof aiPicks[number] & { tp1: number; tp2: number; cl1: number; cl2: number } =>
+                        p.tp1 != null && p.tp2 != null && p.cl1 != null && p.cl2 != null
+                    )}
+                  />
                 )}
               </div>
             </div>
@@ -617,24 +604,6 @@ export default function Dashboard() {
           {marketCards.map((card) => (
             <MarketMoverCard key={card.id} card={card} lastUpdated={lastUpdated} loaded={cardsLoaded} />
           ))}
-          <motion.div variants={fadeUp} className="rounded-lg border border-tv-border bg-tv-card p-5 shadow-1 md:col-span-2 xl:col-span-3">
-            <div className="flex items-center justify-between gap-3">
-              <h4 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h4>
-              <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
-            </div>
-            <div className="mt-4 divide-y divide-tv-border/60">
-              {newsItems.length === 0 ? (
-                <div className="px-1 py-6 text-center text-[11px] text-tv-muted">{loadingNews ? 'Memuat berita...' : 'Belum ada berita'}</div>
-              ) : (
-                newsItems.map((n) => (
-                  <a key={n.link || n.title} href={n.link} target="_blank" rel="noopener noreferrer" className="block py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity">
-                    <p className="text-[12px] font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                    <p className="text-[10px] text-tv-muted mt-1">{n.source}</p>
-                  </a>
-                ))
-              )}
-            </div>
-          </motion.div>
         </motion.div>
 
         {/* Bottom Meta */}

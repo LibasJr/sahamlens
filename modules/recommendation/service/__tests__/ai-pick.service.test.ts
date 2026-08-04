@@ -115,4 +115,26 @@ describe('rankAiPicks', () => {
     expect(result.map((r) => r.symbol)).toEqual(['AAAA.JK']);
     expect(result[0].bonuses).toEqual([]);
   });
+
+  it('TP1/TP2/CL1/CL2 dihitung dari harga +/- 1x/2x ATR, keduanya sekaligus bukan salah satu', () => {
+    const scored = [stock('AAAA.JK', 80, { price: 1000, atr: 50 })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].tp1).toBe(1050);
+    expect(result[0].tp2).toBe(1100);
+    expect(result[0].cl1).toBe(950);
+    expect(result[0].cl2).toBe(900);
+  });
+
+  it('TP/CL null kalau ATR belum tersedia (cache lama sebelum field ini ada)', () => {
+    const scored = [stock('AAAA.JK', 80)]; // atr tidak di-set (undefined)
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].tp1).toBeNull();
+    expect(result[0].tp2).toBeNull();
+    expect(result[0].cl1).toBeNull();
+    expect(result[0].cl2).toBeNull();
+  });
 });

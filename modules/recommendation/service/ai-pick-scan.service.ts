@@ -1,4 +1,4 @@
-import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type FundamentalInput } from '../../technical';
+import { fetchYahooHistory, analyzeRsi, analyzeMacd, analyzeVolatility, calculateScore, type FundamentalInput } from '../../technical';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '../../market';
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
@@ -61,6 +61,12 @@ async function scoreOne(
   const ma200 = sma(closes, 200);
   const rsiResult = analyzeRsi(history, currentPrice);
   const macdResult = analyzeMacd(history, currentPrice);
+  // ATR-14 - dasar hitung TP1/TP2/CL1/CL2 di ai-pick.service.ts rankAiPicks(). `history`
+  // di sini sudah 2 tahun OHLC (fetchYahooHistory di atas), jauh lebih dari cukup - tidak
+  // perlu fetch tambahan. Reuse analyzer yang sama dipakai Stock Detail (LensTechnical),
+  // bukan rumus baru dikarang.
+  const volatilityResult = analyzeVolatility(history, currentPrice);
+  const atr = typeof volatilityResult?.raw?.atr === 'number' ? volatilityResult.raw.atr : null;
   const rsi = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
   const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
   const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
@@ -122,6 +128,7 @@ async function scoreOne(
       totalScore: scoring.total_score,
       rsi: parseFloat(rsi.toFixed(1)),
       accumulationConfirmed,
+      atr,
       // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari
       // calculateScore(), bukan dihitung ulang/dikarang di sini.
       breakdown: {
