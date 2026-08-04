@@ -708,7 +708,7 @@ function DashboardContent() {
 
               {/* Score Circle */}
               <div className="flex flex-col items-center justify-center gap-2 min-w-[140px]">
-                <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
+                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
                   LensScore
                 </div>
                 <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-number ${
@@ -719,7 +719,7 @@ function DashboardContent() {
                 }`}>
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
-                <div className={`text-sm font-bold font-mono px-3 py-1 rounded-full border ${
+                <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
                   data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
                   data.scoring.kategori === 'BUY' ? 'bg-blue-400/20 text-blue-400 border-blue-400/50' :
                   data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
@@ -731,10 +731,10 @@ function DashboardContent() {
 
               {/* Score Breakdown */}
               <div className="flex-1 space-y-3">
-                <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-2">BREAKDOWN SKOR</div>
+                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">BREAKDOWN SKOR</div>
                 {/* Technical */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-tv-muted font-mono w-28">Technical (0-40)</span>
+                  <span className="text-xs text-tv-muted font-sans w-28">Technical (0-40)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-all" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
                   </div>
@@ -744,7 +744,7 @@ function DashboardContent() {
                     sudah dihitung tapi belum ditampilkan di sini. Tidak ikut total_score. */}
                 {momentum !== null && (
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-tv-muted font-mono w-28">Momentum (0-100)</span>
+                    <span className="text-xs text-tv-muted font-sans w-28">Momentum (0-100)</span>
                     <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-purple-400/80 to-purple-400 rounded-full transition-all" style={{width: `${momentum}%`}}></div>
                     </div>
@@ -753,7 +753,7 @@ function DashboardContent() {
                 )}
                 {/* Fundamental */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-tv-muted font-mono w-28">Fundamental (0-30)</span>
+                  <span className="text-xs text-tv-muted font-sans w-28">Fundamental (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-blue-400/80 to-blue-400 rounded-full transition-all" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
                   </div>
@@ -761,7 +761,7 @@ function DashboardContent() {
                 </div>
                 {/* Flow */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-tv-muted font-mono w-28">Money Flow (0-30)</span>
+                  <span className="text-xs text-tv-muted font-sans w-28">Money Flow (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
                   </div>
@@ -772,7 +772,7 @@ function DashboardContent() {
                     lain) - BUKAN raw volatility percentage. Tidak ikut total_score. */}
                 {risk !== null && (
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-tv-muted font-mono w-28">Risk (0-100)</span>
+                    <span className="text-xs text-tv-muted font-sans w-28">Risk (0-100)</span>
                     <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-tv-red/80 to-tv-red rounded-full transition-all" style={{width: `${risk}%`}}></div>
                     </div>

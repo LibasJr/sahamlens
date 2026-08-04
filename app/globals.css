@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #0A0E27;
+  --background: #0F141D;
   --foreground: #F3F4F6;
 }
 
@@ -66,7 +66,7 @@ h1, h2, h3 {
 
 /* ====== AI Chat Response Typography ====== */
 .ai-response {
-  color: #ccfbf1;
+  color: #dbeafe;
   font-size: 13px;
   line-height: 1.75;
   max-width: 100%;
@@ -89,8 +89,8 @@ h1, h2, h3 {
 }
 
 .ai-response h1 { font-size: 18px; }
-.ai-response h2 { font-size: 16px; border-bottom: 1px solid #0f766e; padding-bottom: 4px; }
-.ai-response h3 { font-size: 14px; color: #5eead4; }
+.ai-response h2 { font-size: 16px; border-bottom: 1px solid #2563EB; padding-bottom: 4px; }
+.ai-response h3 { font-size: 14px; color: #93c5fd; }
 
 .ai-response strong, .ai-response b {
   color: #ffffff;
@@ -98,7 +98,7 @@ h1, h2, h3 {
 }
 
 .ai-response em, .ai-response i {
-  color: #99f6e4;
+  color: #bfdbfe;
   font-style: italic;
 }
 
@@ -113,12 +113,12 @@ h1, h2, h3 {
 }
 
 .ai-response li::marker {
-  color: #14b8a6;
+  color: #3A86FF;
 }
 
 .ai-response code {
-  background: rgba(15, 118, 110, 0.25);
-  color: #5eead4;
+  background: rgba(37, 99, 235, 0.25);
+  color: #93c5fd;
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 12px;
@@ -140,12 +140,12 @@ h1, h2, h3 {
 }
 
 .ai-response blockquote {
-  border-left: 3px solid #14b8a6;
+  border-left: 3px solid #3A86FF;
   padding: 6px 12px;
   margin: 10px 0;
-  background: rgba(20, 184, 166, 0.08);
+  background: rgba(58, 134, 255, 0.08);
   border-radius: 0 6px 6px 0;
-  color: #99f6e4;
+  color: #bfdbfe;
 }
 
 .ai-response hr {
@@ -162,8 +162,8 @@ h1, h2, h3 {
 }
 
 .ai-response th {
-  background: rgba(15, 118, 110, 0.2);
-  color: #5eead4;
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
   text-align: left;
   padding: 6px 10px;
   border: 1px solid #1e293b;
@@ -176,11 +176,11 @@ h1, h2, h3 {
 }
 
 .ai-response a {
-  color: #2dd4bf;
+  color: #60a5fa;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .ai-response a:hover {
-  color: #5eead4;
+  color: #93c5fd;
 }

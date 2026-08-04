@@ -81,7 +81,7 @@ export default function Header({
           Disembunyikan di mobile (layar sempit sudah penuh hamburger+search),
           konteks halaman di mobile tetap didapat dari Sidebar. */}
       <div className="hidden md:flex flex-col min-w-0 flex-1 px-2">
-        <span className="text-[10px] font-mono text-tv-blue uppercase tracking-wider font-bold">{moduleBank}</span>
+        <span className="text-[10px] font-sans text-tv-blue uppercase tracking-wider font-bold">{moduleBank}</span>
         <h2 className="text-sm font-heading font-bold text-tv-text truncate">{moduleTitle}</h2>
       </div>
 
