@@ -9,7 +9,6 @@ import {
   Menu,
   ArrowUpRight,
   ArrowDownRight,
-  Loader2,
   Flame,
   TrendingUp,
   TrendingDown,
@@ -279,9 +278,10 @@ export default function HomePage() {
                 <Badge variant="info" dot>Live</Badge>
               </div>
               {loadingPicks ? (
-                <p className="text-sm text-tv-muted mt-1.5 flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Menganalisa pasar...
-                </p>
+                <div className="mt-1.5 space-y-1.5">
+                  <Skeleton variant="text" className="w-full max-w-md" />
+                  <Skeleton variant="text" className="w-2/3 max-w-xs" />
+                </div>
               ) : aiBriefing ? (
                 <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
               ) : picksLoginRequired ? (
@@ -369,7 +369,10 @@ export default function HomePage() {
                 <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
               </CardHeader>
               {loadingMarket ? (
-                <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+                <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
+                  <Skeleton variant="text" className="w-16" />
+                  <Skeleton className="h-6 w-32" />
+                </div>
               ) : (
                 <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
                   <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
@@ -412,7 +415,9 @@ export default function HomePage() {
                 <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
               </CardHeader>
               {calendarEvents === null ? (
-                <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+                <div className="space-y-2">
+                  {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                </div>
               ) : calendarEvents.length === 0 ? (
                 <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
               ) : (
