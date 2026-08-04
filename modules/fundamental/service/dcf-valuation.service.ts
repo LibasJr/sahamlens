@@ -1,33 +1,46 @@
 import YahooFinanceClass from 'yahoo-finance2';
-import { cacheGet, cacheSet } from '../../../shared/cache/redis-cache';
+import { getUsdIdrRate } from '../../../shared/market/usd-idr-rate';
 
 // BUILD 004 (AI Architecture) - dipindah verbatim dari app/api/intrinsic/[ticker]/route.ts
 // supaya bisa dipakai ulang oleh Valuation Agent di modules/ai/service/orchestrator.service.ts
 // tanpa endpoint itu memanggil dirinya sendiri lewat HTTP. Logika perhitungan TIDAK diubah.
 
-const USDIDR_CACHE_KEY = 'sahamlens:cache:computed:fx:usdidr';
-// 7 hari - kurs USD/IDR tidak bergerak drastis harian, cukup panjang untuk bertahan
-// dari outage Yahoo Finance multi-hari. Ditimpa setiap kali fetch live berhasil, jadi
-// tidak pernah lebih basi dari fetch sukses TERAKHIR selama itu masih dalam 7 hari.
-const USDIDR_CACHE_TTL_SEC = 7 * 24 * 60 * 60;
-// Jaring pengaman TERAKHIR - kepakai HANYA kalau belum pernah ada satu pun fetch
-// sukses tersimpan di cache (mis. Redis baru diset / fresh deploy) DAN Yahoo sedang
-// down bersamaan. Statis, tapi tidak lagi jadi satu-satunya fallback seperti sebelumnya.
-const USDIDR_STATIC_FALLBACK = 15500;
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan H-6): konstanta cadangan
+// USDIDR_STATIC_FALLBACK = 15500 dihapus dan pengambilan kurs dipindah ke
+// shared/market/usd-idr-rate.ts (dipakai bersama 4 call-site lain yang dulu punya
+// salinan sendiri dengan `|| 15500`). Kalau kurs benar-benar tidak tersedia, helper itu
+// mengembalikan null dan metode valuasi yang bergantung padanya DILEWATI - bukan dihitung
+// dengan kurs tebakan lalu ditampilkan sebagai nilai wajar.
 
-async function getUsdIdrRate(): Promise<number> {
-  try {
-    const fx = await yahooFinance.quote('USDIDR=X');
-    if (fx && fx.regularMarketPrice) {
-      await cacheSet(USDIDR_CACHE_KEY, fx.regularMarketPrice, USDIDR_CACHE_TTL_SEC);
-      return fx.regularMarketPrice;
-    }
-  } catch (e) {
-    console.warn('Failed to fetch USDIDR dari Yahoo, coba kurs cache terakhir');
-  }
-  const cached = await cacheGet<number>(USDIDR_CACHE_KEY);
-  return cached && cached > 0 ? cached : USDIDR_STATIC_FALLBACK;
-}
+// Metodologi valuasi - SEMUA angka di bawah adalah ASUMSI MODEL, bukan data pasar.
+// Dikumpulkan di satu tempat (audit 2026-08-05, temuan H-3/H-4) supaya bisa dibaca,
+// dibandingkan, dan diberi label di UI sebagai asumsi. Sebelumnya tersebar sebagai
+// angka telanjang di tengah rumus (`(roe / 12) * 1.4`, `(dps * 1.05) / (0.12 - 0.05)`,
+// `eps * 15`) sehingga pengguna melihat "Harga Wajar Rp X" tanpa cara tahu bahwa X
+// bergantung penuh pada tebakan tetap yang sama untuk SEMUA emiten.
+export const VALUATION_ASSUMPTIONS = {
+  /** Tingkat diskonto ekuitas yang dipakai DDM & DCF perpetuity. Sama untuk semua emiten -
+   * penyederhanaan yang disengaja karena aplikasi ini tidak punya data beta/struktur modal
+   * per-emiten yang cukup andal untuk menurunkan WACC individual. */
+  DISCOUNT_RATE: 0.12,
+  /** Pertumbuhan perpetuitas. Ditahan di 5% (bukan 8%) supaya pembagi (r - g) tidak
+   * menyusut ekstrem dan meledakkan nilai wajar saham dividen tinggi. */
+  PERPETUAL_GROWTH: 0.05,
+  /** PER "wajar" acuan. Angka konvensi pasar, bukan hasil regresi atas data IDX. */
+  FAIR_PER_NON_BANK: 15,
+  FAIR_PER_BANK: 14.5,
+  /** Faktor PBV wajar = (ROE / pembagi) x pengali. Heuristik industri, bukan turunan
+   * teoritis - dilaporkan apa adanya ke UI lewat `assumptions` di bawah. */
+  BANK_PBV_DIVISOR: 12,
+  BANK_PBV_MULTIPLIER: 1.4,
+  BANK_HIGH_ROE_DIVISOR: 11,
+  BANK_HIGH_ROE_MULTIPLIER: 1.3,
+  BANK_PBV_CAP: 3.2,
+  NON_BANK_PBV_DIVISOR: 12,
+  NON_BANK_PBV_MULTIPLIER: 0.85,
+  /** Konstanta Graham Number klasik (22.5 = 15 x 1.5). */
+  GRAHAM_CONSTANT: 22.5,
+} as const;
 
 const SECTOR_RULES: Record<string, any> = {
   "Banks - Regional": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
@@ -84,11 +97,20 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
 
   if (priceCurrency === 'IDR' && finCurrency === 'USD') {
+    // Diverifikasi empiris (2026-08-05): EPS & DPS Yahoo untuk emiten pelapor USD SUDAH
+    // dalam IDR (ADRO harga 2520 / eps 309.74 = 8.13 = trailingPE yang dikembalikan
+    // Yahoo apa adanya). Hanya BVPS & FCF yang masih USD.
     const exchangeRate = await getUsdIdrRate();
-    // FIX: Yahoo Finance EPS & DPS are ALREADY in IDR.
-    // Only BVPS and FCF are in USD.
-    bvps *= exchangeRate;
-    if (fcf_per_share) fcf_per_share *= exchangeRate;
+    if (exchangeRate == null) {
+      // Temuan H-6: tanpa kurs, BVPS & FCF tidak bisa disamakan satuannya dengan harga.
+      // Metode yang bergantung padanya (PBV Fair, Graham, DCF) DILEWATI - bukan dihitung
+      // dari kurs karangan lalu disajikan sebagai nilai wajar.
+      bvps = 0;
+      fcf_per_share = null;
+    } else {
+      bvps *= exchangeRate;
+      if (fcf_per_share) fcf_per_share *= exchangeRate;
+    }
   }
   // ------------------------------------------------
 
@@ -110,7 +132,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
 
   // 1. Graham Number
   if (eps > 0 && bvps > 0) {
-    intrinsic_graham = Math.sqrt(22.5 * eps * bvps);
+    intrinsic_graham = Math.sqrt(VALUATION_ASSUMPTIONS.GRAHAM_CONSTANT * eps * bvps);
     if (!isBank) {
       methods.graham = {
         name: 'Graham Number',
@@ -129,18 +151,18 @@ export async function calculateIntrinsicValue(rawTicker: string) {
         ? price / quoteSummary.defaultKeyStatistics.priceToBook
         : bvps;
 
-      let pbvWajar = (roe / 12) * 1.4; // Premium 40% for CASA
+      let pbvWajar = (roe / VALUATION_ASSUMPTIONS.BANK_PBV_DIVISOR) * VALUATION_ASSUMPTIONS.BANK_PBV_MULTIPLIER;
       if (roe > 20) {
-        pbvWajar = (roe / 11) * 1.3; // Specific rule for high ROE banks
+        pbvWajar = (roe / VALUATION_ASSUMPTIONS.BANK_HIGH_ROE_DIVISOR) * VALUATION_ASSUMPTIONS.BANK_HIGH_ROE_MULTIPLIER;
       }
       // Cap saja di 3.2 (hindari valuasi ekstrem untuk ROE sangat tinggi) - TANPA floor
       // 2.5. Floor unconditional sebelumnya memaksa bank ber-ROE rendah (mis. 3% -> PBV
       // mentah 0.35x) tetap dinilai 2.5x, melambungkan fair value/MoS dan berpotensi
       // menandai bank yang fundamentalnya lemah sebagai "undervalued".
-      pbvWajar = Math.min(pbvWajar, 3.2);
+      pbvWajar = Math.min(pbvWajar, VALUATION_ASSUMPTIONS.BANK_PBV_CAP);
       intrinsic_pbv = pbvWajar * calcBvps;
     } else {
-      let pbvWajar = (roe / 12) * 0.85;
+      let pbvWajar = (roe / VALUATION_ASSUMPTIONS.NON_BANK_PBV_DIVISOR) * VALUATION_ASSUMPTIONS.NON_BANK_PBV_MULTIPLIER;
       intrinsic_pbv = pbvWajar * bvps;
     }
 
@@ -156,14 +178,14 @@ export async function calculateIntrinsicValue(rawTicker: string) {
 
   // 3. DDM
   if (dps > 0) {
+    const g = VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH;
     if (isBank) {
-      // FIX DDM Bank: Max growth 5%
-      let discountRate = roe > 20 ? 0.105 : 0.12;
-      intrinsic_ddm = (dps * 1.05) / (discountRate - 0.05);
+      // Bank ber-ROE tinggi diberi discount rate sedikit lebih rendah (risiko dianggap
+      // lebih terkendali) - asumsi model, bukan hasil pengukuran risiko emiten.
+      const discountRate = roe > 20 ? 0.105 : VALUATION_ASSUMPTIONS.DISCOUNT_RATE;
+      intrinsic_ddm = (dps * (1 + g)) / (discountRate - g);
     } else {
-      // Growth 5% (bukan 8%) - konsisten dengan asumsi DCF & DDM bank di atas.
-      // g=8% vs r=12% bikin pembagi cuma 0.04 -> DPS di-leverage ~27x, fair value meledak untuk saham dividen tinggi.
-      intrinsic_ddm = (dps * 1.05) / (0.12 - 0.05);
+      intrinsic_ddm = (dps * (1 + g)) / (VALUATION_ASSUMPTIONS.DISCOUNT_RATE - g);
     }
     methods.ddm = {
       name: 'DDM (Dividend)',
@@ -176,7 +198,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   // 4. PER Fair
   if (eps > 0) {
     // FIX PER FAIR: Use 14.5 for banks, 15 for others
-    const defaultPER = isBank ? 14.5 : 15;
+    const defaultPER = isBank ? VALUATION_ASSUMPTIONS.FAIR_PER_BANK : VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK;
     intrinsic_per = eps * defaultPER;
     methods.per = {
       name: 'PER Fair',
@@ -188,7 +210,8 @@ export async function calculateIntrinsicValue(rawTicker: string) {
 
   // 5. DCF
   if (!isBank && fcf_per_share && fcf_per_share > 0) {
-    intrinsic_dcf = (fcf_per_share * 1.05) / (0.12 - 0.05);
+    intrinsic_dcf = (fcf_per_share * (1 + VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH))
+      / (VALUATION_ASSUMPTIONS.DISCOUNT_RATE - VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH);
     methods.dcf = {
       name: 'DCF (FCF)',
       value: intrinsic_dcf,
@@ -263,7 +286,18 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     methods,
     fair_value,
     mos,
-    applied_rule: activeWeights
+    applied_rule: activeWeights,
+    // Asumsi model diekspos ke pemanggil (audit 2026-08-05, temuan H-3) supaya UI bisa
+    // menampilkan DASAR angkanya, bukan cuma hasil akhirnya. "Harga wajar" di sini adalah
+    // keluaran model dengan parameter tetap yang sama untuk semua emiten - bukan
+    // pengukuran, bukan konsensus analis.
+    assumptions: {
+      is_model_estimate: true,
+      discount_rate_pct: VALUATION_ASSUMPTIONS.DISCOUNT_RATE * 100,
+      perpetual_growth_pct: VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH * 100,
+      fair_per: isBank ? VALUATION_ASSUMPTIONS.FAIR_PER_BANK : VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK,
+      note: 'Nilai wajar adalah hasil model dengan asumsi tetap (discount rate & pertumbuhan perpetuitas sama untuk semua emiten), bukan target harga analis.',
+    },
   };
 }
 
@@ -273,8 +307,19 @@ export async function calculateIntrinsicValue(rawTicker: string) {
 // rumusnya (sebelumnya UI menampilkan "WACC 8.85%" sebagai fallback statis di
 // sebelah rumus "6.7% + 5.2%" yang sebenarnya = 11.9% - dua angka yang tidak
 // pernah dihitung dari rumus yang sama).
+//
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan H-5): kedua angka ini ASUMSI
+// STATIS, bukan data pasar - tapi dulu dikirim ke UI sebagai field bernama
+// `sbn_10y_yield` yang terbaca seperti yield SBN 10 tahun yang sedang berlaku. Backend
+// ini TIDAK punya sumber data yield SBN sama sekali (modules/macro/ hanya menyinkronkan
+// kurs USD/IDR - lihat macro-refresh.service.ts). Nilainya tidak diubah (mengarang angka
+// "lebih baru" tanpa sumber justru lebih buruk), tapi sekarang ditandai eksplisit sebagai
+// asumsi lewat `is_assumption: true` + tanggal penetapan, supaya UI bisa melabelinya
+// jujur alih-alih menyajikannya sebagai kondisi pasar terkini.
 const SBN_10Y_YIELD_PCT = 6.7;
 const EQUITY_RISK_PREMIUM_PCT = 5.2;
+/** Kapan kedua asumsi di atas terakhir ditinjau manusia. Ditampilkan bersama angkanya. */
+const MACRO_ASSUMPTION_SET_ON = '2026-08-03';
 const TERMINAL_GROWTH_PCT = 3.5;
 const PROJECTION_YEARS = 5;
 
@@ -335,7 +380,10 @@ export async function calculateDcfModel(rawTicker: string) {
   const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
   if (priceCurrency === 'IDR' && finCurrency === 'USD' && fcfPerShare) {
     const exchangeRate = await getUsdIdrRate();
-    fcfPerShare *= exchangeRate;
+    // Temuan H-6: tanpa kurs, FCF/share (USD) tidak bisa dibandingkan dengan harga (IDR).
+    // null di sini membuat cabang "NO_FCF_DATA" di bawah aktif - model DCF dilewati,
+    // bukan dihitung dengan kurs karangan.
+    fcfPerShare = exchangeRate != null ? fcfPerShare * exchangeRate : null;
   }
 
   if (!fcfPerShare || fcfPerShare <= 0) {
@@ -412,9 +460,16 @@ export async function calculateDcfModel(rawTicker: string) {
         pv_fcf: Math.round(f.pv_fcf),
       })),
       sensitivity_table: sensitivityTable,
+      // Penanda jujur (temuan H-5): risk-free rate & equity risk premium di sini ASUMSI
+      // statis, bukan pembacaan pasar. UI wajib menampilkannya sebagai asumsi.
+      assumptions: {
+        is_assumption: true,
+        set_on: MACRO_ASSUMPTION_SET_ON,
+        note: 'SBN 10Y & equity risk premium adalah asumsi tetap yang ditinjau manual - backend ini tidak tersambung ke sumber data yield SBN. Ubah asumsi, dan nilai wajar ikut berubah (lihat tabel sensitivitas).',
+      },
     },
     analysis: {
-      executive_summary: `Model DCF 5-tahun (WACC ${waccPct.toFixed(1)}%, pertumbuhan FCF proyeksi ${(projectionGrowth * 100).toFixed(1)}%/tahun dari ROE & rasio retensi riil, terminal growth ${TERMINAL_GROWTH_PCT}%) menghasilkan nilai wajar Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%, mengindikasikan saham ini ${valuationStatus === 'UNDERVALUED' ? 'berada di bawah' : 'berada di atas'} nilai intrinsiknya.`,
+      executive_summary: `Model DCF 5-tahun (WACC ${waccPct.toFixed(1)}% = asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, keduanya asumsi tetap per ${MACRO_ASSUMPTION_SET_ON}, bukan pembacaan pasar terkini; pertumbuhan FCF proyeksi ${(projectionGrowth * 100).toFixed(1)}%/tahun dari ROE & rasio retensi riil; terminal growth ${TERMINAL_GROWTH_PCT}%) menghasilkan nilai wajar Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL dengan asumsi di atas, bukan target harga; lihat tabel sensitivitas untuk melihat seberapa besar hasilnya bergeser kalau asumsinya berubah.`,
     },
   };
 }

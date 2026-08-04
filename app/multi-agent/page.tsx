@@ -182,11 +182,26 @@ export default function MultiAgentPage() {
                 </div>
                 
                 <div className="flex flex-col items-center justify-center p-8 bg-tv-bg border border-tv-borderLight rounded-full w-48 h-48">
+                  {/* BUG FIX (audit 2026-08-05, temuan H-10): `quant.final_score || 0`
+                      merender "0" saat skor tidak dihitung - angka yang terbaca sebagai
+                      penilaian terburuk, padahal artinya "tidak dinilai". Sekarang
+                      dibedakan. */}
                   <span className="text-tv-muted text-sm uppercase mb-1">Final Score</span>
-                  <span className={`text-6xl font-bold ${quant.final_score >= 60 ? 'text-tv-green' : quant.final_score <= 40 ? 'text-tv-red' : 'text-yellow-500'}`}>
-                    {quant.final_score || 0}
-                  </span>
-                  <span className="text-tv-muted text-xs mt-1">out of 100</span>
+                  {quant.final_score == null ? (
+                    <>
+                      <span className="text-2xl font-bold text-tv-muted text-center leading-tight">N/A</span>
+                      <span className="text-tv-muted text-[10px] mt-1 text-center px-2">Data agen tidak tersedia</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`text-6xl font-bold ${quant.final_score >= 60 ? 'text-tv-green' : quant.final_score <= 40 ? 'text-tv-red' : 'text-yellow-500'}`}>
+                        {quant.final_score}
+                      </span>
+                      <span className="text-tv-muted text-xs mt-1">
+                        out of 100{quant.coverage_weight_pct != null && quant.coverage_weight_pct < 90 ? ` · bobot terpakai ${quant.coverage_weight_pct}/90` : ''}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

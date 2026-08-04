@@ -43,10 +43,14 @@ function Sparkline({ data, color, width = 120, height = 32 }: { data: number[]; 
 }
 
 // Sector Heatmap Tile
-function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
-  const size = Math.max(1, Math.sqrt(marketCap / (maxMcap || 1))) * 100;
-  const isUp = changePct >= 0;
-  const intensity = Math.min(Math.abs(changePct) * 40, 100);
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan M-3): ukuran tile dulu dihitung
+// dari `marketCap` yang SELALU 0 (field itu tidak ada di Yahoo chart API), jadi rumus
+// akar kuadratnya tidak pernah berpengaruh apa pun - semua tile berukuran sama sambil
+// tampak seolah diskalakan menurut kapitalisasi. Ukuran seragam sekarang, dan besaran
+// pergerakan disampaikan lewat intensitas warna yang memang dihitung dari data nyata.
+function HeatmapTile({ sector, changePct, stocks, sampleSize }: any) {
+  const isUp = (changePct ?? 0) >= 0;
+  const intensity = Math.min(Math.abs(changePct ?? 0) * 40, 100);
 
   const bg = isUp
     ? `rgba(16, 185, 129, ${0.1 + intensity / 200})`
@@ -62,11 +66,14 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
         backgroundColor: bg,
         borderWidth: 1,
         borderColor: border,
-        minHeight: `${Math.max(90, size * 0.8)}px`
+        minHeight: '90px'
       }}
     >
       <div>
         <div className="text-xs font-bold text-white truncate">{sector}</div>
+        {/* Dinyatakan apa adanya: ini rata-rata beberapa saham wakil, bukan indeks sektor
+            resmi IDX (temuan M-3). */}
+        {sampleSize ? <div className="text-[9px] text-white/60">rata-rata {sampleSize} saham wakil</div> : null}
         {/* Angka % dulu pakai text-tv-green/text-tv-red di atas background yang juga
             hijau/merah (hue sama) - kontras rendah, apalagi saat perubahan besar bikin
             background makin pekat. Ganti jadi putih (kontras tinggi di kedua background)
@@ -77,7 +84,7 @@ function HeatmapTile({ sector, changePct, marketCap, stocks, maxMcap }: any) {
           ) : (
             <TrendingDown className="w-3.5 h-3.5 text-tv-red shrink-0" />
           )}
-          {isUp ? '+' : ''}{changePct.toFixed(2)}%
+          {changePct == null ? 'N/A' : `${isUp ? '+' : ''}${changePct.toFixed(2)}%`}
         </div>
       </div>
       <div className="flex flex-wrap gap-1 mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
@@ -176,11 +183,6 @@ export default function MarketPulse() {
     const interval = setInterval(fetchData, 120000); // 2 min refresh
     return () => clearInterval(interval);
   }, []);
-
-  const maxMcap = useMemo(() => {
-    if (!data?.sectorHeatmap) return 1;
-    return Math.max(...data.sectorHeatmap.map((s: any) => s.marketCap || 0));
-  }, [data]);
 
   const formatTime = (date: Date) => date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
@@ -335,14 +337,14 @@ export default function MarketPulse() {
               Sector Heatmap IDX
             </h3>
             <span className="text-[10px] text-tv-muted">
-              11 Sektor • Ukuran ~ Market Cap • Warna ~ % Perubahan
+              11 Sektor • Warna ~ % Perubahan • Rata-rata beberapa saham wakil per sektor (bukan indeks sektor resmi IDX)
             </span>
           </div>
 
           {data?.sectorHeatmap ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
               {data.sectorHeatmap.map((sector: any) => (
-                <HeatmapTile key={sector.sector} {...sector} maxMcap={maxMcap} />
+                <HeatmapTile key={sector.sector} {...sector} />
               ))}
             </div>
           ) : (
@@ -362,7 +364,7 @@ export default function MarketPulse() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3 mb-4">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-tv-green" />
-              Market Breadth
+              Market Breadth (sampel)
             </h3>
             <span className="text-[10px] text-tv-muted">
               {data?.breadth?.total || 0} Saham Terpantau

@@ -182,20 +182,30 @@ export async function getMarketPulse() {
       .map(s => stockQuotes[s])
       .filter(Boolean);
 
-    const totalMcap = stocksData.reduce((sum, s) => sum + (s.marketCap || 0), 0);
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-3): `meta.marketCap` TIDAK
+    // ADA di Yahoo chart API (diverifikasi langsung ke endpoint-nya: field itu bukan
+    // bagian dari `chart.result[].meta`). Jadi `marketCap` di sini SELALU 0, dan UI
+    // memakainya untuk mengatur ukuran + urutan tile heatmap - artinya tata letak
+    // "berdasarkan kapitalisasi pasar" tidak pernah benar-benar terjadi. Field dihapus
+    // (bukan diisi angka lain): heatmap sekarang diurutkan berdasarkan besarnya pergerakan
+    // sektor, sesuatu yang memang dihitung dari data nyata.
+    //
+    // `changePct` = rata-rata SEDERHANA dari 3-4 saham wakil sektor (bukan indeks sektor
+    // resmi IDX, bukan pembobotan kapitalisasi) - `isProxy` + `sampleSize` dikirim supaya
+    // UI bisa menyatakannya, alih-alih terbaca sebagai kinerja sektor sesungguhnya.
     const avgChange = stocksData.length > 0
       ? stocksData.reduce((sum, s) => sum + s.changePct, 0) / stocksData.length
-      : 0;
+      : null;
 
     return {
       sector: sector.sector,
       color: sector.color,
-      changePct: parseFloat(avgChange.toFixed(2)),
-      marketCap: totalMcap,
+      changePct: avgChange != null ? parseFloat(avgChange.toFixed(2)) : null,
+      isProxy: true,
+      sampleSize: stocksData.length,
       stocks: stocksData.map(s => ({
         symbol: s.symbol.replace('.JK', ''),
         changePct: s.changePct,
-        marketCap: s.marketCap
       }))
     };
   });
@@ -215,7 +225,7 @@ export async function getMarketPulse() {
   return {
     timestamp: new Date().toISOString(),
     indices: indicesData,
-    sectorHeatmap: sectorHeatmap.sort((a, b) => b.marketCap - a.marketCap),
+    sectorHeatmap: sectorHeatmap.sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0)),
     breadth: {
       total: breadthQuotes.length,
       advancing,

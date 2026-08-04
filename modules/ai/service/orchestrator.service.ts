@@ -15,7 +15,7 @@ import {
   type OhlcRow,
 } from '@/modules/technical';
 import { ORCHESTRATOR_SCORE_THRESHOLDS } from '@/modules/technical/service/decision-thresholds';
-import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal } from '@/modules/market';
 import {
   analyzePe,
   analyzePbv,
@@ -99,18 +99,22 @@ function buildBandarAgent(history: OhlcRow[] | null): AgentResult {
     if (dailyFlow[i].netValueBillion < 0) sellStreak++;
     else break;
   }
-  const last3 = dailyFlow.slice(-3);
-  const isAccumulation3D = last3.length === 3 && last3.every((d) => d.netValueBillion > 0);
-  const isDistribution3D = last3.length === 3 && last3.every((d) => d.netValueBillion < 0);
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-2): agen ini masih memakai
+  // aturan lama "3 hari netValue positif berturut-turut", sementara SELURUH modul lain
+  // (Detail Saham, Recommendations, Screener, AI Pick, Council) sudah pindah ke
+  // konfirmasi 4-lapis analyzeAccumulationSignal() sejak audit 2026-08-03. Akibatnya
+  // /multi-agent bisa menyatakan "terindikasi akumulasi" untuk saham yang di halaman lain
+  // dinyatakan netral - untuk hari & data yang sama persis. Disamakan.
+  const accumulation = analyzeAccumulationSignal(flowHistory.slice(-20));
 
   let score = 50;
   let summary = `Estimasi net value 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(1)}M (proxy dari harga+volume, bukan data broker resmi).`;
-  if (isAccumulation3D) {
+  if (accumulation.status === 'AKUMULASI') {
     score = buyStreak >= 4 ? 82 : 68;
-    summary += ` Terindikasi akumulasi ${buyStreak}D berturut.`;
-  } else if (isDistribution3D) {
+    summary += ` Akumulasi terkonfirmasi ${buyStreak}D berturut.`;
+  } else if (accumulation.status === 'DISTRIBUSI') {
     score = sellStreak >= 4 ? 18 : 32;
-    summary += ` Terindikasi distribusi ${sellStreak}D berturut.`;
+    summary += ` Distribusi terkonfirmasi ${sellStreak}D berturut.`;
   } else {
     summary += ' Aliran relatif seimbang.';
   }
@@ -132,7 +136,11 @@ export interface OrchestratorResult {
   quant: {
     decision: string;
     master_agent_summary: string;
-    final_score: number;
+    /** null = tidak ada satu pun agen yang punya data (temuan H-10). UI WAJIB
+     * memperlakukan null sebagai "tidak dinilai", bukan 0 atau 50. */
+    final_score: number | null;
+    /** Total bobot agen yang benar-benar terpakai (maks 90 - news & risk sengaja 0%). */
+    coverage_weight_pct?: number;
     agent_breakdown: Record<string, AgentResult>;
   };
 }
@@ -292,9 +300,24 @@ export async function runMultiAgentOrchestrator(rawTicker: string): Promise<Orch
 
   const weightedEntries = Object.values(agentBreakdown).filter((a) => a.available && a.weight_pct > 0);
   const totalWeight = weightedEntries.reduce((s, a) => s + a.weight_pct, 0);
-  const finalScore = totalWeight > 0
-    ? Math.round(weightedEntries.reduce((s, a) => s + a.score * a.weight_pct, 0) / totalWeight)
-    : 50;
+
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-10): kalau TIDAK ADA satu pun
+  // agen yang punya data, `finalScore` dulu di-set 50 dan `decisionFromScore(50)`
+  // mengembalikan "HOLD" - keputusan investasi yang terlihat sah padahal tidak satu pun
+  // angka di baliknya pernah dihitung. Sekarang kegagalan total dilaporkan apa adanya.
+  if (totalWeight === 0) {
+    return {
+      ticker,
+      quant: {
+        decision: 'DATA TIDAK TERSEDIA',
+        master_agent_summary: `Tidak ada satu pun agen kuantitatif yang berhasil memperoleh data untuk ${ticker} saat ini (harga, fundamental, maupun valuasi). Analisa tidak dihitung - tidak ada kesimpulan yang bisa dipertanggungjawabkan dari data kosong.`,
+        final_score: null,
+        agent_breakdown: agentBreakdown,
+      },
+    };
+  }
+
+  const finalScore = Math.round(weightedEntries.reduce((s, a) => s + a.score * a.weight_pct, 0) / totalWeight);
 
   const decision = decisionFromScore(finalScore);
   const summary = await buildAiSummary(ticker, agentBreakdown, finalScore, decision);
@@ -305,6 +328,9 @@ export async function runMultiAgentOrchestrator(rawTicker: string): Promise<Orch
       decision,
       master_agent_summary: summary,
       final_score: finalScore,
+      // Bobot yang benar-benar terpakai - supaya UI bisa memberi tahu kalau skor ini
+      // cuma dari sebagian agen (mis. 45 dari 90 bobot).
+      coverage_weight_pct: totalWeight,
       agent_breakdown: agentBreakdown,
     },
   };

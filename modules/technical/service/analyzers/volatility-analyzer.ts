@@ -7,7 +7,10 @@ export function analyze(history: any[], currentPrice: number) {
   for (let i = history.length - 14; i < history.length; i++) {
     const high = history[i].High;
     const low = history[i].Low;
-    const prevClose = history[i - 1].Close;
+    // AdjClose kalau tersedia (temuan L-4) - analyzer lain sudah memakainya, dan
+    // True Range yang mencampur High/Low mentah dengan prevClose ter-adjust hanya
+    // menyimpang di sekitar tanggal ex-dividend. Fallback ke Close untuk pemanggil lama.
+    const prevClose = history[i - 1].AdjClose ?? history[i - 1].Close;
     const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
     trSum += tr;
   }

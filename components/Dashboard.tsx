@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
-import { computeIndicators, generateInsight, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
+import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 import { Card, SegmentedControl } from '@/components/ui';
 import { isMarketOpen } from '@/lib/utils/market';
 
@@ -486,10 +486,12 @@ export default function Dashboard() {
                     timeframe={timeframe}
                     onHoverCandle={setHoveredTime}
                     technical={{
-                      cross_status: ind?.ma20 != null && ind?.ma50 != null ? (ind.ma20 > ind.ma50 ? 'BULLISH' : 'BEARISH') : 'NETRAL',
-                      broker_flow_status: ind?.volRatio != null ? (ind.volRatio > 1 ? 'AKUMULASI' : 'DISTRIBUSI') : 'NETRAL',
+                      // null (bukan 'NETRAL') kalau MA belum bisa dihitung (temuan C-1),
+                      // dan CMF20 dari OHLCV nyata alih-alih turunan volRatio (temuan C-2).
+                      cross_status: ind?.ma20 != null && ind?.ma50 != null ? (ind.ma20 > ind.ma50 ? 'BULLISH' : 'BEARISH') : null,
+                      money_flow_status: moneyFlowLabel(upToChartData as any),
                       ma50: ind?.ma50 ?? undefined,
-                      ma200: undefined
+                      ma200: ind?.ma200 ?? undefined
                     }}
                   />
                 ) : (

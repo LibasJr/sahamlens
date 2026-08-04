@@ -41,7 +41,10 @@ const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = [
   { key: 'symbol', label: 'Saham', getValue: (i) => i.symbol },
   { key: 'price', label: 'Harga', align: 'right', getValue: (i) => i.price },
   { key: 'changePct', label: 'Chg', align: 'right', getValue: (i) => i.changePct },
-  { key: 'finalScore', label: 'Skor', align: 'right', getValue: (i) => i.finalScore },
+  // Temuan M-10: nilai ini = skor komposit (maks 100) DITAMBAH bonus sinyal langka
+  // (maks 40), jadi bisa melebihi 100. Label diberi tahu skalanya supaya tidak dibaca
+  // sebagai "x dari 100".
+  { key: 'finalScore', label: 'Skor (0-140)', align: 'right', getValue: (i) => i.finalScore },
 ];
 
 function compareRadarValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
@@ -296,7 +299,7 @@ export default function AiPickPage() {
           </div>
 
           <p className="text-[11px] text-tv-muted mt-4 leading-relaxed">
-            Skor = komposit teknikal, fundamental, dan arus dana, ditambah bonus sinyal langka
+            Skor = komposit teknikal, fundamental, dan arus dana (maks 100), ditambah bonus sinyal langka (maks 40, jadi skala penuhnya 0-140)
             (breakout +15, akumulasi +10, golden cross +10, oversold +5). Bonus akumulasi memakai
             estimasi Chaikin Money Flow dari posisi close di range High-Low, BUKAN data broker/asing
             resmi. Tanda merah menandai sinyal yang bertentangan - saham tetap ditampilkan supaya

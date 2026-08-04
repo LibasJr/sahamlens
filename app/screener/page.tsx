@@ -141,9 +141,22 @@ export default function ScreenerPage() {
                 Top 10 Saham IDX - Profil {riskProfile}
               </h3>
             </div>
-            <span className="text-xs font-mono text-tv-muted">
-              Ranking skor komposit (bobot beda per profil): PER vs Sektor, ROE, DER, Div Yield, Revenue Growth, Bandarmology (Chaikin Money Flow)
-            </span>
+            <div className="text-right">
+              <span className="text-xs font-mono text-tv-muted block">
+                Ranking skor komposit (bobot beda per profil): PER vs Sektor, ROE, DER, Div Yield, Revenue Growth, Bandarmology (Chaikin Money Flow)
+              </span>
+              {/* BUG FIX (audit 2026-08-05, temuan M-13): backend SUDAH mengirim `_meta`
+                  (umur cache universe screener, TTL 30 menit) sejak audit sebelumnya, tapi
+                  halaman ini tidak pernah merendernya - hasil 29 menit tampil identik
+                  dengan yang baru dihitung. */}
+              {data?._meta && (
+                <span className="text-[10px] font-mono text-tv-muted/80 block mt-1">
+                  {data._meta.cachedAgeSec < 60
+                    ? 'Baru saja dihitung'
+                    : `Dihitung ${Math.round(data._meta.cachedAgeSec / 60)} menit lalu (disegarkan tiap ${Math.round(data._meta.cacheTtlSec / 60)} menit)`}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -195,7 +208,13 @@ export default function ScreenerPage() {
                     </td>
                     <td className="p-3 text-tv-muted">{item.sector}</td>
                     <td className="p-3 text-right font-bold text-white font-number">
-                      {item.per}x <span className="text-[10px] text-tv-muted font-normal">({item.per_sector}x)</span>
+                      {/* null = data tidak ada (emiten rugi tidak punya PER; sektor tanpa
+                          emiten ber-PER valid tidak punya rata-rata) - tampilkan "N/A"
+                          apa adanya, jangan angka pengganti (temuan H-8). */}
+                      {item.per != null ? `${item.per}x` : 'N/A'}{' '}
+                      <span className="text-[10px] text-tv-muted font-normal">
+                        ({item.per_sector != null ? `${item.per_sector}x` : 'sektor N/A'})
+                      </span>
                     </td>
                     <td className="p-3 text-right text-tv-green font-bold font-number">{item.rev_growth_ttm}</td>
                     <td className="p-3 text-right text-tv-accent font-bold font-number">{item.roe}</td>

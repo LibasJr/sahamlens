@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
-import { computeIndicators, computeMiniCouncil, type Indicators } from '@/lib/miniCouncil';
+import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 
 const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
 
@@ -74,10 +74,13 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           height={340}
           timeframe={timeframe}
           technical={{
-            cross_status: ind?.ma20 != null && ind?.ma50 != null ? (ind.ma20 > ind.ma50 ? 'BULLISH' : 'BEARISH') : 'NETRAL',
-            broker_flow_status: ind?.volRatio != null ? (ind.volRatio > 1 ? 'AKUMULASI' : 'DISTRIBUSI') : 'NETRAL',
+            // null (bukan 'NETRAL') kalau MA belum bisa dihitung - "netral" adalah
+            // kesimpulan pasar, ketiadaan data bukan (temuan C-1).
+            cross_status: ind?.ma20 != null && ind?.ma50 != null ? (ind.ma20 > ind.ma50 ? 'BULLISH' : 'BEARISH') : null,
+            // CMF20 dari OHLCV nyata, bukan turunan volRatio (temuan C-2).
+            money_flow_status: moneyFlowLabel(chartData as any),
             ma50: ind?.ma50 ?? undefined,
-            ma200: undefined,
+            ma200: ind?.ma200 ?? undefined,
           }}
         />
       ) : (

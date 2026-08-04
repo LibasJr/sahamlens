@@ -67,10 +67,11 @@ async function scoreOne(
   // bukan rumus baru dikarang.
   const volatilityResult = analyzeVolatility(history, currentPrice);
   const atr = typeof volatilityResult?.raw?.atr === 'number' ? volatilityResult.raw.atr : null;
-  const rsi = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
-  const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
-  const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
-  const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
+  // Fallback 50/0 dihapus (audit 2026-08-05, temuan C-7) - lihat app/api/stock/[ticker].
+  const rsi = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
+  const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
+  const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
+  const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
   // BUG FIX (pola M-02): volume bar terakhir masih PARSIAL selama jam bursa - sama
   // seperti screener.service.ts/live-filter-check.service.ts.
@@ -108,12 +109,22 @@ async function scoreOne(
   const scoring = calculateScore(
     ticker.replace('.JK', ''),
     {
-      currentPrice, ma20: ma20 ?? 0, ma50: ma50 ?? 0, ma200: ma200 ?? 0, rsi,
+      // `?? 0` dihapus (temuan H-2/C-7): MA yang belum bisa dihitung dikirim null, bukan
+      // 0 - harga selalu > 0 sehingga "harga > MA200(0)" dulu SELALU true dan memberi
+      // poin uptrend gratis untuk saham berhistori pendek.
+      currentPrice, ma20, ma50, ma200, rsi,
       macdHist: macdHistVal, macdLine: macdLineVal, macdSignal: macdSigVal,
       volToday, volAvg20,
     },
     fundamental,
-    { foreignFlow, consecutiveBuyDays: buyStreak, consecutiveSellDays: sellStreak, volRatio, cmf20: bandarmology.cmf20 }
+    // Satu kelompok arus dana (temuan H-1).
+    {
+      cmf20: bandarmology.cmf20,
+      accumulationStatus: accumulation.status,
+      consecutiveBuyDays: buyStreak,
+      consecutiveSellDays: sellStreak,
+      volRatio,
+    }
   );
 
   // Definisi bearish sama dengan market-summary.service.ts - null (data kurang)
@@ -126,7 +137,9 @@ async function scoreOne(
       price: currentPrice,
       changePct: parseFloat(changePct.toFixed(2)),
       totalScore: scoring.total_score,
-      rsi: parseFloat(rsi.toFixed(1)),
+      // null kalau RSI tidak bisa dihitung - bonus "oversold" di rankAiPicks() melewati
+      // saham ini alih-alih memakai angka pengganti (temuan C-7).
+      rsi: rsi != null ? parseFloat(rsi.toFixed(1)) : null,
       accumulationConfirmed,
       atr,
       // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari

@@ -18,7 +18,7 @@ import {
   fetchYahooHistory,
   calculateScore,
 } from '@/modules/technical';
-import { computeDailyNetFlow, computeAccumulationStreak } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '@/modules/market';
 
 // BUILD 009 (Performance) - fetch+parse OHLC dipindah ke modules/technical/service/
 // yahoo-history.service.ts (sebelumnya diduplikasi persis di sini dan di
@@ -38,15 +38,23 @@ async function getTechnicalData(ticker: string) {
     if (!chartData) return null;
     const { history, currentPrice } = chartData;
 
-    const closes = history.map(h => h.Close);
+    // BUG FIX (audit 2026-08-05, temuan M-1): AdjClose (disesuaikan dividen) - analyzer
+    // di baris berikutnya SUDAH memakai AdjClose, jadi MA yang dihitung dari Close mentah
+    // di sini membuat komponen MA Trend milik Council berbeda basis dari MA Trend milik
+    // Detail Saham untuk saham & hari yang sama.
+    const closes = history.map(h => h.AdjClose ?? h.Close);
     const emaData = analyzeEma(history, currentPrice);
     const rsiData = analyzeRsi(history, currentPrice);
     const macdData = analyzeMacd(history, currentPrice);
     const volatilityData = analyzeVolatility(history, currentPrice);
 
-    const ma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, closes.length);
-    const ma50 = closes.slice(-50).reduce((a, b) => a + b, 0) / Math.min(50, closes.length);
-    const ma200 = closes.slice(-200).reduce((a, b) => a + b, 0) / Math.min(200, closes.length);
+    // BUG FIX (temuan H-2): `Math.min(period, len)` dulu menghasilkan angka yang dinamai
+    // MA200 dari bar seadanya. null kalau bar belum cukup.
+    const maOf = (period: number): number | null =>
+      closes.length >= period ? closes.slice(-period).reduce((a, b) => a + b, 0) / period : null;
+    const ma20 = maOf(20);
+    const ma50 = maOf(50);
+    const ma200 = maOf(200);
 
     let support = Infinity;
     let resistance = 0;
@@ -70,30 +78,45 @@ async function getTechnicalData(ticker: string) {
       if (dailyFlow[i].netValueBillion < 0) sellStreak++;
       else break;
     }
-    const last3 = dailyFlow.slice(-3);
-    const isAccumulation3D = last3.length === 3 && last3.every((d) => d.netValueBillion > 0);
-    const isDistribution3D = last3.length === 3 && last3.every((d) => d.netValueBillion < 0);
+    // BUG FIX (audit 2026-08-05, temuan M-1/M-2): aturan lama "3 hari netValue positif
+    // berturut-turut" diganti konfirmasi 4-lapis analyzeAccumulationSignal() (CMF20 + CLV
+    // 3 hari + volume spike + tren MFM) - definisi yang SAMA dipakai Detail Saham,
+    // Recommendations, Screener, dan AI Pick. Sebelumnya Council satu-satunya yang masih
+    // memakai aturan lama, sehingga status arus dananya bisa berbeda untuk saham & hari
+    // yang sama.
+    const accumulation = analyzeAccumulationSignal(flowHistory.slice(-20));
+    const bandarmology = analyzeBandarmology(flowHistory.slice(-20));
     let foreignFlowStatus: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
-    if (isAccumulation3D) foreignFlowStatus = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
-    else if (isDistribution3D) foreignFlowStatus = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
+    if (accumulation.status === 'AKUMULASI') foreignFlowStatus = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
+    else if (accumulation.status === 'DISTRIBUSI') foreignFlowStatus = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
 
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-4): keenam field di bawah
+    // SEBELUMNYA pakai `?? 0`. Fix temuan H-11 di council.service.ts sudah benar
+    // mengubah field yang hilang jadi 'N/A' ke prompt AI - TAPI penjaganya
+    // `typeof data?.rsi === 'number'`, dan 0 ADALAH number. Jadi fix itu dimatikan oleh
+    // pemanggilnya sendiri: AI tetap menerima "RSI 0.00" (disimpulkan oversold ekstrem),
+    // "MA200 0" (disimpulkan uptrend ekstrem), dan angka 0 yang sama juga mengalir ke
+    // calculateScore() di bawah (rsi < 40 -> +2 poin "OVERSOLD"). `null` membuat kedua
+    // konsumen itu benar-benar tahu datanya tidak ada.
     return {
       price: currentPrice,
       ma20,
       ma50,
       ma200,
-      ema: (emaData as any)?.raw?.ema20 ?? 0,
-      rsi: (rsiData as any)?.raw?.rsi ?? 0,
-      macdLine: (macdData as any)?.raw?.macdLine ?? 0,
-      macdSignal: (macdData as any)?.raw?.macdSignal ?? 0,
-      macdHist: (macdData as any)?.raw?.macdHist ?? 0,
+      ema: (emaData as any)?.raw?.ema20 ?? null,
+      rsi: (rsiData as any)?.raw?.rsi ?? null,
+      macdLine: (macdData as any)?.raw?.macdLine ?? null,
+      macdSignal: (macdData as any)?.raw?.macdSignal ?? null,
+      macdHist: (macdData as any)?.raw?.macdHist ?? null,
       atr: (volatilityData as any)?.raw?.atr ?? null,
       support,
       resistance,
       volToday,
       volAvg20,
-      volRatio: volAvg20 > 0 ? volToday / volAvg20 : 1,
+      volRatio: volAvg20 > 0 ? volToday / volAvg20 : null,
       foreignFlow: foreignFlowStatus,
+      cmf20: bandarmology.cmf20,
+      accumulationStatus: accumulation.status,
       consecutiveBuyDays: buyStreak,
       consecutiveSellDays: sellStreak,
     };
@@ -183,7 +206,21 @@ export async function GET(req: Request) {
     // Ambil data teknikal dari yfinance
     const technicalData = await getTechnicalData(symbol);
     if (!technicalData) {
-      const response = NextResponse.json(runLocalCouncil(symbol, { price: 0, fundamentalSnapshot }), { status: 200 });
+      // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-5): cabang ini SEBELUMNYA
+      // memanggil runLocalCouncil(symbol, { price: 0 }) dan mengembalikannya dengan HTTP
+      // 200 - sepuluh "agen" lengkap dengan sinyal, di mana Trend Follower menyatakan
+      // "SELL - Harga < MA200" semata karena 0 > 0 bernilai false, dan Mean Reversion
+      // melaporkan "RSI 50.00" dari nilai default. Kegagalan mengambil data disajikan
+      // sebagai analisa yang tidak bisa dibedakan pengguna dari analisa sungguhan.
+      // Sekarang gagal secara jujur.
+      const response = NextResponse.json(
+        {
+          error: 'Data harga tidak tersedia',
+          code: 'MARKET_DATA_UNAVAILABLE',
+          detail: `Histori harga ${symbol} tidak bisa diambil dari sumber data saat ini, jadi analisa tidak dihitung. Coba lagi beberapa saat lagi.`,
+        },
+        { status: 503 }
+      );
       if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
       return response;
     }
@@ -215,7 +252,13 @@ export async function GET(req: Request) {
         revenueGrowth: fundamentalSnapshot?.revenueGrowth ?? null,
       },
       {
-        foreignFlow: technicalData.foreignFlow,
+        // BUG FIX (audit 2026-08-05, temuan M-1 + H-1): `cmf20` dan `accumulationStatus`
+        // SEBELUMNYA tidak dikirim sama sekali dari sini, sehingga skor komposit Council
+        // dihitung dengan komponen arus dana yang berbeda dari Detail Saham/Screener -
+        // saham yang sama bisa punya dua skor berbeda tanpa alasan data. Sekarang input
+        // kelompok Flow identik dengan pemanggil lain.
+        cmf20: technicalData.cmf20,
+        accumulationStatus: technicalData.accumulationStatus,
         consecutiveBuyDays: technicalData.consecutiveBuyDays,
         consecutiveSellDays: technicalData.consecutiveSellDays,
         volRatio: technicalData.volRatio,

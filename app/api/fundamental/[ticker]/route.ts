@@ -3,6 +3,7 @@ guard();
 
 import { NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
+import { getUsdIdrRate } from '@/shared/market/usd-idr-rate';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -62,13 +63,11 @@ export async function GET(
     const priceCurrency = quoteSummary.price?.currency || 'IDR';
     const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
 
-    if (priceCurrency === 'IDR' && finCurrency === 'USD') {
-       let exchangeRate = 15500;
-       try {
-         const fx = await yahooFinance.quote('USDIDR=X');
-         if (fx && fx.regularMarketPrice) exchangeRate = fx.regularMarketPrice;
-       } catch(e) {}
-
+    // BUG FIX (audit 2026-08-05, temuan H-6): `let exchangeRate = 15500` dihapus. Kalau
+    // kurs benar-benar tidak tersedia, konversi TIDAK dilakukan sama sekali dan field
+    // berbasis USD dibiarkan null - lebih baik "N/A" daripada rupiah hasil kurs karangan.
+    const exchangeRate = priceCurrency === 'IDR' && finCurrency === 'USD' ? await getUsdIdrRate() : null;
+    if (priceCurrency === 'IDR' && finCurrency === 'USD' && exchangeRate != null) {
        if (quoteSummary.defaultKeyStatistics) {
          if (quoteSummary.defaultKeyStatistics.bookValue) quoteSummary.defaultKeyStatistics.bookValue *= exchangeRate;
        }
@@ -87,6 +86,23 @@ export async function GET(
        if (currentPrice > 0 && quoteSummary.defaultKeyStatistics?.bookValue) {
          quoteSummary.defaultKeyStatistics.priceToBook = currentPrice / quoteSummary.defaultKeyStatistics.bookValue;
        }
+    } else if (priceCurrency === 'IDR' && finCurrency === 'USD') {
+      // Emiten pelapor USD TAPI kurs tidak tersedia: field yang satuannya USD dikosongkan
+      // supaya tidak dirender sebagai rupiah. priceToBook mentah Yahoo untuk emiten ini
+      // membandingkan harga IDR dengan book value USD (diverifikasi live: ADRO 14.823x)
+      // - itu angka salah satuan, bukan sekadar kurang presisi.
+      if (quoteSummary.defaultKeyStatistics) {
+        quoteSummary.defaultKeyStatistics.bookValue = null;
+        quoteSummary.defaultKeyStatistics.priceToBook = null;
+      }
+      if (quoteSummary.financialData) {
+        quoteSummary.financialData.freeCashflow = null;
+        quoteSummary.financialData.operatingCashflow = null;
+        quoteSummary.financialData.totalRevenue = null;
+        quoteSummary.financialData.grossProfits = null;
+        quoteSummary.financialData.totalCash = null;
+        quoteSummary.financialData.totalDebt = null;
+      }
     }
     // ------------------------------------------------
 
@@ -164,24 +180,27 @@ export async function GET(
         description: descriptionId,
         website: quoteSummary.assetProfile?.website || ''
       },
+      // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-13): ke-13 field di bawah
+      // SEBELUMNYA pakai `|| 0`. Untuk data finansial, 0 BUKAN "tidak tersedia" - "PER 0"
+      // dan "ROE 0%" adalah pernyataan tentang perusahaan yang bisa keliru dipercaya
+      // pengguna (bank tidak mengirim debtToEquity ke Yahoo, emiten rugi tidak punya
+      // trailingPE). Sekarang `null`, dan UI menampilkan "N/A".
       fundamentals: {
-        marketCap: quoteSummary.summaryDetail?.marketCap || quoteSummary.price?.marketCap || 0,
-        trailingPE: quoteSummary.summaryDetail?.trailingPE || 0,
-        forwardPE: quoteSummary.summaryDetail?.forwardPE || 0,
-        priceToBook: quoteSummary.defaultKeyStatistics?.priceToBook || 0,
-        returnOnEquity: quoteSummary.financialData?.returnOnEquity || 0,
-        returnOnAssets: quoteSummary.financialData?.returnOnAssets || 0,
-        debtToEquity: quoteSummary.financialData?.debtToEquity || 0,
-        totalRevenue: quoteSummary.financialData?.totalRevenue || 0,
-        ebitda: quoteSummary.financialData?.ebitda || 0,
-        profitMargins: quoteSummary.financialData?.profitMargins || 0,
-        dividendYield: quoteSummary.summaryDetail?.dividendYield || 0,
-        // Gross margin fallback for non-banks if needed by UI
-        grossMargins: quoteSummary.financialData?.grossMargins || 0,
+        marketCap: quoteSummary.summaryDetail?.marketCap ?? quoteSummary.price?.marketCap ?? null,
+        trailingPE: quoteSummary.summaryDetail?.trailingPE ?? null,
+        forwardPE: quoteSummary.summaryDetail?.forwardPE ?? null,
+        priceToBook: quoteSummary.defaultKeyStatistics?.priceToBook ?? null,
+        returnOnEquity: quoteSummary.financialData?.returnOnEquity ?? null,
+        returnOnAssets: quoteSummary.financialData?.returnOnAssets ?? null,
+        debtToEquity: quoteSummary.financialData?.debtToEquity ?? null,
+        totalRevenue: quoteSummary.financialData?.totalRevenue ?? null,
+        ebitda: quoteSummary.financialData?.ebitda ?? null,
+        profitMargins: quoteSummary.financialData?.profitMargins ?? null,
+        dividendYield: quoteSummary.summaryDetail?.dividendYield ?? null,
+        grossMargins: quoteSummary.financialData?.grossMargins ?? null,
         // Dulu ada fallback angka karangan (0.0546/0.055) kalau Yahoo tidak punya NIM -
-        // dihapus, biarkan 0/falsy supaya UI tampil "N/A" jujur (lihat app/fundamental/
-        // page.tsx) daripada angka tebakan yang dikira data asli.
-        nim: quoteSummary.financialData?.netInterestMargin || 0
+        // dihapus sejak audit sebelumnya; sekarang null, bukan 0.
+        nim: quoteSummary.financialData?.netInterestMargin ?? null
       }
     });
 

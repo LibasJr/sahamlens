@@ -106,9 +106,17 @@ async function fetchQuote(symbol: string) {
     // jam bursa masih PARSIAL - dibandingkan mentah dengan avgVolume20 (rata-rata 20
     // hari PENUH) di bawah, volRatio (dipakai "Top Volume"/technicalScore di halaman
     // utama) bias ke bawah sepanjang jam bursa.
-    const volume = (dates[dates.length - 1] === todayDateKeyWIB() && isIdxMarketHoursNow())
-      ? estimateFullDayVolume(rawVolume)
-      : rawVolume;
+    //
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-7): hasil ekstrapolasi ini
+    // dulu MENGGANTIKAN `volume` yang dikembalikan ke UI, sehingga kartu "Top Volume" &
+    // "Top Value" di halaman publik menampilkan PROYEKSI volume sesi penuh sebagai kalau
+    // itu volume yang benar-benar sudah tertransaksi. Sekarang keduanya dipisah:
+    // `volume` = angka mentah apa adanya (untuk ditampilkan), `volumeEstimated` = versi
+    // disetahunkan-sesi (untuk perbandingan rasio yang memang butuh basis setara),
+    // plus penanda `volumeIsPartial` supaya UI bisa memberi label.
+    const isPartialSession = dates[dates.length - 1] === todayDateKeyWIB() && isIdxMarketHoursNow();
+    const volume = rawVolume;
+    const volumeEstimatedFullDay = isPartialSession ? estimateFullDayVolume(rawVolume) : rawVolume;
 
     const weekAgoClose = closes.length >= 6 ? closes[closes.length - 6] : closes[0];
     const weeklyChangePct = weekAgoClose ? ((currentPrice - weekAgoClose) / weekAgoClose) * 100 : 0;
@@ -119,7 +127,9 @@ async function fetchQuote(symbol: string) {
     const avgVolume20 = volumes.length >= 20
       ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
       : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
-    const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
+    // Rasio memakai volume yang SUDAH disetarakan ke sesi penuh - membandingkan volume
+    // separuh hari dengan rata-rata 20 hari PENUH bias ke bawah sepanjang jam bursa.
+    const volRatio = avgVolume20 ? volumeEstimatedFullDay / avgVolume20 : 1;
 
     // Proxy "akumulasi asing berkelanjutan" - streak hari berturut-turut netValue
     // (Chaikin Money Flow: posisi close di range High-Low, bukan cuma arah harga)
@@ -149,8 +159,12 @@ async function fetchQuote(symbol: string) {
       price: currentPrice,
       changePct: parseFloat(changePct.toFixed(2)),
       weeklyChangePct: parseFloat(weeklyChangePct.toFixed(2)),
+      // Volume & nilai transaksi APA ADANYA (temuan H-7) - kalau bursa masih buka, ini
+      // memang baru sebagian sesi, dan itulah faktanya. `volumeIsPartial` memberi tahu UI
+      // supaya bisa menuliskannya, bukan diam-diam menampilkan proyeksi sebagai fakta.
       volume,
       value: volume * currentPrice,
+      volumeIsPartial: isPartialSession,
       ma20, ma50, rsi14,
       technicalSignal,
       technicalScore,
@@ -186,12 +200,14 @@ export async function getMarketSummary() {
     symbol: strip(s), changePct: s.changePct, price: s.price
   }));
 
+  // `partial: true` = bursa masih buka, jadi angka ini volume sesi BERJALAN (belum penuh)
+  // - diteruskan ke UI supaya bisa diberi label, bukan disamarkan (temuan H-7).
   const topVolume = [...quotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, LIST_CAP).map(s => ({
-    symbol: strip(s), volume: s.volume || 0, price: s.price
+    symbol: strip(s), volume: s.volume || 0, price: s.price, partial: !!s.volumeIsPartial
   }));
 
   const topValue = [...quotes].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, LIST_CAP).map(s => ({
-    symbol: strip(s), value: s.value || 0, price: s.price
+    symbol: strip(s), value: s.value || 0, price: s.price, partial: !!s.volumeIsPartial
   }));
 
   const topWeeklyGainers = [...quotes].sort((a, b) => b.weeklyChangePct - a.weeklyChangePct).slice(0, LIST_CAP).map(s => ({
@@ -218,11 +234,23 @@ export async function getMarketSummary() {
   // pasar sedang tidak ada saham yang benar-benar oversold, filter keras itu bisa
   // menyisakan cuma 1-2 saham sementara kartu lain (top gainer, dst.) selalu tampil 4+.
   // Merangking tetap 100% data RSI riil, cuma tidak lagi dibuang kalau sedikit di atas 30.
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-5): daftar ini diranking dari
+  // RSI TERENDAH tanpa ambang apa pun, tapi dikonsumsi UI dengan judul "RSI Oversold" -
+  // pada hari pasar kuat, isinya bisa saham ber-RSI 55-60 yang sama sekali tidak oversold.
+  // Nilai RSI tiap item tetap dikirim apa adanya (tidak pernah dikarang), ditambah penanda
+  // `isOversold` per saham supaya UI bisa membedakan "benar-benar oversold (<30)" dari
+  // "paling rendah di antara yang ada hari ini".
   const topRsiOversold = [...quotes]
     .filter(s => s.rsi14 !== null)
     .sort((a, b) => (a.rsi14 as number) - (b.rsi14 as number))
     .slice(0, LIST_CAP)
-    .map(s => ({ symbol: strip(s), rsi: parseFloat((s.rsi14 as number).toFixed(1)), changePct: s.changePct, price: s.price }));
+    .map(s => ({
+      symbol: strip(s),
+      rsi: parseFloat((s.rsi14 as number).toFixed(1)),
+      isOversold: (s.rsi14 as number) < 30,
+      changePct: s.changePct,
+      price: s.price,
+    }));
 
   // "Akumulasi Asing Berkelanjutan" - lolos konfirmasi 4-lapis analyzeAccumulationSignal
   // (CMF20 + CLV kuat 3 hari + volume spike + tren MFM menguat), bukan cuma streak

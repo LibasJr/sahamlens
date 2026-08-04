@@ -5,6 +5,7 @@ import {
 } from './foreign-flow-proxy';
 import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type ScoringResult } from '@/modules/technical';
 import { evaluateIndicatorDecisions, BACKTEST_PRESETS } from '@/modules/backtest';
 import { getBatchStockSentiment, type Sentiment as NewsSentiment } from '@/modules/news';
@@ -168,18 +169,14 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     // universe screener ini) punya priceToBook Yahoo yang membandingkan harga IDR
     // dengan book value USD mentah, hasilnya PBV salah satuan (bisa belasan kali lipat
     // dari wajar). Dikoreksi dengan menghitung ulang dari bookValue x kurs USD/IDR.
-    const priceCurrency = q.price?.currency || 'IDR';
-    const finCurrencyForPbv = q.financialData?.financialCurrency || 'IDR';
-    const bookValueRaw = q.defaultKeyStatistics?.bookValue;
-    if (priceCurrency === 'IDR' && finCurrencyForPbv === 'USD' && bookValueRaw) {
-      try {
-        const fx = await yahooFinance.quote('USDIDR=X');
-        const rate = fx?.regularMarketPrice || 15500;
-        pbv = price / (bookValueRaw * rate);
-      } catch {
-        pbv = null;
-      }
-    }
+    // BUG FIX (audit 2026-08-05, temuan H-6): kurs cadangan hardcoded `|| 15500` dihapus.
+    pbv = await correctPbvForUsdReporter({
+      priceCurrency: q.price?.currency,
+      financialCurrency: q.financialData?.financialCurrency,
+      bookValue: q.defaultKeyStatistics?.bookValue,
+      price,
+      rawPbv: pbv,
+    });
 
     // Signal (kategori STRONG BUY/BUY/HOLD/SELL) & Pattern Tag (preset Backtest yang
     // cocok SEKARANG) - null kalau histori kurang dari MIN_HISTORY_BARS, bukan ditebak.
@@ -232,7 +229,15 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
           volAvg20,
         },
         { per, pbv, roe, der, currentRatio, revenueGrowth: revGrowth },
-        { foreignFlow, consecutiveBuyDays: buyStreak, consecutiveSellDays: sellStreak, volRatio, cmf20: bandarmology.cmf20 },
+        // Satu kelompok arus dana (temuan H-1) - `foreignFlow` tetap dihitung di atas
+        // untuk label kolom, tapi tidak lagi disekor terpisah dari cmf20 yang jadi asalnya.
+        {
+          cmf20: bandarmology.cmf20,
+          accumulationStatus: accumulation.status,
+          consecutiveBuyDays: buyStreak,
+          consecutiveSellDays: sellStreak,
+          volRatio,
+        },
       );
       signal = scoring.kategori;
 
@@ -324,7 +329,7 @@ function bandarmologyLabel(status: BandarmologyStatus): string {
 // + ROE stabil; Moderat berimbang; Agresif memberatkan pertumbuhan revenue + momentum
 // volume. Semua komponen skor dinormalisasi 0-100 relatif terhadap universe yang sama
 // sebelum dibobot, supaya skala antar metrik (mis. PER vs ROE) sebanding.
-function scoreStock(s: RawStock, sectorAvgPer: number, profile: RiskProfile): number {
+function scoreStock(s: RawStock, sectorAvgPer: number | null, profile: RiskProfile): number {
   // BUG FIX (audit integritas data 2026-08-03, temuan H-05): rumus lama
   // (100 - |per - sectorAvgPer|/sectorAvgPer*100) menghukum PENYIMPANGAN KE DUA ARAH
   // secara simetris - saham dengan PER SETENGAH dari rata-rata sektor (jelas lebih
@@ -332,9 +337,18 @@ function scoreStock(s: RawStock, sectorAvgPer: number, profile: RiskProfile): nu
   // Kolom UI-nya ("PER (Valuasi)") mengomunikasikan "lebih rendah = lebih baik", tapi
   // rumusnya tidak melakukan itu. Sekarang monoton: PER di bawah/sama rata-rata sektor
   // selalu dapat skor penuh, hanya PER yang LEBIH MAHAL dari sektor yang mengurangi skor.
-  const perScore = s.per != null && s.per > 0
+  // sectorAvgPer null (tidak ada pembanding sektor) -> komponen PER tidak dinilai sama
+  // sekali, bukan dibandingkan dengan angka karangan (temuan H-8).
+  const perScore = s.per != null && s.per > 0 && sectorAvgPer != null && sectorAvgPer > 0
     ? (s.per <= sectorAvgPer ? 100 : Math.max(0, 100 - ((s.per - sectorAvgPer) / sectorAvgPer) * 100))
     : null;
+  // CATATAN KALIBRASI (audit 2026-08-05, temuan M-11): pemetaan di bawah adalah
+  // normalisasi HEURISTIK ke skala 0-100, bukan hasil regresi atas data IDX. Dampaknya
+  // terbatas pada URUTAN ranking (skor mentahnya sendiri tidak pernah ditampilkan sebagai
+  // angka ke pengguna), dan tiap ambangnya dipilih agar nilai "sehat" menurut kaidah
+  // umum jatuh di sekitar 60-100: ROE 33%+ = penuh, DER 2.5x = nol, yield 6.7% = penuh,
+  // pertumbuhan +10% = 100. Dicatat di sini supaya bisa dikalibrasi ulang kalau suatu saat
+  // ada data historis yang memadai - bukan disamarkan sebagai formula yang sudah teruji.
   const roeScore = s.roe != null ? Math.min(100, Math.max(0, s.roe * 3)) : null;
   const derScore = s.der != null ? Math.max(0, 100 - s.der * 40) : null;
   const divScore = s.div_yield != null ? Math.min(100, s.div_yield * 15) : null;
@@ -378,9 +392,15 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
       bySector.set(s.sector, list);
     }
   });
-  const sectorAvgPer = (sector: string) => {
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-8): fallback `return 15`
+  // dihapus. Angka itu bukan rata-rata apa pun - ia ditampilkan di kolom "PER vs Sektor"
+  // sebagai kalau itu PER rata-rata sektor yang sesungguhnya, dan dipakai sebagai
+  // pembanding penilaian valuasi. Sektor yang tidak punya satu pun emiten ber-PER valid
+  // sekarang mengembalikan null: komponen PER dikeluarkan dari skor (bobotnya
+  // dinormalisasi ulang di scoreStock) dan kolomnya tampil "N/A".
+  const sectorAvgPer = (sector: string): number | null => {
     const list = bySector.get(sector);
-    if (!list || list.length === 0) return 15;
+    if (!list || list.length === 0) return null;
     return list.reduce((a, b) => a + b, 0) / list.length;
   };
 
@@ -394,7 +414,7 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         name: s.name,
         sector: s.sector,
         per: s.per != null ? parseFloat(s.per.toFixed(1)) : null,
-        per_sector: parseFloat(sectorAvgPer(s.sector).toFixed(1)),
+        per_sector: (() => { const avg = sectorAvgPer(s.sector); return avg != null ? parseFloat(avg.toFixed(1)) : null; })(),
         rev_growth_ttm: s.rev_growth != null ? `${s.rev_growth >= 0 ? '+' : ''}${s.rev_growth.toFixed(1)}%` : 'N/A',
         roe: s.roe != null ? `${s.roe.toFixed(1)}%` : 'N/A',
         der: s.der != null ? `${s.der.toFixed(2)}x` : 'N/A',

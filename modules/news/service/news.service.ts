@@ -173,6 +173,43 @@ export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSou
 // disamarkan jadi nilai tengah yang terlihat terukur padahal cuma default).
 export type TickerSentiment = { sentiment: Sentiment | null; matchedHeadline: string | null; matchedCount: number };
 
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan M-6): pencocokan berita ke emiten
+// SEBELUMNYA menerima kecocokan SATU kata nama perusahaan sepanjang > 3 huruf. Efeknya
+// parah untuk sektor perbankan: nama "Bank Central Asia" menghasilkan kata kunci "bank",
+// sehingga judul apa pun tentang "Bank Indonesia menurunkan suku bunga" tercatat sebagai
+// berita BBCA - dan ikut membentuk kolom Sentimen di Screener untuk BBCA/BBRI/BMRI/BBNI
+// sekaligus. Sekarang: (1) kata terlalu umum di nama emiten IDX dibuang, (2) kecocokan
+// nama harus berupa KATA UTUH (batas kata), bukan substring, (3) kata tunggal yang sangat
+// umum tidak lagi cukup - butuh kode ticker, atau kombinasi kata nama yang distingtif.
+const GENERIC_NAME_WORDS = new Set([
+  'pt', 'tbk', 'the', 'persero', 'indonesia', 'bank', 'group', 'grup', 'jaya', 'sejahtera',
+  'makmur', 'utama', 'sukses', 'mandiri', 'nusantara', 'internasional', 'international',
+  'energi', 'energy', 'karya', 'sentosa', 'abadi', 'lestari', 'pratama', 'perkasa',
+]);
+
+function distinctiveNameWords(name: string): string[] {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[.,()]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 3 && !GENERIC_NAME_WORDS.has(w));
+}
+
+/** Cocok kalau judul menyebut KODE TICKER sebagai kata utuh, atau memuat kata distingtif
+ * dari nama perusahaan (juga sebagai kata utuh). Emiten yang seluruh kata namanya generik
+ * hanya bisa cocok lewat kode ticker - itu benar: tanpa penanda unik, "cocok" apa pun
+ * cuma tebakan. */
+export function matchesCompany(title: string, ticker: string, name?: string): boolean {
+  const t = title.toLowerCase();
+  const code = ticker.replace('.JK', '').toLowerCase();
+  const wholeWord = (needle: string) =>
+    new RegExp(`(^|[^a-z0-9])${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`).test(t);
+
+  if (code.length >= 3 && wholeWord(code)) return true;
+  const words = distinctiveNameWords(name || '');
+  return words.some((w) => wholeWord(w));
+}
+
 // Sentimen berita PER-EMITEN untuk SELURUH universe Stock Screener sekaligus (bukan
 // getStockNews() dipanggil satu-satu per ticker - untuk universe 114 saham itu berarti
 // 114x fetch ulang 10 RSS feed yang SAMA + berpotensi 114 panggilan AI terpisah, boros
@@ -209,21 +246,10 @@ export async function getBatchStockSentiment(
     return true;
   });
 
-  const GENERIC_WORDS = new Set(['pt', 'tbk', 'indonesia', 'persero', 'the']);
   const matchesByTicker = new Map<string, typeof deduped>();
   for (const stock of stocks) {
-    const code = stock.ticker.replace('.JK', '').toUpperCase();
-    const nameWords = (stock.name || '')
-      .toLowerCase()
-      .replace(/[.,()]/g, '')
-      .split(/\s+/)
-      .filter((w) => w.length > 3 && !GENERIC_WORDS.has(w));
     const matched = deduped
-      .filter((item) => {
-        const t = item.title.toLowerCase();
-        if (t.includes(code.toLowerCase())) return true;
-        return nameWords.some((w) => t.includes(w));
-      })
+      .filter((item) => matchesCompany(item.title, stock.ticker, stock.name))
       .slice(0, 5); // cukup 5 artikel terbaru per saham untuk sentimen agregat
     if (matched.length > 0) matchesByTicker.set(stock.ticker, matched);
   }
@@ -259,24 +285,13 @@ export async function getBatchStockSentiment(
 // ticker/nama perusahaan di judul. Konsekuensinya: cakupan tipis untuk emiten yang
 // jarang diberitakan - itu jujur lebih baik daripada menampilkan berita tidak terkait.
 export async function getStockNews(symbol: string, companyName?: string): Promise<{ items: NewsItem[]; sentimentSource: 'council-ai' | 'keyword-fallback' }> {
-  const code = symbol.replace('.JK', '').toUpperCase();
   const results = await Promise.all(RSS_FEEDS.map((f) => fetchFeed(f, 40)));
   const merged = results.flat();
 
-  // Ambil kata-kata distingtif dari nama perusahaan (buang kata generik PT/Tbk/Indonesia
-  // dkk yang muncul di hampir semua nama emiten dan tidak membantu filter).
-  const GENERIC_WORDS = new Set(['pt', 'tbk', 'indonesia', 'persero', 'the']);
-  const nameWords = (companyName || '')
-    .toLowerCase()
-    .replace(/[.,()]/g, '')
-    .split(/\s+/)
-    .filter((w) => w.length > 3 && !GENERIC_WORDS.has(w));
-
-  const matched = merged.filter((item) => {
-    const t = item.title.toLowerCase();
-    if (t.includes(code.toLowerCase())) return true;
-    return nameWords.some((w) => t.includes(w));
-  });
+  // Definisi pencocokan yang SAMA dengan getBatchStockSentiment (temuan M-6) - satu
+  // fungsi, supaya "berita saham ini" di halaman detail dan kolom Sentimen di Screener
+  // tidak pernah memakai aturan berbeda.
+  const matched = merged.filter((item) => matchesCompany(item.title, symbol, companyName));
 
   const seen = new Set<string>();
   const deduped = matched.filter((item) => {

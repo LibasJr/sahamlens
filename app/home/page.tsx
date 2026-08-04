@@ -514,7 +514,10 @@ export default function HomePage() {
           // Dipindah dari landing page "/" (components/Dashboard.tsx) - gabung ke tab
           // Market Movers yang sama, bukan card terpisah lagi.
           technicalBearish: { id: 'technicalBearish', title: 'Sinyal Teknikal Bearish (MA20 < MA50)', sub: 'Technical Signal', accent: 'red', Icon: TrendingDown, key: 'technicalBearish', listPath: '/market/technical-bearish' },
-          rsiOversold: { id: 'rsiOversold', title: 'RSI Oversold (Potensi Rebound)', sub: 'RSI (14) Terendah', accent: 'warning', Icon: Activity, key: 'rsiOversold', listPath: '/market/rsi-oversold' },
+          // Judul diperbaiki (audit 2026-08-05, temuan M-5): daftar ini diranking dari RSI
+          // TERENDAH, tanpa syarat < 30 - menyebutnya "RSI Oversold" membuat saham ber-RSI
+          // 55 pun terbaca sebagai oversold pada hari pasar kuat.
+          rsiOversold: { id: 'rsiOversold', title: 'RSI (14) Terendah Hari Ini', sub: 'Kandidat jenuh jual - cek nilai RSI-nya', accent: 'warning', Icon: Activity, key: 'rsiOversold', listPath: '/market/rsi-oversold' },
         };
         const SOURCE_DATA: Record<MoversTabKey, MarketMover[]> = {
           gainer: topGainers,
@@ -541,7 +544,7 @@ export default function HomePage() {
                     { label: 'Top Loser', value: 'loser' },
                     { label: 'Top Volume', value: 'volume' },
                     { label: 'Bearish', value: 'technicalBearish' },
-                    { label: 'RSI Oversold', value: 'rsiOversold' },
+                    { label: 'RSI Terendah', value: 'rsiOversold' },
                   ]}
                 />
                 <MarketMoverCard card={activeCard} lastUpdated={moversTimeLabel} loaded={!loadingMarket} />

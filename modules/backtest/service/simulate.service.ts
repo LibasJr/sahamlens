@@ -8,6 +8,9 @@ import type {
   TickerIndicatorSeries,
 } from '../types/backtest.types';
 
+// Batasan simulasi (survivorship bias, tanpa penyesuaian dividen, asumsi fee) ada di
+// modules/backtest/constants/backtest-limitations.ts - ditampilkan bersama hasil di UI.
+
 const MAX_SLOTS = 5;
 const TRADING_DAYS_PER_MONTH = 22; // aproksimasi - dipakai konsisten utk periode & sampling chart
 

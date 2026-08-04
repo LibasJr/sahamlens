@@ -13,6 +13,7 @@ import PaywallModal from '@/components/PaywallModal';
 // langsung. Sama BACKTEST_PRESETS dipakai modules/market/service/screener.service.ts
 // (server, lewat barrel) supaya preset Backtest & tag pola Screener tidak bercabang.
 import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
+import { BACKTEST_LIMITATIONS } from '@/modules/backtest/constants/backtest-limitations';
 
 export default function BacktestPage() {
   const [modal, setModal] = useState(100000000);
@@ -435,6 +436,17 @@ export default function BacktestPage() {
                         </tbody>
                       </table>
                       </div>
+                    </div>
+
+                    {/* Batasan simulasi (audit 2026-08-05, temuan M-12) - dua bias yang
+                        membuat hasil di atas sistematis lebih baik dari kenyataan HARUS
+                        terbaca bersama angkanya, bukan cuma tercatat di komentar kode. */}
+                    <div className="bg-tv-card border border-tv-yellow/30 rounded-lg p-4 shadow-1">
+                      <h3 className="font-heading text-sm font-bold text-tv-yellow mb-2">Batasan simulasi ini</h3>
+                      <ul className="text-[11px] text-tv-muted leading-relaxed list-disc pl-4 space-y-1">
+                        {BACKTEST_LIMITATIONS.map((l) => <li key={l}>{l}</li>)}
+                        <li>Hasil masa lalu bukan jaminan hasil di masa depan.</li>
+                      </ul>
                     </div>
                   </>
                 )}

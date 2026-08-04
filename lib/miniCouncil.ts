@@ -6,6 +6,7 @@
 // untuk analisis mendalam yang butuh akun Pro.
 
 import { calculateRsi } from '@/modules/technical/service/rsi';
+import { analyzeBandarmology } from '@/modules/market/service/foreign-flow-proxy';
 
 export type Candle = { time: string; open: number; high: number; low: number; close: number; volume: number };
 export type Signal = 'BUY' | 'HOLD' | 'SELL';
@@ -13,10 +14,33 @@ export type MiniAgent = { name: string; signal: Signal; reason: string };
 
 export type Indicators = {
   time: string; price: number; prevClose: number; change: number; changePct: number;
-  ma20: number | null; ma50: number | null; rsi14: number | null; rsiLabel: string;
+  ma20: number | null; ma50: number | null; ma200: number | null; rsi14: number | null; rsiLabel: string;
   volume: number; value: number; volRatio: number; score: number;
   signal: Signal; crossLabel: string;
 };
+
+/** Label arus dana untuk header chart - Chaikin Money Flow 20 hari dari OHLCV nyata
+ * (definisi SAMA dengan Screener/BandarFlowPro, lihat modules/market/service/
+ * foreign-flow-proxy.ts). `null` kalau candle < 20 (CMF 20 hari tidak bisa dihitung
+ * jujur dari data yang lebih pendek).
+ *
+ * BUG FIX (audit logika & algoritma 2026-08-05, temuan C-2): pemanggil SEBELUMNYA
+ * menurunkan label "AKUMULASI/DISTRIBUSI" dari `volRatio > 1` semata - volume di atas
+ * rata-rata BUKAN akumulasi (saham yang anjlok dengan volume 3x ikut dilabeli
+ * "AKUMULASI"), dan arah harga tidak ikut dihitung sama sekali. CMF memakai posisi
+ * close di dalam range High-Low dibobot volume, jadi arah benar-benar terwakili. */
+export function moneyFlowLabel(candles: Candle[]): string | null {
+  if (!candles || candles.length < 20) return null;
+  const history = candles.slice(-20).map((c) => ({
+    date: c.time, high: c.high, low: c.low, close: c.close, volume: c.volume || 0,
+  }));
+  const bandarmology = analyzeBandarmology(history);
+  const cmf = bandarmology.cmf20;
+  const sign = cmf > 0 ? '+' : '';
+  if (bandarmology.status === 'BULLISH') return `AKUMULASI (${sign}${cmf}%)`;
+  if (bandarmology.status === 'BEARISH') return `DISTRIBUSI (${sign}${cmf}%)`;
+  return `NETRAL (${sign}${cmf}%)`;
+}
 
 function sma(values: number[], period: number): number | null {
   if (values.length < period) return null;
@@ -55,6 +79,9 @@ export function computeIndicators(time: string, closes: number[], volumes: numbe
   const changePct = prev ? (change / prev) * 100 : 0;
   const ma20 = sma(closes, 20);
   const ma50 = sma(closes, 50);
+  // MA200 hanya kalau benar-benar ada 200 bar - `sma()` mengembalikan null di bawah itu,
+  // BUKAN rata-rata bar seadanya yang dilabeli "MA200" (temuan H-2).
+  const ma200 = sma(closes, 200);
   const rsi14 = calcRsi(closes, 14);
   const volume = volumes[volumes.length - 1] || 0;
   const avgVolume20 = volumes.length >= 20
@@ -86,7 +113,7 @@ export function computeIndicators(time: string, closes: number[], volumes: numbe
     else rsiLabel = 'Netral Cenderung Jual';
   }
 
-  return { time, price, prevClose: prev, change, changePct, ma20, ma50, rsi14, rsiLabel, volume, value, volRatio, score, signal, crossLabel };
+  return { time, price, prevClose: prev, change, changePct, ma20, ma50, ma200, rsi14, rsiLabel, volume, value, volRatio, score, signal, crossLabel };
 }
 
 export type CouncilResult = {

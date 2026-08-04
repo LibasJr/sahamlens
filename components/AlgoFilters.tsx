@@ -96,8 +96,11 @@ export default function AlgoFilters({
                 <span className="text-white">Conf: {algo.confidence}%</span>
               </div>
               <div className="pt-2 border-t border-tv-hover text-[10px]">
-                <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
-                <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? '-'}</span>
+                {/* Label diperjelas (audit 2026-08-05, temuan C-3): ini HIT-RATE historis
+                    (sinyal diikuti kenaikan >3% dalam 10 hari bursa) atas saham ini saja,
+                    bukan "akurasi" model secara umum. "-" berarti sampel belum cukup. */}
+                <span className="text-tv-muted block">Hit-rate historis (saham ini)</span>
+                <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? 'Sampel belum cukup'}</span>
               </div>
             </div>
           );
