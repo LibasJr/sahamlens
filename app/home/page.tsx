@@ -94,6 +94,7 @@ export default function HomePage() {
   const [moversFreshness, setMoversFreshness] = useState<string | null>(null);
   const [moversTimeLabel, setMoversTimeLabel] = useState<string | null>(null);
 
+  const [marketError, setMarketError] = useState(false);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
@@ -104,7 +105,9 @@ export default function HomePage() {
   const [promoPlan, setPromoPlan] = useState<PricingPlan['id']>('1m');
   const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
 
-  useEffect(() => {
+  const fetchMarket = useCallback(() => {
+    setLoadingMarket(true);
+    setMarketError(false);
     // Ringkasan pasar (IHSG + top gainer/loser) - publik, tanpa gerbang Pro, jadi
     // Beranda tidak lagi menampilkan teaser upgrade untuk sekadar lihat kondisi pasar.
     Promise.all([
@@ -112,6 +115,7 @@ export default function HomePage() {
       fetch('/api/market-summary', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([liveJkse, summary]) => {
+        if (!liveJkse && !summary) { setMarketError(true); return; }
         if (liveJkse) {
           setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
           setIhsgFreshness(liveJkse.freshness ?? null);
@@ -127,6 +131,10 @@ export default function HomePage() {
         }
       })
       .finally(() => setLoadingMarket(false));
+  }, []);
+
+  useEffect(() => {
+    fetchMarket();
 
     fetch(`/api/recommendations?symbols=${PICK_UNIVERSE}`, { cache: 'no-store' })
       .then((r) => {
@@ -167,6 +175,7 @@ export default function HomePage() {
         setCalendarEvents(flat);
       })
       .catch(() => setCalendarEvents([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchRadar = useCallback(() => {
@@ -368,7 +377,12 @@ export default function HomePage() {
                 </div>
                 <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
               </CardHeader>
-              {loadingMarket ? (
+              {marketError ? (
+                <EmptyState
+                  title="Data pasar sementara tidak tersedia."
+                  action={{ label: 'Coba lagi', onClick: fetchMarket }}
+                />
+              ) : loadingMarket ? (
                 <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
                   <Skeleton variant="text" className="w-16" />
                   <Skeleton className="h-6 w-32" />
@@ -505,17 +519,25 @@ export default function HomePage() {
         const activeCard: MoverCard = { ...MOVERS_DEFS[moversTab], items: formatCardItems(moversTab, sourceData) };
         return (
           <motion.div initial="hidden" animate="show" variants={fadeUp} className="space-y-3">
-            <SegmentedControl
-              layoutId="home-movers-tab"
-              value={moversTab}
-              onChange={(v) => setMoversTab(v as 'gainer' | 'loser' | 'volume')}
-              options={[
-                { label: 'Top Gainer', value: 'gainer' },
-                { label: 'Top Loser', value: 'loser' },
-                { label: 'Top Volume', value: 'volume' },
-              ]}
-            />
-            <MarketMoverCard card={activeCard} lastUpdated={moversTimeLabel} loaded={!loadingMarket} />
+            {marketError ? (
+              <Card>
+                <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarket }} />
+              </Card>
+            ) : (
+              <>
+                <SegmentedControl
+                  layoutId="home-movers-tab"
+                  value={moversTab}
+                  onChange={(v) => setMoversTab(v as 'gainer' | 'loser' | 'volume')}
+                  options={[
+                    { label: 'Top Gainer', value: 'gainer' },
+                    { label: 'Top Loser', value: 'loser' },
+                    { label: 'Top Volume', value: 'volume' },
+                  ]}
+                />
+                <MarketMoverCard card={activeCard} lastUpdated={moversTimeLabel} loaded={!loadingMarket} />
+              </>
+            )}
           </motion.div>
         );
       })()}
