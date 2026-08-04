@@ -39,6 +39,10 @@ export type ScoredStock = {
   /** 3 alasan berbobot tertinggi dari calculateScore() (mis. "MACD bullish (Hist:12.30)",
    * "RSI 61.2 zona BUY ideal") - urut dari kontribusi skor terbesar, bukan diacak. */
   topReasons: string[];
+  /** ATR-14 (rupiah) - dasar TP1/TP2/CL1/CL2. Opsional: cache 3 hari (lihat
+   * shared/cache/ai-pick-cache.ts) bisa masih berisi entri lama dari sebelum field ini
+   * ada, sampai cron berikutnya menimpanya. */
+  atr?: number | null;
 };
 
 export type BreakoutInfo = {
@@ -60,6 +64,15 @@ export type AiPickItem = {
   flagReason: string | null;
   breakdown: ScoreBreakdown;
   topReasons: string[];
+  /** Proyeksi ATR-14: TP1/TP2 = harga + 1x/2x ATR, CL1/CL2 = harga - 1x/2x ATR. Selalu
+   * dihitung bareng (bukan cuma salah satu tergantung Golden/Dead Cross) - TP = target
+   * potensi naik, CL = level waspada/cut-loss, relevan buat semua saham di ranking ini
+   * terlepas status cross-nya. Null kalau ATR belum tersedia (histori <15 bar atau cache
+   * lama sebelum field ini ada). */
+  tp1: number | null;
+  tp2: number | null;
+  cl1: number | null;
+  cl2: number | null;
 };
 
 export function rankAiPicks(
@@ -97,6 +110,10 @@ export function rankAiPicks(
       // tanpa guard ini, UI yang mengakses item.breakdown.technical akan crash.
       breakdown: s.breakdown ?? { technical: 0, fundamental: 0, flow: 0 },
       topReasons: s.topReasons ?? [],
+      tp1: typeof s.atr === 'number' ? Math.round(s.price + s.atr) : null,
+      tp2: typeof s.atr === 'number' ? Math.round(s.price + 2 * s.atr) : null,
+      cl1: typeof s.atr === 'number' ? Math.round(s.price - s.atr) : null,
+      cl2: typeof s.atr === 'number' ? Math.round(s.price - 2 * s.atr) : null,
     };
   });
 

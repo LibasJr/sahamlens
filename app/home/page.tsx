@@ -35,6 +35,7 @@ interface MarketMover {
   changePct: number;
   price: number;
   volume?: number;
+  score?: number;
 }
 
 interface DailyPickCounts {
@@ -68,6 +69,7 @@ export default function HomePage() {
   const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
   const [topVolume, setTopVolume] = useState<MarketMover[]>([]);
+  const [topTechnical, setTopTechnical] = useState<MarketMover[]>([]);
   const [dailyPicks, setDailyPicks] = useState<DailyPickCounts | null>(null);
   // Menggantikan tampilan widget "Hari Ini AI Menemukan" (dailyPicks-nya sendiri TETAP
   // di-fetch di atas - masih dipakai payload /api/ai-briefing) - jadwal Corporate
@@ -99,6 +101,7 @@ export default function HomePage() {
           setTopGainers((summary.topGainers || []).slice(0, 10));
           setTopLosers((summary.topLosers || []).slice(0, 10));
           setTopVolume((summary.topVolume || []).slice(0, 10));
+          setTopTechnical((summary.topTechnical || []).slice(0, 10));
         }
       })
       .finally(() => setLoadingMarket(false));
@@ -251,86 +254,103 @@ export default function HomePage() {
       </motion.div>
 
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        {/* Ringkasan Pasar - IHSG, publik (bukan Portfolio - SahamLens alat analisis/
-            screener, bukan sekuritas; posisi trading ada di Akun Demo). Gainer/Loser
-            pindah jadi card MarketMoverCard sendiri di bawah, card ini cuma IHSG jadi
-            SENGAJA tidak dipaksa h-full/stretch (dulu bikin banyak ruang kosong di
-            bawah IHSG kalau kartu "Jadwal Terdekat" di sebelahnya lebih tinggi). */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-tv-purple" />
-                <CardTitle>LensMarket</CardTitle>
-              </div>
-              <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
-            </CardHeader>
-            {loadingMarket ? (
-              <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
-            ) : (
-              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
-                <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
-                {ihsg ? (
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
-                    <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                      {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                      {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-tv-muted">Data tidak tersedia</span>
-                )}
-              </div>
-            )}
-          </Card>
-        </motion.div>
-
-        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
-            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
-            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
-            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
-            corporate-calendar.service.ts). */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-tv-gold" />
-                <CardTitle>Jadwal Terdekat</CardTitle>
-              </div>
-              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
-            </CardHeader>
-            {calendarEvents === null ? (
-              <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
-            ) : calendarEvents.length === 0 ? (
-              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
-            ) : (
-              <div className="space-y-2 flex-1">
-                {calendarEvents.map((e, i) => (
-                  <Link
-                    key={`${e.symbol}-${e.date}-${i}`}
-                    href={`/technical/${e.symbol}.JK`}
-                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
-                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
-                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
-                        </Badge>
-                      </div>
-                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+        {/* Kolom kiri: LensMarket (IHSG) + Jadwal Terdekat ditumpuk vertikal - dulu
+            side-by-side dengan LensMarket, sekarang Jadwal pindah ke bawahnya supaya
+            slot kanan bisa dipakai card indikator (Sinyal Teknikal Bullish, dipindah
+            dari landing page "/"). */}
+        <div className="flex flex-col gap-5">
+          <motion.div variants={fadeUp}>
+            <Card hoverable>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-tv-purple" />
+                  <CardTitle>LensMarket</CardTitle>
+                </div>
+                <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
+              </CardHeader>
+              {loadingMarket ? (
+                <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+              ) : (
+                <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
+                  <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
+                  {ihsg ? (
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-number text-lg font-semibold text-white tabular-nums">{ihsg.price?.toLocaleString('id-ID')}</span>
+                      <span className={`text-[12px] font-number flex items-center gap-0.5 ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                        {ihsg.changePct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                        {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
+                      </span>
                     </div>
-                    <span className="text-[11px] text-tv-muted font-number shrink-0">
-                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </Card>
-        </motion.div>
+                  ) : (
+                    <span className="text-xs text-tv-muted">Data tidak tersedia</span>
+                  )}
+                </div>
+              )}
+            </Card>
+          </motion.div>
 
+          {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
+              yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
+              page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
+              punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
+              corporate-calendar.service.ts). */}
+          <motion.div variants={fadeUp}>
+            <Card hoverable>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-tv-gold" />
+                  <CardTitle>Jadwal Terdekat</CardTitle>
+                </div>
+                <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+              </CardHeader>
+              {calendarEvents === null ? (
+                <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+              ) : calendarEvents.length === 0 ? (
+                <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
+              ) : (
+                <div className="space-y-2">
+                  {calendarEvents.map((e, i) => (
+                    <Link
+                      key={`${e.symbol}-${e.date}-${i}`}
+                      href={`/technical/${e.symbol}.JK`}
+                      className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
+                          <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
+                            {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                          </Badge>
+                        </div>
+                        <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                      </div>
+                      <span className="text-[11px] text-tv-muted font-number shrink-0">
+                        {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Sinyal Teknikal Bullish - dipindah dari landing page "/" (components/
+            Dashboard.tsx), ngisi slot bekas Jadwal Terdekat di kolom kanan. */}
+        <MarketMoverCard
+          card={{
+            id: 'technical',
+            title: 'Sinyal Teknikal Bullish (MA20 > MA50)',
+            sub: 'Technical Signal',
+            accent: 'purple',
+            Icon: Sparkles,
+            key: 'technical',
+            listPath: '/market/technical-bullish',
+            items: formatCardItems('technical', topTechnical),
+          }}
+          lastUpdated={null}
+          loaded={!loadingMarket}
+        />
       </motion.div>
 
       {/* Gainer/Loser/Volume - gaya sama persis dengan card yang sebelumnya ada di
