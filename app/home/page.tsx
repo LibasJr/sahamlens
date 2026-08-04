@@ -16,12 +16,12 @@ import {
   BarChart3,
   Radar,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState, SegmentedControl } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
-import { MarketMoverCard, formatCardItems, type CardDef } from '@/components/MarketMoverCard';
+import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
 
 interface AiPick {
   ticker: string;
@@ -83,6 +83,7 @@ export default function HomePage() {
   >([]);
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
+  const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume'>('gainer');
 
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
@@ -451,24 +452,30 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
-      {/* Gainer/Loser/Volume - gaya sama persis dengan card yang sebelumnya ada di
-          landing page "/" (components/Dashboard.tsx), sekarang dipindah ke sini,
-          ditukar dengan card Berita yang pindah ke "/". */}
+      {/* Market Movers - dulu 3 card grid (Gainer/Loser/Volume) sekaligus, sekarang
+          1 card ber-tab (spec BUILD 001: kurangi section panjang dengan tabs) -
+          MarketMoverCard & formatCardItems tidak berubah, cuma dipilih satu per waktu. */}
       {(() => {
-        const HOME_CARD_DEFS: CardDef[] = [
-          { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'gainer', listPath: '/market/top-gainer' },
-          { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'loser', listPath: '/market/top-loser' },
-          { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'volume', listPath: '/market/top-volume' },
-        ];
-        const homeCards = HOME_CARD_DEFS.map((def) => ({
-          ...def,
-          items: formatCardItems(def.id, def.id === 'gainer' ? topGainers : def.id === 'loser' ? topLosers : topVolume),
-        }));
+        const MOVERS_DEFS: Record<'gainer' | 'loser' | 'volume', CardDef> = {
+          gainer: { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'gainer', listPath: '/market/top-gainer' },
+          loser: { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'loser', listPath: '/market/top-loser' },
+          volume: { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'volume', listPath: '/market/top-volume' },
+        };
+        const sourceData = moversTab === 'gainer' ? topGainers : moversTab === 'loser' ? topLosers : topVolume;
+        const activeCard: MoverCard = { ...MOVERS_DEFS[moversTab], items: formatCardItems(moversTab, sourceData) };
         return (
-          <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
-            {homeCards.map((card) => (
-              <MarketMoverCard key={card.id} card={card} lastUpdated={null} loaded={!loadingMarket} />
-            ))}
+          <motion.div initial="hidden" animate="show" variants={fadeUp} className="space-y-3">
+            <SegmentedControl
+              layoutId="home-movers-tab"
+              value={moversTab}
+              onChange={(v) => setMoversTab(v as 'gainer' | 'loser' | 'volume')}
+              options={[
+                { label: 'Top Gainer', value: 'gainer' },
+                { label: 'Top Loser', value: 'loser' },
+                { label: 'Top Volume', value: 'volume' },
+              ]}
+            />
+            <MarketMoverCard card={activeCard} lastUpdated={null} loaded={!loadingMarket} />
           </motion.div>
         );
       })()}
