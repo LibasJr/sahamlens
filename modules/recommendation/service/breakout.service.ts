@@ -23,6 +23,7 @@ export interface CrossEntry {
   symbol: string;
   price: number;
   change: string;
+  atr: number | null;
 }
 
 interface RawSymbolSignal {
@@ -34,6 +35,7 @@ interface RawSymbolSignal {
   score: number;
   signals: string[];
   rr: string;
+  atr: number | null;
 }
 
 async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal | null> {
@@ -135,6 +137,21 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const reward = high20 - currentPrice;
     const rr = risk > 0 ? (reward / risk).toFixed(1) : '0';
 
+    // ATR-14 (Average True Range) - dasar hitung TP1/TP2 (Golden Cross) / CL1/CL2 (Dead
+    // Cross) di app/api/daily-picks/route.ts. `history` di sini sudah dijamin >=51 bar
+    // (guard di atas), jauh lebih dari 15 yang dibutuhkan ATR-14 - tidak perlu fetch
+    // tambahan. Formula True Range sama dengan modules/technical/service/analyzers/
+    // volatility-analyzer.ts (sudah dipercaya di tempat lain, bukan rumus baru dikarang).
+    let trSum = 0;
+    for (let i = history.length - 14; i < history.length; i++) {
+      const high = history[i].high;
+      const low = history[i].low;
+      const prevClose = history[i - 1].close;
+      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+      trSum += tr;
+    }
+    const atr = trSum / 14;
+
     return {
       symbol,
       currentPrice,
@@ -144,6 +161,7 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
       score,
       signals,
       rr: `1:${rr}`,
+      atr,
     };
   } catch (err) {
     console.error(`Error processing ${symbol}`, err);
@@ -186,7 +204,7 @@ export async function scanCrossSignals(): Promise<{ golden: CrossEntry[]; dead: 
   const dead: CrossEntry[] = [];
   for (const r of resolvedResults) {
     if (!r) continue;
-    const entry = { symbol: r.symbol, price: r.currentPrice, change: r.changeStr };
+    const entry = { symbol: r.symbol, price: r.currentPrice, change: r.changeStr, atr: r.atr };
     if (r.isCrossUp) golden.push(entry);
     else if (r.isDeadCross) dead.push(entry);
   }
