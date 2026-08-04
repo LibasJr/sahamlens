@@ -570,7 +570,7 @@ function DashboardContent() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Status Badge */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
             {marketClosed ? 'Market Closed' : 'Market Open'}
@@ -654,7 +654,7 @@ function DashboardContent() {
             <div className="flex items-center gap-6">
                {data?.bestPerformer && (
                   <div className="text-right border-r border-tv-border pr-6 hidden md:block">
-                    <div className="text-[10px] font-mono text-tv-muted uppercase">TOP METHOD TODAY</div>
+                    <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">TOP METHOD TODAY</div>
                     <div className="text-lg font-bold text-white flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5 text-tv-green" />
                       {data.bestPerformer.label} ({data.bestPerformer.confidence}% Conf)
@@ -662,8 +662,8 @@ function DashboardContent() {
                   </div>
                )}
               <div className="text-right">
-                <div className="text-[10px] font-mono text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
-                <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
+                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
+                <div className={`text-xl font-extrabold font-sans px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
                   data?.consensus?.includes('BUY')
                     ? 'bg-tv-green/20 text-tv-green border-tv-green'
                     : data?.consensus?.includes('SELL')
@@ -783,16 +783,16 @@ function DashboardContent() {
 
               {/* Reasons & Risk */}
               <div className="flex-1 space-y-3">
-                <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
+                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
                 {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
                   <div key={i} className="flex items-start gap-2 text-xs">
                     <span className="text-tv-green font-bold">✓</span>
-                    <span className="text-tv-text font-mono">{reason}</span>
+                    <span className="text-tv-text font-sans">{reason}</span>
                   </div>
                 ))}
                 {data.scoring.risk && (
                   <div className="mt-3 pt-3 border-t border-tv-border">
-                    <div className="text-[10px] font-mono text-tv-muted uppercase tracking-wider mb-1">RISK</div>
+                    <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-1">RISK</div>
                     <div className="flex items-start gap-2 text-xs">
                       <span className="text-tv-red font-bold">⚠</span>
                       <span className="text-tv-muted font-mono">{data.scoring.risk}</span>
@@ -810,7 +810,7 @@ function DashboardContent() {
           <div className="w-full flex items-center gap-3 bg-tv-purple/10 border border-tv-purple/25 rounded-lg px-4 py-3">
             <Radar className="w-4 h-4 text-tv-purple shrink-0" />
             <div className="min-w-0">
-              <span className="text-[10px] font-mono text-tv-muted uppercase">LensRadar</span>
+              <span className="text-[10px] font-sans font-semibold text-tv-muted uppercase">LensRadar</span>
               <div className="text-sm text-white">
                 Skor <strong className="font-number">{radarRank.finalScore}</strong>
                 {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
@@ -836,8 +836,8 @@ function DashboardContent() {
               <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border ${status.bg}`}>
                 <Activity className={`w-5 h-5 ${status.color}`} />
                 <div>
-                  <div className="text-[10px] font-mono text-tv-muted uppercase">MA STATUS</div>
-                  <div className={`text-sm font-bold font-mono ${status.color}`}>{status.label}</div>
+                  <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">MA STATUS</div>
+                  <div className={`text-sm font-bold font-sans ${status.color}`}>{status.label}</div>
                 </div>
                 <div className="ml-auto text-right text-xs font-number text-tv-muted">
                   <span>MA50: <strong className="text-white">{ma50 || '-'}</strong></span>
