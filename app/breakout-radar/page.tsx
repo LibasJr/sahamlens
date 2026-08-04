@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Target, Clock, Menu, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -28,6 +28,32 @@ type AiPickItem = {
   topReasons?: string[];
 };
 
+type RadarColumnKey = 'symbol' | 'price' | 'changePct' | 'finalScore';
+
+interface RadarSortableColumn {
+  key: RadarColumnKey;
+  label: string;
+  align?: 'right';
+  getValue: (item: AiPickItem) => string | number | null | undefined;
+}
+
+const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = [
+  { key: 'symbol', label: 'Saham', getValue: (i) => i.symbol },
+  { key: 'price', label: 'Harga', align: 'right', getValue: (i) => i.price },
+  { key: 'changePct', label: 'Chg', align: 'right', getValue: (i) => i.changePct },
+  { key: 'finalScore', label: 'Skor', align: 'right', getValue: (i) => i.finalScore },
+];
+
+function compareRadarValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  const result = typeof a === 'number' && typeof b === 'number'
+    ? a - b
+    : String(a).localeCompare(String(b), 'id');
+  return dir === 'asc' ? result : -result;
+}
+
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
 // memindai universe berbeda (15 vs 250 vs 220) sehingga angkanya tidak sebanding, isinya
@@ -47,6 +73,23 @@ export default function AiPickPage() {
   // Technical/Fundamental/Arus Dana + 3 alasan teratas, bukan halaman/modal terpisah
   // (perubahan UI minimal, bukan redesign).
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+  const [radarSortKey, setRadarSortKey] = useState<RadarColumnKey | null>(null);
+  const [radarSortDir, setRadarSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleRadarSort = (key: RadarColumnKey) => {
+    if (radarSortKey === key) {
+      setRadarSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setRadarSortKey(key);
+      setRadarSortDir('asc');
+    }
+  };
+
+  const sortedItems = useMemo(() => {
+    if (!radarSortKey) return items;
+    const col = RADAR_SORTABLE_COLUMNS.find((c) => c.key === radarSortKey)!;
+    return [...items].sort((a, b) => compareRadarValues(col.getValue(a), col.getValue(b), radarSortDir));
+  }, [items, radarSortKey, radarSortDir]);
 
   useEffect(() => {
     fetch('/api/ai-pick')
@@ -145,16 +188,26 @@ export default function AiPickPage() {
                     <thead>
                       <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
                         <th className="py-3 px-4">#</th>
-                        <th className="py-3 px-4">Saham</th>
-                        <th className="py-3 px-4 text-right">Harga</th>
-                        <th className="py-3 px-4 text-right">Chg</th>
-                        <th className="py-3 px-4 text-right">Skor</th>
+                        {RADAR_SORTABLE_COLUMNS.map((col) => (
+                          <th key={col.key} className={`py-3 px-4 ${col.align === 'right' ? 'text-right' : ''}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleRadarSort(col.key)}
+                              className={`inline-flex items-center gap-1 hover:text-tv-text transition-colors ${col.align === 'right' ? 'flex-row-reverse' : ''}`}
+                            >
+                              {col.label}
+                              {radarSortKey === col.key && (
+                                <span className="text-tv-blue">{radarSortDir === 'asc' ? '▲' : '▼'}</span>
+                              )}
+                            </button>
+                          </th>
+                        ))}
                         <th className="py-3 px-4">Rincian</th>
                         <th className="py-3 px-4 text-center">Kenapa</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-tv-border text-sm">
-                      {items.map((it, idx) => {
+                      {sortedItems.map((it, idx) => {
                         const isExpanded = expandedSymbol === it.symbol;
                         return (
                         <React.Fragment key={it.symbol}>
