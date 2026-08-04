@@ -3,10 +3,15 @@ import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, SESSION_COOKIE } from '@/shared/const
 import { decrypt } from '@/shared/auth/jwt';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 
-// Edge Runtime (lihat export const config di bawah) - HANYA boleh mengimpor modul
-// yang Edge-safe (tanpa next/headers, tanpa pg/bcryptjs). Itu sebabnya file ini
-// mengimpor langsung dari shared/auth/jwt & shared/constants/cookie-names,
-// BUKAN dari modules/user (barrel-nya menyeret next/headers lewat shared/auth/session).
+// Next.js 16 mengganti file convention "middleware" jadi "proxy" (nama fungsi
+// & file berubah, perilaku/matcher sama - lihat node_modules/next/dist/docs/
+// .../file-conventions/proxy.md). Proxy default RUNTIME NODE.JS (bukan Edge lagi
+// seperti middleware lama), tapi file ini tetap sengaja hanya mengimpor modul yang
+// dulu wajib Edge-safe (tanpa next/headers, tanpa pg/bcryptjs) - import langsung
+// dari shared/auth/jwt & shared/constants/cookie-names, BUKAN dari modules/user
+// (barrel-nya menyeret next/headers lewat shared/auth/session) - tidak ada
+// keuntungan mengubahnya sekarang, dan tetap Edge-compatible kalau suatu saat
+// runtime Edge dipakai lagi.
 
 // 150 (bukan 50) - halaman Breakout Radar tab Recommendations sendirian memecah
 // pemindaian 220 saham jadi ~22 request ke /api/recommendations sekali buka tab
@@ -46,7 +51,7 @@ function getClientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') || 'unknown';
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const sessionCookie = req.cookies.get(SESSION_COOKIE)?.value;
   const decrypted = sessionCookie ? await decrypt(sessionCookie) : null;
   // Guard yang sama dengan shared/auth/session.ts getSession() - token lain yang
