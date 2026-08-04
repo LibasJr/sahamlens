@@ -14,6 +14,7 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
+  Radar,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
@@ -77,6 +78,11 @@ export default function HomePage() {
   const [calendarEvents, setCalendarEvents] = useState<
     { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
   >(null);
+  const [radarItems, setRadarItems] = useState<
+    { symbol: string; finalScore: number; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
+  >([]);
+  const [loadingRadar, setLoadingRadar] = useState(true);
+  const [radarError, setRadarError] = useState(false);
 
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
@@ -146,6 +152,23 @@ export default function HomePage() {
       })
       .catch(() => setCalendarEvents([]));
   }, []);
+
+  const fetchRadar = useCallback(() => {
+    setLoadingRadar(true);
+    setRadarError(false);
+    fetch('/api/ai-pick', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) { setRadarError(true); return; }
+        setRadarItems((d.items || []).slice(0, 5));
+      })
+      .catch(() => setRadarError(true))
+      .finally(() => setLoadingRadar(false));
+  }, []);
+
+  useEffect(() => {
+    fetchRadar();
+  }, [fetchRadar]);
 
   useEffect(() => {
     fetch('/api/user/profile', { cache: 'no-store' })
@@ -384,22 +407,48 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {/* Sinyal Teknikal Bullish - dipindah dari landing page "/" (components/
-            Dashboard.tsx), ngisi slot bekas Jadwal Terdekat di kolom kanan. */}
-        <MarketMoverCard
-          card={{
-            id: 'technical',
-            title: 'Sinyal Teknikal Bullish (MA20 > MA50)',
-            sub: 'Technical Signal',
-            accent: 'purple',
-            Icon: Sparkles,
-            key: 'technical',
-            listPath: '/market/technical-bullish',
-            items: formatCardItems('technical', topTechnical),
-          }}
-          lastUpdated={null}
-          loaded={!loadingMarket}
-        />
+        {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
+            LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
+            sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
+            WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
+        <Card hoverable>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Radar className="w-4 h-4 text-tv-purple" />
+              <CardTitle>LensRadar</CardTitle>
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+          </CardHeader>
+          {loadingRadar ? (
+            <div className="space-y-2">
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+            </div>
+          ) : radarError ? (
+            <EmptyState
+              title="Data pasar sementara tidak tersedia."
+              action={{ label: 'Coba lagi', onClick: fetchRadar }}
+            />
+          ) : radarItems.length === 0 ? (
+            <EmptyState title="Belum ada sinyal kuat hari ini." description="Cek LensRadar Live untuk daftar lengkap." />
+          ) : (
+            <div className="space-y-2">
+              {radarItems.map((it) => (
+                <Link
+                  key={it.symbol}
+                  href={`/technical/${it.symbol}`}
+                  className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                >
+                  <div className="min-w-0">
+                    <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
+                    {it.flagged && <span className="ml-2 text-tv-red text-[10px]">! {it.flagReason}</span>}
+                    <div className="text-[10px] text-tv-muted truncate">{it.topReasons?.[0] || '-'}</div>
+                  </div>
+                  <span className="font-number text-sm font-semibold text-white shrink-0">{it.finalScore}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Card>
       </motion.div>
 
       {/* Gainer/Loser/Volume - gaya sama persis dengan card yang sebelumnya ada di
