@@ -81,7 +81,7 @@ export default function HomePage() {
     { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
   >(null);
   const [radarItems, setRadarItems] = useState<
-    { symbol: string; finalScore: number; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
+    { symbol: string; price: number; changePct: number; finalScore: number; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
   >([]);
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
@@ -491,14 +491,22 @@ export default function HomePage() {
                 <Link
                   key={it.symbol}
                   href={`/technical/${it.symbol}`}
-                  className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                  className={`flex items-center justify-between gap-2 bg-tv-bg/50 border-y border-r border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}
                 >
                   <div className="min-w-0">
-                    <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
-                    {it.flagged && <span className="ml-2 text-tv-red text-[10px]">! {it.flagReason}</span>}
+                    <div className="flex items-center gap-2">
+                      <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
+                      <span className={`text-[11px] font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                        {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(2)}%
+                      </span>
+                    </div>
+                    {it.flagged && <span className="text-tv-red text-[10px]">! {it.flagReason}</span>}
                     <div className="text-[10px] text-tv-muted truncate">{it.topReasons?.[0] || '-'}</div>
                   </div>
-                  <span className="font-number text-sm font-semibold text-white shrink-0">{it.finalScore}</span>
+                  <div className="text-right shrink-0">
+                    <div className="font-number text-sm font-semibold text-white">{it.finalScore}</div>
+                    <div className="text-[10px] text-tv-muted font-number">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
+                  </div>
                 </Link>
               ))}
             </div>
