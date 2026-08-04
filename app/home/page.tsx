@@ -35,6 +35,8 @@ interface DailyPickCounts {
   breakout: { count: number };
   undervalue: { count: number };
   foreignAccumulation: { count: number };
+  goldenCross: { count: number; stale: boolean };
+  deadCross: { count: number; stale: boolean };
 }
 
 const PROMO_STORAGE_KEY = 'sahamlens_promo_last_seen';
@@ -548,6 +550,39 @@ export default function HomePage() {
           </motion.div>
         );
       })()}
+
+      {/* Insights - Golden/Dead Cross count dari dailyPicks (sudah di-fetch di atas
+          untuk teks AI briefing, sekarang juga dirender sebagai widget sendiri -
+          zero fetch baru). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-tv-blue" />
+              <CardTitle>Market Insights</CardTitle>
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
+          </CardHeader>
+          {loadingDailyPicks ? (
+            <Skeleton className="h-16 w-full" />
+          ) : !dailyPicks ? (
+            <EmptyState title="Data insight sementara tidak tersedia." />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-3">
+                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Golden Cross</div>
+                <div className="font-number text-2xl font-bold text-tv-green mt-1">{dailyPicks.goldenCross.count}</div>
+                {dailyPicks.goldenCross.stale && <div className="text-[10px] text-tv-warning mt-1">Data sesi terakhir</div>}
+              </div>
+              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-3">
+                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Dead Cross</div>
+                <div className="font-number text-2xl font-bold text-tv-red mt-1">{dailyPicks.deadCross.count}</div>
+                {dailyPicks.deadCross.stale && <div className="text-[10px] text-tv-warning mt-1">Data sesi terakhir</div>}
+              </div>
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       {/* Jadwal Terdekat & LensWatch sejajar 1 baris - dua-duanya card isi-list yang
           tinggi, jadi align lebih rapi dibanding sebelumnya dipasangkan dengan
