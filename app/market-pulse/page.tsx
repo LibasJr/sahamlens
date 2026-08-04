@@ -209,9 +209,8 @@ export default function MarketPulse() {
                 Finance) - dulu ada badge "Realtime" (Pro) vs "Delay 15m" (gratis) yang
                 menyiratkan Pro dapat data lebih baru, padahal keduanya baca cache yang
                 sama persis (lihat app/api/market-pulse/route.ts). */}
-            {isClient && (
-              <Badge variant="neutral">Update tiap 5 menit • Yahoo Finance</Badge>
-            )}
+            {/* dihapus - "Yahoo Finance" tidak perlu terekspos ke publik/SEO, freshness
+                data sudah terwakili badge "Update: [jam]" di sebelah kanan. */}
             <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted whitespace-nowrap">
               Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
             </div>
