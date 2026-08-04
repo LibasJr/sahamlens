@@ -10,12 +10,12 @@ import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, SegmentedControl, Input, Select } from '@/components/ui';
+import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState } from '@/components/ui';
 import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper, ChevronRight
+  Sparkles, Calculator, Newspaper, ChevronRight, Radar
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -39,6 +39,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [ticker, setTickerState] = useState('DGWG.JK');
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [data, setData] = useState<any>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [marketClosed, setMarketClosed] = useState(false);
@@ -50,6 +51,7 @@ function DashboardContent() {
   // teknikal, chart di sini pakai /api/public-chart yang mendukung parameter tf.
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<any[]>([]);
+  const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
 
   // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
   // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
@@ -104,11 +106,12 @@ function DashboardContent() {
 
   const fetchAnalyzerData = async (symbol: string) => {
     setLoading(true);
+    setFetchError(false);
     try {
       // Fetch new TS analyzers (which now also returns stock history)
       const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store' });
       const jsonAlgo = await resAlgo.json();
-      
+
       if (resAlgo.status === 401) {
         setShowLoginPrompt(true);
         return;
@@ -119,10 +122,23 @@ function DashboardContent() {
         setShowPaywall(true);
         return;
       }
+      if (!resAlgo.ok || !jsonAlgo?.stock) {
+        setFetchError(true);
+        return;
+      }
 
       if (jsonAlgo?.stock) {
         setData(jsonAlgo);
         setLastUpdate(new Date());
+        // LensRadar rank badge - best-effort, tidak menghalangi render utama kalau gagal
+        // atau ticker ini memang tidak ada di daftar ranking hari ini (lihat spec section C).
+        fetch('/api/ai-pick', { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const match = (d?.items || []).find((it: any) => it.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
+            setRadarRank(match ? { finalScore: match.finalScore, topReasons: match.topReasons } : null);
+          })
+          .catch(() => setRadarRank(null));
         if (jsonAlgo._quota) {
           setAnalisaRemaining(jsonAlgo._quota.remaining);
           setUsedSymbolsToday(jsonAlgo._quota.usedSymbols || []);
@@ -151,6 +167,7 @@ function DashboardContent() {
       }
     } catch (e) {
       console.error('Failed to fetch data', e);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -552,7 +569,7 @@ function DashboardContent() {
             {marketClosed ? 'Market Closed' : 'Market Open'}
           </div>
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            Update: {formatTime(lastUpdate)} • {marketClosed ? 'No Polling' : '1m refresh'}
+            {marketClosed ? 'No Polling' : '1m refresh'}
           </div>
           <button 
             onClick={handleRefresh}
@@ -586,62 +603,80 @@ function DashboardContent() {
 
 
         {/* Hero */}
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
-              <Zap className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="font-heading text-2xl font-bold text-white">{displayTicker(stock.symbol || ticker)}.JK</h1>
-                <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
-              </div>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="font-number text-2xl font-bold text-white tabular-nums">
-                  Rp {stock.current_price?.toLocaleString('id-ID') || '-'}
-                </span>
-                <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
-                  (stock.change_pct || 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
-                }`}>
-                  {(stock.change_pct || 0) >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                  {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
-                </span>
-              </div>
+        {fetchError ? (
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2">
+            <EmptyState
+              title="Data pasar sementara tidak tersedia."
+              action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
+            />
+          </div>
+        ) : loading && !data ? (
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex items-center gap-4">
+            <Skeleton variant="circle" className="w-12 h-12" />
+            <div className="space-y-2">
+              <Skeleton variant="text" className="w-40 h-6" />
+              <Skeleton variant="text" className="w-28" />
             </div>
           </div>
+        ) : (
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
+                <Zap className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="font-heading text-2xl font-bold text-white">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                  <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="font-number text-2xl font-bold text-white tabular-nums">
+                    Rp {stock.current_price?.toLocaleString('id-ID') || '-'}
+                  </span>
+                  <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
+                    (stock.change_pct || 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
+                  }`}>
+                    {(stock.change_pct || 0) >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                    {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
+                  </span>
+                </div>
+                <p className="text-[11px] text-tv-muted mt-1">Update: {formatTime(lastUpdate)}</p>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-6">
-             {data?.bestPerformer && (
-                <div className="text-right border-r border-tv-border pr-6 hidden md:block">
-                  <div className="text-[10px] font-mono text-tv-muted uppercase">TOP METHOD TODAY</div>
-                  <div className="text-lg font-bold text-white flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-tv-green" />
-                    {data.bestPerformer.label} ({data.bestPerformer.confidence}% Conf)
+            <div className="flex items-center gap-6">
+               {data?.bestPerformer && (
+                  <div className="text-right border-r border-tv-border pr-6 hidden md:block">
+                    <div className="text-[10px] font-mono text-tv-muted uppercase">TOP METHOD TODAY</div>
+                    <div className="text-lg font-bold text-white flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-tv-green" />
+                      {data.bestPerformer.label} ({data.bestPerformer.confidence}% Conf)
+                    </div>
                   </div>
+               )}
+              <div className="text-right">
+                <div className="text-[10px] font-mono text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
+                <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
+                  data?.consensus?.includes('BUY')
+                    ? 'bg-tv-green/20 text-tv-green border-tv-green'
+                    : data?.consensus?.includes('SELL')
+                    ? 'bg-tv-red/20 text-tv-red border-tv-red'
+                    : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
+                }`}>
+                  {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
+                  {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
                 </div>
-             )}
-            <div className="text-right">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
-              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
-                data?.consensus?.includes('BUY')
-                  ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                  : data?.consensus?.includes('SELL')
-                  ? 'bg-tv-red/20 text-tv-red border-tv-red'
-                  : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
-              }`}>
-                {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
-                {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
+                {data?.consensusData && (
+                  <div className="flex items-center gap-3 mt-1.5 justify-end text-[10px] font-mono text-tv-muted">
+                    <span>Vote: <strong className="text-white">{data.consensusData.vote}</strong> (Bull:Bear)</span>
+                    <span>|</span>
+                    <span>Median: <strong className="text-white">{data.consensusData.median_skor}</strong></span>
+                  </div>
+                )}
               </div>
-              {data?.consensusData && (
-                <div className="flex items-center gap-3 mt-1.5 justify-end text-[10px] font-mono text-tv-muted">
-                  <span>Vote: <strong className="text-white">{data.consensusData.vote}</strong> (Bull:Bear)</span>
-                  <span>|</span>
-                  <span>Median: <strong className="text-white">{data.consensusData.median_skor}</strong></span>
-                </div>
-              )}
             </div>
           </div>
-        </div>
+        )}
 
         {/* AI Summary - breakdown skor + top alasan, dipindah tepat di bawah Hero
             supaya konsensus AI terlihat sebelum user scroll ke chart/teknikal. */}
@@ -734,6 +769,21 @@ function DashboardContent() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LensRadar rank badge - muncul HANYA kalau ticker ini ada di /api/ai-pick
+            hari ini, tidak ada status EARLY/WATCH/dst yang dipaksakan (spec section C). */}
+        {radarRank && (
+          <div className="w-full flex items-center gap-3 bg-tv-purple/10 border border-tv-purple/25 rounded-lg px-4 py-3">
+            <Radar className="w-4 h-4 text-tv-purple shrink-0" />
+            <div className="min-w-0">
+              <span className="text-[10px] font-mono text-tv-muted uppercase">LensRadar</span>
+              <div className="text-sm text-white">
+                Skor <strong className="font-number">{radarRank.finalScore}</strong>
+                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
               </div>
             </div>
           </div>

@@ -147,6 +147,7 @@ export default function AiPickPage() {
                     Sekarang badge jujur: "Live" cuma kalau data benar-benar segar. */}
                 {stale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
               </h1>
+              <p className="text-xs text-tv-muted mt-0.5">Breakout & Opportunity Scanner</p>
               <p className="text-xs text-tv-muted flex items-center gap-1 mt-1">
                 <Clock className="w-3 h-3" /> {updateLabel ? `${stale ? 'Data sesi terakhir' : 'Data'} per ${updateLabel}` : 'Memuat...'}
               </p>

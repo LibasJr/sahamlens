@@ -9,18 +9,21 @@ import {
   Menu,
   ArrowUpRight,
   ArrowDownRight,
-  Loader2,
   Flame,
   TrendingUp,
   TrendingDown,
   BarChart3,
+  Radar,
+  Filter,
+  Eye,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState, SegmentedControl } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
-import { MarketMoverCard, formatCardItems, type CardDef } from '@/components/MarketMoverCard';
+import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
+import { formatFreshnessLabel } from '@/lib/utils/freshness-label';
 
 interface AiPick {
   ticker: string;
@@ -77,7 +80,21 @@ export default function HomePage() {
   const [calendarEvents, setCalendarEvents] = useState<
     { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
   >(null);
+  const [radarItems, setRadarItems] = useState<
+    { symbol: string; finalScore: number; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
+  >([]);
+  const [loadingRadar, setLoadingRadar] = useState(true);
+  const [radarError, setRadarError] = useState(false);
+  const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume'>('gainer');
+  const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
+  const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
 
+  const [ihsgFreshness, setIhsgFreshness] = useState<string | null>(null);
+  const [ihsgTimeLabel, setIhsgTimeLabel] = useState<string | null>(null);
+  const [moversFreshness, setMoversFreshness] = useState<string | null>(null);
+  const [moversTimeLabel, setMoversTimeLabel] = useState<string | null>(null);
+
+  const [marketError, setMarketError] = useState(false);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [loadingPicks, setLoadingPicks] = useState(true);
   const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
@@ -88,7 +105,9 @@ export default function HomePage() {
   const [promoPlan, setPromoPlan] = useState<PricingPlan['id']>('1m');
   const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
 
-  useEffect(() => {
+  const fetchMarket = useCallback(() => {
+    setLoadingMarket(true);
+    setMarketError(false);
     // Ringkasan pasar (IHSG + top gainer/loser) - publik, tanpa gerbang Pro, jadi
     // Beranda tidak lagi menampilkan teaser upgrade untuk sekadar lihat kondisi pasar.
     Promise.all([
@@ -96,15 +115,26 @@ export default function HomePage() {
       fetch('/api/market-summary', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([liveJkse, summary]) => {
-        if (liveJkse) setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
+        if (!liveJkse && !summary) { setMarketError(true); return; }
+        if (liveJkse) {
+          setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
+          setIhsgFreshness(liveJkse.freshness ?? null);
+          setIhsgTimeLabel(liveJkse.lastUpdate ? new Date(liveJkse.lastUpdate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : null);
+        }
         if (summary) {
           setTopGainers((summary.topGainers || []).slice(0, 10));
           setTopLosers((summary.topLosers || []).slice(0, 10));
           setTopVolume((summary.topVolume || []).slice(0, 10));
           setTopTechnical((summary.topTechnical || []).slice(0, 10));
+          setMoversFreshness(summary._meta?.freshness ?? null);
+          setMoversTimeLabel(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB');
         }
       })
       .finally(() => setLoadingMarket(false));
+  }, []);
+
+  useEffect(() => {
+    fetchMarket();
 
     fetch(`/api/recommendations?symbols=${PICK_UNIVERSE}`, { cache: 'no-store' })
       .then((r) => {
@@ -145,6 +175,35 @@ export default function HomePage() {
         setCalendarEvents(flat);
       })
       .catch(() => setCalendarEvents([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchRadar = useCallback(() => {
+    setLoadingRadar(true);
+    setRadarError(false);
+    fetch('/api/ai-pick', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) { setRadarError(true); return; }
+        setRadarItems((d.items || []).slice(0, 5));
+      })
+      .catch(() => setRadarError(true))
+      .finally(() => setLoadingRadar(false));
+  }, []);
+
+  useEffect(() => {
+    fetchRadar();
+  }, [fetchRadar]);
+
+  useEffect(() => {
+    fetch('/api/watchlist', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const list = d?.data || [];
+        setWatchlistCount(list.length);
+        setWatchlistPreview(list.slice(0, 3));
+      })
+      .catch(() => setWatchlistCount(null));
   }, []);
 
   useEffect(() => {
@@ -228,9 +287,10 @@ export default function HomePage() {
                 <Badge variant="info" dot>Live</Badge>
               </div>
               {loadingPicks ? (
-                <p className="text-sm text-tv-muted mt-1.5 flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Menganalisa pasar...
-                </p>
+                <div className="mt-1.5 space-y-1.5">
+                  <Skeleton variant="text" className="w-full max-w-md" />
+                  <Skeleton variant="text" className="w-2/3 max-w-xs" />
+                </div>
               ) : aiBriefing ? (
                 <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
               ) : picksLoginRequired ? (
@@ -253,6 +313,55 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
+      {/* Today's Opportunities - aiPicks sudah di-fetch di atas tapi sebelumnya
+          cuma dipakai untuk derive topPick di briefing text, tidak pernah
+          dirender sebagai list sendiri (audit BUILD 001). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-tv-green" />
+              <CardTitle>Today&apos;s Opportunities</CardTitle>
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
+          </CardHeader>
+          {loadingPicks ? (
+            <div className="space-y-2">
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : picksLoginRequired ? (
+            <EmptyState title="Login untuk melihat LensAI Picks" description="Sinyal AI harian butuh akun." />
+          ) : picksNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensAI Picks harian." />
+          ) : aiPicks.length === 0 ? (
+            <EmptyState title="Belum ada peluang kuat hari ini" description="Coba cek lagi nanti setelah jam bursa berjalan." />
+          ) : (
+            <div className="space-y-2">
+              {aiPicks.slice(0, 5).map((p) => (
+                <Link
+                  key={p.ticker}
+                  href={`/technical/${p.ticker}.JK`}
+                  className="flex items-center justify-between gap-3 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2.5 hover:border-tv-borderLight transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-number text-sm font-bold text-white shrink-0">{p.ticker}</span>
+                    <Badge variant={p.consensus.includes('BUY') ? 'success' : p.consensus.includes('SELL') ? 'danger' : 'neutral'}>
+                      {p.consensus}
+                    </Badge>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-number text-sm font-semibold text-white">LensScore {p.confidence}%</div>
+                    <div className={`text-[11px] font-number ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                      {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(2)}%
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Card>
+      </motion.div>
+
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         {/* Kolom kiri: LensMarket (IHSG) + Jadwal Terdekat ditumpuk vertikal - dulu
             side-by-side dengan LensMarket, sekarang Jadwal pindah ke bawahnya supaya
@@ -268,8 +377,16 @@ export default function HomePage() {
                 </div>
                 <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
               </CardHeader>
-              {loadingMarket ? (
-                <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+              {marketError ? (
+                <EmptyState
+                  title="Data pasar sementara tidak tersedia."
+                  action={{ label: 'Coba lagi', onClick: fetchMarket }}
+                />
+              ) : loadingMarket ? (
+                <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
+                  <Skeleton variant="text" className="w-16" />
+                  <Skeleton className="h-6 w-32" />
+                </div>
               ) : (
                 <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
                   <div className="text-[10px] text-tv-muted uppercase tracking-wide">IHSG</div>
@@ -284,6 +401,14 @@ export default function HomePage() {
                   ) : (
                     <span className="text-xs text-tv-muted">Data tidak tersedia</span>
                   )}
+                  {ihsg && (() => {
+                    const label = formatFreshnessLabel({ freshness: ihsgFreshness as any, timeLabel: ihsgTimeLabel });
+                    return (
+                      <p className={`text-[10px] mt-1.5 ${label.stale ? 'text-tv-warning' : 'text-tv-muted'}`}>
+                        {label.text}
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
             </Card>
@@ -304,7 +429,9 @@ export default function HomePage() {
                 <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
               </CardHeader>
               {calendarEvents === null ? (
-                <div className="text-xs text-tv-muted py-4 text-center">Memuat...</div>
+                <div className="space-y-2">
+                  {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                </div>
               ) : calendarEvents.length === 0 ? (
                 <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
               ) : (
@@ -335,45 +462,138 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {/* Sinyal Teknikal Bullish - dipindah dari landing page "/" (components/
-            Dashboard.tsx), ngisi slot bekas Jadwal Terdekat di kolom kanan. */}
-        <MarketMoverCard
-          card={{
-            id: 'technical',
-            title: 'Sinyal Teknikal Bullish (MA20 > MA50)',
-            sub: 'Technical Signal',
-            accent: 'purple',
-            Icon: Sparkles,
-            key: 'technical',
-            listPath: '/market/technical-bullish',
-            items: formatCardItems('technical', topTechnical),
-          }}
-          lastUpdated={null}
-          loaded={!loadingMarket}
-        />
+        {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
+            LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
+            sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
+            WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
+        <Card hoverable>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Radar className="w-4 h-4 text-tv-purple" />
+              <CardTitle>LensRadar</CardTitle>
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+          </CardHeader>
+          {loadingRadar ? (
+            <div className="space-y-2">
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+            </div>
+          ) : radarError ? (
+            <EmptyState
+              title="Data pasar sementara tidak tersedia."
+              action={{ label: 'Coba lagi', onClick: fetchRadar }}
+            />
+          ) : radarItems.length === 0 ? (
+            <EmptyState title="Belum ada sinyal kuat hari ini." description="Cek LensRadar Live untuk daftar lengkap." />
+          ) : (
+            <div className="space-y-2">
+              {radarItems.map((it) => (
+                <Link
+                  key={it.symbol}
+                  href={`/technical/${it.symbol}`}
+                  className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                >
+                  <div className="min-w-0">
+                    <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
+                    {it.flagged && <span className="ml-2 text-tv-red text-[10px]">! {it.flagReason}</span>}
+                    <div className="text-[10px] text-tv-muted truncate">{it.topReasons?.[0] || '-'}</div>
+                  </div>
+                  <span className="font-number text-sm font-semibold text-white shrink-0">{it.finalScore}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Card>
       </motion.div>
 
-      {/* Gainer/Loser/Volume - gaya sama persis dengan card yang sebelumnya ada di
-          landing page "/" (components/Dashboard.tsx), sekarang dipindah ke sini,
-          ditukar dengan card Berita yang pindah ke "/". */}
+      {/* Market Movers - dulu 3 card grid (Gainer/Loser/Volume) sekaligus, sekarang
+          1 card ber-tab (spec BUILD 001: kurangi section panjang dengan tabs) -
+          MarketMoverCard & formatCardItems tidak berubah, cuma dipilih satu per waktu. */}
       {(() => {
-        const HOME_CARD_DEFS: CardDef[] = [
-          { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'gainer', listPath: '/market/top-gainer' },
-          { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'loser', listPath: '/market/top-loser' },
-          { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'volume', listPath: '/market/top-volume' },
-        ];
-        const homeCards = HOME_CARD_DEFS.map((def) => ({
-          ...def,
-          items: formatCardItems(def.id, def.id === 'gainer' ? topGainers : def.id === 'loser' ? topLosers : topVolume),
-        }));
+        const MOVERS_DEFS: Record<'gainer' | 'loser' | 'volume', CardDef> = {
+          gainer: { id: 'gainer', title: 'Saham dengan Kenaikan Tertinggi', sub: 'Top Gainer', accent: 'green', Icon: TrendingUp, key: 'gainer', listPath: '/market/top-gainer' },
+          loser: { id: 'loser', title: 'Saham dengan Penurunan Terdalam', sub: 'Top Loser', accent: 'red', Icon: TrendingDown, key: 'loser', listPath: '/market/top-loser' },
+          volume: { id: 'volume', title: 'Berdasarkan Volume Lembar Saham', sub: 'Top Volume • Lot', accent: 'slate', Icon: BarChart3, key: 'volume', listPath: '/market/top-volume' },
+        };
+        const sourceData = moversTab === 'gainer' ? topGainers : moversTab === 'loser' ? topLosers : topVolume;
+        const activeCard: MoverCard = { ...MOVERS_DEFS[moversTab], items: formatCardItems(moversTab, sourceData) };
         return (
-          <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
-            {homeCards.map((card) => (
-              <MarketMoverCard key={card.id} card={card} lastUpdated={null} loaded={!loadingMarket} />
-            ))}
+          <motion.div initial="hidden" animate="show" variants={fadeUp} className="space-y-3">
+            {marketError ? (
+              <Card>
+                <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarket }} />
+              </Card>
+            ) : (
+              <>
+                <SegmentedControl
+                  layoutId="home-movers-tab"
+                  value={moversTab}
+                  onChange={(v) => setMoversTab(v as 'gainer' | 'loser' | 'volume')}
+                  options={[
+                    { label: 'Top Gainer', value: 'gainer' },
+                    { label: 'Top Loser', value: 'loser' },
+                    { label: 'Top Volume', value: 'volume' },
+                  ]}
+                />
+                <MarketMoverCard card={activeCard} lastUpdated={moversTimeLabel} loaded={!loadingMarket} />
+              </>
+            )}
           </motion.div>
         );
       })()}
+
+      {/* LensScanner - teaser, bukan full table (spec: full scanner sudah punya
+          halaman sendiri /screener). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card hoverable className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-tv-purple/10 border border-tv-purple/25 text-tv-purple flex items-center justify-center">
+              <Filter className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-heading text-sm font-bold text-white">LensScanner</h4>
+              <p className="text-xs text-tv-muted">Filter saham multi-faktor sesuai profil risiko Anda</p>
+            </div>
+          </div>
+          <Link href="/screener" className="shrink-0 px-3 py-1.5 rounded-md bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-semibold transition-colors">
+            Buka LensScanner
+          </Link>
+        </Card>
+      </motion.div>
+
+      {/* LensWatch - ringkasan singkat, EmptyState kalau watchlist masih kosong
+          (bukan "tidak ada data" polos). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-tv-blue" />
+              <CardTitle>LensWatch</CardTitle>
+            </div>
+            <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
+          </CardHeader>
+          {watchlistCount === null ? (
+            <Skeleton className="h-11 w-full" />
+          ) : watchlistCount === 0 ? (
+            <EmptyState
+              title="Belum ada saham di watchlist"
+              description="Tambahkan saham untuk mulai memantau harga & alert."
+              action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
+            />
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                {watchlistPreview.map((w) => (
+                  <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
+                    {w.symbol.replace('.JK', '')}
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       <PromoUpgradeModal open={showPromoModal} onClose={handleClosePromo} onSelectPlan={handleSelectPlan} />
       {(() => {
