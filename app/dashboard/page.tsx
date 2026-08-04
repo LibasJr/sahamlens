@@ -13,6 +13,7 @@ import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer } from '@/components/ui';
 import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
+import { isMarketOpen } from '@/lib/utils/market';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
@@ -94,15 +95,6 @@ function DashboardContent() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('last_searched_ticker', newTicker);
     }
-  };
-
-  const isMarketOpen = () => {
-    const now = new Date();
-    const wibNow = new Date(now.getTime() + (now.getTimezoneOffset() + 420) * 60000);
-    const day = wibNow.getDay();
-    const hour = wibNow.getHours();
-    if (day === 0 || day === 6) return false; 
-    return hour >= 9 && hour < 16; 
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
@@ -288,11 +280,11 @@ function DashboardContent() {
     // dulu incrementAnalisa() di sini cuma stub client (selalu allowed, remaining
     // statis), state analisaRemaining/usedSymbolsToday di-update dari response asli
     // di fetchAnalyzerData (field _quota saat sukses, usedSymbols saat 402).
-    setMarketClosed(!isMarketOpen());
+    setMarketClosed(!isMarketOpen(new Date()));
     fetchAnalyzerData(ticker);
 
     const interval = setInterval(() => {
-      const closed = !isMarketOpen();
+      const closed = !isMarketOpen(new Date());
       setMarketClosed(closed);
       if (!closed) {
         fetchAnalyzerData(ticker);
@@ -795,7 +787,7 @@ function DashboardContent() {
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-1">RISK</div>
                     <div className="flex items-start gap-2 text-xs">
                       <span className="text-tv-red font-bold">⚠</span>
-                      <span className="text-tv-muted font-mono">{data.scoring.risk}</span>
+                      <span className="text-tv-muted font-sans">{data.scoring.risk}</span>
                     </div>
                   </div>
                 )}
