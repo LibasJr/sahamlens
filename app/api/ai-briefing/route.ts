@@ -24,7 +24,7 @@ function fallbackBriefing(input: BriefingInput): string {
     parts.push(`IHSG ${ihsg.changePct >= 0 ? 'menguat' : 'melemah'} ${Math.abs(ihsg.changePct)}% hari ini.`);
   }
   if (input.topPick) {
-    parts.push(`Sinyal AI teratas: ${input.topPick.ticker} ${input.topPick.consensus} (confidence ${input.topPick.confidence}%).`);
+    parts.push(`Sinyal AI teratas: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}).`);
   }
   if (input.pickCounts && (input.pickCounts.attractive || input.pickCounts.breakout)) {
     parts.push(`AI menemukan ${input.pickCounts.attractive} saham menarik dan ${input.pickCounts.breakout} sinyal breakout hari ini.`);
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
 Data:
 - Indeks pasar: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'tidak tersedia'}
-- Sinyal AI teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (confidence ${input.topPick.confidence}%)` : 'tidak ada sinyal kuat'}
+- Sinyal AI teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence})` : 'tidak ada sinyal kuat'}
 - Temuan hari ini: ${input.pickCounts ? `${input.pickCounts.attractive} saham menarik, ${input.pickCounts.breakout} breakout, ${input.pickCounts.undervalue} undervalue` : 'tidak tersedia'}
 
 Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;

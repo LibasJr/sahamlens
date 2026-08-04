@@ -80,8 +80,6 @@ export default function HomePage() {
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
   const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
 
-  const [ihsgFreshness, setIhsgFreshness] = useState<string | null>(null);
-  const [ihsgTimeLabel, setIhsgTimeLabel] = useState<string | null>(null);
   const [moversFreshness, setMoversFreshness] = useState<string | null>(null);
   const [moversTimeLabel, setMoversTimeLabel] = useState<string | null>(null);
 
@@ -108,8 +106,6 @@ export default function HomePage() {
         if (!liveJkse && !summary) { setMarketError(true); return; }
         if (liveJkse) {
           setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
-          setIhsgFreshness(liveJkse.freshness ?? null);
-          setIhsgTimeLabel(liveJkse.lastUpdate ? new Date(liveJkse.lastUpdate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : null);
         }
         if (summary) {
           setTopGainers((summary.topGainers || []).slice(0, 10));
@@ -145,7 +141,7 @@ export default function HomePage() {
         return r.json();
       })
       .then((d) => {
-        if (d) setMarketPulse({ sectorHeatmap: d.sectorHeatmap, breadth: d.breadth });
+        if (d?.breadth && d?.sectorHeatmap) setMarketPulse({ sectorHeatmap: d.sectorHeatmap, breadth: d.breadth });
       })
       .catch(() => setMarketPulseError(true))
       .finally(() => setLoadingMarketPulse(false));
@@ -196,7 +192,7 @@ export default function HomePage() {
       })
       .then((d) => {
         if (!d) return;
-        if (d.error || d.ready === false) { setRadarItems([]); return; }
+        if (d.error || d.ready === false) { setRadarItems([]); setRadarStale(false); return; }
         setRadarItems(d.items || []);
         setRadarStale(!!d.stale);
       })
@@ -256,7 +252,7 @@ export default function HomePage() {
       body: JSON.stringify({
         topPick: topPick ? {
           ticker: topPick.symbol.replace('.JK', ''),
-          consensus: topPick.flagged ? topPick.flagReason : 'STRONG BUY',
+          consensus: topPick.flagged ? topPick.flagReason : 'Sinyal Kuat',
           confidence: topPick.finalScore,
         } : null,
         indices: ihsg ? [{ name: 'IHSG', changePct: ihsg.changePct }] : [],
@@ -318,7 +314,7 @@ export default function HomePage() {
                 <p className="text-sm text-tv-text mt-1.5 leading-relaxed">
                   Sinyal AI hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.symbol.replace('.JK', '')}</span>{' '}
                   <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
-                    {topPick.flagged ? topPick.flagReason : 'STRONG BUY'}
+                    {topPick.flagged ? topPick.flagReason : 'Sinyal Kuat'}
                   </Badge>
                   dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}</span>.
                 </p>
@@ -466,6 +462,10 @@ export default function HomePage() {
             <div className="space-y-2">
               {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
             </div>
+          ) : picksLoginRequired ? (
+            <EmptyState title="Login untuk melihat LensRadar" description="Sinyal AI harian butuh akun." />
+          ) : picksNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensRadar." />
           ) : radarError ? (
             <EmptyState
               title="Data pasar sementara tidak tersedia."
