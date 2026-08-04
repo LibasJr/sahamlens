@@ -15,7 +15,7 @@ import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits'
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper, ChevronRight
+  Sparkles, Calculator, Newspaper, ChevronRight, Radar
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -50,6 +50,7 @@ function DashboardContent() {
   // teknikal, chart di sini pakai /api/public-chart yang mendukung parameter tf.
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<any[]>([]);
+  const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
 
   // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
   // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
@@ -123,6 +124,15 @@ function DashboardContent() {
       if (jsonAlgo?.stock) {
         setData(jsonAlgo);
         setLastUpdate(new Date());
+        // LensRadar rank badge - best-effort, tidak menghalangi render utama kalau gagal
+        // atau ticker ini memang tidak ada di daftar ranking hari ini (lihat spec section C).
+        fetch('/api/ai-pick', { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const match = (d?.items || []).find((it: any) => it.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
+            setRadarRank(match ? { finalScore: match.finalScore, topReasons: match.topReasons } : null);
+          })
+          .catch(() => setRadarRank(null));
         if (jsonAlgo._quota) {
           setAnalisaRemaining(jsonAlgo._quota.remaining);
           setUsedSymbolsToday(jsonAlgo._quota.usedSymbols || []);
@@ -552,7 +562,7 @@ function DashboardContent() {
             {marketClosed ? 'Market Closed' : 'Market Open'}
           </div>
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            Update: {formatTime(lastUpdate)} • {marketClosed ? 'No Polling' : '1m refresh'}
+            {marketClosed ? 'No Polling' : '1m refresh'}
           </div>
           <button 
             onClick={handleRefresh}
@@ -607,6 +617,7 @@ function DashboardContent() {
                   {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
                 </span>
               </div>
+              <p className="text-[11px] text-tv-muted mt-1">Update: {formatTime(lastUpdate)}</p>
             </div>
           </div>
 
@@ -734,6 +745,21 @@ function DashboardContent() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LensRadar rank badge - muncul HANYA kalau ticker ini ada di /api/ai-pick
+            hari ini, tidak ada status EARLY/WATCH/dst yang dipaksakan (spec section C). */}
+        {radarRank && (
+          <div className="w-full flex items-center gap-3 bg-tv-purple/10 border border-tv-purple/25 rounded-lg px-4 py-3">
+            <Radar className="w-4 h-4 text-tv-purple shrink-0" />
+            <div className="min-w-0">
+              <span className="text-[10px] font-mono text-tv-muted uppercase">LensRadar</span>
+              <div className="text-sm text-white">
+                Skor <strong className="font-number">{radarRank.finalScore}</strong>
+                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
               </div>
             </div>
           </div>
