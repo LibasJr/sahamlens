@@ -51,9 +51,10 @@ async function withQuotaInfo(payload: any, ticker: string, userId: string | unde
 
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
+    const { ticker: rawTicker } = await params;
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
     if (!isInternal && !session) {
@@ -76,7 +77,7 @@ export async function GET(
         );
       }
     }
-    let ticker = params.ticker.toUpperCase();
+    let ticker = rawTicker.toUpperCase();
     if (!ticker.includes('.')) {
       ticker = `${ticker}.JK`;
     }

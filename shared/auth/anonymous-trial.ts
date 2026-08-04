@@ -49,7 +49,7 @@ function computeState(firstSeenAt: string, isNew: boolean): AnonTrialState {
 // applyAnonymousTrialCookie) kalau belum ada/rusak. Panggil HANYA saat !session (kalau
 // user sudah login, trial akun/checkProAccess yang berlaku, bukan ini).
 export async function readOrIssueAnonymousTrial(): Promise<AnonTrialState> {
-  const existing = cookies().get(ANON_TRIAL_COOKIE)?.value;
+  const existing = (await cookies()).get(ANON_TRIAL_COOKIE)?.value;
   if (existing) {
     const payload = await decrypt<AnonTrialPayload>(existing);
     if (payload?.typ === 'anon_trial' && payload.firstSeenAt) {

@@ -8,5 +8,5 @@ import { handleAdminStatus } from '@/modules/user';
 // Client-side tidak boleh membaca cookie admin (HttpOnly), jadi komponen client
 // tanya lewat endpoint ini untuk tahu status admin-nya sendiri.
 export async function GET() {
-  return runController(async () => handleAdminStatus(cookies()));
+  return runController(async () => handleAdminStatus(await cookies()));
 }

@@ -11,10 +11,11 @@ import { calculateIntrinsicValue } from '@/modules/fundamental';
 // dibiarkan tanpa auth, konsisten dengan halaman yang memanggilnya.
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const result = await calculateIntrinsicValue(params.ticker);
+    const { ticker } = await params;
+    const result = await calculateIntrinsicValue(ticker);
     if (!result) {
       return NextResponse.json({ error: 'No data found' }, { status: 404 });
     }

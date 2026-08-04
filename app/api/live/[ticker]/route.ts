@@ -8,9 +8,10 @@ export const revalidate = 60; // Cache for 60 seconds
 
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
-  let ticker = params.ticker;
+  const { ticker: rawTicker } = await params;
+  let ticker = rawTicker;
   if (!ticker.endsWith('.JK') && !ticker.includes('^')) {
     ticker = `${ticker}.JK`;
   }

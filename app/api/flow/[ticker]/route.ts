@@ -17,7 +17,7 @@ import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, an
 
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   // BUILD 003 (API Standard) - fitur ini Pro-only di UI, endpoint-nya sendiri harus
   // ikut digerbang supaya paywall tidak gampang dilewati dengan memanggil API langsung.
@@ -29,7 +29,8 @@ export async function GET(
     return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
 
-  const cleanTicker = params.ticker.toUpperCase().replace('.JK', '');
+  const { ticker: rawTicker } = await params;
+  const cleanTicker = rawTicker.toUpperCase().replace('.JK', '');
   const ticker = `${cleanTicker}.JK`;
 
   try {

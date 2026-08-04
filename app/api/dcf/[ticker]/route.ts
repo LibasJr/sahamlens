@@ -13,10 +13,11 @@ export const revalidate = 300;
 
 export async function GET(
   request: Request,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const result = await calculateDcfModel(params.ticker);
+    const { ticker } = await params;
+    const result = await calculateDcfModel(ticker);
     if (!result) {
       return NextResponse.json({ error: 'Data DCF tidak tersedia untuk simbol ini' }, { status: 404 });
     }

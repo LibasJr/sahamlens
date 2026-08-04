@@ -7,5 +7,5 @@ import { handleSetProStatus } from '@/modules/user';
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  return runController(async () => handleSetProStatus(cookies(), body));
+  return runController(async () => handleSetProStatus(await cookies(), body));
 }
