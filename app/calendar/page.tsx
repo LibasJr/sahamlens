@@ -11,6 +11,7 @@ import {
   Menu
 } from 'lucide-react';
 import PaywallModal from '@/components/PaywallModal';
+import { PageContainer } from '@/components/ui';
 
 type EventType = 'DIVIDEND' | 'EARNINGS';
 
@@ -163,7 +164,7 @@ export default function CalendarPage() {
         </div>
       </header>
 
-      <div className="p-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6">
         {loading && (
           <div className="flex items-center gap-2 text-sm text-tv-muted mb-4">
             <Loader2 className="w-4 h-4 animate-spin" /> Memuat kalender dari Yahoo Finance...
@@ -256,7 +257,7 @@ export default function CalendarPage() {
           </div>
 
         </div>
-      </div>
+      </PageContainer>
       <PaywallModal
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Globe, Compass } from 'lucide-react';
+import { PageContainer } from '@/components/ui';
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan C-03): halaman ini sebelumnya memanggil
 // /api/live/[ticker] (tidak pernah punya field `analysis.sector_rotation_matrix`/
@@ -26,7 +27,7 @@ export default function MacroPage() {
         moduleTitle="Macroeconomic Outlook"
       />
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-indigo-400/10 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
             <Globe className="w-6 h-6" />
@@ -56,7 +57,7 @@ export default function MacroPage() {
             data resmi.
           </p>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }

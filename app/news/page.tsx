@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Newspaper, Menu, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui';
+import { Badge, PageContainer } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 
 interface NewsItemDto {
@@ -63,7 +63,7 @@ export default function NewsPage() {
           tetap grid 2 kolom (bukan satu Card selebar 1600px) - kalau satu baris judul
           berita direntangkan sepanjang itu, terlalu lebar untuk dibaca nyaman. Lebar
           kontainer dan lebar baris teks dua urusan berbeda. */}
-      <div className="p-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <Newspaper className="w-4 h-4 text-tv-muted" />
           <h2 className="font-heading text-sm font-bold text-tv-text">
@@ -110,7 +110,7 @@ export default function NewsPage() {
             ))}
           </motion.div>
         )}
-      </div>
+      </PageContainer>
     </div>
   );
 }

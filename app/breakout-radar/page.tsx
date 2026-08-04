@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Target, Clock, Menu, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
-import { Badge } from '@/components/ui';
+import { Badge, PageContainer } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '');
 
@@ -157,7 +157,7 @@ export default function AiPickPage() {
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
             1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
-        <div className="p-6 max-w-[1600px] mx-auto w-full">
+        <PageContainer className="p-6">
           <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
@@ -302,7 +302,7 @@ export default function AiPickPage() {
             resmi. Tanda merah menandai sinyal yang bertentangan - saham tetap ditampilkan supaya
             kontradiksinya terlihat, bukan disembunyikan.
           </p>
-        </div>
+        </PageContainer>
       </div>
 
       <style dangerouslySetInnerHTML={{__html:`

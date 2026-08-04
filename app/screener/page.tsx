@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { Sliders, Award, Shield, Zap, RefreshCw, Filter, CheckCircle } from 'lucide-react';
+import { PageContainer } from '@/components/ui';
 
 type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
   | 'div_yield' | 'bandarmology' | 'moat' | 'signal' | 'pattern_tag' | 'sentiment'
@@ -99,7 +100,7 @@ export default function ScreenerPage() {
         moduleBank="LENSSCANNER"
       />
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         {/* Risk Profile Selection Bar */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -269,7 +270,7 @@ export default function ScreenerPage() {
             keuntungan. Tentukan batas risikomu sendiri dengan mempertimbangkan angka ini.
           </p>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }

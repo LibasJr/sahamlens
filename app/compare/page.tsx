@@ -7,7 +7,7 @@ import { Target, Search, RefreshCw, ArrowRightLeft, Menu } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Button } from '@/components/ui';
+import { Button, PageContainer } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -135,7 +135,7 @@ function CompareContent() {
         </header>
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
-        <div className="p-6 max-w-[1600px] mx-auto w-full space-y-6">
+        <PageContainer className="p-6 space-y-6">
 
           <form onSubmit={handleCompare} className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
@@ -220,7 +220,7 @@ function CompareContent() {
             </div>
           ) : null}
 
-        </div>
+        </PageContainer>
       </div>
       <style dangerouslySetInnerHTML={{
         __html: `

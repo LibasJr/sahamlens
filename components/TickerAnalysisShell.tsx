@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import Header from './Header';
 import { Card } from './ui/Card';
+import { PageContainer } from './ui/PageContainer';
 import { cn } from '../lib/utils/cn';
 import { fadeUp } from '../lib/motion';
 
@@ -54,7 +55,7 @@ export function TickerAnalysisShell({
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} />
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         <motion.div initial="hidden" animate="show" variants={fadeUp}>
           <Card variant="default" padding="lg" className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -71,7 +72,7 @@ export function TickerAnalysisShell({
         </motion.div>
 
         {children}
-      </div>
+      </PageContainer>
     </div>
   );
 }

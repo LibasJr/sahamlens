@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, PageContainer } from '@/components/ui';
 import { fadeUp } from '@/lib/motion';
 
 const formatIDR = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
@@ -392,7 +392,7 @@ export default function PortfolioPage() {
           jadi 2 kolom di layar lebar (kartu ekuitas sticky di kiri, holdings/riwayat di
           kanan) - sebelumnya max-w-4xl (896px) satu kolom menyisakan ruang kosong besar
           di kanan-kiri pada layar lebar. */}
-      <main className="max-w-[1600px] mx-auto mt-4 px-4 lg:px-6">
+      <PageContainer className="mt-4 px-4 lg:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
         <div className="space-y-4 lg:sticky lg:top-[73px]">
         {/* Hero Equity Card */}
@@ -580,7 +580,7 @@ export default function PortfolioPage() {
         )}
         </div>
         </div>
-      </main>
+      </PageContainer>
 
       {/* Order Modal */}
       {showOrderModal && (

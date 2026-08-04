@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Menu, Zap } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Input, Select, Button } from '@/components/ui';
+import { Input, Select, Button, PageContainer } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 // Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
 // disengaja: komponen ini 'use client', barrel modules/backtest re-export service yang
@@ -169,15 +169,15 @@ export default function BacktestPage() {
             filter SPESIFIK pilihan pengguna sendiri (mis. buat menerjemahkan bonus
             "Golden Cross" AI Pick ke saham lain yang kondisinya serupa SEKARANG),
             bukan skor komposit generik. */}
-        <div className="px-6 pt-6 max-w-[1600px] mx-auto w-full">
+        <PageContainer className="px-6 pt-6">
           <p className="text-xs text-tv-muted">
             <b>Backtest Sekarang</b>: uji kombinasi filter ini ke data masa lalu (return, win rate,
             drawdown, 3-24 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi
             kombinasi filter yang sama SEKARANG (data live, bukan simulasi).
           </p>
-        </div>
+        </PageContainer>
 
-        <div className="p-6 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <PageContainer className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Builder Panel */}
           <div className="lg:col-span-1 space-y-6">
@@ -440,7 +440,7 @@ export default function BacktestPage() {
                 )}
 
           </div>
-        </div>
+        </PageContainer>
       </div>
       <PaywallModal
         open={showLoginPrompt}

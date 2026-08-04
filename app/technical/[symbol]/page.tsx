@@ -6,6 +6,7 @@ import { Users, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
 import { cookies, headers } from 'next/headers';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
+import { PageContainer } from '@/components/ui';
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
   // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
@@ -196,7 +197,7 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
       
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
           max-w-7xl = 1280px). */}
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 rounded-lg bg-tv-card border border-tv-borderLight text-tv-green">
             <Users className="w-6 h-6" />
@@ -212,7 +213,7 @@ export default function TechnicalPage({ params }: { params: { symbol: string } }
         <Suspense fallback={<CouncilSkeleton symbol={symbol} />}>
           <CouncilDisplay symbol={symbol} />
         </Suspense>
-      </div>
+      </PageContainer>
     </div>
   );
 }

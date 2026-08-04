@@ -10,7 +10,7 @@ import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState } from '@/components/ui';
+import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer } from '@/components/ui';
 import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import {
@@ -568,7 +568,7 @@ function DashboardContent() {
         isAdmin={isAdminUser}
       />
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         {/* Status Badge */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
@@ -937,7 +937,7 @@ function DashboardContent() {
             <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-gold transition-colors" />
           </Link>
         </div>
-      </div>
+      </PageContainer>
 
       {/* AI Explain Modal */}
       {aiModalOpen && (

@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle, Menu } from 'lucide-react';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import { PageContainer } from '@/components/ui';
 
 // Risk Calculator - murni kalkulator matematika dari input pengguna (position sizing +
 // risk/reward), TIDAK ada angka yang dikarang/ditebak. Satu-satunya panggilan API adalah
@@ -90,7 +91,7 @@ function RiskCalculatorContent() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
@@ -267,7 +268,7 @@ function RiskCalculatorContent() {
             )}
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }
