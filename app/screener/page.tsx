@@ -95,7 +95,7 @@ export default function ScreenerPage() {
       <Header
         currentTicker=""
         onTickerChange={(t) => router.push(`/technical/${t.replace('.JK', '')}.JK`)}
-        moduleTitle="LensScanner Multi-Factor"
+        moduleTitle="LensScanner — Filter Saham Multi-Faktor"
         moduleBank="LENSSCANNER"
       />
 
