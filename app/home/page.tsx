@@ -447,61 +447,11 @@ export default function HomePage() {
         </Card>
       </motion.div>
 
-      {/* Jadwal Terdekat & LensRadar sejajar 1 baris - dua-duanya card isi-list yang
-          tinggi, jadi align lebih rapi dibanding sebelumnya dipasangkan dengan
-          LensMarket yang pendek. */}
-      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
-            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
-            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
-            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
-            corporate-calendar.service.ts). */}
-        <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-tv-gold" />
-                <CardTitle>Jadwal Terdekat</CardTitle>
-              </div>
-              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
-            </CardHeader>
-            {calendarEvents === null ? (
-              <div className="space-y-2">
-                {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
-              </div>
-            ) : calendarEvents.length === 0 ? (
-              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
-            ) : (
-              <div className="space-y-2">
-                {calendarEvents.map((e, i) => (
-                  <Link
-                    key={`${e.symbol}-${e.date}-${i}`}
-                    href={`/technical/${e.symbol}.JK`}
-                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
-                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
-                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
-                        </Badge>
-                      </div>
-                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
-                    </div>
-                    <span className="text-[11px] text-tv-muted font-number shrink-0">
-                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </Card>
-        </motion.div>
-
-        {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
-            LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
-            sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
-            WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
+      {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
+          LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
+          sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
+          WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
         <Card hoverable>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -519,11 +469,11 @@ export default function HomePage() {
               title="Data pasar sementara tidak tersedia."
               action={{ label: 'Coba lagi', onClick: fetchRadar }}
             />
-          ) : radarItems.length === 0 ? (
+          ) : radarItems.length <= 1 ? (
             <EmptyState title="Belum ada sinyal kuat hari ini." description="Cek LensRadar Live untuk daftar lengkap." />
           ) : (
             <div className="space-y-2">
-              {radarItems.map((it) => (
+              {radarItems.slice(1, 6).map((it) => (
                 <Link
                   key={it.symbol}
                   href={`/technical/${it.symbol}`}
@@ -599,6 +549,92 @@ export default function HomePage() {
         );
       })()}
 
+      {/* Jadwal Terdekat & LensWatch sejajar 1 baris - dua-duanya card isi-list yang
+          tinggi, jadi align lebih rapi dibanding sebelumnya dipasangkan dengan
+          LensMarket yang pendek. */}
+      <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
+            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
+            page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
+            punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
+            corporate-calendar.service.ts). */}
+        <motion.div variants={fadeUp}>
+          <Card hoverable>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-tv-gold" />
+                <CardTitle>Jadwal Terdekat</CardTitle>
+              </div>
+              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+            </CardHeader>
+            {calendarEvents === null ? (
+              <div className="space-y-2">
+                {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : calendarEvents.length === 0 ? (
+              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
+            ) : (
+              <div className="space-y-2">
+                {calendarEvents.map((e, i) => (
+                  <Link
+                    key={`${e.symbol}-${e.date}-${i}`}
+                    href={`/technical/${e.symbol}.JK`}
+                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
+                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
+                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                        </Badge>
+                      </div>
+                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                    </div>
+                    <span className="text-[11px] text-tv-muted font-number shrink-0">
+                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        </motion.div>
+
+        {/* LensWatch - ringkasan singkat, EmptyState kalau watchlist masih kosong
+            (bukan "tidak ada data" polos). */}
+        <motion.div variants={fadeUp}>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-tv-blue" />
+                <CardTitle>LensWatch</CardTitle>
+              </div>
+              <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
+            </CardHeader>
+            {watchlistCount === null ? (
+              <Skeleton className="h-11 w-full" />
+            ) : watchlistCount === 0 ? (
+              <EmptyState
+                title="Belum ada saham di watchlist"
+                description="Tambahkan saham untuk mulai memantau harga & alert."
+                action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
+              />
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  {watchlistPreview.map((w) => (
+                    <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
+                      {w.symbol.replace('.JK', '')}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
+              </div>
+            )}
+          </Card>
+        </motion.div>
+      </motion.div>
+
       {/* LensScanner - teaser, bukan full table (spec: full scanner sudah punya
           halaman sendiri /screener). */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
@@ -615,40 +651,6 @@ export default function HomePage() {
           <Link href="/screener" className="shrink-0 px-3 py-1.5 rounded-md bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-semibold transition-colors">
             Buka LensScanner
           </Link>
-        </Card>
-      </motion.div>
-
-      {/* LensWatch - ringkasan singkat, EmptyState kalau watchlist masih kosong
-          (bukan "tidak ada data" polos). */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-tv-blue" />
-              <CardTitle>LensWatch</CardTitle>
-            </div>
-            <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
-          </CardHeader>
-          {watchlistCount === null ? (
-            <Skeleton className="h-11 w-full" />
-          ) : watchlistCount === 0 ? (
-            <EmptyState
-              title="Belum ada saham di watchlist"
-              description="Tambahkan saham untuk mulai memantau harga & alert."
-              action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
-            />
-          ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                {watchlistPreview.map((w) => (
-                  <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
-                    {w.symbol.replace('.JK', '')}
-                  </span>
-                ))}
-              </div>
-              <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
-            </div>
-          )}
         </Card>
       </motion.div>
 
