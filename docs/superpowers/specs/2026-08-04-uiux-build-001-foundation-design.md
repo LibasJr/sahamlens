@@ -2,6 +2,11 @@
 
 Status: approved by user 2026-08-04, ready for implementation plan.
 
+**Correction pass (2026-08-04, during writing-plans research):** deeper file
+reads surfaced facts that change three sections below (A, B, C, F marked
+inline as `[CORRECTED]`). Recorded here instead of silently rewriting so the
+gap between initial brainstorm and actual code is visible.
+
 ## Context
 
 Source: full 25-point UI/UX audit spec provided by user ("Modern Financial
@@ -49,10 +54,16 @@ New order:
 2. **Today's Opportunities** — new section rendering `aiPicks` (ticker,
    LensScore/confidence, consensus badge) that is already fetched but
    currently discarded after deriving `topPick`.
-3. **LensRadar** — new section, reuse `/api/breakout-radar` data (same
-   source `app/breakout-radar/page.tsx` uses) showing status
-   (EARLY/WATCH/BREAKOUT/ACCUMULATION/DISTRIBUTION) + top 1-3 reasons per
-   card, replacing the generic "Sinyal Teknikal Bullish" (MA20>MA50) card.
+3. **LensRadar** `[CORRECTED]` — new section, reuse `/api/ai-pick` (this is
+   what `app/breakout-radar/page.tsx` "LensRadar Live" actually calls, NOT
+   `/api/breakout-radar` — that route exists but is unused by any page,
+   confirmed by grep). Data shape is a ranked composite list (`symbol`,
+   `finalScore`, `topReasons`, `flagged`/`flagReason`), not a status enum —
+   this codebase has no EARLY/WATCH/BREAKOUT/ACCUMULATION/DISTRIBUTION
+   classification anywhere. Show top 3-5 ranked items with score + top
+   reason, replacing the generic "Sinyal Teknikal Bullish" (MA20>MA50)
+   card. Do not invent a status taxonomy the backend doesn't compute
+   (violates "no dummy data").
 4. **Market Movers** — Gainer/Loser/Volume/Technical collapsed into one card
    with tabs using the existing `SegmentedControl` component, replacing the
    current 3-4 separate cards. Shortens page length per spec principle
@@ -66,14 +77,22 @@ Jadwal Terdekat (calendar) demoted to secondary visual weight (smaller
 card, not equal-weight with LensRadar/Today's Opportunities) — applies
 principle "not every card has equal visual weight."
 
-## B. Navigation — branded page headings
+## B. Navigation — branded page headings `[CORRECTED]`
 
-No changes to `components/Sidebar.tsx`. Add/confirm branded `moduleTitle`
-prop (via existing `Header` component pattern, already used by
-`/dashboard` as `"LensTechnical — Pure Algorithmic Trading"`) on:
-- `app/breakout-radar/page.tsx` → `"LensRadar — Breakout & Opportunity Scanner"`
-- `app/screener/page.tsx` → `"LensScanner — Filter Saham Multi-Faktor"`
-- `app/watchlist/page.tsx` → `"LensWatch — Portfolio & Notifikasi"`
+No changes to `components/Sidebar.tsx`. All three pages already show the
+brand name prominently in their own custom header markup (not the shared
+`Header` component's `moduleTitle` prop — that pattern is `/dashboard`-only):
+`/breakout-radar` renders "LensRadar Live" as an `<h1>`, `/screener` already
+passes `moduleTitle="LensScanner Multi-Factor"`, `/watchlist` renders
+"LensWatch" as an `<h2>`. Branding itself is not missing.
+
+Remaining gap: none of the three follow the spec's "Name — Description"
+subtitle pattern (item 19) the way `/dashboard` does
+("LensTechnical — Pure Algorithmic Trading"). Task is a small copy addition
+next to each existing heading, not new branding:
+- `/breakout-radar` → subtitle "Breakout & Opportunity Scanner"
+- `/screener` → adjust to "LensScanner — Filter Saham Multi-Faktor"
+- `/watchlist` → subtitle "Portfolio & Notifikasi"
 
 ## C. Stock Detail (`/dashboard`) hierarchy
 
@@ -90,15 +109,19 @@ Changes:
 - Move the "Update: HH:MM" freshness text from the status-badge row into
   the Hero, next to the price (spec wants freshness near the data it
   describes, not in a separate row above).
-- **Add LensRadar Status badge** between the LensScore block (AI Summary)
-  and LensFlow (`BandarFlowPro`) — small badge showing this ticker's
-  current breakout-radar status if available (reuse the same data source as
-  section A's LensRadar list; if the ticker has no active signal, omit the
-  badge rather than showing a false "no signal" negative state).
-- Move chart earlier, directly after AI Summary / before LensFlow, matching
-  spec order Chart→LensScore→LensRadar→LensFlow (chart currently already
-  sits between them, confirm/adjust only if implementation reveals it's
-  further down).
+- **Add LensRadar rank badge** `[CORRECTED]` between the LensScore block
+  (AI Summary) and LensFlow (`BandarFlowPro`) — small badge showing this
+  ticker's rank/score/top reason from `/api/ai-pick`'s current list (same
+  source as section A) if the ticker appears in it; omit entirely if not
+  present, rather than inventing a "no signal" status the backend doesn't
+  compute (see correction in section A — no status enum exists).
+- **Chart/LensScore order confirmed unchanged** — resolved via
+  AskUserQuestion during writing-plans research. Current order is
+  Hero→LensScore(AI Summary)→Chart→LensFlow, which was an explicit BUILD
+  004 decision from the prior redesign session, not an accident. The
+  source spec's Chart-before-LensScore ordering is NOT applied here to
+  avoid overriding a deliberate prior product decision with a ~130-line
+  JSX block move for a cosmetic-only reorder.
 - **Skip**: LensTechnical indicator grouping (TREND/MOMENTUM/VOLATILITY/
   VOLUME/LEVELS, spec item 11). Not applicable — this page's content is "10
   Pure Math Filters" (named trading methods/strategies), not a flat raw
@@ -129,19 +152,31 @@ Today's Opportunities (AI Picks), LensRadar (section A, new) on `/home`;
 Hero price fetch on `/dashboard`. No indefinite/unbounded loading — every
 loading state must resolve to SUCCESS, ERROR, or EMPTY.
 
-## F. Freshness
+## F. Freshness `[CORRECTED]`
 
-- `/dashboard`: already shows "Update: HH:MM" — keep it, relocate near
-  price (see section C).
-- `/home`: no freshness indicator exists — add a small
-  `"Updated HH:MM WIB"` label near each data section (LensMarket, Market
-  Movers, LensRadar). If more than 15 minutes since the client received
-  the data, switch label to amber + append
-  `"Data mungkin sudah tidak terbaru."`
-- Known limitation: this is a client-side `Date.now()` timestamp captured
-  at successful fetch, not a real server/exchange timestamp — existing
-  APIs don't return one. Documented here so it isn't mistaken for a
-  guarantee of exchange-feed recency.
+Freshness infrastructure already exists at the API layer — a prior session
+("audit integritas data 2026-08-03") built `shared/http/freshness.ts`
+(`classifyFreshness` for real market-time-based freshness: DELAYED/EOD/
+STALE/UNKNOWN, and `describeCacheAge` for cache-age-based freshness:
+FRESH/CACHED/STALE) and wired it into `/api/live/[ticker]` (`freshness`
+field, computed from Yahoo's real `regularMarketTime`, not server time),
+`/api/market-summary` (`_meta: { freshness, cachedAgeSec, cacheTtlSec }`),
+and `/api/recommendations` (per-item `_meta` with the same shape). This
+work is NOT yet surfaced in `/home`'s UI.
+
+Concretely: `components/MarketMoverCard.tsx` already accepts and renders a
+`lastUpdated: string | null` prop ("Update {lastUpdated || '--:--'} • IDX")
+but `app/home/page.tsx` hardcodes `lastUpdated={null}` on every call site —
+the plumbing exists, it's just not connected. Task is to:
+- Pass real freshness/timestamp data from `/api/market-summary`'s `_meta`
+  and `/api/live/^JKSE`'s `freshness`/`lastUpdate` into the `lastUpdated`
+  prop and into a small label near LensMarket/AI Picks/LensRadar sections.
+- If `_meta.freshness === 'STALE'` (or `/api/live` returns `STALE`), switch
+  the label to amber + append "Data mungkin sudah tidak terbaru."
+- No new API work needed — this section is purely wiring already-computed
+  server data into `/home`'s existing render, not fabricating a client-side
+  `Date.now()` proxy (the original brainstorm draft assumed no freshness
+  data existed at all — that assumption was wrong).
 
 ## G. Mobile audit
 
