@@ -212,7 +212,7 @@ export default function AiPickPage() {
                         const isExpanded = expandedSymbol === it.symbol;
                         return (
                         <React.Fragment key={it.symbol}>
-                        <tr className="hover:bg-tv-hover/30">
+                        <tr className={`hover:bg-tv-hover/30 border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}>
                           <td className="py-3 px-4 text-tv-muted">{idx + 1}</td>
                           <td className="py-3 px-4 font-bold font-number whitespace-nowrap">
                             <Link
@@ -223,6 +223,9 @@ export default function AiPickPage() {
                             </Link>
                             {it.flagged && (
                               <span className="ml-2 text-tv-red text-xs font-normal">! {it.flagReason}</span>
+                            )}
+                            {it.topReasons?.[0] && (
+                              <div className="text-[10px] font-normal text-tv-muted truncate max-w-[220px]">{it.topReasons[0]}</div>
                             )}
                           </td>
                           <td className="py-3 px-4 text-right font-number text-tv-muted">
