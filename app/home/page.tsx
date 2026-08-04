@@ -15,7 +15,7 @@ import {
   TrendingDown,
   BarChart3,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
@@ -250,6 +250,55 @@ export default function HomePage() {
               )}
             </div>
           </div>
+        </Card>
+      </motion.div>
+
+      {/* Today's Opportunities - aiPicks sudah di-fetch di atas tapi sebelumnya
+          cuma dipakai untuk derive topPick di briefing text, tidak pernah
+          dirender sebagai list sendiri (audit BUILD 001). */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-tv-green" />
+              <CardTitle>Today&apos;s Opportunities</CardTitle>
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
+          </CardHeader>
+          {loadingPicks ? (
+            <div className="space-y-2">
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : picksLoginRequired ? (
+            <EmptyState title="Login untuk melihat LensAI Picks" description="Sinyal AI harian butuh akun." />
+          ) : picksNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensAI Picks harian." />
+          ) : aiPicks.length === 0 ? (
+            <EmptyState title="Belum ada peluang kuat hari ini" description="Coba cek lagi nanti setelah jam bursa berjalan." />
+          ) : (
+            <div className="space-y-2">
+              {aiPicks.slice(0, 5).map((p) => (
+                <Link
+                  key={p.ticker}
+                  href={`/technical/${p.ticker}.JK`}
+                  className="flex items-center justify-between gap-3 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2.5 hover:border-tv-borderLight transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-number text-sm font-bold text-white shrink-0">{p.ticker}</span>
+                    <Badge variant={p.consensus.includes('BUY') ? 'success' : p.consensus.includes('SELL') ? 'danger' : 'neutral'}>
+                      {p.consensus}
+                    </Badge>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-number text-sm font-semibold text-white">LensScore {p.confidence}%</div>
+                    <div className={`text-[11px] font-number ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                      {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(2)}%
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </Card>
       </motion.div>
 
