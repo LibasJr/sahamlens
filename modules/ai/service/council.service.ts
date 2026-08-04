@@ -53,6 +53,57 @@ ATURAN:
 Output JSON valid saja.
 `;
 
+/** Angka yang boleh muncul di jawaban AI: yang kita kirim sendiri di DATA REAL, plus
+ * turunan aritmatik wajar darinya (rasio risk/reward, persentase jarak ke support, dst).
+ * Toleransi 1.5% menampung pembulatan model. */
+function isKnownNumber(n: number, known: number[]): boolean {
+  if (!Number.isFinite(n)) return true;
+  // Angka kecil (<= 100) terlalu sering muncul sebagai persentase/rasio/urutan hasil
+  // hitungan sah ("RR 1:4.33", "risk 2.14%", "3 dari 10 agent") - memeriksanya justru
+  // menghasilkan false positive massal. Yang benar-benar berbahaya adalah angka yang
+  // MENYERUPAI harga/level/nilai finansial IDX (ratusan ke atas).
+  if (Math.abs(n) <= 100) return true;
+  return known.some((k) => Number.isFinite(k) && Math.abs(k) > 0 && Math.abs(n - k) / Math.abs(k) <= 0.015);
+}
+
+/** Kembalikan potongan teks pertama yang memuat angka berskala harga yang TIDAK ada di
+ * DATA REAL, atau null kalau seluruh angka bisa dipertanggungjawabkan. */
+function findFabricatedNumbers(json: any, promptData: Record<string, unknown>): string | null {
+  const known: number[] = [];
+  for (const v of Object.values(promptData)) {
+    const n = typeof v === 'number' ? v : parseFloat(String(v));
+    if (Number.isFinite(n)) known.push(n);
+  }
+  // Level turunan yang WAJAR disebut agen S/R & Risk Manager: titik tengah support-
+  // resistance dan jarak ATR dari harga. Ini hitungan sah dari data yang sudah diberikan,
+  // bukan karangan - dimasukkan supaya tidak jadi false positive.
+  const price = Number(promptData.price);
+  const support = Number(promptData.support);
+  const resistance = Number(promptData.resistance);
+  const atr = Number(promptData.atr);
+  if (Number.isFinite(support) && Number.isFinite(resistance)) known.push((support + resistance) / 2);
+  if (Number.isFinite(price) && Number.isFinite(atr)) known.push(price + atr, price - atr, price + 2 * atr, price - 2 * atr);
+
+  const texts: string[] = [];
+  const collect = (node: any) => {
+    if (typeof node === 'string') texts.push(node);
+    else if (Array.isArray(node)) node.forEach(collect);
+    else if (node && typeof node === 'object') Object.values(node).forEach(collect);
+  };
+  collect(json);
+
+  for (const text of texts) {
+    // Buang pemisah ribuan gaya Indonesia (1.234) supaya "Rp 6.500" terbaca 6500.
+    const normalized = text.replace(/(\d)\.(?=\d{3}\b)/g, '$1');
+    const matches = normalized.match(/-?\d+(?:[.,]\d+)?/g) || [];
+    for (const m of matches) {
+      const n = parseFloat(m.replace(',', '.'));
+      if (!isKnownNumber(n, known)) return `"${text.slice(0, 120)}" (angka ${m})`;
+    }
+  }
+  return null;
+}
+
 // cacheKey opsional (dari app/api/council/route.ts, biasanya "tanggal:kuartal-terakhir-
 // dilaporkan") - kalau tidak diberi, fallback ke tanggal kalender hari ini seperti semula
 // (dipertahankan supaya pemanggil lama tanpa cacheKey tetap jalan).
@@ -117,6 +168,19 @@ export async function getCouncil(symbol: string, data: any, cacheKey?: string) {
       return runLocalCouncil(symbol, data);
     }
     const json = JSON.parse(jsonStr);
+
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-6): output model SEBELUMNYA
+    // langsung di-cache 6 jam dan dikirim ke pengguna tanpa satu pun pemeriksaan bahwa
+    // angka yang disebutnya memang berasal dari blok DATA REAL. Prompt memang melarang
+    // mengarang, tapi larangan di prompt BUKAN penegakan - apalagi cascade provider di
+    // sini menyertakan model gratis (llama/deepseek `:free`) yang paling rawan. Sekarang
+    // respons diperiksa dulu; kalau memuat angka finansial yang tidak ada di data yang
+    // kita kirim, respons itu DIBUANG dan jatuh ke fallback lokal yang deterministik.
+    const violation = findFabricatedNumbers(json, promptData);
+    if (violation) {
+      console.warn(`[COUNCIL] Output AI ditolak untuk ${symbol} - angka tidak ada di DATA REAL: ${violation}`);
+      return runLocalCouncil(symbol, data);
+    }
 
     // Save cache
     await setCouncilCache(symbol, key, json);

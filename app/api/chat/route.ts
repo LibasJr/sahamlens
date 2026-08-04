@@ -4,6 +4,8 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
+import { fetchYahooHistory, calculateRsi } from '@/modules/technical';
+import { classifyFreshness } from '@/shared/http/freshness';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -16,7 +18,38 @@ const MAX_HISTORY_TURNS = 8;
 // lib/aiProviders.ts) - sebelumnya endpoint ini SAMA SEKALI tidak menerima riwayat,
 // jadi begitu satu giliran gagal/error, giliran berikutnya (mis. user cuma balas
 // "lah" atau "waduh error") dikirim tanpa konteks apa pun dan AI menjawab ngasal.
-function buildSystemPrompt(context: string, hasHistory: boolean) {
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan H-12): `context` datang dari
+// browser dan dulu menjadi SATU-SATUNYA sumber angka bagi LensAI - padahal aturan #5 di
+// bawah menyuruh model menyimpulkan BELI/JUAL beserta level entry/exit dari situ. Siapa
+// pun bisa mengirim context dengan harga/valuasi karangan dan mendapat rekomendasi yang
+// terdengar meyakinkan di atasnya. Sekarang server mengambil sendiri harga & RSI terkini
+// untuk simbol yang sedang dibahas, dan blok terverifikasi itu dinyatakan MENANG atas
+// angka apa pun di context bila keduanya berselisih.
+async function buildVerifiedBlock(symbol: string | null): Promise<string> {
+  if (!symbol) return '';
+  const ticker = symbol.toUpperCase().includes('.') || symbol.startsWith('^')
+    ? symbol.toUpperCase()
+    : `${symbol.toUpperCase()}.JK`;
+  try {
+    const chart = await fetchYahooHistory(ticker, '1y');
+    if (!chart) return '';
+    const closes = chart.history.map((h) => h.AdjClose ?? h.Close);
+    const rsi = calculateRsi(closes, 14);
+    const fresh = classifyFreshness(chart.regularMarketTime);
+    return [
+      '',
+      '## Data Terverifikasi Server (OTORITATIF - kalau ada angka di "Data Referensi" yang berbeda dari sini, PAKAI YANG DI SINI):',
+      `- Simbol: ${ticker}`,
+      `- Harga terakhir: ${chart.currentPrice}`,
+      rsi != null ? `- RSI 14: ${rsi.toFixed(2)}` : '- RSI 14: tidak tersedia',
+      `- Kesegaran data: ${fresh.freshness}${fresh.dataTimestamp ? ` (bar ${fresh.dataTimestamp})` : ''}`,
+    ].join('\n');
+  } catch {
+    return '';
+  }
+}
+
+function buildSystemPrompt(context: string, hasHistory: boolean, verifiedBlock = '') {
   return `Kamu adalah LensAI, analis senior di platform SahamLens — analisis saham Indonesia.
 
 ## Aturan Menjawab:
@@ -35,8 +68,11 @@ ${hasHistory
   ? '12. Ini BUKAN pesan pertama di sesi ini (ada "Riwayat Percakapan" di bawah) - LANGSUNG jawab pertanyaannya, JANGAN buka dengan sapaan/perkenalan ulang ("Halo, saya LensAI...", "Baik, saya akan menganalisis...", dst). Pengguna sudah tahu sedang ngobrol dengan siapa.'
   : '12. ini pesan PERTAMA di sesi ini - boleh dibuka dengan sapaan singkat 1 kalimat sebelum masuk ke analisis, tapi jangan bertele-tele.'}
 
-## Data Referensi:
+13. "Data Referensi" di bawah dikirim dari perangkat pengguna dan TIDAK terverifikasi. Kalau ada blok "Data Terverifikasi Server", itu yang benar - angka apa pun di "Data Referensi" yang bertentangan dengannya WAJIB diabaikan, dan jangan pernah membangun rekomendasi harga di atas angka yang tidak muncul di blok terverifikasi.
+
+## Data Referensi (dari perangkat pengguna, belum terverifikasi):
 ${context}
+${verifiedBlock}
 
 Jika pengguna bertanya hal umum tentang saham, kaitkan dengan saham di konteks.`;
 }
@@ -51,6 +87,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const prompt = typeof body.prompt === 'string' ? body.prompt.slice(0, MAX_PROMPT_LEN) : '';
     const context = typeof body.context === 'string' ? body.context.slice(0, MAX_CONTEXT_LEN) : '';
+    // Simbol dipakai untuk mengambil ulang harga/RSI dari sumber data di sisi SERVER
+    // (temuan H-12) - tidak dipercaya sebagai angka, cuma sebagai penunjuk emiten.
+    const symbol = typeof body.symbol === 'string' && /^[\^A-Za-z0-9.]{1,12}$/.test(body.symbol.trim())
+      ? body.symbol.trim()
+      : null;
     const rawHistory = Array.isArray(body.history) ? body.history : [];
     const history = rawHistory
       .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
@@ -82,8 +123,9 @@ export async function POST(request: Request) {
       : '';
 
     const fullPrompt = `${historyTranscript}\n\nPertanyaan User: ${prompt}`;
+    const verifiedBlock = await buildVerifiedBlock(symbol);
     const responseText = await generateAI({
-      system: buildSystemPrompt(context, history.length > 0),
+      system: buildSystemPrompt(context, history.length > 0, verifiedBlock),
       prompt: fullPrompt,
       timeoutMs: 10000,
     });

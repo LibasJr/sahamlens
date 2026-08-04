@@ -17,6 +17,16 @@ import { PageContainer } from '@/components/ui';
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan H-13): kartu-kartu fundamental di
+// bawah SEBELUMNYA memakai `|| 0` sehingga data yang TIDAK TERSEDIA dirender sebagai
+// angka nol yang terlihat seperti fakta ("P/E Ratio 0.00x", "Market Cap Rp 0.00 T",
+// "ROE 0.00%"). Untuk data finansial, 0 bukan sinonim "tidak ada" - bank memang tidak
+// mengirim debtToEquity ke Yahoo dan emiten rugi memang tidak punya trailingPE. Formatter
+// di bawah menampilkan "N/A" apa adanya.
+const fmtKali = (v: number | null | undefined) => (typeof v === 'number' ? `${v.toFixed(2)}x` : 'N/A');
+const fmtPersen = (fraksi: number | null | undefined) => (typeof fraksi === 'number' ? `${(fraksi * 100).toFixed(2)}%` : 'N/A');
+const fmtTriliun = (v: number | null | undefined) => (typeof v === 'number' ? `Rp ${(v / 1e12).toFixed(2)} T` : 'N/A');
+
 // BUG FIX (2026-08-01): sama seperti /dcf - dulu tidak baca ?symbol= dari URL sama
 // sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
 // Analyzer (yang sekarang mengirim ?symbol=<ticker aktif>) langsung akurat.
@@ -176,7 +186,8 @@ function FundamentalContent() {
   };
 
   const stock = data?.stock || {};
-  const tech = data?.technical || {};
+  // `tech` dihapus (audit 2026-08-05): variabel mati - /api/fundamental tidak pernah
+  // mengembalikan field `technical`, dan halaman ini tidak merender chart sama sekali.
   const candles = data?.stock?.history || [];
   let analyzers = data?.analyzers || [];
 
@@ -230,13 +241,16 @@ function FundamentalContent() {
   // BULLISH/BEARISH terakhir dicocokkan ke pergerakan harga kunjungan berikutnya.
   // Butuh minimal 20 sampel sebelum dianggap representatif; di bawah itu null
   // (bukan angka karangan) supaya UI bisa menampilkan "belum cukup data" apa adanya.
+  //
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-3): nilainya dulu di-clamp
+  // ke rentang 45-95% - hit-rate riil 20% ditampilkan "45%". Clamp dihapus dan jumlah
+  // sampel ikut dilaporkan, sama seperti app/dashboard/page.tsx.
   const getAccuracyPct = (algoName: string): string | null => {
     const score = scores[algoName];
     if (!score) return null;
     const total = score.correct + score.wrong;
     if (total < 20) return null;
-    const acc = Math.min(95, Math.max(45, Math.round((score.correct / total) * 100)));
-    return `${acc}%`;
+    return `${Math.round((score.correct / total) * 100)}% (n=${total})`;
   };
 
   return (
@@ -353,41 +367,44 @@ function FundamentalContent() {
               <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                   <span className="text-[10px] text-tv-muted uppercase">Market Cap</span>
-                  <span className="font-number text-lg font-bold text-white">Rp {((data?.fundamentals?.marketCap || 0) / 1e12).toFixed(2)} T</span>
+                  <span className="font-number text-lg font-bold text-white">{fmtTriliun(data?.fundamentals?.marketCap)}</span>
                 </div>
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                   <span className="text-[10px] text-tv-muted uppercase">P/E Ratio (TTM)</span>
-                  <span className="font-number text-lg font-bold text-white">{(data?.fundamentals?.trailingPE || 0).toFixed(2)}x</span>
+                  <span className="font-number text-lg font-bold text-white">{fmtKali(data?.fundamentals?.trailingPE)}</span>
                 </div>
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                   <span className="text-[10px] text-tv-muted uppercase">Price to Book (PBV)</span>
-                  <span className="font-number text-lg font-bold text-white">{(data?.fundamentals?.priceToBook || 0).toFixed(2)}x</span>
+                  <span className="font-number text-lg font-bold text-white">{fmtKali(data?.fundamentals?.priceToBook)}</span>
                 </div>
                 <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                   <span className="text-[10px] text-tv-muted uppercase">Return on Equity (ROE)</span>
-                  <span className={`font-number text-lg font-bold ${((data?.fundamentals?.returnOnEquity || 0) * 100) > 0 ? 'text-tv-green' : 'text-tv-red'}`}>{((data?.fundamentals?.returnOnEquity || 0) * 100).toFixed(2)}%</span>
+                  <span className={`font-number text-lg font-bold ${
+                    data?.fundamentals?.returnOnEquity == null ? 'text-tv-muted'
+                      : data.fundamentals.returnOnEquity > 0 ? 'text-tv-green' : 'text-tv-red'
+                  }`}>{fmtPersen(data?.fundamentals?.returnOnEquity)}</span>
                 </div>
                 {/* BUG 2 FIX: Sembunyikan DER & CR untuk bank, tampilkan rasio bank */}
                 {!(data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) ? (
                   <>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">Gross Margin</span>
-                      <span className="font-number text-lg font-bold text-white">{(data?.fundamentals?.grossMargins ? (data.fundamentals.grossMargins * 100).toFixed(2) : 'N/A')}%</span>
+                      <span className="font-number text-lg font-bold text-white">{fmtPersen(data?.fundamentals?.grossMargins)}</span>
                     </div>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">Pendapatan (Revenue)</span>
-                      <span className="font-number text-lg font-bold text-white">Rp {((data?.fundamentals?.totalRevenue || 0) / 1e12).toFixed(2)} T</span>
+                      <span className="font-number text-lg font-bold text-white">{fmtTriliun(data?.fundamentals?.totalRevenue)}</span>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">NIM (Net Interest Margin)</span>
-                      <span className="font-number text-lg font-bold text-tv-green">{(data?.fundamentals?.nim ? (data.fundamentals.nim * 100).toFixed(2) : 'N/A')}%</span>
+                      <span className="font-number text-lg font-bold text-tv-green">{fmtPersen(data?.fundamentals?.nim)}</span>
                     </div>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">Pendapatan (Revenue)</span>
-                      <span className="font-number text-lg font-bold text-white">Rp {((data?.fundamentals?.totalRevenue || 0) / 1e12).toFixed(2)} T</span>
+                      <span className="font-number text-lg font-bold text-white">{fmtTriliun(data?.fundamentals?.totalRevenue)}</span>
                     </div>
                   </>
                 )}
@@ -439,8 +456,10 @@ function FundamentalContent() {
                         <span className="text-white">Conf: {algo.confidence}%</span>
                       </div>
                       <div className="pt-2 border-t border-tv-hover text-[10px]">
-                        <span className="text-tv-muted block">Hist. Accuracy (Local)</span>
-                        <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? '-'}</span>
+                        {/* Lihat catatan label yang sama di components/AlgoFilters.tsx
+                            (audit 2026-08-05, temuan C-3). */}
+                        <span className="text-tv-muted block">Hit-rate tracking lokal</span>
+                        <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? 'Sampel belum cukup'}</span>
                       </div>
                     </div>
                   );

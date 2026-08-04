@@ -8,7 +8,15 @@
 // korporasi) tidak terbaca sebagai sinyal BEARISH pasar murni. Fallback ke Close untuk
 // pemanggil yang belum menyediakan AdjClose (lihat yahoo-history.service.ts).
 export function analyze(history: any[], currentPrice: number) {
-  if (history.length < 200) return { label: 'Trend MA (20,50,200)', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (history.length < 200) {
+    return {
+      label: 'MA Trend IDX (20,50,200)',
+      value: 'N/A',
+      decision: 'NEUTRAL',
+      confidence: 0,
+      raw: { ma20: null as number | null, ma50: null as number | null, ma200: null as number | null },
+    };
+  }
 
   const closeOf = (h: any) => h.AdjClose ?? h.Close;
   const sum20 = history.slice(-20).reduce((acc, h) => acc + closeOf(h), 0);
@@ -41,6 +49,9 @@ export function analyze(history: any[], currentPrice: number) {
     label: 'MA Trend IDX (20,50,200)',
     value: `P:${currentPrice}, MA20:${ma20.toFixed(0)}, MA50:${ma50.toFixed(0)}, MA200:${ma200.toFixed(0)}`,
     decision,
-    confidence: Math.round(confidence)
+    confidence: Math.round(confidence),
+    // `raw` (angka asli, pola temuan M-03) - dipakai RiskRewardCalculator & badge MA
+    // Status supaya tidak ada lagi konsumen yang mem-parse string tampilan (temuan M-8).
+    raw: { ma20, ma50, ma200 },
   };
 }

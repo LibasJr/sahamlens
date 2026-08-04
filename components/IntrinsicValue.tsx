@@ -41,14 +41,10 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     fetch('/api/intrinsic-explain', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        symbol,
-        fairValue: data.fair_value,
-        harga: data.harga,
-        mos: data.mos,
-        sektor: data.sektor,
-        methods: data.methods,
-      }),
+      // Hanya simbol yang dikirim (audit 2026-08-05, temuan H-12) - angka valuasinya
+      // dihitung ulang di server, supaya narasi LensAI tidak pernah bisa dibangun di atas
+      // angka yang dikirim dari browser.
+      body: JSON.stringify({ symbol }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!cancelled && d?.explanation) setExplanation(d.explanation); })
@@ -129,12 +125,27 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
         <div className="col-span-1 flex flex-col justify-center space-y-4">
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4 text-center relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-full h-1 ${mosBg}`}></div>
-            <div className="text-xs text-tv-muted uppercase mb-2">Estimasi Harga Wajar (Median)</div>
+            {/* BUG FIX (audit logika & algoritma 2026-08-05, temuan H-3/H-4): label ini
+                dulu berbunyi "Estimasi Harga Wajar (Median)" - dua klaim yang keliru
+                sekaligus. (1) Angkanya BUKAN median, melainkan rata-rata BERBOBOT menurut
+                router sektor (median cuma dipakai di satu cabang cadangan yang jarang
+                terjadi). (2) Tidak ada penanda bahwa ini keluaran MODEL dengan asumsi
+                tetap (discount rate 12%, pertumbuhan perpetuitas 5%, PER wajar 15x yang
+                SAMA untuk semua emiten), sehingga terbaca seperti pengukuran. */}
+            <div className="text-xs text-tv-muted uppercase mb-2">Estimasi Nilai Wajar (Model)</div>
             <div className="font-number text-3xl font-bold text-white mb-1">
               Rp {formatIDR(fair_value)}
             </div>
             <div className="font-number text-sm text-tv-muted flex items-center justify-center gap-2">
               Harga saat ini: Rp {formatIDR(harga)}
+            </div>
+            <div className="text-[10px] text-tv-muted/80 mt-2 leading-relaxed">
+              Rata-rata berbobot beberapa metode valuasi menurut sektor, dengan asumsi
+              tetap yang sama untuk semua emiten
+              {data?.assumptions
+                ? ` (diskonto ${data.assumptions.discount_rate_pct}%, pertumbuhan perpetuitas ${data.assumptions.perpetual_growth_pct}%, PER wajar ${data.assumptions.fair_per}x)`
+                : ''}
+              . Keluaran model - bukan target harga analis.
             </div>
           </div>
 

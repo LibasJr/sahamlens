@@ -55,6 +55,7 @@ export default function Recommendations() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [cacheMeta, setCacheMeta] = useState<{ cachedAgeSec: number; cacheTtlSec: number } | null>(null);
   const [isClient, setIsClient] = useState(false);
   const fetchRef = React.useRef(false);
 
@@ -103,6 +104,9 @@ export default function Recommendations() {
           return;
         }
         if (!res.ok) continue;
+        // Umur cache hasil scan (temuan M-13) - backend mengirimnya lewat `_meta`, dulu
+        // tidak pernah dibaca sehingga hasil cron 14 menit lalu tampil seperti baru.
+        if (json?._meta) setCacheMeta(json._meta);
 
         if (json.recommendations) {
           setData(prev => {
@@ -243,6 +247,11 @@ export default function Recommendations() {
             </button>
             <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
               Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Menunggu...'}
+              {cacheMeta && (
+                <span className="ml-2 text-tv-muted">
+                  · Skor {cacheMeta.cachedAgeSec < 60 ? 'baru dihitung' : `dihitung ${Math.round(cacheMeta.cachedAgeSec / 60)} menit lalu`}
+                </span>
+              )}
               {loading && ` (Scanned: ${data.length}/${LIQUID_STOCKS.length})`}
             </div>
           </div>
@@ -299,7 +308,10 @@ export default function Recommendations() {
                     className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
                     onClick={() => handleSort('sentimentScore')}
                   >
-                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('sentimentScore')} Sentimen Momentum</div>
+                    {/* Label diperbaiki (audit 2026-08-05, temuan H-9): kolom ini tidak
+                        pernah mengukur sentimen - isinya persentase analyzer teknikal yang
+                        bervote bullish. */}
+                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('sentimentScore')} Bias Teknikal</div>
                   </th>
                   <th
                     className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
@@ -373,13 +385,21 @@ export default function Recommendations() {
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex flex-col items-center justify-center gap-1">
-                        <span className={`text-xs font-bold ${item.sentimentScore >= 55 ? 'text-tv-green' : item.sentimentScore <= 45 ? 'text-tv-red' : 'text-tv-yellow'
+                        <span className={`text-xs font-bold ${
+                          item.sentimentScore == null ? 'text-tv-muted'
+                            : item.sentimentScore >= 55 ? 'text-tv-green'
+                            : item.sentimentScore <= 45 ? 'text-tv-red' : 'text-tv-yellow'
                           }`}>
                           {item.sentimentLabel}
                         </span>
-                        <div className="w-24 h-1.5 bg-tv-bg rounded-full overflow-hidden flex">
-                          <div className="h-full bg-gradient-to-r from-tv-red via-tv-yellow to-tv-green" style={{ width: `${item.sentimentScore}%` }} />
-                        </div>
+                        {item.sentimentScore != null && (
+                          <>
+                            <div className="w-24 h-1.5 bg-tv-bg rounded-full overflow-hidden flex">
+                              <div className="h-full bg-gradient-to-r from-tv-red via-tv-yellow to-tv-green" style={{ width: `${item.sentimentScore}%` }} />
+                            </div>
+                            <span className="text-[10px] text-tv-muted font-mono">{item.sentimentScore}% bullish</span>
+                          </>
+                        )}
                       </div>
                     </td>
                     <td className="p-4 text-center">

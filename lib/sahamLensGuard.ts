@@ -1,40 +1,24 @@
-import path from 'path';
-
-const isVercel = !!process.env.VERCEL;
-
+// Pemeriksaan awal saat route dimuat. Ringan & tidak boleh punya efek samping terhadap
+// data - hanya melaporkan konfigurasi yang kurang.
+//
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan L-6): guard ini SEBELUMNYA menulis
+// file `data/portfolios.json` berisi portofolio contoh (telegram_id hardcoded, kas Rp100
+// juta) kalau folder `data/` belum ada. Portofolio sudah lama pindah ke Postgres
+// (modules/portfolio/repository/*), jadi file itu tidak pernah dibaca kode mana pun lagi -
+// yang tersisa hanyalah efek samping menulis data keuangan karangan ke disk setiap kali
+// aplikasi dijalankan di lingkungan baru. Blok itu dihapus (dan file sisanya ikut dibuang).
+//
+// Peringatan provider AI juga diperbaiki: aplikasi ini mendukung Gemini, Groq, dan
+// OpenRouter (lihat lib/aiProviders.ts). Memperingatkan HANYA soal GEMINI_API_KEY
+// menyesatkan - deployment yang cuma memasang GROQ_API_KEY sebenarnya baik-baik saja.
 export function guard() {
-  // Cek 1: data folder ada gak? (Skip di Vercel karena filesystem read-only)
-  if (!isVercel) {
-    try {
-      const fs = require('fs');
-      const dataDir = path.join(process.cwd(), 'data');
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-        
-        const defaultPortfolios = [
-          {
-            id: 'main',
-            telegram_id: 660211525,
-            name: 'Main Portfolio',
-            cash: 100000000,
-            initial_cash: 100000000
-          }
-        ];
-        fs.writeFileSync(path.join(dataDir, 'portfolios.json'), JSON.stringify(defaultPortfolios, null, 2));
-        console.log('[Guard] Created default data/portfolios.json');
-      }
-    } catch (err) {
-      console.warn('[Guard] Could not create data folder:', err);
-    }
-  } else {
-    console.log('[Guard] Vercel mode: skipping filesystem init (read-only)');
+  const hasAnyProvider = !!(
+    process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY
+  );
+  if (!hasAnyProvider) {
+    console.warn(
+      '[Guard] Tidak ada AI provider terkonfigurasi (GEMINI_API_KEY / GROQ_API_KEY / OPENROUTER_API_KEY). ' +
+      'Fitur AI akan memakai fallback rule-based, dan Council AI mengembalikan analisa lokal.'
+    );
   }
-
-  // Cek 2: GEMINI_API_KEY ada gak?
-  if (!process.env.GEMINI_API_KEY) {
-    console.warn("⚠️ SahamLens Guard: GEMINI_API_KEY tidak ditemukan. Fitur AI mungkin akan menggunakan fallback atau terbatas.");
-  }
-
-  // Cek 3 & 4 (implemented via proxy/wrappers where applicable in the app)
-  // For check 4, we enforce the admin limit inside dailyLimit check.
 }

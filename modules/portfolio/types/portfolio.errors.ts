@@ -17,3 +17,11 @@ export class InsufficientLotsError extends ValidationError {
     super('Jumlah lot yang dipegang tidak cukup');
   }
 }
+
+/** Harga transaksi terlalu jauh dari harga pasar (audit 2026-08-05, temuan H-11) -
+ * lihat modules/portfolio/service/price-guard.service.ts. */
+export class UnrealisticTradePriceError extends ValidationError {
+  constructor(message: string) {
+    super(message);
+  }
+}

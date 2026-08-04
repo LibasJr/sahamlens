@@ -9,16 +9,22 @@ interface RiskRewardCalculatorProps {
 }
 
 export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRewardCalculatorProps) {
-  // Extract Support and Resistance
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-8): blok ini mencari analyzer
+  // berlabel 'Trend Analysis' - label yang TIDAK PERNAH ADA di aplikasi ini (analyzer-nya
+  // bernama 'MA Trend IDX (20,50,200)'). Akibatnya `ma20` selalu 0 dan seluruh peringatan
+  // "Posisi MA20" di kartu ini kode mati sejak awal, tanpa error yang terlihat. Label
+  // diperbaiki, dan `raw` dipakai lebih dulu supaya tidak bergantung pada format string
+  // tampilan (anti-pola M-03 audit sebelumnya).
   const srAnalyzer = analyzers.find(a => a.label?.includes('Support & Resistance'));
   const srMatch = srAnalyzer?.value?.match(/Sup: ([\d.]+), Res: ([\d.]+)/);
   const support = srMatch ? parseFloat(srMatch[1]) : 0;
   const resistance = srMatch ? parseFloat(srMatch[2]) : 0;
 
-  // Extract MA20
-  const trendAnalyzer = analyzers.find(a => a.label?.includes('Trend Analysis'));
-  const maMatch = trendAnalyzer?.value?.match(/MA20:([\d.]+)/);
-  const ma20 = maMatch ? parseFloat(maMatch[1]) : 0;
+  const trendAnalyzer = analyzers.find(a => a.label?.includes('MA Trend'));
+  const maMatch = trendAnalyzer?.value?.match(/MA20:(\d+(?:\.\d+)?)/);
+  const ma20 = typeof trendAnalyzer?.raw?.ma20 === 'number'
+    ? trendAnalyzer.raw.ma20
+    : maMatch ? parseFloat(maMatch[1]) : 0;
 
   if (!support || !resistance || !currentPrice) return null;
 

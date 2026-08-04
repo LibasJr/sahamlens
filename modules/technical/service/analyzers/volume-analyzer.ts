@@ -1,5 +1,10 @@
 export function analyze(history: any[], currentPrice: number) {
-  if (history.length < 20) return { label: 'Volume Analysis', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-15): penjaga lama `< 20`
+  // meloloskan histori TEPAT 20 bar, padahal loop di bawah mulai dari indeks
+  // `length - 21` = -1 -> `history[-1]` undefined -> totalVol NaN -> seluruh perbandingan
+  // di bawah false -> analyzer diam-diam melaporkan NEUTRAL/50 seolah itu hasil
+  // pengukuran. Butuh 21 bar: 20 bar rata-rata + 1 bar hari ini.
+  if (history.length < 21) return { label: 'Volume Analysis', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   let totalVol = 0;
   for (let i = history.length - 21; i < history.length - 1; i++) {

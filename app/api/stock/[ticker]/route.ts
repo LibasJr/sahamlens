@@ -25,6 +25,7 @@ import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@/shared/usage/daily-analisa-quota';
 import { classifyFreshness } from '@/shared/http/freshness';
+import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import YahooFinanceClass from 'yahoo-finance2';
 
@@ -196,20 +197,17 @@ export async function GET(
       revenueGrowth = quoteSummary.financialData?.revenueGrowth != null ? quoteSummary.financialData.revenueGrowth * 100 : null;
 
       // BUG FIX (audit integritas data 2026-08-03, temuan C-07): priceToBook mentah untuk
-      // emiten pelapor USD membandingkan harga IDR dengan book value USD - koreksi sama
-      // seperti recommendation.service.ts/dcf-valuation.service.ts.
-      const priceCurrency = quoteSummary.price?.currency || 'IDR';
-      const finCurrencyForPbv = quoteSummary.financialData?.financialCurrency || 'IDR';
-      const bookValueRaw = quoteSummary.defaultKeyStatistics?.bookValue;
-      if (priceCurrency === 'IDR' && finCurrencyForPbv === 'USD' && bookValueRaw) {
-        try {
-          const fx = await yahooFinance.quote('USDIDR=X');
-          const rate = fx?.regularMarketPrice || 15500;
-          pbv = currentPrice / (bookValueRaw * rate);
-        } catch {
-          pbv = null;
-        }
-      }
+      // emiten pelapor USD membandingkan harga IDR dengan book value USD.
+      // BUG FIX (audit 2026-08-05, temuan H-6): koreksinya dulu memakai kurs cadangan
+      // hardcoded `|| 15500`. Sekarang lewat helper bersama yang mengembalikan null kalau
+      // kurs benar-benar tidak tersedia (shared/market/usd-idr-rate.ts).
+      pbv = await correctPbvForUsdReporter({
+        priceCurrency: quoteSummary.price?.currency,
+        financialCurrency: quoteSummary.financialData?.financialCurrency,
+        bookValue: quoteSummary.defaultKeyStatistics?.bookValue,
+        price: currentPrice,
+        rawPbv: pbv,
+      });
     }
     
     const timestamps = result.timestamp || [];
@@ -343,7 +341,11 @@ export async function GET(
       value: `CMF20: ${bandarmology.cmf20 > 0 ? '+' : ''}${bandarmology.cmf20}% | Tekanan: ${bandarmology.netPressurePct > 0 ? '+' : ''}${bandarmology.netPressurePct}%`,
       decision: bandarmologyDecision,
       confidence: bandarmologyConfidence,
-    });
+      // `raw` (angka asli, pola temuan M-03) - dipakai header chart di app/dashboard
+      // untuk menampilkan Money Flow yang BENAR-BENAR dihitung (temuan C-1/C-2),
+      // tanpa mem-parse string `value` yang diformat untuk tampilan.
+      raw: { cmf20: bandarmology.cmf20, netPressurePct: bandarmology.netPressurePct, status: bandarmology.status },
+    } as any);
 
     let bullish = 0;
     let bearish = 0;
@@ -377,22 +379,35 @@ export async function GET(
     const sum20 = closes.slice(-20).reduce((a, b) => a + b, 0);
     const sum50 = closes.slice(-50).reduce((a, b) => a + b, 0);
     const sum200 = closes.slice(-Math.min(200, closes.length)).reduce((a, b) => a + b, 0);
-    const ma20 = sum20 / Math.min(20, closes.length);
-    const ma50 = sum50 / Math.min(50, closes.length);
-    const ma200v = sum200 / Math.min(200, closes.length);
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-2): ketiganya SEBELUMNYA
+    // dibagi `Math.min(period, closes.length)` - saham dengan 60 bar menghasilkan
+    // rata-rata 60 hari yang tetap diberi nama MA200, lalu dipakai membuat klaim
+    // "Uptrend sempurna P > MA20 > MA50 > MA200" ke pengguna. Sekarang null kalau bar
+    // belum cukup; scoring engine memperlakukan null sebagai data tidak tersedia.
+    const maOf = (period: number): number | null =>
+      closes.length >= period ? closes.slice(-period).reduce((a, b) => a + b, 0) / period : null;
+    const ma20 = maOf(20);
+    const ma50 = maOf(50);
+    const ma200v = maOf(200);
 
     // BUG FIX (audit integritas data 2026-08-03, temuan M-03): sebelumnya nilai RSI/MACD
     // diambil kembali dengan mem-parse string `value` yang diformat untuk tampilan
     // (regex/replace) - kalau format berubah atau analyzer mengembalikan 'N/A', kegagalan
     // parse DIAM-DIAM menghasilkan NaN/0 yang mengalir ke scoring tanpa error terlihat.
     // Sekarang pakai `raw` (angka asli) yang disediakan analyzer, tanpa parsing string.
+    //
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-7): fallback `: 50` untuk RSI
+    // dan `: 0` untuk MACD dihapus. RSI 50 jatuh PERSIS di pita "zona BUY ideal" (+8 dari
+    // 15 poin), jadi saham yang RSI-nya gagal dihitung justru DIHADIAHI skor teknikal -
+    // pola yang sama persis dengan temuan H-04 yang sudah diperbaiki di scoreAsing().
+    // `null` sekarang membuat komponen itu dikeluarkan dari skor & bobotnya dinormalisasi.
     const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI')) as any;
-    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
+    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
 
     const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD')) as any;
-    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
-    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
-    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
+    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
+    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
+    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
     // volToday dipakai untuk scoring engine di bawah - pakai bar yang SUDAH disesuaikan
     // (volumeAdjustedHistory, dibangun di atas dekat analyzerHistory) kalau bar terakhir
@@ -417,12 +432,16 @@ export async function GET(
       },
       { per, pbv, roe, der, currentRatio, revenueGrowth },
       {
-        foreignFlow: foreignFlowStatus, consecutiveBuyDays, consecutiveSellDays,
-        volRatio: volAvg20v > 0 ? volToday / volAvg20v : 1,
-        // cmf20 sudah dihitung di atas untuk kartu "Bandarmology (CMF)" - dikirim ulang
-        // ke scoreBandar() supaya "Bandar" mengukur dimensi BERBEDA dari "Asing"/"Volume"
-        // (lihat temuan H-07 di audit), bukan menyekor volRatio/foreignFlow dua kali.
+        // Arus dana dinilai SEKALI sebagai satu kelompok (besaran CMF20 + persistensi
+        // streak) - lihat temuan H-1 di modules/technical/service/scoring.service.ts.
+        // `foreignFlowStatus` TIDAK lagi dikirim sebagai input skor terpisah karena ia
+        // sendiri turunan dari cmf20 yang sama (analyzeAccumulationSignal), jadi dulu
+        // satu angka dihitung dua kali. Status itu tetap dipakai untuk label UI di bawah.
         cmf20: bandarmology.cmf20,
+        accumulationStatus: accumulation.status,
+        consecutiveBuyDays,
+        consecutiveSellDays,
+        volRatio: volAvg20v > 0 ? volToday / volAvg20v : null,
       }
     );
 
@@ -441,9 +460,19 @@ export async function GET(
       stock: {
         symbol: ticker,
         current_price: currentPrice,
-        change_pct: quote.close[quote.close.length - 1] && quote.close[quote.close.length - 2] ?
-          parseFloat((((quote.close[quote.close.length - 1] - quote.close[quote.close.length - 2]) / quote.close[quote.close.length - 2]) * 100).toFixed(2)) : 0,
-        volume: quote.volume[quote.volume.length - 1] || 0,
+        // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-7): keduanya dulu jatuh
+        // ke `0` kalau close/volume terakhir tidak ada - "0%" terbaca sebagai "harga tidak
+        // bergerak" dan "volume 0" sebagai "tidak ada transaksi", dua pernyataan tentang
+        // pasar yang tidak pernah kita ukur. `null` = tidak tersedia. Sumbernya juga
+        // dipindah ke `history` (sudah dibersihkan dari bar null), bukan array mentah.
+        change_pct: (() => {
+          const last = history[history.length - 1]?.Close;
+          const prev = history[history.length - 2]?.Close;
+          return typeof last === 'number' && typeof prev === 'number' && prev !== 0
+            ? parseFloat((((last - prev) / prev) * 100).toFixed(2))
+            : null;
+        })(),
+        volume: typeof history[history.length - 1]?.Volume === 'number' ? history[history.length - 1].Volume : null,
         history: history.map(h => ({
           time: h.Date.split('T')[0],
           open: h.Open,

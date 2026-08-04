@@ -25,7 +25,10 @@ interface AnalyzerVote {
 interface ConsensusResult {
   konsensus: string;            // e.g. "STRONG BUY (80%)"
   vote: string;                 // e.g. "8:2"
-  median_skor: number;          // median confidence
+  /** Median confidence dari analyzer yang MEMBERI ARAH saja (bullish/bearish) - analyzer
+   * netral & yang tidak punya data dikeluarkan, lihat catatan temuan M-16. 0 = tidak ada
+   * satu pun analyzer yang memberi arah. */
+  median_skor: number;
   bull_count: number;
   bear_count: number;
   neutral_count: number;
@@ -35,6 +38,12 @@ interface ConsensusResult {
   kategori: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG SELL';
 }
 
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan M-16): median dulu dihitung atas
+// SELURUH confidence, termasuk analyzer yang mengembalikan 'N/A' (confidence 0) dan yang
+// netral (50). Mencampur "tidak punya data" ke dalam ukuran keyakinan membuat angkanya
+// tidak berarti apa-apa - satu analyzer yang gagal menarik median ke bawah seolah pasar
+// sedang tidak meyakinkan. Sekarang hanya analyzer yang benar-benar memberi arah
+// (BULLISH/BEARISH) yang masuk hitungan.
 function getMedian(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -67,9 +76,8 @@ export function calculateConsensus(analyzers: AnalyzerVote[]): ConsensusResult {
   const allConfidences: number[] = [];
 
   analyzers.forEach(a => {
-    allConfidences.push(a.confidence);
-    if (a.decision === 'BULLISH') bullCount++;
-    else if (a.decision === 'BEARISH') bearCount++;
+    if (a.decision === 'BULLISH') { bullCount++; allConfidences.push(a.confidence); }
+    else if (a.decision === 'BEARISH') { bearCount++; allConfidences.push(a.confidence); }
     else neutralCount++;
   });
 

@@ -17,7 +17,9 @@ const CATEGORY_CONFIG: Record<string, { title: string; sub: string; dataKey: str
   'weekly-loser': { title: 'Top Loser Mingguan', sub: 'Pelemahan terdalam dalam 5 hari perdagangan terakhir', dataKey: 'topWeeklyLosers', Icon: TrendingDown, metricLabel: 'Perubahan 5 Hari', metricKey: 'changePct' },
   'technical-bullish': { title: 'Sinyal Teknikal Bullish', sub: 'Harga di atas MA20, MA20 di atas MA50, volume di atas rata-rata', dataKey: 'topTechnical', Icon: Sparkles, metricLabel: 'Skor Teknikal', metricKey: 'score' },
   'technical-bearish': { title: 'Sinyal Teknikal Bearish', sub: 'Harga di bawah MA20, MA20 di bawah MA50', dataKey: 'topTechnicalBearish', Icon: TrendingDown, metricLabel: 'Perubahan Harian', metricKey: 'changePct' },
-  'rsi-oversold': { title: 'RSI Oversold', sub: 'Saham dengan RSI (14) terendah, potensi technical rebound', dataKey: 'topRsiOversold', Icon: Activity, metricLabel: 'RSI (14)', metricKey: 'rsi' },
+  // Temuan M-5: judul & subjudul menyebut apa yang benar-benar dihitung (ranking RSI
+  // terendah), bukan mengklaim semuanya oversold.
+  'rsi-oversold': { title: 'RSI (14) Terendah', sub: 'Diranking dari RSI terendah - hanya yang di bawah 30 yang secara teknikal disebut oversold', dataKey: 'topRsiOversold', Icon: Activity, metricLabel: 'RSI (14)', metricKey: 'rsi' },
 };
 
 function formatMetric(row: Row, metricKey: string): string {

@@ -13,5 +13,11 @@ export async function getCouncilCache(symbol: string, date: string): Promise<any
 }
 
 export async function setCouncilCache(symbol: string, date: string, councilData: any): Promise<void> {
-  await cacheSet(`sahamlens:cache:computed:ai-result:council:${symbol}:${date}`, councilData, CACHE_TTL_SEC.AI_COUNCIL);
+  // `_computedAt` distempel di sini (temuan M-14) - satu-satunya cara pemanggil/UI tahu
+  // analisa yang sedang dibaca dihitung kapan. Tanpa ini, hasil berumur 90 menit tampil
+  // identik dengan yang baru saja dihitung.
+  const payload = councilData && typeof councilData === 'object' && !Array.isArray(councilData)
+    ? { ...councilData, _computedAt: new Date().toISOString() }
+    : councilData;
+  await cacheSet(`sahamlens:cache:computed:ai-result:council:${symbol}:${date}`, payload, CACHE_TTL_SEC.AI_COUNCIL);
 }

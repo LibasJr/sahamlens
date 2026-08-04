@@ -35,11 +35,31 @@ export function analyze(history: any[], currentPrice: number) {
   };
 }
 
+// EMA baku: di-seed dengan SMA periode pertama, bukan harga pertama.
+//
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan L-3): implementasi lama memulai
+// deret dengan `ema[0] = prices[0]` - satu harga tunggal sebagai titik awal rata-rata
+// bergerak. Efeknya mengecil seiring bertambahnya bar (bobot awal meluruh eksponensial)
+// dan pada 200 bar praktis hilang, tapi untuk deret pendek - dan untuk MACD, yang
+// meng-EMA-kan hasil EMA sehingga bias awalnya bertumpuk - hasilnya menyimpang dari EMA
+// yang dilihat pengguna di platform lain. Seed SMA adalah definisi yang dipakai
+// TradingView/Stockbit dkk.
 function calculateEMA(prices: number[], period: number) {
+  if (prices.length === 0) return [];
   const k = 2 / (period + 1);
-  let ema = [prices[0]];
-  for (let i = 1; i < prices.length; i++) {
-    ema.push(prices[i] * k + ema[i - 1] * (1 - k));
+  const ema: number[] = [];
+  if (prices.length < period) {
+    // Bar belum cukup untuk seed SMA - kembalikan deret dari harga pertama seperti
+    // sebelumnya; pemanggil sudah menjaga panjang minimum sebelum memakai hasilnya.
+    ema.push(prices[0]);
+    for (let i = 1; i < prices.length; i++) ema.push(prices[i] * k + ema[i - 1] * (1 - k));
+    return ema;
   }
+  const seed = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  // Indeks 0..period-2 diisi seed supaya panjang array tetap sama dengan `prices`
+  // (pemanggil mengambil elemen terakhir & memetakan per indeks).
+  for (let i = 0; i < period - 1; i++) ema.push(seed);
+  ema.push(seed);
+  for (let i = period; i < prices.length; i++) ema.push(prices[i] * k + ema[i - 1] * (1 - k));
   return ema;
 }

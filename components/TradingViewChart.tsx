@@ -21,9 +21,20 @@ interface TechnicalData {
   support_2?: number;
   resistance_1?: number;
   resistance_2?: number;
-  cross_status?: string;
-  broker_flow_status?: string;
-  net_flow_billion_idr?: number;
+  cross_status?: string | null;
+  /** Label arus dana yang SUDAH dihitung pemanggil dari OHLCV nyata (Chaikin Money
+   * Flow, lihat modules/market/service/foreign-flow-proxy.ts). `null`/undefined berarti
+   * BELUM/TIDAK bisa dihitung - komponen ini menampilkan "N/A", TIDAK PERNAH menebak.
+   *
+   * BUG FIX (audit logika & algoritma 2026-08-05, temuan C-1): field ini SEBELUMNYA
+   * bernama `broker_flow_status` dan dirender dengan fallback `|| 'AKUMULASI'`. Satu-
+   * satunya pemanggil yang memberi nilai lewat /api/stock (`app/dashboard/page.tsx`)
+   * membaca `data.technical` yang SELALU objek kosong (`technical: {}` di route-nya),
+   * jadi fallback itu aktif 100% request: setiap saham, setiap kondisi pasar,
+   * menampilkan "Bandar Flow: AKUMULASI" yang tidak pernah dihitung dari apa pun.
+   * Nama field diganti supaya pemanggil lama yang masih mengirim `broker_flow_status`
+   * (nilai turunan volume, temuan C-2) tidak diam-diam tetap lolos. */
+  money_flow_status?: string | null;
 }
 
 interface TradingViewChartProps {
@@ -259,12 +270,21 @@ export default function TradingViewChart({
             {symbol.startsWith('^') ? symbol : (symbol.endsWith('.JK') ? symbol : `${symbol}.JK`)}
           </span>
           <span className="text-xs text-tv-muted font-mono">{timeframe === 'ALL' ? '15Y' : timeframe} Candlestick</span>
+          {/* BUG FIX (audit 2026-08-05, temuan C-1): badge ini sebelumnya diwarnai MERAH
+              (bearish) untuk status yang tidak diketahui - `''.includes('BULLISH')` false
+              jatuh ke cabang merah, jadi "MA STATUS" (artinya: data tidak ada) tampil
+              dengan isyarat visual bearish. Sekarang tiga keadaan dibedakan: bullish,
+              bearish, dan TIDAK DIKETAHUI (netral abu-abu, teks "MA N/A"). */}
           <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${
-            (technical.cross_status || '').includes('BULLISH')
-              ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
-              : 'bg-tv-red/10 text-tv-red border-tv-red/30'
+            !technical.cross_status
+              ? 'bg-tv-hover text-tv-muted border-tv-border'
+              : technical.cross_status.includes('BULLISH')
+                ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
+                : technical.cross_status.includes('BEARISH')
+                  ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                  : 'bg-tv-hover text-tv-muted border-tv-border'
           }`}>
-            {technical.cross_status || 'MA STATUS'}
+            {technical.cross_status || 'MA N/A'}
           </span>
         </div>
 
@@ -278,9 +298,19 @@ export default function TradingViewChart({
             <span className="w-2.5 h-2.5 rounded-full bg-[#ab47bc]" />
             <span className="text-tv-muted">MA 200: Rp {technical.ma200?.toLocaleString('id-ID') || '-'}</span>
           </div>
+          {/* "Money Flow", BUKAN "Bandar Flow": angka ini proxy Chaikin Money Flow dari
+              harga+volume, bukan data transaksi broker (IDX tidak menyediakan feed itu
+              gratis) - penamaan disamakan dengan Screener & BandarFlowPro yang sudah
+              jujur. Tanpa data -> "N/A", bukan tebakan. */}
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-tv-green" />
-            <span className="text-tv-text font-bold">Bandar Flow: {technical.broker_flow_status || 'AKUMULASI'}</span>
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              technical.money_flow_status?.startsWith('AKUMULASI') ? 'bg-tv-green'
+                : technical.money_flow_status?.startsWith('DISTRIBUSI') ? 'bg-tv-red'
+                : 'bg-tv-muted'
+            }`} />
+            <span className="text-tv-text font-bold">
+              Money Flow (CMF20): {technical.money_flow_status || 'N/A'}
+            </span>
           </div>
         </div>
       </div>

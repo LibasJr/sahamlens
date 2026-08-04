@@ -26,7 +26,7 @@ import {
   Newspaper,
   LogIn,
 } from 'lucide-react';
-import { pickTrendingTicker, getTickerName } from '@/lib/trendingTickers';
+import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import UserProfileModal from './UserProfileModal';
 
 // Redesign Sidebar - Design System "Nucleus" (2026-07-31).
@@ -114,9 +114,10 @@ export default function Sidebar() {
   const [authChecked, setAuthChecked] = useState(false);
   // Link menu LensAI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
   // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "LensAI"
-  // membuka emiten yang sama, bukan emiten trending acak. Fallback ke trending acak kalau
-  // belum ada riwayat pencarian sama sekali.
-  const [councilTicker, setCouncilTicker] = useState(() => pickTrendingTicker());
+  // membuka emiten yang sama. Kalau belum ada riwayat pencarian, pakai emiten default
+  // yang TETAP - sebelumnya dipilih acak lewat pickTrendingTicker() yang menamai dirinya
+  // "trending" tanpa pernah mengukur apa pun (audit 2026-08-05, temuan L-1).
+  const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 

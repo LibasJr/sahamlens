@@ -9,12 +9,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // begitu satu berhasil, langsung dipakai; kalau semua gagal/exhausted, return null dan
 // caller pakai fallback lokalnya masing-masing (sudah ada di semua tempat).
 
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan L-2): tiga nama model terakhir di
+// daftar lama ('gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite') tidak
+// merujuk model yang benar-benar ada. Karena urutan combo diacak, tiap panggilan AI
+// berpeluang membuang beberapa percobaan (dan waktu timeout) ke model yang PASTI gagal
+// sebelum sampai ke yang berfungsi - biaya latensi murni, tanpa manfaat. Disisakan hanya
+// nama model yang terverifikasi.
 const GEMINI_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
-  'gemini-3.5-flash',
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
 ];
 
 // Model Groq (Llama via LPU Groq - kuota gratis jauh lebih besar dari Gemini per API key).

@@ -33,7 +33,9 @@ export type ScoredStock = {
   price: number;
   changePct: number;
   totalScore: number;
-  rsi: number;
+  /** null kalau RSI tidak bisa dihitung (histori kurang) - bonus oversold dilewati,
+   * BUKAN dianggap 50 (audit 2026-08-05, temuan C-7). */
+  rsi: number | null;
   accumulationConfirmed: boolean;
   breakdown: ScoreBreakdown;
   /** 3 alasan berbobot tertinggi dari calculateScore() (mis. "MACD bullish (Hist:12.30)",
@@ -85,7 +87,7 @@ export function rankAiPicks(
     if (breakout.breakoutSymbols.includes(s.symbol)) bonuses.push({ label: 'breakout', points: BONUS_BREAKOUT });
     if (s.accumulationConfirmed) bonuses.push({ label: 'akumulasi', points: BONUS_ACCUMULATION });
     if (breakout.goldenCrossSymbols.includes(s.symbol)) bonuses.push({ label: 'golden cross', points: BONUS_GOLDEN_CROSS });
-    if (s.rsi < RSI_OVERSOLD) bonuses.push({ label: 'oversold', points: BONUS_OVERSOLD });
+    if (s.rsi != null && s.rsi < RSI_OVERSOLD) bonuses.push({ label: 'oversold', points: BONUS_OVERSOLD });
 
     // Penanda merah TIDAK mengurangi skor - tujuannya membuat kontradiksi terlihat
     // (saham bisa oversold sekaligus bearish, seperti 6 saham yang dulu muncul di tab

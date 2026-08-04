@@ -15,6 +15,7 @@ import {
 } from '@/modules/technical';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '@/modules/market';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -132,12 +133,28 @@ export async function analyzeStock(ticker: string) {
     // analyzeMarketFlow di atas.
     const volume = volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume || 0;
 
-    const sentimentScore = Math.min(100, Math.max(0, 50 + (changePct * 3) + (bullish - bearish) * 2.5));
-    let sentimentLabel = 'Neutral';
-    if (sentimentScore >= 70) sentimentLabel = 'Sangat Positif';
-    else if (sentimentScore >= 55) sentimentLabel = 'Positif';
-    else if (sentimentScore <= 30) sentimentLabel = 'Sangat Negatif';
-    else if (sentimentScore <= 45) sentimentLabel = 'Negatif';
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-9): rumus lama
+    // `50 + changePct*3 + (bullish-bearish)*2.5` memakai dua konstanta (3 dan 2.5) yang
+    // tidak punya dasar apa pun - tidak diturunkan dari data, tidak dikalibrasi, tidak
+    // pernah didokumentasikan - lalu hasilnya diberi label berbunyi otoritatif ("Sangat
+    // Positif"). Dan namanya "sentimen" padahal tidak satu pun komponennya berasal dari
+    // sentimen (tidak ada berita/opini di sini) - murni arah harga hari ini + hasil vote
+    // analyzer teknikal, dua hal yang SUDAH dilaporkan terpisah sebagai `changePct` dan
+    // `consensus`/`bullishVotes`.
+    //
+    // Diganti besaran yang jujur namanya: persentase analyzer teknikal yang memberi vote
+    // bullish (jumlah yang ADA datanya sebagai penyebut). Tidak ada konstanta karangan,
+    // dan pembacaannya bisa diverifikasi langsung dari daftar analyzer di halaman detail.
+    const votedAnalyzers = bullish + bearish;
+    const technicalBiasPct = votedAnalyzers > 0 ? Math.round((bullish / votedAnalyzers) * 100) : null;
+    let sentimentLabel = 'Data tidak cukup';
+    if (technicalBiasPct != null) {
+      if (technicalBiasPct >= 75) sentimentLabel = 'Mayoritas Bullish';
+      else if (technicalBiasPct >= 55) sentimentLabel = 'Cenderung Bullish';
+      else if (technicalBiasPct <= 25) sentimentLabel = 'Mayoritas Bearish';
+      else if (technicalBiasPct <= 45) sentimentLabel = 'Cenderung Bearish';
+      else sentimentLabel = 'Terbelah';
+    }
 
     const avgVolume = history.reduce((sum, h) => sum + h.Volume, 0) / history.length;
     const volRatio = volume / (avgVolume || 1);
@@ -202,18 +219,15 @@ export async function analyzeStock(ticker: string) {
       // "premium" dan kehilangan skor valuasi. Dikoreksi dengan pola yang sama seperti
       // modules/fundamental/service/dcf-valuation.service.ts: hitung ulang PBV dari
       // bookValue x kurs USD/IDR untuk emiten yang mismatch mata uangnya.
-      const priceCurrency = quoteSummary?.price?.currency || 'IDR';
-      const finCurrencyForPbv = quoteSummary?.financialData?.financialCurrency || 'IDR';
-      const bookValueRaw = quoteSummary?.defaultKeyStatistics?.bookValue;
-      if (priceCurrency === 'IDR' && finCurrencyForPbv === 'USD' && bookValueRaw) {
-        try {
-          const fx = await yahooFinance.quote('USDIDR=X');
-          const rate = fx?.regularMarketPrice || 15500;
-          pbv = currentPrice / (bookValueRaw * rate);
-        } catch {
-          pbv = null; // kurs gagal diambil - lebih baik N/A daripada PBV yang salah satuan
-        }
-      }
+      // BUG FIX (audit 2026-08-05, temuan H-6): kurs cadangan hardcoded `|| 15500`
+      // dihapus - koreksi lewat helper bersama, null kalau kurs tidak tersedia.
+      pbv = await correctPbvForUsdReporter({
+        priceCurrency: quoteSummary?.price?.currency,
+        financialCurrency: quoteSummary?.financialData?.financialCurrency,
+        bookValue: quoteSummary?.defaultKeyStatistics?.bookValue,
+        price: currentPrice,
+        rawPbv: pbv,
+      });
     } catch (err) {
       // Ignore errors to not break the whole recommendation scan
     }
@@ -230,17 +244,23 @@ export async function analyzeStock(ticker: string) {
     const closes = history.map(h => h.AdjClose ?? h.Close);
     const ma20 = sma(closes, 20);
     const ma50 = sma(closes, 50);
-    const ma200 = sma(closes, Math.min(200, closes.length));
+    // BUG FIX (audit 2026-08-05, temuan H-2): `Math.min(200, closes.length)` membuat saham
+    // dengan histori pendek tetap mendapat angka yang dinamai MA200 (padahal itu rata-rata
+    // 60/80 hari). `sma()` mengembalikan null kalau bar kurang dari 200 - itu yang benar.
+    const ma200 = sma(closes, 200);
 
     // BUG FIX (audit integritas data 2026-08-03, temuan M-03): sama seperti app/api/stock/
     // [ticker]/route.ts - dulu parse string `value`, sekarang pakai `raw` (angka asli).
+    // Fallback 50/0 dihapus (temuan C-7) - lihat catatan yang sama di app/api/stock/
+    // [ticker]/route.ts. Data yang tidak ada dikirim null, bukan angka yang kebetulan
+    // jatuh di pita skor tertinggi.
     const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI')) as any;
-    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
+    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
 
     const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD')) as any;
-    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
-    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
-    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
+    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
+    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
+    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
     const volAvg20 = closes.length >= 20
       ? history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20
@@ -250,9 +270,9 @@ export async function analyzeStock(ticker: string) {
       ticker.replace('.JK', ''),
       {
         currentPrice,
-        ma20: ma20 ?? 0,
-        ma50: ma50 ?? 0,
-        ma200: ma200 ?? 0,
+        ma20,
+        ma50,
+        ma200,
         rsi: rsiVal,
         macdHist: macdHistVal,
         macdLine: macdLineVal,
@@ -262,11 +282,14 @@ export async function analyzeStock(ticker: string) {
       },
       { per, pbv, roe, der, currentRatio, revenueGrowth },
       {
-        foreignFlow,
+        // Satu kelompok arus dana (besaran CMF20 + persistensi streak) - `foreignFlow`
+        // tidak lagi jadi input skor terpisah karena ia turunan dari cmf20 yang sama
+        // (temuan H-1). Nilainya tetap dikembalikan ke UI sebagai label.
+        cmf20: bandarmology.cmf20,
+        accumulationStatus: accumulation.status,
         consecutiveBuyDays: buyStreak,
         consecutiveSellDays: sellStreak,
         volRatio,
-        cmf20: bandarmology.cmf20,
       },
     );
 
@@ -280,7 +303,10 @@ export async function analyzeStock(ticker: string) {
       confidence: parseFloat(confidence.toFixed(0)),
       bullishVotes: bullish,
       bearishVotes: bearish,
-      sentimentScore: parseFloat(sentimentScore.toFixed(0)),
+      // Nama field dipertahankan supaya klien lama tidak pecah, tapi isinya sekarang
+      // besaran yang benar-benar terukur: persentase vote bullish dari analyzer yang ADA
+      // datanya (null = tidak ada satu pun analyzer bervote). Lihat temuan H-9.
+      sentimentScore: technicalBiasPct,
       sentimentLabel,
       foreignFlow,
       // Baru (2026-08-01) - kriteria fundamental/valuasi/market cap yang diminta eksplisit,

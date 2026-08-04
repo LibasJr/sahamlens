@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
+import { calculateIntrinsicValue } from '@/modules/fundamental';
 
 // Penjelasan "kenapa harga wajar segini" untuk Intrinsic Value Engine (components/
 // IntrinsicValue.tsx) - dulu kartu ini cuma tampilkan angka tanpa narasi. Pola ikuti
@@ -42,10 +43,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Belum login' }, { status: 401 });
   }
 
-  const input = (await req.json()) as ExplainInput;
-  if (!input?.symbol || typeof input.fairValue !== 'number' || typeof input.harga !== 'number' || typeof input.mos !== 'number') {
-    return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 });
+  const body = (await req.json()) as { symbol?: string };
+  const symbol = typeof body?.symbol === 'string' ? body.symbol.trim().toUpperCase() : '';
+  if (!symbol) {
+    return NextResponse.json({ error: 'Simbol tidak valid' }, { status: 400 });
   }
+
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-12): endpoint ini SEBELUMNYA
+  // menerima `fairValue`, `harga`, `mos`, dan `methods` LANGSUNG dari body request lalu
+  // menyuruh AI menjelaskan "kenapa harga wajarnya segitu". Artinya siapa pun bisa
+  // mengirim angka karangan dan mendapatkan narasi meyakinkan dari LensAI yang
+  // membenarkannya - persis pola yang dilarang di seluruh audit ini, cuma pintu masuknya
+  // dari client. Sekarang HANYA simbol yang diterima; seluruh angka dihitung ulang di
+  // server dengan fungsi yang sama dipakai kartu valuasi (calculateIntrinsicValue).
+  const intrinsic = await calculateIntrinsicValue(symbol).catch(() => null);
+  if (!intrinsic || !(intrinsic.fair_value > 0)) {
+    return NextResponse.json(
+      { error: 'Data valuasi tidak tersedia', detail: `Nilai wajar ${symbol} tidak bisa dihitung dari data yang ada saat ini.` },
+      { status: 503 }
+    );
+  }
+
+  const input: ExplainInput = {
+    symbol,
+    fairValue: intrinsic.fair_value,
+    harga: intrinsic.harga,
+    mos: intrinsic.mos,
+    sektor: intrinsic.sektor,
+    methods: intrinsic.methods,
+  };
 
   // BUG FIX (audit integritas data 2026-08-03, temuan M-05): sebelumnya lewat getModel()
   // (satu model Gemini acak, tanpa retry) - disamakan dengan ai-briefing/route.ts, pakai

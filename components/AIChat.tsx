@@ -113,6 +113,10 @@ export default function AIChat() {
         body: JSON.stringify({
           prompt: userPrompt,
           context: context,
+          // Simbol dikirim TERPISAH dari context (audit 2026-08-05, temuan H-12) - server
+          // memakainya untuk mengambil ulang harga/RSI dari sumber data sendiri, lalu
+          // memperlakukan angka hasil pengambilannya sebagai yang otoritatif.
+          symbol: currentSymbol && currentSymbol !== 'Umum' ? currentSymbol : undefined,
           // Kirim riwayat percakapan sebelumnya (bukan cuma pesan terakhir) supaya AI
           // tidak "amnesia" begitu satu giliran gagal/error - sebelumnya balasan singkat
           // seperti "lah"/"waduh error" dikirim tanpa konteks sama sekali dan AI menjawab

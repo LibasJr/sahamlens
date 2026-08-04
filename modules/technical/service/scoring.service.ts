@@ -1,322 +1,335 @@
 /**
  * SahamLens Scoring Engine - IDX Algorithmic Suite
- * 
- * Menghitung skor komposit 0-100 berdasarkan 3 kategori:
- * - Technical Score (0-40)
- * - Fundamental Score (0-30)
- * - Flow Score (0-30)
- * 
- * ATURAN: Hanya INTERPRETASI data input dari analyzer.
- * TIDAK pernah menghitung indikator manual.
- * Jika data null/kosong → skor 0, bukan tebakan.
+ *
+ * Menghitung skor komposit 0-100 dari 3 kategori:
+ * - Technical (bobot maksimum 40)
+ * - Fundamental (bobot maksimum 30)
+ * - Flow / arus dana (bobot maksimum 30)
+ *
+ * ATURAN (audit logika & algoritma 2026-08-05):
+ * 1. Fungsi ini HANYA menginterpretasi data input dari analyzer. Tidak pernah menghitung
+ *    indikator sendiri, tidak pernah menebak.
+ * 2. Input yang TIDAK TERSEDIA wajib dikirim `null`, BUKAN angka default. Komponen yang
+ *    datanya tidak ada DIKELUARKAN dari perhitungan dan bobot sisanya dinormalisasi ulang
+ *    (lihat `combine()`), sehingga ketiadaan data tidak pernah berubah menjadi poin.
+ * 3. Satu kuantitas hanya boleh dinilai SATU KALI.
+ *
+ * REWRITE (audit logika & algoritma 2026-08-05) - tiga cacat yang diperbaiki di sini:
+ *
+ * - Temuan C-7: pemanggil mengirim `rsi: 50` saat RSI tidak tersedia, dan 50 masuk persis
+ *   ke pita "zona BUY ideal" (+8 dari 15 poin). Ketiadaan data dihadiahi skor. Sekarang
+ *   `rsi: null` membuat komponen RSI tidak dihitung sama sekali.
+ *
+ * - Temuan H-1: `scoreAsing()` dan `scoreBandar()` menyekor KUANTITAS YANG SAMA dua kali.
+ *   Status `foreignFlow` ("NET BUY"/"NET SELL") dihasilkan `analyzeAccumulationSignal()`
+ *   yang syarat pertamanya `cmf20 > 15`, sementara `scoreBandar()` menyekor `cmf20` itu
+ *   sendiri - 30 dari 100 poin ditentukan satu angka. Perbaikan temuan H-07 sebelumnya
+ *   mengklaim keduanya "dimensi berbeda"; itu tidak benar. Sekarang arus dana dinilai
+ *   sebagai SATU kelompok: besaran tekanan (CMF20) + persistensinya (streak hari
+ *   berturut-turut & konfirmasi volume) - dua sifat berbeda dari deret yang sama, masing-
+ *   masing dinilai sekali.
+ *
+ * - Temuan H-14: komponen yang datanya tidak ada (mis. bank tidak punya DER di Yahoo,
+ *   emiten rugi tidak punya PER) dulu menyumbang 0 poin TANPA renormalisasi bobot,
+ *   sehingga bank & emiten rugi otomatis kehilangan skor fundamental bukan karena
+ *   fundamentalnya buruk. `modules/market/service/screener.service.ts:scoreStock()` sudah
+ *   melakukan renormalisasi ini sejak temuan H-04; sekarang disamakan di sini.
  */
 
 import { SCORING_KATEGORI_THRESHOLDS } from './decision-thresholds';
 
 export interface TechnicalInput {
-  currentPrice: number;
-  ma20: number;
-  ma50: number;
-  ma200: number;
-  rsi: number;
-  macdHist: number;
-  macdLine: number;
-  macdSignal: number;
-  volToday: number;
-  volAvg20: number;
+  currentPrice: number | null;
+  ma20: number | null;
+  ma50: number | null;
+  /** WAJIB null kalau histori < 200 bar - jangan pernah mengirim rata-rata bar seadanya
+   * yang dilabeli MA200 (temuan H-2). */
+  ma200: number | null;
+  rsi: number | null;
+  macdHist: number | null;
+  macdLine: number | null;
+  macdSignal: number | null;
+  volToday: number | null;
+  volAvg20: number | null;
 }
 
 export interface FundamentalInput {
   per: number | null;
   pbv: number | null;
-  roe: number | null;  // already in % (e.g. 18.2)
-  der: number | null;  // ratio (e.g. 0.4)
+  roe: number | null;  // persen (mis. 18.2)
+  der: number | null;  // rasio (mis. 0.4)
   currentRatio: number | null;
-  revenueGrowth: number | null; // yoy %
+  revenueGrowth: number | null; // yoy persen
 }
 
 export interface FlowInput {
-  foreignFlow: string;       // 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL'
+  /** Chaikin Money Flow 20 hari, persen -100..100 (modules/market/service/
+   * foreign-flow-proxy.ts). `null` = tidak bisa dihitung -> seluruh kelompok Flow
+   * dikeluarkan dari skor, bukan diberi nilai tengah. */
+  cmf20: number | null;
+  /** Hasil konfirmasi 4-lapis analyzeAccumulationSignal(). `null` kalau tidak dihitung. */
+  accumulationStatus: 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL' | null;
   consecutiveBuyDays: number;
   consecutiveSellDays: number;
-  volRatio: number;
-  // Chaikin Money Flow 20 hari (dari modules/market/service/foreign-flow-proxy.ts),
-  // opsional - kalau tidak dikirim, scoreBandar() jatuh ke heuristik lama (lihat
-  // komentar temuan H-07 di scoreBandar). Dimensi INI yang membedakan "Bandar" dari
-  // "Asing"/"Volume": posisi close dalam range High-Low dibobot volume selama 20 hari,
-  // bukan volRatio/arah foreignFlow yang sudah dinilai penuh di scoreVolume/scoreAsing.
-  cmf20?: number;
+  /** volume hari ini / rata-rata 20 hari - dipakai HANYA sebagai konfirmasi persistensi
+   * di kelompok Flow. Besaran volume itu sendiri sudah dinilai penuh di scoreVolume()
+   * (kelompok Technical), jadi TIDAK boleh disekor lagi sebagai poin tersendiri. */
+  volRatio: number | null;
+}
+
+export type ScoringKategori = 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'DATA TIDAK CUKUP';
+
+/** Satu komponen skor. `available: false` berarti datanya tidak ada - komponen ini
+ * dikeluarkan dari pembilang DAN penyebut saat digabung. */
+interface Component {
+  key: string;
+  score: number;
+  max: number;
+  available: boolean;
+  reason: string;
 }
 
 export interface ScoringResult {
   simbol: string;
-  harga: number;
+  harga: number | null;
   technical_score: number;
   fundamental_score: number;
   flow_score: number;
   total_score: number;
-  kategori: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL';
+  /** Persentase bobot yang benar-benar punya data (0-100). Di bawah
+   * MIN_COVERAGE_PCT, `kategori` menjadi 'DATA TIDAK CUKUP' - skor dari sepotong kecil
+   * data tidak boleh disajikan sebagai rekomendasi. */
+  coverage_pct: number;
+  kategori: ScoringKategori;
   detail: {
-    ma_trend: number;
-    rsi_macd: number;
-    volume: number;
-    valuasi: number;
-    profitabilitas: number;
-    kesehatan: number;
-    asing: number;
-    bandar: number;
+    ma_trend: number | null;
+    rsi: number | null;
+    macd: number | null;
+    volume: number | null;
+    valuasi: number | null;
+    profitabilitas: number | null;
+    kesehatan: number | null;
+    flow_tekanan: number | null;
+    flow_persistensi: number | null;
   };
+  /** Komponen yang tidak punya data - ditampilkan apa adanya ke pengguna, bukan
+   * disembunyikan seolah semuanya terhitung. */
+  missing: string[];
   alasan_3_poin: string[];
   risk: string;
 }
 
-// ==================== STEP 1: TECHNICAL SCORE (0-40) ====================
+const NA = (key: string, max: number, what: string): Component => ({
+  key, score: 0, max, available: false, reason: `${what}: DATA TIDAK TERSEDIA`,
+});
 
-function scoreMATrend(t: TechnicalInput): { score: number; reason: string } {
-  if (!t.currentPrice || !t.ma20 || !t.ma50 || !t.ma200) {
-    return { score: 0, reason: 'DATA TIDAK LENGKAP' };
-  }
+/** Minimal 55% bobot harus punya data sebelum skor boleh diterjemahkan jadi kategori
+ * BUY/SELL. Angka ini keputusan produk (didokumentasikan, bukan disembunyikan): di
+ * bawah itu skor praktis cuma mencerminkan satu-dua dimensi. */
+const MIN_COVERAGE_PCT = 55;
 
-  // Perfect uptrend: Price > MA20 > MA50 > MA200
-  if (t.currentPrice > t.ma20 && t.ma20 > t.ma50 && t.ma50 > t.ma200) {
-    return { score: 15, reason: `Uptrend sempurna P:${t.currentPrice} > MA20:${Math.round(t.ma20)} > MA50:${Math.round(t.ma50)} > MA200:${Math.round(t.ma200)}` };
+// ==================== TECHNICAL (maks 40) ====================
+
+function scoreMATrend(t: TechnicalInput): Component {
+  const MAX = 15;
+  if (t.currentPrice == null || t.ma20 == null || t.ma50 == null || t.ma200 == null) {
+    return NA('ma_trend', MAX, 'Tren MA');
   }
-  // Price above MA20 and MA50 but MA50 < MA200
-  if (t.currentPrice > t.ma20 && t.currentPrice > t.ma50) {
-    return { score: 10, reason: `Harga di atas MA20 & MA50, tapi belum full uptrend` };
+  const p = t.currentPrice;
+  if (p > t.ma20 && t.ma20 > t.ma50 && t.ma50 > t.ma200) {
+    return { key: 'ma_trend', max: MAX, available: true, score: 15, reason: `Uptrend sempurna P:${Math.round(p)} > MA20:${Math.round(t.ma20)} > MA50:${Math.round(t.ma50)} > MA200:${Math.round(t.ma200)}` };
   }
-  // Price above MA200 only
-  if (t.currentPrice > t.ma200) {
-    return { score: 5, reason: `Harga di atas MA200 tapi di bawah MA20/MA50` };
+  if (p > t.ma20 && p > t.ma50) {
+    return { key: 'ma_trend', max: MAX, available: true, score: 10, reason: 'Harga di atas MA20 & MA50, tapi belum full uptrend' };
   }
-  // Full downtrend
-  if (t.currentPrice < t.ma20 && t.ma20 < t.ma50 && t.ma50 < t.ma200) {
-    return { score: 0, reason: `Downtrend penuh P < MA20 < MA50 < MA200` };
+  if (p > t.ma200) {
+    return { key: 'ma_trend', max: MAX, available: true, score: 5, reason: 'Harga di atas MA200 tapi di bawah MA20/MA50' };
   }
-  return { score: 3, reason: `Sideways / tidak ada tren jelas` };
+  if (p < t.ma20 && t.ma20 < t.ma50 && t.ma50 < t.ma200) {
+    return { key: 'ma_trend', max: MAX, available: true, score: 0, reason: 'Downtrend penuh P < MA20 < MA50 < MA200' };
+  }
+  return { key: 'ma_trend', max: MAX, available: true, score: 3, reason: 'Sideways / tidak ada tren jelas' };
 }
 
-function scoreRsiMacd(t: TechnicalInput): { score: number; reason: string } {
-  let score = 0;
-  const parts: string[] = [];
-
-  // RSI (0-8 poin) - IDX Threshold
-  if (t.rsi >= 50 && t.rsi <= 70) {
-    score += 8;
-    parts.push(`RSI ${t.rsi.toFixed(1)} zona BUY ideal`);
-  } else if (t.rsi >= 40 && t.rsi < 50) {
-    score += 4;
-    parts.push(`RSI ${t.rsi.toFixed(1)} netral-lemah`);
-  } else if (t.rsi > 70 && t.rsi <= 78) {
-    score += 5;
-    parts.push(`RSI ${t.rsi.toFixed(1)} mendekati overbought`);
-  } else if (t.rsi > 78) {
-    score += 0;
-    parts.push(`RSI ${t.rsi.toFixed(1)} OVERBOUGHT zona SELL`);
-  } else if (t.rsi < 40) {
-    score += 2; // Oversold bisa reversal tapi berisiko
-    parts.push(`RSI ${t.rsi.toFixed(1)} OVERSOLD zona SELL/hati-hati`);
-  }
-
-  // MACD (0-7 poin).
-  // BUG FIX (audit integritas data 2026-08-03, temuan H-06): histogram didefinisikan
-  // sebagai `macdLine - macdSignal` (lihat modules/technical/service/analyzers/
-  // macd-analyzer.ts) - maka `macdHist > 0` dan `macdLine > macdSignal` adalah kondisi
-  // yang SECARA MATEMATIS IDENTIK. Cabang tengah `macdHist > 0 || macdLine > macdSignal`
-  // sebelumnya TIDAK PERNAH bisa true kalau cabang pertama (yang pakai `&&`) sudah
-  // false - kode mati, teks "MACD mixed signal" tidak pernah muncul ke pengguna, dan
-  // MACD cuma pernah menghasilkan 7 atau 0 poin (bukan gradasi 3 tingkat yang diniatkan).
-  // Cabang tengah dihapus (bukan dipalsukan jadi "terlihat" tercapai) - butuh histogram
-  // hari sebelumnya sebagai input tambahan untuk membedakan "menguat"/"melemah" secara
-  // jujur, yang belum tersedia di TechnicalInput saat ini.
-  if (t.macdHist > 0) {
-    score += 7;
-    parts.push(`MACD bullish (Hist:${t.macdHist.toFixed(2)})`);
-  } else if (t.macdHist < 0) {
-    score += 0;
-    parts.push(`MACD bearish (Hist:${t.macdHist.toFixed(2)})`);
-  } else {
-    // Histogram persis 0 (macdLine === macdSignal, termasuk saat data hilang dan
-    // pemanggil fallback ke 0) BUKAN "bearish" - itu klaim arah yang tidak didukung
-    // titik data flat. Skor tengah, bukan 0 atau 7 penuh.
-    score += 3;
-    parts.push(`MACD netral (Hist:0.00)`);
-  }
-
-  return { score: Math.min(15, score), reason: parts.join(', ') };
+/** RSI dipisah dari MACD (dulu satu fungsi `scoreRsiMacd`) supaya salah satu yang hilang
+ * tidak menyeret yang lain ikut hilang - dan supaya bobotnya bisa dinormalisasi
+ * per-indikator, bukan per-pasangan. */
+function scoreRsi(t: TechnicalInput): Component {
+  const MAX = 8;
+  if (t.rsi == null) return NA('rsi', MAX, 'RSI 14');
+  const rsi = t.rsi;
+  if (rsi >= 50 && rsi <= 70) return { key: 'rsi', max: MAX, available: true, score: 8, reason: `RSI ${rsi.toFixed(1)} zona BUY ideal` };
+  if (rsi >= 40 && rsi < 50) return { key: 'rsi', max: MAX, available: true, score: 4, reason: `RSI ${rsi.toFixed(1)} netral-lemah` };
+  if (rsi > 70 && rsi <= 78) return { key: 'rsi', max: MAX, available: true, score: 5, reason: `RSI ${rsi.toFixed(1)} mendekati overbought` };
+  if (rsi > 78) return { key: 'rsi', max: MAX, available: true, score: 0, reason: `RSI ${rsi.toFixed(1)} OVERBOUGHT zona SELL` };
+  return { key: 'rsi', max: MAX, available: true, score: 2, reason: `RSI ${rsi.toFixed(1)} OVERSOLD zona SELL/hati-hati` };
 }
 
-function scoreVolume(t: TechnicalInput): { score: number; reason: string } {
-  if (!t.volToday || !t.volAvg20) {
-    return { score: 0, reason: 'DATA TIDAK LENGKAP' };
-  }
+function scoreMacd(t: TechnicalInput): Component {
+  const MAX = 7;
+  // Histogram = macdLine - macdSignal (lihat macd-analyzer.ts), jadi `macdHist > 0` dan
+  // `macdLine > macdSignal` identik secara matematis - cukup satu yang diperiksa
+  // (catatan temuan H-06 audit 2026-08-03 tetap berlaku).
+  if (t.macdHist == null) return NA('macd', MAX, 'MACD');
+  if (t.macdHist > 0) return { key: 'macd', max: MAX, available: true, score: 7, reason: `MACD bullish (Hist:${t.macdHist.toFixed(2)})` };
+  if (t.macdHist < 0) return { key: 'macd', max: MAX, available: true, score: 0, reason: `MACD bearish (Hist:${t.macdHist.toFixed(2)})` };
+  return { key: 'macd', max: MAX, available: true, score: 3, reason: 'MACD netral (Hist:0.00)' };
+}
 
+function scoreVolume(t: TechnicalInput): Component {
+  const MAX = 10;
+  if (!t.volToday || !t.volAvg20) return NA('volume', MAX, 'Volume');
   const ratio = t.volToday / t.volAvg20;
-
-  // IDX Threshold: Volume valid > 1.5x AVG 20D
-  if (ratio >= 2.0) {
-    return { score: 10, reason: `Volume ${ratio.toFixed(1)}x avg (SANGAT TINGGI)` };
-  }
-  if (ratio >= 1.5) {
-    return { score: 8, reason: `Volume ${ratio.toFixed(1)}x avg (VALID)` };
-  }
-  if (ratio >= 1.0) {
-    return { score: 4, reason: `Volume ${ratio.toFixed(1)}x avg (NORMAL)` };
-  }
-  return { score: 1, reason: `Volume ${ratio.toFixed(1)}x avg (RENDAH)` };
+  if (ratio >= 2.0) return { key: 'volume', max: MAX, available: true, score: 10, reason: `Volume ${ratio.toFixed(1)}x avg (SANGAT TINGGI)` };
+  if (ratio >= 1.5) return { key: 'volume', max: MAX, available: true, score: 8, reason: `Volume ${ratio.toFixed(1)}x avg (VALID)` };
+  if (ratio >= 1.0) return { key: 'volume', max: MAX, available: true, score: 4, reason: `Volume ${ratio.toFixed(1)}x avg (NORMAL)` };
+  return { key: 'volume', max: MAX, available: true, score: 1, reason: `Volume ${ratio.toFixed(1)}x avg (RENDAH)` };
 }
 
-// ==================== STEP 2: FUNDAMENTAL SCORE (0-30) ====================
+// ==================== FUNDAMENTAL (maks 30) ====================
 
-function scoreValuasi(f: FundamentalInput): { score: number; reason: string } {
-  if (f.per === null && f.pbv === null) {
-    return { score: 0, reason: 'DATA TIDAK LENGKAP' };
-  }
+function scoreValuasi(f: FundamentalInput): Component {
+  const MAX = 10;
+  if (f.per === null && f.pbv === null) return NA('valuasi', MAX, 'Valuasi (PER/PBV)');
 
+  // Sub-bobot: PER 5, PBV 5. Kalau salah satu tidak ada, `max` ikut menyusut supaya
+  // rasionya tetap adil (emiten rugi tanpa PER tidak dihukum, cuma dinilai dari PBV).
   let score = 0;
+  let max = 0;
   const parts: string[] = [];
 
-  // PER < 15 = SEHAT (IDX Threshold)
   if (f.per !== null) {
+    max += 5;
     if (f.per > 0 && f.per < 10) { score += 5; parts.push(`PER ${f.per.toFixed(1)}x (murah)`); }
     else if (f.per >= 10 && f.per < 15) { score += 4; parts.push(`PER ${f.per.toFixed(1)}x (wajar)`); }
     else if (f.per >= 15 && f.per < 25) { score += 2; parts.push(`PER ${f.per.toFixed(1)}x (agak mahal)`); }
     else if (f.per >= 25) { score += 0; parts.push(`PER ${f.per.toFixed(1)}x (mahal)`); }
     else { score += 1; parts.push(`PER ${f.per.toFixed(1)}x (negatif/rugi)`); }
   }
-
-  // PBV < 1 = Murah
   if (f.pbv !== null) {
+    max += 5;
     if (f.pbv < 1) { score += 5; parts.push(`PBV ${f.pbv.toFixed(2)}x (di bawah book)`); }
     else if (f.pbv < 2) { score += 3; parts.push(`PBV ${f.pbv.toFixed(2)}x (wajar)`); }
     else { score += 1; parts.push(`PBV ${f.pbv.toFixed(2)}x (premium)`); }
   }
-
-  return { score: Math.min(10, score), reason: parts.join(', ') };
+  return { key: 'valuasi', max, available: true, score, reason: parts.join(', ') };
 }
 
-function scoreProfitabilitas(f: FundamentalInput): { score: number; reason: string } {
+function scoreProfitabilitas(f: FundamentalInput): Component {
+  const MAX = 10;
+  if (f.roe === null && f.revenueGrowth === null) return NA('profitabilitas', MAX, 'Profitabilitas (ROE/Growth)');
+
   let score = 0;
+  let max = 0;
   const parts: string[] = [];
 
-  // ROE > 15% = SEHAT (IDX Threshold)
   if (f.roe !== null) {
+    max += 5;
     if (f.roe > 20) { score += 5; parts.push(`ROE ${f.roe.toFixed(1)}% (sangat baik)`); }
     else if (f.roe >= 15) { score += 4; parts.push(`ROE ${f.roe.toFixed(1)}% (sehat)`); }
     else if (f.roe >= 8) { score += 2; parts.push(`ROE ${f.roe.toFixed(1)}% (cukup)`); }
     else { score += 0; parts.push(`ROE ${f.roe.toFixed(1)}% (lemah)`); }
   }
-
-  // Revenue Growth YoY
   if (f.revenueGrowth !== null) {
+    max += 5;
     if (f.revenueGrowth > 15) { score += 5; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (tinggi)`); }
     else if (f.revenueGrowth > 5) { score += 3; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (stabil)`); }
     else if (f.revenueGrowth > 0) { score += 1; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (lambat)`); }
     else { score += 0; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (negatif)`); }
   }
-
-  return { score: Math.min(10, score), reason: parts.join(', ') };
+  return { key: 'profitabilitas', max, available: true, score, reason: parts.join(', ') };
 }
 
-function scoreKesehatan(f: FundamentalInput): { score: number; reason: string } {
+function scoreKesehatan(f: FundamentalInput): Component {
+  const MAX = 10;
+  // Bank & lembaga keuangan sering tidak punya DER/Current Ratio di Yahoo - dulu itu
+  // membuat mereka kehilangan 10 poin penuh tanpa alasan fundamental (temuan H-14).
+  if (f.der === null && f.currentRatio === null) return NA('kesehatan', MAX, 'Kesehatan neraca (DER/CR)');
+
   let score = 0;
+  let max = 0;
   const parts: string[] = [];
 
-  // DER < 1 = SEHAT (IDX Threshold, non-finance)
   if (f.der !== null) {
+    max += 5;
     if (f.der < 0.5) { score += 5; parts.push(`DER ${f.der.toFixed(2)}x (konservatif)`); }
     else if (f.der < 1.0) { score += 4; parts.push(`DER ${f.der.toFixed(2)}x (sehat)`); }
     else if (f.der < 2.0) { score += 2; parts.push(`DER ${f.der.toFixed(2)}x (agak tinggi)`); }
     else { score += 0; parts.push(`DER ${f.der.toFixed(2)}x (berisiko tinggi)`); }
   }
-
-  // Current Ratio > 1.5 = SEHAT (IDX Threshold)
   if (f.currentRatio !== null) {
+    max += 5;
     if (f.currentRatio > 2.0) { score += 5; parts.push(`CR ${f.currentRatio.toFixed(2)}x (sangat likuid)`); }
     else if (f.currentRatio >= 1.5) { score += 4; parts.push(`CR ${f.currentRatio.toFixed(2)}x (sehat)`); }
     else if (f.currentRatio >= 1.0) { score += 2; parts.push(`CR ${f.currentRatio.toFixed(2)}x (cukup)`); }
     else { score += 0; parts.push(`CR ${f.currentRatio.toFixed(2)}x (risiko likuiditas)`); }
   }
-
-  return { score: Math.min(10, score), reason: parts.join(', ') };
+  return { key: 'kesehatan', max, available: true, score, reason: parts.join(', ') };
 }
 
-// ==================== STEP 3: FLOW SCORE (0-30) ====================
+// ==================== FLOW / ARUS DANA (maks 30) ====================
+//
+// SATU sumber (Chaikin Money Flow dari harga+volume), DUA sifat berbeda yang masing-
+// masing dinilai sekali:
+//   1. BESARAN tekanan beli/jual saat ini  -> scoreFlowTekanan (maks 20)
+//   2. PERSISTENSI tekanan itu dari waktu ke waktu -> scoreFlowPersistensi (maks 10)
+// Ini menggantikan pasangan scoreAsing()/scoreBandar() lama yang menyekor kuantitas yang
+// sama dua kali (temuan H-1).
+//
+// Catatan penting yang TIDAK boleh hilang: ini PROXY dari harga+volume Yahoo Finance,
+// BUKAN data transaksi broker/asing (IDX tidak menyediakan feed itu gratis). Karena itu
+// alasan yang dihasilkan di bawah memakai istilah "arus dana"/"tekanan beli", bukan
+// "asing net buy" yang menyiratkan data broker sungguhan.
 
-function scoreAsing(flow: FlowInput): { score: number; reason: string } {
-  // IDX Threshold: STRONG NET BUY jika Net Foreign Buy > 5 hari berturut
-  if (flow.foreignFlow === 'STRONG NET BUY' && flow.consecutiveBuyDays >= 4) {
-    return { score: 15, reason: `Asing STRONG NET BUY ${flow.consecutiveBuyDays + 1}D berturut` };
-  }
-  if (flow.foreignFlow === 'STRONG NET BUY') {
-    return { score: 12, reason: `Asing STRONG NET BUY` };
-  }
-  if (flow.foreignFlow === 'NET BUY' && flow.volRatio > 1.5) {
-    return { score: 10, reason: `Asing NET BUY + volume tinggi ${flow.volRatio.toFixed(1)}x` };
-  }
-  if (flow.foreignFlow === 'NET BUY') {
-    return { score: 8, reason: `Asing NET BUY` };
-  }
-  if (flow.foreignFlow === 'NEUTRAL') {
-    return { score: 5, reason: `Asing NEUTRAL` };
-  }
-  if (flow.foreignFlow === 'NET SELL') {
-    return { score: 2, reason: `Asing NET SELL (distribusi)` };
-  }
-  if (flow.foreignFlow === 'STRONG NET SELL') {
-    return { score: 0, reason: `Asing STRONG NET SELL (distribusi berat)` };
-  }
-  // BUG FIX (audit integritas data 2026-08-03, temuan H-04): cabang ini sebelumnya
-  // memberi 5 dari 15 poin ("gratis") untuk foreignFlow yang tidak dikenali/tidak ada -
-  // pemanggil sekarang selalu mengirim salah satu dari 5 nilai kanonik di atas, jadi
-  // cabang ini murni penjaga data rusak/tak terduga. Skor 0 (bukan 5), bukan skor tengah
-  // yang menyamarkan ketiadaan data sebagai kondisi netral.
-  return { score: 0, reason: 'Asing N/A - data tidak lengkap' };
+function scoreFlowTekanan(flow: FlowInput): Component {
+  const MAX = 20;
+  if (flow.cmf20 == null) return NA('flow_tekanan', MAX, 'Arus dana (CMF20)');
+  const cmf = flow.cmf20;
+  if (cmf > 20) return { key: 'flow_tekanan', max: MAX, available: true, score: 20, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli kuat` };
+  if (cmf > 5) return { key: 'flow_tekanan', max: MAX, available: true, score: 14, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli moderat` };
+  if (cmf >= -5) return { key: 'flow_tekanan', max: MAX, available: true, score: 8, reason: `CMF20 ${cmf.toFixed(1)}% - arus dana seimbang` };
+  if (cmf >= -20) return { key: 'flow_tekanan', max: MAX, available: true, score: 3, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual moderat` };
+  return { key: 'flow_tekanan', max: MAX, available: true, score: 0, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual kuat` };
 }
 
-function scoreBandar(flow: FlowInput): { score: number; reason: string } {
-  // BUG FIX (audit integritas data 2026-08-03, temuan H-07): versi lama fungsi ini
-  // menyekor kombinasi `volRatio` (SUDAH dinilai penuh 0-10 poin di scoreVolume()) dan
-  // `foreignFlow` (SUDAH dinilai penuh 0-15 poin di scoreAsing()) TANPA satu pun input
-  // baru - volume tinggi dihitung dua kali (10+15=25/100), arah flow dihitung dua kali
-  // (15+15=30/100). Sekarang memakai cmf20 (Chaikin Money Flow 20 hari, posisi close
-  // dalam range High-Low dibobot volume) kalau tersedia - dimensi yang BELUM dinilai
-  // analyzer lain manapun di scoring ini. Kalau cmf20 tidak dikirim pemanggil (belum
-  // semua pemanggil di-upgrade), jatuh ke heuristik volume lama SEBAGAI FALLBACK yang
-  // didokumentasikan sebagai duplikatif, bukan disembunyikan.
-  if (flow.cmf20 != null) {
-    const cmf = flow.cmf20;
-    if (cmf > 20) return { score: 15, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli kuat & konsisten` };
-    if (cmf > 5) return { score: 10, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli moderat` };
-    if (cmf >= -5) return { score: 5, reason: `CMF20 ${cmf.toFixed(1)}% - netral` };
-    if (cmf >= -20) return { score: 2, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual moderat` };
-    return { score: 0, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual kuat & konsisten` };
-  }
+function scoreFlowPersistensi(flow: FlowInput): Component {
+  const MAX = 10;
+  if (flow.accumulationStatus == null) return NA('flow_persistensi', MAX, 'Persistensi arus dana');
 
-  // Fallback (cmf20 belum dikirim pemanggil) - heuristik lama, sengaja dijaga tetap
-  // tumpang tindih dengan scoreVolume/scoreAsing sampai seluruh pemanggil mengirim cmf20.
-  if (flow.volRatio >= 2.0 && flow.foreignFlow.includes('BUY')) {
-    return { score: 15, reason: `Akumulasi kuat (Vol ${flow.volRatio.toFixed(1)}x + Net Buy)` };
+  const buy = flow.consecutiveBuyDays;
+  const sell = flow.consecutiveSellDays;
+  if (flow.accumulationStatus === 'AKUMULASI') {
+    // Konfirmasi 4-lapis SUDAH lolos (CMF20 + CLV 3 hari + volume spike + tren MFM) -
+    // yang dinilai di sini murni PANJANG streak-nya, sifat yang belum dinilai di manapun.
+    if (buy >= 4) return { key: 'flow_persistensi', max: MAX, available: true, score: 10, reason: `Akumulasi terkonfirmasi ${buy} hari berturut` };
+    return { key: 'flow_persistensi', max: MAX, available: true, score: 7, reason: `Akumulasi terkonfirmasi (${buy} hari berturut)` };
   }
-  if (flow.volRatio >= 1.5 && flow.foreignFlow.includes('BUY')) {
-    return { score: 12, reason: `Akumulasi (Vol ${flow.volRatio.toFixed(1)}x + Net Buy)` };
+  if (flow.accumulationStatus === 'DISTRIBUSI') {
+    if (sell >= 4) return { key: 'flow_persistensi', max: MAX, available: true, score: 0, reason: `Distribusi terkonfirmasi ${sell} hari berturut` };
+    return { key: 'flow_persistensi', max: MAX, available: true, score: 2, reason: `Distribusi terkonfirmasi (${sell} hari berturut)` };
   }
-  if (flow.volRatio >= 1.5) {
-    return { score: 8, reason: `Volume tinggi ${flow.volRatio.toFixed(1)}x, perlu konfirmasi arah` };
-  }
-  if (flow.volRatio >= 1.0) {
-    return { score: 5, reason: `Volume normal` };
-  }
-  return { score: 2, reason: `Volume rendah (${flow.volRatio.toFixed(1)}x), kurang minat` };
+  return { key: 'flow_persistensi', max: MAX, available: true, score: 5, reason: 'Belum ada arus dana yang konsisten searah' };
 }
 
-// ==================== STEP 4: FINAL SCORING ====================
+// ==================== PENGGABUNGAN ====================
 
-// Ambang batas dipusatkan di modules/technical/service/decision-thresholds.ts (audit
-// integritas data 2026-08-03, temuan M-04) - baca komentar di file itu untuk kenapa
-// nilainya SENGAJA berbeda dari ORCHESTRATOR_SCORE_THRESHOLDS (dua skor komposit yang
-// berbeda, bukan cutoff berbeda dari kuantitas yang sama).
-function getKategori(total: number): 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' {
+/** Jumlahkan komponen yang datanya ADA saja, lalu skala ke `groupMax`. Komponen yang
+ * tidak tersedia tidak menambah pembilang MAUPUN penyebut - inilah renormalisasi yang
+ * membuat ketiadaan data tidak diam-diam berubah jadi nilai nol yang menghukum. */
+function combine(components: Component[], groupMax: number): { score: number; availableMax: number } {
+  const available = components.filter((c) => c.available && c.max > 0);
+  const rawMax = available.reduce((s, c) => s + c.max, 0);
+  if (rawMax === 0) return { score: 0, availableMax: 0 };
+  const raw = available.reduce((s, c) => s + c.score, 0);
+  const declaredMax = components.reduce((s, c) => s + c.max, 0);
+  // Bobot kelompok tetap proporsional terhadap seberapa banyak datanya ada, supaya
+  // `coverage_pct` di bawah bisa melaporkannya dengan jujur.
+  const availableMax = (rawMax / declaredMax) * groupMax;
+  return { score: (raw / rawMax) * availableMax, availableMax };
+}
+
+function getKategori(total: number, coveragePct: number): ScoringKategori {
+  if (coveragePct < MIN_COVERAGE_PCT) return 'DATA TIDAK CUKUP';
   if (total > SCORING_KATEGORI_THRESHOLDS.STRONG_BUY) return 'STRONG BUY';
   if (total >= SCORING_KATEGORI_THRESHOLDS.BUY) return 'BUY';
   if (total >= SCORING_KATEGORI_THRESHOLDS.HOLD) return 'HOLD';
@@ -329,70 +342,81 @@ export function calculateScore(
   fundamental: FundamentalInput,
   flow: FlowInput
 ): ScoringResult {
-  // Step 1
   const maTrend = scoreMATrend(technical);
-  const rsiMacd = scoreRsiMacd(technical);
+  const rsi = scoreRsi(technical);
+  const macd = scoreMacd(technical);
   const volume = scoreVolume(technical);
-  const technicalScore = maTrend.score + rsiMacd.score + volume.score;
+  const technicalGroup = combine([maTrend, rsi, macd, volume], 40);
 
-  // Step 2
   const valuasi = scoreValuasi(fundamental);
   const profitabilitas = scoreProfitabilitas(fundamental);
   const kesehatan = scoreKesehatan(fundamental);
-  const fundamentalScore = valuasi.score + profitabilitas.score + kesehatan.score;
+  const fundamentalGroup = combine([valuasi, profitabilitas, kesehatan], 30);
 
-  // Step 3
-  const asing = scoreAsing(flow);
-  const bandar = scoreBandar(flow);
-  const flowScore = asing.score + bandar.score;
+  const flowTekanan = scoreFlowTekanan(flow);
+  const flowPersistensi = scoreFlowPersistensi(flow);
+  const flowGroup = combine([flowTekanan, flowPersistensi], 30);
 
-  // Step 4
-  const totalScore = technicalScore + fundamentalScore + flowScore;
-  const kategori = getKategori(totalScore);
+  const allComponents = [maTrend, rsi, macd, volume, valuasi, profitabilitas, kesehatan, flowTekanan, flowPersistensi];
+  const availableMaxTotal = technicalGroup.availableMax + fundamentalGroup.availableMax + flowGroup.availableMax;
+  const coveragePct = Math.round((availableMaxTotal / 100) * 100);
 
-  // Generate top 3 reasons
-  const allReasons = [
-    { score: maTrend.score, reason: maTrend.reason },
-    { score: rsiMacd.score, reason: rsiMacd.reason },
-    { score: volume.score, reason: volume.reason },
-    { score: valuasi.score, reason: valuasi.reason },
-    { score: profitabilitas.score, reason: profitabilitas.reason },
-    { score: kesehatan.score, reason: kesehatan.reason },
-    { score: asing.score, reason: asing.reason },
-    { score: bandar.score, reason: bandar.reason }
-  ].sort((a, b) => b.score - a.score);
+  // Skor akhir diskalakan ke 0-100 atas bobot yang BENAR-BENAR punya data. Tanpa ini,
+  // saham yang datanya cuma separuh otomatis maksimal 50 - bukan karena buruk, tapi
+  // karena datanya kurang (temuan H-14).
+  const totalScore = availableMaxTotal > 0
+    ? Math.round(((technicalGroup.score + fundamentalGroup.score + flowGroup.score) / availableMaxTotal) * 100)
+    : 0;
 
-  const alasan3 = allReasons.slice(0, 3).map(r => r.reason);
+  const kategori = getKategori(totalScore, coveragePct);
 
-  // Risk assessment
+  const missing = allComponents.filter((c) => !c.available).map((c) => c.reason);
+
+  // 3 alasan teratas dari komponen yang ADA datanya, diurut kontribusi relatif
+  // (skor/max), bukan skor mentah - supaya komponen bernilai maksimum 7 tidak selalu
+  // kalah dari komponen bermaksimum 20 hanya karena skalanya lebih besar.
+  const alasan3 = allComponents
+    .filter((c) => c.available && c.max > 0 && c.reason)
+    .sort((a, b) => (b.score / b.max) - (a.score / a.max))
+    .slice(0, 3)
+    .map((c) => c.reason);
+
   let risk = '';
-  if (technical.ma20 && technical.currentPrice) {
-    const supportDist = ((technical.currentPrice - technical.ma20) / technical.currentPrice * 100);
+  if (technical.ma20 != null && technical.currentPrice != null && technical.currentPrice > 0) {
+    const supportDist = ((technical.currentPrice - technical.ma20) / technical.currentPrice) * 100;
     risk = `Support MA20 di ${Math.round(technical.ma20)} (${supportDist > 0 ? '-' : '+'}${Math.abs(supportDist).toFixed(1)}%)`;
   }
-  if (technical.rsi > 78) {
+  if (technical.rsi != null && technical.rsi > 78) {
     risk += ` | OVERBOUGHT RSI ${technical.rsi.toFixed(1)}`;
   }
+  if (coveragePct < 100) {
+    risk += `${risk ? ' | ' : ''}Kelengkapan data ${coveragePct}%`;
+  }
+
+  const pick = (c: Component) => (c.available ? Math.round(c.score) : null);
 
   return {
     simbol,
     harga: technical.currentPrice,
-    technical_score: technicalScore,
-    fundamental_score: fundamentalScore,
-    flow_score: flowScore,
+    technical_score: Math.round(technicalGroup.score),
+    fundamental_score: Math.round(fundamentalGroup.score),
+    flow_score: Math.round(flowGroup.score),
     total_score: totalScore,
+    coverage_pct: coveragePct,
     kategori,
     detail: {
-      ma_trend: maTrend.score,
-      rsi_macd: rsiMacd.score,
-      volume: volume.score,
-      valuasi: valuasi.score,
-      profitabilitas: profitabilitas.score,
-      kesehatan: kesehatan.score,
-      asing: asing.score,
-      bandar: bandar.score
+      ma_trend: pick(maTrend),
+      rsi: pick(rsi),
+      macd: pick(macd),
+      volume: pick(volume),
+      valuasi: pick(valuasi),
+      profitabilitas: pick(profitabilitas),
+      kesehatan: pick(kesehatan),
+      flow_tekanan: pick(flowTekanan),
+      flow_persistensi: pick(flowPersistensi),
     },
+    missing,
     alasan_3_poin: alasan3,
-    risk
+    risk,
   };
 }

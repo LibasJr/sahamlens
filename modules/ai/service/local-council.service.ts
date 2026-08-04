@@ -17,11 +17,19 @@
 // beberapa agent pakai angka tetap per cabang tanpa didokumentasikan formulanya). Sama
 // seperti council.service.ts (jalur LLM) - signal + reason cukup, tanpa angka presisi
 // yang terlihat terukur padahal sebagian cuma konstanta.
+//
+// BUG FIX (audit logika & algoritma 2026-08-05, temuan C-5): `price`, `ma20`, `ma200`
+// dulu di-default ke 0 dan `rsi` ke 50. Efeknya bukan sekadar kosmetik: dengan ma200 = 0,
+// perbandingan `price > ma200` SELALU false saat price juga 0, sehingga Trend Follower
+// mengeluarkan sinyal "SELL - Harga < MA200" dari data yang tidak ada; dan RSI default 50
+// dilaporkan ke pengguna sebagai "RSI 50.00" seolah hasil pengukuran. Sekarang semuanya
+// nullable dan tiap agen menyatakan terus terang kalau datanya tidak ada.
 export function runLocalCouncil(symbol: string, data: any) {
-  const price = data?.currentPrice || data?.price || 0;
-  const ma20 = data?.ma20 || 0;
-  const ma200 = data?.ma200 || 0;
-  const rsi = data?.rsi || 50;
+  const price: number | null = typeof data?.currentPrice === 'number' ? data.currentPrice
+    : typeof data?.price === 'number' && data.price > 0 ? data.price : null;
+  const ma20: number | null = typeof data?.ma20 === 'number' ? data.ma20 : null;
+  const ma200: number | null = typeof data?.ma200 === 'number' ? data.ma200 : null;
+  const rsi: number | null = typeof data?.rsi === 'number' ? data.rsi : null;
   const atr: number | null = typeof data?.atr === 'number' ? data.atr : null;
   const support: number | null = typeof data?.support === 'number' && data.support > 0 ? data.support : null;
   const resistance: number | null = typeof data?.resistance === 'number' && data.resistance > 0 ? data.resistance : null;
@@ -29,8 +37,9 @@ export function runLocalCouncil(symbol: string, data: any) {
   const eps = data?.fundamentalSnapshot?.trailingEps;
   const lastQuarter = data?.fundamentalSnapshot?.mostRecentQuarter;
 
-  const trendSignal = price > ma200 ? 'BUY' : 'SELL';
-  const rsiSignal = rsi < 35 ? 'BUY' : rsi > 70 ? 'SELL' : 'HOLD';
+  const trendAvailable = price != null && ma200 != null;
+  const trendSignal: 'BUY' | 'SELL' | 'WAIT' = !trendAvailable ? 'WAIT' : (price as number) > (ma200 as number) ? 'BUY' : 'SELL';
+  const rsiSignal: 'BUY' | 'SELL' | 'HOLD' | 'WAIT' = rsi == null ? 'WAIT' : rsi < 35 ? 'BUY' : rsi > 70 ? 'SELL' : 'HOLD';
 
   // Volume Analyst - dari volRatio riil (volume hari ini vs rata-rata 20D), bukan
   // "Data volume tidak cukup" tetap padahal datanya ada.
@@ -41,7 +50,7 @@ export function runLocalCouncil(symbol: string, data: any) {
   // Momentum - dari posisi harga vs MA20 (proxy momentum jangka pendek yang sudah
   // tersedia, tanpa perlu data tambahan).
   let momentumAgent: { name: string; signal: 'BUY' | 'SELL' | 'WAIT'; reason: string };
-  if (ma20 > 0) {
+  if (ma20 != null && price != null) {
     momentumAgent = { name: 'Momentum', signal: price > ma20 ? 'BUY' : 'SELL', reason: `Harga ${price > ma20 ? 'di atas' : 'di bawah'} MA20 (${Math.round(ma20)})` };
   } else {
     momentumAgent = { name: 'Momentum', signal: 'WAIT', reason: 'Data MA20 tidak tersedia' };
@@ -50,7 +59,7 @@ export function runLocalCouncil(symbol: string, data: any) {
   // S/R Hunter - posisi harga relatif terhadap support/resistance 20 hari (data yang
   // sama dipakai Risk Manager di bawah).
   let srAgent: { name: string; signal: 'BUY' | 'SELL' | 'WAIT' | 'HOLD'; reason: string };
-  if (support != null && resistance != null && price > 0) {
+  if (support != null && resistance != null && price != null && price > 0) {
     const range = resistance - support;
     const distToSupportPct = range > 0 ? ((price - support) / range) * 100 : 50;
     if (distToSupportPct < 20) {
@@ -66,7 +75,7 @@ export function runLocalCouncil(symbol: string, data: any) {
 
   // Risk Manager - risk/reward riil dari jarak ke support (risk) vs resistance (reward).
   let riskAgent: { name: string; signal: 'BUY' | 'HOLD' | 'WAIT'; reason: string };
-  if (support != null && resistance != null && price > support) {
+  if (support != null && resistance != null && price != null && price > support) {
     const risk = price - support;
     const reward = resistance - price;
     const rr = risk > 0 ? reward / risk : 0;
@@ -80,7 +89,7 @@ export function runLocalCouncil(symbol: string, data: any) {
   // Breakout Hunter - volume tinggi + harga mendekati resistance (proxy breakout dari
   // data yang sama dipakai indikator Breakout di halaman AI Pick).
   let breakoutAgent: { name: string; signal: 'BUY' | 'WAIT'; reason: string };
-  if (resistance != null && price > 0 && volRatio != null) {
+  if (resistance != null && price != null && price > 0 && volRatio != null) {
     const distToResPct = ((resistance - price) / price) * 100;
     const nearRes = distToResPct >= 0 && distToResPct < 3;
     const volSpike = volRatio > 1.5;
@@ -92,7 +101,7 @@ export function runLocalCouncil(symbol: string, data: any) {
   }
 
   // Volatility - dari ATR sebagai persen harga (sama seperti volatility-analyzer.ts).
-  const volatilityAgent = atr != null && price > 0
+  const volatilityAgent = atr != null && price != null && price > 0
     ? { name: 'Volatility', signal: 'HOLD' as const, reason: `ATR ${atr.toFixed(0)} (${((atr / price) * 100).toFixed(1)}% dari harga)` }
     : { name: 'Volatility', signal: 'HOLD' as const, reason: 'Data ATR tidak tersedia' };
 
@@ -108,8 +117,12 @@ export function runLocalCouncil(symbol: string, data: any) {
 
   return {
     agents: [
-      { name: 'Trend Follower', signal: trendSignal, reason: `Harga ${price > ma200 ? '>' : '<'} MA200` },
-      { name: 'Mean Reversion', signal: rsiSignal, reason: `RSI ${Number(rsi).toFixed(2)}` },
+      {
+        name: 'Trend Follower',
+        signal: trendSignal,
+        reason: trendAvailable ? `Harga ${(price as number) > (ma200 as number) ? '>' : '<'} MA200 (${Math.round(ma200 as number)})` : 'Data harga/MA200 tidak tersedia',
+      },
+      { name: 'Mean Reversion', signal: rsiSignal, reason: rsi != null ? `RSI ${rsi.toFixed(2)}` : 'Data RSI tidak tersedia' },
       volumeAgent,
       momentumAgent,
       srAgent,
@@ -119,7 +132,11 @@ export function runLocalCouncil(symbol: string, data: any) {
       patternAgent,
       fundamentalAgent,
     ],
-    final_suggestion: `${trendSignal} based on Trend, but RSI says ${rsiSignal}`,
+    // Kalau tren maupun RSI sama-sama tidak punya data, jangan mengeluarkan "saran akhir"
+    // yang terdengar seperti kesimpulan (temuan C-5).
+    final_suggestion: !trendAvailable && rsi == null
+      ? 'Data belum cukup untuk menyimpulkan - tidak ada saran yang bisa dipertanggungjawabkan'
+      : `${trendSignal} dari sisi tren, RSI menunjukkan ${rsiSignal}`,
     summary_id: 'Fallback lokal berjalan karena LensAI tidak tersedia atau kena limit.'
   };
 }

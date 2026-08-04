@@ -47,7 +47,15 @@ export const CACHE_TTL_SEC = {
   // (2026-08-01, permintaan eksplisit "AI Council selalu update data terbaru") supaya
   // pergerakan teknikal intraday juga tidak tertahan cache semalaman, tanpa membuat
   // Gemini dipanggil berlebihan (panggilan AI paling mahal di aplikasi ini).
-  AI_COUNCIL: 6 * 60 * 60,
+  // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-14): 6 jam terlalu panjang
+  // untuk analisa yang MENYEBUT LEVEL HARGA ("cicil di 274, target 306"). Cache key-nya
+  // memang ikut kuartal laporan, tapi itu hanya menangkap rilis laporan keuangan - tidak
+  // menangkap pergerakan harga intraday, padahal justru level harga itu isi utamanya.
+  // 90 menit: cukup untuk menekan biaya panggilan AI (yang termahal di aplikasi ini),
+  // cukup pendek supaya level yang disebut masih nyambung dengan harga berjalan. Hasilnya
+  // juga dicap `computedAt` (lihat council-cache.service.ts) supaya UI bisa menampilkan
+  // umur analisanya, bukan menyajikan yang lama seolah baru.
+  AI_COUNCIL: 90 * 60,
 
   // Fallback basi kalau Yahoo Finance sedang down - lebih baik data lama daripada
   // error keras (app/api/stock/[ticker]).
