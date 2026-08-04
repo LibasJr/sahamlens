@@ -40,11 +40,13 @@ export const metadata = {
     siteName: 'SahamLens',
     title: `SahamLens - ${TAGLINE}`,
     description: `Screener & analisis saham IDX berbasis data riil dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi.`,
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'SahamLens' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: `SahamLens - ${TAGLINE}`,
     description: `Screener & analisis saham IDX berbasis data riil dan AI.`,
+    images: ['/og-image.png'],
   },
 };
 

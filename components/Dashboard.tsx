@@ -405,6 +405,24 @@ export default function Dashboard() {
       <TickerTape items={tickerItems} />
 
       <main className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Marketing Hero - tagline "Lihat Peluang Lebih Jelas." sudah dipakai di
+            metadata (app/layout.tsx) tapi belum pernah dirender di halaman manapun.
+            Section aditif, tidak mengubah struktur Title Block/ringkasan pasar di
+            bawahnya. */}
+        <div className="mb-6 flex items-center justify-between gap-6 rounded-lg border border-tv-border bg-tv-card/50 px-5 py-4 sm:px-8 sm:py-6">
+          <div className="min-w-0">
+            <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">Lihat Peluang Lebih Jelas.</h2>
+            <p className="mt-1.5 text-[13px] sm:text-sm text-tv-muted max-w-md">
+              Screener & analisis saham IDX berbasis data riil dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi.
+            </p>
+          </div>
+          <img
+            src="/sahamlens-scope.png"
+            alt="SahamLens"
+            className="hidden sm:block h-20 md:h-28 w-auto shrink-0 object-contain"
+          />
+        </div>
+
         {/* Title Block */}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
