@@ -5,6 +5,7 @@ import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, ShieldC
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import { PageContainer } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -229,7 +230,7 @@ export default function Recommendations() {
         </div>
       </header>
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
             <button
@@ -398,7 +399,7 @@ export default function Recommendations() {
             </table>
           </div>
         </div>
-      </div>
+      </PageContainer>
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}

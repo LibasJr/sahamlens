@@ -7,7 +7,7 @@ import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
 import { getTickerName } from '@/lib/trendingTickers';
-import { Input, Select, Button, Badge, EmptyState } from '@/components/ui';
+import { Input, Select, Button, Badge, EmptyState, PageContainer } from '@/components/ui';
 
 interface WatchlistItem {
   symbol: string;
@@ -314,7 +314,7 @@ export default function WatchlistPage() {
         </div>
       </header>
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <PageContainer className="p-6 space-y-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Watchlist Section */}
         <div className="lg:col-span-2 space-y-6">
@@ -547,7 +547,7 @@ export default function WatchlistPage() {
             </div>
           </div>
         </div>
-      </div>
+      </PageContainer>
 
       <PaywallModal
         open={showPaywall}

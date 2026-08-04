@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
-import { Badge } from '@/components/ui';
+import { Badge, PageContainer } from '@/components/ui';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -226,7 +226,7 @@ export default function MarketPulse() {
         </div>
       </header>
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         {/* === SECTION 1: INDEX CARDS === */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {data?.indices ? data.indices.map((idx: any) => {
@@ -421,7 +421,7 @@ export default function MarketPulse() {
           )}
         </div>
         </div>
-      </div>
+      </PageContainer>
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}

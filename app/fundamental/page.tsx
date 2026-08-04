@@ -11,6 +11,7 @@ import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
   RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp
 } from 'lucide-react';
+import { PageContainer } from '@/components/ui';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -255,7 +256,7 @@ function FundamentalContent() {
         moduleBank="LENSFUNDAMENTAL"
       />
 
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <PageContainer className="p-6 space-y-6">
         {/* Status Badge */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
@@ -465,8 +466,8 @@ function FundamentalContent() {
             <IntrinsicValue symbol={ticker} />
           </div>
         </div>
-      </div>
-      
+      </PageContainer>
+
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}

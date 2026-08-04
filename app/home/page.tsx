@@ -17,7 +17,7 @@ import {
   Filter,
   Eye,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState, SegmentedControl } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState, SegmentedControl, PageContainer } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
@@ -261,7 +261,7 @@ export default function HomePage() {
   }, [loadingMarket, loadingPicks, loadingDailyPicks]);
 
   return (
-    <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full space-y-5 min-h-full flex flex-col">
+    <PageContainer className="p-4 md:p-6 space-y-5 min-h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -635,6 +635,6 @@ export default function HomePage() {
           />
         );
       })()}
-    </div>
+    </PageContainer>
   );
 }
