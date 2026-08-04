@@ -13,19 +13,10 @@ import {
   RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui';
+import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
-
-// BUG FIX (audit logika & algoritma 2026-08-05, temuan H-13): kartu-kartu fundamental di
-// bawah SEBELUMNYA memakai `|| 0` sehingga data yang TIDAK TERSEDIA dirender sebagai
-// angka nol yang terlihat seperti fakta ("P/E Ratio 0.00x", "Market Cap Rp 0.00 T",
-// "ROE 0.00%"). Untuk data finansial, 0 bukan sinonim "tidak ada" - bank memang tidak
-// mengirim debtToEquity ke Yahoo dan emiten rugi memang tidak punya trailingPE. Formatter
-// di bawah menampilkan "N/A" apa adanya.
-const fmtKali = (v: number | null | undefined) => (typeof v === 'number' ? `${v.toFixed(2)}x` : 'N/A');
-const fmtPersen = (fraksi: number | null | undefined) => (typeof fraksi === 'number' ? `${(fraksi * 100).toFixed(2)}%` : 'N/A');
-const fmtTriliun = (v: number | null | undefined) => (typeof v === 'number' ? `Rp ${(v / 1e12).toFixed(2)} T` : 'N/A');
 
 // BUG FIX (2026-08-01): sama seperti /dcf - dulu tidak baca ?symbol= dari URL sama
 // sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
