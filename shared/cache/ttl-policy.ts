@@ -30,11 +30,15 @@ export const CACHE_TTL_SEC = {
   // bilang "data sesi terakhir", bukan diam-diam menampilkan seolah live.
   BREAKOUT_RADAR: 3 * 24 * 60 * 60,
 
-  // Ringkasan pasar publik (app/api/market-summary) - BARU: sebelumnya TIDAK ADA
-  // cache sama sekali meski endpoint ini public/no-auth (paling rawan traffic
-  // tinggi tanpa gesekan login). 2 menit - cukup segar untuk landing page, cukup
-  // panjang untuk meredam lonjakan trafik.
-  MARKET_SUMMARY: 2 * 60,
+  // Ringkasan pasar publik (app/api/market-summary) - halaman paling ramai
+  // (landing page `/`, tanpa login). Diperpanjang dari 2 -> 6 menit (optimasi loading
+  // 2026-08-05) setelah ditambahkan cron warmer (app/api/cron/market-summary, tiap 5
+  // menit jam bursa - lihat DEPLOYMENT.md) yang menjaga cache ini tetap segar. Sebelum
+  // ada cron, TTL 2 menit berarti pengunjung pertama tiap 2 menit menanggung scan LIVE
+  // 250 saham (bisa berumur beberapa detik) - salah satu sumber utama keluhan "lambat"
+  // karena inilah halaman yang paling sering dibuka. 6 menit = interval cron (5m) +
+  // buffer 1 run, sama seperti pola MARKET (market-pulse) di bawah.
+  MARKET_SUMMARY: 6 * 60,
 
   // Skor rekomendasi (gabungan teknikal+fundamental+flow) - diisi cron tiap 15
   // menit (app/api/cron/recommendation-scan), lebih lambat berubah dari data

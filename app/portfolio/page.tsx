@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, Bell, ArrowUpRight, ArrowDownRight, Clock, Menu } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// xlsx/jsPDF/jspdf-autotable TIDAK di-import statis (optimasi loading 2026-08-05) -
+// ketiganya berat dan cuma dipakai saat tombol Export diklik; di-import dinamis di
+// dalam downloadExcel()/downloadPDF() supaya tidak ikut terunduh & ter-parse di setiap
+// kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, PageContainer } from '@/components/ui';
 import { fadeUp } from '@/lib/motion';
@@ -228,7 +229,8 @@ export default function PortfolioPage() {
     setLoading(false);
   };
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
     const wsHoldings = XLSX.utils.json_to_sheet(holdings.map(h => ({
       Symbol: h.symbol,
@@ -244,6 +246,10 @@ export default function PortfolioPage() {
   };
 
   const downloadPDF = async () => {
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text(`SahamLens Portfolio Report`, 14, 20);
