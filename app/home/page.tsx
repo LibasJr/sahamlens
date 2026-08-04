@@ -189,7 +189,8 @@ export default function HomePage() {
       .then((r) => {
         if (r.status === 401) { setPicksLoginRequired(true); return null; }
         if (r.status === 402) { setPicksNeedPro(true); return null; }
-        return r.ok ? r.json() : null;
+        if (!r.ok) { setRadarError(true); return null; }
+        return r.json();
       })
       .then((d) => {
         if (!d) return;
@@ -317,7 +318,7 @@ export default function HomePage() {
                   <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
                     {topPick.flagged ? topPick.flagReason : 'STRONG BUY'}
                   </Badge>
-                  dengan confidence <span className="font-number font-semibold">{topPick.finalScore}%</span>.
+                  dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}</span>.
                 </p>
               ) : (
                 <p className="text-sm text-tv-muted mt-1.5">Belum ada sinyal kuat hari ini. Cek Stock Recommendations untuk detail lengkap.</p>
