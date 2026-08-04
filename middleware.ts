@@ -37,12 +37,10 @@ function isProtectedPage(pathname: string): boolean {
 }
 
 function getClientIp(req: NextRequest): string {
-  // req.ip diisi platform (Vercel Edge) dari koneksi TCP asli, TIDAK bisa dipalsukan
-  // klien - beda dari header x-forwarded-for yang bisa dikirim bebas oleh caller kalau
-  // request sampai ke origin tanpa proxy tepercaya di depannya. Fallback ke header
-  // hanya untuk `next dev` lokal (req.ip selalu undefined di situ, rate limit lokal
-  // bukan target ancaman nyata).
-  if (req.ip) return req.ip;
+  // NextRequest.ip dihapus di Next.js 15+ (Vercel Edge tidak lagi mengisinya di objek
+  // request) - x-forwarded-for sekarang satu-satunya sumber, diisi platform Vercel dari
+  // koneksi TCP asli di production dan tidak bisa dipalsukan klien selama request lewat
+  // proxy Vercel (selalu begitu untuk deployment ini).
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0].trim();
   return req.headers.get('x-real-ip') || 'unknown';

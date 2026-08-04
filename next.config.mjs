@@ -3,12 +3,14 @@ import { withSentryConfig } from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Next.js 14 - opsi ini namanya serverExternalPackages di Next 15+. Tandai
-  // dependency Node-only berat sebagai eksternal, bukan di-bundle ulang ke setiap
-  // function - mengurangi ukuran & waktu init cold start (Performance Roadmap Fase 1).
-  experimental: {
-    serverComponentsExternalPackages: ['pg', 'bcryptjs', 'nodemailer', 'yahoo-finance2'],
-  },
+  // Tandai dependency Node-only berat sebagai eksternal, bukan di-bundle ulang ke
+  // setiap function - mengurangi ukuran & waktu init cold start (Performance Roadmap
+  // Fase 1). Pindah dari experimental.serverComponentsExternalPackages (Next 14) ke
+  // top-level serverExternalPackages saat upgrade ke Next 16.
+  serverExternalPackages: ['pg', 'bcryptjs', 'nodemailer', 'yahoo-finance2'],
+  // Next 16 auto-generate AGENTS.md/CLAUDE.md di root tiap `next dev` jalan - file
+  // boilerplate yang tidak diminta, dimatikan supaya tidak numpuk di working tree.
+  agentRules: false,
   // BUILD 010 (Production Ready) - dipakai Dockerfile (jalur deploy alternatif di
   // luar Vercel, mis. self-host) untuk image runtime minimal (.next/standalone +
   // node_modules yang benar-benar terpakai saja). TIDAK memengaruhi deploy Vercel -

@@ -6,5 +6,5 @@ import { runController } from '@/shared/http/next-response.adapter';
 import { handleAdminStats } from '@/modules/user';
 
 export async function GET() {
-  return runController(async () => handleAdminStats(cookies()));
+  return runController(async () => handleAdminStats(await cookies()));
 }

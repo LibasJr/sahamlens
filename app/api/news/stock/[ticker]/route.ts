@@ -6,11 +6,12 @@ import { getOrCompute } from '@/shared/cache/redis-cache';
 export const dynamic = 'force-dynamic';
 const TTL_SEC = 15 * 60;
 
-export async function GET(request: Request, { params }: { params: { ticker: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ ticker: string }> }) {
   try {
+    const { ticker: rawTicker } = await params;
     const { searchParams } = new URL(request.url);
     const name = searchParams.get('name') || undefined;
-    const code = params.ticker.replace('.JK', '').toUpperCase();
+    const code = rawTicker.replace('.JK', '').toUpperCase();
     const data = await getOrCompute(
       `sahamlens:cache:computed:stock-news:${code}`,
       TTL_SEC,
