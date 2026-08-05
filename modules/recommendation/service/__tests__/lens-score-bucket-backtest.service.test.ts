@@ -4,9 +4,19 @@ import {
   LENS_SCORE_ROUND_TRIP_COST_PCT,
   type LensRadarHistoryRow,
 } from '../lens-score-bucket-backtest.service';
+import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 
 function row(date: string, ticker: string, score: number, close: number): LensRadarHistoryRow {
-  return { date, ticker, lens_score: score, close_price: close, score_version: 'lens-score-v1.3.0' };
+  return {
+    date,
+    ticker,
+    lens_score: score,
+    close_price: close,
+    raw_close_price: close,
+    adjusted_close_price: close,
+    price_basis: RETURN_PRICE_BASIS,
+    score_version: 'lens-score-v1.3.0',
+  };
 }
 
 function dateFromStart(offsetDays: number): string {
@@ -67,7 +77,7 @@ describe('computeLensScoreBucketBacktest', () => {
     const result = computeLensScoreBucketBacktest([
       row('2026-01-01', 'AAAA.JK', 120, 100),
       row('2026-01-02', 'AAAA.JK', 80, 0),
-      { date: 'bad-date', ticker: 'AAAA.JK', lens_score: 80, close_price: 100 },
+      { date: 'bad-date', ticker: 'AAAA.JK', lens_score: 80, close_price: 100, adjusted_close_price: 100, price_basis: RETURN_PRICE_BASIS },
     ]);
 
     expect(result.rowsRead).toBe(0);
@@ -88,5 +98,17 @@ describe('computeLensScoreBucketBacktest', () => {
     expect(result.rejectedRows).toBe(14);
     expect(result.rowsRead).toBe(7);
     expect(result.buckets.find((b) => b.bucket === '80-100')?.horizons.t1.avgReturnPct).toBeLessThan(0);
+  });
+
+  it('baris legacy tanpa price_basis tidak masuk validasi baru', () => {
+    const rows = [
+      { ...row('2026-01-01', 'OLD.JK', 85, 100), price_basis: null, adjusted_close_price: null },
+      { ...row('2026-01-02', 'OLD.JK', 85, 500), price_basis: null, adjusted_close_price: null },
+    ];
+
+    const result = computeLensScoreBucketBacktest(rows);
+
+    expect(result.rowsRead).toBe(0);
+    expect(result.buckets.every((b) => Object.values(b.horizons).every((h) => h.samples === 0))).toBe(true);
   });
 });

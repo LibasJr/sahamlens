@@ -8,15 +8,26 @@ import {
   type CalibrationObservation,
 } from '../calibration.service';
 import type { DailyOpenProvider, LensRadarHistoryEntry } from '../bucket-backtest.service';
+import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 
 function row(date: string, ticker: string, score: number, close: number, marketCap = 1_000_000_000): LensRadarHistoryEntry {
-  return { date, ticker, lens_score: score, close_price: close, market_cap: marketCap, score_version: 'lens-score-v1.3.0' };
+  return {
+    date,
+    ticker,
+    lens_score: score,
+    close_price: close,
+    raw_close_price: close,
+    adjusted_close_price: close,
+    price_basis: RETURN_PRICE_BASIS,
+    market_cap: marketCap,
+    score_version: 'lens-score-v1.3.0',
+  };
 }
 
 function provider(openByTicker: Record<string, Record<string, number>>): DailyOpenProvider {
   return {
     async getDailyOpenBars(ticker: string) {
-      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open }));
+      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
     },
   };
 }
@@ -201,5 +212,23 @@ describe('calibration.service', () => {
     expect(result.scoreVersion).toBeNull();
     expect(result.observations).toHaveLength(0);
     expect(result.rejectedRows).toBe(21);
+  });
+
+  it('reverse split raw +400% tanpa adjusted basis valid ditolak dari observasi return', async () => {
+    const rows: LensRadarHistoryEntry[] = [];
+    for (let i = 1; i <= 21; i++) {
+      const date = `2026-01-${String(i).padStart(2, '0')}`;
+      rows.push(row(date, 'CAL.JK', i === 1 ? 85 : 50, i === 1 ? 200 : 1000));
+    }
+    rows[0].price_basis = null;
+    rows[0].adjusted_close_price = null;
+    rows[1].price_basis = null;
+    rows[1].adjusted_close_price = null;
+
+    const result = await calculateCalibrationObservations(rows, provider({
+      'CAL.JK': { '2026-01-02': 1000 },
+    }));
+
+    expect(result.observations.find((obs) => obs.signalDate === '2026-01-01')).toBeUndefined();
   });
 });

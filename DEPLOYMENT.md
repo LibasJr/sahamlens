@@ -24,6 +24,47 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - Audit Ronde 3 Fase 3: Corporate Action & Price Basis
+
+- Fase yang dikerjakan: **hanya Fase 3 - Corporate Action dan Konsistensi Price Basis**.
+  Fase 1/2 tidak diubah kecuali kompatibilitas pembacaan histori yang sekarang membawa
+  metadata basis harga.
+- Kebijakan price basis:
+  - `RETURN_PRICE_BASIS = TOTAL_RETURN_ADJUSTED` untuk forward return, calibration,
+    bucket backtest, MA/RSI/MACD/momentum/market-flow return-based.
+  - `TRADING_PRICE_BASIS = RAW` untuk harga display, support/resistance, ATR raw OHLC,
+    tick/order level, dan chart tradable.
+  - Yahoo `AdjClose` diperlakukan sebagai sumber adjusted provider untuk fase ini
+    (`YAHOO_CHART_ADJCLOSE`, `price-adjustment-v1`). Jika adjusted price hilang,
+    sistem fail-closed; tidak ada fallback `AdjClose ?? Close` di scoring path utama.
+- Data model additive/idempotent di `shared/database/schema.service.ts`:
+  `lens_radar_history` ditambah `raw_close_price`, `adjusted_close_price`,
+  `price_basis`, `adjustment_factor`, `corporate_action_status`,
+  `price_data_timestamp`, `price_data_version`; `lens_bucket_stats` ditambah
+  `price_basis`, `price_data_version`.
+- Histori LensRadar baru tetap mempertahankan `close_price` lama sebagai raw/display
+  compatibility. Validasi/backtest baru hanya menerima row dengan
+  `price_basis = TOTAL_RETURN_ADJUSTED` dan `adjusted_close_price` valid; legacy/unknown
+  price basis tidak masuk sampel.
+- `shared/market/price-basis.ts` menjadi guard bersama:
+  normalisasi OHLC raw/adjusted, derivasi adjusted OHLC dari adjustment factor,
+  `PriceBasisMismatchError`, status `MISSING_ADJUSTED_PRICE`,
+  `INVALID_ADJUSTMENT_FACTOR`, `LEGACY_UNKNOWN_PRICE_BASIS`, dan corporate-action
+  detector sebagai **[HIPOTESIS PENJAGA]**, bukan alat menebak rasio split.
+- Endpoint/detail yang menampilkan analisis saham mulai membawa metadata `priceMeta`
+  agar audit/debug/Ask AI tidak menyebut "harga" tanpa basis.
+- Cache `/api/transparency` tetap versioned dan kini juga membawa `RETURN_PRICE_BASIS`
+  + `PRICE_ADJUSTMENT_VERSION` dalam cache key.
+- Sisa yang sengaja belum diubah di fase ini: beberapa endpoint context-only
+  (`/api/chat`, `/api/council`, `/api/compare`) masih memiliki fallback `AdjClose ?? Close`
+  untuk ringkasan/prompt, bukan validasi/backtest/scoring utama. Tandai untuk Fase 10
+  Ask AI contract agar semua konteks harga punya basis eksplisit.
+- Rollback plan: revert commit Fase 3. Kolom DB baru nullable/additive aman dibiarkan.
+  Jika hard rollback DB diperlukan, drop hanya kolom/index price-basis baru setelah
+  memastikan tidak ada consumer baru yang membacanya. Jangan menimpa/menghapus
+  `close_price` lama karena itu raw audit trail.
+- Tidak ada env var baru.
+
 ### 2026-08-06 - Audit Ronde 3 Fase 1: Model Versioning hardening
 
 - Fase yang dikerjakan: **hanya Fase 1 - Model Versioning** dari

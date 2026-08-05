@@ -7,11 +7,14 @@
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 35) return { label: 'MACD', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
 
-  // AdjClose (disesuaikan dividen, temuan M-01 - lihat yahoo-history.service.ts) kalau
-  // tersedia, fallback ke Close untuk pemanggil yang belum menyediakannya.
-  const closes = history.map(h => h.AdjClose ?? h.Close);
-  const ema12 = calculateEMA(closes, 12);
-  const ema26 = calculateEMA(closes, 26);
+  // FASE 3: MACD return-based memakai adjusted close eksplisit. Missing adjusted price
+  // membuat indikator N/A, bukan fallback diam-diam ke raw Close.
+  const closes = history.map(h => typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0 ? h.AdjClose : null);
+  if (closes.some((close) => close == null)) {
+    return { label: 'MACD', value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
+  }
+  const ema12 = calculateEMA(closes as number[], 12);
+  const ema26 = calculateEMA(closes as number[], 26);
   
   const macdLine = ema12.map((val, i) => val - ema26[i]);
   const signalLine = calculateEMA(macdLine, 9);
@@ -26,10 +29,10 @@ export function analyze(history: any[], currentPrice: number) {
   // IDX Threshold: BUY = histogram > 0 DAN MACD line > Signal
   if (histogram > 0 && lastMacd > lastSignal) {
     decision = 'BULLISH';
-    confidence = Math.min(95, 60 + (histogram / currentPrice) * 1000);
+    confidence = Math.min(95, 60 + (histogram / (closes[closes.length - 1] as number)) * 1000);
   } else if (histogram < 0 && lastMacd < lastSignal) {
     decision = 'BEARISH';
-    confidence = Math.min(95, 60 + (Math.abs(histogram) / currentPrice) * 1000);
+    confidence = Math.min(95, 60 + (Math.abs(histogram) / (closes[closes.length - 1] as number)) * 1000);
   }
 
   return {

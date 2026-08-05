@@ -21,12 +21,13 @@ import {
 } from './calibration.service';
 import { LENS_RADAR_HOLDING_DAYS } from './history-return-utils';
 import { SCORE_VERSION } from '../constants/model-version';
+import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
-export const TRANSPARENCY_CACHE_KEY = `sahamlens:cache:lens-radar:transparency:${SCORE_VERSION}`;
+export const TRANSPARENCY_CACHE_KEY = `sahamlens:cache:lens-radar:transparency:${SCORE_VERSION}:${RETURN_PRICE_BASIS}:${PRICE_ADJUSTMENT_VERSION}`;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -45,6 +46,8 @@ interface LensBucketStatsRow {
   avg_win_t20: number | string | null;
   avg_loss_t20: number | string | null;
   source_rows: number | string | null;
+  price_basis?: string | null;
+  price_data_version?: string | null;
 }
 
 export interface TransparencyBucketRow {
@@ -79,6 +82,8 @@ export interface TransparencyData {
   latestStatsRunDate: string | null;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  priceBasis: PriceBasis;
+  priceDataVersion: string;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -201,6 +206,7 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
       SELECT MAX(run_date) AS run_date
       FROM lens_bucket_stats
       WHERE score_version = $1
+        AND price_basis = $2
     )
     SELECT
       s.run_date,
@@ -215,9 +221,12 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
       s.avg_win_t20,
       s.avg_loss_t20,
       s.source_rows
+      , s.price_basis
+      , s.price_data_version
     FROM lens_bucket_stats s
     JOIN latest l ON s.run_date = l.run_date
     WHERE s.score_version = $1
+      AND s.price_basis = $2
     ORDER BY CASE s.bucket
       WHEN '80-100' THEN 1
       WHEN '70-79' THEN 2
@@ -226,7 +235,7 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
       ELSE 5
     END
     `,
-    [scoreVersion]
+    [scoreVersion, RETURN_PRICE_BASIS]
   );
   return rows as LensBucketStatsRow[];
 }
@@ -234,7 +243,9 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
+           raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+           corporate_action_status, price_data_timestamp, price_data_version
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -381,6 +392,8 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     latestStatsRunDate: bucketResult.latestStatsRunDate,
     scoreVersion,
     requestedScoreVersion,
+    priceBasis: RETURN_PRICE_BASIS,
+    priceDataVersion: PRICE_ADJUSTMENT_VERSION,
     rejectedRows,
     unversionedRows,
     versionMixed,

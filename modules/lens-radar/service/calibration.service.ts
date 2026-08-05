@@ -23,6 +23,15 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import {
+  PRICE_ADJUSTMENT_VERSION,
+  RETURN_PRICE_BASIS,
+  calculateForwardReturnPct,
+  normalizeYahooOhlcRows,
+  selectPriceSeries,
+  type CorporateActionStatus,
+  type PriceBasis,
+} from '@/shared/market/price-basis';
 
 const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
@@ -38,6 +47,11 @@ interface NormalizedHistoryEntry {
   ticker: string;
   lensScore: number;
   closePrice: number;
+  rawClosePrice: number | null;
+  adjustedClosePrice: number;
+  priceBasis: PriceBasis;
+  adjustmentVersion: string;
+  corporateActionStatus: CorporateActionStatus;
   marketCap: number | null;
   bucket: LensScoreBucket;
 }
@@ -92,6 +106,8 @@ export interface CalibrationDashboardData {
   unversionedRows: number;
   versionMixed: boolean;
   versionRejectedReason: string | null;
+  priceBasis: PriceBasis;
+  priceDataVersion: string;
   sourceRows: number;
   uniqueTickers: number;
   observationsT20: number;
@@ -112,9 +128,16 @@ export interface ThresholdRecommendation {
 class YahooDailyOpenProvider implements DailyOpenProvider {
   async getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]> {
     const history = await fetchYahooHistory(ticker, '5y');
-    return (history?.history ?? [])
-      .map((bar) => ({ date: bar.Date.split('T')[0], open: bar.Open }))
-      .filter((bar) => typeof bar.open === 'number' && Number.isFinite(bar.open) && bar.open > 0);
+    const normalized = normalizeYahooOhlcRows(history?.history ?? [], ticker, history?.regularMarketTime ? new Date(history.regularMarketTime * 1000).toISOString() : null);
+    return selectPriceSeries(normalized, RETURN_PRICE_BASIS).bars
+      .map((bar) => ({
+        date: bar.date,
+        open: bar.open,
+        close: bar.close,
+        priceBasis: bar.basis,
+        adjustmentVersion: bar.adjustmentVersion,
+        corporateActionStatus: bar.corporateActionStatus,
+      }));
   }
 }
 
@@ -143,6 +166,15 @@ function bucketFor(score: number): LensScoreBucket | null {
   if (score >= 70) return '70-79';
   if (score >= 60) return '60-69';
   return '<60';
+}
+
+function isValidCorporateActionStatus(status: CorporateActionStatus | string | null | undefined): status is CorporateActionStatus {
+  return !status || ![
+    'SUSPECTED_CORPORATE_ACTION',
+    'UNRESOLVED_CORPORATE_ACTION',
+    'LEGACY_UNKNOWN_PRICE_BASIS',
+    'UNRESOLVED_SECURITY_IDENTITY',
+  ].includes(status);
 }
 
 function roundPct(value: number | null, digits = 2): number | null {
@@ -174,12 +206,33 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedHistoryEntry
       const date = dateKey(row.date);
       const ticker = typeof row.ticker === 'string' ? row.ticker.trim().toUpperCase() : '';
       const lensScore = finiteNumber(row.lens_score);
-      const closePrice = finiteNumber(row.close_price);
+      const rawClosePrice = finiteNumber(row.raw_close_price ?? row.close_price);
+      const adjustedClosePrice = finiteNumber(row.adjusted_close_price ?? null);
+      const priceBasis = row.price_basis === RETURN_PRICE_BASIS ? RETURN_PRICE_BASIS : 'UNKNOWN';
       const marketCap = finiteNumber(row.market_cap);
-      if (!date || !ticker || lensScore == null || !isFinitePositive(closePrice)) return null;
+      if (
+        !date ||
+        !ticker ||
+        lensScore == null ||
+        priceBasis !== RETURN_PRICE_BASIS ||
+        !isFinitePositive(adjustedClosePrice) ||
+        !isValidCorporateActionStatus(row.corporate_action_status)
+      ) return null;
       const bucket = bucketFor(lensScore);
       if (!bucket) return null;
-      return { date, ticker, lensScore, closePrice, marketCap, bucket };
+      return {
+        date,
+        ticker,
+        lensScore,
+        closePrice: adjustedClosePrice,
+        rawClosePrice,
+        adjustedClosePrice,
+        priceBasis,
+        adjustmentVersion: row.price_data_version ?? PRICE_ADJUSTMENT_VERSION,
+        corporateActionStatus: (row.corporate_action_status as CorporateActionStatus) ?? 'NONE',
+        marketCap,
+        bucket,
+      };
     })
     .filter((row): row is NormalizedHistoryEntry => row !== null)
     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
@@ -197,7 +250,11 @@ async function loadOpenMaps(
       bars: await provider.getDailyOpenBars(ticker).catch(() => []),
     })));
     for (const { ticker, bars } of barsList) {
-      result.set(ticker, new Map(bars.map((bar) => [bar.date, bar.open])));
+      result.set(ticker, new Map(
+        bars
+          .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
+          .map((bar) => [bar.date, bar.open])
+      ));
     }
   }
   return result;
@@ -253,7 +310,40 @@ export async function calculateCalibrationObservations(
       const toReturn = (exit: NormalizedHistoryEntry | null): number | null => {
         if (!exit || !isFinitePositive(exit.closePrice)) return null;
         if (hasCorporateActionGap(series, entry.date, exit.date)) return null;
-        return ((exit.closePrice / entryOpen) - 1) * 100 - LENS_BUCKET_ROUND_TRIP_COST_PCT;
+        const ret = calculateForwardReturnPct({
+          ticker,
+          entryBar: {
+            date: entry.date,
+            ticker,
+            raw: { open: null, high: null, low: null, close: entry.rawClosePrice },
+            adjusted: { open: entryOpen, high: null, low: null, close: entry.adjustedClosePrice },
+            adjustmentFactor: null,
+            adjustmentStatus: 'DERIVED_FROM_ADJUSTMENT_FACTOR',
+            corporateActionStatus: entry.corporateActionStatus,
+            basisAvailability: { raw: false, adjusted: true },
+            source: 'LENS_RADAR_HISTORY+YAHOO_CHART',
+            dataTimestamp: null,
+            metadata: { priceBasis: RETURN_PRICE_BASIS, adjustmentSource: 'YAHOO_CHART_ADJCLOSE', adjustmentTimestamp: null, adjustmentVersion: entry.adjustmentVersion },
+          },
+          exitBar: {
+            date: exit.date,
+            ticker,
+            raw: { open: null, high: null, low: null, close: exit.rawClosePrice },
+            adjusted: { open: null, high: null, low: null, close: exit.adjustedClosePrice },
+            adjustmentFactor: null,
+            adjustmentStatus: 'DERIVED_FROM_ADJUSTMENT_FACTOR',
+            corporateActionStatus: exit.corporateActionStatus,
+            basisAvailability: { raw: false, adjusted: true },
+            source: 'LENS_RADAR_HISTORY',
+            dataTimestamp: null,
+            metadata: { priceBasis: RETURN_PRICE_BASIS, adjustmentSource: 'YAHOO_CHART_ADJCLOSE', adjustmentTimestamp: null, adjustmentVersion: exit.adjustmentVersion },
+          },
+          basis: RETURN_PRICE_BASIS,
+          entryField: 'open',
+          exitField: 'close',
+          roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
+        });
+        return ret.status === 'OK' ? ret.returnPct : null;
       };
 
       const returnT20 = toReturn(exitT20);
@@ -288,7 +378,9 @@ export async function calculateCalibrationObservations(
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
+           raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+           corporate_action_status, price_data_timestamp, price_data_version
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -308,11 +400,13 @@ async function readLatestBucketStats(
       SELECT MAX(run_date) AS run_date
       FROM lens_bucket_stats
       WHERE score_version = $1
+        AND price_basis = $2
     )
-    SELECT s.run_date::text AS run_date, s.bucket, s.avg_t20, s.total_samples, s.score_version
+    SELECT s.run_date::text AS run_date, s.bucket, s.avg_t20, s.total_samples, s.score_version, s.price_basis
     FROM lens_bucket_stats s
     JOIN latest l ON s.run_date = l.run_date
     WHERE s.score_version = $1
+      AND s.price_basis = $2
     ORDER BY CASE s.bucket
       WHEN '80-100' THEN 1
       WHEN '70-79' THEN 2
@@ -321,7 +415,7 @@ async function readLatestBucketStats(
       ELSE 5
     END
     `,
-    [scoreVersion]
+    [scoreVersion, RETURN_PRICE_BASIS]
   );
 
   const runDate = typeof rows[0]?.run_date === 'string' ? rows[0].run_date.slice(0, 10) : null;
@@ -615,6 +709,8 @@ export async function getCalibrationDashboardData(
     unversionedRows,
     versionMixed,
     versionRejectedReason,
+    priceBasis: RETURN_PRICE_BASIS,
+    priceDataVersion: PRICE_ADJUSTMENT_VERSION,
     sourceRows: normalizedRows,
     uniqueTickers,
     observationsT20,

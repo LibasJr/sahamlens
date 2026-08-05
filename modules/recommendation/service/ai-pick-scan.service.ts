@@ -7,6 +7,10 @@ import { evaluateMinimalEligibility } from '../../eligibility';
 import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
 import { buildLongTradingSetup } from './trading-setup';
+import {
+  PRICE_ADJUSTMENT_VERSION,
+  RETURN_PRICE_BASIS,
+} from '../../../shared/market/price-basis';
 
 const BATCH_SIZE = 15;
 const EMPTY_FUNDAMENTAL: FundamentalInput = {
@@ -68,14 +72,19 @@ async function scoreOne(
     ? lastClose
     : null;
   if (currentPrice == null) return null;
-  const closes = history.map((h) => h.AdjClose ?? h.Close);
+  // FASE 3: MA/RSI/MACD/momentum memakai adjusted close eksplisit. Missing AdjClose
+  // berarti komponen return-based tidak dihitung, bukan fallback ke raw Close.
+  const adjustedCloses = history.every((h) => typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0)
+    ? history.map((h) => h.AdjClose as number)
+    : null;
+  const currentAdjustedPrice = adjustedCloses ? adjustedCloses[adjustedCloses.length - 1] : null;
   const prevCloseRaw = history[history.length - 2]?.Close;
   if (!isFinitePositive(prevCloseRaw)) return null;
   const changePct = ((currentPrice - prevCloseRaw) / prevCloseRaw) * 100;
 
-  const ma20 = sma(closes, 20);
-  const ma50 = sma(closes, 50);
-  const ma200 = sma(closes, 200);
+  const ma20 = adjustedCloses ? sma(adjustedCloses, 20) : null;
+  const ma50 = adjustedCloses ? sma(adjustedCloses, 50) : null;
+  const ma200 = adjustedCloses ? sma(adjustedCloses, 200) : null;
   const rsiResult = analyzeRsi(history, currentPrice);
   const macdResult = analyzeMacd(history, currentPrice);
   // ATR-14 - dasar hitung TP1/TP2/CL1/CL2 di ai-pick.service.ts rankAiPicks(). `history`
@@ -138,7 +147,14 @@ async function scoreOne(
       // `?? 0` dihapus (temuan H-2/C-7): MA yang belum bisa dihitung dikirim null, bukan
       // 0 - harga selalu > 0 sehingga "harga > MA200(0)" dulu SELALU true dan memberi
       // poin uptrend gratis untuk saham berhistori pendek.
-      currentPrice, ma20, ma50, ma200, rsi,
+      currentPrice,
+      currentRawPrice: currentPrice,
+      currentAdjustedPrice,
+      currentPriceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+      maPriceBasis: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+      adjustmentVersion: PRICE_ADJUSTMENT_VERSION,
+      corporateActionStatus: 'NONE',
+      ma20, ma50, ma200, rsi,
       macdHist: macdHistVal, macdLine: macdLineVal, macdSignal: macdSigVal,
       volToday, volAvg20,
       changePct,   // P1-8: volume besar tanpa arah harga bukan konfirmasi beli
@@ -157,7 +173,7 @@ async function scoreOne(
 
   // Definisi bearish sama dengan market-summary.service.ts - null (data kurang)
   // diperlakukan aman sebagai "bukan bearish", bukan ditebak.
-  const bearish = ma20 != null && ma50 != null && currentPrice < ma20 && ma20 < ma50;
+  const bearish = ma20 != null && ma50 != null && currentAdjustedPrice != null && currentAdjustedPrice < ma20 && ma20 < ma50;
 
   // GERBANG KELAYAKAN MINIMAL (P0-3). Dijalankan SETELAH skor dihitung karena salah
   // satu gerbangnya (kelengkapan data) memakai `coverage_pct`, tapi hasilnya dipakai

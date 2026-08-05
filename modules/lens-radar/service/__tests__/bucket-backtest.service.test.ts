@@ -5,9 +5,20 @@ import {
   type DailyOpenProvider,
   type LensRadarHistoryEntry,
 } from '../bucket-backtest.service';
+import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 
 function row(date: string, ticker: string, score: number, close: number, marketCap = 1_000_000_000): LensRadarHistoryEntry {
-  return { date, ticker, lens_score: score, close_price: close, market_cap: marketCap, score_version: 'lens-score-v1.3.0' };
+  return {
+    date,
+    ticker,
+    lens_score: score,
+    close_price: close,
+    raw_close_price: close,
+    adjusted_close_price: close,
+    price_basis: RETURN_PRICE_BASIS,
+    market_cap: marketCap,
+    score_version: 'lens-score-v1.3.0',
+  };
 }
 
 function dateFromStart(offsetDays: number): string {
@@ -18,7 +29,7 @@ function dateFromStart(offsetDays: number): string {
 function provider(openByTicker: Record<string, Record<string, number>>): DailyOpenProvider {
   return {
     async getDailyOpenBars(ticker: string) {
-      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open }));
+      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
     },
   };
 }
@@ -120,5 +131,31 @@ describe('calculateLensBucketStats', () => {
     expect(result.rejectedRows).toBe(6);
     expect(result.sourceRows).toBe(6);
     expect(result.stats.find((s) => s.bucket === '80-100')?.avg_T1).toBeLessThan(0);
+  });
+
+  it('stock split 1:5 memakai adjusted close, bukan raw return -80%', async () => {
+    const rows: LensRadarHistoryEntry[] = [
+      { ...row('2026-01-01', 'SPLT.JK', 85, 5000), adjusted_close_price: 1000 },
+      { ...row('2026-01-02', 'SPLT.JK', 85, 1000), adjusted_close_price: 1000 },
+    ];
+
+    const result = await calculateLensBucketStats(rows, provider({
+      'SPLT.JK': { '2026-01-02': 1000 },
+    }), '2026-01-02');
+
+    expect(result.priceBasis).toBe(RETURN_PRICE_BASIS);
+    expect(result.stats.find((s) => s.bucket === '80-100')?.avg_T1).toBe(-0.5);
+  });
+
+  it('legacy unknown price basis tidak masuk validasi baru', async () => {
+    const legacy = { ...row('2026-01-01', 'OLD.JK', 85, 100), price_basis: null, adjusted_close_price: null };
+    const next = { ...row('2026-01-02', 'OLD.JK', 85, 101), price_basis: null, adjusted_close_price: null };
+
+    const result = await calculateLensBucketStats([legacy, next], provider({
+      'OLD.JK': { '2026-01-02': 100 },
+    }), '2026-01-02');
+
+    expect(result.sourceRows).toBe(0);
+    expect(result.stats.every((s) => s.totalSamples === 0)).toBe(true);
   });
 });

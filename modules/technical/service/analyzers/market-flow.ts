@@ -9,16 +9,17 @@ const LABEL = 'Market Flow Index (Accum/Dist)';
 
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 15) return { label: LABEL, value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (history.some((h) => typeof h.AdjClose !== 'number' || !Number.isFinite(h.AdjClose) || h.AdjClose <= 0)) {
+    return { label: LABEL, value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0 };
+  }
 
   let accum = 0;
   let dist = 0;
 
-  // BUG FIX (audit integritas data 2026-08-03, temuan M-01): arah harian pakai AdjClose
-  // (disesuaikan dividen) - dengan Close mentah, hari ex-dividend selalu tercatat turun
-  // (penyesuaian harga korporasi) dan salah diklasifikasikan sebagai "distribusi" walau
-  // sebenarnya hari itu net beli.
+  // FASE 3: arah harian memakai adjusted close eksplisit. Missing adjusted price sudah
+  // ditolak di atas; tidak ada fallback ke raw Close.
   for (let i = history.length - 14; i < history.length; i++) {
-    const change = (history[i].AdjClose ?? history[i].Close) - (history[i - 1].AdjClose ?? history[i - 1].Close);
+    const change = history[i].AdjClose - history[i - 1].AdjClose;
     if (change > 0) {
       accum += history[i].Volume;
     } else if (change < 0) {

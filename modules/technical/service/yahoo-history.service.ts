@@ -23,12 +23,12 @@ export interface OhlcRow {
   // peristiwa korporasi. `AdjClose` (disesuaikan split DAN dividen, langsung dari Yahoo
   // `indicators.adjclose`) disediakan di sini sebagai field TAMBAHAN - `Close` TETAP
   // dipakai apa adanya untuk apa pun yang butuh harga SUNGGUHAN (support/resistance
-  // untuk order riil, chart yang ditampilkan ke pengguna, entry/exit backtest).
-  // Opsional (bukan wajib) - producer OhlcRow lain (test fixture, dsb.) tidak harus
-  // menyediakannya; seluruh analyzer pakai pola `h.AdjClose ?? h.Close` sehingga aman
-  // tanpa field ini. fetchYahooHistory() di bawah SELALU mengisinya (fallback ke
-  // `Close` kalau Yahoo tidak mengembalikan adjclose untuk simbol ini, mis. sebagian
-  // indeks) - bukan retroactively "salah", cuma berarti AdjClose === Close persis.
+  // untuk order riil, chart yang ditampilkan ke pengguna, entry/exit trading raw).
+  //
+  // FASE 3 (2026-08-06): AdjClose TIDAK LAGI di-fallback ke Close. Fallback itu
+  // menyembunyikan perpindahan basis di tengah seri dan bisa membuat MA/RSI/MACD
+  // terlihat valid padahal adjusted price tidak tersedia. Analyzer return-based wajib
+  // fail-closed kalau AdjClose hilang.
   AdjClose?: number;
 }
 
@@ -73,7 +73,7 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
           Low: quote.low[i],
           Close: quote.close[i],
           Volume: quote.volume[i],
-          AdjClose: typeof adj === 'number' ? adj : quote.close[i],
+          ...(typeof adj === 'number' && Number.isFinite(adj) && adj > 0 ? { AdjClose: adj } : {}),
         });
       }
     }
