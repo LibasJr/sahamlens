@@ -24,8 +24,30 @@ function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
-function roundPrice(value: number): number {
-  return Math.round(value);
+const IDX_TICK_BANDS: readonly [number, number][] = [
+  [200, 1],
+  [500, 2],
+  [2000, 5],
+  [5000, 10],
+  [Infinity, 25],
+];
+
+export function idxTick(price: number): number {
+  for (const [ceiling, tick] of IDX_TICK_BANDS) {
+    if (price < ceiling) return tick;
+  }
+  return 25;
+}
+
+export function roundToIdxTick(value: number, mode: 'down' | 'up' | 'nearest'): number {
+  const tick = idxTick(value);
+  const quotient = value / tick;
+  const rounded = mode === 'down'
+    ? Math.floor(quotient)
+    : mode === 'up'
+      ? Math.ceil(quotient)
+      : Math.round(quotient);
+  return rounded * tick;
 }
 
 /**
@@ -77,20 +99,25 @@ export function buildLongTradingSetup(
   const tp1Raw = firstResistance && firstResistance.price < target2R
     ? firstResistance.price
     : target2R;
-  const rr = (tp1Raw - currentPrice) / risk;
-  if (!Number.isFinite(rr) || rr < MIN_LONG_RR) return null;
-
   const targetAboveTp1 = sortedResistance.find((level) => level.price > tp1Raw);
   const tp2Raw = targetAboveTp1?.price ?? currentPrice + risk * 3;
+  const entry = roundToIdxTick(currentPrice, 'nearest');
+  const roundedStop = roundToIdxTick(stop, 'down');
+  const tp1 = roundToIdxTick(tp1Raw, 'up');
+  const tp2 = roundToIdxTick(tp2Raw, 'up');
+  const cl2 = roundToIdxTick(currentPrice - risk * 2, 'down');
+  const roundedRisk = entry - roundedStop;
+  const roundedRr = roundedRisk > 0 ? (tp1 - entry) / roundedRisk : null;
+  if (roundedRr == null || !Number.isFinite(roundedRr) || roundedRr < MIN_LONG_RR) return null;
 
   return {
-    entry: roundPrice(currentPrice),
-    stop: roundPrice(stop),
-    tp1: roundPrice(tp1Raw),
-    tp2: roundPrice(tp2Raw),
-    cl1: roundPrice(stop),
-    cl2: roundPrice(currentPrice - risk * 2),
-    rr: parseFloat(rr.toFixed(2)),
+    entry,
+    stop: roundedStop,
+    tp1,
+    tp2,
+    cl1: roundedStop,
+    cl2,
+    rr: parseFloat(roundedRr.toFixed(2)),
     support: zones.support,
     resistance: firstResistance,
     stopSource: zones.support ? 'STRUCTURE_ATR' : 'ATR',

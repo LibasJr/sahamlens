@@ -388,6 +388,12 @@ export async function calculateDcfModel(rawTicker: string) {
     ? quoteSummary.financialData.freeCashflow
     : null;
   let fcfPerShare = (fcf && isFinitePositive(shares)) ? fcf / shares : null;
+  let totalDebt = isFiniteNumber(quoteSummary.financialData?.totalDebt)
+    ? quoteSummary.financialData.totalDebt
+    : null;
+  let totalCash = isFiniteNumber(quoteSummary.financialData?.totalCash)
+    ? quoteSummary.financialData.totalCash
+    : null;
 
   // Bank/institusi keuangan tidak punya "Free Cash Flow" dalam pengertian yang sama
   // (arus kas operasionalnya didominasi penempatan kredit/simpanan, bukan capex vs
@@ -416,7 +422,15 @@ export async function calculateDcfModel(rawTicker: string) {
     // Temuan H-6: tanpa kurs, FCF/share (USD) tidak bisa dibandingkan dengan harga (IDR).
     // null di sini membuat cabang "NO_FCF_DATA" di bawah aktif - model DCF dilewati,
     // bukan dihitung dengan kurs karangan.
-    fcfPerShare = exchangeRate != null ? fcfPerShare * exchangeRate : null;
+    if (exchangeRate != null) {
+      fcfPerShare *= exchangeRate;
+      if (totalDebt != null) totalDebt *= exchangeRate;
+      if (totalCash != null) totalCash *= exchangeRate;
+    } else {
+      fcfPerShare = null;
+      totalDebt = null;
+      totalCash = null;
+    }
   }
 
   if (!fcfPerShare || fcfPerShare <= 0) {
@@ -441,8 +455,20 @@ export async function calculateDcfModel(rawTicker: string) {
     };
   }
 
-  const waccPct = SBN_10Y_YIELD_PCT + EQUITY_RISK_PREMIUM_PCT;
-  const wacc = waccPct / 100;
+  if (!isFinitePositive(shares) || totalDebt == null || totalCash == null) {
+    return {
+      stock: { symbol: ticker },
+      quant: { current_price: price, not_applicable: true },
+      analysis: {
+        executive_summary: `Data utang/kas untuk ${ticker} tidak tersedia lengkap dari Yahoo Finance, sehingga nilai ekuitas tidak bisa dipisahkan dari nilai perusahaan. Model DCF tidak dihitung agar tidak menampilkan enterprise value sebagai harga wajar saham.`,
+      },
+      not_applicable_reason: 'NO_BALANCE_SHEET_DATA',
+    };
+  }
+
+  const discountRatePct = SBN_10Y_YIELD_PCT + EQUITY_RISK_PREMIUM_PCT;
+  const discountRate = discountRatePct / 100;
+  const netDebtPerShare = (totalDebt - totalCash) / shares;
 
   // Growth rate proyeksi 5 tahun: sustainable growth rate riil (ROE x retention ratio)
   // kalau payout ratio tersedia, dibatasi ke rentang wajar 2-12% supaya tidak meledak
@@ -451,36 +477,52 @@ export async function calculateDcfModel(rawTicker: string) {
   const rawGrowth = (roe / 100) * retentionRatio;
   const projectionGrowth = clamp(rawGrowth, 0.02, 0.12);
 
-  function buildProjection(waccRate: number, terminalGrowthRate: number) {
+  function buildProjection(discountRateInput: number, terminalGrowthRate: number) {
     const fcfProjections: { year: number; fcf_per_share: number; pv_fcf: number }[] = [];
     let pvFcfSum = 0;
     let fcfYearN = fcfPerShare as number;
     const currentYear = new Date().getFullYear();
     for (let y = 1; y <= PROJECTION_YEARS; y++) {
       fcfYearN = fcfYearN * (1 + projectionGrowth);
-      const pv = fcfYearN / Math.pow(1 + waccRate, y);
+      const pv = fcfYearN / Math.pow(1 + discountRateInput, y);
       pvFcfSum += pv;
       fcfProjections.push({ year: currentYear + y, fcf_per_share: fcfYearN, pv_fcf: pv });
     }
-    const terminalValue = (fcfYearN * (1 + terminalGrowthRate)) / (waccRate - terminalGrowthRate);
-    const pvTerminalValue = terminalValue / Math.pow(1 + waccRate, PROJECTION_YEARS);
-    const fairValue = pvFcfSum + pvTerminalValue;
-    return { fcfProjections, pvFcfSum, pvTerminalValue, fairValue };
+    const terminalValue = (fcfYearN * (1 + terminalGrowthRate)) / (discountRateInput - terminalGrowthRate);
+    const pvTerminalValue = terminalValue / Math.pow(1 + discountRateInput, PROJECTION_YEARS);
+    const enterpriseValuePerShare = pvFcfSum + pvTerminalValue;
+    const fairValue = enterpriseValuePerShare - netDebtPerShare;
+    return { fcfProjections, pvFcfSum, pvTerminalValue, enterpriseValuePerShare, fairValue };
   }
 
-  const base = buildProjection(wacc, TERMINAL_GROWTH_PCT / 100);
+  const base = buildProjection(discountRate, TERMINAL_GROWTH_PCT / 100);
   const fairValue = base.fairValue;
+  if (!Number.isFinite(fairValue) || fairValue <= 0) {
+    return {
+      stock: { symbol: ticker },
+      quant: {
+        current_price: price,
+        not_applicable: true,
+        enterprise_value_per_share: Math.round(base.enterpriseValuePerShare),
+        net_debt_per_share: Math.round(netDebtPerShare),
+      },
+      analysis: {
+        executive_summary: `Nilai operasi DCF ${ticker} setelah dikurangi utang bersih menghasilkan nilai ekuitas <= 0. Model tidak menampilkan target harga positif karena itu akan menyesatkan.`,
+      },
+      not_applicable_reason: 'NEGATIVE_EQUITY_VALUE',
+    };
+  }
   const mos = fairValue > 0 && price > 0 ? ((fairValue - price) / fairValue) * 100 : 0;
   const valuationStatus = mos >= 0 ? 'UNDERVALUED' : 'OVERVALUED';
 
   // Sensitivitas: WACC -1%/base/+1% (baris) x Terminal Growth 3.0/3.5/4.0% (kolom) -
   // tiap sel dihitung ulang dengan model yang sama, bukan interpolasi kira-kira.
-  const waccRows = [waccPct - 1, waccPct, waccPct + 1];
+  const discountRateRows = [discountRatePct - 1, discountRatePct, discountRatePct + 1];
   const growthCols = [3.0, 3.5, 4.0];
-  const sensitivityTable = waccRows.map((wRow) => {
-    const row: Record<string, any> = { wacc_pct: wRow.toFixed(2) };
+  const sensitivityTable = discountRateRows.map((rateRow) => {
+    const row: Record<string, any> = { discount_rate_pct: rateRow.toFixed(2), wacc_pct: rateRow.toFixed(2) };
     growthCols.forEach((g) => {
-      const result = wRow > g ? buildProjection(wRow / 100, g / 100) : null;
+      const result = rateRow > g ? buildProjection(rateRow / 100, g / 100) : null;
       row[`g_${g.toFixed(1)}%`] = result ? Math.round(result.fairValue) : null;
     });
     return row;
@@ -490,11 +532,17 @@ export async function calculateDcfModel(rawTicker: string) {
     stock: { symbol: ticker },
     quant: {
       current_price: price,
-      wacc_pct: parseFloat(waccPct.toFixed(2)),
+      discount_rate_pct: parseFloat(discountRatePct.toFixed(2)),
+      cost_of_equity_pct: parseFloat(discountRatePct.toFixed(2)),
+      // Backward-compatible alias; UI baru melabelinya sebagai discount rate proxy,
+      // bukan WACC aktual karena struktur modal/beta emiten belum dihitung.
+      wacc_pct: parseFloat(discountRatePct.toFixed(2)),
       sbn_10y_yield: SBN_10Y_YIELD_PCT,
       risk_premium: EQUITY_RISK_PREMIUM_PCT,
       terminal_growth_pct: TERMINAL_GROWTH_PCT,
       fair_value: Math.round(fairValue),
+      enterprise_value_per_share: Math.round(base.enterpriseValuePerShare),
+      net_debt_per_share: Math.round(netDebtPerShare),
       valuation_status: valuationStatus,
       pv_fcf_sum: Math.round(base.pvFcfSum),
       pv_terminal_value: Math.round(base.pvTerminalValue),
@@ -513,7 +561,7 @@ export async function calculateDcfModel(rawTicker: string) {
       },
     },
     analysis: {
-      executive_summary: `Model DCF 5-tahun (WACC ${waccPct.toFixed(1)}% = asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, keduanya asumsi tetap per ${MACRO_ASSUMPTION_SET_ON}, bukan pembacaan pasar terkini; pertumbuhan FCF proyeksi ${(projectionGrowth * 100).toFixed(1)}%/tahun dari ROE & rasio retensi riil; terminal growth ${TERMINAL_GROWTH_PCT}%) menghasilkan nilai wajar Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL dengan asumsi di atas, bukan target harga; lihat tabel sensitivitas untuk melihat seberapa besar hasilnya bergeser kalau asumsinya berubah.`,
+      executive_summary: `Model DCF 5-tahun memakai discount rate proxy ${discountRatePct.toFixed(1)}% (= asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, tetap per ${MACRO_ASSUMPTION_SET_ON}); FCF dihitung sebagai nilai operasi lalu dikurangi utang bersih per saham Rp ${Math.round(netDebtPerShare).toLocaleString('id-ID')}. Nilai wajar ekuitas Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL, bukan target harga; lihat tabel sensitivitas.`,
     },
   };
 }

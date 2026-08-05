@@ -2,6 +2,12 @@ import { pool } from '../../../shared/database/postgres.client';
 import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import { todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { fetchYahooHistory } from '../../technical';
+import {
+  barAtTradingOffset,
+  buildTradingCalendar,
+  hasCorporateActionGap,
+} from './history-return-utils';
+import { partitionByScoreVersion } from '../constants/model-version';
 
 export const LENS_BUCKET_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 
@@ -17,6 +23,7 @@ export interface LensRadarHistoryEntry {
   lens_score: number | string;
   close_price: number | string;
   market_cap: number | string | null;
+  score_version?: string | null;
 }
 
 export interface DailyOpenBar {
@@ -181,7 +188,10 @@ export async function calculateLensBucketStats(
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
   asOfDate = todayDateKeyWIB()
 ): Promise<LensBucketBacktestResult> {
-  const normalized = normalizeHistory(rows);
+  const partition = partitionByScoreVersion(rows);
+  const normalized = normalizeHistory(partition.accepted);
+  const tradingCalendar = buildTradingCalendar(normalized);
+  const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
   const byTicker = new Map<string, NormalizedEntry[]>();
   for (const row of normalized) {
     const list = byTicker.get(row.ticker) ?? [];
@@ -196,21 +206,25 @@ export async function calculateLensBucketStats(
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
     const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
+    const byDate = new Map(series.map((row) => [row.date, row]));
     for (let i = 0; i < series.length; i++) {
       const signal = series[i];
       if (!signal) continue;
-      const entry = series[i + 1];
+      const signalCalendarIndex = calendarIndex.get(signal.date);
+      if (signalCalendarIndex == null) continue;
+      const entry = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 1);
       if (!entry) continue;
       const entryOpen = openByDate.get(entry.date);
       if (!isFinitePositive(entryOpen)) continue;
 
-      const closeT1 = series[i + 1]?.closePrice ?? null;
-      const closeT5 = series[i + 5]?.closePrice ?? null;
-      const closeT20 = series[i + 20]?.closePrice ?? null;
+      const exitT1 = entry;
+      const exitT5 = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 5);
+      const exitT20 = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 20);
 
-      const addReturn = (horizon: ForwardHorizon, exitClose: number | null) => {
-        if (!isFinitePositive(exitClose)) return;
-        const grossPct = ((exitClose / entryOpen) - 1) * 100;
+      const addReturn = (horizon: ForwardHorizon, exit: NormalizedEntry | null) => {
+        if (!exit || !isFinitePositive(exit.closePrice)) return;
+        if (hasCorporateActionGap(series, entry.date, exit.date)) return;
+        const grossPct = ((exit.closePrice / entryOpen) - 1) * 100;
         const netReturn = grossPct - LENS_BUCKET_ROUND_TRIP_COST_PCT;
         returns[signal.bucket][horizon].push(netReturn);
         if (horizon === 'T20') {
@@ -218,9 +232,9 @@ export async function calculateLensBucketStats(
         }
       };
 
-      addReturn('T1', closeT1);
-      addReturn('T5', closeT5);
-      addReturn('T20', closeT20);
+      addReturn('T1', exitT1);
+      addReturn('T5', exitT5);
+      addReturn('T20', exitT20);
     }
   }
 
@@ -249,7 +263,7 @@ export async function calculateLensBucketStats(
 export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL

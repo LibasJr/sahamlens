@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLongTradingSetup } from '../trading-setup';
+import { buildLongTradingSetup, roundToIdxTick } from '../trading-setup';
 
 const baseHistory = (resistanceHigh = 130) => [
   { High: 102, Low: 101, Close: 101 },
@@ -43,5 +43,20 @@ describe('buildLongTradingSetup', () => {
 
   it('mengembalikan null kalau ATR tidak tersedia', () => {
     expect(buildLongTradingSetup(baseHistory(), 106, null)).toBeNull();
+  });
+
+  it('membulatkan level order ke fraksi harga IDX dan menghitung ulang RR dari level executable', () => {
+    expect(roundToIdxTick(4237, 'down')).toBe(4230);
+    expect(roundToIdxTick(4237, 'up')).toBe(4240);
+    expect(roundToIdxTick(151, 'nearest')).toBe(151);
+    expect(roundToIdxTick(5101, 'nearest')).toBe(5100);
+
+    const setup = buildLongTradingSetup(baseHistory(4100), 4237, 80);
+    expect(setup).not.toBeNull();
+    if (!setup) throw new Error('setup null');
+    expect(setup.entry % 10).toBe(0);
+    expect(setup.cl1 % 10).toBe(0);
+    expect(setup.tp1 % 10).toBe(0);
+    expect(setup.rr).toBeGreaterThanOrEqual(1.5);
   });
 });

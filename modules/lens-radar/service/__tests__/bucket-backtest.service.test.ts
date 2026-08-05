@@ -7,7 +7,7 @@ import {
 } from '../bucket-backtest.service';
 
 function row(date: string, ticker: string, score: number, close: number, marketCap = 1_000_000_000): LensRadarHistoryEntry {
-  return { date, ticker, lens_score: score, close_price: close, market_cap: marketCap };
+  return { date, ticker, lens_score: score, close_price: close, market_cap: marketCap, score_version: 'lens-score-v1.3.0' };
 }
 
 function dateFromStart(offsetDays: number): string {

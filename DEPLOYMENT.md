@@ -24,6 +24,35 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - Audit kuantitatif ronde 3: fail-closed validation & DCF bridge
+
+- Validasi LensRadar diperketat:
+  - Forward return T+1/T+5/T+20 sekarang memakai kalender hari bursa global, bukan indeks
+    baris per ticker di `lens_radar_history`.
+  - Observasi dengan gap harga harian >40% dalam window entry-exit dibuang sebagai mitigasi
+    aksi korporasi/split yang belum punya adjusted close point-in-time.
+  - T-test admin/transparency memakai sampel efektif non-overlap per ticker per 20 hari
+    bursa, bukan sampel harian yang tumpang tindih.
+  - Status produk LensRadar dipaksa `RESEARCH_ONLY`: p-value tetap ditampilkan untuk riset,
+    tetapi flag/banner “tervalidasi” tidak boleh aktif sebelum uji out-of-sample tersedia.
+- Equity curve `/transparency` Top 5 LensRadar sekarang compound per window 20 hari yang tidak
+  tumpang tindih, bukan return 20-hari yang dikalikan setiap hari bursa.
+- Cron `lens-bucket-backtest` memakai logika horizon/guard yang sama dengan calibration agar
+  snapshot `lens_bucket_stats` tidak menyimpan statistik bias.
+- `lens_radar_history` ditambah kolom versi model/audit trail secara idempoten:
+  `score_version`, `valuation_version`, `signal_version`, `data_snapshot_version`,
+  `calculation_timestamp`. Arsip harian baru menulis versi ini otomatis.
+- Technical LensScore: volume 0 dinilai sebagai data valid dengan skor 0, bukan dianggap missing
+  lalu bobotnya direnormalisasi.
+- TP/CL LensRadar dibulatkan ke fraksi harga IDX dan RR dihitung ulang setelah pembulatan.
+- DCF LensAI:
+  - UI/backend tidak lagi melabeli `Rf + ERP` sebagai WACC aktual; sekarang disebut
+    `discount_rate_pct` / cost-of-equity proxy.
+  - DCF FCF menghasilkan enterprise value per share lalu dikurangi net debt per share sebelum
+    menjadi fair value ekuitas. Jika data utang/kas tidak tersedia, DCF fail-closed sebagai
+    `NO_BALANCE_SHEET_DATA`.
+- Tidak ada env var baru.
+
 ### 2026-08-05 - Menu UI untuk Transparency & Calibration
 
 - Sidebar sekarang menampilkan menu publik **Transparansi** (`/transparency`) di grup
