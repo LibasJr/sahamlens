@@ -9,6 +9,15 @@ import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialSta
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
+// BUG FIX (2026-08-05, diagnostik log produksi): tanpa ini, function terikat default
+// Vercel Hobby plan (10 detik) - generateAI() (lib/aiProviders.ts) mencoba cascade sampai
+// 6 kombinasi provider+model, masing-masing timeout 8 detik, jadi skenario terburuknya
+// ~48 detik. Log produksi menunjukkan sebagian permintaan cuma sempat mencatat 2-3
+// percobaan sebelum function dimatikan platform - bukan semua provider benar-benar
+// dicoba sebelum jatuh ke fallback lokal. Nilai 60 sama seperti app/api/screener/
+// route.ts (pola yang sama, sudah terbukti jalan di plan yang sama).
+export const maxDuration = 60;
+
 // Minimal technical analyzer functions from existing codebase
 import {
   analyzeEma,

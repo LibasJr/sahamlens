@@ -2,6 +2,10 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 export const dynamic = 'force-dynamic';
+// BUG FIX (2026-08-05, diagnostik log produksi - lihat catatan lengkap di
+// app/api/council/route.ts): generateAI() bisa mencoba sampai 6 kombinasi provider+model
+// (timeout 8 detik masing-masing), melebihi default 10 detik Vercel Hobby plan.
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
