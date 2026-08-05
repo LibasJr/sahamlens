@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildBucketRows, buildTop5EquityCurve, buildTransparencyBanner } from '../transparency.service';
+import {
+  TRANSPARENCY_CACHE_KEY,
+  buildBucketRows,
+  buildTop5EquityCurve,
+  buildTransparencyBanner,
+} from '../transparency.service';
 import type { CalibrationObservation } from '../calibration.service';
+import { SCORE_VERSION } from '../../constants/model-version';
 import type { ValidationStatus } from '../../constants/research-status';
 
 function obs(partial: Partial<CalibrationObservation>): CalibrationObservation {
@@ -19,6 +25,11 @@ function obs(partial: Partial<CalibrationObservation>): CalibrationObservation {
 }
 
 describe('transparency.service', () => {
+  it('cache key publik menyertakan score version agar payload lama tanpa audit trail tidak dipakai ulang', () => {
+    expect(TRANSPARENCY_CACHE_KEY).toContain(SCORE_VERSION);
+    expect(TRANSPARENCY_CACHE_KEY).not.toBe('sahamlens:cache:lens-radar:transparency:v1');
+  });
+
   it('membangun bucket rows dari lens_bucket_stats dan fallback observasi real untuk metric baru', () => {
     const result = buildBucketRows([
       {

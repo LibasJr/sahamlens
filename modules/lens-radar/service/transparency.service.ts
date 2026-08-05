@@ -23,7 +23,10 @@ import { LENS_RADAR_HOLDING_DAYS } from './history-return-utils';
 import { SCORE_VERSION } from '../constants/model-version';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
-const TRANSPARENCY_CACHE_KEY = 'sahamlens:cache:lens-radar:transparency:v1';
+// Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
+// lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
+// tampak sehat tetapi audit trail versi tidak terbawa.
+export const TRANSPARENCY_CACHE_KEY = `sahamlens:cache:lens-radar:transparency:${SCORE_VERSION}`;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
