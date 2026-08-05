@@ -2,11 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Bell, User as UserIcon, Sparkles } from 'lucide-react';
 import CommandPalette from '@/components/CommandPalette';
 import { isMarketOpen } from '@/lib/utils/market';
 
 export default function TopMarketBar() {
+  // BUG FIX (2026-08-05, permintaan user): search disembunyikan KHUSUS di dashboard (`/`)
+  // - Dashboard.tsx sudah punya CommandPalette sendiri di body (Featured Chart Card), jadi
+  // search di TopMarketBar dobel di layar yang sama. Top bar dashboard cuma nampilin IHSG
+  // live, Ask LensAI, notifikasi, akun. Halaman lain (yang gak punya search sendiri di
+  // body) tetap dapat search ini.
+  const pathname = usePathname();
+  const showSearch = pathname !== '/';
+
   const [ihsg, setIhsg] = useState<{ price: number; change: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -60,9 +69,11 @@ export default function TopMarketBar() {
 
       <span className="hidden md:inline text-[11px] text-tv-muted shrink-0">Update {jakartaTime}</span>
 
-      <div className="flex-1 min-w-0 max-w-[360px]">
-        <CommandPalette />
-      </div>
+      {showSearch && (
+        <div className="flex-1 min-w-0 max-w-[360px]">
+          <CommandPalette />
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
         <button
