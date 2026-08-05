@@ -36,12 +36,18 @@ function MetricBox({ label, value, Icon }: { label: string; value: string; Icon:
 // "Kunjungi Website" di app/fundamental/page.tsx) - bukan foto dekoratif karangan. Kalau
 // website tidak ada di data ATAU logo gagal dimuat, fallback ke icon sektor (SectorIcon)
 // - tidak pernah menampilkan gambar palsu/generik yang bisa dikira logo asli.
+//
+// BUG FIX (2026-08-05): SEBELUMNYA langsung ke logo.clearbit.com - servis itu sudah MATI
+// (DNS tidak resolve, shutdown pasca akuisisi HubSpot, dikonfirmasi empiris). Diganti ke
+// /api/company-logo (proxy backend sendiri, lihat komentar di route itu) - sekaligus
+// menghindari canvas "tainted" karena gambar cross-origin tanpa header CORS yang
+// sebelumnya bikin html-to-image gagal total.
 function getLogoUrl(website?: string): string | null {
   if (!website) return null;
   try {
     const url = website.startsWith('http') ? website : `https://${website}`;
     const hostname = new URL(url).hostname.replace(/^www\./, '');
-    return `https://logo.clearbit.com/${hostname}`;
+    return `/api/company-logo?domain=${encodeURIComponent(hostname)}`;
   } catch {
     return null;
   }
@@ -63,7 +69,6 @@ function CompanyMark({ website, sectorTheme }: { website?: string; sectorTheme: 
     <div className="w-32 h-32 shrink-0 rounded-2xl bg-white p-5 flex items-center justify-center overflow-hidden">
       <img
         src={logoUrl}
-        crossOrigin="anonymous"
         alt=""
         className="max-w-full max-h-full object-contain"
         onError={() => setFailed(true)}
