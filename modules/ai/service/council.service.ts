@@ -81,7 +81,17 @@ function isKnownNumber(n: number, known: number[]): boolean {
  * Di situ 23743 dan 26832 dua-duanya data asli; yang dianggap karangan justru "200".
  * Prompt di file ini pun mencontohkan "MA200 369", jadi model memang diajari menulis
  * bentuk yang kemudian ditolak penjaganya sendiri. */
-const INDICATOR_PERIOD_RE = /\b(MA|EMA|SMA|WMA|RSI|CMF|ATR|MFI|ADX|CCI|BB|MACD)\s*[-_]?\s*\d+\b/gi;
+// BUG FIX (2026-08-05, diagnostik log produksi, PUTARAN KE-2): versi pertama regex ini
+// ikut membolehkan SPASI antara nama indikator dan angka ("ATR\s*[-_]?\s*\d+"). Itu
+// benar untuk notasi periode yang ditulis renggang ("MA 200"), TAPI notasi periode di
+// kenyataan SELALU nempel tanpa spasi ("MA200", "RSI14", "ATR-14" - dash boleh, spasi
+// tidak) - sedangkan "ATR 158.9" (spasi + angka) adalah AI melaporkan NILAI ATR, bukan
+// periodenya. Versi lama menganggap keduanya sama, jadi "ATR 158.92857142857142 tinggi"
+// (nilai ATR asli dari DATA REAL) ikut ke-strip jadi "ATR .92857142857142 tinggi", lalu
+// diekstrak jadi angka "92857142857142" yang pasti tidak match apa pun. Dikonfirmasi dari
+// log produksi: [COUNCIL] Output AI ditolak untuk BBCA.JK - "ATR 158.92857142857142
+// tinggi" (angka 92857142857142). Spasi sekarang TIDAK diperbolehkan sama sekali.
+const INDICATOR_PERIOD_RE = /\b(MA|EMA|SMA|WMA|RSI|CMF|ATR|MFI|ADX|CCI|BB|MACD)[-_]?\d+\b/gi;
 
 /** Kembalikan potongan teks pertama yang memuat angka berskala harga yang TIDAK ada di
  * DATA REAL, atau null kalau seluruh angka bisa dipertanggungjawabkan.
