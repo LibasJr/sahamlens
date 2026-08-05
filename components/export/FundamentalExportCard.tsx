@@ -37,16 +37,22 @@ function MetricBox({ label, value, Icon }: { label: string; value: string; Icon:
 // website tidak ada di data ATAU logo gagal dimuat, fallback ke icon sektor (SectorIcon)
 // - tidak pernah menampilkan gambar palsu/generik yang bisa dikira logo asli.
 //
-// BUG FIX (2026-08-05): SEBELUMNYA langsung ke logo.clearbit.com - servis itu sudah MATI
-// (DNS tidak resolve, shutdown pasca akuisisi HubSpot, dikonfirmasi empiris). Diganti ke
-// /api/company-logo (proxy backend sendiri, lihat komentar di route itu) - sekaligus
+// BUG FIX (2026-08-05, #1): SEBELUMNYA langsung ke logo.clearbit.com - servis itu sudah
+// MATI (DNS tidak resolve, shutdown pasca akuisisi HubSpot, dikonfirmasi empiris). Diganti
+// ke /api/company-logo (proxy backend sendiri, lihat komentar di route itu) - sekaligus
 // menghindari canvas "tainted" karena gambar cross-origin tanpa header CORS yang
 // sebelumnya bikin html-to-image gagal total.
+//
+// BUG FIX (2026-08-05, #2): `.replace(/^www\./, '')` DIHAPUS - dikonfirmasi empiris
+// Google favicon service index domain APA ADANYA, bukan domain ternormalisasi.
+// www.telkom.co.id ADA favicon terindeks, telkom.co.id (setelah "www." dibuang) TIDAK -
+// stripping "www." yang niatnya "membersihkan" domain justru mematahkan lookup untuk
+// domain yang situs resminya memang di-serve di subdomain www.
 function getLogoUrl(website?: string): string | null {
   if (!website) return null;
   try {
     const url = website.startsWith('http') ? website : `https://${website}`;
-    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    const hostname = new URL(url).hostname;
     return `/api/company-logo?domain=${encodeURIComponent(hostname)}`;
   } catch {
     return null;
