@@ -6,6 +6,7 @@ import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../
 import { evaluateMinimalEligibility } from '../../eligibility';
 import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
+import { buildLongTradingSetup } from './trading-setup';
 
 const BATCH_SIZE = 15;
 const EMPTY_FUNDAMENTAL: FundamentalInput = {
@@ -38,6 +39,14 @@ function sma(closes: number[], period: number): number | null {
   return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 async function scoreOne(
   ticker: string,
   fundamental: FundamentalInput
@@ -52,10 +61,17 @@ async function scoreOne(
   // Harga LIVE (regularMarketPrice dari meta Yahoo), bukan Close bar harian terakhir -
   // konsisten dengan Screener/Recommendations yang sama-sama pakai quote live, bukan
   // harga EOD kemarin yang bisa basi selama jam bursa.
-  const currentPrice = res.currentPrice || history[history.length - 1].Close;
+  const lastClose = history[history.length - 1]?.Close;
+  const currentPrice = isFinitePositive(res.currentPrice)
+    ? res.currentPrice
+    : isFinitePositive(lastClose)
+    ? lastClose
+    : null;
+  if (currentPrice == null) return null;
   const closes = history.map((h) => h.AdjClose ?? h.Close);
-  const prevCloseRaw = history[history.length - 2]?.Close || currentPrice;
-  const changePct = prevCloseRaw ? ((currentPrice - prevCloseRaw) / prevCloseRaw) * 100 : 0;
+  const prevCloseRaw = history[history.length - 2]?.Close;
+  if (!isFinitePositive(prevCloseRaw)) return null;
+  const changePct = ((currentPrice - prevCloseRaw) / prevCloseRaw) * 100;
 
   const ma20 = sma(closes, 20);
   const ma50 = sma(closes, 50);
@@ -68,6 +84,11 @@ async function scoreOne(
   // bukan rumus baru dikarang.
   const volatilityResult = analyzeVolatility(history, currentPrice);
   const atr = typeof volatilityResult?.raw?.atr === 'number' ? volatilityResult.raw.atr : null;
+  const tradeSetup = buildLongTradingSetup(
+    history.map((h) => ({ High: h.High, Low: h.Low, Close: h.Close, AdjClose: h.AdjClose })),
+    currentPrice,
+    atr,
+  );
   // Fallback 50/0 dihapus (audit 2026-08-05, temuan C-7) - lihat app/api/stock/[ticker].
   const rsi = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
   const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
@@ -81,9 +102,13 @@ async function scoreOne(
   const adjustedHistory = isLiveFormingBar
     ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
     : history;
-  const volToday = adjustedHistory[adjustedHistory.length - 1].Volume || 0;
-  const volAvg20 = adjustedHistory.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, adjustedHistory.length);
-  const volRatio = volAvg20 > 0 ? volToday / volAvg20 : 1;
+  const volToday = adjustedHistory[adjustedHistory.length - 1]?.Volume;
+  if (!isFiniteNonNegative(volToday)) return null;
+  const volWindow = adjustedHistory.slice(-20);
+  const volAvg20 = volWindow.length > 0 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
+    ? volWindow.reduce((s, h) => s + h.Volume, 0) / volWindow.length
+    : null;
+  const volRatio = isFinitePositive(volAvg20) ? volToday / volAvg20 : null;
 
   // Shape {date,high,low,close,volume} untuk Bandarmology/CMF/arus dana - Close MENTAH
   // (bukan AdjClose), sama seperti recommendation.service.ts/screener.service.ts.
@@ -178,6 +203,15 @@ async function scoreOne(
       kategori: scoring.kategori,
       eligibilityStatus: eligibility.status,
       eligibilityReasons: eligibility.reasonCodes,
+      tradeSetup: tradeSetup
+        ? {
+          tp1: tradeSetup.tp1,
+          tp2: tradeSetup.tp2,
+          cl1: tradeSetup.cl1,
+          cl2: tradeSetup.cl2,
+          rr: tradeSetup.rr,
+        }
+        : null,
       // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari
       // calculateScore(), bukan dihitung ulang/dikarang di sini.
       breakdown: {

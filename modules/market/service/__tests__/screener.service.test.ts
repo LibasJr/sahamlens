@@ -107,4 +107,15 @@ describe('rankScreener', () => {
 
     expect(result[0].atr_pct).toBeNull();
   });
+
+  it('profil agresif tidak lagi menganggap volume distribusi sebagai momentum positif', () => {
+    const universe = [
+      rawStock('BBCA', { vol_ratio: 2, bandarmology_status: 'BEARISH' }),
+      rawStock('TLKM', { vol_ratio: 2, bandarmology_status: 'BULLISH' }),
+    ];
+
+    const result = rankScreener(universe as any, 'Agresif');
+
+    expect(result[0].ticker).toBe('TLKM');
+  });
 });

@@ -53,6 +53,18 @@ function sma(values: number[], period: number): number | null {
   return slice.reduce((a, b) => a + b, 0) / period;
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 // BUG FIX (audit integritas data 2026-08-03, temuan H-01): fungsi RSI lokal di sini
 // (rata-rata aritmatik sederhana) diganti calculateRsi() bersama (Wilder smoothing) dari
 // modules/technical - lihat modules/technical/service/rsi.ts untuk bukti empiris deviasi
@@ -95,12 +107,27 @@ async function fetchQuote(symbol: string) {
     const volumes: number[] = [];
     const dates: string[] = [];
     for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close?.[i] !== null && quote.close?.[i] !== undefined) {
-        closes.push(quote.close[i]);
-        highs.push(quote.high?.[i] ?? quote.close[i]);
-        lows.push(quote.low?.[i] ?? quote.close[i]);
-        volumes.push(quote.volume?.[i] || 0);
-        dates.push(new Date(timestamps[i] * 1000).toISOString().split('T')[0]);
+      const timestamp = timestamps[i];
+      const open = quote.open?.[i];
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      const volume = quote.volume?.[i];
+
+      if (
+        isFiniteNumber(timestamp) &&
+        isFiniteNumber(open) &&
+        isFiniteNumber(high) &&
+        isFiniteNumber(low) &&
+        isFinitePositive(close) &&
+        isFiniteNonNegative(volume) &&
+        high >= low
+      ) {
+        closes.push(close);
+        highs.push(high);
+        lows.push(low);
+        volumes.push(volume);
+        dates.push(new Date(timestamp * 1000).toISOString().split('T')[0]);
       }
     }
     if (closes.length < 5) return null;
@@ -108,10 +135,10 @@ async function fetchQuote(symbol: string) {
     // NOTE: meta.chartPreviousClose is unreliable for ranges other than 1d — Yahoo
     // returns the close from the *start* of the requested range, not yesterday's close.
     // Always derive prevClose from the actual daily closes we just fetched.
-    const prevClose = closes[closes.length - 2] || closes[0];
-    const currentPrice = meta.regularMarketPrice || closes[closes.length - 1];
+    const prevClose = closes[closes.length - 2];
+    const currentPrice = isFinitePositive(meta?.regularMarketPrice) ? meta.regularMarketPrice : closes[closes.length - 1];
     const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
-    const rawVolume = meta.regularMarketVolume || volumes[volumes.length - 1] || 0;
+    const rawVolume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : volumes[volumes.length - 1];
     // BUG FIX (audit integritas data 2026-08-03, temuan M-02): volume hari ini selama
     // jam bursa masih PARSIAL - dibandingkan mentah dengan avgVolume20 (rata-rata 20
     // hari PENUH) di bawah, volRatio (dipakai "Top Volume"/technicalScore di halaman
@@ -139,7 +166,7 @@ async function fetchQuote(symbol: string) {
       : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
     // Rasio memakai volume yang SUDAH disetarakan ke sesi penuh - membandingkan volume
     // separuh hari dengan rata-rata 20 hari PENUH bias ke bawah sepanjang jam bursa.
-    const volRatio = avgVolume20 ? volumeEstimatedFullDay / avgVolume20 : 1;
+    const volRatio = avgVolume20 > 0 ? volumeEstimatedFullDay / avgVolume20 : null;
 
     // Proxy "akumulasi asing berkelanjutan" - streak hari berturut-turut netValue
     // (Chaikin Money Flow: posisi close di range High-Low, bukan cuma arah harga)
@@ -157,7 +184,8 @@ async function fetchQuote(symbol: string) {
     let technicalSignal: 'BULLISH' | 'BEARISH' | 'NETRAL' = 'NETRAL';
     let technicalScore = 0;
     if (ma20 !== null && ma50 !== null) {
-      const conditions = [currentPrice > ma20, ma20 > ma50, volRatio > 1];
+      const conditions = [currentPrice > ma20, ma20 > ma50];
+      if (volRatio != null) conditions.push(volRatio > 1);
       const met = conditions.filter(Boolean).length;
       technicalScore = Math.round((met / conditions.length) * 100);
       if (currentPrice > ma20 && ma20 > ma50) technicalSignal = 'BULLISH';
@@ -187,6 +215,8 @@ async function fetchQuote(symbol: string) {
 }
 
 export async function getMarketSummary() {
+  const benchmark = await fetchQuote('^JKSE');
+
   // Fetch in chunks of 25 parallel - dinaikkan dari 10 seiring universe diperluas 50->250,
   // supaya jumlah putaran (dan total wall-clock) tidak ikut naik 5x.
   const quotes: any[] = [];
@@ -197,6 +227,9 @@ export async function getMarketSummary() {
   }
 
   const strip = (s: any) => s.symbol.replace('.JK', '');
+  const benchmarkWeeklyChangePct = typeof benchmark?.weeklyChangePct === 'number'
+    ? benchmark.weeklyChangePct
+    : null;
 
   // Full list capped at 50 (in practice ~= the whole monitored universe below that size)
   // for the dedicated /market/[category] pages; dashboard cards just show the first 4.
@@ -212,12 +245,12 @@ export async function getMarketSummary() {
 
   // `partial: true` = bursa masih buka, jadi angka ini volume sesi BERJALAN (belum penuh)
   // - diteruskan ke UI supaya bisa diberi label, bukan disamarkan (temuan H-7).
-  const topVolume = [...quotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, LIST_CAP).map(s => ({
-    symbol: strip(s), volume: s.volume || 0, price: s.price, partial: !!s.volumeIsPartial
+  const topVolume = [...quotes].filter(s => typeof s.volume === 'number' && Number.isFinite(s.volume)).sort((a, b) => b.volume - a.volume).slice(0, LIST_CAP).map(s => ({
+    symbol: strip(s), volume: s.volume, price: s.price, partial: !!s.volumeIsPartial
   }));
 
-  const topValue = [...quotes].sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, LIST_CAP).map(s => ({
-    symbol: strip(s), value: s.value || 0, price: s.price, partial: !!s.volumeIsPartial
+  const topValue = [...quotes].filter(s => typeof s.value === 'number' && Number.isFinite(s.value)).sort((a, b) => b.value - a.value).slice(0, LIST_CAP).map(s => ({
+    symbol: strip(s), value: s.value, price: s.price, partial: !!s.volumeIsPartial
   }));
 
   const topWeeklyGainers = [...quotes].sort((a, b) => b.weeklyChangePct - a.weeklyChangePct).slice(0, LIST_CAP).map(s => ({
@@ -227,6 +260,26 @@ export async function getMarketSummary() {
   const topWeeklyLosers = [...quotes].sort((a, b) => a.weeklyChangePct - b.weeklyChangePct).slice(0, LIST_CAP).map(s => ({
     symbol: strip(s), changePct: s.weeklyChangePct, price: s.price
   }));
+
+  // P2-24: relative strength terhadap IHSG, bukan hanya top gainer absolut. Saham yang
+  // naik 1% saat IHSG naik 3% bukan pemimpin relatif; saham flat saat IHSG turun 3% bisa
+  // justru defensif kuat. Null kalau benchmark IHSG tidak tersedia.
+  const topRelativeStrength = benchmarkWeeklyChangePct == null
+    ? []
+    : [...quotes]
+      .map((s) => ({
+        ...s,
+        relativeStrength5D: parseFloat((s.weeklyChangePct - benchmarkWeeklyChangePct).toFixed(2)),
+      }))
+      .sort((a, b) => b.relativeStrength5D - a.relativeStrength5D)
+      .slice(0, LIST_CAP)
+      .map(s => ({
+        symbol: strip(s),
+        relativeStrength5D: s.relativeStrength5D,
+        changePct: s.weeklyChangePct,
+        benchmarkChangePct: benchmarkWeeklyChangePct,
+        price: s.price,
+      }));
 
   const topTechnical = [...quotes]
     .filter(s => s.technicalSignal === 'BULLISH')
@@ -274,12 +327,23 @@ export async function getMarketSummary() {
 
   return {
     timestamp: new Date().toISOString(),
+    marketRegime: benchmark ? {
+      benchmark: 'IHSG',
+      changePct: benchmark.changePct,
+      weeklyChangePct: benchmark.weeklyChangePct,
+      trend: benchmark.technicalSignal === 'BULLISH'
+        ? 'RISK_ON'
+        : benchmark.technicalSignal === 'BEARISH'
+          ? 'RISK_OFF'
+          : 'NEUTRAL',
+    } : null,
     topGainers,
     topLosers,
     topVolume,
     topValue,
     topWeeklyGainers,
     topWeeklyLosers,
+    topRelativeStrength,
     topTechnical,
     topTechnicalBearish,
     topRsiOversold,

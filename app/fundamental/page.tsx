@@ -322,14 +322,20 @@ function FundamentalContent() {
               </div>
               <div className="flex items-center gap-3 mt-1 font-mono">
                 <span className="text-2xl font-bold text-white">
-                  Rp {stock.current_price?.toLocaleString('id-ID') || '-'}
+                  {typeof stock.current_price === 'number' && Number.isFinite(stock.current_price)
+                    ? `Rp ${stock.current_price.toLocaleString('id-ID')}`
+                    : '-'}
                 </span>
-                <span className={`text-sm font-bold flex items-center gap-0.5 ${
-                  (stock.change_pct || 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
-                }`}>
-                  {(stock.change_pct || 0) >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                  {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
-                </span>
+                {typeof stock.change_pct === 'number' && Number.isFinite(stock.change_pct) ? (
+                  <span className={`text-sm font-bold flex items-center gap-0.5 ${
+                    stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'
+                  }`}>
+                    {stock.change_pct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                    {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
+                  </span>
+                ) : (
+                  <span className="text-sm font-bold text-tv-muted">N/A</span>
+                )}
               </div>
             </div>
           </div>

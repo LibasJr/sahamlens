@@ -118,7 +118,7 @@ export default function MultiAgentPage() {
           <div className="flex flex-wrap items-center gap-3 text-sm font-mono text-tv-muted">
             <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Last Update: {lastUpdated} WIB</span>
             <span>•</span>
-            <span>Delay 15m</span>
+            <span>Yahoo Finance delayed/EOD</span>
             <span>•</span>
             <span>Auto-refresh 1m</span>
             <span>•</span>
@@ -155,13 +155,19 @@ export default function MultiAgentPage() {
               </div>
               <div className="text-right">
                 <div className="text-4xl font-bold font-number tracking-tight">
-                  Rp {liveData?.price?.toLocaleString('id-ID') || 0}
+                  {typeof liveData?.price === 'number' && Number.isFinite(liveData.price)
+                    ? `Rp ${liveData.price.toLocaleString('id-ID')}`
+                    : 'N/A'}
                 </div>
-                <div className={`text-lg font-number font-semibold flex items-center justify-end gap-1 ${
-                  (liveData?.changePercent || 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
-                }`}>
-                  {(liveData?.changePercent || 0) >= 0 ? '+' : ''}{liveData?.changePercent || 0}%
-                </div>
+                {typeof liveData?.changePercent === 'number' && Number.isFinite(liveData.changePercent) ? (
+                  <div className={`text-lg font-number font-semibold flex items-center justify-end gap-1 ${
+                    liveData.changePercent >= 0 ? 'text-tv-green' : 'text-tv-red'
+                  }`}>
+                    {liveData.changePercent >= 0 ? '+' : ''}{liveData.changePercent}%
+                  </div>
+                ) : (
+                  <div className="text-lg font-number font-semibold text-tv-muted">N/A</div>
+                )}
               </div>
             </div>
 
@@ -308,13 +314,15 @@ function AgentCard({ title, icon, color, agent }: { title: string, icon: any, co
             {React.cloneElement(icon, { className: 'w-5 h-5' })}
           </div>
           <span className="text-xs font-mono text-tv-muted bg-tv-bg px-2 py-1 rounded">
-            Wt: {agent?.weight_pct || 0}%
+            Wt: {typeof agent?.weight_pct === 'number' && Number.isFinite(agent.weight_pct) ? `${agent.weight_pct}%` : 'N/A'}
           </span>
         </div>
         <h4 className="text-tv-text font-bold mb-1">{title}</h4>
       </div>
       <div className="mt-2">
-        <div className="text-3xl font-mono mb-2">{agent?.score || 0}</div>
+        <div className="text-3xl font-mono mb-2">
+          {typeof agent?.score === 'number' && Number.isFinite(agent.score) ? agent.score : 'N/A'}
+        </div>
         <p className="text-xs text-tv-muted line-clamp-2" title={agent?.summary}>
           {agent?.summary || 'Waiting for analysis...'}
         </p>

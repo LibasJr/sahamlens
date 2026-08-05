@@ -35,12 +35,13 @@ describe('toAdvisoryDecision - INVARIAN action !== null => ELIGIBLE', () => {
     expect(d.action).toBeNull();
   });
 
-  it('status ELIGIBLE meneruskan kategori v1 apa adanya', () => {
+  it('status ELIGIBLE tidak mengubah skor menjadi rekomendasi sebelum model tervalidasi', () => {
     for (const kategori of ['STRONG BUY', 'BUY', 'HOLD', 'SELL'] as const) {
       const d = toAdvisoryDecision(kategori, elig('ELIGIBLE'));
-      expect(d.action).toBe(kategori);
-      expect(d.advisory).toBe(true);
-      expect(d.explanation).toBeNull();
+      expect(d.action).toBeNull();
+      expect(d.advisory).toBe(false);
+      expect(d.reasonCodes).toContain('MODEL_UNVALIDATED');
+      expect(d.explanation).toMatch(/belum memiliki validasi backtest/i);
     }
   });
 

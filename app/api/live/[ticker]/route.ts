@@ -6,6 +6,14 @@ import { classifyFreshness } from '@/shared/http/freshness';
 
 export const revalidate = 60; // Cache for 60 seconds
 
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
@@ -32,10 +40,14 @@ export async function GET(
       const lastPrice = meta?.regularMarketPrice;
       // Data invalid (harga hilang/nol/negatif) - jangan diteruskan sebagai kalau valid,
       // jatuh ke blok "data tidak tersedia" di bawah alih-alih membalas harga 0.
-      if (typeof lastPrice === 'number' && lastPrice > 0) {
-        const previousClose = meta?.previousClose || meta?.chartPreviousClose || lastPrice;
-        const changePercent = previousClose ? ((lastPrice - previousClose) / previousClose) * 100 : 0;
-        const volume = meta?.regularMarketVolume || 0;
+      if (isFinitePositive(lastPrice)) {
+        const previousClose = isFinitePositive(meta?.previousClose)
+          ? meta.previousClose
+          : isFinitePositive(meta?.chartPreviousClose)
+          ? meta.chartPreviousClose
+          : null;
+        const changePercent = previousClose != null ? ((lastPrice - previousClose) / previousClose) * 100 : null;
+        const volume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : null;
         // BUG FIX (audit integritas data 2026-08-03, temuan M-07): `lastUpdate`
         // SEBELUMNYA adalah `Date.now()` (waktu SERVER merespons), bukan waktu bar harga
         // sesungguhnya - selisihnya bisa berhari-hari saat akhir pekan/libur bursa tapi
@@ -46,14 +58,14 @@ export async function GET(
 
         return NextResponse.json({
           price: lastPrice,
-          changePercent: parseFloat(changePercent.toFixed(2)),
+          changePercent: changePercent != null ? parseFloat(changePercent.toFixed(2)) : null,
           volume: volume,
-          lastUpdate: new Date().toISOString(),
+          lastUpdate: fresh.dataTimestamp,
           dataTimestamp: fresh.dataTimestamp,
           ageSeconds: fresh.ageSeconds,
           freshness: fresh.freshness,
           source: 'Yahoo Finance',
-          delay: '15m'
+          delay: null
         });
       }
       console.warn(`Yahoo Finance returned no valid price for ${ticker}`);
@@ -76,8 +88,12 @@ export async function GET(
     price: null,
     changePercent: null,
     volume: null,
-    lastUpdate: new Date().toISOString(),
+    lastUpdate: null,
+    dataTimestamp: null,
+    ageSeconds: null,
+    freshness: 'UNKNOWN',
     source: null,
+    delay: null,
     error: 'Data harga tidak tersedia saat ini',
   }, { status: 503 });
 }

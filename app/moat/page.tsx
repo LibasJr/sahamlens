@@ -22,11 +22,11 @@ export default function MoatPage() {
     <TickerAnalysisShell
       ticker={ticker}
       onTickerChange={setTicker}
-      moduleTitle="Competitive Moat Analysis"
+      moduleTitle="Moat Research Placeholder"
       icon={<Award className="w-6 h-6" />}
       accent="purple"
       title="Analisis Keunggulan Bersaing Sektor IDX"
-      subtitle="Evaluasi Keunggulan Parit Ekonomi (Economic Moat), Pangsa Pasar, & Manajemen Emiten"
+      subtitle="Riset moat kualitatif belum tersambung; sistem tidak mengarang rating moat."
       headerExtra={<SegmentedControl options={SECTORS.map((s) => ({ label: s, value: s }))} value={sector} onChange={setSector} layoutId="moat-sector" />}
     >
       <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
@@ -39,7 +39,7 @@ export default function MoatPage() {
           Data tidak tersedia. Penilaian moat kualitatif (pangsa pasar, rating manajemen,
           perbandingan antar-emiten) butuh riset ekuitas berlisensi yang belum tersambung
           di backend ini - SahamLens tidak mengarang penilaian kualitatif tanpa dasar data.
-          Untuk proxy kuantitatif moat (ROE + gross margin), lihat kolom &quot;Moat&quot;
+          Untuk proxy kuantitatif yang lebih sempit (ROE + gross margin), lihat kolom &quot;Kualitas Profit&quot;
           di{' '}
           <a href="/screener" className="text-tv-blue hover:underline">LensScanner</a>.
         </p>

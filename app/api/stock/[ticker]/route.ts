@@ -32,6 +32,18 @@ import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 // Redis (Cache Layer Tier 2 Technical), bukan lagi Map in-memory - temuan H3/M10
 // lama: Map per-instance tidak konsisten lintas instance serverless dan tidak
 // pernah membersihkan entry basi (memory leak lambat). Kalau Redis belum
@@ -176,13 +188,16 @@ export async function GET(
       return NextResponse.json({ error: 'No data found' }, { status: 404 });
     }
 
-    const currentPrice = result.meta.regularMarketPrice;
+    const currentPrice = isFinitePositive(result.meta?.regularMarketPrice) ? result.meta.regularMarketPrice : null;
+    if (currentPrice == null) {
+      return NextResponse.json({ error: 'Harga pasar tidak tersedia' }, { status: 503 });
+    }
     
     // Extract Fundamental Data
     let per = null, pbv = null, roe = null, der = null, currentRatio = null, revenueGrowth = null;
     if (quoteSummary) {
-      per = quoteSummary.summaryDetail?.trailingPE || quoteSummary.summaryDetail?.forwardPE || null;
-      pbv = quoteSummary.defaultKeyStatistics?.priceToBook || null;
+      per = quoteSummary.summaryDetail?.trailingPE ?? quoteSummary.summaryDetail?.forwardPE ?? null;
+      pbv = quoteSummary.defaultKeyStatistics?.priceToBook ?? null;
       // BUG FIX (audit integritas data 2026-08-03, temuan C-05): Yahoo mengembalikan
       // returnOnEquity/revenueGrowth sebagai FRAKSI (0.218 = 21.8%) dan debtToEquity
       // sebagai PERSEN/rasio x100 (59.98 = 0.60x) - field ini diteruskan MENTAH ke
@@ -194,7 +209,7 @@ export async function GET(
       // sudah melakukan konversi ini dengan benar - disamakan di sini.
       roe = quoteSummary.financialData?.returnOnEquity != null ? quoteSummary.financialData.returnOnEquity * 100 : null;
       der = quoteSummary.financialData?.debtToEquity != null ? quoteSummary.financialData.debtToEquity / 100 : null;
-      currentRatio = quoteSummary.financialData?.currentRatio || null;
+      currentRatio = quoteSummary.financialData?.currentRatio ?? null;
       revenueGrowth = quoteSummary.financialData?.revenueGrowth != null ? quoteSummary.financialData.revenueGrowth * 100 : null;
 
       // BUG FIX (audit integritas data 2026-08-03, temuan C-07): priceToBook mentah untuk
@@ -223,16 +238,30 @@ export async function GET(
     // Convert to history array for analyzers
     const history = [];
     for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close[i] !== null) {
+      const timestamp = timestamps[i];
+      const open = quote.open?.[i];
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      const volume = quote.volume?.[i];
+      if (
+        isFiniteNumber(timestamp) &&
+        isFiniteNumber(open) &&
+        isFiniteNumber(high) &&
+        isFiniteNumber(low) &&
+        isFinitePositive(close) &&
+        isFiniteNonNegative(volume) &&
+        high >= low
+      ) {
         const adj = adjcloseArr?.[i];
         history.push({
-          Date: new Date(timestamps[i] * 1000).toISOString(),
-          Open: quote.open[i],
-          High: quote.high[i],
-          Low: quote.low[i],
-          Close: quote.close[i],
-          Volume: quote.volume[i],
-          AdjClose: typeof adj === 'number' ? adj : quote.close[i],
+          Date: new Date(timestamp * 1000).toISOString(),
+          Open: open,
+          High: high,
+          Low: low,
+          Close: close,
+          Volume: volume,
+          AdjClose: isFinitePositive(adj) ? adj : close,
         });
       }
     }
@@ -414,8 +443,11 @@ export async function GET(
     // (volumeAdjustedHistory, dibangun di atas dekat analyzerHistory) kalau bar terakhir
     // adalah bar hari ini yang masih berjalan, sama seperti yang dipakai analyzeVolume/
     // analyzeMarketFlow, supaya scoring engine & vote analyzer konsisten satu sama lain.
-    const volToday = isLiveFormingBar ? volumeAdjustedHistory[volumeAdjustedHistory.length - 1].Volume : (lastBar?.Volume || 0);
-    const volAvg20v = analyzerHistory.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, analyzerHistory.length);
+    const volToday = isLiveFormingBar ? volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume : lastBar?.Volume;
+    const volWindow = analyzerHistory.slice(-20);
+    const volAvg20v = volWindow.length > 0 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
+      ? volWindow.reduce((s, h) => s + h.Volume, 0) / volWindow.length
+      : null;
 
     const scoringResult = calculateScore(
       ticker,
@@ -428,7 +460,7 @@ export async function GET(
         macdHist: macdHistVal,
         macdLine: macdLineVal,
         macdSignal: macdSigVal,
-        volToday,
+        volToday: isFiniteNonNegative(volToday) ? volToday : null,
         volAvg20: volAvg20v,
         // P1-8: volume tinggi hanya bernilai kalau MENGONFIRMASI arah harga. Tanpa
         // field ini, saham yang anjlok dengan volume 3x dulu mendapat nilai volume
@@ -461,7 +493,7 @@ export async function GET(
         accumulationStatus: accumulation.status,
         consecutiveBuyDays,
         consecutiveSellDays,
-        volRatio: volAvg20v > 0 ? volToday / volAvg20v : null,
+        volRatio: isFiniteNonNegative(volToday) && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
         // P1-9: persistensi diukur atas jendela 20 hari, bukan panjang streak.
         mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
       }

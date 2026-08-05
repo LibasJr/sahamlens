@@ -8,6 +8,7 @@ import { cacheGet } from '@/shared/cache/redis-cache';
 import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
+import { getLensScoreValidationStatus } from '@/modules/validation';
 
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
@@ -46,7 +47,12 @@ export async function GET(request: Request) {
       deadCrossSymbols: (cachedBreakout?.crossSignals?.dead || []).map((s: any) => s.symbol),
     };
 
-    const items = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols);
+    const modelValidation = getLensScoreValidationStatus();
+    const rankedItems = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols);
+    // AI Pick adalah daftar "hari ini beli apa". Walau setiap inputnya nyata dan
+    // lolos gerbang data, daftar tidak boleh dipublikasikan sebagai aksi investasi
+    // sebelum LensScore sendiri lulus validasi out-of-sample yang bisa diaudit.
+    const items = modelValidation.validated ? rankedItems : [];
 
     // BUG FIX (audit integritas data 2026-08-03): TTL cache skor diperpanjang ke 3 hari
     // (lihat shared/cache/ai-pick-cache.ts) supaya halaman ini tidak kosong total di
@@ -71,7 +77,10 @@ export async function GET(request: Request) {
       stale,
       scanned,
       eligible: items.length,
-      note: !cachedBreakout
+      modelValidation,
+      note: !modelValidation.validated
+        ? modelValidation.message
+        : !cachedBreakout
         ? 'Data breakout belum siap - peringkat sementara tanpa tag breakout & golden cross.'
         : legacyCacheShape
           ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'

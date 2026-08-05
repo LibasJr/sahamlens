@@ -25,8 +25,9 @@ import {
 //   hari - definisi SAMA dipakai Bandar Flow & AI Pick (lihat foreign-flow-proxy.ts),
 //   bukan data flow broker sungguhan (IDX broker summary tidak tersedia gratis) - makanya
 //   labelnya "Akumulasi/Distribusi", bukan "Big Player Confirmed" dsb.
-// - "Moat Rating": heuristik dari ROE & gross margin (ambang batas didokumentasikan
-//   di bawah), bukan penilaian kualitatif yang dikarang
+// - "Kualitas Profit": proxy dari ROE & gross margin. Ini BUKAN economic moat; moat
+//   mensyaratkan daya tahan ROIC/keunggulan bertahun-tahun yang datanya tidak tersedia
+//   lengkap di scanner ini.
 // - 52W High/Low: harga tertinggi/terendah riil 52 minggu terakhir (fakta historis,
 //   BUKAN target/proyeksi harga ke depan - dulu dilabel "Target Bull/Bear" yang
 //   menyesatkan seolah itu prediksi AI, sudah diperbaiki jadi apa adanya)
@@ -60,7 +61,7 @@ type RawStock = {
   div_yield: number | null;
   rev_growth: number | null;
   gross_margin: number | null;
-  vol_ratio: number;
+  vol_ratio: number | null;
   bandarmology_status: BandarmologyStatus;
   fifty_two_week_low: number | null;
   fifty_two_week_high: number | null;
@@ -126,6 +127,14 @@ function sma(closes: number[], period: number): number | null {
   return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 // Histori butuh 200 bar (bukan lagi 1mo/~21 bar) - permintaan BARU untuk kolom Signal
 // (calculateScore butuh MA200) dan Pattern Tag (preset Backtest terpanjang butuh MA200,
 // lihat MIN_HISTORY_BARS di live-filter-check.service.ts). range=1y Yahoo memberi ~245
@@ -142,8 +151,8 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       fetchYahooHistory(ticker, '1y'),
     ]);
     if (!q) return null;
-    const price = q.price?.regularMarketPrice || 0;
-    if (!price) return null;
+    const price = isFinitePositive(q.price?.regularMarketPrice) ? q.price.regularMarketPrice : null;
+    if (price == null) return null;
 
     const history = yahooData?.history || [];
     const hasFullHistory = history.length >= MIN_HISTORY_BARS;
@@ -160,10 +169,16 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     // PENUH di bawah, membuat vol_ratio bias ke bawah sepanjang jam bursa (lihat
     // shared/market/trading-session.ts). Tidak perlu cek tanggal terpisah seperti di
     // route lain - field ini SELALU merepresentasikan sesi HARI INI selama bursa buka.
-    const rawVolume = q.price?.regularMarketVolume || 0;
-    const volume = isIdxMarketHoursNow() ? estimateFullDayVolume(rawVolume) : rawVolume;
-    const avgVolume = q.summaryDetail?.averageVolume10days || q.summaryDetail?.averageVolume || 0;
-    const volRatio = avgVolume > 0 ? volume / avgVolume : 1;
+    const rawVolume = isFiniteNonNegative(q.price?.regularMarketVolume) ? q.price.regularMarketVolume : null;
+    const volume = rawVolume != null
+      ? (isIdxMarketHoursNow() ? estimateFullDayVolume(rawVolume) : rawVolume)
+      : null;
+    const avgVolume = isFinitePositive(q.summaryDetail?.averageVolume10days)
+      ? q.summaryDetail.averageVolume10days
+      : isFinitePositive(q.summaryDetail?.averageVolume)
+      ? q.summaryDetail.averageVolume
+      : null;
+    const volRatio = volume != null && avgVolume != null ? volume / avgVolume : null;
 
     const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
 
@@ -171,7 +186,7 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     let pbv: number | null = q.defaultKeyStatistics?.priceToBook || null;
     const roe = q.financialData?.returnOnEquity != null ? q.financialData.returnOnEquity * 100 : null;
     const der = q.financialData?.debtToEquity != null ? q.financialData.debtToEquity / 100 : null;
-    const currentRatio = q.financialData?.currentRatio || null;
+    const currentRatio = q.financialData?.currentRatio ?? null;
     const revGrowth = q.financialData?.revenueGrowth != null ? q.financialData.revenueGrowth * 100 : null;
 
     // BUG FIX (audit integritas data 2026-08-03, temuan C-07): sama seperti
@@ -213,7 +228,9 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
       const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
-      const volAvg20 = history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20;
+      const volAvg20 = history.slice(-20).every((h) => isFiniteNonNegative(h.Volume))
+        ? history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20
+        : null;
 
       // Arus dana - definisi SAMA dengan recommendation.service.ts (analyzeAccumulationSignal
       // 4-lapis untuk arah, computeAccumulationStreak untuk lama streak berturut-turut),
@@ -369,16 +386,24 @@ export async function fetchScreenerUniverse(): Promise<RawStock[]> {
   return raw;
 }
 
-function moatRating(roe: number | null, grossMargin: number | null): string {
-  if (roe != null && roe >= 20 && grossMargin != null && grossMargin >= 40) return 'Lebar';
-  if (roe != null && roe >= 12) return 'Sedang';
-  return 'Sempit';
+function profitabilityQualityLabel(roe: number | null, grossMargin: number | null): string {
+  if (roe != null && roe >= 20 && grossMargin != null && grossMargin >= 40) return 'Profit kuat';
+  if (roe != null && roe >= 12) return 'Profit cukup';
+  return 'Profit lemah';
 }
 
 function bandarmologyLabel(status: BandarmologyStatus): string {
   if (status === 'BULLISH') return 'Akumulasi';
   if (status === 'BEARISH') return 'Distribusi';
   return 'Netral';
+}
+
+function directionalMomentumScore(volRatio: number | null, status: BandarmologyStatus): number | null {
+  if (volRatio == null || !Number.isFinite(volRatio) || volRatio < 0) return null;
+  const boundedVol = Math.min(2, volRatio);
+  if (status === 'BULLISH') return Math.min(100, 50 + boundedVol * 25);
+  if (status === 'BEARISH') return Math.max(0, 50 - boundedVol * 25);
+  return 50;
 }
 
 // Bobot skor per profil risiko - Konservatif memberatkan DER rendah + dividend yield
@@ -409,7 +434,11 @@ function scoreStock(s: RawStock, sectorAvgPer: number | null, profile: RiskProfi
   const derScore = s.der != null ? Math.max(0, 100 - s.der * 40) : null;
   const divScore = s.div_yield != null ? Math.min(100, s.div_yield * 15) : null;
   const growthScore = s.rev_growth != null ? Math.min(100, Math.max(0, 50 + s.rev_growth * 5)) : null;
-  const momentumScore = Math.min(100, Math.max(0, s.vol_ratio * 50));
+  // P2-22: ini dulu `vol_ratio * 50`, sehingga saham anjlok dengan volume besar mendapat
+  // skor "momentum" 100. Volume adalah besaran, bukan arah. Sekarang ia hanya menjadi
+  // momentum positif kalau flow/CMF mengarah akumulasi; volume distribusi justru
+  // menurunkan skor.
+  const momentumScore = directionalMomentumScore(s.vol_ratio, s.bandarmology_status);
 
   const weights: Record<RiskProfile, Record<string, number>> = {
     Konservatif: { der: 0.35, div: 0.30, roe: 0.20, per: 0.15, growth: 0, momentum: 0 },
@@ -476,7 +505,7 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         der: s.der != null ? `${s.der.toFixed(2)}x` : 'N/A',
         div_yield: s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : 'N/A',
         bandarmology: bandarmologyLabel(s.bandarmology_status),
-        moat: moatRating(s.roe, s.gross_margin),
+        moat: profitabilityQualityLabel(s.roe, s.gross_margin),
         week52_high: s.fifty_two_week_high,
         week52_low: s.fifty_two_week_low,
         entry: s.price,

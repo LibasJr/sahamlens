@@ -24,11 +24,11 @@ const CATEGORY_CONFIG: Record<string, { title: string; sub: string; dataKey: str
 
 function formatMetric(row: Row, metricKey: string): string {
   switch (metricKey) {
-    case 'changePct': return `${(row.changePct ?? 0) >= 0 ? '+' : ''}${(row.changePct ?? 0).toFixed(2)}%`;
-    case 'value': return `Rp ${((row.value ?? 0) / 1e12).toFixed(2)} T`;
-    case 'volume': return `${Math.round((row.volume ?? 0) / 100).toLocaleString('id-ID')} lot`;
-    case 'score': return `${row.score ?? 0}%`;
-    case 'rsi': return `${(row.rsi ?? 0).toFixed(1)}`;
+    case 'changePct': return typeof row.changePct === 'number' && Number.isFinite(row.changePct) ? `${row.changePct >= 0 ? '+' : ''}${row.changePct.toFixed(2)}%` : 'N/A';
+    case 'value': return typeof row.value === 'number' && Number.isFinite(row.value) ? `Rp ${(row.value / 1e12).toFixed(2)} T` : 'N/A';
+    case 'volume': return typeof row.volume === 'number' && Number.isFinite(row.volume) ? `${Math.round(row.volume / 100).toLocaleString('id-ID')} lot` : 'N/A';
+    case 'score': return typeof row.score === 'number' && Number.isFinite(row.score) ? `${row.score}%` : 'N/A';
+    case 'rsi': return typeof row.rsi === 'number' && Number.isFinite(row.rsi) ? row.rsi.toFixed(1) : 'N/A';
     default: return '-';
   }
 }
@@ -63,12 +63,23 @@ export default function MarketCategoryPage() {
 
   const displayRows = useMemo(() => {
     let out = rows.filter(r => r.symbol.toLowerCase().includes(search.trim().toLowerCase()));
-    const metricOf = (r: Row) => config ? (r[config.metricKey] ?? 0) as number : 0;
+    const metricOf = (r: Row) => {
+      if (!config) return null;
+      const value = r[config.metricKey];
+      return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    };
     out = [...out].sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'symbol') cmp = a.symbol.localeCompare(b.symbol);
       else if (sortKey === 'price') cmp = a.price - b.price;
-      else cmp = metricOf(a) - metricOf(b);
+      else {
+        const av = metricOf(a);
+        const bv = metricOf(b);
+        if (av == null && bv == null) cmp = 0;
+        else if (av == null) cmp = -1;
+        else if (bv == null) cmp = 1;
+        else cmp = av - bv;
+      }
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return out;
@@ -152,9 +163,10 @@ export default function MarketCategoryPage() {
             />
           )}
           {!loading && displayRows.map((row, idx) => {
-            const metricVal = config.metricKey === 'value' || config.metricKey === 'volume' ? 0 : (row[config.metricKey] ?? 0) as number;
-            const isDown = config.metricKey === 'changePct' && metricVal < 0;
-            const isUp = config.metricKey === 'changePct' && metricVal > 0;
+            const rawMetric = row[config.metricKey];
+            const metricVal = typeof rawMetric === 'number' && Number.isFinite(rawMetric) ? rawMetric : null;
+            const isDown = config.metricKey === 'changePct' && metricVal != null && metricVal < 0;
+            const isUp = config.metricKey === 'changePct' && metricVal != null && metricVal > 0;
             return (
               <Link
                 key={row.symbol}

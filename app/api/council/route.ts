@@ -9,6 +9,14 @@ import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialSta
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 // BUG FIX (2026-08-05, diagnostik log produksi): tanpa ini, function terikat default
 // Vercel Hobby plan (10 detik) - generateAI() (lib/aiProviders.ts) mencoba cascade sampai
 // 6 kombinasi provider+model, masing-masing timeout 8 detik, jadi skenario terburuknya
@@ -73,8 +81,11 @@ async function getTechnicalData(ticker: string) {
     });
     if (support === Infinity) support = 0;
 
-    const volToday = history[history.length - 1]?.Volume || 0;
-    const volAvg20 = history.slice(-20).reduce((s, h) => s + h.Volume, 0) / Math.min(20, history.length);
+    const volToday = history[history.length - 1]?.Volume;
+    const volWindow = history.slice(-20);
+    const volAvg20 = volWindow.length > 0 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
+      ? volWindow.reduce((s, h) => s + h.Volume, 0) / volWindow.length
+      : null;
 
     // Foreign Flow (proxy dari harga+volume real, bukan data broker resmi) - logika
     // sama dengan app/api/stock/[ticker] dan modules/ai orchestrator, satu sumber
@@ -120,9 +131,9 @@ async function getTechnicalData(ticker: string) {
       atr: (volatilityData as any)?.raw?.atr ?? null,
       support,
       resistance,
-      volToday,
+      volToday: isFiniteNonNegative(volToday) ? volToday : null,
       volAvg20,
-      volRatio: volAvg20 > 0 ? volToday / volAvg20 : null,
+      volRatio: isFiniteNonNegative(volToday) && isFinitePositive(volAvg20) ? volToday / volAvg20 : null,
       foreignFlow: foreignFlowStatus,
       cmf20: bandarmology.cmf20,
       accumulationStatus: accumulation.status,
@@ -132,7 +143,7 @@ async function getTechnicalData(ticker: string) {
       // skor komposit Council tidak berbeda untuk saham & hari yang sama.
       changePct: (() => {
         const prev = history[history.length - 2]?.Close;
-        return prev ? ((currentPrice - prev) / prev) * 100 : null;
+        return isFinitePositive(prev) ? ((currentPrice - prev) / prev) * 100 : null;
       })(),
       mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
     };

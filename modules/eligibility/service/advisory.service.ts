@@ -1,5 +1,6 @@
 import type { ScoringKategori } from '../../technical/service/scoring.service';
 import type { EligibilityResult } from '../types/eligibility.types';
+import { getLensScoreValidationStatus } from '@/modules/validation';
 
 // Jembatan antara kategori LensScore v1 dan lapisan kelayakan (Phase 0 / P0-3).
 //
@@ -57,6 +58,21 @@ export function toAdvisoryDecision(
         kategori === 'DATA TIDAK CUKUP'
           ? 'Kelengkapan data di bawah ambang - skor tidak disajikan sebagai rekomendasi.'
           : 'Skor tidak tersedia untuk saham ini.',
+    };
+  }
+
+  // Kelayakan data bukan bukti bahwa MODEL-nya sudah akurat. Tanpa pemisahan ini,
+  // skor yang belum pernah diuji dapat berubah menjadi ajakan transaksi hanya karena
+  // OHLCV/fundamentalnya lengkap. Tetap fail-closed sampai artefak backtest point-in-
+  // time yang dapat diaudit tersedia.
+  const validation = getLensScoreValidationStatus();
+  if (!validation.validated) {
+    return {
+      action: null,
+      advisory: false,
+      eligibilityStatus: 'ELIGIBLE',
+      reasonCodes: [validation.reasonCode],
+      explanation: validation.message,
     };
   }
 

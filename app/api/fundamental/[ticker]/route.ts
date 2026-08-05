@@ -25,6 +25,19 @@ import {
   computeFundamentalQuality,
   computeValuationLabel,
 } from '@/modules/fundamental';
+import { scoreFundamentalDataQuality } from '@/modules/validation';
+
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
 
 export async function GET(
   request: Request,
@@ -46,7 +59,9 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch Fundamental data' }, { status: 404 });
     }
 
-    const currentPrice = quoteSummary.price?.regularMarketPrice || 0;
+    const currentPrice = isFinitePositive(quoteSummary.price?.regularMarketPrice)
+      ? quoteSummary.price.regularMarketPrice
+      : null;
 
     // --- BUG FIX: CURRENCY MISMATCH (USD vs IDR) ---
     // Emiten seperti ADRO, ITMG, MEDC melapor dalam USD tapi harga sahamnya dalam IDR.
@@ -63,8 +78,8 @@ export async function GET(
     // peduli valuasi sesungguhnya. Sekarang HANYA BVPS dan item arus kas (yang memang
     // dalam USD) yang dikonversi - EPS, dividendRate, trailingPE, forwardPE dibiarkan
     // apa adanya dari Yahoo (sudah IDR, sudah benar).
-    const priceCurrency = quoteSummary.price?.currency || 'IDR';
-    const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
+    const priceCurrency = quoteSummary.price?.currency ?? null;
+    const finCurrency = quoteSummary.financialData?.financialCurrency ?? null;
 
     // BUG FIX (audit 2026-08-05, temuan H-6): `let exchangeRate = 15500` dihapus. Kalau
     // kurs benar-benar tidak tersedia, konversi TIDAK dilakukan sama sekali dan field
@@ -86,7 +101,7 @@ export async function GET(
        // Recalculate PBV saja (BVPS baru saja dikonversi ke IDR di atas). PER TIDAK
        // dihitung ulang - summaryDetail.trailingPE/forwardPE dari Yahoo sudah benar
        // (EPS sudah IDR sejak awal).
-       if (currentPrice > 0 && quoteSummary.defaultKeyStatistics?.bookValue) {
+       if (currentPrice != null && quoteSummary.defaultKeyStatistics?.bookValue) {
          quoteSummary.defaultKeyStatistics.priceToBook = currentPrice / quoteSummary.defaultKeyStatistics.bookValue;
        }
     } else if (priceCurrency === 'IDR' && finCurrency === 'USD') {
@@ -108,6 +123,25 @@ export async function GET(
       }
     }
     // ------------------------------------------------
+
+    const dataQuality = scoreFundamentalDataQuality({
+      price: currentPrice,
+      eps: isFiniteNumber(quoteSummary.defaultKeyStatistics?.trailingEps)
+        ? quoteSummary.defaultKeyStatistics.trailingEps
+        : null,
+      bvps: isFiniteNumber(quoteSummary.defaultKeyStatistics?.bookValue)
+        ? quoteSummary.defaultKeyStatistics.bookValue
+        : null,
+      per: isFiniteNumber(quoteSummary.summaryDetail?.trailingPE)
+        ? quoteSummary.summaryDetail.trailingPE
+        : null,
+      pbv: isFiniteNumber(quoteSummary.defaultKeyStatistics?.priceToBook)
+        ? quoteSummary.defaultKeyStatistics.priceToBook
+        : null,
+      roePct: isFiniteNumber(quoteSummary.financialData?.returnOnEquity)
+        ? quoteSummary.financialData.returnOnEquity * 100
+        : null,
+    });
 
     // Run all 13 fundamental analyzers
     const analyzersResult = await Promise.all([
@@ -183,6 +217,7 @@ export async function GET(
     return NextResponse.json({
       ticker,
       price: currentPrice,
+      dataQuality,
       analyzers: analyzersResult,
       consensus,
       // Label kualitas bisnis (BAGUS/BURUK/NETRAL) TERPISAH dari `consensus` (valuasi
@@ -193,8 +228,12 @@ export async function GET(
         symbol: ticker,
         current_price: currentPrice,
         name: quoteSummary.price?.longName || quoteSummary.price?.shortName || ticker,
-        change_pct: quoteSummary.price?.regularMarketChangePercent ? parseFloat((quoteSummary.price.regularMarketChangePercent * 100).toFixed(2)) : 0,
-        volume: quoteSummary.price?.regularMarketVolume || 0
+        change_pct: isFiniteNumber(quoteSummary.price?.regularMarketChangePercent)
+          ? parseFloat((quoteSummary.price.regularMarketChangePercent * 100).toFixed(2))
+          : null,
+        volume: isFiniteNonNegative(quoteSummary.price?.regularMarketVolume)
+          ? quoteSummary.price.regularMarketVolume
+          : null
       },
       profile: {
         sector: quoteSummary.assetProfile?.sector || 'N/A',

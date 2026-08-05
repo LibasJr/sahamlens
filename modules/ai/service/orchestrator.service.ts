@@ -284,11 +284,36 @@ export async function runMultiAgentOrchestrator(rawTicker: string): Promise<Orch
   }
 
   if (dcf && dcf.fair_value > 0) {
-    const mosScore = Math.max(0, Math.min(100, Math.round(50 + dcf.mos)));
+    // BUG FIX (review kuantitatif 2026-08-05, temuan P1-13). Dua masalah sekaligus:
+    //
+    // 1. PEMETAAN SANGAT TIDAK LINIER. Rumus lama `clamp(50 + mos, 0, 100)` memakai
+    //    `mos = (fair - price)/fair` yang secara matematis TIDAK TERBATAS ke bawah:
+    //    fair 100 vs harga 500 menghasilkan MoS -400 yang lalu di-clamp ke 0. Artinya
+    //    seluruh rentang "mahal" (dari sedikit mahal sampai mahal ekstrem) menumpuk di
+    //    satu nilai, sementara di daerah sekitar nilai wajar - daerah yang PALING SERING
+    //    terjadi - satu poin persen MoS menggeser skor satu poin penuh.
+    //
+    //    Diganti rasio `fair / price` yang simetris dan terbatas di kedua arah:
+    //    harga separuh nilai wajar (rasio 2,0) dan harga dua kali nilai wajar (rasio 0,5)
+    //    berjarak sama dari titik wajar.
+    //
+    // 2. BOBOT TERBESAR DI ANGKA PALING RAPUH. `fair_value` berasal dari model dengan
+    //    asumsi tetap (tingkat diskonto, pertumbuhan perpetuitas, PER acuan). Memberinya
+    //    20% - lebih besar dari agen mana pun, termasuk yang mengukur harga & volume
+    //    secara langsung - tidak sebanding dengan keandalannya. Diturunkan ke 12%,
+    //    setara agen lain yang juga berbasis model. Bobot yang dilepas tidak dibuang:
+    //    `totalWeight` di bawah menormalisasi ulang, jadi agen berbasis pengukuran
+    //    langsung yang menerimanya.
+    //
+    // [HIPOTESIS] 12% dan batas rasio di bawah belum divalidasi terhadap forward return.
+    const ratio = dcf.fair_value / Math.max(1, dcf.harga || 0);
+    const mosScore = Number.isFinite(ratio)
+      ? Math.max(0, Math.min(100, Math.round(50 + 50 * Math.log2(Math.max(0.25, Math.min(4, ratio))) / 2)))
+      : 50;
     agentBreakdown.valuation_agent = {
-      weight_pct: 20,
+      weight_pct: 12,
       score: mosScore,
-      summary: `Fair Value estimasi: Rp ${Math.round(dcf.fair_value).toLocaleString('id-ID')} (MOS ${dcf.mos.toFixed(1)}%) dari blend ${Object.keys(dcf.applied_rule).length} metode valuasi.`,
+      summary: `Nilai wajar MODEL: Rp ${Math.round(dcf.fair_value).toLocaleString('id-ID')} (MOS ${dcf.mos.toFixed(1)}%) dari gabungan ${Object.keys(dcf.applied_rule).length} metode. Ini keluaran model dengan asumsi tetap, bukan target harga - bobotnya sengaja lebih kecil daripada agen yang mengukur harga & volume langsung.`,
       available: true,
     };
   } else {

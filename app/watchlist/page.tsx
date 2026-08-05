@@ -258,9 +258,17 @@ export default function WatchlistPage() {
     }
   };
 
-  const positioned = watchlist.filter(w => w.buy_price > 0 && (w.lot || 0) > 0);
-  const totalInvested = positioned.reduce((sum, w) => sum + w.buy_price * (w.lot || 0) * 100, 0);
-  const totalCurrent = positioned.reduce((sum, w) => sum + (liveData[w.symbol]?.price || 0) * (w.lot || 0) * 100, 0);
+  const positioned = watchlist.filter((w): w is typeof w & { lot: number } =>
+    w.buy_price > 0 &&
+    typeof w.lot === 'number' &&
+    Number.isFinite(w.lot) &&
+    w.lot > 0 &&
+    typeof liveData[w.symbol]?.price === 'number' &&
+    Number.isFinite(liveData[w.symbol].price) &&
+    liveData[w.symbol].price > 0
+  );
+  const totalInvested = positioned.reduce((sum, w) => sum + w.buy_price * w.lot * 100, 0);
+  const totalCurrent = positioned.reduce((sum, w) => sum + liveData[w.symbol].price * w.lot * 100, 0);
   const totalPnlPct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
   const activeAlertsCount = alerts.filter(a => a.isActive).length;
 
@@ -322,8 +330,8 @@ export default function WatchlistPage() {
             watchlist={watchlist.map(item => {
               return {
                 simbol: item.symbol,
-                hargaBeli: item.buy_price || 0,
-                hargaSekarang: liveData[item.symbol]?.price || 0,
+                hargaBeli: item.buy_price,
+                hargaSekarang: liveData[item.symbol]?.price,
                 lot: item.lot,
                 pnl: item.buy_price > 0 && liveData[item.symbol]?.price > 0 ? ((liveData[item.symbol]?.price - item.buy_price) / item.buy_price) * 100 : 0
               };
@@ -378,8 +386,8 @@ export default function WatchlistPage() {
             <div className="space-y-2.5">
               {watchlist.map((item) => {
                 const data = liveData[item.symbol];
-                const currentPrice = data?.price || 0;
-                const pnl = item.buy_price > 0 && currentPrice > 0
+                const currentPrice = typeof data?.price === 'number' && Number.isFinite(data.price) ? data.price : null;
+                const pnl = item.buy_price > 0 && currentPrice != null && currentPrice > 0
                   ? ((currentPrice - item.buy_price) / item.buy_price) * 100
                   : 0;
                 const isProfit = pnl >= 0;
@@ -423,7 +431,7 @@ export default function WatchlistPage() {
                     </div>
 
                     <div className="hidden sm:flex flex-col items-end text-right shrink-0 w-28">
-                      <span className="text-tv-text font-bold text-sm font-number">{currentPrice ? `Rp ${currentPrice.toLocaleString('id-ID')}` : '-'}</span>
+                      <span className="text-tv-text font-bold text-sm font-number">{currentPrice != null ? `Rp ${currentPrice.toLocaleString('id-ID')}` : '-'}</span>
                       <span className="text-[10px] text-tv-muted font-number">Beli: {item.buy_price ? `Rp ${item.buy_price.toLocaleString('id-ID')}` : '-'} {item.lot ? `• ${item.lot} lot` : ''}</span>
                     </div>
 

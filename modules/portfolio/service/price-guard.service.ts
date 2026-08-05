@@ -34,9 +34,9 @@ export interface PriceCheck {
  * Verifikasi harga transaksi terhadap harga pasar terakhir.
  *
  * Kalau harga pasar TIDAK bisa diambil (Yahoo down / simbol tidak dikenal), transaksi
- * TETAP diizinkan - memblokir pengguna karena penyedia data sedang bermasalah lebih
- * merugikan daripada risiko yang ditutup. Yang penting: sistem tidak lagi menerima harga
- * apa pun tanpa pernah memeriksanya sama sekali.
+ * DITOLAK. Meloloskan angka dari klien pada kondisi ini akan kembali membuat P/L dan
+ * nilai portofolio menjadi data yang tidak dapat diverifikasi. Pengguna bisa mencoba
+ * lagi setelah sumber pasar tersedia; aplikasi tidak mengarang harga pengganti.
  */
 export async function verifyTradePrice(symbol: string, price: number): Promise<PriceCheck> {
   const ticker = symbol.toUpperCase().includes('.') ? symbol.toUpperCase() : `${symbol.toUpperCase()}.JK`;
@@ -52,7 +52,13 @@ export async function verifyTradePrice(symbol: string, price: number): Promise<P
     marketPrice = null;
   }
 
-  if (marketPrice == null) return { ok: true, marketPrice: null };
+  if (marketPrice == null) {
+    return {
+      ok: false,
+      marketPrice: null,
+      reason: `Harga pasar terakhir untuk ${ticker} tidak tersedia, sehingga transaksi virtual tidak dicatat. Coba lagi setelah sumber data pasar tersedia.`,
+    };
+  }
 
   const deviation = Math.abs(price - marketPrice) / marketPrice;
   if (deviation > MAX_DEVIATION) {

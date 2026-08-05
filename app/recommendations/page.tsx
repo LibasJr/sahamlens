@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, ShieldCheck, Search, ArrowUpDown, ChevronUp, ChevronDown, Calendar, Bot } from 'lucide-react';
+import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, Search, ArrowUpDown, ChevronUp, ChevronDown, Calendar, Bot } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -56,6 +56,7 @@ export default function Recommendations() {
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [cacheMeta, setCacheMeta] = useState<{ cachedAgeSec: number; cacheTtlSec: number } | null>(null);
+  const [modelNotice, setModelNotice] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
   const fetchRef = React.useRef(false);
 
@@ -104,6 +105,9 @@ export default function Recommendations() {
           return;
         }
         if (!res.ok) continue;
+        if (json?.modelValidation?.validated === false && typeof json.modelValidation.message === 'string') {
+          setModelNotice(json.modelValidation.message);
+        }
         // Umur cache hasil scan (temuan M-13) - backend mengirimnya lewat `_meta`, dulu
         // tidak pernah dibaca sehingga hasil cron 14 menit lalu tampil seperti baru.
         if (json?._meta) setCacheMeta(json._meta);
@@ -222,19 +226,24 @@ export default function Recommendations() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-heading font-bold text-lg text-white tracking-tight">Rekomendasi Top 50 (LensScanner)</h2>
+              <h2 className="font-heading font-bold text-lg text-white tracking-tight">Scanner Teknikal Top 50 (LensScanner)</h2>
               <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">
                 LENSSCANNER
               </span>
             </div>
             <p className="text-xs text-tv-muted font-mono">
-              Memindai {LIQUID_STOCKS.length} Saham Paling Aktif secara Real-time
+              Memindai {LIQUID_STOCKS.length} saham aktif dari data pasar; sinyal belum merupakan rekomendasi BUY/SELL.
             </p>
           </div>
         </div>
       </header>
 
       <PageContainer className="p-6 space-y-6">
+        {modelNotice && (
+          <div className="rounded-lg border border-tv-warning/40 bg-tv-warning/10 px-4 py-3 text-xs text-tv-warning">
+            {modelNotice}
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
             <button
@@ -302,7 +311,7 @@ export default function Recommendations() {
                     className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
                     onClick={() => handleSort('consensus')}
                   >
-                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('consensus')} Konsensus 10 AI</div>
+                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('consensus')} Konsensus Indikator</div>
                   </th>
                   <th
                     className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
@@ -351,11 +360,6 @@ export default function Recommendations() {
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-white text-base">{item.ticker}</span>
-                        {idx < 3 && item.consensus?.includes('BUY') && sortConfig === null && !searchTerm && (
-                          <span title="Top Pick">
-                            <ShieldCheck className="w-4 h-4 text-tv-green" />
-                          </span>
-                        )}
                         {stocksWithEventToday.has(item.ticker) && (
                           <span title="Ada Corporate Action Hari Ini">
                             <Calendar className="w-4 h-4 text-amber-400" />
@@ -380,7 +384,7 @@ export default function Recommendations() {
                           item.consensus?.includes('SELL') ? 'bg-tv-red/20 text-tv-red border border-tv-red' :
                             'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow'
                         }`}>
-                        {item.consensus} ({item.confidence}%)
+                        {item.consensus} (vote {item.confidence}%)
                       </div>
                     </td>
                     <td className="p-4 text-center">
