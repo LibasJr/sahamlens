@@ -31,6 +31,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 - Sidebar admin sekarang menampilkan **Kalibrasi LensRadar** (`/admin/calibration`) di grup
   Admin untuk role `admin`. Proteksi halaman tetap memakai `isAdminServer()`; link ini hanya
   menambah discoverability UI, bukan membuka akses baru.
+- Sidebar juga membaca `GET /api/admin-status`, jadi admin yang masuk lewat
+  `/admin-login/key?key=...` tetap melihat menu Admin meski tidak sedang login sebagai akun
+  user ber-role `admin`.
 - Tidak ada perubahan env var, dependency, cron, cache, atau schema database.
 
 ### 2026-08-05 - LensScore auto re-weight proposal (manual approval)
