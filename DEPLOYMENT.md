@@ -54,6 +54,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
   `price_data_version = price-adjustment-v1`.
 - Setelah insert penuh, script otomatis menjalankan `runAndSaveLensBucketBacktest()` untuk
   mengisi `lens_bucket_stats`, kecuali diberi `--skip-backtest`.
+- Cache `/api/transparency` dibump ke versi `backfill-v1` dan script akan menghapus
+  key transparency setelah backtest selesai, supaya halaman publik tidak menampilkan
+  payload lama `totalSamples=0` sampai TTL 30 menit habis.
 - Env var: memakai `DATABASE_URL`; script akan load `.env.local` jika variabel belum ada.
 - Rollback plan data: karena script upsert, rollback aman adalah restore dari backup/PITR
   atau hapus window spesifik secara eksplisit setelah menghitung target:
