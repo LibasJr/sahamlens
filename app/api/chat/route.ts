@@ -11,6 +11,7 @@ import { getSession } from '@/modules/user';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import { fetchYahooHistory, calculateRsi } from '@/modules/technical';
 import { classifyFreshness } from '@/shared/http/freshness';
+import { extractMentionedTicker } from './extract-ticker';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -128,7 +129,11 @@ export async function POST(request: Request) {
       : '';
 
     const fullPrompt = `${historyTranscript}\n\nPertanyaan User: ${prompt}`;
-    const verifiedBlock = await buildVerifiedBlock(symbol);
+    // Kode saham yang DISEBUT LANGSUNG di pertanyaan menang atas konteks halaman yang
+    // sedang dibuka - user yang tanya "BJBR" jelas ingin bahas BJBR, apa pun halaman yang
+    // sedang mereka lihat (lihat catatan lengkap di extract-ticker.ts).
+    const mentionedTicker = extractMentionedTicker(prompt);
+    const verifiedBlock = await buildVerifiedBlock(mentionedTicker || symbol);
     const responseText = await generateAI({
       system: buildSystemPrompt(context, history.length > 0, verifiedBlock),
       prompt: fullPrompt,
