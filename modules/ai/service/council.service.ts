@@ -66,9 +66,30 @@ function isKnownNumber(n: number, known: number[]): boolean {
   return known.some((k) => Number.isFinite(k) && Math.abs(k) > 0 && Math.abs(n - k) / Math.abs(k) <= 0.015);
 }
 
+/** Periode indikator teknikal yang menempel di NAMANYA ("MA200", "MA 50", "RSI14",
+ * "CMF20", "ATR-14"). Angka ini BUKAN harga/level - ia bagian dari nama indikator.
+ *
+ * BUG FIX (2026-08-05): tanpa ini, `findFabricatedNumbers()` mencomot "200" dari kata
+ * "MA200" lalu menolak seluruh jawaban AI karena 200 memang tidak ada di daftar harga.
+ * Periode di bawah 100 (MA20, MA50, RSI14) kebetulan lolos karena `isKnownNumber()`
+ * meloloskan angka <= 100 - jadi HANYA MA200 yang terkena, dan MA200 adalah indikator
+ * tren paling dasar yang disebut hampir semua jawaban analisis teknikal. Akibatnya
+ * praktis SETIAP panggilan Council ditolak dan pengguna selalu dapat fallback lokal
+ * ("LensAI tidak tersedia atau kena limit") - pesan yang menyesatkan, karena AI-nya
+ * jalan normal dan jawabannya benar. Diverifikasi dari log produksi:
+ *   [COUNCIL] Output AI ditolak untuk UNTR.JK - "MA50 23743 < MA200 26832" (angka 200)
+ * Di situ 23743 dan 26832 dua-duanya data asli; yang dianggap karangan justru "200".
+ * Prompt di file ini pun mencontohkan "MA200 369", jadi model memang diajari menulis
+ * bentuk yang kemudian ditolak penjaganya sendiri. */
+const INDICATOR_PERIOD_RE = /\b(MA|EMA|SMA|WMA|RSI|CMF|ATR|MFI|ADX|CCI|BB|MACD)\s*[-_]?\s*\d+\b/gi;
+
 /** Kembalikan potongan teks pertama yang memuat angka berskala harga yang TIDAK ada di
- * DATA REAL, atau null kalau seluruh angka bisa dipertanggungjawabkan. */
-function findFabricatedNumbers(json: any, promptData: Record<string, unknown>): string | null {
+ * DATA REAL, atau null kalau seluruh angka bisa dipertanggungjawabkan.
+ *
+ * Di-export untuk pengujian: fungsi ini murni (tanpa I/O) dan perilakunya menentukan
+ * apakah pengguna melihat analisis AI atau fallback lokal, jadi wajib bisa diuji
+ * langsung tanpa memanggil model. */
+export function findFabricatedNumbers(json: any, promptData: Record<string, unknown>): string | null {
   const known: number[] = [];
   for (const v of Object.values(promptData)) {
     const n = typeof v === 'number' ? v : parseFloat(String(v));
@@ -93,8 +114,13 @@ function findFabricatedNumbers(json: any, promptData: Record<string, unknown>): 
   collect(json);
 
   for (const text of texts) {
-    // Buang pemisah ribuan gaya Indonesia (1.234) supaya "Rp 6.500" terbaca 6500.
-    const normalized = text.replace(/(\d)\.(?=\d{3}\b)/g, '$1');
+    const normalized = text
+      // Buang periode yang menempel di nama indikator ("MA200" -> "MA") SEBELUM angka
+      // diekstrak - lihat catatan panjang di INDICATOR_PERIOD_RE. Label indikatornya
+      // dipertahankan supaya potongan teks di pesan pelanggaran tetap terbaca.
+      .replace(INDICATOR_PERIOD_RE, (m) => m.replace(/\d+/g, ''))
+      // Buang pemisah ribuan gaya Indonesia (1.234) supaya "Rp 6.500" terbaca 6500.
+      .replace(/(\d)\.(?=\d{3}\b)/g, '$1');
     const matches = normalized.match(/-?\d+(?:[.,]\d+)?/g) || [];
     for (const m of matches) {
       const n = parseFloat(m.replace(',', '.'));
