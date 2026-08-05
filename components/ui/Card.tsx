@@ -29,7 +29,9 @@ export function Card({
         variant === 'default' && 'bg-tv-card border-tv-border shadow-1',
         variant === 'glass' && 'tv-glass shadow-glass',
         variant === 'flat' && 'bg-transparent border-transparent',
-        hoverable && 'hover:border-tv-borderLight hover:shadow-2 hover:-translate-y-0.5',
+        // scale-[1.01] + angkat 2px: cukup terasa sebagai respons sentuhan, masih
+        // di bawah ambang yang bikin teks di dalam card ikut buram saat transisi.
+        hoverable && 'hover:border-tv-borderLight hover:shadow-2 hover:-translate-y-0.5 hover:scale-[1.01] motion-reduce:hover:scale-100 motion-reduce:hover:translate-y-0',
         PADDING[padding],
         className
       )}
@@ -38,6 +40,13 @@ export function Card({
       {children}
     </div>
   );
+}
+
+// Alias niat: `variant="glass" hoverable` adalah kombinasi yang dipakai berulang
+// untuk panel melayang (modal, overlay, panel ringkasan di atas chart). Diberi nama
+// sendiri supaya niatnya kebaca di tempat pemakaian, bukan komponen baru.
+export function GlassCard({ className, ...props }: Omit<CardProps, 'variant'>) {
+  return <Card variant="glass" hoverable className={className} {...props} />;
 }
 
 export function CardHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {

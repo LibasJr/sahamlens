@@ -10,7 +10,7 @@ import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer } from '@/components/ui';
+import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
 import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
@@ -356,7 +356,9 @@ function DashboardContent() {
     if (chartEl) {
       try {
         const html2canvas = (await import('html2canvas')).default;
-        const canvas = await html2canvas(chartEl as HTMLElement, { scale: 1.5, useCORS: true, backgroundColor: '#0F141D' });
+        // Latar PNG disamakan dengan tv-bg palet baru (#0B0F19) - sebelumnya #0F141D,
+        // sehingga chart di dalam PDF punya kotak latar yang sedikit beda dari halaman.
+        const canvas = await html2canvas(chartEl as HTMLElement, { scale: 1.5, useCORS: true, backgroundColor: '#0B0F19' });
         const imgData = canvas.toDataURL('image/png');
         const imgHeight = (canvas.height * 180) / canvas.width;
         doc.addImage(imgData, 'PNG', 14, 30, 180, imgHeight);
@@ -576,7 +578,31 @@ function DashboardContent() {
   };
 
   if (loading && !data) {
-    return <div className="text-white text-center py-12 flex justify-center items-center"><RefreshCw className="animate-spin w-8 h-8 text-teal-500" /></div>;
+    return (
+      <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+        <Header
+          currentTicker={ticker}
+          onTickerChange={setTicker}
+          moduleTitle="LensTechnical"
+          moduleBank="LENSTECHNICAL"
+          analisaRemaining={analisaRemaining}
+          analisaTotal={FREE_LIMITS.analisaPerHari}
+          isAdmin={isAdminUser}
+        />
+        {/* Dulu satu spinner tunggal berwarna teal-500 - warna yang tidak ada di
+            palet mana pun - di tengah halaman kosong, tanpa petunjuk apa yang
+            sedang disiapkan. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
+        <PageContainer className="p-6 space-y-4">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+          </div>
+          <Skeleton className="h-[320px] w-full" />
+          <LoadingFact />
+        </PageContainer>
+      </div>
+    );
   }
 
   // Handle case where fetch failed or returned 429
@@ -592,10 +618,43 @@ function DashboardContent() {
           analisaTotal={FREE_LIMITS.analisaPerHari}
           isAdmin={isAdminUser}
         />
-        <div className="flex flex-col items-center justify-center p-20 text-slate-400">
-          <Target className="w-12 h-12 mb-4 text-slate-600" />
-          <p>Gagal memuat data. Limit analisa habis atau terjadi kesalahan.</p>
-        </div>
+        {/* BUG FIX (2026-08-06): pesan lama - "Gagal memuat data. Limit analisa habis
+            atau terjadi kesalahan." - menggabungkan dua sebab yang sangat berbeda
+            menjadi satu tebakan, dan tidak menyediakan jalan keluar apa pun (tanpa
+            tombol coba lagi). Padahal state penyebabnya SUDAH dibedakan di
+            fetchAnalyzerData: showLoginPrompt (401), showPaywall (402), fetchError.
+            Blok EmptyState 'Coba lagi' yang ada di bawah tidak pernah terpakai untuk
+            kasus ini karena ia hidup di cabang yang menuntut `data` sudah terisi -
+            padahal kegagalan muat PERTAMA justru meninggalkan `data` null dan
+            berhenti di sini. */}
+        <PageContainer className="p-6">
+          {showLoginPrompt ? (
+            <EmptyState
+              illustration="locked"
+              title="Analisa teknikal butuh akun"
+              description="Daftar gratis - dapat trial 7 hari akses penuh sebelum diminta upgrade."
+              action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
+            />
+          ) : showPaywall ? (
+            <EmptyState
+              illustration="locked"
+              title={isTrialExpired ? 'Masa trial 7 hari sudah berakhir' : 'Kuota analisa hari ini sudah habis'}
+              description={
+                isTrialExpired
+                  ? 'Upgrade ke Pro untuk melanjutkan analisa tanpa batas.'
+                  : `Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai${usedSymbolsToday.length ? ` untuk ${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}` : ''}. Kuota disetel ulang besok.`
+              }
+              action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
+            />
+          ) : (
+            <EmptyState
+              illustration="empty"
+              title={`Data ${displayTicker(ticker)} gagal dimuat`}
+              description="Permintaan ke sumber data tidak sampai. Ini bukan berarti sahamnya bermasalah - coba lagi, atau cari emiten lain lewat kolom pencarian di atas."
+              action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
+            />
+          )}
+        </PageContainer>
         <PaywallModal
           open={showPaywall}
           onClose={() => { if (!isTrialExpired) setShowPaywall(false); }}
@@ -705,18 +764,27 @@ function DashboardContent() {
           )}
           <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
-                <Zap className="w-6 h-6" />
-              </div>
+              {/* Ikon petir kuning yang sama dipakai untuk SEMUA saham - tidak
+                  membedakan apa pun. Diganti avatar berwarna deterministik per emiten. */}
+              <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="font-heading text-2xl font-bold text-white">{displayTicker(stock.symbol || ticker)}.JK</h1>
                   <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
                 </div>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="font-number text-2xl font-bold text-white tabular-nums">
-                    Rp {stock.current_price?.toLocaleString('id-ID') || '-'}
-                  </span>
+                  {/* `|| '-'` sebelumnya merender "Rp -" saat harga tidak ada: sebuah
+                      tanda hubung yang tidak memberi tahu apakah datanya hilang, nol,
+                      atau belum sempat dimuat. */}
+                  {typeof stock.current_price === 'number' ? (
+                    <AnimatedNumber
+                      value={stock.current_price}
+                      format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
+                      className="font-number text-2xl font-bold text-white tabular-nums"
+                    />
+                  ) : (
+                    <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
+                  )}
                   {/* Temuan M-7: null (tidak terukur) dibedakan dari 0 (benar-benar flat). */}
                   {stock.change_pct == null ? (
                     <span className="font-number text-sm font-bold text-tv-muted">Perubahan N/A</span>
@@ -807,7 +875,7 @@ function DashboardContent() {
                 </div>
                 <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-number ${
                   data.scoring.total_score > 75 ? 'border-tv-green text-tv-green bg-tv-green/10' :
-                  data.scoring.total_score >= 60 ? 'border-blue-400 text-blue-400 bg-blue-400/10' :
+                  data.scoring.total_score >= 60 ? 'border-tv-blue text-tv-blue bg-tv-blue/10' :
                   data.scoring.total_score >= 45 ? 'border-tv-yellow text-tv-yellow bg-tv-yellow/10' :
                   'border-tv-red text-tv-red bg-tv-red/10'
                 }`}>
@@ -827,7 +895,7 @@ function DashboardContent() {
                 ) : (
                   <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
                     data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
-                    data.scoring.kategori === 'BUY' ? 'bg-blue-400/20 text-blue-400 border-blue-400/50' :
+                    data.scoring.kategori === 'BUY' ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/50' :
                     data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
                     'bg-tv-red/20 text-tv-red border-tv-red/50'
                   }`}>
@@ -848,7 +916,7 @@ function DashboardContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Technical (0-40)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-all" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
+                    <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-[width] duration-700 ease-settle" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.technical_score}</span>
                 </div>
@@ -858,7 +926,7 @@ function DashboardContent() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-tv-muted font-sans w-28">Momentum (0-100)</span>
                     <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-purple-400/80 to-purple-400 rounded-full transition-all" style={{width: `${momentum}%`}}></div>
+                      <div className="h-full bg-gradient-to-r from-tv-purple/80 to-tv-purple rounded-full transition-[width] duration-700 ease-settle" style={{width: `${momentum}%`}}></div>
                     </div>
                     <span className="text-sm font-bold text-white font-number w-8 text-right">{momentum}</span>
                   </div>
@@ -867,7 +935,7 @@ function DashboardContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Fundamental (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-blue-400/80 to-blue-400 rounded-full transition-all" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
+                    <div className="h-full bg-gradient-to-r from-tv-blue/80 to-tv-blue rounded-full transition-[width] duration-700 ease-settle" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.fundamental_score}</span>
                 </div>
@@ -875,7 +943,7 @@ function DashboardContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Money Flow (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-all" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
+                    <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-[width] duration-700 ease-settle" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.flow_score}</span>
                 </div>
@@ -886,11 +954,35 @@ function DashboardContent() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-tv-muted font-sans w-28">Risk (0-100)</span>
                     <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-tv-red/80 to-tv-red rounded-full transition-all" style={{width: `${risk}%`}}></div>
+                      <div className="h-full bg-gradient-to-r from-tv-red/80 to-tv-red rounded-full transition-[width] duration-700 ease-settle" style={{width: `${risk}%`}}></div>
                     </div>
                     <span className="text-sm font-bold text-white font-number w-8 text-right">{risk}</span>
                   </div>
                 )}
+
+                {/* Storytelling: lima bar di atas menunjukkan komponen mana yang kuat,
+                    tapi tidak pernah menyebut komponen mana yang MENAHAN skornya.
+                    Dihitung dari porsi tiap komponen terhadap pagunya sendiri, bukan
+                    dari nilai mentah - technical 20/40 dan fundamental 20/30 bukan
+                    prestasi yang sama. */}
+                {(() => {
+                  const parts = [
+                    { name: 'Technical', pct: data.scoring.technical_score / 40 },
+                    { name: 'Fundamental', pct: data.scoring.fundamental_score / 30 },
+                    { name: 'Money Flow', pct: data.scoring.flow_score / 30 },
+                  ].filter((p) => Number.isFinite(p.pct));
+                  if (parts.length < 3) return null;
+                  const sorted = [...parts].sort((a, b) => b.pct - a.pct);
+                  const best = sorted[0];
+                  const worst = sorted[sorted.length - 1];
+                  return (
+                    <p className="mt-3 pt-3 border-t border-tv-border text-[11px] leading-relaxed text-tv-muted">
+                      Skor ini paling ditopang <span className="text-tv-text font-medium">{best.name}</span> ({Math.round(best.pct * 100)}% dari pagunya)
+                      dan paling ditahan <span className="text-tv-text font-medium">{worst.name}</span> ({Math.round(worst.pct * 100)}%).
+                      {worst.pct < 0.4 && ` Perbaikan terbesar untuk saham ini akan datang dari sisi ${worst.name.toLowerCase()}.`}
+                    </p>
+                  );
+                })()}
               </div>
 
               {/* Reasons & Risk */}
@@ -1254,11 +1346,10 @@ function DashboardContent() {
         secondaryLabel="Nanti"
       />
 
-      <style dangerouslySetInnerHTML={{__html:`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #131722; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2A2E39; border-radius: 4px; }
-      `}} />
+      {/* Blok <style> .custom-scrollbar dihapus: kelas itu tidak dipakai satu kali pun
+          di file ini (CSS mati), dan warnanya - #131722/#2A2E39 - berasal dari palet
+          yang bahkan lebih tua dari tv-* sebelum penggantian hari ini. Scrollbar
+          global sudah diatur di app/globals.css. */}
     </div>
   );
 }

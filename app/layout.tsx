@@ -1,20 +1,16 @@
 import './globals.css';
-import { Plus_Jakarta_Sans, Sora, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import React from 'react';
 import AppShell from '@/components/AppShell';
 
-// Trio font untuk kesan lebih modern/Gen Z: Jakarta Sans buat body (tetap, sudah
-// enak dibaca), Sora buat heading (lebih tebal & punya karakter), Space Grotesk
-// buat angka/harga (lebar digit seragam, umum dipakai di produk finansial modern).
-// Sebelumnya Sora/Space Grotesk sudah didaftarkan di tailwind.config.js tapi tidak
-// pernah benar-benar dimuat lewat next/font, jadi class font-heading/font-number
-// selama ini jatuh ke fallback sistem.
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' });
-const sora = Sora({ subsets: ['latin'], variable: '--font-sora' });
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk' });
-// Redesign UI/UX Fase 1 - dipindah dari @import CSS manual (app/globals.css) ke
-// next/font supaya SEMUA font di-self-host (satu pola konsisten, bukan campuran
-// next/font + fetch CDN Google Fonts terpisah untuk font yang sama-sama dipakai).
+// Design System "Lens" (2026-08-06): dua font saja, bukan empat.
+// Inter untuk semua teks & heading, JetBrains Mono untuk semua angka/harga.
+// Sebelumnya di sini dimuat Plus Jakarta Sans + Sora + Space Grotesk + JetBrains
+// Mono sekaligus - empat unduhan font padahal Sora dan Space Grotesk cuma dipakai
+// lewat aturan CSS di globals.css yang menyebut nama keluarga font secara literal
+// ('Sora', 'Space Grotesk'), bukan lewat variabel next/font, jadi variabelnya
+// tidak pernah benar-benar terpakai.
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-jetbrains-mono' });
 
 // Audit BUILD 002 (SEO) - sebelumnya cuma title+description di root layout, tanpa
@@ -61,8 +57,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={`dark ${jakarta.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <body className={`${jakarta.className} bg-[#0F141D] text-slate-100 antialiased min-h-screen relative overflow-x-hidden selection:bg-[#3A86FF]/20`}>
+    <html lang="id" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative overflow-x-hidden selection:bg-tv-blue/25`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

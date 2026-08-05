@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import {
   Activity, TrendingUp, TrendingDown, BarChart3,
   RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, Menu, X
 } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
-import { Badge, PageContainer } from '@/components/ui';
+import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -61,18 +62,25 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
   const isUp = (changePct ?? 0) >= 0;
   const intensity = Math.min(Math.abs(changePct ?? 0) * 40, 100);
 
+  // rgb disesuaikan ke palet "Lens" (green #22C55E, red #EF4444) - sebelumnya
+  // hijaunya masih #10B981 dari palet lama, jadi tile ini satu-satunya hijau yang
+  // berbeda hue dari seluruh sisa aplikasi.
   const bg = isUp
-    ? `rgba(16, 185, 129, ${0.1 + intensity / 200})`
+    ? `rgba(34, 197, 94, ${0.1 + intensity / 200})`
     : `rgba(239, 68, 68, ${0.1 + intensity / 200})`;
   const border = isUp
-    ? `rgba(16, 185, 129, ${0.2 + intensity / 250})`
+    ? `rgba(34, 197, 94, ${0.2 + intensity / 250})`
     : `rgba(239, 68, 68, ${0.2 + intensity / 250})`;
 
   return (
-    <button
+    <motion.button
       type="button"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
       onClick={() => onSelect({ sector, changePct, stocks, sampleSize })}
-      className="text-left rounded-lg p-3 flex flex-col justify-between transition-all hover:scale-[1.02] cursor-pointer group"
+      title={`${sector}: ${changePct == null ? 'data tidak tersedia' : `${isUp ? '+' : ''}${changePct.toFixed(2)}%`} - klik untuk rincian`}
+      className="text-left rounded-lg p-3 flex flex-col justify-between cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60"
       style={{
         backgroundColor: bg,
         borderWidth: 1,
@@ -113,7 +121,7 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
           <span className="text-[9px] text-white/60 font-medium">+{stocks.length - 4} lainnya</span>
         )}
       </div>
-    </button>
+    </motion.button>
   );
 }
 
@@ -148,17 +156,19 @@ function SectorDetailModal({ sector, onClose }: { sector: any; onClose: () => vo
         </p>
         <div className="p-4 pt-2 space-y-1.5 max-h-[50vh] overflow-y-auto">
           {sector.stocks.map((s: any) => (
-            <Link
-              key={s.symbol}
-              href={`/technical/${s.symbol}.JK`}
-              onClick={onClose}
-              className="flex items-center justify-between rounded-lg bg-tv-hover hover:bg-tv-border px-3 py-2 transition-colors"
-            >
-              <span className="text-sm font-bold text-tv-text">{s.symbol}</span>
-              <span className={`text-xs font-number font-semibold ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
-              </span>
-            </Link>
+            <motion.div key={s.symbol} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+              <Link
+                href={`/technical/${s.symbol}.JK`}
+                onClick={onClose}
+                className="flex items-center gap-3 rounded-lg bg-tv-hover hover:bg-tv-border px-3 py-2 transition-colors"
+              >
+                <TickerAvatar symbol={s.symbol} size="sm" />
+                <span className="text-sm font-bold text-tv-text flex-1">{s.symbol}</span>
+                <span className={`text-xs font-number font-semibold ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+                </span>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -166,22 +176,67 @@ function SectorDetailModal({ sector, onClose }: { sector: any; onClose: () => vo
   );
 }
 
+/**
+ * Menerjemahkan 11 angka sektor jadi satu kalimat kondisi. Yang penting bagi user
+ * bukan angka per sektor (itu sudah ada di tile), tapi apakah pasar bergerak
+ * serempak atau sedang terjadi rotasi antar sektor.
+ */
+function SectorNarrative({ sectors }: { sectors: { sector: string; changePct: number | null }[] }) {
+  const valid = sectors.filter((s) => typeof s.changePct === 'number') as { sector: string; changePct: number }[];
+  if (valid.length < 2) return null;
+
+  const sorted = [...valid].sort((a, b) => b.changePct - a.changePct);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  const up = valid.filter((s) => s.changePct > 0).length;
+  const spread = best.changePct - worst.changePct;
+
+  // Ambang 3 poin persen memisahkan "pasar bergerak serempak" dari "rotasi": di
+  // bawah itu, selisih antar sektor masih dalam rentang derau harian biasa.
+  const ROTATION_SPREAD_PCT = 3;
+  const mood =
+    spread >= ROTATION_SPREAD_PCT
+      ? `Rotasi sektor sedang terjadi - selisih ${spread.toFixed(1)} poin persen antara ${best.sector} dan ${worst.sector}. Uang berpindah antar sektor, bukan keluar dari pasar.`
+      : up >= valid.length - 1
+        ? 'Hampir semua sektor menguat serempak - kenaikan hari ini berbasis luas, bukan cerita satu sektor.'
+        : up <= 1
+          ? 'Hampir semua sektor melemah serempak - tekanan hari ini menyeluruh, bukan masalah satu sektor.'
+          : `Gerak antar sektor relatif rapat (selisih ${spread.toFixed(1)} poin persen). Belum ada rotasi yang jelas.`;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-tv-border">
+      <p className="text-[11px] leading-relaxed text-tv-muted">
+        <span className="font-number font-semibold text-tv-green">{up}</span> dari{' '}
+        <span className="font-number font-semibold text-tv-text">{valid.length}</span> sektor menguat. {mood}
+      </p>
+    </div>
+  );
+}
+
 // Breadth Bar
 function BreadthBar({ advancing, declining, unchanged, total }: any) {
-  const advPct = (advancing / total) * 100;
-  const decPct = (declining / total) * 100;
-  const uncPct = (unchanged / total) * 100;
+  // Pembagi dijaga: total 0 (respons kosong / sesi belum jalan) sebelumnya
+  // menghasilkan NaN yang masuk ke `width: NaN%` - segmen batangnya hilang tanpa
+  // pesan apa pun, terbaca sebagai batang kosong yang tampak sah.
+  const denom = total > 0 ? total : 1;
+  const advPct = (advancing / denom) * 100;
+  const decPct = (declining / denom) * 100;
+  const uncPct = (unchanged / denom) * 100;
 
   return (
     <div className="space-y-2">
-      <div className="flex h-5 rounded-full overflow-hidden">
-        <div className="bg-tv-green transition-all flex items-center justify-center" style={{ width: `${advPct}%` }}>
+      <div
+        className="flex h-5 rounded-full overflow-hidden bg-tv-hover"
+        role="img"
+        aria-label={`${advancing} saham naik, ${unchanged} stagnan, ${declining} turun, dari ${total} saham terpantau`}
+      >
+        <div className="bg-tv-green transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${advPct}%` }}>
           {advPct > 10 && <span className="text-[9px] font-number font-bold text-white">{advancing}</span>}
         </div>
-        <div className="bg-tv-muted transition-all flex items-center justify-center" style={{ width: `${uncPct}%` }}>
+        <div className="bg-tv-muted transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${uncPct}%` }}>
           {uncPct > 10 && <span className="text-[9px] font-number font-bold text-white">{unchanged}</span>}
         </div>
-        <div className="bg-tv-red transition-all flex items-center justify-center" style={{ width: `${decPct}%` }}>
+        <div className="bg-tv-red transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${decPct}%` }}>
           {decPct > 10 && <span className="text-[9px] font-number font-bold text-white">{declining}</span>}
         </div>
       </div>
@@ -204,24 +259,40 @@ export default function MarketPulse() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [selectedSector, setSelectedSector] = useState<any>(null);
+  // BUG FIX (2026-08-06): sebelumnya kegagalan fetch dan penolakan akses tidak
+  // pernah tercatat di state - `data` tetap null sementara `loading` sudah false,
+  // sehingga KETIGA section (index cards, heatmap, breadth) menampilkan skeleton
+  // atau spinner "Memuat data breadth..." selamanya, tanpa jalan keluar dan tanpa
+  // memberi tahu user bahwa permintaannya gagal. Modal paywall menutupi gejalanya
+  // hanya sampai user menutup modal itu.
+  const [loadError, setLoadError] = useState(false);
+  const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch('/api/market-pulse', { cache: 'no-store' });
       if (res.status === 401) {
+        setGated('login');
         setShowLoginPrompt(true);
         return;
       }
       const json = await res.json();
 
       if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
+        setGated('pro');
         setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
+        return;
+      }
+
+      if (!res.ok || !json) {
+        setLoadError(true);
         return;
       }
 
@@ -231,22 +302,41 @@ export default function MarketPulse() {
         setBreakoutData(json2.data || []);
       }
 
-      if (json) {
-        setData(json);
-        setLastUpdate(new Date());
-      }
+      setGated(null);
+      setData(json);
+      setLastUpdate(new Date());
     } catch (e) {
       console.error(e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 120000); // 2 min refresh
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]);
+
+  // Satu tempat memutuskan apa yang dirender tiap section, supaya urutan cek
+  // (gerbang akses sebelum error, error sebelum loading) tidak ditulis ulang -
+  // dan berbeda-beda - di tiga tempat.
+  const blocker: null | 'login' | 'pro' | 'error' | 'loading' =
+    gated ?? (loadError ? 'error' : !data ? 'loading' : null);
+
+  const renderBlocker = (what: string) => {
+    if (blocker === 'login') {
+      return <EmptyState illustration="locked" title={`Login untuk melihat ${what}`} description="LensMarket butuh akun gratis - trial 7 hari akses penuh." action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }} />;
+    }
+    if (blocker === 'pro') {
+      return <EmptyState illustration="locked" title="Fitur Pro" description={`${what} tersedia di paket Pro.`} action={{ label: 'Lihat Paket', onClick: () => setShowPaywall(true) }} />;
+    }
+    if (blocker === 'error') {
+      return <EmptyState illustration="empty" title={`${what} gagal dimuat`} description="Sambungan ke sumber data terputus. Data akan dicoba lagi otomatis tiap 2 menit." action={{ label: 'Coba lagi sekarang', onClick: fetchData }} />;
+    }
+    return null;
+  };
 
   const formatTime = (date: Date) => date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
@@ -294,6 +384,11 @@ export default function MarketPulse() {
 
       <PageContainer className="p-6 space-y-6">
         {/* === SECTION 1: INDEX CARDS === */}
+        {blocker && blocker !== 'loading' ? (
+          <div className="bg-tv-card border border-tv-border rounded-lg shadow-1">
+            {renderBlocker('Indeks pasar')}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {data?.indices ? data.indices.map((idx: any) => {
             // price/changePct sekarang bisa null (data tidak tersedia dari Yahoo, BUKAN
@@ -302,9 +397,11 @@ export default function MarketPulse() {
             const hasData = idx.price != null && idx.changePct != null;
             const isUp = hasData && idx.changePct >= 0;
             return (
-              <div
+              <motion.div
                 key={idx.name}
-                className={`bg-tv-card border rounded-lg p-4 shadow-1 transition-all hover:shadow-2 ${
+                whileHover={{ scale: 1.01, y: -2 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                className={`bg-tv-card border rounded-lg p-4 shadow-1 transition-colors hover:shadow-2 ${
                   !hasData ? 'border-tv-border' : isUp ? 'border-tv-green/30' : 'border-tv-red/30'
                 }`}
               >
@@ -322,24 +419,34 @@ export default function MarketPulse() {
                     <div className="text-sm font-bold font-number text-tv-muted">N/A</div>
                   )}
                 </div>
-                <div className="flex items-end justify-between">
-                  <div className="text-2xl font-extrabold text-tv-text font-number">
-                    {hasData ? idx.price.toLocaleString('id-ID', { maximumFractionDigits: 0 }) : 'Data tidak tersedia'}
-                  </div>
-                  {hasData && <Sparkline data={idx.sparkline} color={isUp ? '#10B981' : '#EF4444'} />}
+                <div className="flex items-end justify-between gap-2">
+                  {hasData ? (
+                    <AnimatedNumber
+                      value={idx.price}
+                      format={(n) => n.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                      className="text-2xl font-extrabold text-tv-text font-number"
+                    />
+                  ) : (
+                    // Teks sepanjang "Data tidak tersedia" di slot font 2xl dulu meluber
+                    // keluar kartu di layar sempit. Ukurannya diturunkan karena ini kalimat,
+                    // bukan angka - slot besar itu memang dirancang untuk angka.
+                    <span className="text-sm text-tv-muted leading-snug">Data indeks tidak tersedia dari sumber harga</span>
+                  )}
+                  {hasData && <Sparkline data={idx.sparkline} color={isUp ? '#22C55E' : '#EF4444'} />}
                 </div>
-              </div>
+              </motion.div>
             );
           }) : (
             [1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1 animate-pulse">
-                <div className="h-4 bg-tv-hover rounded w-20 mb-2" />
-                <div className="h-6 bg-tv-hover rounded w-16 mb-3" />
-                <div className="h-8 bg-tv-hover rounded w-full" />
+              <div key={i} className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1 space-y-2">
+                <Skeleton variant="text" className="w-20" />
+                <Skeleton variant="text" className="w-16 h-5" />
+                <Skeleton className="h-8 w-full" />
               </div>
             ))
           )}
         </div>
+        )}
 
         {/* === SECTION 1.5: BREAKOUT WIDGET === */}
         <div className="bg-tv-card border border-tv-blue/30 rounded-lg p-5 shadow-1 relative overflow-hidden">
@@ -357,31 +464,53 @@ export default function MarketPulse() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {loading ? (
-              [1, 2, 3].map(i => (
-                <div key={i} className="bg-tv-hover/50 border border-tv-border rounded-lg p-4 animate-pulse h-24" />
-              ))
+            {loading && breakoutData.length === 0 ? (
+              <>
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full" />)}
+                <LoadingFact className="md:col-span-3" />
+              </>
             ) : breakoutData.length > 0 ? (
               breakoutData.slice(0, 3).map((item, idx) => (
-                <a key={item.symbol} href={`/?symbol=${item.symbol}`} className="bg-tv-hover/50 border border-tv-border hover:border-tv-blue/50 transition-colors rounded-lg p-4 group">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-bold text-tv-text font-number flex items-center gap-2">
-                      <span className="text-xs text-tv-muted">#{idx + 1}</span> {item.symbol}
+                <motion.a
+                  key={item.symbol}
+                  href={`/?symbol=${item.symbol}`}
+                  whileHover={{ scale: 1.01, y: -2 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                  className="bg-tv-hover/50 border border-tv-border hover:border-tv-blue/50 transition-colors rounded-lg p-4 group block"
+                >
+                  <div className="flex justify-between items-start mb-2 gap-2">
+                    <div className="font-bold text-tv-text font-number flex items-center gap-2 min-w-0">
+                      <span className="text-xs text-tv-muted shrink-0">#{idx + 1}</span>
+                      <TickerAvatar symbol={item.symbol} size="sm" />
+                      <span className="truncate">{item.symbol}</span>
                     </div>
-                    <div className="text-xs font-bold text-tv-blue font-number">{item.change}</div>
+                    <div className="text-xs font-bold text-tv-blue font-number shrink-0">{item.change}</div>
                   </div>
                   <div className="text-[10px] text-tv-muted line-clamp-1 mb-2">
-                    {item.reason}
+                    {item.reason || 'Alasan breakout belum dirinci untuk saham ini'}
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-tv-border">
-                    <span className="text-xs text-tv-text font-number">Score: {item.score}/8</span>
-                    <span className="text-[9px] text-tv-muted bg-tv-hover px-2 rounded font-number">RR {item.rr}</span>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-tv-border gap-2">
+                    {/* Skor 0-8 diberi bar: "5/8" dan "7/8" sulit dibedakan sekilas saat
+                        tiga kartu bersebelahan. */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs text-tv-text font-number shrink-0">{item.score}/8</span>
+                      <span className="h-1 w-12 rounded-full bg-tv-border overflow-hidden shrink-0">
+                        <span className="block h-full rounded-full bg-tv-blue" style={{ width: `${Math.min(100, (Number(item.score) / 8) * 100)}%` }} />
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-tv-muted bg-tv-hover px-2 rounded font-number shrink-0">RR {item.rr}</span>
                   </div>
-                </a>
+                </motion.a>
               ))
             ) : (
-              <div className="col-span-3 text-center py-6 text-sm text-tv-muted">
-                Belum ada saham yang masuk radar breakout.
+              <div className="md:col-span-3">
+                <EmptyState
+                  illustration="search"
+                  title="Belum ada saham yang masuk radar breakout"
+                  description="Radar hanya memuat saham yang lolos seluruh syarat breakout hari ini. Daftar kosong berarti tidak ada yang lolos - bukan berarti pemindaian gagal."
+                  action={{ label: 'Buka LensRadar', onClick: () => { window.location.href = '/breakout-radar'; } }}
+                />
               </div>
             )}
           </div>
@@ -405,17 +534,25 @@ export default function MarketPulse() {
             </span>
           </div>
 
-          {data?.sectorHeatmap ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
-              {data.sectorHeatmap.map((sector: any) => (
-                <HeatmapTile key={sector.sector} {...sector} onSelect={setSelectedSector} />
-              ))}
-            </div>
+          {blocker && blocker !== 'loading' ? (
+            renderBlocker('Sector Heatmap')
+          ) : data?.sectorHeatmap ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
+                {data.sectorHeatmap.map((sector: any) => (
+                  <HeatmapTile key={sector.sector} {...sector} onSelect={setSelectedSector} />
+                ))}
+              </div>
+              <SectorNarrative sectors={data.sectorHeatmap} />
+            </>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
-              {[...Array(11)].map((_, i) => (
-                <div key={i} className="bg-tv-hover rounded-lg h-24 animate-pulse" />
-              ))}
+            <div className="flex-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
+                {[...Array(11)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+              <LoadingFact className="mt-3" />
             </div>
           )}
         </div>
@@ -435,7 +572,9 @@ export default function MarketPulse() {
             </span>
           </div>
 
-          {data?.breadth ? (
+          {blocker && blocker !== 'loading' ? (
+            renderBlocker('Market Breadth')
+          ) : data?.breadth ? (
             <div className="space-y-5 flex-1 flex flex-col">
               <BreadthBar {...data.breadth} />
 
@@ -443,46 +582,58 @@ export default function MarketPulse() {
                   angkanya terlalu sempit dan terpotong di layar sedang. */}
               <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1 content-start">
                 <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
-                  <div className="text-xl sm:text-3xl font-extrabold text-tv-green font-number">{data.breadth.advancing}</div>
+                  <AnimatedNumber value={data.breadth.advancing} className="block text-xl sm:text-3xl font-extrabold text-tv-green font-number" />
                   <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
                 </div>
                 <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center">
-                  <div className="text-xl sm:text-3xl font-extrabold text-tv-muted font-number">{data.breadth.unchanged}</div>
+                  <AnimatedNumber value={data.breadth.unchanged} className="block text-xl sm:text-3xl font-extrabold text-tv-muted font-number" />
                   <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
                 </div>
                 <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-2 sm:p-4 text-center">
-                  <div className="text-xl sm:text-3xl font-extrabold text-tv-red font-number">{data.breadth.declining}</div>
+                  <AnimatedNumber value={data.breadth.declining} className="block text-xl sm:text-3xl font-extrabold text-tv-red font-number" />
                   <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
                 </div>
                 <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center flex flex-col items-center justify-center">
-                  <div className={`text-xl sm:text-3xl font-extrabold font-number ${
-                    data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
-                  }`}>
-                    {data.breadth.advanceDeclineRatio}
-                  </div>
+                  <AnimatedNumber
+                    value={data.breadth.advanceDeclineRatio}
+                    format={(n) => n.toFixed(2)}
+                    className={`block text-xl sm:text-3xl font-extrabold font-number ${
+                      data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
+                    }`}
+                  />
                   <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">AD Ratio</div>
                 </div>
               </div>
 
-              <div className={`flex items-center justify-center gap-2 rounded-lg border py-2 text-sm font-bold ${
-                data.breadth.advanceDeclineRatio > 1.5
-                  ? 'bg-tv-green/20 text-tv-green border-tv-green/30'
-                  : data.breadth.advanceDeclineRatio >= 1
-                  ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/30'
-                  : data.breadth.advanceDeclineRatio >= 0.7
-                  ? 'bg-tv-warning/20 text-tv-warning border-tv-warning/30'
-                  : 'bg-tv-red/20 text-tv-red border-tv-red/30'
-              }`}>
-                {data.breadth.advanceDeclineRatio > 1.5 ? 'SANGAT BULLISH'
-                  : data.breadth.advanceDeclineRatio >= 1 ? 'BULLISH'
-                  : data.breadth.advanceDeclineRatio >= 0.7 ? 'NETRAL'
-                  : 'BEARISH'}
-              </div>
+              {(() => {
+                const r = data.breadth.advanceDeclineRatio;
+                // Label sendirian tidak memberi tahu apa pun: "BULLISH" bisa berarti
+                // rasio 1.01 atau 1.49. Kalimat di bawahnya menyebut angkanya dan
+                // batas kesimpulannya - breadth ini sampel, bukan seluruh bursa.
+                const verdict =
+                  r > 1.5 ? { label: 'SANGAT BULLISH', tone: 'bg-tv-green/20 text-tv-green border-tv-green/30', story: `Untuk tiap 1 saham turun, ada ${r.toFixed(1)} saham naik. Penguatan berbasis luas.` }
+                  : r >= 1 ? { label: 'BULLISH', tone: 'bg-tv-blue/20 text-tv-blue border-tv-blue/30', story: `Saham naik sedikit lebih banyak dari yang turun (rasio ${r.toFixed(2)}). Keunggulannya tipis.` }
+                  : r >= 0.7 ? { label: 'NETRAL', tone: 'bg-tv-warning/20 text-tv-warning border-tv-warning/30', story: `Yang turun lebih banyak dari yang naik (rasio ${r.toFixed(2)}), tapi belum cukup lebar untuk disebut tekanan jual.` }
+                  : { label: 'BEARISH', tone: 'bg-tv-red/20 text-tv-red border-tv-red/30', story: `Untuk tiap 1 saham naik, ada ${(1 / (r || 0.01)).toFixed(1)} saham turun. Pelemahan merata.` };
+                return (
+                  <div>
+                    <div className={`flex items-center justify-center gap-2 rounded-lg border py-2 text-sm font-bold ${verdict.tone}`}>
+                      {verdict.label}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-tv-muted text-center">
+                      {verdict.story} Dihitung dari {data.breadth.total} saham terpantau, bukan seluruh emiten IDX.
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-tv-muted flex-1">
-              <RefreshCw className="w-6 h-6 animate-spin text-tv-green mb-3" />
-              <span className="text-sm">Memuat data breadth...</span>
+            <div className="flex-1 space-y-4">
+              <Skeleton className="h-5 w-full rounded-full" />
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+              </div>
+              <LoadingFact />
             </div>
           )}
         </div>

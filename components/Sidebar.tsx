@@ -236,7 +236,7 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-[#0F141D] border-r border-white/5 flex flex-col h-screen select-none transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 bg-tv-surface border-r border-tv-border flex flex-col h-screen select-none transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${
           isOpen ? 'translate-x-0 shadow-2xl shadow-black/50' : '-translate-x-full'
         } ${isCollapsed ? 'md:w-20 w-72' : 'w-72'}`}
       >
@@ -329,7 +329,7 @@ export default function Sidebar() {
 
                       {/* Tooltip custom saat collapsed - lebih rapi dari native title, muncul di sebelah kanan icon */}
                       {isCollapsed && (
-                        <span className="hidden md:group-hover:flex absolute left-full ml-2 items-center whitespace-nowrap px-2.5 py-1.5 rounded-md bg-[#1A2130] border border-white/10 text-white text-xs font-medium shadow-1 z-50 pointer-events-none">
+                        <span className="hidden md:group-hover:flex absolute left-full ml-2 items-center whitespace-nowrap px-2.5 py-1.5 rounded-md bg-tv-cardAlt border border-tv-border text-white text-xs font-medium shadow-2 z-50 pointer-events-none">
                           {item.name}
                           {item.live && <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-tv-green" />}
                         </span>
