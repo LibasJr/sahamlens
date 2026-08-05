@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Search, AlertCircle, TrendingUp, RefreshCw, BarChart2, Menu } from 'lucide-react';
-import SymbolAutocomplete from './SymbolAutocomplete';
+import React from 'react';
+import { Menu } from 'lucide-react';
+import CommandPalette from './CommandPalette';
 
 interface HeaderProps {
   currentTicker: string;
@@ -24,23 +24,6 @@ export default function Header({
   analisaTotal = 5,
   isAdmin = false
 }: HeaderProps) {
-  const [searchInput, setSearchInput] = useState(currentTicker);
-
-  // Resync saat currentTicker berubah lewat navigasi yang tidak lewat search box ini
-  // (CommandPalette, dashboard, watchlist, dst) - tanpa ini search box menampilkan
-  // ticker lama walau body halaman sudah pindah ke ticker baru, dan submit Enter di
-  // situ akan salah navigasi balik ke ticker lama.
-  useEffect(() => {
-    setSearchInput(currentTicker);
-  }, [currentTicker]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchInput.trim()) {
-      onTickerChange(searchInput.trim().toUpperCase());
-    }
-  };
-
   return (
     <header className="sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border-b border-tv-border bg-tv-surface/90 backdrop-blur-md shadow-2">
 
@@ -53,27 +36,21 @@ export default function Header({
           <Menu className="w-6 h-6" />
         </button>
 
-        <form onSubmit={handleSearchSubmit} className="relative w-full md:w-64">
-          <Search className="w-4 h-4 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2" />
-          <SymbolAutocomplete
-            containerClassName="w-full"
-            value={searchInput}
-            onChange={(val) => setSearchInput(val)}
-            onSelect={(val) => {
-              setSearchInput(val);
-              onTickerChange(val.toUpperCase());
-            }}
-            onFocus={(e: any) => e.target.select()}
-            placeholder="Cari Ticker (cth: BBCA)..."
-            className="w-full bg-tv-hover/60 border border-tv-border rounded-md pl-9 pr-14 py-2 text-sm text-tv-text placeholder-tv-muted focus:outline-none focus:border-tv-blue transition-colors font-number"
+        {/* BUG FIX (2026-08-05, unifikasi search - permintaan user): SEBELUMNYA input
+            teks + SymbolAutocomplete sendiri di sini, terpisah dari search global
+            TopMarketBar ("Cari saham...", components/AppShell.tsx) yang SUDAH tampil di
+            atas halaman ini juga - dua UI pencarian beda gaya di satu layar. Sekarang
+            pakai CommandPalette yang sama (satu komponen, satu sumber data /api/emiten),
+            `onSelect` bikin pemilihan ganti ticker DI HALAMAN INI (bukan navigasi keluar
+            kayak instance global). `enableShortcut={false}` WAJIB - instance global di
+            TopMarketBar sudah pegang shortcut Ctrl/Cmd+K, tanpa ini kepencet dua modal
+            sekaligus. */}
+        <div className="relative w-full md:w-64">
+          <CommandPalette
+            onSelect={(symbol) => onTickerChange(symbol.toUpperCase())}
+            enableShortcut={false}
           />
-          <button
-            type="submit"
-            className="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-tv-blue hover:bg-tv-blueHover text-white text-[10px] rounded font-semibold transition-all"
-          >
-            CARI
-          </button>
-        </form>
+        </div>
       </div>
 
       {/* Module title/bank - sebelumnya diterima sebagai prop tapi tidak pernah
