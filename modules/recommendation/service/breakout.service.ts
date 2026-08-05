@@ -112,8 +112,13 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
 
     // RSI 14 - Wilder smoothing baku (lihat modules/technical/service/rsi.ts), bukan
     // rata-rata aritmatik sederhana yang dulu di sini (bias, lihat H-01 di audit).
-    const rsi = calculateRsi(closes, 14) ?? 50;
-    const isRsiBreakout = rsi >= 52 && rsi <= 60;
+    // BUG FIX Phase 0 (audit fallback palsu): `?? 50` DIHAPUS. Nilainya kebetulan tidak
+    // memicu pita 52-60 di bawah, tapi polanya tetap salah - RSI yang tidak bisa
+    // dihitung diubah jadi angka finansial yang tidak pernah diukur, lalu dibandingkan
+    // dengan ambang seolah hasil pengukuran. `null` => sinyal RSI MOMENTUM tidak
+    // dievaluasi sama sekali untuk saham itu.
+    const rsi = calculateRsi(closes, 14);
+    const isRsiBreakout = rsi != null && rsi >= 52 && rsi <= 60;
 
     // Dekat Resistance
     const high20 = Math.max(...history.slice(-20).map(h => h.high));

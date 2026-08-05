@@ -3,6 +3,7 @@ import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSign
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
+import { evaluateMinimalEligibility } from '../../eligibility';
 import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
 
@@ -131,6 +132,27 @@ async function scoreOne(
   // diperlakukan aman sebagai "bukan bearish", bukan ditebak.
   const bearish = ma20 != null && ma50 != null && currentPrice < ma20 && ma20 < ma50;
 
+  // GERBANG KELAYAKAN MINIMAL (P0-3). Dijalankan SETELAH skor dihitung karena salah
+  // satu gerbangnya (kelengkapan data) memakai `coverage_pct`, tapi hasilnya dipakai
+  // SEBELUM pemeringkatan di rankAiPicks() - saham tidak layak tidak pernah jadi
+  // kandidat, bukan sekadar diberi peringkat rendah.
+  //
+  // Bar mentah `history` (bukan `adjustedHistory`) dipakai di sini: estimasi volume
+  // penuh untuk bar hari ini adalah alat untuk membandingkan rasio volume, sementara
+  // gerbang ini menanyakan hal berbeda - "apakah ada transaksi tercatat" dan "berapa
+  // nilai transaksi rata-ratanya". Memakai angka hasil estimasi untuk menjawab itu
+  // berarti menilai kelayakan atas angka yang kita karang sendiri.
+  const eligibility = evaluateMinimalEligibility({
+    ticker,
+    asOf: todayDateKeyWIB(),
+    bars: history.map((h) => ({
+      date: h.Date.split('T')[0],
+      close: typeof h.Close === 'number' ? h.Close : null,
+      volume: typeof h.Volume === 'number' ? h.Volume : null,
+    })),
+    coveragePct: scoring.coverage_pct,
+  });
+
   return {
     scored: {
       symbol: ticker,
@@ -148,6 +170,12 @@ async function scoreOne(
       // coverage 90% bukan klaim yang setara dengan 82 dari coverage 100%. Angka ini
       // sudah lama dihitung tapi tidak pernah diteruskan ke pengguna.
       coverage: scoring.coverage_pct,
+      // P0-1: kategori SEBELUMNYA dibuang di sini - `ScoredStock` tidak punya field-nya
+      // sama sekali, sehingga rankAiPicks() tidak punya cara apa pun untuk tahu bahwa
+      // sistem sendiri sudah menilai saham ini 'DATA TIDAK CUKUP'.
+      kategori: scoring.kategori,
+      eligibilityStatus: eligibility.status,
+      eligibilityReasons: eligibility.reasonCodes,
       // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari
       // calculateScore(), bukan dihitung ulang/dikarang di sini.
       breakdown: {

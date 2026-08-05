@@ -5,6 +5,8 @@ import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
 import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 import { writeFundamentalSnapshot, type FundamentalSnapshot } from '@/shared/cache/ai-pick-cache';
+import { archiveFundamentalSnapshotSafe } from '@/modules/fundamental/repository/fundamental-history.repository';
+import { todayDateKeyWIB } from '@/shared/market/trading-session';
 
 export const maxDuration = 300;
 
@@ -56,7 +58,35 @@ export async function POST(req: NextRequest) {
         batch.forEach((ticker, idx) => { snapshot[ticker] = values[idx]; });
       }
       await writeFundamentalSnapshot(snapshot);
-      return { tickers: Object.keys(snapshot).length };
+
+      // ARSIP POINT-IN-TIME (P0-5). Cache di atas TETAP ditulis seperti sebelumnya -
+      // ia melayani runtime (AI Pick scan membacanya tiap 5 menit). Arsip di bawah
+      // lapisan TERPISAH: append-only per (ticker, observed_date), supaya nilai hari
+      // ini masih bisa dibaca berbulan-bulan lagi. Tanpa ini setiap hari yang lewat
+      // hilang permanen karena cache Redis ber-TTL 24 jam selalu ditimpa.
+      //
+      // observed_date = tanggal kalender WIB, BUKAN new Date() server (Vercel jalan
+      // di UTC - cron 07:00 WIB akan terarsip sebagai tanggal H-1 kalau memakai UTC).
+      //
+      // Ticker disimpan APA ADANYA (dengan sufiks .JK) supaya kunci arsip identik
+      // dengan kunci snapshot cache & AI_PICK_UNIVERSE - tidak ada normalisasi diam-
+      // diam yang bisa membuat dua konvensi ticker hidup berdampingan di satu tabel.
+      const observedDate = todayDateKeyWIB();
+      const archive = await archiveFundamentalSnapshotSafe(
+        Object.entries(snapshot).map(([ticker, f]) => ({ ticker, observedDate, ...f }))
+      );
+      if (archive.error) {
+        logger.warn('Snapshot fundamental: cache tertulis, arsip historis GAGAL', {
+          observedDate, err: archive.error,
+        });
+      }
+
+      return {
+        tickers: Object.keys(snapshot).length,
+        observedDate,
+        archivedRows: archive.archived,
+        archiveError: archive.error,
+      };
     });
     return NextResponse.json({ success: true, result });
   } catch (err) {

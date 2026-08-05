@@ -17,6 +17,7 @@ import {
   calculateConsensus,
 } from '@/modules/technical';
 import { getSession, checkProAccessLive } from '@/modules/user';
+import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
@@ -445,6 +446,32 @@ export async function GET(
       }
     );
 
+    // === GERBANG KELAYAKAN MINIMAL (Phase 0 / P0-3) ===
+    // Dijalankan atas `history` PENUH (bukan `analyzerHistory` yang sudah dipotong 200
+    // bar) supaya jumlah bar yang dilaporkan adalah jumlah bar yang benar-benar dimiliki
+    // saham ini, bukan hasil pemotongan kita sendiri.
+    //
+    // CATATAN PENTING: kalau pemanggil meminta `?range` pendek (mis. 1mo), histori yang
+    // tersedia memang kurang dari 200 bar dan gerbang G1 akan aktif - rekomendasi tidak
+    // diberikan. Itu DISENGAJA (fail-closed): kelayakan tidak boleh disimpulkan dari
+    // data yang tidak kita punya. Seluruh pemanggil di aplikasi ini memakai default 20y.
+    //
+    // `scoring` v1 di bawah TIDAK diubah sama sekali - halaman lama tetap membaca
+    // `scoring.total_score`/`scoring.kategori` seperti sebelumnya. Yang ditambahkan
+    // adalah `eligibility` + `decision`, dan `decision.action` itulah satu-satunya
+    // field yang boleh dibaca sebagai ajakan bertindak.
+    const eligibility = evaluateMinimalEligibility({
+      ticker,
+      asOf: todayDateKeyWIB(),
+      bars: history.map((h: any) => ({
+        date: h.Date.split('T')[0],
+        close: typeof h.Close === 'number' ? h.Close : null,
+        volume: typeof h.Volume === 'number' ? h.Volume : null,
+      })),
+      coveragePct: scoringResult.coverage_pct,
+    });
+    const decision = toAdvisoryDecision(scoringResult.kategori, eligibility);
+
     // Klasifikasi kesegaran (temuan M-07) dari timestamp bar SESUNGGUHNYA (Yahoo
     // `meta.regularMarketTime`), bukan `Date.now()` di server - lihat shared/http/freshness.ts.
     const freshness = classifyFreshness(result.meta?.regularMarketTime);
@@ -457,6 +484,15 @@ export async function GET(
       consensusData,
       bestPerformer,
       scoring: scoringResult,
+      // BARU (Phase 0). Aditif - tidak ada field lama yang dihapus atau diubah artinya.
+      eligibility: {
+        status: eligibility.status,
+        reasonCodes: eligibility.reasonCodes,
+        blocking: eligibility.blocking,
+        message: eligibility.message,
+        details: eligibility.details,
+      },
+      decision,
       stock: {
         symbol: ticker,
         current_price: currentPrice,

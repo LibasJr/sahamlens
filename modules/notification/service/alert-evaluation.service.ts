@@ -59,6 +59,13 @@ function isTriggered(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadt
       return p != null && p >= target;
     }
     case 'CONSENSUS_STRONG_BUY':
+      // Phase 0 / P0-3: alert ini MENGIRIM ajakan beli ke perangkat pengguna, jadi ia
+      // jalur rekomendasi actionable - bukan sekadar tampilan. Gerbang kelayakan dari
+      // /api/stock/[ticker] (`decision.advisory`) wajib dihormati di sini juga, kalau
+      // tidak seluruh gate bisa di-bypass lewat notifikasi. `advisory === false` saja
+      // yang memblokir: payload lama/stale tanpa field `decision` tidak mengubah
+      // perilaku alert yang sudah ada.
+      if (ctx.stock?.decision?.advisory === false) return false;
       return ctx.stock?.consensusData?.kategori === 'STRONG BUY';
     case 'RSI_OVERSOLD': {
       const rsi = getRsi(ctx.stock);

@@ -79,12 +79,29 @@ export interface FlowInput {
 
 export type ScoringKategori = 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'DATA TIDAK CUKUP';
 
-/** Satu komponen skor. `available: false` berarti datanya tidak ada - komponen ini
- * dikeluarkan dari pembilang DAN penyebut saat digabung. */
+/** Satu komponen skor.
+ *
+ * BUG FIX P0-2 (blueprint quant V2 §2): dulu ada SATU field `max`, dan
+ * scoreValuasi/scoreProfitabilitas/scoreKesehatan MENGECILKAN `max`-nya sendiri saat
+ * salah satu sub-metrik hilang (mis. emiten rugi tanpa PER: max 10 -> 5). `combine()`
+ * menghitung penyebut `declaredMax` dari field yang sama, jadi penyebutnya ikut
+ * menyusut dan rasionya tetap 1.0 - kehilangan separuh blok valuasi jadi TIDAK TERLIHAT
+ * di `coverage_pct` (dilaporkan 100% padahal 5 dari 13 sub-faktor hilang).
+ *
+ * Sekarang dua angka dipisah tegas:
+ * - `declaredMax`: bobot yang DIDEKLARASIKAN untuk komponen ini. KONSTAN (15/8/7/10/
+ *   10/10/10/20/10) apa pun ketersediaan datanya. Ini penyebutnya.
+ * - `availableMax`: bobot sub-faktor yang BENAR-BENAR punya data. Ini pembilangnya.
+ *
+ * `available: false` berarti seluruh komponen tidak punya data: `availableMax = 0`,
+ * `declaredMax` tetap penuh - jadi hilangnya terlihat di coverage. */
 interface Component {
   key: string;
   score: number;
-  max: number;
+  /** Bobot sub-faktor yang punya data (<= declaredMax). */
+  availableMax: number;
+  /** Bobot konstan komponen ini - TIDAK PERNAH menyusut karena data hilang. */
+  declaredMax: number;
   available: boolean;
   reason: string;
 }
@@ -96,9 +113,14 @@ export interface ScoringResult {
   fundamental_score: number;
   flow_score: number;
   total_score: number;
-  /** Persentase bobot yang benar-benar punya data (0-100). Di bawah
-   * MIN_COVERAGE_PCT, `kategori` menjadi 'DATA TIDAK CUKUP' - skor dari sepotong kecil
-   * data tidak boleh disajikan sebagai rekomendasi. */
+  /** Persentase bobot SUB-FAKTOR yang benar-benar punya data, terhadap bobot sub-faktor
+   * yang dideklarasikan (0-100). Di bawah MIN_COVERAGE_PCT, `kategori` menjadi
+   * 'DATA TIDAK CUKUP' - skor dari sepotong kecil data tidak boleh disajikan sebagai
+   * rekomendasi.
+   *
+   * P0-2: sebelum perbaikan, angka ini melebih-lebihkan kelengkapan - emiten rugi tanpa
+   * PER dilaporkan 100% padahal separuh blok valuasi hilang. Nilainya sekarang TURUN
+   * untuk banyak saham; itu koreksi, bukan regresi. */
   coverage_pct: number;
   kategori: ScoringKategori;
   detail: {
@@ -119,14 +141,15 @@ export interface ScoringResult {
   risk: string;
 }
 
-const NA = (key: string, max: number, what: string): Component => ({
-  key, score: 0, max, available: false, reason: `${what}: DATA TIDAK TERSEDIA`,
+const NA = (key: string, declaredMax: number, what: string): Component => ({
+  key, score: 0, availableMax: 0, declaredMax, available: false,
+  reason: `${what}: DATA TIDAK TERSEDIA`,
 });
 
 /** Minimal 55% bobot harus punya data sebelum skor boleh diterjemahkan jadi kategori
  * BUY/SELL. Angka ini keputusan produk (didokumentasikan, bukan disembunyikan): di
  * bawah itu skor praktis cuma mencerminkan satu-dua dimensi. */
-const MIN_COVERAGE_PCT = 55;
+export const MIN_COVERAGE_PCT = 55;
 
 // ==================== TECHNICAL (maks 40) ====================
 
@@ -137,18 +160,18 @@ function scoreMATrend(t: TechnicalInput): Component {
   }
   const p = t.currentPrice;
   if (p > t.ma20 && t.ma20 > t.ma50 && t.ma50 > t.ma200) {
-    return { key: 'ma_trend', max: MAX, available: true, score: 15, reason: `Uptrend sempurna P:${Math.round(p)} > MA20:${Math.round(t.ma20)} > MA50:${Math.round(t.ma50)} > MA200:${Math.round(t.ma200)}` };
+    return { key: 'ma_trend', availableMax: MAX, declaredMax: MAX, available: true, score: 15, reason: `Uptrend sempurna P:${Math.round(p)} > MA20:${Math.round(t.ma20)} > MA50:${Math.round(t.ma50)} > MA200:${Math.round(t.ma200)}` };
   }
   if (p > t.ma20 && p > t.ma50) {
-    return { key: 'ma_trend', max: MAX, available: true, score: 10, reason: 'Harga di atas MA20 & MA50, tapi belum full uptrend' };
+    return { key: 'ma_trend', availableMax: MAX, declaredMax: MAX, available: true, score: 10, reason: 'Harga di atas MA20 & MA50, tapi belum full uptrend' };
   }
   if (p > t.ma200) {
-    return { key: 'ma_trend', max: MAX, available: true, score: 5, reason: 'Harga di atas MA200 tapi di bawah MA20/MA50' };
+    return { key: 'ma_trend', availableMax: MAX, declaredMax: MAX, available: true, score: 5, reason: 'Harga di atas MA200 tapi di bawah MA20/MA50' };
   }
   if (p < t.ma20 && t.ma20 < t.ma50 && t.ma50 < t.ma200) {
-    return { key: 'ma_trend', max: MAX, available: true, score: 0, reason: 'Downtrend penuh P < MA20 < MA50 < MA200' };
+    return { key: 'ma_trend', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: 'Downtrend penuh P < MA20 < MA50 < MA200' };
   }
-  return { key: 'ma_trend', max: MAX, available: true, score: 3, reason: 'Sideways / tidak ada tren jelas' };
+  return { key: 'ma_trend', availableMax: MAX, declaredMax: MAX, available: true, score: 3, reason: 'Sideways / tidak ada tren jelas' };
 }
 
 /** RSI dipisah dari MACD (dulu satu fungsi `scoreRsiMacd`) supaya salah satu yang hilang
@@ -158,11 +181,11 @@ function scoreRsi(t: TechnicalInput): Component {
   const MAX = 8;
   if (t.rsi == null) return NA('rsi', MAX, 'RSI 14');
   const rsi = t.rsi;
-  if (rsi >= 50 && rsi <= 70) return { key: 'rsi', max: MAX, available: true, score: 8, reason: `RSI ${rsi.toFixed(1)} zona BUY ideal` };
-  if (rsi >= 40 && rsi < 50) return { key: 'rsi', max: MAX, available: true, score: 4, reason: `RSI ${rsi.toFixed(1)} netral-lemah` };
-  if (rsi > 70 && rsi <= 78) return { key: 'rsi', max: MAX, available: true, score: 5, reason: `RSI ${rsi.toFixed(1)} mendekati overbought` };
-  if (rsi > 78) return { key: 'rsi', max: MAX, available: true, score: 0, reason: `RSI ${rsi.toFixed(1)} OVERBOUGHT zona SELL` };
-  return { key: 'rsi', max: MAX, available: true, score: 2, reason: `RSI ${rsi.toFixed(1)} OVERSOLD zona SELL/hati-hati` };
+  if (rsi >= 50 && rsi <= 70) return { key: 'rsi', availableMax: MAX, declaredMax: MAX, available: true, score: 8, reason: `RSI ${rsi.toFixed(1)} zona BUY ideal` };
+  if (rsi >= 40 && rsi < 50) return { key: 'rsi', availableMax: MAX, declaredMax: MAX, available: true, score: 4, reason: `RSI ${rsi.toFixed(1)} netral-lemah` };
+  if (rsi > 70 && rsi <= 78) return { key: 'rsi', availableMax: MAX, declaredMax: MAX, available: true, score: 5, reason: `RSI ${rsi.toFixed(1)} mendekati overbought` };
+  if (rsi > 78) return { key: 'rsi', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `RSI ${rsi.toFixed(1)} OVERBOUGHT zona SELL` };
+  return { key: 'rsi', availableMax: MAX, declaredMax: MAX, available: true, score: 2, reason: `RSI ${rsi.toFixed(1)} OVERSOLD zona SELL/hati-hati` };
 }
 
 function scoreMacd(t: TechnicalInput): Component {
@@ -171,19 +194,19 @@ function scoreMacd(t: TechnicalInput): Component {
   // `macdLine > macdSignal` identik secara matematis - cukup satu yang diperiksa
   // (catatan temuan H-06 audit 2026-08-03 tetap berlaku).
   if (t.macdHist == null) return NA('macd', MAX, 'MACD');
-  if (t.macdHist > 0) return { key: 'macd', max: MAX, available: true, score: 7, reason: `MACD bullish (Hist:${t.macdHist.toFixed(2)})` };
-  if (t.macdHist < 0) return { key: 'macd', max: MAX, available: true, score: 0, reason: `MACD bearish (Hist:${t.macdHist.toFixed(2)})` };
-  return { key: 'macd', max: MAX, available: true, score: 3, reason: 'MACD netral (Hist:0.00)' };
+  if (t.macdHist > 0) return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 7, reason: `MACD bullish (Hist:${t.macdHist.toFixed(2)})` };
+  if (t.macdHist < 0) return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `MACD bearish (Hist:${t.macdHist.toFixed(2)})` };
+  return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 3, reason: 'MACD netral (Hist:0.00)' };
 }
 
 function scoreVolume(t: TechnicalInput): Component {
   const MAX = 10;
   if (!t.volToday || !t.volAvg20) return NA('volume', MAX, 'Volume');
   const ratio = t.volToday / t.volAvg20;
-  if (ratio >= 2.0) return { key: 'volume', max: MAX, available: true, score: 10, reason: `Volume ${ratio.toFixed(1)}x avg (SANGAT TINGGI)` };
-  if (ratio >= 1.5) return { key: 'volume', max: MAX, available: true, score: 8, reason: `Volume ${ratio.toFixed(1)}x avg (VALID)` };
-  if (ratio >= 1.0) return { key: 'volume', max: MAX, available: true, score: 4, reason: `Volume ${ratio.toFixed(1)}x avg (NORMAL)` };
-  return { key: 'volume', max: MAX, available: true, score: 1, reason: `Volume ${ratio.toFixed(1)}x avg (RENDAH)` };
+  if (ratio >= 2.0) return { key: 'volume', availableMax: MAX, declaredMax: MAX, available: true, score: 10, reason: `Volume ${ratio.toFixed(1)}x avg (SANGAT TINGGI)` };
+  if (ratio >= 1.5) return { key: 'volume', availableMax: MAX, declaredMax: MAX, available: true, score: 8, reason: `Volume ${ratio.toFixed(1)}x avg (VALID)` };
+  if (ratio >= 1.0) return { key: 'volume', availableMax: MAX, declaredMax: MAX, available: true, score: 4, reason: `Volume ${ratio.toFixed(1)}x avg (NORMAL)` };
+  return { key: 'volume', availableMax: MAX, declaredMax: MAX, available: true, score: 1, reason: `Volume ${ratio.toFixed(1)}x avg (RENDAH)` };
 }
 
 // ==================== FUNDAMENTAL (maks 30) ====================
@@ -192,14 +215,16 @@ function scoreValuasi(f: FundamentalInput): Component {
   const MAX = 10;
   if (f.per === null && f.pbv === null) return NA('valuasi', MAX, 'Valuasi (PER/PBV)');
 
-  // Sub-bobot: PER 5, PBV 5. Kalau salah satu tidak ada, `max` ikut menyusut supaya
-  // rasionya tetap adil (emiten rugi tanpa PER tidak dihukum, cuma dinilai dari PBV).
+  // Sub-bobot: PER 5, PBV 5. Kalau salah satu tidak ada, `availableMax` ikut menyusut
+  // supaya rasio skornya tetap adil (emiten rugi tanpa PER tidak dihukum, cuma dinilai
+  // dari PBV) - TAPI `declaredMax` TETAP 10, supaya sub-faktor yang hilang tetap
+  // terlihat di coverage_pct (P0-2; dulu keduanya satu field dan hilangnya tak terlihat).
   let score = 0;
-  let max = 0;
+  let availableMax = 0;
   const parts: string[] = [];
 
   if (f.per !== null) {
-    max += 5;
+    availableMax += 5;
     if (f.per > 0 && f.per < 10) { score += 5; parts.push(`PER ${f.per.toFixed(1)}x (murah)`); }
     else if (f.per >= 10 && f.per < 15) { score += 4; parts.push(`PER ${f.per.toFixed(1)}x (wajar)`); }
     else if (f.per >= 15 && f.per < 25) { score += 2; parts.push(`PER ${f.per.toFixed(1)}x (agak mahal)`); }
@@ -207,12 +232,12 @@ function scoreValuasi(f: FundamentalInput): Component {
     else { score += 1; parts.push(`PER ${f.per.toFixed(1)}x (negatif/rugi)`); }
   }
   if (f.pbv !== null) {
-    max += 5;
+    availableMax += 5;
     if (f.pbv < 1) { score += 5; parts.push(`PBV ${f.pbv.toFixed(2)}x (di bawah book)`); }
     else if (f.pbv < 2) { score += 3; parts.push(`PBV ${f.pbv.toFixed(2)}x (wajar)`); }
     else { score += 1; parts.push(`PBV ${f.pbv.toFixed(2)}x (premium)`); }
   }
-  return { key: 'valuasi', max, available: true, score, reason: parts.join(', ') };
+  return { key: 'valuasi', availableMax, declaredMax: MAX, available: true, score, reason: parts.join(', ') };
 }
 
 function scoreProfitabilitas(f: FundamentalInput): Component {
@@ -220,24 +245,24 @@ function scoreProfitabilitas(f: FundamentalInput): Component {
   if (f.roe === null && f.revenueGrowth === null) return NA('profitabilitas', MAX, 'Profitabilitas (ROE/Growth)');
 
   let score = 0;
-  let max = 0;
+  let availableMax = 0;
   const parts: string[] = [];
 
   if (f.roe !== null) {
-    max += 5;
+    availableMax += 5;
     if (f.roe > 20) { score += 5; parts.push(`ROE ${f.roe.toFixed(1)}% (sangat baik)`); }
     else if (f.roe >= 15) { score += 4; parts.push(`ROE ${f.roe.toFixed(1)}% (sehat)`); }
     else if (f.roe >= 8) { score += 2; parts.push(`ROE ${f.roe.toFixed(1)}% (cukup)`); }
     else { score += 0; parts.push(`ROE ${f.roe.toFixed(1)}% (lemah)`); }
   }
   if (f.revenueGrowth !== null) {
-    max += 5;
+    availableMax += 5;
     if (f.revenueGrowth > 15) { score += 5; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (tinggi)`); }
     else if (f.revenueGrowth > 5) { score += 3; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (stabil)`); }
     else if (f.revenueGrowth > 0) { score += 1; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (lambat)`); }
     else { score += 0; parts.push(`Rev Growth ${f.revenueGrowth.toFixed(0)}% (negatif)`); }
   }
-  return { key: 'profitabilitas', max, available: true, score, reason: parts.join(', ') };
+  return { key: 'profitabilitas', availableMax, declaredMax: MAX, available: true, score, reason: parts.join(', ') };
 }
 
 function scoreKesehatan(f: FundamentalInput): Component {
@@ -247,24 +272,24 @@ function scoreKesehatan(f: FundamentalInput): Component {
   if (f.der === null && f.currentRatio === null) return NA('kesehatan', MAX, 'Kesehatan neraca (DER/CR)');
 
   let score = 0;
-  let max = 0;
+  let availableMax = 0;
   const parts: string[] = [];
 
   if (f.der !== null) {
-    max += 5;
+    availableMax += 5;
     if (f.der < 0.5) { score += 5; parts.push(`DER ${f.der.toFixed(2)}x (konservatif)`); }
     else if (f.der < 1.0) { score += 4; parts.push(`DER ${f.der.toFixed(2)}x (sehat)`); }
     else if (f.der < 2.0) { score += 2; parts.push(`DER ${f.der.toFixed(2)}x (agak tinggi)`); }
     else { score += 0; parts.push(`DER ${f.der.toFixed(2)}x (berisiko tinggi)`); }
   }
   if (f.currentRatio !== null) {
-    max += 5;
+    availableMax += 5;
     if (f.currentRatio > 2.0) { score += 5; parts.push(`CR ${f.currentRatio.toFixed(2)}x (sangat likuid)`); }
     else if (f.currentRatio >= 1.5) { score += 4; parts.push(`CR ${f.currentRatio.toFixed(2)}x (sehat)`); }
     else if (f.currentRatio >= 1.0) { score += 2; parts.push(`CR ${f.currentRatio.toFixed(2)}x (cukup)`); }
     else { score += 0; parts.push(`CR ${f.currentRatio.toFixed(2)}x (risiko likuiditas)`); }
   }
-  return { key: 'kesehatan', max, available: true, score, reason: parts.join(', ') };
+  return { key: 'kesehatan', availableMax, declaredMax: MAX, available: true, score, reason: parts.join(', ') };
 }
 
 // ==================== FLOW / ARUS DANA (maks 30) ====================
@@ -285,11 +310,11 @@ function scoreFlowTekanan(flow: FlowInput): Component {
   const MAX = 20;
   if (flow.cmf20 == null) return NA('flow_tekanan', MAX, 'Arus dana (CMF20)');
   const cmf = flow.cmf20;
-  if (cmf > 20) return { key: 'flow_tekanan', max: MAX, available: true, score: 20, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli kuat` };
-  if (cmf > 5) return { key: 'flow_tekanan', max: MAX, available: true, score: 14, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli moderat` };
-  if (cmf >= -5) return { key: 'flow_tekanan', max: MAX, available: true, score: 8, reason: `CMF20 ${cmf.toFixed(1)}% - arus dana seimbang` };
-  if (cmf >= -20) return { key: 'flow_tekanan', max: MAX, available: true, score: 3, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual moderat` };
-  return { key: 'flow_tekanan', max: MAX, available: true, score: 0, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual kuat` };
+  if (cmf > 20) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 20, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli kuat` };
+  if (cmf > 5) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 14, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli moderat` };
+  if (cmf >= -5) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 8, reason: `CMF20 ${cmf.toFixed(1)}% - arus dana seimbang` };
+  if (cmf >= -20) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 3, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual moderat` };
+  return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual kuat` };
 }
 
 function scoreFlowPersistensi(flow: FlowInput): Component {
@@ -301,30 +326,37 @@ function scoreFlowPersistensi(flow: FlowInput): Component {
   if (flow.accumulationStatus === 'AKUMULASI') {
     // Konfirmasi 4-lapis SUDAH lolos (CMF20 + CLV 3 hari + volume spike + tren MFM) -
     // yang dinilai di sini murni PANJANG streak-nya, sifat yang belum dinilai di manapun.
-    if (buy >= 4) return { key: 'flow_persistensi', max: MAX, available: true, score: 10, reason: `Akumulasi terkonfirmasi ${buy} hari berturut` };
-    return { key: 'flow_persistensi', max: MAX, available: true, score: 7, reason: `Akumulasi terkonfirmasi (${buy} hari berturut)` };
+    if (buy >= 4) return { key: 'flow_persistensi', availableMax: MAX, declaredMax: MAX, available: true, score: 10, reason: `Akumulasi terkonfirmasi ${buy} hari berturut` };
+    return { key: 'flow_persistensi', availableMax: MAX, declaredMax: MAX, available: true, score: 7, reason: `Akumulasi terkonfirmasi (${buy} hari berturut)` };
   }
   if (flow.accumulationStatus === 'DISTRIBUSI') {
-    if (sell >= 4) return { key: 'flow_persistensi', max: MAX, available: true, score: 0, reason: `Distribusi terkonfirmasi ${sell} hari berturut` };
-    return { key: 'flow_persistensi', max: MAX, available: true, score: 2, reason: `Distribusi terkonfirmasi (${sell} hari berturut)` };
+    if (sell >= 4) return { key: 'flow_persistensi', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `Distribusi terkonfirmasi ${sell} hari berturut` };
+    return { key: 'flow_persistensi', availableMax: MAX, declaredMax: MAX, available: true, score: 2, reason: `Distribusi terkonfirmasi (${sell} hari berturut)` };
   }
-  return { key: 'flow_persistensi', max: MAX, available: true, score: 5, reason: 'Belum ada arus dana yang konsisten searah' };
+  return { key: 'flow_persistensi', availableMax: MAX, declaredMax: MAX, available: true, score: 5, reason: 'Belum ada arus dana yang konsisten searah' };
 }
 
 // ==================== PENGGABUNGAN ====================
 
-/** Jumlahkan komponen yang datanya ADA saja, lalu skala ke `groupMax`. Komponen yang
- * tidak tersedia tidak menambah pembilang MAUPUN penyebut - inilah renormalisasi yang
- * membuat ketiadaan data tidak diam-diam berubah jadi nilai nol yang menghukum. */
+/** Jumlahkan komponen yang datanya ADA saja, lalu skala ke `groupMax`.
+ *
+ * Dua hal berbeda yang dulu tercampur jadi satu (P0-2):
+ * - SKOR direnormalisasi atas bobot yang tersedia (`rawMax`), sehingga ketiadaan data
+ *   tidak diam-diam berubah jadi nilai nol yang menghukum. Ini perilaku LAMA, dipertahankan.
+ * - KELENGKAPAN (`availableMax` yang dikembalikan) diukur terhadap bobot yang
+ *   DIDEKLARASIKAN (`declaredTotal`, konstan). Ini yang diperbaiki: dulu penyebutnya
+ *   ikut menyusut bersama pembilang, sehingga kehilangan sub-faktor tidak pernah terlihat. */
 function combine(components: Component[], groupMax: number): { score: number; availableMax: number } {
-  const available = components.filter((c) => c.available && c.max > 0);
-  const rawMax = available.reduce((s, c) => s + c.max, 0);
+  const available = components.filter((c) => c.available && c.availableMax > 0);
+  const rawMax = available.reduce((s, c) => s + c.availableMax, 0);
   if (rawMax === 0) return { score: 0, availableMax: 0 };
   const raw = available.reduce((s, c) => s + c.score, 0);
-  const declaredMax = components.reduce((s, c) => s + c.max, 0);
-  // Bobot kelompok tetap proporsional terhadap seberapa banyak datanya ada, supaya
-  // `coverage_pct` di bawah bisa melaporkannya dengan jujur.
-  const availableMax = (rawMax / declaredMax) * groupMax;
+  // BUG FIX P0-2: penyebut dari `declaredMax` SELURUH komponen (konstan), bukan dari
+  // `max` yang tadinya bisa ikut menyusut bersama pembilangnya. Contoh emiten rugi
+  // (PER null, PBV ada; ROE+growth ada; DER+CR ada): rawMax 25, declaredTotal 30 ->
+  // availableMax 25 dari 30 -> coverage fundamental 83%, bukan 100% seperti dulu.
+  const declaredTotal = components.reduce((s, c) => s + c.declaredMax, 0);
+  const availableMax = (rawMax / declaredTotal) * groupMax;
   return { score: (raw / rawMax) * availableMax, availableMax };
 }
 
@@ -359,7 +391,11 @@ export function calculateScore(
 
   const allComponents = [maTrend, rsi, macd, volume, valuasi, profitabilitas, kesehatan, flowTekanan, flowPersistensi];
   const availableMaxTotal = technicalGroup.availableMax + fundamentalGroup.availableMax + flowGroup.availableMax;
-  const coveragePct = Math.round((availableMaxTotal / 100) * 100);
+  // Penyebut = jumlah bobot kelompok yang DIDEKLARASIKAN (40 + 30 + 30), konstan.
+  // Ditulis sebagai konstanta bernama supaya hubungannya dengan groupMax di atas
+  // eksplisit, bukan angka 100 yang kebetulan cocok (P0-2).
+  const DECLARED_TOTAL_WEIGHT = 100;
+  const coveragePct = Math.round((availableMaxTotal / DECLARED_TOTAL_WEIGHT) * 100);
 
   // Skor akhir diskalakan ke 0-100 atas bobot yang BENAR-BENAR punya data. Tanpa ini,
   // saham yang datanya cuma separuh otomatis maksimal 50 - bukan karena buruk, tapi
@@ -376,8 +412,8 @@ export function calculateScore(
   // (skor/max), bukan skor mentah - supaya komponen bernilai maksimum 7 tidak selalu
   // kalah dari komponen bermaksimum 20 hanya karena skalanya lebih besar.
   const alasan3 = allComponents
-    .filter((c) => c.available && c.max > 0 && c.reason)
-    .sort((a, b) => (b.score / b.max) - (a.score / a.max))
+    .filter((c) => c.available && c.availableMax > 0 && c.reason)
+    .sort((a, b) => (b.score / b.availableMax) - (a.score / a.availableMax))
     .slice(0, 3)
     .map((c) => c.reason);
 
