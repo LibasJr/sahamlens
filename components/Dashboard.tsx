@@ -95,7 +95,7 @@ function VerticalSignalTicker({ items }: {
   // TP = target potensi naik, CL = level waspada/cut-loss, keduanya relevan buat saham
   // manapun terlepas arah pergerakannya, bukan cuma salah satu tergantung tipe sinyal.
   if (!items.length) {
-    return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada proyeksi level harga hari ini.</p>;
+    return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada setup TP/CL valid RR ≥ 1,5 untuk pantauan saat ini.</p>;
   }
   const loopItems = [...items, ...items];
   const durationSec = Math.max(20, Math.round(items.length * 4.5));

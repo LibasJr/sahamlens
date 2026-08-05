@@ -35,6 +35,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
   eksplisit bahwa LensRadar belum boleh dibaca sebagai rekomendasi beli/jual.
 - Beranda mengubah panel dari "Rekomendasi LensRadar" menjadi "Pantauan LensRadar" dan
   menampilkan catatan validasi model supaya pengguna tidak melihat panel kosong tanpa sebab.
+- Empty-state "Proyeksi Level Harga" diperjelas: jika top scanner ada tetapi TP/CL kosong,
+  berarti belum ada setup TP/CL valid dengan RR minimal 1,5 atau cache sesi terakhir belum
+  berisi setup valid, bukan data dummy yang disembunyikan.
 - `/breakout-radar` ikut diselaraskan menjadi halaman scanner/pantauan, bukan wording
   rekomendasi aksi.
 - Smoke test yang perlu dicek setelah deploy Ready:
