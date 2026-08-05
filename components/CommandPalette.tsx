@@ -162,7 +162,11 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+        // top-14 (bukan inset-0) - backdrop dulu nutup dari y=0, ikut nutup/dim TopMarketBar
+        // (IHSG, jam bursa, notifikasi, profil) yang ada DI ATAS trigger ini juga. User cuma
+        // mau buka pencarian, bukan kehilangan akses ke top bar. Modal sekarang mulai persis
+        // di bawah TopMarketBar (tinggi baris itu ~56px - lihat TopMarketBar.tsx px-4 py-2.5).
+        <div className="fixed inset-x-0 top-14 bottom-0 z-[100] flex items-start justify-center pt-[6vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
           <div
             ref={modalRef}
             role="dialog"
