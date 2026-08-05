@@ -142,6 +142,12 @@ async function scoreOne(
       rsi: rsi != null ? parseFloat(rsi.toFixed(1)) : null,
       accumulationConfirmed,
       atr,
+      // Kelengkapan data di balik skor - WAJIB ikut sampai UI (audit skor 2026-08-05):
+      // combine() di scoring.service.ts merenormalisasi bobot komponen yang datanya
+      // tidak ada (mis. bank tanpa DER/Current Ratio di Yahoo), jadi skor 82 dari
+      // coverage 90% bukan klaim yang setara dengan 82 dari coverage 100%. Angka ini
+      // sudah lama dihitung tapi tidak pernah diteruskan ke pengguna.
+      coverage: scoring.coverage_pct,
       // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari
       // calculateScore(), bukan dihitung ulang/dikarang di sini.
       breakdown: {

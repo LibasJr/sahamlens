@@ -9,7 +9,6 @@ import { Badge, PageContainer } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '');
 
-type PickBonus = { label: string; points: number };
 type ScoreBreakdown = { technical: number; fundamental: number; flow: number };
 
 type AiPickItem = {
@@ -17,8 +16,12 @@ type AiPickItem = {
   price: number;
   changePct: number;
   baseScore: number;
-  bonuses: PickBonus[];
+  /** Sinyal/event hari ini sebagai LABEL (breakout/golden cross/akumulasi) - sejak audit
+   * skor 2026-08-05 TIDAK lagi menambah poin, menggantikan `bonuses` yang lama. */
+  signals?: string[];
   finalScore: number;
+  /** Kelengkapan data di balik skor (persen) - null/undefined untuk entri cache lama. */
+  coverage?: number | null;
   flagged: boolean;
   flagReason: string | null;
   // Audit BUILD 003 (Explainable AI) - opsional (bukan required) supaya frontend
@@ -41,10 +44,10 @@ const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = [
   { key: 'symbol', label: 'Saham', getValue: (i) => i.symbol },
   { key: 'price', label: 'Harga', align: 'right', getValue: (i) => i.price },
   { key: 'changePct', label: 'Chg', align: 'right', getValue: (i) => i.changePct },
-  // Temuan M-10: nilai ini = skor komposit (maks 100) DITAMBAH bonus sinyal langka
-  // (maks 40), jadi bisa melebihi 100. Label diberi tahu skalanya supaya tidak dibaca
-  // sebagai "x dari 100".
-  { key: 'finalScore', label: 'Skor (0-140)', align: 'right', getValue: (i) => i.finalScore },
+  // Audit skor 2026-08-05: label "Skor (0-140)" dulu jujur menggambarkan implementasi
+  // (skor 0-100 + bonus 0-40), tapi skala 0-140 itu sendiri yang salah - lihat catatan
+  // lengkap di ai-pick.service.ts. Bonus sudah dihapus; skor sekarang benar-benar 0-100.
+  { key: 'finalScore', label: 'Skor (0-100)', align: 'right', getValue: (i) => i.finalScore },
 ];
 
 function compareRadarValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
@@ -240,9 +243,12 @@ export default function AiPickPage() {
                           <td className="py-3 px-4 text-right font-bold font-number text-tv-text">
                             {it.finalScore}
                           </td>
+                          {/* Kolom rincian: dulu "skor dasar + bonus". Bonus sudah dihapus
+                              (audit skor 2026-08-05) - sekarang menyatakan kelengkapan data
+                              di balik skor + sinyal hari ini sebagai label. */}
                           <td className="py-3 px-4 text-xs text-tv-muted font-number whitespace-nowrap">
-                            {it.baseScore}
-                            {it.bonuses.map((b) => ` +${b.points} ${b.label}`).join('')}
+                            {typeof it.coverage === 'number' ? `data ${it.coverage}%` : 'data n/a'}
+                            {it.signals?.length ? ` • ${it.signals.join(', ')}` : ''}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <button
@@ -299,11 +305,15 @@ export default function AiPickPage() {
           </div>
 
           <p className="text-[11px] text-tv-muted mt-4 leading-relaxed">
-            Skor = komposit teknikal, fundamental, dan arus dana (maks 100), ditambah bonus sinyal langka (maks 40, jadi skala penuhnya 0-140)
-            (breakout +15, akumulasi +10, golden cross +10, oversold +5). Bonus akumulasi memakai
-            estimasi Chaikin Money Flow dari posisi close di range High-Low, BUKAN data broker/asing
-            resmi. Tanda merah menandai sinyal yang bertentangan - saham tetap ditampilkan supaya
-            kontradiksinya terlihat, bukan disembunyikan.
+            Skor 0-100 = komposit teknikal (maks 40), fundamental (maks 30), dan arus dana (maks 30).
+            Sinyal hari ini (breakout, golden cross, akumulasi) ditampilkan sebagai label dan dipakai
+            mengurutkan saat skor seri - TIDAK menambah poin, karena bahan bakunya sudah dinilai di
+            dalam skor komposit itu sendiri. &quot;data X%&quot; = porsi bobot yang benar-benar punya data;
+            komponen yang tidak tersedia (mis. bank tidak melaporkan DER ke sumber data) dikeluarkan
+            dari perhitungan, bukan dihitung nol. Akumulasi memakai estimasi Chaikin Money Flow dari
+            posisi close di range High-Low, BUKAN data broker/asing resmi. Tanda merah menandai sinyal
+            yang bertentangan - saham tetap ditampilkan supaya kontradiksinya terlihat, bukan
+            disembunyikan.
           </p>
         </PageContainer>
       </div>
