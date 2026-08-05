@@ -15,7 +15,20 @@ import {
   Filter,
   Eye,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, Badge, Skeleton, EmptyState, SegmentedControl, PageContainer } from '@/components/ui';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Skeleton,
+  EmptyState,
+  SegmentedControl,
+  PageContainer,
+  MetricCard,
+  LoadingFact,
+  TickerAvatar,
+  AnimatedNumber,
+} from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import PromoUpgradeModal from '@/components/PromoUpgradeModal';
 import PaywallModal from '@/components/PaywallModal';
@@ -53,6 +66,96 @@ function markPromoSeenToday() {
 function hasSeenPromoToday(): boolean {
   if (typeof window === 'undefined') return true;
   return window.localStorage.getItem(PROMO_STORAGE_KEY) === todayJakarta();
+}
+
+/**
+ * Breadth sebagai satu batang proporsional, bukan dua angka bersebelahan.
+ * Perbandingannya langsung terbaca dari panjang segmen - itu inti informasinya,
+ * dan itu yang hilang saat "312 naik / 254 turun" ditulis sebagai teks.
+ */
+function MarketBreadthBar({ breadth }: { breadth: { advancing: number; declining: number; total: number } }) {
+  const { advancing, declining, total } = breadth;
+  const denom = advancing + declining || 1;
+  const advPct = (advancing / denom) * 100;
+  const ratio = declining > 0 ? advancing / declining : advancing;
+
+  // Kalimatnya menerjemahkan rasio jadi kondisi pasar. Ambangnya sengaja lebar
+  // (2:1 dan 1:2) supaya hari-hari biasa disebut "seimbang", bukan didramatisir.
+  const verdict =
+    ratio >= 2 ? { text: 'Partisipasi naik luas - mayoritas saham ikut menguat, bukan cuma emiten besar.', tone: 'text-tv-green' }
+    : ratio <= 0.5 ? { text: 'Tekanan jual merata - pelemahan tidak terbatas pada beberapa saham saja.', tone: 'text-tv-red' }
+    : { text: 'Pasar terbelah cukup seimbang. Arah indeks lebih ditentukan bobot emiten besar hari ini.', tone: 'text-tv-muted' };
+
+  return (
+    <div className="rounded-md border border-tv-border bg-tv-bg/50 p-3">
+      <div className="flex items-baseline justify-between mb-2">
+        <span className="text-[10px] uppercase tracking-wide text-tv-muted">Market Breadth</span>
+        <span className="text-[11px] text-tv-muted">
+          <AnimatedNumber value={total} className="font-number font-semibold text-tv-text" /> saham
+        </span>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-tv-hover" role="img" aria-label={`${advancing} saham naik, ${declining} saham turun`}>
+        <div className="h-full bg-tv-green transition-[width] duration-700 ease-settle" style={{ width: `${advPct}%` }} />
+        <div className="h-full bg-tv-red transition-[width] duration-700 ease-settle" style={{ width: `${100 - advPct}%` }} />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px]">
+        <span className="font-number font-semibold text-tv-green">
+          <AnimatedNumber value={advancing} className="font-number" /> naik
+        </span>
+        <span className="font-number font-semibold text-tv-red">
+          turun <AnimatedNumber value={declining} className="font-number" />
+        </span>
+      </div>
+      <p className={`mt-2 text-[11px] leading-relaxed ${verdict.tone}`}>{verdict.text}</p>
+    </div>
+  );
+}
+
+/**
+ * Heatmap sektor: intensitas warna = besar perubahan, dipotong di 3% supaya satu
+ * sektor ekstrem tidak membuat sisanya tampak abu-abu seragam.
+ */
+function SectorHeatmap({ sectors }: { sectors: { sector: string; changePct: number }[] }) {
+  if (sectors.length === 0) {
+    return <EmptyState illustration="empty" title="Data sektor belum masuk" description="Heatmap sektor terisi setelah sesi perdagangan berjalan." />;
+  }
+
+  const sorted = [...sectors].sort((a, b) => b.changePct - a.changePct);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  const INTENSITY_CAP_PCT = 3;
+
+  return (
+    <div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+        {sorted.map((s) => {
+          const magnitude = Math.min(Math.abs(s.changePct) / INTENSITY_CAP_PCT, 1);
+          const alpha = 0.08 + magnitude * 0.42;
+          const rgb = s.changePct >= 0 ? '34,197,94' : '239,68,68';
+          return (
+            <div
+              key={s.sector}
+              title={`${s.sector}: ${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`}
+              className="group rounded-md border border-tv-border px-2 py-2 transition-transform duration-150 ease-settle hover:scale-[1.03] hover:border-tv-borderLight cursor-default"
+              style={{ background: `rgba(${rgb},${alpha})` }}
+            >
+              <div className="text-[10px] leading-tight text-tv-text/90 truncate">{s.sector}</div>
+              <div className={`font-number text-xs font-bold mt-0.5 ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {sorted.length > 1 && (
+        <p className="mt-2.5 text-[11px] leading-relaxed text-tv-muted">
+          <span className="text-tv-green font-medium">{best.sector}</span> memimpin ({best.changePct >= 0 ? '+' : ''}{best.changePct.toFixed(2)}%),{' '}
+          <span className="text-tv-red font-medium">{worst.sector}</span> tertinggal ({worst.changePct >= 0 ? '+' : ''}{worst.changePct.toFixed(2)}%) - selisih{' '}
+          <span className="font-number font-semibold text-tv-text">{(best.changePct - worst.changePct).toFixed(2)} poin persen</span> antar sektor.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function HomePage() {
@@ -353,33 +456,19 @@ export default function HomePage() {
           ) : marketPulseError ? (
             <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
           ) : loadingMarketPulse ? (
-            <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5 space-y-2">
-              <Skeleton variant="text" className="w-24" />
-              <Skeleton className="h-6 w-40" />
+            <div className="space-y-3">
+              <Skeleton className="h-14 w-full" />
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+              <LoadingFact />
             </div>
           ) : !marketPulse ? (
             <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
           ) : (
-            <div className="space-y-2">
-              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-2.5">
-                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Market Breadth</div>
-                <div className="text-sm text-white mt-1">
-                  <span className="font-number font-semibold text-tv-green">{marketPulse.breadth.advancing} naik</span>
-                  {' • '}
-                  <span className="font-number font-semibold text-tv-red">{marketPulse.breadth.declining} turun</span>
-                  {' '}dari {marketPulse.breadth.total} saham
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {marketPulse.sectorHeatmap.slice(0, 3).map((s) => (
-                  <div key={s.sector} className="flex items-center justify-between bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
-                    <span className="text-xs text-white">{s.sector}</span>
-                    <span className={`text-xs font-number font-semibold ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                      {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="space-y-3">
+              <MarketBreadthBar breadth={marketPulse.breadth} />
+              <SectorHeatmap sectors={marketPulse.sectorHeatmap} />
             </div>
           )}
         </Card>
@@ -391,7 +480,17 @@ export default function HomePage() {
       <motion.div variants={fadeUp} initial="hidden" animate="show">
         <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
           {loadingRadar ? (
-            <Skeleton className="h-24 w-full" />
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Skeleton variant="circle" className="h-12 w-12" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton variant="text" className="w-32" />
+                  <Skeleton variant="text" className="w-20" />
+                </div>
+                <Skeleton className="h-10 w-16" />
+              </div>
+              <LoadingFact />
+            </div>
           ) : picksLoginRequired ? (
             <EmptyState title="Login untuk melihat Today's Opportunities" description="Sinyal AI harian butuh akun." />
           ) : picksNeedPro ? (
@@ -415,17 +514,20 @@ export default function HomePage() {
                   {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
                 </div>
                 <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-number text-2xl font-bold text-white">{hero.symbol.replace('.JK', '')}</span>
-                      {hero.flagged ? (
-                        <Badge variant="danger">{hero.flagReason}</Badge>
-                      ) : (
-                        <Badge variant="success">Sinyal Kuat</Badge>
-                      )}
-                    </div>
-                    <div className={`font-number text-sm mt-1 ${hero.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                      Rp {Math.round(hero.price).toLocaleString('id-ID')} ({hero.changePct >= 0 ? '+' : ''}{hero.changePct.toFixed(2)}%)
+                  <div className="flex items-center gap-3">
+                    <TickerAvatar symbol={hero.symbol} size="lg" />
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-number text-2xl font-bold text-white">{hero.symbol.replace('.JK', '')}</span>
+                        {hero.flagged ? (
+                          <Badge variant="danger">{hero.flagReason}</Badge>
+                        ) : (
+                          <Badge variant="success">Sinyal Kuat</Badge>
+                        )}
+                      </div>
+                      <div className={`font-number text-sm mt-1 ${hero.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                        Rp {Math.round(hero.price).toLocaleString('id-ID')} ({hero.changePct >= 0 ? '+' : ''}{hero.changePct.toFixed(2)}%)
+                      </div>
                     </div>
                   </div>
                   {/* Skala + kelengkapan data dinyatakan eksplisit (audit skor 2026-08-05):
@@ -435,7 +537,8 @@ export default function HomePage() {
                   <div className="text-right">
                     <div className="text-[10px] text-tv-muted uppercase tracking-wide">LensScore</div>
                     <div className="font-number text-3xl font-bold text-tv-blue">
-                      {hero.finalScore}<span className="text-sm font-normal text-tv-muted">/100</span>
+                      <AnimatedNumber value={hero.finalScore} format={(n) => String(Math.round(n))} />
+                      <span className="text-sm font-normal text-tv-muted">/100</span>
                     </div>
                     {typeof hero.coverage === 'number' && (
                       <div className="text-[10px] text-tv-muted">data {hero.coverage}%</div>
@@ -479,7 +582,8 @@ export default function HomePage() {
           </CardHeader>
           {loadingRadar ? (
             <div className="space-y-2">
-              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+              <LoadingFact className="mt-3" />
             </div>
           ) : picksLoginRequired ? (
             <EmptyState title="Login untuk melihat LensRadar" description="Sinyal AI harian butuh akun." />
@@ -491,32 +595,51 @@ export default function HomePage() {
               action={{ label: 'Coba lagi', onClick: fetchRadar }}
             />
           ) : radarItems.length <= 1 ? (
-            <EmptyState title="Belum ada sinyal kuat hari ini." description="Saham yang datanya tidak cukup atau tidak lolos gerbang kelayakan tidak ditampilkan di sini." />
+            <EmptyState
+              illustration="search"
+              title="Belum ada sinyal kuat hari ini"
+              description="Saham yang datanya tidak cukup atau tidak lolos gerbang kelayakan sengaja tidak ditampilkan di sini - daftar kosong berarti tidak ada yang lolos, bukan tidak ada yang dipindai."
+            />
           ) : (
             <div className="space-y-2">
               {radarItems.slice(1, 6).map((it) => (
-                <Link
-                  key={it.symbol}
-                  href={`/technical/${it.symbol}`}
-                  className={`flex items-center justify-between gap-2 bg-tv-bg/50 border-y border-r border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
-                      <span className={`text-[11px] font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                        {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(2)}%
-                      </span>
+                <motion.div key={it.symbol} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.995 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+                  <Link
+                    href={`/technical/${it.symbol}`}
+                    className={`flex items-center gap-3 bg-tv-bg/50 border-y border-r border-tv-border rounded-md px-3 py-2.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}
+                  >
+                    <TickerAvatar symbol={it.symbol} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
+                        <span className={`text-[11px] font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                          {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(2)}%
+                        </span>
+                      </div>
+                      {it.flagged && <span className="text-tv-red text-[10px]">! {it.flagReason}</span>}
+                      {/* Sebelumnya baris ini jatuh ke '-' polos saat topReasons kosong -
+                          user tidak bisa membedakan "tidak ada alasan" dari "alasannya
+                          gagal dimuat". Sekarang kekosongannya dinamai. */}
+                      <div className="text-[10px] text-tv-muted truncate">
+                        {it.topReasons?.[0] ?? (it.signals?.[0] || 'Lolos ambang skor, rincian alasan belum tersedia')}
+                      </div>
                     </div>
-                    {it.flagged && <span className="text-tv-red text-[10px]">! {it.flagReason}</span>}
-                    <div className="text-[10px] text-tv-muted truncate">{it.topReasons?.[0] || '-'}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-number text-sm font-semibold text-white">
-                      {it.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span>
+                    {/* Bar skor: posisi relatif terhadap 100 langsung terbaca tanpa
+                        membandingkan angka satu per satu antar baris. */}
+                    <div className="text-right shrink-0 w-20">
+                      <div className="font-number text-sm font-semibold text-white">
+                        {it.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span>
+                      </div>
+                      <div className="mt-1 h-1 w-full rounded-full bg-tv-hover overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'}`}
+                          style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-tv-muted font-number mt-1">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
                     </div>
-                    <div className="text-[10px] text-tv-muted font-number">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
-                  </div>
-                </Link>
+                  </Link>
+                </motion.div>
               ))}
             </div>
           )}
@@ -588,22 +711,46 @@ export default function HomePage() {
             <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
           </CardHeader>
           {loadingDailyPicks ? (
-            <Skeleton className="h-16 w-full" />
-          ) : !dailyPicks ? (
-            <EmptyState title="Data insight sementara tidak tersedia." />
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-3">
-                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Golden Cross</div>
-                <div className="font-number text-2xl font-bold text-tv-green mt-1">{dailyPicks.goldenCross.count}</div>
-                {dailyPicks.goldenCross.stale && <div className="text-[10px] text-tv-warning mt-1">Data sesi terakhir</div>}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
               </div>
-              <div className="bg-tv-bg/50 border border-tv-border rounded-md p-3">
-                <div className="text-[10px] text-tv-muted uppercase tracking-wide">Dead Cross</div>
-                <div className="font-number text-2xl font-bold text-tv-red mt-1">{dailyPicks.deadCross.count}</div>
-                {dailyPicks.deadCross.stale && <div className="text-[10px] text-tv-warning mt-1">Data sesi terakhir</div>}
-              </div>
+              <LoadingFact />
             </div>
+          ) : !dailyPicks ? (
+            <EmptyState illustration="empty" title="Data insight sementara tidak tersedia" description="Hitungan Golden/Dead Cross diperbarui tiap sesi perdagangan." />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <MetricCard
+                  label="Golden Cross"
+                  value={dailyPicks.goldenCross.count}
+                  tone="positive"
+                  suffix="saham"
+                  hint={dailyPicks.goldenCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari bawah hari ini'}
+                />
+                <MetricCard
+                  label="Dead Cross"
+                  value={dailyPicks.deadCross.count}
+                  tone="negative"
+                  suffix="saham"
+                  hint={dailyPicks.deadCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari atas hari ini'}
+                />
+              </div>
+              {/* Storytelling: dua angka mentah tidak memberi tahu apa pun sampai
+                  dibandingkan satu sama lain. */}
+              <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
+                {(() => {
+                  const g = dailyPicks.goldenCross.count;
+                  const d = dailyPicks.deadCross.count;
+                  if (g === 0 && d === 0) return 'Tidak ada persilangan MA20/MA50 hari ini - tren jangka menengah sedang tidak berubah arah.';
+                  if (g > d * 1.5) return `Persilangan naik ${g} berbanding ${d} turun - momentum jangka menengah condong ke atas, tapi persilangan MA adalah sinyal telat: ia mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
+                  if (d > g * 1.5) return `Persilangan turun ${d} berbanding ${g} naik - lebih banyak saham kehilangan tren jangka menengahnya. Persilangan MA mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
+                  return `Berimbang: ${g} persilangan naik dan ${d} turun. Tidak ada arah jangka menengah yang dominan hari ini.`;
+                })()}
+              </p>
+            </>
           )}
         </Card>
       </motion.div>
@@ -631,28 +778,34 @@ export default function HomePage() {
                 {[0, 1].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : calendarEvents.length === 0 ? (
-              <p className="text-xs text-tv-muted py-4 text-center">Belum ada jadwal dalam waktu dekat.</p>
+              <EmptyState
+                illustration="empty"
+                title="Belum ada jadwal dalam waktu dekat"
+                description="Cakupan kalender terbatas pada Dividen & Earnings - data RUPS dan stock split IDX tidak tersedia dari sumber harga yang dipakai."
+              />
             ) : (
               <div className="space-y-2">
                 {calendarEvents.map((e, i) => (
-                  <Link
-                    key={`${e.symbol}-${e.date}-${i}`}
-                    href={`/technical/${e.symbol}.JK`}
-                    className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
-                        <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
-                          {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
-                        </Badge>
+                  <motion.div key={`${e.symbol}-${e.date}-${i}`} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.995 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+                    <Link
+                      href={`/technical/${e.symbol}.JK`}
+                      className="flex items-center gap-3 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors"
+                    >
+                      <TickerAvatar symbol={e.symbol} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-number text-sm font-bold text-white">{e.symbol}</span>
+                          <Badge variant={e.type === 'DIVIDEND' ? 'success' : 'info'}>
+                            {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                          </Badge>
+                        </div>
+                        <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
                       </div>
-                      <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
-                    </div>
-                    <span className="text-[11px] text-tv-muted font-number shrink-0">
-                      {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </Link>
+                      <span className="text-[11px] text-tv-muted font-number shrink-0">
+                        {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </Link>
+                  </motion.div>
                 ))}
               </div>
             )}
@@ -674,20 +827,29 @@ export default function HomePage() {
               <Skeleton className="h-11 w-full" />
             ) : watchlistCount === 0 ? (
               <EmptyState
+                illustration="collecting"
                 title="Belum ada saham di watchlist"
                 description="Tambahkan saham untuk mulai memantau harga & alert."
+                progress={{ current: 0, total: 5, unit: 'saham', label: 'Watchlist terisi' }}
                 action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
               />
             ) : (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex gap-2">
                   {watchlistPreview.map((w) => (
-                    <span key={w.symbol} className="font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md px-2.5 py-1.5">
+                    <Link
+                      key={w.symbol}
+                      href={`/technical/${w.symbol}`}
+                      className="flex items-center gap-2 font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md pl-1.5 pr-2.5 py-1.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors"
+                    >
+                      <TickerAvatar symbol={w.symbol} size="sm" className="!w-5 !h-5 !text-[8px]" />
                       {w.symbol.replace('.JK', '')}
-                    </span>
+                    </Link>
                   ))}
                 </div>
-                <span className="text-xs text-tv-muted">{watchlistCount} saham dipantau</span>
+                <span className="text-xs text-tv-muted">
+                  <AnimatedNumber value={watchlistCount} className="font-number font-semibold text-tv-text" /> saham dipantau
+                </span>
               </div>
             )}
           </Card>

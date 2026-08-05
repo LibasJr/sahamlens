@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #0F141D;
-  --foreground: #F3F4F6;
+  --background: #0B0F19;
+  --foreground: #F1F5F9;
 }
 
 body {
@@ -18,36 +18,42 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0F141D; /* tv-bg */
+  background: #0B0F19; /* tv-bg */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2C3A5A; /* tv-border */
+  background: #1E293B; /* tv-border */
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3A4B75; /* tv-borderLight */
+  background: #2B3A55; /* tv-borderLight */
 }
 
 .tv-glass {
-  background: rgba(30, 34, 45, 0.75);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(42, 46, 57, 0.8);
+  background: rgba(18, 24, 43, 0.72); /* tv-card @72% */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(30, 41, 59, 0.9); /* tv-border */
 }
 
-/* ====== Design System "Nucleus" - Typography & Glow tokens ====== */
+/* ====== Design System "Lens" - Typography & Glow tokens ======
+   Aturan ini datang SETELAH @tailwind utilities, jadi ia menang atas utility
+   .font-heading/.font-number dari tailwind.config.js. Nilainya sengaja disamakan
+   dengan config supaya tidak ada dua sumber kebenaran yang saling bertentangan
+   (sebelumnya config bilang Space Grotesk lewat variabel next/font, file ini
+   bilang 'Space Grotesk' literal yang tidak pernah benar-benar dimuat). */
 h1, h2, h3 {
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-inter), 'Inter', sans-serif;
 }
 
 .font-heading {
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-inter), 'Inter', sans-serif;
 }
 
 .font-number,
 .text-price {
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-family: var(--font-jetbrains-mono), 'Consolas', monospace;
   font-variant-numeric: tabular-nums;
 }
 
@@ -55,13 +61,23 @@ h1, h2, h3 {
    bukan aturan baru per halaman):
    - Judul halaman (h1): font-heading, 700, text-xl md:text-2xl, tracking-tight
    - Judul section/CardTitle: font-heading, 600, text-sm md:text-base
-   - Body/teks UI: font-sans (Jakarta), 400/500, text-sm
-   - Angka/harga/metric: font-number, 600, tabular-nums
+   - Body/teks UI: font-sans (Inter), 400/500, text-sm
+   - Angka/harga/metric: font-number (JetBrains Mono), 600, tabular-nums
    - Eyebrow/label mikro: font-sans, 600, text-[10px]/[11px] uppercase tracking-wide text-tv-muted
    - font-mono: HANYA untuk data tabular/kode, jangan untuk teks/label biasa. */
 
 .glow-ring {
-  box-shadow: 0 0 0 1px rgba(58, 134, 255, 0.4), 0 0 24px 0 rgba(58, 134, 255, 0.15);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4), 0 0 24px 0 rgba(59, 130, 246, 0.15);
+}
+
+/* Hormati preferensi sistem "kurangi gerakan" - satu aturan global, jadi tiap
+   komponen baru tidak perlu mengurus ini sendiri-sendiri. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ====== AI Chat Response Typography ====== */

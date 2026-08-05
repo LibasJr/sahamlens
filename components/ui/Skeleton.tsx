@@ -19,7 +19,7 @@ export function Skeleton({ variant = 'block', className, ...props }: SkeletonPro
   return (
     <div
       className={cn(
-        'bg-[linear-gradient(90deg,#1E2C4A_25%,#2C3A5A_50%,#1E2C4A_75%)] bg-[length:200%_100%] animate-shimmer',
+        'bg-[linear-gradient(90deg,#151C32_25%,#1E293B_50%,#151C32_75%)] bg-[length:200%_100%] animate-shimmer',
         VARIANTS[variant],
         className
       )}

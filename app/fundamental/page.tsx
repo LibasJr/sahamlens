@@ -3,16 +3,19 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
-import TradingViewChart from '@/components/TradingViewChart';
 import IntrinsicValue from '@/components/IntrinsicValue';
 import PaywallModal from '@/components/PaywallModal';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import { isMarketOpen } from '@/lib/utils/market';
+// TradingViewChart dihapus dari daftar impor: halaman ini tidak pernah merendernya
+// (lihat komentar `tech` dihapus di bawah - tidak ada satu pun <TradingViewChart/> di
+// file ini). Impor matinya tetap menarik lightweight-charts ke bundel setiap pengunjung
+// /fundamental. Ikon Brain & AlertTriangle juga tidak dipakai di mana pun.
 import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
-  RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp
+  RefreshCw, ShieldCheck, TrendingUp
 } from 'lucide-react';
-import { PageContainer } from '@/components/ui';
+import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
@@ -37,6 +40,7 @@ function FundamentalContent() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const fundamentalExportRef = useRef<HTMLDivElement>(null);
 
   const setTicker = (newTicker: string) => {
@@ -48,16 +52,17 @@ function FundamentalContent() {
 
   const fetchAnalyzerData = async (symbol: string) => {
     setLoading(true);
+    setFetchError(false);
     try {
       // Fetch data for chart and fundamental analyzers in parallel!
       const [resStock, resAlgo] = await Promise.all([
         fetch(`/api/stock/${symbol}`),
         fetch(`/api/fundamental/${symbol}`)
       ]);
-      
+
       const jsonStock = await resStock.json();
       const jsonAlgo = await resAlgo.json();
-      
+
       if (resStock.status === 401) {
         setShowLoginPrompt(true);
         return;
@@ -67,8 +72,19 @@ function FundamentalContent() {
         setShowPaywall(true);
         return;
       }
-      
-      if (jsonAlgo?.stock) {
+
+      // BUG FIX (2026-08-06): status `resAlgo` tidak pernah diperiksa - hanya
+      // `resStock`. Padahal data halaman ini SELURUHNYA berasal dari jsonAlgo.
+      // Kalau /api/fundamental membalas 500, alurnya jatuh diam-diam ke cabang
+      // `if (jsonAlgo?.stock)` yang gagal, `data` tetap null, dan halaman
+      // menampilkan "Limit analisa habis atau terjadi kesalahan" - menyalahkan
+      // kuota pengguna atas kegagalan server.
+      if (!resAlgo.ok || jsonAlgo?.error || !jsonAlgo?.stock) {
+        setFetchError(true);
+        return;
+      }
+
+      {
         // Merge so we get chart history from jsonStock but analyzers from jsonAlgo
         jsonAlgo.stock.history = jsonStock?.stock?.history || [];
         setData(jsonAlgo);
@@ -92,6 +108,7 @@ function FundamentalContent() {
       }
     } catch (e) {
       console.error('Failed to fetch data', e);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -181,13 +198,29 @@ function FundamentalContent() {
   };
 
   const stock = data?.stock || {};
-  // `tech` dihapus (audit 2026-08-05): variabel mati - /api/fundamental tidak pernah
-  // mengembalikan field `technical`, dan halaman ini tidak merender chart sama sekali.
-  const candles = data?.stock?.history || [];
+  // `tech` dan `candles` dihapus (audit 2026-08-05 / 2026-08-06): keduanya variabel
+  // mati - /api/fundamental tidak pernah mengembalikan field `technical`, dan halaman
+  // ini tidak merender chart sama sekali, jadi histori candle-nya tidak pernah dipakai.
   let analyzers = data?.analyzers || [];
 
   if (loading && !data) {
-    return <div className="text-white text-center py-12 flex justify-center items-center"><RefreshCw className="animate-spin w-8 h-8 text-teal-500" /></div>;
+    return (
+      <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+        <Header currentTicker={ticker} onTickerChange={setTicker} moduleTitle="LensFundamental" moduleBank="LENSFUNDAMENTAL" />
+        {/* Sebelumnya satu spinner teal-500 - warna yang tidak ada di palet - di tengah
+            halaman kosong. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
+        <PageContainer className="p-6 space-y-6">
+          <Skeleton className="h-24 w-full" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Skeleton className="h-48 w-full" />
+            <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+            </div>
+          </div>
+          <LoadingFact />
+        </PageContainer>
+      </div>
+    );
   }
 
   // Handle case where fetch failed or returned 429
@@ -200,10 +233,32 @@ function FundamentalContent() {
           moduleTitle="LensFundamental"
           moduleBank="LENSFUNDAMENTAL"
         />
-        <div className="flex flex-col items-center justify-center p-20 text-slate-400">
-          <TrendingUp className="w-12 h-12 mb-4 text-slate-600" />
-          <p>Gagal memuat data. Limit analisa habis atau terjadi kesalahan.</p>
-        </div>
+        {/* Pesan lama menyalahkan kuota pengguna untuk SEMUA sebab kegagalan, dan
+            tidak menyediakan tombol coba lagi sama sekali. */}
+        <PageContainer className="p-6">
+          {showLoginPrompt ? (
+            <EmptyState
+              illustration="locked"
+              title="Analisa fundamental butuh akun"
+              description="Daftar gratis - dapat trial 7 hari akses penuh sebelum diminta upgrade."
+              action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
+            />
+          ) : showPaywall ? (
+            <EmptyState
+              illustration="locked"
+              title="Kuota analisa hari ini sudah habis"
+              description={`Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai${usedSymbolsToday.length ? ` untuk ${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}` : ''}. Kuota disetel ulang besok.`}
+              action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
+            />
+          ) : (
+            <EmptyState
+              illustration="empty"
+              title={`Data fundamental ${displayTicker(ticker)} gagal dimuat`}
+              description="Permintaan ke sumber data tidak sampai. Emiten yang baru tercatat atau jarang diperdagangkan kadang memang belum punya data fundamental di sumber ini."
+              action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
+            />
+          )}
+        </PageContainer>
         <PaywallModal
           open={showPaywall}
           onClose={() => setShowPaywall(false)}
@@ -259,7 +314,7 @@ function FundamentalContent() {
 
       <PageContainer className="p-6 space-y-6">
         {/* Status Badge */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
             {marketClosed ? 'Market Closed' : 'Market Open'}
@@ -312,22 +367,25 @@ function FundamentalContent() {
         {/* Top Summary Banner */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center text-tv-yellow">
-              <Zap className="w-6 h-6" />
-            </div>
+            {/* Ikon petir kuning identik untuk semua emiten diganti avatar per-emiten. */}
+            <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-extrabold text-white font-heading">{displayTicker(stock.symbol || ticker)}.JK</h1>
                 <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
               </div>
-              <div className="flex items-center gap-3 mt-1 font-mono">
-                <span className="text-2xl font-bold text-white">
-                  {typeof stock.current_price === 'number' && Number.isFinite(stock.current_price)
-                    ? `Rp ${stock.current_price.toLocaleString('id-ID')}`
-                    : '-'}
-                </span>
+              <div className="flex items-center gap-3 mt-1">
+                {typeof stock.current_price === 'number' && Number.isFinite(stock.current_price) ? (
+                  <AnimatedNumber
+                    value={stock.current_price}
+                    format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
+                    className="font-number text-2xl font-bold text-white tabular-nums"
+                  />
+                ) : (
+                  <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
+                )}
                 {typeof stock.change_pct === 'number' && Number.isFinite(stock.change_pct) ? (
-                  <span className={`text-sm font-bold flex items-center gap-0.5 ${
+                  <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
                     stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'
                   }`}>
                     {stock.change_pct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
@@ -343,7 +401,7 @@ function FundamentalContent() {
           <div className="flex items-center gap-6">
              {data?.bestPerformer && (
                 <div className="text-right border-r border-tv-border pr-6 hidden md:block">
-                  <div className="text-[10px] font-mono text-tv-muted uppercase">TOP METHOD TODAY</div>
+                  <div className="text-[10px] text-tv-muted uppercase tracking-wide">TOP METHOD TODAY</div>
                   <div className="text-lg font-bold text-white flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-tv-green" />
                     {data.bestPerformer.label} ({data.bestPerformer.confidence}% Conf)
@@ -358,7 +416,7 @@ function FundamentalContent() {
                 Cek warna diganti dari 'BULLISH'/'BEARISH' (kata itu sudah tidak pernah
                 muncul lagi di string consensus) jadi 'UNDERVALUED'/'OVERVALUED'. */}
             <div className="text-right">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">Valuasi Harga</div>
+              <div className="text-[10px] text-tv-muted uppercase tracking-wide">Valuasi Harga</div>
               <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
                 data?.consensus?.includes('UNDERVALUED')
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
@@ -376,7 +434,7 @@ function FundamentalContent() {
                 pertanyaan beda, gak dicampur jadi satu skor yang menyesatkan (lihat
                 consensus-labels.service.ts). */}
             <div className="text-right">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">Kualitas Fundamental</div>
+              <div className="text-[10px] text-tv-muted uppercase tracking-wide">Kualitas Fundamental</div>
               <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
                 data?.fundamentalQuality?.label === 'BAGUS'
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
@@ -395,6 +453,32 @@ function FundamentalContent() {
           </div>
         </div>
 
+        {/* Storytelling: dua badge di atas sengaja memisahkan "murah atau mahal" dari
+            "bisnisnya bagus atau buruk" - tapi yang menentukan keputusan justru
+            KOMBINASI keduanya, dan itu tidak pernah dinyatakan di mana pun. Empat
+            kuadrannya punya arti yang sangat berbeda, termasuk perangkap klasik
+            "murah karena memang bisnisnya sedang rusak". */}
+        {data?.consensus && data?.fundamentalQuality?.label && (() => {
+          const murah = data.consensus.includes('UNDERVALUED');
+          const mahal = data.consensus.includes('OVERVALUED');
+          const bagus = data.fundamentalQuality.label === 'BAGUS';
+          const buruk = data.fundamentalQuality.label === 'BURUK';
+          if (!(murah || mahal) || !(bagus || buruk)) return null;
+
+          const verdict =
+            murah && bagus ? { tone: 'border-tv-green/30 bg-tv-green/5 text-tv-green', text: 'Bisnisnya dinilai bagus DAN harganya di bawah nilai wajar - kuadran yang paling dicari. Periksa apakah ada risiko yang belum tercermin di rasio (perkara hukum, ketergantungan pada satu pelanggan, tata kelola).' }
+            : murah && buruk ? { tone: 'border-tv-warning/30 bg-tv-warning/5 text-tv-warning', text: 'Harganya murah TAPI kualitas fundamentalnya buruk. Ini pola perangkap nilai (value trap): harga rendah sering merupakan penilaian pasar yang benar atas bisnis yang sedang memburuk, bukan diskon.' }
+            : mahal && bagus ? { tone: 'border-tv-blue/30 bg-tv-blue/5 text-tv-blue', text: 'Bisnisnya bagus TAPI harganya sudah di atas nilai wajar. Kualitas tidak menghapus risiko harga - membeli perusahaan bagus di harga terlalu tinggi tetap bisa merugi bertahun-tahun.' }
+            : { tone: 'border-tv-red/30 bg-tv-red/5 text-tv-red', text: 'Harganya di atas nilai wajar DAN kualitas fundamentalnya buruk - kuadran dengan pembenaran paling lemah dari kedua sisi.' };
+
+          return (
+            <div className={`rounded-lg border px-4 py-3 ${verdict.tone}`}>
+              <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Kombinasi Valuasi &times; Kualitas</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-tv-text">{verdict.text}</p>
+            </div>
+          );
+        })()}
+
         {/* Main Layout */}
         <div className="flex flex-col gap-6">
           {/* Company Profile & Fundamentals */}
@@ -408,11 +492,23 @@ function FundamentalContent() {
               {/* Profile Box */}
               <div className="lg:col-span-1 space-y-4">
                 <div>
-                  <div className="text-xs text-tv-muted font-mono uppercase mb-1">Sektor & Industri</div>
-                  <div className="text-sm text-white font-bold">{data?.profile?.sector || '-'} <span className="text-tv-muted font-normal">/</span> {data?.profile?.industry || '-'}</div>
+                  <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">Sektor & Industri</div>
+                  {/* `|| '-'` sebelumnya menghasilkan "- / -" yang tidak membedakan
+                      "emiten ini belum diklasifikasi sumber data" dari "gagal dimuat". */}
+                  <div className="text-sm text-white font-bold">
+                    {data?.profile?.sector || data?.profile?.industry ? (
+                      <>
+                        {data?.profile?.sector || 'Sektor belum diklasifikasi'}
+                        <span className="text-tv-muted font-normal"> / </span>
+                        {data?.profile?.industry || 'industri belum diklasifikasi'}
+                      </>
+                    ) : (
+                      <span className="text-tv-muted font-normal">Sumber data belum mengklasifikasi emiten ini</span>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs text-tv-muted font-mono uppercase mb-1">Deskripsi Bisnis</div>
+                  <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">Deskripsi Bisnis</div>
                   <div className="text-sm text-tv-muted line-clamp-6 hover:line-clamp-none transition-all">{data?.profile?.description || 'Memuat deskripsi perusahaan...'}</div>
                 </div>
                 {data?.profile?.website && (
@@ -489,7 +585,7 @@ function FundamentalContent() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
                 {analyzers.length > 0 ? analyzers.filter((algo: any) => {
                   // BUG 2 FIX: Sembunyikan card yang N/A dengan Conf 0%
                   if (algo.value === 'N/A' && algo.confidence === 0) return false;
@@ -501,7 +597,9 @@ function FundamentalContent() {
                 }).map((algo: any, idx: number) => {
                   const isTop3 = sortByConfidence && idx < 3;
                   return (
-                    <div key={idx} className={`p-3 rounded-lg bg-tv-bg border flex flex-col gap-2 ${isTop3 ? 'border-tv-green shadow-[0_0_10px_rgba(34,171,148,0.2)]' : 'border-tv-border'}`}>
+                    // shadow hex rgba(34,171,148,...) adalah hijau kebiruan dari palet
+                    // lama - tidak sama dengan tv-green mana pun yang dipakai sekarang.
+                    <div key={idx} className={`p-3 rounded-lg bg-tv-bg border flex flex-col gap-2 transition-colors ${isTop3 ? 'border-tv-green shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'border-tv-border hover:border-tv-borderLight'}`}>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-white font-bold">{algo.label}</span>
                         <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
@@ -524,10 +622,18 @@ function FundamentalContent() {
                       </div>
                     </div>
                   );
-                }) : (
-                  <div className="col-span-full text-center py-10 text-tv-muted text-sm flex flex-col items-center gap-2">
-                    <RefreshCw className="w-6 h-6 animate-spin text-tv-borderLight" />
-                    Running 10 TS Algorithms...
+                }) : loading ? (
+                  <>
+                    {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[104px] w-full" />)}
+                    <div className="col-span-full"><LoadingFact /></div>
+                  </>
+                ) : (
+                  <div className="col-span-full">
+                    <EmptyState
+                      illustration="empty"
+                      title="Belum ada indikator fundamental untuk emiten ini"
+                      description="Sumber data tidak menyediakan rasio keuangan yang cukup untuk dihitung. Emiten yang baru tercatat biasanya butuh beberapa periode laporan sebelum rasionya muncul."
+                    />
                   </div>
                 )}
               </div>
@@ -562,11 +668,9 @@ function FundamentalContent() {
         secondaryLabel="Nanti"
       />
 
-      <style dangerouslySetInnerHTML={{__html:`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #131722; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2A2E39; border-radius: 4px; }
-      `}} />
+      {/* Blok <style> .custom-scrollbar dihapus - warnanya (#131722/#2A2E39) berasal
+          dari palet yang lebih tua dari tv-*, dan app/globals.css sudah menata seluruh
+          scrollbar aplikasi dengan warna palet yang berlaku. */}
     </div>
   );
 }
