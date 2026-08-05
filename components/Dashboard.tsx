@@ -10,7 +10,14 @@ import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel,
 import { Card, SegmentedControl } from '@/components/ui';
 import { isMarketOpen } from '@/lib/utils/market';
 
-const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
+// BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
+// '1M'/'3M' DIHILANGKAN dari daftar pilihan (bukan cuma default) - backend
+// (app/api/public-chart/[ticker]/route.ts) sebenarnya sudah lama mendukung keduanya
+// (tf=1M -> range 1mo, tf=3M -> range 3mo), yang berubah dulu cuma DEFAULT timeframe
+// (dari '1M' ke '1Y', lihat komentar di route itu) - opsi 1M/3M ikut hilang dari sini
+// sebagai efek samping yang tidak disengaja. Ditambahkan balik sebagai PILIHAN, default
+// tetap '1Y' (tidak mengubah keputusan default yang sudah eksplisit).
+const TIMEFRAMES = ['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL'];
 
 // Running text ticker - saham + harga terkini, scroll otomatis di bawah header. List
 // digandakan 2x supaya loop-nya mulus (translateX 0 -> -50% = tepat 1 putaran list asli).
@@ -492,12 +499,18 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                <SegmentedControl
-                  options={TIMEFRAMES.map(t => ({ label: t, value: t }))}
-                  value={timeframe}
-                  onChange={setTimeframe}
-                  layoutId="landing-timeframe"
-                />
+                {/* max-w-full + overflow-x-auto (permintaan user) - 8 pilihan timeframe
+                    (nambah 1M/3M) muat digulir ke samping di layar sempit, bukan
+                    ke-wrap jadi berbaris-baris atau kepotong. */}
+                <div className="max-w-full overflow-x-auto">
+                  <SegmentedControl
+                    options={TIMEFRAMES.map(t => ({ label: t, value: t }))}
+                    value={timeframe}
+                    onChange={setTimeframe}
+                    layoutId="landing-timeframe"
+                    className="shrink-0"
+                  />
+                </div>
               </div>
 
               {/* Chart */}
