@@ -1,4 +1,5 @@
 import React from 'react';
+import { Brain, TrendingUp, TrendingDown, Minus, Circle, type LucideIcon } from 'lucide-react';
 
 interface Agent {
   name: string;
@@ -25,6 +26,21 @@ function signalColorClass(signal: string): string {
   return 'bg-tv-border text-tv-muted border-tv-border';
 }
 
+function signalIcon(signal: string): LucideIcon {
+  if (signal === 'BUY') return TrendingUp;
+  if (signal === 'SELL') return TrendingDown;
+  if (signal === 'WAIT') return Minus;
+  return Circle;
+}
+
+// Bar aksen brand (gradient signature biru->ungu, `gradient-accent` di tailwind.config.js)
+// di atas & bawah card - sama seperti FundamentalExportCard. Kartu ini TIDAK dapat tema
+// per-sektor (beda dari kartu fundamental) karena CouncilDisplay (app/technical/[symbol]/
+// page.tsx) tidak fetch company profile - cuma data teknikal/AI agent.
+function AccentBar() {
+  return <div className="h-3 w-full bg-gradient-accent" />;
+}
+
 // Kartu export offscreen untuk /technical/[symbol] (lihat TechnicalExportSection untuk
 // wiring). %BUY/SELL/HOLD/WAIT = vote riil 10 agent (dihitung di CouncilDisplay,
 // app/technical/[symbol]/page.tsx) - BUKAN field "Confidence" yang sudah dihapus dari
@@ -38,56 +54,67 @@ export default function TechnicalExportCard({
   }) + ' WIB';
 
   return (
-    <div className="w-[1080px] h-[1350px] bg-tv-bg text-white p-16 flex flex-col justify-between">
-      <div>
-        <div className="flex items-center justify-between mb-10">
-          <div className="text-3xl font-heading font-extrabold text-tv-accent">SahamLens</div>
-          <div className="text-xl font-mono font-bold px-5 py-2 rounded-full border bg-tv-hover border-tv-borderLight text-white">
-            LensAI
+    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col">
+      <AccentBar />
+
+      <div className="flex-1 p-16 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between mb-10">
+            <div className="text-3xl font-heading font-extrabold text-tv-accent">SahamLens</div>
+            <div className="text-xl font-mono font-bold px-5 py-2 rounded-full border bg-tv-hover border-tv-borderLight text-white flex items-center gap-2">
+              <Brain className="w-5 h-5 text-tv-accent" />
+              LensAI
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="text-6xl font-heading font-extrabold">{displaySymbol}.JK</div>
+            <div className="text-2xl text-tv-green mt-2 font-mono font-bold">{finalSuggestion}</div>
+            {typeof score === 'number' && (
+              <div className="text-lg text-tv-muted mt-1 font-mono">Skor Komposit: {score}/100</div>
+            )}
+          </div>
+
+          {summaryId && (
+            <div className="text-lg text-tv-muted leading-relaxed mb-8 line-clamp-3">{summaryId}</div>
+          )}
+
+          <div className="mb-2 text-sm font-mono text-tv-muted uppercase">Vote 10 Agent LensAI</div>
+          <div className="flex w-full h-4 rounded-full overflow-hidden mb-3 bg-tv-border">
+            {buyPct > 0 && <div style={{ width: `${buyPct}%` }} className="bg-tv-green" />}
+            {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-blue-500" />}
+            {waitPct > 0 && <div style={{ width: `${waitPct}%` }} className="bg-tv-yellow" />}
+            {sellPct > 0 && <div style={{ width: `${sellPct}%` }} className="bg-tv-red" />}
+          </div>
+          <div className="flex gap-4 text-base font-mono font-bold mb-8">
+            {buyPct > 0 && <span className="text-tv-green">{buyPct}% BUY</span>}
+            {holdPct > 0 && <span className="text-blue-500">{holdPct}% HOLD</span>}
+            {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% WAIT</span>}
+            {sellPct > 0 && <span className="text-tv-red">{sellPct}% SELL</span>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {agents.slice(0, 10).map((agent, idx) => {
+              const SignalIcon = signalIcon(agent.signal);
+              return (
+                <div key={idx} className="flex items-center justify-between bg-tv-card border border-tv-border rounded-lg px-4 py-2">
+                  <span className="text-sm font-bold truncate pr-2">{agent.name}</span>
+                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border shrink-0 flex items-center gap-1 ${signalColorClass(agent.signal)}`}>
+                    <SignalIcon className="w-3 h-3" />
+                    {agent.signal}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="text-6xl font-heading font-extrabold">{displaySymbol}.JK</div>
-          <div className="text-2xl text-tv-green mt-2 font-mono font-bold">{finalSuggestion}</div>
-          {typeof score === 'number' && (
-            <div className="text-lg text-tv-muted mt-1 font-mono">Skor Komposit: {score}/100</div>
-          )}
-        </div>
-
-        {summaryId && (
-          <div className="text-lg text-tv-muted leading-relaxed mb-8 line-clamp-3">{summaryId}</div>
-        )}
-
-        <div className="mb-2 text-sm font-mono text-tv-muted uppercase">Vote 10 Agent LensAI</div>
-        <div className="flex w-full h-4 rounded-full overflow-hidden mb-3 bg-tv-border">
-          {buyPct > 0 && <div style={{ width: `${buyPct}%` }} className="bg-tv-green" />}
-          {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-blue-500" />}
-          {waitPct > 0 && <div style={{ width: `${waitPct}%` }} className="bg-tv-yellow" />}
-          {sellPct > 0 && <div style={{ width: `${sellPct}%` }} className="bg-tv-red" />}
-        </div>
-        <div className="flex gap-4 text-base font-mono font-bold mb-8">
-          {buyPct > 0 && <span className="text-tv-green">{buyPct}% BUY</span>}
-          {holdPct > 0 && <span className="text-blue-500">{holdPct}% HOLD</span>}
-          {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% WAIT</span>}
-          {sellPct > 0 && <span className="text-tv-red">{sellPct}% SELL</span>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {agents.slice(0, 10).map((agent, idx) => (
-            <div key={idx} className="flex items-center justify-between bg-tv-card border border-tv-border rounded-lg px-4 py-2">
-              <span className="text-sm font-bold truncate pr-2">{agent.name}</span>
-              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border shrink-0 ${signalColorClass(agent.signal)}`}>
-                {agent.signal}
-              </span>
-            </div>
-          ))}
+        <div className="text-xs font-mono text-tv-muted border-t border-tv-border pt-4">
+          Data via SahamLens • {timeLabel}
         </div>
       </div>
 
-      <div className="text-xs font-mono text-tv-muted border-t border-tv-border pt-4">
-        Data via SahamLens • {timeLabel}
-      </div>
+      <AccentBar />
     </div>
   );
 }
