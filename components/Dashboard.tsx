@@ -370,7 +370,7 @@ export default function Dashboard() {
           <div className="flex h-[64px] items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5">
-                <img src="/icon-192x192.png" alt="SahamLens" className="h-8 w-8 rounded-md object-cover" />
+                <img src="/sahamlens-scope.png" alt="SahamLens" className="h-8 w-8 rounded-full object-cover" />
                 <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">

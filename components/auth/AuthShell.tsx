@@ -31,9 +31,7 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
         className="w-full max-w-md relative z-10"
       >
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="h-9 w-9 rounded-md bg-tv-blue grid place-items-center font-heading font-bold text-[15px] text-white tracking-tight">
-            SL
-          </div>
+          <img src="/sahamlens-scope.png" alt="SahamLens" className="h-9 w-9 rounded-full object-cover" />
           <span className="font-heading font-bold text-[18px] tracking-tight text-tv-text">SahamLens</span>
         </Link>
 
