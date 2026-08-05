@@ -286,14 +286,17 @@ function FundamentalContent() {
         {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
             punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
             halaman.
-            BUG FIX (2026-08-05): SEBELUMNYA pakai `position: absolute; left: -9999px` -
-            elemen jauh di luar viewport begitu tidak pernah ke-paint browser, jadi
-            html-to-image (yang men-drawImage dari elemen sungguhan, bukan cuma serialize
-            style) menghasilkan PNG putih/blank. Wrapper 0x0 + overflow hidden di posisi
-            (0,0) viewport tetap ke-paint (makanya ke-capture penuh) tapi tidak kelihatan
-            atau mengubah layout untuk user, karena wrapper-nya sendiri berukuran nol. */}
+            BUG FIX (2026-08-05, percobaan #2): percobaan #1 (`width:0, height:0,
+            overflow:hidden` LANGSUNG di elemen yang di-ref/di-capture) bikin
+            html-to-image screenshot kotak 0x0 -> PNG 0 byte (dikonfirmasi user). Sekarang
+            wrapper penyembunyi (opacity:0, tidak ke-klik, tidak ganggu layout user) dipisah
+            dari elemen yang di-ref - elemen yang di-ref TIDAK dikasih style penyembunyi
+            apa pun jadi ukuran aslinya (1080x1350, dari class di FundamentalExportCard)
+            tetap utuh saat di-capture. opacity tidak diwariskan sebagai computed style ke
+            child, jadi computed opacity elemen yang di-ref tetap 1 walau wrapper luarnya 0. */}
         {data && (
-          <div ref={fundamentalExportRef} style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden' }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
+            <div ref={fundamentalExportRef}>
             <FundamentalExportCard
               ticker={ticker}
               stock={stock}
@@ -302,6 +305,7 @@ function FundamentalContent() {
               consensus={data?.consensus}
               exportedAt={new Date()}
             />
+            </div>
           </div>
         )}
 

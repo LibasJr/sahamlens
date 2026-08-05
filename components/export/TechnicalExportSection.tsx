@@ -38,24 +38,29 @@ export default function TechnicalExportSection({
         fileName={buildExportFileName('Technical', symbol)}
         label="Export Kartu Teknikal"
       />
-      {/* BUG FIX (2026-08-05): SEBELUMNYA `position: absolute; left: -9999px` - elemen
-          jauh di luar viewport tidak pernah ke-paint browser, jadi html-to-image
-          menghasilkan PNG putih/blank. Sama seperti fix di app/fundamental/page.tsx -
-          wrapper 0x0 + overflow hidden di (0,0) tetap ke-paint (ke-capture penuh) tapi
-          tidak kelihatan/tidak mengubah layout untuk user. */}
-      <div ref={exportRef} style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden' }}>
-        <TechnicalExportCard
-          symbol={symbol}
-          finalSuggestion={finalSuggestion}
-          summaryId={summaryId}
-          buyPct={buyPct}
-          sellPct={sellPct}
-          holdPct={holdPct}
-          waitPct={waitPct}
-          agents={agents}
-          score={score}
-          exportedAt={new Date()}
-        />
+      {/* BUG FIX (2026-08-05, percobaan #2): percobaan #1 (`width:0, height:0,
+          overflow:hidden` LANGSUNG di elemen yang di-ref/di-capture) bikin html-to-image
+          screenshot kotak 0x0 -> PNG 0 byte (dikonfirmasi user, sama kasus dengan
+          app/fundamental/page.tsx). Sekarang wrapper penyembunyi (opacity:0, dst) dipisah
+          dari elemen yang di-ref - elemen yang di-ref TIDAK dikasih style penyembunyi
+          apa pun jadi ukuran aslinya (1080x1350) tetap utuh saat di-capture. opacity
+          tidak diwariskan sebagai computed style ke child, jadi computed opacity elemen
+          yang di-ref tetap 1 walau wrapper luarnya 0. */}
+      <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
+        <div ref={exportRef}>
+          <TechnicalExportCard
+            symbol={symbol}
+            finalSuggestion={finalSuggestion}
+            summaryId={summaryId}
+            buyPct={buyPct}
+            sellPct={sellPct}
+            holdPct={holdPct}
+            waitPct={waitPct}
+            agents={agents}
+            score={score}
+            exportedAt={new Date()}
+          />
+        </div>
       </div>
     </>
   );
