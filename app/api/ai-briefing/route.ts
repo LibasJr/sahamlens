@@ -26,8 +26,14 @@ function fallbackBriefing(input: BriefingInput): string {
   if (input.topPick) {
     parts.push(`Sinyal AI teratas: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}).`);
   }
+  // BUG FIX (2026-08-05, permintaan user): SEBELUMNYA menyebut angka persis
+  // ("X saham menarik", "Y breakout") - tidak ada halaman manapun di aplikasi yang
+  // menampilkan daftar konkret di balik angka itu (kategori "menarik"/attractive
+  // dihapus dari /breakout-radar saat konsolidasi 8-tab jadi 1-tab, 2026-08-03), jadi
+  // angka itu tidak bisa diverifikasi/ditelusuri pengguna. Diganti kalimat kualitatif
+  // yang mengarahkan ke LensRadar, tanpa klaim angka pasti.
   if (input.pickCounts && (input.pickCounts.attractive || input.pickCounts.breakout)) {
-    parts.push(`AI menemukan ${input.pickCounts.attractive} saham menarik dan ${input.pickCounts.breakout} sinyal breakout hari ini.`);
+    parts.push('AI menemukan sejumlah saham menarik dan beberapa sinyal breakout hari ini - cek LensRadar untuk detailnya.');
   }
   return parts.length ? parts.join(' ') : 'Belum ada sinyal kuat hari ini. Cek LensRadar untuk detail lengkap.';
 }
@@ -51,12 +57,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
   }
 
+  // BUG FIX (2026-08-05, permintaan user): field "Temuan hari ini" (jumlah saham
+  // menarik/breakout/undervalue) DIHAPUS dari data yang dikirim ke LLM - sebelumnya
+  // model memparafrase angka itu jadi kalimat pasti ("50 saham menarik, 8 breakout,
+  // dan 4 undervalue") padahal tidak ada halaman mana pun di aplikasi yang menampilkan
+  // daftar konkret di baliknya (kategori itu sudah dihapus dari /breakout-radar saat
+  // konsolidasi 8-tab jadi 1-tab, 2026-08-03) - klaim angka yang tidak bisa ditelusuri
+  // pengguna. `pickCounts` di BriefingInput dipertahankan (masih dipakai fallbackBriefing
+  // di atas dengan kalimat kualitatif, bukan angka), cuma tidak lagi masuk prompt AI.
   const prompt = `Kamu adalah asisten AI investasi SahamLens. Tulis SATU paragraf pendek (maksimal 3 kalimat, Bahasa Indonesia santai tapi profesional) yang merangkum kondisi PASAR hari ini berdasarkan data berikut. Jangan mengulang angka mentah persis seperti daftar, rangkai jadi kalimat natural. Jangan beri saran beli/jual eksplisit di luar data yang ada. Jangan menyebut portofolio/akun pengguna - aplikasi ini alat analisis/screener, bukan platform sekuritas.
 
 Data:
 - Indeks pasar: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'tidak tersedia'}
 - Sinyal AI teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence})` : 'tidak ada sinyal kuat'}
-- Temuan hari ini: ${input.pickCounts ? `${input.pickCounts.attractive} saham menarik, ${input.pickCounts.breakout} breakout, ${input.pickCounts.undervalue} undervalue` : 'tidak tersedia'}
 
 Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;
 

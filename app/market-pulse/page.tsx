@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Activity, TrendingUp, TrendingDown, BarChart3,
-  RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, Menu
+  RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, Menu, X
 } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
@@ -48,7 +49,15 @@ function Sparkline({ data, color, width = 120, height = 32 }: { data: number[]; 
 // akar kuadratnya tidak pernah berpengaruh apa pun - semua tile berukuran sama sambil
 // tampak seolah diskalakan menurut kapitalisasi. Ukuran seragam sekarang, dan besaran
 // pergerakan disampaikan lewat intensitas warna yang memang dihitung dari data nyata.
-function HeatmapTile({ sector, changePct, stocks, sampleSize }: any) {
+// BUG FIX (2026-08-05, permintaan user): tile bisa diklik buat buka modal detail - TAPI
+// datanya (`stocks`) SAMA PERSIS dengan yang sudah kelihatan di tile (3-4 saham wakil
+// hardcoded per sektor, lihat IDX_SECTORS di market-pulse.service.ts). Diverifikasi:
+// /api/screener publik cuma balikin top-10 hasil ranking (bukan universe penuh), dan
+// /api/emiten (700+ saham) tidak punya field sektor sama sekali - TIDAK ADA sumber data
+// "semua emiten per sektor" di aplikasi ini sekarang. Modal ini jujur menyatakan cuma
+// nampilin saham wakil yang sudah dihitung, bukan daftar lengkap - bukan fitur baru yang
+// mengklaim cakupan yang tidak ada datanya.
+function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
   const isUp = (changePct ?? 0) >= 0;
   const intensity = Math.min(Math.abs(changePct ?? 0) * 40, 100);
 
@@ -60,8 +69,10 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize }: any) {
     : `rgba(239, 68, 68, ${0.2 + intensity / 250})`;
 
   return (
-    <div
-      className="rounded-lg p-3 flex flex-col justify-between transition-all hover:scale-[1.02] cursor-default group"
+    <button
+      type="button"
+      onClick={() => onSelect({ sector, changePct, stocks, sampleSize })}
+      className="text-left rounded-lg p-3 flex flex-col justify-between transition-all hover:scale-[1.02] cursor-pointer group"
       style={{
         backgroundColor: bg,
         borderWidth: 1,
@@ -87,7 +98,7 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize }: any) {
           {changePct == null ? 'N/A' : `${isUp ? '+' : ''}${changePct.toFixed(2)}%`}
         </div>
       </div>
-      <div className="flex flex-wrap gap-1 mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
+      <div className="flex flex-wrap items-center gap-1 mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
         {stocks?.slice(0, 4).map((s: any) => (
           <span
             key={s.symbol}
@@ -98,6 +109,58 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize }: any) {
             {s.symbol} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%
           </span>
         ))}
+        {stocks?.length > 4 && (
+          <span className="text-[9px] text-white/60 font-medium">+{stocks.length - 4} lainnya</span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// Modal detail sektor - klik tile Heatmap. Isi SAMA PERSIS dengan data yang sudah
+// dihitung server-side (tidak ada fetch tambahan) - cuma tampilan lebih penuh + link ke
+// halaman teknikal tiap saham. Disclaimer eksplisit: representatif, bukan daftar lengkap
+// (lihat komentar HeatmapTile soal keterbatasan data sektor di aplikasi ini).
+function SectorDetailModal({ sector, onClose }: { sector: any; onClose: () => void }) {
+  const isUp = (sector.changePct ?? 0) >= 0;
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl bg-tv-card border border-tv-border shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-tv-border">
+          <div>
+            <h4 className="font-heading text-sm font-bold text-tv-text">{sector.sector}</h4>
+            <span className={`text-xs font-number font-semibold ${isUp ? 'text-tv-green' : 'text-tv-red'}`}>
+              rata-rata {isUp ? '+' : ''}{sector.changePct?.toFixed(2) ?? 'N/A'}%
+            </span>
+          </div>
+          <button onClick={onClose} className="text-tv-muted hover:text-tv-text transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="px-4 pt-3 text-[10px] text-tv-muted leading-relaxed">
+          {sector.sampleSize} saham wakil (kurasi manual, bukan seluruh emiten sektor ini - lihat catatan "bukan indeks sektor resmi IDX" di atas Heatmap).
+        </p>
+        <div className="p-4 pt-2 space-y-1.5 max-h-[50vh] overflow-y-auto">
+          {sector.stocks.map((s: any) => (
+            <Link
+              key={s.symbol}
+              href={`/technical/${s.symbol}.JK`}
+              onClick={onClose}
+              className="flex items-center justify-between rounded-lg bg-tv-hover hover:bg-tv-border px-3 py-2 transition-colors"
+            >
+              <span className="text-sm font-bold text-tv-text">{s.symbol}</span>
+              <span className={`text-xs font-number font-semibold ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -140,6 +203,7 @@ export default function MarketPulse() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
+  const [selectedSector, setSelectedSector] = useState<any>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -344,7 +408,7 @@ export default function MarketPulse() {
           {data?.sectorHeatmap ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start">
               {data.sectorHeatmap.map((sector: any) => (
-                <HeatmapTile key={sector.sector} {...sector} />
+                <HeatmapTile key={sector.sector} {...sector} onSelect={setSelectedSector} />
               ))}
             </div>
           ) : (
@@ -445,6 +509,9 @@ export default function MarketPulse() {
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
       />
+      {selectedSector && (
+        <SectorDetailModal sector={selectedSector} onClose={() => setSelectedSector(null)} />
+      )}
     </div>
   );
 }

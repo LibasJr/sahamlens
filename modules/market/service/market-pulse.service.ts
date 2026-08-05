@@ -17,18 +17,23 @@ const IDX_INDICES = [
 ];
 
 // IDX Sector representatives (top stocks per sector for heatmap)
+// BUG FIX (2026-08-05, permintaan user): daftar per sektor diperluas dari 3-4 jadi
+// 5-8 saham wakil (masih hardcoded/kurasi manual, BUKAN universe lengkap - lihat
+// komentar HeatmapTile di app/market-pulse/page.tsx soal kenapa universe penuh per
+// sektor tidak tersedia di aplikasi ini). Dijaga TIDAK saling tumpang tindih dengan
+// PGAS/TBIG/MTEL (Infra & Transport) supaya 1 saham tidak dobel hitung di 2 sektor.
 const IDX_SECTORS = [
-  { sector: 'Financial', color: '#3b82f6', stocks: ['BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'BBNI.JK'] },
-  { sector: 'Energy', color: '#f97316', stocks: ['ADRO.JK', 'PTBA.JK', 'MEDC.JK', 'ITMG.JK'] },
-  { sector: 'Consumer Defensive', color: '#22c55e', stocks: ['ICBP.JK', 'INDF.JK', 'UNVR.JK', 'MYOR.JK'] },
-  { sector: 'Technology', color: '#8b5cf6', stocks: ['GOTO.JK', 'BUKA.JK', 'EMTK.JK'] },
-  { sector: 'Telecom', color: '#06b6d4', stocks: ['TLKM.JK', 'ISAT.JK', 'EXCL.JK', 'TOWR.JK'] },
-  { sector: 'Basic Materials', color: '#eab308', stocks: ['ANTM.JK', 'INCO.JK', 'TINS.JK', 'INKP.JK'] },
-  { sector: 'Industrials', color: '#64748b', stocks: ['ASII.JK', 'UNTR.JK', 'AUTO.JK', 'SMSM.JK'] },
-  { sector: 'Healthcare', color: '#ec4899', stocks: ['KLBF.JK', 'SIDO.JK', 'SILO.JK', 'MIKA.JK'] },
-  { sector: 'Property', color: '#14b8a6', stocks: ['BSDE.JK', 'CTRA.JK', 'SMRA.JK', 'PWON.JK'] },
-  { sector: 'Infra & Transport', color: '#f43f5e', stocks: ['TBIG.JK', 'MTEL.JK', 'PGAS.JK', 'AKRA.JK'] },
-  { sector: 'Consumer Cyclical', color: '#a855f7', stocks: ['MAPI.JK', 'ACES.JK', 'AMRT.JK', 'LPPF.JK'] },
+  { sector: 'Financial', color: '#3b82f6', stocks: ['BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'BBNI.JK', 'BRIS.JK', 'BBTN.JK', 'ARTO.JK'] },
+  { sector: 'Energy', color: '#f97316', stocks: ['ADRO.JK', 'PTBA.JK', 'MEDC.JK', 'ITMG.JK', 'HRUM.JK', 'INDY.JK', 'ELSA.JK'] },
+  { sector: 'Consumer Defensive', color: '#22c55e', stocks: ['ICBP.JK', 'INDF.JK', 'UNVR.JK', 'MYOR.JK', 'CPIN.JK', 'JPFA.JK', 'GGRM.JK', 'HMSP.JK'] },
+  { sector: 'Technology', color: '#8b5cf6', stocks: ['GOTO.JK', 'BUKA.JK', 'EMTK.JK', 'MTDL.JK', 'DCII.JK'] },
+  { sector: 'Telecom', color: '#06b6d4', stocks: ['TLKM.JK', 'ISAT.JK', 'EXCL.JK', 'TOWR.JK', 'FREN.JK'] },
+  { sector: 'Basic Materials', color: '#eab308', stocks: ['ANTM.JK', 'INCO.JK', 'TINS.JK', 'INKP.JK', 'SMGR.JK', 'INTP.JK', 'TPIA.JK'] },
+  { sector: 'Industrials', color: '#64748b', stocks: ['ASII.JK', 'UNTR.JK', 'AUTO.JK', 'SMSM.JK', 'GJTL.JK'] },
+  { sector: 'Healthcare', color: '#ec4899', stocks: ['KLBF.JK', 'SIDO.JK', 'SILO.JK', 'MIKA.JK', 'HEAL.JK', 'PRDA.JK', 'TSPC.JK'] },
+  { sector: 'Property', color: '#14b8a6', stocks: ['BSDE.JK', 'CTRA.JK', 'SMRA.JK', 'PWON.JK', 'ASRI.JK', 'APLN.JK'] },
+  { sector: 'Infra & Transport', color: '#f43f5e', stocks: ['TBIG.JK', 'MTEL.JK', 'PGAS.JK', 'AKRA.JK', 'JSMR.JK', 'ASSA.JK'] },
+  { sector: 'Consumer Cyclical', color: '#a855f7', stocks: ['MAPI.JK', 'ACES.JK', 'AMRT.JK', 'LPPF.JK', 'ERAA.JK', 'RALS.JK'] },
 ];
 
 // Breadth sample stocks (broad IDX)
