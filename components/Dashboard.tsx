@@ -275,6 +275,8 @@ export default function Dashboard() {
   // kelihatan sebagai data live yang wajar berubah, bukan seperti acak/bug (keluhan user
   // 2026-08-04 - panel ini sebelumnya tidak punya indikator jam sama sekali).
   const [aiPicksUpdatedAt, setAiPicksUpdatedAt] = useState<string | null>(null);
+  const [aiPicksNote, setAiPicksNote] = useState<string | null>(null);
+  const [aiPicksAdvisoryEnabled, setAiPicksAdvisoryEnabled] = useState(false);
 
   React.useEffect(() => {
     fetch('/api/ai-pick')
@@ -282,12 +284,21 @@ export default function Dashboard() {
       .then((data) => {
         // Butuh akun/trial - pengunjung yang trialnya habis dapat 402. Tampilkan daftar
         // kosong dengan pesan, bukan error, supaya beranda tetap utuh.
-        setAiPicks(data && !data.error ? (data.items || []).slice(0, 5) : []);
+        const usableData = data && !data.error ? data : null;
+        setAiPicks(usableData ? (usableData.items || []).slice(0, 5) : []);
+        setAiPicksNote(typeof usableData?.note === 'string' ? usableData.note : null);
+        setAiPicksAdvisoryEnabled(
+          usableData?.advisoryEnabled === true || usableData?.modelValidation?.validated === true
+        );
         if (data?.computedAt) {
           setAiPicksUpdatedAt(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.computedAt)) + ' WIB');
         }
       })
-      .catch(() => setAiPicks([]));
+      .catch(() => {
+        setAiPicks([]);
+        setAiPicksNote(null);
+        setAiPicksAdvisoryEnabled(false);
+      });
   }, []);
 
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; pubDate: string }[]>([]);
@@ -627,7 +638,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg leading-none">🔥</span>
-                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Rekomendasi LensRadar</h3>
+                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Pantauan LensRadar</h3>
                 </div>
                 <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline shrink-0">
                   Lihat semua
@@ -635,18 +646,27 @@ export default function Dashboard() {
               </div>
               <p className="text-[11px] text-tv-muted mt-1">
                 Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
-                Klik kode saham untuk analisis teknikalnya.
+                Klik kode saham untuk analisis teknikalnya; ini scanner, bukan instruksi beli/jual.
               </p>
               <p className="text-[10px] text-tv-muted mt-1">
                 Data live, update {aiPicksUpdatedAt || '--:--'} - ranking bisa berubah tiap beberapa menit ngikutin harga pasar.
               </p>
+              {aiPicksNote && (
+                <p className={`text-[10px] mt-2 rounded-md border px-2.5 py-2 leading-relaxed ${
+                  aiPicksAdvisoryEnabled
+                    ? 'border-tv-border bg-tv-card/60 text-tv-muted'
+                    : 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
+                }`}>
+                  {aiPicksNote}
+                </p>
+              )}
 
               <div className="mt-4 flex flex-col gap-2">
                 {aiPicks === null ? (
                   <p className="text-[11px] text-tv-muted py-6 text-center">Memuat kandidat...</p>
                 ) : aiPicks.length === 0 ? (
                   <p className="text-[11px] text-tv-muted py-6 text-center">
-                    Belum ada saham yang mencapai ambang skor hari ini.
+                    Belum ada saham yang lolos gerbang kualitas data dan ambang skor hari ini.
                   </p>
                 ) : (
                   aiPicks.map((p, idx) => (

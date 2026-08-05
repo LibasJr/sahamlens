@@ -49,10 +49,14 @@ export async function GET(request: Request) {
 
     const modelValidation = getLensScoreValidationStatus();
     const rankedItems = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols);
-    // AI Pick adalah daftar "hari ini beli apa". Walau setiap inputnya nyata dan
-    // lolos gerbang data, daftar tidak boleh dipublikasikan sebagai aksi investasi
-    // sebelum LensScore sendiri lulus validasi out-of-sample yang bisa diaudit.
-    const items = modelValidation.validated ? rankedItems : [];
+    // Audit follow-up 2026-08-05:
+    // Endpoint ini dipakai beranda sebagai LensRadar scanner/pantauan. Versi sebelumnya
+    // mengosongkan `items` saat LensScore belum tervalidasi point-in-time, sehingga data
+    // real yang sudah dipindai tidak muncul sama sekali di halaman utama. Guard validasi
+    // tetap dipertahankan lewat `advisoryEnabled`: false = boleh tampil sebagai scanner,
+    // TIDAK boleh dibaca sebagai rekomendasi beli/jual atau instruksi aksi investasi.
+    const advisoryEnabled = modelValidation.validated;
+    const items = rankedItems;
 
     // BUG FIX (audit integritas data 2026-08-03): TTL cache skor diperpanjang ke 3 hari
     // (lihat shared/cache/ai-pick-cache.ts) supaya halaman ini tidak kosong total di
@@ -76,10 +80,11 @@ export async function GET(request: Request) {
       computedAt: scoreData.computedAt,
       stale,
       scanned,
-      eligible: items.length,
+      eligible: rankedItems.length,
+      advisoryEnabled,
       modelValidation,
-      note: !modelValidation.validated
-        ? modelValidation.message
+      note: !advisoryEnabled
+        ? `${modelValidation.message} Daftar LensRadar ditampilkan sebagai scanner/pantauan berbasis data real, bukan rekomendasi beli/jual.`
         : !cachedBreakout
         ? 'Data breakout belum siap - peringkat sementara tanpa tag breakout & golden cross.'
         : legacyCacheShape
