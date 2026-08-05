@@ -10,10 +10,16 @@ import {
   type LensScoreBucket,
 } from './bucket-backtest.service';
 import {
+  RESEARCH_ONLY_DISCLAIMER,
+  resolveValidationStatus,
+  type ValidationStatus,
+} from '../constants/research-status';
+import {
+  buildCalibrationTTest,
   calculateCalibrationObservations,
-  welchOneTailedGreater,
   type CalibrationObservation,
 } from './calibration.service';
+import { LENS_RADAR_HOLDING_DAYS } from './history-return-utils';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const TRANSPARENCY_CACHE_KEY = 'sahamlens:cache:lens-radar:transparency:v1';
@@ -213,7 +219,7 @@ async function readLatestBucketStats(db: Queryable = pool): Promise<LensBucketSt
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -251,8 +257,12 @@ export function buildTop5EquityCurve(
   let ihsgEquity = 100;
   const points: TransparencyEquityPoint[] = [];
 
-  for (const [date, dailySignals] of Array.from(byDate.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
-    const top5 = dailySignals
+  const signalDates = Array.from(byDate.keys()).sort();
+  for (let i = 0; i < signalDates.length; i += LENS_RADAR_HOLDING_DAYS) {
+    const date = signalDates[i];
+    if (!date) continue;
+    const top5 = (byDate.get(date) ?? [])
+      .slice()
       .sort((a, b) => b.lensScore - a.lensScore || (b.marketCap ?? 0) - (a.marketCap ?? 0))
       .slice(0, 5);
     const lensReturn = average(top5.map((obs) => obs.returnT20 as number));
@@ -285,25 +295,39 @@ export function buildTop5EquityCurve(
   return points;
 }
 
-function buildBanner(validationDays: number, pValue: number | null): TransparencyBanner {
-  if (validationDays < 90) {
+export function buildTransparencyBanner(status: ValidationStatus): TransparencyBanner {
+  if (status === 'NOT_ENOUGH_DATA') {
     return {
       status: 'collecting',
       color: 'yellow',
       message: 'Dalam masa pengumpulan data validasi',
     };
   }
-  if (pValue != null && pValue < 0.05) {
+  if (status === 'VALIDATED_OUT_OF_SAMPLE') {
     return {
       status: 'validated',
       color: 'green',
-      message: 'Tervalidasi: Bucket 80-100 outperform signifikan',
+      message: 'Validasi out-of-sample lolos; bucket skor tinggi menunjukkan performa lebih baik pada data uji.',
+    };
+  }
+  if (status === 'OUT_OF_SAMPLE_PENDING') {
+    return {
+      status: 'not_significant',
+      color: 'slate',
+      message: 'Hasil in-sample indikatif, tetapi validasi out-of-sample masih pending; halaman ini tetap mode riset.',
+    };
+  }
+  if (status === 'FAILED_VALIDATION') {
+    return {
+      status: 'not_significant',
+      color: 'slate',
+      message: 'Uji out-of-sample belum mendukung edge LensRadar; gunakan hanya sebagai bahan riset.',
     };
   }
   return {
     status: 'not_significant',
     color: 'slate',
-    message: 'Data validasi sudah cukup panjang, tetapi outperformance belum signifikan pada p-value <0.05',
+    message: 'Data validasi bersifat eksploratif; belum ada bukti out-of-sample untuk klaim performa.',
   };
 }
 
@@ -317,17 +341,17 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
   const ihsgBars = await fetchIhsgBars();
 
   const dates = Array.from(new Set(historyRows.map((row) => dateKey(row.date)).filter((date): date is string => !!date))).sort();
-  const highT20 = observations
-    .filter((obs) => obs.bucket === '80-100' && typeof obs.returnT20 === 'number')
-    .map((obs) => obs.returnT20 as number);
-  const lowT20 = observations
-    .filter((obs) => obs.bucket === '<60' && typeof obs.returnT20 === 'number')
-    .map((obs) => obs.returnT20 as number);
-  const tTest = welchOneTailedGreater(highT20, lowT20);
+  const tTest = buildCalibrationTTest(observations);
   const bucketResult = buildBucketRows(statsRows, observations);
   const validationDays = dates.length;
   const startDate = dates[0] ?? null;
   const pValue = tTest.pValue;
+  const validationStatus = resolveValidationStatus({
+    validationDays,
+    effectiveSamples: tTest.highBucketSamples + tTest.lowBucketSamples,
+    pValue,
+    outOfSampleTested: false,
+  });
 
   return {
     asOfDate: todayDateKeyWIB(),
@@ -336,9 +360,9 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     validationDays,
     totalSamples: bucketResult.totalSamples,
     pValue80VsLt60: pValue,
-    significant: pValue != null && pValue < 0.05,
-    disclaimer: `Data point-in-time, entry Open H+1, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. Bukan nasihat investasi.`,
-    banner: buildBanner(validationDays, pValue),
+    significant: tTest.significant,
+    disclaimer: `Data point-in-time, entry Open H+1, exit T+N berbasis hari bursa, window equity curve Top 5 tidak tumpang tindih 20 hari, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. ${RESEARCH_ONLY_DISCLAIMER}`,
+    banner: buildTransparencyBanner(validationStatus),
     buckets: bucketResult.rows,
     equityCurve: buildTop5EquityCurve(observations, ihsgBars),
   };

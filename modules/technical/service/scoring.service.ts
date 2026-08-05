@@ -342,7 +342,20 @@ function scoreMacd(t: TechnicalInput): Component {
  */
 function scoreVolume(t: TechnicalInput): Component {
   const MAX = 10;
-  if (!t.volToday || !t.volAvg20) return NA('volume', MAX, 'Volume');
+  if (t.volToday == null || t.volAvg20 == null || !Number.isFinite(t.volToday) || !Number.isFinite(t.volAvg20)) {
+    return NA('volume', MAX, 'Volume');
+  }
+  if (t.volToday === 0) {
+    return {
+      key: 'volume',
+      availableMax: MAX,
+      declaredMax: MAX,
+      available: true,
+      score: 0,
+      reason: 'Tidak ada transaksi tercatat hari ini - tidak ada partisipasi yang mengonfirmasi harga',
+    };
+  }
+  if (t.volAvg20 <= 0) return NA('volume', MAX, 'Volume');
   const ratio = t.volToday / t.volAvg20;
   const mk = (score: number, reason: string): Component =>
     ({ key: 'volume', availableMax: MAX, declaredMax: MAX, available: true, score, reason });
@@ -745,14 +758,15 @@ export function calculateScore(
   const missing = allComponents.filter((c) => !c.available && c.declaredMax > 0).map((c) => c.reason);
   const notApplicable = allComponents.filter((c) => !c.available && c.declaredMax === 0).map((c) => c.reason);
 
-  // 3 alasan teratas dari komponen yang ADA datanya, diurut kontribusi relatif
-  // (skor/max), bukan skor mentah - supaya komponen bernilai maksimum 7 tidak selalu
-  // kalah dari komponen bermaksimum 20 hanya karena skalanya lebih besar.
-  const alasan3 = allComponents
+  // 2 alasan pendukung + 1 penentang terlemah. Urutan menurun murni membuat saham
+  // berkategori buruk dijelaskan oleh tiga alasan TERBAIKNYA, bukan oleh penyebab
+  // skor rendah. Bentuk array string dipertahankan agar kontrak UI/API tidak pecah.
+  const sortedReasons = allComponents
     .filter((c) => c.available && c.availableMax > 0 && c.reason)
-    .sort((a, b) => (b.score / b.availableMax) - (a.score / a.availableMax))
-    .slice(0, 3)
-    .map((c) => c.reason);
+    .sort((a, b) => (b.score / b.availableMax) - (a.score / a.availableMax));
+  const alasan3 = sortedReasons.length <= 3
+    ? sortedReasons.map((c) => c.reason)
+    : [...sortedReasons.slice(0, 2), sortedReasons[sortedReasons.length - 1]].map((c) => c.reason);
 
   let risk = '';
   if (technical.ma20 != null && technical.currentPrice != null && technical.currentPrice > 0) {

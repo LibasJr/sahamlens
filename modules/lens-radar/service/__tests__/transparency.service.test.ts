@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildBucketRows, buildTop5EquityCurve } from '../transparency.service';
+import { buildBucketRows, buildTop5EquityCurve, buildTransparencyBanner } from '../transparency.service';
 import type { CalibrationObservation } from '../calibration.service';
+import type { ValidationStatus } from '../../constants/research-status';
 
 function obs(partial: Partial<CalibrationObservation>): CalibrationObservation {
   return {
@@ -47,7 +48,7 @@ describe('transparency.service', () => {
     expect(high.avgLossT20).toBe(-4);
   });
 
-  it('membangun equity curve Top 5 LensRadar vs IHSG dari window entry/exit yang sama', () => {
+  it('membangun equity curve Top 5 LensRadar vs IHSG dari window 20 hari yang tidak tumpang tindih', () => {
     const observations = [
       obs({ ticker: 'A.JK', signalDate: '2026-01-01', lensScore: 90, returnT20: 10 }),
       obs({ ticker: 'B.JK', signalDate: '2026-01-01', lensScore: 89, returnT20: 0 }),
@@ -56,12 +57,20 @@ describe('transparency.service', () => {
       obs({ ticker: 'E.JK', signalDate: '2026-01-01', lensScore: 86, returnT20: 15 }),
       obs({ ticker: 'F.JK', signalDate: '2026-01-01', lensScore: 60, returnT20: 100 }),
       obs({ ticker: 'A.JK', signalDate: '2026-01-02', entryDate: '2026-01-03', exitDateT20: '2026-01-22', lensScore: 90, returnT20: 10 }),
+      ...Array.from({ length: 18 }, (_, i) => obs({
+        ticker: `X${i}.JK`,
+        signalDate: `2026-01-${String(i + 3).padStart(2, '0')}`,
+        lensScore: 70,
+        returnT20: 1,
+      })),
+      obs({ ticker: 'A.JK', signalDate: '2026-01-21', entryDate: '2026-01-22', exitDateT20: '2026-02-10', lensScore: 90, returnT20: 20 }),
     ];
     const curve = buildTop5EquityCurve(observations, [
       { date: '2026-01-02', open: 100, close: 100 },
       { date: '2026-01-03', open: 100, close: 100 },
       { date: '2026-01-21', open: 100, close: 110 },
       { date: '2026-01-22', open: 100, close: 120 },
+      { date: '2026-02-10', open: 100, close: 130 },
     ]);
 
     expect(curve).toHaveLength(2);
@@ -70,5 +79,29 @@ describe('transparency.service', () => {
     // IHSG return hari pertama: (110/100-1)*100 - 0.5 = 9.5%.
     expect(curve[0].ihsg).toBe(109.5);
     expect(curve[0].signals).toBe(5);
+  });
+
+  // FASE 0 - banner publik tidak boleh mengklaim validasi selama syaratnya belum dipenuhi.
+  it('banner TIDAK PERNAH hijau/tervalidasi untuk status yang bisa dihasilkan sistem hari ini', () => {
+    const reachable: ValidationStatus[] = [
+      'NOT_ENOUGH_DATA',
+      'EXPLORATORY',
+      'OUT_OF_SAMPLE_PENDING',
+      'FAILED_VALIDATION',
+    ];
+
+    for (const status of reachable) {
+      const banner = buildTransparencyBanner(status);
+      expect(banner.color).not.toBe('green');
+      expect(banner.status).not.toBe('validated');
+      expect(banner.message.toLowerCase()).not.toContain('tervalidasi');
+      expect(banner.message.toLowerCase()).not.toContain('outperform signifikan');
+    }
+  });
+
+  it('banner menyatakan status riset apa adanya, bukan sel kosong', () => {
+    expect(buildTransparencyBanner('NOT_ENOUGH_DATA').message).toContain('pengumpulan');
+    expect(buildTransparencyBanner('OUT_OF_SAMPLE_PENDING').message.toLowerCase()).toContain('out-of-sample');
+    expect(buildTransparencyBanner('EXPLORATORY').message.toLowerCase()).toContain('eksploratif');
   });
 });

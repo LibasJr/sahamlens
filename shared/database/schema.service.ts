@@ -169,6 +169,11 @@ export function ensureSharedSchema(): Promise<void> {
         fundamental_score NUMERIC,
         flow_score NUMERIC,
         coverage_pct NUMERIC,
+        score_version TEXT,
+        valuation_version TEXT,
+        signal_version TEXT,
+        data_snapshot_version TEXT,
+        calculation_timestamp TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (date, ticker)
@@ -183,6 +188,16 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS flow_score NUMERIC;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS coverage_pct NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS score_version TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS valuation_version TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS signal_version TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS data_snapshot_version TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS calculation_timestamp TIMESTAMPTZ;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_ticker_date

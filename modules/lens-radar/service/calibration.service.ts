@@ -10,10 +10,24 @@ import {
   type LensScoreBucket,
   type LensRadarHistoryEntry,
 } from './bucket-backtest.service';
+import {
+  barAtTradingOffset,
+  buildTradingCalendar,
+  decorrelateByTicker,
+  hasCorporateActionGap,
+  LENS_RADAR_HOLDING_DAYS,
+} from './history-return-utils';
+import {
+  PRODUCT_VALIDATION_STATUS,
+  THRESHOLD_RECOMMENDER_ENABLED,
+  suppressUnvalidatedSignificance,
+} from '../constants/research-status';
+import { partitionByScoreVersion } from '../constants/model-version';
 
 const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
 const OPEN_FETCH_BATCH_SIZE = 12;
+const MIN_EFFECTIVE_T_TEST_SAMPLES = 30;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -84,6 +98,7 @@ export interface ThresholdRecommendation {
   threshold: number | null;
   text: string;
   aiGenerated: boolean;
+  frozen?: boolean;
   supportingSimulation: ThresholdSimulation | null;
   baseline80: ThresholdSimulation | null;
 }
@@ -185,8 +200,11 @@ async function loadOpenMaps(
 export async function calculateCalibrationObservations(
   rows: LensRadarHistoryEntry[],
   provider: DailyOpenProvider = new YahooDailyOpenProvider()
-): Promise<{ normalizedRows: number; uniqueTickers: number; observations: CalibrationObservation[] }> {
-  const normalized = normalizeHistory(rows);
+): Promise<{ normalizedRows: number; uniqueTickers: number; observations: CalibrationObservation[]; scoreVersion: string | null; rejectedRows: number }> {
+  const partition = partitionByScoreVersion(rows);
+  const normalized = normalizeHistory(partition.accepted);
+  const tradingCalendar = buildTradingCalendar(normalized);
+  const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
   const byTicker = new Map<string, NormalizedHistoryEntry[]>();
   for (const row of normalized) {
     const list = byTicker.get(row.ticker) ?? [];
@@ -200,39 +218,55 @@ export async function calculateCalibrationObservations(
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
     const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
+    const byDate = new Map(series.map((row) => [row.date, row]));
     for (let i = 0; i < series.length; i++) {
       const signal = series[i];
-      const entry = series[i + 1];
-      if (!signal || !entry) continue;
+      if (!signal) continue;
+      const signalCalendarIndex = calendarIndex.get(signal.date);
+      if (signalCalendarIndex == null) continue;
+      const entry = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 1);
+      if (!entry) continue;
       const entryOpen = openByDate.get(entry.date);
       if (!isFinitePositive(entryOpen)) continue;
 
-      const toReturn = (exitClose: number | null): number | null => {
-        if (!isFinitePositive(exitClose)) return null;
-        return ((exitClose / entryOpen) - 1) * 100 - LENS_BUCKET_ROUND_TRIP_COST_PCT;
+      const exitT5 = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 5);
+      const exitT20 = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 20);
+
+      const toReturn = (exit: NormalizedHistoryEntry | null): number | null => {
+        if (!exit || !isFinitePositive(exit.closePrice)) return null;
+        if (hasCorporateActionGap(series, entry.date, exit.date)) return null;
+        return ((exit.closePrice / entryOpen) - 1) * 100 - LENS_BUCKET_ROUND_TRIP_COST_PCT;
       };
+
+      const returnT20 = toReturn(exitT20);
 
       observations.push({
         ticker,
         signalDate: signal.date,
         entryDate: entry.date,
-        exitDateT20: series[i + 20]?.date ?? null,
+        exitDateT20: returnT20 == null ? null : exitT20?.date ?? null,
         lensScore: signal.lensScore,
         bucket: signal.bucket,
         marketCap: signal.marketCap,
-        returnT5: toReturn(series[i + 5]?.closePrice ?? null),
-        returnT20: toReturn(series[i + 20]?.closePrice ?? null),
+        returnT5: toReturn(exitT5),
+        returnT20,
       });
     }
   }
 
-  return { normalizedRows: normalized.length, uniqueTickers: tickers.length, observations };
+  return {
+    normalizedRows: normalized.length,
+    uniqueTickers: tickers.length,
+    observations,
+    scoreVersion: partition.version,
+    rejectedRows: rows.length - partition.accepted.length,
+  };
 }
 
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -344,10 +378,15 @@ function studentTCdf(t: number, df: number): number {
   return t >= 0 ? 1 - 0.5 * ib : 0.5 * ib;
 }
 
-export function welchOneTailedGreater(a: number[], b: number[]): CalibrationTTestResult {
+export function welchOneTailedGreater(
+  a: number[],
+  b: number[],
+  options: { minSamplesPerBucket?: number; sampleNote?: string } = {}
+): CalibrationTTestResult {
   const aAvg = average(a);
   const bAvg = average(b);
-  const insufficient = a.length < 2 || b.length < 2 || aAvg == null || bAvg == null;
+  const minSamples = options.minSamplesPerBucket ?? 2;
+  const insufficient = a.length < minSamples || b.length < minSamples || aAvg == null || bAvg == null;
   if (insufficient) {
     return {
       comparison: '80-100 > <60',
@@ -360,7 +399,7 @@ export function welchOneTailedGreater(a: number[], b: number[]): CalibrationTTes
       degreesOfFreedom: null,
       pValue: null,
       significant: false,
-      conclusion: 'Data belum cukup untuk t-test minimal 2 sampel per bucket.',
+      conclusion: `Data belum cukup untuk t-test minimal ${minSamples} sampel efektif per bucket.${options.sampleNote ? ` ${options.sampleNote}` : ''}`,
     };
   }
 
@@ -401,10 +440,35 @@ export function welchOneTailedGreater(a: number[], b: number[]): CalibrationTTes
     degreesOfFreedom: roundPct(df, 2),
     pValue: roundPct(pValue, 4),
     significant,
-    conclusion: significant
+    conclusion: `${significant
       ? 'Bucket 80-100 unggul signifikan atas bucket <60 pada alpha 5%.'
-      : 'Belum terbukti signifikan pada alpha 5%; perlu lebih banyak sampel atau edge belum stabil.',
+      : 'Belum terbukti signifikan pada alpha 5%; perlu lebih banyak sampel atau edge belum stabil.'}${options.sampleNote ? ` ${options.sampleNote}` : ''}`,
   };
+}
+
+export function decorrelateCalibrationObservations(
+  observations: CalibrationObservation[],
+  holdingDays = LENS_RADAR_HOLDING_DAYS
+): CalibrationObservation[] {
+  return decorrelateByTicker(observations, holdingDays);
+}
+
+export function buildCalibrationTTest(observations: CalibrationObservation[]): CalibrationTTestResult {
+  const effective = decorrelateCalibrationObservations(
+    observations.filter((obs) => typeof obs.returnT20 === 'number')
+  );
+  const highT20 = effective
+    .filter((obs) => obs.bucket === '80-100')
+    .map((obs) => obs.returnT20 as number);
+  const lowT20 = effective
+    .filter((obs) => obs.bucket === '<60')
+    .map((obs) => obs.returnT20 as number);
+
+  const result = welchOneTailedGreater(highT20, lowT20, {
+    minSamplesPerBucket: MIN_EFFECTIVE_T_TEST_SAMPLES,
+    sampleNote: 'Sampel didekorelasikan per ticker per 20 hari bursa; korelasi silang antar emiten/rezim pasar masih caveat.',
+  });
+  return PRODUCT_VALIDATION_STATUS === 'RESEARCH_ONLY' ? suppressUnvalidatedSignificance(result) : result;
 }
 
 function chartFromObservations(observations: CalibrationObservation[]): CalibrationBucketChartRow[] {
@@ -502,12 +566,6 @@ export async function getCalibrationDashboardData(
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
   const latestChartRows = latestStats.rows.filter((row) => VISIBLE_CHART_BUCKETS.includes(row.bucket));
   const chart = latestChartRows.length ? latestChartRows : chartFromObservations(observations);
-  const highT20 = observations
-    .filter((obs) => obs.bucket === '80-100' && typeof obs.returnT20 === 'number')
-    .map((obs) => obs.returnT20 as number);
-  const lowT20 = observations
-    .filter((obs) => obs.bucket === '<60' && typeof obs.returnT20 === 'number')
-    .map((obs) => obs.returnT20 as number);
 
   return {
     asOfDate: todayDateKeyWIB(),
@@ -516,7 +574,7 @@ export async function getCalibrationDashboardData(
     uniqueTickers,
     observationsT20,
     chart,
-    tTest: welchOneTailedGreater(highT20, lowT20),
+    tTest: buildCalibrationTTest(observations),
     thresholdSimulations: calculateThresholdSimulations(observations),
   };
 }
@@ -525,6 +583,16 @@ export async function recommendCalibrationThreshold(
   db: Queryable = pool,
   provider: DailyOpenProvider = new YahooDailyOpenProvider()
 ): Promise<ThresholdRecommendation> {
+  if (!THRESHOLD_RECOMMENDER_ENABLED) {
+    return {
+      threshold: null,
+      text: 'Rekomendasi ambang otomatis dibekukan sampai tersedia validasi out-of-sample dan koreksi pengujian berganda. Data saat ini tetap boleh dipakai untuk riset, bukan perubahan ambang produksi.',
+      aiGenerated: false,
+      frozen: true,
+      supportingSimulation: null,
+      baseline80: null,
+    };
+  }
   const data = await getCalibrationDashboardData(db, provider);
   const best = chooseBestThreshold(data.thresholdSimulations);
   const baseline = data.thresholdSimulations.find((sim) => sim.threshold === 80) ?? null;

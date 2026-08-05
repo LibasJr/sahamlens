@@ -67,6 +67,7 @@ function DcfContent() {
   const ai = data?.analysis || {};
   const fcfList = quant?.fcf_projections || [];
   const sensitivity = quant?.sensitivity_table || [];
+  const discountRatePct = quant.discount_rate_pct ?? quant.wacc_pct ?? null;
 
   return (
     <TickerAnalysisShell
@@ -77,7 +78,7 @@ function DcfContent() {
       icon={<Calculator className="w-6 h-6" />}
       accent="blue"
       title={`${stock.symbol || ticker}.JK Intrinsic Valuation`}
-      subtitle={`WACC ${quant.wacc_pct != null ? `${quant.wacc_pct}%` : '-'} (SBN 10Y Yield ${quant.sbn_10y_yield != null ? `${quant.sbn_10y_yield}%` : '-'} + Risk Premium ${quant.risk_premium != null ? `${quant.risk_premium}%` : '-'})`}
+      subtitle={`Discount rate proxy ${discountRatePct != null ? `${discountRatePct}%` : '-'} (asumsi SBN 10Y ${quant.sbn_10y_yield != null ? `${quant.sbn_10y_yield}%` : '-'} + risk premium ${quant.risk_premium != null ? `${quant.risk_premium}%` : '-'})`}
       headerExtra={
         <div className="flex items-center gap-6">
           <div>
@@ -129,7 +130,7 @@ function DcfContent() {
                 <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
                   <th className="p-3">Periode</th>
                   <th className="p-3 text-right">Proyeksi FCF (IDR/Lbr)</th>
-                  <th className="p-3 text-right">Present Value (PV @ WACC)</th>
+                  <th className="p-3 text-right">Present Value (PV @ Discount Rate)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
@@ -150,6 +151,16 @@ function DcfContent() {
                   <td className="p-3 text-right text-tv-muted">-</td>
                   <td className="p-3 text-right text-tv-blue font-number">Rp {quant.pv_terminal_value?.toLocaleString('id-ID')}</td>
                 </tr>
+                <tr className="bg-tv-bg font-bold">
+                  <td className="p-3 text-tv-text">Enterprise Value / Share</td>
+                  <td className="p-3 text-right text-tv-muted">-</td>
+                  <td className="p-3 text-right text-tv-blue font-number">Rp {quant.enterprise_value_per_share?.toLocaleString('id-ID')}</td>
+                </tr>
+                <tr className="bg-tv-bg font-bold">
+                  <td className="p-3 text-tv-text">Less: Net Debt / Share</td>
+                  <td className="p-3 text-right text-tv-muted">-</td>
+                  <td className="p-3 text-right text-tv-red font-number">Rp {quant.net_debt_per_share?.toLocaleString('id-ID')}</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -159,14 +170,14 @@ function DcfContent() {
         <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <TableIcon className="w-5 h-5 text-tv-yellow" />
-            Tabel Sensitivitas Valuasi WACC vs Terminal Growth
+            Tabel Sensitivitas Valuasi Discount Rate vs Terminal Growth
           </h3>
 
           <div className="overflow-x-auto">
             <table className="w-full text-center text-xs border-collapse">
               <thead>
                 <tr className="border-b border-tv-border bg-tv-bg text-tv-muted text-[10px] font-semibold tracking-wide">
-                  <th className="p-3">WACC \ g</th>
+                  <th className="p-3">Discount Rate \ g</th>
                   <th className="p-3">Growth 3.0%</th>
                   <th className="p-3">Growth 3.5% (Base)</th>
                   <th className="p-3">Growth 4.0%</th>
@@ -175,7 +186,7 @@ function DcfContent() {
               <tbody className="divide-y divide-tv-border/50">
                 {sensitivity.map((row: any, i: number) => (
                   <tr key={i} className="hover:bg-tv-hover/50">
-                    <td className="p-3 font-bold text-tv-yellow bg-tv-bg/50 font-number">{row.wacc_pct}</td>
+                    <td className="p-3 font-bold text-tv-yellow bg-tv-bg/50 font-number">{row.discount_rate_pct ?? row.wacc_pct}</td>
                     <td className="p-3 text-tv-text font-bold font-number">Rp {row['g_3.0%']?.toLocaleString('id-ID')}</td>
                     <td className="p-3 text-tv-green font-extrabold bg-tv-green/10 border border-tv-green/30 font-number">
                       Rp {row['g_3.5%']?.toLocaleString('id-ID')}

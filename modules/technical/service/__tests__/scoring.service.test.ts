@@ -199,6 +199,13 @@ describe('P1-8 - volume tinggi tidak lagi diberi poin penuh tanpa arah harga', (
     const tanpaArah = calculateScore('X', { ...fullTechnical, changePct: null }, fullFundamental, fullFlow);
     expect(tanpaArah.detail.volume).toBe(5);
   });
+
+  it('volume 0 adalah fakta bearish/illiquid, bukan data hilang yang direnormalisasi', () => {
+    const nol = calculateScore('X', { ...fullTechnical, volToday: 0 }, fullFundamental, fullFlow);
+    expect(nol.detail.volume).toBe(0);
+    expect(nol.missing.join(' ')).not.toContain('Volume');
+    expect(nol.alasan_3_poin.join(' ')).toContain('Tidak ada transaksi');
+  });
 });
 
 describe('P1-7 - RSI ditafsirkan menurut rezim tren, sekali saja', () => {
