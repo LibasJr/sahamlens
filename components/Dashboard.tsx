@@ -375,6 +375,22 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Memuat waktu...'}</span>
                 <span className="sm:hidden">{jakartaTime || '--:--'}</span>
               </div>
+              {/* BUG FIX (2026-08-05, permintaan user): halaman ini (root `/`) satu-satunya
+                  yang tidak lewat AppShell/TopMarketBar (lihat AppShell.tsx cabang
+                  isLandingPage), jadi satu-satunya halaman yang sebelumnya TIDAK punya
+                  tombol "Ask LensAI" di pojok kanan atas - sebelumnya cuma tombol bulat
+                  mengambang (AIChat.tsx) yang sekarang dihapus karena dobel di halaman
+                  lain. Tombol ini dispatch event yang sama ('open-ai-chat') persis seperti
+                  TopMarketBar.tsx, supaya perilakunya identik di semua halaman. */}
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event('open-ai-chat'))}
+                title="Ask LensAI"
+                aria-label="Ask LensAI"
+                className="hidden sm:flex items-center gap-1.5 rounded-full bg-tv-blue/10 hover:bg-tv-blue/20 text-tv-blue px-3 py-1.5 text-[11px] font-semibold transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Ask LensAI
+              </button>
               {/* "Buka Dashboard" untuk SEMUA pengunjung (bukan cuma yang sudah login) -
                   /home bisa dibuka tanpa akun (aturan akses eksplorasi 2026-08-01), jadi
                   ajakan menjelajah lebih pas daripada "Login" yang terkesan wajib akun
