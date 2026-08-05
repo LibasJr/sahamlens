@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import TradingViewChart from '@/components/TradingViewChart';
@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
+import FundamentalExportCard from '@/components/export/FundamentalExportCard';
+import ExportImageButton from '@/components/export/ExportImageButton';
+import { buildExportFileName } from '@/shared/format/export-filename';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -34,6 +37,7 @@ function FundamentalContent() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const fundamentalExportRef = useRef<HTMLDivElement>(null);
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -263,7 +267,7 @@ function FundamentalContent() {
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
             Update: {formatTime(lastUpdate)} • {marketClosed ? 'No Polling' : '1m refresh'}
           </div>
-          <button 
+          <button
             onClick={handleRefresh}
             disabled={loading}
             className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -271,8 +275,29 @@ function FundamentalContent() {
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
           </button>
+          <ExportImageButton
+            targetRef={fundamentalExportRef}
+            fileName={buildExportFileName('Fundamental', ticker)}
+            label="Export Kartu Fundamental"
+            disabled={!data}
+          />
         </div>
 
+        {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
+            punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
+            halaman (position absolute + geser jauh ke luar viewport). */}
+        {data && (
+          <div ref={fundamentalExportRef} style={{ position: 'absolute', left: -9999, top: 0 }}>
+            <FundamentalExportCard
+              ticker={ticker}
+              stock={stock}
+              fundamentals={data?.fundamentals || {}}
+              profile={data?.profile || {}}
+              consensus={data?.consensus}
+              exportedAt={new Date()}
+            />
+          </div>
+        )}
 
         {/* Top Summary Banner */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
