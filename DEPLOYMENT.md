@@ -24,6 +24,15 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - Menu UI untuk Transparency & Calibration
+
+- Sidebar sekarang menampilkan menu publik **Transparansi** (`/transparency`) di grup
+  Intelligence, sehingga halaman validasi LensRadar tidak perlu dibuka manual lewat URL.
+- Sidebar admin sekarang menampilkan **Kalibrasi LensRadar** (`/admin/calibration`) di grup
+  Admin untuk role `admin`. Proteksi halaman tetap memakai `isAdminServer()`; link ini hanya
+  menambah discoverability UI, bukan membuka akses baru.
+- Tidak ada perubahan env var, dependency, cron, cache, atau schema database.
+
 ### 2026-08-05 - LensScore auto re-weight proposal (manual approval)
 
 - Service baru `modules/lens-radar/service/lens-score-optimizer.service.ts`.
