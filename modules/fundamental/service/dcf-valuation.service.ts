@@ -59,6 +59,14 @@ const SECTOR_RULES: Record<string, any> = {
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
 export async function calculateIntrinsicValue(rawTicker: string) {
   let ticker = rawTicker.toUpperCase();
   if (!ticker.includes('.')) {
@@ -73,14 +81,28 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     return null;
   }
 
-  let price = quoteSummary.price?.regularMarketPrice || 0;
-  let eps = quoteSummary.defaultKeyStatistics?.trailingEps || 0;
-  let bvps = quoteSummary.defaultKeyStatistics?.bookValue || 0;
-  let roe = (quoteSummary.financialData?.returnOnEquity || 0) * 100;
-  let dps = quoteSummary.summaryDetail?.dividendRate || 0;
+  const price = isFinitePositive(quoteSummary.price?.regularMarketPrice)
+    ? quoteSummary.price.regularMarketPrice
+    : null;
+  if (price == null) return null;
+
+  const eps = isFiniteNumber(quoteSummary.defaultKeyStatistics?.trailingEps)
+    ? quoteSummary.defaultKeyStatistics.trailingEps
+    : null;
+  let bvps: number | null = isFiniteNumber(quoteSummary.defaultKeyStatistics?.bookValue)
+    ? quoteSummary.defaultKeyStatistics.bookValue
+    : null;
+  const roe = isFiniteNumber(quoteSummary.financialData?.returnOnEquity)
+    ? quoteSummary.financialData.returnOnEquity * 100
+    : null;
+  const dps = isFiniteNumber(quoteSummary.summaryDetail?.dividendRate)
+    ? quoteSummary.summaryDetail.dividendRate
+    : null;
 
   // Fallback FCF
-  let fcf = quoteSummary.financialData?.freeCashflow || null;
+  let fcf = isFiniteNumber(quoteSummary.financialData?.freeCashflow)
+    ? quoteSummary.financialData.freeCashflow
+    : null;
   // BUG FIX (audit integritas data 2026-08-03, temuan C-09): `|| 1` di sini berarti kalau
   // Yahoo tidak mengembalikan sharesOutstanding, FCF PER SAHAM diam-diam menjadi FCF TOTAL
   // perusahaan (bisa belasan triliun rupiah "per lembar") - nilai itu tetap > 0 sehingga
@@ -88,13 +110,13 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   // yang hilang sekarang membuat fcf_per_share null (metode DCF dilewati), bukan angka
   // fiktif berskala triliunan.
   let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding;
-  let fcf_per_share = (fcf && shares && shares > 0) ? fcf / shares : null;
+  let fcf_per_share = (fcf && isFinitePositive(shares)) ? fcf / shares : null;
 
   // --- BUG FIX: CURRENCY MISMATCH (USD vs IDR) ---
   // Emiten seperti ERTX, ITMG, MEDC melapor dalam USD. Yahoo Finance memberikan EPS dalam USD tapi Harga dalam IDR.
   // Ini menyebabkan P/E menjadi 160.000x dan Harga Wajar (Intrinsic) hancur menjadi Rp 0.
-  const priceCurrency = quoteSummary.price?.currency || 'IDR';
-  const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
+  const priceCurrency = quoteSummary.price?.currency ?? null;
+  const finCurrency = quoteSummary.financialData?.financialCurrency ?? null;
 
   if (priceCurrency === 'IDR' && finCurrency === 'USD') {
     // Diverifikasi empiris (2026-08-05): EPS & DPS Yahoo untuk emiten pelapor USD SUDAH
@@ -105,10 +127,10 @@ export async function calculateIntrinsicValue(rawTicker: string) {
       // Temuan H-6: tanpa kurs, BVPS & FCF tidak bisa disamakan satuannya dengan harga.
       // Metode yang bergantung padanya (PBV Fair, Graham, DCF) DILEWATI - bukan dihitung
       // dari kurs karangan lalu disajikan sebagai nilai wajar.
-      bvps = 0;
+      bvps = null;
       fcf_per_share = null;
     } else {
-      bvps *= exchangeRate;
+      if (bvps != null) bvps *= exchangeRate;
       if (fcf_per_share) fcf_per_share *= exchangeRate;
     }
   }
@@ -131,7 +153,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   let intrinsic_dcf = 0;
 
   // 1. Graham Number
-  if (eps > 0 && bvps > 0) {
+  if (eps != null && eps > 0 && bvps != null && bvps > 0) {
     intrinsic_graham = Math.sqrt(VALUATION_ASSUMPTIONS.GRAHAM_CONSTANT * eps * bvps);
     if (!isBank) {
       methods.graham = {
@@ -144,11 +166,12 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   }
 
   // 2. PBV Fair
-  if (roe > 0 && bvps > 0) {
+  if (roe != null && roe > 0 && bvps != null && bvps > 0) {
     if (isBank) {
       // FIX: Bank PBV Fair
-      let calcBvps = price > 0 && (quoteSummary.defaultKeyStatistics?.priceToBook || 0) > 0
-        ? price / quoteSummary.defaultKeyStatistics.priceToBook
+      const rawPbv = quoteSummary.defaultKeyStatistics?.priceToBook;
+      let calcBvps = isFinitePositive(rawPbv)
+        ? price / rawPbv
         : bvps;
 
       let pbvWajar = (roe / VALUATION_ASSUMPTIONS.BANK_PBV_DIVISOR) * VALUATION_ASSUMPTIONS.BANK_PBV_MULTIPLIER;
@@ -177,12 +200,12 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   }
 
   // 3. DDM
-  if (dps > 0) {
+  if (dps != null && dps > 0) {
     const g = VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH;
     if (isBank) {
       // Bank ber-ROE tinggi diberi discount rate sedikit lebih rendah (risiko dianggap
       // lebih terkendali) - asumsi model, bukan hasil pengukuran risiko emiten.
-      const discountRate = roe > 20 ? 0.105 : VALUATION_ASSUMPTIONS.DISCOUNT_RATE;
+      const discountRate = roe != null && roe > 20 ? 0.105 : VALUATION_ASSUMPTIONS.DISCOUNT_RATE;
       intrinsic_ddm = (dps * (1 + g)) / (discountRate - g);
     } else {
       intrinsic_ddm = (dps * (1 + g)) / (VALUATION_ASSUMPTIONS.DISCOUNT_RATE - g);
@@ -196,7 +219,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   }
 
   // 4. PER Fair
-  if (eps > 0) {
+  if (eps != null && eps > 0) {
     // FIX PER FAIR: Use 14.5 for banks, 15 for others
     const defaultPER = isBank ? VALUATION_ASSUMPTIONS.FAIR_PER_BANK : VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK;
     intrinsic_per = eps * defaultPER;
@@ -252,11 +275,11 @@ export async function calculateIntrinsicValue(rawTicker: string) {
   let fair_value = 0;
   if (totalWeightUsed > 0) {
     fair_value =
-      (intrinsic_pbv * (activeWeights.pbv || 0)) +
-      (intrinsic_ddm * (activeWeights.ddm || 0)) +
-      (intrinsic_per * (activeWeights.per || 0)) +
-      (intrinsic_dcf * (activeWeights.dcf || 0)) +
-      (intrinsic_graham * (activeWeights.graham || 0));
+      (intrinsic_pbv * (activeWeights.pbv ?? 0)) +
+      (intrinsic_ddm * (activeWeights.ddm ?? 0)) +
+      (intrinsic_per * (activeWeights.per ?? 0)) +
+      (intrinsic_dcf * (activeWeights.dcf ?? 0)) +
+      (intrinsic_graham * (activeWeights.graham ?? 0));
   } else {
     // Fallback to median if nothing matched weights (rare fallback)
     if (validFairValues.length > 0) {
@@ -268,9 +291,11 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     }
   }
 
+  if (fair_value <= 0) return null;
+
   // Calculate MOS
   let mos = 0;
-  if (fair_value > 0 && price > 0) {
+  if (fair_value > 0) {
     mos = ((fair_value - price) / fair_value) * 100;
   }
 
@@ -344,8 +369,14 @@ export async function calculateDcfModel(rawTicker: string) {
 
   if (!quoteSummary) return null;
 
-  const price = quoteSummary.price?.regularMarketPrice || 0;
-  const roe = (quoteSummary.financialData?.returnOnEquity || 0) * 100;
+  const price = isFinitePositive(quoteSummary.price?.regularMarketPrice)
+    ? quoteSummary.price.regularMarketPrice
+    : null;
+  if (price == null) return null;
+
+  const roe = isFiniteNumber(quoteSummary.financialData?.returnOnEquity)
+    ? quoteSummary.financialData.returnOnEquity * 100
+    : null;
   const payoutRatio = quoteSummary.summaryDetail?.payoutRatio ?? null;
   const sector = quoteSummary.assetProfile?.sector || '';
   const isBank = sector.toLowerCase().includes('bank') || sector.toLowerCase().includes('financial');
@@ -353,8 +384,10 @@ export async function calculateDcfModel(rawTicker: string) {
   // calculateIntrinsicValue() di atas - `|| 1` membuat FCF total perusahaan lolos
   // sebagai "FCF per lembar" saat sharesOutstanding hilang, meledakkan fair value DCF.
   let shares = quoteSummary.defaultKeyStatistics?.sharesOutstanding;
-  let fcf = quoteSummary.financialData?.freeCashflow || null;
-  let fcfPerShare = (fcf && shares && shares > 0) ? fcf / shares : null;
+  let fcf = isFiniteNumber(quoteSummary.financialData?.freeCashflow)
+    ? quoteSummary.financialData.freeCashflow
+    : null;
+  let fcfPerShare = (fcf && isFinitePositive(shares)) ? fcf / shares : null;
 
   // Bank/institusi keuangan tidak punya "Free Cash Flow" dalam pengertian yang sama
   // (arus kas operasionalnya didominasi penempatan kredit/simpanan, bukan capex vs
@@ -376,8 +409,8 @@ export async function calculateDcfModel(rawTicker: string) {
   // Fix mismatch mata uang USD (laporan keuangan) vs IDR (harga saham) - sama seperti
   // calculateIntrinsicValue(); tanpa ini FCF/share emiten pelapor USD (mis. ADRO.JK)
   // jadi ~15.000x lebih kecil dari harga sahamnya.
-  const priceCurrency = quoteSummary.price?.currency || 'IDR';
-  const finCurrency = quoteSummary.financialData?.financialCurrency || 'IDR';
+  const priceCurrency = quoteSummary.price?.currency ?? null;
+  const finCurrency = quoteSummary.financialData?.financialCurrency ?? null;
   if (priceCurrency === 'IDR' && finCurrency === 'USD' && fcfPerShare) {
     const exchangeRate = await getUsdIdrRate();
     // Temuan H-6: tanpa kurs, FCF/share (USD) tidak bisa dibandingkan dengan harga (IDR).
@@ -397,6 +430,17 @@ export async function calculateDcfModel(rawTicker: string) {
     };
   }
 
+  if (roe == null) {
+    return {
+      stock: { symbol: ticker },
+      quant: { current_price: price, not_applicable: true },
+      analysis: {
+        executive_summary: `Data ROE untuk ${ticker} tidak tersedia dari sumber data (Yahoo Finance), sehingga pertumbuhan FCF proyeksi tidak dapat dihitung dari data fundamental yang diklaim model ini.`,
+      },
+      not_applicable_reason: 'NO_ROE_DATA',
+    };
+  }
+
   const waccPct = SBN_10Y_YIELD_PCT + EQUITY_RISK_PREMIUM_PCT;
   const wacc = waccPct / 100;
 
@@ -405,7 +449,7 @@ export async function calculateDcfModel(rawTicker: string) {
   // untuk emiten ROE ekstrem - bukan angka tebakan tetap untuk semua saham.
   const retentionRatio = payoutRatio != null ? clamp(1 - payoutRatio, 0, 1) : 0.6;
   const rawGrowth = (roe / 100) * retentionRatio;
-  const projectionGrowth = clamp(rawGrowth || 0.05, 0.02, 0.12);
+  const projectionGrowth = clamp(rawGrowth, 0.02, 0.12);
 
   function buildProjection(waccRate: number, terminalGrowthRate: number) {
     const fcfProjections: { year: number; fcf_per_share: number; pv_fcf: number }[] = [];

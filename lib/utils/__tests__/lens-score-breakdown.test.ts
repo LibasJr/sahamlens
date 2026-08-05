@@ -26,17 +26,17 @@ describe('momentumScore', () => {
 describe('riskScore', () => {
   it('gives a high score for low volatility (~1.5% ATR)', () => {
     const analyzers = [{ label: 'Volatility (ATR 14)', decision: 'NEUTRAL', confidence: 72, raw: { atr: 15 } }];
-    expect(riskScore(analyzers, 1000)).toBe(Math.round(100 - 1.5 * 15));
+    expect(riskScore(analyzers, 1000)).toBe(73);
   });
 
   it('gives a lower score for high volatility (~3% ATR)', () => {
     const analyzers = [{ label: 'Volatility (ATR 14)', decision: 'NEUTRAL', confidence: 85, raw: { atr: 30 } }];
-    expect(riskScore(analyzers, 1000)).toBe(Math.round(100 - 3 * 15));
+    expect(riskScore(analyzers, 1000)).toBe(57);
   });
 
-  it('clamps to 0 for extreme volatility', () => {
-    const analyzers = [{ label: 'Volatility (ATR 14)', decision: 'NEUTRAL', confidence: 90, raw: { atr: 200 } }];
-    expect(riskScore(analyzers, 1000)).toBe(0);
+  it('tidak jenuh ke nol untuk saham volatil yang masih umum di IDX', () => {
+    const analyzers = [{ label: 'Volatility (ATR 14)', decision: 'NEUTRAL', confidence: 90, raw: { atr: 67 } }];
+    expect(riskScore(analyzers, 1000)).toBe(37);
   });
 
   it('returns null when the volatility analyzer entry or its raw.atr is missing', () => {

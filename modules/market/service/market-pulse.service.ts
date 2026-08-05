@@ -69,19 +69,30 @@ async function fetchYahooQuote(symbol: string) {
 
     const meta = result.meta;
     const closes = result.indicators?.quote?.[0]?.close || [];
-    const validCloses = closes.filter((c: any) => c !== null);
-    const prevClose = meta.chartPreviousClose || meta.previousClose || validCloses[0] || 0;
-    const currentPrice = meta.regularMarketPrice || validCloses[validCloses.length - 1] || 0;
-    const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+    const validCloses = closes.filter((c: unknown): c is number =>
+      typeof c === 'number' && Number.isFinite(c) && c > 0
+    );
+    const prevCandidate = meta.chartPreviousClose ?? meta.previousClose ?? validCloses[0];
+    const priceCandidate = meta.regularMarketPrice ?? validCloses[validCloses.length - 1];
+    if (
+      typeof prevCandidate !== 'number' || !Number.isFinite(prevCandidate) || prevCandidate <= 0 ||
+      typeof priceCandidate !== 'number' || !Number.isFinite(priceCandidate) || priceCandidate <= 0
+    ) return null;
+    const prevClose = prevCandidate;
+    const currentPrice = priceCandidate;
+    const changePct = ((currentPrice - prevClose) / prevClose) * 100;
+    const rawVolume = meta.regularMarketVolume;
+    const volume = typeof rawVolume === 'number' && Number.isFinite(rawVolume) && rawVolume >= 0
+      ? rawVolume
+      : null;
 
     return {
       symbol,
       price: currentPrice,
       prevClose,
       changePct: parseFloat(changePct.toFixed(2)),
-      sparkline: validCloses.slice(-50).map((c: number) => parseFloat(c?.toFixed(2) || '0')),
-      volume: meta.regularMarketVolume || 0,
-      marketCap: meta.marketCap || 0
+      sparkline: validCloses.slice(-50).map((c: number) => parseFloat(c.toFixed(2))),
+      volume,
     };
   } catch {
     return null;
@@ -105,16 +116,22 @@ async function fetchQuoteSimple(symbol: string) {
     if (!result) return null;
 
     const meta = result.meta;
-    const prevClose = meta.chartPreviousClose || meta.previousClose || 0;
-    const currentPrice = meta.regularMarketPrice || 0;
-    const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+    const prevCandidate = meta.chartPreviousClose ?? meta.previousClose;
+    const priceCandidate = meta.regularMarketPrice;
+    if (
+      typeof prevCandidate !== 'number' || !Number.isFinite(prevCandidate) || prevCandidate <= 0 ||
+      typeof priceCandidate !== 'number' || !Number.isFinite(priceCandidate) || priceCandidate <= 0
+    ) return null;
+    const changePct = ((priceCandidate - prevCandidate) / prevCandidate) * 100;
+    const rawVolume = meta.regularMarketVolume;
 
     return {
       symbol,
-      price: currentPrice,
+      price: priceCandidate,
       changePct: parseFloat(changePct.toFixed(2)),
-      marketCap: meta.marketCap || 0,
-      volume: meta.regularMarketVolume || 0
+      volume: typeof rawVolume === 'number' && Number.isFinite(rawVolume) && rawVolume >= 0
+        ? rawVolume
+        : null,
     };
   } catch {
     return null;
@@ -252,13 +269,13 @@ export async function getMarketPulse() {
         changePct: s.changePct,
         price: s.price
       })),
-      topVolume: [...breadthQuotes].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 5).map(s => ({
+      topVolume: breadthQuotes.filter((s) => s.volume != null).sort((a, b) => b.volume - a.volume).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
-        volume: s.volume || 0
+        volume: s.volume
       })),
-      topValue: [...breadthQuotes].sort((a, b) => ((b.volume || 0) * (b.price || 0)) - ((a.volume || 0) * (a.price || 0))).slice(0, 5).map(s => ({
+      topValue: breadthQuotes.filter((s) => s.volume != null).sort((a, b) => (b.volume * b.price) - (a.volume * a.price)).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
-        value: (s.volume || 0) * (s.price || 0)
+        value: s.volume * s.price
       })),
       // topFreq & netForeign SEBELUMNYA ada di sini berisi Math.random() murni (komentar
       // asli "Mock frequency") dan tidak pernah ditampilkan di UI manapun - dihapus,

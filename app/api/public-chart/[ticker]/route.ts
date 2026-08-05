@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 export const revalidate = 60;
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
@@ -49,19 +53,36 @@ export async function GET(
     const quote = result.indicators?.quote?.[0] || {};
     const isIntraday = interval.endsWith('m') || interval.endsWith('h');
 
-    let history = [];
+    let history: {
+      time: string;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      price: number;
+      volume: number;
+    }[] = [];
     for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close[i] !== null) {
-        const iso = new Date(timestamps[i] * 1000).toISOString();
-        history.push({
-          time: isIntraday ? iso : iso.split('T')[0],
-          open: quote.open[i] || quote.close[i],
-          high: quote.high[i] || quote.close[i],
-          low: quote.low[i] || quote.close[i],
-          close: quote.close[i],
-          price: quote.close[i],
-          volume: quote.volume[i] || 0
-        });
+      const timestamp = timestamps[i];
+      const open = quote.open?.[i];
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      const volume = quote.volume?.[i];
+
+      if (
+        isFiniteNumber(timestamp) &&
+        isFiniteNumber(open) &&
+        isFiniteNumber(high) &&
+        isFiniteNumber(low) &&
+        isFiniteNumber(close) &&
+        isFiniteNumber(volume) &&
+        close > 0 &&
+        high >= low &&
+        volume >= 0
+      ) {
+        const iso = new Date(timestamp * 1000).toISOString();
+        history.push({ time: isIntraday ? iso : iso.split('T')[0], open, high, low, close, price: close, volume });
       }
     }
 

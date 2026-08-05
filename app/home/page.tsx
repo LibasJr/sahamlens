@@ -104,7 +104,14 @@ export default function HomePage() {
     ])
       .then(([liveJkse, summary]) => {
         if (!liveJkse && !summary) { setMarketError(true); return; }
-        if (liveJkse) {
+        if (
+          liveJkse &&
+          typeof liveJkse.price === 'number' &&
+          Number.isFinite(liveJkse.price) &&
+          liveJkse.price > 0 &&
+          typeof liveJkse.changePercent === 'number' &&
+          Number.isFinite(liveJkse.changePercent)
+        ) {
           setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
         }
         if (summary) {

@@ -103,6 +103,15 @@ export type ScoredStock = {
   eligibilityStatus?: EligibilityStatus | null;
   /** Alasan gerbang kelayakan aktif - diteruskan apa adanya untuk penelusuran. */
   eligibilityReasons?: string[] | null;
+  /** Setup trading long berbasis ATR + struktur harga. Null kalau RR < 1.5 atau data
+   * struktur tidak cukup. Ranking tidak boleh menciptakan TP/CL sendiri dari ATR saja. */
+  tradeSetup?: {
+    tp1: number;
+    tp2: number;
+    cl1: number;
+    cl2: number;
+    rr: number;
+  } | null;
 };
 
 export type BreakoutInfo = {
@@ -133,15 +142,12 @@ export type AiPickItem = {
   flagReason: string | null;
   breakdown: ScoreBreakdown;
   topReasons: string[];
-  /** Proyeksi ATR-14: TP1/TP2 = harga + 1x/2x ATR, CL1/CL2 = harga - 1x/2x ATR. Selalu
-   * dihitung bareng (bukan cuma salah satu tergantung Golden/Dead Cross) - TP = target
-   * potensi naik, CL = level waspada/cut-loss, relevan buat semua saham di ranking ini
-   * terlepas status cross-nya. Null kalau ATR belum tersedia (histori <15 bar atau cache
-   * lama sebelum field ini ada). */
+  /** Setup trading long berbasis struktur + ATR. Null kalau belum ada setup RR >= 1.5. */
   tp1: number | null;
   tp2: number | null;
   cl1: number | null;
   cl2: number | null;
+  rr: number | null;
 };
 
 /**
@@ -220,10 +226,11 @@ export function rankAiPicks(
       // tanpa guard ini, UI yang mengakses item.breakdown.technical akan crash.
       breakdown: s.breakdown ?? { technical: 0, fundamental: 0, flow: 0 },
       topReasons: s.topReasons ?? [],
-      tp1: typeof s.atr === 'number' ? Math.round(s.price + s.atr) : null,
-      tp2: typeof s.atr === 'number' ? Math.round(s.price + 2 * s.atr) : null,
-      cl1: typeof s.atr === 'number' ? Math.round(s.price - s.atr) : null,
-      cl2: typeof s.atr === 'number' ? Math.round(s.price - 2 * s.atr) : null,
+      tp1: s.tradeSetup?.tp1 ?? null,
+      tp2: s.tradeSetup?.tp2 ?? null,
+      cl1: s.tradeSetup?.cl1 ?? null,
+      cl2: s.tradeSetup?.cl2 ?? null,
+      rr: s.tradeSetup?.rr ?? null,
     };
   });
 

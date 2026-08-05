@@ -31,7 +31,16 @@ export default function TopMarketBar() {
     fetch('/api/live/^JKSE')
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.price) setIhsg({ price: data.price, change: data.changePercent });
+        if (
+          data &&
+          typeof data.price === 'number' &&
+          Number.isFinite(data.price) &&
+          data.price > 0 &&
+          typeof data.changePercent === 'number' &&
+          Number.isFinite(data.changePercent)
+        ) {
+          setIhsg({ price: data.price, change: data.changePercent });
+        }
       })
       .catch(() => {});
   }, []);

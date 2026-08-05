@@ -190,19 +190,24 @@ describe('rankAiPicks', () => {
     expect(result[0].coverage).toBeNull();
   });
 
-  it('TP1/TP2/CL1/CL2 dihitung dari harga +/- 1x/2x ATR, keduanya sekaligus bukan salah satu', () => {
-    const scored = [stock('AAAA.JK', 80, { price: 1000, atr: 50 })];
+  it('TP/CL diteruskan dari setup struktur+ATR, bukan dibuat simetris dari ATR di ranking', () => {
+    const scored = [stock('AAAA.JK', 80, {
+      price: 1000,
+      atr: 50,
+      tradeSetup: { tp1: 1100, tp2: 1150, cl1: 950, cl2: 900, rr: 2 },
+    })];
 
     const result = rankAiPicks(scored, noSignals, []);
 
-    expect(result[0].tp1).toBe(1050);
-    expect(result[0].tp2).toBe(1100);
+    expect(result[0].tp1).toBe(1100);
+    expect(result[0].tp2).toBe(1150);
     expect(result[0].cl1).toBe(950);
     expect(result[0].cl2).toBe(900);
+    expect(result[0].rr).toBe(2);
   });
 
-  it('TP/CL null kalau ATR belum tersedia (cache lama sebelum field ini ada)', () => {
-    const scored = [stock('AAAA.JK', 80)]; // atr tidak di-set (undefined)
+  it('TP/CL null kalau belum ada setup RR memadai meskipun ATR tersedia', () => {
+    const scored = [stock('AAAA.JK', 80, { atr: 50, tradeSetup: null })];
 
     const result = rankAiPicks(scored, noSignals, []);
 
@@ -210,6 +215,7 @@ describe('rankAiPicks', () => {
     expect(result[0].tp2).toBeNull();
     expect(result[0].cl1).toBeNull();
     expect(result[0].cl2).toBeNull();
+    expect(result[0].rr).toBeNull();
   });
 });
 

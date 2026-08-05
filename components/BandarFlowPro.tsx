@@ -58,6 +58,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   if (!data) return null;
 
   const { summary } = data;
+  const formatFlowValue = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) ? `${value}M` : 'N/A';
 
   // 5-tier LensFlow status (spec BUILD 002 item 10) - turunan dari summary.status
   // (3 nilai) + summary.streak (sudah dihitung, sudah dipakai badge "N HARI" di bawah),
@@ -187,7 +189,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 <TrendingUp className="w-3.5 h-3.5" /> Hari Naik
               </div>
               <div className="text-2xl font-bold font-mono text-white">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-              <div className="text-[11px] font-mono text-tv-muted">Rata² nilai: <span className="text-tv-green">{summary.avgUpValueBillion}M</span></div>
+              <div className="text-[11px] font-mono text-tv-muted">Rata² nilai: <span className="text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span></div>
             </div>
 
             <div className="space-y-2">
@@ -195,7 +197,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 <TrendingDown className="w-3.5 h-3.5" /> Hari Turun
               </div>
               <div className="text-2xl font-bold font-mono text-white">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-              <div className="text-[11px] font-mono text-tv-muted">Rata² nilai: <span className="text-tv-red">{summary.avgDownValueBillion}M</span></div>
+              <div className="text-[11px] font-mono text-tv-muted">Rata² nilai: <span className="text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span></div>
             </div>
           </div>
 

@@ -166,7 +166,14 @@ export default function Dashboard() {
     fetch('/api/live/^JKSE')
       .then(r => r.json())
       .then(data => {
-        if (data && data.price) {
+        if (
+          data &&
+          typeof data.price === 'number' &&
+          Number.isFinite(data.price) &&
+          data.price > 0 &&
+          typeof data.changePercent === 'number' &&
+          Number.isFinite(data.changePercent)
+        ) {
           const pointChange = (data.price * data.changePercent / 100);
           setIhsg({ price: data.price, change: data.changePercent, pointChange });
         }
@@ -212,7 +219,7 @@ export default function Dashboard() {
   const ind: Indicators | null = React.useMemo(() => {
     if (upToChartData.length < 2) return null;
     const closes = upToChartData.map((h: any) => h.close);
-    const volumes = upToChartData.map((h: any) => h.volume || 0);
+    const volumes = upToChartData.map((h: any) => h.volume);
     return computeIndicators(upToChartData[upToChartData.length - 1].time, closes, volumes);
   }, [upToChartData]);
 
@@ -490,7 +497,11 @@ export default function Dashboard() {
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
                         </span>
                       )}
-                      <span className="text-tv-muted">{ind ? `Vol: ${(ind.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(ind.value / 1e12).toFixed(2)} T` : 'Memuat volume...'}</span>
+                      <span className="text-tv-muted">
+                        {ind?.volume != null && ind?.value != null
+                          ? `Vol: ${(ind.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(ind.value / 1e12).toFixed(2)} T`
+                          : 'Volume: N/A'}
+                      </span>
                       {isHovering && ind && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-tv-blue/10 text-tv-blue px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                           Data per {ind.time}

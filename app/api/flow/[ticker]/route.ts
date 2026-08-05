@@ -15,6 +15,10 @@ import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, an
 // IDX tidak menyediakan feed broker summary gratis, jadi tidak ada cara menghitungnya
 // dari data real yang tersedia.
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
@@ -50,13 +54,28 @@ export async function GET(
 
     const history: { date: string; high: number; low: number; close: number; volume: number }[] = [];
     for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close?.[i] != null) {
+      const timestamp = timestamps[i];
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      const volume = quote.volume?.[i];
+
+      if (
+        isFiniteNumber(timestamp) &&
+        isFiniteNumber(high) &&
+        isFiniteNumber(low) &&
+        isFiniteNumber(close) &&
+        isFiniteNumber(volume) &&
+        close > 0 &&
+        high >= low &&
+        volume >= 0
+      ) {
         history.push({
-          date: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
-          high: quote.high?.[i] ?? quote.close[i],
-          low: quote.low?.[i] ?? quote.close[i],
-          close: quote.close[i],
-          volume: quote.volume?.[i] || 0,
+          date: new Date(timestamp * 1000).toISOString().split('T')[0],
+          high,
+          low,
+          close,
+          volume,
         });
       }
     }
@@ -71,8 +90,8 @@ export async function GET(
 
     const upDays = dailyFlow.filter((d) => d.netValueBillion > 0);
     const downDays = dailyFlow.filter((d) => d.netValueBillion < 0);
-    const avgUpValueBillion = upDays.length ? parseFloat((upDays.reduce((s, d) => s + d.netValueBillion, 0) / upDays.length).toFixed(2)) : 0;
-    const avgDownValueBillion = downDays.length ? parseFloat((downDays.reduce((s, d) => s + Math.abs(d.netValueBillion), 0) / downDays.length).toFixed(2)) : 0;
+    const avgUpValueBillion = upDays.length ? parseFloat((upDays.reduce((s, d) => s + d.netValueBillion, 0) / upDays.length).toFixed(2)) : null;
+    const avgDownValueBillion = downDays.length ? parseFloat((downDays.reduce((s, d) => s + Math.abs(d.netValueBillion), 0) / downDays.length).toFixed(2)) : null;
 
     // Dulu status AKUMULASI/DISTRIBUSI cuma dari "3 hari netValue positif berturut-turut"
     // - gampang lolos meski sinyalnya lemah (positif tipis-tipis). Diganti konfirmasi

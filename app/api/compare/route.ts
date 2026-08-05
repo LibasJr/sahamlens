@@ -55,6 +55,10 @@ function sma(closes: number[], period: number): number | null {
   return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
 function maStatusOf(price: number, ma50: number | null, ma200: number | null): string {
   if (ma50 == null || ma200 == null) return 'DATA BELUM CUKUP';
   if (price > ma50 && ma50 > ma200) return 'UPTREND KUAT';
@@ -78,7 +82,13 @@ async function buildStockData(rawSymbol: string) {
   const closes = hist.history.map((h) => h.AdjClose ?? h.Close);
   const highs = hist.history.map((h) => h.High);
   const lows = hist.history.map((h) => h.Low);
-  const price = hist.currentPrice || hist.history[hist.history.length - 1].Close;
+  const lastClose = hist.history[hist.history.length - 1]?.Close;
+  const price = isFinitePositive(hist.currentPrice)
+    ? hist.currentPrice
+    : isFinitePositive(lastClose)
+    ? lastClose
+    : null;
+  if (price == null) return null;
 
   const ma20 = sma(closes, 20);
   const ma50 = sma(closes, 50);
@@ -106,10 +116,10 @@ async function buildStockData(rawSymbol: string) {
   if (rsi != null && rsi >= 45 && rsi <= 70) scoreConditions++;
   const score = Math.round((scoreConditions / totalConditions) * 100);
 
-  const eps = intrinsic?.eps || 0;
-  const bvps = intrinsic?.bvps || 0;
-  const per = eps > 0 ? price / eps : null;
-  const pbv = bvps > 0 ? price / bvps : null;
+  const eps = isFinitePositive(intrinsic?.eps) ? intrinsic.eps : null;
+  const bvps = isFinitePositive(intrinsic?.bvps) ? intrinsic.bvps : null;
+  const per = eps != null && eps > 0 ? price / eps : null;
+  const pbv = bvps != null && bvps > 0 ? price / bvps : null;
 
   // Audit BUILD 001 (timestamp/freshness) - /compare fetch LIVE tiap request (tidak
   // di-cache seperti Screener/Recommendations), jadi freshness-nya dari timestamp
@@ -127,7 +137,7 @@ async function buildStockData(rawSymbol: string) {
     rr: rrRatio,
     support,
     resistance,
-    fairValue: intrinsic?.fair_value || null,
+    fairValue: isFinitePositive(intrinsic?.fair_value) ? intrinsic.fair_value : null,
     mos: intrinsic?.mos ?? null,
     _meta: { freshness: fresh.freshness, dataTimestamp: fresh.dataTimestamp, ageSeconds: fresh.ageSeconds },
   };
@@ -161,7 +171,7 @@ function explainRow(
     case 'rsi':
       return `RSI ${a.symbol} ${a.rsi?.toFixed(1) ?? '-'} vs ${b.symbol} ${b.rsi?.toFixed(1) ?? '-'} - ${winner} berada di zona yang lebih sehat (tidak overbought/oversold ekstrem).`;
     case 'rr':
-      return `Risk/Reward ${winner} 1:${(winner === a.symbol ? a.rr : b.rr)?.toFixed(1)} lebih baik dibanding ${loser} 1:${(winner === a.symbol ? b.rr : a.rr)?.toFixed(1)}, dihitung dari jarak ke support/resistance 20 hari terakhir.`;
+      return `Ruang naik/turun 20D ${winner} ${(winner === a.symbol ? a.rr : b.rr)?.toFixed(1)}x lebih besar dibanding ${loser} ${(winner === a.symbol ? b.rr : a.rr)?.toFixed(1)}x. Ini posisi di range 20 hari, bukan setup risk/reward trading.`;
     default:
       return '';
   }
@@ -208,15 +218,15 @@ export async function GET(request: Request) {
     { key: 'per', label: 'PER (Valuasi)', a: data1.per != null ? `${data1.per.toFixed(1)}x` : 'N/A', b: data2.per != null ? `${data2.per.toFixed(1)}x` : 'N/A', winner: winners.per, reason: winners.per !== '-' ? explainRow('per', data1, data2, winners.per, '', '') : 'Data PER tidak lengkap (laba negatif atau data tidak tersedia).' },
     { key: 'pbv', label: 'PBV', a: data1.pbv != null ? `${data1.pbv.toFixed(2)}x` : 'N/A', b: data2.pbv != null ? `${data2.pbv.toFixed(2)}x` : 'N/A', winner: winners.pbv, reason: winners.pbv !== '-' ? explainRow('pbv', data1, data2, winners.pbv, '', '') : 'Data PBV tidak lengkap.' },
     { key: 'rsi', label: 'RSI (14)', a: data1.rsi != null ? data1.rsi.toFixed(1) : 'N/A', b: data2.rsi != null ? data2.rsi.toFixed(1) : 'N/A', winner: winners.rsi, reason: winners.rsi !== '-' ? explainRow('rsi', data1, data2, winners.rsi, '', '') : 'Data historis belum cukup untuk RSI.' },
-    { key: 'rr', label: 'Risk/Reward (20D)', a: data1.rr != null ? `1:${data1.rr.toFixed(1)}` : 'N/A', b: data2.rr != null ? `1:${data2.rr.toFixed(1)}` : 'N/A', winner: winners.rr, reason: winners.rr !== '-' ? explainRow('rr', data1, data2, winners.rr, '', '') : 'Harga terlalu dekat/di bawah support 20 hari untuk dihitung.' },
+    { key: 'rr', label: 'Ruang Naik/Turun 20D', a: data1.rr != null ? `${data1.rr.toFixed(1)}x` : 'N/A', b: data2.rr != null ? `${data2.rr.toFixed(1)}x` : 'N/A', winner: winners.rr, reason: winners.rr !== '-' ? explainRow('rr', data1, data2, winners.rr, '', '') : 'Harga terlalu dekat/di bawah support 20 hari untuk dihitung.' },
   ];
 
   const winCount1 = Object.values(winners).filter((w) => w === data1.symbol).length;
   const winCount2 = Object.values(winners).filter((w) => w === data2.symbol).length;
   const overallWinner = winCount1 > winCount2 ? data1.symbol : winCount2 > winCount1 ? data2.symbol : null;
   const conclusion = overallWinner
-    ? `Dari ${rows.length} metrik yang dibandingkan, ${overallWinner} unggul di ${Math.max(winCount1, winCount2)} metrik. ${overallWinner === data1.symbol ? data1.symbol : data2.symbol} tampak relatif lebih menarik saat ini, tapi tetap perhatikan metrik yang dimenangkan ${overallWinner === data1.symbol ? data2.symbol : data1.symbol} di atas sebagai konteks tambahan sebelum memutuskan.`
-    : `${data1.symbol} dan ${data2.symbol} sama-sama unggul di ${winCount1} dari ${rows.length} metrik - keduanya punya profil risk/reward yang sebanding saat ini, pertimbangkan preferensi sektor/valuasi Anda.`;
+    ? `Dari ${rows.length} metrik yang dibandingkan, ${overallWinner} unggul di ${Math.max(winCount1, winCount2)} metrik yang tersedia. Gunakan baris metrik di atas sebagai konteks, bukan rekomendasi beli/jual otomatis.`
+    : `${data1.symbol} dan ${data2.symbol} sama-sama unggul di ${winCount1} dari ${rows.length} metrik yang tersedia. Gunakan konteks sektor, valuasi, dan risiko sebelum mengambil keputusan.`;
 
   return NextResponse.json({
     data1: { symbol: data1.symbol, price: data1.price, _meta: data1._meta },

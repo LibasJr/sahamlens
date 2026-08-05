@@ -16,6 +16,7 @@ import {
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '@/modules/market';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
+import { evaluateMinimalEligibility } from '@/modules/eligibility';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -25,6 +26,14 @@ const MIN_MARKET_CAP = 500_000_000_000; // Rp 500 miliar - permintaan eksplisit,
 function sma(closes: number[], period: number): number | null {
   if (closes.length < period) return null;
   return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
+}
+
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/recommendations/route.ts.
@@ -61,23 +70,39 @@ export async function analyzeStock(ticker: string) {
     const currentPrice = result.meta.regularMarketPrice;
     const timestamps = result.timestamp || [];
     const quote = result.indicators.quote[0];
+    if (
+      typeof currentPrice !== 'number' || !Number.isFinite(currentPrice) || currentPrice <= 0 ||
+      !Array.isArray(timestamps) || !quote
+    ) return null;
     // AdjClose (disesuaikan dividen, temuan M-01 - lihat yahoo-history.service.ts).
     const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
 
-    const history = [];
+    const history: Array<{ Date: string; Open: number; High: number; Low: number; Close: number; Volume: number; AdjClose: number }> = [];
     for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close[i] !== null) {
-        const adj = adjcloseArr?.[i];
-        history.push({
-          Date: new Date(timestamps[i] * 1000).toISOString(),
-          Open: quote.open[i],
-          High: quote.high[i],
-          Low: quote.low[i],
-          Close: quote.close[i],
-          Volume: quote.volume[i],
-          AdjClose: typeof adj === 'number' ? adj : quote.close[i],
-        });
-      }
+      const open = quote.open?.[i];
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      const volume = quote.volume?.[i];
+      const timestamp = timestamps[i];
+      // Analyzer teknikal membutuhkan satu bar OHLCV utuh. Bar setengah/NaN tidak
+      // boleh diterjemahkan sebagai nol atau close pengganti karena itu menciptakan
+      // candle dan sinyal yang tidak pernah diperdagangkan.
+      if (
+        typeof timestamp !== 'number' ||
+        ![open, high, low, close, volume].every((v) => typeof v === 'number' && Number.isFinite(v)) ||
+        close <= 0 || high < low || volume < 0
+      ) continue;
+      const adj = adjcloseArr?.[i];
+      history.push({
+        Date: new Date(timestamp * 1000).toISOString(),
+        Open: open,
+        High: high,
+        Low: low,
+        Close: close,
+        Volume: volume,
+        AdjClose: typeof adj === 'number' && Number.isFinite(adj) && adj > 0 ? adj : close,
+      });
     }
 
     if (history.length < 30) return null;
@@ -126,12 +151,16 @@ export async function analyzeStock(ticker: string) {
         ? Math.max(consensusVote.bull_pct, consensusVote.bear_pct)
         : consensusVote.bull_pct;
 
-    const prevClose = quote.close[quote.close.length - 2];
-    const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+    const prevClose = history[history.length - 2]?.Close;
+    // Tanpa harga penutupan sebelumnya, perubahan harian tidak terukur. Jangan
+    // menyebutnya 0% (flat) karena itu fakta pasar yang tidak kita miliki.
+    if (typeof prevClose !== 'number' || !Number.isFinite(prevClose) || prevClose <= 0) return null;
+    const changePct = ((currentPrice - prevClose) / prevClose) * 100;
     // Volume yang SUDAH disesuaikan (lihat volumeAdjustedHistory di atas, temuan M-02) -
     // dipakai konsisten untuk volRatio/avgVolume di bawah, sama seperti analyzeVolume/
     // analyzeMarketFlow di atas.
-    const volume = volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume || 0;
+    const volume = volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume;
+    if (!isFiniteNonNegative(volume)) return null;
 
     // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-9): rumus lama
     // `50 + changePct*3 + (bullish-bearish)*2.5` memakai dua konstanta (3 dan 2.5) yang
@@ -156,8 +185,8 @@ export async function analyzeStock(ticker: string) {
       else sentimentLabel = 'Terbelah';
     }
 
-    const avgVolume = history.reduce((sum, h) => sum + h.Volume, 0) / history.length;
-    const volRatio = volume / (avgVolume || 1);
+    const avgVolume = history.length > 0 ? history.reduce((sum, h) => sum + h.Volume, 0) / history.length : null;
+    const volRatio = isFinitePositive(avgVolume) ? volume / avgVolume : null;
 
     // BUG FIX (audit integritas data 2026-08-03, temuan H-03): `foreignFlow` di sini
     // SEBELUMNYA murni arah perubahan harga hari ini (`changePct`/`volRatio`) yang
@@ -209,12 +238,12 @@ export async function analyzeStock(ticker: string) {
       }
       sectorIndustry = quoteSummary?.assetProfile?.industry ?? null;
       payoutRatio = quoteSummary?.summaryDetail?.payoutRatio ?? null;
-      marketCap = quoteSummary?.summaryDetail?.marketCap || quoteSummary?.defaultKeyStatistics?.marketCap || null;
-      per = quoteSummary?.summaryDetail?.trailingPE || quoteSummary?.summaryDetail?.forwardPE || null;
-      pbv = quoteSummary?.defaultKeyStatistics?.priceToBook || null;
+      marketCap = quoteSummary?.summaryDetail?.marketCap ?? quoteSummary?.defaultKeyStatistics?.marketCap ?? null;
+      per = quoteSummary?.summaryDetail?.trailingPE ?? quoteSummary?.summaryDetail?.forwardPE ?? null;
+      pbv = quoteSummary?.defaultKeyStatistics?.priceToBook ?? null;
       roe = quoteSummary?.financialData?.returnOnEquity != null ? quoteSummary.financialData.returnOnEquity * 100 : null;
       der = quoteSummary?.financialData?.debtToEquity != null ? quoteSummary.financialData.debtToEquity / 100 : null;
-      currentRatio = quoteSummary?.financialData?.currentRatio || null;
+      currentRatio = quoteSummary?.financialData?.currentRatio ?? null;
       revenueGrowth = quoteSummary?.financialData?.revenueGrowth != null ? quoteSummary.financialData.revenueGrowth * 100 : null;
 
       // BUG FIX (audit integritas data 2026-08-03, temuan C-07): defaultKeyStatistics
@@ -238,10 +267,9 @@ export async function analyzeStock(ticker: string) {
       // Ignore errors to not break the whole recommendation scan
     }
 
-    // Filter keras market cap >= Rp500M (permintaan eksplisit) - kalau data cap gagal
-    // diambil (marketCap null), TIDAK di-exclude (jangan buang saham cuma karena satu
-    // field gagal fetch), hanya di-exclude kalau angkanya diketahui pasti di bawah ambang.
-    if (marketCap !== null && marketCap < MIN_MARKET_CAP) {
+    // Filter keras market cap >= Rp500M. Cakupan "saham aktif besar" tidak boleh
+    // dipertahankan dengan menebak/menoleransi kapitalisasi yang tidak tersedia.
+    if (marketCap === null || marketCap < MIN_MARKET_CAP) {
       return null;
     }
 
@@ -305,6 +333,17 @@ export async function analyzeStock(ticker: string) {
       },
     );
 
+    const eligibility = evaluateMinimalEligibility({
+      ticker,
+      asOf: todayDateKeyWIB(),
+      bars: history.map((bar) => ({
+        date: bar.Date.split('T')[0],
+        close: bar.Close,
+        volume: bar.Volume,
+      })),
+      coveragePct: scoring.coverage_pct,
+    });
+
     return {
       ticker: ticker.replace('.JK', ''),
       sector: sector,
@@ -312,7 +351,12 @@ export async function analyzeStock(ticker: string) {
       changePct: parseFloat(changePct.toFixed(2)),
       volume: volume,
       consensus,
+      // P3-26: ini adalah persentase vote analyzer, BUKAN probabilitas sukses / confidence
+      // terkalibrasi. Field lama `confidence` dipertahankan untuk kompatibilitas UI lama,
+      // tetapi konsumen baru wajib membaca flag berikut.
       confidence: parseFloat(confidence.toFixed(0)),
+      confidenceCalibrated: false,
+      confidenceBasis: 'CONSENSUS_VOTE_PCT',
       bullishVotes: bullish,
       bearishVotes: bearish,
       // Nama field dipertahankan supaya klien lama tidak pecah, tapi isinya sekarang
@@ -328,6 +372,8 @@ export async function analyzeStock(ticker: string) {
       valuationScore: scoring.detail.valuasi,
       totalScore: scoring.total_score,
       scoringKategori: scoring.kategori,
+      eligibilityStatus: eligibility.status,
+      eligibilityReasons: eligibility.reasonCodes,
       foreignAccumStreak,
     };
   } catch (e) {

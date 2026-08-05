@@ -32,7 +32,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const ind: Indicators | null = useMemo(() => {
     if (chartData.length < 2) return null;
     const closes = chartData.map((h: any) => h.close);
-    const volumes = chartData.map((h: any) => h.volume || 0);
+    const volumes = chartData.map((h: any) => h.volume);
     return computeIndicators(chartData[chartData.length - 1].time, closes, volumes);
   }, [chartData]);
 

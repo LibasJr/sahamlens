@@ -1,6 +1,7 @@
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { calculateRsi } from '../../technical';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
+import { buildLongTradingSetup, type LongTradingSetup } from './trading-setup';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/breakout-radar/route.ts, verbatim.
 // 2026-08-03: dulu 15 ticker hardcoded di sini, sementara kategori AI Pick lain memindai
@@ -17,6 +18,10 @@ export interface BreakoutEntry {
   signals: string[];
   score: number;
   rr: string;
+  tp1: number;
+  tp2: number;
+  cl1: number;
+  cl2: number;
 }
 
 export interface CrossEntry {
@@ -24,6 +29,11 @@ export interface CrossEntry {
   price: number;
   change: string;
   atr: number | null;
+  rr?: string | null;
+  tp1?: number | null;
+  tp2?: number | null;
+  cl1?: number | null;
+  cl2?: number | null;
 }
 
 interface RawSymbolSignal {
@@ -36,6 +46,7 @@ interface RawSymbolSignal {
   signals: string[];
   rr: string;
   atr: number | null;
+  setup: LongTradingSetup | null;
 }
 
 async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal | null> {
@@ -57,20 +68,32 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const result = json.chart.result?.[0];
     if (!result) return null;
 
-    const quote = result.indicators.quote[0];
+    const quote = result.indicators.quote?.[0];
     const timestamps = result.timestamp || [];
+    if (!quote || !Array.isArray(timestamps)) return null;
 
-    const history = [];
+    const history: { date: string; high: number; low: number; close: number; volume: number }[] = [];
     for (let i = 0; i < timestamps.length; i++) {
-      if (quote.close[i] !== null) {
-        history.push({
-          date: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
-          high: quote.high[i],
-          low: quote.low[i],
-          close: quote.close[i],
-          volume: quote.volume[i]
-        });
-      }
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      const volume = quote.volume?.[i];
+      const ts = timestamps[i];
+      if (
+        typeof ts !== 'number' ||
+        typeof high !== 'number' || !Number.isFinite(high) || high <= 0 ||
+        typeof low !== 'number' || !Number.isFinite(low) || low <= 0 ||
+        typeof close !== 'number' || !Number.isFinite(close) || close <= 0 ||
+        typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0 ||
+        high < low
+      ) continue;
+      history.push({
+        date: new Date(ts * 1000).toISOString().split('T')[0],
+        high,
+        low,
+        close,
+        volume
+      });
     }
 
     // BUG FIX (audit integritas data 2026-08-03, temuan H-02): penjaga sebelumnya
@@ -118,12 +141,25 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     // dengan ambang seolah hasil pengukuran. `null` => sinyal RSI MOMENTUM tidak
     // dievaluasi sama sekali untuk saham itu.
     const rsi = calculateRsi(closes, 14);
-    const isRsiBreakout = rsi != null && rsi >= 52 && rsi <= 60;
+    const isRsiBreakout = rsi != null && rsi >= 55 && rsi < 70;
 
-    // Dekat Resistance
-    const high20 = Math.max(...history.slice(-20).map(h => h.high));
-    const distRes = ((high20 - currentPrice) / currentPrice) * 100;
-    const isNearRes = distRes > 0 && distRes < 2;
+    // ATR-14 (Average True Range) - dasar setup trading berbasis risk/reward.
+    let trSum = 0;
+    for (let i = history.length - 14; i < history.length; i++) {
+      const high = history[i].high;
+      const low = history[i].low;
+      const prevClose = history[i - 1].close;
+      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+      trSum += tr;
+    }
+    const atr = trSum / 14;
+
+    const setupHistory = history.map((h) => ({ High: h.high, Low: h.low, Close: h.close }));
+    const setup = buildLongTradingSetup(setupHistory, currentPrice, atr);
+
+    // Dekat resistance STRUKTURAL dari swing point, bukan high 20 hari.
+    const distRes = setup?.resistance ? ((setup.resistance.price - currentPrice) / currentPrice) * 100 : null;
+    const isNearRes = distRes != null && distRes > 0 && distRes < 2.5;
 
     // Bandar Flow (proxy dari volume+harga di atas MA20, BUKAN data broker sungguhan)
     const isBandarAccum = currentPrice > ma20 && isVolSpike;
@@ -135,27 +171,7 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     if (isVolSpike) { score += 2; signals.push(`VOL SPIKE ${(currentVol/avgVol20).toFixed(1)}x`); }
     if (isRsiBreakout) { score += 1; signals.push('RSI MOMENTUM'); }
     if (isNearRes) { score += 1; signals.push('NEAR RES'); }
-    if (isBandarAccum) { score += 1; signals.push('BANDAR AKUM'); }
-
-    const low20 = Math.min(...history.slice(-20).map(h => h.low));
-    const risk = currentPrice - low20;
-    const reward = high20 - currentPrice;
-    const rr = risk > 0 ? (reward / risk).toFixed(1) : '0';
-
-    // ATR-14 (Average True Range) - dasar hitung TP1/TP2 (Golden Cross) / CL1/CL2 (Dead
-    // Cross) di app/api/daily-picks/route.ts. `history` di sini sudah dijamin >=51 bar
-    // (guard di atas), jauh lebih dari 15 yang dibutuhkan ATR-14 - tidak perlu fetch
-    // tambahan. Formula True Range sama dengan modules/technical/service/analyzers/
-    // volatility-analyzer.ts (sudah dipercaya di tempat lain, bukan rumus baru dikarang).
-    let trSum = 0;
-    for (let i = history.length - 14; i < history.length; i++) {
-      const high = history[i].high;
-      const low = history[i].low;
-      const prevClose = history[i - 1].close;
-      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-      trSum += tr;
-    }
-    const atr = trSum / 14;
+    if (isBandarAccum) signals.push('FLOW CONFIRM');
 
     return {
       symbol,
@@ -165,8 +181,9 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
       isDeadCross,
       score,
       signals,
-      rr: `1:${rr}`,
+      rr: setup ? `1:${setup.rr.toFixed(1)}` : 'N/A',
       atr,
+      setup,
     };
   } catch (err) {
     console.error(`Error processing ${symbol}`, err);
@@ -179,7 +196,10 @@ export async function scanBreakouts(): Promise<BreakoutEntry[]> {
 
   const results: BreakoutEntry[] = [];
   for (const r of resolvedResults) {
-    if (r && r.score > 0) {
+    // P2-18/P2-19: sinyal breakout hanya ditampilkan kalau ada setup long dengan RR
+    // minimal 1.5. Kalau tidak, sinyalnya boleh benar secara teknikal, tapi belum layak
+    // dijadikan "radar peluang" untuk pengguna.
+    if (r && r.score > 0 && r.setup) {
       results.push({
         symbol: r.symbol,
         price: r.currentPrice,
@@ -188,6 +208,10 @@ export async function scanBreakouts(): Promise<BreakoutEntry[]> {
         signals: r.signals,
         score: r.score,
         rr: r.rr,
+        tp1: r.setup.tp1,
+        tp2: r.setup.tp2,
+        cl1: r.setup.cl1,
+        cl2: r.setup.cl2,
       });
     }
   }
@@ -209,7 +233,17 @@ export async function scanCrossSignals(): Promise<{ golden: CrossEntry[]; dead: 
   const dead: CrossEntry[] = [];
   for (const r of resolvedResults) {
     if (!r) continue;
-    const entry = { symbol: r.symbol, price: r.currentPrice, change: r.changeStr, atr: r.atr };
+    const entry = {
+      symbol: r.symbol,
+      price: r.currentPrice,
+      change: r.changeStr,
+      atr: r.atr,
+      rr: r.setup ? r.rr : null,
+      tp1: r.setup?.tp1 ?? null,
+      tp2: r.setup?.tp2 ?? null,
+      cl1: r.setup?.cl1 ?? null,
+      cl2: r.setup?.cl2 ?? null,
+    };
     if (r.isCrossUp) golden.push(entry);
     else if (r.isDeadCross) dead.push(entry);
   }

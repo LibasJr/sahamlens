@@ -15,9 +15,26 @@ export type MiniAgent = { name: string; signal: Signal; reason: string };
 export type Indicators = {
   time: string; price: number; prevClose: number; change: number; changePct: number;
   ma20: number | null; ma50: number | null; ma200: number | null; rsi14: number | null; rsiLabel: string;
-  volume: number; value: number; volRatio: number; score: number;
+  volume: number | null; value: number | null; volRatio: number | null; score: number;
   signal: Signal; crossLabel: string;
 };
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isValidCandle(candle: Candle): boolean {
+  return (
+    isFiniteNumber(candle.open) &&
+    isFiniteNumber(candle.high) &&
+    isFiniteNumber(candle.low) &&
+    isFiniteNumber(candle.close) &&
+    isFiniteNumber(candle.volume) &&
+    candle.close > 0 &&
+    candle.high >= candle.low &&
+    candle.volume >= 0
+  );
+}
 
 /** Label arus dana untuk header chart - Chaikin Money Flow 20 hari dari OHLCV nyata
  * (definisi SAMA dengan Screener/BandarFlowPro, lihat modules/market/service/
@@ -30,9 +47,10 @@ export type Indicators = {
  * "AKUMULASI"), dan arah harga tidak ikut dihitung sama sekali. CMF memakai posisi
  * close di dalam range High-Low dibobot volume, jadi arah benar-benar terwakili. */
 export function moneyFlowLabel(candles: Candle[]): string | null {
-  if (!candles || candles.length < 20) return null;
-  const history = candles.slice(-20).map((c) => ({
-    date: c.time, high: c.high, low: c.low, close: c.close, volume: c.volume || 0,
+  const validCandles = (candles || []).filter(isValidCandle);
+  if (validCandles.length < 20) return null;
+  const history = validCandles.slice(-20).map((c) => ({
+    date: c.time, high: c.high, low: c.low, close: c.close, volume: c.volume,
   }));
   const bandarmology = analyzeBandarmology(history);
   const cmf = bandarmology.cmf20;
@@ -83,18 +101,24 @@ export function computeIndicators(time: string, closes: number[], volumes: numbe
   // BUKAN rata-rata bar seadanya yang dilabeli "MA200" (temuan H-2).
   const ma200 = sma(closes, 200);
   const rsi14 = calcRsi(closes, 14);
-  const volume = volumes[volumes.length - 1] || 0;
-  const avgVolume20 = volumes.length >= 20
-    ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
-    : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
-  const volRatio = avgVolume20 ? volume / avgVolume20 : 1;
-  const value = volume * price;
+  const volume = isFiniteNumber(volumes[volumes.length - 1]) && volumes[volumes.length - 1] >= 0
+    ? volumes[volumes.length - 1]
+    : null;
+  const validVolumes = volumes.filter((v) => isFiniteNumber(v) && v >= 0);
+  const avgVolume20 = validVolumes.length >= 20
+    ? validVolumes.slice(-20).reduce((a, b) => a + b, 0) / 20
+    : validVolumes.length > 0
+    ? validVolumes.reduce((a, b) => a + b, 0) / validVolumes.length
+    : null;
+  const volRatio = volume != null && avgVolume20 != null && avgVolume20 > 0 ? volume / avgVolume20 : null;
+  const value = volume != null ? volume * price : null;
 
   let conditionsMet = 0;
   if (ma20 != null && price > ma20) conditionsMet++;
   if (ma20 != null && ma50 != null && ma20 > ma50) conditionsMet++;
-  if (volRatio > 1) conditionsMet++;
-  const score = Math.round((conditionsMet / 3) * 100);
+  const conditionCount = 2 + (volRatio != null ? 1 : 0);
+  if (volRatio != null && volRatio > 1) conditionsMet++;
+  const score = conditionCount > 0 ? Math.round((conditionsMet / conditionCount) * 100) : 0;
 
   let signal: Signal = 'HOLD';
   if (ma20 != null && ma50 != null) {
@@ -126,13 +150,14 @@ export type CouncilResult = {
 // 10 agen Council AI, masing-masing satu lensa teknikal independen - semua dihitung
 // dari array OHLCV yang sama, tidak ada satupun yang mengarang kesimpulan.
 export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false): CouncilResult | null {
-  if (candles.length < 5) return null;
-  const closes = candles.map(c => c.close);
-  const volumes = candles.map(c => c.volume || 0);
-  const highs = candles.map(c => c.high);
-  const lows = candles.map(c => c.low);
-  const last = candles[candles.length - 1];
-  const prevCandle = candles.length > 1 ? candles[candles.length - 2] : last;
+  const validCandles = (candles || []).filter(isValidCandle);
+  if (validCandles.length < 5) return null;
+  const closes = validCandles.map(c => c.close);
+  const volumes = validCandles.map(c => c.volume);
+  const highs = validCandles.map(c => c.high);
+  const lows = validCandles.map(c => c.low);
+  const last = validCandles[validCandles.length - 1];
+  const prevCandle = validCandles.length > 1 ? validCandles[validCandles.length - 2] : last;
 
   const agents: MiniAgent[] = [];
 
@@ -160,8 +185,9 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
 
   // 3. Volume Agent
   const avgVol20 = volumes.length >= 20 ? sma(volumes, 20) : (volumes.reduce((a, b) => a + b, 0) / volumes.length);
-  const volRatio = avgVol20 ? volumes[volumes.length - 1] / avgVol20 : 1;
-  if (volRatio > 1.3) agents.push({ name: 'Volume', signal: closes[closes.length - 1] >= prevCandle.close ? 'BUY' : 'SELL', reason: `Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat tajam.` });
+  const volRatio = avgVol20 && avgVol20 > 0 ? volumes[volumes.length - 1] / avgVol20 : null;
+  if (volRatio == null) agents.push({ name: 'Volume', signal: 'HOLD', reason: 'Data volume belum cukup untuk dibandingkan dengan rata-rata.' });
+  else if (volRatio > 1.3) agents.push({ name: 'Volume', signal: closes[closes.length - 1] >= prevCandle.close ? 'BUY' : 'SELL', reason: `Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat tajam.` });
   else if (volRatio < 0.7) agents.push({ name: 'Volume', signal: 'HOLD', reason: `Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata, minat pasar sepi.` });
   else agents.push({ name: 'Volume', signal: 'HOLD', reason: 'Volume berada di kisaran rata-rata 20 hari.' });
 
@@ -211,7 +237,7 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   const obv: number[] = [0];
   for (let i = 1; i < closes.length; i++) {
     const dir = closes[i] > closes[i - 1] ? 1 : closes[i] < closes[i - 1] ? -1 : 0;
-    obv.push(obv[i - 1] + dir * (volumes[i] || 0));
+    obv.push(obv[i - 1] + dir * volumes[i]);
   }
   const obvLookback = Math.min(10, obv.length - 1);
   const obvSlope = obvLookback > 0 ? obv[obv.length - 1] - obv[obv.length - 1 - obvLookback] : 0;
@@ -303,8 +329,8 @@ export function generateInsight(ind: Indicators): string {
     else if (rsi14 > 70) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi overbought (di atas 70), potensi technical pullback.`);
   }
 
-  if (volRatio > 1.2) notes.push(`Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat.`);
-  else if (volRatio < 0.8) notes.push(`Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata 20 hari, minat pasar cenderung sepi.`);
+  if (volRatio != null && volRatio > 1.2) notes.push(`Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat.`);
+  else if (volRatio != null && volRatio < 0.8) notes.push(`Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata 20 hari, minat pasar cenderung sepi.`);
 
   if (notes.length === 0) return 'Belum cukup data historis untuk menghasilkan insight teknikal pada titik ini.';
   return notes.join(' ');

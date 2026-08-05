@@ -8,6 +8,7 @@ import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { describeCacheAge } from '@/shared/http/freshness';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
+import { getLensScoreValidationStatus } from '@/modules/validation';
 
 // BUILD 006/007 - simbol yang rutin di-scan app/api/cron/recommendation-scan dibaca
 // cache-first (per simbol); simbol lain di luar daftar itu tetap dihitung live
@@ -61,7 +62,10 @@ export async function GET(request: Request) {
       results.push(...chunkResults.filter(Boolean));
     }
 
-    const response = NextResponse.json({ recommendations: results });
+    const response = NextResponse.json({
+      recommendations: results,
+      modelValidation: getLensScoreValidationStatus(),
+    });
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
     return response;
   } catch (error: any) {
