@@ -24,7 +24,7 @@ function fallbackBriefing(input: BriefingInput): string {
     parts.push(`IHSG ${ihsg.changePct >= 0 ? 'menguat' : 'melemah'} ${Math.abs(ihsg.changePct)}% hari ini.`);
   }
   if (input.topPick) {
-    parts.push(`Sinyal AI teratas: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}).`);
+    parts.push(`Sinyal AI teratas: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}/100).`);
   }
   // BUG FIX (2026-08-05, permintaan user): SEBELUMNYA menyebut angka persis
   // ("X saham menarik", "Y breakout") - tidak ada halaman manapun di aplikasi yang
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
 Data:
 - Indeks pasar: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'tidak tersedia'}
-- Sinyal AI teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence})` : 'tidak ada sinyal kuat'}
+- Sinyal AI teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence} dari skala 0-100)` : 'tidak ada sinyal kuat'}
 
 Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;
 

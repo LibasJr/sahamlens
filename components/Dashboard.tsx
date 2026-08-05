@@ -249,7 +249,10 @@ export default function Dashboard() {
   const [aiPicks, setAiPicks] = useState<
     {
       symbol: string; price: number; changePct: number; finalScore: number;
-      bonuses: { label: string; points: number }[];
+      // `signals` menggantikan `bonuses` (audit skor 2026-08-05) - sinyal hari ini jadi
+      // label, bukan poin. Opsional: response bisa berasal dari cache lama.
+      signals?: string[];
+      coverage?: number | null;
       tp1: number | null; tp2: number | null; cl1: number | null; cl2: number | null;
     }[] | null
   >(null);
@@ -637,11 +640,13 @@ export default function Dashboard() {
                           {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(1)}%
                         </span>
                         <span className="text-[10px] text-tv-muted truncate hidden sm:inline">
-                          {p.bonuses.length > 0 ? p.bonuses.map((b) => b.label).join(', ') : 'skor dasar'}
+                          {p.signals?.length ? p.signals.join(', ') : 'tanpa sinyal khusus'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[13px] font-bold font-number text-tv-text">{p.finalScore}</span>
+                        {/* Skala dinyatakan eksplisit (audit skor 2026-08-05) - angka
+                            telanjang "97" dulu terbaca 97/100 padahal skalanya 0-140. */}
+                        <span className="text-[13px] font-bold font-number text-tv-text">{p.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span></span>
                         <ChevronRight className="h-3.5 w-3.5 text-tv-muted group-hover:translate-x-0.5 transition" />
                       </div>
                     </Link>

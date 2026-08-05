@@ -1,21 +1,53 @@
 // Logika peringkat AI Pick - SENGAJA tanpa I/O apa pun (tidak menyentuh Redis maupun
 // jaringan) supaya bisa diuji langsung tanpa mock. Pemanggilnya yang menyediakan data:
 // app/api/ai-pick/route.ts membacanya dari cache.
+//
+// ============================================================================
+// REWRITE (audit skor 2026-08-05, dipicu kasus nyata BJBR menampilkan skor 97)
+// ============================================================================
+// Lapisan "bonus" lama MENAMBAHKAN poin mentah di atas `totalScore` yang SUDAH
+// dinormalisasi 0-100 oleh calculateScore(). Lima cacat yang saling menguatkan:
+//
+// 1. SKALA BOHONG. finalScore = 0-100 + bonus maks 40 = rentang asli 0-140.
+//    app/breakout-radar/page.tsx jujur melabelinya "Skor (0-140)", TAPI /home menulis
+//    "LensScore 97" polos dan briefing AI menyebut "LensScore yang tinggi, yaitu 97" -
+//    pembaca wajar mengira 97/100 (nyaris sempurna) padahal 97/140 (69%).
+//
+// 2. AKUMULASI DIHITUNG DUA KALI. `accumulationConfirmed` dan `flow.accumulationStatus`
+//    berasal dari SATU pemanggilan analyzeAccumulationSignal() yang sama (lihat
+//    ai-pick-scan.service.ts). scoreFlowPersistensi() sudah memberi 7-10 poin untuk
+//    status AKUMULASI, lalu BONUS_ACCUMULATION menambah 10 poin lagi untuk fakta yang
+//    persis sama. Ini kelas bug H-1 yang sudah diperbaiki DI DALAM scoring.service.ts,
+//    tapi lapisan bonus di atasnya memasukkannya kembali.
+//
+// 3. OVERSOLD DIHUKUM LALU DIHADIAHI. scoreRsi() memberi RSI<40 hanya 2 dari 8 poin
+//    dengan alasan "OVERSOLD zona SELL/hati-hati", sementara BONUS_OVERSOLD memberi +5
+//    untuk RSI<30. Sistem yang sama menilai angka yang sama ke dua arah berlawanan.
+//
+// 4. BREAKOUT & GOLDEN CROSS TUMPANG TINDIH. Skor breakout (breakout.service.ts) disusun
+//    dari GOLDEN CROSS + VOL SPIKE + RSI MOMENTUM + BANDAR AKUM - keempatnya SUDAH
+//    dinilai penuh oleh scoreMATrend/scoreVolume/scoreRsi/scoreFlowPersistensi. Lalu
+//    golden cross masih dapat bonus terpisah lagi, padahal ia komponen terbesar di dalam
+//    skor breakout itu sendiri.
+//
+// 5. AMBANG DILANGGAR OLEH BONUS. MIN_SCORE dibandingkan ke finalScore (sudah berbonus),
+//    sehingga saham berskor dasar 45 (kategori HOLD/SELL menurut getKategori) bisa
+//    terangkat ke 60 dan masuk daftar "hari ini beli apa" - persis yang dilarang komentar
+//    MIN_SCORE di bawah.
+//
+// PERBAIKAN: skor komposit menjawab "saham ini bagus atau tidak" (kualitas); breakout
+// menjawab "sekarang momennya atau tidak" (timing). Keduanya pertanyaan berbeda dan tidak
+// boleh dilebur jadi satu angka - apalagi ketika bahan bakunya sebagian besar sama, karena
+// sinyal yang saling berkorelasi justru melonjakkan skor paling tinggi tepat saat semuanya
+// mengulang informasi yang sama, bukan saat buktinya independen. Sinyal sekarang jadi TAG:
+// ditampilkan apa adanya, dipakai sebagai tie-break saat skor seri, TIDAK menambah poin.
 
 /** Ambang kategori BUY di getKategori() (modules/technical/service/scoring.service.ts).
  * Dipakai ulang, bukan angka baru: daftar "hari ini beli apa" tidak boleh memuat saham
- * yang sistem sendiri tidak kategorikan layak beli. */
+ * yang sistem sendiri tidak kategorikan layak beli. Sekarang dibandingkan ke skor dasar
+ * yang murni (bukan skor berbonus), sehingga aturan ini benar-benar ditegakkan. */
 const MIN_SCORE = 60;
 const MAX_ITEMS = 10;
-
-/** Bobot mencerminkan kelangkaan sinyal: makin jarang muncul, makin besar artinya
- * ketika muncul. Breakout ~6-7 saham/hari dari ratusan; RSI < 30 kondisi umum yang
- * bisa bertahan berminggu-minggu. */
-const BONUS_BREAKOUT = 15;
-const BONUS_ACCUMULATION = 10;
-const BONUS_GOLDEN_CROSS = 10;
-const BONUS_OVERSOLD = 5;
-const RSI_OVERSOLD = 30;
 
 // Audit BUILD 003 (Explainable AI): calculateScore() SUDAH menghitung breakdown
 // (technical/fundamental/flow) dan 3 alasan teratas (alasan_3_poin) - sebelumnya
@@ -33,8 +65,8 @@ export type ScoredStock = {
   price: number;
   changePct: number;
   totalScore: number;
-  /** null kalau RSI tidak bisa dihitung (histori kurang) - bonus oversold dilewati,
-   * BUKAN dianggap 50 (audit 2026-08-05, temuan C-7). */
+  /** null kalau RSI tidak bisa dihitung (histori kurang) - BUKAN dianggap 50
+   * (audit 2026-08-05, temuan C-7). */
   rsi: number | null;
   accumulationConfirmed: boolean;
   breakdown: ScoreBreakdown;
@@ -45,6 +77,11 @@ export type ScoredStock = {
    * shared/cache/ai-pick-cache.ts) bisa masih berisi entri lama dari sebelum field ini
    * ada, sampai cron berikutnya menimpanya. */
   atr?: number | null;
+  /** `coverage_pct` dari calculateScore(): persentase bobot yang BENAR-BENAR punya data.
+   * Wajib sampai ke UI - skor 82 dari data 90% dan skor 82 dari data 100% bukan klaim
+   * yang setara, dan sebelumnya perbedaan itu dihitung tapi tidak pernah ditampilkan.
+   * Opsional karena alasan cache lama yang sama seperti `atr`. */
+  coverage?: number | null;
 };
 
 export type BreakoutInfo = {
@@ -53,15 +90,21 @@ export type BreakoutInfo = {
   deadCrossSymbols: string[];
 };
 
-export type PickBonus = { label: string; points: number };
-
 export type AiPickItem = {
   symbol: string;
   price: number;
   changePct: number;
+  /** Skor komposit murni dari calculateScore(), 0-100. Sama nilainya dengan `finalScore` -
+   * keduanya dipertahankan supaya konsumen lama tidak patah, dan supaya jelas bahwa tidak
+   * ada lagi selisih antara "dasar" dan "akhir". */
   baseScore: number;
-  bonuses: PickBonus[];
+  /** Sinyal/event hari ini sebagai LABEL, bukan poin: 'breakout', 'golden cross',
+   * 'akumulasi'. Dipakai untuk ditampilkan dan sebagai tie-break saat skor seri. */
+  signals: string[];
+  /** 0-100. Dijamin tidak pernah melebihi 100. */
   finalScore: number;
+  /** Kelengkapan data di balik skor (persen), null kalau entri cache lama. */
+  coverage: number | null;
   flagged: boolean;
   flagReason: string | null;
   breakdown: ScoreBreakdown;
@@ -83,11 +126,12 @@ export function rankAiPicks(
   bearishSymbols: string[]
 ): AiPickItem[] {
   const items: AiPickItem[] = scored.map((s) => {
-    const bonuses: PickBonus[] = [];
-    if (breakout.breakoutSymbols.includes(s.symbol)) bonuses.push({ label: 'breakout', points: BONUS_BREAKOUT });
-    if (s.accumulationConfirmed) bonuses.push({ label: 'akumulasi', points: BONUS_ACCUMULATION });
-    if (breakout.goldenCrossSymbols.includes(s.symbol)) bonuses.push({ label: 'golden cross', points: BONUS_GOLDEN_CROSS });
-    if (s.rsi != null && s.rsi < RSI_OVERSOLD) bonuses.push({ label: 'oversold', points: BONUS_OVERSOLD });
+    // Tag sinyal - TIDAK menambah poin (lihat catatan panjang di atas file). Urutannya
+    // tetap (breakout, golden cross, akumulasi) supaya tampilan tidak berubah-ubah.
+    const signals: string[] = [];
+    if (breakout.breakoutSymbols.includes(s.symbol)) signals.push('breakout');
+    if (breakout.goldenCrossSymbols.includes(s.symbol)) signals.push('golden cross');
+    if (s.accumulationConfirmed) signals.push('akumulasi');
 
     // Penanda merah TIDAK mengurangi skor - tujuannya membuat kontradiksi terlihat
     // (saham bisa oversold sekaligus bearish, seperti 6 saham yang dulu muncul di tab
@@ -101,8 +145,9 @@ export function rankAiPicks(
       price: s.price,
       changePct: s.changePct,
       baseScore: s.totalScore,
-      bonuses,
-      finalScore: s.totalScore + bonuses.reduce((sum, b) => sum + b.points, 0),
+      signals,
+      finalScore: s.totalScore,
+      coverage: typeof s.coverage === 'number' ? s.coverage : null,
       flagged: flagReason !== null,
       flagReason,
       // `?? fallback` (BUKAN required tanpa guard) - cache ai-pick-scores punya TTL 3
@@ -121,8 +166,14 @@ export function rankAiPicks(
 
   return items
     .filter((i) => i.finalScore >= MIN_SCORE)
-    // Tie-break simbol, BUKAN urutan array masukan - pelajaran dari bug seleksi
-    // alfabetis di simulate.service.ts: hasil tidak boleh bergantung urutan konstanta.
-    .sort((a, b) => (b.finalScore !== a.finalScore ? b.finalScore - a.finalScore : a.symbol.localeCompare(b.symbol)))
+    .sort((a, b) => {
+      if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
+      // Tie-break 1: saham dengan sinyal/event hari ini didahulukan saat kualitasnya
+      // setara - di sinilah breakout tetap berguna tanpa memalsukan skor.
+      if (b.signals.length !== a.signals.length) return b.signals.length - a.signals.length;
+      // Tie-break 2: simbol, BUKAN urutan array masukan - pelajaran dari bug seleksi
+      // alfabetis di simulate.service.ts: hasil tidak boleh bergantung urutan konstanta.
+      return a.symbol.localeCompare(b.symbol);
+    })
     .slice(0, MAX_ITEMS);
 }

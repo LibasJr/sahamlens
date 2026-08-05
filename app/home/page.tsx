@@ -71,7 +71,7 @@ export default function HomePage() {
     { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
   >(null);
   const [radarItems, setRadarItems] = useState<
-    { symbol: string; price: number; changePct: number; finalScore: number; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
+    { symbol: string; price: number; changePct: number; finalScore: number; coverage?: number | null; signals?: string[]; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
   >([]);
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
@@ -316,7 +316,7 @@ export default function HomePage() {
                   <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
                     {topPick.flagged ? topPick.flagReason : 'Sinyal Kuat'}
                   </Badge>
-                  dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}</span>.
+                  dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}/100</span>.
                 </p>
               ) : (
                 <p className="text-sm text-tv-muted mt-1.5">Belum ada sinyal kuat hari ini. Cek Stock Recommendations untuk detail lengkap.</p>
@@ -418,9 +418,18 @@ export default function HomePage() {
                       Rp {Math.round(hero.price).toLocaleString('id-ID')} ({hero.changePct >= 0 ? '+' : ''}{hero.changePct.toFixed(2)}%)
                     </div>
                   </div>
+                  {/* Skala + kelengkapan data dinyatakan eksplisit (audit skor 2026-08-05):
+                      angka telanjang dulu terbaca "x dari 100" padahal skalanya 0-140, dan
+                      coverage (porsi bobot yang benar-benar punya data) tidak pernah tampil
+                      meski sudah lama dihitung. */}
                   <div className="text-right">
                     <div className="text-[10px] text-tv-muted uppercase tracking-wide">LensScore</div>
-                    <div className="font-number text-3xl font-bold text-tv-blue">{hero.finalScore}</div>
+                    <div className="font-number text-3xl font-bold text-tv-blue">
+                      {hero.finalScore}<span className="text-sm font-normal text-tv-muted">/100</span>
+                    </div>
+                    {typeof hero.coverage === 'number' && (
+                      <div className="text-[10px] text-tv-muted">data {hero.coverage}%</div>
+                    )}
                   </div>
                 </div>
                 {(hero.topReasons?.length ?? 0) > 0 && (
@@ -492,7 +501,9 @@ export default function HomePage() {
                     <div className="text-[10px] text-tv-muted truncate">{it.topReasons?.[0] || '-'}</div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-number text-sm font-semibold text-white">{it.finalScore}</div>
+                    <div className="font-number text-sm font-semibold text-white">
+                      {it.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span>
+                    </div>
                     <div className="text-[10px] text-tv-muted font-number">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
                   </div>
                 </Link>

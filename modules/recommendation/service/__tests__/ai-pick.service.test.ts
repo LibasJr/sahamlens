@@ -11,24 +11,90 @@ function stock(symbol: string, totalScore: number, extra: Partial<ScoredStock> =
 
 const noSignals: BreakoutInfo = { breakoutSymbols: [], goldenCrossSymbols: [], deadCrossSymbols: [] };
 
+// REWRITE (audit skor 2026-08-05, kasus BJBR skor 97): lapisan bonus lama menambahkan poin
+// mentah di atas skor yang SUDAH dinormalisasi 0-100, menghasilkan rentang 0-140 yang
+// dilaporkan ke pengguna seolah 0-100. Sekarang breakout/golden cross/akumulasi jadi TAG
+// (ditampilkan + tie-break), bukan poin. Lihat komentar lengkap di ai-pick.service.ts.
 describe('rankAiPicks', () => {
-  it('bonus breakout mengangkat saham di atas skor dasar yang lebih tinggi', () => {
+  it('skor akhir TIDAK PERNAH melebihi 100 walau semua sinyal muncul sekaligus', () => {
+    const scored = [stock('AAAA.JK', 95, { rsi: 25, accumulationConfirmed: true })];
+    const breakout: BreakoutInfo = { breakoutSymbols: ['AAAA.JK'], goldenCrossSymbols: ['AAAA.JK'], deadCrossSymbols: [] };
+
+    const result = rankAiPicks(scored, breakout, []);
+
+    expect(result[0].finalScore).toBe(95);
+    expect(result[0].finalScore).toBeLessThanOrEqual(100);
+  });
+
+  it('skor akhir sama persis dengan skor dasar - sinyal tidak menambah poin', () => {
     const scored = [stock('AAAA.JK', 75), stock('BBBB.JK', 65)];
     const breakout: BreakoutInfo = { breakoutSymbols: ['BBBB.JK'], goldenCrossSymbols: [], deadCrossSymbols: [] };
 
     const result = rankAiPicks(scored, breakout, []);
 
-    expect(result[0].symbol).toBe('BBBB.JK');
-    expect(result[0].finalScore).toBe(80); // 65 + 15
-    expect(result[1].finalScore).toBe(75);
+    // Skor dasar 75 tetap di atas 65 - breakout tidak lagi membalik peringkat.
+    expect(result[0].symbol).toBe('AAAA.JK');
+    expect(result[0].finalScore).toBe(75);
+    expect(result[1].finalScore).toBe(65);
+    expect(result[1].baseScore).toBe(65);
   });
 
-  it('skor dasar sama diurutkan menurut simbol, bukan urutan array masukan', () => {
+  it('sinyal dicatat sebagai tag yang bisa ditelusuri, bukan poin', () => {
+    const scored = [stock('AAAA.JK', 80, { accumulationConfirmed: true })];
+    const breakout: BreakoutInfo = { breakoutSymbols: ['AAAA.JK'], goldenCrossSymbols: ['AAAA.JK'], deadCrossSymbols: [] };
+
+    const result = rankAiPicks(scored, breakout, []);
+
+    expect(result[0].signals).toEqual(['breakout', 'golden cross', 'akumulasi']);
+    expect(result[0].finalScore).toBe(80);
+  });
+
+  it('akumulasi TIDAK jadi tag terpisah kalau tidak terkonfirmasi', () => {
+    const scored = [stock('AAAA.JK', 80, { accumulationConfirmed: false })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].signals).toEqual([]);
+  });
+
+  it('RSI oversold tidak lagi jadi sinyal - skor dasar sudah menilainya sebagai zona hati-hati', () => {
+    const scored = [stock('AAAA.JK', 70, { rsi: 25 })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].signals).toEqual([]);
+    expect(result[0].finalScore).toBe(70);
+  });
+
+  it('skor sama diurutkan menurut jumlah sinyal dulu, baru simbol', () => {
+    const scored = [stock('ZZZZ.JK', 70), stock('AAAA.JK', 70), stock('MMMM.JK', 70)];
+    const breakout: BreakoutInfo = { breakoutSymbols: ['MMMM.JK'], goldenCrossSymbols: [], deadCrossSymbols: [] };
+
+    const result = rankAiPicks(scored, breakout, []);
+
+    // MMMM punya 1 sinyal jadi naik; sisanya (0 sinyal) urut alfabetis.
+    expect(result.map((r) => r.symbol)).toEqual(['MMMM.JK', 'AAAA.JK', 'ZZZZ.JK']);
+  });
+
+  it('skor dasar sama TANPA sinyal apa pun diurutkan menurut simbol, bukan urutan array masukan', () => {
     const scored = [stock('ZZZZ.JK', 70), stock('AAAA.JK', 70), stock('MMMM.JK', 70)];
 
     const result = rankAiPicks(scored, noSignals, []);
 
     expect(result.map((r) => r.symbol)).toEqual(['AAAA.JK', 'MMMM.JK', 'ZZZZ.JK']);
+  });
+
+  it('saham di bawah ambang BUY tidak bisa lagi diangkat masuk daftar oleh sinyal', () => {
+    // Skor dasar 45 = kategori HOLD/SELL menurut getKategori(). Dulu 45 + bonus breakout 15
+    // = 60 sehingga LOLOS ambang, melanggar aturan yang ditulis di file itu sendiri
+    // ("daftar hari ini beli apa tidak boleh memuat saham yang sistem sendiri tidak
+    // kategorikan layak beli").
+    const scored = [stock('AAAA.JK', 80), stock('BBBB.JK', 45)];
+    const breakout: BreakoutInfo = { breakoutSymbols: ['BBBB.JK'], goldenCrossSymbols: ['BBBB.JK'], deadCrossSymbols: [] };
+
+    const result = rankAiPicks(scored, breakout, []);
+
+    expect(result.map((r) => r.symbol)).toEqual(['AAAA.JK']);
   });
 
   it('saham bertanda merah tetap muncul di daftar, tidak disaring keluar', () => {
@@ -66,21 +132,6 @@ describe('rankAiPicks', () => {
     expect(result[0].symbol).toBe('S00.JK');
   });
 
-  it('bonus ditumpuk dan dirinci supaya asal skor bisa ditelusuri', () => {
-    const scored = [stock('AAAA.JK', 60, { rsi: 25, accumulationConfirmed: true })];
-    const breakout: BreakoutInfo = { breakoutSymbols: ['AAAA.JK'], goldenCrossSymbols: ['AAAA.JK'], deadCrossSymbols: [] };
-
-    const result = rankAiPicks(scored, breakout, []);
-
-    expect(result[0].finalScore).toBe(100); // 60 +15 +10 +10 +5
-    expect(result[0].bonuses).toEqual([
-      { label: 'breakout', points: 15 },
-      { label: 'akumulasi', points: 10 },
-      { label: 'golden cross', points: 10 },
-      { label: 'oversold', points: 5 },
-    ]);
-  });
-
   it('dead cross menandai merah tanpa mengurangi skor', () => {
     const scored = [stock('AAAA.JK', 70)];
     const breakout: BreakoutInfo = { breakoutSymbols: [], goldenCrossSymbols: [], deadCrossSymbols: ['AAAA.JK'] };
@@ -92,13 +143,13 @@ describe('rankAiPicks', () => {
     expect(result[0].flagReason).toBe('dead cross');
   });
 
-  it('cache breakout kosong menghasilkan peringkat tanpa bonus, bukan error', () => {
+  it('cache breakout kosong menghasilkan peringkat tanpa sinyal, bukan error', () => {
     const scored = [stock('AAAA.JK', 80), stock('BBBB.JK', 70)];
 
     const result = rankAiPicks(scored, { breakoutSymbols: [], goldenCrossSymbols: [], deadCrossSymbols: [] }, []);
 
     expect(result).toHaveLength(2);
-    expect(result[0].bonuses).toEqual([]);
+    expect(result[0].signals).toEqual([]);
     expect(result[0].finalScore).toBe(80);
   });
 
@@ -113,7 +164,23 @@ describe('rankAiPicks', () => {
     const result = rankAiPicks(scored, breakout, []);
 
     expect(result.map((r) => r.symbol)).toEqual(['AAAA.JK']);
-    expect(result[0].bonuses).toEqual([]);
+    expect(result[0].signals).toEqual([]);
+  });
+
+  it('coverage diteruskan apa adanya supaya UI bisa menyatakan kelengkapan data', () => {
+    const scored = [stock('AAAA.JK', 82, { coverage: 90 })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].coverage).toBe(90);
+  });
+
+  it('coverage null untuk entri cache lama yang belum punya field ini', () => {
+    const scored = [stock('AAAA.JK', 82)]; // coverage tidak di-set
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].coverage).toBeNull();
   });
 
   it('TP1/TP2/CL1/CL2 dihitung dari harga +/- 1x/2x ATR, keduanya sekaligus bukan salah satu', () => {
