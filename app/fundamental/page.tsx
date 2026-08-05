@@ -285,9 +285,15 @@ function FundamentalContent() {
 
         {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
             punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
-            halaman (position absolute + geser jauh ke luar viewport). */}
+            halaman.
+            BUG FIX (2026-08-05): SEBELUMNYA pakai `position: absolute; left: -9999px` -
+            elemen jauh di luar viewport begitu tidak pernah ke-paint browser, jadi
+            html-to-image (yang men-drawImage dari elemen sungguhan, bukan cuma serialize
+            style) menghasilkan PNG putih/blank. Wrapper 0x0 + overflow hidden di posisi
+            (0,0) viewport tetap ke-paint (makanya ke-capture penuh) tapi tidak kelihatan
+            atau mengubah layout untuk user, karena wrapper-nya sendiri berukuran nol. */}
         {data && (
-          <div ref={fundamentalExportRef} style={{ position: 'absolute', left: -9999, top: 0 }}>
+          <div ref={fundamentalExportRef} style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden' }}>
             <FundamentalExportCard
               ticker={ticker}
               stock={stock}
