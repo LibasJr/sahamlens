@@ -189,6 +189,10 @@ export async function analyzeStock(ticker: string) {
     const foreignAccumStreak = buyStreak;
 
     let sector = 'Umum';
+    // Konteks sektor untuk penilaian fundamental (P1-10/P1-11/P1-12) - dipisah dari
+    // `sector` di atas yang dipakai sebagai label tampilan.
+    let sectorIndustry: string | null = null;
+    let payoutRatio: number | null = null;
     let marketCap: number | null = null;
     let per: number | null = null;
     let pbv: number | null = null;
@@ -203,6 +207,8 @@ export async function analyzeStock(ticker: string) {
       if (quoteSummary?.assetProfile?.sector) {
         sector = quoteSummary.assetProfile.sector;
       }
+      sectorIndustry = quoteSummary?.assetProfile?.industry ?? null;
+      payoutRatio = quoteSummary?.summaryDetail?.payoutRatio ?? null;
       marketCap = quoteSummary?.summaryDetail?.marketCap || quoteSummary?.defaultKeyStatistics?.marketCap || null;
       per = quoteSummary?.summaryDetail?.trailingPE || quoteSummary?.summaryDetail?.forwardPE || null;
       pbv = quoteSummary?.defaultKeyStatistics?.priceToBook || null;
@@ -279,8 +285,13 @@ export async function analyzeStock(ticker: string) {
         macdSignal: macdSigVal,
         volToday: volume,
         volAvg20,
+        changePct,   // P1-8: volume besar hanya bernilai kalau mengonfirmasi arah harga
       },
-      { per, pbv, roe, der, currentRatio, revenueGrowth },
+      {
+        per, pbv, roe, der, currentRatio, revenueGrowth,
+        // P1-10/P1-11/P1-12 - lihat modules/sector & fair-multiples.service.ts.
+        sector: { yahooSector: sector, yahooIndustry: sectorIndustry, payoutRatio, beta: null },
+      },
       {
         // Satu kelompok arus dana (besaran CMF20 + persistensi streak) - `foreignFlow`
         // tidak lagi jadi input skor terpisah karena ia turunan dari cmf20 yang sama
@@ -290,6 +301,7 @@ export async function analyzeStock(ticker: string) {
         consecutiveBuyDays: buyStreak,
         consecutiveSellDays: sellStreak,
         volRatio,
+        mfmPositiveRatio20: accumulation.mfmPositiveRatio20,  // P1-9
       },
     );
 

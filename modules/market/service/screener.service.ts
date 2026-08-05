@@ -248,8 +248,23 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
           macdSignal: macdSigVal,
           volToday: volume,
           volAvg20,
+          // P1-8: volume besar tanpa arah harga bukan konfirmasi beli. Yahoo
+          // mengembalikan `regularMarketChangePercent` sebagai FRAKSI (0.0317 = 3,17%) -
+          // satuan yang sama sudah diverifikasi di audit sebelumnya.
+          changePct: typeof q.price?.regularMarketChangePercent === 'number'
+            ? q.price.regularMarketChangePercent * 100
+            : null,
         },
-        { per, pbv, roe, der, currentRatio, revenueGrowth: revGrowth },
+        {
+          per, pbv, roe, der, currentRatio, revenueGrowth: revGrowth,
+          // P1-10/P1-11/P1-12 - lihat modules/sector & fair-multiples.service.ts.
+          sector: {
+            yahooSector: q.assetProfile?.sector ?? null,
+            yahooIndustry: q.assetProfile?.industry ?? null,
+            payoutRatio: q.summaryDetail?.payoutRatio ?? null,
+            beta: null,
+          },
+        },
         // Satu kelompok arus dana (temuan H-1) - `foreignFlow` tetap dihitung di atas
         // untuk label kolom, tapi tidak lagi disekor terpisah dari cmf20 yang jadi asalnya.
         {
@@ -258,6 +273,7 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
           consecutiveBuyDays: buyStreak,
           consecutiveSellDays: sellStreak,
           volRatio,
+          mfmPositiveRatio20: accumulation.mfmPositiveRatio20,  // P1-9
         },
       );
       // GERBANG KELAYAKAN MINIMAL (Phase 0 / P0-3). `signal` adalah label BUY/SELL yang

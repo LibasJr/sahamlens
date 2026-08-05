@@ -429,9 +429,28 @@ export async function GET(
         macdLine: macdLineVal,
         macdSignal: macdSigVal,
         volToday,
-        volAvg20: volAvg20v
+        volAvg20: volAvg20v,
+        // P1-8: volume tinggi hanya bernilai kalau MENGONFIRMASI arah harga. Tanpa
+        // field ini, saham yang anjlok dengan volume 3x dulu mendapat nilai volume
+        // sempurna - sama dengan saham yang breakout naik dengan volume 3x.
+        changePct: typeof result.meta?.regularMarketChangePercent === 'number'
+          ? result.meta.regularMarketChangePercent * 100
+          : null,
       },
-      { per, pbv, roe, der, currentRatio, revenueGrowth },
+      {
+        per, pbv, roe, der, currentRatio, revenueGrowth,
+        // P1-10/P1-11/P1-12: valuasi & kesehatan neraca dinilai menurut sektor dan
+        // risiko emiten ini, bukan ambang tunggal untuk seluruh IDX.
+        sector: {
+          yahooSector: quoteSummary?.assetProfile?.sector ?? null,
+          yahooIndustry: quoteSummary?.assetProfile?.industry ?? null,
+          payoutRatio: quoteSummary?.summaryDetail?.payoutRatio ?? null,
+          // Beta tidak dihitung di route ini (butuh histori IHSG - satu fetch tambahan
+          // per request). null = pakai beta acuan sektor, dan itu dinyatakan di keluaran
+          // valuasi lewat `betaSource`.
+          beta: null,
+        },
+      },
       {
         // Arus dana dinilai SEKALI sebagai satu kelompok (besaran CMF20 + persistensi
         // streak) - lihat temuan H-1 di modules/technical/service/scoring.service.ts.
@@ -443,6 +462,8 @@ export async function GET(
         consecutiveBuyDays,
         consecutiveSellDays,
         volRatio: volAvg20v > 0 ? volToday / volAvg20v : null,
+        // P1-9: persistensi diukur atas jendela 20 hari, bukan panjang streak.
+        mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
       }
     );
 

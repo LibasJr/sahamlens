@@ -128,6 +128,13 @@ async function getTechnicalData(ticker: string) {
       accumulationStatus: accumulation.status,
       consecutiveBuyDays: buyStreak,
       consecutiveSellDays: sellStreak,
+      // P1-8 & P1-9 - input yang sama dipakai Detail Saham/Screener/AI Pick, supaya
+      // skor komposit Council tidak berbeda untuk saham & hari yang sama.
+      changePct: (() => {
+        const prev = history[history.length - 2]?.Close;
+        return prev ? ((currentPrice - prev) / prev) * 100 : null;
+      })(),
+      mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
     };
   } catch (e) {
     return null;
@@ -151,12 +158,22 @@ interface FundamentalSnapshot {
   der: number | null;
   currentRatio: number | null;
   revenueGrowth: number | null;
+  /** Konteks sektor untuk penilaian valuasi & kesehatan neraca (P1-10/P1-11/P1-12).
+   * Tanpa ini Council menilai bank dengan ambang DER emiten manufaktur - dan skornya
+   * akan berbeda dari Detail Saham untuk saham yang sama, yang justru kelas bug yang
+   * sedang ditutup (INVARIAN: satu ticker, satu hari, satu skor). */
+  sector: {
+    yahooSector: string | null;
+    yahooIndustry: string | null;
+    payoutRatio: number | null;
+    beta: number | null;
+  };
 }
 
 async function getFundamentalSnapshot(ticker: string): Promise<FundamentalSnapshot | null> {
   try {
     const quoteSummary = await yahooFinance.quoteSummary(ticker, {
-      modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail'],
+      modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail'],
     });
     const mrq = quoteSummary?.defaultKeyStatistics?.mostRecentQuarter;
     return {
@@ -168,6 +185,12 @@ async function getFundamentalSnapshot(ticker: string): Promise<FundamentalSnapsh
       der: quoteSummary?.financialData?.debtToEquity != null ? quoteSummary.financialData.debtToEquity / 100 : null,
       currentRatio: quoteSummary?.financialData?.currentRatio ?? null,
       revenueGrowth: quoteSummary?.financialData?.revenueGrowth != null ? quoteSummary.financialData.revenueGrowth * 100 : null,
+      sector: {
+        yahooSector: quoteSummary?.assetProfile?.sector ?? null,
+        yahooIndustry: quoteSummary?.assetProfile?.industry ?? null,
+        payoutRatio: quoteSummary?.summaryDetail?.payoutRatio ?? null,
+        beta: null,
+      },
     };
   } catch {
     return null;
@@ -251,6 +274,7 @@ export async function GET(req: Request) {
         macdSignal: technicalData.macdSignal,
         volToday: technicalData.volToday,
         volAvg20: technicalData.volAvg20,
+        changePct: technicalData.changePct,   // P1-8
       },
       {
         per: fundamentalSnapshot?.per ?? null,
@@ -259,6 +283,9 @@ export async function GET(req: Request) {
         der: fundamentalSnapshot?.der ?? null,
         currentRatio: fundamentalSnapshot?.currentRatio ?? null,
         revenueGrowth: fundamentalSnapshot?.revenueGrowth ?? null,
+        // Konteks sektor ikut dari snapshot yang sama (P1-10/P1-11/P1-12) - kalau
+        // snapshot lama belum punya field ini, perlakuannya netral, bukan error.
+        sector: fundamentalSnapshot?.sector,
       },
       {
         // BUG FIX (audit 2026-08-05, temuan M-1 + H-1): `cmf20` dan `accumulationStatus`
@@ -271,6 +298,7 @@ export async function GET(req: Request) {
         consecutiveBuyDays: technicalData.consecutiveBuyDays,
         consecutiveSellDays: technicalData.consecutiveSellDays,
         volRatio: technicalData.volRatio,
+        mfmPositiveRatio20: technicalData.mfmPositiveRatio20,   // P1-9
       }
     );
     (technicalData as any).score = scoringResult.total_score;

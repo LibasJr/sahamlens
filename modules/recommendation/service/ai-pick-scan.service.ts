@@ -116,6 +116,7 @@ async function scoreOne(
       currentPrice, ma20, ma50, ma200, rsi,
       macdHist: macdHistVal, macdLine: macdLineVal, macdSignal: macdSigVal,
       volToday, volAvg20,
+      changePct,   // P1-8: volume besar tanpa arah harga bukan konfirmasi beli
     },
     fundamental,
     // Satu kelompok arus dana (temuan H-1).
@@ -125,6 +126,7 @@ async function scoreOne(
       consecutiveBuyDays: buyStreak,
       consecutiveSellDays: sellStreak,
       volRatio,
+      mfmPositiveRatio20: accumulation.mfmPositiveRatio20,  // P1-9
     }
   );
 

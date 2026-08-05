@@ -24,7 +24,10 @@ const BATCH_SIZE = 15;
 async function fetchOne(ticker: string) {
   try {
     const qs = await yahooFinance.quoteSummary(ticker, {
-      modules: ['summaryDetail', 'defaultKeyStatistics', 'financialData'],
+      // `assetProfile` ditambahkan (P1-10/P1-11): tanpa sektor, AI Pick menilai valuasi
+      // & kesehatan neraca setiap emiten dengan perlakuan netral - bank tetap dinilai
+      // lewat DER, emiten komoditas tetap kebal penjaga puncak siklus.
+      modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData'],
     });
     return {
       per: qs?.summaryDetail?.trailingPE || qs?.summaryDetail?.forwardPE || null,
@@ -33,6 +36,12 @@ async function fetchOne(ticker: string) {
       der: qs?.financialData?.debtToEquity != null ? qs.financialData.debtToEquity / 100 : null,
       currentRatio: qs?.financialData?.currentRatio || null,
       revenueGrowth: qs?.financialData?.revenueGrowth != null ? qs.financialData.revenueGrowth * 100 : null,
+      sector: {
+        yahooSector: qs?.assetProfile?.sector ?? null,
+        yahooIndustry: qs?.assetProfile?.industry ?? null,
+        payoutRatio: qs?.summaryDetail?.payoutRatio ?? null,
+        beta: null,
+      },
     };
   } catch {
     logger.warn('Snapshot fundamental: gagal fetch', { ticker });
