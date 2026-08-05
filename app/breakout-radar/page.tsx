@@ -61,7 +61,7 @@ type BucketBacktest = {
   note: string | null;
 };
 
-type RadarColumnKey = 'symbol' | 'price' | 'changePct' | 'finalScore';
+type RadarColumnKey = 'symbol' | 'price' | 'changePct' | 'finalScore' | 'technicalScore' | 'fundamentalScore' | 'flowScore' | 'coverage';
 
 interface RadarSortableColumn {
   key: RadarColumnKey;
@@ -77,7 +77,14 @@ const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = [
   // Audit skor 2026-08-05: label "Skor (0-140)" dulu jujur menggambarkan implementasi
   // (skor 0-100 + bonus 0-40), tapi skala 0-140 itu sendiri yang salah - lihat catatan
   // lengkap di ai-pick.service.ts. Bonus sudah dihapus; skor sekarang benar-benar 0-100.
-  { key: 'finalScore', label: 'Skor (0-100)', align: 'right', getValue: (i) => i.finalScore },
+  { key: 'finalScore', label: 'Total', align: 'right', getValue: (i) => i.finalScore },
+  // Breakdown dari calculateScore(): Technical maks 40, Fundamental maks 30, Flow maks
+  // 30. Ditampilkan sebagai kolom terpisah agar skor tinggi tidak disalahbaca sebagai
+  // "semua aspek kuat"; bisa saja dominan teknikal sementara fundamental minim data.
+  { key: 'technicalScore', label: 'Teknikal', align: 'right', getValue: (i) => i.breakdown?.technical },
+  { key: 'fundamentalScore', label: 'Fundamental', align: 'right', getValue: (i) => i.breakdown?.fundamental },
+  { key: 'flowScore', label: 'Flow', align: 'right', getValue: (i) => i.breakdown?.flow },
+  { key: 'coverage', label: 'Coverage', align: 'right', getValue: (i) => i.coverage },
 ];
 
 function compareRadarValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
@@ -93,6 +100,11 @@ function compareRadarValues(a: string | number | null | undefined, b: string | n
 function fmtBacktestPct(value: number | null): string {
   if (value == null) return 'N/A';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+}
+
+function scoreBarWidth(value: number | null | undefined, max: number): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || max <= 0) return '0%';
+  return `${Math.min(100, Math.max(0, (value / max) * 100))}%`;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -522,7 +534,7 @@ export default function AiPickPage() {
                             </button>
                           </th>
                         ))}
-                        <th className="py-3 px-4">Rincian</th>
+                        <th className="py-3 px-4">Sinyal</th>
                         <th className="py-3 px-4 text-center">Kenapa</th>
                       </tr>
                     </thead>
@@ -572,12 +584,38 @@ export default function AiPickPage() {
                               </span>
                             </div>
                           </td>
+                          <td className="py-3 px-4 text-right font-number text-tv-text">
+                            <div className="flex flex-col items-end gap-1">
+                              <span>{it.breakdown?.technical ?? 'N/A'}<span className="text-[10px] text-tv-muted">/40</span></span>
+                              <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
+                                <span className="block h-full rounded-full bg-tv-blue" style={{ width: scoreBarWidth(it.breakdown?.technical, 40) }} />
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right font-number text-tv-text">
+                            <div className="flex flex-col items-end gap-1">
+                              <span>{it.breakdown?.fundamental ?? 'N/A'}<span className="text-[10px] text-tv-muted">/30</span></span>
+                              <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
+                                <span className="block h-full rounded-full bg-tv-purple" style={{ width: scoreBarWidth(it.breakdown?.fundamental, 30) }} />
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right font-number text-tv-text">
+                            <div className="flex flex-col items-end gap-1">
+                              <span>{it.breakdown?.flow ?? 'N/A'}<span className="text-[10px] text-tv-muted">/30</span></span>
+                              <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
+                                <span className="block h-full rounded-full bg-tv-green" style={{ width: scoreBarWidth(it.breakdown?.flow, 30) }} />
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right font-number text-tv-text">
+                            {typeof it.coverage === 'number' ? `${it.coverage}%` : <span className="text-tv-muted">N/A</span>}
+                          </td>
                           {/* Kolom rincian: dulu "skor dasar + bonus". Bonus sudah dihapus
                               (audit skor 2026-08-05) - sekarang menyatakan kelengkapan data
                               di balik skor + sinyal hari ini sebagai label. */}
                           <td className="py-3 px-4 text-xs text-tv-muted font-number whitespace-nowrap">
-                            {typeof it.coverage === 'number' ? `data ${it.coverage}%` : 'data n/a'}
-                            {it.signals?.length ? ` • ${it.signals.join(', ')}` : ''}
+                            {it.signals?.length ? it.signals.join(', ') : <span className="text-tv-muted">-</span>}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <button
@@ -591,7 +629,7 @@ export default function AiPickPage() {
                         </tr>
                         {isExpanded && (
                           <tr className="bg-tv-bg/60">
-                            <td colSpan={7} className="py-3 px-4">
+                            <td colSpan={11} className="py-3 px-4">
                               <div className="flex flex-col md:flex-row gap-4 text-xs">
                                 <div className="flex gap-4 shrink-0">
                                   <div>
@@ -671,7 +709,13 @@ export default function AiPickPage() {
                               </div>
                               <div className="text-[11px] text-tv-muted font-number">
                                 Rp {Math.round(it.price).toLocaleString('id-ID')}
-                                {typeof it.coverage === 'number' ? ` · data ${it.coverage}%` : ' · data n/a'}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] font-number text-tv-muted">
+                                <span>T {it.finalScore}</span>
+                                <span>Tek {it.breakdown?.technical ?? 'N/A'}/40</span>
+                                <span>Fund {it.breakdown?.fundamental ?? 'N/A'}/30</span>
+                                <span>Flow {it.breakdown?.flow ?? 'N/A'}/30</span>
+                                <span>Cov {typeof it.coverage === 'number' ? `${it.coverage}%` : 'N/A'}</span>
                               </div>
                               {it.flagged && <div className="text-[10px] text-tv-red mt-0.5">! {it.flagReason}</div>}
                             </div>
