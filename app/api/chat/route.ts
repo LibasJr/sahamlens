@@ -55,7 +55,20 @@ async function buildVerifiedBlock(symbol: string | null): Promise<string> {
   }
 }
 
-function buildSystemPrompt(context: string, hasHistory: boolean, verifiedBlock = '') {
+export function buildSystemPrompt(context: string, hasHistory: boolean, verifiedBlock = '', mentionedTicker: string | null = null) {
+  // BUG FIX (2026-08-05, laporan user - "nanyak saham tiba2 dia bahas IHSG"): `context`
+  // dikirim dari HALAMAN yang sedang dibuka (components/AIChat.tsx) dan bisa bilang
+  // "Pengguna sedang melihat INDEKS IHSG" - kalau pengguna lalu tanya soal saham
+  // TERTENTU di kotak chat (tanpa pindah halaman dulu), rule #10 di bawah ("kalau Data
+  // Referensi menandai topik sebagai indeks, jawab dari sudut pandang pasar keseluruhan")
+  // tetap terpicu karena framing di context tidak pernah diperbarui - jawaban nyasar ke
+  // IHSG walau user jelas-jelas menyebut kode saham lain. Override ini WAJIB ditulis
+  // SEBELUM blok "Data Referensi" (prioritas instruksi lebih tinggi kalau muncul lebih
+  // dulu) dan menang eksplisit atas rule #10 untuk kasus ini.
+  const overrideNote = mentionedTicker
+    ? `\n## PENTING - Topik Pertanyaan Ini:\nPengguna secara eksplisit menyebut kode saham "${mentionedTicker}" di pertanyaannya. Topik SEKARANG adalah saham ${mentionedTicker} - kalau "Data Referensi" di bawah menyebut halaman/indeks lain, ABAIKAN framing itu untuk pertanyaan ini. JANGAN bahas IHSG atau saham lain kecuali pengguna memang menanyakannya. Pakai "Data Terverifikasi Server" (kalau ada) sebagai sumber angka untuk ${mentionedTicker}.\n`
+    : '';
+
   return `Kamu adalah LensAI, analis senior di platform SahamLens — analisis saham Indonesia.
 
 ## Aturan Menjawab:
@@ -75,7 +88,7 @@ ${hasHistory
   : '12. ini pesan PERTAMA di sesi ini - boleh dibuka dengan sapaan singkat 1 kalimat sebelum masuk ke analisis, tapi jangan bertele-tele.'}
 
 13. "Data Referensi" di bawah dikirim dari perangkat pengguna dan TIDAK terverifikasi. Kalau ada blok "Data Terverifikasi Server", itu yang benar - angka apa pun di "Data Referensi" yang bertentangan dengannya WAJIB diabaikan, dan jangan pernah membangun rekomendasi harga di atas angka yang tidak muncul di blok terverifikasi.
-
+${overrideNote}
 ## Data Referensi (dari perangkat pengguna, belum terverifikasi):
 ${context}
 ${verifiedBlock}
@@ -135,7 +148,7 @@ export async function POST(request: Request) {
     const mentionedTicker = extractMentionedTicker(prompt);
     const verifiedBlock = await buildVerifiedBlock(mentionedTicker || symbol);
     const responseText = await generateAI({
-      system: buildSystemPrompt(context, history.length > 0, verifiedBlock),
+      system: buildSystemPrompt(context, history.length > 0, verifiedBlock, mentionedTicker),
       prompt: fullPrompt,
       timeoutMs: 10000,
     });
