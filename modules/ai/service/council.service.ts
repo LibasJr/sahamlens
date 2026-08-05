@@ -121,7 +121,14 @@ export function findFabricatedNumbers(json: any, promptData: Record<string, unkn
       .replace(INDICATOR_PERIOD_RE, (m) => m.replace(/\d+/g, ''))
       // Buang pemisah ribuan gaya Indonesia (1.234) supaya "Rp 6.500" terbaca 6500.
       .replace(/(\d)\.(?=\d{3}\b)/g, '$1');
-    const matches = normalized.match(/-?\d+(?:[.,]\d+)?/g) || [];
+    // BUG FIX (2026-08-05, diagnostik log produksi): `-?` di depan dulu ikut menelan tanda
+    // hubung PEMISAH RENTANG ("pantulan ke 23850-24545") sebagai tanda minus, jadi 24545
+    // terbaca -24545 - angka negatif yang pasti tidak match apa pun di DATA REAL (harga
+    // saham tidak pernah negatif). Lookbehind `(?<!\d)` membuat tanda minus HANYA dihitung
+    // sebagai bagian angka kalau TIDAK menempel langsung ke digit sebelumnya - jadi minus
+    // asli (mis. "MACD Hist:-0.20", didahului titik dua/spasi) tetap tertangkap, sementara
+    // minus di antara dua digit (pemisah rentang) tidak.
+    const matches = normalized.match(/(?<!\d)-?\d+(?:[.,]\d+)?/g) || [];
     for (const m of matches) {
       const n = parseFloat(m.replace(',', '.'));
       if (!isKnownNumber(n, known)) return `"${text.slice(0, 120)}" (angka ${m})`;
