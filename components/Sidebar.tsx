@@ -233,7 +233,11 @@ export default function Sidebar() {
         {/* Brand Header */}
         <div className={`border-b border-white/5 flex items-center bg-gradient-to-b from-white/[0.02] to-transparent ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-5'} py-5`}>
           <Link href="/" className="flex items-center gap-3 min-w-0">
-            <img src="/icon-192x192.png" alt="SahamLens" className="h-9 w-9 rounded-lg shrink-0 object-cover" />
+            {/* BUG FIX (2026-08-05, permintaan user): icon "Rp" polos diganti icon "scope"
+                (sahamlens-scope.png, sudah dipakai di CTA banner Dashboard.tsx) - gambar
+                sumbernya landscape dengan bg putih, rounded-full + object-cover nge-crop
+                jadi lingkaran (nutup sudut putihnya) konsisten sama style badge lama. */}
+            <img src="/sahamlens-scope.png" alt="SahamLens" className="h-9 w-9 rounded-full shrink-0 object-cover" />
             <div className={isCollapsed ? 'md:hidden' : ''}>
               <h1 className="text-base font-bold text-white leading-none">SahamLens</h1>
               <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest mt-1">IDX Analytics</p>
