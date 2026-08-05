@@ -37,6 +37,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 - Output analisis LensRadar sekarang membawa metadata audit versi:
   `scoreVersion`, `requestedScoreVersion`, `rejectedRows`, `unversionedRows`,
   `versionMixed`, `versionRejectedReason`.
+- Cache publik `/api/transparency` ikut dibump menjadi cache key berbasis
+  `SCORE_VERSION`. Ini penting agar Redis tidak menyajikan payload lama tanpa metadata versi
+  setelah deploy Fase 1.
 - `lens_bucket_stats` ditambah kolom idempoten `score_version` dan index
   `(score_version, run_date DESC)`. Snapshot stats terbaru dibaca per versi, bukan latest
   global lintas versi.
