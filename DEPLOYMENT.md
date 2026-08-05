@@ -24,6 +24,26 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - Admin Calibration Lab untuk LensRadar
+
+- Halaman internal baru: `/admin/calibration`, protected dengan `isAdminServer()` dan redirect
+  ke `/admin-login` kalau bukan admin.
+- Admin Panel (`/admin`) sekarang punya link ke "LensRadar Calibration Lab".
+- Endpoint admin baru:
+  - `GET /api/admin/calibration` untuk data grafik bucket, t-test, dan simulasi threshold.
+  - `POST /api/admin/calibration/recommend-threshold` untuk rekomendasi ambang via AI cascade
+    (`generateAI`) dengan fallback rule-based bila semua provider gagal/limit.
+- Service baru `modules/lens-radar/service/calibration.service.ts` menghitung observasi real dari
+  `lens_radar_history` dan open H+1 Yahoo OHLC; tidak memakai dummy. Jika data T+20 belum cukup,
+  UI menampilkan empty/insufficient-data state.
+- Grafik batang menampilkan avg return T+20 bucket 80-100, 70-79, 60-69. Tabel t-test memakai
+  Welch one-tailed t-test untuk hipotesis `80-100 > <60` dengan ambang signifikan p-value `<0.05`.
+- Slider threshold 60-90 menunjukkan win rate T+20, jumlah sinyal, avg return T+20, dan delta
+  vs baseline ambang 80.
+- Tidak ada env var baru. Fitur AI memakai provider AI yang sudah ada (`GEMINI_API_KEY`,
+  `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `KIMI_API_KEY`, `NVIDIA_API_KEY`) dan tetap punya fallback
+  deterministic jika provider tidak tersedia.
+
 ### 2026-08-05 - Strategy Builder: Lens bucket stats via Vercel Cron
 
 - Ditambahkan service `modules/lens-radar/service/bucket-backtest.service.ts` untuk validasi

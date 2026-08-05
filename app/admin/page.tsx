@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BarChart3 } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import ExportButton from './ExportButton';
@@ -33,6 +33,21 @@ export default async function AdminPage() {
         </div>
         <SetProForm />
         <ChangeSecretForm />
+
+        <Link
+          href="/admin/calibration"
+          className="mb-8 flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-accent/10 p-2 text-tv-accent">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">LensRadar Calibration Lab</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Audit bucket LensScore, t-test edge T+20, simulasi threshold, dan rekomendasi ambang AI.
+            </p>
+          </div>
+        </Link>
 
         <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-tv-border flex items-center justify-between">

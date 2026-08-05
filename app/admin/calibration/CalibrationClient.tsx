@@ -1,0 +1,404 @@
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { AlertTriangle, Brain, RefreshCw, SlidersHorizontal, TrendingUp } from 'lucide-react';
+
+type Bucket = '80-100' | '70-79' | '60-69' | '<60';
+
+interface CalibrationBucketChartRow {
+  bucket: Bucket;
+  avgReturnT20: number | null;
+  totalSamples: number;
+}
+
+interface CalibrationTTestResult {
+  comparison: '80-100 > <60';
+  method: 'Welch one-tailed t-test';
+  highBucketSamples: number;
+  lowBucketSamples: number;
+  highAvgT20: number | null;
+  lowAvgT20: number | null;
+  tStatistic: number | null;
+  degreesOfFreedom: number | null;
+  pValue: number | null;
+  significant: boolean;
+  conclusion: string;
+}
+
+interface ThresholdSimulation {
+  threshold: number;
+  avgReturnT20: number | null;
+  winRateT20: number | null;
+  totalSignals: number;
+  signalDeltaPctVs80: number | null;
+  winRateDeltaPctVs80: number | null;
+}
+
+interface CalibrationDashboardData {
+  asOfDate: string;
+  latestStatsRunDate: string | null;
+  sourceRows: number;
+  uniqueTickers: number;
+  observationsT20: number;
+  chart: CalibrationBucketChartRow[];
+  tTest: CalibrationTTestResult;
+  thresholdSimulations: ThresholdSimulation[];
+}
+
+interface ThresholdRecommendation {
+  threshold: number | null;
+  text: string;
+  aiGenerated: boolean;
+  supportingSimulation: ThresholdSimulation | null;
+  baseline80: ThresholdSimulation | null;
+}
+
+function pct(value: number | null | undefined, digits = 2): string {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return `${value.toFixed(digits)}%`;
+}
+
+function num(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return value.toLocaleString('id-ID');
+}
+
+function pValue(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return '-';
+  if (value < 0.0001) return '<0.0001';
+  return value.toFixed(4);
+}
+
+function LoadingState() {
+  return (
+    <div className="bg-tv-card border border-tv-border rounded-xl p-10 text-center">
+      <RefreshCw className="w-8 h-8 mx-auto mb-3 text-tv-accent animate-spin" />
+      <p className="text-sm text-tv-muted">Menghitung ulang kalibrasi dari histori LensRadar real...</p>
+    </div>
+  );
+}
+
+export default function CalibrationClient() {
+  const [data, setData] = useState<CalibrationDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [threshold, setThreshold] = useState(80);
+  const [recommendation, setRecommendation] = useState<ThresholdRecommendation | null>(null);
+  const [recommending, setRecommending] = useState(false);
+
+  async function loadData() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/calibration');
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json?.error || 'Gagal memuat data kalibrasi');
+        setData(null);
+        return;
+      }
+      setData(json);
+      setThreshold(80);
+    } catch {
+      setError('Gagal memuat data kalibrasi');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const selectedSimulation = useMemo(() => (
+    data?.thresholdSimulations.find((sim) => sim.threshold === threshold) ?? null
+  ), [data, threshold]);
+
+  const baseline80 = useMemo(() => (
+    data?.thresholdSimulations.find((sim) => sim.threshold === 80) ?? null
+  ), [data]);
+
+  async function requestRecommendation() {
+    setRecommending(true);
+    setRecommendation(null);
+    try {
+      const res = await fetch('/api/admin/calibration/recommend-threshold', { method: 'POST' });
+      const json = await res.json();
+      if (res.ok) {
+        setRecommendation(json);
+        if (typeof json?.threshold === 'number') setThreshold(json.threshold);
+      } else {
+        setRecommendation({
+          threshold: null,
+          text: json?.error || 'AI belum bisa membuat rekomendasi saat ini.',
+          aiGenerated: false,
+          supportingSimulation: null,
+          baseline80: baseline80,
+        });
+      }
+    } catch {
+      setRecommendation({
+        threshold: null,
+        text: 'AI belum bisa membuat rekomendasi saat ini.',
+        aiGenerated: false,
+        supportingSimulation: null,
+        baseline80: baseline80,
+      });
+    } finally {
+      setRecommending(false);
+    }
+  }
+
+  if (loading) return <LoadingState />;
+
+  if (error || !data) {
+    return (
+      <div className="bg-tv-card border border-tv-border rounded-xl p-8">
+        <div className="flex items-start gap-3 text-tv-yellow">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <h2 className="font-heading font-bold text-tv-text mb-1">Kalibrasi belum bisa dimuat</h2>
+            <p className="text-sm text-tv-muted">{error || 'Data tidak tersedia.'}</p>
+            <button
+              onClick={loadData}
+              className="mt-4 px-4 py-2 rounded-lg border border-tv-border text-sm text-tv-text hover:bg-tv-hover transition-colors"
+            >
+              Coba Muat Ulang
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const hasEnoughT20 = data.observationsT20 > 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+          <div className="text-xs text-tv-muted uppercase">As-of</div>
+          <div className="font-number text-xl font-bold mt-1">{data.asOfDate}</div>
+        </div>
+        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+          <div className="text-xs text-tv-muted uppercase">Run Stats</div>
+          <div className="font-number text-xl font-bold mt-1">{data.latestStatsRunDate || 'On-demand'}</div>
+        </div>
+        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+          <div className="text-xs text-tv-muted uppercase">Histori Valid</div>
+          <div className="font-number text-xl font-bold mt-1">{num(data.sourceRows)}</div>
+        </div>
+        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+          <div className="text-xs text-tv-muted uppercase">Observasi T+20</div>
+          <div className="font-number text-xl font-bold mt-1">{num(data.observationsT20)}</div>
+        </div>
+      </div>
+
+      {!hasEnoughT20 && (
+        <div className="bg-tv-yellow/10 border border-tv-yellow/30 rounded-xl p-4 text-sm text-tv-yellow">
+          Belum ada observasi T+20 yang cukup. Halaman ini tidak menampilkan angka dummy; tunggu
+          histori `lens_radar_history` bertambah minimal 20 hari bursa setelah sinyal.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <section className="xl:col-span-3 bg-tv-card border border-tv-border rounded-xl p-5">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h2 className="font-heading text-lg font-bold flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-tv-green" />
+                Avg Return T+20 per Bucket
+              </h2>
+              <p className="text-xs text-tv-muted mt-1">
+                Net return setelah fee 0,4% + slippage 0,1%. Bucket &lt;60 tidak ditampilkan di grafik
+                utama supaya fokus ke kandidat rekomendasi.
+              </p>
+            </div>
+          </div>
+
+          <div className="h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.chart} margin={{ top: 16, right: 16, left: -12, bottom: 8 }}>
+                <CartesianGrid stroke="#2A2E39" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="bucket" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                <Tooltip
+                  cursor={{ fill: '#1F2937', opacity: 0.35 }}
+                  contentStyle={{ backgroundColor: '#131722', borderColor: '#2A2E39', color: '#fff', borderRadius: 12 }}
+                  formatter={(value: any) => [pct(Number(value)), 'Avg T+20']}
+                  labelFormatter={(label) => `Bucket ${label}`}
+                />
+                <Bar dataKey="avgReturnT20" name="Avg T+20" radius={[8, 8, 0, 0]} fill="#22c55e" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            {data.chart.map((row) => (
+              <div key={row.bucket} className="bg-tv-bg border border-tv-border rounded-lg p-3">
+                <div className="text-xs text-tv-muted">Bucket {row.bucket}</div>
+                <div className="font-number font-bold text-tv-text mt-1">{pct(row.avgReturnT20)}</div>
+                <div className="text-[11px] text-tv-muted mt-1">{num(row.totalSamples)} sampel</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="xl:col-span-2 bg-tv-card border border-tv-border rounded-xl p-5">
+          <h2 className="font-heading text-lg font-bold mb-1">T-test Validasi Edge</h2>
+          <p className="text-xs text-tv-muted mb-4">
+            Hipotesis: bucket 80-100 punya return T+20 lebih tinggi dari bucket &lt;60.
+          </p>
+
+          <div className={`rounded-lg border p-4 mb-4 ${
+            data.tTest.significant
+              ? 'border-tv-green/40 bg-tv-green/10 text-tv-green'
+              : 'border-tv-yellow/40 bg-tv-yellow/10 text-tv-yellow'
+          }`}>
+            <div className="text-xs uppercase tracking-wide opacity-80">Kesimpulan</div>
+            <div className="font-bold mt-1">{data.tTest.conclusion}</div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-tv-border">
+                <tr>
+                  <td className="py-2 text-tv-muted">Metode</td>
+                  <td className="py-2 text-right">{data.tTest.method}</td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-tv-muted">Perbandingan</td>
+                  <td className="py-2 text-right font-mono">{data.tTest.comparison}</td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-tv-muted">Avg T+20 80-100</td>
+                  <td className="py-2 text-right font-number">{pct(data.tTest.highAvgT20)}</td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-tv-muted">Avg T+20 &lt;60</td>
+                  <td className="py-2 text-right font-number">{pct(data.tTest.lowAvgT20)}</td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-tv-muted">Sampel 80-100 / &lt;60</td>
+                  <td className="py-2 text-right font-number">
+                    {num(data.tTest.highBucketSamples)} / {num(data.tTest.lowBucketSamples)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-tv-muted">t-stat / df</td>
+                  <td className="py-2 text-right font-number">
+                    {data.tTest.tStatistic ?? '-'} / {data.tTest.degreesOfFreedom ?? '-'}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-tv-muted">p-value</td>
+                  <td className={`py-2 text-right font-number font-bold ${data.tTest.significant ? 'text-tv-green' : 'text-tv-yellow'}`}>
+                    {pValue(data.tTest.pValue)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
+          <div className="flex-1">
+            <h2 className="font-heading text-lg font-bold flex items-center gap-2">
+              <SlidersHorizontal className="w-5 h-5 text-tv-accent" />
+              Simulasi Ambang Rekomendasi
+            </h2>
+            <p className="text-xs text-tv-muted mt-1">
+              Geser ambang LensScore untuk melihat trade-off win rate T+20 vs jumlah sinyal.
+              Baseline pembanding = ambang 80.
+            </p>
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-tv-muted">Ambang LensScore</span>
+                <span className="font-number font-bold text-tv-text">{threshold}</span>
+              </div>
+              <input
+                type="range"
+                min={60}
+                max={90}
+                step={1}
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value))}
+                className="w-full accent-tv-accent"
+              />
+              <div className="flex justify-between text-[11px] text-tv-muted mt-1">
+                <span>60</span>
+                <span>75</span>
+                <span>80</span>
+                <span>85</span>
+                <span>90</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:min-w-[560px]">
+            <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+              <div className="text-xs text-tv-muted uppercase">Win Rate T+20</div>
+              <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.winRateT20)}</div>
+              <div className="text-[11px] text-tv-muted mt-1">
+                Δ vs 80: {pct(selectedSimulation?.winRateDeltaPctVs80)}
+              </div>
+            </div>
+            <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+              <div className="text-xs text-tv-muted uppercase">Jumlah Sinyal</div>
+              <div className="font-number text-2xl font-bold mt-1">{num(selectedSimulation?.totalSignals)}</div>
+              <div className="text-[11px] text-tv-muted mt-1">
+                Δ vs 80: {pct(selectedSimulation?.signalDeltaPctVs80, 0)}
+              </div>
+            </div>
+            <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+              <div className="text-xs text-tv-muted uppercase">Avg T+20</div>
+              <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.avgReturnT20)}</div>
+              <div className="text-[11px] text-tv-muted mt-1">Net of cost</div>
+            </div>
+            <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+              <div className="text-xs text-tv-muted uppercase">Baseline 80</div>
+              <div className="font-number text-2xl font-bold mt-1">{pct(baseline80?.winRateT20)}</div>
+              <div className="text-[11px] text-tv-muted mt-1">{num(baseline80?.totalSignals)} sinyal</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
+          <button
+            onClick={requestRecommendation}
+            disabled={recommending || !hasEnoughT20}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-tv-accent px-4 py-2.5 text-sm font-bold text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          >
+            {recommending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+            {recommending ? 'AI sedang menilai...' : 'Rekomendasikan Ambang Baru'}
+          </button>
+          <p className="text-xs text-tv-muted">
+            AI hanya menyarankan ambang model, bukan rekomendasi beli/jual saham individual.
+          </p>
+        </div>
+
+        {recommendation && (
+          <div className="mt-4 rounded-xl border border-tv-accent/30 bg-tv-accent/10 p-4">
+            <div className="text-xs text-tv-accent uppercase tracking-wide mb-1">
+              {recommendation.aiGenerated ? 'LensAI Quant Recommendation' : 'Rule-based Recommendation'}
+            </div>
+            <p className="text-sm leading-relaxed text-tv-text">{recommendation.text}</p>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
