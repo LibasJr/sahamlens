@@ -24,6 +24,17 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - LensRadar UI: breakdown skor komposit
+
+- Halaman `LensRadar Live` (`/breakout-radar`) sekarang menampilkan kolom terpisah:
+  `Total`, `Teknikal`, `Fundamental`, `Flow`, dan `Coverage`.
+- Kolom `Total` tetap LensScore 0-100. `Teknikal` maksimum 40, `Fundamental` maksimum
+  30, `Flow` maksimum 30, dan `Coverage` adalah porsi bobot skor yang punya data.
+- Kolom lama `Rincian` diubah menjadi `Sinyal` agar label seperti `breakout`,
+  `golden cross`, dan `akumulasi` tidak tercampur dengan angka coverage.
+- Tidak ada perubahan formula scoring, API, database, cron, atau env var. Ini perubahan
+  presentasi UI dari field yang sudah dikirim `/api/ai-pick`.
+
 ### 2026-08-06 - One-shot backfill LensRadar 1 tahun
 
 - Script baru: `scripts/backfill-lens-history.mjs`.
