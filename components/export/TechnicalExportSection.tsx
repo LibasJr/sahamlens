@@ -38,7 +38,12 @@ export default function TechnicalExportSection({
         fileName={buildExportFileName('Technical', symbol)}
         label="Export Kartu Teknikal"
       />
-      <div ref={exportRef} style={{ position: 'absolute', left: -9999, top: 0 }}>
+      {/* BUG FIX (2026-08-05): SEBELUMNYA `position: absolute; left: -9999px` - elemen
+          jauh di luar viewport tidak pernah ke-paint browser, jadi html-to-image
+          menghasilkan PNG putih/blank. Sama seperti fix di app/fundamental/page.tsx -
+          wrapper 0x0 + overflow hidden di (0,0) tetap ke-paint (ke-capture penuh) tapi
+          tidak kelihatan/tidak mengubah layout untuk user. */}
+      <div ref={exportRef} style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden' }}>
         <TechnicalExportCard
           symbol={symbol}
           finalSuggestion={finalSuggestion}
