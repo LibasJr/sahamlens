@@ -78,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Intelligence',
     items: [
       { id: 'council', name: 'LensAI', subtitle: 'Stock Analysis LensAI', path: '/technical/BBCA.JK', icon: Users },
+      { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi LensRadar publik', path: '/transparency', icon: ShieldCheck },
     ],
   },
   {
@@ -101,6 +102,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
   label: 'Admin',
   items: [
     { id: 'admin', name: 'Admin Panel', subtitle: 'Aktivasi Pro & User Aktif', path: '/admin', icon: ShieldCheck },
+    { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, Ambang & Bobot', path: '/admin/calibration', icon: LineChart },
   ],
 };
 
