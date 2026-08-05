@@ -26,7 +26,12 @@ const IDX_SECTORS = [
   { sector: 'Financial', color: '#3b82f6', stocks: ['BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'BBNI.JK', 'BRIS.JK', 'BBTN.JK', 'ARTO.JK'] },
   { sector: 'Energy', color: '#f97316', stocks: ['ADRO.JK', 'PTBA.JK', 'MEDC.JK', 'ITMG.JK', 'HRUM.JK', 'INDY.JK', 'ELSA.JK'] },
   { sector: 'Consumer Defensive', color: '#22c55e', stocks: ['ICBP.JK', 'INDF.JK', 'UNVR.JK', 'MYOR.JK', 'CPIN.JK', 'JPFA.JK', 'GGRM.JK', 'HMSP.JK'] },
-  { sector: 'Technology', color: '#8b5cf6', stocks: ['GOTO.JK', 'BUKA.JK', 'EMTK.JK', 'MTDL.JK', 'DCII.JK'] },
+  // BUG FIX (2026-08-05): DCII.JK DIHAPUS dari sini - dikonfirmasi live ke Yahoo Finance
+  // sektor asli DCII adalah "Real Estate / Real Estate Services", BUKAN Technology
+  // (walau bisnisnya data center, Yahoo mengklasifikasikannya sebagai real estate).
+  // Ditemukan saat menambahkan DCII.JK ke lib/tickers.ts (laporan user "saham DCII kok
+  // gak ada"), bukan diganti dengan saham lain di sini - tidak ditebak penggantinya.
+  { sector: 'Technology', color: '#8b5cf6', stocks: ['GOTO.JK', 'BUKA.JK', 'EMTK.JK', 'MTDL.JK'] },
   { sector: 'Telecom', color: '#06b6d4', stocks: ['TLKM.JK', 'ISAT.JK', 'EXCL.JK', 'TOWR.JK', 'FREN.JK'] },
   { sector: 'Basic Materials', color: '#eab308', stocks: ['ANTM.JK', 'INCO.JK', 'TINS.JK', 'INKP.JK', 'SMGR.JK', 'INTP.JK', 'TPIA.JK'] },
   { sector: 'Industrials', color: '#64748b', stocks: ['ASII.JK', 'UNTR.JK', 'AUTO.JK', 'SMSM.JK', 'GJTL.JK'] },

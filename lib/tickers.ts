@@ -85,6 +85,11 @@ export const TICKERS = [
   { symbol: 'BABP.JK', name: 'Bank MNC Internasional Tbk.' },
   { symbol: 'BACA.JK', name: 'Bank Capital Indonesia Tbk.' },
   { symbol: 'BAJA.JK', name: 'Saranacentral Bajatama Tbk.' },
+  // BUG FIX (2026-08-05, laporan user - "IPO 2026 udah masuk semua?"): dicek via
+  // pencarian web (2026-08-05) - 7 emiten IPO Jan-Jul 2026, 4 di antaranya (WBSA, EMMI,
+  // BACH, PRDL) belum ada di idx_emiten_900.csv maupun daftar ini. Nama+harga
+  // dikonfirmasi live ke Yahoo Finance sebelum ditambahkan (bukan tebakan).
+  { symbol: 'BACH.JK', name: 'Bach Multi Global Tbk.' },
   { symbol: 'BALI.JK', name: 'Bali Towerindo Sentra Tbk.' },
   { symbol: 'BAPA.JK', name: 'Bekasi Asri Pemula Tbk.' },
   { symbol: 'BAPI.JK', name: 'Bhakti Agung Propertindo Tbk.' },
@@ -247,6 +252,14 @@ export const TICKERS = [
   { symbol: 'CYLW.JK', name: 'CYLW Company Tbk.' },
   { symbol: 'DADA.JK', name: 'Diamond Citra Propertindo Tbk.' },
   { symbol: 'DART.JK', name: 'Duta Anggada Realty Tbk.' },
+  // BUG FIX (2026-08-05, laporan user - "saham DCII kok gak ada"): DCII hilang dari
+  // idx_emiten_900.csv DAN daftar ini - tidak ketemu di search manapun (CommandPalette,
+  // deteksi ticker chat) walau Yahoo Finance punya datanya (dikonfirmasi live,
+  // 2026-08-05: "PT DCI Indonesia Tbk", harga Rp200.000). Sektor asli dari Yahoo "Real
+  // Estate / Real Estate Services" (BUKAN Technology - dicatat di sini karena
+  // modules/market/service/market-pulse.service.ts sempat salah masukkan DCII.JK ke
+  // daftar wakil sektor Technology sebelum ini diverifikasi).
+  { symbol: 'DCII.JK', name: 'PT DCI Indonesia Tbk' },
   { symbol: 'DDVL.JK', name: 'DDVL Company Tbk.' },
   { symbol: 'DEOS.JK', name: 'DEOS Company Tbk.' },
   { symbol: 'DEWA.JK', name: 'Darma Henwa Tbk.' },
@@ -294,6 +307,8 @@ export const TICKERS = [
   { symbol: 'EKAD.JK', name: 'Ekadharma International Tbk.' },
   { symbol: 'ELSA.JK', name: 'Elnusa Tbk.' },
   { symbol: 'EMDE.JK', name: 'Megapolitan Developments Tbk.' },
+  // IPO 2026 (lihat catatan lengkap di dekat BACH.JK) - dikonfirmasi live ke Yahoo Finance.
+  { symbol: 'EMMI.JK', name: 'Esa Medika Mandiri Tbk.' },
   { symbol: 'EMHN.JK', name: 'EMHN Company Tbk.' },
   { symbol: 'EMTK.JK', name: 'Elang Mahkota Teknologi Tbk.' },
   { symbol: 'ENRG.JK', name: 'Energi Mega Persada Tbk.' },
@@ -842,6 +857,8 @@ export const TICKERS = [
   { symbol: 'VYIT.JK', name: 'VYIT Company Tbk.' },
   { symbol: 'VZXR.JK', name: 'VZXR Company Tbk.' },
   { symbol: 'WBPO.JK', name: 'WBPO Company Tbk.' },
+  // IPO 2026 (lihat catatan lengkap di dekat BACH.JK) - dikonfirmasi live ke Yahoo Finance.
+  { symbol: 'WBSA.JK', name: 'BSA Logistics Indonesia Tbk.' },
   { symbol: 'WCDR.JK', name: 'WCDR Company Tbk.' },
   { symbol: 'WCLA.JK', name: 'WCLA Company Tbk.' },
   { symbol: 'WDQS.JK', name: 'WDQS Company Tbk.' },
@@ -936,6 +953,8 @@ export const TICKERS = [
   { symbol: 'NICK.JK', name: 'PT Charnic Capital Tbk.' },
   { symbol: 'SPTO.JK', name: 'PT Surya Pertiwi Tbk' },
   { symbol: 'PRIM.JK', name: 'PT Royal Prima Tbk.' },
+  // IPO 2026 (lihat catatan lengkap di dekat BACH.JK) - dikonfirmasi live ke Yahoo Finance.
+  { symbol: 'PRDL.JK', name: 'Prodia Diagnostic Line Tbk.' },
   { symbol: 'TRUK.JK', name: 'PT Guna Timur Raya Tbk.' },
   { symbol: 'PZZA.JK', name: 'PT Sarimelati Kencana Tbk.' },
   { symbol: 'TUGU.JK', name: 'PT Asuransi Tugu Pratama Indonesia Tbk' },
