@@ -24,6 +24,42 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - One-shot backfill LensRadar 1 tahun
+
+- Script baru: `scripts/backfill-lens-history.mjs`.
+- Cara jalan manual:
+  - Dry-run satu/dua ticker dulu:
+    `npm run backfill:lens-history -- --dry-run --tickers=BBCA.JK,TLKM.JK --skip-backtest`
+  - Eksekusi penuh:
+    `npm run backfill:lens-history`
+  - Opsi tambahan:
+    `--start=YYYY-MM-DD`, `--end=YYYY-MM-DD`, `--range=2y`,
+    `--tickers=BBCA.JK,TLKM.JK`, `--skip-backtest`, `--score-version=<versi>`.
+- Default mengambil universe 109 ticker dari `BACKTEST_UNIVERSE` dan fetch Yahoo Chart
+  `range=2y`. Yang di-insert tetap window 1 tahun; ekstra 1 tahun hanya warm-up agar
+  MA200/MACD/RSI tidak kosong di awal window.
+- Script memakai require-hook lokal untuk memanggil fungsi TypeScript produksi:
+  `calculateScore`, analyzer RSI/MACD, proxy flow, constant model version, price-basis
+  guard, dan `runAndSaveLensBucketBacktest`. Ini sengaja agar rumus backfill tidak drift
+  dari runtime.
+- Fundamental historis **tidak di-backfill dari data hari ini**. Script hanya membaca
+  `fundamental_history` dengan `observed_date <= tanggal sinyal`. Jika snapshot historis
+  belum ada, input fundamental dikirim `null` dan coverage turun; ini mencegah look-ahead
+  bias dan tidak membuat data dummy.
+- Insert ke `lens_radar_history` idempoten dengan `ON CONFLICT (date, ticker) DO UPDATE`,
+  termasuk metadata Fase 1/3: `score_version`, `valuation_version`, `signal_version`,
+  `data_snapshot_version`, `calculation_timestamp`, `raw_close_price`,
+  `adjusted_close_price`, `price_basis = TOTAL_RETURN_ADJUSTED`,
+  `adjustment_factor`, `corporate_action_status`, `price_data_timestamp`,
+  `price_data_version = price-adjustment-v1`.
+- Setelah insert penuh, script otomatis menjalankan `runAndSaveLensBucketBacktest()` untuk
+  mengisi `lens_bucket_stats`, kecuali diberi `--skip-backtest`.
+- Env var: memakai `DATABASE_URL`; script akan load `.env.local` jika variabel belum ada.
+- Rollback plan data: karena script upsert, rollback aman adalah restore dari backup/PITR
+  atau hapus window spesifik secara eksplisit setelah menghitung target:
+  `DELETE FROM lens_radar_history WHERE date BETWEEN <start> AND <end> AND score_version = 'lens-score-v1.3.0'`.
+  Jangan pakai delete luas tanpa filter tanggal+versi.
+
 ### 2026-08-06 - Audit Ronde 3 Fase 3: Corporate Action & Price Basis
 
 - Fase yang dikerjakan: **hanya Fase 3 - Corporate Action dan Konsistensi Price Basis**.
