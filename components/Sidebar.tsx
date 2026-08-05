@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Newspaper,
   LogIn,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import UserProfileModal from './UserProfileModal';
@@ -103,6 +104,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
   items: [
     { id: 'admin', name: 'Admin Panel', subtitle: 'Aktivasi Pro & User Aktif', path: '/admin', icon: ShieldCheck },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, Ambang & Bobot', path: '/admin/calibration', icon: LineChart },
+    { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload CSV point-in-time', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
   ],
 };
 
