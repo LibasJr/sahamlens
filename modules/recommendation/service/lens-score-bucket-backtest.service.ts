@@ -1,5 +1,6 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { logger } from '../../../shared/logger/logger';
+import { SCORE_VERSION, partitionByScoreVersion } from '../../lens-radar/constants/model-version';
 
 export const LENS_SCORE_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 export const LENS_SCORE_MIN_HISTORY_DAYS = 90;
@@ -15,6 +16,7 @@ export interface LensRadarHistoryRow {
   ticker: string;
   lens_score: number | string;
   close_price: number | string;
+  score_version?: string | null;
 }
 
 export interface BucketHorizonStats {
@@ -44,6 +46,12 @@ export interface TTestResult {
 
 export interface LensScoreBucketBacktestResult {
   ready: boolean;
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  rejectedRows: number;
+  unversionedRows: number;
+  versionMixed: boolean;
+  versionRejectedReason: string | null;
   minRequiredDays: number;
   coverageDays: number;
   tradingDays: number;
@@ -186,8 +194,13 @@ function welchTTest(
   };
 }
 
-export function computeLensScoreBucketBacktest(rows: LensRadarHistoryRow[]): LensScoreBucketBacktestResult {
-  const normalized = (Array.isArray(rows) ? rows : [])
+export function computeLensScoreBucketBacktest(
+  rows: LensRadarHistoryRow[],
+  options: { scoreVersion?: string | null } = {}
+): LensScoreBucketBacktestResult {
+  const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+  const partition = partitionByScoreVersion(Array.isArray(rows) ? rows : [], requestedScoreVersion);
+  const normalized = partition.accepted
     .map((row) => {
       const date = toDateKey(row.date);
       const score = toFiniteNumber(row.lens_score);
@@ -258,6 +271,12 @@ export function computeLensScoreBucketBacktest(rows: LensRadarHistoryRow[]): Len
   const ready = coverageDays > LENS_SCORE_MIN_HISTORY_DAYS;
   return {
     ready,
+    scoreVersion: partition.version,
+    requestedScoreVersion,
+    rejectedRows: partition.rejected.length,
+    unversionedRows: partition.unversionedCount,
+    versionMixed: partition.mixed,
+    versionRejectedReason: partition.rejectedReason,
     minRequiredDays: LENS_SCORE_MIN_HISTORY_DAYS,
     coverageDays,
     tradingDays: uniqueDates.length,
@@ -274,21 +293,24 @@ export function computeLensScoreBucketBacktest(rows: LensRadarHistoryRow[]): Len
   };
 }
 
-export async function runLensScoreBucketBacktest(db: Queryable = pool): Promise<LensScoreBucketBacktestResult> {
+export async function runLensScoreBucketBacktest(
+  db: Queryable = pool,
+  options: { scoreVersion?: string | null } = {}
+): Promise<LensScoreBucketBacktestResult> {
   try {
     const { rows } = await db.query(
       `
-      SELECT "date", ticker, lens_score, close_price
+      SELECT "date", ticker, lens_score, close_price, score_version
       FROM lens_radar_history
       WHERE lens_score IS NOT NULL
         AND close_price IS NOT NULL
       ORDER BY ticker ASC, "date" ASC
       `
     );
-    return computeLensScoreBucketBacktest(rows);
+    return computeLensScoreBucketBacktest(rows, options);
   } catch (error: any) {
     if (error?.code === '42P01') {
-      return computeLensScoreBucketBacktest([]);
+      return computeLensScoreBucketBacktest([], options);
     }
     logger.error('LensScore bucket backtest gagal', { error });
     throw error;

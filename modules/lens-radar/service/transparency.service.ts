@@ -20,6 +20,7 @@ import {
   type CalibrationObservation,
 } from './calibration.service';
 import { LENS_RADAR_HOLDING_DAYS } from './history-return-utils';
+import { SCORE_VERSION } from '../constants/model-version';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const TRANSPARENCY_CACHE_KEY = 'sahamlens:cache:lens-radar:transparency:v1';
@@ -31,6 +32,7 @@ interface Queryable {
 interface LensBucketStatsRow {
   run_date: string | Date;
   bucket: string;
+  score_version: string | null;
   avg_t1: number | string | null;
   avg_t5: number | string | null;
   avg_t20: number | string | null;
@@ -72,6 +74,12 @@ export interface TransparencyBanner {
 export interface TransparencyData {
   asOfDate: string;
   latestStatsRunDate: string | null;
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  rejectedRows: number;
+  unversionedRows: number;
+  versionMixed: boolean;
+  versionRejectedReason: string | null;
   startDate: string | null;
   validationDays: number;
   totalSamples: number;
@@ -183,16 +191,18 @@ export function buildBucketRows(
   return { latestStatsRunDate, totalSamples, rows };
 }
 
-async function readLatestBucketStats(db: Queryable = pool): Promise<LensBucketStatsRow[]> {
+async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_VERSION): Promise<LensBucketStatsRow[]> {
   const { rows } = await db.query(
     `
     WITH latest AS (
       SELECT MAX(run_date) AS run_date
       FROM lens_bucket_stats
+      WHERE score_version = $1
     )
     SELECT
       s.run_date,
       s.bucket,
+      s.score_version,
       s.avg_t1,
       s.avg_t5,
       s.avg_t20,
@@ -204,6 +214,7 @@ async function readLatestBucketStats(db: Queryable = pool): Promise<LensBucketSt
       s.source_rows
     FROM lens_bucket_stats s
     JOIN latest l ON s.run_date = l.run_date
+    WHERE s.score_version = $1
     ORDER BY CASE s.bucket
       WHEN '80-100' THEN 1
       WHEN '70-79' THEN 2
@@ -211,7 +222,8 @@ async function readLatestBucketStats(db: Queryable = pool): Promise<LensBucketSt
       WHEN '<60' THEN 4
       ELSE 5
     END
-    `
+    `,
+    [scoreVersion]
   );
   return rows as LensBucketStatsRow[];
 }
@@ -333,11 +345,19 @@ export function buildTransparencyBanner(status: ValidationStatus): TransparencyB
 
 async function computeTransparencyData(db: Queryable = pool): Promise<TransparencyData> {
   await ensureSharedSchema();
+  const requestedScoreVersion = SCORE_VERSION;
   const [statsRows, historyRows] = await Promise.all([
-    readLatestBucketStats(db),
+    readLatestBucketStats(db, requestedScoreVersion),
     readLensRadarHistory(db),
   ]);
-  const { observations } = await calculateCalibrationObservations(historyRows);
+  const {
+    observations,
+    scoreVersion,
+    rejectedRows,
+    unversionedRows,
+    versionMixed,
+    versionRejectedReason,
+  } = await calculateCalibrationObservations(historyRows, undefined, { scoreVersion: requestedScoreVersion });
   const ihsgBars = await fetchIhsgBars();
 
   const dates = Array.from(new Set(historyRows.map((row) => dateKey(row.date)).filter((date): date is string => !!date))).sort();
@@ -356,6 +376,12 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
   return {
     asOfDate: todayDateKeyWIB(),
     latestStatsRunDate: bucketResult.latestStatsRunDate,
+    scoreVersion,
+    requestedScoreVersion,
+    rejectedRows,
+    unversionedRows,
+    versionMixed,
+    versionRejectedReason,
     startDate,
     validationDays,
     totalSamples: bucketResult.totalSamples,

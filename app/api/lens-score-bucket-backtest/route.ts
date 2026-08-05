@@ -26,7 +26,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
-    const result = await runLensScoreBucketBacktest();
+    const scoreVersion = new URL(request.url).searchParams.get('scoreVersion');
+    const result = await runLensScoreBucketBacktest(undefined, { scoreVersion });
     const response = NextResponse.json(result);
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
     return response;

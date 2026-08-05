@@ -100,4 +100,25 @@ describe('calculateLensBucketStats', () => {
     expect(result.sourceRows).toBe(0);
     expect(result.stats.every((s) => s.totalSamples === 0)).toBe(true);
   });
+
+  it('menerima filter score_version eksplisit dan tidak mencampur versi scoring', async () => {
+    const rows: LensRadarHistoryEntry[] = [];
+    const opens: Record<string, Record<string, number>> = { 'NEW.JK': {}, 'OLD.JK': {} };
+    for (let i = 0; i < 6; i++) {
+      const date = dateFromStart(i);
+      rows.push({ ...row(date, 'NEW.JK', 85, 100 + i * 10), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(date, 'OLD.JK', 85, 500 - i * 10), score_version: 'lens-score-v1.2.0' });
+      opens['NEW.JK'][date] = 100;
+      opens['OLD.JK'][date] = 500;
+    }
+
+    const result = await calculateLensBucketStats(rows, provider(opens), '2026-01-06', {
+      scoreVersion: 'lens-score-v1.2.0',
+    });
+
+    expect(result.scoreVersion).toBe('lens-score-v1.2.0');
+    expect(result.rejectedRows).toBe(6);
+    expect(result.sourceRows).toBe(6);
+    expect(result.stats.find((s) => s.bucket === '80-100')?.avg_T1).toBeLessThan(0);
+  });
 });

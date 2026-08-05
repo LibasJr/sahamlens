@@ -24,6 +24,7 @@ describe('transparency.service', () => {
       {
         run_date: '2026-02-01',
         bucket: '80-100',
+        score_version: 'lens-score-v1.3.0',
         avg_t1: '1.1',
         avg_t5: '2.2',
         avg_t20: '3.3',

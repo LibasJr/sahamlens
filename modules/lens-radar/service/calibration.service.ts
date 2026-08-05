@@ -22,7 +22,7 @@ import {
   THRESHOLD_RECOMMENDER_ENABLED,
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
-import { partitionByScoreVersion } from '../constants/model-version';
+import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
 
 const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
@@ -86,6 +86,12 @@ export interface ThresholdSimulation {
 export interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  rejectedRows: number;
+  unversionedRows: number;
+  versionMixed: boolean;
+  versionRejectedReason: string | null;
   sourceRows: number;
   uniqueTickers: number;
   observationsT20: number;
@@ -199,9 +205,21 @@ async function loadOpenMaps(
 
 export async function calculateCalibrationObservations(
   rows: LensRadarHistoryEntry[],
-  provider: DailyOpenProvider = new YahooDailyOpenProvider()
-): Promise<{ normalizedRows: number; uniqueTickers: number; observations: CalibrationObservation[]; scoreVersion: string | null; rejectedRows: number }> {
-  const partition = partitionByScoreVersion(rows);
+  provider: DailyOpenProvider = new YahooDailyOpenProvider(),
+  options: { scoreVersion?: string | null } = {}
+): Promise<{
+  normalizedRows: number;
+  uniqueTickers: number;
+  observations: CalibrationObservation[];
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  rejectedRows: number;
+  unversionedRows: number;
+  versionMixed: boolean;
+  versionRejectedReason: string | null;
+}> {
+  const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+  const partition = partitionByScoreVersion(rows, requestedScoreVersion);
   const normalized = normalizeHistory(partition.accepted);
   const tradingCalendar = buildTradingCalendar(normalized);
   const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
@@ -259,7 +277,11 @@ export async function calculateCalibrationObservations(
     uniqueTickers: tickers.length,
     observations,
     scoreVersion: partition.version,
-    rejectedRows: rows.length - partition.accepted.length,
+    requestedScoreVersion,
+    rejectedRows: partition.rejected.length,
+    unversionedRows: partition.unversionedCount,
+    versionMixed: partition.mixed,
+    versionRejectedReason: partition.rejectedReason,
   };
 }
 
@@ -276,16 +298,21 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
   return rows as LensRadarHistoryEntry[];
 }
 
-async function readLatestBucketStats(db: Queryable = pool): Promise<{ runDate: string | null; rows: CalibrationBucketChartRow[] }> {
+async function readLatestBucketStats(
+  db: Queryable = pool,
+  scoreVersion = SCORE_VERSION
+): Promise<{ runDate: string | null; rows: CalibrationBucketChartRow[] }> {
   const { rows } = await db.query(
     `
     WITH latest AS (
       SELECT MAX(run_date) AS run_date
       FROM lens_bucket_stats
+      WHERE score_version = $1
     )
-    SELECT s.run_date::text AS run_date, s.bucket, s.avg_t20, s.total_samples
+    SELECT s.run_date::text AS run_date, s.bucket, s.avg_t20, s.total_samples, s.score_version
     FROM lens_bucket_stats s
     JOIN latest l ON s.run_date = l.run_date
+    WHERE s.score_version = $1
     ORDER BY CASE s.bucket
       WHEN '80-100' THEN 1
       WHEN '70-79' THEN 2
@@ -293,7 +320,8 @@ async function readLatestBucketStats(db: Queryable = pool): Promise<{ runDate: s
       WHEN '<60' THEN 4
       ELSE 5
     END
-    `
+    `,
+    [scoreVersion]
   );
 
   const runDate = typeof rows[0]?.run_date === 'string' ? rows[0].run_date.slice(0, 10) : null;
@@ -555,14 +583,25 @@ function buildFallbackRecommendation(best: ThresholdSimulation | null, baseline:
 
 export async function getCalibrationDashboardData(
   db: Queryable = pool,
-  provider: DailyOpenProvider = new YahooDailyOpenProvider()
+  provider: DailyOpenProvider = new YahooDailyOpenProvider(),
+  options: { scoreVersion?: string | null } = {}
 ): Promise<CalibrationDashboardData> {
   await ensureSharedSchema();
+  const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const [latestStats, historyRows] = await Promise.all([
-    readLatestBucketStats(db),
+    readLatestBucketStats(db, requestedScoreVersion),
     readLensRadarHistory(db),
   ]);
-  const { normalizedRows, uniqueTickers, observations } = await calculateCalibrationObservations(historyRows, provider);
+  const {
+    normalizedRows,
+    uniqueTickers,
+    observations,
+    scoreVersion,
+    rejectedRows,
+    unversionedRows,
+    versionMixed,
+    versionRejectedReason,
+  } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
   const latestChartRows = latestStats.rows.filter((row) => VISIBLE_CHART_BUCKETS.includes(row.bucket));
   const chart = latestChartRows.length ? latestChartRows : chartFromObservations(observations);
@@ -570,6 +609,12 @@ export async function getCalibrationDashboardData(
   return {
     asOfDate: todayDateKeyWIB(),
     latestStatsRunDate: latestStats.runDate,
+    scoreVersion,
+    requestedScoreVersion,
+    rejectedRows,
+    unversionedRows,
+    versionMixed,
+    versionRejectedReason,
     sourceRows: normalizedRows,
     uniqueTickers,
     observationsT20,

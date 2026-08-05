@@ -6,7 +6,7 @@ import {
 } from '../lens-score-bucket-backtest.service';
 
 function row(date: string, ticker: string, score: number, close: number): LensRadarHistoryRow {
-  return { date, ticker, lens_score: score, close_price: close };
+  return { date, ticker, lens_score: score, close_price: close, score_version: 'lens-score-v1.3.0' };
 }
 
 function dateFromStart(offsetDays: number): string {
@@ -72,5 +72,21 @@ describe('computeLensScoreBucketBacktest', () => {
 
     expect(result.rowsRead).toBe(0);
     expect(result.buckets.every((b) => Object.values(b.horizons).every((h) => h.samples === 0))).toBe(true);
+  });
+
+  it('menerima filter score_version dan fail-closed terhadap versi lain/legacy', () => {
+    const rows: LensRadarHistoryRow[] = [];
+    for (let i = 0; i < 7; i++) {
+      rows.push({ ...row(dateFromStart(i), 'NEW.JK', 85, 100 * 1.1 ** i), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(dateFromStart(i), 'OLD.JK', 85, 100 * 0.9 ** i), score_version: 'lens-score-v1.2.0' });
+      rows.push({ ...row(dateFromStart(i), 'LEGACY.JK', 85, 100), score_version: null });
+    }
+
+    const result = computeLensScoreBucketBacktest(rows, { scoreVersion: 'lens-score-v1.2.0' });
+
+    expect(result.scoreVersion).toBe('lens-score-v1.2.0');
+    expect(result.rejectedRows).toBe(14);
+    expect(result.rowsRead).toBe(7);
+    expect(result.buckets.find((b) => b.bucket === '80-100')?.horizons.t1.avgReturnPct).toBeLessThan(0);
   });
 });

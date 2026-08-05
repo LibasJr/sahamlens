@@ -167,6 +167,26 @@ describe('calibration.service', () => {
     expect(result.observations.every((obs) => obs.ticker === 'AAAA.JK')).toBe(true);
   });
 
+  it('calibration menerima filter score_version eksplisit untuk audit ulang versi lama', async () => {
+    const rows: LensRadarHistoryEntry[] = [];
+    const opens: Record<string, Record<string, number>> = { 'AAAA.JK': {}, 'BBBB.JK': {} };
+    for (let i = 1; i <= 21; i++) {
+      const date = `2026-01-${String(i).padStart(2, '0')}`;
+      rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(date, 'BBBB.JK', 85, 200 + i), score_version: 'lens-score-v1.2.0' });
+      opens['AAAA.JK'][date] = 100;
+      opens['BBBB.JK'][date] = 200;
+    }
+
+    const result = await calculateCalibrationObservations(rows, provider(opens), {
+      scoreVersion: 'lens-score-v1.2.0',
+    });
+
+    expect(result.scoreVersion).toBe('lens-score-v1.2.0');
+    expect(result.rejectedRows).toBe(21);
+    expect(result.observations.every((obs) => obs.ticker === 'BBBB.JK')).toBe(true);
+  });
+
   it('FAIL-CLOSED: seluruh baris tanpa score_version menghasilkan nol observasi', async () => {
     const rows: LensRadarHistoryEntry[] = [];
     const opens: Record<string, Record<string, number>> = { 'AAAA.JK': {} };

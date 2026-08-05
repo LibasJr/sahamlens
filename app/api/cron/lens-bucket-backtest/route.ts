@@ -22,6 +22,10 @@ export async function GET(req: NextRequest) {
       const stats = await runAndSaveLensBucketBacktest();
       return {
         asOfDate: stats.asOfDate,
+        scoreVersion: stats.scoreVersion,
+        requestedScoreVersion: stats.requestedScoreVersion,
+        rejectedRows: stats.rejectedRows,
+        unversionedRows: stats.unversionedRows,
         savedRows: stats.savedRows,
         sourceRows: stats.sourceRows,
         uniqueTickers: stats.uniqueTickers,
