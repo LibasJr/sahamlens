@@ -7,7 +7,7 @@ import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
 import { getTickerName } from '@/lib/trendingTickers';
-import { Input, Select, Button, Badge, EmptyState, PageContainer } from '@/components/ui';
+import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 
 interface WatchlistItem {
   symbol: string;
@@ -303,13 +303,30 @@ export default function WatchlistPage() {
 
         {/* Stat tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Ketiga kartu ini dulu jatuh ke '-' saat belum ada posisi. Tanda hubung
+              tidak membedakan "belum mengisi harga beli" dari "gagal memuat harga",
+              padahal jalan keluarnya berbeda: yang satu perlu diisi user, yang satu
+              perlu dicoba ulang. */}
           <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Wallet className="w-3 h-3" /> Nilai Posisi</div>
-            <div className="mt-1 text-[16px] font-bold text-white font-number">{totalCurrent > 0 ? `Rp ${Math.round(totalCurrent).toLocaleString('id-ID')}` : '-'}</div>
+            <div className="mt-1 text-[16px] font-bold text-white font-number">
+              {totalCurrent > 0
+                ? <AnimatedNumber value={totalCurrent} format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`} />
+                : <span className="text-[11px] font-normal text-white/40">isi harga beli &amp; lot dulu</span>}
+            </div>
           </div>
           <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">{totalPnlPct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} Total P&L</div>
-            <div className={`mt-1 text-[16px] font-bold font-number ${totalPnlPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{totalInvested > 0 ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%` : '-'}</div>
+            {/* Panah dulu memakai `totalPnlPct >= 0` tanpa syarat, jadi saat belum ada
+                posisi sama sekali (P&L = 0) ikon panah HIJAU tetap menyala di sebelah
+                nilai yang kosong. */}
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+              {totalInvested <= 0 ? <Activity className="w-3 h-3" /> : totalPnlPct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} Total P&amp;L
+            </div>
+            <div className={`mt-1 text-[16px] font-bold font-number ${totalInvested <= 0 ? 'text-white/40' : totalPnlPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+              {totalInvested > 0
+                ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%`
+                : <span className="text-[11px] font-normal">belum ada posisi</span>}
+            </div>
           </div>
           <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Activity className="w-3 h-3" /> Saham Dipantau</div>
@@ -346,7 +363,7 @@ export default function WatchlistPage() {
 
             <form onSubmit={addWatchlist} className="space-y-3 mb-6">
               <div>
-                <label className="text-[11px] font-mono text-tv-muted uppercase tracking-wide mb-1 block">Simbol Saham</label>
+                <label className="text-[11px] text-tv-muted uppercase tracking-wide mb-1 block">Simbol Saham</label>
                 <SymbolAutocomplete
                   containerClassName="relative w-full"
                   placeholder="Contoh: BBCA"
@@ -358,7 +375,7 @@ export default function WatchlistPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-mono text-tv-muted uppercase tracking-wide mb-1 block">Harga Beli (opsional)</label>
+                  <label className="text-[11px] text-tv-muted uppercase tracking-wide mb-1 block">Harga Beli (opsional)</label>
                   <Input
                     type="number"
                     placeholder="0"
@@ -368,7 +385,7 @@ export default function WatchlistPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-mono text-tv-muted uppercase tracking-wide mb-1 block">Total Lot</label>
+                  <label className="text-[11px] text-tv-muted uppercase tracking-wide mb-1 block">Total Lot</label>
                   <Input
                     type="number"
                     placeholder="0"
@@ -399,14 +416,18 @@ export default function WatchlistPage() {
                 const supportTarget = supportMatch ? supportMatch[1] : '';
 
                 const scoreVal = data?.scoring?.total_score;
-                const scoreColor = scoreVal == null ? '#8B94B6' : scoreVal < 40 ? '#EF4444' : scoreVal < 60 ? '#F59E0B' : '#10B981';
-                const scoreLabel = scoreVal == null ? '...' : scoreVal < 40 ? 'SELL' : scoreVal < 60 ? 'HOLD' : 'BUY';
+                // #8B94B6 (muted lama) dan #10B981 (hijau lama) diganti nilai palet Lens.
+                const scoreColor = scoreVal == null ? '#94A3B8' : scoreVal < 40 ? '#EF4444' : scoreVal < 60 ? '#F59E0B' : '#22C55E';
+                // "..." terbaca seperti sedang memuat padahal bisa jadi skornya memang
+                // tidak tersedia untuk emiten ini. Dibedakan dari keadaan loading nyata.
+                const scoreLabel = scoreVal == null ? (loading ? 'memuat' : 'skor N/A') : scoreVal < 40 ? 'SELL' : scoreVal < 60 ? 'HOLD' : 'BUY';
 
                 return (
                   <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-tv-blue/10 border border-tv-blue/25 flex items-center justify-center shrink-0 text-tv-blue font-bold text-[11px] font-number">
-                      {code.slice(0, 4)}
-                    </div>
+                    {/* Avatar lama memakai warna biru yang SAMA untuk setiap emiten -
+                        tidak membantu membedakan baris. TickerAvatar memberi warna
+                        deterministik per kode, konsisten dengan halaman lain. */}
+                    <TickerAvatar symbol={item.symbol} size="lg" />
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -431,17 +452,34 @@ export default function WatchlistPage() {
                     </div>
 
                     <div className="hidden sm:flex flex-col items-end text-right shrink-0 w-28">
-                      <span className="text-tv-text font-bold text-sm font-number">{currentPrice != null ? `Rp ${currentPrice.toLocaleString('id-ID')}` : '-'}</span>
-                      <span className="text-[10px] text-tv-muted font-number">Beli: {item.buy_price ? `Rp ${item.buy_price.toLocaleString('id-ID')}` : '-'} {item.lot ? `• ${item.lot} lot` : ''}</span>
+                      {currentPrice != null ? (
+                        <span className="text-tv-text font-bold text-sm font-number">Rp {currentPrice.toLocaleString('id-ID')}</span>
+                      ) : loading ? (
+                        <Skeleton variant="text" className="w-20 h-4" />
+                      ) : (
+                        <span className="text-[10px] text-tv-muted">harga tak terambil</span>
+                      )}
+                      <span className="text-[10px] text-tv-muted font-number">
+                        {item.buy_price
+                          ? `Beli: Rp ${item.buy_price.toLocaleString('id-ID')}${item.lot ? ` • ${item.lot} lot` : ''}`
+                          : 'harga beli belum diisi'}
+                      </span>
                     </div>
 
                     <div className="shrink-0 w-20 text-right">
-                      {item.buy_price ? (
+                      {item.buy_price && currentPrice != null ? (
                         <span className={`inline-flex items-center gap-1 font-bold px-2 py-1 rounded-md text-xs font-number ${isProfit ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'}`}>
                           {isProfit ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
                           {pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%
                         </span>
-                      ) : <span className="text-tv-muted text-xs">-</span>}
+                      ) : (
+                        // Sebelumnya '-' polos. Dua sebab berbeda dinamai: harga beli
+                        // belum diisi (P&L memang tidak bisa dihitung) vs harga pasar
+                        // belum masuk (perhitungannya tertunda, bukan mustahil).
+                        <span className="text-[10px] text-tv-muted leading-tight">
+                          {!item.buy_price ? 'P&L perlu harga beli' : 'menunggu harga'}
+                        </span>
+                      )}
                     </div>
 
                     <button onClick={() => removeWatchlist(item.symbol)} className="shrink-0 p-2 text-tv-muted hover:text-tv-red hover:bg-tv-red/10 rounded-md transition-colors">
@@ -460,12 +498,40 @@ export default function WatchlistPage() {
               )}
               {watchlist.length === 0 && !watchlistError && (
                 <EmptyState
-                  icon={<Sparkles className="w-5 h-5" />}
+                  illustration="collecting"
                   title="Belum ada saham di watchlist"
-                  description="Tambahkan simbol saham lewat form di atas untuk mulai memantau."
+                  description="Tambahkan simbol lewat form di atas. Isi juga harga beli dan lot kalau ingin P&L dan nilai posisi ikut terhitung - tanpa keduanya, watchlist hanya memantau harga."
+                  progress={{ current: 0, total: FREE_LIMITS.WATCHLIST === Infinity ? 5 : FREE_LIMITS.WATCHLIST, unit: 'saham', label: 'Watchlist terisi' }}
                   className="rounded-lg border border-dashed border-tv-border"
                 />
               )}
+
+              {loading && watchlist.length > 0 && <LoadingFact className="mt-3" />}
+
+              {/* Storytelling: daftar menampilkan P&L per baris, tapi tidak pernah
+                  menyebut mana yang paling menopang dan paling menekan portofolio -
+                  padahal itu yang dicari orang saat membuka halaman ini. */}
+              {(() => {
+                const withPnl = positioned
+                  .map((w) => ({
+                    code: displayTicker(w.symbol),
+                    pnl: ((liveData[w.symbol].price - w.buy_price) / w.buy_price) * 100,
+                  }))
+                  .sort((a, b) => b.pnl - a.pnl);
+                if (withPnl.length < 2) return null;
+                const best = withPnl[0];
+                const worst = withPnl[withPnl.length - 1];
+                return (
+                  <p className="mt-3 border-t border-tv-border pt-3 text-[11px] leading-relaxed text-tv-muted">
+                    Dari {withPnl.length} posisi berharga beli:{' '}
+                    <span className="font-number font-semibold text-tv-green">{best.code}</span> paling menopang
+                    ({best.pnl >= 0 ? '+' : ''}{best.pnl.toFixed(1)}%),{' '}
+                    <span className="font-number font-semibold text-tv-red">{worst.code}</span> paling menekan
+                    ({worst.pnl >= 0 ? '+' : ''}{worst.pnl.toFixed(1)}%).
+                    {' '}Total P&amp;L di atas menimbang tiap posisi menurut nilainya, bukan rata-rata persentase.
+                  </p>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -482,9 +548,17 @@ export default function WatchlistPage() {
                 <Bell className="w-5 h-5 text-tv-yellow" />
                 LensAlert
               </h3>
-              <button onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
-                Test Cron
-              </button>
+              {/* BUG FIX (2026-08-06): `isAdmin` dihitung dari /api/auth/me sejak awal
+                  (lihat checkAdmin) tapi TIDAK PERNAH dibaca di mana pun, sehingga
+                  tombol debug ini tampil untuk semua pengguna. Menekannya memicu
+                  pemeriksaan cron manual dan memunculkan alert() berisi keluaran
+                  mentahnya - tampilan internal yang tidak seharusnya sampai ke
+                  pengguna biasa. Sekarang benar-benar digerbangi. */}
+              {isAdmin && (
+                <button onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
+                  Test Cron
+                </button>
+              )}
             </div>
 
             <form onSubmit={addAlert} className="space-y-3 mb-6">
@@ -520,7 +594,10 @@ export default function WatchlistPage() {
             {/* flex-1 supaya area ini mengisi sisa tinggi kartu (bukan cuma numpuk di
                 atas), max-h-[400px] tetap dipertahankan untuk membatasi scroll kalau
                 alert-nya banyak. */}
-            <div className="space-y-2 flex-1 min-h-[120px] max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+            {/* Kelas `custom-scrollbar` dilepas: tidak ada blok <style> yang
+                mendefinisikannya di file ini, jadi selama ini inert. Scrollbar
+                sudah ditata global di app/globals.css. */}
+            <div className="space-y-2 flex-1 min-h-[120px] max-h-[400px] overflow-y-auto pr-1">
               {alerts.map(alert => {
                 const AlertIcon = alert.conditionType === 'PRICE_BELOW' ? ArrowDownCircle
                   : alert.conditionType === 'PRICE_ABOVE' ? ArrowUpCircle
@@ -548,9 +625,11 @@ export default function WatchlistPage() {
                 );
               })}
               {alerts.length === 0 && (
-                <div className="text-center text-sm text-tv-muted py-4">
-                  Belum ada alert aktif
-                </div>
+                <EmptyState
+                  illustration="empty"
+                  title="Belum ada alert"
+                  description="Alert berjalan di server, jadi tetap aktif walau halaman ini ditutup. Notifikasi hp butuh izin browser - izinnya diminta saat alert pertama dibuat."
+                />
               )}
             </div>
           </div>

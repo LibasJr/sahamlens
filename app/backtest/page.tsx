@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Menu, Zap } from 'lucide-react';
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Input, Select, Button, PageContainer } from '@/components/ui';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { Input, Select, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 // Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
 // disengaja: komponen ini 'use client', barrel modules/backtest re-export service yang
@@ -14,6 +14,74 @@ import PaywallModal from '@/components/PaywallModal';
 // (server, lewat barrel) supaya preset Backtest & tag pola Screener tidak bercabang.
 import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
 import { BACKTEST_LIMITATIONS } from '@/modules/backtest/constants/backtest-limitations';
+
+const fmtRupiah = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
+
+/**
+ * Angka dari API datang sebagai string terformat ("+12.4%", "-3.1%", "18.0%").
+ * Pewarnaan sebelumnya memakai `.includes('+')`, sehingga apa pun yang tidak
+ * membawa tanda plus - termasuk "0.00%" - diwarnai MERAH sebagai kerugian.
+ * Di sini tandanya dibaca dari nilainya, bukan dari ada-tidaknya karakter.
+ */
+function parseSignedPct(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const parsed = parseFloat(value.replace(/[^0-9.,+-]/g, '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toneOf(value: unknown): string {
+  const n = parseSignedPct(value);
+  if (n == null || n === 0) return 'text-tv-text';
+  return n > 0 ? 'text-tv-green' : 'text-tv-red';
+}
+
+/**
+ * Tooltip kustom untuk equity curve. Bawaan Recharts menampilkan angka mentah
+ * (mis. "104823194") tanpa format dan tanpa konteks. Yang menarik di grafik ini
+ * bukan nilai absolut tiap garis, tapi SELISIHNYA - apakah strategi sedang unggul
+ * atau tertinggal dari IHSG pada titik itu.
+ */
+function EquityTooltip({ active, payload, label, initialCapital }: any) {
+  if (!active || !payload?.length) return null;
+  const strategy = payload.find((p: any) => p.dataKey === 'Strategy')?.value as number | undefined;
+  const ihsg = payload.find((p: any) => p.dataKey === 'IHSG')?.value as number | undefined;
+  const gap = typeof strategy === 'number' && typeof ihsg === 'number' ? strategy - ihsg : null;
+  const growthPct = typeof strategy === 'number' && initialCapital > 0
+    ? ((strategy - initialCapital) / initialCapital) * 100
+    : null;
+
+  return (
+    <div className="rounded-lg border border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
+      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Bulan ke-{String(label).replace('M', '')}</div>
+      <div className="mt-1.5 space-y-1">
+        <div className="flex items-center justify-between gap-4 text-xs">
+          <span className="flex items-center gap-1.5 text-tv-text">
+            <span className="h-2 w-2 rounded-sm bg-tv-green" /> Strategi
+          </span>
+          <span className="font-number font-semibold text-tv-text">{typeof strategy === 'number' ? fmtRupiah(strategy) : 'N/A'}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-xs">
+          <span className="flex items-center gap-1.5 text-tv-muted">
+            <span className="h-2 w-2 rounded-sm bg-tv-muted" /> IHSG
+          </span>
+          <span className="font-number text-tv-muted">{typeof ihsg === 'number' ? fmtRupiah(ihsg) : 'N/A'}</span>
+        </div>
+      </div>
+      {gap != null && (
+        <div className="mt-2 border-t border-tv-border pt-1.5 text-[11px]">
+          <span className="text-tv-muted">Selisih: </span>
+          <span className={`font-number font-semibold ${gap >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+            {gap >= 0 ? '+' : '-'}{fmtRupiah(Math.abs(gap))}
+          </span>
+          {growthPct != null && (
+            <span className="text-tv-muted"> · modal {growthPct >= 0 ? '+' : ''}{growthPct.toFixed(1)}%</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function BacktestPage() {
   const [modal, setModal] = useState(100000000);
@@ -142,9 +210,10 @@ export default function BacktestPage() {
     : null;
 
   return (
-    <div className="flex h-screen bg-tv-bg">
-      {/* Sidebar removed, handled by layout */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto custom-scrollbar">
+    // `flex h-screen` + anak `overflow-y-auto` membuat kontainer gulir kedua di dalam
+    // <main> AppShell yang sudah menggulir. Disamakan dengan halaman lain.
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <div className="flex-1 flex flex-col">
         <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
           <div className="flex items-center gap-3">
             <button
@@ -205,7 +274,7 @@ export default function BacktestPage() {
               <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
                 <Settings2 className="w-5 h-5 text-tv-blue" /> LensTechnical
               </h3>
-              <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+              <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2">
                 {availableFilters.map(f => {
                   const isSelected = selectedFilters.includes(f);
                   return (
@@ -299,14 +368,26 @@ export default function BacktestPage() {
                                     <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
                                       <th className="py-2 px-3">Saham</th>
                                       <th className="py-2 px-3 text-right">Harga</th>
-                                      <th className="py-2 px-3 text-right">Indikator Bullish</th>
+                                      {/* Angka ini menghitung SEMUA 9 indikator yang
+                                          bullish, bukan hanya yang dipilih pengguna
+                                          (lihat bullishCount di live-filter-check.service.ts) -
+                                          judul lama tidak menyatakan itu, sehingga "4/9"
+                                          terbaca seolah 5 filter pilihan gagal. */}
+                                      <th className="py-2 px-3 text-right">Total 9 indikator bullish</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-tv-border text-sm">
                                     {liveResults.matches.map((m: any) => (
                                       <tr key={m.ticker} className="hover:bg-tv-hover/30">
-                                        <td className="py-2 px-3 font-bold font-number text-tv-text">{m.ticker}</td>
-                                        <td className="py-2 px-3 text-right font-number text-tv-muted">Rp {m.price.toLocaleString('id-ID')}</td>
+                                        <td className="py-2 px-3 font-bold font-number text-tv-text">
+                                          <span className="inline-flex items-center gap-2">
+                                            <TickerAvatar symbol={m.ticker} size="sm" />
+                                            {m.ticker}
+                                          </span>
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-number text-tv-muted">
+                                          {typeof m.price === 'number' ? `Rp ${m.price.toLocaleString('id-ID')}` : 'N/A'}
+                                        </td>
                                         <td className="py-2 px-3 text-right font-number text-tv-green">{m.bullishCount}/9</td>
                                       </tr>
                                     ))}
@@ -322,22 +403,34 @@ export default function BacktestPage() {
                 )}
 
                 {error && (
-                  <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
-                    {error}
+                  <div className="bg-tv-card border border-tv-red/30 rounded-lg">
+                    <EmptyState
+                      illustration="empty"
+                      title="Backtest gagal dijalankan"
+                      description={error}
+                      action={{ label: 'Coba lagi', onClick: runBacktest }}
+                    />
                   </div>
                 )}
 
                 {!results && !loading && !error && (
-                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-muted">
-                    <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
-                    <p className="text-sm text-center px-6">Pilih filter dan klik Backtest untuk melihat hasil simulasi.</p>
+                  <div className="bg-tv-card border border-tv-border rounded-lg min-h-[500px] flex items-center justify-center">
+                    <EmptyState
+                      illustration="search"
+                      title="Belum ada simulasi dijalankan"
+                      description={`${selectedFilters.length} filter terpilih. Setiap filter harus BULLISH bersamaan agar sebuah sinyal dihitung - makin banyak filter, makin sedikit sinyal yang muncul, dan makin kecil sampel hasilnya.`}
+                      action={{ label: 'Backtest Sekarang', onClick: runBacktest }}
+                    />
                   </div>
                 )}
 
                 {loading && (
-                  <div className="bg-tv-card border border-tv-border rounded-lg h-full min-h-[500px] flex flex-col items-center justify-center text-tv-blue">
-                    <Activity className="w-16 h-16 mb-4 animate-spin" />
-                    <p className="text-sm text-center px-6">Memproses data historis & menjalankan algoritma...</p>
+                  <div className="bg-tv-card border border-tv-border rounded-lg min-h-[500px] p-4 space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+                    </div>
+                    <Skeleton className="h-64 w-full" />
+                    <LoadingFact />
                   </div>
                 )}
 
@@ -355,11 +448,11 @@ export default function BacktestPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="bg-tv-card border border-tv-border rounded-lg p-4">
                         <div className="text-xs text-tv-muted mb-1">Return Strategi</div>
-                        <div className={`text-xl font-bold font-number ${results.return.includes('+') ? 'text-tv-green' : 'text-tv-red'}`}>{results.return}</div>
+                        <div className={`text-xl font-bold font-number ${toneOf(results.return)}`}>{results.return}</div>
                       </div>
                       <div className="bg-tv-card border border-tv-border rounded-lg p-4">
                         <div className="text-xs text-tv-muted mb-1">Alpha vs IHSG ({results.ihsgReturn})</div>
-                        <div className={`text-xl font-bold font-number ${results.alpha.includes('+') ? 'text-tv-green' : 'text-tv-red'}`}>{results.alpha}</div>
+                        <div className={`text-xl font-bold font-number ${toneOf(results.alpha)}`}>{results.alpha}</div>
                       </div>
                       <div className="bg-tv-card border border-tv-border rounded-lg p-4">
                         <div className="text-xs text-tv-muted mb-1">Win Rate ({results.totalTrades} trades)</div>
@@ -371,31 +464,79 @@ export default function BacktestPage() {
                       </div>
                     </div>
 
+                    {/* Storytelling: empat angka di atas dibaca sendiri-sendiri tidak
+                        memberi tahu apakah strategi ini layak. Yang menentukan adalah
+                        hubungan antar angka - terutama alpha terhadap drawdown, dan
+                        apakah jumlah trade-nya cukup untuk disimpulkan sama sekali. */}
+                    {(() => {
+                      const alpha = parseSignedPct(results.alpha);
+                      const dd = Math.abs(parseSignedPct(results.maxDD) ?? 0);
+                      const trades = Number(results.totalTrades) || 0;
+                      const notes: string[] = [];
+
+                      if (trades > 0 && trades < 30) {
+                        notes.push(`Hanya ${trades} trade dalam periode ini - terlalu sedikit untuk memisahkan keterampilan dari keberuntungan. Perpanjang periode atau kurangi jumlah filter.`);
+                      }
+                      if (alpha != null && alpha > 0 && dd > 0) {
+                        notes.push(`Strategi unggul ${alpha.toFixed(1)} poin persen dari IHSG, dengan penurunan terdalam ${dd.toFixed(1)}%. Artinya untuk mengejar keunggulan itu, kamu harus sanggup menahan modal turun ${dd.toFixed(1)}% di tengah jalan tanpa menjual.`);
+                      } else if (alpha != null && alpha <= 0) {
+                        notes.push(`Strategi ini TIDAK mengalahkan IHSG pada periode tersebut. Membeli indeks langsung akan memberi hasil serupa atau lebih baik, dengan usaha jauh lebih sedikit.`);
+                      }
+                      if (notes.length === 0) return null;
+
+                      return (
+                        <div className="rounded-lg border border-tv-border bg-tv-card p-4 space-y-2">
+                          {notes.map((n, i) => (
+                            <p key={i} className="text-[11px] leading-relaxed text-tv-muted">{n}</p>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
                     {/* Chart */}
                     <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
                       <h3 className="font-heading text-sm font-bold text-tv-text mb-4">Equity Curve</h3>
                       <div className="h-64">
+                        {/* Seluruh warna di chart ini masih hex palet LAMA: #10B981
+                            (hijau lama), #8B94B6 (muted lama), #2C3A5A (border lama),
+                            #152238 (card lama), #F3F4F6 (teks lama). Disamakan dengan
+                            palet Lens yang berlaku. */}
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>
                               <linearGradient id="colorStrategy" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#22C55E" stopOpacity={0.32}/>
+                                <stop offset="95%" stopColor="#22C55E" stopOpacity={0}/>
                               </linearGradient>
                               <linearGradient id="colorIHSG" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8B94B6" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#8B94B6" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.22}/>
+                                <stop offset="95%" stopColor="#94A3B8" stopOpacity={0}/>
                               </linearGradient>
                             </defs>
-                            <XAxis dataKey="month" stroke="#2C3A5A" fontSize={10} tickLine={false} />
-                            <YAxis stroke="#2C3A5A" fontSize={10} tickLine={false} domain={['auto', 'auto']} tickFormatter={(val) => `Rp${(val/1000000).toFixed(0)}M`} />
-                            <CartesianGrid strokeDasharray="3 3" stroke="#2C3A5A" vertical={false} />
-                            <Tooltip
-                              contentStyle={{ backgroundColor: '#152238', borderColor: '#2C3A5A', fontSize: '12px' }}
-                              itemStyle={{ color: '#F3F4F6' }}
+                            <XAxis dataKey="month" stroke="#1E293B" tick={{ fill: '#94A3B8', fontSize: 10 }} tickLine={false} />
+                            <YAxis
+                              stroke="#1E293B"
+                              tick={{ fill: '#94A3B8', fontSize: 10 }}
+                              tickLine={false}
+                              domain={['auto', 'auto']}
+                              width={52}
+                              tickFormatter={(val) => `${(val / 1_000_000).toFixed(0)}jt`}
                             />
-                            <Area type="monotone" dataKey="Strategy" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorStrategy)" />
-                            <Area type="monotone" dataKey="IHSG" stroke="#8B94B6" strokeWidth={2} fillOpacity={1} fill="url(#colorIHSG)" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+                            {/* Garis modal awal: tanpa ini, kurva yang seluruhnya di bawah
+                                modal awal tetap terlihat "naik" karena sumbu Y otomatis. */}
+                            <ReferenceLine
+                              y={modal}
+                              stroke="#2B3A55"
+                              strokeDasharray="4 4"
+                              label={{ value: 'Modal awal', position: 'insideTopLeft', fill: '#94A3B8', fontSize: 9 }}
+                            />
+                            <Tooltip
+                              content={<EquityTooltip initialCapital={modal} />}
+                              cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '3 3' }}
+                            />
+                            <Area type="monotone" dataKey="IHSG" stroke="#94A3B8" strokeWidth={1.5} fillOpacity={1} fill="url(#colorIHSG)" />
+                            <Area type="monotone" dataKey="Strategy" stroke="#22C55E" strokeWidth={2} fillOpacity={1} fill="url(#colorStrategy)" />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -426,9 +567,14 @@ export default function BacktestPage() {
                           {results.trades.map((t: any, idx: number) => (
                             <tr key={idx} className="hover:bg-tv-hover/30">
                               <td className="py-3 px-4 text-tv-muted">{t.date}</td>
-                              <td className="py-3 px-4 text-tv-text font-bold font-number">{t.symbol}</td>
+                              <td className="py-3 px-4 text-tv-text font-bold font-number">
+                                <span className="inline-flex items-center gap-2">
+                                  <TickerAvatar symbol={t.symbol} size="sm" />
+                                  {t.symbol}
+                                </span>
+                              </td>
                               <td className="py-3 px-4 text-tv-muted font-number">Rp {t.buy}</td>
-                              <td className={`py-3 px-4 text-right font-bold font-number ${t.pnl.includes('+') ? 'text-tv-green' : 'text-tv-red'}`}>
+                              <td className={`py-3 px-4 text-right font-bold font-number ${toneOf(t.pnl)}`}>
                                 {t.pnl}
                               </td>
                             </tr>
@@ -474,12 +620,8 @@ export default function BacktestPage() {
           'Watchlist & Alert unlimited',
         ]}
       />
-      <style dangerouslySetInnerHTML={{__html:`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0F141D; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2C3A5A; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3A4B75; }
-      `}} />
+      {/* Blok <style> .custom-scrollbar dihapus - warna hex palet lama, dan scrollbar
+          global sudah ditata di app/globals.css. */}
     </div>
   );
 }
