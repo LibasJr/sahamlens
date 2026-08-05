@@ -81,4 +81,22 @@ describe('findFabricatedNumbers', () => {
 
     expect(findFabricatedNumbers(json, promptData)).toBeNull();
   });
+
+  // Kasus produksi sesungguhnya kedua (log Vercel 2026-08-05, UNTR.JK): rentang harga
+  // ditulis dengan tanda hubung ("23850-24545") dulu terbaca sebagai "-24545" (angka
+  // negatif) karena `-?` di depan regex menelan tanda hubung pemisah rentang sebagai
+  // minus. Harga saham tidak pernah negatif, jadi SETIAP rentang harga pasti ditolak.
+  it('menerima rentang harga yang ditulis dengan tanda hubung, bukan dibaca minus', () => {
+    const json = { summary_id: 'Pantulan ke 23850-24545 mungkin terjadi.' };
+
+    expect(findFabricatedNumbers(json, promptData)).toBeNull();
+  });
+
+  it('tetap menangkap minus asli (mis. MACD histogram negatif)', () => {
+    const json = { summary_id: 'MACD Hist:-999.50 bearish kuat.' };
+
+    const violation = findFabricatedNumbers(json, promptData);
+    expect(violation).not.toBeNull();
+    expect(violation).toContain('-999.5');
+  });
 });

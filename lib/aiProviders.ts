@@ -15,8 +15,13 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // berpeluang membuang beberapa percobaan (dan waktu timeout) ke model yang PASTI gagal
 // sebelum sampai ke yang berfungsi - biaya latensi murni, tanpa manfaat. Disisakan hanya
 // nama model yang terverifikasi.
+//
+// BUG FIX (2026-08-05, diagnostik log produksi): 'gemini-2.5-flash' DIHAPUS - log
+// menunjukkan [404 Not Found] untuk model ini secara konsisten. TIDAK diganti nama lain
+// tanpa verifikasi (itu justru masalah yang barusan diperbaiki di atas) - disisakan
+// 'gemini-2.0-flash' yang terkonfirmasi ADA (responsnya 429 kuota, bukan 404 tidak
+// ditemukan - beda jelas: nama modelnya benar, cuma jatah harian yang habis).
 const GEMINI_MODELS = [
-  'gemini-2.5-flash',
   'gemini-2.0-flash',
 ];
 
@@ -24,10 +29,22 @@ const GEMINI_MODELS = [
 const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 
 // Model OpenRouter yang punya varian ":free" (gratis, rate limit lebih longgar).
+//
+// BUG FIX (2026-08-05, diagnostik log produksi): ketiga slug lama SEMUA 404 - OpenRouter
+// mengganti/menghapus model ":free" secara berkala (bukan salah ketik/basi karena lupa
+// update, tapi memang sifat katalognya). Log produksi persis menunjukkan pesan error
+// resmi OpenRouter untuk masing-masing:
+//   deepseek/deepseek-chat:free -> "gunakan deepseek/deepseek-chat"
+//   meta-llama/llama-3.3-70b-instruct:free -> "gunakan meta-llama/llama-3.3-70b-instruct"
+//   google/gemini-2.0-flash-exp:free -> "No endpoints found"
+// Diganti ke 3 slug yang DIKONFIRMASI ada saat ini (GET https://openrouter.ai/api/v1/
+// models, endpoint publik tanpa API key, 2026-08-05). Katalog ini akan basi lagi di masa
+// depan - kalau [AI:openrouter] log penuh 404, cek ulang endpoint publik itu, jangan
+// tebak nama model.
 const OPENROUTER_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-chat:free',
-  'google/gemini-2.0-flash-exp:free',
+  'google/gemma-4-31b-it:free',
+  'openai/gpt-oss-20b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
 ];
 
 type Provider = 'gemini' | 'groq' | 'openrouter';
