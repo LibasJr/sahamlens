@@ -5,7 +5,10 @@ import { Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 
-const TIMEFRAMES = ['1D', '3D', '7D', '1Y', '10Y', 'ALL'];
+// BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
+// lihat catatan lengkap di components/Dashboard.tsx (TIMEFRAMES array yang sama) - 1M/3M
+// ditambahkan balik sebagai pilihan, default tetap '1Y'.
+const TIMEFRAMES = ['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL'];
 
 // Grafik candlestick + timeframe switcher + ringkasan LensAI (10 agen), dipakai
 // baik di halaman /technical/[symbol] maupun bisa dipakai ulang di tempat lain yang
@@ -39,18 +42,22 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   return (
     <div className="bg-tv-card border border-tv-border rounded-xl p-4 sm:p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 rounded-full bg-tv-hover p-1">
-          {TIMEFRAMES.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTimeframe(t)}
-              className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-wide font-mono transition ${
-                timeframe === t ? 'bg-tv-blue text-white shadow' : 'text-tv-muted hover:text-white'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        {/* max-w-full + overflow-x-auto (permintaan user) - 8 pilihan timeframe (nambah
+            1M/3M) muat digulir ke samping di layar sempit, bukan ke-wrap/kepotong. */}
+        <div className="max-w-full overflow-x-auto">
+          <div className="flex items-center gap-2 rounded-full bg-tv-hover p-1 w-max">
+            {TIMEFRAMES.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTimeframe(t)}
+                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide font-mono transition ${
+                  timeframe === t ? 'bg-tv-blue text-white shadow' : 'text-tv-muted hover:text-white'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
         {ind && (
           <span
