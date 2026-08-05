@@ -33,18 +33,13 @@ function signalIcon(signal: string): LucideIcon {
   return Circle;
 }
 
-// Bar aksen brand (gradient signature biru->ungu, `gradient-accent` di tailwind.config.js)
-// di atas & bawah card - sama seperti FundamentalExportCard. Kartu ini TIDAK dapat tema
-// per-sektor (beda dari kartu fundamental) karena CouncilDisplay (app/technical/[symbol]/
-// page.tsx) tidak fetch company profile - cuma data teknikal/AI agent.
-function AccentBar() {
-  return <div className="h-3 w-full bg-gradient-accent" />;
-}
-
 // Kartu export offscreen untuk /technical/[symbol] (lihat TechnicalExportSection untuk
 // wiring). %BUY/SELL/HOLD/WAIT = vote riil 10 agent (dihitung di CouncilDisplay,
 // app/technical/[symbol]/page.tsx) - BUKAN field "Confidence" yang sudah dihapus dari
-// UI (2026-08-03) karena dulu angka karangan LLM tanpa formula.
+// UI (2026-08-03) karena dulu angka karangan LLM tanpa formula. Banner header
+// color-block (gradient-accent) sama persis dengan FundamentalExportCard - satu sistem
+// visual brand. Kartu ini TIDAK dapat tema per-sektor (beda dari kartu fundamental)
+// karena CouncilDisplay tidak fetch company profile, cuma data teknikal/AI agent.
 export default function TechnicalExportCard({
   symbol, finalSuggestion, summaryId, buyPct, sellPct, holdPct, waitPct, agents, score, exportedAt,
 }: TechnicalExportCardProps) {
@@ -54,19 +49,20 @@ export default function TechnicalExportCard({
   }) + ' WIB';
 
   return (
-    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col">
-      <AccentBar />
+    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col overflow-hidden">
+      <div className="bg-gradient-accent px-16 py-9 flex items-center justify-between">
+        <div>
+          <div className="text-4xl font-heading font-extrabold text-white">SahamLens</div>
+          <div className="text-sm font-mono text-white/80 uppercase tracking-wide mt-1">Laporan Teknikal</div>
+        </div>
+        <div className="text-xl font-mono font-bold px-5 py-2 rounded-full bg-white text-tv-accent flex items-center gap-2">
+          <Brain className="w-5 h-5" />
+          LensAI
+        </div>
+      </div>
 
       <div className="flex-1 p-16 flex flex-col justify-between">
         <div>
-          <div className="flex items-center justify-between mb-10">
-            <div className="text-3xl font-heading font-extrabold text-tv-accent">SahamLens</div>
-            <div className="text-xl font-mono font-bold px-5 py-2 rounded-full border bg-tv-hover border-tv-borderLight text-white flex items-center gap-2">
-              <Brain className="w-5 h-5 text-tv-accent" />
-              LensAI
-            </div>
-          </div>
-
           <div className="mb-6">
             <div className="text-6xl font-heading font-extrabold">{displaySymbol}.JK</div>
             <div className="text-2xl text-tv-green mt-2 font-mono font-bold">{finalSuggestion}</div>
@@ -113,8 +109,6 @@ export default function TechnicalExportCard({
           Data via SahamLens • {timeLabel}
         </div>
       </div>
-
-      <AccentBar />
     </div>
   );
 }

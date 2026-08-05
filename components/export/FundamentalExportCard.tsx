@@ -1,7 +1,9 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { Coins, TrendingUp, Scale, Percent, PieChart, Wallet, Layers, type LucideIcon } from 'lucide-react';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
-import { getSectorTheme } from './sector-theme';
+import { getSectorTheme, type SectorTheme } from './sector-theme';
 
 interface FundamentalExportCardProps {
   ticker: string;
@@ -15,35 +17,70 @@ interface FundamentalExportCardProps {
     totalRevenue?: number | null;
     nim?: number | null;
   };
-  profile: { sector?: string; industry?: string; description?: string };
+  profile: { sector?: string; industry?: string; description?: string; website?: string };
   consensus?: string;
   exportedAt: Date;
 }
 
 function MetricBox({ label, value, Icon }: { label: string; value: string; Icon: LucideIcon }) {
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-4 flex flex-col gap-2">
-      <Icon className="w-5 h-5 text-tv-muted" />
+    <div className="bg-tv-card border border-tv-border rounded-xl p-5 flex flex-col gap-2">
+      <Icon className="w-6 h-6 text-tv-muted" />
       <div className="text-xs text-tv-muted uppercase font-mono">{label}</div>
-      <div className="text-2xl font-number font-bold text-white">{value}</div>
+      <div className="text-3xl font-number font-bold text-white">{value}</div>
     </div>
   );
 }
 
-// Bar aksen brand (gradient signature biru->ungu, sudah didefinisikan sebagai
-// `gradient-accent` di tailwind.config.js) di atas & bawah card - bookend visual,
-// identitas brand konsisten terlepas dari sector emiten (sector dinyatakan lewat
-// icon+warna chip di header, bukan lewat bar ini).
-function AccentBar() {
-  return <div className="h-3 w-full bg-gradient-accent" />;
+// Logo perusahaan ASLI via domain resmi (profile.website, field yang sama dipakai link
+// "Kunjungi Website" di app/fundamental/page.tsx) - bukan foto dekoratif karangan. Kalau
+// website tidak ada di data ATAU logo gagal dimuat, fallback ke icon sektor (SectorIcon)
+// - tidak pernah menampilkan gambar palsu/generik yang bisa dikira logo asli.
+function getLogoUrl(website?: string): string | null {
+  if (!website) return null;
+  try {
+    const url = website.startsWith('http') ? website : `https://${website}`;
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    return `https://logo.clearbit.com/${hostname}`;
+  } catch {
+    return null;
+  }
+}
+
+function CompanyMark({ website, sectorTheme }: { website?: string; sectorTheme: SectorTheme }) {
+  const [failed, setFailed] = useState(false);
+  const logoUrl = getLogoUrl(website);
+  const SectorIcon = sectorTheme.Icon;
+
+  if (!logoUrl || failed) {
+    return (
+      <div className={`w-32 h-32 shrink-0 rounded-2xl border flex items-center justify-center ${sectorTheme.chipBg} ${sectorTheme.chipBorder}`}>
+        <SectorIcon className={`w-16 h-16 ${sectorTheme.chipText}`} />
+      </div>
+    );
+  }
+  return (
+    <div className="w-32 h-32 shrink-0 rounded-2xl bg-white p-5 flex items-center justify-center overflow-hidden">
+      <img
+        src={logoUrl}
+        crossOrigin="anonymous"
+        alt=""
+        className="max-w-full max-h-full object-contain"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
 }
 
 // Kartu export offscreen untuk /fundamental (lihat wiring di app/fundamental/page.tsx).
+// Layout 2 kolom (identitas+profil kiri, metrik kanan) di bawah banner brand - meniru
+// GAYA laporan korporat (kolom majalah, header color-block), TAPI semua konten tetap
+// data asli - tidak ada pilar bisnis/ekosistem/kekuatan perusahaan karangan (itu konten
+// marketing manual spesifik per perusahaan, tidak tersedia dari data saham manapun,
+// sudah didiskusikan & ditolak eksplisit).
 // Deteksi sektor bank SENGAJA disamakan persis dengan app/fundamental/page.tsx (cabang
 // NIM vs Gross Margin) - kartu export tidak boleh menampilkan rasio yang beda logic
-// dari tampilan asli untuk emiten yang sama. Tema visual (icon+warna chip sektor) di
-// bawah HANYA dekoratif, dicocokkan ke field sector/industry asli - tidak mengubah
-// metrik yang ditampilkan.
+// dari tampilan asli untuk emiten yang sama.
 export default function FundamentalExportCard({ ticker, stock, fundamentals, profile, consensus, exportedAt }: FundamentalExportCardProps) {
   const isBank = Boolean(profile.sector?.includes('Financial') || profile.industry?.includes('Bank'));
   const displaySymbol = ticker.replace('.JK', '');
@@ -51,51 +88,60 @@ export default function FundamentalExportCard({ ticker, stock, fundamentals, pro
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }) + ' WIB';
   const sectorTheme = getSectorTheme(profile.sector, profile.industry);
-  const SectorIcon = sectorTheme.Icon;
 
   return (
-    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col">
-      <AccentBar />
-
-      <div className="flex-1 p-16 flex flex-col justify-between">
+    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col overflow-hidden">
+      {/* Banner brand color-block (gaya bar tebal DGWG di atas poster mereka) - warna
+          gradient brand konsisten di semua kartu, TIDAK per-sektor (sektor dinyatakan
+          lewat CompanyMark di bawah), supaya kartu tetap dikenali sebagai SahamLens
+          apa pun emitennya. */}
+      <div className="bg-gradient-accent px-16 py-9 flex items-center justify-between">
         <div>
-          <div className="flex items-center justify-between mb-10">
-            <div className="text-3xl font-heading font-extrabold text-tv-accent">SahamLens</div>
-            <div className={`text-xl font-mono font-bold px-5 py-2 rounded-full border ${
-              consensus?.includes('BULLISH') ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                : consensus?.includes('BEARISH') ? 'bg-tv-red/20 text-tv-red border-tv-red'
-                : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
-            }`}>{consensus || 'AWAITING'}</div>
+          <div className="text-4xl font-heading font-extrabold text-white">SahamLens</div>
+          <div className="text-sm font-mono text-white/80 uppercase tracking-wide mt-1">Laporan Fundamental</div>
+        </div>
+        <div className={`text-xl font-mono font-bold px-5 py-2 rounded-full ${
+          consensus?.includes('BULLISH') ? 'bg-white text-tv-green'
+            : consensus?.includes('BEARISH') ? 'bg-white text-tv-red'
+            : 'bg-white text-tv-yellow'
+        }`}>{consensus || 'AWAITING'}</div>
+      </div>
+
+      <div className="flex-1 flex gap-10 p-16">
+        {/* Kolom kiri - identitas & profil */}
+        <div className="w-[380px] shrink-0 flex flex-col">
+          <CompanyMark website={profile.website} sectorTheme={sectorTheme} />
+
+          <div className="mt-6">
+            <div className="text-5xl font-heading font-extrabold leading-tight">{displaySymbol}.JK</div>
+            <div className="text-xl text-tv-muted mt-1">{stock.name || displaySymbol}</div>
           </div>
 
-          <div className="mb-8 flex items-center gap-6">
-            <div className={`w-20 h-20 shrink-0 rounded-2xl border flex items-center justify-center ${sectorTheme.chipBg} ${sectorTheme.chipBorder}`}>
-              <SectorIcon className={`w-10 h-10 ${sectorTheme.chipText}`} />
-            </div>
-            <div>
-              <div className="text-6xl font-heading font-extrabold">{displaySymbol}.JK</div>
-              <div className="text-2xl text-tv-muted mt-1">{stock.name || displaySymbol}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 mb-8">
-            <span className="text-5xl font-mono font-bold">
+          <div className="flex items-center gap-3 mt-4 flex-wrap">
+            <span className="text-3xl font-mono font-bold">
               Rp {stock.current_price?.toLocaleString('id-ID') || '-'}
             </span>
             {typeof stock.change_pct === 'number' && (
-              <span className={`text-2xl font-mono font-bold ${stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+              <span className={`text-lg font-mono font-bold ${stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 {stock.change_pct > 0 ? '+' : ''}{stock.change_pct}%
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mt-8 mb-2">
             <Layers className={`w-4 h-4 ${sectorTheme.chipText}`} />
-            <span className="text-sm font-mono text-tv-muted uppercase">Sektor &amp; Industri</span>
+            <span className="text-xs font-mono text-tv-muted uppercase">Sektor &amp; Industri</span>
           </div>
-          <div className="text-xl font-bold mb-6 pb-6 border-b border-tv-border">{profile.sector || '-'} / {profile.industry || '-'}</div>
+          <div className="text-base font-bold pb-6 border-b border-tv-border">{profile.sector || '-'} / {profile.industry || '-'}</div>
 
-          <div className="grid grid-cols-3 gap-5 mb-8">
+          {profile.description && (
+            <div className="text-sm text-tv-muted leading-relaxed line-clamp-[14] mt-6">{profile.description}</div>
+          )}
+        </div>
+
+        {/* Kolom kanan - metrik */}
+        <div className="flex-1 flex flex-col justify-between">
+          <div className="grid grid-cols-2 gap-5">
             <MetricBox label="Market Cap" value={fmtTriliun(fundamentals.marketCap)} Icon={Coins} />
             <MetricBox label="P/E Ratio (TTM)" value={fmtKali(fundamentals.trailingPE)} Icon={TrendingUp} />
             <MetricBox label="Price to Book" value={fmtKali(fundamentals.priceToBook)} Icon={Scale} />
@@ -113,17 +159,11 @@ export default function FundamentalExportCard({ ticker, stock, fundamentals, pro
             )}
           </div>
 
-          {profile.description && (
-            <div className="text-base text-tv-muted leading-relaxed line-clamp-3">{profile.description}</div>
-          )}
-        </div>
-
-        <div className="text-xs font-mono text-tv-muted border-t border-tv-border pt-4">
-          Data via SahamLens • {timeLabel}
+          <div className="text-xs font-mono text-tv-muted border-t border-tv-border pt-4">
+            Data via SahamLens • {timeLabel}
+          </div>
         </div>
       </div>
-
-      <AccentBar />
     </div>
   );
 }
