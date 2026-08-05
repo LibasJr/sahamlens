@@ -88,7 +88,7 @@ function VerticalSignalTicker({ items }: {
   // TP = target potensi naik, CL = level waspada/cut-loss, keduanya relevan buat saham
   // manapun terlepas arah pergerakannya, bukan cuma salah satu tergantung tipe sinyal.
   if (!items.length) {
-    return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada sinyal TP/CL hari ini.</p>;
+    return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada proyeksi level harga hari ini.</p>;
   }
   const loopItems = [...items, ...items];
   const durationSec = Math.max(20, Math.round(items.length * 4.5));
@@ -408,9 +408,14 @@ export default function Dashboard() {
         {/* Marketing Hero - tagline "Lihat Peluang Lebih Jelas." sudah dipakai di
             metadata (app/layout.tsx) tapi belum pernah dirender di halaman manapun.
             Section aditif, tidak mengubah struktur Title Block/ringkasan pasar di
-            bawahnya. */}
-        <Card padding="none" className="mb-6 flex items-center justify-between gap-6 bg-tv-card/50 px-5 py-4 sm:px-8 sm:py-6 shadow-none">
-          <div className="min-w-0">
+            bawahnya.
+            POLISH (2026-08-05, keluhan user "kelihatan kaku"): bg flat bg-tv-card/50
+            diganti gradient-accent-soft (biru->ungu, sudah didefinisikan di
+            tailwind.config.js) + glow blur dekoratif di belakang icon (glow-purple,
+            juga sudah ada di config) - murni CSS, tidak ada konten/data baru. */}
+        <Card padding="none" className="relative overflow-hidden mb-6 flex items-center justify-between gap-6 bg-gradient-accent-soft border border-tv-border/60 px-5 py-4 sm:px-8 sm:py-6 shadow-none">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-glow-purple blur-2xl" />
+          <div className="min-w-0 relative">
             <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">Lihat Peluang Lebih Jelas.</h2>
             <p className="mt-1.5 text-[13px] sm:text-sm text-tv-muted max-w-md">
               Screener & analisis saham IDX berbasis data riil dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi.
@@ -419,7 +424,7 @@ export default function Dashboard() {
           <img
             src="/sahamlens-scope.png"
             alt="SahamLens"
-            className="hidden sm:block h-20 md:h-28 w-auto shrink-0 object-contain"
+            className="relative hidden sm:block h-20 md:h-28 w-auto shrink-0 object-contain drop-shadow-[0_0_20px_rgba(139,92,246,0.35)]"
           />
         </Card>
 
@@ -628,13 +633,16 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Sinyal TP/CL - proyeksi ATR-14 dari emiten LensRadar (aiPicks di atas,
-                  BUKAN Golden/Dead Cross lagi - permintaan user 2026-08-04), running
-                  text vertikal (lihat VerticalSignalTicker). Tanpa gembok Premium. */}
+              {/* Proyeksi Level Harga - proyeksi ATR-14 dari emiten LensRadar (aiPicks di
+                  atas, BUKAN Golden/Dead Cross lagi - permintaan user 2026-08-04), running
+                  text vertikal (lihat VerticalSignalTicker). Tanpa gembok Premium.
+                  RENAME (2026-08-05, permintaan user): "Sinyal TP/CL Hari Ini" -> "Proyeksi
+                  Level Harga" - "sinyal" terkesan rekomendasi beli/jual, padahal ini murni
+                  proyeksi level harga (TP/CL) berbasis ATR, bukan sinyal aksi. */}
               <div className="mt-5 pt-4 border-t border-tv-border flex-1 flex flex-col min-h-0">
                 <h4 className="font-heading text-[12px] font-bold text-tv-text flex items-center gap-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-tv-green" />
-                  Sinyal TP/CL Hari Ini
+                  Proyeksi Level Harga
                 </h4>
                 <p className="text-[10px] text-tv-muted mt-1">
                   Proyeksi ATR-14 dari emiten LensRadar - bukan jaminan harga akan tercapai.

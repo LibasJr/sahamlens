@@ -21,9 +21,16 @@ interface CommandPaletteProps {
   // supaya chart utama di halaman itu sendiri yang berubah, bukan navigasi keluar.
   // Halaman lain yang belum diisi prop ini tetap pakai perilaku lama (navigasi).
   onSelect?: (symbol: string, name: string) => void;
+  // BUG FIX (2026-08-05, unifikasi search): default true - TopMarketBar (global,
+  // AppShell, tampil di semua halaman) SATU-SATUNYA pemilik shortcut Ctrl/Cmd+K.
+  // Header.tsx (dipakai /fundamental, /technical, /dcf, dst) sekarang juga me-render
+  // CommandPalette (menggantikan input inline sendiri, lihat Header.tsx) dengan
+  // enableShortcut={false} - tanpa ini, Ctrl+K akan membuka DUA modal sekaligus
+  // (instance global + instance per-halaman) karena keduanya listen keydown yang sama.
+  enableShortcut?: boolean;
 }
 
-export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
+export default function CommandPalette({ onSelect, enableShortcut = true }: CommandPaletteProps = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -39,7 +46,7 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (enableShortcut && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setOpen((o) => !o);
       } else if (e.key === 'Escape') {
@@ -48,7 +55,7 @@ export default function CommandPalette({ onSelect }: CommandPaletteProps = {}) {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [enableShortcut]);
 
   useEffect(() => {
     if (open && !loaded) {
