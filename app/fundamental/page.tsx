@@ -344,17 +344,46 @@ function FundamentalContent() {
                   </div>
                 </div>
              )}
+            {/* BUG FIX (audit skor fundamental 2026-08-05, laporan user - KOTA.JK
+                dilabeli "UNDERVALUED" di sini padahal Intrinsic Value bilang overvalued
+                253%): badge ini SEKARANG murni valuasi (murah/mahal, dari margin of
+                safety hasil calculateIntrinsicValue - metode yang SAMA dipakai Intrinsic
+                Value di bawah), bukan lagi vote 13-analyzer campur aduk kualitas+valuasi.
+                Cek warna diganti dari 'BULLISH'/'BEARISH' (kata itu sudah tidak pernah
+                muncul lagi di string consensus) jadi 'UNDERVALUED'/'OVERVALUED'. */}
             <div className="text-right">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">HASIL ANALISA LENSAI</div>
+              <div className="text-[10px] font-mono text-tv-muted uppercase">Valuasi Harga</div>
               <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
-                data?.consensus?.includes('BULLISH')
+                data?.consensus?.includes('UNDERVALUED')
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                  : data?.consensus?.includes('BEARISH')
+                  : data?.consensus?.includes('OVERVALUED')
                   ? 'bg-tv-red/20 text-tv-red border-tv-red'
                   : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
               }`}>
                 {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
                 {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
+              </div>
+            </div>
+
+            {/* Badge baru (audit skor fundamental 2026-08-05): "bisnisnya bagus atau
+                buruk" dijawab TERPISAH dari "sahamnya murah atau mahal" di atas - dua
+                pertanyaan beda, gak dicampur jadi satu skor yang menyesatkan (lihat
+                consensus-labels.service.ts). */}
+            <div className="text-right">
+              <div className="text-[10px] font-mono text-tv-muted uppercase">Kualitas Fundamental</div>
+              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
+                data?.fundamentalQuality?.label === 'BAGUS'
+                  ? 'bg-tv-green/20 text-tv-green border-tv-green'
+                  : data?.fundamentalQuality?.label === 'BURUK'
+                  ? 'bg-tv-red/20 text-tv-red border-tv-red'
+                  : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
+              }`}>
+                {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                {loading
+                  ? 'Calculating...'
+                  : data?.fundamentalQuality
+                  ? `${data.fundamentalQuality.label} (${data.fundamentalQuality.pct}%)`
+                  : 'AWAITING'}
               </div>
             </div>
           </div>

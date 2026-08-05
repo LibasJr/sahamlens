@@ -21,6 +21,9 @@ import {
   analyzeGrossMargin,
   analyzeOperatingMargin,
   analyzeNetMargin,
+  calculateIntrinsicValue,
+  computeFundamentalQuality,
+  computeValuationLabel,
 } from '@/modules/fundamental';
 
 export async function GET(
@@ -136,13 +139,29 @@ export async function GET(
       }
     });
 
-    const totalVotes = bullish + bearish;
-    let consensus = 'NEUTRAL';
-    
-    if (totalVotes > 0) {
-      const bullPct = (bullish / totalVotes) * 100;
-      if (bullPct >= 60) consensus = `UNDERVALUED (BULLISH ${bullPct.toFixed(0)}%)`;
-      else if (bullPct <= 40) consensus = `OVERVALUED (BEARISH ${(100 - bullPct).toFixed(0)}%)`;
+    // BUG FIX (audit skor fundamental 2026-08-05, laporan user - KOTA.JK dilabeli
+    // "UNDERVALUED" di sini padahal Intrinsic Value bilang overvalued 253%): vote
+    // 13-analyzer di atas menjawab "bisnisnya bagus atau buruk" (kualitas), BUKAN
+    // "sahamnya murah atau mahal" (valuasi) - cuma 2 dari 13 (PE, PBV) yang benar-benar
+    // mengukur valuasi, jadi label lama bisa TERBALIK saat 11 analyzer kualitas menang
+    // suara dari 2 analyzer valuasi. Dua pertanyaan sekarang dijawab terpisah - lihat
+    // catatan lengkap di modules/fundamental/service/consensus-labels.service.ts.
+    const fundamentalQuality = computeFundamentalQuality(bullish, bearish);
+
+    // Valuasi (murah/mahal) dari margin of safety hasil calculateIntrinsicValue() - metode
+    // absolut (Graham Number/PER Fair/PBV Fair/DCF sesuai bobot sektor, sama seperti yang
+    // dipakai Intrinsic Value), BUKAN vote mayoritas. Fetch terpisah (bukan reuse
+    // quoteSummary di atas) karena calculateIntrinsicValue() butuh modul tambahan
+    // (financialData lengkap) - try/catch supaya kegagalannya tidak menjatuhkan seluruh
+    // endpoint, cukup melaporkan valuasi sebagai data tidak cukup.
+    let consensus = 'DATA TIDAK CUKUP';
+    try {
+      const intrinsic = await calculateIntrinsicValue(ticker);
+      if (intrinsic) {
+        consensus = computeValuationLabel(intrinsic.mos, intrinsic.fair_value);
+      }
+    } catch (e) {
+      console.warn(`[Fundamental] calculateIntrinsicValue gagal untuk ${ticker} - valuasi dilaporkan sebagai data tidak cukup`, e);
     }
 
     let descriptionId = quoteSummary.assetProfile?.longBusinessSummary || 'Tidak ada deskripsi perusahaan.';
@@ -166,6 +185,9 @@ export async function GET(
       price: currentPrice,
       analyzers: analyzersResult,
       consensus,
+      // Label kualitas bisnis (BAGUS/BURUK/NETRAL) TERPISAH dari `consensus` (valuasi
+      // murah/mahal) - lihat catatan di atas & consensus-labels.service.ts.
+      fundamentalQuality,
       bestPerformer,
       stock: {
         symbol: ticker,
