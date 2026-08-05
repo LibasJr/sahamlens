@@ -93,10 +93,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// Hanya ditambahkan ke menu kalau user.role === 'admin' (lihat visibleGroups di
-// bawah) - halaman /admin sendiri tetap digerbang isAdminServer() (cookie admin
-// terpisah dari role akun biasa, lihat modules/user/service/admin.service.ts),
-// jadi link ini cuma soal *penemuan* menu, bukan jalur akses baru.
+// Hanya ditambahkan ke menu kalau akun punya role admin ATAU cookie admin dari
+// /admin-login/key valid (lihat visibleGroups di bawah). Halaman /admin sendiri
+// tetap digerbang isAdminServer(), jadi link ini cuma soal *penemuan* menu,
+// bukan jalur akses baru.
 const ADMIN_NAV_GROUP: NavGroup = {
   id: 'admin',
   label: 'Admin',
@@ -113,6 +113,7 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   // Link menu LensAI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
   // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "LensAI"
@@ -140,6 +141,13 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
+    fetch('/api/admin-status')
+      .then((res) => res.json())
+      .then((d) => setHasAdminAccess(Boolean(d.isAdmin)))
+      .catch(() => setHasAdminAccess(false));
+  }, []);
+
+  useEffect(() => {
     const handleOpenProfile = () => setShowProfileModal(true);
     window.addEventListener('open-profile-modal', handleOpenProfile);
     return () => window.removeEventListener('open-profile-modal', handleOpenProfile);
@@ -150,7 +158,7 @@ export default function Sidebar() {
     window.location.href = '/login';
   };
 
-  const visibleGroups = user?.role === 'admin' ? [...NAV_GROUPS, ADMIN_NAV_GROUP] : NAV_GROUPS;
+  const visibleGroups = user?.role === 'admin' || hasAdminAccess ? [...NAV_GROUPS, ADMIN_NAV_GROUP] : NAV_GROUPS;
 
   useEffect(() => {
     const handleToggle = () => setIsOpen((prev) => !prev);
