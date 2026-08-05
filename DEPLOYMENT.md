@@ -41,8 +41,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 - Endpoint cron baru: `GET /api/cron/lens-bucket-backtest`, job log
   `lens-bucket-backtest`, guarded dengan `CRON_SECRET`.
 - `vercel.json` ditambahkan untuk Vercel Cron: `0 10 * * 1-5` UTC = 17:00 WIB Senin-Jumat.
-- Env var baru yang wajib ada di Production: `CRON_SECRET`. Tanpa ini, route sengaja membalas
-  401 supaya endpoint tidak bisa dijalankan publik.
+- Env var baru yang wajib ada di Production: `CRON_SECRET` (sudah ditambahkan sebagai
+  Sensitive env via Vercel CLI pada 2026-08-05). Tanpa ini, route sengaja membalas 401 supaya
+  endpoint tidak bisa dijalankan publik.
 - Tidak menambah dependency Python/yfinance baru; implementasi memakai fetch Yahoo Finance
   yang sudah ada di TypeScript agar tetap cocok dengan runtime serverless Vercel.
 
