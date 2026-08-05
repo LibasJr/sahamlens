@@ -29,15 +29,28 @@ describe('findFabricatedNumbers', () => {
     expect(findFabricatedNumbers(json, promptData)).toBeNull();
   });
 
-  it('menerima variasi penulisan periode indikator lain', () => {
+  it('menerima variasi penulisan periode indikator yang nempel tanpa spasi', () => {
     const json = {
-      a: 'EMA 200 masih di atas harga',
       b: 'ATR-14 melebar',
       c: 'Cek RSI14 dan CMF20 dulu',
       d: 'SMA200 jadi resistance',
     };
 
     expect(findFabricatedNumbers(json, promptData)).toBeNull();
+  });
+
+  // Kasus produksi sesungguhnya kedua (log Vercel 2026-08-05, BBCA.JK, PUTARAN KE-2):
+  // versi pertama perbaikan MA200 di atas terlalu rakus - ikut membolehkan spasi antara
+  // nama indikator dan angka, jadi "ATR 158.9" (AI melaporkan NILAI ATR asli dari DATA
+  // REAL) ikut ke-strip seolah itu notasi periode, meninggalkan angka acak yang pasti
+  // ditolak. Notasi periode di kenyataan SELALU nempel tanpa spasi (MA200, RSI14) -
+  // "ATR 158.9" (ada spasi) itu laporan nilai, harus tetap dicek sebagai angka biasa.
+  it('nilai indikator yang ditulis dengan spasi TETAP dicek sebagai angka (bukan periode)', () => {
+    const jsonValid = { summary_id: 'ATR 500 tinggi, waspada.' }; // 500 = promptData.atr asli
+    expect(findFabricatedNumbers(jsonValid, promptData)).toBeNull();
+
+    const jsonInvalid = { summary_id: 'ATR 99999 tinggi, waspada.' }; // karangan
+    expect(findFabricatedNumbers(jsonInvalid, promptData)).not.toBeNull();
   });
 
   it('menerima angka yang memang ada di DATA REAL', () => {
