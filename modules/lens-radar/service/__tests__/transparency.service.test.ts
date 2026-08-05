@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   TRANSPARENCY_CACHE_KEY,
+  TRANSPARENCY_CACHE_VERSION,
   buildBucketRows,
   buildTop5EquityCurve,
   buildTransparencyBanner,
@@ -27,6 +28,7 @@ function obs(partial: Partial<CalibrationObservation>): CalibrationObservation {
 describe('transparency.service', () => {
   it('cache key publik menyertakan score version agar payload lama tanpa audit trail tidak dipakai ulang', () => {
     expect(TRANSPARENCY_CACHE_KEY).toContain(SCORE_VERSION);
+    expect(TRANSPARENCY_CACHE_KEY).toContain(TRANSPARENCY_CACHE_VERSION);
     expect(TRANSPARENCY_CACHE_KEY).not.toBe('sahamlens:cache:lens-radar:transparency:v1');
   });
 

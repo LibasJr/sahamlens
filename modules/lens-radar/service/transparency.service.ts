@@ -24,10 +24,13 @@ import { SCORE_VERSION } from '../constants/model-version';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
+export const TRANSPARENCY_CACHE_VERSION = 'backfill-v1';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
-export const TRANSPARENCY_CACHE_KEY = `sahamlens:cache:lens-radar:transparency:${SCORE_VERSION}:${RETURN_PRICE_BASIS}:${PRICE_ADJUSTMENT_VERSION}`;
+// `TRANSPARENCY_CACHE_VERSION` dibump setelah one-shot backfill supaya payload lama
+// (mis. totalSamples=0 sebelum lens_bucket_stats terisi) tidak bertahan sampai TTL habis.
+export const TRANSPARENCY_CACHE_KEY = `sahamlens:cache:lens-radar:transparency:${SCORE_VERSION}:${RETURN_PRICE_BASIS}:${PRICE_ADJUSTMENT_VERSION}:${TRANSPARENCY_CACHE_VERSION}`;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;

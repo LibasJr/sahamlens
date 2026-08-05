@@ -512,6 +512,8 @@ async function loadProductionDeps() {
     detectCorporateAction,
   } = require('../shared/market/price-basis.ts');
   const { runAndSaveLensBucketBacktest } = require('../modules/lens-radar/service/bucket-backtest.service.ts');
+  const { cacheDel } = require('../shared/cache/redis-cache.ts');
+  const { TRANSPARENCY_CACHE_KEY } = require('../modules/lens-radar/service/transparency.service.ts');
 
   return {
     pool,
@@ -534,6 +536,8 @@ async function loadProductionDeps() {
     normalizeYahooOhlcRows,
     selectPriceSeries,
     detectCorporateAction,
+    cacheDel,
+    TRANSPARENCY_CACHE_KEY,
   };
 }
 
@@ -603,6 +607,10 @@ async function main() {
       options.endDate,
       { scoreVersion: options.scoreVersion ?? deps.SCORE_VERSION }
     );
+    // Backfill mengubah sumber data transparency secara massal. Hapus cache spesifik
+    // supaya UI publik tidak menunggu TTL 30 menit sambil menampilkan totalSamples lama.
+    await deps.cacheDel(deps.TRANSPARENCY_CACHE_KEY);
+    await deps.cacheDel(`sahamlens:cache:lock:${deps.TRANSPARENCY_CACHE_KEY}`);
   }
 
   console.log(JSON.stringify({
