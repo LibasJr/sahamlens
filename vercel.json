@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/lens-bucket-backtest",
+      "schedule": "0 10 * * 1-5"
+    }
+  ]
+}

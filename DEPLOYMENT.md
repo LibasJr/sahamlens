@@ -24,6 +24,28 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - Strategy Builder: Lens bucket stats via Vercel Cron
+
+- Ditambahkan service `modules/lens-radar/service/bucket-backtest.service.ts` untuk validasi
+  LensScore per bucket dari tabel real `lens_radar_history` (`date`, `ticker`, `lens_score`,
+  `close_price`, `market_cap`).
+- Bucket skor: 80-100, 70-79, 60-69, `<60`. Entry price memakai open H+1 dari OHLC Yahoo
+  (`fetchYahooHistory`, sumber yang sudah dipakai layer teknikal), bukan close hari sinyal,
+  untuk menjaga point-in-time dan mengurangi look-ahead bias.
+- Forward return dihitung untuk T+1, T+5, T+20 dari entry H+1, lalu dikurangi biaya round-trip
+  0,5% (fee 0,4% + slippage 0,1%).
+- Output service: `{ bucket, avg_T1, avg_T5, avg_T20, winRate_T5, winRate_T20, totalSamples }`
+  plus metadata run untuk penyimpanan/audit.
+- Schema Postgres ditambah secara idempoten: guard tabel input `lens_radar_history` + kolom
+  `market_cap`, dan tabel output `lens_bucket_stats` dengan primary key `(run_date, bucket)`.
+- Endpoint cron baru: `GET /api/cron/lens-bucket-backtest`, job log
+  `lens-bucket-backtest`, guarded dengan `CRON_SECRET`.
+- `vercel.json` ditambahkan untuk Vercel Cron: `0 10 * * 1-5` UTC = 17:00 WIB Senin-Jumat.
+- Env var baru yang wajib ada di Production: `CRON_SECRET`. Tanpa ini, route sengaja membalas
+  401 supaya endpoint tidak bisa dijalankan publik.
+- Tidak menambah dependency Python/yfinance baru; implementasi memakai fetch Yahoo Finance
+  yang sudah ada di TypeScript agar tetap cocok dengan runtime serverless Vercel.
+
 ### 2026-08-05 - LensScore bucket backtest di LensRadar
 
 - Ditambahkan service `modules/recommendation/service/lens-score-bucket-backtest.service.ts`
@@ -192,9 +214,10 @@ Dikelompokkan REQUIRED / OPTIONAL / LEGACY (audit BUILD 002) - diverifikasi lewa
 **REQUIRED** (app tidak berfungsi penuh tanpa ini):
 | Var | Dipakai untuk |
 |---|---|
-| `DATABASE_URL` (+ alias Neon lain: `POSTGRES_URL`, `PGHOST`, dst - lihat catatan di bawah) | Postgres (Neon) - portfolio, watchlist, alert, macro_indicators, job_run_log. Kode HANYA baca `DATABASE_URL` (`shared/config/env.ts`) - var Neon lain (`POSTGRES_URL_NON_POOLING`, `PGHOST_UNPOOLED`, dst, ada belasan) di-inject otomatis oleh integrasi Neon-Vercel, tidak dibaca kode manapun, aman dibiarkan (bukan sampah manual, punya integrasi). |
+| `DATABASE_URL` (+ alias Neon lain: `POSTGRES_URL`, `PGHOST`, dst - lihat catatan di bawah) | Postgres (Neon) - portfolio, watchlist, alert, macro_indicators, job_run_log, lens_bucket_stats. Kode HANYA baca `DATABASE_URL` (`shared/config/env.ts`) - var Neon lain (`POSTGRES_URL_NON_POOLING`, `PGHOST_UNPOOLED`, dst, ada belasan) di-inject otomatis oleh integrasi Neon-Vercel, tidak dibaca kode manapun, aman dibiarkan (bukan sampah manual, punya integrasi). |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Cache (`shared/cache/redis-cache.ts`) - kalau kosong, semua fungsi cache degrade aman ke cache-miss (tidak crash), tapi performa jauh lebih lambat & Yahoo Finance kena request lebih sering. |
-| `QSTASH_TOKEN` / `QSTASH_URL` / `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` | Cron scheduler (bukan Vercel Cron) - 7 jadwal aktif, lihat bagian "Jadwal QStash" di bawah. |
+| `QSTASH_TOKEN` / `QSTASH_URL` / `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` | Cron scheduler QStash untuk mayoritas job lama, lihat bagian "Jadwal QStash" di bawah. |
+| `CRON_SECRET` | Proteksi endpoint Vercel Cron native, saat ini dipakai `GET /api/cron/lens-bucket-backtest`. Nilai harus sama dengan header `Authorization: Bearer <CRON_SECRET>` yang dikirim Vercel Cron. |
 | `JWT_SECRET_KEY` | Session login email/password (`shared/auth/session.ts`, `jose`). |
 | `ADMIN_SECRET_KEY` | Jalur darurat login admin (`/admin-login/key?key=...`) - password admin utama disimpan sebagai hash di tabel `admin_secret` (database), bisa diganti sendiri lewat `/admin` tanpa deploy ulang. Nilai TIDAK BISA dibaca ulang dari Vercel setelah tersimpan (Sensitive) - simpan juga di `.env.local` lokal (gitignored). |
 | `GEMINI_API_KEY` | AI cascade (`lib/aiProviders.ts generateAI()`) - tanpa ini fallback ke heuristik rule-based per fitur (Council lokal, sentimen kata kunci, dst), BUKAN error. |
@@ -259,9 +282,23 @@ Widget atau dua-skema-cookie-yang-gak-nyambung seperti versi arsitektur sebelumn
   terpisah yang tidak pernah dijalankan (pelajaran dari `supabase/schema.sql`, dihapus 2026-08-03
   karena sudah lama superseded dan tidak direferensikan kode manapun).
 
+## Jadwal Vercel Cron
+
+Vercel Cron didefinisikan di `vercel.json`, otomatis dibuat/diupdate saat deploy Production,
+dan ekspresi cron-nya memakai UTC. Endpoint cron native harus tetap dilindungi `CRON_SECRET`
+supaya tidak bisa dipicu publik.
+
+| Endpoint | Nama job | Cron (UTC) | Setara WIB | Config | Guard |
+|---|---|---|---|---|---|
+| `/api/cron/lens-bucket-backtest` | `lens-bucket-backtest` | `0 10 * * 1-5` | 17:00 Senin-Jumat | `vercel.json` | `Authorization: Bearer <CRON_SECRET>` |
+
+Catatan operasional: job ini membaca `lens_radar_history`, mengambil open H+1 dari Yahoo
+OHLC lewat layer teknikal yang sudah ada, lalu menyimpan agregat ke `lens_bucket_stats`.
+Kalau `CRON_SECRET` belum diset di Vercel Production, request cron akan 401 by design.
+
 ## Jadwal QStash
 
-Cron dijalankan lewat QStash (bukan Vercel Cron) dan diverifikasi dengan
+Mayoritas cron lama dijalankan lewat QStash dan diverifikasi dengan
 `verifyQStashSignature()` di tiap route. Nama job di kolom kedua sama persis dengan
 argumen `withJobRunLog()`, jadi riwayat jalannya bisa ditelusuri lewat log job.
 

@@ -155,6 +155,46 @@ export function ensureSharedSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_fundamental_history_date
         ON fundamental_history (observed_date);
 
+      -- modules/lens-radar/service/bucket-backtest.service.ts
+      -- Histori LensRadar point-in-time yang menjadi input validasi bucket.
+      -- Tabel ini bisa sudah dibuat oleh job scanner lama; definisi di sini hanya
+      -- guard idempoten supaya production tidak 500 saat kolom market_cap belum ada.
+      CREATE TABLE IF NOT EXISTS lens_radar_history (
+        date DATE NOT NULL,
+        ticker TEXT NOT NULL,
+        lens_score NUMERIC NOT NULL,
+        close_price NUMERIC NOT NULL,
+        market_cap NUMERIC,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (date, ticker)
+      );
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS market_cap NUMERIC;
+      CREATE INDEX IF NOT EXISTS idx_lens_radar_history_ticker_date
+        ON lens_radar_history (ticker, date);
+
+      -- Agregasi validasi harian LensScore per bucket. Diisi Vercel Cron jam 17:00 WIB
+      -- setelah sesi reguler bursa selesai. Idempoten per (run_date, bucket) supaya
+      -- rerun/manual trigger memperbarui angka hari itu, bukan membuat baris dobel.
+      CREATE TABLE IF NOT EXISTS lens_bucket_stats (
+        run_date DATE NOT NULL,
+        bucket TEXT NOT NULL,
+        avg_t1 NUMERIC,
+        avg_t5 NUMERIC,
+        avg_t20 NUMERIC,
+        win_rate_t5 NUMERIC,
+        win_rate_t20 NUMERIC,
+        total_samples INTEGER NOT NULL DEFAULT 0,
+        source_rows INTEGER NOT NULL DEFAULT 0,
+        unique_tickers INTEGER NOT NULL DEFAULT 0,
+        round_trip_cost_pct NUMERIC NOT NULL DEFAULT 0.5,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (run_date, bucket)
+      );
+      CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_run_date
+        ON lens_bucket_stats (run_date DESC);
+
       -- shared/scheduler/job-run-log.repository.ts
       CREATE TABLE IF NOT EXISTS job_run_log (
         id BIGSERIAL PRIMARY KEY,
