@@ -168,10 +168,10 @@ export default function AiPickPage() {
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-tv-blue" />
-                Kandidat Terkuat Hari Ini
+                Pantauan Terkuat Hari Ini
               </h2>
               <p className="text-[11px] text-tv-muted mt-1">
-                Diurutkan dari skor komposit tertinggi. Hanya saham berskor 60 ke atas yang tampil.
+                Diurutkan dari skor komposit tertinggi. Hanya saham berskor 60 ke atas yang tampil; ini scanner, bukan rekomendasi beli/jual.
               </p>
             </div>
 
@@ -181,6 +181,10 @@ export default function AiPickPage() {
               <p className="p-6 text-sm text-tv-muted">
                 Data sedang disiapkan. Coba lagi beberapa menit lagi.
               </p>
+            )}
+
+            {!loading && ready && note && (
+              <p className="px-4 pt-3 text-xs text-tv-yellow">{note}</p>
             )}
 
             {/* Daftar kosong sekarang punya SEBAB yang jelas (Phase 0 / P0-1 + P0-3):
@@ -200,7 +204,6 @@ export default function AiPickPage() {
 
             {!loading && ready && items.length > 0 && (
               <>
-                {note && <p className="px-4 pt-3 text-xs text-tv-yellow">{note}</p>}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>

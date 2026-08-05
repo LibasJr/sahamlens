@@ -24,6 +24,21 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - LensRadar scanner tetap tampil saat advisory belum tervalidasi
+
+- `/api/ai-pick` sekarang tetap mengirim ranking hasil scan data real sebagai scanner/pantauan
+  walau `modelValidation.validated=false`.
+- Guard validasi model tidak dihapus: response menambahkan `advisoryEnabled=false` dan `note`
+  eksplisit bahwa LensRadar belum boleh dibaca sebagai rekomendasi beli/jual.
+- Beranda mengubah panel dari "Rekomendasi LensRadar" menjadi "Pantauan LensRadar" dan
+  menampilkan catatan validasi model supaya pengguna tidak melihat panel kosong tanpa sebab.
+- `/breakout-radar` ikut diselaraskan menjadi halaman scanner/pantauan, bukan wording
+  rekomendasi aksi.
+- Smoke test yang perlu dicek setelah deploy Ready:
+  - `/api/ai-pick` harus mengembalikan `items` kalau cache skor berisi saham lolos ranking,
+    dengan `advisoryEnabled=false` selama LensScore belum tervalidasi.
+  - `/` harus menampilkan "Pantauan LensRadar" dan daftar top scanner bila API berisi item.
+
 ### 2026-08-05 - Quant/data integrity audit (`23e8229`)
 
 - Commit `23e8229 Audit SahamLens quant data integrity` sudah dipush ke `origin/main`.
