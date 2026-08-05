@@ -23,7 +23,7 @@ export function currentModelVersionStamp(now = new Date()): ModelVersionStamp {
 
 export function partitionByScoreVersion<T extends object>(
   rows: T[],
-  requestedVersion?: string | null
+  requestedVersion: string | null = SCORE_VERSION
 ): {
   version: string | null;
   accepted: T[];
@@ -45,9 +45,7 @@ export function partitionByScoreVersion<T extends object>(
     counts.set(version, (counts.get(version) ?? 0) + 1);
   }
 
-  const version = requestedVersion?.trim()
-    || Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0]?.[0]
-    || null;
+  const version = requestedVersion?.trim() || null;
 
   if (!version) {
     return {
@@ -70,7 +68,7 @@ export function partitionByScoreVersion<T extends object>(
   }
 
   return {
-    version,
+    version: accepted.length ? version : null,
     accepted,
     rejected,
     rejectedReason: rejected.length ? `Dataset berisi histori campuran/legacy; hanya score_version ${version} yang dipakai.` : null,

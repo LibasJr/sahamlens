@@ -221,6 +221,7 @@ export function ensureSharedSchema(): Promise<void> {
         source_rows INTEGER NOT NULL DEFAULT 0,
         unique_tickers INTEGER NOT NULL DEFAULT 0,
         round_trip_cost_pct NUMERIC NOT NULL DEFAULT 0.5,
+        score_version TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (run_date, bucket)
@@ -231,8 +232,12 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS avg_win_t20 NUMERIC;
       ALTER TABLE lens_bucket_stats
         ADD COLUMN IF NOT EXISTS avg_loss_t20 NUMERIC;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS score_version TEXT;
       CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_run_date
         ON lens_bucket_stats (run_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_score_version_run_date
+        ON lens_bucket_stats (score_version, run_date DESC);
 
       -- modules/lens-radar/service/lens-score-optimizer.service.ts
       -- Proposal bobot LensScore dari optimizer mingguan. Tidak pernah dipakai otomatis

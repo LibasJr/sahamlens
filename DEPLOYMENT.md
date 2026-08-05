@@ -24,6 +24,32 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - Audit Ronde 3 Fase 1: Model Versioning hardening
+
+- Fase yang dikerjakan: **hanya Fase 1 - Model Versioning** dari
+  `SAHAMLENS_AUDIT_KUANTITATIF_RONDE3_2026-08-05.md`.
+- Default backtest/calibration sekarang hanya membaca `SCORE_VERSION` aktif
+  (`lens-score-v1.3.0`). Baris legacy tanpa `score_version` dan baris versi lain ditolak
+  secara fail-closed, bukan digabung diam-diam.
+- Backtest menerima filter versi eksplisit:
+  - Service cron: `calculateLensBucketStats(..., { scoreVersion })`.
+  - Endpoint lama: `GET /api/lens-score-bucket-backtest?scoreVersion=<versi>`.
+- Output analisis LensRadar sekarang membawa metadata audit versi:
+  `scoreVersion`, `requestedScoreVersion`, `rejectedRows`, `unversionedRows`,
+  `versionMixed`, `versionRejectedReason`.
+- `lens_bucket_stats` ditambah kolom idempoten `score_version` dan index
+  `(score_version, run_date DESC)`. Snapshot stats terbaru dibaca per versi, bukan latest
+  global lintas versi.
+- Migration database mengikuti pola repo: additive/idempotent di
+  `shared/database/schema.service.ts`, bukan file SQL terpisah (lihat aturan operasional di
+  bagian bawah dokumen ini).
+- Rollback plan: revert commit kode Fase 1. Kolom tambahan di Postgres aman dibiarkan karena
+  nullable, additive, dan tidak mengubah primary key. Jika perlu hard rollback database manual,
+  drop hanya `lens_bucket_stats.score_version` dan index
+  `idx_lens_bucket_stats_score_version_run_date`; kolom versi di `lens_radar_history`
+  sebaiknya tetap dipertahankan sebagai audit trail.
+- Tidak ada env var baru.
+
 ### 2026-08-05 - Audit kuantitatif ronde 3: fail-closed validation & DCF bridge
 
 - Validasi LensRadar diperketat:

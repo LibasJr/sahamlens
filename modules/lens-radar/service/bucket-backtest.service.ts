@@ -7,7 +7,7 @@ import {
   buildTradingCalendar,
   hasCorporateActionGap,
 } from './history-return-utils';
-import { partitionByScoreVersion } from '../constants/model-version';
+import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
 
 export const LENS_BUCKET_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 
@@ -46,6 +46,12 @@ export interface LensBucketStat {
 
 export interface LensBucketBacktestResult {
   asOfDate: string;
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  rejectedRows: number;
+  unversionedRows: number;
+  versionMixed: boolean;
+  versionRejectedReason: string | null;
   sourceRows: number;
   uniqueTickers: number;
   roundTripCostPct: number;
@@ -186,9 +192,11 @@ async function loadOpenMaps(
 export async function calculateLensBucketStats(
   rows: LensRadarHistoryEntry[],
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
-  asOfDate = todayDateKeyWIB()
+  asOfDate = todayDateKeyWIB(),
+  options: { scoreVersion?: string | null } = {}
 ): Promise<LensBucketBacktestResult> {
-  const partition = partitionByScoreVersion(rows);
+  const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+  const partition = partitionByScoreVersion(rows, requestedScoreVersion);
   const normalized = normalizeHistory(partition.accepted);
   const tradingCalendar = buildTradingCalendar(normalized);
   const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
@@ -253,6 +261,12 @@ export async function calculateLensBucketStats(
 
   return {
     asOfDate,
+    scoreVersion: partition.version,
+    requestedScoreVersion,
+    rejectedRows: partition.rejected.length,
+    unversionedRows: partition.unversionedCount,
+    versionMixed: partition.mixed,
+    versionRejectedReason: partition.rejectedReason,
     sourceRows: normalized.length,
     uniqueTickers: tickers.length,
     roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
@@ -286,9 +300,9 @@ export async function saveLensBucketStats(
         run_date, bucket, avg_t1, avg_t5, avg_t20,
         win_rate_t5, win_rate_t20, max_drawdown_t20,
         avg_win_t20, avg_loss_t20, total_samples,
-        source_rows, unique_tickers, round_trip_cost_pct, updated_at
+        source_rows, unique_tickers, round_trip_cost_pct, score_version, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
       ON CONFLICT (run_date, bucket) DO UPDATE SET
         avg_t1 = EXCLUDED.avg_t1,
         avg_t5 = EXCLUDED.avg_t5,
@@ -302,6 +316,7 @@ export async function saveLensBucketStats(
         source_rows = EXCLUDED.source_rows,
         unique_tickers = EXCLUDED.unique_tickers,
         round_trip_cost_pct = EXCLUDED.round_trip_cost_pct,
+        score_version = EXCLUDED.score_version,
         updated_at = now()
       `,
       [
@@ -319,6 +334,7 @@ export async function saveLensBucketStats(
         result.sourceRows,
         result.uniqueTickers,
         result.roundTripCostPct,
+        result.scoreVersion,
       ]
     );
     saved++;
@@ -329,11 +345,12 @@ export async function saveLensBucketStats(
 export async function runAndSaveLensBucketBacktest(
   db: Queryable = pool,
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
-  asOfDate = todayDateKeyWIB()
+  asOfDate = todayDateKeyWIB(),
+  options: { scoreVersion?: string | null } = {}
 ): Promise<LensBucketBacktestResult & { savedRows: number }> {
   await ensureSharedSchema();
   const rows = await readLensRadarHistory(db);
-  const result = await calculateLensBucketStats(rows, provider, asOfDate);
+  const result = await calculateLensBucketStats(rows, provider, asOfDate, options);
   const savedRows = await saveLensBucketStats(result, db);
   return { ...result, savedRows };
 }
