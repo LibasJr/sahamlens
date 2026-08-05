@@ -7,6 +7,7 @@ import { cookies, headers } from 'next/headers';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { PageContainer } from '@/components/ui';
+import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
   // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
@@ -109,8 +110,21 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-6">
       <div className="bg-tv-card border border-tv-border rounded-xl p-6">
-        <h2 className="font-heading text-white font-bold mb-4">Final Suggestion</h2>
-        
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading text-white font-bold">Final Suggestion</h2>
+          <TechnicalExportSection
+            symbol={symbol}
+            finalSuggestion={council.final_suggestion}
+            summaryId={council.summary_id}
+            buyPct={buyPct}
+            sellPct={sellPct}
+            holdPct={holdPct}
+            waitPct={waitPct}
+            agents={agents}
+            score={typeof council.score === 'number' ? council.score : null}
+          />
+        </div>
+
         {total > 0 && (
           <div className="mb-6">
             <div className="flex w-full h-3 rounded-full overflow-hidden mb-3 bg-tv-border">

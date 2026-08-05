@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import TradingViewChart from '@/components/TradingViewChart';
@@ -13,19 +13,13 @@ import {
   RefreshCw, Brain, AlertTriangle, ShieldCheck, TrendingUp
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui';
+import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
+import FundamentalExportCard from '@/components/export/FundamentalExportCard';
+import ExportImageButton from '@/components/export/ExportImageButton';
+import { buildExportFileName } from '@/shared/format/export-filename';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
-
-// BUG FIX (audit logika & algoritma 2026-08-05, temuan H-13): kartu-kartu fundamental di
-// bawah SEBELUMNYA memakai `|| 0` sehingga data yang TIDAK TERSEDIA dirender sebagai
-// angka nol yang terlihat seperti fakta ("P/E Ratio 0.00x", "Market Cap Rp 0.00 T",
-// "ROE 0.00%"). Untuk data finansial, 0 bukan sinonim "tidak ada" - bank memang tidak
-// mengirim debtToEquity ke Yahoo dan emiten rugi memang tidak punya trailingPE. Formatter
-// di bawah menampilkan "N/A" apa adanya.
-const fmtKali = (v: number | null | undefined) => (typeof v === 'number' ? `${v.toFixed(2)}x` : 'N/A');
-const fmtPersen = (fraksi: number | null | undefined) => (typeof fraksi === 'number' ? `${(fraksi * 100).toFixed(2)}%` : 'N/A');
-const fmtTriliun = (v: number | null | undefined) => (typeof v === 'number' ? `Rp ${(v / 1e12).toFixed(2)} T` : 'N/A');
 
 // BUG FIX (2026-08-01): sama seperti /dcf - dulu tidak baca ?symbol= dari URL sama
 // sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
@@ -43,6 +37,7 @@ function FundamentalContent() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const fundamentalExportRef = useRef<HTMLDivElement>(null);
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -272,7 +267,7 @@ function FundamentalContent() {
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
             Update: {formatTime(lastUpdate)} • {marketClosed ? 'No Polling' : '1m refresh'}
           </div>
-          <button 
+          <button
             onClick={handleRefresh}
             disabled={loading}
             className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -280,8 +275,29 @@ function FundamentalContent() {
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
           </button>
+          <ExportImageButton
+            targetRef={fundamentalExportRef}
+            fileName={buildExportFileName('Fundamental', ticker)}
+            label="Export Kartu Fundamental"
+            disabled={!data}
+          />
         </div>
 
+        {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
+            punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
+            halaman (position absolute + geser jauh ke luar viewport). */}
+        {data && (
+          <div ref={fundamentalExportRef} style={{ position: 'absolute', left: -9999, top: 0 }}>
+            <FundamentalExportCard
+              ticker={ticker}
+              stock={stock}
+              fundamentals={data?.fundamentals || {}}
+              profile={data?.profile || {}}
+              consensus={data?.consensus}
+              exportedAt={new Date()}
+            />
+          </div>
+        )}
 
         {/* Top Summary Banner */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
