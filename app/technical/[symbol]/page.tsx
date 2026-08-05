@@ -2,11 +2,11 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
-import { Users, AlertTriangle, Loader2, LogIn, Crown } from 'lucide-react';
+import { LogIn, Crown } from 'lucide-react';
 import { cookies, headers } from 'next/headers';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
-import { PageContainer } from '@/components/ui';
+import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
@@ -85,9 +85,23 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
       );
     }
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center text-tv-muted">
-        <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-50" />
-        <p>Gagal memuat data Council untuk {symbol}.</p>
+      <div className="bg-tv-card border border-tv-border rounded-xl">
+        {/* Pesan lama satu baris tanpa jalan keluar. Halaman ini Server Component,
+            jadi "coba lagi" = memuat ulang rutenya; tautannya disediakan eksplisit
+            alih-alih membiarkan pengguna menebak. */}
+        <EmptyState
+          illustration="empty"
+          title={`Rapat LensAI untuk ${symbol} gagal dimuat`}
+          description="Analisis 10 agen tidak berhasil diambil dari server. Grafik dan indikator di atas tetap bisa dipakai - keduanya tidak bergantung pada layanan ini."
+        />
+        <div className="pb-8 text-center">
+          <Link
+            href={`/technical/${symbol}`}
+            className="inline-flex items-center gap-2 rounded-full border border-tv-border bg-tv-hover px-5 py-2 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight"
+          >
+            Muat ulang halaman
+          </Link>
+        </div>
       </div>
     );
   }
@@ -127,18 +141,47 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
 
         {total > 0 && (
           <div className="mb-6">
-            <div className="flex w-full h-3 rounded-full overflow-hidden mb-3 bg-tv-border">
-              {buyPct > 0 && <div style={{width: `${buyPct}%`}} className="bg-tv-green transition-all duration-1000"></div>}
-              {holdPct > 0 && <div style={{width: `${holdPct}%`}} className="bg-blue-500 transition-all duration-1000"></div>}
-              {waitPct > 0 && <div style={{width: `${waitPct}%`}} className="bg-tv-yellow transition-all duration-1000"></div>}
-              {sellPct > 0 && <div style={{width: `${sellPct}%`}} className="bg-tv-red transition-all duration-1000"></div>}
+            {/* blue-500 mentah diganti tv-blue - biru HOLD sebelumnya berbeda dari
+                biru aksen di seluruh aplikasi. */}
+            <div
+              className="flex w-full h-3 rounded-full overflow-hidden mb-3 bg-tv-border"
+              role="img"
+              aria-label={`Suara agen: ${buyPct}% beli, ${holdPct}% tahan, ${waitPct}% tunggu, ${sellPct}% jual`}
+            >
+              {buyPct > 0 && <div style={{width: `${buyPct}%`}} className="bg-tv-green transition-[width] duration-1000 ease-settle"></div>}
+              {holdPct > 0 && <div style={{width: `${holdPct}%`}} className="bg-tv-blue transition-[width] duration-1000 ease-settle"></div>}
+              {waitPct > 0 && <div style={{width: `${waitPct}%`}} className="bg-tv-yellow transition-[width] duration-1000 ease-settle"></div>}
+              {sellPct > 0 && <div style={{width: `${sellPct}%`}} className="bg-tv-red transition-[width] duration-1000 ease-settle"></div>}
             </div>
-            <div className="flex gap-4 text-xs font-mono font-bold">
+            <div className="flex flex-wrap gap-4 text-xs font-number font-bold">
               {buyPct > 0 && <span className="text-tv-green">{buyPct}% BUY</span>}
-              {holdPct > 0 && <span className="text-blue-500">{holdPct}% HOLD</span>}
+              {holdPct > 0 && <span className="text-tv-blue">{holdPct}% HOLD</span>}
               {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% WAIT</span>}
               {sellPct > 0 && <span className="text-tv-red">{sellPct}% SELL</span>}
             </div>
+
+            {/* Storytelling: batang di atas menunjukkan sebaran suara, tapi tidak
+                pernah menyebut hal yang paling penting - seberapa BULAT kesepakatannya.
+                Sepuluh agen yang sepakat dan sepuluh agen yang terbelah 5-5 menghasilkan
+                satu "Final Suggestion" yang terlihat sama meyakinkannya. */}
+            {(() => {
+              const tallies = [
+                { label: 'BUY', pct: buyPct },
+                { label: 'HOLD', pct: holdPct },
+                { label: 'WAIT', pct: waitPct },
+                { label: 'SELL', pct: sellPct },
+              ].sort((a, b) => b.pct - a.pct);
+              const top = tallies[0];
+              const dissent = 100 - top.pct;
+              const agree = Math.round((top.pct / 100) * total);
+
+              const note =
+                top.pct >= 80 ? `Kesepakatan kuat: ${agree} dari ${total} agen memilih ${top.label}.`
+                : top.pct >= 60 ? `Mayoritas memilih ${top.label} (${agree} dari ${total} agen), tapi ${dissent}% suara tidak setuju - baca alasan agen yang berbeda pendapat di bawah.`
+                : `Suara terpecah: tidak ada pilihan yang mencapai 60%. "${council.final_suggestion}" di bawah adalah suara terbanyak, bukan kesepakatan - perlakukan sebagai bahan pertimbangan, bukan kesimpulan.`;
+
+              return <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">{note}</p>;
+            })()}
           </div>
         )}
 
@@ -147,7 +190,22 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
               dikarang bebas oleh LLM tanpa formula (lihat council.service.ts), bukan
               dihitung dari data. Persentase BUY/SELL/HOLD/WAIT di atas TETAP tampil -
               itu vote riil dari signal 10 agent, bukan angka karangan. */}
-          <p className="text-lg text-white font-mono mb-2">Kesimpulan: <span className="text-tv-green">{council.final_suggestion}</span></p>
+          {/* BUG FIX (2026-08-06): span ini dulu selalu text-tv-green, apa pun isi
+              final_suggestion. Saran SELL / HINDARI / WAIT dirender HIJAU - warna
+              yang membawa arti berlawanan dari kalimatnya sendiri. Warna sekarang
+              mengikuti isi saran, dan jatuh ke netral kalau tidak dikenali. */}
+          <p className="text-lg text-white mb-2">
+            Kesimpulan:{' '}
+            <span className={(() => {
+              const s = String(council.final_suggestion || '').toUpperCase();
+              if (s.includes('SELL') || s.includes('JUAL') || s.includes('HINDARI')) return 'font-semibold text-tv-red';
+              if (s.includes('BUY') || s.includes('BELI')) return 'font-semibold text-tv-green';
+              if (s.includes('WAIT') || s.includes('TUNGGU') || s.includes('HOLD') || s.includes('TAHAN')) return 'font-semibold text-tv-yellow';
+              return 'font-semibold text-tv-text';
+            })()}>
+              {council.final_suggestion}
+            </span>
+          </p>
           {/* whitespace-pre-line: summary_id dari Gemini saat ini satu kalimat padat
               tanpa newline by design, tapi HTML mengciutkan \n jadi spasi tunggal secara
               default - kalau prompt berubah atau model sesekali mengembalikan newline,
@@ -163,12 +221,12 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
           const isWait = agent.signal === 'WAIT';
           
           return (
-            <div key={idx} className="bg-tv-hover border border-tv-border rounded-lg p-4">
-              <div className="flex justify-between items-center mb-2">
+            <div key={idx} className="bg-tv-hover border border-tv-border rounded-lg p-4 transition-colors hover:border-tv-borderLight">
+              <div className="flex justify-between items-center gap-2 mb-2">
                 <h3 className="font-heading font-bold text-white text-sm flex items-center gap-2">
                   {agent.name}
                 </h3>
-                <span className={`text-xs px-2 py-0.5 rounded font-mono font-semibold ${
+                <span className={`shrink-0 text-xs px-2 py-0.5 rounded font-number font-semibold ${
                   isBuy ? 'bg-tv-green/20 text-tv-green border border-tv-green/30' :
                   isSell ? 'bg-tv-red/20 text-tv-red border border-tv-red/30' :
                   isWait ? 'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow/30' :
@@ -188,14 +246,25 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
 
 function CouncilSkeleton({ symbol }: { symbol: string }) {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="bg-tv-card border border-tv-border rounded-xl p-12 flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 text-tv-green animate-spin mb-4" />
-        <p className="text-tv-muted font-mono text-sm">LensAI sedang merapatkan saham {symbol}, mohon tunggu (5-10 detik)...</p>
+    // Kerangka mengikuti bentuk hasil aslinya (batang suara + kartu agen), bukan
+    // kotak-kotak kosong berdenyut yang tidak menyerupai apa pun. Tunggu 5-10 detik
+    // itu lama - LoadingFact mengisi jeda itu dengan sesuatu yang berguna.
+    <div className="space-y-6">
+      <div className="bg-tv-card border border-tv-border rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton variant="text" className="w-32 h-4" />
+          <Skeleton variant="text" className="w-20 h-4" />
+        </div>
+        <Skeleton className="h-3 w-full rounded-full" />
+        <Skeleton className="h-16 w-full" />
+        <p className="text-center text-xs text-tv-muted">
+          LensAI sedang merapatkan {symbol} - biasanya 5-10 detik.
+        </p>
+        <LoadingFact />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-tv-hover border border-tv-border rounded-lg p-10"></div>
+          <Skeleton key={i} className="h-24 w-full" />
         ))}
       </div>
     </div>
@@ -214,12 +283,11 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           max-w-7xl = 1280px). */}
       <PageContainer className="p-6 space-y-6">
         <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 rounded-lg bg-tv-card border border-tv-borderLight text-tv-green">
-            <Users className="w-6 h-6" />
-          </div>
+          {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
+          <TickerAvatar symbol={symbol} size="lg" />
           <div>
             <h1 className="font-heading font-bold text-2xl text-white tracking-tight">LensAI: {symbol}</h1>
-            <p className="text-sm text-tv-muted font-mono">Stock Analysis LensAI</p>
+            <p className="text-sm text-tv-muted">Rapat 10 agen analisis atas satu emiten</p>
           </div>
         </div>
 

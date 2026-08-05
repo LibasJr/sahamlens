@@ -9,29 +9,16 @@ import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, B
 // dalam downloadExcel()/downloadPDF() supaya tidak ikut terunduh & ter-parse di setiap
 // kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Input, Button, PageContainer } from '@/components/ui';
+import { Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { fadeUp } from '@/lib/motion';
 
 const formatIDR = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
-// Warna avatar disesuaikan ke token tv-* (dark theme) - versi sebelumnya pakai
-// warna pastel light-mode (bg-blue-100 dst.) yang jadi terlihat pudar/salah di atas
-// latar gelap, salah satu sebab tampilan halaman ini terasa beda sendiri dari
-// halaman lain (Beranda/Dashboard/dst. semua sudah konsisten pakai token tv-*).
-const AVATAR_COLORS = [
-  'bg-tv-blue/15 text-tv-blue',
-  'bg-tv-green/15 text-tv-green',
-  'bg-purple-500/15 text-purple-400',
-  'bg-tv-gold/15 text-tv-gold',
-  'bg-pink-500/15 text-pink-400',
-  'bg-orange-500/15 text-orange-400',
-];
-
-function tickerAvatarColor(symbol: string) {
-  let hash = 0;
-  for (let i = 0; i < symbol.length; i++) hash = (hash * 31 + symbol.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
+// AVATAR_COLORS + tickerAvatarColor() dihapus: keduanya implementasi avatar
+// berwarna-per-emiten yang kini sudah ada sebagai komponen bersama
+// (components/ui/TickerAvatar.tsx), dipakai di seluruh halaman lain. Versi lokal
+// ini juga masih memakai warna Tailwind mentah (purple-500/pink-500/orange-500)
+// di luar palet.
 
 const tickerCode = (symbol: string) => symbol.replace('.JK', '');
 
@@ -43,6 +30,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'HOLDINGS' | 'RIWAYAT'>('HOLDINGS');
   const [badges, setBadges] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [email, setEmail] = useState('');
@@ -178,6 +166,7 @@ export default function PortfolioPage() {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch('/api/portfolio');
       const data = await res.json();
@@ -185,14 +174,22 @@ export default function PortfolioPage() {
       setPortfolio(data.portfolio);
       setTransactions(data.transactions || []);
 
-      const hWithPrices = await Promise.all(data.holdings.map(async (h: any) => {
+      const hWithPrices = await Promise.all((data.holdings || []).map(async (h: any) => {
+        // BUG FIX (2026-08-06): `currentPrice` sebelumnya di-default ke h.avgPrice.
+        // Kalau pengambilan harga gagal (jaringan, emiten delisting, sumber down),
+        // harga sekarang menjadi PERSIS sama dengan harga rata-rata beli, sehingga
+        // P&L dihitung tepat nol dan halaman menampilkan posisi itu sebagai "impas".
+        // Kegagalan mengambil data dirender sebagai fakta pasar. Sekarang keadaan
+        // itu ditandai (priceStale) supaya UI bisa menyebutnya apa adanya.
         let currentPrice = h.avgPrice;
+        let priceStale = true;
         let scoreLabel: string | null = null;
         try {
           const res = await fetch(`/api/stock/${h.symbol}`);
           const s = await res.json();
-          if (s?.stock?.current_price) {
+          if (typeof s?.stock?.current_price === 'number' && Number.isFinite(s.stock.current_price) && s.stock.current_price > 0) {
             currentPrice = s.stock.current_price;
+            priceStale = false;
           }
           if (s?.scoring) {
             // Phase 0 / P0-3: label BUY/SELL hanya ditampilkan kalau saham lolos gerbang
@@ -208,7 +205,7 @@ export default function PortfolioPage() {
         const pnl = currentValue - h.totalCost;
         const pnlPct = h.totalCost > 0 ? (pnl / h.totalCost) * 100 : 0;
 
-        return { ...h, currentPrice, currentValue, pnl, pnlPct, scoreLabel };
+        return { ...h, currentPrice, currentValue, pnl, pnlPct, scoreLabel, priceStale };
       }));
 
       setHoldings(hWithPrices);
@@ -230,6 +227,7 @@ export default function PortfolioPage() {
 
     } catch (e) {
       console.error(e);
+      setLoadError(true);
     }
     setLoading(false);
   };
@@ -360,14 +358,52 @@ export default function PortfolioPage() {
     );
   }
 
-  if (loading && !portfolio) return <div className="min-h-screen bg-tv-bg flex items-center justify-center text-tv-muted">Memuat portfolio...</div>;
-  if (!portfolio) return <div className="min-h-screen bg-tv-bg flex items-center justify-center text-tv-red">Gagal memuat portfolio.</div>;
+  if (loading && !portfolio) {
+    return (
+      <div className="min-h-screen bg-tv-bg p-4 lg:p-6">
+        <div className="mx-auto max-w-[1600px] grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
+          <Skeleton className="h-64 w-full" />
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-full" />
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+            <LoadingFact />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!portfolio) {
+    return (
+      <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4">
+        {/* Sebelumnya satu baris teks merah "Gagal memuat portfolio." tanpa tombol
+            apa pun - jalan buntu total. */}
+        <div className="w-full max-w-md rounded-xl border border-tv-border bg-tv-card">
+          <EmptyState
+            illustration="empty"
+            title="Portofolio gagal dimuat"
+            description={loadError
+              ? 'Permintaan ke server tidak sampai. Saldo dan posisimu tersimpan di server - tidak ada yang hilang, hanya belum berhasil diambil.'
+              : 'Data portofolio belum tersedia untuk akun ini.'}
+            action={{ label: 'Coba lagi', onClick: loadData }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const holdingsValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
   const totalEquity = portfolio.cash + holdingsValue;
   const totalPnl = totalEquity - portfolio.initial_cash;
   const totalPnlPct = portfolio.initial_cash > 0 ? (totalPnl / portfolio.initial_cash) * 100 : 0;
   const isPositive = totalPnl >= 0;
+  // Akun yang belum pernah bertransaksi punya totalPnl tepat 0, dan `>= 0` membuatnya
+  // lolos sebagai "positif" - badge UNTUNG hijau menyala di akun yang belum melakukan
+  // apa pun. Keadaan netral dipisahkan.
+  const isUntouched = totalPnl === 0;
+  // Ditandai kalau ADA posisi yang harganya gagal diambil: seluruh angka ekuitas di
+  // atas ikut terpengaruh, jadi peringatannya harus muncul di dekat angkanya.
+  const stalePriceCount = holdings.filter((h) => h.priceStale).length;
 
   return (
     <div className="min-h-screen bg-tv-bg text-white font-sans pb-20">
@@ -411,28 +447,43 @@ export default function PortfolioPage() {
           <div className="p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-tv-muted text-sm font-medium">Total Ekuitas</span>
-              {isPositive ? (
+              {isUntouched ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-hover text-tv-muted">BELUM ADA TRANSAKSI</span>
+              ) : isPositive ? (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-green/15 text-tv-green">UNTUNG</span>
               ) : (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-red/15 text-tv-red">RUGI</span>
               )}
             </div>
             <div className="flex items-end gap-3 mb-4">
-              <h2 className="text-3xl font-bold text-white tracking-tight font-number tabular-nums">{formatIDR(totalEquity)}</h2>
+              <AnimatedNumber
+                value={totalEquity}
+                format={formatIDR}
+                className="text-3xl font-bold text-white tracking-tight font-number tabular-nums"
+              />
             </div>
+
+            {/* Peringatan harga basi ditempatkan tepat di bawah angka ekuitas karena
+                angka itulah yang terpengaruh - bukan disembunyikan di baris posisi. */}
+            {stalePriceCount > 0 && (
+              <p className="mb-4 rounded-md border border-tv-warning/30 bg-tv-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-tv-warning">
+                Harga pasar {stalePriceCount} posisi gagal diambil, jadi nilainya dihitung memakai harga rata-rata belinya sendiri.
+                Total ekuitas dan return di kartu ini lebih rendah akurasinya dari biasanya.
+              </p>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-xs text-tv-muted mb-1 block">Return (Rp)</span>
-                <div className={`font-semibold font-number tabular-nums ${isPositive ? 'text-tv-green' : 'text-tv-red'} flex items-center gap-1`}>
-                  {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                  {isPositive ? '+' : ''}{formatIDR(totalPnl)}
+                <div className={`font-semibold font-number tabular-nums flex items-center gap-1 ${isUntouched ? 'text-tv-muted' : isPositive ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {isUntouched ? null : isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                  {isPositive && !isUntouched ? '+' : ''}{formatIDR(totalPnl)}
                 </div>
               </div>
               <div>
                 <span className="text-xs text-tv-muted mb-1 block">Return (%)</span>
-                <div className={`font-semibold font-number tabular-nums ${isPositive ? 'text-tv-green' : 'text-tv-red'} flex items-center gap-1`}>
-                  {isPositive ? '+' : ''}{totalPnlPct.toFixed(2)}%
+                <div className={`font-semibold font-number tabular-nums flex items-center gap-1 ${isUntouched ? 'text-tv-muted' : isPositive ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {isPositive && !isUntouched ? '+' : ''}{totalPnlPct.toFixed(2)}%
                 </div>
               </div>
             </div>
@@ -451,6 +502,13 @@ export default function PortfolioPage() {
             <div>
               <span className="text-[10px] text-tv-muted uppercase font-semibold">Buying Power</span>
               <div className="text-sm font-bold text-white font-number tabular-nums">{formatIDR(portfolio.cash)}</div>
+              {/* Storytelling: porsi kas vs saham menentukan seberapa terekspos akun
+                  ini ke pergerakan pasar - angka kas sendirian tidak menyatakan itu. */}
+              {totalEquity > 0 && (
+                <div className="text-[10px] text-tv-muted mt-0.5">
+                  {Math.round((portfolio.cash / totalEquity) * 100)}% dari ekuitas masih kas
+                </div>
+              )}
             </div>
             <div className="text-right flex items-center justify-end gap-2">
               <button onClick={downloadExcel} title="Export Excel" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><Download className="w-4 h-4" /></button>
@@ -485,16 +543,12 @@ export default function PortfolioPage() {
             </div>
 
             {holdings.length === 0 ? (
-              <div className="py-16 flex flex-col items-center justify-center text-tv-muted">
-                <Wallet className="w-12 h-12 mb-3 opacity-40" />
-                <p className="text-sm font-medium">Belum ada posisi terbuka</p>
-                <button
-                  onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }}
-                  className="mt-4 text-xs font-bold text-tv-green hover:underline"
-                >
-                  Mulai trading virtual →
-                </button>
-              </div>
+              <EmptyState
+                illustration="collecting"
+                title="Belum ada posisi terbuka"
+                description={`Saldo virtual ${formatIDR(portfolio.cash)} siap dipakai. Semua transaksi di sini simulasi - tidak ada uang sungguhan yang berpindah, jadi ini tempat yang tepat untuk menguji strategi sebelum memakainya di akun asli.`}
+                action={{ label: 'Buat order pertama', onClick: () => { setOrderType('BUY'); setShowOrderModal(true); } }}
+              />
             ) : (
               <div className="divide-y divide-tv-border/60">
                 {holdings.map(h => {
@@ -503,11 +557,9 @@ export default function PortfolioPage() {
                     <div key={h.symbol} className="p-4 hover:bg-tv-bg transition-colors cursor-pointer" onClick={() => router.push(`/dashboard?symbol=${h.symbol}`)}>
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${tickerAvatarColor(h.symbol)}`}>
-                            {tickerCode(h.symbol).substring(0,2)}
-                          </div>
+                          <TickerAvatar symbol={h.symbol} size="md" />
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-white leading-tight font-number">{tickerCode(h.symbol)}</span>
                               {h.scoreLabel && (
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
@@ -518,13 +570,25 @@ export default function PortfolioPage() {
                             <div className="text-[11px] text-tv-muted">{h.lots.toLocaleString('id-ID')} Lot</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`font-bold text-sm font-number tabular-nums ${isProfit ? 'text-tv-green' : 'text-tv-red'}`}>
-                            {isProfit ? '+' : ''}{formatIDR(h.pnl)}
-                          </div>
-                          <div className={`text-xs font-medium font-number tabular-nums ${isProfit ? 'text-tv-green' : 'text-tv-red'}`}>
-                            {isProfit ? '+' : ''}{h.pnlPct.toFixed(2)}%
-                          </div>
+                        {/* Posisi yang harganya gagal diambil TIDAK boleh menampilkan
+                            P&L "0.00%" seolah itu hasil pengukuran - angka nol di sini
+                            semata akibat currentPrice jatuh balik ke avgPrice. */}
+                        <div className="text-right shrink-0">
+                          {h.priceStale ? (
+                            <>
+                              <div className="text-xs font-semibold text-tv-warning">harga tak terambil</div>
+                              <div className="text-[10px] text-tv-muted">P&amp;L belum bisa dihitung</div>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`font-bold text-sm font-number tabular-nums ${isProfit ? 'text-tv-green' : 'text-tv-red'}`}>
+                                {isProfit ? '+' : ''}{formatIDR(h.pnl)}
+                              </div>
+                              <div className={`text-xs font-medium font-number tabular-nums ${isProfit ? 'text-tv-green' : 'text-tv-red'}`}>
+                                {isProfit ? '+' : ''}{h.pnlPct.toFixed(2)}%
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -533,7 +597,9 @@ export default function PortfolioPage() {
                           Avg: <span className="font-semibold text-gray-300 font-number tabular-nums">{h.avgPrice.toLocaleString('id-ID')}</span>
                         </div>
                         <div className="text-tv-muted">
-                          Last: <span className="font-semibold text-gray-300 font-number tabular-nums">{h.currentPrice.toLocaleString('id-ID')}</span>
+                          Last: <span className={`font-semibold font-number tabular-nums ${h.priceStale ? 'text-tv-warning' : 'text-gray-300'}`}>
+                            {h.priceStale ? '—' : h.currentPrice.toLocaleString('id-ID')}
+                          </span>
                         </div>
                         <div className="text-tv-muted">
                           Value: <span className="font-semibold text-gray-300 font-number tabular-nums">{formatIDR(h.currentValue)}</span>
@@ -553,10 +619,11 @@ export default function PortfolioPage() {
         {activeTab === 'RIWAYAT' && (
           <div className="bg-tv-card border border-tv-border rounded-b-xl shadow-sm min-h-[300px]">
             {transactions.length === 0 ? (
-              <div className="py-16 flex flex-col items-center justify-center text-tv-muted">
-                <Clock className="w-12 h-12 mb-3 opacity-40" />
-                <p className="text-sm font-medium">Belum ada riwayat transaksi</p>
-              </div>
+              <EmptyState
+                illustration="empty"
+                title="Belum ada riwayat transaksi"
+                description="Setiap order beli dan jual tercatat di sini lengkap dengan harga dan realisasi untung/ruginya - berguna untuk melihat pola keputusanmu sendiri, bukan cuma hasil akhirnya."
+              />
             ) : (
               <div className="divide-y divide-tv-border/60">
                 {transactions.map((t) => {
@@ -564,11 +631,12 @@ export default function PortfolioPage() {
                   return (
                     <div key={t.id} className="p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>
                           {isBuy ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <TickerAvatar symbol={t.symbol} size="sm" />
                             <span className="font-bold text-white text-sm font-number">{tickerCode(t.symbol)}</span>
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
                           </div>
