@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, BarChart3 } from 'lucide-react';
+import { ArrowLeft, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import ExportButton from './ExportButton';
@@ -45,6 +45,21 @@ export default async function AdminPage() {
             <h2 className="font-heading text-lg font-bold text-tv-text">LensRadar Calibration Lab</h2>
             <p className="text-sm text-tv-muted mt-1">
               Audit bucket LensScore, t-test edge T+20, simulasi threshold, dan rekomendasi ambang AI.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/fundamental-backfill"
+          className="mb-8 flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-blue/10 p-2 text-tv-blue">
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Fundamental Backfill</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Upload/paste CSV fundamental point-in-time, Dry Run, lalu insert append-only ke histori.
             </p>
           </div>
         </Link>

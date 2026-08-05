@@ -24,6 +24,59 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - Admin UI Fundamental Backfill
+
+- Halaman protected baru: `/admin/fundamental-backfill`.
+- Menu admin/sidebar sekarang punya entry **Fundamental Backfill**.
+- Admin bisa upload/paste CSV, klik **Dry Run**, lalu **Insert ke DB** tanpa terminal.
+- API baru: `POST /api/admin/fundamental-backfill`, digerbang cookie admin yang sama
+  dengan panel admin lain.
+- Import tetap append-only ke `fundamental_history`:
+  `ON CONFLICT (ticker, observed_date) DO NOTHING`.
+- Checkbox `Lewati baris placeholder kosong` default aktif agar template besar bisa
+  dipakai bertahap; baris kosong tidak diinsert, dan baris yang berisi angka invalid
+  tetap ditolak.
+- Tidak ada env var baru. Rollback: revert commit UI/API ini; data yang sudah masuk
+  tetap bisa dihapus dengan filter tanggal+sumber spesifik jika memang diperlukan.
+
+### 2026-08-06 - One-shot backfill fundamental_history point-in-time
+
+- Script baru: `scripts/backfill-fundamental-history.mjs`.
+- Cara jalan manual:
+  - Dry-run dulu dari file CSV:
+    `npm run backfill:fundamental-history -- --file=data/fundamental-awal-2026.csv --dry-run`
+  - Eksekusi insert append-only:
+    `npm run backfill:fundamental-history -- --file=data/fundamental-awal-2026.csv`
+  - Jika satu file mewakili satu tanggal snapshot:
+    `npm run backfill:fundamental-history -- --file=data/fundamental-awal-2026.csv --observed-date=2026-01-31 --source=IDX`
+  - Opsi tambahan:
+    `--format=csv|json`, `--tickers=BBCA.JK,TLKM.JK`, `--percent-input=percent|decimal`,
+    `--source=<nama-sumber>`, `--skip-empty-rows`, `--dry-run`.
+- Format kolom yang diterima: `ticker`, `observed_date`, `per`, `pbv`, `roe`, `der`,
+  `current_ratio`, `revenue_growth`, `source`. Alias umum seperti `symbol`,
+  `observedDate`, `publication_date`, `pe_ratio`, `priceToBook`, `returnOnEquity`,
+  dan `revenueGrowth` juga diterima. Header CSV/JSON dibaca case-insensitive, jadi
+  format Excel seperti `Kode`, `PER`, `PBV`, `ROE` tetap valid.
+- Guard audit: `observed_date` wajib point-in-time, tidak boleh tanggal masa depan,
+  dan minimal satu metrik harus terisi. Null tetap null; tidak diubah menjadi 0.
+- Script **tidak** mengambil fundamental Yahoo hari ini untuk ditempel ke awal 2026.
+  Backfill awal 2026 hanya sah jika file input berasal dari laporan/snapshot historis
+  dengan tanggal publikasi/observed date yang bisa dipertanggungjawabkan.
+- Template mass input tersedia di `data/fundamental-awal-2026-template-100-liquid.csv`.
+  Isinya 100 ticker pertama dari universe likuid SahamLens plus DGWG yang ditambahkan
+  manual; baris yang metriknya masih kosong adalah placeholder untuk diisi dari
+  Excel/provider data, bukan untuk langsung di-import sebagai fundamental kosong.
+  Jika template belum lengkap tapi ingin memproses baris yang sudah diisi, jalankan
+  dengan `--skip-empty-rows`; tanpa flag ini, baris kosong tetap ditolak fail-closed.
+- Insert ke `fundamental_history` idempoten dan append-only:
+  `ON CONFLICT (ticker, observed_date) DO NOTHING`. Eksekusi ulang tidak menimpa
+  angka lama, supaya audit trail point-in-time tidak berubah diam-diam.
+- Env var: memakai `DATABASE_URL`; script akan load `.env.local` jika variabel belum ada.
+- Rollback plan data: hapus hanya window dan sumber spesifik setelah verifikasi target,
+  misalnya:
+  `DELETE FROM fundamental_history WHERE observed_date BETWEEN <start> AND <end> AND source = <source>`.
+  Jangan memakai delete luas tanpa filter tanggal+sumber.
+
 ### 2026-08-06 - LensRadar UI: breakdown skor komposit
 
 - Halaman `LensRadar Live` (`/breakout-radar`) sekarang menampilkan kolom terpisah:
