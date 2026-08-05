@@ -42,12 +42,20 @@
 // mengulang informasi yang sama, bukan saat buktinya independen. Sinyal sekarang jadi TAG:
 // ditampilkan apa adanya, dipakai sebagai tie-break saat skor seri, TIDAK menambah poin.
 
+import { MIN_COVERAGE_PCT, type ScoringKategori } from '../../technical/service/scoring.service';
+import type { EligibilityStatus } from '../../eligibility/types/eligibility.types';
+
 /** Ambang kategori BUY di getKategori() (modules/technical/service/scoring.service.ts).
  * Dipakai ulang, bukan angka baru: daftar "hari ini beli apa" tidak boleh memuat saham
  * yang sistem sendiri tidak kategorikan layak beli. Sekarang dibandingkan ke skor dasar
  * yang murni (bukan skor berbonus), sehingga aturan ini benar-benar ditegakkan. */
 const MIN_SCORE = 60;
 const MAX_ITEMS = 10;
+
+// `MIN_COVERAGE_PCT` diimpor dari scoring.service.ts (SATU sumber dengan getKategori()),
+// bukan ditulis ulang di sini - dipakai HANYA untuk menurunkan ulang status entri cache
+// lama yang belum menyimpan `kategori` (lihat rankAiPicks). Impor ini tidak membawa I/O:
+// scoring.service.ts murni perhitungan, sesuai catatan "tanpa I/O" di atas file.
 
 // Audit BUILD 003 (Explainable AI): calculateScore() SUDAH menghitung breakdown
 // (technical/fundamental/flow) dan 3 alasan teratas (alasan_3_poin) - sebelumnya
@@ -82,6 +90,19 @@ export type ScoredStock = {
    * yang setara, dan sebelumnya perbedaan itu dihitung tapi tidak pernah ditampilkan.
    * Opsional karena alasan cache lama yang sama seperti `atr`. */
   coverage?: number | null;
+  /** P0-1: kategori dari calculateScore(). Sebelumnya DIBUANG di scoreOne() - akibatnya
+   * saham berstatus 'DATA TIDAK CUKUP' (coverage < 55%) yang teknikalnya kuat bisa
+   * mendapat total_score mendekati 100 karena renormalisasi, lalu menempati peringkat
+   * teratas daftar "hari ini beli apa" - persis saham yang sistem sendiri menyatakan
+   * belum bisa dinilai. Opsional karena entri cache lama (TTL 3 hari) belum punya field
+   * ini; penanganannya di rankAiPicks(). */
+  kategori?: ScoringKategori | null;
+  /** P0-3: hasil gerbang kelayakan minimal. Saham tidak likuid / kemungkinan tidak
+   * diperdagangkan / data basi / histori kurang TIDAK boleh masuk daftar advisory,
+   * berapa pun skornya. Opsional karena alasan cache lama yang sama. */
+  eligibilityStatus?: EligibilityStatus | null;
+  /** Alasan gerbang kelayakan aktif - diteruskan apa adanya untuk penelusuran. */
+  eligibilityReasons?: string[] | null;
 };
 
 export type BreakoutInfo = {
@@ -105,6 +126,9 @@ export type AiPickItem = {
   finalScore: number;
   /** Kelengkapan data di balik skor (persen), null kalau entri cache lama. */
   coverage: number | null;
+  /** Kategori LensScore v1 di balik skor ini. Dijamin BUKAN 'DATA TIDAK CUKUP' -
+   * item seperti itu tidak pernah sampai ke daftar (P0-1). */
+  kategori: ScoringKategori | null;
   flagged: boolean;
   flagReason: string | null;
   breakdown: ScoreBreakdown;
@@ -120,12 +144,50 @@ export type AiPickItem = {
   cl2: number | null;
 };
 
+/**
+ * P0-1 - status kelayakan satu entri, tahan terhadap entri cache lama.
+ *
+ * `kategori` & `eligibilityStatus` baru ditambahkan ke `ScoredStock`, sementara cache
+ * ai-pick-scores ber-TTL 3 hari masih bisa berisi entri yang ditulis SEBELUM field ini
+ * ada. Redis tidak menegakkan tipe TypeScript, jadi bentuk lama itu nyata, bukan
+ * hipotetis.
+ *
+ * Aturannya FAIL-CLOSED: kalau kita tidak bisa membuktikan sebuah entri layak masuk
+ * daftar "hari ini beli apa", entri itu DIKELUARKAN. Daftar yang mengecil (bahkan
+ * kosong) adalah jawaban yang benar; menampilkan saham yang statusnya tidak diketahui
+ * sebagai rekomendasi tidak.
+ */
+function isEligibleForAdvisory(s: ScoredStock): boolean {
+  // 1. Kelayakan (P0-3). ELIGIBLE saja yang lolos; status apa pun selain itu keluar.
+  //    Entri lama tanpa field ini (null/undefined) TIDAK dianggap lolos - "belum
+  //    diperiksa" bukan "sudah lolos".
+  if (s.eligibilityStatus !== 'ELIGIBLE') return false;
+
+  // 2. Kategori v1. 'DATA TIDAK CUKUP' dikeluarkan, bukan diberi peringkat rendah.
+  if (s.kategori != null) {
+    if (s.kategori === 'DATA TIDAK CUKUP') return false;
+    return true;
+  }
+
+  // 3. Entri lama tanpa `kategori`: turunkan ulang dari `coverage`, satu-satunya bahan
+  //    yang tersedia. coverage juga null (entri sangat lama) => keluarkan.
+  if (typeof s.coverage === 'number' && Number.isFinite(s.coverage)) {
+    return s.coverage >= MIN_COVERAGE_PCT;
+  }
+  return false;
+}
+
 export function rankAiPicks(
   scored: ScoredStock[],
   breakout: BreakoutInfo,
   bearishSymbols: string[]
 ): AiPickItem[] {
-  const items: AiPickItem[] = scored.map((s) => {
+  // Penyaringan kelayakan dilakukan SEBELUM pembentukan item & pemeringkatan (bukan
+  // sesudah, dan bukan lewat pengurangan skor): saham yang tidak layak tidak pernah
+  // menjadi kandidat sama sekali.
+  const eligible = (Array.isArray(scored) ? scored : []).filter(isEligibleForAdvisory);
+
+  const items: AiPickItem[] = eligible.map((s) => {
     // Tag sinyal - TIDAK menambah poin (lihat catatan panjang di atas file). Urutannya
     // tetap (breakout, golden cross, akumulasi) supaya tampilan tidak berubah-ubah.
     const signals: string[] = [];
@@ -148,6 +210,7 @@ export function rankAiPicks(
       signals,
       finalScore: s.totalScore,
       coverage: typeof s.coverage === 'number' ? s.coverage : null,
+      kategori: s.kategori ?? null,
       flagged: flagReason !== null,
       flagReason,
       // `?? fallback` (BUKAN required tanpa guard) - cache ai-pick-scores punya TTL 3

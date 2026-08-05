@@ -341,7 +341,13 @@ function DashboardContent() {
     ]);
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} ${data.scoring.kategori}`, 14, 20);
+    // Phase 0 / P0-3: label rekomendasi di PDF ikut gerbang kelayakan. PDF adalah
+    // artefak yang diteruskan ke orang lain tanpa konteks halaman - justru di situ
+    // label BUY yang tidak layak paling berbahaya.
+    const advisoryLabel = data.decision && data.decision.advisory === false
+      ? 'TIDAK DIREKOMENDASIKAN'
+      : data.scoring.kategori;
+    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} ${advisoryLabel}`, 14, 20);
     
     let finalY = 30;
     
@@ -379,7 +385,13 @@ function DashboardContent() {
     finalY = (doc as any).lastAutoTable?.finalY || finalY + 30;
     
     doc.setFontSize(11);
-    doc.text(`Rekomendasi: ${data.scoring.kategori} dengan skor ${data.scoring.total_score}/100`, 14, finalY + 15);
+    doc.text(
+      data.decision && data.decision.advisory === false
+        ? `Rekomendasi: TIDAK DIBERIKAN (${data.decision.explanation || 'saham tidak lolos gerbang kelayakan'}). Skor informasional: ${data.scoring.total_score}/100`
+        : `Rekomendasi: ${data.scoring.kategori} dengan skor ${data.scoring.total_score}/100`,
+      14,
+      finalY + 15
+    );
     doc.text(`Harga di bawah/atas indikator MA konfirmasi trend saat ini.`, 14, finalY + 22);
     
     doc.setFontSize(9);
@@ -801,14 +813,32 @@ function DashboardContent() {
                 }`}>
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
-                <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
-                  data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
-                  data.scoring.kategori === 'BUY' ? 'bg-blue-400/20 text-blue-400 border-blue-400/50' :
-                  data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
-                  'bg-tv-red/20 text-tv-red border-tv-red/50'
-                }`}>
-                  {data.scoring.kategori}
-                </div>
+                {/* Phase 0 / P0-3: `decision` (dari gerbang kelayakan minimal) yang
+                    menentukan apakah label ini boleh dibaca sebagai ajakan bertindak.
+                    `data.scoring.kategori` SENGAJA tidak diubah di API (backward
+                    compatibility), jadi penyaringnya di sini: saat advisory === false,
+                    yang ditampilkan adalah STATUS, bukan BUY/SELL. Tidak diganti "HOLD" -
+                    itu tetap sebuah rekomendasi, cuma yang lain. Skornya sendiri tetap
+                    tampil di atas: pengguna berhak melihat angkanya. */}
+                {data.decision && data.decision.advisory === false ? (
+                  <div className="text-xs font-bold font-sans px-3 py-1 rounded-full border bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40 text-center">
+                    TIDAK DIREKOMENDASIKAN
+                  </div>
+                ) : (
+                  <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
+                    data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
+                    data.scoring.kategori === 'BUY' ? 'bg-blue-400/20 text-blue-400 border-blue-400/50' :
+                    data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
+                    'bg-tv-red/20 text-tv-red border-tv-red/50'
+                  }`}>
+                    {data.scoring.kategori}
+                  </div>
+                )}
+                {data.decision && data.decision.advisory === false && data.decision.explanation && (
+                  <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[220px]">
+                    {data.decision.explanation}
+                  </p>
+                )}
               </div>
 
               {/* Score Breakdown */}

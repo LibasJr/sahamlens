@@ -195,7 +195,12 @@ export default function PortfolioPage() {
             currentPrice = s.stock.current_price;
           }
           if (s?.scoring) {
-            scoreLabel = `${s.scoring.total_score} ${s.scoring.kategori}`;
+            // Phase 0 / P0-3: label BUY/SELL hanya ditampilkan kalau saham lolos gerbang
+            // kelayakan. Skornya tetap ditampilkan (informasional) - pemilik saham berhak
+            // melihat angkanya; yang dicabut cuma ajakan bertindaknya.
+            scoreLabel = s?.decision && s.decision.advisory === false
+              ? `${s.scoring.total_score} (tidak direkomendasikan)`
+              : `${s.scoring.total_score} ${s.scoring.kategori}`;
           }
         } catch(e) {}
 

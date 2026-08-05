@@ -183,8 +183,19 @@ export default function AiPickPage() {
               </p>
             )}
 
+            {/* Daftar kosong sekarang punya SEBAB yang jelas (Phase 0 / P0-1 + P0-3):
+                saham berstatus 'DATA TIDAK CUKUP' dan saham yang tidak lolos gerbang
+                kelayakan (tidak likuid / kemungkinan tidak diperdagangkan / data basi /
+                histori kurang) DIKELUARKAN dari daftar, bukan diberi peringkat rendah.
+                Karena itu daftar bisa mengecil sampai kosong pada hari tertentu - itu
+                jawaban yang benar, dan pengguna berhak tahu alasannya alih-alih melihat
+                halaman kosong tanpa penjelasan. */}
             {!loading && ready && items.length === 0 && (
-              <p className="p-6 text-sm text-tv-muted">Belum ada sinyal kuat hari ini.</p>
+              <p className="p-6 text-sm text-tv-muted">
+                Tidak ada saham yang lolos ambang kualitas + kelengkapan data hari ini.
+                Saham dengan data tidak lengkap, likuiditas sangat rendah, atau yang
+                kemungkinan tidak diperdagangkan sengaja tidak ditampilkan di sini.
+              </p>
             )}
 
             {!loading && ready && items.length > 0 && (

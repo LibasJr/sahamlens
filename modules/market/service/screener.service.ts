@@ -9,6 +9,11 @@ import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type ScoringResult } from '@/modules/technical';
 import { evaluateIndicatorDecisions, BACKTEST_PRESETS } from '@/modules/backtest';
 import { getBatchStockSentiment, type Sentiment as NewsSentiment } from '@/modules/news';
+import {
+  evaluateMinimalEligibility,
+  type EligibilityResult,
+  type EligibilityStatus,
+} from '@/modules/eligibility';
 
 // Backend nyata untuk /screener - sebelumnya halaman itu memanggil /api/live/[ticker]
 // (cuma quote harga satu simbol), padahal UI-nya butuh 10 saham teratas dengan 10+
@@ -68,6 +73,11 @@ type RawStock = {
   // disebut di RSS manapun (lihat TickerSentiment di news.service.ts - beda dari
   // 'NETRAL' yang berarti ADA berita tapi diklasifikasi netral).
   signal: ScoringResult['kategori'] | null;
+  /** Phase 0 / P0-3. `signal` di atas dipaksa null kalau ini bukan 'ELIGIBLE'.
+   * null di sini = gerbang belum sempat dievaluasi (histori kurang dari
+   * MIN_HISTORY_BARS), yang artinya "tidak diketahui", BUKAN "layak". */
+  eligibility_status: EligibilityStatus | null;
+  eligibility_reasons: string[] | null;
   pattern_tag: string | null;
   sentiment: NewsSentiment | null;
 };
@@ -182,18 +192,26 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     // cocok SEKARANG) - null kalau histori kurang dari MIN_HISTORY_BARS, bukan ditebak.
     let signal: ScoringResult['kategori'] | null = null;
     let patternTag: string | null = null;
+    let eligibility: EligibilityResult | null = null;
     if (hasFullHistory) {
       const closes = history.map((h) => h.AdjClose ?? h.Close);
       const ma20 = sma(closes, 20);
       const ma50 = sma(closes, 50);
       const ma200 = sma(closes, 200);
 
+      // BUG FIX Phase 0 (P1-14 Tahap 1 / temuan C-7, disamakan dengan app/api/stock/
+      // [ticker] dan ai-pick-scan.service.ts): fallback `: 50` untuk RSI dan `: 0` untuk
+      // MACD DIHAPUS. RSI 50 jatuh PERSIS di pita "zona BUY ideal" scoreRsi() (8 dari 8
+      // poin), jadi saham yang RSI-nya gagal dihitung justru DIHADIAHI skor teknikal
+      // penuh. MACD 0 masuk cabang "netral" dan memberi 3 dari 7 poin untuk indikator
+      // yang tidak pernah terhitung. Sekarang `null`: komponennya dikeluarkan dari skor
+      // dan bobotnya dinormalisasi ulang, serta hilangnya terlihat di coverage_pct.
       const rsiResult = analyzeRsi(history, price);
       const macdResult = analyzeMacd(history, price);
-      const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : 50;
-      const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : 0;
-      const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : 0;
-      const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : 0;
+      const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
+      const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
+      const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
+      const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
       const volAvg20 = history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20;
 
@@ -218,9 +236,12 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
         ticker.replace('.JK', ''),
         {
           currentPrice: price,
-          ma20: ma20 ?? 0,
-          ma50: ma50 ?? 0,
-          ma200: ma200 ?? 0,
+          // BUG FIX Phase 0 (temuan H-2): `?? 0` DIHAPUS. Harga selalu > 0, sehingga
+          // "harga > MA200(0)" dulu SELALU true dan memberi poin uptrend gratis untuk
+          // saham yang MA-nya belum bisa dihitung. null = tidak dinilai.
+          ma20,
+          ma50,
+          ma200,
           rsi: rsiVal,
           macdHist: macdHistVal,
           macdLine: macdLineVal,
@@ -239,7 +260,22 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
           volRatio,
         },
       );
-      signal = scoring.kategori;
+      // GERBANG KELAYAKAN MINIMAL (Phase 0 / P0-3). `signal` adalah label BUY/SELL yang
+      // ditampilkan langsung ke pengguna di tabel Screener, jadi ia rekomendasi -
+      // saham tidak likuid / kemungkinan tidak diperdagangkan / data basi tidak boleh
+      // mendapatkannya. `signal` SUDAH bertipe nullable sejak sebelumnya (null saat
+      // histori kurang), jadi konsumen UI tidak perlu berubah bentuk.
+      eligibility = evaluateMinimalEligibility({
+        ticker,
+        asOf: todayDateKeyWIB(),
+        bars: dailyHistory.map((h) => ({
+          date: h.date,
+          close: typeof h.close === 'number' ? h.close : null,
+          volume: typeof h.volume === 'number' ? h.volume : null,
+        })),
+        coveragePct: scoring.coverage_pct,
+      });
+      signal = eligibility.status === 'ELIGIBLE' ? scoring.kategori : null;
 
       const decisions = evaluateIndicatorDecisions(history, price);
       const matchedPreset = BACKTEST_PRESETS.find((p) => p.filters.every((f) => decisions[f] === 'BULLISH'));
@@ -265,6 +301,10 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       fifty_two_week_high: q.summaryDetail?.fiftyTwoWeekHigh || null,
       atr_pct: atr14Pct(dailyHistory),
       signal,
+      // BARU (Phase 0) - aditif. `null` kalau histori tidak cukup untuk mengevaluasinya
+      // sama sekali (blok di atas tidak jalan), BUKAN "layak".
+      eligibility_status: eligibility ? eligibility.status : null,
+      eligibility_reasons: eligibility ? eligibility.reasonCodes : null,
       pattern_tag: patternTag,
       sentiment: null, // diisi belakangan oleh fetchScreenerUniverse() - lihat komentar di sana
     };
@@ -429,6 +469,10 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         // Kolom BARU (permintaan eksplisit) - null/'N/A' kalau data kurang, BUKAN
         // ditebak (lihat komentar RawStock.signal/pattern_tag/sentiment di atas).
         signal: s.signal,
+        // Phase 0 / P0-3 - aditif. Diteruskan supaya UI/konsumen bisa menjelaskan KENAPA
+        // `signal` kosong ("likuiditas di bawah batas"), bukan menampilkan sel kosong.
+        eligibility_status: s.eligibility_status,
+        eligibility_reasons: s.eligibility_reasons,
         pattern_tag: s.pattern_tag,
         sentiment: s.sentiment,
       };

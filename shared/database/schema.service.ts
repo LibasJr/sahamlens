@@ -114,6 +114,47 @@ export function ensureSharedSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_watchlists_created
         ON watchlists (created_at DESC);
 
+      -- modules/fundamental/repository/fundamental-history.repository.ts
+      -- ARSIP POINT-IN-TIME (Phase 0 / P0-5). Append-only: satu baris per
+      -- (ticker, observed_date), TIDAK PERNAH di-UPDATE/DELETE oleh kode manapun.
+      -- Alasannya spesifik: writeFundamentalSnapshot() menulis ke SATU key Redis
+      -- ber-TTL 24 jam, jadi setiap eksekusi cron menimpa hari sebelumnya - data
+      -- fundamental hari kemarin hilang permanen dan tidak bisa diambil kembali
+      -- dengan cara apa pun. Tabel ini yang menyimpannya supaya backtest fundamental
+      -- kelak punya data "apa yang KITA ketahui pada tanggal T", bukan data hari ini
+      -- yang diterapkan mundur (look-ahead bias).
+      --
+      -- observed_date = tanggal KALENDER WIB saat snapshot diambil (bukan
+      -- tanggal laporan keuangan - Yahoo tidak menyediakan tanggal publikasinya).
+      -- DATE, bukan TIMESTAMPTZ: yang bermakna di sini adalah harinya, dan
+      -- membandingkan timestamp lintas zona waktu justru sumber bug as-of.
+      --
+      -- Kolom nilai NUMERIC NULL - null berarti "sumber data tidak menyediakan
+      -- angka ini pada hari itu", dan itu FAKTA yang wajib ikut terarsip, bukan
+      -- baris yang di-skip (kalau di-skip, as-of query akan mengembalikan angka
+      -- hari sebelumnya seolah masih berlaku).
+      CREATE TABLE IF NOT EXISTS fundamental_history (
+        ticker TEXT NOT NULL,
+        observed_date DATE NOT NULL,
+        per NUMERIC,
+        pbv NUMERIC,
+        roe NUMERIC,
+        der NUMERIC,
+        current_ratio NUMERIC,
+        revenue_growth NUMERIC,
+        source TEXT NOT NULL DEFAULT 'yahoo-quoteSummary',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (ticker, observed_date)
+      );
+      -- PRIMARY KEY (ticker, observed_date) sudah menjadi index untuk as-of query
+      -- (WHERE ticker = $1 AND observed_date <= $2 ORDER BY observed_date DESC
+      -- LIMIT 1) karena btree multikolom bisa dipakai untuk range scan mundur pada
+      -- kolom kedua begitu kolom pertama terikat. Index tambahan di bawah untuk
+      -- query lintas-ticker per tanggal (mis. "seluruh universe per 2026-09-01"),
+      -- yang TIDAK bisa memakai index PK karena ticker tidak difilter.
+      CREATE INDEX IF NOT EXISTS idx_fundamental_history_date
+        ON fundamental_history (observed_date);
+
       -- shared/scheduler/job-run-log.repository.ts
       CREATE TABLE IF NOT EXISTS job_run_log (
         id BIGSERIAL PRIMARY KEY,

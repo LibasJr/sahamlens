@@ -392,7 +392,10 @@ export default function HomePage() {
           ) : radarError ? (
             <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchRadar }} />
           ) : !radarItems[0] ? (
-            <EmptyState title="Belum ada peluang kuat hari ini" description="Coba cek lagi nanti setelah jam bursa berjalan." />
+            /* Phase 0 (P0-1/P0-3): daftar bisa kosong karena saham berstatus 'DATA TIDAK
+               CUKUP' dan yang tidak lolos gerbang kelayakan DIKELUARKAN, bukan diberi
+               peringkat rendah. Deskripsinya menyebut sebabnya, bukan cuma "coba lagi". */
+            <EmptyState title="Belum ada peluang kuat hari ini" description="Tidak ada saham yang lolos ambang kualitas + kelengkapan data hari ini. Saham berdata tidak lengkap atau berlikuiditas sangat rendah sengaja tidak ditampilkan." />
           ) : (() => {
             const hero = radarItems[0];
             return (
@@ -481,7 +484,7 @@ export default function HomePage() {
               action={{ label: 'Coba lagi', onClick: fetchRadar }}
             />
           ) : radarItems.length <= 1 ? (
-            <EmptyState title="Belum ada sinyal kuat hari ini." description="Cek LensRadar Live untuk daftar lengkap." />
+            <EmptyState title="Belum ada sinyal kuat hari ini." description="Saham yang datanya tidak cukup atau tidak lolos gerbang kelayakan tidak ditampilkan di sini." />
           ) : (
             <div className="space-y-2">
               {radarItems.slice(1, 6).map((it) => (

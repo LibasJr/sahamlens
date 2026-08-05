@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { rankAiPicks, type ScoredStock, type BreakoutInfo } from '../ai-pick.service';
 
+// P0-1: `kategori` & `eligibilityStatus` default DIISI di sini supaya test-test lama di
+// bawah tetap menguji hal yang mereka maksud (pemeringkatan, tag sinyal, TP/CL). Entri
+// tanpa kedua field itu sekarang DIKELUARKAN dari daftar secara sengaja - perilaku itu
+// diuji terpisah di blok "P0-1" di bawah, bukan tercampur ke sini.
 function stock(symbol: string, totalScore: number, extra: Partial<ScoredStock> = {}): ScoredStock {
   return {
     symbol, price: 1000, changePct: 0, totalScore, rsi: 50, accumulationConfirmed: false,
     breakdown: { technical: 0, fundamental: 0, flow: 0 }, topReasons: [],
+    kategori: 'BUY', eligibilityStatus: 'ELIGIBLE', coverage: 100,
     ...extra,
   };
 }
@@ -175,8 +180,10 @@ describe('rankAiPicks', () => {
     expect(result[0].coverage).toBe(90);
   });
 
-  it('coverage null untuk entri cache lama yang belum punya field ini', () => {
-    const scored = [stock('AAAA.JK', 82)]; // coverage tidak di-set
+  it('coverage null diteruskan apa adanya kalau kategori-nya sudah diketahui', () => {
+    // Entri yang punya `kategori` tidak perlu menurunkan status dari coverage, jadi
+    // coverage null di sini bukan alasan mengeluarkannya - ia cuma tidak ditampilkan.
+    const scored = [stock('AAAA.JK', 82, { coverage: null })];
 
     const result = rankAiPicks(scored, noSignals, []);
 
@@ -203,5 +210,140 @@ describe('rankAiPicks', () => {
     expect(result[0].tp2).toBeNull();
     expect(result[0].cl1).toBeNull();
     expect(result[0].cl2).toBeNull();
+  });
+});
+
+// P0-1 (blueprint quant V2 §2): rankAiPicks() dulu HANYA menyaring `finalScore >=
+// MIN_SCORE`. `coverage` dibawa sampai item tapi tidak pernah dievaluasi, dan `kategori`
+// tidak pernah ikut dibawa sama sekali - `ScoredStock` tidak punya field-nya. Akibatnya
+// saham yang calculateScore() sendiri nilai 'DATA TIDAK CUKUP' (mis. fundamental & flow
+// kosong, hanya teknikal) bisa mendapat total_score mendekati 100 karena renormalisasi,
+// lalu menempati peringkat teratas daftar "hari ini beli apa".
+describe('rankAiPicks - P0-1 saham berdata tidak cukup tidak pernah masuk daftar', () => {
+  it("kategori 'DATA TIDAK CUKUP' dikeluarkan meski skornya 95", () => {
+    const scored = [
+      stock('AAAA.JK', 95, { kategori: 'DATA TIDAK CUKUP', coverage: 40 }),
+      stock('BBBB.JK', 62, { kategori: 'BUY' }),
+    ];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result.map((r) => r.symbol)).toEqual(['BBBB.JK']);
+  });
+
+  it('dikeluarkan, BUKAN diberi peringkat rendah - tidak muncul di posisi manapun', () => {
+    const scored = [stock('AAAA.JK', 99, { kategori: 'DATA TIDAK CUKUP', coverage: 30 })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result).toEqual([]);
+  });
+
+  it('entri cache lama tanpa `kategori`: status diturunkan ulang dari coverage < 55', () => {
+    const scored = [{ ...stock('AAAA.JK', 90), kategori: undefined, coverage: 40 }];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result).toEqual([]);
+  });
+
+  it('entri cache lama tanpa `kategori` dengan coverage memadai tetap lolos', () => {
+    const scored = [{ ...stock('AAAA.JK', 90), kategori: undefined, coverage: 80 }];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result.map((r) => r.symbol)).toEqual(['AAAA.JK']);
+  });
+
+  it('entri sangat lama tanpa `kategori` DAN tanpa `coverage` dikeluarkan (fail-closed)', () => {
+    const scored = [{ ...stock('AAAA.JK', 90), kategori: undefined, coverage: undefined }];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result).toEqual([]);
+  });
+
+  it('coverage NaN diperlakukan sebagai tidak diketahui, bukan angka (fail-closed)', () => {
+    const scored = [{ ...stock('AAAA.JK', 90), kategori: undefined, coverage: NaN }];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result).toEqual([]);
+  });
+
+  it('kategori BUY dengan skor 60 tetap muncul', () => {
+    const scored = [stock('AAAA.JK', 60, { kategori: 'BUY' })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].kategori).toBe('BUY');
+  });
+
+  it('seluruh universe berdata tidak cukup => daftar kosong, tidak melempar', () => {
+    const scored = Array.from({ length: 20 }, (_, i) =>
+      stock(`S${i}.JK`, 90, { kategori: 'DATA TIDAK CUKUP', coverage: 40 })
+    );
+
+    expect(() => rankAiPicks(scored, noSignals, [])).not.toThrow();
+    expect(rankAiPicks(scored, noSignals, [])).toEqual([]);
+  });
+
+  it('masukan bukan array (cache rusak) menghasilkan daftar kosong, bukan crash', () => {
+    expect(rankAiPicks(null as unknown as ScoredStock[], noSignals, [])).toEqual([]);
+    expect(rankAiPicks(undefined as unknown as ScoredStock[], noSignals, [])).toEqual([]);
+  });
+});
+
+// P0-3: gerbang kelayakan minimal. Saham tidak likuid / kemungkinan tidak diperdagangkan
+// / data basi / histori kurang TIDAK boleh masuk daftar advisory berapa pun skornya.
+describe('rankAiPicks - P0-3 hanya saham ELIGIBLE yang boleh direkomendasikan', () => {
+  it.each([
+    'LOW_LIQUIDITY',
+    'POSSIBLY_NOT_TRADED',
+    'STALE_DATA',
+    'INSUFFICIENT_HISTORY',
+    'INSUFFICIENT_DATA',
+  ] as const)('status %s dikeluarkan walau skornya 98', (status) => {
+    const scored = [stock('AAAA.JK', 98, { eligibilityStatus: status })];
+
+    expect(rankAiPicks(scored, noSignals, [])).toEqual([]);
+  });
+
+  it('entri cache lama tanpa `eligibilityStatus` dikeluarkan (fail-closed)', () => {
+    const scored = [{ ...stock('AAAA.JK', 90), eligibilityStatus: undefined }];
+
+    expect(rankAiPicks(scored, noSignals, [])).toEqual([]);
+  });
+
+  it('ACCEPTANCE: tidak ada satu pun item hasil yang coverage < 55 atau DATA TIDAK CUKUP', () => {
+    // Campuran padat: layak, tidak layak, entri lama, coverage di sekitar ambang.
+    const scored: ScoredStock[] = [
+      stock('A.JK', 92, { coverage: 100 }),
+      stock('B.JK', 88, { coverage: 54, kategori: 'DATA TIDAK CUKUP' }),
+      stock('C.JK', 85, { coverage: 55 }),
+      stock('D.JK', 99, { eligibilityStatus: 'LOW_LIQUIDITY' }),
+      { ...stock('E.JK', 91), kategori: undefined, coverage: 20 },
+      { ...stock('F.JK', 91), kategori: undefined, coverage: undefined },
+      { ...stock('G.JK', 77), eligibilityStatus: undefined },
+      stock('H.JK', 70, { coverage: 61 }),
+    ];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result.map((r) => r.symbol)).toEqual(['A.JK', 'C.JK', 'H.JK']);
+    for (const item of result) {
+      expect(item.kategori).not.toBe('DATA TIDAK CUKUP');
+      expect(item.coverage === null || item.coverage >= 55).toBe(true);
+    }
+  });
+
+  it('sinyal breakout TIDAK bisa mengangkat saham tidak layak masuk daftar', () => {
+    const scored = [stock('AAAA.JK', 90, { eligibilityStatus: 'LOW_LIQUIDITY', accumulationConfirmed: true })];
+    const breakout: BreakoutInfo = {
+      breakoutSymbols: ['AAAA.JK'], goldenCrossSymbols: ['AAAA.JK'], deadCrossSymbols: [],
+    };
+
+    expect(rankAiPicks(scored, breakout, [])).toEqual([]);
   });
 });

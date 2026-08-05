@@ -56,12 +56,26 @@ export async function GET(request: Request) {
     const ageMinutes = (Date.now() - new Date(scoreData.computedAt).getTime()) / 60000;
     const stale = ageMinutes > 20;
 
+    // Phase 0 (P0-1/P0-3): daftar bisa kosong karena saham yang datanya tidak cukup atau
+    // yang tidak lolos gerbang kelayakan DIKELUARKAN, bukan diberi peringkat rendah.
+    // Angka di bawah dilaporkan apa adanya supaya "kosong" bisa dibedakan antara "tidak
+    // ada saham yang memenuhi syarat hari ini" dan "cache belum berisi field baru"
+    // (entri cache lama ber-TTL 3 hari akan tersaring sampai cron berikutnya menimpanya).
+    const scanned = scoreData.scores.length;
+    const legacyCacheShape = scanned > 0 && scoreData.scores.every((s) => s.eligibilityStatus == null);
+
     const response = NextResponse.json({
       ready: true,
       items,
       computedAt: scoreData.computedAt,
       stale,
-      note: cachedBreakout ? null : 'Data breakout belum siap - peringkat sementara tanpa bonus breakout & golden cross.',
+      scanned,
+      eligible: items.length,
+      note: !cachedBreakout
+        ? 'Data breakout belum siap - peringkat sementara tanpa tag breakout & golden cross.'
+        : legacyCacheShape
+          ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'
+          : null,
     });
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
     return response;
