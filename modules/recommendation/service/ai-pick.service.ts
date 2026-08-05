@@ -51,6 +51,8 @@ import type { EligibilityStatus } from '../../eligibility/types/eligibility.type
  * yang murni (bukan skor berbonus), sehingga aturan ini benar-benar ditegakkan. */
 const MIN_SCORE = 60;
 const MAX_ITEMS = 10;
+type RankAiPicksMode = 'advisory' | 'scanner';
+export type RankAiPicksOptions = { mode?: RankAiPicksMode };
 
 // `MIN_COVERAGE_PCT` diimpor dari scoring.service.ts (SATU sumber dengan getKategori()),
 // bukan ditulis ulang di sini - dipakai HANYA untuk menurunkan ulang status entri cache
@@ -163,6 +165,16 @@ export type AiPickItem = {
  * kosong) adalah jawaban yang benar; menampilkan saham yang statusnya tidak diketahui
  * sebagai rekomendasi tidak.
  */
+function hasMinimumScoreDataQuality(s: ScoredStock): boolean {
+  if (s.kategori != null) {
+    return s.kategori !== 'DATA TIDAK CUKUP';
+  }
+
+  // Entri lama tanpa `kategori`: turunkan ulang dari `coverage`, satu-satunya bahan
+  // yang tersedia. coverage juga null (entri sangat lama) => keluarkan.
+  return typeof s.coverage === 'number' && Number.isFinite(s.coverage) && s.coverage >= MIN_COVERAGE_PCT;
+}
+
 function isEligibleForAdvisory(s: ScoredStock): boolean {
   // 1. Kelayakan (P0-3). ELIGIBLE saja yang lolos; status apa pun selain itu keluar.
   //    Entri lama tanpa field ini (null/undefined) TIDAK dianggap lolos - "belum
@@ -170,28 +182,31 @@ function isEligibleForAdvisory(s: ScoredStock): boolean {
   if (s.eligibilityStatus !== 'ELIGIBLE') return false;
 
   // 2. Kategori v1. 'DATA TIDAK CUKUP' dikeluarkan, bukan diberi peringkat rendah.
-  if (s.kategori != null) {
-    if (s.kategori === 'DATA TIDAK CUKUP') return false;
-    return true;
-  }
+  return hasMinimumScoreDataQuality(s);
+}
 
-  // 3. Entri lama tanpa `kategori`: turunkan ulang dari `coverage`, satu-satunya bahan
-  //    yang tersedia. coverage juga null (entri sangat lama) => keluarkan.
-  if (typeof s.coverage === 'number' && Number.isFinite(s.coverage)) {
-    return s.coverage >= MIN_COVERAGE_PCT;
+function isEligibleForScanner(s: ScoredStock): boolean {
+  // Scanner/pantauan bukan advisory. Ia boleh membaca cache sesi terakhir yang masih
+  // berbentuk legacy (belum punya `eligibilityStatus`) selama kualitas data skor bisa
+  // dibuktikan dari `kategori`/`coverage`. Namun kalau cache BARU sudah memberi status
+  // kelayakan non-ELIGIBLE, status itu tetap dihormati dan item tidak dipaksakan tampil.
+  if (s.eligibilityStatus != null && s.eligibilityStatus !== 'ELIGIBLE') {
+    return false;
   }
-  return false;
+  return hasMinimumScoreDataQuality(s);
 }
 
 export function rankAiPicks(
   scored: ScoredStock[],
   breakout: BreakoutInfo,
-  bearishSymbols: string[]
+  bearishSymbols: string[],
+  options: RankAiPicksOptions = {}
 ): AiPickItem[] {
   // Penyaringan kelayakan dilakukan SEBELUM pembentukan item & pemeringkatan (bukan
   // sesudah, dan bukan lewat pengurangan skor): saham yang tidak layak tidak pernah
   // menjadi kandidat sama sekali.
-  const eligible = (Array.isArray(scored) ? scored : []).filter(isEligibleForAdvisory);
+  const filter = options.mode === 'scanner' ? isEligibleForScanner : isEligibleForAdvisory;
+  const eligible = (Array.isArray(scored) ? scored : []).filter(filter);
 
   const items: AiPickItem[] = eligible.map((s) => {
     // Tag sinyal - TIDAK menambah poin (lihat catatan panjang di atas file). Urutannya

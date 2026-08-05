@@ -322,6 +322,21 @@ describe('rankAiPicks - P0-3 hanya saham ELIGIBLE yang boleh direkomendasikan', 
     expect(rankAiPicks(scored, noSignals, [])).toEqual([]);
   });
 
+  it('mode scanner boleh menampilkan cache legacy tanpa `eligibilityStatus` jika kualitas skor cukup', () => {
+    const scored = [{ ...stock('AAAA.JK', 90), eligibilityStatus: undefined }];
+
+    const result = rankAiPicks(scored, noSignals, [], { mode: 'scanner' });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].symbol).toBe('AAAA.JK');
+  });
+
+  it('mode scanner tetap menghormati status kelayakan non-ELIGIBLE yang sudah ada', () => {
+    const scored = [stock('AAAA.JK', 90, { eligibilityStatus: 'STALE_DATA' })];
+
+    expect(rankAiPicks(scored, noSignals, [], { mode: 'scanner' })).toEqual([]);
+  });
+
   it('ACCEPTANCE: tidak ada satu pun item hasil yang coverage < 55 atau DATA TIDAK CUKUP', () => {
     // Campuran padat: layak, tidak layak, entri lama, coverage di sekitar ambang.
     const scored: ScoredStock[] = [

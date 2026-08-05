@@ -48,7 +48,6 @@ export async function GET(request: Request) {
     };
 
     const modelValidation = getLensScoreValidationStatus();
-    const rankedItems = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols);
     // Audit follow-up 2026-08-05:
     // Endpoint ini dipakai beranda sebagai LensRadar scanner/pantauan. Versi sebelumnya
     // mengosongkan `items` saat LensScore belum tervalidasi point-in-time, sehingga data
@@ -56,6 +55,8 @@ export async function GET(request: Request) {
     // tetap dipertahankan lewat `advisoryEnabled`: false = boleh tampil sebagai scanner,
     // TIDAK boleh dibaca sebagai rekomendasi beli/jual atau instruksi aksi investasi.
     const advisoryEnabled = modelValidation.validated;
+    const rankMode = advisoryEnabled ? 'advisory' : 'scanner';
+    const rankedItems = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols, { mode: rankMode });
     const items = rankedItems;
 
     // BUG FIX (audit integritas data 2026-08-03): TTL cache skor diperpanjang ke 3 hari
@@ -82,6 +83,7 @@ export async function GET(request: Request) {
       scanned,
       eligible: rankedItems.length,
       advisoryEnabled,
+      rankMode,
       modelValidation,
       note: !advisoryEnabled
         ? `${modelValidation.message} Daftar LensRadar ditampilkan sebagai scanner/pantauan berbasis data real, bukan rekomendasi beli/jual.`

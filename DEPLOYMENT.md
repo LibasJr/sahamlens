@@ -28,6 +28,9 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 - `/api/ai-pick` sekarang tetap mengirim ranking hasil scan data real sebagai scanner/pantauan
   walau `modelValidation.validated=false`.
+- Ranking memiliki dua mode: `advisory` tetap fail-closed atas cache legacy, sedangkan
+  `scanner` boleh menampilkan cache sesi terakhir tanpa `eligibilityStatus` bila
+  `kategori`/`coverage` membuktikan data skor cukup.
 - Guard validasi model tidak dihapus: response menambahkan `advisoryEnabled=false` dan `note`
   eksplisit bahwa LensRadar belum boleh dibaca sebagai rekomendasi beli/jual.
 - Beranda mengubah panel dari "Rekomendasi LensRadar" menjadi "Pantauan LensRadar" dan
