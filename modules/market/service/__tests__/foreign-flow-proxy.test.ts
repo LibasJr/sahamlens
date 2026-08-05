@@ -85,35 +85,69 @@ describe('analyzeAccumulationSignal (konfirmasi 4-lapis)', () => {
     return Array.from({ length: count }, (_, i) => ({ date: `d${i}`, high, low, close, volume }));
   }
 
-  it('lolos semua 4 syarat (CMF20, CLV kuat, volume spike, tren MFM) -> AKUMULASI confirmed', () => {
-    const days = makeDays(20, 0.9, 1_000_000);
-    days[days.length - 1].volume = 2_000_000; // spike hari terakhir > 1.5x rata-rata
+  /** Naikkan volume `n` hari TERAKHIR - partisipasi yang berkelanjutan, bukan satu bar.
+   * Gerbang volume memakai rata-rata 5 hari terhadap rata-rata 20 hari (P1-9). */
+  function raiseRecentVolume(
+    days: { date: string; high: number; low: number; close: number; volume: number }[],
+    n: number,
+    volume: number
+  ) {
+    for (let i = days.length - n; i < days.length; i++) days[i].volume = volume;
+    return days;
+  }
+
+  it('lolos semua syarat (CMF20, CLV kuat, volume 5 hari tinggi, tren MFM) -> AKUMULASI confirmed', () => {
+    const days = raiseRecentVolume(makeDays(20, 0.9, 1_000_000), 5, 2_000_000);
     const result = analyzeAccumulationSignal(days);
     expect(result.status).toBe('AKUMULASI');
     expect(result.confirmed).toBe(true);
   });
 
   it('"fake akumulasi" - CLV cuma positif tipis (0.55, gagal ambang >0.6) -> NETRAL, bukan AKUMULASI', () => {
-    const days = makeDays(20, 0.55, 1_000_000);
-    days[days.length - 1].volume = 2_000_000;
+    const days = raiseRecentVolume(makeDays(20, 0.55, 1_000_000), 5, 2_000_000);
     const result = analyzeAccumulationSignal(days);
     expect(result.status).toBe('NETRAL');
     expect(result.confirmed).toBe(false);
   });
 
-  it('CLV & CMF kuat tapi TIDAK ada lonjakan volume -> tidak confirmed (syarat volume gagal)', () => {
-    const days = makeDays(20, 0.9, 1_000_000); // semua hari volume sama, tidak ada spike
+  it('CLV & CMF kuat tapi TIDAK ada kenaikan volume -> tidak confirmed (syarat volume gagal)', () => {
+    const days = makeDays(20, 0.9, 1_000_000); // semua hari volume sama
     const result = analyzeAccumulationSignal(days);
     expect(result.status).toBe('NETRAL');
     expect(result.confirmed).toBe(false);
   });
 
-  it('simetris untuk DISTRIBUSI (CLV rendah + volume spike)', () => {
-    const days = makeDays(20, 0.1, 1_000_000);
-    days[days.length - 1].volume = 2_000_000;
+  it('simetris untuk DISTRIBUSI (CLV rendah + volume 5 hari tinggi)', () => {
+    const days = raiseRecentVolume(makeDays(20, 0.1, 1_000_000), 5, 2_000_000);
     const result = analyzeAccumulationSignal(days);
     expect(result.status).toBe('DISTRIBUSI');
     expect(result.confirmed).toBe(true);
+  });
+
+  // --- P1-9: gerbang volume tidak boleh bergantung pada SATU bar terakhir ---
+
+  it('satu hari volume normal TIDAK menghapus status akumulasi yang sudah berjalan', () => {
+    // Sebelum perbaikan P1-9: gerbangnya `volume_hari_ini > 1.5x rata-rata 20 hari`,
+    // sehingga saham yang sudah belasan hari terkonfirmasi akumulasi kehilangan
+    // statusnya seluruhnya begitu ada satu hari dengan volume biasa.
+    const days = raiseRecentVolume(makeDays(20, 0.9, 1_000_000), 6, 2_500_000);
+    days[days.length - 1].volume = 1_000_000; // hari terakhir kembali normal
+    const result = analyzeAccumulationSignal(days);
+    expect(result.status).toBe('AKUMULASI');
+    expect(result.volRatio).toBeLessThan(1.5);   // gerbang LAMA akan gagal di sini
+    expect(result.volRatio5D).toBeGreaterThan(1.2); // gerbang BARU tetap lolos
+  });
+
+  it('mfmPositiveRatio20 melaporkan persistensi atas jendela, bukan streak', () => {
+    const semuaPositif = analyzeAccumulationSignal(makeDays(20, 0.9, 1_000_000));
+    const semuaNegatif = analyzeAccumulationSignal(makeDays(20, 0.1, 1_000_000));
+    expect(semuaPositif.mfmPositiveRatio20).toBe(1);
+    expect(semuaNegatif.mfmPositiveRatio20).toBe(0);
+  });
+
+  it('mfmPositiveRatio20 null kalau jendela 20 hari belum penuh - bukan ditebak', () => {
+    const result = analyzeAccumulationSignal(makeDays(10, 0.9, 1_000_000));
+    expect(result.mfmPositiveRatio20).toBeNull();
   });
 
   it('history < 3 hari -> NETRAL, tidak error', () => {

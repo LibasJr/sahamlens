@@ -9,6 +9,9 @@ const fullTechnical: TechnicalInput = {
   currentPrice: 1000, ma20: 950, ma50: 900, ma200: 800,
   rsi: 60, macdHist: 5, macdLine: 10, macdSignal: 5,
   volToday: 2_000_000, volAvg20: 1_000_000,
+  // Arah harga WAJIB dipasok untuk mendapat nilai volume penuh (P1-8): volume 2x
+  // rata-rata saat harga TURUN adalah distribusi, bukan akumulasi.
+  changePct: 2.5,
 };
 
 const fullFundamental: FundamentalInput = {
@@ -17,6 +20,8 @@ const fullFundamental: FundamentalInput = {
 
 const fullFlow: FlowInput = {
   cmf20: 25, accumulationStatus: 'AKUMULASI', consecutiveBuyDays: 5, consecutiveSellDays: 0, volRatio: 2,
+  // Persistensi diukur dari proporsi jendela 20 hari, bukan panjang streak (P1-9).
+  mfmPositiveRatio20: 0.7,
 };
 
 const emptyFundamental: FundamentalInput = {
@@ -26,6 +31,9 @@ const emptyFundamental: FundamentalInput = {
 const emptyFlow: FlowInput = {
   cmf20: null, accumulationStatus: null, consecutiveBuyDays: 0, consecutiveSellDays: 0, volRatio: null,
 };
+
+/** Sektor keuangan - DER & Current Ratio TIDAK BERLAKU (P1-11). */
+const bankSector = { yahooSector: 'Financial Services', yahooIndustry: 'Banks - Regional' };
 
 describe('calculateScore - ketiadaan data tidak menghasilkan poin (temuan C-7)', () => {
   it('RSI null TIDAK diperlakukan sebagai 50 (yang dulu jatuh di pita "zona BUY ideal")', () => {
@@ -62,16 +70,150 @@ describe('calculateScore - renormalisasi bobot (temuan H-14)', () => {
     expect(bank.coverage_pct).toBeLessThan(100);
   });
 
-  it('emiten rugi tanpa PER tetap dinilai dari PBV, bukan dihukum nol', () => {
-    const rugi = calculateScore('GOTO', fullTechnical, { ...emptyFundamental, pbv: 0.5 }, fullFlow);
+  it('emiten rugi tanpa PER tetap dinilai dari PBV selama ROE tersedia, bukan dihukum nol', () => {
+    // PBV hanya bisa dinilai kalau PBV WAJAR bisa dihitung, dan itu butuh ROE
+    // (PBV* = (ROE - g)/(r - g), lihat fair-multiples.service.ts). Jadi fixture di sini
+    // memasok ROE - tanpa ROE, PBV memang tidak bisa dinilai dengan cara apa pun yang
+    // benar, dan mengakuinya lebih jujur daripada memakai ambang absolut lama.
+    const rugi = calculateScore('GOTO', fullTechnical, { ...emptyFundamental, pbv: 0.5, roe: 18 }, fullFlow);
     expect(rugi.detail.valuasi).toBe(5);
-    expect(rugi.detail.profitabilitas).toBeNull();
+    expect(rugi.detail.profitabilitas).not.toBeNull();
+  });
+
+  it('ROE tidak tersedia -> PBV TIDAK dinilai dengan ambang absolut, komponen valuasi dikeluarkan', () => {
+    // Ini inti temuan P1-10: "PBV < 1 = murah" salah karena PBV wajar adalah fungsi ROE.
+    // Tanpa ROE, jawaban yang benar adalah "tidak bisa dinilai", bukan "murah".
+    const r = calculateScore('X', fullTechnical, { ...emptyFundamental, pbv: 0.5 }, fullFlow);
+    expect(r.detail.valuasi).toBeNull();
+    expect(r.missing.join(' ')).toContain('Valuasi');
   });
 
   it('skor akhir tetap berskala 0-100 walau sebagian data hilang', () => {
     const result = calculateScore('X', fullTechnical, emptyFundamental, fullFlow);
     expect(result.total_score).toBeGreaterThan(0);
     expect(result.total_score).toBeLessThanOrEqual(100);
+  });
+});
+
+// ============================================================================
+// Regresi review kuantitatif 2026-08-05 (P1-7, P1-8, P1-9, P1-10, P1-11, P1-12)
+// ============================================================================
+
+describe('P1-11 - DER & Current Ratio tidak berlaku untuk sektor keuangan', () => {
+  it('bank dengan DER 6x TIDAK dinilai "berisiko tinggi" - komponennya dikeluarkan', () => {
+    const bank = calculateScore('BBRI', fullTechnical, {
+      ...fullFundamental, der: 6.0, currentRatio: 0.9, sector: bankSector,
+    }, fullFlow);
+    expect(bank.detail.kesehatan).toBeNull();
+    expect(bank.not_applicable.join(' ')).toContain('TIDAK BERLAKU');
+  });
+
+  it('bank TIDAK dihukum coverage_pct karena DER/CR tidak berlaku untuknya', () => {
+    // Ini pembeda NOT_APPLICABLE vs NA: "tidak berlaku" bukan "data hilang".
+    const bank = calculateScore('BBRI', fullTechnical, {
+      ...fullFundamental, der: 6.0, currentRatio: 0.9, sector: bankSector,
+    }, fullFlow);
+    const nonBank = calculateScore('X', fullTechnical, fullFundamental, fullFlow);
+    expect(bank.coverage_pct).toBe(nonBank.coverage_pct);
+    expect(bank.coverage_pct).toBe(100);
+  });
+
+  it('bank yang datanya HILANG tidak lagi dinilai lebih baik daripada bank yang datanya lengkap', () => {
+    const dataAda = calculateScore('BBRI', fullTechnical, {
+      ...fullFundamental, der: 6.0, currentRatio: 0.9, sector: bankSector,
+    }, fullFlow);
+    const dataHilang = calculateScore('BBRI', fullTechnical, {
+      ...fullFundamental, der: null, currentRatio: null, sector: bankSector,
+    }, fullFlow);
+    expect(dataAda.total_score).toBe(dataHilang.total_score);
+  });
+
+  it('properti dengan DER 2.0x dinilai lebih baik daripada emiten konsumen dengan DER 2.0x', () => {
+    const properti = calculateScore('CTRA', fullTechnical, {
+      ...fullFundamental, der: 2.0, sector: { yahooSector: 'Real Estate' },
+    }, fullFlow);
+    const konsumen = calculateScore('UNVR', fullTechnical, {
+      ...fullFundamental, der: 2.0, sector: { yahooSector: 'Consumer Defensive' },
+    }, fullFlow);
+    expect(properti.detail.kesehatan as number).toBeGreaterThan(konsumen.detail.kesehatan as number);
+  });
+});
+
+describe('P1-10/P1-12 - valuasi dinilai terhadap pengganda yang dibenarkan fundamentalnya', () => {
+  it('bank ROE tinggi di PBV tinggi dinilai lebih baik daripada bank ROE rendah di PBV rendah', () => {
+    // Inti temuan P1-10: "PBV < 1 = murah" memberi bank lemah nilai valuasi tertinggi.
+    const roeTinggi = calculateScore('BBCA', fullTechnical, {
+      per: 20, pbv: 3.0, roe: 21, der: null, currentRatio: null, revenueGrowth: 10, sector: bankSector,
+    }, fullFlow);
+    const roeRendah = calculateScore('BANK-LEMAH', fullTechnical, {
+      per: 20, pbv: 1.2, roe: 6, der: null, currentRatio: null, revenueGrowth: 10, sector: bankSector,
+    }, fullFlow);
+    expect(roeTinggi.detail.valuasi as number).toBeGreaterThan(roeRendah.detail.valuasi as number);
+  });
+
+  it('beta lebih tinggi menurunkan nilai wajar, jadi valuasinya lebih mahal', () => {
+    const betaRendah = calculateScore('X', fullTechnical, {
+      ...fullFundamental, pbv: 2.0, sector: { yahooSector: 'Industrials', beta: 0.6 },
+    }, fullFlow);
+    const betaTinggi = calculateScore('X', fullTechnical, {
+      ...fullFundamental, pbv: 2.0, sector: { yahooSector: 'Industrials', beta: 1.8 },
+    }, fullFlow);
+    expect(betaTinggi.detail.valuasi as number).toBeLessThan(betaRendah.detail.valuasi as number);
+  });
+
+  it('emiten komoditas dengan PER rendah + ROE sangat tinggi TIDAK dapat nilai valuasi maksimum', () => {
+    // Tanda tangan puncak siklus - jebakan nilai klasik batu bara/nikel IDX.
+    const siklikalPuncak = calculateScore('PTBA', fullTechnical, {
+      per: 4, pbv: 1.0, roe: 40, der: 0.3, currentRatio: 2.0, revenueGrowth: 60,
+      sector: { yahooSector: 'Energy' },
+    }, fullFlow);
+    const nonSiklikal = calculateScore('X', fullTechnical, {
+      per: 4, pbv: 1.0, roe: 40, der: 0.3, currentRatio: 2.0, revenueGrowth: 60,
+      sector: { yahooSector: 'Industrials' },
+    }, fullFlow);
+    expect(siklikalPuncak.detail.valuasi as number).toBeLessThan(nonSiklikal.detail.valuasi as number);
+    expect(siklikalPuncak.alasan_3_poin.concat(siklikalPuncak.risk).join(' ') +
+      JSON.stringify(siklikalPuncak)).toContain('puncak siklus');
+  });
+
+  it('emiten rugi tidak dihukum dua kali di valuasi DAN profitabilitas', () => {
+    const rugi = calculateScore('X', fullTechnical, {
+      per: -8, pbv: 1.5, roe: -12, der: 0.5, currentRatio: 1.5, revenueGrowth: -5,
+    }, fullFlow);
+    // Valuasi tetap dapat nilai kecil (bukan 0) - kerugiannya sudah dinilai penuh
+    // di komponen profitabilitas.
+    expect(rugi.detail.valuasi).toBe(2);
+    expect(rugi.detail.profitabilitas).toBe(0);
+  });
+});
+
+describe('P1-8 - volume tinggi tidak lagi diberi poin penuh tanpa arah harga', () => {
+  it('volume 3x saat harga ANJLOK tidak dinilai sama dengan volume 3x saat harga NAIK', () => {
+    const naik = calculateScore('X', { ...fullTechnical, volToday: 3_000_000, changePct: 5 }, fullFundamental, fullFlow);
+    const anjlok = calculateScore('X', { ...fullTechnical, volToday: 3_000_000, changePct: -12 }, fullFundamental, fullFlow);
+    expect(naik.detail.volume).toBe(10);
+    expect(anjlok.detail.volume).toBe(0);
+  });
+
+  it('arah harga tidak diketahui -> volume tinggi diberi nilai tengah, bukan penuh', () => {
+    const tanpaArah = calculateScore('X', { ...fullTechnical, changePct: null }, fullFundamental, fullFlow);
+    expect(tanpaArah.detail.volume).toBe(5);
+  });
+});
+
+describe('P1-7 - RSI ditafsirkan menurut rezim tren, sekali saja', () => {
+  it('RSI rendah di UPTREND = pullback (bernilai), di DOWNTREND = bukan sinyal beli', () => {
+    const uptrend: TechnicalInput = { ...fullTechnical, currentPrice: 1000, ma50: 900, ma200: 800, rsi: 35 };
+    const downtrend: TechnicalInput = { ...fullTechnical, currentPrice: 800, ma50: 900, ma200: 1000, rsi: 35 };
+    const a = calculateScore('X', uptrend, fullFundamental, fullFlow);
+    const b = calculateScore('X', downtrend, fullFundamental, fullFlow);
+    expect(a.detail.rsi as number).toBeGreaterThan(b.detail.rsi as number);
+    expect(b.detail.rsi as number).toBeLessThanOrEqual(1);
+  });
+
+  it('overbought ekstrem tetap 0 poin di rezim mana pun', () => {
+    const uptrend = calculateScore('X', { ...fullTechnical, rsi: 85 }, fullFundamental, fullFlow);
+    expect(uptrend.detail.rsi).toBe(0);
   });
 });
 
@@ -124,9 +266,13 @@ describe('calculateScore - coverage_pct = bobot tersedia / bobot dideklarasikan 
     expect(r.coverage_pct).toBe(90);
   });
 
-  it('PER + ROE + DER hilang (3 x 5 bobot) => 85', () => {
+  it('PER + ROE + DER hilang => 80, karena hilangnya ROE ikut membuat PBV tak bisa dinilai', () => {
+    // 85 di bawah perbaikan P1-10 sudah tidak berlaku: PBV wajar adalah fungsi ROE, jadi
+    // ROE yang hilang membawa serta sub-faktor PBV (5 bobot lagi). Yang hilang total:
+    // PER 5 + PBV 5 + ROE 5 + DER 5 = 20 -> coverage 80. Ini konsekuensi yang benar,
+    // bukan regresi: dulu PBV tetap "dinilai" lewat ambang absolut yang keliru.
     const r = calculateScore('X', fullTechnical, { ...fullFundamental, per: null, roe: null, der: null }, fullFlow);
-    expect(r.coverage_pct).toBe(85);
+    expect(r.coverage_pct).toBe(80);
   });
 
   it('seluruh Fundamental hilang => 70', () => {
@@ -156,12 +302,14 @@ describe('calculateScore - coverage_pct = bobot tersedia / bobot dideklarasikan 
   });
 
   it('sub-faktor hilang TIDAK diperlakukan sebagai nol maupun nilai netral', () => {
-    // Emiten rugi (PER null) dengan PBV bagus tetap mendapat skor valuasi PENUH dari
-    // sub-faktor yang ADA - yang berubah cuma coverage-nya, bukan hukuman skor.
+    // PER hilang, PBV & ROE ada: skor valuasi PENUH dari sub-faktor yang tersedia -
+    // yang berubah cuma coverage-nya, bukan hukuman skor.
     const rugi = calculateScore('X', fullTechnical, { ...fullFundamental, per: null, pbv: 0.5 }, fullFlow);
     const lengkap = calculateScore('X', fullTechnical, { ...fullFundamental, pbv: 0.5 }, fullFlow);
     expect(rugi.detail.valuasi).toBe(5);          // 5 dari 5 bobot yang tersedia
-    expect(lengkap.detail.valuasi).toBe(9);       // PER 4 + PBV 5 dari 10
+    // PER 12 vs PER wajar ~11.8 (ROE 22%, g 5%, r 11.9%) = 3/5 "wajar";
+    // PBV 0.5 vs PBV wajar ~2.46 = 5/5 "diskon besar".
+    expect(lengkap.detail.valuasi).toBe(8);
     expect(rugi.coverage_pct).toBeLessThan(lengkap.coverage_pct);
   });
 
@@ -192,7 +340,8 @@ describe('calculateScore - LensScore v1 tetap bekerja (backward compatibility)',
     const r = calculateScore('BBCA', fullTechnical, fullFundamental, fullFlow);
     expect(Object.keys(r).sort()).toEqual([
       'alasan_3_poin', 'coverage_pct', 'detail', 'flow_score', 'fundamental_score',
-      'harga', 'kategori', 'missing', 'risk', 'simbol', 'technical_score', 'total_score',
+      'harga', 'kategori', 'missing', 'not_applicable', 'risk', 'simbol',
+      'technical_score', 'total_score',
     ]);
     expect(r.simbol).toBe('BBCA');
     expect(r.harga).toBe(1000);
@@ -223,6 +372,25 @@ describe('calculateScore - arus dana dinilai sekali (temuan H-1)', () => {
     expect(result.flow_score).toBeLessThanOrEqual(30);
     expect(result.detail.flow_tekanan).toBe(20);
     expect(result.detail.flow_persistensi).toBe(10);
+  });
+
+  it('persistensi diukur dari proporsi jendela 20 hari, bukan panjang streak (P1-9)', () => {
+    // Saham yang 18 dari 20 hari terakhir bertekanan beli tapi hari terakhirnya merah
+    // (streak = 0) dulu dinilai sama dengan saham tanpa arus dana searah sama sekali.
+    const streakPutus = calculateScore('X', fullTechnical, fullFundamental, {
+      ...fullFlow, consecutiveBuyDays: 0, consecutiveSellDays: 1, mfmPositiveRatio20: 0.9,
+    });
+    const tanpaArus = calculateScore('X', fullTechnical, fullFundamental, {
+      ...fullFlow, accumulationStatus: 'NETRAL', consecutiveBuyDays: 0, mfmPositiveRatio20: 0.5,
+    });
+    expect(streakPutus.detail.flow_persistensi).toBeGreaterThan(tanpaArus.detail.flow_persistensi as number);
+  });
+
+  it('streak panjang TIDAK menutupi jendela yang sebenarnya bertekanan jual', () => {
+    const streakPanjangTapiJendelaJual = calculateScore('X', fullTechnical, fullFundamental, {
+      ...fullFlow, consecutiveBuyDays: 6, mfmPositiveRatio20: 0.2,
+    });
+    expect(streakPanjangTapiJendelaJual.detail.flow_persistensi).toBeLessThanOrEqual(1);
   });
 
   it('volRatio tinggi TIDAK menambah poin arus dana (sudah dinilai di komponen Volume)', () => {
