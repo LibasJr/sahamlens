@@ -32,6 +32,7 @@ export interface CalibrationObservation {
   ticker: string;
   signalDate: string;
   entryDate: string;
+  exitDateT20: string | null;
   lensScore: number;
   bucket: LensScoreBucket;
   marketCap: number | null;
@@ -215,6 +216,7 @@ export async function calculateCalibrationObservations(
         ticker,
         signalDate: signal.date,
         entryDate: entry.date,
+        exitDateT20: series[i + 20]?.date ?? null,
         lensScore: signal.lensScore,
         bucket: signal.bucket,
         marketCap: signal.marketCap,

@@ -43,10 +43,10 @@ describe('calibration.service', () => {
 
   it('menghitung simulasi threshold win rate dan perubahan jumlah sinyal vs ambang 80', () => {
     const observations: CalibrationObservation[] = [
-      { ticker: 'A', signalDate: '2026-01-01', entryDate: '2026-01-02', lensScore: 85, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: 5 },
-      { ticker: 'B', signalDate: '2026-01-01', entryDate: '2026-01-02', lensScore: 80, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: -2 },
-      { ticker: 'C', signalDate: '2026-01-01', entryDate: '2026-01-02', lensScore: 75, bucket: '70-79', marketCap: null, returnT5: 1, returnT20: 3 },
-      { ticker: 'D', signalDate: '2026-01-01', entryDate: '2026-01-02', lensScore: 70, bucket: '70-79', marketCap: null, returnT5: 1, returnT20: null },
+      { ticker: 'A', signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: '2026-01-21', lensScore: 85, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: 5 },
+      { ticker: 'B', signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: '2026-01-21', lensScore: 80, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: -2 },
+      { ticker: 'C', signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: '2026-01-21', lensScore: 75, bucket: '70-79', marketCap: null, returnT5: 1, returnT20: 3 },
+      { ticker: 'D', signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: null, lensScore: 70, bucket: '70-79', marketCap: null, returnT5: 1, returnT20: null },
     ];
 
     const sims = calculateThresholdSimulations(observations);

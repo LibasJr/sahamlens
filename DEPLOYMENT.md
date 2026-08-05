@@ -24,6 +24,32 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - Public Transparency Page LensRadar
+
+- Halaman publik baru: `/transparency`, bisa diakses tanpa login.
+- Endpoint publik baru: `GET /api/transparency`, tidak memakai gate Pro/admin, tetapi memakai
+  cache Redis `LENS_TRANSPARENCY` 30 menit supaya pengunjung publik tidak memicu hitung ulang
+  histori/Yahoo pada setiap request.
+- Halaman menampilkan tabel bucket `80-100`, `70-79`, `60-69`, `<60` dari snapshot terbaru
+  `lens_bucket_stats`: Avg T+1/T+5/T+20, Win Rate T+20, Total Sampel, Max Drawdown T+20,
+  Avg Win T+20, Avg Loss T+20.
+- Schema `lens_bucket_stats` ditambah kolom idempoten `max_drawdown_t20`, `avg_win_t20`,
+  `avg_loss_t20`. Cron `lens-bucket-backtest` sekarang menghitung dan menyimpan metric ini
+  dari return T+20 real; tidak ada data dummy.
+- Equity curve publik dihitung dari `lens_radar_history` point-in-time: tiap tanggal sinyal
+  ambil Top 5 LensRadar, entry Open H+1, exit T+20, biaya round-trip 0,5%, dibandingkan dengan
+  IHSG (`^JKSE`) pada window entry/exit yang sama.
+- Banner validasi:
+  - `<90` hari validasi: kuning "Dalam masa pengumpulan data validasi".
+  - `>=90` hari dan p-value Welch one-tailed `80-100 > <60` `<0.05`: hijau
+    "Tervalidasi: Bucket 80-100 outperform signifikan".
+  - selain itu: netral, data cukup panjang tapi belum signifikan.
+- Disclaimer audit eksplisit: point-in-time, entry Open H+1, setelah fee 0,4% + slippage 0,1%,
+  data sejak `startDate`, bukan nasihat investasi.
+- Tidak ada env var baru. Pastikan cron `lens-bucket-backtest` jalan setelah deploy agar kolom
+  metric baru di `lens_bucket_stats` terisi; sebelum itu halaman tetap fallback ke hitungan
+  real on-demand bila snapshot metric baru masih null.
+
 ### 2026-08-05 - Admin Calibration Lab untuk LensRadar
 
 - Halaman internal baru: `/admin/calibration`, protected dengan `isAdminServer()` dan redirect
