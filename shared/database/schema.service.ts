@@ -184,6 +184,9 @@ export function ensureSharedSchema(): Promise<void> {
         avg_t20 NUMERIC,
         win_rate_t5 NUMERIC,
         win_rate_t20 NUMERIC,
+        max_drawdown_t20 NUMERIC,
+        avg_win_t20 NUMERIC,
+        avg_loss_t20 NUMERIC,
         total_samples INTEGER NOT NULL DEFAULT 0,
         source_rows INTEGER NOT NULL DEFAULT 0,
         unique_tickers INTEGER NOT NULL DEFAULT 0,
@@ -192,6 +195,12 @@ export function ensureSharedSchema(): Promise<void> {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (run_date, bucket)
       );
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS max_drawdown_t20 NUMERIC;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS avg_win_t20 NUMERIC;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS avg_loss_t20 NUMERIC;
       CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_run_date
         ON lens_bucket_stats (run_date DESC);
 

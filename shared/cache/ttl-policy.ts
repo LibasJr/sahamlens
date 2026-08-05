@@ -89,4 +89,9 @@ export const CACHE_TTL_SEC = {
   // dari input modal user DIHITUNG ULANG tiap request dari universe yang di-cache ini,
   // tidak ikut di-cache (beda per user/input).
   DIVIDEND_UNIVERSE: 30 * 60,
+
+  // Halaman publik transparansi LensRadar (app/api/transparency) - membaca Postgres
+  // + menghitung equity curve Top 5 vs IHSG dari histori point-in-time. Cukup di-cache
+  // 30 menit karena angka validasi berubah harian/cron, bukan per tick intraday.
+  LENS_TRANSPARENCY: 30 * 60,
 } as const;

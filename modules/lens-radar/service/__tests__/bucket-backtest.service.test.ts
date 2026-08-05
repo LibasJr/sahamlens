@@ -73,6 +73,9 @@ describe('calculateLensBucketStats', () => {
         'avg_T20',
         'winRate_T5',
         'winRate_T20',
+        'maxDrawdown_T20',
+        'avgWin_T20',
+        'avgLoss_T20',
         'totalSamples',
       ]);
     }

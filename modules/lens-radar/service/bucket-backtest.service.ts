@@ -31,6 +31,9 @@ export interface LensBucketStat {
   avg_T20: number | null;
   winRate_T5: number | null;
   winRate_T20: number | null;
+  maxDrawdown_T20: number | null;
+  avgWin_T20: number | null;
+  avgLoss_T20: number | null;
   totalSamples: number;
 }
 
@@ -134,6 +137,27 @@ function initReturns(): Record<LensScoreBucket, Record<ForwardHorizon, number[]>
   }, {} as Record<LensScoreBucket, Record<ForwardHorizon, number[]>>);
 }
 
+function initDatedReturns(): Record<LensScoreBucket, { date: string; returnPct: number }[]> {
+  return BUCKETS.reduce((acc, bucket) => {
+    acc[bucket] = [];
+    return acc;
+  }, {} as Record<LensScoreBucket, { date: string; returnPct: number }[]>);
+}
+
+function maxDrawdownPct(values: { date: string; returnPct: number }[]): number | null {
+  if (!values.length) return null;
+  let equity = 1;
+  let peak = 1;
+  let maxDrawdown = 0;
+  for (const item of [...values].sort((a, b) => a.date.localeCompare(b.date))) {
+    equity *= 1 + item.returnPct / 100;
+    peak = Math.max(peak, equity);
+    const drawdown = ((equity / peak) - 1) * 100;
+    maxDrawdown = Math.min(maxDrawdown, drawdown);
+  }
+  return maxDrawdown;
+}
+
 async function loadOpenMaps(
   tickers: string[],
   provider: DailyOpenProvider
@@ -168,6 +192,7 @@ export async function calculateLensBucketStats(
   const tickers = Array.from(byTicker.keys());
   const openMaps = await loadOpenMaps(tickers, provider);
   const returns = initReturns();
+  const t20DatedReturns = initDatedReturns();
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
     const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
@@ -186,7 +211,11 @@ export async function calculateLensBucketStats(
       const addReturn = (horizon: ForwardHorizon, exitClose: number | null) => {
         if (!isFinitePositive(exitClose)) return;
         const grossPct = ((exitClose / entryOpen) - 1) * 100;
-        returns[signal.bucket][horizon].push(grossPct - LENS_BUCKET_ROUND_TRIP_COST_PCT);
+        const netReturn = grossPct - LENS_BUCKET_ROUND_TRIP_COST_PCT;
+        returns[signal.bucket][horizon].push(netReturn);
+        if (horizon === 'T20') {
+          t20DatedReturns[signal.bucket].push({ date: signal.date, returnPct: netReturn });
+        }
       };
 
       addReturn('T1', closeT1);
@@ -202,6 +231,9 @@ export async function calculateLensBucketStats(
     avg_T20: roundPct(average(returns[bucket].T20)),
     winRate_T5: roundPct(winRate(returns[bucket].T5)),
     winRate_T20: roundPct(winRate(returns[bucket].T20)),
+    maxDrawdown_T20: roundPct(maxDrawdownPct(t20DatedReturns[bucket])),
+    avgWin_T20: roundPct(average(returns[bucket].T20.filter((value) => value > 0))),
+    avgLoss_T20: roundPct(average(returns[bucket].T20.filter((value) => value < 0))),
     totalSamples: returns[bucket].T1.length,
   }));
 
@@ -238,16 +270,20 @@ export async function saveLensBucketStats(
       `
       INSERT INTO lens_bucket_stats (
         run_date, bucket, avg_t1, avg_t5, avg_t20,
-        win_rate_t5, win_rate_t20, total_samples,
+        win_rate_t5, win_rate_t20, max_drawdown_t20,
+        avg_win_t20, avg_loss_t20, total_samples,
         source_rows, unique_tickers, round_trip_cost_pct, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
       ON CONFLICT (run_date, bucket) DO UPDATE SET
         avg_t1 = EXCLUDED.avg_t1,
         avg_t5 = EXCLUDED.avg_t5,
         avg_t20 = EXCLUDED.avg_t20,
         win_rate_t5 = EXCLUDED.win_rate_t5,
         win_rate_t20 = EXCLUDED.win_rate_t20,
+        max_drawdown_t20 = EXCLUDED.max_drawdown_t20,
+        avg_win_t20 = EXCLUDED.avg_win_t20,
+        avg_loss_t20 = EXCLUDED.avg_loss_t20,
         total_samples = EXCLUDED.total_samples,
         source_rows = EXCLUDED.source_rows,
         unique_tickers = EXCLUDED.unique_tickers,
@@ -262,6 +298,9 @@ export async function saveLensBucketStats(
         stat.avg_T20,
         stat.winRate_T5,
         stat.winRate_T20,
+        stat.maxDrawdown_T20,
+        stat.avgWin_T20,
+        stat.avgLoss_T20,
         stat.totalSamples,
         result.sourceRows,
         result.uniqueTickers,
