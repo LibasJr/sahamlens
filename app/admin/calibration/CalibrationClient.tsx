@@ -43,6 +43,33 @@ interface ThresholdSimulation {
   winRateDeltaPctVs80: number | null;
 }
 
+interface LensScoreWeights {
+  technical: number;
+  fundamental: number;
+  flow: number;
+}
+
+interface LensWeightProposal {
+  id?: number;
+  runDate: string;
+  status: 'PENDING_APPROVAL' | 'INSUFFICIENT_STATS' | 'INSUFFICIENT_COMPONENT_HISTORY' | 'NO_VALID_CANDIDATE';
+  reason: string;
+  baselineWeights: LensScoreWeights;
+  proposedWeights: LensScoreWeights | null;
+  baselineSpreadT20: number | null;
+  proposedSpreadT20: number | null;
+  baselinePValue: number | null;
+  proposedPValue: number | null;
+  baselineSampleSize: number;
+  proposedSampleSize: number;
+  componentSampleSize: number;
+  candidateCount: number;
+  lookbackDays: number;
+  statsWindowStart: string | null;
+  statsWindowEnd: string | null;
+  createdAt?: string;
+}
+
 interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
@@ -52,6 +79,7 @@ interface CalibrationDashboardData {
   chart: CalibrationBucketChartRow[];
   tTest: CalibrationTTestResult;
   thresholdSimulations: ThresholdSimulation[];
+  latestWeightProposal: LensWeightProposal | null;
 }
 
 interface ThresholdRecommendation {
@@ -85,6 +113,11 @@ function LoadingState() {
       <p className="text-sm text-tv-muted">Menghitung ulang kalibrasi dari histori LensRadar real...</p>
     </div>
   );
+}
+
+function weightText(weights: LensScoreWeights | null | undefined): string {
+  if (!weights) return '-';
+  return `Teknikal ${weights.technical}% • Fundamental ${weights.fundamental}% • Flow ${weights.flow}%`;
 }
 
 export default function CalibrationClient() {
@@ -396,6 +429,85 @@ export default function CalibrationClient() {
               {recommendation.aiGenerated ? 'LensAI Quant Recommendation' : 'Rule-based Recommendation'}
             </div>
             <p className="text-sm leading-relaxed text-tv-text">{recommendation.text}</p>
+          </div>
+        )}
+      </section>
+
+      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="font-heading text-lg font-bold">Rekomendasi Bobot Baru</h2>
+            <p className="text-xs text-tv-muted mt-1">
+              Dibuat otomatis tiap Minggu 18:00 WIB. Proposal hanya untuk review admin,
+              tidak mengubah bobot production.
+            </p>
+          </div>
+          {data.latestWeightProposal && (
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+              data.latestWeightProposal.status === 'PENDING_APPROVAL'
+                ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
+                : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
+            }`}>
+              {data.latestWeightProposal.status.replaceAll('_', ' ')}
+            </span>
+          )}
+        </div>
+
+        {!data.latestWeightProposal ? (
+          <div className="rounded-lg border border-tv-border bg-tv-bg p-4 text-sm text-tv-muted">
+            Belum ada proposal bobot. Proposal pertama akan dibuat oleh cron `lens-score-optimizer`
+            setelah data validasi dan histori komponen tersedia.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-tv-border bg-tv-bg p-4">
+              <div className="text-xs text-tv-muted uppercase mb-1">Catatan Optimizer</div>
+              <p className="text-sm text-tv-text leading-relaxed">{data.latestWeightProposal.reason}</p>
+              <p className="text-xs text-tv-muted mt-2">
+                Run {data.latestWeightProposal.runDate} • Window {data.latestWeightProposal.statsWindowStart || '-'} s/d {data.latestWeightProposal.statsWindowEnd || '-'} •
+                Sampel komponen {num(data.latestWeightProposal.componentSampleSize)} • Kandidat {num(data.latestWeightProposal.candidateCount)}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-tv-border bg-tv-bg p-4">
+                <div className="text-xs text-tv-muted uppercase mb-2">Bobot Saat Ini</div>
+                <div className="font-bold text-tv-text">{weightText(data.latestWeightProposal.baselineWeights)}</div>
+                <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
+                  <div>
+                    <div className="text-tv-muted">Spread T+20</div>
+                    <div className="font-number font-bold">{pct(data.latestWeightProposal.baselineSpreadT20)}</div>
+                  </div>
+                  <div>
+                    <div className="text-tv-muted">p-value</div>
+                    <div className="font-number font-bold">{pValue(data.latestWeightProposal.baselinePValue)}</div>
+                  </div>
+                  <div>
+                    <div className="text-tv-muted">Sampel</div>
+                    <div className="font-number font-bold">{num(data.latestWeightProposal.baselineSampleSize)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-tv-border bg-tv-bg p-4">
+                <div className="text-xs text-tv-muted uppercase mb-2">Proposal Optimizer</div>
+                <div className="font-bold text-tv-text">{weightText(data.latestWeightProposal.proposedWeights)}</div>
+                <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
+                  <div>
+                    <div className="text-tv-muted">Spread T+20</div>
+                    <div className="font-number font-bold text-tv-green">{pct(data.latestWeightProposal.proposedSpreadT20)}</div>
+                  </div>
+                  <div>
+                    <div className="text-tv-muted">p-value</div>
+                    <div className="font-number font-bold">{pValue(data.latestWeightProposal.proposedPValue)}</div>
+                  </div>
+                  <div>
+                    <div className="text-tv-muted">Sampel</div>
+                    <div className="font-number font-bold">{num(data.latestWeightProposal.proposedSampleSize)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </section>

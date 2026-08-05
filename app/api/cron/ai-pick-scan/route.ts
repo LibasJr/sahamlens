@@ -4,6 +4,7 @@ import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
 import { scanAiPickScores } from '@/modules/recommendation/service/ai-pick-scan.service';
 import { writeAiPickScores } from '@/shared/cache/ai-pick-cache';
+import { archiveLensRadarHistory } from '@/modules/lens-radar/service/history-archive.service';
 
 export const maxDuration = 300;
 
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest) {
     const result = await withJobRunLog('ai-pick-scan', async () => {
       const { scores, bearishSymbols } = await scanAiPickScores();
       await writeAiPickScores({ computedAt: new Date().toISOString(), scores, bearishSymbols });
-      return { scored: scores.length, bearish: bearishSymbols.length };
+      const archived = await archiveLensRadarHistory(scores);
+      return { scored: scores.length, bearish: bearishSymbols.length, archived };
     });
     return NextResponse.json({ success: true, result });
   } catch (err) {

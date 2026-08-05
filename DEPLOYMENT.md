@@ -24,6 +24,26 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - LensScore auto re-weight proposal (manual approval)
+
+- Service baru `modules/lens-radar/service/lens-score-optimizer.service.ts`.
+- Vercel Cron baru: `GET /api/cron/lens-score-optimizer`, schedule `0 11 * * 0` UTC =
+  Minggu 18:00 WIB, protected dengan `CRON_SECRET`.
+- Optimizer membaca `lens_bucket_stats` 90 hari terakhir untuk menentukan window validasi, lalu
+  memakai histori point-in-time `lens_radar_history` yang punya breakdown komponen
+  `technical_score`, `fundamental_score`, `flow_score` untuk simulasi bobot baru.
+- Schema `lens_radar_history` ditambah kolom idempoten: `technical_score`,
+  `fundamental_score`, `flow_score`, `coverage_pct`, `updated_at`.
+- Cron `ai-pick-scan` sekarang mengarsipkan skor harian LensRadar ke `lens_radar_history`
+  setelah menulis cache Redis, supaya optimizer punya data komponen real untuk run berikutnya.
+- Tabel baru `lens_weight_proposals` menyimpan proposal bobot: baseline weights, proposed
+  weights, spread T+20, p-value, jumlah sampel, status, reason, dan window 90 hari.
+- Status proposal bisa `PENDING_APPROVAL`, `INSUFFICIENT_STATS`,
+  `INSUFFICIENT_COMPONENT_HISTORY`, atau `NO_VALID_CANDIDATE`. Tidak ada perubahan otomatis ke
+  bobot production; admin tetap harus approve/manual apply.
+- `/admin/calibration` sekarang menampilkan kartu "Rekomendasi Bobot Baru" dari proposal terbaru.
+- Tidak ada env var baru; reuse `CRON_SECRET` yang sudah diset untuk Vercel Cron.
+
 ### 2026-08-05 - Public Transparency Page LensRadar
 
 - Halaman publik baru: `/transparency`, bisa diakses tanpa login.
@@ -338,10 +358,16 @@ supaya tidak bisa dipicu publik.
 | Endpoint | Nama job | Cron (UTC) | Setara WIB | Config | Guard |
 |---|---|---|---|---|---|
 | `/api/cron/lens-bucket-backtest` | `lens-bucket-backtest` | `0 10 * * 1-5` | 17:00 Senin-Jumat | `vercel.json` | `Authorization: Bearer <CRON_SECRET>` |
+| `/api/cron/lens-score-optimizer` | `lens-score-optimizer` | `0 11 * * 0` | 18:00 Minggu | `vercel.json` | `Authorization: Bearer <CRON_SECRET>` |
 
 Catatan operasional: job ini membaca `lens_radar_history`, mengambil open H+1 dari Yahoo
 OHLC lewat layer teknikal yang sudah ada, lalu menyimpan agregat ke `lens_bucket_stats`.
 Kalau `CRON_SECRET` belum diset di Vercel Production, request cron akan 401 by design.
+
+`lens-score-optimizer` hanya membuat proposal bobot di `lens_weight_proposals`, tidak
+mengubah bobot production secara otomatis. Kalau proposal berstatus
+`INSUFFICIENT_COMPONENT_HISTORY`, tunggu beberapa run `ai-pick-scan` karena breakdown
+komponen baru mulai diarsipkan ke `lens_radar_history` sejak perubahan 2026-08-05 ini.
 
 ## Jadwal QStash
 
