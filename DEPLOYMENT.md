@@ -24,6 +24,14 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - Brand icon scope di header SahamLens
+
+- Ikon kecil di sebelah teks "SahamLens" pada landing header, auth shell, dan halaman
+  market category diganti dari logo lama/kotak "SL" menjadi `public/sahamlens-scope.png`.
+- Sidebar sudah memakai asset scope yang sama, jadi perubahan ini menyamakan identitas
+  brand antar halaman.
+- Tidak ada perubahan env var, dependency, cron, cache, atau aturan scoring.
+
 ### 2026-08-05 - LensRadar scanner tetap tampil saat advisory belum tervalidasi
 
 - `/api/ai-pick` sekarang tetap mengirim ranking hasil scan data real sebagai scanner/pantauan
