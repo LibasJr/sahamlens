@@ -3,6 +3,16 @@
 Catatan ini buat siapa pun/AI apa pun (Gemini, Cursor, Claude, dst) yang lanjutin kerjaan deploy
 atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel (2026-07-29).
 
+## Aturan wajib saat ada perubahan
+
+- **Setiap perubahan kode/config/dependency/job/deployment harus ikut memperbarui `DEPLOYMENT.md`
+  bila berdampak ke cara build, deploy, env var, cron/QStash, smoke test, cache, gating akses,
+  atau jebakan operasional.**
+- Kalau perubahan murni UI/logic kecil dan tidak mengubah cara deploy, tetap tambahkan catatan
+  singkat di bagian "Log perubahan deployment" kalau commit itu sudah dipush ke production/main.
+- Jangan mengandalkan ingatan percakapan AI. Keputusan operasional yang penting harus tertulis
+  di dokumen ini supaya agen berikutnya tidak mengulang jebakan lama.
+
 ## Status live
 
 - **Production URL**: https://sahamlens.vercel.app
@@ -11,6 +21,32 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 - **Vercel project**: `libas/trading` (projectId `prj_buCsXaT6sXen6LwAmeMcNLCBkYSO`, orgId `team_L8xvUeG8WKjNY8R0o9h8k8wE` - lihat `.vercel/project.json`)
 - **GitHub**: `github.com/LibasJr/sahamlens`, branch `main`, sudah di-connect ke project Vercel di atas lewat `vercel link`.
 - Vercel CLI di mesin dev sudah login sebagai akun `libasjr`. Kalau sesi expired, perlu `npx vercel login` ulang (device auth flow, buka browser).
+
+## Log perubahan deployment
+
+### 2026-08-05 - Quant/data integrity audit (`23e8229`)
+
+- Commit `23e8229 Audit SahamLens quant data integrity` sudah dipush ke `origin/main`.
+- Auto-deploy Vercel seharusnya terpicu dari push ke `main` sesuai pola yang sudah terverifikasi.
+  Status Ready production **tetap harus dicek** dengan `npx vercel ls` setelah push.
+- Validasi lokal sebelum push:
+  - `npm.cmd run typecheck` lulus.
+  - `npm.cmd test` lulus: 51 file, 423 test.
+  - `npm.cmd run build` lulus.
+  - `git diff --check` bersih.
+- Perubahan operasional penting:
+  - AI Pick/Breakout kini fail-closed untuk setup trading: TP/CL hanya muncul kalau setup
+    struktur + ATR punya RR minimal 1.5.
+  - LensScore tetap ditahan sebagai rekomendasi aksi sampai validasi model point-in-time
+    tersedia (`modules/validation/service/lens-score-validation.service.ts`).
+  - Endpoint fundamental kini mengirim `dataQuality` berbasis identity checks PER/PBV/ROE.
+  - `estimateFullDayVolume()` memakai profil intraday U-shape konservatif, bukan linear.
+  - Backtest limitation menambahkan catatan restatement AdjClose/corporate action.
+- Smoke test yang perlu diprioritaskan setelah deployment Ready:
+  - `/api/ai-pick` harus boleh kosong dengan `modelValidation.validated=false`, bukan error.
+  - `/api/fundamental/BBCA.JK` harus menyertakan field `dataQuality`.
+  - `/api/daily-picks` harus tetap respons, termasuk kategori `relativeStrength`.
+  - `/breakout-radar` harus tetap render walau setup TP/CL null untuk sebagian saham.
 
 ## Cara deploy ulang setelah ubah kode
 
