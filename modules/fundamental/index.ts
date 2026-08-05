@@ -18,6 +18,12 @@ export { analyze as analyzeNetMargin } from './service/analyzers/net-margin-anal
 // baik oleh route itu sendiri maupun Valuation Agent di orkestrator multi-agent.
 export { calculateIntrinsicValue, calculateDcfModel } from './service/dcf-valuation.service';
 
+// Audit skor fundamental 2026-08-05 - pemisahan "murah/mahal" (valuasi, dari MOS) vs
+// "bagus/buruk" (kualitas bisnis, dari vote 13-analyzer) yang sebelumnya tercampur jadi
+// satu label "UNDERVALUED/OVERVALUED" yang salah kaprah. Lihat catatan lengkap di
+// consensus-labels.service.ts.
+export { computeFundamentalQuality, computeValuationLabel, type FundamentalQuality } from './service/consensus-labels.service';
+
 // Backend real halaman /dividend (2026-08-01) - lihat dividend-plan.service.ts untuk
 // alasan lengkap (menggantikan /api/live/[ticker] yang tidak pernah punya field quant.*).
 export { fetchDividendUniverse, buildDividendPlan, type DividendStock, type DividendPlanResult } from './service/dividend-plan.service';
