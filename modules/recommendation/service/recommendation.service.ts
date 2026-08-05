@@ -17,6 +17,11 @@ import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSign
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { evaluateMinimalEligibility } from '@/modules/eligibility';
+import {
+  PRICE_ADJUSTMENT_VERSION,
+  RETURN_PRICE_BASIS,
+  TRADING_PRICE_BASIS,
+} from '@/shared/market/price-basis';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -74,10 +79,11 @@ export async function analyzeStock(ticker: string) {
       typeof currentPrice !== 'number' || !Number.isFinite(currentPrice) || currentPrice <= 0 ||
       !Array.isArray(timestamps) || !quote
     ) return null;
-    // AdjClose (disesuaikan dividen, temuan M-01 - lihat yahoo-history.service.ts).
+    // AdjClose (disesuaikan dividen/split menurut Yahoo chart). FASE 3: tidak boleh
+    // fallback ke Close; kalau missing, indikator return-based fail-closed.
     const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
 
-    const history: Array<{ Date: string; Open: number; High: number; Low: number; Close: number; Volume: number; AdjClose: number }> = [];
+    const history: Array<{ Date: string; Open: number; High: number; Low: number; Close: number; Volume: number; AdjClose?: number }> = [];
     for (let i = 0; i < timestamps.length; i++) {
       const open = quote.open?.[i];
       const high = quote.high?.[i];
@@ -101,7 +107,7 @@ export async function analyzeStock(ticker: string) {
         Low: low,
         Close: close,
         Volume: volume,
-        AdjClose: typeof adj === 'number' && Number.isFinite(adj) && adj > 0 ? adj : close,
+        ...(typeof adj === 'number' && Number.isFinite(adj) && adj > 0 ? { AdjClose: adj } : {}),
       });
     }
 
@@ -273,15 +279,18 @@ export async function analyzeStock(ticker: string) {
       return null;
     }
 
-    // AdjClose (temuan M-01) - konsisten dengan analyzer tren di atas (analyzeEma/
-    // analyzeTrend/dst. yang menerima `history` yang sama dan sudah membaca AdjClose).
-    const closes = history.map(h => h.AdjClose ?? h.Close);
-    const ma20 = sma(closes, 20);
-    const ma50 = sma(closes, 50);
+    // FASE 3: MA/RSI/MACD/momentum berada pada RETURN_PRICE_BASIS. Jika AdjClose tidak
+    // lengkap, jangan fallback ke raw Close karena itu mencampur basis harga.
+    const adjustedCloses = history.every((h) => typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0)
+      ? history.map((h) => h.AdjClose as number)
+      : null;
+    const currentAdjustedPrice = adjustedCloses ? adjustedCloses[adjustedCloses.length - 1] : null;
+    const ma20 = adjustedCloses ? sma(adjustedCloses, 20) : null;
+    const ma50 = adjustedCloses ? sma(adjustedCloses, 50) : null;
     // BUG FIX (audit 2026-08-05, temuan H-2): `Math.min(200, closes.length)` membuat saham
     // dengan histori pendek tetap mendapat angka yang dinamai MA200 (padahal itu rata-rata
     // 60/80 hari). `sma()` mengembalikan null kalau bar kurang dari 200 - itu yang benar.
-    const ma200 = sma(closes, 200);
+    const ma200 = adjustedCloses ? sma(adjustedCloses, 200) : null;
 
     // BUG FIX (audit integritas data 2026-08-03, temuan M-03): sama seperti app/api/stock/
     // [ticker]/route.ts - dulu parse string `value`, sekarang pakai `raw` (angka asli).
@@ -296,7 +305,7 @@ export async function analyzeStock(ticker: string) {
     const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
     const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
-    const volAvg20 = closes.length >= 20
+    const volAvg20 = history.length >= 20
       ? history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20
       : avgVolume;
 
@@ -304,6 +313,12 @@ export async function analyzeStock(ticker: string) {
       ticker.replace('.JK', ''),
       {
         currentPrice,
+        currentRawPrice: currentPrice,
+        currentAdjustedPrice,
+        currentPriceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+        maPriceBasis: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+        adjustmentVersion: PRICE_ADJUSTMENT_VERSION,
+        corporateActionStatus: 'NONE',
         ma20,
         ma50,
         ma200,
@@ -348,6 +363,14 @@ export async function analyzeStock(ticker: string) {
       ticker: ticker.replace('.JK', ''),
       sector: sector,
       price: currentPrice,
+      priceMeta: {
+        raw: currentPrice,
+        adjusted: currentAdjustedPrice,
+        basis_used_for_score: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+        basis_used_for_trading_levels: TRADING_PRICE_BASIS,
+        adjustment_version: PRICE_ADJUSTMENT_VERSION,
+        corporate_action_status: 'NONE',
+      },
       changePct: parseFloat(changePct.toFixed(2)),
       volume: volume,
       consensus,

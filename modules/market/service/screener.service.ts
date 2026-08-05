@@ -14,6 +14,10 @@ import {
   type EligibilityResult,
   type EligibilityStatus,
 } from '@/modules/eligibility';
+import {
+  PRICE_ADJUSTMENT_VERSION,
+  RETURN_PRICE_BASIS,
+} from '@/shared/market/price-basis';
 
 // Backend nyata untuk /screener - sebelumnya halaman itu memanggil /api/live/[ticker]
 // (cuma quote harga satu simbol), padahal UI-nya butuh 10 saham teratas dengan 10+
@@ -209,10 +213,15 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     let patternTag: string | null = null;
     let eligibility: EligibilityResult | null = null;
     if (hasFullHistory) {
-      const closes = history.map((h) => h.AdjClose ?? h.Close);
-      const ma20 = sma(closes, 20);
-      const ma50 = sma(closes, 50);
-      const ma200 = sma(closes, 200);
+      // FASE 3: return-based indicators memakai adjusted close eksplisit. Kalau satu
+      // bar missing AdjClose, MA/RSI/MACD fail-closed; tidak fallback ke raw Close.
+      const adjustedCloses = history.every((h) => typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0)
+        ? history.map((h) => h.AdjClose as number)
+        : null;
+      const currentAdjustedPrice = adjustedCloses ? adjustedCloses[adjustedCloses.length - 1] : null;
+      const ma20 = adjustedCloses ? sma(adjustedCloses, 20) : null;
+      const ma50 = adjustedCloses ? sma(adjustedCloses, 50) : null;
+      const ma200 = adjustedCloses ? sma(adjustedCloses, 200) : null;
 
       // BUG FIX Phase 0 (P1-14 Tahap 1 / temuan C-7, disamakan dengan app/api/stock/
       // [ticker] dan ai-pick-scan.service.ts): fallback `: 50` untuk RSI dan `: 0` untuk
@@ -253,6 +262,12 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
         ticker.replace('.JK', ''),
         {
           currentPrice: price,
+          currentRawPrice: price,
+          currentAdjustedPrice,
+          currentPriceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+          maPriceBasis: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+          adjustmentVersion: PRICE_ADJUSTMENT_VERSION,
+          corporateActionStatus: 'NONE',
           // BUG FIX Phase 0 (temuan H-2): `?? 0` DIHAPUS. Harga selalu > 0, sehingga
           // "harga > MA200(0)" dulu SELALU true dan memberi poin uptrend gratis untuk
           // saham yang MA-nya belum bisa dihitung. null = tidak dinilai.

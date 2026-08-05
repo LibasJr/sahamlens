@@ -8,6 +8,15 @@ import {
   hasCorporateActionGap,
 } from './history-return-utils';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import {
+  PRICE_ADJUSTMENT_VERSION,
+  RETURN_PRICE_BASIS,
+  calculateForwardReturnPct,
+  normalizeYahooOhlcRows,
+  selectPriceSeries,
+  type CorporateActionStatus,
+  type PriceBasis,
+} from '@/shared/market/price-basis';
 
 export const LENS_BUCKET_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 
@@ -24,11 +33,22 @@ export interface LensRadarHistoryEntry {
   close_price: number | string;
   market_cap: number | string | null;
   score_version?: string | null;
+  raw_close_price?: number | string | null;
+  adjusted_close_price?: number | string | null;
+  price_basis?: PriceBasis | string | null;
+  adjustment_factor?: number | string | null;
+  corporate_action_status?: CorporateActionStatus | string | null;
+  price_data_timestamp?: string | Date | null;
+  price_data_version?: string | null;
 }
 
 export interface DailyOpenBar {
   date: string;
   open: number;
+  close?: number;
+  priceBasis?: PriceBasis;
+  adjustmentVersion?: string;
+  corporateActionStatus?: CorporateActionStatus;
 }
 
 export interface LensBucketStat {
@@ -52,6 +72,8 @@ export interface LensBucketBacktestResult {
   unversionedRows: number;
   versionMixed: boolean;
   versionRejectedReason: string | null;
+  priceBasis: PriceBasis;
+  priceDataVersion: string;
   sourceRows: number;
   uniqueTickers: number;
   roundTripCostPct: number;
@@ -71,6 +93,11 @@ interface NormalizedEntry {
   ticker: string;
   lensScore: number;
   closePrice: number;
+  rawClosePrice: number | null;
+  adjustedClosePrice: number;
+  priceBasis: PriceBasis;
+  adjustmentVersion: string;
+  corporateActionStatus: CorporateActionStatus;
   marketCap: number | null;
   bucket: LensScoreBucket;
 }
@@ -78,9 +105,16 @@ interface NormalizedEntry {
 class YahooDailyOpenProvider implements DailyOpenProvider {
   async getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]> {
     const history = await fetchYahooHistory(ticker, '5y');
-    return (history?.history ?? [])
-      .map((bar) => ({ date: bar.Date.split('T')[0], open: bar.Open }))
-      .filter((bar) => isFinitePositive(bar.open));
+    const normalized = normalizeYahooOhlcRows(history?.history ?? [], ticker, history?.regularMarketTime ? new Date(history.regularMarketTime * 1000).toISOString() : null);
+    return selectPriceSeries(normalized, RETURN_PRICE_BASIS).bars
+      .map((bar) => ({
+        date: bar.date,
+        open: bar.open,
+        close: bar.close,
+        priceBasis: bar.basis,
+        adjustmentVersion: bar.adjustmentVersion,
+        corporateActionStatus: bar.corporateActionStatus,
+      }));
   }
 }
 
@@ -111,6 +145,15 @@ function bucketFor(score: number): LensScoreBucket | null {
   return '<60';
 }
 
+function isValidCorporateActionStatus(status: CorporateActionStatus | string | null | undefined): status is CorporateActionStatus {
+  return !status || ![
+    'SUSPECTED_CORPORATE_ACTION',
+    'UNRESOLVED_CORPORATE_ACTION',
+    'LEGACY_UNKNOWN_PRICE_BASIS',
+    'UNRESOLVED_SECURITY_IDENTITY',
+  ].includes(status);
+}
+
 function roundPct(value: number | null): number | null {
   if (value == null || !Number.isFinite(value)) return null;
   return Math.round(value * 100) / 100;
@@ -132,12 +175,33 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedEntry[] {
       const date = dateKey(row.date);
       const ticker = typeof row.ticker === 'string' ? row.ticker.trim().toUpperCase() : '';
       const lensScore = finiteNumber(row.lens_score);
-      const closePrice = finiteNumber(row.close_price);
+      const rawClosePrice = finiteNumber(row.raw_close_price ?? row.close_price);
+      const adjustedClosePrice = finiteNumber(row.adjusted_close_price ?? null);
+      const priceBasis = row.price_basis === RETURN_PRICE_BASIS ? RETURN_PRICE_BASIS : 'UNKNOWN';
       const marketCap = finiteNumber(row.market_cap);
-      if (!date || !ticker || lensScore == null || !isFinitePositive(closePrice)) return null;
+      if (
+        !date ||
+        !ticker ||
+        lensScore == null ||
+        priceBasis !== RETURN_PRICE_BASIS ||
+        !isFinitePositive(adjustedClosePrice) ||
+        !isValidCorporateActionStatus(row.corporate_action_status)
+      ) return null;
       const bucket = bucketFor(lensScore);
       if (!bucket) return null;
-      return { date, ticker, lensScore, closePrice, marketCap, bucket };
+      return {
+        date,
+        ticker,
+        lensScore,
+        closePrice: adjustedClosePrice,
+        rawClosePrice,
+        adjustedClosePrice,
+        priceBasis,
+        adjustmentVersion: row.price_data_version ?? PRICE_ADJUSTMENT_VERSION,
+        corporateActionStatus: (row.corporate_action_status as CorporateActionStatus) ?? 'NONE',
+        marketCap,
+        bucket,
+      };
     })
     .filter((row): row is NormalizedEntry => row !== null)
     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
@@ -183,7 +247,11 @@ async function loadOpenMaps(
       bars: await provider.getDailyOpenBars(ticker).catch(() => []),
     })));
     for (const { ticker, bars } of barsList) {
-      result.set(ticker, new Map(bars.map((bar) => [bar.date, bar.open])));
+      result.set(ticker, new Map(
+        bars
+          .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
+          .map((bar) => [bar.date, bar.open])
+      ));
     }
   }
   return result;
@@ -232,8 +300,41 @@ export async function calculateLensBucketStats(
       const addReturn = (horizon: ForwardHorizon, exit: NormalizedEntry | null) => {
         if (!exit || !isFinitePositive(exit.closePrice)) return;
         if (hasCorporateActionGap(series, entry.date, exit.date)) return;
-        const grossPct = ((exit.closePrice / entryOpen) - 1) * 100;
-        const netReturn = grossPct - LENS_BUCKET_ROUND_TRIP_COST_PCT;
+        const ret = calculateForwardReturnPct({
+          ticker,
+          entryBar: {
+            date: entry.date,
+            ticker,
+            raw: { open: null, high: null, low: null, close: entry.rawClosePrice },
+            adjusted: { open: entryOpen, high: null, low: null, close: entry.adjustedClosePrice },
+            adjustmentFactor: null,
+            adjustmentStatus: 'DERIVED_FROM_ADJUSTMENT_FACTOR',
+            corporateActionStatus: entry.corporateActionStatus,
+            basisAvailability: { raw: false, adjusted: true },
+            source: 'LENS_RADAR_HISTORY+YAHOO_CHART',
+            dataTimestamp: null,
+            metadata: { priceBasis: RETURN_PRICE_BASIS, adjustmentSource: 'YAHOO_CHART_ADJCLOSE', adjustmentTimestamp: null, adjustmentVersion: entry.adjustmentVersion },
+          },
+          exitBar: {
+            date: exit.date,
+            ticker,
+            raw: { open: null, high: null, low: null, close: exit.rawClosePrice },
+            adjusted: { open: null, high: null, low: null, close: exit.adjustedClosePrice },
+            adjustmentFactor: null,
+            adjustmentStatus: 'DERIVED_FROM_ADJUSTMENT_FACTOR',
+            corporateActionStatus: exit.corporateActionStatus,
+            basisAvailability: { raw: false, adjusted: true },
+            source: 'LENS_RADAR_HISTORY',
+            dataTimestamp: null,
+            metadata: { priceBasis: RETURN_PRICE_BASIS, adjustmentSource: 'YAHOO_CHART_ADJCLOSE', adjustmentTimestamp: null, adjustmentVersion: exit.adjustmentVersion },
+          },
+          basis: RETURN_PRICE_BASIS,
+          entryField: 'open',
+          exitField: 'close',
+          roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
+        });
+        if (ret.status !== 'OK' || ret.returnPct == null) return;
+        const netReturn = ret.returnPct;
         returns[signal.bucket][horizon].push(netReturn);
         if (horizon === 'T20') {
           t20DatedReturns[signal.bucket].push({ date: signal.date, returnPct: netReturn });
@@ -267,6 +368,8 @@ export async function calculateLensBucketStats(
     unversionedRows: partition.unversionedCount,
     versionMixed: partition.mixed,
     versionRejectedReason: partition.rejectedReason,
+    priceBasis: RETURN_PRICE_BASIS,
+    priceDataVersion: PRICE_ADJUSTMENT_VERSION,
     sourceRows: normalized.length,
     uniqueTickers: tickers.length,
     roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
@@ -277,7 +380,9 @@ export async function calculateLensBucketStats(
 export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
+           raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+           corporate_action_status, price_data_timestamp, price_data_version
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -300,9 +405,10 @@ export async function saveLensBucketStats(
         run_date, bucket, avg_t1, avg_t5, avg_t20,
         win_rate_t5, win_rate_t20, max_drawdown_t20,
         avg_win_t20, avg_loss_t20, total_samples,
-        source_rows, unique_tickers, round_trip_cost_pct, score_version, updated_at
+        source_rows, unique_tickers, round_trip_cost_pct, score_version,
+        price_basis, price_data_version, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
       ON CONFLICT (run_date, bucket) DO UPDATE SET
         avg_t1 = EXCLUDED.avg_t1,
         avg_t5 = EXCLUDED.avg_t5,
@@ -317,6 +423,8 @@ export async function saveLensBucketStats(
         unique_tickers = EXCLUDED.unique_tickers,
         round_trip_cost_pct = EXCLUDED.round_trip_cost_pct,
         score_version = EXCLUDED.score_version,
+        price_basis = EXCLUDED.price_basis,
+        price_data_version = EXCLUDED.price_data_version,
         updated_at = now()
       `,
       [
@@ -335,6 +443,8 @@ export async function saveLensBucketStats(
         result.uniqueTickers,
         result.roundTripCostPct,
         result.scoreVersion,
+        result.priceBasis,
+        result.priceDataVersion,
       ]
     );
     saved++;

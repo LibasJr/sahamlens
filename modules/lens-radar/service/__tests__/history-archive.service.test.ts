@@ -6,6 +6,7 @@ import {
   SIGNAL_VERSION,
   VALUATION_VERSION,
 } from '../../constants/model-version';
+import { PRICE_ADJUSTMENT_VERSION, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
 
 vi.mock('@/shared/database/schema.service', () => ({
   ensureSharedSchema: async () => {},
@@ -52,6 +53,13 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
       'signal_version',
       'data_snapshot_version',
       'calculation_timestamp',
+      'raw_close_price',
+      'adjusted_close_price',
+      'price_basis',
+      'adjustment_factor',
+      'corporate_action_status',
+      'price_data_timestamp',
+      'price_data_version',
     ]) {
       expect(sql).toContain(column);
     }
@@ -61,7 +69,10 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
     expect(params).toContain(SIGNAL_VERSION);
     expect(params).toContain(DATA_SNAPSHOT_VERSION);
 
-    const timestamp = params[params.length - 1];
+    expect(params).toContain(TRADING_PRICE_BASIS);
+    expect(params).toContain(PRICE_ADJUSTMENT_VERSION);
+
+    const timestamp = params.find((param) => typeof param === 'string' && Number.isFinite(Date.parse(param as string)));
     expect(typeof timestamp).toBe('string');
     expect(Number.isFinite(Date.parse(timestamp as string))).toBe(true);
   });

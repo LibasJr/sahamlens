@@ -42,9 +42,24 @@ import {
   impliedMultiples,
   scoreMultipleRatio,
 } from '@/modules/fundamental/service/fair-multiples.service';
+import {
+  PRICE_ADJUSTMENT_VERSION,
+  RETURN_PRICE_BASIS,
+  TRADING_PRICE_BASIS,
+  type CorporateActionStatus,
+  type PriceBasis,
+} from '@/shared/market/price-basis';
 
 export interface TechnicalInput {
+  /** Backward-compatible display/current field. Fase 3: basis eksplisit tetap wajib
+   * untuk MA/trend scoring; gunakan currentRawPrice/currentAdjustedPrice di bawah. */
   currentPrice: number | null;
+  currentRawPrice?: number | null;
+  currentAdjustedPrice?: number | null;
+  currentPriceBasis?: PriceBasis | null;
+  maPriceBasis?: PriceBasis | null;
+  adjustmentVersion?: string | null;
+  corporateActionStatus?: CorporateActionStatus | null;
   ma20: number | null;
   ma50: number | null;
   /** WAJIB null kalau histori < 200 bar - jangan pernah mengirim rata-rata bar seadanya
@@ -157,6 +172,14 @@ interface Component {
 export interface ScoringResult {
   simbol: string;
   harga: number | null;
+  price?: {
+    raw: number | null;
+    adjusted: number | null;
+    basis_used_for_score: PriceBasis;
+    basis_used_for_trading_levels: PriceBasis;
+    adjustment_version: string;
+    corporate_action_status: CorporateActionStatus;
+  };
   technical_score: number;
   fundamental_score: number;
   flow_score: number;
@@ -229,7 +252,24 @@ function scoreMATrend(t: TechnicalInput): Component {
   if (t.currentPrice == null || t.ma20 == null || t.ma50 == null || t.ma200 == null) {
     return NA('ma_trend', MAX, 'Tren MA');
   }
-  const p = t.currentPrice;
+  const maBasis = t.maPriceBasis ?? 'UNKNOWN';
+  const currentBasis = t.currentPriceBasis ?? 'UNKNOWN';
+  // FASE 3 - H-4: MA adjusted tidak boleh dibandingkan dengan current raw, dan
+  // sebaliknya. Jika pemanggil belum memberi basis, komponen trend fail-closed. Ini
+  // sengaja hanya mematikan sub-komponen MA, bukan seluruh skor, agar kontrak lama masih
+  // bisa menampilkan komponen lain sambil menyatakan data trend tidak layak dinilai.
+  if (maBasis === 'UNKNOWN' || currentBasis === 'UNKNOWN') {
+    return NA('ma_trend', MAX, 'Tren MA (LEGACY_UNKNOWN_PRICE_BASIS)');
+  }
+  if (maBasis !== currentBasis) {
+    return NA('ma_trend', MAX, `Tren MA (PRICE_BASIS_MISMATCH ${currentBasis} vs ${maBasis})`);
+  }
+  const p = maBasis === RETURN_PRICE_BASIS || maBasis === 'SPLIT_ADJUSTED'
+    ? t.currentAdjustedPrice
+    : t.currentRawPrice;
+  if (p == null || !Number.isFinite(p) || p <= 0) {
+    return NA('ma_trend', MAX, maBasis === 'RAW' ? 'Tren MA (MISSING_RAW_PRICE)' : 'Tren MA (MISSING_ADJUSTED_PRICE)');
+  }
   if (p > t.ma20 && t.ma20 > t.ma50 && t.ma50 > t.ma200) {
     return { key: 'ma_trend', availableMax: MAX, declaredMax: MAX, available: true, score: 15, reason: `Uptrend sempurna P:${Math.round(p)} > MA20:${Math.round(t.ma20)} > MA50:${Math.round(t.ma50)} > MA200:${Math.round(t.ma200)}` };
   }
@@ -251,7 +291,12 @@ function scoreMATrend(t: TechnicalInput): Component {
  * Sengaja hanya tiga kelas dan hanya dari MA yang SUDAH dihitung di tempat lain: ini
  * penafsir konteks, bukan indikator baru yang perlu divalidasi sendiri. */
 function trendRegime(t: TechnicalInput): 'UP' | 'DOWN' | 'SIDEWAYS' | null {
-  const p = t.currentPrice;
+  const maBasis = t.maPriceBasis ?? 'UNKNOWN';
+  const currentBasis = t.currentPriceBasis ?? 'UNKNOWN';
+  if (maBasis === 'UNKNOWN' || currentBasis === 'UNKNOWN' || maBasis !== currentBasis) return null;
+  const p = maBasis === RETURN_PRICE_BASIS || maBasis === 'SPLIT_ADJUSTED'
+    ? t.currentAdjustedPrice
+    : t.currentRawPrice;
   if (p == null || t.ma50 == null || t.ma200 == null) return null;
   if (p > t.ma50 && t.ma50 > t.ma200) return 'UP';
   if (p < t.ma50 && t.ma50 < t.ma200) return 'DOWN';
@@ -769,8 +814,11 @@ export function calculateScore(
     : [...sortedReasons.slice(0, 2), sortedReasons[sortedReasons.length - 1]].map((c) => c.reason);
 
   let risk = '';
-  if (technical.ma20 != null && technical.currentPrice != null && technical.currentPrice > 0) {
-    const supportDist = ((technical.currentPrice - technical.ma20) / technical.currentPrice) * 100;
+  const riskPrice = technical.maPriceBasis === RETURN_PRICE_BASIS || technical.maPriceBasis === 'SPLIT_ADJUSTED'
+    ? technical.currentAdjustedPrice
+    : technical.currentRawPrice ?? technical.currentPrice;
+  if (technical.ma20 != null && riskPrice != null && riskPrice > 0) {
+    const supportDist = ((riskPrice - technical.ma20) / riskPrice) * 100;
     risk = `Support MA20 di ${Math.round(technical.ma20)} (${supportDist > 0 ? '-' : '+'}${Math.abs(supportDist).toFixed(1)}%)`;
   }
   if (technical.rsi != null && technical.rsi > 78) {
@@ -789,7 +837,15 @@ export function calculateScore(
 
   return {
     simbol,
-    harga: technical.currentPrice,
+    harga: technical.currentRawPrice ?? technical.currentPrice,
+    price: {
+      raw: technical.currentRawPrice ?? technical.currentPrice,
+      adjusted: technical.currentAdjustedPrice ?? null,
+      basis_used_for_score: technical.maPriceBasis ?? 'UNKNOWN',
+      basis_used_for_trading_levels: TRADING_PRICE_BASIS,
+      adjustment_version: technical.adjustmentVersion ?? PRICE_ADJUSTMENT_VERSION,
+      corporate_action_status: technical.corporateActionStatus ?? 'NONE',
+    },
     technical_score: Math.round(technicalGroup.score),
     fundamental_score: Math.round(fundamentalGroup.score),
     flow_score: Math.round(flowGroup.score),

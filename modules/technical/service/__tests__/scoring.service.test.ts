@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateScore, type TechnicalInput, type FundamentalInput, type FlowInput } from '../scoring.service';
+import { RETURN_PRICE_BASIS, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
 
 // Regresi untuk temuan audit logika & algoritma 2026-08-05 (C-7, H-1, H-2, H-14).
 // Semua kasus di bawah menguji SATU aturan: data yang tidak ada tidak boleh berubah
@@ -7,6 +8,10 @@ import { calculateScore, type TechnicalInput, type FundamentalInput, type FlowIn
 
 const fullTechnical: TechnicalInput = {
   currentPrice: 1000, ma20: 950, ma50: 900, ma200: 800,
+  currentRawPrice: 1000,
+  currentAdjustedPrice: 1000,
+  currentPriceBasis: RETURN_PRICE_BASIS,
+  maPriceBasis: RETURN_PRICE_BASIS,
   rsi: 60, macdHist: 5, macdLine: 10, macdSignal: 5,
   volToday: 2_000_000, volAvg20: 1_000_000,
   // Arah harga WAJIB dipasok untuk mendapat nilai volume penuh (P1-8): volume 2x
@@ -210,8 +215,8 @@ describe('P1-8 - volume tinggi tidak lagi diberi poin penuh tanpa arah harga', (
 
 describe('P1-7 - RSI ditafsirkan menurut rezim tren, sekali saja', () => {
   it('RSI rendah di UPTREND = pullback (bernilai), di DOWNTREND = bukan sinyal beli', () => {
-    const uptrend: TechnicalInput = { ...fullTechnical, currentPrice: 1000, ma50: 900, ma200: 800, rsi: 35 };
-    const downtrend: TechnicalInput = { ...fullTechnical, currentPrice: 800, ma50: 900, ma200: 1000, rsi: 35 };
+    const uptrend: TechnicalInput = { ...fullTechnical, currentPrice: 1000, currentRawPrice: 1000, currentAdjustedPrice: 1000, ma50: 900, ma200: 800, rsi: 35 };
+    const downtrend: TechnicalInput = { ...fullTechnical, currentPrice: 800, currentRawPrice: 800, currentAdjustedPrice: 800, ma50: 900, ma200: 1000, rsi: 35 };
     const a = calculateScore('X', uptrend, fullFundamental, fullFlow);
     const b = calculateScore('X', downtrend, fullFundamental, fullFlow);
     expect(a.detail.rsi as number).toBeGreaterThan(b.detail.rsi as number);
@@ -239,6 +244,59 @@ describe('calculateScore - gerbang kelengkapan data', () => {
     const result = calculateScore('X', fullTechnical, fullFundamental, fullFlow);
     expect(result.coverage_pct).toBe(100);
     expect(result.kategori).toBe('STRONG BUY');
+  });
+});
+
+describe('Fase 3 - MA dan current price wajib satu basis', () => {
+  it('MA adjusted dibandingkan current adjusted, bukan current raw', () => {
+    const result = calculateScore('SPLIT', {
+      ...fullTechnical,
+      currentPrice: 1000,
+      currentRawPrice: 1000,
+      currentAdjustedPrice: 200,
+      currentPriceBasis: RETURN_PRICE_BASIS,
+      maPriceBasis: RETURN_PRICE_BASIS,
+      ma20: 190,
+      ma50: 180,
+      ma200: 170,
+    }, fullFundamental, fullFlow);
+
+    expect(result.detail.ma_trend).toBe(15);
+    expect(result.harga).toBe(1000);
+    expect(result.price?.basis_used_for_score).toBe(RETURN_PRICE_BASIS);
+    expect(result.price?.basis_used_for_trading_levels).toBe(TRADING_PRICE_BASIS);
+  });
+
+  it('MA raw dibandingkan current raw saat basis trading-level dipakai eksplisit', () => {
+    const result = calculateScore('RAW', {
+      ...fullTechnical,
+      currentPrice: 1000,
+      currentRawPrice: 1000,
+      currentAdjustedPrice: 200,
+      currentPriceBasis: TRADING_PRICE_BASIS,
+      maPriceBasis: TRADING_PRICE_BASIS,
+      ma20: 950,
+      ma50: 900,
+      ma200: 800,
+    }, fullFundamental, fullFlow);
+
+    expect(result.detail.ma_trend).toBe(15);
+  });
+
+  it('kombinasi silang MA adjusted vs current raw fail-closed', () => {
+    const result = calculateScore('MISMATCH', {
+      ...fullTechnical,
+      currentRawPrice: 1000,
+      currentAdjustedPrice: 200,
+      currentPriceBasis: TRADING_PRICE_BASIS,
+      maPriceBasis: RETURN_PRICE_BASIS,
+      ma20: 190,
+      ma50: 180,
+      ma200: 170,
+    }, fullFundamental, fullFlow);
+
+    expect(result.detail.ma_trend).toBeNull();
+    expect(result.missing.join(' ')).toContain('PRICE_BASIS_MISMATCH');
   });
 });
 
@@ -347,7 +405,7 @@ describe('calculateScore - LensScore v1 tetap bekerja (backward compatibility)',
     const r = calculateScore('BBCA', fullTechnical, fullFundamental, fullFlow);
     expect(Object.keys(r).sort()).toEqual([
       'alasan_3_poin', 'coverage_pct', 'detail', 'flow_score', 'fundamental_score',
-      'harga', 'kategori', 'missing', 'not_applicable', 'risk', 'simbol',
+      'harga', 'kategori', 'missing', 'not_applicable', 'price', 'risk', 'simbol',
       'technical_score', 'total_score',
     ]);
     expect(r.simbol).toBe('BBCA');

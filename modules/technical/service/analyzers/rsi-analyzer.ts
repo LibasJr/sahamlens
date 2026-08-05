@@ -16,11 +16,13 @@ import { calculateRsi } from '../rsi';
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 15) return { label: 'RSI 14', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { rsi: null as number | null } };
 
-  // AdjClose (disesuaikan dividen, temuan M-01) kalau tersedia - hari ex-dividend tidak
-  // boleh dihitung sebagai "loss" murni di RSI kalau penurunannya semata pembagian
-  // dividen, bukan tekanan jual pasar.
-  const closes = history.map((h) => h.AdjClose ?? h.Close);
-  const rsi = calculateRsi(closes, 14);
+  // FASE 3: RSI return-based memakai adjusted close eksplisit. Missing adjusted price
+  // tidak boleh fallback ke raw Close.
+  const closes = history.map((h) => typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0 ? h.AdjClose : null);
+  if (closes.some((close) => close == null)) {
+    return { label: 'RSI 14', value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0, raw: { rsi: null as number | null } };
+  }
+  const rsi = calculateRsi(closes as number[], 14);
   if (rsi === null) return { label: 'RSI 14', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { rsi: null as number | null } };
 
   let decision = 'NEUTRAL';

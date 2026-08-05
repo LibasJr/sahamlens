@@ -174,6 +174,13 @@ export function ensureSharedSchema(): Promise<void> {
         signal_version TEXT,
         data_snapshot_version TEXT,
         calculation_timestamp TIMESTAMPTZ,
+        raw_close_price NUMERIC,
+        adjusted_close_price NUMERIC,
+        price_basis TEXT,
+        adjustment_factor NUMERIC,
+        corporate_action_status TEXT,
+        price_data_timestamp TIMESTAMPTZ,
+        price_data_version TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (date, ticker)
@@ -199,9 +206,25 @@ export function ensureSharedSchema(): Promise<void> {
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS calculation_timestamp TIMESTAMPTZ;
       ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS raw_close_price NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS adjusted_close_price NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS price_basis TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS adjustment_factor NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS corporate_action_status TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS price_data_timestamp TIMESTAMPTZ;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS price_data_version TEXT;
+      ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_ticker_date
         ON lens_radar_history (ticker, date);
+      CREATE INDEX IF NOT EXISTS idx_lens_radar_history_score_price_basis_date
+        ON lens_radar_history (score_version, price_basis, date);
 
       -- Agregasi validasi harian LensScore per bucket. Diisi Vercel Cron jam 17:00 WIB
       -- setelah sesi reguler bursa selesai. Idempoten per (run_date, bucket) supaya
@@ -222,6 +245,8 @@ export function ensureSharedSchema(): Promise<void> {
         unique_tickers INTEGER NOT NULL DEFAULT 0,
         round_trip_cost_pct NUMERIC NOT NULL DEFAULT 0.5,
         score_version TEXT,
+        price_basis TEXT,
+        price_data_version TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (run_date, bucket)
@@ -234,6 +259,10 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS avg_loss_t20 NUMERIC;
       ALTER TABLE lens_bucket_stats
         ADD COLUMN IF NOT EXISTS score_version TEXT;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS price_basis TEXT;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS price_data_version TEXT;
       CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_run_date
         ON lens_bucket_stats (run_date DESC);
       CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_score_version_run_date

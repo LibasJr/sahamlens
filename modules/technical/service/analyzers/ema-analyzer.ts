@@ -3,14 +3,14 @@
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 50) return { label: 'EMA 20/50 Cross', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { ema20: null as number | null, ema50: null as number | null } };
 
-  // BUG FIX (audit integritas data 2026-08-03, temuan M-01): pakai AdjClose (disesuaikan
-  // dividen, lihat yahoo-history.service.ts) kalau tersedia - MA/EMA trend murni
-  // mengukur arah harga, bukan level harga sungguhan untuk order, jadi tidak boleh
-  // "salah baca" penurunan harga di tanggal ex-dividend sebagai sinyal bearish pasar.
-  // Fallback ke Close untuk pemanggil yang belum menyediakan AdjClose.
-  const closes = history.map(h => h.AdjClose ?? h.Close);
-  const ema20 = calculateEMA(closes, 20);
-  const ema50 = calculateEMA(closes, 50);
+  // FASE 3: EMA return-based memakai adjusted close eksplisit. Tidak boleh fallback
+  // ke Close karena itu mencampur basis harga di tengah seri.
+  const closes = history.map(h => typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0 ? h.AdjClose : null);
+  if (closes.some((close) => close == null)) {
+    return { label: 'EMA 20/50 Cross', value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0, raw: { ema20: null as number | null, ema50: null as number | null } };
+  }
+  const ema20 = calculateEMA(closes as number[], 20);
+  const ema50 = calculateEMA(closes as number[], 50);
 
   const lastEMA20 = ema20[ema20.length - 1];
   const lastEMA50 = ema50[ema50.length - 1];

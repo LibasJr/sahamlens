@@ -28,6 +28,7 @@ import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@
 import { classifyFreshness } from '@/shared/http/freshness';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -228,11 +229,12 @@ export async function GET(
     
     const timestamps = result.timestamp || [];
     const quote = result.indicators.quote[0];
-    // BUG FIX (audit integritas data 2026-08-03, temuan M-01): AdjClose (disesuaikan
-    // dividen, langsung dari Yahoo `indicators.adjclose`) - dipakai analyzer tren
+    // AdjClose dari Yahoo `indicators.adjclose` - dipakai analyzer tren
     // (EMA/MACD/RSI/MA/Momentum/Market Flow) supaya hari ex-dividend tidak terbaca
     // sebagai sinyal bearish murni dari pasar. `Close` TETAP dipakai apa adanya untuk
     // stock.history (candlestick yang ditampilkan ke pengguna) dan support/resistance.
+    // FASE 3: tidak ada fallback AdjClose -> Close. Missing adjusted price membuat
+    // indikator return-based N/A/fail-closed.
     const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
 
     // Convert to history array for analyzers
@@ -261,7 +263,7 @@ export async function GET(
           Low: low,
           Close: close,
           Volume: volume,
-          AdjClose: isFinitePositive(adj) ? adj : close,
+          ...(isFinitePositive(adj) ? { AdjClose: adj } : {}),
         });
       }
     }
@@ -402,20 +404,19 @@ export async function GET(
     const consensus = consensusData.konsensus;
 
     // === SCORING ENGINE: Hitung skor komposit 0-100 ===
-    // AdjClose (temuan M-01) - konsisten dengan MA Trend analyzer di atas, supaya
-    // komponen MA Trend scoring engine dan vote analyzer tidak dihitung dari basis
-    // harga yang berbeda untuk saham yang sama.
-    const closes = analyzerHistory.map(h => h.AdjClose ?? h.Close);
-    const sum20 = closes.slice(-20).reduce((a, b) => a + b, 0);
-    const sum50 = closes.slice(-50).reduce((a, b) => a + b, 0);
-    const sum200 = closes.slice(-Math.min(200, closes.length)).reduce((a, b) => a + b, 0);
+    // FASE 3: MA scoring memakai adjusted close eksplisit dan current adjusted dari
+    // bar terakhir. Jangan membandingkan MA adjusted dengan regularMarketPrice raw.
+    const adjustedCloses = analyzerHistory.every((h: any) => isFinitePositive(h.AdjClose))
+      ? analyzerHistory.map((h: any) => h.AdjClose as number)
+      : null;
+    const currentAdjustedPrice = adjustedCloses ? adjustedCloses[adjustedCloses.length - 1] : null;
     // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-2): ketiganya SEBELUMNYA
     // dibagi `Math.min(period, closes.length)` - saham dengan 60 bar menghasilkan
     // rata-rata 60 hari yang tetap diberi nama MA200, lalu dipakai membuat klaim
     // "Uptrend sempurna P > MA20 > MA50 > MA200" ke pengguna. Sekarang null kalau bar
     // belum cukup; scoring engine memperlakukan null sebagai data tidak tersedia.
     const maOf = (period: number): number | null =>
-      closes.length >= period ? closes.slice(-period).reduce((a, b) => a + b, 0) / period : null;
+      adjustedCloses && adjustedCloses.length >= period ? adjustedCloses.slice(-period).reduce((a, b) => a + b, 0) / period : null;
     const ma20 = maOf(20);
     const ma50 = maOf(50);
     const ma200v = maOf(200);
@@ -453,6 +454,12 @@ export async function GET(
       ticker,
       {
         currentPrice,
+        currentRawPrice: currentPrice,
+        currentAdjustedPrice,
+        currentPriceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+        maPriceBasis: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+        adjustmentVersion: PRICE_ADJUSTMENT_VERSION,
+        corporateActionStatus: 'NONE',
         ma20,
         ma50,
         ma200: ma200v,
@@ -532,6 +539,14 @@ export async function GET(
     const resultPayload = {
       ticker,
       price: currentPrice,
+      priceMeta: {
+        raw: currentPrice,
+        adjusted: currentAdjustedPrice,
+        basis_used_for_score: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+        basis_used_for_trading_levels: 'RAW',
+        adjustment_version: PRICE_ADJUSTMENT_VERSION,
+        corporate_action_status: 'NONE',
+      },
       analyzers: analyzersResult,
       consensus,
       consensusData,

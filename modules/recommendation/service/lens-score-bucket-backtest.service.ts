@@ -1,6 +1,7 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { logger } from '../../../shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../../lens-radar/constants/model-version';
+import { RETURN_PRICE_BASIS, type PriceBasis } from '../../../shared/market/price-basis';
 
 export const LENS_SCORE_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 export const LENS_SCORE_MIN_HISTORY_DAYS = 90;
@@ -17,6 +18,9 @@ export interface LensRadarHistoryRow {
   lens_score: number | string;
   close_price: number | string;
   score_version?: string | null;
+  adjusted_close_price?: number | string | null;
+  raw_close_price?: number | string | null;
+  price_basis?: PriceBasis | string | null;
 }
 
 export interface BucketHorizonStats {
@@ -78,7 +82,8 @@ function toDateKey(value: string | Date): string | null {
   return match ? match[0] : null;
 }
 
-function toFiniteNumber(value: number | string): number | null {
+function toFiniteNumber(value: number | string | null | undefined): number | null {
+  if (value == null || value === '') return null;
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : null;
 }
@@ -204,9 +209,9 @@ export function computeLensScoreBucketBacktest(
     .map((row) => {
       const date = toDateKey(row.date);
       const score = toFiniteNumber(row.lens_score);
-      const close = toFiniteNumber(row.close_price);
+      const close = toFiniteNumber(row.adjusted_close_price);
       const ticker = typeof row.ticker === 'string' ? row.ticker.trim().toUpperCase() : '';
-      if (!date || !ticker || score == null || close == null || close <= 0) return null;
+      if (!date || !ticker || row.price_basis !== RETURN_PRICE_BASIS || score == null || close == null || close <= 0) return null;
       const bucket = assignBucket(score);
       if (!bucket) return null;
       return { date, ticker, score, close, bucket };
@@ -284,7 +289,7 @@ export function computeLensScoreBucketBacktest(
     maxDate,
     rowsRead: normalized.length,
     roundTripCostPct: LENS_SCORE_ROUND_TRIP_COST_PCT,
-    entryRule: 'Sinyal close T, entry close H+1; horizon 1/5/20 dihitung dari entry aktual.',
+    entryRule: `Sinyal close T, entry close H+1 pada ${RETURN_PRICE_BASIS}; bar legacy/unknown price basis ditolak.`,
     buckets,
     tTests,
     note: ready
@@ -300,7 +305,8 @@ export async function runLensScoreBucketBacktest(
   try {
     const { rows } = await db.query(
       `
-      SELECT "date", ticker, lens_score, close_price, score_version
+      SELECT "date", ticker, lens_score, close_price, score_version,
+             raw_close_price, adjusted_close_price, price_basis
       FROM lens_radar_history
       WHERE lens_score IS NOT NULL
         AND close_price IS NOT NULL
