@@ -165,11 +165,26 @@ export function ensureSharedSchema(): Promise<void> {
         lens_score NUMERIC NOT NULL,
         close_price NUMERIC NOT NULL,
         market_cap NUMERIC,
+        technical_score NUMERIC,
+        fundamental_score NUMERIC,
+        flow_score NUMERIC,
+        coverage_pct NUMERIC,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (date, ticker)
       );
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS market_cap NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS technical_score NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS fundamental_score NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS flow_score NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS coverage_pct NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_ticker_date
         ON lens_radar_history (ticker, date);
 
@@ -203,6 +218,34 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS avg_loss_t20 NUMERIC;
       CREATE INDEX IF NOT EXISTS idx_lens_bucket_stats_run_date
         ON lens_bucket_stats (run_date DESC);
+
+      -- modules/lens-radar/service/lens-score-optimizer.service.ts
+      -- Proposal bobot LensScore dari optimizer mingguan. Tidak pernah dipakai otomatis
+      -- oleh scoring production; admin harus approve/manual apply di luar tabel ini.
+      CREATE TABLE IF NOT EXISTS lens_weight_proposals (
+        id BIGSERIAL PRIMARY KEY,
+        run_date DATE NOT NULL,
+        status TEXT NOT NULL,
+        reason TEXT,
+        baseline_weights JSONB NOT NULL,
+        proposed_weights JSONB,
+        baseline_spread_t20 NUMERIC,
+        proposed_spread_t20 NUMERIC,
+        baseline_p_value NUMERIC,
+        proposed_p_value NUMERIC,
+        baseline_sample_size INTEGER NOT NULL DEFAULT 0,
+        proposed_sample_size INTEGER NOT NULL DEFAULT 0,
+        component_sample_size INTEGER NOT NULL DEFAULT 0,
+        candidate_count INTEGER NOT NULL DEFAULT 0,
+        lookback_days INTEGER NOT NULL DEFAULT 90,
+        stats_window_start DATE,
+        stats_window_end DATE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        approved_at TIMESTAMPTZ,
+        approved_by TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_lens_weight_proposals_created
+        ON lens_weight_proposals (created_at DESC);
 
       -- shared/scheduler/job-run-log.repository.ts
       CREATE TABLE IF NOT EXISTS job_run_log (
