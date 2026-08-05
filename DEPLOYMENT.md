@@ -24,6 +24,22 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-05 - LensScore bucket backtest di LensRadar
+
+- Ditambahkan service `modules/recommendation/service/lens-score-bucket-backtest.service.ts`
+  yang membaca tabel `lens_radar_history` (`date`, `ticker`, `lens_score`, `close_price`)
+  dan menghitung bucket 80-100, 70-79, 60-69, `<60`.
+- Return dihitung dengan sinyal close T, entry di close H+1, horizon 1/5/20 hari bursa
+  dari entry aktual, lalu dikurangi biaya round-trip 0,5% (fee 0,4% + slippage 0,1%).
+- Output mencakup Avg Return, Win Rate, jumlah sampel, dan Welch t-test sederhana
+  bucket 80-100 vs 60-69.
+- Endpoint baru: `/api/lens-score-bucket-backtest`, gating sama seperti LensRadar
+  (trial anonim aktif/login Pro).
+- Halaman `/breakout-radar` menampilkan tabel validasi bucket sebagai pengganti pesan
+  kuning bila histori LensRadar sudah lebih dari 90 hari kalender.
+- Tidak ada env var baru. Perlu memastikan tabel production `lens_radar_history` benar-benar
+  terisi harian; jika tabel belum ada, endpoint mengembalikan histori belum siap, bukan 500.
+
 ### 2026-08-05 - Brand icon scope di header SahamLens
 
 - Ikon kecil di sebelah teks "SahamLens" pada landing header, auth shell, dan halaman

@@ -31,6 +31,33 @@ type AiPickItem = {
   topReasons?: string[];
 };
 
+type HorizonKey = 't1' | 't5' | 't20';
+type BucketBacktest = {
+  ready: boolean;
+  coverageDays: number;
+  tradingDays: number;
+  minDate: string | null;
+  maxDate: string | null;
+  roundTripCostPct: number;
+  entryRule: string;
+  buckets: {
+    bucket: string;
+    horizons: Record<HorizonKey, { avgReturnPct: number | null; winRatePct: number | null; samples: number }>;
+  }[];
+  tTests: Record<HorizonKey, {
+    meanDiffPct: number | null;
+    tStatistic: number | null;
+    degreesOfFreedom: number | null;
+    pValueApprox: number | null;
+    significantAt5Pct: boolean;
+    bucket80Better: boolean | null;
+    samples80: number;
+    samples60: number;
+    note: string;
+  }>;
+  note: string | null;
+};
+
 type RadarColumnKey = 'symbol' | 'price' | 'changePct' | 'finalScore';
 
 interface RadarSortableColumn {
@@ -60,6 +87,94 @@ function compareRadarValues(a: string | number | null | undefined, b: string | n
   return dir === 'asc' ? result : -result;
 }
 
+function fmtBacktestPct(value: number | null): string {
+  if (value == null) return 'N/A';
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+}
+
+function BucketBacktestCard({ data }: { data: BucketBacktest }) {
+  const horizons: { key: HorizonKey; label: string }[] = [
+    { key: 't1', label: 'T+1' },
+    { key: 't5', label: 'T+5' },
+    { key: 't20', label: 'T+20' },
+  ];
+  const primaryTest = data.tTests.t20;
+
+  return (
+    <div className="border-t border-tv-border bg-tv-bg/30 px-4 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="font-heading text-sm font-bold text-tv-text">Validasi Bucket LensScore</h3>
+          <p className="text-[11px] text-tv-muted mt-1">
+            Histori {data.coverageDays} hari kalender ({data.tradingDays} hari bursa), {data.minDate} sampai {data.maxDate}.
+            Return sudah dikurangi fee+slippage {data.roundTripCostPct.toFixed(1)}% round-trip.
+          </p>
+          <p className="text-[10px] text-tv-muted mt-1">{data.entryRule}</p>
+        </div>
+        <div className={`rounded-md border px-3 py-2 text-[11px] ${
+          primaryTest.bucket80Better && primaryTest.significantAt5Pct
+            ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
+            : 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
+        }`}>
+          80-100 vs 60-69 T+20:{' '}
+          {primaryTest.tStatistic == null
+            ? 'sampel belum cukup'
+            : `${primaryTest.bucket80Better ? 'lebih baik' : 'belum lebih baik'}; t=${primaryTest.tStatistic}, p≈${primaryTest.pValueApprox ?? 'N/A'}`}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-tv-border text-tv-muted uppercase font-semibold tracking-wide">
+              <th className="py-2 pr-3">Bucket</th>
+              {horizons.map((h) => (
+                <th key={h.key} className="py-2 px-3 text-right">{h.label} Avg</th>
+              ))}
+              {horizons.map((h) => (
+                <th key={`${h.key}-win`} className="py-2 px-3 text-right">{h.label} Win</th>
+              ))}
+              {horizons.map((h) => (
+                <th key={`${h.key}-n`} className="py-2 pl-3 text-right">{h.label} N</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-tv-border/70">
+            {data.buckets.map((bucket) => (
+              <tr key={bucket.bucket}>
+                <td className="py-2 pr-3 font-bold text-tv-text">{bucket.bucket}</td>
+                {horizons.map((h) => (
+                  <td key={h.key} className="py-2 px-3 text-right font-number text-tv-text">
+                    {fmtBacktestPct(bucket.horizons[h.key]?.avgReturnPct ?? null)}
+                  </td>
+                ))}
+                {horizons.map((h) => {
+                  const winRate = bucket.horizons[h.key]?.winRatePct ?? null;
+                  return (
+                    <td key={`${h.key}-win`} className="py-2 px-3 text-right font-number text-tv-muted">
+                      {winRate == null ? 'N/A' : `${winRate.toFixed(0)}%`}
+                    </td>
+                  );
+                })}
+                {horizons.map((h) => (
+                  <td key={`${h.key}-n`} className="py-2 pl-3 text-right font-number text-tv-muted">
+                    {bucket.horizons[h.key]?.samples ?? 0}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[10px] text-tv-muted mt-3">
+        T-test memakai Welch sederhana untuk membandingkan bucket 80-100 dengan 60-69. Ini bukti awal kalibrasi scanner,
+        bukan jaminan performa masa depan.
+      </p>
+    </div>
+  );
+}
+
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
 // memindai universe berbeda (15 vs 250 vs 220) sehingga angkanya tidak sebanding, isinya
@@ -72,6 +187,7 @@ export default function AiPickPage() {
   const [note, setNote] = useState<string | null>(null);
   const [computedAt, setComputedAt] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [bucketBacktest, setBucketBacktest] = useState<BucketBacktest | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -120,6 +236,15 @@ export default function AiPickPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/lens-score-bucket-backtest')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (d && !d.error) setBucketBacktest(d);
+      })
+      .catch(console.error);
   }, []);
 
   // Jam diambil dari computedAt milik cache, BUKAN jam client saat halaman dibuka -
@@ -183,9 +308,11 @@ export default function AiPickPage() {
               </p>
             )}
 
-            {!loading && ready && note && (
+            {!loading && ready && bucketBacktest?.ready ? (
+              <BucketBacktestCard data={bucketBacktest} />
+            ) : !loading && ready && note ? (
               <p className="px-4 pt-3 text-xs text-tv-yellow">{note}</p>
-            )}
+            ) : null}
 
             {/* Daftar kosong sekarang punya SEBAB yang jelas (Phase 0 / P0-1 + P0-3):
                 saham berstatus 'DATA TIDAK CUKUP' dan saham yang tidak lolos gerbang
