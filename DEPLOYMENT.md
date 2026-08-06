@@ -24,6 +24,53 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - Gerbang likuiditas ADV20 di backtest bucket + kolom return gross
+
+**Masalah**: angka +4,15% pada bucket 80-100 dihitung dari SELURUH baris
+`lens_radar_history`, termasuk hari-hari saat emitennya praktis tidak diperdagangkan.
+Backtest tidak punya data volume sama sekali, jadi "return" dari saham yang tidak bisa
+dibeli dalam ukuran wajar ikut masuk rata-rata.
+
+**Perubahan**:
+
+- Kolom baru `lens_radar_history.avg_value_20d` - ADV20 point-in-time (rata-rata
+  `close x volume` 20 bar terakhir SAMPAI tanggal baris itu, memakai close mentah).
+  Diisi `scripts/backfill-lens-history.mjs` untuk histori dan
+  `history-archive.service.ts` untuk scan harian, yang meneruskan `adv20Idr` dari
+  gerbang kelayakan agar backtest dan produk memakai satu angka likuiditas.
+- `bucket-backtest.service.ts` dan `calibration.service.ts` membuang sinyal dengan
+  ADV20 di bawah `ADV_HARD_FLOOR_IDR` (Rp 1 miliar/hari) - konstanta yang sama dengan
+  gerbang kelayakan produk. Baris tanpa ADV20 juga dibuang dan dihitung terpisah
+  (`unknown_liquidity_rows`), bukan diloloskan diam-diam sebagai likuid.
+- Kolom baru `lens_bucket_stats.avg_t20_gross`, `illiquid_rows_skipped`,
+  `unknown_liquidity_rows`. `avg_t20` TETAP angka bersih biaya (0,5% round-trip sudah
+  dikurangkan di dalam `calculateForwardReturnPct`) - kolom gross ditambahkan supaya
+  besar ongkos terhadap edge terlihat, bukan supaya ada dua definisi return T+20.
+- Halaman /transparency memisahkan kolom Avg T+20 Gross dan Avg T+20 Net, dan
+  menyebutkan berapa sinyal dibuang gerbang likuiditas.
+
+**Hasil recalc `run_date` 2026-08-06** (26.917 baris, 109 ticker; 1.139 baris dibuang
+karena ADV20 < Rp 1 M/hari, 244 baris DGWG.JK dibuang karena tidak punya ADV20 - emiten
+itu ada di arsip tapi tidak ada di `BACKTEST_UNIVERSE`):
+
+| Bucket | Avg T+20 gross | Avg T+20 net | Win rate | Max DD P95 | Trade terburuk | Sampel |
+|---|---|---|---|---|---|---|
+| 80-100 | +4,54% | +4,04% | 47,72% | -27,06% | -63,62% | 861 |
+| 70-79 | +1,79% | +1,29% | 45,41% | -30,75% | -69,48% | 1.542 |
+| 60-69 | +0,16% | -0,34% | 43,53% | -32,77% | -75,31% | 2.153 |
+| <60 | +0,46% | -0,04% | 43,96% | -31,27% | -76,09% | 15.695 |
+
+Gerbang likuiditas memangkas bucket 80-100 dari +4,15% ke +4,04%: edge-nya menyusut
+0,11 poin persen, jadi angka lama bukan artefak saham sepi - tetapi sekarang klaimnya
+bisa dipertanggungjawabkan.
+
+**Caveat yang TIDAK diperbaiki oleh perubahan ini** (lihat laporan audit):
+`fundamental_history` hanya punya snapshot 2026-01-30 untuk 4 emiten (ASII, BBCA, BBRI,
+TLKM) dan snapshot 2026-08-06 untuk 109 emiten yang belum dipakai baris histori mana
+pun. Karena `fundamentalAsOf()` benar-benar point-in-time (`observed_date <= tanggal
+sinyal`) - tidak ada look-ahead - konsekuensinya seluruh backtest efektif menilai
+LensScore versi teknikal+flow saja, bukan LensScore yang dikirim ke pengguna.
+
 ### 2026-08-06 - Fix Max Drawdown per bucket yang selalu -100%
 
 **Gejala**: kolom Max Drawdown di Performa per Bucket LensScore menunjukkan -100,00%

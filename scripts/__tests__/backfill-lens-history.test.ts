@@ -58,6 +58,7 @@ describe('backfill-lens-history script', () => {
         corporateActionStatus: 'NONE',
         priceDataTimestamp: '2026-01-02T09:00:00.000Z',
         priceDataVersion: 'price-adjustment-v1',
+        avgValue20d: 4_200_000_000,
       },
     ]);
 
@@ -67,7 +68,9 @@ describe('backfill-lens-history script', () => {
     expect(query!.text).toContain('adjusted_close_price');
     expect(query!.text).toContain('price_basis');
     expect(query!.text).toContain('price_data_version');
-    expect(query!.params).toHaveLength(21);
+    expect(query!.text).toContain('avg_value_20d = EXCLUDED.avg_value_20d');
+    expect(query!.params).toHaveLength(22);
+    expect(query!.params).toContain(4_200_000_000);
     expect(query!.params).toContain('TOTAL_RETURN_ADJUSTED');
     expect(query!.params).toContain('price-adjustment-v1');
   });

@@ -217,6 +217,9 @@ async function scoreOne(
       // sama sekali, sehingga rankAiPicks() tidak punya cara apa pun untuk tahu bahwa
       // sistem sendiri sudah menilai saham ini 'DATA TIDAK CUKUP'.
       kategori: scoring.kategori,
+      // ADV20 yang sudah dihitung gerbang kelayakan, diteruskan apa adanya supaya arsip
+      // lens_radar_history dan gerbang produk memakai satu angka likuiditas yang sama.
+      avgValue20d: eligibility.details.adv20Idr,
       eligibilityStatus: eligibility.status,
       eligibilityReasons: eligibility.reasonCodes,
       tradeSetup: tradeSetup

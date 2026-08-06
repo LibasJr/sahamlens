@@ -255,9 +255,10 @@ export function buildLensHistoryUpsert(rows) {
       row.adjustmentFactor,
       row.corporateActionStatus,
       row.priceDataTimestamp,
-      row.priceDataVersion
+      row.priceDataVersion,
+      row.avgValue20d ?? null
     );
-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, now())`;
+    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, $${base + 22}, now())`;
   });
 
   return {
@@ -269,6 +270,7 @@ export function buildLensHistoryUpsert(rows) {
         calculation_timestamp,
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
+        avg_value_20d,
         updated_at
       )
       VALUES ${tuples.join(', ')}
@@ -292,6 +294,7 @@ export function buildLensHistoryUpsert(rows) {
         corporate_action_status = EXCLUDED.corporate_action_status,
         price_data_timestamp = EXCLUDED.price_data_timestamp,
         price_data_version = EXCLUDED.price_data_version,
+        avg_value_20d = EXCLUDED.avg_value_20d,
         updated_at = now()
     `,
     params,
@@ -381,6 +384,16 @@ export function buildHistoricalLensRows(input) {
     const volAvg20 = historyToDate.length >= 20
       ? historyToDate.slice(-20).reduce((sum, row) => sum + (finiteNumber(row.Volume) ?? 0), 0) / 20
       : null;
+    // ADV20 dalam rupiah, memakai close MENTAH (bukan AdjClose): nilai transaksi adalah
+    // uang yang benar-benar berpindah pada hari itu, bukan angka yang sudah disesuaikan
+    // corporate action belakangan. Jendela berhenti di `bar.date`, jadi tetap point-in-time.
+    const avgValue20d = historyToDate.length >= 20
+      ? historyToDate.slice(-20).reduce((sum, row) => {
+        const close = finiteNumber(row.Close);
+        const volume = finiteNumber(row.Volume);
+        return sum + (close != null && volume != null ? close * volume : 0);
+      }, 0) / 20
+      : null;
 
     const dailyHistory = historyToDate.map((row) => ({
       date: String(row.Date).slice(0, 10),
@@ -464,6 +477,7 @@ export function buildHistoricalLensRows(input) {
       corporateActionStatus: score.price?.corporate_action_status ?? 'NONE',
       priceDataTimestamp: dataTimestamp ?? runTimestamp,
       priceDataVersion: deps.PRICE_ADJUSTMENT_VERSION,
+      avgValue20d,
     });
   }
 

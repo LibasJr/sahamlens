@@ -18,6 +18,9 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     price_basis: RETURN_PRICE_BASIS,
     market_cap: marketCap,
     score_version: 'lens-score-v1.3.0',
+    // Default likuid: test di file ini menguji return/drawdown, bukan gerbang ADV20.
+    // Kasus tidak likuid diuji eksplisit dengan menimpa field ini.
+    avg_value_20d: 5_000_000_000,
   };
 }
 
@@ -82,6 +85,7 @@ describe('calculateLensBucketStats', () => {
         'avg_T1',
         'avg_T5',
         'avg_T20',
+        'avgT20Gross',
         'winRate_T5',
         'winRate_T20',
         'maxDdP95_T20',
@@ -91,6 +95,52 @@ describe('calculateLensBucketStats', () => {
         'totalSamples',
       ]);
     }
+  });
+
+  it('membuang sinyal yang ADV20-nya di bawah lantai likuiditas, bukan mengklaim return-nya', async () => {
+    const liquid = [
+      row('2026-01-01', 'BIG.JK', 85, 100),
+      row('2026-01-02', 'BIG.JK', 85, 120),
+    ];
+    const thin = [
+      { ...row('2026-01-01', 'THIN.JK', 85, 100), avg_value_20d: 50_000_000 },
+      { ...row('2026-01-02', 'THIN.JK', 85, 200), avg_value_20d: 50_000_000 },
+    ];
+    const prices = provider({ 'BIG.JK': { '2026-01-02': 100 }, 'THIN.JK': { '2026-01-02': 100 } });
+    const withThin = await calculateLensBucketStats([...liquid, ...thin], prices, '2026-01-02');
+    const liquidOnly = await calculateLensBucketStats(liquid, prices, '2026-01-02');
+
+    const gated = withThin.stats.find((s) => s.bucket === '80-100')!;
+    const baseline = liquidOnly.stats.find((s) => s.bucket === '80-100')!;
+    expect(withThin.skippedIlliquidRows).toBe(2);
+    // THIN.JK naik 100% dalam sehari. Kalau gerbang bocor, avg_T1 bucket melonjak
+    // jauh di atas baseline BIG.JK saja - itulah angka halu yang dicegah di sini.
+    expect(gated.totalSamples).toBe(baseline.totalSamples);
+    expect(gated.avg_T1).toBe(baseline.avg_T1);
+    expect(withThin.uniqueTickers).toBe(1);
+  });
+
+  it('membuang baris tanpa ADV20 dan menghitungnya terpisah, bukan meloloskannya diam-diam', async () => {
+    const rows = [
+      { ...row('2026-01-01', 'AAAA.JK', 85, 100), avg_value_20d: null },
+      { ...row('2026-01-02', 'AAAA.JK', 85, 120), avg_value_20d: null },
+    ];
+    const result = await calculateLensBucketStats(rows, provider({ 'AAAA.JK': { '2026-01-02': 100 } }), '2026-01-02');
+
+    expect(result.unknownLiquidityRows).toBe(2);
+    expect(result.skippedIlliquidRows).toBe(0);
+    expect(result.stats.find((s) => s.bucket === '80-100')?.totalSamples).toBe(0);
+  });
+
+  it('avg_T20 sudah bersih biaya; avgT20Gross persis lebih tinggi satu round-trip cost', async () => {
+    const rows = Array.from({ length: 22 }, (_, i) => row(dateFromStart(i), 'AAAA.JK', 85, 100 + i));
+    const opens: Record<string, number> = {};
+    for (let i = 0; i < 22; i++) opens[dateFromStart(i)] = 100;
+    const result = await calculateLensBucketStats(rows, provider({ 'AAAA.JK': opens }), dateFromStart(21));
+
+    const high = result.stats.find((s) => s.bucket === '80-100')!;
+    expect(high.avg_T20).not.toBeNull();
+    expect(high.avgT20Gross!).toBeCloseTo(high.avg_T20! + LENS_BUCKET_ROUND_TRIP_COST_PCT, 6);
   });
 
   it('melewati entry jika open H+1 tidak tersedia dari provider harga', async () => {
