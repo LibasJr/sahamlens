@@ -1,12 +1,29 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, BarChart3, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, BarChart3, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
+import { EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
 import ChangeSecretForm from './ChangeSecretForm';
+
+// Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
+// mewarisinya - meski pengunjung non-admin dialihkan, tidak ada alasan rute ini
+// mengundang perayapan sama sekali.
+export const metadata = {
+  robots: { index: false, follow: false },
+};
+
+/** Jam WIB eksplisit. Halaman ini Server Component, jadi toLocaleTimeString tanpa
+ *  timeZone memakai zona waktu SERVER - di Vercel itu UTC, sehingga jam yang
+ *  ditampilkan meleset 7 jam dari WIB sambil tetap berformat Indonesia. */
+function jamWib(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'waktu tidak terbaca';
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+}
 
 export default async function AdminPage() {
   if (!(await isAdminServer())) {
@@ -16,6 +33,18 @@ export default async function AdminPage() {
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
   const activeUsers = await getActiveUsers();
+  const snapshotAt = new Date().toISOString();
+
+  // Rekap peran: 12 baris tabel tidak langsung memberi tahu komposisinya, dan itu
+  // yang biasanya dicari admin saat membuka halaman ini.
+  const byRole = activeUsers.reduce<Record<string, number>>((acc, u) => {
+    acc[u.role] = (acc[u.role] ?? 0) + 1;
+    return acc;
+  }, {});
+  const rekapPeran = Object.entries(byRole)
+    .sort((a, b) => b[1] - a[1])
+    .map(([role, n]) => `${n} ${role}`)
+    .join(', ');
 
   return (
     <div className="min-h-screen bg-tv-bg text-tv-text p-4 sm:p-8 font-sans">
@@ -34,9 +63,12 @@ export default async function AdminPage() {
         <SetProForm />
         <ChangeSecretForm />
 
+        {/* Dua pintu masuk ini sebelumnya bertumpuk selebar penuh dengan mb-8
+            masing-masing, mendorong tabel "Aktif Sekarang" jauh ke bawah lipatan. */}
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Link
           href="/admin/calibration"
-          className="mb-8 flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:bg-tv-hover transition-colors"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
         >
           <div className="rounded-lg bg-tv-accent/10 p-2 text-tv-accent">
             <BarChart3 className="w-5 h-5" />
@@ -51,7 +83,7 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/fundamental-backfill"
-          className="mb-8 flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:bg-tv-hover transition-colors"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
         >
           <div className="rounded-lg bg-tv-blue/10 p-2 text-tv-blue">
             <FileSpreadsheet className="w-5 h-5" />
@@ -63,22 +95,42 @@ export default async function AdminPage() {
             </p>
           </div>
         </Link>
+        </div>
 
         <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
-          <div className="px-6 py-4 border-b border-tv-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="px-6 py-4 border-b border-tv-border flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tv-green opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-tv-green"></span>
               </span>
               <h2 className="font-heading text-lg font-bold text-tv-text">Aktif Sekarang</h2>
-              <span className="text-xs text-tv-muted">({activeUsers.length} user, aktivitas 5 menit terakhir)</span>
+              <span className="text-xs text-tv-muted">
+                ({activeUsers.length} user, aktivitas 5 menit terakhir{rekapPeran ? ` — ${rekapPeran}` : ''})
+              </span>
+            </div>
+            {/* Titik hijau berdenyut menyiratkan data ini hidup, padahal ia snapshot
+                saat halaman dirender dan tidak pernah menyegarkan dirinya. Waktu
+                snapshot dinyatakan, dan disediakan cara memuat ulang.
+                <a> biasa, bukan <Link>: navigasi klien ke rute yang sama tidak
+                memicu pengambilan ulang di server. */}
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-tv-muted">Snapshot {jamWib(snapshotAt)}</span>
+              <a
+                href="/admin"
+                className="inline-flex items-center gap-1.5 rounded-md border border-tv-border bg-tv-bg px-2.5 py-1.5 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Segarkan
+              </a>
             </div>
           </div>
           {activeUsers.length === 0 ? (
-            <div className="px-6 py-8 text-center text-tv-muted text-sm">
-              Tidak ada user yang aktif saat ini.
-            </div>
+            <EmptyState
+              illustration="search"
+              title="Tidak ada user aktif saat ini"
+              description="Presence disimpan di Redis dengan TTL 5 menit. Daftar kosong juga muncul kalau Redis belum dikonfigurasi atau sedang tidak bisa dihubungi - itu degradasi yang disengaja, bukan error."
+            />
           ) : (
             <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -102,7 +154,7 @@ export default async function AdminPage() {
                         {u.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-tv-muted font-number whitespace-nowrap">{new Date(u.lastSeen).toLocaleTimeString('id-ID')}</td>
+                    <td className="px-6 py-3 text-tv-muted font-number whitespace-nowrap">{jamWib(u.lastSeen)}</td>
                   </tr>
                 ))}
               </tbody>
