@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   Activity,
@@ -51,6 +51,28 @@ interface DailyPickCounts {
   goldenCross: { count: number; stale: boolean };
   deadCross: { count: number; stale: boolean };
 }
+
+interface NewsInsight {
+  title: string;
+  sentiment: 'POSITIF' | 'NEGATIF' | 'NETRAL';
+}
+
+// Jeda antar insight LensAI (permintaan user 2026-08-06: 50 detik SEBELUMNYA
+// dianggap terlalu cepat berpindah untuk sempat dibaca - satu-satunya konten
+// LensAI sebelum ini cuma satu paragraf statis, tidak pernah berganti sama sekali).
+const INSIGHT_ROTATE_MS = 50_000;
+
+const SENTIMENT_LABEL: Record<NewsInsight['sentiment'], string> = {
+  POSITIF: 'positif',
+  NEGATIF: 'negatif',
+  NETRAL: 'netral',
+};
+
+const SENTIMENT_BADGE_VARIANT: Record<NewsInsight['sentiment'], 'success' | 'danger' | 'info'> = {
+  POSITIF: 'success',
+  NEGATIF: 'danger',
+  NETRAL: 'info',
+};
 
 const PROMO_STORAGE_KEY = 'sahamlens_promo_last_seen';
 
@@ -192,6 +214,8 @@ export default function HomePage() {
   const [picksNeedPro, setPicksNeedPro] = useState(false);
   const [picksLoginRequired, setPicksLoginRequired] = useState(false);
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
+  const [newsInsights, setNewsInsights] = useState<NewsInsight[]>([]);
+  const [insightIndex, setInsightIndex] = useState(0);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoPlan, setPromoPlan] = useState<PricingPlan['id']>('1m');
   const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
@@ -379,6 +403,67 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingMarket, loadingRadar, loadingDailyPicks]);
 
+  // Sumber insight tambahan untuk kartu LensAI: 4 berita pasar teratas dari
+  // /api/news (judul + sentimen, sudah dihitung getMarketNews() - lihat
+  // modules/news/service/news.service.ts). Dicache 15 menit di server, jadi fetch
+  // ulang di sini murah.
+  useEffect(() => {
+    fetch('/api/news')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const items = Array.isArray(d?.items) ? d.items.slice(0, 4) : [];
+        setNewsInsights(items.map((item: any) => ({ title: item.title, sentiment: item.sentiment })));
+      })
+      .catch(() => {});
+  }, []);
+
+  const primaryInsight: React.ReactNode | null = aiBriefing ? (
+    <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
+  ) : picksLoginRequired ? (
+    <p className="text-sm text-tv-muted mt-1.5">Login untuk melihat sinyal AI harian.</p>
+  ) : picksNeedPro ? (
+    <p className="text-sm text-tv-muted mt-1.5">Upgrade ke Pro untuk melihat sinyal AI harian.</p>
+  ) : topPick ? (
+    <p className="text-sm text-tv-text mt-1.5 leading-relaxed">
+      Sinyal AI hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.symbol.replace('.JK', '')}</span>{' '}
+      <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
+        {topPick.flagged ? topPick.flagReason : 'Sinyal Kuat'}
+      </Badge>
+      dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}/100</span>.
+    </p>
+  ) : (
+    <p className="text-sm text-tv-muted mt-1.5">Belum ada sinyal kuat hari ini. Cek Stock Recommendations untuk detail lengkap.</p>
+  );
+
+  // Slot 0 = sinyal AI/ringkasan pasar (logic di atas, tidak berubah). Slot 1+ =
+  // berita pasar terbaru. Kosong sampai loadingRadar selesai - jangan ikut
+  // dirotasi selagi masih skeleton.
+  const insightSlots: React.ReactNode[] = loadingRadar
+    ? []
+    : [
+        primaryInsight,
+        ...newsInsights.map((n, i) => (
+          <p key={`news-${i}`} className="text-sm text-tv-text mt-1.5 leading-relaxed">
+            <Badge variant={SENTIMENT_BADGE_VARIANT[n.sentiment]} className="mr-1.5 align-middle">
+              {SENTIMENT_LABEL[n.sentiment]}
+            </Badge>
+            {n.title}
+          </p>
+        )),
+      ];
+
+  // Ganti insight tiap 50 detik - jeda sengaja dibuat cukup panjang untuk sempat
+  // dibaca (permintaan user: sebelumnya berpindah terlalu cepat). Tidak jalan
+  // kalau cuma 1 slot (tidak ada apa pun untuk dirotasi).
+  useEffect(() => {
+    if (insightSlots.length <= 1) return;
+    const t = setInterval(() => setInsightIndex((i) => i + 1), INSIGHT_ROTATE_MS);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insightSlots.length]);
+
+  const activeInsightIndex = insightSlots.length ? insightIndex % insightSlots.length : 0;
+
   return (
     <PageContainer className="p-4 md:p-6 space-y-5 min-h-full flex flex-col">
       {/* Header */}
@@ -414,22 +499,33 @@ export default function HomePage() {
                   <Skeleton variant="text" className="w-full max-w-md" />
                   <Skeleton variant="text" className="w-2/3 max-w-xs" />
                 </div>
-              ) : aiBriefing ? (
-                <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
-              ) : picksLoginRequired ? (
-                <p className="text-sm text-tv-muted mt-1.5">Login untuk melihat sinyal AI harian.</p>
-              ) : picksNeedPro ? (
-                <p className="text-sm text-tv-muted mt-1.5">Upgrade ke Pro untuk melihat sinyal AI harian.</p>
-              ) : topPick ? (
-                <p className="text-sm text-tv-text mt-1.5 leading-relaxed">
-                  Sinyal AI hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.symbol.replace('.JK', '')}</span>{' '}
-                  <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
-                    {topPick.flagged ? topPick.flagReason : 'Sinyal Kuat'}
-                  </Badge>
-                  dengan LensScore <span className="font-number font-semibold">{topPick.finalScore}/100</span>.
-                </p>
               ) : (
-                <p className="text-sm text-tv-muted mt-1.5">Belum ada sinyal kuat hari ini. Cek Stock Recommendations untuk detail lengkap.</p>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeInsightIndex}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.35 }}
+                  >
+                    {insightSlots[activeInsightIndex]}
+                  </motion.div>
+                </AnimatePresence>
+              )}
+              {/* Titik penanda - cuma tampil kalau memang ada lebih dari satu insight
+                  untuk dirotasi (mis. berita belum termuat). Bukan tombol - klik pindah
+                  manual tidak diminta, ini murni orientasi "sedang lihat yang mana". */}
+              {!loadingRadar && insightSlots.length > 1 && (
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  {insightSlots.map((_, i) => (
+                    <span
+                      key={i}
+                      className={`h-1 rounded-full transition-all duration-300 ${
+                        i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
+                      }`}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>
