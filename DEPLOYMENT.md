@@ -71,6 +71,17 @@ karena sudah masuk `main`/production (commit `91a2c05`, `8726ed7`, `b9b345b`).
   - `/admin/fundamental-backfill` sekarang menolak Insert sebelum ada Dry Run yang
     lolos atas kombinasi masukan yang sama persis (CSV + source + percentInput +
     skipEmptyRows). Mengubah salah satu opsi membatalkan izin Insert.
+- Halaman depan `/` (commit `426819c`) - awalnya TERLEWAT dari inventarisasi karena
+  daftarnya disusun dari tujuan di sidebar, sedangkan `/` tidak ada di sidebar
+  (AppShell memperlakukannya khusus, tanpa sidebar & TopMarketBar). **Jebakan untuk
+  agen berikutnya**: "semua menu" tidak sama dengan "semua halaman" - `/` dan rute
+  yatim lain (`/dcf`, `/moat`, `/pattern`, `/macro`, `/earnings`, `/dividend`,
+  `/risk`, `/recommendations`, `/multi-agent`, `/market/[category]`) tidak pernah
+  muncul di `components/Sidebar.tsx`.
+  - Tiga fetch di halaman itu (`/api/public-chart`, `/api/live/^JKSE`,
+    `/api/market-summary`) dulu berakhir di `.catch(console.error)` tanpa state
+    kegagalan - satu-satunya halaman publik & terindeks, dan bisa tersangkut di teks
+    "Memuat..." selamanya. Sekarang ketiganya punya jalur gagal masing-masing.
 
 ### 2026-08-06 - Admin UI Fundamental Backfill
 
