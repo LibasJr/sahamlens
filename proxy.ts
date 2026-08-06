@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, SESSION_COOKIE } from '@/shared/constants/cookie-names';
+import { isProtectedPage } from '@/shared/constants/access';
 import { decrypt } from '@/shared/auth/jwt';
 import { verifyAdminToken } from '@/shared/auth/admin-token';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
@@ -24,24 +25,11 @@ const RATE_LIMIT_CONFIG = {
   blockMs: 60 * 60 * 1000,
 };
 
-// ATURAN BARU (2026-08-01, keputusan produk): halaman analisis dibuka TANPA wajib
-// login dulu, supaya pengunjung bisa lihat & coba fitur sebelum diminta daftar (dulu
-// wajib login di sini SEBELUM sempat tahu apa isinya - dianggap terlalu tinggi
-// friction-nya). Login/Pro-access TETAP di-gate di level API masing-masing
-// (getSession()/checkProAccess() - lihat app/api/*/route.ts) - saat API menolak,
-// halaman menampilkan ajakan daftar (pola PaywallModal yang sudah ada), bukan data
-// asli gratis tanpa batas. Begitu user daftar & verifikasi email, trial 7 hari
-// otomatis aktif (TRIAL_DAYS, modules/user/constants/user.constants.ts) - itu yang
-// jadi "gratis semua 7 hari" sebelum pop-up upgrade muncul, bukan mekanisme baru.
-//
-// TIDAK termasuk /portfolio (Akun Demo, paper trading - data personal per-user,
-// WAJIB tetap login, formulir login/signup-nya sendiri sudah ada di halaman itu).
-const PROTECTED_PAGES: string[] = [];
-
-function isProtectedPage(pathname: string): boolean {
-  return PROTECTED_PAGES.some((p) => pathname === p || pathname.startsWith(p + '/'));
-}
-
+// Daftar halaman terproteksi pindah ke shared/constants/access.ts - dipakai bersama
+// oleh proxy ini DAN Sidebar (satu sumber, supaya menu yang tampil dan halaman yang
+// boleh dibuka tidak pernah berbeda). Aturan 2026-08-01 ("semua halaman analisis
+// bebas dibuka tanpa login") DICABUT 2026-08-06 atas permintaan produk: guest hanya
+// boleh 4 menu publik, selebihnya redirect ke /login.
 function getClientIp(req: NextRequest): string {
   // NextRequest.ip dihapus di Next.js 15+ (Vercel Edge tidak lagi mengisinya di objek
   // request) - x-forwarded-for sekarang satu-satunya sumber, diisi platform Vercel dari
@@ -61,13 +49,16 @@ export async function proxy(req: NextRequest) {
   // bahkan kalau PROTECTED_PAGES diisi lagi nanti.
   const payload = decrypted && typeof decrypted.id === 'string' && decrypted.id ? decrypted : null;
 
-  if (isProtectedPage(req.nextUrl.pathname)) {
-    if (!payload) {
-      const loginUrl = new URL('/login', req.url);
-      loginUrl.searchParams.set('next', req.nextUrl.pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-    // Trial/pro check is handled client-side to show upgrade popups where relevant
+  // GUEST (belum login sama sekali) -> tendang ke /login. Sengaja HANYA cek "ada sesi
+  // atau tidak", BUKAN status trial: user yang sesinya valid tapi trialnya habis tetap
+  // boleh memuat halaman, karena yang harus ia lihat adalah modal "Trial habis, upgrade
+  // ke premium" (components/AppShell.tsx) - bukan halaman login yang menyuruhnya masuk
+  // padahal ia sudah masuk. Datanya sendiri tetap ditolak gerbang API (checkProAccess).
+  if (isProtectedPage(req.nextUrl.pathname) && !payload) {
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('next', req.nextUrl.pathname);
+    loginUrl.searchParams.set('notice', 'login_required');
+    return NextResponse.redirect(loginUrl);
   }
 
   let isAdminOrTrial = false;
@@ -135,16 +126,32 @@ export const config = {
     '/api/council/:path*',
     '/api/payment/:path*',
     '/home/:path*',
+    '/market-pulse/:path*',
+    '/calendar/:path*',
+    // Halaman terproteksi - HARUS sinkron dengan PROTECTED_PAGES di
+    // shared/constants/access.ts. Path yang ada di sana tapi tidak di matcher ini
+    // tidak akan pernah diperiksa (proxy tidak dijalankan untuk path itu), jadi
+    // gerbang guest-nya diam-diam tidak aktif.
+    '/breakout-radar/:path*',
+    '/screener/:path*',
     '/dashboard/:path*',
     '/fundamental/:path*',
-    '/watchlist/:path*',
     '/compare/:path*',
     '/backtest/:path*',
-    '/breakout-radar/:path*',
-    '/market-pulse/:path*',
-    '/recommendations/:path*',
-    '/calendar/:path*',
-    '/multi-agent/:path*',
+    '/technical/:path*',
+    '/portfolio/:path*',
+    '/watchlist/:path*',
     '/risk-calculator/:path*',
+    '/recommendations/:path*',
+    '/multi-agent/:path*',
+    '/transparency/:path*',
+    '/dcf/:path*',
+    '/macro/:path*',
+    '/moat/:path*',
+    '/pattern/:path*',
+    '/risk/:path*',
+    '/dividend/:path*',
+    '/earnings/:path*',
+    '/market/:path*',
   ],
 };

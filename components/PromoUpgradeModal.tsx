@@ -9,6 +9,10 @@ interface PromoUpgradeModalProps {
   open: boolean;
   onClose: () => void;
   onSelectPlan: (planId: PricingPlan['id']) => void;
+  /** Override judul/subjudul - dipakai konteks selain promo umum (mis. trial 7 hari habis,
+   * lihat AppShell.tsx). Default tetap teks lama supaya pemanggil yang sudah ada tidak berubah. */
+  title?: string;
+  subtitle?: string;
 }
 
 const FREE_FEATURES = ['Watchlist maks. 3 saham', 'Alert maks. 2', '5 analisa saham/hari'];
@@ -20,7 +24,13 @@ const FREE_FEATURES = ['Watchlist maks. 3 saham', 'Alert maks. 2', '5 analisa sa
 // 5%/8%/10% untuk 3/6/12 bulan - dan daftar fitur diperluas dari 4 item ke daftar
 // LENGKAP (FULL_FEATURE_LIST) supaya calon Pro user lihat semua yang didapat, bukan
 // cuma teaser singkat.
-export default function PromoUpgradeModal({ open, onClose, onSelectPlan }: PromoUpgradeModalProps) {
+export default function PromoUpgradeModal({
+  open,
+  onClose,
+  onSelectPlan,
+  title = 'Butuh Analisis Lebih Dalam?',
+  subtitle = 'Pilih paket yang cocok buat kamu - makin panjang durasi, makin besar diskonnya.',
+}: PromoUpgradeModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,7 +82,7 @@ export default function PromoUpgradeModal({ open, onClose, onSelectPlan }: Promo
             ref={modalRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Butuh Analisis Lebih Dalam?"
+            aria-label={title}
             className="relative w-full max-w-5xl bg-tv-bg border border-tv-blue/40 rounded-xl shadow-2 p-6 overflow-hidden max-h-[90vh] overflow-y-auto"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -88,8 +98,8 @@ export default function PromoUpgradeModal({ open, onClose, onSelectPlan }: Promo
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="font-heading text-xl font-bold text-tv-text mb-1">Butuh Analisis Lebih Dalam?</h3>
-            <p className="text-sm text-tv-muted mb-5">Pilih paket yang cocok buat kamu - makin panjang durasi, makin besar diskonnya.</p>
+            <h3 className="font-heading text-xl font-bold text-tv-text mb-1">{title}</h3>
+            <p className="text-sm text-tv-muted mb-5">{subtitle}</p>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="border border-tv-border rounded-lg p-4 flex flex-col">

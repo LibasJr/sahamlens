@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import AIChat from '@/components/AIChat';
 import TopMarketBar from '@/components/TopMarketBar';
+import TrialExpiredGate from '@/components/TrialExpiredGate';
 
 const BARE_AUTH_PAGES = ['/login', '/signup', '/forgot-password', '/reset-password', '/admin-login', '/admin'];
 
@@ -37,6 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <AIChat />
+      <TrialExpiredGate />
     </div>
   );
 }
