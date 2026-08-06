@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import bcrypt from 'bcryptjs';
 
 vi.mock('../../repository/user.repository', () => ({
@@ -16,7 +16,8 @@ vi.mock('../../../../shared/database/postgres.client', () => ({
 import { handleSetProStatus, handleGetProStatus, handleAdminLoginByKey, handleChangeAdminSecret } from '../admin.controller';
 import { getUserByEmail, updateUser } from '../../repository/user.repository';
 import { getAdminSecretHash, setAdminSecretHash } from '../../repository/admin-secret.repository';
-import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from '../../../../shared/constants/cookie-names';
+import { ADMIN_COOKIE } from '../../../../shared/constants/cookie-names';
+import { signAdminToken } from '../../../../shared/auth/admin-token';
 import { ForbiddenError, ValidationError, NotFoundError } from '../../../../shared/errors/app-error';
 import type { User } from '../../types/user.types';
 
@@ -40,11 +41,19 @@ function makeUser(overrides: Partial<User> = {}): User {
   };
 }
 
+// Token asli, ditandatangani sekali sebelum semua test supaya seluruh call site
+// adminCookieStore() tetap sinkron. Cookie admin bukan lagi konstanta - lihat
+// shared/auth/admin-token.ts.
+let ADMIN_TOKEN = '';
+beforeAll(async () => {
+  ADMIN_TOKEN = await signAdminToken();
+});
+
 function adminCookieStore(isAdmin: boolean) {
   return {
     get: (name: string) => {
       if (name !== ADMIN_COOKIE) return undefined;
-      return isAdmin ? { value: ADMIN_COOKIE_VALUE } : undefined;
+      return isAdmin ? { value: ADMIN_TOKEN } : undefined;
     },
   };
 }
