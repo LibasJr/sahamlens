@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
         savedRows: stats.savedRows,
         sourceRows: stats.sourceRows,
         uniqueTickers: stats.uniqueTickers,
+        skippedGocapRows: stats.skippedGocapRows,
+        skippedDrawdownTrades: stats.skippedDrawdownTrades,
+        drawdownTrades: stats.drawdownTrades,
       };
     });
     return NextResponse.json({ success: true, result });

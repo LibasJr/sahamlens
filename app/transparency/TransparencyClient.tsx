@@ -28,7 +28,8 @@ interface TransparencyBucketRow {
   avgT20: number | null;
   winRateT20: number | null;
   totalSamples: number;
-  maxDrawdownT20: number | null;
+  maxDdP95T20: number | null;
+  worstMaeT20: number | null;
   avgWinT20: number | null;
   avgLossT20: number | null;
 }
@@ -315,7 +316,10 @@ export default function TransparencyClient() {
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Performa per Bucket LensScore</h2>
         <p className="text-xs text-tv-muted mb-4">
-          Return bersih setelah biaya. Win Rate, Max Drawdown, Avg Win/Loss ditampilkan untuk horizon T+20.
+          Return bersih setelah biaya. Win Rate, Max DD, Avg Win/Loss ditampilkan untuk horizon T+20.
+          <b>Max DD (P95)</b> mengukur penurunan terdalam dari harga entry selama satu trade T+20 berjalan:
+          hanya 5% trade yang turun lebih dalam dari angka ini. <b>Trade Terburuk</b> adalah satu trade
+          paling parah yang pernah terjadi. Keduanya per trade, bukan drawdown portofolio gabungan.
         </p>
         {!hasAnySample ? (
           <EmptyState
@@ -335,7 +339,8 @@ export default function TransparencyClient() {
                     <th className="px-4 py-3 text-right whitespace-nowrap">Avg T+20</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Win Rate</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Total Sampel</th>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">Max Drawdown</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Max DD (P95)</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Trade Terburuk</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Avg Win</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Avg Loss</th>
                   </tr>
@@ -353,7 +358,8 @@ export default function TransparencyClient() {
                       <td className="px-4 py-3 text-right"><Cell value={row.avgT20} tone="up" className="font-bold" /></td>
                       <td className="px-4 py-3 text-right"><Cell value={row.winRateT20} /></td>
                       <td className="px-4 py-3 text-right font-number">{num(row.totalSamples)}</td>
-                      <td className="px-4 py-3 text-right"><Cell value={row.maxDrawdownT20} tone="fixed-red" /></td>
+                      <td className="px-4 py-3 text-right"><Cell value={row.maxDdP95T20} tone="fixed-red" /></td>
+                      <td className="px-4 py-3 text-right text-tv-muted"><Cell value={row.worstMaeT20} tone="fixed-red" /></td>
                       <td className="px-4 py-3 text-right"><Cell value={row.avgWinT20} tone="fixed-green" /></td>
                       <td className="px-4 py-3 text-right"><Cell value={row.avgLossT20} tone="fixed-red" /></td>
                     </tr>
@@ -385,8 +391,8 @@ export default function TransparencyClient() {
                       <Cell value={row.winRateT20} className="text-sm" />
                     </div>
                     <div>
-                      <div className="text-[9px] uppercase tracking-wide text-tv-muted">Max Drawdown</div>
-                      <Cell value={row.maxDrawdownT20} tone="fixed-red" className="text-sm" />
+                      <div className="text-[9px] uppercase tracking-wide text-tv-muted">Max DD (P95)</div>
+                      <Cell value={row.maxDdP95T20} tone="fixed-red" className="text-sm" />
                     </div>
                   </div>
                 </div>

@@ -19,12 +19,16 @@ import {
   calculateCalibrationObservations,
   type CalibrationObservation,
 } from './calibration.service';
-import { LENS_RADAR_HOLDING_DAYS } from './history-return-utils';
+import {
+  drawdownPercentile95Pct,
+  LENS_RADAR_HOLDING_DAYS,
+  worstTradeDrawdownPct,
+} from './history-return-utils';
 import { SCORE_VERSION } from '../constants/model-version';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
-export const TRANSPARENCY_CACHE_VERSION = 'backfill-v1';
+export const TRANSPARENCY_CACHE_VERSION = 'drawdown-v2';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
@@ -45,7 +49,8 @@ interface LensBucketStatsRow {
   avg_t20: number | string | null;
   win_rate_t20: number | string | null;
   total_samples: number | string | null;
-  max_drawdown_t20: number | string | null;
+  max_dd_p95: number | string | null;
+  worst_mae: number | string | null;
   avg_win_t20: number | string | null;
   avg_loss_t20: number | string | null;
   source_rows: number | string | null;
@@ -60,7 +65,10 @@ export interface TransparencyBucketRow {
   avgT20: number | null;
   winRateT20: number | null;
   totalSamples: number;
-  maxDrawdownT20: number | null;
+  /** Drawdown intra-trade pada persentil 95: hanya 5% trade yang turun lebih dalam. */
+  maxDdP95T20: number | null;
+  /** Trade dengan drawdown terdalam. Statistik ekor, ditampilkan sebagai konteks. */
+  worstMaeT20: number | null;
   avgWinT20: number | null;
   avgLossT20: number | null;
 }
@@ -139,19 +147,6 @@ function winRate(values: number[]): number | null {
   return (values.filter((value) => value > 0).length / values.length) * 100;
 }
 
-function maxDrawdownPct(values: { date: string; returnPct: number }[]): number | null {
-  if (!values.length) return null;
-  let equity = 1;
-  let peak = 1;
-  let maxDrawdown = 0;
-  for (const item of [...values].sort((a, b) => a.date.localeCompare(b.date))) {
-    equity *= 1 + item.returnPct / 100;
-    peak = Math.max(peak, equity);
-    maxDrawdown = Math.min(maxDrawdown, ((equity / peak) - 1) * 100);
-  }
-  return maxDrawdown;
-}
-
 function deriveBucketFallback(observations: CalibrationObservation[], bucket: LensScoreBucket): Partial<TransparencyBucketRow> {
   const t20 = observations
     .filter((obs) => obs.bucket === bucket && typeof obs.returnT20 === 'number')
@@ -159,14 +154,14 @@ function deriveBucketFallback(observations: CalibrationObservation[], bucket: Le
   const t5 = observations
     .filter((obs) => obs.bucket === bucket && typeof obs.returnT5 === 'number')
     .map((obs) => obs.returnT5 as number);
-  const datedT20 = observations
-    .filter((obs) => obs.bucket === bucket && typeof obs.returnT20 === 'number')
-    .map((obs) => ({ date: obs.signalDate, returnPct: obs.returnT20 as number }));
   return {
     avgT5: roundPct(average(t5)),
     avgT20: roundPct(average(t20)),
     winRateT20: roundPct(winRate(t20)),
-    maxDrawdownT20: roundPct(maxDrawdownPct(datedT20)),
+    // Fallback hanya punya return close-to-close, bukan low harian, jadi angkanya
+    // proxy yang lebih optimis daripada MAE di lens_bucket_stats.
+    maxDdP95T20: roundPct(drawdownPercentile95Pct(t20)),
+    worstMaeT20: roundPct(worstTradeDrawdownPct(t20)),
     avgWinT20: roundPct(average(t20.filter((value) => value > 0))),
     avgLossT20: roundPct(average(t20.filter((value) => value < 0))),
     totalSamples: t20.length,
@@ -191,7 +186,8 @@ export function buildBucketRows(
       avgT20: roundPct(finiteNumber(stat?.avg_t20 ?? null) ?? fallback.avgT20 ?? null),
       winRateT20: roundPct(finiteNumber(stat?.win_rate_t20 ?? null) ?? fallback.winRateT20 ?? null),
       totalSamples: Number(stat?.total_samples ?? fallback.totalSamples ?? 0),
-      maxDrawdownT20: roundPct(finiteNumber(stat?.max_drawdown_t20 ?? null) ?? fallback.maxDrawdownT20 ?? null),
+      maxDdP95T20: roundPct(finiteNumber(stat?.max_dd_p95 ?? null) ?? fallback.maxDdP95T20 ?? null),
+      worstMaeT20: roundPct(finiteNumber(stat?.worst_mae ?? null) ?? fallback.worstMaeT20 ?? null),
       avgWinT20: roundPct(finiteNumber(stat?.avg_win_t20 ?? null) ?? fallback.avgWinT20 ?? null),
       avgLossT20: roundPct(finiteNumber(stat?.avg_loss_t20 ?? null) ?? fallback.avgLossT20 ?? null),
     };
@@ -220,7 +216,8 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
       s.avg_t20,
       s.win_rate_t20,
       s.total_samples,
-      s.max_drawdown_t20,
+      s.max_dd_p95,
+      s.worst_mae,
       s.avg_win_t20,
       s.avg_loss_t20,
       s.source_rows

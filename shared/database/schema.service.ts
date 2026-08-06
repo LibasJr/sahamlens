@@ -237,7 +237,8 @@ export function ensureSharedSchema(): Promise<void> {
         avg_t20 NUMERIC,
         win_rate_t5 NUMERIC,
         win_rate_t20 NUMERIC,
-        max_drawdown_t20 NUMERIC,
+        worst_mae NUMERIC,
+        max_dd_p95 NUMERIC,
         avg_win_t20 NUMERIC,
         avg_loss_t20 NUMERIC,
         total_samples INTEGER NOT NULL DEFAULT 0,
@@ -251,8 +252,30 @@ export function ensureSharedSchema(): Promise<void> {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (run_date, bucket)
       );
+      -- max_drawdown_t20 dulu menyimpan drawdown equity curve yang selalu -100% karena
+      -- sinyal tumpang tindih dikalikan beruntun. Kolomnya dipertahankan tetapi diganti
+      -- nama jadi worst_mae supaya isinya jujur: satu trade terburuk. max_dd_p95 adalah
+      -- metrik yang ditampilkan di UI.
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'lens_bucket_stats' AND column_name = 'max_drawdown_t20'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'lens_bucket_stats' AND column_name = 'worst_mae'
+        ) THEN
+          ALTER TABLE lens_bucket_stats RENAME COLUMN max_drawdown_t20 TO worst_mae;
+        END IF;
+      END $$;
       ALTER TABLE lens_bucket_stats
-        ADD COLUMN IF NOT EXISTS max_drawdown_t20 NUMERIC;
+        ADD COLUMN IF NOT EXISTS worst_mae NUMERIC;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS max_dd_p95 NUMERIC;
+      -- Deploy lama yang masih hidup akan membuat ulang max_drawdown_t20 lewat
+      -- ensureSharedSchema-nya sendiri. DROP ini membersihkannya setelah rollout selesai.
+      ALTER TABLE lens_bucket_stats
+        DROP COLUMN IF EXISTS max_drawdown_t20;
       ALTER TABLE lens_bucket_stats
         ADD COLUMN IF NOT EXISTS avg_win_t20 NUMERIC;
       ALTER TABLE lens_bucket_stats

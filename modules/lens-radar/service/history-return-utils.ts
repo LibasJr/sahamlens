@@ -6,6 +6,51 @@ export interface DatedCloseEntry {
 export const LENS_RADAR_HOLDING_DAYS = 20;
 export const MAX_SANE_DAILY_MOVE = 0.4;
 
+/**
+ * Batas bawah tick IDX (saham "gocap"). Hanya boleh diterapkan pada harga RAW.
+ * Harga TOTAL_RETURN_ADJUSTED bisa sah berada di bawah 50 setelah faktor split
+ * dipakai mundur, jadi memfilter harga adjusted dengan ambang ini akan membuang
+ * histori yang valid.
+ */
+export const MIN_TRADABLE_PRICE_IDR = 50;
+
+/**
+ * Drawdown terburuk antar trade, dalam persen (nilai <= 0).
+ *
+ * Metrik ini SENGAJA bukan drawdown equity curve. Sinyal LensRadar tumpang tindih:
+ * ratusan ticker bisa memberi sinyal di hari yang sama, dan tiap trade T+20 masih
+ * berjalan saat sinyal berikutnya muncul. Mengalikan ribuan return T+20 secara
+ * berurutan seolah-olah satu modal berpindah trade menghasilkan volatility drag
+ * (E[log(1+r)] < log(1+E[r])) yang menekan equity ke nol, sehingga drawdown selalu
+ * jatuh ke -100% tanpa peduli kualitas sinyal. Lihat DEPLOYMENT.md.
+ *
+ * Drawdown level portofolio butuh position sizing dan aturan alokasi yang belum ada;
+ * sampai itu dibangun, worst-trade adalah angka yang bisa dipertanggungjawabkan.
+ */
+export function worstTradeDrawdownPct(values: number[]): number | null {
+  if (!values.length) return null;
+  return values.reduce((worst, value) => Math.min(worst, value), 0);
+}
+
+/**
+ * Drawdown pada persentil 95, dalam persen (nilai <= 0): hanya 5% trade yang turun
+ * lebih dalam dari angka ini.
+ *
+ * Persentil diambil dari BESARAN penurunan (nearest-rank), bukan dari nilai bertanda.
+ * Mengurutkan drawdown bertanda menaik lalu mengambil P95 akan mengembalikan angka
+ * paling dekat ke nol - yaitu trade yang nyaris tidak turun - sehingga justru
+ * menyembunyikan risiko yang mau diukur.
+ *
+ * Berbeda dari worstTradeDrawdownPct yang hanya melihat satu trade terburuk, angka ini
+ * tidak ikut bergerak saat satu emiten kolaps.
+ */
+export function drawdownPercentile95Pct(values: number[]): number | null {
+  if (!values.length) return null;
+  const magnitudes = values.map((value) => Math.abs(Math.min(0, value))).sort((a, b) => a - b);
+  const rank = Math.max(1, Math.ceil(magnitudes.length * 0.95));
+  return -magnitudes[rank - 1];
+}
+
 export function buildTradingCalendar(rows: { date: string }[]): string[] {
   return Array.from(new Set(rows.map((row) => row.date))).sort();
 }

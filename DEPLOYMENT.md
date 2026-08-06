@@ -24,6 +24,66 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - Fix Max Drawdown per bucket yang selalu -100%
+
+**Gejala**: kolom Max Drawdown di Performa per Bucket LensScore menunjukkan -100,00%
+untuk keempat bucket sekaligus.
+
+**Bukan penyebabnya**: data kotor. Audit `lens_radar_history` (26.728 baris, 110 ticker)
+menemukan nol baris dengan harga 0/NULL, nol baris di bawah tick minimum Rp50, dan
+return T+20 terburuk hanya -78,86%. Tidak ada satu pun trade yang bisa membuat modal
+habis.
+
+**Penyebab sebenarnya**: `maxDrawdownPct` mengalikan seluruh return T+20 secara
+berurutan seolah-olah satu modal berpindah dari trade ke trade. Sinyal LensRadar
+tumpang tindih - ratusan ticker memberi sinyal di hari yang sama dan tiap trade T+20
+masih berjalan saat sinyal berikutnya muncul - jadi 918 sampai 16.284 return dikalikan
+beruntun. Volatility drag (`E[log(1+r)] < log(1+E[r])`) menekan equity ke nol pada
+setiap bucket: total log-growth -5,4 (bucket 80-100) sampai -126 (bucket <60). Hasilnya
+-100% terlepas dari kualitas sinyal. Fungsi yang sama diduplikasi di
+`bucket-backtest.service.ts` dan `transparency.service.ts`.
+
+**Perbaikan**: drawdown sekarang diukur per trade sebagai Maximum Adverse Excursion -
+penurunan terdalam dari harga entry selama satu trade T+20 berjalan, memakai low harian
+yang sudah disesuaikan corporate action. Dua angka disimpan, keduanya dari
+`history-return-utils.ts` dan dipakai bersama oleh bucket-backtest dan transparency:
+
+- `max_dd_p95` (`drawdownPercentile95Pct`) - persentil 95 dari besaran penurunan,
+  nearest-rank. Ini yang ditampilkan di UI sebagai **Max DD (P95)**. Persentil diambil
+  dari besaran, bukan dari nilai bertanda: mengurutkan drawdown negatif menaik lalu
+  mengambil P95 justru mengembalikan trade yang nyaris tidak turun.
+- `worst_mae` (`worstTradeDrawdownPct`) - satu trade terburuk. Statistik ekor, dipakai
+  sebagai konteks di kolom **Trade Terburuk**.
+
+Kolom `max_drawdown_t20` diganti nama jadi `worst_mae` lewat migrasi idempoten di
+`schema.service.ts`. Baris `run_date` sebelum 2026-08-06 harus di-NULL-kan manual -
+isinya nilai equity-curve lama, bukan MAE.
+
+Drawdown level portofolio butuh position sizing dan aturan alokasi yang belum ada di
+LensRadar. Sampai itu dibangun, jangan mengembalikan metrik equity curve di sini.
+
+**Filter gocap**: ambang Rp50 hanya diuji pada `raw_close_price`. Harga
+TOTAL_RETURN_ADJUSTED bisa sah berada di bawah 50 setelah faktor split dipakai mundur,
+jadi memfilter harga adjusted akan menghapus histori yang valid.
+
+**Angka setelah fix** (run_date 2026-08-06, 19.358 trade T+20, 0 dibuang):
+
+| bucket | max_dd_p95 | worst_mae |
+| --- | --- | --- |
+| 80-100 | -26,49% | -63,62% |
+| 70-79 | -30,79% | -69,48% |
+| 60-69 | -32,31% | -75,31% |
+| <60 | -30,87% | -76,09% |
+
+Selisih P95 vs worst itu wajar: worst didorong APIC.JK yang jatuh dari 1730 ke 525 dalam
+20 hari bursa dan BLUE.JK 6730 ke 3098. Avg T+1/T+5/T+20, Win Rate, dan Avg Win/Loss
+tidak berubah.
+
+**Recalc**: jalankan ulang `GET /api/cron/lens-bucket-backtest` dengan
+`Authorization: Bearer $CRON_SECRET`. Upsert-nya memakai kunci `(run_date, bucket)`,
+jadi tidak perlu DELETE manual. `TRANSPARENCY_CACHE_VERSION` dibump ke `drawdown-v2`
+supaya payload Redis lama yang masih berisi -100% tidak bertahan sampai TTL habis.
+
 ### 2026-08-06 - Redesign UI 14 halaman ke design system "Lens"
 
 Perubahan UI/UX menyeluruh. **Tidak mengubah cara build, env var, cron/QStash, atau

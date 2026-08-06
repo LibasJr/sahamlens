@@ -6,7 +6,11 @@ import {
   barAtTradingOffset,
   buildTradingCalendar,
   hasCorporateActionGap,
+  MIN_TRADABLE_PRICE_IDR,
+  drawdownPercentile95Pct,
+  worstTradeDrawdownPct,
 } from './history-return-utils';
+import { logger } from '@/shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
 import {
   PRICE_ADJUSTMENT_VERSION,
@@ -45,6 +49,7 @@ export interface LensRadarHistoryEntry {
 export interface DailyOpenBar {
   date: string;
   open: number;
+  low?: number | null;
   close?: number;
   priceBasis?: PriceBasis;
   adjustmentVersion?: string;
@@ -58,7 +63,10 @@ export interface LensBucketStat {
   avg_T20: number | null;
   winRate_T5: number | null;
   winRate_T20: number | null;
-  maxDrawdown_T20: number | null;
+  /** Drawdown intra-trade pada persentil 95. Metrik risiko yang ditampilkan di UI. */
+  maxDdP95_T20: number | null;
+  /** Satu trade dengan drawdown intra-trade terdalam. Statistik ekor, untuk audit. */
+  worstMae_T20: number | null;
   avgWin_T20: number | null;
   avgLoss_T20: number | null;
   totalSamples: number;
@@ -77,6 +85,11 @@ export interface LensBucketBacktestResult {
   sourceRows: number;
   uniqueTickers: number;
   roundTripCostPct: number;
+  /** Baris dibuang karena harga raw di bawah tick minimum IDX. */
+  skippedGocapRows: number;
+  /** Trade T+20 tanpa low harian valid, jadi tidak bisa dihitung drawdown-nya. */
+  skippedDrawdownTrades: number;
+  drawdownTrades: number;
   stats: LensBucketStat[];
 }
 
@@ -110,6 +123,7 @@ class YahooDailyOpenProvider implements DailyOpenProvider {
       .map((bar) => ({
         date: bar.date,
         open: bar.open,
+        low: bar.low,
         close: bar.close,
         priceBasis: bar.basis,
         adjustmentVersion: bar.adjustmentVersion,
@@ -169,8 +183,17 @@ function winRate(values: number[]): number | null {
   return (values.filter((value) => value > 0).length / values.length) * 100;
 }
 
-function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedEntry[] {
-  return rows
+/**
+ * Ambang gocap hanya diuji pada harga RAW. Harga adjusted bisa turun di bawah 50
+ * karena faktor split, dan membuangnya akan menghapus histori yang sah.
+ */
+function isGocapRawPrice(rawClosePrice: number | null): boolean {
+  return rawClosePrice != null && rawClosePrice < MIN_TRADABLE_PRICE_IDR;
+}
+
+function normalizeHistory(rows: LensRadarHistoryEntry[]): { entries: NormalizedEntry[]; skippedGocap: number } {
+  let skippedGocap = 0;
+  const entries = rows
     .map((row) => {
       const date = dateKey(row.date);
       const ticker = typeof row.ticker === 'string' ? row.ticker.trim().toUpperCase() : '';
@@ -187,6 +210,10 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedEntry[] {
         !isFinitePositive(adjustedClosePrice) ||
         !isValidCorporateActionStatus(row.corporate_action_status)
       ) return null;
+      if (isGocapRawPrice(rawClosePrice)) {
+        skippedGocap++;
+        return null;
+      }
       const bucket = bucketFor(lensScore);
       if (!bucket) return null;
       return {
@@ -205,6 +232,7 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedEntry[] {
     })
     .filter((row): row is NormalizedEntry => row !== null)
     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
+  return { entries, skippedGocap };
 }
 
 function initReturns(): Record<LensScoreBucket, Record<ForwardHorizon, number[]>> {
@@ -214,32 +242,23 @@ function initReturns(): Record<LensScoreBucket, Record<ForwardHorizon, number[]>
   }, {} as Record<LensScoreBucket, Record<ForwardHorizon, number[]>>);
 }
 
-function initDatedReturns(): Record<LensScoreBucket, { date: string; returnPct: number }[]> {
+function initDrawdowns(): Record<LensScoreBucket, number[]> {
   return BUCKETS.reduce((acc, bucket) => {
     acc[bucket] = [];
     return acc;
-  }, {} as Record<LensScoreBucket, { date: string; returnPct: number }[]>);
+  }, {} as Record<LensScoreBucket, number[]>);
 }
 
-function maxDrawdownPct(values: { date: string; returnPct: number }[]): number | null {
-  if (!values.length) return null;
-  let equity = 1;
-  let peak = 1;
-  let maxDrawdown = 0;
-  for (const item of [...values].sort((a, b) => a.date.localeCompare(b.date))) {
-    equity *= 1 + item.returnPct / 100;
-    peak = Math.max(peak, equity);
-    const drawdown = ((equity / peak) - 1) * 100;
-    maxDrawdown = Math.min(maxDrawdown, drawdown);
-  }
-  return maxDrawdown;
+interface IntradayBar {
+  open: number;
+  low: number | null;
 }
 
-async function loadOpenMaps(
+async function loadBarMaps(
   tickers: string[],
   provider: DailyOpenProvider
-): Promise<Map<string, Map<string, number>>> {
-  const result = new Map<string, Map<string, number>>();
+): Promise<Map<string, Map<string, IntradayBar>>> {
+  const result = new Map<string, Map<string, IntradayBar>>();
   for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
     const batch = tickers.slice(i, i + BATCH_SIZE);
     const barsList = await Promise.all(batch.map(async (ticker) => ({
@@ -250,11 +269,42 @@ async function loadOpenMaps(
       result.set(ticker, new Map(
         bars
           .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
-          .map((bar) => [bar.date, bar.open])
+          .map((bar) => [bar.date, { open: bar.open, low: isFinitePositive(bar.low) ? bar.low : null }])
       ));
     }
   }
   return result;
+}
+
+/**
+ * Maximum Adverse Excursion: penurunan terdalam dari harga entry selama trade
+ * berjalan (T+1 open sampai bar exit), memakai low harian yang sudah disesuaikan
+ * corporate action. Return null kalau tidak ada satupun low valid di rentang itu,
+ * supaya trade dengan data lubang tidak diam-diam dihitung sebagai drawdown 0.
+ */
+function adverseExcursionPct(
+  bars: Map<string, IntradayBar>,
+  calendar: string[],
+  entryDate: string,
+  exitDate: string,
+  entryOpen: number,
+  roundTripCostPct: number
+): number | null {
+  const from = calendar.indexOf(entryDate);
+  const to = calendar.indexOf(exitDate);
+  if (from < 0 || to < from) return null;
+
+  let lowestLow: number | null = null;
+  for (let i = from; i <= to; i++) {
+    const low = bars.get(calendar[i])?.low;
+    if (!isFinitePositive(low)) continue;
+    lowestLow = lowestLow == null ? low : Math.min(lowestLow, low);
+  }
+  if (lowestLow == null) return null;
+
+  // Excursion dijaga tidak melebihi 0: kalau harga tidak pernah turun di bawah
+  // entry, drawdown trade itu nol, bukan angka positif.
+  return Math.min(0, (lowestLow / entryOpen - 1) * 100 - roundTripCostPct);
 }
 
 export async function calculateLensBucketStats(
@@ -265,7 +315,7 @@ export async function calculateLensBucketStats(
 ): Promise<LensBucketBacktestResult> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const partition = partitionByScoreVersion(rows, requestedScoreVersion);
-  const normalized = normalizeHistory(partition.accepted);
+  const { entries: normalized, skippedGocap } = normalizeHistory(partition.accepted);
   const tradingCalendar = buildTradingCalendar(normalized);
   const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
   const byTicker = new Map<string, NormalizedEntry[]>();
@@ -276,12 +326,14 @@ export async function calculateLensBucketStats(
   }
 
   const tickers = Array.from(byTicker.keys());
-  const openMaps = await loadOpenMaps(tickers, provider);
+  const barMaps = await loadBarMaps(tickers, provider);
   const returns = initReturns();
-  const t20DatedReturns = initDatedReturns();
+  const t20Drawdowns = initDrawdowns();
+  let t20Trades = 0;
+  let skippedNoLow = 0;
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
-    const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
+    const barsByDate = barMaps.get(ticker) ?? new Map<string, IntradayBar>();
     const byDate = new Map(series.map((row) => [row.date, row]));
     for (let i = 0; i < series.length; i++) {
       const signal = series[i];
@@ -290,7 +342,7 @@ export async function calculateLensBucketStats(
       if (signalCalendarIndex == null) continue;
       const entry = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 1);
       if (!entry) continue;
-      const entryOpen = openByDate.get(entry.date);
+      const entryOpen = barsByDate.get(entry.date)?.open;
       if (!isFinitePositive(entryOpen)) continue;
 
       const exitT1 = entry;
@@ -334,11 +386,23 @@ export async function calculateLensBucketStats(
           roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
         });
         if (ret.status !== 'OK' || ret.returnPct == null) return;
-        const netReturn = ret.returnPct;
-        returns[signal.bucket][horizon].push(netReturn);
-        if (horizon === 'T20') {
-          t20DatedReturns[signal.bucket].push({ date: signal.date, returnPct: netReturn });
+        returns[signal.bucket][horizon].push(ret.returnPct);
+        if (horizon !== 'T20') return;
+
+        t20Trades++;
+        const excursion = adverseExcursionPct(
+          barsByDate,
+          tradingCalendar,
+          entry.date,
+          exit.date,
+          entryOpen,
+          LENS_BUCKET_ROUND_TRIP_COST_PCT
+        );
+        if (excursion == null) {
+          skippedNoLow++;
+          return;
         }
+        t20Drawdowns[signal.bucket].push(excursion);
       };
 
       addReturn('T1', exitT1);
@@ -354,14 +418,23 @@ export async function calculateLensBucketStats(
     avg_T20: roundPct(average(returns[bucket].T20)),
     winRate_T5: roundPct(winRate(returns[bucket].T5)),
     winRate_T20: roundPct(winRate(returns[bucket].T20)),
-    maxDrawdown_T20: roundPct(maxDrawdownPct(t20DatedReturns[bucket])),
+    maxDdP95_T20: roundPct(drawdownPercentile95Pct(t20Drawdowns[bucket])),
+    worstMae_T20: roundPct(worstTradeDrawdownPct(t20Drawdowns[bucket])),
     avgWin_T20: roundPct(average(returns[bucket].T20.filter((value) => value > 0))),
     avgLoss_T20: roundPct(average(returns[bucket].T20.filter((value) => value < 0))),
     totalSamples: returns[bucket].T1.length,
   }));
 
+  logger.info(
+    `lens-bucket-backtest: filtered ${skippedGocap + skippedNoLow} dirty trades out of ${partition.accepted.length} rows ` +
+    `(gocap raw < ${MIN_TRADABLE_PRICE_IDR}: ${skippedGocap}, T+20 tanpa low valid: ${skippedNoLow} dari ${t20Trades} trade T+20)`
+  );
+
   return {
     asOfDate,
+    skippedGocapRows: skippedGocap,
+    skippedDrawdownTrades: skippedNoLow,
+    drawdownTrades: t20Trades - skippedNoLow,
     scoreVersion: partition.version,
     requestedScoreVersion,
     rejectedRows: partition.rejected.length,
@@ -403,19 +476,20 @@ export async function saveLensBucketStats(
       `
       INSERT INTO lens_bucket_stats (
         run_date, bucket, avg_t1, avg_t5, avg_t20,
-        win_rate_t5, win_rate_t20, max_drawdown_t20,
+        win_rate_t5, win_rate_t20, max_dd_p95, worst_mae,
         avg_win_t20, avg_loss_t20, total_samples,
         source_rows, unique_tickers, round_trip_cost_pct, score_version,
         price_basis, price_data_version, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
       ON CONFLICT (run_date, bucket) DO UPDATE SET
         avg_t1 = EXCLUDED.avg_t1,
         avg_t5 = EXCLUDED.avg_t5,
         avg_t20 = EXCLUDED.avg_t20,
         win_rate_t5 = EXCLUDED.win_rate_t5,
         win_rate_t20 = EXCLUDED.win_rate_t20,
-        max_drawdown_t20 = EXCLUDED.max_drawdown_t20,
+        max_dd_p95 = EXCLUDED.max_dd_p95,
+        worst_mae = EXCLUDED.worst_mae,
         avg_win_t20 = EXCLUDED.avg_win_t20,
         avg_loss_t20 = EXCLUDED.avg_loss_t20,
         total_samples = EXCLUDED.total_samples,
@@ -435,7 +509,8 @@ export async function saveLensBucketStats(
         stat.avg_T20,
         stat.winRate_T5,
         stat.winRate_T20,
-        stat.maxDrawdown_T20,
+        stat.maxDdP95_T20,
+        stat.worstMae_T20,
         stat.avgWin_T20,
         stat.avgLoss_T20,
         stat.totalSamples,
