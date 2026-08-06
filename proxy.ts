@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, SESSION_COOKIE } from '@/shared/constants/cookie-names';
+import { ADMIN_COOKIE, SESSION_COOKIE } from '@/shared/constants/cookie-names';
 import { decrypt } from '@/shared/auth/jwt';
+import { verifyAdminToken } from '@/shared/auth/admin-token';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 
 // Next.js 16 mengganti file convention "middleware" jadi "proxy" (nama fungsi
@@ -75,7 +76,10 @@ export async function proxy(req: NextRequest) {
   // admin.controller.ts) yang boleh dipercaya untuk keputusan otorisasi. Cookie badge UI
   // non-HttpOnly (ADMIN_BADGE_COOKIE/ROLE_BADGE_COOKIE) sengaja TIDAK dicek di sini -
   // bisa ditulis siapa pun dari devtools/browser console, jadi tidak boleh jadi dasar bypass.
-  if (req.cookies.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE) {
+  // Tanda tangan cookie diverifikasi, bukan dibandingkan dengan konstanta. Sebelumnya
+  // nilai literal '1' sudah cukup, sehingga siapa pun bisa melewati rate limit -
+  // dan lewat isAdminFromRequestCookies, masuk panel admin.
+  if (await verifyAdminToken(req.cookies.get(ADMIN_COOKIE)?.value)) {
     isAdminOrTrial = true;
   }
 

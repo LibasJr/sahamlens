@@ -1,11 +1,18 @@
 import { cookies } from 'next/headers';
-import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from '../../../shared/constants/cookie-names';
+import { ADMIN_COOKIE } from '../../../shared/constants/cookie-names';
+import { verifyAdminToken } from '../../../shared/auth/admin-token';
 import { getStatsToday } from '../../../lib/serverStats';
 import { listAllWatchlistsPaginated } from '../../watchlist';
 
-/** Dipanggil di server (route handler / server component) - baca cookie HttpOnly. */
-export function isAdminFromRequestCookies(cookieStore: { get(name: string): { value: string } | undefined }): boolean {
-  return cookieStore.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE;
+/**
+ * Dipanggil di server (route handler / server component) - baca cookie HttpOnly lalu
+ * verifikasi tanda tangannya. Async karena verifikasi JWT async; jangan diubah jadi
+ * perbandingan sinkron terhadap konstanta apa pun.
+ */
+export async function isAdminFromRequestCookies(
+  cookieStore: { get(name: string): { value: string } | undefined }
+): Promise<boolean> {
+  return verifyAdminToken(cookieStore.get(ADMIN_COOKIE)?.value);
 }
 
 /** Shortcut untuk dipakai di Server Component / Route Handler App Router. */

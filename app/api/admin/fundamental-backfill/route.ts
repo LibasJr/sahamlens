@@ -12,7 +12,7 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   return runController(async () => {
-    if (!isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
+    if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
     if (typeof body.csvText !== 'string') throw new ValidationError('csvText wajib string');
     const result = await runFundamentalBackfillImport({
       csvText: body.csvText,

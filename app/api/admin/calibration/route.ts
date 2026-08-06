@@ -12,7 +12,7 @@ export const maxDuration = 300;
 
 export async function GET() {
   return runController(async () => {
-    if (!isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
+    if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
     const [calibration, latestWeightProposal] = await Promise.all([
       getCalibrationDashboardData(),
       getLatestWeightProposal(),

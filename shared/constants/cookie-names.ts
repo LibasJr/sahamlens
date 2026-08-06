@@ -6,13 +6,16 @@
 // Cookie sesi JWT utama (HttpOnly, dibuat oleh shared/auth/jwt.ts).
 export const SESSION_COOKIE = 'session';
 
-// Cookie admin HttpOnly - satu-satunya yang boleh dipercaya untuk keputusan
-// otorisasi (lihat shared/middleware/require-auth.ts). Diset lewat
-// modules/user/controller/admin.controller.ts setelah verifikasi password admin
-// (hash di database ATAU ADMIN_SECRET_KEY env var sebagai jalur darurat). Login
-// via Telegram Login Widget sudah tidak ada lagi.
+// Cookie admin HttpOnly. Diset lewat modules/user/controller/admin.controller.ts
+// setelah verifikasi password admin (hash di database ATAU ADMIN_SECRET_KEY env var
+// sebagai jalur darurat). Login via Telegram Login Widget sudah tidak ada lagi.
+//
+// ISINYA WAJIB JWT bertanda tangan - lihat shared/auth/admin-token.ts, dan verifikasi
+// SELALU lewat verifyAdminToken(). Jangan pernah membandingkan cookie ini dengan
+// konstanta: nilainya dulu literal '1', dan karena HttpOnly tidak mencegah klien
+// MENGIRIM cookie (hanya mencegah JS membacanya), satu curl sudah cukup untuk masuk
+// panel admin tanpa login.
 export const ADMIN_COOKIE = 'sahamlens_admin';
-export const ADMIN_COOKIE_VALUE = '1';
 
 // Cookie non-HttpOnly untuk badge UI client-side saja (dibaca document.cookie).
 // TIDAK PERNAH dipakai untuk keputusan otorisasi server-side.

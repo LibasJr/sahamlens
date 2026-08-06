@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { ForbiddenError, ValidationError, NotFoundError } from '../../../shared/errors/app-error';
-import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
+import { ADMIN_COOKIE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
+import { signAdminToken } from '../../../shared/auth/admin-token';
 import { isAdminFromRequestCookies, getAdminStatsToday, getAdminExportData } from '../service/admin.service';
 import { getUserByEmail, updateUser } from '../repository/user.repository';
 import { extendProExpiry } from '../service/pro-expiry.service';
@@ -17,9 +18,10 @@ function getAdminSecret(): string | undefined {
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
-function adminCookies(): CookieToSet[] {
+async function adminCookies(): Promise<CookieToSet[]> {
   return [
-    { name: ADMIN_COOKIE, value: ADMIN_COOKIE_VALUE, options: { httpOnly: true, sameSite: 'lax', path: '/', maxAge: THIRTY_DAYS } },
+    // Nilainya JWT bertanda tangan, bukan konstanta - lihat shared/auth/admin-token.ts.
+    { name: ADMIN_COOKIE, value: await signAdminToken(), options: { httpOnly: true, sameSite: 'lax', path: '/', maxAge: THIRTY_DAYS } },
     // Non-HttpOnly, HANYA untuk badge UI client-side - lihat catatan di
     // shared/constants/cookie-names.ts. Middleware/keputusan server TIDAK memercayai ini.
     { name: ADMIN_BADGE_COOKIE, value: 'true', options: { httpOnly: false, sameSite: 'lax', path: '/', maxAge: THIRTY_DAYS } },
@@ -71,15 +73,15 @@ export async function handleAdminLoginByKey(key: string | null): Promise<HttpRes
   if (!key || !(await verifyAdminSecret(key))) {
     return { status: 404, body: { error: 'Not found' } };
   }
-  return { status: 302, body: null, redirectTo: '/dashboard', cookiesToSet: adminCookies() };
+  return { status: 302, body: null, redirectTo: '/dashboard', cookiesToSet: await adminCookies() };
 }
 
 export async function handleAdminStatus(cookieStore: { get(name: string): { value: string } | undefined }): Promise<HttpResult> {
-  return { status: 200, body: { isAdmin: isAdminFromRequestCookies(cookieStore) } };
+  return { status: 200, body: { isAdmin: await isAdminFromRequestCookies(cookieStore) } };
 }
 
 export async function handleAdminStats(cookieStore: { get(name: string): { value: string } | undefined }): Promise<HttpResult> {
-  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (!await isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   return { status: 200, body: getAdminStatsToday() };
 }
 
@@ -87,7 +89,7 @@ export async function handleAdminExport(
   cookieStore: { get(name: string): { value: string } | undefined },
   query: { cursor?: string; limit?: string } = {}
 ): Promise<HttpResult> {
-  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (!await isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   const data = await getAdminExportData({ cursor: query.cursor, limit: query.limit ? Number(query.limit) : undefined });
   return { status: 200, body: { success: true, ...data } };
 }
@@ -96,7 +98,7 @@ export async function handleSetProStatus(
   cookieStore: { get(name: string): { value: string } | undefined },
   body: { email?: unknown; isPro?: unknown; months?: unknown; expiresAt?: unknown }
 ): Promise<HttpResult> {
-  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (!await isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   if (typeof body.email !== 'string' || !body.email || typeof body.isPro !== 'boolean') {
     throw new ValidationError('email dan isPro wajib diisi dengan tipe yang benar');
   }
@@ -126,7 +128,7 @@ export async function handleGetProStatus(
   cookieStore: { get(name: string): { value: string } | undefined },
   query: { email?: unknown }
 ): Promise<HttpResult> {
-  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (!await isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   if (typeof query.email !== 'string' || !query.email) {
     throw new ValidationError('email wajib diisi');
   }
@@ -148,7 +150,7 @@ export async function handleChangeAdminSecret(
   cookieStore: { get(name: string): { value: string } | undefined },
   body: { currentKey?: unknown; newKey?: unknown }
 ): Promise<HttpResult> {
-  if (!isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (!await isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
   if (typeof body.currentKey !== 'string' || !body.currentKey || typeof body.newKey !== 'string') {
     throw new ValidationError('Password saat ini dan password baru wajib diisi');
   }
