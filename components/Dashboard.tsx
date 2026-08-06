@@ -971,6 +971,10 @@ export default function Dashboard() {
             <span className="font-medium">Data bersumber dari Yahoo Finance (pihak ketiga), dapat mengalami keterlambatan hingga ~15 menit • Informasi &amp; rekomendasi di aplikasi ini bersifat informatif, bukan nasihat investasi</span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Tagline filosofi brand (disepakati 2026-08-06) - versi landing dari
+                baris yang sama di footer Sidebar.tsx, karena halaman ini ("/") satu-
+                satunya yang tidak lewat Sidebar. */}
+            <span className="hidden sm:inline italic text-tv-muted">Memperjelas yang tersembunyi. Keputusan tetap milikmu.</span>
             <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
           </div>
         </Card>

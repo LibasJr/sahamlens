@@ -415,7 +415,12 @@ export default function Sidebar() {
           </div>
           <span className={`hidden ${isCollapsed ? 'md:flex md:justify-center' : ''} w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse`} />
           {!isCollapsed && (
-            <p className="text-[10px] text-white/25 text-center">&copy; 2026 SahamLens</p>
+            <>
+              {/* Tagline filosofi brand (disepakati 2026-08-06) - baris kecil, tidak
+                  menonjol, hadir di semua halaman lewat footer Sidebar ini. */}
+              <p className="text-[10px] text-white/30 text-center italic">Memperjelas yang tersembunyi. Keputusan tetap milikmu.</p>
+              <p className="text-[10px] text-white/25 text-center">&copy; 2026 SahamLens</p>
+            </>
           )}
         </div>
       </aside>
