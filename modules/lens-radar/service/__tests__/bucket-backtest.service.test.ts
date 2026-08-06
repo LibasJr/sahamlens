@@ -84,7 +84,8 @@ describe('calculateLensBucketStats', () => {
         'avg_T20',
         'winRate_T5',
         'winRate_T20',
-        'maxDrawdown_T20',
+        'maxDdP95_T20',
+        'worstMae_T20',
         'avgWin_T20',
         'avgLoss_T20',
         'totalSamples',
@@ -157,5 +158,68 @@ describe('calculateLensBucketStats', () => {
 
     expect(result.sourceRows).toBe(0);
     expect(result.stats.every((s) => s.totalSamples === 0)).toBe(true);
+  });
+
+  it('max drawdown memakai low intra-trade, bukan compounding ribuan sinyal yang tumpang tindih', async () => {
+    // 60 hari beruntun, tiap hari memberi sinyal bucket 80-100, jadi trade T+20 saling
+    // tumpang tindih. Harga close naik konsisten (setiap trade profit), tetapi ada satu
+    // low ekstrem di 2026-02-05 yang menjadi drawdown terburuk.
+    const rows: LensRadarHistoryEntry[] = [];
+    const bars: Record<string, { open: number; low: number }> = {};
+    for (let i = 0; i < 60; i++) {
+      const date = dateFromStart(i);
+      const close = 1000 + i * 10;
+      rows.push(row(date, 'OVER.JK', 85, close));
+      bars[date] = { open: close, low: close * 0.97 };
+    }
+    bars[dateFromStart(35)] = { open: 1350, low: 1000 };
+
+    const result = await calculateLensBucketStats(rows, {
+      async getDailyOpenBars() {
+        return Object.entries(bars).map(([date, bar]) => ({
+          date,
+          open: bar.open,
+          low: bar.low,
+          priceBasis: RETURN_PRICE_BASIS,
+        }));
+      },
+    }, dateFromStart(59));
+
+    const high = result.stats.find((s) => s.bucket === '80-100')!;
+    expect(high.avg_T20).toBeGreaterThan(0);
+    expect(high.maxDdP95_T20).not.toBe(-100);
+    expect(high.worstMae_T20).not.toBe(-100);
+    // Trade terburuk: entry di open 1350 (index 35), low 1000 di hari yang sama:
+    // (1000 / 1350 - 1) * 100 - 0.5 = -26.43.
+    expect(high.worstMae_T20).toBe(-26.43);
+    // P95 tidak ikut terseret satu trade ekstrem: mayoritas trade cuma turun ~3.5%.
+    expect(high.maxDdP95_T20).toBeGreaterThan(high.worstMae_T20!);
+    expect(high.maxDdP95_T20).toBeLessThan(0);
+    expect(result.drawdownTrades).toBeGreaterThan(0);
+  });
+
+  it('drawdown null saat provider tidak memberi low, bukan diam-diam dianggap 0', async () => {
+    const rows: LensRadarHistoryEntry[] = [];
+    for (let i = 0; i < 25; i++) rows.push(row(dateFromStart(i), 'NOLO.JK', 85, 100 + i));
+    const opens: Record<string, number> = {};
+    for (let i = 0; i < 25; i++) opens[dateFromStart(i)] = 100 + i;
+
+    const result = await calculateLensBucketStats(rows, provider({ 'NOLO.JK': opens }), dateFromStart(24));
+
+    const high = result.stats.find((s) => s.bucket === '80-100')!;
+    expect(high.maxDdP95_T20).toBeNull();
+    expect(high.worstMae_T20).toBeNull();
+    expect(result.skippedDrawdownTrades).toBeGreaterThan(0);
+  });
+
+  it('membuang baris gocap berdasarkan harga raw, bukan harga adjusted', async () => {
+    const gocap = { ...row('2026-01-01', 'GOCA.JK', 85, 49), raw_close_price: 49, adjusted_close_price: 49 };
+    // Adjusted 20 tetapi raw 2000: hasil split, wajib dipertahankan.
+    const split = { ...row('2026-01-02', 'SPLT.JK', 85, 2000), raw_close_price: 2000, adjusted_close_price: 20 };
+
+    const result = await calculateLensBucketStats([gocap, split], provider({}), '2026-01-02');
+
+    expect(result.skippedGocapRows).toBe(1);
+    expect(result.sourceRows).toBe(1);
   });
 });
