@@ -92,13 +92,13 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
         <div className="flex-1 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-tv-bg border border-tv-border rounded-lg p-3">
-              <div className="text-xs text-tv-muted font-mono mb-1">Total Value</div>
+              <div className="text-xs text-tv-muted font-sans mb-1">Total Value</div>
               <div className="text-xl font-bold text-white font-number">
                 Rp {totalValue.toLocaleString()}
               </div>
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-3">
-              <div className="text-xs text-tv-muted font-mono mb-1">Total PnL</div>
+              <div className="text-xs text-tv-muted font-sans mb-1">Total PnL</div>
               <div className={`text-xl font-bold font-number ${totalPnLPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 {totalPnLPct >= 0 ? '+' : ''}{totalPnLPct.toFixed(2)}%
                 <span className="text-xs ml-2 text-tv-muted opacity-80">
@@ -108,7 +108,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-sm font-mono">
+          <div className="flex items-center gap-2 text-sm font-sans">
             <PieChart className="w-4 h-4 text-tv-muted" />
             <span className="text-tv-muted">Konsentrasi posisi: </span>
             <span className={`font-bold ${isHighRisk ? 'text-tv-red' : 'text-tv-green'}`}>
@@ -128,7 +128,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
               <h3 className={`font-heading font-bold text-sm mb-1 ${isHighRisk ? 'text-red-400' : 'text-blue-400'}`}>
                 {isHighRisk ? 'High Concentration Risk' : 'Healthy Portfolio Allocation'}
               </h3>
-              <p className="text-xs font-mono text-gray-300 leading-relaxed">
+              <p className="text-xs font-sans text-gray-300 leading-relaxed">
                 {isHighRisk
                   ? `Cukup berisiko, ${maxConcentration.toFixed(0)}% nilai portofolio terkonsentrasi di ${topPosition}. Evaluasi batas eksposur per saham sebelum menambah posisi.`
                   : 'Konsentrasi posisi masih terkendali berdasarkan data lot dan harga yang tersedia.'}
@@ -138,7 +138,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
 
           <button
             onClick={() => router.push('/breakout-radar')}
-            className={`mt-4 text-xs font-bold font-mono px-4 py-2 rounded self-start transition-colors ${
+            className={`mt-4 text-xs font-bold font-sans px-4 py-2 rounded self-start transition-colors ${
               isHighRisk ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}
           >

@@ -322,7 +322,9 @@ export default function ScreenerPage() {
                     <td className="p-3 text-tv-text">{item.moat}</td>
                     <td className="p-3">
                       {item.signal ? (
-                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-mono text-[10px] ${
+                        // BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data
+                        // tabular/kode (aturan app/globals.css), bukan kata status.
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans text-[10px] ${
                           item.signal.includes('BUY')
                             ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
                             : item.signal === 'SELL'

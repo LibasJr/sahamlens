@@ -115,7 +115,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
             Intrinsic Value Engine
           </h3>
         </div>
-        <div className="text-xs font-mono text-tv-muted px-2 py-1 rounded bg-tv-bg border border-tv-border">
+        <div className="text-xs font-sans text-tv-muted px-2 py-1 rounded bg-tv-bg border border-tv-border">
           Sector: {sektor || 'Unknown'}
         </div>
       </div>

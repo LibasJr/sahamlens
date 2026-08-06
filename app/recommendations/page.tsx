@@ -380,7 +380,9 @@ export default function Recommendations() {
                       </span>
                     </td>
                     <td className="p-4 text-center">
-                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-mono text-xs ${item.consensus?.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green' :
+                      {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data
+                          tabular/kode (aturan app/globals.css), bukan kata status BUY/SELL. */}
+                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans text-xs ${item.consensus?.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green' :
                           item.consensus?.includes('SELL') ? 'bg-tv-red/20 text-tv-red border border-tv-red' :
                             'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow'
                         }`}>
@@ -407,7 +409,7 @@ export default function Recommendations() {
                       </div>
                     </td>
                     <td className="p-4 text-center">
-                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-mono text-[11px] ${item.foreignFlow?.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/50' :
+                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans text-[11px] ${item.foreignFlow?.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/50' :
                           item.foreignFlow?.includes('SELL') ? 'bg-tv-red/10 text-tv-red border border-tv-red/50' :
                             'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/50'
                         }`}>

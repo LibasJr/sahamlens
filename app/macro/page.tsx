@@ -34,13 +34,13 @@ export default function MacroPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white font-heading">Outlook Makroekonomi Indonesia</h1>
-            <p className="text-xs text-tv-muted font-mono">
+            <p className="text-xs text-tv-muted font-sans">
               Analisis dampak makro (BI Rate, Fed Rate, inflasi, kurs Rupiah) terhadap emiten IDX.
             </p>
           </div>
         </div>
 
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4 font-mono">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
             <Compass className="w-5 h-5 text-indigo-400" />
             Rotasi Sektor & Proyeksi IHSG
@@ -50,7 +50,7 @@ export default function MacroPage() {
             target IHSG 12 bulan, dan outlook BI Rate butuh sumber data makro resmi (BI
             Rate, inflasi, Fed Rate) yang belum tersambung di backend ini - hanya kurs
             USD/IDR yang saat ini disinkronkan (lihat modul{' '}
-            <code className="text-tv-text">modules/macro/</code> dan penyesuaian mata uang
+            <code className="text-tv-text font-mono">modules/macro/</code> dan penyesuaian mata uang
             di{' '}
             <a href="/dcf" className="text-tv-blue hover:underline">DCF Intrinsic Valuation</a>
             ). SahamLens tidak mengarang target indeks atau outlook kebijakan tanpa dasar
