@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
@@ -440,7 +440,7 @@ export default function Dashboard() {
             <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-glow-purple blur-3xl" />
             <div className="pointer-events-none absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
 
-            <div className="relative grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
+            <div className="relative grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-stretch">
               <div className="min-w-0">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
                   <Sparkles className="h-3 w-3" /> Analisis saham IDX berbasis data
@@ -481,10 +481,11 @@ export default function Dashboard() {
                     landing page sebelumnya soal itu). Ikon SAMA PERSIS dengan Sidebar
                     (LineChart/Building2/History/Users) - satu bahasa visual, bukan
                     kebetulan pemilihan berbeda. */}
-                <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-tv-border/60 pt-5">
+                <div className="mt-6 flex flex-wrap gap-x-7 gap-y-3 border-t border-tv-border/60 pt-5">
                   {[
                     { icon: LineChart, label: 'Teknikal' },
                     { icon: Building2, label: 'Fundamental' },
+                    { icon: Filter, label: 'LensScanner' },
                     { icon: History, label: 'Backtest' },
                     { icon: Users, label: 'LensAI' },
                   ].map(({ icon: Icon, label }) => (
@@ -500,28 +501,35 @@ export default function Dashboard() {
 
               {/* Panel angka hidup - IHSG besar + jumlah emiten terpantau. Sebelumnya
                   posisi ini diisi gambar logo yang tidak menyampaikan informasi apa pun. */}
-              <div className="rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
-                {ihsg ? (
-                  <>
-                    <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
-                      {ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {/* h-full + flex justify-between - dulu items-center di baris grid
+                  membiarkan panel ini mengambang di tengah tinggi baris (tinggi
+                  aslinya jauh lebih pendek dari kolom kiri), menyisakan celah kosong
+                  di atas DAN di bawahnya. Sekarang panel meregang penuh mengikuti
+                  kolom kiri, isinya disebar dari atas ke bawah. */}
+              <div className="h-full rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm flex flex-col justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
+                  {ihsg ? (
+                    <>
+                      <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
+                        {ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${
+                        ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
+                      }`}>
+                        {ihsg.change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                        {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
+                      </div>
+                    </>
+                  ) : ihsgFailed ? (
+                    <p className="mt-2 text-sm text-tv-muted">Angka indeks tidak tersedia saat ini.</p>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      <Skeleton className="h-9 w-40" />
+                      <Skeleton variant="text" className="h-5 w-28" />
                     </div>
-                    <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${
-                      ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
-                    }`}>
-                      {ihsg.change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                      {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
-                    </div>
-                  </>
-                ) : ihsgFailed ? (
-                  <p className="mt-2 text-sm text-tv-muted">Angka indeks tidak tersedia saat ini.</p>
-                ) : (
-                  <div className="mt-2 space-y-2">
-                    <Skeleton className="h-9 w-40" />
-                    <Skeleton variant="text" className="h-5 w-28" />
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-3 border-t border-tv-border pt-4">
                   <div>
