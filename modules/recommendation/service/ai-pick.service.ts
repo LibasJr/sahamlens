@@ -105,6 +105,9 @@ export type ScoredStock = {
   eligibilityStatus?: EligibilityStatus | null;
   /** Alasan gerbang kelayakan aktif - diteruskan apa adanya untuk penelusuran. */
   eligibilityReasons?: string[] | null;
+  /** ADV20 rupiah (`adv20Idr` dari gerbang kelayakan). Diarsipkan ke lens_radar_history
+   * supaya backtest bisa membuang sinyal yang pada hari itu terlalu sepi. */
+  avgValue20d?: number | null;
   /** Setup trading long berbasis ATR + struktur harga. Null kalau RR < 1.5 atau data
    * struktur tidak cukup. Ranking tidak boleh menciptakan TP/CL sendiri dari ATR saja. */
   tradeSetup?: {

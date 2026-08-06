@@ -21,6 +21,7 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     price_basis: RETURN_PRICE_BASIS,
     market_cap: marketCap,
     score_version: 'lens-score-v1.3.0',
+    avg_value_20d: 5_000_000_000,
   };
 }
 

@@ -26,6 +26,7 @@ interface TransparencyBucketRow {
   avgT1: number | null;
   avgT5: number | null;
   avgT20: number | null;
+  avgT20Gross: number | null;
   winRateT20: number | null;
   totalSamples: number;
   maxDdP95T20: number | null;
@@ -49,6 +50,8 @@ interface TransparencyData {
   startDate: string | null;
   validationDays: number;
   totalSamples: number;
+  illiquidRowsSkipped: number | null;
+  minAvgValue20dIdr: number;
   pValue80VsLt60: number | null;
   significant: boolean;
   disclaimer: string;
@@ -316,10 +319,19 @@ export default function TransparencyClient() {
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Performa per Bucket LensScore</h2>
         <p className="text-xs text-tv-muted mb-4">
-          Return bersih setelah biaya. Win Rate, Max DD, Avg Win/Loss ditampilkan untuk horizon T+20.
-          <b>Max DD (P95)</b> mengukur penurunan terdalam dari harga entry selama satu trade T+20 berjalan:
+          Win Rate, Max DD, Avg Win/Loss ditampilkan untuk horizon T+20.
+          <b>Avg T+20 Gross</b> adalah return sebelum biaya; <b>Avg T+20</b> sudah dikurangi fee 0,4% +
+          slippage 0,1%, dan itulah angka yang dipakai di seluruh halaman ini.
+          <b> Max DD (P95)</b> mengukur penurunan terdalam dari harga entry selama satu trade T+20 berjalan:
           hanya 5% trade yang turun lebih dalam dari angka ini. <b>Trade Terburuk</b> adalah satu trade
           paling parah yang pernah terjadi. Keduanya per trade, bukan drawdown portofolio gabungan.
+        </p>
+        <p className="text-xs text-tv-muted mb-4">
+          Hanya sinyal yang pada tanggalnya punya nilai transaksi rata-rata 20 hari di atas
+          Rp {(data.minAvgValue20dIdr / 1_000_000_000).toFixed(0)} miliar/hari yang dihitung.
+          {data.illiquidRowsSkipped != null && data.illiquidRowsSkipped > 0
+            ? ` ${num(data.illiquidRowsSkipped)} sinyal dibuang karena di bawah ambang itu - return dari saham yang tidak bisa dibeli dalam ukuran wajar bukan return yang bisa diklaim.`
+            : ''}
         </p>
         {!hasAnySample ? (
           <EmptyState
@@ -336,7 +348,8 @@ export default function TransparencyClient() {
                     <th className="px-4 py-3 text-left whitespace-nowrap">Bucket</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Avg T+1</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Avg T+5</th>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">Avg T+20</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Avg T+20 Gross</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Avg T+20 Net</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Win Rate</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Total Sampel</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Max DD (P95)</th>
@@ -355,6 +368,7 @@ export default function TransparencyClient() {
                           `(row.avgT20 ?? 0) >= 0`, sehingga bucket TANPA data
                           (null -> 0 -> lolos >= 0) dirender HIJAU. Sel kosong
                           diwarnai seolah hasilnya positif. */}
+                      <td className="px-4 py-3 text-right text-tv-muted"><Cell value={row.avgT20Gross} /></td>
                       <td className="px-4 py-3 text-right"><Cell value={row.avgT20} tone="up" className="font-bold" /></td>
                       <td className="px-4 py-3 text-right"><Cell value={row.winRateT20} /></td>
                       <td className="px-4 py-3 text-right font-number">{num(row.totalSamples)}</td>

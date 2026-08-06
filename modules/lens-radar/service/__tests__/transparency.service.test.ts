@@ -41,6 +41,9 @@ describe('transparency.service', () => {
         avg_t1: '1.1',
         avg_t5: '2.2',
         avg_t20: '3.3',
+        avg_t20_gross: '3.8',
+        illiquid_rows_skipped: '7',
+        unknown_liquidity_rows: '0',
         win_rate_t20: '55',
         total_samples: '10',
         max_dd_p95: null,
@@ -58,6 +61,7 @@ describe('transparency.service', () => {
     expect(result.latestStatsRunDate).toBe('2026-02-01');
     expect(high.avgT1).toBe(1.1);
     expect(high.avgT20).toBe(3.3);
+    expect(high.avgT20Gross).toBe(3.8);
     // Dua observasi [10, -4]: P95 dan trade terburuk sama-sama jatuh di -4.
     expect(high.maxDdP95T20).toBe(-4);
     expect(high.worstMaeT20).toBe(-4);

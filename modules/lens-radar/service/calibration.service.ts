@@ -4,6 +4,7 @@ import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { fetchYahooHistory } from '@/modules/technical';
 import {
+  LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
   type DailyOpenBar,
   type DailyOpenProvider,
@@ -210,12 +211,18 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedHistoryEntry
       const adjustedClosePrice = finiteNumber(row.adjusted_close_price ?? null);
       const priceBasis = row.price_basis === RETURN_PRICE_BASIS ? RETURN_PRICE_BASIS : 'UNKNOWN';
       const marketCap = finiteNumber(row.market_cap);
+      // Gerbang likuiditas yang sama dengan bucket-backtest. Kalau t-test dan equity
+      // curve memakai sampel yang lebih longgar daripada tabel bucket, dua angka di
+      // halaman transparansi yang sama akan bicara tentang populasi trade berbeda.
+      const avgValue20d = finiteNumber(row.avg_value_20d ?? null);
       if (
         !date ||
         !ticker ||
         lensScore == null ||
         priceBasis !== RETURN_PRICE_BASIS ||
         !isFinitePositive(adjustedClosePrice) ||
+        avgValue20d == null ||
+        avgValue20d < LENS_BUCKET_MIN_AVG_VALUE_20D_IDR ||
         !isValidCorporateActionStatus(row.corporate_action_status)
       ) return null;
       const bucket = bucketFor(lensScore);
@@ -380,7 +387,8 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     `
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
-           corporate_action_status, price_data_timestamp, price_data_version
+           corporate_action_status, price_data_timestamp, price_data_version,
+           avg_value_20d
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL

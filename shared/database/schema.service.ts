@@ -221,6 +221,15 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS price_data_version TEXT;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+      -- ADV20 point-in-time: rata-rata (close x volume) 20 bar terakhir SAMPAI tanggal
+      -- baris ini, dalam rupiah. Dipakai backtest untuk membuang sinyal pada saham yang
+      -- pada hari itu terlalu sepi untuk dieksekusi. Disimpan alih-alih dihitung ulang
+      -- saat backtest supaya angkanya terikat pada tanggal sinyal, bukan pada likuiditas
+      -- hari ini - menghitungnya belakangan dari histori penuh adalah look-ahead.
+      -- NULL berarti baris ini diarsipkan sebelum kolom ada; artinya "tidak tahu",
+      -- dan backtest menghitungnya terpisah, tidak diam-diam meloloskannya sebagai likuid.
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS avg_value_20d NUMERIC;
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_ticker_date
         ON lens_radar_history (ticker, date);
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_score_price_basis_date
@@ -276,6 +285,17 @@ export function ensureSharedSchema(): Promise<void> {
       -- ensureSharedSchema-nya sendiri. DROP ini membersihkannya setelah rollout selesai.
       ALTER TABLE lens_bucket_stats
         DROP COLUMN IF EXISTS max_drawdown_t20;
+      -- avg_t20 SUDAH bersih biaya (round_trip_cost_pct dikurangkan di dalam
+      -- calculateForwardReturnPct). Kolom gross disimpan berdampingan supaya besarnya
+      -- ongkos terhadap edge terlihat, bukan supaya ada dua definisi "return T+20".
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS avg_t20_gross NUMERIC;
+      -- Berapa trade dibuang gerbang likuiditas ADV20 pada run ini. Disimpan per baris
+      -- bucket karena angkanya adalah bagian dari cara sampel bucket itu terbentuk.
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS illiquid_rows_skipped INTEGER;
+      ALTER TABLE lens_bucket_stats
+        ADD COLUMN IF NOT EXISTS unknown_liquidity_rows INTEGER;
       ALTER TABLE lens_bucket_stats
         ADD COLUMN IF NOT EXISTS avg_win_t20 NUMERIC;
       ALTER TABLE lens_bucket_stats

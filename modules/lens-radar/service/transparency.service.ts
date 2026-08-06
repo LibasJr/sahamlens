@@ -5,6 +5,7 @@ import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { fetchYahooHistory } from '@/modules/technical';
 import {
+  LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
   type LensRadarHistoryEntry,
   type LensScoreBucket,
@@ -28,7 +29,7 @@ import { SCORE_VERSION } from '../constants/model-version';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
-export const TRANSPARENCY_CACHE_VERSION = 'drawdown-v2';
+export const TRANSPARENCY_CACHE_VERSION = 'liquidity-v1';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
@@ -47,6 +48,9 @@ interface LensBucketStatsRow {
   avg_t1: number | string | null;
   avg_t5: number | string | null;
   avg_t20: number | string | null;
+  avg_t20_gross: number | string | null;
+  illiquid_rows_skipped: number | string | null;
+  unknown_liquidity_rows: number | string | null;
   win_rate_t20: number | string | null;
   total_samples: number | string | null;
   max_dd_p95: number | string | null;
@@ -63,6 +67,8 @@ export interface TransparencyBucketRow {
   avgT1: number | null;
   avgT5: number | null;
   avgT20: number | null;
+  /** Return T+20 sebelum fee + slippage. `avgT20` adalah angka bersihnya. */
+  avgT20Gross: number | null;
   winRateT20: number | null;
   totalSamples: number;
   /** Drawdown intra-trade pada persentil 95: hanya 5% trade yang turun lebih dalam. */
@@ -102,6 +108,9 @@ export interface TransparencyData {
   startDate: string | null;
   validationDays: number;
   totalSamples: number;
+  /** Sinyal yang dibuang gerbang likuiditas ADV20 pada run bucket terakhir. */
+  illiquidRowsSkipped: number | null;
+  minAvgValue20dIdr: number;
   pValue80VsLt60: number | null;
   significant: boolean;
   disclaimer: string;
@@ -154,9 +163,11 @@ function deriveBucketFallback(observations: CalibrationObservation[], bucket: Le
   const t5 = observations
     .filter((obs) => obs.bucket === bucket && typeof obs.returnT5 === 'number')
     .map((obs) => obs.returnT5 as number);
+  const avgT20 = average(t20);
   return {
     avgT5: roundPct(average(t5)),
-    avgT20: roundPct(average(t20)),
+    avgT20: roundPct(avgT20),
+    avgT20Gross: roundPct(avgT20 == null ? null : avgT20 + LENS_BUCKET_ROUND_TRIP_COST_PCT),
     winRateT20: roundPct(winRate(t20)),
     // Fallback hanya punya return close-to-close, bukan low harian, jadi angkanya
     // proxy yang lebih optimis daripada MAE di lens_bucket_stats.
@@ -184,6 +195,7 @@ export function buildBucketRows(
       avgT1: roundPct(finiteNumber(stat?.avg_t1 ?? null)),
       avgT5: roundPct(finiteNumber(stat?.avg_t5 ?? null) ?? fallback.avgT5 ?? null),
       avgT20: roundPct(finiteNumber(stat?.avg_t20 ?? null) ?? fallback.avgT20 ?? null),
+      avgT20Gross: roundPct(finiteNumber(stat?.avg_t20_gross ?? null) ?? fallback.avgT20Gross ?? null),
       winRateT20: roundPct(finiteNumber(stat?.win_rate_t20 ?? null) ?? fallback.winRateT20 ?? null),
       totalSamples: Number(stat?.total_samples ?? fallback.totalSamples ?? 0),
       maxDdP95T20: roundPct(finiteNumber(stat?.max_dd_p95 ?? null) ?? fallback.maxDdP95T20 ?? null),
@@ -214,6 +226,9 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
       s.avg_t1,
       s.avg_t5,
       s.avg_t20,
+      s.avg_t20_gross,
+      s.illiquid_rows_skipped,
+      s.unknown_liquidity_rows,
       s.win_rate_t20,
       s.total_samples,
       s.max_dd_p95,
@@ -245,7 +260,8 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     `
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
-           corporate_action_status, price_data_timestamp, price_data_version
+           corporate_action_status, price_data_timestamp, price_data_version,
+           avg_value_20d
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -401,9 +417,11 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     startDate,
     validationDays,
     totalSamples: bucketResult.totalSamples,
+    illiquidRowsSkipped: finiteNumber(statsRows[0]?.illiquid_rows_skipped ?? null),
+    minAvgValue20dIdr: LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
     pValue80VsLt60: pValue,
     significant: tTest.significant,
-    disclaimer: `Data point-in-time, entry Open H+1, exit T+N berbasis hari bursa, window equity curve Top 5 tidak tumpang tindih 20 hari, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. ${RESEARCH_ONLY_DISCLAIMER}`,
+    disclaimer: `Data point-in-time, entry Open H+1, exit T+N berbasis hari bursa, hanya sinyal dengan nilai transaksi rata-rata 20 hari di atas Rp ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR / 1_000_000_000} miliar/hari pada tanggal sinyal, window equity curve Top 5 tidak tumpang tindih 20 hari, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. ${RESEARCH_ONLY_DISCLAIMER}`,
     banner: buildTransparencyBanner(validationStatus),
     buckets: bucketResult.rows,
     equityCurve: buildTop5EquityCurve(observations, ihsgBars),

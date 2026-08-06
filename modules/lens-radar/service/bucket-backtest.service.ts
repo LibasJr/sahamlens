@@ -22,7 +22,18 @@ import {
   type PriceBasis,
 } from '@/shared/market/price-basis';
 
+import { ADV_HARD_FLOOR_IDR } from '@/modules/eligibility';
+
 export const LENS_BUCKET_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
+
+/**
+ * Gerbang likuiditas backtest: satu sinyal hanya dihitung kalau pada TANGGAL SINYAL
+ * nilai transaksi rata-rata 20 harinya sudah di atas lantai ADV. Ambangnya sengaja
+ * memakai konstanta yang sama dengan gerbang kelayakan produk (`ADV_HARD_FLOOR_IDR`)
+ * supaya backtest tidak pernah mengklaim return dari saham yang aplikasinya sendiri
+ * menolak merekomendasikan.
+ */
+export const LENS_BUCKET_MIN_AVG_VALUE_20D_IDR = ADV_HARD_FLOOR_IDR;
 
 export type LensScoreBucket = '80-100' | '70-79' | '60-69' | '<60';
 export type ForwardHorizon = 'T1' | 'T5' | 'T20';
@@ -44,6 +55,7 @@ export interface LensRadarHistoryEntry {
   corporate_action_status?: CorporateActionStatus | string | null;
   price_data_timestamp?: string | Date | null;
   price_data_version?: string | null;
+  avg_value_20d?: number | string | null;
 }
 
 export interface DailyOpenBar {
@@ -70,6 +82,8 @@ export interface LensBucketStat {
   avgWin_T20: number | null;
   avgLoss_T20: number | null;
   totalSamples: number;
+  /** Return T+20 SEBELUM fee dan slippage. `avg_T20` adalah angka bersihnya. */
+  avgT20Gross: number | null;
 }
 
 export interface LensBucketBacktestResult {
@@ -87,6 +101,11 @@ export interface LensBucketBacktestResult {
   roundTripCostPct: number;
   /** Baris dibuang karena harga raw di bawah tick minimum IDX. */
   skippedGocapRows: number;
+  /** Baris dibuang karena ADV20 pada tanggal sinyal di bawah lantai likuiditas. */
+  skippedIlliquidRows: number;
+  /** Baris tanpa avg_value_20d sama sekali: likuiditasnya tidak bisa diuji. */
+  unknownLiquidityRows: number;
+  minAvgValue20dIdr: number;
   /** Trade T+20 tanpa low harian valid, jadi tidak bisa dihitung drawdown-nya. */
   skippedDrawdownTrades: number;
   drawdownTrades: number;
@@ -112,6 +131,8 @@ interface NormalizedEntry {
   adjustmentVersion: string;
   corporateActionStatus: CorporateActionStatus;
   marketCap: number | null;
+  /** Selalu terisi: baris tanpa ADV20 tidak pernah lolos normalizeHistory. */
+  avgValue20d: number;
   bucket: LensScoreBucket;
 }
 
@@ -191,8 +212,17 @@ function isGocapRawPrice(rawClosePrice: number | null): boolean {
   return rawClosePrice != null && rawClosePrice < MIN_TRADABLE_PRICE_IDR;
 }
 
-function normalizeHistory(rows: LensRadarHistoryEntry[]): { entries: NormalizedEntry[]; skippedGocap: number } {
+interface NormalizeOutcome {
+  entries: NormalizedEntry[];
+  skippedGocap: number;
+  skippedIlliquid: number;
+  unknownLiquidity: number;
+}
+
+function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizeOutcome {
   let skippedGocap = 0;
+  let skippedIlliquid = 0;
+  let unknownLiquidity = 0;
   const entries = rows
     .map((row) => {
       const date = dateKey(row.date);
@@ -202,6 +232,7 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): { entries: NormalizedE
       const adjustedClosePrice = finiteNumber(row.adjusted_close_price ?? null);
       const priceBasis = row.price_basis === RETURN_PRICE_BASIS ? RETURN_PRICE_BASIS : 'UNKNOWN';
       const marketCap = finiteNumber(row.market_cap);
+      const avgValue20d = finiteNumber(row.avg_value_20d ?? null);
       if (
         !date ||
         !ticker ||
@@ -212,6 +243,17 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): { entries: NormalizedE
       ) return null;
       if (isGocapRawPrice(rawClosePrice)) {
         skippedGocap++;
+        return null;
+      }
+      // Baris tanpa ADV20 dihitung terpisah lalu DIBUANG. Meloloskannya berarti angka
+      // performa bucket kembali memuat sinyal yang likuiditasnya tidak pernah diuji -
+      // persis klaim yang gerbang ini ada untuk mencegahnya.
+      if (avgValue20d == null) {
+        unknownLiquidity++;
+        return null;
+      }
+      if (avgValue20d < LENS_BUCKET_MIN_AVG_VALUE_20D_IDR) {
+        skippedIlliquid++;
         return null;
       }
       const bucket = bucketFor(lensScore);
@@ -227,12 +269,13 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): { entries: NormalizedE
         adjustmentVersion: row.price_data_version ?? PRICE_ADJUSTMENT_VERSION,
         corporateActionStatus: (row.corporate_action_status as CorporateActionStatus) ?? 'NONE',
         marketCap,
+        avgValue20d,
         bucket,
       };
     })
     .filter((row): row is NormalizedEntry => row !== null)
     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
-  return { entries, skippedGocap };
+  return { entries, skippedGocap, skippedIlliquid, unknownLiquidity };
 }
 
 function initReturns(): Record<LensScoreBucket, Record<ForwardHorizon, number[]>> {
@@ -315,7 +358,7 @@ export async function calculateLensBucketStats(
 ): Promise<LensBucketBacktestResult> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const partition = partitionByScoreVersion(rows, requestedScoreVersion);
-  const { entries: normalized, skippedGocap } = normalizeHistory(partition.accepted);
+  const { entries: normalized, skippedGocap, skippedIlliquid, unknownLiquidity } = normalizeHistory(partition.accepted);
   const tradingCalendar = buildTradingCalendar(normalized);
   const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
   const byTicker = new Map<string, NormalizedEntry[]>();
@@ -411,11 +454,16 @@ export async function calculateLensBucketStats(
     }
   }
 
-  const stats = BUCKETS.map((bucket): LensBucketStat => ({
+  const stats = BUCKETS.map((bucket): LensBucketStat => {
+    const avgT20Net = average(returns[bucket].T20);
+    return {
     bucket,
     avg_T1: roundPct(average(returns[bucket].T1)),
     avg_T5: roundPct(average(returns[bucket].T5)),
-    avg_T20: roundPct(average(returns[bucket].T20)),
+    avg_T20: roundPct(avgT20Net),
+    // Biaya round-trip dikurangkan sebagai konstanta dari tiap return, jadi rata-rata
+    // gross adalah rata-rata net + biaya. Tidak perlu pass kedua atas data yang sama.
+    avgT20Gross: roundPct(avgT20Net == null ? null : avgT20Net + LENS_BUCKET_ROUND_TRIP_COST_PCT),
     winRate_T5: roundPct(winRate(returns[bucket].T5)),
     winRate_T20: roundPct(winRate(returns[bucket].T20)),
     maxDdP95_T20: roundPct(drawdownPercentile95Pct(t20Drawdowns[bucket])),
@@ -423,16 +471,23 @@ export async function calculateLensBucketStats(
     avgWin_T20: roundPct(average(returns[bucket].T20.filter((value) => value > 0))),
     avgLoss_T20: roundPct(average(returns[bucket].T20.filter((value) => value < 0))),
     totalSamples: returns[bucket].T1.length,
-  }));
+    };
+  });
 
   logger.info(
-    `lens-bucket-backtest: filtered ${skippedGocap + skippedNoLow} dirty trades out of ${partition.accepted.length} rows ` +
-    `(gocap raw < ${MIN_TRADABLE_PRICE_IDR}: ${skippedGocap}, T+20 tanpa low valid: ${skippedNoLow} dari ${t20Trades} trade T+20)`
+    `lens-bucket-backtest: filtered ${skippedGocap + skippedIlliquid + unknownLiquidity + skippedNoLow} dirty rows out of ${partition.accepted.length} ` +
+    `(gocap raw < ${MIN_TRADABLE_PRICE_IDR}: ${skippedGocap}, ` +
+    `ADV20 < ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR}: ${skippedIlliquid}, ` +
+    `ADV20 tidak diketahui: ${unknownLiquidity}, ` +
+    `T+20 tanpa low valid: ${skippedNoLow} dari ${t20Trades} trade T+20)`
   );
 
   return {
     asOfDate,
     skippedGocapRows: skippedGocap,
+    skippedIlliquidRows: skippedIlliquid,
+    unknownLiquidityRows: unknownLiquidity,
+    minAvgValue20dIdr: LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
     skippedDrawdownTrades: skippedNoLow,
     drawdownTrades: t20Trades - skippedNoLow,
     scoreVersion: partition.version,
@@ -455,7 +510,8 @@ export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRa
     `
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
-           corporate_action_status, price_data_timestamp, price_data_version
+           corporate_action_status, price_data_timestamp, price_data_version,
+           avg_value_20d
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -479,13 +535,17 @@ export async function saveLensBucketStats(
         win_rate_t5, win_rate_t20, max_dd_p95, worst_mae,
         avg_win_t20, avg_loss_t20, total_samples,
         source_rows, unique_tickers, round_trip_cost_pct, score_version,
-        price_basis, price_data_version, updated_at
+        price_basis, price_data_version,
+        avg_t20_gross, illiquid_rows_skipped, unknown_liquidity_rows, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, now())
       ON CONFLICT (run_date, bucket) DO UPDATE SET
         avg_t1 = EXCLUDED.avg_t1,
         avg_t5 = EXCLUDED.avg_t5,
         avg_t20 = EXCLUDED.avg_t20,
+        avg_t20_gross = EXCLUDED.avg_t20_gross,
+        illiquid_rows_skipped = EXCLUDED.illiquid_rows_skipped,
+        unknown_liquidity_rows = EXCLUDED.unknown_liquidity_rows,
         win_rate_t5 = EXCLUDED.win_rate_t5,
         win_rate_t20 = EXCLUDED.win_rate_t20,
         max_dd_p95 = EXCLUDED.max_dd_p95,
@@ -520,6 +580,9 @@ export async function saveLensBucketStats(
         result.scoreVersion,
         result.priceBasis,
         result.priceDataVersion,
+        stat.avgT20Gross,
+        result.skippedIlliquidRows,
+        result.unknownLiquidityRows,
       ]
     );
     saved++;

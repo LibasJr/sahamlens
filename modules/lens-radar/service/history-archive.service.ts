@@ -20,6 +20,8 @@ export interface LensRadarArchiveItem {
   priceDataVersion?: string | null;
   totalScore: number;
   marketCap?: number | null;
+  /** ADV20 rupiah pada tanggal scan. Gerbang likuiditas backtest membaca kolom ini. */
+  avgValue20d?: number | null;
   coverage?: number | null;
   breakdown?: {
     technical?: number | null;
@@ -58,9 +60,10 @@ export async function archiveLensRadarHistory(
         calculation_timestamp,
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
+        avg_value_20d,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, now())
       ON CONFLICT (date, ticker) DO UPDATE SET
         lens_score = EXCLUDED.lens_score,
         close_price = EXCLUDED.close_price,
@@ -81,6 +84,7 @@ export async function archiveLensRadarHistory(
         corporate_action_status = EXCLUDED.corporate_action_status,
         price_data_timestamp = EXCLUDED.price_data_timestamp,
         price_data_version = EXCLUDED.price_data_version,
+        avg_value_20d = EXCLUDED.avg_value_20d,
         updated_at = now()
       `,
       [
@@ -105,6 +109,7 @@ export async function archiveLensRadarHistory(
         item.corporateActionStatus ?? 'NONE',
         item.priceDataTimestamp ?? versionStamp.calculation_timestamp,
         item.priceDataVersion ?? PRICE_ADJUSTMENT_VERSION,
+        finiteNumber(item.avgValue20d),
       ]
     );
     saved++;
