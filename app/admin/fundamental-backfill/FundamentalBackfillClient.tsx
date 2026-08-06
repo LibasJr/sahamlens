@@ -2,6 +2,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { EmptyState } from '@/components/ui';
+
+// Server menolak di atas 1 MB (MAX_CSV_BYTES di fundamental-backfill-import.service.ts).
+// Diperiksa juga di sisi klien supaya file besar ditolak seketika, bukan setelah
+// dibaca penuh ke memori lalu dikirim dan ditolak di ujung sana.
+const MAX_CSV_BYTES = 1024 * 1024;
 
 interface ImportResult {
   status: 'OK';
@@ -39,20 +45,48 @@ export default function FundamentalBackfillClient() {
   const [loadingMode, setLoadingMode] = useState<'dry-run' | 'insert' | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Sidik jari dari SELURUH masukan yang mengubah arti impor - bukan hanya teks CSV.
+  // Dipakai untuk memastikan Dry Run yang sudah lolos benar-benar menguji kombinasi
+  // yang sama dengan yang akan di-insert.
+  const [verifiedInput, setVerifiedInput] = useState<string | null>(null);
 
   const lineCount = useMemo(() => csvText.split(/\r?\n/).filter((line) => line.trim()).length, [csvText]);
+  const inputFingerprint = useMemo(
+    () => JSON.stringify({ csvText, source, skipEmptyRows, percentInput }),
+    [csvText, source, skipEmptyRows, percentInput]
+  );
+
+  // Insert baru boleh dijalankan setelah Dry Run atas kombinasi masukan yang PERSIS
+  // sama berhasil. Sebelumnya tombol Insert aktif begitu ada teks CSV, sehingga alur
+  // "Dry Run dulu" yang dijanjikan di deskripsi halaman tidak pernah ditegakkan -
+  // padahal tabel tujuannya append-only dan koreksinya menuntut DELETE bertarget.
+  const dryRunValid = verifiedInput !== null && verifiedInput === inputFingerprint;
+
+  function resetVerification() {
+    setResult(null);
+    setError(null);
+    setVerifiedInput(null);
+  }
 
   async function readFile(file: File | null) {
     if (!file) return;
+    if (file.size > MAX_CSV_BYTES) {
+      resetVerification();
+      setError(`File ${(file.size / 1024 / 1024).toFixed(1)} MB melebihi batas 1 MB. Pecah jadi beberapa file lebih kecil.`);
+      return;
+    }
     setCsvText(await file.text());
-    setResult(null);
-    setError(null);
+    resetVerification();
   }
 
   async function submit(mode: 'dry-run' | 'insert') {
     setLoadingMode(mode);
     setResult(null);
     setError(null);
+    // Sidik jari dibekukan sebelum request berangkat: kalau pengguna mengubah opsi
+    // saat request sedang berjalan, hasil yang kembali tidak akan salah dicap sah
+    // untuk masukan yang baru.
+    const submittedFingerprint = inputFingerprint;
     try {
       const res = await fetch('/api/admin/fundamental-backfill', {
         method: 'POST',
@@ -68,8 +102,10 @@ export default function FundamentalBackfillClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import gagal');
       setResult(data);
+      setVerifiedInput(mode === 'dry-run' ? submittedFingerprint : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      setVerifiedInput(null);
     } finally {
       setLoadingMode(null);
     }
@@ -105,8 +141,7 @@ export default function FundamentalBackfillClient() {
               value={csvText}
               onChange={(event) => {
                 setCsvText(event.target.value);
-                setResult(null);
-                setError(null);
+                resetVerification();
               }}
               placeholder={SAMPLE}
               className="h-72 w-full rounded-lg border border-tv-border bg-tv-bg p-3 font-mono text-xs text-tv-text outline-none focus:border-tv-accent"
@@ -119,9 +154,14 @@ export default function FundamentalBackfillClient() {
           <div className="space-y-4 rounded-lg border border-tv-border bg-tv-bg/40 p-4">
             <label className="block">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Source default</span>
+              {/* Ketiga kontrol ini mengubah ARTI angka yang masuk. Sebelumnya
+                  mengubahnya tidak membatalkan hasil Dry Run yang sudah tampil -
+                  admin bisa dry-run dengan "18.5 = 18.5%", lalu memindah pilihan ke
+                  desimal, lalu menekan Insert, dan yang tertulis ke basis data bukan
+                  angka yang barusan diverifikasi. */}
               <input
                 value={source}
-                onChange={(event) => setSource(event.target.value)}
+                onChange={(event) => { setSource(event.target.value); resetVerification(); }}
                 className="w-full rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-sm text-tv-text outline-none focus:border-tv-accent"
               />
             </label>
@@ -130,7 +170,7 @@ export default function FundamentalBackfillClient() {
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Input persen</span>
               <select
                 value={percentInput}
-                onChange={(event) => setPercentInput(event.target.value as 'percent' | 'decimal')}
+                onChange={(event) => { setPercentInput(event.target.value as 'percent' | 'decimal'); resetVerification(); }}
                 className="w-full rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-sm text-tv-text outline-none focus:border-tv-accent"
               >
                 <option value="percent">18.5 berarti 18.5%</option>
@@ -142,7 +182,7 @@ export default function FundamentalBackfillClient() {
               <input
                 type="checkbox"
                 checked={skipEmptyRows}
-                onChange={(event) => setSkipEmptyRows(event.target.checked)}
+                onChange={(event) => { setSkipEmptyRows(event.target.checked); resetVerification(); }}
                 className="mt-1"
               />
               <span>Lewati baris placeholder kosong</span>
@@ -160,50 +200,95 @@ export default function FundamentalBackfillClient() {
 
             <button
               type="button"
-              disabled={!csvText.trim() || loadingMode !== null}
+              disabled={!csvText.trim() || loadingMode !== null || !dryRunValid}
+              title={!dryRunValid ? 'Jalankan Dry Run atas masukan ini dulu' : undefined}
               onClick={() => {
-                if (window.confirm('Insert append-only ke fundamental_history? Baris existing tidak akan ditimpa.')) {
+                const ringkas = result
+                  ? `${result.parsedRows} baris dari ${result.tickers} emiten, ${result.minObservedDate} s/d ${result.maxObservedDate}`
+                  : '';
+                if (window.confirm(
+                  `Insert append-only ke fundamental_history?\n\n${ringkas}\n\nBaris yang sudah ada TIDAK ditimpa. Koreksi setelah ini menuntut DELETE bertarget - pastikan tanggal dan sumbernya benar.`
+                )) {
                   submit('insert');
                 }
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loadingMode === 'insert' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
               Insert ke DB
             </button>
+
+            {/* Tombol nonaktif tanpa keterangan hanya terbaca sebagai rusak. */}
+            {!dryRunValid && csvText.trim() && loadingMode === null && (
+              <p className="text-[11px] leading-relaxed text-tv-muted">
+                {verifiedInput === null && result === null
+                  ? 'Jalankan Dry Run dulu. Insert baru terbuka setelah masukan ini lolos pemeriksaan.'
+                  : 'Masukan berubah setelah Dry Run terakhir - jalankan Dry Run lagi sebelum Insert.'}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-tv-red/30 bg-tv-red/10 p-4 text-sm text-tv-red">
-          {error}
+        <div className="rounded-xl border border-tv-red/30 bg-tv-card">
+          <EmptyState
+            illustration="empty"
+            title="Import ditolak"
+            description={`${error} Tidak ada baris yang tertulis - validasi berjalan sebelum penulisan, jadi penolakan berarti basis data tidak tersentuh sama sekali.`}
+          />
         </div>
       )}
 
-      {result && (
-        <div className="rounded-xl border border-tv-border bg-tv-card p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="font-heading text-lg font-bold text-tv-text">Hasil {result.mode === 'DRY_RUN' ? 'Dry Run' : 'Insert'}</h2>
-            <span className="rounded-full border border-tv-green/30 bg-tv-green/10 px-3 py-1 text-xs font-bold text-tv-green">
-              {result.status}
-            </span>
+      {result && (() => {
+        const isDry = result.mode === 'DRY_RUN';
+        return (
+          <div className={`rounded-xl border p-5 ${isDry ? 'border-tv-border bg-tv-card' : 'border-tv-green/30 bg-tv-green/[0.04]'}`}>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-heading text-lg font-bold text-tv-text">
+                Hasil {isDry ? 'Dry Run' : 'Insert'}
+              </h2>
+              {/* Dry Run dan Insert dulu memakai badge hijau "OK" yang identik - dua
+                  hasil dengan konsekuensi sangat berbeda terlihat sama. */}
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                isDry
+                  ? 'border-tv-border bg-tv-hover text-tv-muted'
+                  : 'border-tv-green/30 bg-tv-green/10 text-tv-green'
+              }`}>
+                {isDry ? 'Simulasi - belum ditulis' : 'Tertulis ke basis data'}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <SummaryCard label="Raw Rows" value={result.rawRows} />
+              <SummaryCard label="Diproses" value={result.parsedRows} />
+              <SummaryCard label="Placeholder Dilewati" value={result.skippedEmptyRows} />
+              <SummaryCard label="Ticker" value={result.tickers} />
+              <SummaryCard
+                label={isDry ? 'Akan Di-insert' : 'Inserted'}
+                value={result.insertedRows}
+              />
+              <SummaryCard
+                label="Sudah Ada Sebelumnya"
+                value={result.skippedExistingRows ?? <span className="text-sm font-normal text-tv-muted">tidak dihitung saat dry run</span>}
+              />
+              <SummaryCard
+                label="Start Date"
+                value={result.minObservedDate ?? <span className="text-sm font-normal text-tv-muted">belum ada</span>}
+              />
+              <SummaryCard
+                label="End Date"
+                value={result.maxObservedDate ?? <span className="text-sm font-normal text-tv-muted">belum ada</span>}
+              />
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-tv-muted">
+              Insert bersifat append-only: konflik <code className="font-mono">(ticker, observed_date)</code> dilewati, bukan di-update.
+              {isDry
+                ? ' Angka di atas adalah perkiraan dari hasil parsing - belum ada satu baris pun yang tertulis.'
+                : ' Untuk membatalkan, hapus hanya jendela tanggal dan sumber yang spesifik - jangan DELETE tanpa filter.'}
+            </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard label="Raw Rows" value={result.rawRows} />
-            <SummaryCard label="Diproses" value={result.parsedRows} />
-            <SummaryCard label="Placeholder Dilewati" value={result.skippedEmptyRows} />
-            <SummaryCard label="Ticker" value={result.tickers} />
-            <SummaryCard label="Inserted" value={result.insertedRows} />
-            <SummaryCard label="Existing" value={result.skippedExistingRows ?? '-'} />
-            <SummaryCard label="Start Date" value={result.minObservedDate ?? '-'} />
-            <SummaryCard label="End Date" value={result.maxObservedDate ?? '-'} />
-          </div>
-          <p className="mt-4 text-xs text-tv-muted">
-            Insert bersifat append-only: konflik `(ticker, observed_date)` dilewati, bukan di-update.
-          </p>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

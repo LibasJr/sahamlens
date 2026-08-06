@@ -5,12 +5,19 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, Brain, RefreshCw, SlidersHorizontal, TrendingUp } from 'lucide-react';
+import { Brain, Lock, RefreshCw, SlidersHorizontal, TrendingUp } from 'lucide-react';
+import { Skeleton, EmptyState, LoadingFact } from '@/components/ui';
+import {
+  THRESHOLD_RECOMMENDER_ENABLED,
+  MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION,
+} from '@/modules/lens-radar/constants/research-status';
 
 type Bucket = '80-100' | '70-79' | '60-69' | '<60';
 
@@ -90,34 +97,82 @@ interface ThresholdRecommendation {
   baseline80: ThresholdSimulation | null;
 }
 
+// Keempat pemformat di bawah dulu mengembalikan '-' polos. Di halaman kalibrasi
+// statistik, tanda hubung tidak membedakan "sampelnya nol", "tidak bisa dihitung",
+// dan "gagal dimuat" - padahal itu justru yang perlu dibedakan sebelum seorang
+// admin mengambil keputusan atas angkanya.
+const EMPTY = 'belum ada';
+
 function pct(value: number | null | undefined, digits = 2): string {
-  if (value == null || !Number.isFinite(value)) return '-';
+  if (value == null || !Number.isFinite(value)) return EMPTY;
   return `${value.toFixed(digits)}%`;
 }
 
 function num(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '-';
+  if (value == null || !Number.isFinite(value)) return EMPTY;
   return value.toLocaleString('id-ID');
 }
 
 function pValue(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return '-';
+  if (value == null || !Number.isFinite(value)) return 'belum bisa dihitung';
   if (value < 0.0001) return '<0.0001';
   return value.toFixed(4);
 }
 
+/** Sel angka yang meredup saat kosong, supaya baris tanpa data tidak terbaca
+ *  sekuat baris yang benar-benar punya angka. */
+function Val({ value, tone, className = '' }: { value: number | null | undefined; tone?: 'signed'; className?: string }) {
+  const empty = value == null || !Number.isFinite(value);
+  const color = empty
+    ? 'text-tv-muted/60 italic'
+    : tone === 'signed'
+      ? ((value as number) >= 0 ? 'text-tv-green' : 'text-tv-red')
+      : 'text-tv-text';
+  return <span className={`font-number ${color} ${className}`}>{pct(value)}</span>;
+}
+
 function LoadingState() {
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-10 text-center">
-      <RefreshCw className="w-8 h-8 mx-auto mb-3 text-tv-accent animate-spin" />
-      <p className="text-sm text-tv-muted">Menghitung ulang kalibrasi dari histori LensRadar real...</p>
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <Skeleton className="h-[420px] w-full xl:col-span-3" />
+        <Skeleton className="h-[420px] w-full xl:col-span-2" />
+      </div>
+      <LoadingFact />
     </div>
   );
 }
 
 function weightText(weights: LensScoreWeights | null | undefined): string {
-  if (!weights) return '-';
+  if (!weights) return 'belum ada usulan bobot';
   return `Teknikal ${weights.technical}% • Fundamental ${weights.fundamental}% • Flow ${weights.flow}%`;
+}
+
+/**
+ * Tooltip batang per bucket. Bawaan Recharts cuma menyebut nilainya; jumlah sampel
+ * di balik angka itu justru yang menentukan apakah ia layak dipercaya.
+ */
+function BucketTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as CalibrationBucketChartRow | undefined;
+  const v = payload[0]?.value as number | null | undefined;
+  const tipis = (row?.totalSamples ?? 0) > 0 && (row?.totalSamples ?? 0) < 30;
+  return (
+    <div className="rounded-lg border border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
+      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Bucket {label}</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className="text-tv-muted text-xs">Avg T+20</span>
+        <Val value={v} tone="signed" className="text-sm font-semibold" />
+      </div>
+      <div className="mt-1 text-[11px] text-tv-muted">
+        {num(row?.totalSamples)} sampel
+        {tipis && <span className="text-tv-warning"> · terlalu sedikit untuk disimpulkan</span>}
+      </div>
+    </div>
+  );
 }
 
 export default function CalibrationClient() {
@@ -196,20 +251,13 @@ export default function CalibrationClient() {
 
   if (error || !data) {
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl p-8">
-        <div className="flex items-start gap-3 text-tv-yellow">
-          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-          <div>
-            <h2 className="font-heading font-bold text-tv-text mb-1">Kalibrasi belum bisa dimuat</h2>
-            <p className="text-sm text-tv-muted">{error || 'Data tidak tersedia.'}</p>
-            <button
-              onClick={loadData}
-              className="mt-4 px-4 py-2 rounded-lg border border-tv-border text-sm text-tv-text hover:bg-tv-hover transition-colors"
-            >
-              Coba Muat Ulang
-            </button>
-          </div>
-        </div>
+      <div className="bg-tv-card border border-tv-border rounded-xl">
+        <EmptyState
+          illustration="empty"
+          title="Kalibrasi gagal dimuat"
+          description={`${error || 'Data tidak tersedia.'} Perhitungan ini membaca lens_radar_history langsung, bukan cache - kegagalan di sini berarti query-nya tidak selesai, bukan bahwa datanya kosong.`}
+          action={{ label: 'Coba muat ulang', onClick: loadData }}
+        />
       </div>
     );
   }
@@ -233,14 +281,32 @@ export default function CalibrationClient() {
         </div>
         <div className="bg-tv-card border border-tv-border rounded-xl p-4">
           <div className="text-xs text-tv-muted uppercase">Observasi T+20</div>
-          <div className="font-number text-xl font-bold mt-1">{num(data.observationsT20)}</div>
+          <div className="font-number text-xl font-bold mt-1">{data.observationsT20.toLocaleString('id-ID')}</div>
+          {/* Angka telanjang tidak menyatakan ia sedang menuju ambang tertentu. */}
+          <div className="text-[10px] text-tv-muted mt-0.5">dari {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum</div>
         </div>
       </div>
 
+      {/* Nol observasi bukan kegagalan: tiap sinyal perlu 20 hari bursa berlalu dulu
+          sebelum bisa dihitung. Yang selama ini hilang adalah keterangan sudah sampai
+          mana - satu paragraf kuning tidak menunjukkan progres apa pun. */}
       {!hasEnoughT20 && (
-        <div className="bg-tv-yellow/10 border border-tv-yellow/30 rounded-xl p-4 text-sm text-tv-yellow">
-          Belum ada observasi T+20 yang cukup. Halaman ini tidak menampilkan angka dummy; tunggu
-          histori `lens_radar_history` bertambah minimal 20 hari bursa setelah sinyal.
+        <div className="bg-tv-card border border-tv-border rounded-xl overflow-hidden">
+          <EmptyState
+            illustration="collecting"
+            title="Observasi T+20 belum terkumpul"
+            description="Setiap sinyal baru bisa dihitung setelah 20 hari bursa berlalu sejak tanggal skornya. Seluruh angka di bawah akan tetap kosong sampai itu terpenuhi - halaman ini sengaja tidak menampilkan angka pengganti."
+            progress={{
+              current: data.observationsT20,
+              total: MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION,
+              unit: 'observasi',
+              label: 'Observasi T+20 terkumpul',
+            }}
+          />
+          <p className="pb-5 text-center text-[11px] text-tv-muted">
+            Histori mentah tersedia: <span className="font-number text-tv-text">{num(data.sourceRows)}</span> baris
+            dari <span className="font-number text-tv-text">{num(data.uniqueTickers)}</span> emiten.
+          </p>
         </div>
       )}
 
@@ -261,30 +327,51 @@ export default function CalibrationClient() {
 
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
+              {/* Warna grid/tooltip/cursor sebelumnya hex palet lama (#2A2E39,
+                  #131722, #1F2937) - lebih tua dari tv-*. */}
               <BarChart data={data.chart} margin={{ top: 16, right: 16, left: -12, bottom: 8 }}>
-                <CartesianGrid stroke="#2A2E39" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="bucket" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-                <Tooltip
-                  cursor={{ fill: '#1F2937', opacity: 0.35 }}
-                  contentStyle={{ backgroundColor: '#131722', borderColor: '#2A2E39', color: '#fff', borderRadius: 12 }}
-                  formatter={(value: any) => [pct(Number(value)), 'Avg T+20']}
-                  labelFormatter={(label) => `Bucket ${label}`}
-                />
-                <Bar dataKey="avgReturnT20" name="Avg T+20" radius={[8, 8, 0, 0]} fill="#22c55e" />
+                <CartesianGrid stroke="#1E293B" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="bucket" stroke="#1E293B" tick={{ fill: '#94A3B8', fontSize: 12 }} tickLine={false} axisLine={false} />
+                <YAxis stroke="#1E293B" tick={{ fill: '#94A3B8', fontSize: 12 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                {/* Garis nol: tanpa penanda ini, seluruh batang negatif tetap terlihat
+                    "tumbuh ke atas" karena sumbu Y menyesuaikan diri ke rentang data. */}
+                <ReferenceLine y={0} stroke="#2B3A55" />
+                <Tooltip cursor={{ fill: '#1B2440', opacity: 0.4 }} content={<BucketTooltip />} />
+                {/* BUG FIX (2026-08-06): fill dulu dipatok "#22c55e" untuk SEMUA batang,
+                    jadi bucket dengan avg return NEGATIF digambar hijau - warnanya
+                    menyatakan kebalikan dari angkanya sendiri, di grafik yang justru
+                    dipakai memutuskan ambang skor. */}
+                <Bar dataKey="avgReturnT20" name="Avg T+20" radius={[8, 8, 0, 0]}>
+                  {data.chart.map((row) => (
+                    <Cell
+                      key={row.bucket}
+                      fill={row.avgReturnT20 == null ? '#1E293B' : row.avgReturnT20 >= 0 ? '#22C55E' : '#EF4444'}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            {data.chart.map((row) => (
-              <div key={row.bucket} className="bg-tv-bg border border-tv-border rounded-lg p-3">
-                <div className="text-xs text-tv-muted">Bucket {row.bucket}</div>
-                <div className="font-number font-bold text-tv-text mt-1">{pct(row.avgReturnT20)}</div>
-                <div className="text-[11px] text-tv-muted mt-1">{num(row.totalSamples)} sampel</div>
-              </div>
-            ))}
+          {/* grid-cols-3 dipatok padahal jumlah bucket yang dikirim API tidak dijamin
+              tiga - kolomnya sekarang mengikuti jumlah baris yang benar-benar ada. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+            {data.chart.map((row) => {
+              const tipis = row.totalSamples > 0 && row.totalSamples < 30;
+              return (
+                <div key={row.bucket} className={`bg-tv-bg border border-tv-border rounded-lg p-3 ${row.totalSamples === 0 ? 'opacity-55' : ''}`}>
+                  <div className="text-xs text-tv-muted">Bucket {row.bucket}</div>
+                  <Val value={row.avgReturnT20} tone="signed" className="block font-bold mt-1" />
+                  <div className={`text-[11px] mt-1 ${tipis ? 'text-tv-warning' : 'text-tv-muted'}`}>
+                    {num(row.totalSamples)} sampel{tipis ? ' *' : ''}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+          <p className="mt-2 text-[10px] text-tv-muted">
+            <span className="text-tv-warning">*</span> di bawah 30 sampel - rata-ratanya masih didominasi kebetulan.
+          </p>
         </section>
 
         <section className="xl:col-span-2 bg-tv-card border border-tv-border rounded-xl p-5">
@@ -330,7 +417,9 @@ export default function CalibrationClient() {
                 <tr>
                   <td className="py-2 text-tv-muted">t-stat / df</td>
                   <td className="py-2 text-right font-number">
-                    {data.tTest.tStatistic ?? '-'} / {data.tTest.degreesOfFreedom ?? '-'}
+                    {data.tTest.tStatistic == null && data.tTest.degreesOfFreedom == null
+                      ? <span className="text-tv-muted/60 italic">belum bisa dihitung</span>
+                      : `${data.tTest.tStatistic ?? '?'} / ${data.tTest.degreesOfFreedom ?? '?'}`}
                   </td>
                 </tr>
                 <tr>
@@ -409,19 +498,40 @@ export default function CalibrationClient() {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
-          <button
-            onClick={requestRecommendation}
-            disabled={recommending || !hasEnoughT20}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-tv-accent px-4 py-2.5 text-sm font-bold text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-          >
-            {recommending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-            {recommending ? 'AI sedang menilai...' : 'Rekomendasikan Ambang Baru'}
-          </button>
-          <p className="text-xs text-tv-muted">
-            AI hanya menyarankan ambang model, bukan rekomendasi beli/jual saham individual.
-          </p>
-        </div>
+        {/* THRESHOLD_RECOMMENDER_ENABLED = false sejak audit kuantitatif: service-nya
+            SELALU menolak dan mengembalikan pesan "dibekukan" (lihat
+            calibration.service.ts baris 727). Sebelumnya tombol ini tetap tampil
+            sebagai CTA utama berwarna aksen dan aktif setiap kali ada observasi T+20 -
+            satu-satunya cara mengetahui fiturnya beku adalah menekannya dan membaca
+            penolakan. Keadaan beku itu sekarang dinyatakan di muka. */}
+        {!THRESHOLD_RECOMMENDER_ENABLED ? (
+          <div className="mt-5 flex items-start gap-3 rounded-lg border border-tv-border bg-tv-bg p-4">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-tv-muted" />
+            <div>
+              <p className="text-sm font-semibold text-tv-text">Rekomendasi ambang otomatis dibekukan</p>
+              <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+                Dibekukan sampai tersedia validasi out-of-sample dan koreksi pengujian berganda.
+                Mencari ambang terbaik dari data yang sama yang dipakai mengujinya akan menemukan
+                pemenang bahkan pada data acak. Angka simulasi di atas tetap boleh dipakai untuk
+                riset, bukan untuk mengubah ambang produksi.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              onClick={requestRecommendation}
+              disabled={recommending || !hasEnoughT20}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-tv-accent px-4 py-2.5 text-sm font-bold text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            >
+              {recommending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+              {recommending ? 'AI sedang menilai...' : 'Rekomendasikan Ambang Baru'}
+            </button>
+            <p className="text-xs text-tv-muted">
+              AI hanya menyarankan ambang model, bukan rekomendasi beli/jual saham individual.
+            </p>
+          </div>
+        )}
 
         {recommendation && (
           <div className="mt-4 rounded-xl border border-tv-accent/30 bg-tv-accent/10 p-4">
@@ -464,7 +574,7 @@ export default function CalibrationClient() {
               <div className="text-xs text-tv-muted uppercase mb-1">Catatan Optimizer</div>
               <p className="text-sm text-tv-text leading-relaxed">{data.latestWeightProposal.reason}</p>
               <p className="text-xs text-tv-muted mt-2">
-                Run {data.latestWeightProposal.runDate} • Window {data.latestWeightProposal.statsWindowStart || '-'} s/d {data.latestWeightProposal.statsWindowEnd || '-'} •
+                Run {data.latestWeightProposal.runDate} • Window {data.latestWeightProposal.statsWindowStart || 'belum ada'} s/d {data.latestWeightProposal.statsWindowEnd || 'belum ada'} •
                 Sampel komponen {num(data.latestWeightProposal.componentSampleSize)} • Kandidat {num(data.latestWeightProposal.candidateCount)}
               </p>
             </div>
@@ -495,7 +605,9 @@ export default function CalibrationClient() {
                 <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
                   <div>
                     <div className="text-tv-muted">Spread T+20</div>
-                    <div className="font-number font-bold text-tv-green">{pct(data.latestWeightProposal.proposedSpreadT20)}</div>
+                    {/* Dulu dipatok text-tv-green: spread usulan yang lebih BURUK dari
+                        baseline tetap tampil hijau, seolah proposalnya selalu menang. */}
+                    <Val value={data.latestWeightProposal.proposedSpreadT20} tone="signed" className="block font-bold" />
                   </div>
                   <div>
                     <div className="text-tv-muted">p-value</div>
