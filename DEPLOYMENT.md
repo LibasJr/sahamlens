@@ -57,8 +57,20 @@ karena sudah masuk `main`/production (commit `91a2c05`, `8726ed7`, `b9b345b`).
   ada di badan ketiga commit di atas.
 - Smoke test setelah deploy: `/`, `/calendar`, `/transparency`, `/watchlist`,
   `/portfolio`, `/backtest` semua 200.
-- Sisa yang BELUM di-redesign: `/news`, `/admin`, `/admin/calibration`,
-  `/admin/fundamental-backfill`.
+- Menyusul di commit `ee82359`: `/news`, `/admin`, `/admin/calibration`, dan
+  `/admin/fundamental-backfill` - melengkapi seluruh 18 tujuan navigasi di sidebar.
+  Tiga perubahan di sana punya dampak operasional, bukan sekadar tampilan:
+  - `/admin` sekarang `robots: index:false` (sebelumnya mewarisi `index:true` dari
+    root layout), dan kolom "Terakhir Aktif" dipaksa `timeZone: 'Asia/Jakarta'` -
+    sebelumnya dirender di zona waktu SERVER (UTC di Vercel) sehingga meleset 7 jam.
+    **Jebakan**: halaman Server Component yang memformat waktu WAJIB menyebut
+    timeZone eksplisit; tanpa itu hasilnya ikut zona waktu mesin build/runtime.
+  - `/admin/calibration` menyatakan status beku `THRESHOLD_RECOMMENDER_ENABLED=false`
+    di muka. Kalau flag itu nanti dinyalakan kembali, tombolnya otomatis muncul lagi -
+    tidak ada teks yang perlu diedit.
+  - `/admin/fundamental-backfill` sekarang menolak Insert sebelum ada Dry Run yang
+    lolos atas kombinasi masukan yang sama persis (CSV + source + percentInput +
+    skipEmptyRows). Mengubah salah satu opsi membatalkan izin Insert.
 
 ### 2026-08-06 - Admin UI Fundamental Backfill
 
