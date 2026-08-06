@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, Toast } from '@/components/ui';
+import { LOGIN_REQUIRED_NOTICE } from '@/shared/constants/access';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,9 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/';
+  // Diisi proxy.ts saat guest mencoba membuka halaman terproteksi - tanpa ini user
+  // mendarat di /login tanpa tahu kenapa ia dipindahkan dari halaman yang ia klik.
+  const notice = searchParams.get('notice') === 'login_required' ? LOGIN_REQUIRED_NOTICE : null;
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('saham_remember_email');
@@ -63,6 +67,7 @@ function LoginForm() {
       title="Masuk ke Akun Anda"
       subtitle="Analisis teknikal & fundamental lengkap menunggu Anda"
     >
+      <Toast message={notice} />
       {error && <AuthAlert variant="error">{error}</AuthAlert>}
 
       <form onSubmit={handleSubmit} className="space-y-4">

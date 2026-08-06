@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Bell, User as UserIcon, Sparkles } from 'lucide-react';
 import { isMarketOpen } from '@/lib/utils/market';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import TrialCountdown from './TrialCountdown';
 
 // BUG FIX (2026-08-05, permintaan user - revisi ke-2): percobaan pertama cuma sembunyikan
 // search TopMarketBar khusus pathname === '/' (landing page root), TAPI ternyata halaman
@@ -18,8 +20,9 @@ import { isMarketOpen } from '@/lib/utils/market';
 export default function TopMarketBar() {
   const [ihsg, setIhsg] = useState<{ price: number; change: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const { loading: authLoading, user, effectiveRole, trialDaysLeft } = useAuthUser();
+  const authChecked = !authLoading;
+  const authenticated = user !== null;
 
   useEffect(() => {
     setNow(new Date());
@@ -43,14 +46,6 @@ export default function TopMarketBar() {
         }
       })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((d) => { if (d.authenticated && d.user) setAuthenticated(true); })
-      .catch(() => {})
-      .finally(() => setAuthChecked(true));
   }, []);
 
   const marketOpen = now ? isMarketOpen(now) : false;
@@ -79,6 +74,7 @@ export default function TopMarketBar() {
       <span className="hidden md:inline text-[11px] text-tv-muted shrink-0">Update {jakartaTime}</span>
 
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
+        <TrialCountdown daysLeft={trialDaysLeft} />
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event('open-ai-chat'))}
@@ -88,14 +84,20 @@ export default function TopMarketBar() {
         >
           <Sparkles className="h-3.5 w-3.5" /> Ask LensAI
         </button>
-        <Link
-          href="/watchlist"
-          title="Notifikasi & Alert"
-          aria-label="Notifikasi & Alert"
-          className="p-2 rounded-md text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
-        >
-          <Bell className="h-4 w-4" />
-        </Link>
+        {/* Alert butuh akun (data per-user) - guest yang mengkliknya cuma akan
+            ditendang ke /login oleh proxy, jadi jangan tampilkan sama sekali.
+            Ini satu-satunya jalan tersisa ke /watchlist setelah menu LensWatch
+            dilepas dari sidebar (2026-08-06). */}
+        {effectiveRole !== 'guest' && (
+          <Link
+            href="/watchlist"
+            title="Notifikasi & Alert"
+            aria-label="Notifikasi & Alert"
+            className="p-2 rounded-md text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
+          >
+            <Bell className="h-4 w-4" />
+          </Link>
+        )}
         {!authChecked ? (
           <span className="p-2 text-tv-muted opacity-50" aria-hidden="true">
             <UserIcon className="h-4 w-4" />

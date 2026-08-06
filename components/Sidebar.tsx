@@ -12,7 +12,6 @@ import {
   GitCompare,
   Filter,
   Radar,
-  Bell,
   Wallet,
   CalendarDays,
   PanelLeftClose,
@@ -28,15 +27,20 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import UserProfileModal from './UserProfileModal';
 
-// Redesign Sidebar - Design System "Nucleus" (2026-07-31).
-// Semua 11 tujuan navigasi yang ada sebelumnya DIPERTAHANKAN UTUH - yang
-// berubah cuma bagaimana mereka dikelompokkan & ditampilkan. Struktur lama
-// (flat list 11 item, badge di hampir semua item, ikon Target/Activity
-// dipakai berulang untuk 3-4 tujuan berbeda) diganti grouping per fungsi,
-// satu ikon unik per tujuan, dan badge dibatasi HANYA untuk data yang
-// genuinely real-time (LIVE) - bukan label dekoratif yang mengulang nama item.
+// Redesign Sidebar - Design System "Nucleus" (2026-07-31), + Role-Based Menu
+// (2026-08-06). Menu tidak lagi sama untuk semua orang: yang tampil ditentukan
+// role efektif dari useAuthUser() - GUEST 4 menu publik, TRIAL/PRO 12 menu,
+// ADMIN 12 menu + grup Admin. Grouping per fungsi & satu ikon unik per tujuan
+// dari redesign sebelumnya dipertahankan.
+//
+// CATATAN (2026-08-06): "LensWatch" (/watchlist) dan "Risk Calculator"
+// (/risk-calculator) DIHAPUS dari sidebar atas permintaan produk - daftar 12
+// menu TRIAL bersifat mengikat, dan dua ini tidak ada di dalamnya. Halamannya
+// sendiri masih hidup & masih digerbang login (shared/constants/access.ts),
+// cuma tidak punya link dari navigasi lagi.
 interface NavItem {
   id: string;
   name: string;
@@ -44,6 +48,11 @@ interface NavItem {
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   live?: boolean;
+  /** Terlihat oleh pengunjung yang belum login. Tanpa flag ini = butuh login
+   * (TRIAL/PRO/ADMIN). Harus konsisten dengan PROTECTED_PAGES di
+   * shared/constants/access.ts - kalau item guest menunjuk path terproteksi,
+   * user diklik lalu langsung ditendang balik ke /login. */
+  guest?: boolean;
 }
 
 interface NavGroup {
@@ -57,8 +66,8 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'discover',
     label: 'Discover',
     items: [
-      { id: 'home', name: 'Beranda', subtitle: 'LensAI & Ringkasan Akun', path: '/home', icon: LayoutDashboard },
-      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true },
+      { id: 'home', name: 'Beranda', subtitle: 'LensAI & Ringkasan Akun', path: '/home', icon: LayoutDashboard, guest: true },
+      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true, guest: true },
       { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Breakout & Opportunity Scanner', path: '/breakout-radar', icon: Radar, live: true },
       { id: 'screener', name: 'LensScanner', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
     ],
@@ -70,7 +79,6 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'dashboard', name: 'LensTechnical', subtitle: '10 Pure Math Filters', path: '/dashboard', icon: LineChart },
       { id: 'fundamental', name: 'LensFundamental', subtitle: 'Value & Health Metrics', path: '/fundamental', icon: Building2 },
       { id: 'compare', name: 'Compare Tool', subtitle: 'Side-by-Side Analysis', path: '/compare', icon: GitCompare },
-      { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position Size & Risk/Reward', path: '/risk-calculator', icon: ShieldAlert },
       { id: 'backtest', name: 'Backtest', subtitle: 'Simulasi Strategi dari Data Historis', path: '/backtest', icon: History },
     ],
   },
@@ -79,17 +87,15 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Intelligence',
     items: [
       { id: 'council', name: 'LensAI', subtitle: 'Stock Analysis LensAI', path: '/technical/BBCA.JK', icon: Users },
-      { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi LensRadar publik', path: '/transparency', icon: ShieldCheck },
     ],
   },
   {
     id: 'monitor',
     label: 'Monitor',
     items: [
-      { id: 'watchlist', name: 'LensWatch', subtitle: 'Portfolio & Notifikasi', path: '/watchlist', icon: Bell },
       { id: 'portfolio', name: 'Akun Demo', subtitle: 'Paper Trading & P/L', path: '/portfolio', icon: Wallet },
-      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, & Corp Action', path: '/calendar', icon: CalendarDays },
-      { id: 'news', name: 'Berita', subtitle: 'Berita & Sentimen Pasar', path: '/news', icon: Newspaper },
+      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, & Corp Action', path: '/calendar', icon: CalendarDays, guest: true },
+      { id: 'news', name: 'Berita', subtitle: 'Berita & Sentimen Pasar', path: '/news', icon: Newspaper, guest: true },
     ],
   },
 ];
@@ -102,11 +108,23 @@ const ADMIN_NAV_GROUP: NavGroup = {
   id: 'admin',
   label: 'Admin',
   items: [
-    { id: 'admin', name: 'Admin Panel', subtitle: 'Aktivasi Pro & User Aktif', path: '/admin', icon: ShieldCheck },
+    { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi LensRadar publik', path: '/transparency', icon: ShieldCheck },
+    { id: 'admin', name: 'Admin Panel', subtitle: 'Aktivasi Pro & User Aktif', path: '/admin', icon: ShieldAlert },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, Ambang & Bobot', path: '/admin/calibration', icon: LineChart },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload CSV point-in-time', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
   ],
 };
+
+// Menu yang tampil per role. GUEST cuma item ber-flag guest; TRIAL/PRO semua 12
+// item; ADMIN semua item + grup Admin (akses penuh, tanpa batasan). Grup yang
+// jadi kosong dibuang supaya guest tidak melihat judul seksi tanpa isi.
+function visibleGroupsFor(role: 'guest' | 'trial' | 'admin'): NavGroup[] {
+  if (role === 'admin') return [...NAV_GROUPS, ADMIN_NAV_GROUP];
+  if (role === 'trial') return NAV_GROUPS;
+  return NAV_GROUPS
+    .map((group) => ({ ...group, items: group.items.filter((item) => item.guest) }))
+    .filter((group) => group.items.length > 0);
+}
 
 const COLLAPSE_STORAGE_KEY = 'sahamlens_sidebar_collapsed';
 
@@ -114,9 +132,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+  const { loading: authLoading, user, effectiveRole, trialDaysLeft } = useAuthUser();
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
+  const authChecked = !authLoading;
   // Link menu LensAI ikut emiten terakhir yang dicari user di Teknikal/Fundamental/DCF
   // (disimpan bersama di localStorage key 'last_searched_ticker') - supaya klik "LensAI"
   // membuka emiten yang sama. Kalau belum ada riwayat pencarian, pakai emiten default
@@ -133,14 +151,6 @@ export default function Sidebar() {
       setCouncilTicker({ symbol, name: getTickerName(symbol) });
     }
   }, [pathname]);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((d) => { if (d.authenticated && d.user) setUser(d.user); })
-      .catch(() => {})
-      .finally(() => setAuthChecked(true));
-  }, []);
 
   useEffect(() => {
     fetch('/api/admin-status')
@@ -160,7 +170,10 @@ export default function Sidebar() {
     window.location.href = '/login';
   };
 
-  const visibleGroups = user?.role === 'admin' || hasAdminAccess ? [...NAV_GROUPS, ADMIN_NAV_GROUP] : NAV_GROUPS;
+  // hasAdminAccess = cookie admin dari /admin-login/key (akun tanpa role admin di DB
+  // tapi sudah lolos verifikasi password admin) - tetap dihormati seperti sebelumnya.
+  const role = hasAdminAccess ? 'admin' : effectiveRole;
+  const visibleGroups = visibleGroupsFor(role);
 
   useEffect(() => {
     const handleToggle = () => setIsOpen((prev) => !prev);
