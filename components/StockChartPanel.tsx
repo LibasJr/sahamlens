@@ -61,7 +61,9 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
         </div>
         {ind && (
           <span
-            className={`rounded-full border px-2.5 py-1 text-[10px] font-bold font-mono ${
+            // BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data tabular/kode
+            // (aturan app/globals.css) - "BUY"/"SELL"/"HOLD" kata status, bukan angka.
+            className={`rounded-full border px-2.5 py-1 text-[10px] font-bold font-sans ${
               finalSignal === 'BUY'
                 ? 'bg-tv-green/10 border-tv-green/30 text-tv-green'
                 : finalSignal === 'SELL'

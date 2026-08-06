@@ -50,7 +50,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     return (
       <div className="w-full h-48 flex items-center justify-center bg-tv-bg border border-tv-border rounded-xl">
         <Activity className="w-6 h-6 text-tv-green animate-spin" />
-        <span className="ml-3 text-sm font-mono text-tv-muted">Analisa Bandar Flow...</span>
+        <span className="ml-3 text-sm font-sans text-tv-muted">Analisa Bandar Flow...</span>
       </div>
     );
   }
@@ -102,23 +102,26 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
           <div>
             <h3 className="font-heading font-bold text-white text-lg">LensFlow — Analisis Money Flow</h3>
-            <p className="text-xs text-tv-muted font-mono">Estimasi arus dana dari volume transaksi - bukan data broker resmi</p>
+            <p className="text-xs text-tv-muted font-sans">Estimasi arus dana dari volume transaksi - bukan data broker resmi</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* BUG FIX (2026-08-06, sweep "font beda" - laporan user): font-mono di 3 badge
+              status ini (AKUMULASI/DISTRIBUSI/NETRAL) dilepas - font-mono khusus data
+              tabular/kode (aturan app/globals.css), bukan kata status. */}
           {summary.status === 'AKUMULASI' && (
-            <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-mono ${isStrong ? 'bg-tv-green/30 border-tv-green text-tv-green animate-pulse' : 'bg-tv-green/10 border-tv-green/60 text-tv-green'}`}>
+            <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-sans ${isStrong ? 'bg-tv-green/30 border-tv-green text-tv-green animate-pulse' : 'bg-tv-green/10 border-tv-green/60 text-tv-green'}`}>
               {flowTier}
             </div>
           )}
           {summary.status === 'DISTRIBUSI' && (
-            <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-mono ${isStrong ? 'bg-tv-red/30 border-tv-red text-tv-red' : 'bg-tv-red/10 border-tv-red/60 text-tv-red'}`}>
+            <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-sans ${isStrong ? 'bg-tv-red/30 border-tv-red text-tv-red' : 'bg-tv-red/10 border-tv-red/60 text-tv-red'}`}>
               {flowTier}
             </div>
           )}
           {summary.status === 'NETRAL' && (
-            <div className="px-4 py-1.5 rounded-full bg-gray-500/20 border border-gray-500 text-gray-400 font-bold text-sm font-mono">
+            <div className="px-4 py-1.5 rounded-full bg-gray-500/20 border border-gray-500 text-gray-400 font-bold text-sm font-sans">
               {flowTier}
             </div>
           )}
@@ -130,7 +133,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
         <div className="flex flex-col gap-4">
           <div className={`w-full p-4 rounded-lg border ${insightColor} flex flex-col gap-2`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold font-mono">
+              <div className="flex items-center gap-2 font-bold font-sans">
                 <AlertCircle className="w-4 h-4" />
                 {insightTitle}
               </div>
@@ -140,14 +143,14 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 </span>
               )}
             </div>
-            <div className="text-xs font-mono opacity-90 leading-relaxed">
+            <div className="text-xs font-sans opacity-90 leading-relaxed">
               {insightMessage}
             </div>
           </div>
 
           <div className="bg-tv-card rounded-lg p-4 border border-tv-border flex-1">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-white font-mono">Estimasi Net Buy 20 Hari</h4>
+              <h4 className="text-sm font-bold text-white font-heading">Estimasi Net Buy 20 Hari</h4>
               <span className={`text-xs font-bold font-mono ${summary.net5D > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 5D Net: {summary.net5D > 0 ? '+' : ''}{summary.net5D} M
               </span>
@@ -181,23 +184,27 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
         {/* Ringkasan 20 Hari - pengganti panel broker (dihapus, tidak ada sumber data
             broker gratis) - dua angka nyata dari histori harga/volume yang sama. */}
         <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-          <h4 className="text-sm font-bold text-white font-mono mb-4">Ringkasan 20 Hari</h4>
+          <h4 className="text-sm font-bold text-white font-heading mb-4">Ringkasan 20 Hari</h4>
 
+          {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono dilepas dari LABEL
+              ("Hari Naik"/"Hari Turun"/"Rata² nilai:") - font-mono khusus data
+              tabular/kode (aturan app/globals.css). Angka besarnya (upDays20D dsb)
+              tetap font-mono, itu genuinely angka. */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div className="text-xs font-mono text-tv-green border-b border-tv-border pb-1 flex items-center gap-1.5">
+              <div className="text-xs font-sans text-tv-green border-b border-tv-border pb-1 flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5" /> Hari Naik
               </div>
               <div className="text-2xl font-bold font-mono text-white">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-              <div className="text-[11px] font-mono text-tv-muted">Rata² nilai: <span className="text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span></div>
+              <div className="text-[11px] font-sans text-tv-muted">Rata² nilai: <span className="font-mono text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span></div>
             </div>
 
             <div className="space-y-2">
-              <div className="text-xs font-mono text-tv-red border-b border-tv-border pb-1 flex items-center gap-1.5">
+              <div className="text-xs font-sans text-tv-red border-b border-tv-border pb-1 flex items-center gap-1.5">
                 <TrendingDown className="w-3.5 h-3.5" /> Hari Turun
               </div>
               <div className="text-2xl font-bold font-mono text-white">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-              <div className="text-[11px] font-mono text-tv-muted">Rata² nilai: <span className="text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span></div>
+              <div className="text-[11px] font-sans text-tv-muted">Rata² nilai: <span className="font-mono text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span></div>
             </div>
           </div>
 
@@ -207,20 +214,20 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               tetangganya di kolom kiri walau sudah items-start di grid luar). */}
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">CMF 20 Hari</div>
+              <div className="text-[10px] font-sans text-tv-muted uppercase">CMF 20 Hari</div>
               <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-white'}`}>
                 {summary.cmf20 > 0 ? '+' : ''}{summary.cmf20}%
               </div>
             </div>
             <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-              <div className="text-[10px] font-mono text-tv-muted uppercase">Tekanan Beli/Jual Hari Ini</div>
+              <div className="text-[10px] font-sans text-tv-muted uppercase">Tekanan Beli/Jual Hari Ini</div>
               <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-white'}`}>
                 {summary.netPressurePct > 0 ? '+' : ''}{summary.netPressurePct}%
               </div>
             </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-mono text-tv-muted leading-relaxed">
+          <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
             Dihitung dari Chaikin Money Flow (posisi close di range High-Low harian, Yahoo Finance) - proxy tekanan beli/jual pasar, BUKAN data broker/asing resmi (IDX tidak menyediakan feed broker gratis).
           </div>
         </div>

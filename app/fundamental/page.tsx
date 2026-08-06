@@ -417,14 +417,20 @@ function FundamentalContent() {
                 muncul lagi di string consensus) jadi 'UNDERVALUED'/'OVERVALUED'. */}
             <div className="text-right">
               <div className="text-[10px] text-tv-muted uppercase tracking-wide">Valuasi Harga</div>
-              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
+              {/* BUG FIX (2026-08-06, laporan user "font beda, kegedean"): font-mono
+                  (JetBrains Mono, dikhususkan untuk kolom angka - lihat tailwind.config.js)
+                  dulu dipakai untuk kata status ("UNDERVALUED"), bukan angka - itu sumber
+                  "font-nya beda" dari badge sejenis di LensTechnical (yang sudah font-sans).
+                  Ukuran turun dari text-xl font-extrabold ke text-sm font-bold - proporsional
+                  ke label 10px di atasnya, tidak lagi 2x lebih besar dari sekitarnya. */}
+              <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
                 data?.consensus?.includes('UNDERVALUED')
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
                   : data?.consensus?.includes('OVERVALUED')
                   ? 'bg-tv-red/20 text-tv-red border-tv-red'
                   : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
               }`}>
-                {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
                 {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
               </div>
             </div>
@@ -435,14 +441,14 @@ function FundamentalContent() {
                 consensus-labels.service.ts). */}
             <div className="text-right">
               <div className="text-[10px] text-tv-muted uppercase tracking-wide">Kualitas Fundamental</div>
-              <div className={`text-xl font-extrabold font-mono px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
+              <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
                 data?.fundamentalQuality?.label === 'BAGUS'
                   ? 'bg-tv-green/20 text-tv-green border-tv-green'
                   : data?.fundamentalQuality?.label === 'BURUK'
                   ? 'bg-tv-red/20 text-tv-red border-tv-red'
                   : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
               }`}>
-                {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 {loading
                   ? 'Calculating...'
                   : data?.fundamentalQuality
@@ -602,9 +608,11 @@ function FundamentalContent() {
                     <div key={idx} className={`p-3 rounded-lg bg-tv-bg border flex flex-col gap-2 transition-colors ${isTop3 ? 'border-tv-green shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'border-tv-border hover:border-tv-borderLight'}`}>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-white font-bold">{algo.label}</span>
-                        <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
-                          algo.decision === 'BULLISH' ? 'bg-tv-green/20 text-tv-green' : 
-                          algo.decision === 'BEARISH' ? 'bg-tv-red/20 text-tv-red' : 
+                        {/* BUG FIX (2026-08-06, sweep "font beda" - laporan user): font-mono
+                            khusus data tabular/kode (aturan app/globals.css), bukan kata status. */}
+                        <span className={`font-sans text-xs font-bold px-2 py-0.5 rounded ${
+                          algo.decision === 'BULLISH' ? 'bg-tv-green/20 text-tv-green' :
+                          algo.decision === 'BEARISH' ? 'bg-tv-red/20 text-tv-red' :
                           'bg-tv-yellow/20 text-tv-yellow'
                         }`}>
                           {algo.decision}

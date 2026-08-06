@@ -67,7 +67,7 @@ export default function AlgoFilters({
                 </div>
                 <div className="flex justify-between items-center text-sm blur-sm select-none">
                   <span className="text-white font-bold">{algo.label}</span>
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-tv-yellow/20 text-tv-yellow">
+                  <span className="font-sans text-xs font-bold px-2 py-0.5 rounded bg-tv-yellow/20 text-tv-yellow">
                     {algo.decision}
                   </span>
                 </div>
@@ -83,7 +83,9 @@ export default function AlgoFilters({
             <div key={idx} className={`p-3 rounded-lg bg-tv-bg border flex flex-col gap-2 ${isTop3 ? 'border-tv-green shadow-[0_0_10px_rgba(34,171,148,0.2)]' : 'border-tv-border'}`}>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-white font-bold">{algo.label}</span>
-                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                {/* BUG FIX (2026-08-06, sweep "font beda" - laporan user): font-mono
+                    khusus data tabular/kode (aturan app/globals.css), bukan kata status. */}
+                <span className={`font-sans text-xs font-bold px-2 py-0.5 rounded ${
                   algo.decision === 'BULLISH' ? 'bg-tv-green/20 text-tv-green' :
                   algo.decision === 'BEARISH' ? 'bg-tv-red/20 text-tv-red' :
                   'bg-tv-yellow/20 text-tv-yellow'

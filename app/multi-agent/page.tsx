@@ -115,7 +115,9 @@ export default function MultiAgentPage() {
         
         {/* UI Badge & Refresh */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-tv-card border border-tv-border rounded-lg p-4 gap-4">
-          <div className="flex flex-wrap items-center gap-3 text-sm font-mono text-tv-muted">
+          {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data tabular/kode
+              (aturan app/globals.css) - baris ini kalimat/frasa, bukan kolom angka. */}
+          <div className="flex flex-wrap items-center gap-3 text-sm font-sans text-tv-muted">
             <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Last Update: {lastUpdated} WIB</span>
             <span>•</span>
             <span>Yahoo Finance delayed/EOD</span>

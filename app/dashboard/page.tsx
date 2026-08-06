@@ -813,14 +813,18 @@ function DashboardContent() {
                )}
               <div className="text-right">
                 <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
-                <div className={`text-xl font-extrabold font-sans px-4 py-1.5 rounded-lg border shadow-1 flex items-center gap-2 ${
+                {/* BUG FIX (2026-08-06, laporan user "kegedean"): text-xl font-extrabold
+                    turun ke text-sm font-bold - disamakan dengan badge sejenis di halaman
+                    Fundamental (Valuasi Harga/Kualitas Fundamental), supaya "verdict badge"
+                    konsisten ukurannya di semua halaman, bukan cuma di halaman ini. */}
+                <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
                   data?.consensus?.includes('BUY')
                     ? 'bg-tv-green/20 text-tv-green border-tv-green'
                     : data?.consensus?.includes('SELL')
                     ? 'bg-tv-red/20 text-tv-red border-tv-red'
                     : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
                 }`}>
-                  {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
+                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
                   {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
                 </div>
                 {data?.consensusData && (
