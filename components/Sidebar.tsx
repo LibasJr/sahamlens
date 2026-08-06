@@ -417,8 +417,12 @@ export default function Sidebar() {
           {!isCollapsed && (
             <>
               {/* Tagline filosofi brand (disepakati 2026-08-06) - baris kecil, tidak
-                  menonjol, hadir di semua halaman lewat footer Sidebar ini. */}
-              <p className="text-[10px] text-white/30 text-center italic">Memperjelas yang tersembunyi. Keputusan tetap milikmu.</p>
+                  menonjol, hadir di semua halaman lewat footer Sidebar ini. Link ke
+                  /about (versi lengkapnya) - tautan, bukan cuma teks, biar yang penasaran
+                  bisa baca filosofi utuhnya. */}
+              <Link href="/about" className="block text-[10px] text-white/30 hover:text-white/50 text-center italic transition-colors">
+                Memperjelas yang tersembunyi. Keputusan tetap milikmu.
+              </Link>
               <p className="text-[10px] text-white/25 text-center">&copy; 2026 SahamLens</p>
             </>
           )}
