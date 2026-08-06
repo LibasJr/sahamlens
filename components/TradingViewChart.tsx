@@ -54,6 +54,9 @@ export default function TradingViewChart({
   timeframe = '1M',
   onHoverCandle
 }: TradingViewChartProps) {
+  // Simbol berawalan '^' adalah indeks (mis. ^JKSE), bukan saham - nilainya poin
+  // indeks, bukan rupiah. Pola penandanya sama dengan yang dipakai Dashboard.tsx.
+  const isIndexSymbol = symbol.startsWith('^');
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const onHoverCandleRef = useRef(onHoverCandle);
@@ -290,13 +293,27 @@ export default function TradingViewChart({
 
         {/* Legend */}
         <div className="flex items-center gap-4 text-[11px] font-mono">
+          {/* BUG FIX (2026-08-06): dua label ini selalu diawali "Rp" dan dicetak
+              dengan pecahan desimal bawaan toLocaleString (sampai 3 angka di
+              belakang koma). Untuk INDEKS - IHSG dipakai sebagai tampilan default
+              halaman depan - keduanya salah sekaligus: IHSG bukan nilai rupiah, dan
+              "MA 50: Rp 6.040,801" menampilkan presisi yang tidak berarti apa-apa
+              untuk sebuah rata-rata bergerak. */}
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#f0b90b]" />
-            <span className="text-tv-muted">MA 50: Rp {technical.ma50?.toLocaleString('id-ID') || '-'}</span>
+            <span className="text-tv-muted">
+              MA 50: {technical.ma50 != null
+                ? `${isIndexSymbol ? '' : 'Rp '}${Math.round(technical.ma50).toLocaleString('id-ID')}`
+                : 'belum cukup data'}
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#ab47bc]" />
-            <span className="text-tv-muted">MA 200: Rp {technical.ma200?.toLocaleString('id-ID') || '-'}</span>
+            <span className="text-tv-muted">
+              MA 200: {technical.ma200 != null
+                ? `${isIndexSymbol ? '' : 'Rp '}${Math.round(technical.ma200).toLocaleString('id-ID')}`
+                : 'belum cukup data'}
+            </span>
           </div>
           {/* "Money Flow", BUKAN "Bandar Flow": angka ini proxy Chaikin Money Flow dari
               harga+volume, bukan data transaksi broker (IDX tidak menyediakan feed itu

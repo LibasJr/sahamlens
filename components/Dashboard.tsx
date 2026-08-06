@@ -522,6 +522,45 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Ringkasan pasar dari tickerItems yang SUDAH ada di memori (gabungan
+            topGainers + topLosers dari /api/market-summary) - tidak ada permintaan
+            jaringan baru. Sebelumnya judul "Ringkasan Pasar Hari Ini" berdiri langsung
+            di atas sebuah chart tanpa satu pun ringkasan; pengunjung harus menyimpulkan
+            kondisi pasar sendiri dari running text yang lewat di atas. */}
+        {tickerItems.length > 0 && (() => {
+          const naik = tickerItems.filter((t) => t.changePct > 0).length;
+          const turun = tickerItems.filter((t) => t.changePct < 0).length;
+          const sorted = [...tickerItems].sort((a, b) => b.changePct - a.changePct);
+          const teratas = sorted[0];
+          const terbawah = sorted[sorted.length - 1];
+          const stats = [
+            { label: 'Menguat', value: String(naik), tone: 'text-tv-green', sub: `dari ${tickerItems.length} saham teraktif` },
+            { label: 'Melemah', value: String(turun), tone: 'text-tv-red', sub: `dari ${tickerItems.length} saham teraktif` },
+            { label: 'Penguatan tertinggi', value: teratas.symbol, tone: 'text-tv-green', sub: `+${teratas.changePct.toFixed(2)}%` },
+            { label: 'Pelemahan terdalam', value: terbawah.symbol, tone: 'text-tv-red', sub: `${terbawah.changePct.toFixed(2)}%` },
+          ];
+          return (
+            <div className="mb-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {stats.map((s) => (
+                  <Card key={s.label} padding="none" hoverable className="px-4 py-3">
+                    <div className="text-[10px] uppercase tracking-wide text-tv-muted">{s.label}</div>
+                    <div className={`mt-1 font-number text-lg font-bold ${s.tone}`}>{s.value}</div>
+                    <div className="text-[10px] text-tv-muted mt-0.5">{s.sub}</div>
+                  </Card>
+                ))}
+              </div>
+              {/* Batasan cakupan disebut apa adanya: ini daftar saham TERAKTIF, bukan
+                  seluruh emiten IDX, jadi rasionya tidak boleh dibaca sebagai breadth
+                  pasar keseluruhan. */}
+              <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">
+                Dihitung dari daftar saham teraktif hari ini, bukan seluruh emiten IDX -
+                angka ini menggambarkan yang paling banyak ditransaksikan, bukan luas pergerakan pasar.
+              </p>
+            </div>
+          );
+        })()}
+
         {/* FEATURED CHART CARD */}
         <Card padding="none" className="relative overflow-hidden rounded-xl shadow-2">
           <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_0.9fr]">
@@ -553,10 +592,18 @@ export default function Dashboard() {
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
                         </span>
                       )}
+                      {/* BUG FIX (2026-08-06): penjaganya cuma `!= null`, sedangkan
+                          nol LOLOS pemeriksaan itu. Untuk IHSG - tampilan default
+                          halaman depan - sumber data tidak mengirim volume indeks,
+                          jadi baris ini tertulis "Vol: 0.0 Jt • Val: Rp 0.00 T":
+                          angka nol yang terbaca sebagai hasil pengukuran, seolah
+                          hari itu tidak ada transaksi sama sekali di bursa. */}
                       <span className="text-tv-muted">
-                        {ind?.volume != null && ind?.value != null
-                          ? `Vol: ${(ind.volume / 1e6).toFixed(1)} Jt • Val: Rp ${(ind.value / 1e12).toFixed(2)} T`
-                          : 'Volume: N/A'}
+                        {(ind?.volume ?? 0) > 0 && (ind?.value ?? 0) > 0
+                          ? `Vol: ${((ind!.volume as number) / 1e6).toFixed(1)} Jt • Val: Rp ${((ind!.value as number) / 1e12).toFixed(2)} T`
+                          : isIndex
+                            ? 'Volume agregat indeks tidak tersedia dari sumber data'
+                            : 'Volume tidak tersedia'}
                       </span>
                       {isHovering && ind && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-tv-blue/10 text-tv-blue px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
@@ -777,11 +824,26 @@ export default function Dashboard() {
                         <span className={`text-[11px] font-number shrink-0 ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                           {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(1)}%
                         </span>
-                        <span className="text-[10px] text-tv-muted truncate hidden sm:inline">
-                          {p.signals?.length ? p.signals.join(', ') : 'tanpa sinyal khusus'}
-                        </span>
+                        {/* Sinyal hanya ditampilkan kalau memang ADA. Teks pengganti
+                            "tanpa sinyal khusus" sebelumnya terulang di hampir setiap
+                            baris - kolom yang isinya sama untuk semua baris tidak
+                            membedakan apa pun, ia cuma menambah keramaian. */}
+                        {p.signals?.length ? (
+                          <span className="text-[10px] text-tv-blue truncate hidden sm:inline">
+                            {p.signals.join(', ')}
+                          </span>
+                        ) : null}
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Bar skor: peringkat relatif antar baris terbaca sekilas.
+                            Membandingkan 85 dan 77 lewat angka menuntut pembacaan
+                            baris per baris. */}
+                        <span className="hidden sm:block h-1 w-10 rounded-full bg-tv-hover overflow-hidden">
+                          <span
+                            className="block h-full rounded-full bg-tv-green"
+                            style={{ width: `${Math.min(100, Math.max(0, p.finalScore))}%` }}
+                          />
+                        </span>
                         {/* Skala dinyatakan eksplisit (audit skor 2026-08-05) - angka
                             telanjang "97" dulu terbaca 97/100 padahal skalanya 0-140. */}
                         <span className="text-[13px] font-bold font-number text-tv-text">{p.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span></span>
