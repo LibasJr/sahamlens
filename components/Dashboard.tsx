@@ -548,22 +548,19 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        {/* Title Block */}
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
-            <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">
-              {lastUpdated
-                ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span>
-                : tickerFailed
-                  ? <span>Waktu pembaruan tidak diketahui</span>
-                  : <Skeleton variant="text" className="w-40 h-4 inline-block align-middle" />}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-tv-muted">Powered by</span>
-            <span className="rounded-full border border-tv-border bg-tv-card px-3 py-1 text-[11px] font-bold text-tv-text shadow-1">SahamLens</span>
-          </div>
+        {/* Title Block. Badge "Powered by SahamLens" DIHAPUS (permintaan user
+            2026-08-06) - ganjil bilang situs SahamLens "powered by" SahamLens sendiri
+            ("Powered by X" wajar kalau X mesin/pihak LAIN di baliknya), dan nama brand
+            sudah ada di header atas halaman ini. */}
+        <div className="mb-6">
+          <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
+          <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">
+            {lastUpdated
+              ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span>
+              : tickerFailed
+                ? <span>Waktu pembaruan tidak diketahui</span>
+                : <Skeleton variant="text" className="w-40 h-4 inline-block align-middle" />}
+          </p>
         </div>
 
         {/* Ringkasan pasar dari tickerItems yang SUDAH ada di memori (gabungan
@@ -973,8 +970,10 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             {/* Tagline filosofi brand (disepakati 2026-08-06) - versi landing dari
                 baris yang sama di footer Sidebar.tsx, karena halaman ini ("/") satu-
-                satunya yang tidak lewat Sidebar. */}
-            <span className="hidden sm:inline italic text-tv-muted">Memperjelas yang tersembunyi. Keputusan tetap milikmu.</span>
+                satunya yang tidak lewat Sidebar. Link ke /about untuk versi lengkap. */}
+            <Link href="/about" className="hidden sm:inline italic text-tv-muted hover:text-tv-text transition-colors">
+              Memperjelas yang tersembunyi. Keputusan tetap milikmu.
+            </Link>
             <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
           </div>
         </Card>
