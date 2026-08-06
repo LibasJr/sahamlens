@@ -24,6 +24,42 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Log perubahan deployment
 
+### 2026-08-06 - Redesign UI 14 halaman ke design system "Lens"
+
+Perubahan UI/UX menyeluruh. **Tidak mengubah cara build, env var, cron/QStash, atau
+gating akses** - seluruhnya di lapisan render dan state komponen. Dicatat di sini
+karena sudah masuk `main`/production (commit `91a2c05`, `8726ed7`, `b9b345b`).
+
+- **Token warna diganti nilainya di tempat** di `tailwind.config.js` (nama token `tv-*`
+  dipertahankan): bg `#0B0F19`, card `#12182B`, border `#1E293B`, blue `#3B82F6`,
+  green `#22C55E`. Konsekuensinya SEMUA halaman ikut berubah warna lewat satu diff -
+  termasuk halaman yang belum di-redesign. Hex hardcode di `app/globals.css`,
+  `app/layout.tsx`, dan `components/Sidebar.tsx` ikut disesuaikan.
+- **Font 4 unduhan jadi 2**: Inter (teks/heading) + JetBrains Mono (angka). Plus Jakarta
+  Sans, Sora, dan Space Grotesk dilepas dari `next/font`. Catatan untuk agen berikutnya:
+  aturan `.font-heading`/`.font-number` di `globals.css` datang SETELAH `@tailwind
+  utilities`, jadi ia menang atas `fontFamily` di `tailwind.config.js`. Kalau mengganti
+  font, ubah KEDUANYA - kalau tidak, config-nya diam-diam tidak berpengaruh (itu yang
+  terjadi pada Space Grotesk sebelum perubahan ini).
+- Komponen bersama baru di `components/ui/`: `MetricCard`, `LoadingFact`, `TickerAvatar`.
+  `EmptyState` diperluas (illustration/progress/countdown), `Card` dapat alias `GlassCard`.
+- Aturan `prefers-reduced-motion` global ditambahkan di `globals.css`.
+- Tiga blok `<style>` scrollbar mati dihapus (`/dashboard`, `/fundamental`, `/compare`,
+  `/breakout-radar`, `/backtest`) - warnanya dari palet lama dan sebagian kelasnya tidak
+  pernah dipakai. Scrollbar global sudah ditangani `globals.css`.
+- Gulir bersarang dihapus di `/breakout-radar`, `/compare`, `/backtest`: ketiganya dulu
+  `flex h-screen` + anak `overflow-y-auto` di dalam `<main>` AppShell yang sudah
+  menggulir. **Jebakan**: kalau menambah halaman baru, jangan buat kontainer gulir
+  sendiri - AppShell sudah menyediakannya.
+- Sejumlah perbaikan bug non-kosmetik ikut di dalamnya (state error yang hilang,
+  pewarnaan yang terbalik, `useMemo` dengan dependensi kurang di `/calendar`, tombol
+  debug "Test Cron" di `/watchlist` yang tidak pernah digerbangi `isAdmin`). Rinciannya
+  ada di badan ketiga commit di atas.
+- Smoke test setelah deploy: `/`, `/calendar`, `/transparency`, `/watchlist`,
+  `/portfolio`, `/backtest` semua 200.
+- Sisa yang BELUM di-redesign: `/news`, `/admin`, `/admin/calibration`,
+  `/admin/fundamental-backfill`.
+
 ### 2026-08-06 - Admin UI Fundamental Backfill
 
 - Halaman protected baru: `/admin/fundamental-backfill`.
