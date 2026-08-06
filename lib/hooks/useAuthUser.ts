@@ -57,6 +57,29 @@ export function computeRole(user: AuthUser | null): Omit<AuthState, 'loading' | 
   return { effectiveRole: 'guest', trialDaysLeft: null, isTrialExpired: false };
 }
 
+/** Padanan client dari checkProAccess() di server (shared/auth/session.ts).
+ *
+ * PENTING: satu-satunya cara benar memeriksa status Pro di sisi client. JANGAN
+ * memeriksa `role === 'pro'` atau cookie `role=pro` - panel admin mengaktifkan
+ * langganan dengan HANYA menulis is_pro + pro_expires_at, kolom `role` tidak
+ * pernah disentuh, jadi dua pemeriksaan itu selalu salah untuk pelanggan asli. */
+export function hasProAccessFor(user: AuthUser | null): boolean {
+  return computeRole(user).effectiveRole !== 'guest';
+}
+
+/** Ambil sesi sekali dan putuskan akses Pro - dipakai kode non-React (lib/limits.ts).
+ * Gagal-tertutup: kalau /api/auth/me tidak bisa dihubungi, jawab false, bukan
+ * memberi akses penuh karena jaringan bermasalah. */
+export async function fetchProAccess(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/auth/me');
+    const d = await res.json();
+    return d?.authenticated && d.user ? hasProAccessFor(d.user) : false;
+  } catch {
+    return false;
+  }
+}
+
 export function useAuthUser(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);

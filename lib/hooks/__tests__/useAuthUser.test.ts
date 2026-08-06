@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeRole, type AuthUser } from '../useAuthUser';
+import { computeRole, hasProAccessFor, type AuthUser } from '../useAuthUser';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -71,5 +71,34 @@ describe('computeRole', () => {
     const r = computeRole(makeUser());
     expect(r.effectiveRole).toBe('guest');
     expect(r.isTrialExpired).toBe(false);
+  });
+});
+
+// BUG (dilaporkan 2026-08-06): pelanggan Pro 1 bulan tetap dapat notifikasi "limit
+// habis". Panel admin mengaktifkan Pro dengan HANYA menulis is_pro + pro_expires_at
+// (modules/user/controller/admin.controller.ts handleSetProStatus) - kolom `role`
+// tidak pernah disentuh siapa pun, jadi tetap 'free' selamanya. Pemeriksaan Pro di
+// sisi client dulu mencari role === 'pro' dan cookie 'role=pro', dua nilai yang TIDAK
+// PERNAH ditulis kode mana pun, lalu jatuh ke cabang "trial habis" dan memunculkan
+// paywall - padahal server (checkProAccessLive) dengan senang hati melayani orang ini.
+describe('hasProAccessFor - bentuk akun seperti yang benar-benar ditulis panel admin', () => {
+  it('pelanggan Pro 1 bulan (role tetap "free", trial sudah lewat) TETAP punya akses', () => {
+    expect(hasProAccessFor(makeUser({
+      role: 'free',
+      is_pro: true,
+      pro_expires_at: daysFromNow(30),
+      trial_ends_at: daysFromNow(-2),
+    }))).toBe(true);
+  });
+
+  it('pelanggan Pro yang masa aktifnya habis kehilangan akses', () => {
+    expect(hasProAccessFor(makeUser({ role: 'free', is_pro: true, pro_expires_at: daysFromNow(-1) }))).toBe(false);
+  });
+
+  it('admin dan trial aktif tetap punya akses; guest tidak', () => {
+    expect(hasProAccessFor(makeUser({ role: 'admin' }))).toBe(true);
+    expect(hasProAccessFor(makeUser({ trial_ends_at: daysFromNow(2) }))).toBe(true);
+    expect(hasProAccessFor(makeUser())).toBe(false);
+    expect(hasProAccessFor(null)).toBe(false);
   });
 });

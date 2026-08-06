@@ -44,9 +44,13 @@ export default function WatchlistPage() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Batas watchlist gratis hanya berlaku kalau user memang TIDAK punya akses Pro.
+  // Sebelumnya diendus dari cookie yang tidak pernah ditulis untuk pelanggan Pro,
+  // jadi pelanggan berbayar tetap mentok di 3 saham (lihat lib/limits.ts).
+  const [hasPro, setHasPro] = useState(false);
 
   useEffect(() => {
-    refreshAdminStatus();
+    refreshAdminStatus().then(setHasPro);
     checkAdmin();
   }, []);
 
@@ -140,7 +144,7 @@ export default function WatchlistPage() {
     const isNewSymbol = !watchlist.some(w => w.symbol === symbol);
 
     if (isNewSymbol) {
-      const limit = checkWatchlistLimit(watchlist.length);
+      const limit = checkWatchlistLimit(watchlist.length, hasPro);
       if (!limit.allowed) {
         setShowPaywall(true);
         return;

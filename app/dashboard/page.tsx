@@ -11,7 +11,8 @@ import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
-import { refreshAdminStatus, grantProFromLink, FREE_LIMITS } from '@/lib/limits';
+import { grantProFromLink, FREE_LIMITS } from '@/lib/limits';
+import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
@@ -230,36 +231,24 @@ function DashboardContent() {
       grantProFromLink();
     }
 
-    refreshAdminStatus().then((admin) => {
-      setIsAdminUser(admin);
-      setAdminReady(true);
-    });
-
-    // Check 7-day trial status and Admin status from JWT
+    // BUG FIX (2026-08-06, dilaporkan user "pelanggan Pro 1 bulan masih dapat notif
+    // limit habis"): blok ini dulu memutuskan status Pro dari `role === 'pro'` lalu
+    // jatuh ke cabang trial_ends_at. Panel admin TIDAK PERNAH menulis role - hanya
+    // is_pro & pro_expires_at - jadi pelanggan berbayar terbaca role 'free' dengan
+    // trial yang sudah lewat, dan langsung disodori paywall. Sekarang keputusannya
+    // dari computeRole() (lib/hooks/useAuthUser.ts), logic yang sama dengan
+    // checkProAccess() di server, sehingga UI dan API tidak lagi berbeda pendapat.
     fetch('/api/auth/me')
       .then(res => res.json())
       .then(d => {
-        if (d.authenticated && d.user) {
-          if (d.user.role === 'admin' || d.user.role === 'pro') {
-            setIsAdminUser(true);
-            setAdminReady(true);
-          } else if (d.user.trial_ends_at) {
-            const trialEnd = new Date(d.user.trial_ends_at).getTime();
-            if (Date.now() > trialEnd) {
-              setIsTrialExpired(true);
-              setShowPaywall(true);
-              setAdminReady(true);
-            } else {
-              // Valid trial, grant infinite access on UI too (hide 5/5 counter)
-              setIsAdminUser(true); 
-              setAdminReady(true);
-            }
-          } else {
-            setAdminReady(true);
-          }
-        }
+        const user = d.authenticated && d.user ? d.user : null;
+        const { effectiveRole, isTrialExpired } = computeRole(user);
+        setIsAdminUser(effectiveRole !== 'guest');
+        setIsTrialExpired(isTrialExpired);
+        setShowPaywall(isTrialExpired);
+        setAdminReady(true);
       })
-      .catch(e => console.error(e));
+      .catch(() => setAdminReady(true));
 
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {

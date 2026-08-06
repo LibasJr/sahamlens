@@ -4,39 +4,34 @@
 // app/api/stock/[ticker]/route.ts). Limit yang aktif sekarang murni checkProAccess
 // (shared/auth/session.ts).
 
+import { fetchProAccess } from './hooks/useAuthUser';
+
 export const FREE_LIMITS = {
   WATCHLIST: 3,
   ALERTS: 2,
   analisaPerHari: 5
 };
 
-export function checkWatchlistLimit(currentCount: number) {
-  // Check if admin on client side (using cookies usually, but let's mock if not available)
-  let isAdmin = false;
-  if (typeof document !== 'undefined') {
-    isAdmin = document.cookie.includes('saham_admin=true') || document.cookie.includes('role=admin') || document.cookie.includes('role=pro');
-  }
-  
-  if (isAdmin) return { allowed: true };
-  
+// BUG FIX (2026-08-06, dilaporkan user): pelanggan Pro 1 bulan tetap kena notifikasi
+// "limit habis". Semua fungsi di bawah dulu mengendus cookie - `saham_admin=true`,
+// `role=admin`, `role=pro`. Dua yang terakhir tidak pernah cocok untuk pelanggan
+// sungguhan: panel admin mengaktifkan Pro dengan HANYA menulis is_pro +
+// pro_expires_at (handleSetProStatus), kolom `role` tidak pernah diubah siapa pun,
+// dan cookie `role` hanya pernah diisi nilai 'admin' saat login admin. Jadi status
+// Pro sekarang ditanyakan ke server (sumber yang sama dengan gerbang API), bukan
+// ditebak dari cookie yang tidak pernah ditulis.
+export function checkWatchlistLimit(currentCount: number, hasPro: boolean) {
+  if (hasPro) return { allowed: true };
+
   if (currentCount >= FREE_LIMITS.WATCHLIST) {
     return { allowed: false, limit: FREE_LIMITS.WATCHLIST };
   }
-  
+
   return { allowed: true };
 }
 
 export async function refreshAdminStatus() {
-  return hasProAccess();
-}
-
-export function hasProAccess() {
-  if (typeof document !== 'undefined') {
-    return document.cookie.includes('saham_admin=true') || 
-           document.cookie.includes('role=admin') || 
-           document.cookie.includes('role=pro');
-  }
-  return false;
+  return fetchProAccess();
 }
 
 export function getUsedSymbolsToday() {
