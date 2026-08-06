@@ -7,7 +7,7 @@ import { TrendingUp, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles } from
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
-import { Card, SegmentedControl } from '@/components/ui';
+import { Card, SegmentedControl, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { isMarketOpen } from '@/lib/utils/market';
 
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
@@ -21,11 +21,21 @@ const TIMEFRAMES = ['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL'];
 
 // Running text ticker - saham + harga terkini, scroll otomatis di bawah header. List
 // digandakan 2x supaya loop-nya mulus (translateX 0 -> -50% = tepat 1 putaran list asli).
-function TickerTape({ items }: { items: { symbol: string; price: number; changePct: number }[] }) {
+function TickerTape({ items, failed }: { items: { symbol: string; price: number; changePct: number }[]; failed?: boolean }) {
   if (!items.length) {
     return (
       <div className="bg-tv-surface border-b border-tv-border h-[34px] flex items-center px-4">
-        <span className="text-[11px] text-tv-muted font-mono">Memuat harga saham...</span>
+        {failed ? (
+          // Tanpa ini, kegagalan mengambil ringkasan pasar membuat baris ini tertulis
+          // "Memuat harga saham..." selamanya di bagian paling atas halaman publik.
+          <span className="text-[11px] text-tv-muted">
+            Harga berjalan tidak tersedia saat ini. Bagian lain halaman tetap berfungsi.
+          </span>
+        ) : (
+          <div className="flex items-center gap-4">
+            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} variant="text" className="w-24 h-3" />)}
+          </div>
+        )}
       </div>
     );
   }
@@ -153,6 +163,8 @@ export default function Dashboard() {
   const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
   const [timeframe, setTimeframe] = useState('1Y');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
+  const [ihsgFailed, setIhsgFailed] = useState(false);
+  const [tickerFailed, setTickerFailed] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
@@ -176,9 +188,11 @@ export default function Dashboard() {
         ) {
           const pointChange = (data.price * data.changePercent / 100);
           setIhsg({ price: data.price, change: data.changePercent, pointChange });
+        } else {
+          setIhsgFailed(true);
         }
       })
-      .catch(console.error);
+      .catch((e) => { console.error(e); setIhsgFailed(true); });
   }, []);
 
   const chartRef = useRef<HTMLDivElement>(null);
@@ -187,17 +201,29 @@ export default function Dashboard() {
 
   const [hoveredTime, setHoveredTime] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  // BUG FIX (2026-08-06): ketiga pengambilan data di halaman ini (chart, IHSG header,
+  // dan market-summary untuk ticker berjalan) sebelumnya berakhir di `.catch(console.error)`
+  // tanpa satu pun state kegagalan. Kalau salah satunya gagal, tampilannya berhenti
+  // permanen di teks "Memuat..." - tanpa penjelasan, tanpa tombol, dan tanpa batas waktu.
+  // Ini halaman publik yang terindeks, jadi keadaan itu bisa dilihat siapa saja.
+  const [chartError, setChartError] = useState(false);
+
+  const loadChart = React.useCallback(() => {
+    setChartError(false);
     setHoveredTime(null); // stale hover position from the previous series wouldn't line up
     fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`)
-      .then(r => r.json())
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('chart'))))
       .then(data => {
          if (data && data.history && data.history.length > 0) {
             setChartData(data.history);
+         } else {
+            setChartError(true);
          }
       })
-      .catch(console.error);
+      .catch((e) => { console.error(e); setChartError(true); });
   }, [timeframe, ticker.symbol]);
+
+  React.useEffect(() => { loadChart(); }, [loadChart]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
   const prevClose = chartData.length > 1 ? chartData[chartData.length - 2].price : null;
@@ -354,8 +380,10 @@ export default function Dashboard() {
         if (data.timestamp) {
           setLastUpdated(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.timestamp)) + ' WIB');
         }
+      } else {
+        setTickerFailed(true);
       }
-    }).catch(console.error);
+    }).catch((e) => { console.error(e); setTickerFailed(true); });
   }, []);
 
   const jakartaDate = now ? new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now) : null;
@@ -385,8 +413,10 @@ export default function Dashboard() {
                       {ihsg.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />} {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                     </span>
                   </div>
+                ) : ihsgFailed ? (
+                  <span className="text-[12px] font-medium text-white/50">IHSG tidak tersedia</span>
                 ) : (
-                  <span className="text-[13px] font-medium text-white/50">Memuat...</span>
+                  <Skeleton variant="text" className="w-32 h-4" />
                 )}
               </div>
             </div>
@@ -437,8 +467,10 @@ export default function Dashboard() {
                   <span className="text-[14px] font-bold font-number">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   <span className={`text-[11px] font-semibold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
                 </>
+              ) : ihsgFailed ? (
+                <span className="text-[12px] text-white/50">tidak tersedia</span>
               ) : (
-                <span className="text-[12px] text-white/50">Memuat...</span>
+                <Skeleton variant="text" className="w-24 h-3.5" />
               )}
             </div>
             <span className={`text-[10px] flex items-center gap-1 ${marketOpen ? 'text-tv-green' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />{marketOpen ? 'Market Buka' : 'Market Tutup'}</span>
@@ -446,7 +478,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <TickerTape items={tickerItems} />
+      <TickerTape items={tickerItems} failed={tickerFailed} />
 
       <main className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Marketing Hero - tagline "Lihat Peluang Lebih Jelas." sudah dipakai di
@@ -476,7 +508,13 @@ export default function Dashboard() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
-            <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">{lastUpdated ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span> : 'Memuat data...'}</p>
+            <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">
+              {lastUpdated
+                ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span>
+                : tickerFailed
+                  ? <span>Waktu pembaruan tidak diketahui</span>
+                  : <Skeleton variant="text" className="w-40 h-4 inline-block align-middle" />}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-tv-muted">Powered by</span>
@@ -491,7 +529,14 @@ export default function Dashboard() {
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-number">{displaySymbol}</div>
+                  {/* Kotak 48x48 ini dulu diisi displaySymbol utuh - untuk saham
+                      nilainya "BBCA.JK" (7 karakter di font 13px), yang meluber keluar
+                      kotaknya. Indeks kebetulan pas karena "IHSG" cuma 4 huruf. */}
+                  {isIndex ? (
+                    <div className="h-12 w-12 shrink-0 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-number">IHSG</div>
+                  ) : (
+                    <TickerAvatar symbol={ticker.symbol} size="lg" />
+                  )}
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{displaySymbol} — {ticker.name}</h2>
@@ -553,8 +598,25 @@ export default function Dashboard() {
                       ma200: ind?.ma200 ?? undefined
                     }}
                   />
+                ) : chartError ? (
+                  <div className="bg-tv-bg">
+                    <EmptyState
+                      illustration="empty"
+                      title={`Grafik ${displaySymbol} gagal dimuat`}
+                      description="Data harga tidak berhasil diambil untuk rentang waktu ini. Coba rentang lain, atau muat ulang grafiknya."
+                      action={{ label: 'Muat ulang grafik', onClick: loadChart }}
+                    />
+                  </div>
                 ) : (
-                  <div className="h-[340px] flex items-center justify-center bg-tv-bg text-tv-muted">Memuat grafik...</div>
+                  <div className="h-[340px] bg-tv-bg p-4 flex flex-col justify-end gap-2">
+                    {/* Kerangka menyerupai bentuk chart batang, bukan teks "Memuat grafik..."
+                        di tengah kotak kosong setinggi 340px. */}
+                    <div className="flex items-end gap-1.5 h-full">
+                      {[38, 55, 47, 68, 60, 78, 71, 85, 66, 74, 90, 62, 80, 95, 72].map((h, i) => (
+                        <Skeleton key={i} className="flex-1 rounded-t" style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -577,13 +639,33 @@ export default function Dashboard() {
                   <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
                 </div>
                 <div className="mt-3 divide-y divide-tv-border/60">
-                  {newsItems.length === 0 ? (
-                    <div className="px-1 py-6 text-center text-[11px] text-tv-muted">{loadingNews ? 'Memuat berita...' : 'Belum ada berita'}</div>
+                  {loadingNews ? (
+                    <div className="space-y-2.5">
+                      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                    </div>
+                  ) : newsItems.length === 0 ? (
+                    <EmptyState
+                      illustration="search"
+                      title="Belum ada berita pada siklus ini"
+                      description="Sumber RSS disegarkan tiap 15 menit."
+                    />
                   ) : (
                     newsItems.map((n) => (
                       <a key={n.link || n.title} href={n.link} target="_blank" rel="noopener noreferrer" className="block py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity">
                         <p className="text-[12px] font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                        <p className="text-[10px] text-tv-muted mt-1">{n.source}</p>
+                        <p className="text-[10px] text-tv-muted mt-1 flex items-center gap-1.5">
+                          {n.source}
+                          {/* Sentimen sudah dihitung dan dikirim API yang sama, tapi di
+                              halaman depan dibuang - padahal itu pembeda utamanya dari
+                              daftar berita biasa. */}
+                          {n.sentiment && (
+                            <span className={`rounded px-1.5 py-px text-[9px] font-bold ${
+                              n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green'
+                                : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red'
+                                : 'bg-tv-hover text-tv-muted'
+                            }`}>{n.sentiment}</span>
+                          )}
+                        </p>
                       </a>
                     ))
                   )}
@@ -600,9 +682,15 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-3">
                   {calendarEvents === null ? (
-                    <div className="px-1 py-6 text-center text-[11px] text-tv-muted">Memuat jadwal...</div>
+                    <div className="space-y-2">
+                      {[0, 1].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+                    </div>
                   ) : calendarEvents.length === 0 ? (
-                    <div className="px-1 py-6 text-center text-[11px] text-tv-muted">Belum ada jadwal dalam waktu dekat.</div>
+                    <EmptyState
+                      illustration="empty"
+                      title="Belum ada jadwal dalam waktu dekat"
+                      description="Cakupan terbatas Dividen & Earnings - RUPS dan stock split tidak tersedia di sumber data ini."
+                    />
                   ) : (
                     <div className="space-y-2">
                       {calendarEvents.map((e, i) => (
@@ -663,11 +751,16 @@ export default function Dashboard() {
 
               <div className="mt-4 flex flex-col gap-2">
                 {aiPicks === null ? (
-                  <p className="text-[11px] text-tv-muted py-6 text-center">Memuat kandidat...</p>
+                  <div className="space-y-2">
+                    {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+                    <LoadingFact className="mt-2" />
+                  </div>
                 ) : aiPicks.length === 0 ? (
-                  <p className="text-[11px] text-tv-muted py-6 text-center">
-                    Belum ada saham yang lolos gerbang kualitas data dan ambang skor hari ini.
-                  </p>
+                  <EmptyState
+                    illustration="search"
+                    title="Belum ada yang lolos hari ini"
+                    description="Pemindaian berjalan normal dan hasilnya nihil. Saham berdata tidak lengkap atau berlikuiditas sangat rendah sengaja dikeluarkan - daftar kosong adalah jawaban yang benar untuk hari seperti ini."
+                  />
                 ) : (
                   aiPicks.map((p, idx) => (
                     <Link
@@ -677,6 +770,7 @@ export default function Dashboard() {
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-[11px] text-tv-muted font-number w-4 shrink-0">{idx + 1}</span>
+                        <TickerAvatar symbol={p.symbol} size="sm" />
                         <span className="text-[13px] font-bold font-number text-tv-text shrink-0">
                           {p.symbol.replace('.JK', '')}
                         </span>
@@ -713,7 +807,9 @@ export default function Dashboard() {
                   Proyeksi ATR-14 dari emiten LensRadar - bukan jaminan harga akan tercapai.
                 </p>
                 {aiPicks === null ? (
-                  <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Memuat sinyal...</p>
+                  <div className="flex-1 space-y-2 py-2">
+                    {[0, 1].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+                  </div>
                 ) : (
                   <VerticalSignalTicker
                     items={aiPicks.filter(
