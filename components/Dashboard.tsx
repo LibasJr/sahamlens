@@ -3,11 +3,12 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, ChevronRight, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 import { Card, SegmentedControl, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
@@ -88,62 +89,6 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
            keluhan "diam total" karena fallback overflow-scroll-nya juga salah pasang
            (ada di TRACK yang width:max-content, bukan di pembungkus) - dua lapis
            kegagalan sekaligus. Dibuang semua, ticker sekarang selalu jalan. */
-      `}} />
-    </div>
-  );
-}
-
-// Running text vertikal - level TP1/TP2 (Golden Cross) / CL1/CL2 (Dead Cross) berbasis
-// ATR-14 (lihat breakout.service.ts + app/api/daily-picks/route.ts). Pola sama dengan
-// TickerTape di atas (translate + duplikasi list 2x untuk loop mulus, pause on hover),
-// cuma sumbu Y bukan X.
-function VerticalSignalTicker({ items }: {
-  items: { symbol: string; price: number; changePct: number; tp1: number; tp2: number; cl1: number; cl2: number }[];
-}) {
-  // Sumber emiten = hasil ranking LensRadar (aiPicks), BUKAN Golden/Dead Cross lagi
-  // (permintaan user 2026-08-04). Tiap saham nampilin TP1/TP2 DAN CL1/CL2 sekaligus -
-  // TP = target potensi naik, CL = level waspada/cut-loss, keduanya relevan buat saham
-  // manapun terlepas arah pergerakannya, bukan cuma salah satu tergantung tipe sinyal.
-  if (!items.length) {
-    return <p className="text-[11px] text-tv-muted py-4 text-center flex-1">Belum ada setup TP/CL valid RR ≥ 1,5 untuk pantauan saat ini.</p>;
-  }
-  const loopItems = [...items, ...items];
-  const durationSec = Math.max(20, Math.round(items.length * 4.5));
-  return (
-    <div className="relative flex-1 overflow-hidden min-h-[120px]">
-      <div className="sahamlens-vticker-track flex flex-col" style={{ animationDuration: `${durationSec}s` }}>
-        {loopItems.map((s, i) => (
-          <Link
-            key={`${s.symbol}-${i}`}
-            href={`/technical/${s.symbol}.JK`}
-            className="block px-3 py-2.5 border-b border-tv-border/40 hover:bg-tv-hover/40 transition-colors shrink-0"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold font-number text-tv-text">{s.symbol}</span>
-              <span className="text-[12px] font-number text-tv-text">Rp {Math.round(s.price).toLocaleString('id-ID')}</span>
-            </div>
-            <div className="mt-0.5 flex items-center justify-between">
-              <span className="text-[10px] font-bold text-tv-blue">LensRadar</span>
-              <span className={`text-[10px] font-number flex items-center gap-0.5 ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                {s.changePct >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-                {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
-              </span>
-            </div>
-            <div className="mt-0.5 flex items-center justify-between">
-              <span className="text-[10px] font-bold font-number text-tv-green">TP1: {s.tp1.toLocaleString('id-ID')}</span>
-              <span className="text-[10px] font-bold font-number text-tv-green">TP2: {s.tp2.toLocaleString('id-ID')}</span>
-            </div>
-            <div className="mt-0.5 flex items-center justify-between">
-              <span className="text-[10px] font-bold font-number text-tv-red">CL1: {s.cl1.toLocaleString('id-ID')}</span>
-              <span className="text-[10px] font-bold font-number text-tv-red">CL2: {s.cl2.toLocaleString('id-ID')}</span>
-            </div>
-          </Link>
-        ))}
-      </div>
-      <style dangerouslySetInnerHTML={{ __html: `
-        .sahamlens-vticker-track { animation-name: sahamlens-vticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .sahamlens-vticker-track:hover { animation-play-state: paused; }
-        @keyframes sahamlens-vticker-scroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
       `}} />
     </div>
   );
@@ -489,20 +434,93 @@ export default function Dashboard() {
             diganti gradient-accent-soft (biru->ungu, sudah didefinisikan di
             tailwind.config.js) + glow blur dekoratif di belakang icon (glow-purple,
             juga sudah ada di config) - murni CSS, tidak ada konten/data baru. */}
-        <Card padding="none" className="relative overflow-hidden mb-6 flex items-center justify-between gap-6 bg-gradient-accent-soft border border-tv-border/60 px-5 py-4 sm:px-8 sm:py-6 shadow-none">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-glow-purple blur-2xl" />
-          <div className="min-w-0 relative">
-            <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">Lihat Peluang Lebih Jelas.</h2>
-            <p className="mt-1.5 text-[13px] sm:text-sm text-tv-muted max-w-md">
-              Screener & analisis saham IDX berbasis data riil dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi.
-            </p>
-          </div>
-          <img
-            src="/sahamlens-scope.png"
-            alt="SahamLens"
-            className="relative hidden sm:block h-20 md:h-28 w-auto shrink-0 object-contain drop-shadow-[0_0_20px_rgba(139,92,246,0.35)]"
-          />
-        </Card>
+        {/* HERO - dulu pita setipis ~150px berisi judul, satu paragraf, dan sebuah
+            gambar, dengan ruang tengah menganga. Ini bagian pertama yang dilihat orang
+            dan ia tidak melakukan apa-apa. Sekarang ia membawa angka pasar yang hidup
+            dan jalan masuk yang jelas - tanpa satu pun permintaan jaringan baru,
+            semuanya dari state yang sudah ada. */}
+        <motion.div variants={fadeUp} initial="hidden" animate="show">
+          <Card
+            padding="none"
+            className="relative overflow-hidden mb-8 bg-gradient-accent-soft border border-tv-border/60 px-6 py-8 sm:px-10 sm:py-12 shadow-none"
+          >
+            <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-glow-purple blur-3xl" />
+            <div className="pointer-events-none absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
+
+            <div className="relative grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
+                  <Sparkles className="h-3 w-3" /> Analisis saham IDX berbasis data
+                </span>
+                <h2 className="mt-4 font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-tv-text leading-[1.1]">
+                  Lihat Peluang<br className="hidden sm:block" /> Lebih Jelas.
+                </h2>
+                <p className="mt-4 text-sm sm:text-base text-tv-muted max-w-lg leading-relaxed">
+                  Screener &amp; analisis saham IDX berbasis data riil dan AI - teknikal,
+                  fundamental, backtest, dan rekomendasi dalam satu aplikasi.
+                </p>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/home"
+                    className="rounded-lg bg-tv-blue px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
+                  >
+                    Mulai Sekarang
+                  </Link>
+                  <Link
+                    href="/breakout-radar"
+                    className="rounded-lg border border-tv-border bg-tv-card px-5 py-2.5 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight"
+                  >
+                    Lihat LensRadar
+                  </Link>
+                </div>
+
+                <p className="mt-4 text-[11px] text-tv-muted">
+                  Gratis untuk mulai · Tanpa kartu kredit · Data dari sumber pihak ketiga, bukan nasihat investasi
+                </p>
+              </div>
+
+              {/* Panel angka hidup - IHSG besar + jumlah emiten terpantau. Sebelumnya
+                  posisi ini diisi gambar logo yang tidak menyampaikan informasi apa pun. */}
+              <div className="rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
+                {ihsg ? (
+                  <>
+                    <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
+                      {ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${
+                      ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
+                    }`}>
+                      {ihsg.change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                      {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
+                    </div>
+                  </>
+                ) : ihsgFailed ? (
+                  <p className="mt-2 text-sm text-tv-muted">Angka indeks tidak tersedia saat ini.</p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-9 w-40" />
+                    <Skeleton variant="text" className="h-5 w-28" />
+                  </div>
+                )}
+
+                <div className="mt-5 grid grid-cols-2 gap-3 border-t border-tv-border pt-4">
+                  <div>
+                    <div className="font-number text-lg font-bold text-tv-text">109</div>
+                    <div className="text-[10px] text-tv-muted leading-tight">saham likuid dipindai tiap sesi</div>
+                  </div>
+                  <div>
+                    <div className="font-number text-lg font-bold text-tv-text">
+                      {aiPicks === null ? '—' : aiPicks.length}
+                    </div>
+                    <div className="text-[10px] text-tv-muted leading-tight">lolos ambang skor hari ini</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
 
         {/* Title Block */}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -561,10 +579,144 @@ export default function Dashboard() {
           );
         })()}
 
-        {/* FEATURED CHART CARD */}
+        {/* LENSRADAR - dinaikkan dari kolom sempit di samping chart jadi seksi lebar
+            penuh tepat di bawah ringkasan pasar. Ini bagian yang menjelaskan apa yang
+            sebenarnya dikerjakan produk ini; sebelumnya ia terjepit di ~35% lebar
+            dengan teks 10-11px, sementara chart - yang dimiliki setiap situs finansial -
+            menguasai layar pertama. */}
+        <motion.section
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="mt-8"
+        >
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text flex items-center gap-2">
+                <span className="text-lg leading-none">🔥</span> Pantauan LensRadar
+              </h2>
+              <p className="mt-1 text-[13px] text-tv-muted max-w-2xl">
+                Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
+                Ini scanner, bukan instruksi beli/jual.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-tv-muted">
+                Update {aiPicksUpdatedAt || '--:--'}
+              </span>
+              <Link
+                href="/breakout-radar"
+                className="rounded-md border border-tv-border bg-tv-card px-3 py-1.5 text-[12px] font-semibold text-tv-text transition-colors hover:border-tv-borderLight"
+              >
+                Lihat semua
+              </Link>
+            </div>
+          </div>
+
+          {aiPicksNote && (
+            <p className={`mb-4 text-[11px] rounded-md border px-3 py-2.5 leading-relaxed ${
+              aiPicksAdvisoryEnabled
+                ? 'border-tv-border bg-tv-card/60 text-tv-muted'
+                : 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
+            }`}>
+              {aiPicksNote}
+            </p>
+          )}
+
+          {aiPicks === null ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+                {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 w-full" />)}
+              </div>
+              <LoadingFact />
+            </div>
+          ) : aiPicks.length === 0 ? (
+            <Card>
+              <EmptyState
+                illustration="search"
+                title="Belum ada yang lolos hari ini"
+                description="Pemindaian berjalan normal dan hasilnya nihil. Saham berdata tidak lengkap atau berlikuiditas sangat rendah sengaja dikeluarkan - daftar kosong adalah jawaban yang benar untuk hari seperti ini."
+              />
+            </Card>
+          ) : (
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3"
+            >
+              {aiPicks.map((p, idx) => (
+                <motion.div key={p.symbol} variants={fadeUp}>
+                  <Link
+                    href={`/technical/${p.symbol}`}
+                    className="group flex h-full flex-col rounded-xl border border-tv-border bg-tv-card p-4 transition-all duration-250 ease-settle hover:border-tv-borderLight hover:-translate-y-0.5 hover:shadow-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <TickerAvatar symbol={p.symbol} size="md" />
+                        <div className="min-w-0">
+                          <div className="font-number text-[15px] font-bold text-tv-text leading-tight">
+                            {p.symbol.replace('.JK', '')}
+                          </div>
+                          <div className={`font-number text-[11px] ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                            {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                      {/* Nomor peringkat dijadikan penanda besar - di daftar lama ia
+                          cuma angka 11px yang tenggelam di antara kolom lain. */}
+                      <span className="shrink-0 font-number text-[11px] font-bold text-tv-muted/50">#{idx + 1}</span>
+                    </div>
+
+                    <div className="mt-3 flex items-baseline gap-1">
+                      <span className="font-number text-2xl font-bold text-tv-text">{p.finalScore}</span>
+                      <span className="text-[11px] text-tv-muted">/100</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-tv-hover overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle"
+                        style={{ width: `${Math.min(100, Math.max(0, p.finalScore))}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-3 flex-1 text-[11px] leading-relaxed text-tv-muted">
+                      {p.signals?.length
+                        ? <span className="text-tv-blue">{p.signals.join(', ')}</span>
+                        : <span className="text-tv-muted/70">Lolos ambang skor tanpa sinyal khusus hari ini</span>}
+                    </div>
+
+                    {/* TP/CL dipindah masuk ke kartu emitennya sendiri. Sebelumnya
+                        angka-angka ini hidup di running text vertikal terpisah, jadi
+                        pembaca harus mencocokkan sendiri level mana milik saham mana -
+                        dan harus menunggu putaran teksnya sampai. */}
+                    {p.tp1 != null && p.cl1 != null && (
+                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-tv-border pt-2.5 text-[10px] font-number">
+                        <span className="text-tv-green">TP1 {p.tp1.toLocaleString('id-ID')}</span>
+                        <span className="text-tv-green text-right">TP2 {p.tp2?.toLocaleString('id-ID') ?? '-'}</span>
+                        <span className="text-tv-red">CL1 {p.cl1.toLocaleString('id-ID')}</span>
+                        <span className="text-tv-red text-right">CL2 {p.cl2?.toLocaleString('id-ID') ?? '-'}</span>
+                      </div>
+                    )}
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
+            TP/CL adalah proyeksi ATR-14, bukan jaminan harga akan tercapai. Ranking bisa
+            berubah tiap beberapa menit mengikuti harga pasar.
+          </p>
+        </motion.section>
+
+        {/* CHART - sekarang lebar penuh dan berada DI BAWAH LensRadar. Sebelumnya
+            chart menempati ~60% layar pertama sementara LensRadar - satu-satunya
+            bagian yang menjelaskan apa yang dikerjakan produk ini - terjepit di
+            kolom sempit di sebelahnya. Untuk pengunjung yang belum tahu SahamLens
+            itu apa, candlestick IHSG setahun tidak menjelaskan apa pun. */}
+        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.15 }}>
         <Card padding="none" className="relative overflow-hidden rounded-xl shadow-2">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_0.9fr]">
-            {/* Left Chart */}
+          <div>
             <div className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -676,11 +828,25 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              {/* Berita Terkini - dipindah ke bawah Insight (sebelumnya di grid card
-                  bawah, nyisain ruang kosong sendirian di baris terakhir grid 3 kolom).
-                  Ngisi ruang kosong di bawah Insight box juga (kolom kiri lebih pendek
-                  dari panel kanan LensRadar/TP-CL). */}
-              <Card padding="md" className="mt-4 shadow-none">
+            </div>
+          </div>
+        </Card>
+        </motion.div>
+
+        {/* Berita & Jadwal - dikeluarkan dari dalam kartu chart. Keduanya dulu
+            ditumpuk vertikal DI DALAM kolom chart, sekadar mengisi ruang kosong yang
+            tersisa karena kolom kiri lebih pendek dari panel kanan. Setelah panel
+            kanan dipindah ke atas, alasan itu hilang - sekarang keduanya jadi baris
+            dua kolom yang berdiri sendiri. */}
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.15 }}
+          className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
+          <motion.div variants={fadeUp}>
+              <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h4>
                   <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
@@ -718,11 +884,13 @@ export default function Dashboard() {
                   )}
                 </div>
               </Card>
+          </motion.div>
 
-              {/* Jadwal Terdekat - dividen/earnings, sumber sama dengan widget di Beranda
-                  (/home). Cakupan cuma Dividen & Earnings, lihat catatan di
-                  corporate-calendar.service.ts soal RUPS/Stock Split. */}
-              <Card padding="md" className="mt-4 shadow-none">
+          {/* Jadwal Terdekat - dividen/earnings, sumber sama dengan widget di Beranda
+              (/home). Cakupan cuma Dividen & Earnings, lihat catatan di
+              corporate-calendar.service.ts soal RUPS/Stock Split. */}
+          <motion.div variants={fadeUp}>
+              <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-heading text-[13px] font-bold text-tv-text">Jadwal Terdekat</h4>
                   <Link href="/calendar" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
@@ -764,126 +932,8 @@ export default function Dashboard() {
                   )}
                 </div>
               </Card>
-            </div>
-
-            {/* Right Panel - "Hari Ini AI Menemukan": ringkasan temuan pasar hari ini (bukan
-                indikator 1 saham) - hook supaya pengunjung buka aplikasi tiap hari sebelum
-                login/signup. Setiap angka real (bukan dikarang), lihat app/api/daily-picks. */}
-            <div className="border-t lg:border-t-0 lg:border-l border-tv-border bg-tv-bg/40 p-5 sm:p-7 flex flex-col min-h-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg leading-none">🔥</span>
-                  <h3 className="font-heading text-[13px] font-bold text-tv-text truncate">Pantauan LensRadar</h3>
-                </div>
-                <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline shrink-0">
-                  Lihat semua
-                </Link>
-              </div>
-              <p className="text-[11px] text-tv-muted mt-1">
-                Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
-                Klik kode saham untuk analisis teknikalnya; ini scanner, bukan instruksi beli/jual.
-              </p>
-              <p className="text-[10px] text-tv-muted mt-1">
-                Data live, update {aiPicksUpdatedAt || '--:--'} - ranking bisa berubah tiap beberapa menit ngikutin harga pasar.
-              </p>
-              {aiPicksNote && (
-                <p className={`text-[10px] mt-2 rounded-md border px-2.5 py-2 leading-relaxed ${
-                  aiPicksAdvisoryEnabled
-                    ? 'border-tv-border bg-tv-card/60 text-tv-muted'
-                    : 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
-                }`}>
-                  {aiPicksNote}
-                </p>
-              )}
-
-              <div className="mt-4 flex flex-col gap-2">
-                {aiPicks === null ? (
-                  <div className="space-y-2">
-                    {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
-                    <LoadingFact className="mt-2" />
-                  </div>
-                ) : aiPicks.length === 0 ? (
-                  <EmptyState
-                    illustration="search"
-                    title="Belum ada yang lolos hari ini"
-                    description="Pemindaian berjalan normal dan hasilnya nihil. Saham berdata tidak lengkap atau berlikuiditas sangat rendah sengaja dikeluarkan - daftar kosong adalah jawaban yang benar untuk hari seperti ini."
-                  />
-                ) : (
-                  aiPicks.map((p, idx) => (
-                    <Link
-                      key={p.symbol}
-                      href={`/technical/${p.symbol}`}
-                      className="group flex items-center justify-between gap-2 rounded-lg border border-tv-border/60 bg-tv-card px-3 py-2.5 hover:border-tv-borderLight transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-[11px] text-tv-muted font-number w-4 shrink-0">{idx + 1}</span>
-                        <TickerAvatar symbol={p.symbol} size="sm" />
-                        <span className="text-[13px] font-bold font-number text-tv-text shrink-0">
-                          {p.symbol.replace('.JK', '')}
-                        </span>
-                        <span className={`text-[11px] font-number shrink-0 ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                          {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(1)}%
-                        </span>
-                        {/* Sinyal hanya ditampilkan kalau memang ADA. Teks pengganti
-                            "tanpa sinyal khusus" sebelumnya terulang di hampir setiap
-                            baris - kolom yang isinya sama untuk semua baris tidak
-                            membedakan apa pun, ia cuma menambah keramaian. */}
-                        {p.signals?.length ? (
-                          <span className="text-[10px] text-tv-blue truncate hidden sm:inline">
-                            {p.signals.join(', ')}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Bar skor: peringkat relatif antar baris terbaca sekilas.
-                            Membandingkan 85 dan 77 lewat angka menuntut pembacaan
-                            baris per baris. */}
-                        <span className="hidden sm:block h-1 w-10 rounded-full bg-tv-hover overflow-hidden">
-                          <span
-                            className="block h-full rounded-full bg-tv-green"
-                            style={{ width: `${Math.min(100, Math.max(0, p.finalScore))}%` }}
-                          />
-                        </span>
-                        {/* Skala dinyatakan eksplisit (audit skor 2026-08-05) - angka
-                            telanjang "97" dulu terbaca 97/100 padahal skalanya 0-140. */}
-                        <span className="text-[13px] font-bold font-number text-tv-text">{p.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span></span>
-                        <ChevronRight className="h-3.5 w-3.5 text-tv-muted group-hover:translate-x-0.5 transition" />
-                      </div>
-                    </Link>
-                  ))
-                )}
-              </div>
-
-              {/* Proyeksi Level Harga - proyeksi ATR-14 dari emiten LensRadar (aiPicks di
-                  atas, BUKAN Golden/Dead Cross lagi - permintaan user 2026-08-04), running
-                  text vertikal (lihat VerticalSignalTicker). Tanpa gembok Premium.
-                  RENAME (2026-08-05, permintaan user): "Sinyal TP/CL Hari Ini" -> "Proyeksi
-                  Level Harga" - "sinyal" terkesan rekomendasi beli/jual, padahal ini murni
-                  proyeksi level harga (TP/CL) berbasis ATR, bukan sinyal aksi. */}
-              <div className="mt-5 pt-4 border-t border-tv-border flex-1 flex flex-col min-h-0">
-                <h4 className="font-heading text-[12px] font-bold text-tv-text flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-tv-green" />
-                  Proyeksi Level Harga
-                </h4>
-                <p className="text-[10px] text-tv-muted mt-1">
-                  Proyeksi ATR-14 dari emiten LensRadar - bukan jaminan harga akan tercapai.
-                </p>
-                {aiPicks === null ? (
-                  <div className="flex-1 space-y-2 py-2">
-                    {[0, 1].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
-                  </div>
-                ) : (
-                  <VerticalSignalTicker
-                    items={aiPicks.filter(
-                      (p): p is typeof aiPicks[number] & { tp1: number; tp2: number; cl1: number; cl2: number } =>
-                        p.tp1 != null && p.tp2 != null && p.cl1 != null && p.cl2 != null
-                    )}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
+          </motion.div>
+        </motion.div>
 
         {/* Bottom Meta */}
         <Card padding="none" className="mt-8 flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-[11px] text-tv-muted shadow-none">
