@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users } from 'lucide-react';
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
@@ -394,13 +394,6 @@ export default function Dashboard() {
               >
                 <Sparkles className="h-3.5 w-3.5" /> Ask LensAI
               </button>
-              {/* "Buka Dashboard" untuk SEMUA pengunjung (bukan cuma yang sudah login) -
-                  /home bisa dibuka tanpa akun (aturan akses eksplorasi 2026-08-01), jadi
-                  ajakan menjelajah lebih pas daripada "Login" yang terkesan wajib akun
-                  dari awal. Menu yang memang butuh akun akan minta daftar saat dipakai. */}
-              <Link href="/home" className="ml-2 flex items-center gap-2 rounded-md bg-tv-blue hover:bg-tv-blueHover px-4 py-1.5 text-[12px] font-bold text-white transition-all">
-                Buka Dashboard
-              </Link>
             </div>
           </div>
           {/* mobile IHSG */}
@@ -475,9 +468,34 @@ export default function Dashboard() {
                   </Link>
                 </div>
 
-                <p className="mt-4 text-[11px] text-tv-muted">
-                  Gratis untuk mulai · Tanpa kartu kredit · Data dari sumber pihak ketiga, bukan nasihat investasi
-                </p>
+                {/* Baris "Gratis untuk mulai · ... bukan nasihat investasi" DIHAPUS
+                    (permintaan user 2026-08-06) - disclaimer "bukan nasihat investasi"
+                    sudah ada di footer halaman ini (lihat "Data bersumber dari Yahoo
+                    Finance..." di bawah), jadi tidak hilang sama sekali, cuma tidak
+                    diulang dua kali. */}
+
+                {/* Strip 4 modul - mengisi ruang kosong di bawah CTA (kolom kiri lebih
+                    pendek dari panel IHSG di kanan) dengan menegaskan ulang subjudul
+                    "teknikal, fundamental, backtest, rekomendasi" secara visual, bukan
+                    angka trust/proof yang tidak bisa diverifikasi (lihat catatan audit
+                    landing page sebelumnya soal itu). Ikon SAMA PERSIS dengan Sidebar
+                    (LineChart/Building2/History/Users) - satu bahasa visual, bukan
+                    kebetulan pemilihan berbeda. */}
+                <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-tv-border/60 pt-5">
+                  {[
+                    { icon: LineChart, label: 'Teknikal' },
+                    { icon: Building2, label: 'Fundamental' },
+                    { icon: History, label: 'Backtest' },
+                    { icon: Users, label: 'LensAI' },
+                  ].map(({ icon: Icon, label }) => (
+                    <div key={label} className="flex items-center gap-2 min-w-0">
+                      <span className="shrink-0 flex h-8 w-8 items-center justify-center rounded-md bg-tv-blue/10 text-tv-blue">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="truncate text-[12px] font-semibold text-tv-text">{label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Panel angka hidup - IHSG besar + jumlah emiten terpantau. Sebelumnya
