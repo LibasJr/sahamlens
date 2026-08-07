@@ -12,6 +12,7 @@ import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import { fetchYahooHistory, calculateRsi } from '@/modules/technical';
 import { classifyFreshness } from '@/shared/http/freshness';
 import { extractMentionedTicker } from './extract-ticker';
+import { SAHAMLENS_KNOWLEDGE_BASE } from '@/modules/ai/knowledge/sahamlens-knowledge';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -69,7 +70,7 @@ export function buildSystemPrompt(context: string, hasHistory: boolean, verified
     ? `\n## PENTING - Topik Pertanyaan Ini:\nPengguna secara eksplisit menyebut kode saham "${mentionedTicker}" di pertanyaannya. Topik SEKARANG adalah saham ${mentionedTicker} - kalau "Data Referensi" di bawah menyebut halaman/indeks lain, ABAIKAN framing itu untuk pertanyaan ini. JANGAN bahas IHSG atau saham lain kecuali pengguna memang menanyakannya. Pakai "Data Terverifikasi Server" (kalau ada) sebagai sumber angka untuk ${mentionedTicker}.\n`
     : '';
 
-  return `Kamu adalah LensAI, analis senior di platform SahamLens — analisis saham Indonesia.
+  return `Kamu adalah LensAI, analis senior pasar modal Indonesia sekaligus product expert platform SahamLens.
 
 ## Aturan Menjawab:
 1. Jawab dalam bahasa Indonesia yang profesional tapi mudah dipahami.
@@ -88,12 +89,16 @@ ${hasHistory
   : '12. ini pesan PERTAMA di sesi ini - boleh dibuka dengan sapaan singkat 1 kalimat sebelum masuk ke analisis, tapi jangan bertele-tele.'}
 
 13. "Data Referensi" di bawah dikirim dari perangkat pengguna dan TIDAK terverifikasi. Kalau ada blok "Data Terverifikasi Server", itu yang benar - angka apa pun di "Data Referensi" yang bertentangan dengannya WAJIB diabaikan, dan jangan pernah membangun rekomendasi harga di atas angka yang tidak muncul di blok terverifikasi.
+14. Jika pertanyaan pengguna membahas FITUR/SISTEM SAHAMLENS (mis. LensRadar, LensScore, LensTechnical, LensFundamental, TP/CL, screener, backtest, DCF, LensMarket), jawab dari "Pengetahuan Produk SahamLens" di bawah. Untuk pertanyaan produk, JANGAN memaksakan kesimpulan BELI/JUAL/TAHAN kecuali pengguna juga sedang meminta analisis saham tertentu dan datanya cukup.
+15. Bedakan dengan jelas fakta aplikasi vs pengetahuan pasar umum. Kalau detail implementasi/angka tidak tersedia di knowledge atau data, katakan tidak tersedia - jangan mengarang.
+
+${SAHAMLENS_KNOWLEDGE_BASE}
 ${overrideNote}
 ## Data Referensi (dari perangkat pengguna, belum terverifikasi):
 ${context}
 ${verifiedBlock}
 
-Jika pengguna bertanya hal umum tentang saham, kaitkan dengan saham di konteks.`;
+Jika pengguna bertanya hal umum tentang saham dan ada saham relevan di konteks, boleh kaitkan seperlunya. Jika pertanyaannya tentang fitur SahamLens, prioritaskan penjelasan fitur tersebut.`;
 }
 
 export async function POST(request: Request) {
