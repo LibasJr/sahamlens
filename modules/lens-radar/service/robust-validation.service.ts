@@ -1,3 +1,6 @@
+const ROBUST_BOOTSTRAP_ITERATIONS = 2000;
+const ROBUST_PERMUTATION_ITERATIONS = 2000;
+
 export interface RobustValidationObservation {
   ticker: string;
   signalDate: string;
@@ -57,8 +60,22 @@ export interface MonotonicityResult {
   score: number | null;
 }
 
+export interface ValidationAuditMetadata {
+  version: 'rv-2.1';
+  deterministic: true;
+  datasetHash: string;
+  observations: number;
+  firstSignalDate: string | null;
+  lastSignalDate: string | null;
+  bootstrapSeed: number;
+  permutationSeed: number;
+  bootstrapIterationsRequested: number;
+  permutationIterationsRequested: number;
+}
+
 export interface RobustValidationResult {
   sampleBasis: 'effective non-overlapping T+20 observations';
+  audit: ValidationAuditMetadata;
   effectiveSamples: number;
   highBucketSamples: number;
   lowBucketSamples: number;
@@ -106,9 +123,22 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+function canonicalize(rows: RobustValidationObservation[]): RobustValidationObservation[] {
+  return [...rows].sort((a, b) => {
+    const date = a.signalDate.localeCompare(b.signalDate);
+    if (date) return date;
+    const ticker = a.ticker.localeCompare(b.ticker);
+    if (ticker) return ticker;
+    if (a.lensScore !== b.lensScore) return a.lensScore - b.lensScore;
+    const bucket = a.bucket.localeCompare(b.bucket);
+    if (bucket) return bucket;
+    return (a.returnT20 ?? Number.NEGATIVE_INFINITY) - (b.returnT20 ?? Number.NEGATIVE_INFINITY);
+  });
+}
+
 function hashSeed(rows: RobustValidationObservation[]): number {
   let h = 2166136261;
-  for (const row of rows) {
+  for (const row of canonicalize(rows)) {
     const s = `${row.ticker}|${row.signalDate}|${row.lensScore}|${row.returnT20 ?? ''}`;
     for (let i = 0; i < s.length; i++) {
       h ^= s.charCodeAt(i);
@@ -116,6 +146,10 @@ function hashSeed(rows: RobustValidationObservation[]): number {
     }
   }
   return h >>> 0;
+}
+
+function datasetHash(rows: RobustValidationObservation[]): string {
+  return `fnv1a32-${hashSeed(rows).toString(16).padStart(8, '0')}`;
 }
 
 function spread(high: number[], low: number[]): number | null {
@@ -137,7 +171,7 @@ function calendarWeekKey(dateKey: string): string {
 
 function groupByCalendarWeek(observations: RobustValidationObservation[]): Map<string, RobustValidationObservation[]> {
   const map = new Map<string, RobustValidationObservation[]>();
-  for (const obs of observations) {
+  for (const obs of canonicalize(observations)) {
     if (typeof obs.returnT20 !== 'number' || !Number.isFinite(obs.returnT20)) continue;
     const key = calendarWeekKey(obs.signalDate);
     const bucket = map.get(key) ?? [];
@@ -159,7 +193,7 @@ export function dateBlockBootstrapSpread(
     return { method: 'calendar-week block bootstrap', iterations: 0, spreadMean: observed, ci95Low: null, ci95High: null, excludesZero: false, status: 'INSUFFICIENT_DATA' };
   }
 
-  const rng = mulberry32(hashSeed(observations) ^ 0xB0057A9);
+  const rng = mulberry32((hashSeed(observations) ^ 0x0B0057A9) >>> 0);
   const draws: number[] = [];
   for (let i = 0; i < iterations; i++) {
     const high: number[] = [];
@@ -209,7 +243,7 @@ export function dateBlockPermutationSpread(
     return { method: 'within-week label permutation', iterations: 0, observedSpread: round(observed), pValueOneTailed: null, significant: false };
   }
 
-  const rng = mulberry32(hashSeed(observations) ^ 0xC0FFEE);
+  const rng = mulberry32((hashSeed(observations) ^ 0x00C0FFEE) >>> 0);
   let atLeastObserved = 0;
   let valid = 0;
   for (let i = 0; i < iterations; i++) {
@@ -345,14 +379,30 @@ export function bucketMonotonicity(observations: RobustValidationObservation[]):
 }
 
 export function buildRobustValidation(observations: RobustValidationObservation[]): RobustValidationResult {
-  const effective = observations.filter((x) => typeof x.returnT20 === 'number' && Number.isFinite(x.returnT20));
+  const effective = canonicalize(observations.filter((x) => typeof x.returnT20 === 'number' && Number.isFinite(x.returnT20)));
+  const baseSeed = hashSeed(effective);
+  const bootstrapSeed = (baseSeed ^ 0x0B0057A9) >>> 0;
+  const permutationSeed = (baseSeed ^ 0x00C0FFEE) >>> 0;
+  const signalDates = effective.map((x) => x.signalDate).filter(Boolean);
   return {
     sampleBasis: 'effective non-overlapping T+20 observations',
+    audit: {
+      version: 'rv-2.1',
+      deterministic: true,
+      datasetHash: datasetHash(effective),
+      observations: effective.length,
+      firstSignalDate: signalDates[0] ?? null,
+      lastSignalDate: signalDates[signalDates.length - 1] ?? null,
+      bootstrapSeed,
+      permutationSeed,
+      bootstrapIterationsRequested: ROBUST_BOOTSTRAP_ITERATIONS,
+      permutationIterationsRequested: ROBUST_PERMUTATION_ITERATIONS,
+    },
     effectiveSamples: effective.length,
     highBucketSamples: effective.filter((x) => x.bucket === '80-100').length,
     lowBucketSamples: effective.filter((x) => x.bucket === '<60').length,
-    bootstrap: dateBlockBootstrapSpread(effective),
-    permutation: dateBlockPermutationSpread(effective),
+    bootstrap: dateBlockBootstrapSpread(effective, ROBUST_BOOTSTRAP_ITERATIONS),
+    permutation: dateBlockPermutationSpread(effective, ROBUST_PERMUTATION_ITERATIONS),
     informationCoefficient: spearmanInformationCoefficient(effective),
     monthlyInformationCoefficient: monthlySpearmanInformationCoefficient(effective),
     monotonicity: bucketMonotonicity(effective),

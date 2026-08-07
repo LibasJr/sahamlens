@@ -62,6 +62,24 @@ describe('robust validation', () => {
     expect(result.meanIc).not.toBeNull();
   });
 
+
+  it('is reproducible even when input row order changes', () => {
+    const a = buildRobustValidation(rows);
+    const b = buildRobustValidation([...rows].reverse());
+    expect(a.audit.datasetHash).toBe(b.audit.datasetHash);
+    expect(a.audit.bootstrapSeed).toBe(b.audit.bootstrapSeed);
+    expect(a.audit.permutationSeed).toBe(b.audit.permutationSeed);
+    expect(a.bootstrap).toEqual(b.bootstrap);
+    expect(a.permutation).toEqual(b.permutation);
+  });
+
+  it('changes the dataset fingerprint when an observation changes', () => {
+    const a = buildRobustValidation(rows);
+    const changed = rows.map((row, i) => i === 0 ? { ...row, returnT20: (row.returnT20 ?? 0) + 0.01 } : row);
+    const b = buildRobustValidation(changed);
+    expect(a.audit.datasetHash).not.toBe(b.audit.datasetHash);
+  });
+
   it('builds the complete validation bundle', () => {
     const result = buildRobustValidation(rows);
     expect(result.effectiveSamples).toBe(40);
