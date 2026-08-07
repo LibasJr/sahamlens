@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chronologicalTrainOosSplit,
   evaluateWeightCandidate,
   generateWeightCandidates,
   optimizeLensScoreWeights,
@@ -62,4 +63,22 @@ describe('lens-score-optimizer.service', () => {
     expect(optimization.best!.weights.technical).toBeGreaterThanOrEqual(40);
     expect(optimization.candidates.length).toBeGreaterThan(10);
   });
+  it('membagi train/OOS secara kronologis tanpa tanggal yang bocor ke dua sisi', () => {
+    const samples: WeightOptimizationSample[] = Array.from({ length: 10 }, (_, i) => ({
+      ticker: `T${i}.JK`,
+      signalDate: `2026-01-${String(i + 1).padStart(2, '0')}`,
+      technicalScore: 20,
+      fundamentalScore: 15,
+      flowScore: 15,
+      returnT20: i - 5,
+    }));
+
+    const split = chronologicalTrainOosSplit(samples, 0.7);
+    expect(split.splitDate).toBe('2026-01-07');
+    expect(split.train).toHaveLength(7);
+    expect(split.oos).toHaveLength(3);
+    expect(split.train.every((x) => x.signalDate <= split.splitDate!)).toBe(true);
+    expect(split.oos.every((x) => x.signalDate > split.splitDate!)).toBe(true);
+  });
+
 });
