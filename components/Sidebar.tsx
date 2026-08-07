@@ -32,7 +32,7 @@ import UserProfileModal from './UserProfileModal';
 
 // Redesign Sidebar - Design System "Nucleus" (2026-07-31), + Role-Based Menu
 // (2026-08-06). Menu tidak lagi sama untuk semua orang: yang tampil ditentukan
-// role efektif dari useAuthUser() - GUEST 4 menu publik, TRIAL/PRO 12 menu,
+// role efektif dari useAuthUser() - GUEST seluruh Discover + menu publik lain, TRIAL/PRO seluruh menu non-admin,
 // ADMIN 12 menu + grup Admin. Grouping per fungsi & satu ikon unik per tujuan
 // dari redesign sebelumnya dipertahankan.
 //
@@ -69,8 +69,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'home', name: 'Beranda', subtitle: 'LensAI & Ringkasan Akun', path: '/home', icon: LayoutDashboard, guest: true },
       { id: 'market-pulse', name: 'LensMarket', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true, guest: true },
       { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi LensRadar publik', path: '/transparency', icon: ShieldCheck, guest: true },
-      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Breakout & Opportunity Scanner', path: '/breakout-radar', icon: Radar, live: true },
-      { id: 'screener', name: 'LensScanner', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
+      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Breakout & Opportunity Scanner', path: '/breakout-radar', icon: Radar, live: true, guest: true },
+      { id: 'screener', name: 'LensScanner', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter, guest: true },
     ],
   },
   {
@@ -115,7 +115,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
   ],
 };
 
-// Menu yang tampil per role. GUEST cuma item ber-flag guest; TRIAL/PRO semua 12
+// Menu yang tampil per role. GUEST cuma item ber-flag guest; TRIAL/PRO semua item non-admin
 // item; ADMIN semua item + grup Admin (akses penuh, tanpa batasan). Grup yang
 // jadi kosong dibuang supaya guest tidak melihat judul seksi tanpa isi.
 function visibleGroupsFor(role: 'guest' | 'trial' | 'admin'): NavGroup[] {

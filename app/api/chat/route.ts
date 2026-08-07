@@ -7,6 +7,7 @@ guard();
 export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
+import { getSession } from '@/modules/user';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import { fetchYahooHistory, calculateRsi } from '@/modules/technical';
 import { classifyFreshness } from '@/shared/http/freshness';
@@ -105,8 +106,11 @@ Jika pengguna bertanya hal umum tentang saham dan ada saham relevan di konteks, 
 
 export async function POST(request: Request) {
   try {
-    // LensAI sengaja tersedia untuk guest maupun user login.
-    // Endpoint tetap membatasi panjang prompt/context/history dan tidak membuka data akun.
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+    }
+
     const body = await request.json();
     const prompt = typeof body.prompt === 'string' ? body.prompt.slice(0, MAX_PROMPT_LEN) : '';
     const context = typeof body.context === 'string' ? body.context.slice(0, MAX_CONTEXT_LEN) : '';
