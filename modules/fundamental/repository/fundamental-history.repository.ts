@@ -21,8 +21,10 @@ import type { FundamentalInput } from '../../technical';
 
 export interface FundamentalHistoryRow {
   ticker: string;
-  /** YYYY-MM-DD, tanggal kalender WIB saat snapshot diambil. */
+  /** YYYY-MM-DD, tanggal ketika data sudah diketahui/published ke pasar. */
   observedDate: string;
+  /** YYYY-MM-DD akhir periode laporan; null untuk snapshot lama yang tidak punya metadata periode. */
+  periodEnd: string | null;
   per: number | null;
   pbv: number | null;
   roe: number | null;
@@ -34,6 +36,18 @@ export interface FundamentalHistoryRow {
 export interface FundamentalHistoryInput extends FundamentalInput {
   ticker: string;
   observedDate: string;
+  /** Opsional untuk snapshot runtime lama; PIT backfill v2 mewajibkannya. */
+  periodEnd?: string | null;
+  source?: string;
+}
+
+export interface FundamentalPitBackfillInput extends FundamentalInput {
+  ticker: string;
+  /** Tanggal publikasi/pertama diketahui pasar. */
+  observedDate: string;
+  /** Akhir kuartal laporan. WAJIB untuk PIT backfill v2. */
+  periodEnd: string;
+  source: string;
 }
 
 /** DATE Postgres kembali sebagai objek Date (pg tidak mem-parse-nya jadi string).
@@ -63,6 +77,7 @@ function mapRow(row: Record<string, unknown>): FundamentalHistoryRow {
   return {
     ticker: String(row.ticker),
     observedDate: toDateKey(row.observed_date),
+    periodEnd: row.period_end == null ? null : toDateKey(row.period_end),
     per: toNum(row.per),
     pbv: toNum(row.pbv),
     roe: toNum(row.roe),
@@ -105,24 +120,97 @@ export async function archiveFundamentalSnapshot(
     params.push(
       r.ticker,
       r.observedDate,
+      r.periodEnd ?? null,
       r.per,
       r.pbv,
       r.roe,
       r.der,
       r.currentRatio,
-      r.revenueGrowth
+      r.revenueGrowth,
+      r.source ?? 'yahoo-quoteSummary'
     );
-    return `($${base + 1}, $${base + 2}::date, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+    return `($${base + 1}, $${base + 2}::date, $${base + 3}::date, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
   });
 
   const { rowCount } = await pool.query(
     `INSERT INTO fundamental_history
-       (ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth)
+       (ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth, source)
      VALUES ${tuples.join(', ')}
      ON CONFLICT (ticker, observed_date) DO NOTHING`,
     params
   );
   return rowCount ?? 0;
+}
+
+
+/**
+ * Append-only writer khusus PIT v2.
+ *
+ * Tidak UPDATE baris lama. Jika (ticker, observed_date) sudah ada, baris lama menang.
+ * period_end WAJIB dan harus <= observed_date. Ini mencegah laporan dipakai sebelum
+ * tanggal publikasinya dan mencegah data lama 2026-01-30 tertimpa.
+ */
+export async function archiveFundamentalPitBackfill(
+  rows: FundamentalPitBackfillInput[]
+): Promise<number> {
+  if (!rows.length) return 0;
+
+  for (const r of rows) {
+    assertDateKey(r.observedDate, 'observedDate');
+    assertDateKey(r.periodEnd, 'periodEnd');
+    if (r.periodEnd > r.observedDate) {
+      throw new Error(
+        `PIT invalid ${r.ticker}: periodEnd ${r.periodEnd} > observedDate ${r.observedDate}`
+      );
+    }
+    if (!r.source?.trim()) throw new Error(`PIT ${r.ticker}: source wajib diisi`);
+  }
+
+  await ensureSharedSchema();
+
+  const params: unknown[] = [];
+  const tuples = rows.map((r) => {
+    const base = params.length;
+    params.push(
+      r.ticker,
+      r.observedDate,
+      r.periodEnd,
+      r.per,
+      r.pbv,
+      r.roe,
+      r.der,
+      r.currentRatio,
+      r.revenueGrowth,
+      r.source.trim()
+    );
+    return `($${base + 1}, $${base + 2}::date, $${base + 3}::date, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
+  });
+
+  const { rowCount } = await pool.query(
+    `INSERT INTO fundamental_history
+       (ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth, source)
+     VALUES ${tuples.join(', ')}
+     ON CONFLICT (ticker, observed_date) DO NOTHING`,
+    params
+  );
+  return rowCount ?? 0;
+}
+
+export async function auditFundamentalHistoryCounts(): Promise<{
+  distinctObservedDates: number;
+  totalRows: number;
+}> {
+  await ensureSharedSchema();
+  const { rows } = await pool.query(
+    `SELECT
+       COUNT(DISTINCT observed_date)::int AS distinct_observed_dates,
+       COUNT(*)::int AS total_rows
+     FROM fundamental_history`
+  );
+  return {
+    distinctObservedDates: Number(rows[0]?.distinct_observed_dates ?? 0),
+    totalRows: Number(rows[0]?.total_rows ?? 0),
+  };
 }
 
 /**
@@ -141,7 +229,7 @@ export async function asOf(
   await ensureSharedSchema();
 
   const { rows } = await pool.query(
-    `SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth
+    `SELECT ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth
        FROM fundamental_history
       WHERE ticker = $1 AND observed_date <= $2::date
       ORDER BY observed_date DESC
@@ -156,7 +244,7 @@ export async function asOf(
 export async function listHistory(ticker: string): Promise<FundamentalHistoryRow[]> {
   await ensureSharedSchema();
   const { rows } = await pool.query(
-    `SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth
+    `SELECT ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth
        FROM fundamental_history
       WHERE ticker = $1
       ORDER BY observed_date ASC`,

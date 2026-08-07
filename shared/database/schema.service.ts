@@ -154,6 +154,14 @@ export function ensureSharedSchema(): Promise<void> {
       -- yang TIDAK bisa memakai index PK karena ticker tidak difilter.
       CREATE INDEX IF NOT EXISTS idx_fundamental_history_date
         ON fundamental_history (observed_date);
+      -- PIT v2: akhir periode laporan dipisahkan dari tanggal publikasi/observed_date.
+      -- Nullable supaya seluruh snapshot historis lama (termasuk 2026-01-30) tetap valid
+      -- dan TIDAK perlu diubah/backfill secara spekulatif.
+      ALTER TABLE fundamental_history
+        ADD COLUMN IF NOT EXISTS period_end DATE;
+      CREATE INDEX IF NOT EXISTS idx_fundamental_history_period_end
+        ON fundamental_history (ticker, period_end);
+
 
       -- modules/lens-radar/service/bucket-backtest.service.ts
       -- Histori LensRadar point-in-time yang menjadi input validasi bucket.
