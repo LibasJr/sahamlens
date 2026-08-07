@@ -45,6 +45,8 @@ interface ThresholdSimulation {
   threshold: number;
   avgReturnT20: number | null;
   medianReturnT20: number | null;
+  meanMedianGapT20: number | null;
+  distributionWarning: 'MEAN_POSITIVE_MEDIAN_NEGATIVE' | null;
   winRateT20: number | null;
   avgWinT20: number | null;
   avgLossT20: number | null;
@@ -87,9 +89,10 @@ interface RobustValidationResult {
   effectiveSamples: number;
   highBucketSamples: number;
   lowBucketSamples: number;
-  bootstrap: { iterations: number; spreadMean: number | null; ci95Low: number | null; ci95High: number | null; excludesZero: boolean };
+  bootstrap: { iterations: number; spreadMean: number | null; ci95Low: number | null; ci95High: number | null; excludesZero: boolean; status: 'SUPPORTIVE' | 'INCONCLUSIVE' | 'NEGATIVE' | 'INSUFFICIENT_DATA' };
   permutation: { iterations: number; observedSpread: number | null; pValueOneTailed: number | null; significant: boolean };
   informationCoefficient: { samples: number; ic: number | null };
+  monthlyInformationCoefficient: { minSamplesPerMonth: number; months: number; positiveMonths: number; positiveMonthPct: number | null; meanIc: number | null; stdDevIc: number | null; icir: number | null; rows: Array<{ month: string; samples: number; ic: number }> };
   monotonicity: { positiveSteps: number; totalSteps: number; score: number | null };
 }
 
@@ -100,6 +103,8 @@ interface CalibrationDashboardData {
   uniqueTickers: number;
   observationsT20: number;
   chart: CalibrationBucketChartRow[];
+  chartSource: 'live-calibration-observations';
+  cronComparison: { runDate: string | null; liveHighBucketSamples: number; cronHighBucketSamples: number | null; deltaHighBucketSamples: number | null; populationMismatch: boolean; note: string };
   tTest: CalibrationTTestResult;
   robustValidation: RobustValidationResult;
   thresholdSimulations: ThresholdSimulation[];
@@ -454,12 +459,22 @@ export default function CalibrationClient() {
 
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Robust Validation</h2>
-        <p className="text-xs text-tv-muted mb-4">Cross-check edge dengan calendar-week block bootstrap, permutation test, Spearman IC, dan monotonicity. Semua memakai sampel efektif T+20 yang sudah didekorelasikan.</p>
+        <p className="text-xs text-tv-muted mb-4">Cross-check edge dengan calendar-week block bootstrap, permutation test, Spearman IC, monthly IC/ICIR, dan monotonicity. Semua memakai sampel efektif T+20 yang sudah didekorelasikan.</p>
+
+        {data.cronComparison.populationMismatch && (
+          <div className="rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 mb-4 text-xs text-tv-yellow">
+            <div className="font-semibold">Snapshot cron berbeda dari observasi live</div>
+            <div className="mt-1 opacity-90">Bucket 80-100: live {num(data.cronComparison.liveHighBucketSamples)} vs cron {num(data.cronComparison.cronHighBucketSamples)} (run {data.cronComparison.runDate ?? '—'}). {data.cronComparison.note}</div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Bootstrap 95% CI</div>
             <div className="font-number font-bold mt-1">{pct(data.robustValidation.bootstrap.ci95Low)} – {pct(data.robustValidation.bootstrap.ci95High)}</div>
-            <div className="text-[11px] text-tv-muted mt-1">spread 80-100 minus &lt;60</div>
+            <div className={`text-[11px] mt-1 font-semibold ${data.robustValidation.bootstrap.status === 'SUPPORTIVE' ? 'text-tv-green' : data.robustValidation.bootstrap.status === 'NEGATIVE' ? 'text-tv-red' : 'text-tv-yellow'}`}>
+              {data.robustValidation.bootstrap.status === 'SUPPORTIVE' ? 'Supportive: seluruh CI di atas 0' : data.robustValidation.bootstrap.status === 'NEGATIVE' ? 'Negative: seluruh CI di bawah 0' : data.robustValidation.bootstrap.status === 'INCONCLUSIVE' ? 'Inconclusive: CI melewati 0' : 'Data belum cukup'}
+            </div>
           </div>
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Permutation p</div>
@@ -469,12 +484,21 @@ export default function CalibrationClient() {
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Spearman IC</div>
             <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.informationCoefficient.ic ?? '—'}</div>
-            <div className="text-[11px] text-tv-muted mt-1">score vs forward T+20</div>
+            <div className="text-[11px] text-tv-muted mt-1">pooled score vs forward T+20</div>
           </div>
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
-            <div className="text-xs text-tv-muted uppercase">Monotonicity</div>
-            <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.monotonicity.positiveSteps}/{data.robustValidation.monotonicity.totalSteps}</div>
-            <div className="text-[11px] text-tv-muted mt-1">bucket steps naik</div>
+            <div className="text-xs text-tv-muted uppercase">Monthly ICIR</div>
+            <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.monthlyInformationCoefficient.icir ?? '—'}</div>
+            <div className="text-[11px] text-tv-muted mt-1">mean IC {data.robustValidation.monthlyInformationCoefficient.meanIc ?? '—'} · {data.robustValidation.monthlyInformationCoefficient.positiveMonths}/{data.robustValidation.monthlyInformationCoefficient.months} bulan positif</div>
+          </div>
+          <div className="bg-tv-bg border border-tv-border rounded-lg p-4 col-span-2 lg:col-span-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+              <div>
+                <div className="text-xs text-tv-muted uppercase">Monotonicity bucket</div>
+                <div className="font-number text-xl font-bold mt-1">{data.robustValidation.monotonicity.positiveSteps}/{data.robustValidation.monotonicity.totalSteps} step naik</div>
+              </div>
+              <div className="text-[11px] text-tv-muted">Urutan diuji: &lt;60 → 60-69 → 70-79 → 80-100.</div>
+            </div>
           </div>
         </div>
       </section>
@@ -552,6 +576,13 @@ export default function CalibrationClient() {
             </div>
           </div>
         </div>
+
+        {selectedSimulation?.distributionWarning === 'MEAN_POSITIVE_MEDIAN_NEGATIVE' && (
+          <div className="mt-4 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 text-xs text-tv-yellow">
+            <div className="font-semibold">Distribusi return sangat right-skewed</div>
+            <div className="mt-1 opacity-90">Mean T+20 {pct(selectedSimulation.avgReturnT20)} tetapi median {pct(selectedSimulation.medianReturnT20)} (gap {pct(selectedSimulation.meanMedianGapT20)}). Edge rata-rata kemungkinan ditopang oleh sebagian winner besar; jangan membaca average sebagai hasil trade tipikal.</div>
+          </div>
+        )}
 
         {/* THRESHOLD_RECOMMENDER_ENABLED = false sejak audit kuantitatif: service-nya
             SELALU menolak dan mengembalikan pesan "dibekukan" (lihat

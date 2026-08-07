@@ -6,6 +6,8 @@ export interface RobustValidationObservation {
   returnT20: number | null;
 }
 
+export type BootstrapEvidenceStatus = 'SUPPORTIVE' | 'INCONCLUSIVE' | 'NEGATIVE' | 'INSUFFICIENT_DATA';
+
 export interface BootstrapSpreadResult {
   method: 'calendar-week block bootstrap';
   iterations: number;
@@ -13,6 +15,7 @@ export interface BootstrapSpreadResult {
   ci95Low: number | null;
   ci95High: number | null;
   excludesZero: boolean;
+  status: BootstrapEvidenceStatus;
 }
 
 export interface PermutationSpreadResult {
@@ -27,6 +30,24 @@ export interface InformationCoefficientResult {
   method: 'Spearman rank IC';
   samples: number;
   ic: number | null;
+}
+
+export interface MonthlyInformationCoefficientRow {
+  month: string;
+  samples: number;
+  ic: number;
+}
+
+export interface MonthlyInformationCoefficientResult {
+  method: 'monthly Spearman rank IC';
+  minSamplesPerMonth: number;
+  months: number;
+  positiveMonths: number;
+  positiveMonthPct: number | null;
+  meanIc: number | null;
+  stdDevIc: number | null;
+  icir: number | null;
+  rows: MonthlyInformationCoefficientRow[];
 }
 
 export interface MonotonicityResult {
@@ -44,6 +65,7 @@ export interface RobustValidationResult {
   bootstrap: BootstrapSpreadResult;
   permutation: PermutationSpreadResult;
   informationCoefficient: InformationCoefficientResult;
+  monthlyInformationCoefficient: MonthlyInformationCoefficientResult;
   monotonicity: MonotonicityResult;
 }
 
@@ -134,7 +156,7 @@ export function dateBlockBootstrapSpread(
   const lowRaw = observations.filter((x) => x.bucket === '<60' && typeof x.returnT20 === 'number').map((x) => x.returnT20 as number);
   const observed = spread(highRaw, lowRaw);
   if (blocks.length < 2 || observed == null) {
-    return { method: 'calendar-week block bootstrap', iterations: 0, spreadMean: observed, ci95Low: null, ci95High: null, excludesZero: false };
+    return { method: 'calendar-week block bootstrap', iterations: 0, spreadMean: observed, ci95Low: null, ci95High: null, excludesZero: false, status: 'INSUFFICIENT_DATA' };
   }
 
   const rng = mulberry32(hashSeed(observations) ^ 0xB0057A9);
@@ -155,13 +177,21 @@ export function dateBlockBootstrapSpread(
   draws.sort((a, b) => a - b);
   const low = percentile(draws, 0.025);
   const high = percentile(draws, 0.975);
+  const status: BootstrapEvidenceStatus = low == null || high == null
+    ? 'INSUFFICIENT_DATA'
+    : low > 0
+      ? 'SUPPORTIVE'
+      : high < 0
+        ? 'NEGATIVE'
+        : 'INCONCLUSIVE';
   return {
     method: 'calendar-week block bootstrap',
     iterations: draws.length,
     spreadMean: round(mean(draws)),
     ci95Low: round(low),
     ci95High: round(high),
-    excludesZero: low != null && high != null && (low > 0 || high < 0),
+    excludesZero: status === 'SUPPORTIVE' || status === 'NEGATIVE',
+    status,
   };
 }
 
@@ -248,6 +278,54 @@ export function spearmanInformationCoefficient(observations: RobustValidationObs
   return { method: 'Spearman rank IC', samples: rows.length, ic: round(ic) };
 }
 
+function sampleStdDev(values: number[]): number | null {
+  const xs = finite(values);
+  if (xs.length < 2) return null;
+  const avg = mean(xs)!;
+  const variance = xs.reduce((sum, value) => sum + (value - avg) ** 2, 0) / (xs.length - 1);
+  return Math.sqrt(variance);
+}
+
+export function monthlySpearmanInformationCoefficient(
+  observations: RobustValidationObservation[],
+  minSamplesPerMonth = 20
+): MonthlyInformationCoefficientResult {
+  const grouped = new Map<string, RobustValidationObservation[]>();
+  for (const obs of observations) {
+    if (typeof obs.returnT20 !== 'number' || !Number.isFinite(obs.returnT20) || !Number.isFinite(obs.lensScore)) continue;
+    const month = obs.signalDate.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(month)) continue;
+    const rows = grouped.get(month) ?? [];
+    rows.push(obs);
+    grouped.set(month, rows);
+  }
+
+  const rows: MonthlyInformationCoefficientRow[] = [];
+  for (const [month, monthRows] of Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+    if (monthRows.length < minSamplesPerMonth) continue;
+    const ic = spearmanInformationCoefficient(monthRows).ic;
+    if (ic == null || !Number.isFinite(ic)) continue;
+    rows.push({ month, samples: monthRows.length, ic });
+  }
+
+  const values = rows.map((row) => row.ic);
+  const meanIc = mean(values);
+  const stdDevIc = sampleStdDev(values);
+  const icir = meanIc != null && stdDevIc != null && stdDevIc > 0 ? meanIc / stdDevIc : null;
+  const positiveMonths = rows.filter((row) => row.ic > 0).length;
+  return {
+    method: 'monthly Spearman rank IC',
+    minSamplesPerMonth,
+    months: rows.length,
+    positiveMonths,
+    positiveMonthPct: rows.length ? round((positiveMonths / rows.length) * 100, 2) : null,
+    meanIc: round(meanIc),
+    stdDevIc: round(stdDevIc),
+    icir: round(icir),
+    rows,
+  };
+}
+
 export function bucketMonotonicity(observations: RobustValidationObservation[]): MonotonicityResult {
   const order: RobustValidationObservation['bucket'][] = ['<60', '60-69', '70-79', '80-100'];
   const orderedBuckets = order.map((bucket) => {
@@ -276,6 +354,7 @@ export function buildRobustValidation(observations: RobustValidationObservation[
     bootstrap: dateBlockBootstrapSpread(effective),
     permutation: dateBlockPermutationSpread(effective),
     informationCoefficient: spearmanInformationCoefficient(effective),
+    monthlyInformationCoefficient: monthlySpearmanInformationCoefficient(effective),
     monotonicity: bucketMonotonicity(effective),
   };
 }
