@@ -16,8 +16,13 @@ function getPool(): Pool {
     // rejectUnauthorized: true (bukan false) - Neon memakai sertifikat TLS yang valid
     // dari CA publik, jadi verifikasi ketat aman dipakai dan tidak membuka celah MITM.
     // Diverifikasi manual sebelum diubah: koneksi tetap berhasil dengan setting ini.
+    const databaseUrl = getNodeEnv().DATABASE_URL.replace(
+      /([?&])sslmode=(?:prefer|require|verify-ca)(?=(&|$))/i,
+      '$1sslmode=verify-full'
+    );
+
     globalForPg.__sahamlensPgPool = new Pool({
-      connectionString: getNodeEnv().DATABASE_URL,
+      connectionString: databaseUrl,
       ssl: { rejectUnauthorized: true },
       max: 10,
       idleTimeoutMillis: 30_000,
