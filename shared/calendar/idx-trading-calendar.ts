@@ -51,7 +51,7 @@ export type AiPickScanWindow = 'REGULAR_SESSION' | 'FINAL_CLOSE' | 'CLOSED';
  * - Sesi II : 14:00-15:50 WIB
  *
  * Final close:
- * - 16:15-16:29 WIB. Dengan QStash */15, ini menghasilkan satu scan pada 16:15 WIB.
+ * - 16:15-16:29 WIB. Dengan QStash setiap 15 menit, ini menghasilkan satu scan pada 16:15 WIB.
  *   Tujuannya menyimpan snapshot final yang tetap fresh untuk user malam hari.
  *
  * Pre-closing/post-closing tidak dipakai sebagai scan intraday tambahan agar tidak
