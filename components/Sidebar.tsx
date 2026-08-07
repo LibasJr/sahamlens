@@ -68,6 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'home', name: 'Beranda', subtitle: 'LensAI & Ringkasan Akun', path: '/home', icon: LayoutDashboard, guest: true },
       { id: 'market-pulse', name: 'LensMarket', subtitle: 'Index, Sector & Breadth', path: '/market-pulse', icon: Activity, live: true, guest: true },
+      { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi LensRadar publik', path: '/transparency', icon: ShieldCheck, guest: true },
       { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Breakout & Opportunity Scanner', path: '/breakout-radar', icon: Radar, live: true },
       { id: 'screener', name: 'LensScanner', subtitle: 'Filter Saham Multi-Faktor', path: '/screener', icon: Filter },
     ],
@@ -108,7 +109,6 @@ const ADMIN_NAV_GROUP: NavGroup = {
   id: 'admin',
   label: 'Admin',
   items: [
-    { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi LensRadar publik', path: '/transparency', icon: ShieldCheck },
     { id: 'admin', name: 'Admin Panel', subtitle: 'Aktivasi Pro & User Aktif', path: '/admin', icon: ShieldAlert },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, Ambang & Bobot', path: '/admin/calibration', icon: LineChart },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload CSV point-in-time', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },

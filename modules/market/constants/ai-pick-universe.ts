@@ -1,12 +1,15 @@
-// Universe bersama AI Pick - dipakai breakout-scan DAN ai-pick-scan supaya setiap saham
-// dinilai dengan jaring yang sama. Sebelumnya breakout memindai 15 ticker hardcoded
-// sementara kategori lain memindai 250, sehingga angka antar tab tidak sebanding dan
-// hanya 15 saham itu yang pernah bisa mendapat bonus breakout.
+// Universe AI Pick / LensRadar: 150 kandidat saham IDX.
 //
-// Isi sama dengan BACKTEST_UNIVERSE (dihasilkan scripts/backtest-universe-refresh.mjs):
-// harga rata-rata 3 bulan >= Rp 200, nilai transaksi >= Rp 1 M/hari, volatilitas 12 bulan
-// <= 120%/tahun. Sengaja DISALIN, bukan di-import dari modules/backtest, supaya perubahan
-// universe backtest tidak diam-diam mengubah perilaku AI Pick.
+// 109 ticker pertama adalah universe tervalidasi lama yang dihasilkan oleh
+// scripts/backtest-universe-refresh.mjs dengan filter harga, likuiditas, dan volatilitas.
+// Atas permintaan perluasan cakupan, 41 ticker tambahan diambil berurutan dari
+// MARKET_STOCKS (universe pasar 250 saham yang diranking berdasarkan likuiditas +
+// profitabilitas). Tambahan ini BUKAN otomatis layak direkomendasikan: scan tetap
+// menjalankan evaluateMinimalEligibility() sebelum saham boleh menjadi advisory.
+//
+// BACKTEST_UNIVERSE sengaja TIDAK ikut dipaksa menjadi 150. Backtest harus mempertahankan
+// universe historis yang sudah tervalidasi agar hasil lama tidak berubah hanya karena
+// permintaan coverage live.
 export const AI_PICK_UNIVERSE: string[] = [
   'BBCA.JK', 'TPIA.JK', 'BMRI.JK', 'BBRI.JK', 'BRPT.JK', 'DSSA.JK', 'AMMN.JK', 'ANTM.JK', 'TLKM.JK',
   'ASII.JK', 'CUAN.JK', 'DEWA.JK', 'BRMS.JK', 'BREN.JK', 'BBNI.JK', 'MDKA.JK', 'TINS.JK', 'RAJA.JK',
@@ -20,5 +23,9 @@ export const AI_PICK_UNIVERSE: string[] = [
   'BJTM.JK', 'SMRA.JK', 'BNGA.JK', 'BAPA.JK', 'BBYB.JK', 'STAA.JK', 'MNCN.JK', 'AUTO.JK', 'ASSA.JK',
   'AVIA.JK', 'BTPS.JK', 'BSSR.JK', 'BJBR.JK', 'KAEF.JK', 'LPPF.JK', 'BIRD.JK', 'ASGR.JK', 'ADES.JK',
   'TBIG.JK', 'ABMM.JK', 'ARNA.JK', 'CLEO.JK', 'BINA.JK', 'BLUE.JK', 'CFIN.JK', 'CASA.JK', 'PTPP.JK',
-  'AGII.JK',
+  'AGII.JK', 'BUMI.JK', 'BUVA.JK', 'KOTA.JK', 'AADI.JK', 'VKTR.JK', 'RANS.JK', 'RATU.JK', 'CDIA.JK',
+  'RMKE.JK', 'INET.JK', 'DOOH.JK', 'ARCI.JK', 'JELI.JK', 'PANI.JK', 'PACK.JK', 'IRSX.JK', 'TCPI.JK',
+  'SMIL.JK', 'CMNT.JK', 'AYAM.JK', 'BUKA.JK', 'BAIK.JK', 'MMIX.JK', 'NSSS.JK', 'HATM.JK', 'MSIN.JK',
+  'CYBR.JK', 'MAPA.JK', 'KETR.JK', 'NICL.JK', 'BELL.JK', 'SGER.JK', 'KEEN.JK', 'DATA.JK', 'DMAS.JK',
+  'BSML.JK', 'JECX.JK', 'HUMI.JK', 'OMED.JK', 'INDO.JK', 'APLN.JK',
 ];
