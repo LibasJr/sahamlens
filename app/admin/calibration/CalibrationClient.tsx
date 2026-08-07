@@ -86,6 +86,7 @@ interface LensWeightProposal {
 
 interface RobustValidationResult {
   sampleBasis: string;
+  audit: { version: 'rv-2.1'; deterministic: true; datasetHash: string; observations: number; firstSignalDate: string | null; lastSignalDate: string | null; bootstrapSeed: number; permutationSeed: number; bootstrapIterationsRequested: number; permutationIterationsRequested: number };
   effectiveSamples: number;
   highBucketSamples: number;
   lowBucketSamples: number;
@@ -467,6 +468,21 @@ export default function CalibrationClient() {
             <div className="mt-1 opacity-90">Bucket 80-100: live {num(data.cronComparison.liveHighBucketSamples)} vs cron {num(data.cronComparison.cronHighBucketSamples)} (run {data.cronComparison.runDate ?? '—'}). {data.cronComparison.note}</div>
           </div>
         )}
+
+        <div className="rounded-lg border border-tv-border bg-tv-bg/60 p-3 mb-4 text-[11px] text-tv-muted">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+            <div>
+              <span className="font-semibold text-tv-text">Audit reproducible · {data.robustValidation.audit.version}</span>
+              <span className="ml-2">dataset {data.robustValidation.audit.datasetHash}</span>
+            </div>
+            <div>
+              {data.robustValidation.audit.firstSignalDate ?? '—'} → {data.robustValidation.audit.lastSignalDate ?? '—'} · {num(data.robustValidation.audit.observations)} observasi efektif
+            </div>
+          </div>
+          <div className="mt-1 opacity-80">
+            Deterministic seed: bootstrap {data.robustValidation.audit.bootstrapSeed} · permutation {data.robustValidation.audit.permutationSeed}. Dataset yang sama menghasilkan statistik resampling yang sama.
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
