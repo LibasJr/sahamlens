@@ -20,16 +20,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let stage = 'request:accepted';
+
   try {
     const result = await withJobRunLog('ai-pick-scan', async () => {
+      stage = 'scan:start';
       const { scores, bearishSymbols } = await scanAiPickScores();
+
+      stage = 'cache:start';
       await writeAiPickScores({ computedAt: new Date().toISOString(), scores, bearishSymbols });
+
+      stage = 'archive:start';
       const archived = await archiveLensRadarHistory(scores);
+
+      stage = 'job:complete';
       return { scored: scores.length, bearish: bearishSymbols.length, archived };
     });
     return NextResponse.json({ success: true, result });
   } catch (err) {
-    logger.error('Job ai-pick-scan gagal', { err });
-    return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
+    logger.error('Job ai-pick-scan gagal', { stage, err });
+    return NextResponse.json({ error: 'Job gagal', stage }, { status: 500 });
   }
 }
