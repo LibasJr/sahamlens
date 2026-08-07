@@ -111,6 +111,19 @@ describe('calibration.service', () => {
     expect(threshold75.totalSignals).toBe(3);
     expect(threshold75.winRateT20).toBe(66.67);
     expect(threshold75.signalDeltaPctVs80).toBe(50);
+    expect(threshold80.meanMedianGapT20).toBe(0);
+  });
+
+  it('memberi warning saat mean positif tetapi median negatif', () => {
+    const observations: CalibrationObservation[] = [
+      { ticker: 'A', signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: '2026-01-21', lensScore: 85, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: -2 },
+      { ticker: 'B', signalDate: '2026-01-02', entryDate: '2026-01-03', exitDateT20: '2026-01-22', lensScore: 85, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: -1 },
+      { ticker: 'C', signalDate: '2026-01-03', entryDate: '2026-01-04', exitDateT20: '2026-01-23', lensScore: 85, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: 10 },
+    ];
+    const threshold80 = calculateThresholdSimulations(observations).find((sim) => sim.threshold === 80)!;
+    expect(threshold80.avgReturnT20).toBeGreaterThan(0);
+    expect(threshold80.medianReturnT20).toBeLessThan(0);
+    expect(threshold80.distributionWarning).toBe('MEAN_POSITIVE_MEDIAN_NEGATIVE');
   });
 
   it('Welch one-tailed t-test mendeteksi bucket tinggi signifikan lebih baik', () => {

@@ -90,10 +90,14 @@ export interface CalibrationTTestResult {
   conclusion: string;
 }
 
+export type ReturnDistributionWarning = 'MEAN_POSITIVE_MEDIAN_NEGATIVE' | null;
+
 export interface ThresholdSimulation {
   threshold: number;
   avgReturnT20: number | null;
   medianReturnT20: number | null;
+  meanMedianGapT20: number | null;
+  distributionWarning: ReturnDistributionWarning;
   winRateT20: number | null;
   avgWinT20: number | null;
   avgLossT20: number | null;
@@ -102,6 +106,15 @@ export interface ThresholdSimulation {
   totalSignals: number;
   signalDeltaPctVs80: number | null;
   winRateDeltaPctVs80: number | null;
+}
+
+export interface CalibrationCronComparison {
+  runDate: string | null;
+  liveHighBucketSamples: number;
+  cronHighBucketSamples: number | null;
+  deltaHighBucketSamples: number | null;
+  populationMismatch: boolean;
+  note: string;
 }
 
 export interface CalibrationDashboardData {
@@ -119,6 +132,8 @@ export interface CalibrationDashboardData {
   uniqueTickers: number;
   observationsT20: number;
   chart: CalibrationBucketChartRow[];
+  chartSource: 'live-calibration-observations';
+  cronComparison: CalibrationCronComparison;
   tTest: CalibrationTTestResult;
   robustValidation: RobustValidationResult;
   thresholdSimulations: ThresholdSimulation[];
@@ -657,10 +672,14 @@ export function calculateThresholdSimulations(observations: CalibrationObservati
     const wins = values.filter((value) => value > 0);
     const losses = values.filter((value) => value < 0);
     const pf = profitFactor(values);
+    const avg = average(values);
+    const med = median(values);
     simulations.push({
       threshold,
-      avgReturnT20: roundPct(average(values)),
-      medianReturnT20: roundPct(median(values)),
+      avgReturnT20: roundPct(avg),
+      medianReturnT20: roundPct(med),
+      meanMedianGapT20: avg != null && med != null ? roundPct(avg - med) : null,
+      distributionWarning: avg != null && med != null && avg > 0 && med < 0 ? 'MEAN_POSITIVE_MEDIAN_NEGATIVE' : null,
       winRateT20: roundPct(wr),
       avgWinT20: roundPct(average(wins)),
       avgLossT20: roundPct(average(losses)),
@@ -740,8 +759,27 @@ export async function getCalibrationDashboardData(
     versionRejectedReason,
   } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
-  const latestChartRows = latestStats.rows.filter((row) => VISIBLE_CHART_BUCKETS.includes(row.bucket));
-  const chart = latestChartRows.length ? latestChartRows : chartFromObservations(observations);
+  // Calibration Lab harus membandingkan angka dari population yang sama. Sebelumnya
+  // chart mengambil snapshot cron lens_bucket_stats sementara simulator memakai
+  // observasi live; akibatnya bucket 80-100 dapat menampilkan 1.097 vs threshold-80
+  // 985 pada layar yang sama. Chart admin sekarang selalu live; snapshot cron tetap
+  // diekspos sebagai diagnostic agar stale/different-population state terlihat jelas.
+  const chart = chartFromObservations(observations);
+  const liveHighBucketSamples = chart.find((row) => row.bucket === '80-100')?.totalSamples ?? 0;
+  const cronHighBucketSamples = latestStats.rows.find((row) => row.bucket === '80-100')?.totalSamples ?? null;
+  const deltaHighBucketSamples = cronHighBucketSamples == null ? null : cronHighBucketSamples - liveHighBucketSamples;
+  const cronComparison: CalibrationCronComparison = {
+    runDate: latestStats.runDate,
+    liveHighBucketSamples,
+    cronHighBucketSamples,
+    deltaHighBucketSamples,
+    populationMismatch: deltaHighBucketSamples != null && deltaHighBucketSamples !== 0,
+    note: deltaHighBucketSamples == null
+      ? 'Snapshot cron bucket belum tersedia; chart memakai observasi live.'
+      : deltaHighBucketSamples === 0
+        ? 'Snapshot cron dan observasi live punya jumlah sampel bucket 80-100 yang sama.'
+        : 'Snapshot cron berbeda dari observasi live. Biasanya karena cron belum rerun setelah perubahan filter/denominator; angka chart admin memakai observasi live agar konsisten dengan simulator.',
+  };
 
   return {
     asOfDate: todayDateKeyWIB(),
@@ -758,6 +796,8 @@ export async function getCalibrationDashboardData(
     uniqueTickers,
     observationsT20,
     chart,
+    chartSource: 'live-calibration-observations',
+    cronComparison,
     tTest: buildCalibrationTTest(observations),
     robustValidation: buildRobustValidation(decorrelateCalibrationObservations(
       observations.filter((obs) => typeof obs.returnT20 === 'number')

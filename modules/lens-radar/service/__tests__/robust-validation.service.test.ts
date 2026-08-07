@@ -3,6 +3,7 @@ import {
   buildRobustValidation,
   bucketMonotonicity,
   dateBlockPermutationSpread,
+  monthlySpearmanInformationCoefficient,
   spearmanInformationCoefficient,
 } from '../robust-validation.service';
 
@@ -38,10 +39,34 @@ describe('robust validation', () => {
     expect(a).toEqual(b);
   });
 
+  it('classifies bootstrap CI evidence status', () => {
+    const result = buildRobustValidation(rows);
+    expect(['SUPPORTIVE', 'INCONCLUSIVE', 'NEGATIVE', 'INSUFFICIENT_DATA']).toContain(result.bootstrap.status);
+  });
+
+  it('computes monthly IC summary and ICIR without mixing months', () => {
+    const monthlyRows = Array.from({ length: 80 }, (_, i) => {
+      const month = i < 40 ? '01' : '02';
+      const j = i % 40;
+      return {
+        ticker: `M${j}`,
+        signalDate: `2026-${month}-${String((j % 20) + 1).padStart(2, '0')}`,
+        lensScore: 40 + j,
+        bucket: (j >= 30 ? '80-100' : j >= 20 ? '70-79' : j >= 10 ? '60-69' : '<60') as '<60' | '60-69' | '70-79' | '80-100',
+        returnT20: month === '01' ? j / 10 : j / 12,
+      };
+    });
+    const result = monthlySpearmanInformationCoefficient(monthlyRows, 20);
+    expect(result.months).toBe(2);
+    expect(result.positiveMonths).toBe(2);
+    expect(result.meanIc).not.toBeNull();
+  });
+
   it('builds the complete validation bundle', () => {
     const result = buildRobustValidation(rows);
     expect(result.effectiveSamples).toBe(40);
     expect(result.bootstrap.iterations).toBeGreaterThan(0);
     expect(result.permutation.iterations).toBeGreaterThan(0);
+    expect(result.monthlyInformationCoefficient).toBeDefined();
   });
 });
