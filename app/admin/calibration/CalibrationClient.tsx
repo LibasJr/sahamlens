@@ -97,6 +97,34 @@ interface RobustValidationResult {
   monotonicity: { positiveSteps: number; totalSteps: number; score: number | null };
 }
 
+
+interface RetrospectiveWalkForwardResult {
+  method: 'retrospective contiguous temporal holdout diagnostic';
+  genuineOos: false;
+  foldsRequested: number;
+  foldsCompleted: number;
+  positiveSpreadFolds: number;
+  positiveSpreadPct: number | null;
+  rows: Array<{ fold: number; startDate: string; endDate: string; samples: number; highSamples: number; lowSamples: number; highAvgT20: number | null; lowAvgT20: number | null; spreadT20: number | null; ic: number | null; positiveSpread: boolean }>;
+  conclusion: string;
+}
+
+interface GenuineOosResult {
+  protocolVersion: 'oos-v1.0';
+  scoreVersion: string;
+  freezeDate: string;
+  rule: string;
+  status: 'WAITING_FOR_MATURITY' | 'INSUFFICIENT_SAMPLE' | 'PASS' | 'FAIL';
+  matureRawSamples: number;
+  matureEffectiveSamples: number;
+  highBucketSamples: number;
+  lowBucketSamples: number;
+  firstSignalDate: string | null;
+  lastSignalDate: string | null;
+  gate: { minEffectivePerEdgeBucket: number; spreadPositive: boolean; bootstrapSupportive: boolean; permutationPass: boolean; icPositive: boolean; monotonicityPass: boolean };
+  conclusion: string;
+}
+
 interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
@@ -108,6 +136,8 @@ interface CalibrationDashboardData {
   cronComparison: { runDate: string | null; liveHighBucketSamples: number; cronHighBucketSamples: number | null; deltaHighBucketSamples: number | null; populationMismatch: boolean; note: string };
   tTest: CalibrationTTestResult;
   robustValidation: RobustValidationResult;
+  retrospectiveWalkForward: RetrospectiveWalkForwardResult;
+  genuineOos: GenuineOosResult;
   thresholdSimulations: ThresholdSimulation[];
   latestWeightProposal: LensWeightProposal | null;
 }
@@ -517,6 +547,43 @@ export default function CalibrationClient() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-heading text-lg font-bold">Forward / Out-of-Sample Protocol</h2>
+            <p className="text-xs text-tv-muted mt-1">Pisahkan diagnostic historis dari genuine forward OOS. Histori sebelum freeze tidak pernah di-backfill sebagai OOS.</p>
+          </div>
+          <div className={`rounded-full px-3 py-1 text-xs font-semibold self-start ${data.genuineOos.status === 'PASS' ? 'bg-tv-green/15 text-tv-green' : data.genuineOos.status === 'FAIL' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-yellow/15 text-tv-yellow'}`}>
+            {data.genuineOos.status}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-tv-border bg-tv-bg/60 p-4 mb-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div><div className="text-tv-muted uppercase">Protocol</div><div className="font-number font-bold mt-1">{data.genuineOos.protocolVersion}</div></div>
+            <div><div className="text-tv-muted uppercase">Freeze date</div><div className="font-number font-bold mt-1">{data.genuineOos.freezeDate}</div></div>
+            <div><div className="text-tv-muted uppercase">Mature raw / effective</div><div className="font-number font-bold mt-1">{num(data.genuineOos.matureRawSamples)} / {num(data.genuineOos.matureEffectiveSamples)}</div></div>
+            <div><div className="text-tv-muted uppercase">Edge buckets effective</div><div className="font-number font-bold mt-1">{num(data.genuineOos.highBucketSamples)} / {num(data.genuineOos.lowBucketSamples)}</div></div>
+          </div>
+          <div className="text-xs text-tv-muted mt-3">{data.genuineOos.conclusion}</div>
+        </div>
+
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Retrospective temporal stability</div>
+            <div className="text-[11px] text-tv-muted">Bukan genuine OOS; hanya menunjukkan apakah edge stabil pada blok waktu historis yang berurutan.</div>
+          </div>
+          <div className="font-number text-sm">{data.retrospectiveWalkForward.positiveSpreadFolds}/{data.retrospectiveWalkForward.foldsCompleted} fold spread positif</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-tv-muted border-b border-tv-border"><th className="text-left py-2">Fold</th><th className="text-left py-2">Periode</th><th className="text-right py-2">N</th><th className="text-right py-2">Spread 80-100 vs &lt;60</th><th className="text-right py-2">IC</th></tr></thead>
+            <tbody>{data.retrospectiveWalkForward.rows.map((row) => (<tr key={row.fold} className="border-b border-tv-border/60"><td className="py-2">{row.fold}</td><td className="py-2">{row.startDate} → {row.endDate}</td><td className="py-2 text-right font-number">{num(row.samples)}</td><td className={`py-2 text-right font-number ${row.spreadT20 != null && row.spreadT20 > 0 ? 'text-tv-green' : 'text-tv-red'}`}>{pct(row.spreadT20)}</td><td className="py-2 text-right font-number">{row.ic ?? '—'}</td></tr>))}</tbody>
+          </table>
+        </div>
+        <div className="text-[11px] text-tv-muted mt-3">{data.retrospectiveWalkForward.conclusion}</div>
       </section>
 
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">

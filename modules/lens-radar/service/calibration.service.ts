@@ -26,6 +26,12 @@ import {
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
 import { buildRobustValidation, type RobustValidationResult } from './robust-validation.service';
 import {
+  buildGenuineOosValidation,
+  buildRetrospectiveWalkForward,
+  type GenuineOosResult,
+  type RetrospectiveWalkForwardResult,
+} from './walk-forward-validation.service';
+import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
   calculateForwardReturnPct,
@@ -136,6 +142,8 @@ export interface CalibrationDashboardData {
   cronComparison: CalibrationCronComparison;
   tTest: CalibrationTTestResult;
   robustValidation: RobustValidationResult;
+  retrospectiveWalkForward: RetrospectiveWalkForwardResult;
+  genuineOos: GenuineOosResult;
   thresholdSimulations: ThresholdSimulation[];
 }
 
@@ -781,8 +789,13 @@ export async function getCalibrationDashboardData(
         : 'Snapshot cron berbeda dari observasi live. Biasanya karena cron belum rerun setelah perubahan filter/denominator; angka chart admin memakai observasi live agar konsisten dengan simulator.',
   };
 
+  const asOfDate = todayDateKeyWIB();
+  const effectiveT20 = decorrelateCalibrationObservations(
+    observations.filter((obs) => typeof obs.returnT20 === 'number')
+  );
+
   return {
-    asOfDate: todayDateKeyWIB(),
+    asOfDate,
     latestStatsRunDate: latestStats.runDate,
     scoreVersion,
     requestedScoreVersion,
@@ -799,9 +812,9 @@ export async function getCalibrationDashboardData(
     chartSource: 'live-calibration-observations',
     cronComparison,
     tTest: buildCalibrationTTest(observations),
-    robustValidation: buildRobustValidation(decorrelateCalibrationObservations(
-      observations.filter((obs) => typeof obs.returnT20 === 'number')
-    )),
+    robustValidation: buildRobustValidation(effectiveT20),
+    retrospectiveWalkForward: buildRetrospectiveWalkForward(effectiveT20),
+    genuineOos: buildGenuineOosValidation(observations, effectiveT20, { asOfDate, scoreVersion: scoreVersion ?? requestedScoreVersion }),
     thresholdSimulations: calculateThresholdSimulations(observations),
   };
 }
