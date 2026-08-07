@@ -263,11 +263,20 @@ export default function AIChat() {
         </div>
       )}
 
-      {/* BUG FIX (2026-08-05, permintaan user): tombol bulat mengambang dihapus - dobel
-          dengan tombol "Ask LensAI" pojok kanan atas yang sudah ada di semua halaman
-          (TopMarketBar.tsx untuk halaman lain, Dashboard.tsx khusus root `/`). Chat cuma
-          bisa dibuka lewat event 'open-ai-chat' sekarang (dispatch dari tombol-tombol
-          itu), bukan trigger sendiri di sini. */}
+      {/* Floating LensAI trigger - sengaja menjadi SATU-SATUNYA tombol global.
+          Tombol header dihapus supaya tidak dobel, dan trigger ini tetap terlihat di HP. */}
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          title="Ask LensAI"
+          aria-label="Ask LensAI"
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-tv-blue/30 bg-tv-blue text-white shadow-2 hover:brightness-110 active:scale-95 transition-all"
+        >
+          <Sparkles className="h-5 w-5" />
+          <span className="sr-only">Ask LensAI</span>
+        </button>
+      )}
     </div>
   );
 }
