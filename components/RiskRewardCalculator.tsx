@@ -1,24 +1,46 @@
 'use client';
 
 import React from 'react';
-import { Target, TrendingDown, TrendingUp, AlertCircle } from 'lucide-react';
+import { Target, TrendingDown, TrendingUp, AlertCircle, Info } from 'lucide-react';
 
 interface RiskRewardCalculatorProps {
   currentPrice: number;
   analyzers: any[];
 }
 
+/**
+ * IMPORTANT:
+ * Komponen ini TIDAK menghitung TP/CL resmi.
+ *
+ * Ia hanya menampilkan konteks Support/Resistance dari analyzer teknikal.
+ * TP/CL executable SahamLens berasal dari server-side `buildLongTradingSetup()`
+ * yang memakai market structure + ATR + fraksi harga IDX.
+ *
+ * Sebelumnya kartu ini menyebut support sebagai "SL" dan resistance sebagai "TP",
+ * sehingga menghasilkan dua sumber kebenaran yang berbeda. Itu dihilangkan.
+ */
 export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRewardCalculatorProps) {
-  // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-8): blok ini mencari analyzer
-  // berlabel 'Trend Analysis' - label yang TIDAK PERNAH ADA di aplikasi ini (analyzer-nya
-  // bernama 'MA Trend IDX (20,50,200)'). Akibatnya `ma20` selalu 0 dan seluruh peringatan
-  // "Posisi MA20" di kartu ini kode mati sejak awal, tanpa error yang terlihat. Label
-  // diperbaiki, dan `raw` dipakai lebih dulu supaya tidak bergantung pada format string
-  // tampilan (anti-pola M-03 audit sebelumnya).
   const srAnalyzer = analyzers.find(a => a.label?.includes('Support & Resistance'));
+
+  // Prefer raw numeric output bila analyzer menyediakannya.
+  const rawSupport =
+    typeof srAnalyzer?.raw?.support === 'number'
+      ? srAnalyzer.raw.support
+      : typeof srAnalyzer?.raw?.support?.price === 'number'
+        ? srAnalyzer.raw.support.price
+        : null;
+
+  const rawResistance =
+    typeof srAnalyzer?.raw?.resistance === 'number'
+      ? srAnalyzer.raw.resistance
+      : typeof srAnalyzer?.raw?.resistance?.price === 'number'
+        ? srAnalyzer.raw.resistance.price
+        : null;
+
+  // Backward-compatible fallback untuk cache/analyzer lama.
   const srMatch = srAnalyzer?.value?.match(/Sup: ([\d.]+), Res: ([\d.]+)/);
-  const support = srMatch ? parseFloat(srMatch[1]) : 0;
-  const resistance = srMatch ? parseFloat(srMatch[2]) : 0;
+  const support = rawSupport ?? (srMatch ? parseFloat(srMatch[1]) : 0);
+  const resistance = rawResistance ?? (srMatch ? parseFloat(srMatch[2]) : 0);
 
   const trendAnalyzer = analyzers.find(a => a.label?.includes('MA Trend'));
   const maMatch = trendAnalyzer?.value?.match(/MA20:(\d+(?:\.\d+)?)/);
@@ -28,43 +50,35 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
 
   if (!support || !resistance || !currentPrice) return null;
 
-  const risk = currentPrice - support;
-  const reward = resistance - currentPrice;
+  const downsideToSupport = currentPrice - support;
+  const upsideToResistance = resistance - currentPrice;
 
-  // Prevent division by zero or negative risk
-  if (risk <= 0) {
+  if (downsideToSupport <= 0) {
     return (
       <div className="bg-tv-card border border-tv-green/20 rounded-lg p-5 shadow-1 mb-6">
-         <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-3">
+        <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-tv-green" />
-          Risk/Reward Auto
+          Konteks Support / Resistance
         </h3>
-        <p className="text-sm text-tv-muted">Harga di bawah atau sama dengan support. Tunggu konsolidasi.</p>
+        <p className="text-sm text-tv-muted">
+          Harga berada di bawah atau sama dengan support terdekat. Kartu ini bukan sumber TP/CL resmi.
+        </p>
       </div>
     );
   }
 
-  const rrRatio = reward / risk;
-  const riskPct = (risk / currentPrice) * 100;
-  const rewardPct = (reward / currentPrice) * 100;
-
-  let badgeColor = "bg-tv-red/20 text-tv-red border-tv-red/30";
-  let label = "TIDAK LAYAK";
-  if (rrRatio >= 2) {
-    badgeColor = "bg-tv-green/20 text-tv-green border-tv-green/30";
-    label = "LAYAK";
-  } else if (rrRatio >= 1) {
-    badgeColor = "bg-tv-yellow/20 text-tv-yellow border-tv-yellow/30";
-    label = "LUMAYAN";
-  }
+  const structureRatio = upsideToResistance > 0
+    ? upsideToResistance / downsideToSupport
+    : null;
+  const downsidePct = (downsideToSupport / currentPrice) * 100;
+  const upsidePct = (upsideToResistance / currentPrice) * 100;
 
   let maWarning = null;
   if (ma20 && currentPrice < ma20) {
     const maRisk = ((ma20 - currentPrice) / currentPrice) * 100;
-    const newRR = reward / (ma20 - support);
     maWarning = {
-      text: `Di bawah MA20 (${ma20.toFixed(0)}) - Risk tambah ${maRisk.toFixed(1)}%`,
-      recom: `Tunggu breakout ${ma20.toFixed(0)} dulu, RR jadi 1:${newRR.toFixed(1)} - Kurang menarik`
+      text: `Harga masih di bawah MA20 (${ma20.toFixed(0)}), jarak ke MA20 ${maRisk.toFixed(1)}%.`,
+      recom: `Tunggu konfirmasi struktur/trend; jangan membaca support sebagai cut-loss otomatis.`
     };
   }
 
@@ -72,30 +86,48 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
     <div className="bg-tv-card border border-tv-green/20 rounded-lg p-5 shadow-1 mb-6">
       <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
         <Target className="w-5 h-5 text-tv-green" />
-        Risk/Reward Auto
+        Konteks Support / Resistance
       </h3>
+
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-tv-blue/20 bg-tv-blue/5 p-3 text-xs text-tv-muted">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-tv-blue" />
+        <span>
+          Support/Resistance di kartu ini adalah konteks struktur pasar, <strong className="text-tv-text">bukan TP/CL executable</strong>.
+          TP/CL SahamLens dihitung oleh engine trading setup dari struktur + ATR + fraksi harga IDX.
+        </span>
+      </div>
 
       <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
         <div className="flex-1 w-full space-y-4">
           <div className="flex items-center justify-between text-sm font-number bg-tv-bg p-3 rounded-lg border border-tv-border">
             <div className="flex flex-col">
-              <span className="text-tv-muted text-xs">Entry</span>
+              <span className="text-tv-muted text-xs">Harga</span>
               <span className="text-tv-text font-bold">Rp {currentPrice.toLocaleString()}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-tv-muted text-xs flex items-center gap-1"><TrendingDown className="w-3 h-3 text-tv-red"/> SL</span>
-              <span className="text-tv-red font-bold">Rp {support.toLocaleString()} <span className="text-[10px]">(-{riskPct.toFixed(1)}%)</span></span>
+              <span className="text-tv-muted text-xs flex items-center gap-1">
+                <TrendingDown className="w-3 h-3 text-tv-red"/> Support
+              </span>
+              <span className="text-tv-red font-bold">
+                Rp {support.toLocaleString()} <span className="text-[10px]">(-{downsidePct.toFixed(1)}%)</span>
+              </span>
             </div>
             <div className="flex flex-col items-end">
-              <span className="text-tv-muted text-xs flex items-center gap-1"><TrendingUp className="w-3 h-3 text-tv-green"/> TP</span>
-              <span className="text-tv-green font-bold">Rp {resistance.toLocaleString()} <span className="text-[10px]">(+{rewardPct.toFixed(1)}%)</span></span>
+              <span className="text-tv-muted text-xs flex items-center gap-1">
+                <TrendingUp className="w-3 h-3 text-tv-green"/> Resistance
+              </span>
+              <span className="text-tv-green font-bold">
+                Rp {resistance.toLocaleString()} <span className="text-[10px]">({upsidePct >= 0 ? '+' : ''}{upsidePct.toFixed(1)}%)</span>
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-tv-text font-number">RR Ratio: 1:{rrRatio.toFixed(2)}</span>
-            <span className={`text-[10px] font-bold px-2 py-1 rounded border ${badgeColor}`}>
-              [{label}]
+            <span className="text-sm font-bold text-tv-text font-number">
+              Rasio ruang struktur: {structureRatio != null ? `1:${structureRatio.toFixed(2)}` : 'N/A'}
+            </span>
+            <span className="text-[10px] font-semibold px-2 py-1 rounded border border-tv-border text-tv-muted">
+              BUKAN RR EKSEKUSI
             </span>
           </div>
         </div>
@@ -109,7 +141,7 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
               {maWarning.text}
             </div>
             <div className="text-[11px] text-tv-muted italic mt-1">
-              Rekomendasi: &quot;{maWarning.recom}&quot;
+              Catatan: &quot;{maWarning.recom}&quot;
             </div>
           </div>
         )}
