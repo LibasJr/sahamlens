@@ -26,6 +26,11 @@ const HOLDING_DAYS = 20;
 const FETCH_BATCH = 10;
 const MIN_METRIC_SAMPLES = 30;
 
+const TPCL_OOS_FREEZE_DATE = '2026-08-07' as const;
+const TPCL_FROZEN_PARAMETER_VERSION = 'tpcl-production-v1.0.0' as const;
+const TPCL_OOS_MIN_EXECUTABLE_SAMPLES = 30;
+
+
 export type TpclOutcome = 'TP1' | 'SL' | 'TIME_EXIT';
 export type MarketRegime = 'BULL' | 'SIDEWAYS' | 'BEAR' | 'UNKNOWN';
 export type ValidationSplit = 'TRAIN' | 'VALIDATION' | 'HOLDOUT';
@@ -92,6 +97,37 @@ export type TpclRobustnessStatus =
   | 'NEGATIVE_VALIDATION'
   | 'INSUFFICIENT_DATA';
 
+
+export type TpclOosStatus =
+  | 'WAITING_FOR_MATURITY'
+  | 'INSUFFICIENT_DATA'
+  | 'POSITIVE'
+  | 'NEGATIVE';
+
+export interface TpclOosProtocolResult {
+  protocolId: 'ALL_BASELINE' | 'EXCLUDE_BEAR';
+  label: string;
+  status: TpclOosStatus;
+  eligibleSignalsAfterFreeze: number;
+  matureSignals: number;
+  executableTrades: number;
+  metrics: TpclMetrics;
+  note: string;
+}
+
+export interface TpclForwardOos {
+  protocolVersion: 'tpcl-oos-v1.0';
+  freezeDate: '2026-08-07';
+  frozenParameterVersion: 'tpcl-production-v1.0.0';
+  frozenParameters: TradingSetupParameters;
+  parameterFingerprint: string;
+  minimumExecutableSamples: number;
+  historyBackfillAllowed: false;
+  statusExplanation: string;
+  allBaseline: TpclOosProtocolResult;
+  excludeBear: TpclOosProtocolResult;
+}
+
 export interface TpclEligibilityFunnel {
   rawSignals: number;
   immatureT20: number;
@@ -112,7 +148,7 @@ export interface BearFilterDiagnostic {
 }
 
 export interface TpclValidationDashboard {
-  protocolVersion: 'tpcl-lab-v1.1';
+  protocolVersion: 'tpcl-lab-v1.2';
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -133,6 +169,7 @@ export interface TpclValidationDashboard {
   robustnessReasons: string[];
   eligibilityFunnel: TpclEligibilityFunnel;
   bearFilterDiagnostic: BearFilterDiagnostic;
+  forwardOos: TpclForwardOos;
   guardrails: string[];
 }
 
@@ -406,6 +443,58 @@ function simulateTrade(
 }
 
 
+
+function frozenParameterFingerprint(parameters: TradingSetupParameters): string {
+  const canonical = [
+    parameters.supportBufferAtr,
+    parameters.minStopDistanceAtr,
+    parameters.fallbackStopAtr,
+    parameters.minLongRr,
+    parameters.tp1R,
+    parameters.tp2R,
+  ].map((v) => Number(v).toFixed(6)).join('|');
+
+  // Small deterministic non-cryptographic hash for audit display.
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `tpcl-${hash.toString(16).padStart(8, '0')}`;
+}
+
+function oosStatus(
+  eligibleSignalsAfterFreeze: number,
+  matureSignals: number,
+  executableRows: TpclTradeObservation[],
+): { status: TpclOosStatus; explanation: string } {
+  if (eligibleSignalsAfterFreeze === 0 || matureSignals === 0) {
+    return {
+      status: 'WAITING_FOR_MATURITY',
+      explanation: 'Belum ada sinyal setelah freeze yang memiliki horizon T+20 matang.',
+    };
+  }
+
+  if (executableRows.length < TPCL_OOS_MIN_EXECUTABLE_SAMPLES) {
+    return {
+      status: 'INSUFFICIENT_DATA',
+      explanation: `Sudah ada data matang, tetapi baru ${executableRows.length} trade executable; minimum ${TPCL_OOS_MIN_EXECUTABLE_SAMPLES}.`,
+    };
+  }
+
+  const m = metrics(executableRows);
+  const positive = (m.expectancyPct ?? 0) > 0 && (m.profitFactor ?? 0) > 1;
+  return positive
+    ? {
+        status: 'POSITIVE',
+        explanation: 'Forward sample memenuhi minimum N dan menunjukkan expectancy > 0 serta PF > 1. Status ini tidak mempromosikan production secara otomatis.',
+      }
+    : {
+        status: 'NEGATIVE',
+        explanation: 'Forward sample memenuhi minimum N tetapi expectancy/PF belum positif.',
+      };
+}
+
 function deriveRobustnessStatus(baseline: TpclCandidateResult): {
   status: TpclRobustnessStatus;
   reasons: string[];
@@ -620,6 +709,56 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
   // Invariant should normally match pre-pass classifier exactly.
   funnel.executable = baselineRows.length;
 
+
+  const forwardSignals = signals.filter((signal) => signal.date > TPCL_OOS_FREEZE_DATE);
+
+  let forwardMatureSignals = 0;
+  for (const signal of forwardSignals) {
+    const series = seriesMap.get(signal.ticker);
+    if (!series || !series.bars.length) continue;
+    const signalIndex = series.bars.findIndex((bar) => bar.date === signal.date);
+    if (signalIndex >= 0 && signalIndex + HOLDING_DAYS < series.bars.length) forwardMatureSignals++;
+  }
+
+  // Baseline observations are generated with the exact frozen production engine.
+  // Only rows strictly AFTER the freeze are eligible for genuine forward OOS.
+  const forwardBaselineRows = baselineRows.filter((row) => row.signalDate > TPCL_OOS_FREEZE_DATE);
+  const forwardExcludeBearRows = forwardBaselineRows.filter((row) => row.regime !== 'BEAR');
+
+  const allOosState = oosStatus(forwardSignals.length, forwardMatureSignals, forwardBaselineRows);
+  const excludeBearOosState = oosStatus(forwardSignals.length, forwardMatureSignals, forwardExcludeBearRows);
+
+  const forwardOos: TpclForwardOos = {
+    protocolVersion: 'tpcl-oos-v1.0',
+    freezeDate: TPCL_OOS_FREEZE_DATE,
+    frozenParameterVersion: TPCL_FROZEN_PARAMETER_VERSION,
+    frozenParameters: { ...DEFAULT_TRADING_SETUP_PARAMETERS },
+    parameterFingerprint: frozenParameterFingerprint(DEFAULT_TRADING_SETUP_PARAMETERS),
+    minimumExecutableSamples: TPCL_OOS_MIN_EXECUTABLE_SAMPLES,
+    historyBackfillAllowed: false,
+    statusExplanation: allOosState.explanation,
+    allBaseline: {
+      protocolId: 'ALL_BASELINE',
+      label: 'Baseline · semua regime',
+      status: allOosState.status,
+      eligibleSignalsAfterFreeze: forwardSignals.length,
+      matureSignals: forwardMatureSignals,
+      executableTrades: forwardBaselineRows.length,
+      metrics: metrics(forwardBaselineRows),
+      note: 'Genuine forward OOS: hanya signalDate > freezeDate. Histori lama tidak boleh di-backfill.',
+    },
+    excludeBear: {
+      protocolId: 'EXCLUDE_BEAR',
+      label: 'Candidate · exclude BEAR',
+      status: excludeBearOosState.status,
+      eligibleSignalsAfterFreeze: forwardSignals.length,
+      matureSignals: forwardMatureSignals,
+      executableTrades: forwardExcludeBearRows.length,
+      metrics: metrics(forwardExcludeBearRows),
+      note: 'Protocol candidate terpisah. Tidak mengubah production filter dan tidak boleh digabung dengan baseline setelah melihat hasil.',
+    },
+  };
+
   const robustness = deriveRobustnessStatus(baseline);
   const nonBearRows = baselineRows.filter((r) => r.regime !== 'BEAR');
   const bearRows = baselineRows.filter((r) => r.regime === 'BEAR');
@@ -632,7 +771,7 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
   };
 
   return {
-    protocolVersion: 'tpcl-lab-v1.1',
+    protocolVersion: 'tpcl-lab-v1.2',
     researchOnly: true,
     genuineOos: false,
     scoreVersion: SCORE_VERSION,
@@ -653,6 +792,7 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
     robustnessReasons: robustness.reasons,
     eligibilityFunnel: funnel,
     bearFilterDiagnostic,
+    forwardOos,
     guardrails: [
       'Entry memakai open H+1; setup dihitung hanya dari OHLC sampai tanggal sinyal.',
       'Daily bar yang menyentuh TP dan SL sekaligus diasumsikan SL lebih dulu (konservatif).',
@@ -660,6 +800,10 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
       'Window dengan indikasi corporate action ditolak.',
       'Parameter candidate hanya sensitivity research; tidak ada auto-apply ke production.',
       'TRAIN/VALIDATION/HOLDOUT di sini retrospektif, bukan genuine OOS.',
+      `Forward OOS dibekukan pada ${TPCL_OOS_FREEZE_DATE}; hanya signalDate setelah freeze yang eligible.`,
+      'Histori sebelum freeze tidak pernah di-backfill sebagai OOS.',
+      'Protocol ALL_BASELINE dan EXCLUDE_BEAR dilacak terpisah; hasil keduanya tidak boleh dicampur.',
+      'Tidak ada auto-apply, auto-filter, atau auto-promotion production berdasarkan hasil OOS.',
       `Minimum ${MIN_METRIC_SAMPLES} observasi untuk menandai metrik sebagai cukup sampel.`,
     ],
   };
