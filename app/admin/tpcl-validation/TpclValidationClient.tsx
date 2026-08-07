@@ -34,7 +34,7 @@ interface Candidate {
   note: string;
 }
 interface Dashboard {
-  protocolVersion: 'tpcl-lab-v1.0';
+  protocolVersion: 'tpcl-lab-v1.1';
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -51,6 +51,15 @@ interface Dashboard {
   splitDates: { trainEnd: string | null; validationEnd: string | null };
   baseline: Candidate;
   candidates: Candidate[];
+  robustnessStatus: 'ROBUST' | 'UNSTABLE' | 'NEGATIVE_VALIDATION' | 'INSUFFICIENT_DATA';
+  robustnessReasons: string[];
+  eligibilityFunnel: {
+    rawSignals: number; immatureT20: number; missingPriceSeries: number; insufficientLookback: number;
+    corporateActionRisk: number; setupRejected: number; h1GapRejected: number; executable: number;
+  };
+  bearFilterDiagnostic: {
+    baselineAll: Metrics; excludeBear: Metrics; bearOnly: Metrics; excludedTrades: number; note: string;
+  };
   guardrails: string[];
 }
 
@@ -135,6 +144,36 @@ export default function TpclValidationClient() {
           Split 60/20/20 hanya diagnostic temporal retrospektif. Parameter baseline sudah pernah dikembangkan
           dengan akses histori, jadi HOLDOUT di halaman ini tidak boleh disebut genuine out-of-sample.
         </p>
+      </section>
+
+
+      <section className={`rounded-xl border p-4 ${
+        data.robustnessStatus === 'ROBUST'
+          ? 'border-tv-green/30 bg-tv-green/10'
+          : 'border-tv-yellow/30 bg-tv-yellow/10'
+      }`}>
+        <div className="text-xs uppercase tracking-wide text-tv-muted">TP/CL robustness status</div>
+        <div className="mt-1 font-heading text-xl font-bold">{data.robustnessStatus}</div>
+        <div className="mt-2 space-y-1 text-xs text-tv-muted">
+          {data.robustnessReasons.map((reason) => <div key={reason}>• {reason}</div>)}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+        <h2 className="font-heading text-lg font-bold mb-1">Eligibility Funnel</h2>
+        <p className="text-xs text-tv-muted mb-4">
+          Menjelaskan kenapa raw LensScore ≥80 tidak semuanya menjadi trade executable.
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <MetricCard label="Raw signals" value={data.eligibilityFunnel.rawSignals.toLocaleString('id-ID')} />
+          <MetricCard label="T+20 belum matang" value={data.eligibilityFunnel.immatureT20.toLocaleString('id-ID')} />
+          <MetricCard label="Missing price/data" value={data.eligibilityFunnel.missingPriceSeries.toLocaleString('id-ID')} />
+          <MetricCard label="Lookback kurang" value={data.eligibilityFunnel.insufficientLookback.toLocaleString('id-ID')} />
+          <MetricCard label="Corporate action risk" value={data.eligibilityFunnel.corporateActionRisk.toLocaleString('id-ID')} />
+          <MetricCard label="Setup ditolak" value={data.eligibilityFunnel.setupRejected.toLocaleString('id-ID')} sub="RR/ATR/structure tidak memenuhi gate" />
+          <MetricCard label="H+1 gap rejected" value={data.eligibilityFunnel.h1GapRejected.toLocaleString('id-ID')} />
+          <MetricCard label="Executable baseline" value={data.eligibilityFunnel.executable.toLocaleString('id-ID')} />
+        </div>
       </section>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -250,6 +289,38 @@ export default function TpclValidationClient() {
             </div>
           ))}
         </div>
+      </section>
+
+
+      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+        <h2 className="font-heading text-lg font-bold mb-1">BEAR Regime Filter Diagnostic</h2>
+        <p className="text-xs text-tv-muted mb-4">
+          Counterfactual research: bagaimana metrik baseline terlihat bila trade ber-regime BEAR tidak diambil.
+          Ini bukan rekomendasi production dan belum genuine OOS.
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {[
+            ['Semua trade', data.bearFilterDiagnostic.baselineAll],
+            ['Tanpa BEAR', data.bearFilterDiagnostic.excludeBear],
+            ['BEAR saja', data.bearFilterDiagnostic.bearOnly],
+          ].map(([label, raw]) => {
+            const m = raw as Metrics;
+            return (
+              <div key={label as string} className="rounded-xl border border-tv-border bg-tv-bg/50 p-4">
+                <div className="font-bold">{label as string}</div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-tv-muted">N</span><div className="font-number">{m.samples}</div></div>
+                  <div><span className="text-tv-muted">Expectancy</span><div className="font-number">{pct(m.expectancyPct)}</div></div>
+                  <div><span className="text-tv-muted">PF</span><div className="font-number">{n(m.profitFactor, 3)}</div></div>
+                  <div><span className="text-tv-muted">TP1</span><div className="font-number">{pct(m.tp1HitRatePct)}</div></div>
+                  <div><span className="text-tv-muted">SL</span><div className="font-number">{pct(m.slHitRatePct)}</div></div>
+                  <div><span className="text-tv-muted">MAE P95</span><div className="font-number">{pct(m.p95MaePct)}</div></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 text-[10px] text-tv-muted">{data.bearFilterDiagnostic.note}</div>
       </section>
 
       <section className="rounded-xl border border-tv-border bg-tv-card p-5">
