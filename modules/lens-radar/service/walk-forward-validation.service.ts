@@ -146,7 +146,7 @@ export function buildRetrospectiveWalkForward(
   const valid = effectiveObservations
     .filter((x) => typeof x.returnT20 === 'number' && Number.isFinite(x.returnT20))
     .sort((a, b) => a.signalDate.localeCompare(b.signalDate) || a.ticker.localeCompare(b.ticker));
-  const dates = [...new Set(valid.map((x) => x.signalDate))];
+  const dates = Array.from(new Set(valid.map((x) => x.signalDate)));
   if (dates.length < foldsRequested * 2) {
     return {
       method: 'retrospective contiguous temporal holdout diagnostic', genuineOos: false,
