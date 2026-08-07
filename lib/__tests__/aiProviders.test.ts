@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { buildCombos, hasAnyAIProvider } from '../aiProviders';
+import { buildCombos, buildSmartAttemptOrder, __resetAIRotationForTests, hasAnyAIProvider } from '../aiProviders';
 
 const ALL_KEYS = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY', 'KIMI_API_KEY', 'NVIDIA_API_KEY'];
 
@@ -73,5 +73,30 @@ describe('buildCombos', () => {
     // Kedua model NVIDIA memang belum ada di MODEL_PRIORITY - urutan relatif keduanya
     // tidak masalah, yang penting stabil (tidak berubah antar panggilan).
     expect(models).toEqual(buildCombos().map((c) => c.model));
+  });
+});
+
+
+describe('buildSmartAttemptOrder', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetAIRotationForTests();
+  });
+
+  it('merotasi combo sehat antar request tanpa mengacak ranking dasar buildCombos()', () => {
+    clearAllKeys();
+    vi.stubEnv('GEMINI_API_KEY', 'g-test');
+    vi.stubEnv('GROQ_API_KEY', 'gsk-test');
+    vi.stubEnv('KIMI_API_KEY', 'sk-test');
+
+    __resetAIRotationForTests();
+    const base = buildCombos();
+    const first = buildSmartAttemptOrder(base).map((c) => c.model);
+    const second = buildSmartAttemptOrder(base).map((c) => c.model);
+
+    expect(first).toHaveLength(base.length);
+    expect(second).toHaveLength(base.length);
+    expect(second[0]).not.toBe(first[0]);
+    expect([...first].sort()).toEqual([...second].sort());
   });
 });
