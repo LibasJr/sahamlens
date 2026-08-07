@@ -34,7 +34,7 @@ interface Candidate {
   note: string;
 }
 interface Dashboard {
-  protocolVersion: 'tpcl-lab-v1.1';
+  protocolVersion: 'tpcl-lab-v1.2';
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -60,6 +60,31 @@ interface Dashboard {
   bearFilterDiagnostic: {
     baselineAll: Metrics; excludeBear: Metrics; bearOnly: Metrics; excludedTrades: number; note: string;
   };
+  forwardOos: {
+    protocolVersion: 'tpcl-oos-v1.0';
+    freezeDate: '2026-08-07';
+    frozenParameterVersion: 'tpcl-production-v1.0.0';
+    frozenParameters: {
+      supportBufferAtr: number; minStopDistanceAtr: number; fallbackStopAtr: number;
+      minLongRr: number; tp1R: number; tp2R: number;
+    };
+    parameterFingerprint: string;
+    minimumExecutableSamples: number;
+    historyBackfillAllowed: false;
+    statusExplanation: string;
+    allBaseline: {
+      protocolId: 'ALL_BASELINE' | 'EXCLUDE_BEAR'; label: string;
+      status: 'WAITING_FOR_MATURITY' | 'INSUFFICIENT_DATA' | 'POSITIVE' | 'NEGATIVE';
+      eligibleSignalsAfterFreeze: number; matureSignals: number; executableTrades: number;
+      metrics: Metrics; note: string;
+    };
+    excludeBear: {
+      protocolId: 'ALL_BASELINE' | 'EXCLUDE_BEAR'; label: string;
+      status: 'WAITING_FOR_MATURITY' | 'INSUFFICIENT_DATA' | 'POSITIVE' | 'NEGATIVE';
+      eligibleSignalsAfterFreeze: number; matureSignals: number; executableTrades: number;
+      metrics: Metrics; note: string;
+    };
+  };
   guardrails: string[];
 }
 
@@ -69,6 +94,13 @@ function pct(v: number | null, digits = 2) {
 function n(v: number | null, digits = 2) {
   return v == null || !Number.isFinite(v) ? '—' : v.toFixed(digits);
 }
+
+function oosBadgeClass(status: string) {
+  if (status === 'POSITIVE') return 'border-tv-green/30 bg-tv-green/10 text-tv-green';
+  if (status === 'NEGATIVE') return 'border-tv-red/30 bg-tv-red/10 text-tv-red';
+  return 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow';
+}
+
 function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-tv-border bg-tv-bg/60 p-4">
@@ -186,6 +218,64 @@ export default function TpclValidationClient() {
         <MetricCard label="Holding horizon" value={`T+${data.holdingDays}`} />
         <MetricCard label="Round-trip cost" value={pct(data.roundTripCostPct)} />
       </div>
+
+
+      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-tv-accent">Genuine Forward Validation</div>
+            <h2 className="font-heading text-lg font-bold mt-1">TP / CL Forward OOS Protocol</h2>
+            <p className="text-xs text-tv-muted mt-1 max-w-3xl">
+              Parameter production dibekukan pada {data.forwardOos.freezeDate}. Hanya sinyal setelah tanggal freeze
+              yang boleh masuk. Histori lama tidak pernah di-backfill sebagai OOS.
+            </p>
+          </div>
+          <div className={`rounded-full border px-3 py-1 text-[10px] font-semibold ${oosBadgeClass(data.forwardOos.allBaseline.status)}`}>
+            {data.forwardOos.allBaseline.status}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <MetricCard label="OOS protocol" value={data.forwardOos.protocolVersion} />
+          <MetricCard label="Frozen version" value={data.forwardOos.frozenParameterVersion} />
+          <MetricCard label="Freeze date" value={data.forwardOos.freezeDate} />
+          <MetricCard label="Parameter fingerprint" value={data.forwardOos.parameterFingerprint} />
+        </div>
+
+        <div className="rounded-lg border border-tv-yellow/20 bg-tv-yellow/5 p-3 text-xs text-tv-muted mb-4">
+          {data.forwardOos.statusExplanation}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[data.forwardOos.allBaseline, data.forwardOos.excludeBear].map((protocol) => (
+            <div key={protocol.protocolId} className="rounded-xl border border-tv-border bg-tv-bg/50 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-bold">{protocol.label}</div>
+                <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${oosBadgeClass(protocol.status)}`}>
+                  {protocol.status}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div><span className="text-tv-muted">Post-freeze signals</span><div className="font-number">{protocol.eligibleSignalsAfterFreeze}</div></div>
+                <div><span className="text-tv-muted">T+20 mature</span><div className="font-number">{protocol.matureSignals}</div></div>
+                <div><span className="text-tv-muted">Executable</span><div className="font-number">{protocol.executableTrades}</div></div>
+                <div><span className="text-tv-muted">Expectancy</span><div className="font-number">{pct(protocol.metrics.expectancyPct)}</div></div>
+                <div><span className="text-tv-muted">PF</span><div className="font-number">{n(protocol.metrics.profitFactor, 3)}</div></div>
+                <div><span className="text-tv-muted">TP1 hit</span><div className="font-number">{pct(protocol.metrics.tp1HitRatePct)}</div></div>
+                <div><span className="text-tv-muted">SL hit</span><div className="font-number">{pct(protocol.metrics.slHitRatePct)}</div></div>
+                <div><span className="text-tv-muted">Median</span><div className="font-number">{pct(protocol.metrics.medianReturnPct)}</div></div>
+                <div><span className="text-tv-muted">MAE P95</span><div className="font-number">{pct(protocol.metrics.p95MaePct)}</div></div>
+              </div>
+              <div className="mt-3 text-[10px] text-tv-muted">{protocol.note}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-lg border border-tv-border p-3 text-[10px] text-tv-muted">
+          Minimum executable sample per protocol: {data.forwardOos.minimumExecutableSamples}. Status POSITIVE/NEGATIVE
+          tetap hanya diagnostic; tidak ada auto-apply ke production.
+        </div>
+      </section>
 
       <section className="rounded-xl border border-tv-border bg-tv-card p-5">
         <div className="flex items-start justify-between gap-4 mb-4">
