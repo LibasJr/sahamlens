@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Target } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import CalibrationClient from './CalibrationClient';
 
@@ -24,14 +24,25 @@ export default async function AdminCalibrationPage() {
           <p className="text-xs text-tv-accent font-semibold uppercase tracking-[0.2em] mb-2">
             Internal Quant Calibration
           </p>
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-tv-text">
-            LensRadar Calibration Lab
-          </h1>
-          <p className="text-sm text-tv-muted mt-2 max-w-3xl">
-            Validasi apakah skor tinggi benar-benar memberi edge T+20, lalu simulasi dampak
-            perubahan ambang rekomendasi terhadap win rate dan jumlah sinyal. Semua angka berasal
-            dari histori real `lens_radar_history` dan hasil cron `lens_bucket_stats`.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="font-heading text-2xl sm:text-3xl font-bold text-tv-text">
+                LensRadar Calibration Lab
+              </h1>
+              <p className="text-sm text-tv-muted mt-2 max-w-3xl">
+                Validasi apakah skor tinggi benar-benar memberi edge T+20, lalu simulasi dampak
+                perubahan ambang rekomendasi terhadap win rate dan jumlah sinyal. Semua angka berasal
+                dari histori real `lens_radar_history` dan hasil cron `lens_bucket_stats`.
+              </p>
+            </div>
+            <Link
+              href="/admin/tpcl-validation"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-tv-border bg-tv-card px-3 py-2 text-sm font-semibold hover:border-tv-accent/50"
+            >
+              <Target className="w-4 h-4 text-tv-green" />
+              TP / CL Validation Lab
+            </Link>
+          </div>
         </div>
 
         <CalibrationClient />
