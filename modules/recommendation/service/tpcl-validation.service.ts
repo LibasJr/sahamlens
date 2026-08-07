@@ -186,7 +186,7 @@ function metrics(rows: TpclTradeObservation[]): TpclMetrics {
     expectancyPct: round(average(returns)),
     profitFactor: round(profitFactor(returns), 3),
     avgMaePct: round(average(maes)),
-    p95MaePct: round(percentile(maes, 0.95)),
+    p95MaePct: round(percentile(maes, 0.05)),
     avgMfePct: round(average(mfes)),
     avgDaysHeld: round(average(days), 1),
     medianDaysToTp1: round(median(tpDays), 1),

@@ -79,7 +79,7 @@ function MetricsGrid({ metrics }: { metrics: Metrics }) {
       <MetricCard label="SL hit" value={pct(metrics.slHitRatePct)} />
       <MetricCard label="TP2 reached" value={pct(metrics.tp2ReachRatePct)} sub="MFE reach, bukan exit rule" />
       <MetricCard label="Avg MAE" value={pct(metrics.avgMaePct)} />
-      <MetricCard label="P95 MAE" value={pct(metrics.p95MaePct)} />
+      <MetricCard label="MAE P95 (worst tail)" value={pct(metrics.p95MaePct)} />
       <MetricCard label="Avg MFE" value={pct(metrics.avgMfePct)} />
       <MetricCard label="Median return" value={pct(metrics.medianReturnPct)} />
       <MetricCard label="Avg days held" value={n(metrics.avgDaysHeld, 1)} />
@@ -186,7 +186,7 @@ export default function TpclValidationClient() {
                   <div><span className="text-tv-muted">PF</span><div className="font-number">{n(mm.profitFactor, 3)}</div></div>
                   <div><span className="text-tv-muted">TP1 hit</span><div className="font-number">{pct(mm.tp1HitRatePct)}</div></div>
                   <div><span className="text-tv-muted">SL hit</span><div className="font-number">{pct(mm.slHitRatePct)}</div></div>
-                  <div><span className="text-tv-muted">P95 MAE</span><div className="font-number">{pct(mm.p95MaePct)}</div></div>
+                  <div><span className="text-tv-muted">MAE P95 worst</span><div className="font-number">{pct(mm.p95MaePct)}</div></div>
                 </div>
                 {!mm.sufficient && <div className="mt-3 text-[10px] text-tv-yellow">Sampel belum cukup untuk kesimpulan kuat.</div>}
               </div>
@@ -206,7 +206,7 @@ export default function TpclValidationClient() {
               <th className="text-left py-2">Set</th><th className="text-right">N</th>
               <th className="text-right">Expectancy</th><th className="text-right">PF</th>
               <th className="text-right">TP1</th><th className="text-right">SL</th>
-              <th className="text-right">P95 MAE</th><th className="text-right">Val Exp.</th>
+              <th className="text-right">MAE P95 worst</th><th className="text-right">Val Exp.</th>
               <th className="text-right">Holdout Exp.</th>
             </tr>
           </thead>
