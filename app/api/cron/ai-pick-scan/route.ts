@@ -5,6 +5,7 @@ import { logger } from '@/shared/logger/logger';
 import { scanAiPickScores } from '@/modules/recommendation/service/ai-pick-scan.service';
 import { writeAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { archiveLensRadarHistory } from '@/modules/lens-radar/service/history-archive.service';
+import { getAiPickScanWindow } from '@/shared/calendar/idx-trading-calendar';
 
 export const maxDuration = 300;
 
@@ -18,6 +19,17 @@ export async function POST(req: NextRequest) {
   if (!(await verifyQStashSignature(signature, rawBody))) {
     logger.warn('Menolak request /api/cron/ai-pick-scan - signature QStash tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const scanWindow = getAiPickScanWindow(new Date());
+  if (scanWindow === 'CLOSED') {
+    logger.info('ai-pick-scan dilewati di luar sesi IDX', { scanWindow });
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: 'outside_idx_scan_window',
+      scanWindow,
+    });
   }
 
   let stage = 'request:accepted';
@@ -36,7 +48,7 @@ export async function POST(req: NextRequest) {
       stage = 'job:complete';
       return { scored: scores.length, bearish: bearishSymbols.length, archived };
     });
-    return NextResponse.json({ success: true, result });
+    return NextResponse.json({ success: true, skipped: false, scanWindow, result });
   } catch (err) {
     logger.error('Job ai-pick-scan gagal', { stage, err });
     return NextResponse.json({ error: 'Job gagal', stage }, { status: 500 });

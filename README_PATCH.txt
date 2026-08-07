@@ -1,17 +1,27 @@
-SahamLens AI Pick Scan Diagnostic Patch
+SAHAMLENS - AI PICK IDX SESSION GUARD + FINAL EOD SNAPSHOT
+Tanggal: 2026-08-07
 
-Basis: file route.ts dan history-archive.service.ts yang Anda upload.
+Tujuan:
+- QStash boleh tetap: */15 2-9 * * 1-5 (UTC).
+- Full-universe AI Pick hanya benar-benar berjalan pada sesi reguler IDX.
+- Saat lunch break / di luar sesi, endpoint tetap HTTP 200 dengan skipped=true, sehingga tidak memicu retry.
+- Satu final scan dijalankan pada invocation 16:15 WIB agar user malam mendapat snapshot penutupan terbaru.
 
-Perubahan:
-- route.ts: hanya menambahkan variable stage agar error menunjukkan apakah gagal di scan, cache, atau archive.
-- history-archive.service.ts: disertakan sama persis dengan file upload Anda yang sudah memakai $22.
+Window:
+Senin-Kamis: 09:00-12:00, 13:30-15:49:59 WIB
+Jumat:       09:00-11:30, 14:00-15:49:59 WIB
+Final EOD:   16:15 WIB (window code 16:15-16:29; cron 15-menit => satu invocation)
 
-Tidak mengubah scoring, TP/CL, schema database, QStash signature, cache format, atau parameter model.
+Tidak mengubah:
+- formula LensScore
+- TP/CL
+- scan universe
+- cache format
+- archive schema
+- QStash signature verification
+- diagnostic stage logging
+- fungsi legacy isTradingHours() untuk scheduler lain
 
-Cara pasang:
-1. Extract ZIP.
-2. Copy folder app dan modules ke root project SahamLens.
-3. Replace file saat diminta.
-4. Commit + push.
-5. Deploy production.
-6. Cek log run QStash terbaru. Cari field stage pada error.
+Catatan:
+- Hari libur Bursa belum diperiksa oleh helper existing; ini tetap merupakan keterbatasan yang terdokumentasi.
+- Setelah deploy, pertahankan cron QStash */15 2-9 * * 1-5 UTC.
