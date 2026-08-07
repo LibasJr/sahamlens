@@ -24,6 +24,7 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { buildRobustValidation, type RobustValidationResult } from './robust-validation.service';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -92,7 +93,12 @@ export interface CalibrationTTestResult {
 export interface ThresholdSimulation {
   threshold: number;
   avgReturnT20: number | null;
+  medianReturnT20: number | null;
   winRateT20: number | null;
+  avgWinT20: number | null;
+  avgLossT20: number | null;
+  expectancyT20: number | null;
+  profitFactorT20: number | null;
   totalSignals: number;
   signalDeltaPctVs80: number | null;
   winRateDeltaPctVs80: number | null;
@@ -114,6 +120,7 @@ export interface CalibrationDashboardData {
   observationsT20: number;
   chart: CalibrationBucketChartRow[];
   tTest: CalibrationTTestResult;
+  robustValidation: RobustValidationResult;
   thresholdSimulations: ThresholdSimulation[];
 }
 
@@ -199,6 +206,26 @@ function variance(values: number[]): number | null {
 function winRate(values: number[]): number | null {
   if (!values.length) return null;
   return (values.filter((value) => value > 0).length / values.length) * 100;
+}
+function median(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : ((sorted[mid - 1]! + sorted[mid]!) / 2);
+}
+function profitFactor(values: number[]): number | null {
+  const grossProfit = values.filter((v) => v > 0).reduce((sum, v) => sum + v, 0);
+  const grossLoss = Math.abs(values.filter((v) => v < 0).reduce((sum, v) => sum + v, 0));
+  if (grossLoss === 0) return grossProfit > 0 ? Number.POSITIVE_INFINITY : null;
+  return grossProfit / grossLoss;
+}
+function expectancy(values: number[]): number | null {
+  if (!values.length) return null;
+  const wins = values.filter((v) => v > 0);
+  const losses = values.filter((v) => v < 0);
+  const pWin = wins.length / values.length;
+  const pLoss = losses.length / values.length;
+  return pWin * (average(wins) ?? 0) + pLoss * (average(losses) ?? 0);
 }
 
 function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedHistoryEntry[] {
@@ -627,10 +654,18 @@ export function calculateThresholdSimulations(observations: CalibrationObservati
       .filter((obs) => obs.lensScore >= threshold && typeof obs.returnT20 === 'number')
       .map((obs) => obs.returnT20 as number);
     const wr = winRate(values);
+    const wins = values.filter((value) => value > 0);
+    const losses = values.filter((value) => value < 0);
+    const pf = profitFactor(values);
     simulations.push({
       threshold,
       avgReturnT20: roundPct(average(values)),
+      medianReturnT20: roundPct(median(values)),
       winRateT20: roundPct(wr),
+      avgWinT20: roundPct(average(wins)),
+      avgLossT20: roundPct(average(losses)),
+      expectancyT20: roundPct(expectancy(values)),
+      profitFactorT20: pf === Number.POSITIVE_INFINITY ? null : roundPct(pf),
       totalSignals: values.length,
       signalDeltaPctVs80: baselineSignals > 0 ? roundPct(((values.length / baselineSignals) - 1) * 100) : null,
       winRateDeltaPctVs80: baselineWinRate != null && wr != null ? roundPct(wr - baselineWinRate) : null,
@@ -724,6 +759,9 @@ export async function getCalibrationDashboardData(
     observationsT20,
     chart,
     tTest: buildCalibrationTTest(observations),
+    robustValidation: buildRobustValidation(decorrelateCalibrationObservations(
+      observations.filter((obs) => typeof obs.returnT20 === 'number')
+    )),
     thresholdSimulations: calculateThresholdSimulations(observations),
   };
 }

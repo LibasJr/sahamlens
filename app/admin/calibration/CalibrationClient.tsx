@@ -44,7 +44,12 @@ interface CalibrationTTestResult {
 interface ThresholdSimulation {
   threshold: number;
   avgReturnT20: number | null;
+  medianReturnT20: number | null;
   winRateT20: number | null;
+  avgWinT20: number | null;
+  avgLossT20: number | null;
+  expectancyT20: number | null;
+  profitFactorT20: number | null;
   totalSignals: number;
   signalDeltaPctVs80: number | null;
   winRateDeltaPctVs80: number | null;
@@ -77,6 +82,17 @@ interface LensWeightProposal {
   createdAt?: string;
 }
 
+interface RobustValidationResult {
+  sampleBasis: string;
+  effectiveSamples: number;
+  highBucketSamples: number;
+  lowBucketSamples: number;
+  bootstrap: { iterations: number; spreadMean: number | null; ci95Low: number | null; ci95High: number | null; excludesZero: boolean };
+  permutation: { iterations: number; observedSpread: number | null; pValueOneTailed: number | null; significant: boolean };
+  informationCoefficient: { samples: number; ic: number | null };
+  monotonicity: { positiveSteps: number; totalSteps: number; score: number | null };
+}
+
 interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
@@ -85,6 +101,7 @@ interface CalibrationDashboardData {
   observationsT20: number;
   chart: CalibrationBucketChartRow[];
   tTest: CalibrationTTestResult;
+  robustValidation: RobustValidationResult;
   thresholdSimulations: ThresholdSimulation[];
   latestWeightProposal: LensWeightProposal | null;
 }
@@ -412,6 +429,7 @@ export default function CalibrationClient() {
                   <td className="py-2 text-tv-muted">Sampel 80-100 / &lt;60</td>
                   <td className="py-2 text-right font-number">
                     {num(data.tTest.highBucketSamples)} / {num(data.tTest.lowBucketSamples)}
+                    <div className="text-[10px] text-tv-muted mt-1">effective non-overlap; raw threshold-80 = {num(baseline80?.totalSignals)}</div>
                   </td>
                 </tr>
                 <tr>
@@ -433,6 +451,33 @@ export default function CalibrationClient() {
           </div>
         </section>
       </div>
+
+      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+        <h2 className="font-heading text-lg font-bold mb-1">Robust Validation</h2>
+        <p className="text-xs text-tv-muted mb-4">Cross-check edge dengan calendar-week block bootstrap, permutation test, Spearman IC, dan monotonicity. Semua memakai sampel efektif T+20 yang sudah didekorelasikan.</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+            <div className="text-xs text-tv-muted uppercase">Bootstrap 95% CI</div>
+            <div className="font-number font-bold mt-1">{pct(data.robustValidation.bootstrap.ci95Low)} – {pct(data.robustValidation.bootstrap.ci95High)}</div>
+            <div className="text-[11px] text-tv-muted mt-1">spread 80-100 minus &lt;60</div>
+          </div>
+          <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+            <div className="text-xs text-tv-muted uppercase">Permutation p</div>
+            <div className="font-number text-2xl font-bold mt-1">{pValue(data.robustValidation.permutation.pValueOneTailed)}</div>
+            <div className="text-[11px] text-tv-muted mt-1">within-week labels, one-tailed</div>
+          </div>
+          <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+            <div className="text-xs text-tv-muted uppercase">Spearman IC</div>
+            <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.informationCoefficient.ic ?? '—'}</div>
+            <div className="text-[11px] text-tv-muted mt-1">score vs forward T+20</div>
+          </div>
+          <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+            <div className="text-xs text-tv-muted uppercase">Monotonicity</div>
+            <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.monotonicity.positiveSteps}/{data.robustValidation.monotonicity.totalSteps}</div>
+            <div className="text-[11px] text-tv-muted mt-1">bucket steps naik</div>
+          </div>
+        </div>
+      </section>
 
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
@@ -470,7 +515,7 @@ export default function CalibrationClient() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:min-w-[560px]">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:min-w-[660px]">
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Win Rate T+20</div>
               <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.winRateT20)}</div>
@@ -489,6 +534,16 @@ export default function CalibrationClient() {
               <div className="text-xs text-tv-muted uppercase">Avg T+20</div>
               <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.avgReturnT20)}</div>
               <div className="text-[11px] text-tv-muted mt-1">Net of cost</div>
+            </div>
+            <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+              <div className="text-xs text-tv-muted uppercase">Median T+20</div>
+              <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.medianReturnT20)}</div>
+              <div className="text-[11px] text-tv-muted mt-1">lebih tahan outlier</div>
+            </div>
+            <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
+              <div className="text-xs text-tv-muted uppercase">Profit Factor</div>
+              <div className="font-number text-2xl font-bold mt-1">{selectedSimulation?.profitFactorT20?.toFixed(2) ?? '—'}</div>
+              <div className="text-[11px] text-tv-muted mt-1">gross win / gross loss</div>
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Baseline 80</div>
