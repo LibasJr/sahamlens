@@ -86,8 +86,33 @@ export interface TpclCandidateResult {
   note: string;
 }
 
+export type TpclRobustnessStatus =
+  | 'ROBUST'
+  | 'UNSTABLE'
+  | 'NEGATIVE_VALIDATION'
+  | 'INSUFFICIENT_DATA';
+
+export interface TpclEligibilityFunnel {
+  rawSignals: number;
+  immatureT20: number;
+  missingPriceSeries: number;
+  insufficientLookback: number;
+  corporateActionRisk: number;
+  setupRejected: number;
+  h1GapRejected: number;
+  executable: number;
+}
+
+export interface BearFilterDiagnostic {
+  baselineAll: TpclMetrics;
+  excludeBear: TpclMetrics;
+  bearOnly: TpclMetrics;
+  excludedTrades: number;
+  note: string;
+}
+
 export interface TpclValidationDashboard {
-  protocolVersion: 'tpcl-lab-v1.0';
+  protocolVersion: 'tpcl-lab-v1.1';
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -104,6 +129,10 @@ export interface TpclValidationDashboard {
   splitDates: { trainEnd: string | null; validationEnd: string | null };
   baseline: TpclCandidateResult;
   candidates: TpclCandidateResult[];
+  robustnessStatus: TpclRobustnessStatus;
+  robustnessReasons: string[];
+  eligibilityFunnel: TpclEligibilityFunnel;
+  bearFilterDiagnostic: BearFilterDiagnostic;
   guardrails: string[];
 }
 
@@ -263,6 +292,36 @@ function splitForDate(date: string, boundaries: { trainEnd: string | null; valid
   return 'HOLDOUT';
 }
 
+
+type BaselineEligibility = 'EXECUTABLE' | 'SETUP_REJECTED' | 'H1_GAP_REJECTED';
+
+function classifyBaselineEligibility(
+  bars: SelectedPriceBar[],
+  signalIndex: number,
+): BaselineEligibility {
+  const signal = bars[signalIndex];
+  const entryBar = bars[signalIndex + 1];
+  if (!signal || !entryBar) return 'SETUP_REJECTED';
+
+  const atr = wilderAtrAt(bars, signalIndex);
+  if (atr == null) return 'SETUP_REJECTED';
+
+  const lookbackStart = Math.max(0, signalIndex - STRUCTURE_LOOKBACK + 1);
+  const setupHistory = bars.slice(lookbackStart, signalIndex + 1).map((bar) => ({
+    High: bar.high, Low: bar.low, Close: bar.close,
+  }));
+  const setup = buildLongTradingSetup(
+    setupHistory,
+    signal.close,
+    atr,
+    DEFAULT_TRADING_SETUP_PARAMETERS,
+  );
+  if (!setup) return 'SETUP_REJECTED';
+
+  if (!(entryBar.open > setup.stop && entryBar.open < setup.tp1)) return 'H1_GAP_REJECTED';
+  return 'EXECUTABLE';
+}
+
 function simulateTrade(
   bars: SelectedPriceBar[],
   signalIndex: number,
@@ -344,6 +403,41 @@ function simulateTrade(
     riskAtr: setup.riskAtr,
     stopSource: setup.stopSource,
   };
+}
+
+
+function deriveRobustnessStatus(baseline: TpclCandidateResult): {
+  status: TpclRobustnessStatus;
+  reasons: string[];
+} {
+  const reasons: string[] = [];
+  if (!baseline.validation.sufficient || !baseline.holdout.sufficient) {
+    reasons.push('Validation/Holdout belum memenuhi minimum sample gate.');
+    return { status: 'INSUFFICIENT_DATA', reasons };
+  }
+
+  const valExp = baseline.validation.expectancyPct;
+  const holdExp = baseline.holdout.expectancyPct;
+  const valPf = baseline.validation.profitFactor;
+  const holdPf = baseline.holdout.profitFactor;
+
+  if ((valExp ?? 0) <= 0 || (holdExp ?? 0) <= 0 || (valPf ?? 0) < 1 || (holdPf ?? 0) < 1) {
+    reasons.push('Expectancy atau Profit Factor negatif/lemah pada Validation/Holdout.');
+    return { status: 'NEGATIVE_VALIDATION', reasons };
+  }
+
+  const trainExp = baseline.train.expectancyPct ?? 0;
+  const spread = Math.max(
+    Math.abs(trainExp - (valExp ?? 0)),
+    Math.abs(trainExp - (holdExp ?? 0)),
+  );
+  if (spread > 2) {
+    reasons.push('Performa berubah tajam antar temporal split (>2 poin persentase expectancy).');
+    return { status: 'UNSTABLE', reasons };
+  }
+
+  reasons.push('Validation dan Holdout sama-sama positif dengan PF >= 1 dan sample gate terpenuhi.');
+  return { status: 'ROBUST', reasons };
 }
 
 async function readSignals(): Promise<SignalRow[]> {
@@ -433,9 +527,71 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
   const observationsByCandidate = new Map<string, TpclTradeObservation[]>();
   for (const candidate of PARAMETER_SETS) observationsByCandidate.set(candidate.id, []);
 
+  // Funnel memakai mutually-exclusive rejection stages sehingga total stage
+  // selalu dapat direkonsiliasi kembali ke rawSignals.
+  const funnel: TpclEligibilityFunnel = {
+    rawSignals: signals.length,
+    immatureT20: 0,
+    missingPriceSeries: 0,
+    insufficientLookback: 0,
+    corporateActionRisk: 0,
+    setupRejected: 0,
+    h1GapRejected: 0,
+    executable: 0,
+  };
+
+  for (const signal of signals) {
+    const series = seriesMap.get(signal.ticker);
+    if (!series || !series.bars.length) {
+      funnel.missingPriceSeries++;
+      continue;
+    }
+
+    const signalIndex = series.bars.findIndex((bar) => bar.date === signal.date);
+    if (signalIndex < 0) {
+      funnel.missingPriceSeries++;
+      continue;
+    }
+    if (signalIndex < STRUCTURE_LOOKBACK - 1) {
+      funnel.insufficientLookback++;
+      continue;
+    }
+    if (signalIndex + HOLDING_DAYS >= series.bars.length) {
+      funnel.immatureT20++;
+      continue;
+    }
+
+    const normalizedIndexByDate = new Map(series.normalized.map((bar, idx) => [bar.date, idx]));
+    const normalizedSignalIndex = normalizedIndexByDate.get(signal.date);
+    if (normalizedSignalIndex == null) {
+      funnel.missingPriceSeries++;
+      continue;
+    }
+    if (hasCorporateActionRisk(
+      series.normalized,
+      Math.max(1, normalizedSignalIndex - STRUCTURE_LOOKBACK),
+      Math.min(series.normalized.length - 1, normalizedSignalIndex + HOLDING_DAYS),
+    )) {
+      funnel.corporateActionRisk++;
+      continue;
+    }
+
+    const baselineEligibility = classifyBaselineEligibility(series.bars, signalIndex);
+    if (baselineEligibility === 'SETUP_REJECTED') {
+      funnel.setupRejected++;
+      continue;
+    }
+    if (baselineEligibility === 'H1_GAP_REJECTED') {
+      funnel.h1GapRejected++;
+      continue;
+    }
+    funnel.executable++;
+  }
+
   for (const signal of matureSignals) {
     const series = seriesMap.get(signal.ticker);
     if (!series || !series.bars.length) continue;
+
     const signalIndex = series.bars.findIndex((bar) => bar.date === signal.date);
     if (signalIndex < STRUCTURE_LOOKBACK - 1 || signalIndex + HOLDING_DAYS >= series.bars.length) continue;
 
@@ -460,9 +616,23 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
   const results = PARAMETER_SETS.map((p) => candidateResult(p, observationsByCandidate.get(p.id) ?? []));
   const baseline = results.find((r) => r.parameters.baseline) ?? results[0]!;
   const baselineRows = observationsByCandidate.get(baseline.parameters.id) ?? [];
+  // Baseline simulator is the final source of executable truth.
+  // Invariant should normally match pre-pass classifier exactly.
+  funnel.executable = baselineRows.length;
+
+  const robustness = deriveRobustnessStatus(baseline);
+  const nonBearRows = baselineRows.filter((r) => r.regime !== 'BEAR');
+  const bearRows = baselineRows.filter((r) => r.regime === 'BEAR');
+  const bearFilterDiagnostic: BearFilterDiagnostic = {
+    baselineAll: metrics(baselineRows),
+    excludeBear: metrics(nonBearRows),
+    bearOnly: metrics(bearRows),
+    excludedTrades: bearRows.length,
+    note: 'Diagnostic counterfactual saja. Tidak mengubah production dan tidak membuktikan filter BEAR akan robust OOS.',
+  };
 
   return {
-    protocolVersion: 'tpcl-lab-v1.0',
+    protocolVersion: 'tpcl-lab-v1.1',
     researchOnly: true,
     genuineOos: false,
     scoreVersion: SCORE_VERSION,
@@ -479,6 +649,10 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
     splitDates: boundaries,
     baseline,
     candidates: results,
+    robustnessStatus: robustness.status,
+    robustnessReasons: robustness.reasons,
+    eligibilityFunnel: funnel,
+    bearFilterDiagnostic,
     guardrails: [
       'Entry memakai open H+1; setup dihitung hanya dari OHLC sampai tanggal sinyal.',
       'Daily bar yang menyentuh TP dan SL sekaligus diasumsikan SL lebih dulu (konservatif).',
