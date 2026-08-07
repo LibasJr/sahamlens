@@ -470,7 +470,8 @@ export async function calculateLensBucketStats(
     worstMae_T20: roundPct(worstTradeDrawdownPct(t20Drawdowns[bucket])),
     avgWin_T20: roundPct(average(returns[bucket].T20.filter((value) => value > 0))),
     avgLoss_T20: roundPct(average(returns[bucket].T20.filter((value) => value < 0))),
-    totalSamples: returns[bucket].T1.length,
+    // Card utama menampilkan statistik T+20; denominator harus berasal dari populasi T+20 yang sama.
+    totalSamples: returns[bucket].T20.length,
     };
   });
 
