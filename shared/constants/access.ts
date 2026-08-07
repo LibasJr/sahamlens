@@ -5,7 +5,7 @@
 //
 // ATURAN (keputusan produk 2026-08-06, menggantikan aturan 2026-08-01 "semua
 // halaman analisis boleh dibuka tanpa login"): pengunjung tanpa login hanya
-// boleh 4 menu publik - Beranda, LensMarket, Corporate Calendar, Berita. Sisanya
+// boleh menu publik - Beranda, LensMarket, Transparansi, Corporate Calendar, Berita. Sisanya
 // redirect ke /login. Gerbang di level API (checkProAccess/checkProAccessLive)
 // TETAP ada dan tidak digantikan oleh file ini - ini lapisan navigasi, bukan
 // pengganti otorisasi data.
@@ -22,7 +22,6 @@ export const PROTECTED_PAGES = [
   '/risk-calculator',
   '/recommendations',
   '/multi-agent',
-  '/transparency',
   '/dcf',
   '/macro',
   '/moat',
