@@ -24,6 +24,13 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { buildRobustValidation, type RobustValidationResult } from './robust-validation.service';
+import {
+  buildGenuineOosValidation,
+  buildRetrospectiveWalkForward,
+  type GenuineOosResult,
+  type RetrospectiveWalkForwardResult,
+} from './walk-forward-validation.service';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -89,13 +96,31 @@ export interface CalibrationTTestResult {
   conclusion: string;
 }
 
+export type ReturnDistributionWarning = 'MEAN_POSITIVE_MEDIAN_NEGATIVE' | null;
+
 export interface ThresholdSimulation {
   threshold: number;
   avgReturnT20: number | null;
+  medianReturnT20: number | null;
+  meanMedianGapT20: number | null;
+  distributionWarning: ReturnDistributionWarning;
   winRateT20: number | null;
+  avgWinT20: number | null;
+  avgLossT20: number | null;
+  expectancyT20: number | null;
+  profitFactorT20: number | null;
   totalSignals: number;
   signalDeltaPctVs80: number | null;
   winRateDeltaPctVs80: number | null;
+}
+
+export interface CalibrationCronComparison {
+  runDate: string | null;
+  liveHighBucketSamples: number;
+  cronHighBucketSamples: number | null;
+  deltaHighBucketSamples: number | null;
+  populationMismatch: boolean;
+  note: string;
 }
 
 export interface CalibrationDashboardData {
@@ -113,7 +138,12 @@ export interface CalibrationDashboardData {
   uniqueTickers: number;
   observationsT20: number;
   chart: CalibrationBucketChartRow[];
+  chartSource: 'live-calibration-observations';
+  cronComparison: CalibrationCronComparison;
   tTest: CalibrationTTestResult;
+  robustValidation: RobustValidationResult;
+  retrospectiveWalkForward: RetrospectiveWalkForwardResult;
+  genuineOos: GenuineOosResult;
   thresholdSimulations: ThresholdSimulation[];
 }
 
@@ -199,6 +229,26 @@ function variance(values: number[]): number | null {
 function winRate(values: number[]): number | null {
   if (!values.length) return null;
   return (values.filter((value) => value > 0).length / values.length) * 100;
+}
+function median(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : ((sorted[mid - 1]! + sorted[mid]!) / 2);
+}
+function profitFactor(values: number[]): number | null {
+  const grossProfit = values.filter((v) => v > 0).reduce((sum, v) => sum + v, 0);
+  const grossLoss = Math.abs(values.filter((v) => v < 0).reduce((sum, v) => sum + v, 0));
+  if (grossLoss === 0) return grossProfit > 0 ? Number.POSITIVE_INFINITY : null;
+  return grossProfit / grossLoss;
+}
+function expectancy(values: number[]): number | null {
+  if (!values.length) return null;
+  const wins = values.filter((v) => v > 0);
+  const losses = values.filter((v) => v < 0);
+  const pWin = wins.length / values.length;
+  const pLoss = losses.length / values.length;
+  return pWin * (average(wins) ?? 0) + pLoss * (average(losses) ?? 0);
 }
 
 function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedHistoryEntry[] {
@@ -627,10 +677,22 @@ export function calculateThresholdSimulations(observations: CalibrationObservati
       .filter((obs) => obs.lensScore >= threshold && typeof obs.returnT20 === 'number')
       .map((obs) => obs.returnT20 as number);
     const wr = winRate(values);
+    const wins = values.filter((value) => value > 0);
+    const losses = values.filter((value) => value < 0);
+    const pf = profitFactor(values);
+    const avg = average(values);
+    const med = median(values);
     simulations.push({
       threshold,
-      avgReturnT20: roundPct(average(values)),
+      avgReturnT20: roundPct(avg),
+      medianReturnT20: roundPct(med),
+      meanMedianGapT20: avg != null && med != null ? roundPct(avg - med) : null,
+      distributionWarning: avg != null && med != null && avg > 0 && med < 0 ? 'MEAN_POSITIVE_MEDIAN_NEGATIVE' : null,
       winRateT20: roundPct(wr),
+      avgWinT20: roundPct(average(wins)),
+      avgLossT20: roundPct(average(losses)),
+      expectancyT20: roundPct(expectancy(values)),
+      profitFactorT20: pf === Number.POSITIVE_INFINITY ? null : roundPct(pf),
       totalSignals: values.length,
       signalDeltaPctVs80: baselineSignals > 0 ? roundPct(((values.length / baselineSignals) - 1) * 100) : null,
       winRateDeltaPctVs80: baselineWinRate != null && wr != null ? roundPct(wr - baselineWinRate) : null,
@@ -705,11 +767,35 @@ export async function getCalibrationDashboardData(
     versionRejectedReason,
   } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
-  const latestChartRows = latestStats.rows.filter((row) => VISIBLE_CHART_BUCKETS.includes(row.bucket));
-  const chart = latestChartRows.length ? latestChartRows : chartFromObservations(observations);
+  // Calibration Lab harus membandingkan angka dari population yang sama. Sebelumnya
+  // chart mengambil snapshot cron lens_bucket_stats sementara simulator memakai
+  // observasi live; akibatnya bucket 80-100 dapat menampilkan 1.097 vs threshold-80
+  // 985 pada layar yang sama. Chart admin sekarang selalu live; snapshot cron tetap
+  // diekspos sebagai diagnostic agar stale/different-population state terlihat jelas.
+  const chart = chartFromObservations(observations);
+  const liveHighBucketSamples = chart.find((row) => row.bucket === '80-100')?.totalSamples ?? 0;
+  const cronHighBucketSamples = latestStats.rows.find((row) => row.bucket === '80-100')?.totalSamples ?? null;
+  const deltaHighBucketSamples = cronHighBucketSamples == null ? null : cronHighBucketSamples - liveHighBucketSamples;
+  const cronComparison: CalibrationCronComparison = {
+    runDate: latestStats.runDate,
+    liveHighBucketSamples,
+    cronHighBucketSamples,
+    deltaHighBucketSamples,
+    populationMismatch: deltaHighBucketSamples != null && deltaHighBucketSamples !== 0,
+    note: deltaHighBucketSamples == null
+      ? 'Snapshot cron bucket belum tersedia; chart memakai observasi live.'
+      : deltaHighBucketSamples === 0
+        ? 'Snapshot cron dan observasi live punya jumlah sampel bucket 80-100 yang sama.'
+        : 'Snapshot cron berbeda dari observasi live. Biasanya karena cron belum rerun setelah perubahan filter/denominator; angka chart admin memakai observasi live agar konsisten dengan simulator.',
+  };
+
+  const asOfDate = todayDateKeyWIB();
+  const effectiveT20 = decorrelateCalibrationObservations(
+    observations.filter((obs) => typeof obs.returnT20 === 'number')
+  );
 
   return {
-    asOfDate: todayDateKeyWIB(),
+    asOfDate,
     latestStatsRunDate: latestStats.runDate,
     scoreVersion,
     requestedScoreVersion,
@@ -723,7 +809,12 @@ export async function getCalibrationDashboardData(
     uniqueTickers,
     observationsT20,
     chart,
+    chartSource: 'live-calibration-observations',
+    cronComparison,
     tTest: buildCalibrationTTest(observations),
+    robustValidation: buildRobustValidation(effectiveT20),
+    retrospectiveWalkForward: buildRetrospectiveWalkForward(effectiveT20),
+    genuineOos: buildGenuineOosValidation(observations, effectiveT20, { asOfDate, scoreVersion: scoreVersion ?? requestedScoreVersion }),
     thresholdSimulations: calculateThresholdSimulations(observations),
   };
 }

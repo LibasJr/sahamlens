@@ -3,6 +3,7 @@ import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import {
   calculateCalibrationObservations,
+  decorrelateCalibrationObservations,
   welchOneTailedGreater,
   type CalibrationObservation,
 } from './calibration.service';
@@ -12,6 +13,9 @@ const LOOKBACK_DAYS = 90;
 const CURRENT_WEIGHTS: LensScoreWeights = { technical: 40, fundamental: 30, flow: 30 };
 const COMPONENT_MAX = { technical: 40, fundamental: 30, flow: 30 } as const;
 const MIN_BUCKET_SAMPLE = 2;
+const MIN_OOS_BUCKET_SAMPLE = 10;
+const TRAIN_FRACTION = 0.7;
+const OOS_MAX_P_VALUE = 0.10;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -188,6 +192,30 @@ function sampleKey(ticker: string, date: string): string {
   return `${ticker.toUpperCase()}|${date}`;
 }
 
+export function chronologicalTrainOosSplit(samples: WeightOptimizationSample[], trainFraction = TRAIN_FRACTION): { train: WeightOptimizationSample[]; oos: WeightOptimizationSample[]; splitDate: string | null } {
+  const orderedDates = Array.from(new Set(samples.map((s) => s.signalDate))).sort();
+  if (orderedDates.length < 3) return { train: [], oos: [], splitDate: null };
+  const splitIndex = Math.min(orderedDates.length - 2, Math.max(0, Math.floor(orderedDates.length * trainFraction) - 1));
+  const splitDate = orderedDates[splitIndex] ?? null;
+  if (!splitDate) return { train: [], oos: [], splitDate: null };
+  return {
+    train: samples.filter((s) => s.signalDate <= splitDate),
+    oos: samples.filter((s) => s.signalDate > splitDate),
+    splitDate,
+  };
+}
+
+function passesOosGate(candidate: WeightCandidateResult, baseline: WeightCandidateResult): boolean {
+  return candidate.spreadT20 != null
+    && baseline.spreadT20 != null
+    && candidate.highSamples >= MIN_OOS_BUCKET_SAMPLE
+    && candidate.lowSamples >= MIN_OOS_BUCKET_SAMPLE
+    && candidate.pValue != null
+    && candidate.pValue <= OOS_MAX_P_VALUE
+    && candidate.spreadT20 > 0
+    && candidate.spreadT20 > baseline.spreadT20;
+}
+
 function buildOptimizationSamples(
   rows: LensRadarHistoryWithComponents[],
   observations: CalibrationObservation[]
@@ -349,7 +377,12 @@ export async function runLensScoreOptimizer(db: Queryable = pool): Promise<LensW
 
   const rows = await readHistoryRowsForWindow(db, statsWindow.start);
   const { observations } = await calculateCalibrationObservations(rows);
-  const samples = buildOptimizationSamples(rows, observations);
+  // Optimizer memakai observasi T+20 yang didekorelasikan agar sinyal harian overlap
+  // dari ticker yang sama tidak memperbesar effective sample size secara semu.
+  const effectiveObservations = decorrelateCalibrationObservations(
+    observations.filter((obs) => typeof obs.returnT20 === 'number')
+  );
+  const samples = buildOptimizationSamples(rows, effectiveObservations);
   if (samples.length < MIN_BUCKET_SAMPLE * 2) {
     return saveWeightProposal(buildProposal({
       status: 'INSUFFICIENT_COMPONENT_HISTORY',
@@ -362,15 +395,45 @@ export async function runLensScoreOptimizer(db: Queryable = pool): Promise<LensW
     }), db);
   }
 
-  const optimization = optimizeLensScoreWeights(samples);
-  if (!optimization.best) {
+  const split = chronologicalTrainOosSplit(samples);
+  if (!split.splitDate || split.train.length < MIN_BUCKET_SAMPLE * 2 || split.oos.length < MIN_OOS_BUCKET_SAMPLE * 2) {
+    return saveWeightProposal(buildProposal({
+      status: 'INSUFFICIENT_COMPONENT_HISTORY',
+      reason: 'Histori belum cukup untuk chronological train/OOS split yang fail-closed. Optimizer tidak membuat proposal sampai OOS memadai.',
+      runDate,
+      componentSampleSize: samples.length,
+      candidateCount,
+      statsWindowStart: statsWindow.start,
+      statsWindowEnd: statsWindow.end,
+    }), db);
+  }
+
+  // Pemilihan kandidat HANYA menggunakan train set. OOS tidak boleh ikut memilih bobot.
+  const trainOptimization = optimizeLensScoreWeights(split.train);
+  if (!trainOptimization.best) {
     return saveWeightProposal(buildProposal({
       status: 'NO_VALID_CANDIDATE',
-      reason: 'Tidak ada kandidat bobot dengan sampel bucket 80-100 dan <60 yang cukup untuk uji statistik.',
+      reason: `Tidak ada kandidat valid pada train set (split sampai ${split.splitDate}). OOS tidak disentuh untuk pemilihan kandidat.`,
       runDate,
-      baseline: optimization.baseline,
+      baseline: trainOptimization.baseline,
       componentSampleSize: samples.length,
-      candidateCount: optimization.candidates.length,
+      candidateCount: trainOptimization.candidates.length,
+      statsWindowStart: statsWindow.start,
+      statsWindowEnd: statsWindow.end,
+    }), db);
+  }
+
+  // Setelah kandidat dibekukan dari train, baru evaluasi SEKALI pada OOS.
+  const oosBaseline = evaluateWeightCandidate(split.oos, CURRENT_WEIGHTS);
+  const oosCandidate = evaluateWeightCandidate(split.oos, trainOptimization.best.weights);
+  if (!passesOosGate(oosCandidate, oosBaseline)) {
+    return saveWeightProposal(buildProposal({
+      status: 'NO_VALID_CANDIDATE',
+      reason: `Kandidat train gagal OOS gate setelah ${split.splitDate}: perlu >= ${MIN_OOS_BUCKET_SAMPLE} sampel per bucket, spread OOS positif, p-value OOS <= ${OOS_MAX_P_VALUE}, dan spread OOS harus mengungguli baseline. Bobot production tidak berubah.`,
+      runDate,
+      baseline: oosBaseline,
+      componentSampleSize: samples.length,
+      candidateCount: trainOptimization.candidates.length,
       statsWindowStart: statsWindow.start,
       statsWindowEnd: statsWindow.end,
     }), db);
@@ -378,12 +441,12 @@ export async function runLensScoreOptimizer(db: Queryable = pool): Promise<LensW
 
   return saveWeightProposal(buildProposal({
     status: 'PENDING_APPROVAL',
-    reason: 'Proposal bobot baru berhasil dibuat. Tidak diterapkan otomatis ke production; perlu approval manual admin.',
+    reason: `Proposal lolos chronological OOS gate setelah split ${split.splitDate}. Kandidat dipilih hanya dari train; metrik proposal di bawah adalah hasil OOS. Tetap perlu approval manual admin.`,
     runDate,
-    baseline: optimization.baseline,
-    best: optimization.best,
+    baseline: oosBaseline,
+    best: oosCandidate,
     componentSampleSize: samples.length,
-    candidateCount: optimization.candidates.length,
+    candidateCount: trainOptimization.candidates.length,
     statsWindowStart: statsWindow.start,
     statsWindowEnd: statsWindow.end,
   }), db);
