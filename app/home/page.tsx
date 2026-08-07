@@ -60,7 +60,7 @@ interface NewsInsight {
 // Jeda antar insight LensAI (permintaan user 2026-08-06: 50 detik SEBELUMNYA
 // dianggap terlalu cepat berpindah untuk sempat dibaca - satu-satunya konten
 // LensAI sebelum ini cuma satu paragraf statis, tidak pernah berganti sama sekali).
-const INSIGHT_ROTATE_MS = 50_000;
+const INSIGHT_ROTATE_MS = 12_000;
 
 const SENTIMENT_LABEL: Record<NewsInsight['sentiment'], string> = {
   POSITIF: 'positif',
@@ -452,8 +452,8 @@ export default function HomePage() {
         )),
       ];
 
-  // Ganti insight tiap 50 detik - jeda sengaja dibuat cukup panjang untuk sempat
-  // dibaca (permintaan user: sebelumnya berpindah terlalu cepat). Tidak jalan
+  // Ganti insight tiap 12 detik - cukup cepat untuk terasa hidup, tapi masih memberi
+  // waktu membaca ringkasan/berita. Tidak jalan
   // kalau cuma 1 slot (tidak ada apa pun untuk dirotasi).
   useEffect(() => {
     if (insightSlots.length <= 1) return;
@@ -565,6 +565,9 @@ export default function HomePage() {
             <div className="space-y-3">
               <MarketBreadthBar breadth={marketPulse.breadth} />
               <SectorHeatmap sectors={marketPulse.sectorHeatmap} />
+              <p className="text-[10px] leading-relaxed text-tv-muted/80">
+                Heatmap menampilkan 11 sektor IDX berbasis sampel saham representatif per sektor, bukan seluruh emiten.
+              </p>
             </div>
           )}
         </Card>

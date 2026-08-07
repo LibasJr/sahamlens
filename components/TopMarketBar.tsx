@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bell, User as UserIcon, Sparkles } from 'lucide-react';
+import { Bell, User as UserIcon } from 'lucide-react';
 import { isMarketOpen } from '@/lib/utils/market';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
@@ -75,15 +75,6 @@ export default function TopMarketBar() {
 
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
         <TrialCountdown daysLeft={trialDaysLeft} />
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new Event('open-ai-chat'))}
-          title="Ask LensAI"
-          aria-label="Ask LensAI"
-          className="hidden sm:flex items-center gap-1.5 rounded-full bg-tv-blue/10 hover:bg-tv-blue/20 text-tv-blue px-3 py-1.5 text-[11px] font-semibold transition-colors"
-        >
-          <Sparkles className="h-3.5 w-3.5" /> Ask LensAI
-        </button>
         {/* Alert butuh akun (data per-user) - guest yang mengkliknya cuma akan
             ditendang ke /login oleh proxy, jadi jangan tampilkan sama sekali.
             Ini satu-satunya jalan tersisa ke /watchlist setelah menu LensWatch

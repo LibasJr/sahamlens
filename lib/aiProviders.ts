@@ -2,8 +2,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Council AI multi-provider - sebelumnya SELURUH app cuma bisa pakai Gemini, dan kuota
 // gratis Gemini dibatasi PER MODEL PER HARI (20/hari/model - lihat lib/gemini.ts versi
-// lama). Strategi: acak URUTAN provider+model tiap panggilan, lalu coba satu-satu
-// (cascade) - begitu satu berhasil, langsung dipakai; kalau semua gagal/exhausted, return
+// lama). Strategi sekarang: smart rotation antar combo yang sehat + cooldown otomatis
+// untuk 429/timeout/error, lalu cascade sampai satu berhasil. Kalau semua gagal, return
 // null dan caller pakai fallback lokalnya masing-masing (sudah ada di semua tempat).
 //
 // REWRITE (2026-08-05): sebelumnya tiap provider punya cabang if/else sendiri di
@@ -96,6 +96,100 @@ type Combo =
   | { kind: 'gemini'; model: string }
   | { kind: 'openai-compatible'; provider: OpenAICompatibleProvider; model: string };
 
+
+type FailureKind = 'rate-limit' | 'auth' | 'not-found' | 'timeout' | 'server' | 'other';
+
+interface ComboHealth {
+  consecutiveFailures: number;
+  cooldownUntil: number;
+  lastFailureKind?: FailureKind;
+}
+
+const globalForAIRotation = globalThis as unknown as {
+  __sahamlensAIRotationCursor?: number;
+  __sahamlensAIHealth?: Map<string, ComboHealth>;
+};
+
+function healthStore(): Map<string, ComboHealth> {
+  if (!globalForAIRotation.__sahamlensAIHealth) {
+    globalForAIRotation.__sahamlensAIHealth = new Map();
+  }
+  return globalForAIRotation.__sahamlensAIHealth;
+}
+
+function comboKey(combo: Combo): string {
+  return combo.kind === 'gemini'
+    ? `gemini:${combo.model}`
+    : `${combo.provider.name}:${combo.model}`;
+}
+
+function cooldownMs(kind: FailureKind, consecutiveFailures: number): number {
+  const multiplier = Math.min(Math.max(consecutiveFailures, 1), 4);
+  switch (kind) {
+    case 'rate-limit': return 5 * 60_000 * multiplier;
+    case 'auth': return 30 * 60_000;
+    case 'not-found': return 60 * 60_000;
+    case 'timeout': return 45_000 * multiplier;
+    case 'server': return 30_000 * multiplier;
+    default: return 20_000 * multiplier;
+  }
+}
+
+function markSuccess(combo: Combo): void {
+  healthStore().delete(comboKey(combo));
+}
+
+function markFailure(combo: Combo, kind: FailureKind): void {
+  const store = healthStore();
+  const key = comboKey(combo);
+  const previous = store.get(key);
+  const consecutiveFailures = (previous?.consecutiveFailures ?? 0) + 1;
+  store.set(key, {
+    consecutiveFailures,
+    cooldownUntil: Date.now() + cooldownMs(kind, consecutiveFailures),
+    lastFailureKind: kind,
+  });
+}
+
+function isCoolingDown(combo: Combo, now = Date.now()): boolean {
+  return (healthStore().get(comboKey(combo))?.cooldownUntil ?? 0) > now;
+}
+
+/**
+ * Smart rotation:
+ * 1. buildCombos() tetap menjadi ranking kualitas deterministik.
+ * 2. Semua combo yang sehat dirotasi agar API key/model utama tidak selalu kena request pertama.
+ * 3. Combo yang sedang cooldown tidak dicoba selama masih ada combo sehat.
+ * 4. Jika SEMUA combo sedang cooldown, satu combo dengan cooldown paling dekat selesai
+ *    diizinkan sebagai probe agar LensAI tidak mati total pada warm instance.
+ *
+ * Cursor disimpan di globalThis sehingga stabil pada warm serverless instance. Di cold
+ * start cursor kembali 0; ini sengaja tidak membutuhkan Redis/DB hanya untuk routing AI.
+ */
+export function buildSmartAttemptOrder(combos = buildCombos(), now = Date.now()): Combo[] {
+  if (combos.length <= 1) return combos;
+
+  const healthy = combos.filter((combo) => !isCoolingDown(combo, now));
+  if (!healthy.length) {
+    return [...combos].sort((a, b) =>
+      (healthStore().get(comboKey(a))?.cooldownUntil ?? 0) -
+      (healthStore().get(comboKey(b))?.cooldownUntil ?? 0)
+    ).slice(0, 1);
+  }
+
+  const cursor = globalForAIRotation.__sahamlensAIRotationCursor ?? 0;
+  const offset = cursor % healthy.length;
+  globalForAIRotation.__sahamlensAIRotationCursor = (cursor + 1) % Number.MAX_SAFE_INTEGER;
+
+  return [...healthy.slice(offset), ...healthy.slice(0, offset)];
+}
+
+// Hanya untuk unit test; jangan dipakai oleh route produksi.
+export function __resetAIRotationForTests(): void {
+  globalForAIRotation.__sahamlensAIRotationCursor = 0;
+  globalForAIRotation.__sahamlensAIHealth = new Map();
+}
+
 // BUG FIX (2026-08-05, permintaan user - "urutan paling pinter ke paling gak pinter"):
 // cascade SEBELUMNYA mengacak urutan combo (menyebar beban rata ke semua provider). Sekarang
 // urutan TETAP, dari model paling mumpuni ke paling ringan - begitu satu berhasil langsung
@@ -141,7 +235,22 @@ export function hasAnyAIProvider(): boolean {
   return OPENAI_COMPATIBLE_PROVIDERS.some((p) => !!process.env[p.envVar]);
 }
 
-async function callGemini(model: string, system: string | undefined, prompt: string, json: boolean, timeoutMs: number): Promise<string | null> {
+interface AICallResult {
+  text: string | null;
+  failureKind?: FailureKind;
+}
+
+function classifyErrorMessage(message: string): FailureKind {
+  const lower = message.toLowerCase();
+  if (lower.includes('429') || lower.includes('rate limit') || lower.includes('quota')) return 'rate-limit';
+  if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('forbidden')) return 'auth';
+  if (lower.includes('404') || lower.includes('not found')) return 'not-found';
+  if (lower.includes('timeout') || lower.includes('abort')) return 'timeout';
+  if (/\b5\d\d\b/.test(lower)) return 'server';
+  return 'other';
+}
+
+async function callGemini(model: string, system: string | undefined, prompt: string, json: boolean, timeoutMs: number): Promise<AICallResult> {
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const gModel = genAI.getGenerativeModel({
@@ -154,15 +263,11 @@ async function callGemini(model: string, system: string | undefined, prompt: str
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
     ]);
     const text = (result as Awaited<ReturnType<typeof gModel.generateContent>>).response.text();
-    return text || null;
+    return { text: text || null, ...(text ? {} : { failureKind: 'other' as const }) };
   } catch (e: any) {
-    // BUG FIX (audit integritas data 2026-08-03, temuan M-05): kegagalan sebelumnya
-    // ditelan total tanpa jejak - kalau salah satu nama model di GEMINI_MODELS ternyata
-    // sudah tidak berlaku (404 model-not-found) atau kena limit, tidak ada cara tahu
-    // dari log produksi. `generateAI()` di atas SUDAH resilien (mencoba kombinasi
-    // berikutnya), jadi ini murni visibilitas diagnostik, bukan perbaikan perilaku.
-    console.warn(`[Gemini] Model "${model}" gagal: ${e?.message || e}`);
-    return null;
+    const message = e?.message || String(e);
+    console.warn(`[Gemini] Model "${model}" gagal: ${message}`);
+    return { text: null, failureKind: classifyErrorMessage(message) };
   }
 }
 
@@ -174,7 +279,7 @@ async function callOpenAICompatible(
   prompt: string,
   json: boolean,
   timeoutMs: number
-): Promise<string | null> {
+): Promise<AICallResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -208,7 +313,13 @@ async function callOpenAICompatible(
       // dari proxy pun tetap terbaca, dan dipotong 200 karakter supaya log tidak banjir.
       const body = await res.text().catch(() => '');
       console.warn(`[AI:${provider.name}] "${model}" HTTP ${res.status} ${res.statusText} - ${body.slice(0, 200)}`);
-      return null;
+      const failureKind: FailureKind =
+        res.status === 429 ? 'rate-limit'
+        : (res.status === 401 || res.status === 403) ? 'auth'
+        : res.status === 404 ? 'not-found'
+        : res.status >= 500 ? 'server'
+        : 'other';
+      return { text: null, failureKind };
     }
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
@@ -217,13 +328,13 @@ async function callOpenAICompatible(
       // mengembalikan tool_call, atau content difilter). Beda sebab dari HTTP error,
       // jadi dibedakan juga di log.
       console.warn(`[AI:${provider.name}] "${model}" HTTP 200 tapi tidak ada teks jawaban`);
-      return null;
+      return { text: null, failureKind: 'other' };
     }
-    return text;
+    return { text };
   } catch (e: any) {
     const reason = e?.name === 'AbortError' ? `timeout ${timeoutMs}ms` : (e?.message || String(e));
     console.warn(`[AI:${provider.name}] "${model}" gagal: ${reason}`);
-    return null;
+    return { text: null, failureKind: e?.name === 'AbortError' ? 'timeout' : classifyErrorMessage(reason) };
   } finally {
     clearTimeout(timer);
   }
@@ -236,18 +347,33 @@ async function callOpenAICompatible(
 // daripada mencoba "membetulkan" JSON yang mungkin salah).
 export async function generateAI(opts: { system?: string; prompt: string; json?: boolean; timeoutMs?: number }): Promise<string | null> {
   const { system, prompt, json = false, timeoutMs = 8000 } = opts;
-  const combos = buildCombos();
+  const baseCombos = buildCombos();
+  const combos = buildSmartAttemptOrder(baseCombos);
 
   for (const combo of combos) {
-    const text = combo.kind === 'gemini'
+    const result = combo.kind === 'gemini'
       ? await callGemini(combo.model, system, prompt, json, timeoutMs)
-      : await callOpenAICompatible(combo.provider, process.env[combo.provider.envVar]!, combo.model, system, prompt, json, timeoutMs);
-    if (text) return text;
+      : await callOpenAICompatible(
+          combo.provider,
+          process.env[combo.provider.envVar]!,
+          combo.model,
+          system,
+          prompt,
+          json,
+          timeoutMs
+        );
+
+    if (result.text) {
+      markSuccess(combo);
+      return result.text;
+    }
+
+    markFailure(combo, result.failureKind ?? 'other');
   }
-  // Ringkasan saat SEMUA kombinasi habis - baris per-model di atas menjelaskan sebabnya
-  // satu per satu; baris ini menandai batas akhir cascade supaya mudah dicari di log
-  // ("kenapa pengguna dapat fallback lokal") dan langsung terlihat berapa kombinasi yang
-  // sebenarnya dicoba (0 = tidak ada API key terpasang sama sekali).
-  console.warn(`[AI] Semua ${combos.length} kombinasi provider+model gagal - caller akan memakai fallback lokal`);
+
+  const cooling = baseCombos.filter((combo) => isCoolingDown(combo)).length;
+  console.warn(
+    `[AI] Semua ${combos.length} attempt smart-rotation gagal; ${cooling}/${baseCombos.length} combo sedang cooldown - caller akan memakai fallback lokal`
+  );
   return null;
 }
