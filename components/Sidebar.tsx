@@ -244,7 +244,11 @@ export default function Sidebar() {
         } ${isCollapsed ? 'w-[292px] md:w-[76px]' : 'w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
-          <Link href="/home" className="group flex min-w-0 items-center gap-3">
+          {/* Logo menuju "/" (halaman utama publik), BUKAN /home: di dalam app shell
+              tidak ada satu pun tautan balik ke landing page - item nav "Beranda" dan
+              MobileNav sudah sama-sama menuju /home, jadi logo yang mengarah ke /home
+              cuma jadi tautan ketiga ke tujuan yang sama. */}
+          <Link href="/" title="Halaman utama SahamLens" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner">
               <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-cover" />
             </div>
