@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Search, ArrowRightLeft, Menu } from 'lucide-react';
+import { Target, Search, ArrowRightLeft } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -138,15 +138,9 @@ function CompareContent() {
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
+        <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-                className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
               <div className="p-2 rounded-md bg-tv-blue text-white">
                 <ArrowRightLeft className="w-5 h-5" />
               </div>
@@ -159,7 +153,7 @@ function CompareContent() {
         </header>
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
-        <PageContainer className="p-6 space-y-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
 
           <form onSubmit={handleCompare} className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">

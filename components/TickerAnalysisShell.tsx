@@ -11,12 +11,12 @@ import { fadeUp } from '../lib/motion';
 type ShellAccent = 'purple' | 'pink' | 'green' | 'red' | 'blue' | 'warning';
 
 const ACCENT_CLASSES: Record<ShellAccent, string> = {
-  purple: 'bg-tv-purple/10 border-tv-purple/30 text-tv-purple',
-  pink: 'bg-pink-400/10 border-pink-400/30 text-pink-400',
-  green: 'bg-tv-green/10 border-tv-green/30 text-tv-green',
-  red: 'bg-tv-red/10 border-tv-red/30 text-tv-red',
-  blue: 'bg-tv-blue/10 border-tv-blue/30 text-tv-blue',
-  warning: 'bg-tv-warning/10 border-tv-warning/30 text-tv-warning',
+  purple: 'border-tv-purple/20 bg-tv-purple/10 text-tv-purple',
+  pink: 'border-pink-400/20 bg-pink-400/10 text-pink-400',
+  green: 'border-tv-green/20 bg-tv-green/10 text-tv-green',
+  red: 'border-tv-red/20 bg-tv-red/10 text-tv-red',
+  blue: 'border-tv-blue/20 bg-tv-blue/10 text-tv-blue',
+  warning: 'border-tv-warning/20 bg-tv-warning/10 text-tv-warning',
 };
 
 interface TickerAnalysisShellProps {
@@ -32,13 +32,6 @@ interface TickerAnalysisShellProps {
   children: React.ReactNode;
 }
 
-// Redesign UI/UX Fase 3 - shell bersama untuk cluster halaman "satu analisis per
-// ticker" (moat/pattern/earnings/dividend/risk/dcf) yang sebelumnya masing-masing
-// menulis ulang wrapper+Header+kartu-judul sendiri-sendiri dengan gaya nyaris
-// identik. Menyatukan: wrapper+Header, kartu judul (chip ikon + judul + subjudul +
-// slot kontrol kanan lewat headerExtra), entrance motion. Konten spesifik tiap
-// halaman (tabel, grid metrik) tetap di masing-masing page - shell TIDAK
-// menyentuh logika/fetch data.
 export function TickerAnalysisShell({
   ticker,
   onTickerChange,
@@ -52,22 +45,27 @@ export function TickerAnalysisShell({
   children,
 }: TickerAnalysisShellProps) {
   return (
-    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+    <div className="flex min-h-screen flex-1 flex-col bg-tv-bg">
       <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="space-y-6 p-4 md:p-6 lg:p-7">
         <motion.div initial="hidden" animate="show" variants={fadeUp}>
-          <Card variant="default" padding="lg" className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className={cn('w-12 h-12 rounded-lg grid place-items-center border shrink-0', ACCENT_CLASSES[accent])}>
+          <Card
+            variant="glass"
+            padding="lg"
+            className="flex flex-col gap-5 border-white/[0.08] bg-gradient-to-br from-white/[0.025] via-tv-card/85 to-tv-blue/[0.025] md:flex-row md:items-center md:justify-between"
+          >
+            <div className="flex min-w-0 items-center gap-4">
+              <div className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl border shadow-inner', ACCENT_CLASSES[accent])}>
                 {icon}
               </div>
-              <div>
-                <h1 className="font-heading text-xl font-bold text-tv-text tracking-tight">{title}</h1>
-                {subtitle && <p className="text-xs text-tv-muted mt-0.5">{subtitle}</p>}
+              <div className="min-w-0">
+                <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-tv-muted">Analysis workspace</div>
+                <h1 className="font-heading text-xl font-bold tracking-tight text-tv-text md:text-2xl">{title}</h1>
+                {subtitle && <p className="mt-1 max-w-3xl text-xs leading-relaxed text-tv-muted">{subtitle}</p>}
               </div>
             </div>
-            {headerExtra}
+            {headerExtra && <div className="w-full shrink-0 md:w-auto">{headerExtra}</div>}
           </Card>
         </motion.div>
 
