@@ -1,4 +1,4 @@
-import { guard } from '@/lib/sahamLensGuard';
+﻿import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
@@ -40,14 +40,44 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const ticker = typeof body.ticker === 'string' && body.ticker.trim() ? body.ticker.trim() : null;
-    if (!ticker) {
-      return NextResponse.json({ error: 'ticker wajib diisi' }, { status: 400 });
-    }
 
-    const cacheKey = `sahamlens:cache:computed:orchestrator:${ticker.toUpperCase()}`;
-    const result = await getOrCompute(cacheKey, CACHE_TTL_SEC.TECHNICAL, () => runMultiAgentOrchestrator(ticker));
-    const response = NextResponse.json(result);
+const ticker =
+  typeof body.ticker === 'string' && body.ticker.trim()
+    ? body.ticker.trim()
+    : null;
+
+if (!ticker) {
+  return NextResponse.json(
+    { error: 'ticker wajib diisi' },
+    { status: 400 },
+  );
+}
+
+const asOfDate =
+  typeof body.as_of === 'string' && body.as_of.trim()
+    ? body.as_of.trim()
+    : undefined;
+
+if (
+  asOfDate !== undefined &&
+  !/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)
+) {
+  return NextResponse.json(
+    { error: 'as_of wajib format YYYY-MM-DD' },
+    { status: 400 },
+  );
+}
+
+const cacheKey = asOfDate
+  ? `sahamlens:cache:computed:orchestrator:${ticker.toUpperCase()}:asof:${asOfDate}`
+  : `sahamlens:cache:computed:orchestrator:${ticker.toUpperCase()}`;
+
+const result = await getOrCompute(
+  cacheKey,
+  CACHE_TTL_SEC.TECHNICAL,
+  () => runMultiAgentOrchestrator(ticker, asOfDate),
+);
+const response = NextResponse.json(result);
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
     return response;
   } catch (error: any) {
@@ -55,3 +85,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+
+
+
