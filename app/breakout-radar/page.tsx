@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Target, Clock, Menu, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
+import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
@@ -388,14 +388,8 @@ export default function AiPickPage() {
     // memperhitungkan bilah alamat browser mobile. Disamakan dengan halaman lain.
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
-        <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
+        <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
             <div className="p-2 rounded-md bg-tv-blue text-white">
               <Target className="w-6 h-6" />
             </div>
@@ -419,7 +413,7 @@ export default function AiPickPage() {
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
             1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
-        <PageContainer className="p-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7">
           <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">

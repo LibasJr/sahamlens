@@ -1,4 +1,4 @@
-﻿import React, { Suspense } from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
@@ -398,7 +398,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
       
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
           max-w-7xl = 1280px). */}
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         <div className="flex items-center gap-3 mb-8">
           {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
           <TickerAvatar symbol={symbol} size="lg" />

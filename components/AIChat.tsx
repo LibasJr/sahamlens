@@ -178,7 +178,7 @@ export default function AIChat() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
 
       {/* Chat Window */}
       {/* Lebar dulu w-[400px]/w-[600px] TETAP tanpa breakpoint sama sekali - di layar HP
@@ -189,37 +189,37 @@ export default function AIChat() {
           terformat rapi terlihat "berantakan" karena lebar sisa yang tidak menentu.
           calc(100vw-2rem) di layar sempit, kembali ke ukuran tetap mulai breakpoint sm. */}
       {isOpen && (
-        <div className={`bg-tv-bg border border-tv-border rounded-xl shadow-2 overflow-hidden flex flex-col mb-4 transition-all duration-300 origin-bottom-right w-[calc(100vw-2rem)] max-h-[80vh] ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
+        <div className={`overflow-hidden flex flex-col mb-3 origin-bottom-right w-[calc(100vw-1.5rem)] max-h-[80vh] rounded-[24px] border border-white/10 bg-[#0A111D]/98 shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl transition-all duration-300 ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
 
           {/* Header */}
-          <div className="bg-tv-card p-4 flex items-center justify-between border-b border-tv-border">
+          <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-accent shadow-[0_10px_26px_rgba(79,140,255,0.22)]">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="font-heading font-bold text-tv-text text-sm">Tanya AI</h3>
-                <p className="text-xs text-tv-green flex items-center gap-1">
+                <h3 className="font-heading text-sm font-bold text-tv-text">LensAI Copilot</h3>
+                <p className="flex items-center gap-1 text-[10px] font-semibold text-tv-green">
                   <span className="w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse"></span>
                   AI sedang aktif
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsExpanded(!isExpanded)} className="text-tv-muted hover:text-tv-text p-1 rounded-md hover:bg-tv-hover">
+              <button type="button" onClick={() => setIsExpanded(!isExpanded)} aria-label={isExpanded ? "Kecilkan LensAI" : "Perbesar LensAI"} className="rounded-xl p-2 text-tv-muted hover:bg-white/[0.05] hover:text-tv-text">
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
-              <button onClick={() => setIsOpen(false)} className="text-tv-muted hover:text-tv-text p-1 rounded-md hover:bg-tv-hover">
+              <button type="button" onClick={() => setIsOpen(false)} aria-label="Tutup LensAI" className="rounded-xl p-2 text-tv-muted hover:bg-white/[0.05] hover:text-tv-text">
                 <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-tv-bg">
+          <div className="flex-1 space-y-4 overflow-y-auto bg-transparent p-4">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-accent-soft flex items-center justify-center mb-2">
+                <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-[22px] border border-tv-blue/15 bg-gradient-accent-soft">
                   <Bot className="w-8 h-8 text-tv-blue" />
                 </div>
                 <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
@@ -228,7 +228,7 @@ export default function AIChat() {
                 </p>
                 <button
                   onClick={setDemoPrompt}
-                  className="mt-4 px-4 py-2 bg-tv-hover hover:bg-tv-borderLight text-xs rounded-full text-tv-muted border border-tv-border transition-colors text-left"
+                  className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-xs text-tv-muted transition-colors hover:bg-white/[0.06] hover:text-white"
                 >
                   {(() => {
                     const segments = pathname.split('/');
@@ -242,8 +242,8 @@ export default function AIChat() {
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] rounded-2xl p-4 text-sm ${
                     msg.role === 'user'
-                      ? 'bg-tv-blue text-white rounded-tr-none'
-                      : 'bg-teal-950/60 border border-teal-800/60 text-teal-100 rounded-tl-none'
+                      ? 'bg-tv-blue text-white rounded-tr-md shadow-[0_8px_24px_rgba(79,140,255,0.16)]'
+                      : 'border border-white/[0.07] bg-white/[0.04] text-tv-text rounded-tl-md'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
@@ -259,7 +259,7 @@ export default function AIChat() {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-teal-950/60 border border-teal-800/60 rounded-2xl rounded-tl-none p-4 text-teal-200 text-sm flex items-center gap-3">
+                <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-sm text-tv-muted">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   AI sedang menganalisis...
                 </div>
@@ -269,7 +269,7 @@ export default function AIChat() {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 bg-tv-card border-t border-tv-border">
+          <div className="border-t border-white/[0.07] bg-white/[0.025] p-3">
             <div className="relative flex items-center">
               <input
                 type="text"
@@ -277,12 +277,14 @@ export default function AIChat() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Tanya LensAI tentang saham atau fitur SahamLens..."
-                className="w-full bg-tv-bg/60 text-tv-text border border-tv-border rounded-full py-3 pl-4 pr-12 focus:outline-none focus:border-tv-blue transition-colors text-sm"
+                className="w-full rounded-2xl border border-white/[0.08] bg-black/20 py-3 pl-4 pr-12 text-sm text-tv-text placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
               />
               <button
+                type="button"
+                aria-label="Kirim pertanyaan"
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 p-2 bg-gradient-accent hover:brightness-110 disabled:opacity-40 text-white rounded-full transition-all"
+                className="absolute right-2 rounded-xl bg-gradient-accent p-2 text-white transition-all hover:brightness-110 disabled:opacity-40"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -300,10 +302,10 @@ export default function AIChat() {
           onClick={() => setIsOpen(true)}
           title="Ask LensAI"
           aria-label="Ask LensAI"
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-tv-blue/30 bg-tv-blue text-white shadow-2 hover:brightness-110 active:scale-95 transition-all"
+          className="group flex h-12 items-center justify-center gap-2 rounded-2xl border border-tv-blue/25 bg-gradient-accent px-3.5 text-white shadow-[0_18px_50px_rgba(79,140,255,0.28)] transition-all hover:brightness-110 active:scale-95 md:h-12 md:px-4"
         >
           <Sparkles className="h-5 w-5" />
-          <span className="sr-only">Ask LensAI</span>
+          <span className="hidden text-xs font-bold md:inline">LensAI</span>
         </button>
       )}
     </div>

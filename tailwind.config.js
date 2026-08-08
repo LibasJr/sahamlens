@@ -13,26 +13,26 @@ module.exports = {
         // tv-* dipertahankan supaya 33 halaman ikut berubah lewat satu diff ini,
         // bukan lewat pencarian-ganti class di tiap file.
         tv: {
-          bg: '#0B0F19',
-          surface: '#0F1526',
-          card: '#12182B',
-          cardAlt: '#151C32',
-          hover: '#1B2440',
-          border: '#1E293B',
-          borderLight: '#2B3A55',
-          text: '#F1F5F9',
-          muted: '#94A3B8',
-          green: '#22C55E',
-          greenHover: '#16A34A',
-          red: '#EF4444',
-          redHover: '#DC2626',
-          yellow: '#D4AF37',
+          bg: '#070B12',
+          surface: '#0A111D',
+          card: '#0F1724',
+          cardAlt: '#131D2E',
+          hover: '#172338',
+          border: '#1A2940',
+          borderLight: '#2A3E5D',
+          text: '#F5F7FB',
+          muted: '#8EA0B8',
+          green: '#23C483',
+          greenHover: '#1BAD72',
+          red: '#FF5D6C',
+          redHover: '#E94858',
+          yellow: '#F2C14E',
           warning: '#F59E0B',
-          gold: '#EAB308',
-          blue: '#3B82F6',
-          blueHover: '#2563EB',
-          purple: '#8B5CF6',
-          accent: '#3B82F6'
+          gold: '#E7B94C',
+          blue: '#4F8CFF',
+          blueHover: '#3C76E8',
+          purple: '#8B7CFF',
+          accent: '#4F8CFF'
         }
       },
       fontFamily: {
@@ -51,9 +51,9 @@ module.exports = {
         xl: '20px',
       },
       boxShadow: {
-        1: '0 1px 2px 0 rgba(0,0,0,0.3)',
-        2: '0 4px 12px 0 rgba(0,0,0,0.35)',
-        3: '0 12px 32px 0 rgba(0,0,0,0.45)',
+        1: '0 1px 2px 0 rgba(0,0,0,0.26)',
+        2: '0 10px 30px -14px rgba(0,0,0,0.55)',
+        3: '0 22px 70px -22px rgba(0,0,0,0.72)',
         glass: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
       },
       backgroundImage: {
@@ -64,8 +64,8 @@ module.exports = {
         // yang sudah ada di tv.* (blue #3A86FF, purple #8B5CF6) tapi belum pernah
         // dikombinasikan. Dipakai untuk CTA utama/indikator aktif/badge "AI", bukan
         // warna baru yang menambah kerumitan palet.
-        'gradient-accent': 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
-        'gradient-accent-soft': 'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(139,92,246,0.12) 100%)',
+        'gradient-accent': 'linear-gradient(135deg, #4F8CFF 0%, #8B7CFF 100%)',
+        'gradient-accent-soft': 'linear-gradient(135deg, rgba(79,140,255,0.13) 0%, rgba(139,124,255,0.13) 100%)',
       },
       transitionTimingFunction: {
         settle: 'cubic-bezier(0.16,1,0.3,1)',

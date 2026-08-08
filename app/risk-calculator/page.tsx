@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle, Menu } from 'lucide-react';
+import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { PageContainer, EmptyState, AnimatedNumber } from '@/components/ui';
 
@@ -116,14 +116,8 @@ function RiskCalculatorContent() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-            className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
           {/* red-500/red-400 mentah diganti tv-red - satu-satunya merah di halaman ini
               yang berbeda dari merah palet yang dipakai kotak kerugian di bawahnya. */}
           <div className="w-10 h-10 rounded-lg bg-tv-red/10 border border-tv-red/30 flex items-center justify-center text-tv-red shrink-0">

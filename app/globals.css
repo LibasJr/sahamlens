@@ -200,3 +200,69 @@ h1, h2, h3 {
 .ai-response a:hover {
   color: #93c5fd;
 }
+
+/* ===== SahamLens UI/UX V2 — Hybrid Fintech Analytics ===== */
+html {
+  background: #070B12;
+}
+
+body {
+  background:
+    radial-gradient(circle at 80% -10%, rgba(79, 140, 255, 0.09), transparent 28rem),
+    radial-gradient(circle at 10% 110%, rgba(139, 124, 255, 0.06), transparent 34rem),
+    #070B12;
+}
+
+.lens-app-shell {
+  isolation: isolate;
+}
+
+.lens-main {
+  background: linear-gradient(180deg, rgba(10, 17, 29, 0.22), rgba(7, 11, 18, 0.9));
+}
+
+.lens-ambient-bg {
+  background:
+    radial-gradient(circle at 78% 8%, rgba(79, 140, 255, 0.055), transparent 30rem),
+    radial-gradient(circle at 38% 105%, rgba(139, 124, 255, 0.045), transparent 34rem);
+}
+
+/* Shared visual upgrade untuk panel lama yang masih memakai class raw. */
+.bg-tv-card,
+.bg-tv-cardAlt {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0));
+}
+
+.border-tv-border {
+  border-color: rgba(120, 148, 184, 0.16);
+}
+
+.shadow-1 {
+  box-shadow: 0 12px 34px -24px rgba(0, 0, 0, 0.68);
+}
+
+.shadow-2 {
+  box-shadow: 0 20px 54px -26px rgba(0, 0, 0, 0.78);
+}
+
+::selection {
+  background: rgba(79, 140, 255, 0.28);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(79, 140, 255, 0.72);
+  outline-offset: 2px;
+}
+
+/* Mobile: beri napas di atas bottom navigation dan kurangi density tabel raw. */
+@media (max-width: 767px) {
+  .lens-main table th,
+  .lens-main table td {
+    white-space: nowrap;
+  }
+
+  .lens-main h1 {
+    letter-spacing: -0.02em;
+  }
+}

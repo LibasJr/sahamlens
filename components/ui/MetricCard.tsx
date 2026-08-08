@@ -97,15 +97,15 @@ export function MetricCard({
       tabIndex={interactive ? 0 : undefined}
       onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } } : undefined}
       className={cn(
-        'rounded-lg border border-tv-border bg-tv-card p-4 shadow-1 transition-colors duration-250 ease-settle',
-        interactive && 'cursor-pointer hover:border-tv-borderLight focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60',
+        'relative overflow-hidden rounded-2xl border border-white/[0.075] bg-tv-card p-4 shadow-1 transition-all duration-250 ease-settle',
+        interactive && 'cursor-pointer hover:-translate-y-0.5 hover:border-white/[0.13] hover:shadow-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60',
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           {icon && <span className="shrink-0 text-tv-muted">{icon}</span>}
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-tv-muted truncate">{label}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-tv-muted truncate">{label}</span>
         </div>
         {hasValue && sparkline && sparkline.length >= 2 && <Sparkline points={sparkline} stroke={strokeColor} />}
       </div>
@@ -116,7 +116,7 @@ export function MetricCard({
             <AnimatedNumber
               value={value as number}
               format={format}
-              className={cn('font-number text-2xl font-semibold tabular-nums', TONE_TEXT[resolvedTone])}
+              className={cn('font-number text-2xl font-bold tracking-tight tabular-nums', TONE_TEXT[resolvedTone])}
             />
             {suffix && <span className="text-sm font-medium text-tv-muted">{suffix}</span>}
           </div>

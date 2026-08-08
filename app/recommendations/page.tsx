@@ -243,7 +243,7 @@ export default function Recommendations() {
         </div>
       </header>
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {modelNotice && (
           <div className="rounded-lg border border-tv-warning/40 bg-tv-warning/10 px-4 py-3 text-xs text-tv-warning">
             {modelNotice}
