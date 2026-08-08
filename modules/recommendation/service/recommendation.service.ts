@@ -16,7 +16,7 @@ import {
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '@/modules/market';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
-import { evaluateMinimalEligibility } from '@/modules/eligibility';
+import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -358,6 +358,7 @@ export async function analyzeStock(ticker: string) {
       })),
       coveragePct: scoring.coverage_pct,
     });
+    const decision = toAdvisoryDecision(scoring.kategori, eligibility);
 
     return {
       ticker: ticker.replace('.JK', ''),
@@ -395,6 +396,7 @@ export async function analyzeStock(ticker: string) {
       valuationScore: scoring.detail.valuasi,
       totalScore: scoring.total_score,
       scoringKategori: scoring.kategori,
+      decision,
       eligibilityStatus: eligibility.status,
       eligibilityReasons: eligibility.reasonCodes,
       foreignAccumStreak,

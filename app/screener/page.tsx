@@ -52,7 +52,7 @@ const SORTABLE_COLUMNS: SortableColumn[] = [
   { key: 'div_yield', label: 'Div Yield', align: 'right', getValue: (i) => parseFormattedNumber(i.div_yield) },
   { key: 'bandarmology', label: 'Bandarmology', getValue: (i) => i.bandarmology },
   { key: 'moat', label: 'Kualitas Profit', getValue: (i) => i.moat },
-  { key: 'signal', label: 'Signal', getValue: (i) => i.signal },
+  { key: 'signal', label: 'Sinyal / Status', getValue: (i) => i.decision?.action ?? i.signal },
   { key: 'pattern_tag', label: 'Pola Backtest', getValue: (i) => i.pattern_tag },
   { key: 'sentiment', label: 'Sentimen Berita', getValue: (i) => i.sentiment },
   { key: 'week52_high', label: '52W High/Low', align: 'right', getValue: (i) => i.week52_high },
@@ -321,24 +321,36 @@ export default function ScreenerPage() {
                     </td>
                     <td className="p-3 text-tv-text">{item.moat}</td>
                     <td className="p-3">
-                      {item.signal ? (
-                        // BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data
-                        // tabular/kode (aturan app/globals.css), bukan kata status.
+                      {item.decision?.advisory === true && item.decision?.action ? (
                         <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans text-[10px] ${
-                          item.signal.includes('BUY')
+                          item.decision.action.includes('BUY')
                             ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
-                            : item.signal === 'SELL'
+                            : item.decision.action === 'SELL'
                             ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
                             : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/40'
                         }`}>
-                          {item.signal}
+                          REKOMENDASI: {item.decision.action}
                         </span>
+                      ) : item.signal ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans text-[10px] ${
+                            item.signal.includes('BUY')
+                              ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
+                              : item.signal === 'SELL'
+                                ? 'bg-tv-red/10 text-tv-red border border-tv-red/30'
+                                : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
+                          }`}>
+                            {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`}
+                          </span>
+                          <span className="text-[9px] font-semibold uppercase tracking-wide text-tv-yellow">
+                            {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED')
+                              ? 'Model belum tervalidasi'
+                              : item.eligibility_status && item.eligibility_status !== 'ELIGIBLE'
+                                ? 'Tidak layak direkomendasikan'
+                                : 'Rekomendasi tidak tersedia'}
+                          </span>
+                        </div>
                       ) : (
-                        /* Backend meneruskan eligibility_status + eligibility_reasons
-                           persis supaya sel ini bisa menyebutkan SEBAB skornya kosong
-                           (lihat komentar di screener.service.ts baris 532-534), tapi
-                           halaman ini selama ini cuma menampilkan "N/A" - alasan yang
-                           sudah dihitung itu tidak pernah sampai ke layar. */
                         <span
                           className="text-tv-muted text-[10px] cursor-help border-b border-dotted border-tv-borderLight"
                           title={
@@ -464,12 +476,20 @@ export default function ScreenerPage() {
                     </div>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      {item.signal ? (
+                      {item.decision?.advisory === true && item.decision?.action ? (
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          item.signal.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
-                            : item.signal === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
+                          item.decision.action.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
+                            : item.decision.action === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
                             : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/40'
-                        }`}>{item.signal}</span>
+                        }`}>REKOMENDASI: {item.decision.action}</span>
+                      ) : item.signal ? (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          item.signal.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
+                            : item.signal === 'SELL' ? 'bg-tv-red/10 text-tv-red border border-tv-red/30'
+                            : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
+                        }`} title={item.decision?.explanation || undefined}>
+                          {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`} · {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED') ? 'BELUM VALID' : 'NON-ACTIONABLE'}
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[10px] bg-tv-hover text-tv-muted">
                           {item.eligibility_status && item.eligibility_status !== 'ELIGIBLE' ? 'Tidak lolos gerbang' : 'Histori kurang'}

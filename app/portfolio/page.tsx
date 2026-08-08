@@ -11,6 +11,7 @@ import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, B
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { fadeUp } from '@/lib/motion';
+import { getDecisionPresentation } from '@/modules/eligibility';
 
 const formatIDR = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
@@ -192,12 +193,16 @@ export default function PortfolioPage() {
             priceStale = false;
           }
           if (s?.scoring) {
-            // Phase 0 / P0-3: label BUY/SELL hanya ditampilkan kalau saham lolos gerbang
-            // kelayakan. Skornya tetap ditampilkan (informasional) - pemilik saham berhak
-            // melihat angkanya; yang dicabut cuma ajakan bertindaknya.
-            scoreLabel = s?.decision && s.decision.advisory === false
-              ? `${s.scoring.total_score} (tidak direkomendasikan)`
-              : `${s.scoring.total_score} ${s.scoring.kategori}`;
+            const presentation = getDecisionPresentation(s.scoring.kategori, s.decision);
+            if (presentation.actionable && s.decision?.action) {
+              scoreLabel = `${s.scoring.total_score} · ${s.decision.action}`;
+            } else if (presentation.kind === 'MODEL_UNVALIDATED') {
+              scoreLabel = `${s.scoring.total_score} · sinyal ${presentation.modelSignal || 'N/A'} · model belum tervalidasi`;
+            } else if (presentation.kind === 'INELIGIBLE') {
+              scoreLabel = `${s.scoring.total_score} · sinyal ${presentation.modelSignal || 'N/A'} · tidak layak direkomendasikan`;
+            } else {
+              scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignal || 'sinyal N/A'} · rekomendasi tidak tersedia`;
+            }
           }
         } catch(e) {}
 

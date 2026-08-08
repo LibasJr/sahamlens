@@ -11,6 +11,8 @@ import { evaluateIndicatorDecisions, BACKTEST_PRESETS } from '@/modules/backtest
 import { getBatchStockSentiment, type Sentiment as NewsSentiment } from '@/modules/news';
 import {
   evaluateMinimalEligibility,
+  toAdvisoryDecision,
+  type AdvisoryDecision,
   type EligibilityResult,
   type EligibilityStatus,
 } from '@/modules/eligibility';
@@ -77,10 +79,11 @@ type RawStock = {
   // MIN_HISTORY_BARS di live-filter-check.service.ts), sentiment null kalau saham tidak
   // disebut di RSS manapun (lihat TickerSentiment di news.service.ts - beda dari
   // 'NETRAL' yang berarti ADA berita tapi diklasifikasi netral).
+  /** Legacy/model signal dari LensScore. Ini informasional, BUKAN otomatis action. */
   signal: ScoringResult['kategori'] | null;
-  /** Phase 0 / P0-3. `signal` di atas dipaksa null kalau ini bukan 'ELIGIBLE'.
-   * null di sini = gerbang belum sempat dievaluasi (histori kurang dari
-   * MIN_HISTORY_BARS), yang artinya "tidak diketahui", BUKAN "layak". */
+  /** Status keputusan lengkap; `decision.action` satu-satunya recommendation actionable. */
+  decision: AdvisoryDecision | null;
+  /** Phase 0 / P0-3. null = gerbang belum sempat dievaluasi, bukan "layak". */
   eligibility_status: EligibilityStatus | null;
   eligibility_reasons: string[] | null;
   pattern_tag: string | null;
@@ -207,9 +210,10 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       rawPbv: pbv,
     });
 
-    // Signal (kategori STRONG BUY/BUY/HOLD/SELL) & Pattern Tag (preset Backtest yang
-    // cocok SEKARANG) - null kalau histori kurang dari MIN_HISTORY_BARS, bukan ditebak.
+    // `signal` mempertahankan kontrak lama sebagai hasil LensScore informasional.
+    // Recommendation actionable hidup terpisah di `decision.action`.
     let signal: ScoringResult['kategori'] | null = null;
+    let decision: AdvisoryDecision | null = null;
     let patternTag: string | null = null;
     let eligibility: EligibilityResult | null = null;
     if (hasFullHistory) {
@@ -308,11 +312,10 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
           mfmPositiveRatio20: accumulation.mfmPositiveRatio20,  // P1-9
         },
       );
-      // GERBANG KELAYAKAN MINIMAL (Phase 0 / P0-3). `signal` adalah label BUY/SELL yang
-      // ditampilkan langsung ke pengguna di tabel Screener, jadi ia rekomendasi -
-      // saham tidak likuid / kemungkinan tidak diperdagangkan / data basi tidak boleh
-      // mendapatkannya. `signal` SUDAH bertipe nullable sejak sebelumnya (null saat
-      // histori kurang), jadi konsumen UI tidak perlu berubah bentuk.
+      // GERBANG KELAYAKAN MINIMAL (Phase 0 / P0-3). `signal` mempertahankan
+      // kontrak lama sebagai keluaran LensScore informasional. Ia TIDAK menjadi
+      // recommendation hanya karena bernilai BUY/SELL; recommendation actionable
+      // hidup terpisah di `decision.action` dan tetap fail-closed lewat advisory gate.
       eligibility = evaluateMinimalEligibility({
         ticker,
         asOf: todayDateKeyWIB(),
@@ -323,7 +326,8 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
         })),
         coveragePct: scoring.coverage_pct,
       });
-      signal = eligibility.status === 'ELIGIBLE' ? scoring.kategori : null;
+      signal = scoring.kategori;
+      decision = toAdvisoryDecision(scoring.kategori, eligibility);
 
       const decisions = evaluateIndicatorDecisions(history, price);
       const matchedPreset = BACKTEST_PRESETS.find((p) => p.filters.every((f) => decisions[f] === 'BULLISH'));
@@ -349,6 +353,7 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       fifty_two_week_high: q.summaryDetail?.fiftyTwoWeekHigh || null,
       atr_pct: atr14Pct(dailyHistory),
       signal,
+      decision,
       // BARU (Phase 0) - aditif. `null` kalau histori tidak cukup untuk mengevaluasinya
       // sama sekali (blok di atas tidak jalan), BUKAN "layak".
       eligibility_status: eligibility ? eligibility.status : null,
@@ -529,8 +534,9 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
         // Kolom BARU (permintaan eksplisit) - null/'N/A' kalau data kurang, BUKAN
         // ditebak (lihat komentar RawStock.signal/pattern_tag/sentiment di atas).
         signal: s.signal,
+        decision: s.decision,
         // Phase 0 / P0-3 - aditif. Diteruskan supaya UI/konsumen bisa menjelaskan KENAPA
-        // `signal` kosong ("likuiditas di bawah batas"), bukan menampilkan sel kosong.
+        // status recommendation non-actionable, bukan menebak dari nilai `signal`.
         eligibility_status: s.eligibility_status,
         eligibility_reasons: s.eligibility_reasons,
         pattern_tag: s.pattern_tag,
