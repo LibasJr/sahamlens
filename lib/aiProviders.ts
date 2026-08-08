@@ -1,4 +1,4 @@
-﻿import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Council AI multi-provider - sebelumnya SELURUH app cuma bisa pakai Gemini, dan kuota
 // gratis Gemini dibatasi PER MODEL PER HARI (20/hari/model - lihat lib/gemini.ts versi
@@ -368,26 +368,61 @@ async function callOpenAICompatible(
   }
 }
 
-// Coba tiap kombinasi provider+model secara berurutan (acak) sampai satu berhasil.
+// Coba kombinasi provider+model menurut smart rotation sampai satu berhasil.
 // Return teks mentah (kalau json:true, caller yang JSON.parse - beberapa model gratis
 // kadang membungkus JSON dengan ```json fences, jadi JSON.parse bisa gagal di respons
 // pertama; caller sudah lanjut ke fallback rule-based kalau itu terjadi, yang lebih aman
 // daripada mencoba "membetulkan" JSON yang mungkin salah).
-export async function generateAI(opts: { system?: string; prompt: string; json?: boolean; timeoutMs?: number }): Promise<string | null> {
+export type AIProviderErrorCode =
+  | 'NO_PROVIDER_CONFIGURED'
+  | 'RATE_LIMIT'
+  | 'AUTH_ERROR'
+  | 'TIMEOUT'
+  | 'INVALID_MODEL'
+  | 'PROVIDER_ERROR'
+  | 'ALL_PROVIDERS_FAILED';
+
+export interface GenerateAIResult {
+  text: string | null;
+  errorCode: AIProviderErrorCode | null;
+  failureKinds: FailureKind[];
+}
+
+function aggregateProviderFailure(failures: FailureKind[]): AIProviderErrorCode {
+  if (failures.length === 0) return 'ALL_PROVIDERS_FAILED';
+  if (failures.every((kind) => kind === 'rate-limit')) return 'RATE_LIMIT';
+  if (failures.every((kind) => kind === 'auth')) return 'AUTH_ERROR';
+  if (failures.every((kind) => kind === 'timeout')) return 'TIMEOUT';
+  if (failures.every((kind) => kind === 'not-found')) return 'INVALID_MODEL';
+  if (new Set(failures).size > 1) return 'ALL_PROVIDERS_FAILED';
+  return 'PROVIDER_ERROR';
+}
+
+/**
+ * Versi terstruktur untuk caller yang perlu membedakan penyebab kegagalan provider.
+ * Tidak pernah membawa API key, URL rahasia, atau body error mentah ke consumer.
+ */
+export async function generateAIResult(opts: { system?: string; prompt: string; json?: boolean; timeoutMs?: number }): Promise<GenerateAIResult> {
   const { system, prompt, json = false, timeoutMs = 8000 } = opts;
   const baseCombos = buildCombos();
+
+  if (baseCombos.length === 0) {
+    return { text: null, errorCode: 'NO_PROVIDER_CONFIGURED', failureKinds: [] };
+  }
+
   const combos = buildSmartAttemptOrder(baseCombos);
+  const failures: FailureKind[] = [];
 
   for (const combo of combos) {
     const result = combo.kind === 'gemini'
       ? await callGemini(
-    process.env[combo.envVar]!,
-    combo.model,
-    system,
-    prompt,
-    json,
-    timeoutMs
-  )
+          process.env[combo.envVar]!,
+          combo.model,
+          system,
+          prompt,
+          json,
+          timeoutMs,
+        )
       : await callOpenAICompatible(
           combo.provider,
           process.env[combo.provider.envVar]!,
@@ -395,22 +430,30 @@ export async function generateAI(opts: { system?: string; prompt: string; json?:
           system,
           prompt,
           json,
-          timeoutMs
+          timeoutMs,
         );
 
     if (result.text) {
       markSuccess(combo);
-      return result.text;
+      return { text: result.text, errorCode: null, failureKinds: failures };
     }
 
-    markFailure(combo, result.failureKind ?? 'other');
+    const failureKind = result.failureKind ?? 'other';
+    failures.push(failureKind);
+    markFailure(combo, failureKind);
   }
 
   const cooling = baseCombos.filter((combo) => isCoolingDown(combo)).length;
   console.warn(
-    `[AI] Semua ${combos.length} attempt smart-rotation gagal; ${cooling}/${baseCombos.length} combo sedang cooldown - caller akan memakai fallback lokal`
+    `[AI] Semua ${combos.length} attempt smart-rotation gagal; ${cooling}/${baseCombos.length} combo sedang cooldown - error=${aggregateProviderFailure(failures)}`,
   );
-  return null;
+
+  return { text: null, errorCode: aggregateProviderFailure(failures), failureKinds: failures };
+}
+
+// Backward-compatible untuk seluruh caller existing yang hanya membutuhkan text/null.
+export async function generateAI(opts: { system?: string; prompt: string; json?: boolean; timeoutMs?: number }): Promise<string | null> {
+  return (await generateAIResult(opts)).text;
 }
 
 
