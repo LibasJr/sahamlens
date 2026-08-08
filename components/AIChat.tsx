@@ -100,9 +100,27 @@ export default function AIChat() {
        if (activeContextData.technical) {
          context += `\nData Teknikal: ${JSON.stringify(activeContextData.technical)}`;
        }
-       // Kirim data rekomendasi saham (dari halaman Stock Recommended)
+       // Semantik keputusan dipisah dari arah sinyal. Semua field ini masih termasuk
+       // Data Referensi browser (server /api/chat tetap menganggapnya unverified), tetapi
+       // membantu LensAI menyebut status UI dengan istilah yang sama dan tidak mengubah
+       // advisory=false menjadi NETRAL/HOLD.
+       if (activeContextData.modelSignal) {
+         context += `\nSinyal model LensScore (INFORMASIONAL): ${activeContextData.modelSignal}`;
+       }
+       if (activeContextData.decision) {
+         context += `\nStatus decision SahamLens: ${JSON.stringify(activeContextData.decision)}`;
+       }
+       if (activeContextData.eligibility) {
+         context += `\nStatus eligibility: ${JSON.stringify(activeContextData.eligibility)}`;
+       }
+       if (activeContextData.modelValidation) {
+         context += `\nStatus validasi model dari halaman: ${JSON.stringify(activeContextData.modelValidation)}`;
+       }
+       // Halaman "Stock Recommended" saat model belum tervalidasi adalah scanner/konsensus
+       // indikator, bukan daftar recommendation actionable. Nama blok dibuat eksplisit
+       // supaya LensAI tidak menaikkan consensus BUY menjadi ajakan beli.
        if (activeContextData.recommendations) {
-         context += `\n\nData Rekomendasi Saham:\n${JSON.stringify(activeContextData.recommendations)}`;
+         context += `\n\nData Scanner/Konsensus Indikator (BUKAN otomatis rekomendasi actionable):\n${JSON.stringify(activeContextData.recommendations)}`;
        }
     }
 

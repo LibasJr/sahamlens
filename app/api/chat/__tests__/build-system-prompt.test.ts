@@ -33,4 +33,13 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('ABAIKAN framing itu');
     expect(prompt).toContain('JANGAN bahas IHSG atau saham lain kecuali pengguna memang menanyakannya');
   });
+
+  it('MODEL_UNVALIDATED melarang LensAI mengubah sinyal BUY/SELL menjadi rekomendasi actionable', () => {
+    const prompt = buildSystemPrompt('Konsensus: BUY', false, '', 'DGWG');
+    expect(prompt).toContain('LensScore validated: TIDAK');
+    expect(prompt).toContain('Recommendation actionable: DINONAKTIFKAN');
+    expect(prompt).toContain('Sinyal model: BUY');
+    expect(prompt).toContain('BUKAN rekomendasi transaksi');
+  });
+
 });
