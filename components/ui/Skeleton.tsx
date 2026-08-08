@@ -7,7 +7,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const VARIANTS: Record<NonNullable<SkeletonProps['variant']>, string> = {
   text: 'h-3.5 rounded-md',
-  block: 'rounded-lg',
+  block: 'rounded-2xl',
   circle: 'rounded-full',
 };
 
@@ -19,7 +19,7 @@ export function Skeleton({ variant = 'block', className, ...props }: SkeletonPro
   return (
     <div
       className={cn(
-        'bg-[linear-gradient(90deg,#151C32_25%,#1E293B_50%,#151C32_75%)] bg-[length:200%_100%] animate-shimmer',
+        'bg-[linear-gradient(90deg,#101926_25%,#1A2940_50%,#101926_75%)] bg-[length:200%_100%] animate-shimmer',
         VARIANTS[variant],
         className
       )}

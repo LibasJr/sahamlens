@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Menu, Zap } from 'lucide-react';
+import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Zap } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Input, Select, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
@@ -214,14 +214,8 @@ export default function BacktestPage() {
     // <main> AppShell yang sudah menggulir. Disamakan dengan halaman lain.
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
-        <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
+        <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
             <div className="p-2 rounded-md bg-tv-blue text-white">
               <Settings2 className="w-5 h-5" />
             </div>
@@ -247,7 +241,7 @@ export default function BacktestPage() {
           </p>
         </PageContainer>
 
-        <PageContainer className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Builder Panel */}
           <div className="lg:col-span-1 space-y-6">

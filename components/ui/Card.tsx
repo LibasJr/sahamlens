@@ -9,68 +9,45 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const PADDING: Record<NonNullable<CardProps['padding']>, string> = {
   none: '',
-  sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-6',
+  sm: 'p-3.5',
+  md: 'p-4 md:p-5',
+  lg: 'p-5 md:p-6',
 };
 
-export function Card({
-  variant = 'default',
-  hoverable = false,
-  padding = 'md',
-  className,
-  children,
-  ...props
-}: CardProps) {
+export function Card({ variant = 'default', hoverable = false, padding = 'md', className, children, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-lg border transition-all duration-250 ease-settle',
-        variant === 'default' && 'bg-tv-card border-tv-border shadow-1',
-        variant === 'glass' && 'tv-glass shadow-glass',
-        variant === 'flat' && 'bg-transparent border-transparent',
-        // scale-[1.01] + angkat 2px: cukup terasa sebagai respons sentuhan, masih
-        // di bawah ambang yang bikin teks di dalam card ikut buram saat transisi.
-        hoverable && 'hover:border-tv-borderLight hover:shadow-2 hover:-translate-y-0.5 hover:scale-[1.01] motion-reduce:hover:scale-100 motion-reduce:hover:translate-y-0',
+        'relative overflow-hidden rounded-2xl border transition-all duration-250 ease-settle',
+        variant === 'default' && 'border-white/[0.075] bg-tv-card shadow-1',
+        variant === 'glass' && 'border-white/[0.09] bg-tv-card/78 shadow-glass backdrop-blur-xl',
+        variant === 'flat' && 'border-transparent bg-transparent',
+        hoverable && 'hover:-translate-y-0.5 hover:border-white/[0.13] hover:shadow-2 motion-reduce:hover:translate-y-0',
         PADDING[padding],
-        className
+        className,
       )}
       {...props}
     >
+      {variant !== 'flat' && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />}
       {children}
     </div>
   );
 }
 
-// Alias niat: `variant="glass" hoverable` adalah kombinasi yang dipakai berulang
-// untuk panel melayang (modal, overlay, panel ringkasan di atas chart). Diberi nama
-// sendiri supaya niatnya kebaca di tempat pemakaian, bukan komponen baru.
 export function GlassCard({ className, ...props }: Omit<CardProps, 'variant'>) {
   return <Card variant="glass" hoverable className={className} {...props} />;
 }
 
 export function CardHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn('flex items-center justify-between mb-3', className)} {...props}>
-      {children}
-    </div>
-  );
+  return <div className={cn('mb-4 flex items-center justify-between gap-3', className)} {...props}>{children}</div>;
 }
 
 export function CardTitle({ className, children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h3 className={cn('font-heading text-sm font-semibold text-tv-text', className)} {...props}>
-      {children}
-    </h3>
-  );
+  return <h3 className={cn('font-heading text-sm font-semibold tracking-tight text-tv-text md:text-[15px]', className)} {...props}>{children}</h3>;
 }
 
 export function CardSubtitle({ className, children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return (
-    <p className={cn('text-xs text-tv-muted mt-0.5', className)} {...props}>
-      {children}
-    </p>
-  );
+  return <p className={cn('mt-1 text-[11px] leading-relaxed text-tv-muted', className)} {...props}>{children}</p>;
 }
 
 export default Card;

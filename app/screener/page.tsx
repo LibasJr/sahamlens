@@ -136,7 +136,7 @@ export default function ScreenerPage() {
         moduleBank="LENSSCANNER"
       />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {/* Risk Profile Selection Bar */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">

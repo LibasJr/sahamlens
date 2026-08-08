@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, Menu, ExternalLink } from 'lucide-react';
+import { Newspaper, ExternalLink } from 'lucide-react';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 
@@ -91,14 +91,8 @@ export default function NewsPage() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-      <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
+      <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-            className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
           <div className="p-2 rounded-md bg-tv-blue text-white">
             <Newspaper className="w-5 h-5" />
           </div>
@@ -113,7 +107,7 @@ export default function NewsPage() {
           tetap grid 2 kolom (bukan satu Card selebar 1600px) - kalau satu baris judul
           berita direntangkan sepanjang itu, terlalu lebar untuk dibaca nyaman. Lebar
           kontainer dan lebar baris teks dua urusan berbeda. */}
-      <PageContainer className="p-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7">
         {/* Halaman ini bernama "Sentimen Pasar" tapi tidak pernah menjumlahkan
             sentimennya - tiap berita punya badge sendiri, dan pembaca harus
             menghitung sendiri untuk tahu nada pasarnya condong ke mana. */}

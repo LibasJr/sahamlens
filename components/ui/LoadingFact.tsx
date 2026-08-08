@@ -47,7 +47,7 @@ export function LoadingFact({ intervalMs = 5000, className }: LoadingFactProps) 
 
   return (
     <div
-      className={cn('flex items-start gap-2.5 rounded-lg border border-tv-border bg-tv-card/60 px-3.5 py-3', className)}
+      className={cn('flex items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3.5', className)}
       aria-live="polite"
     >
       <Lightbulb className="w-4 h-4 shrink-0 mt-0.5 text-tv-gold" />

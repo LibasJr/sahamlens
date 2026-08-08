@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   Activity,
-  Menu,
   Flame,
   TrendingUp,
   TrendingDown,
@@ -465,29 +464,33 @@ export default function HomePage() {
   const activeInsightIndex = insightSlots.length ? insightIndex % insightSlots.length : 0;
 
   return (
-    <PageContainer className="p-4 md:p-6 space-y-5 min-h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-            className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="font-heading text-xl font-bold text-white">Beranda</h1>
-            <p className="text-xs text-tv-muted mt-0.5">Ringkasan pasar & sinyal AI hari ini</p>
+    <PageContainer className="min-h-full flex flex-col space-y-5 p-4 md:p-6 lg:p-7">
+      {/* Workspace header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="mb-1.5 flex items-center gap-2">
+            <Badge variant="info">Daily workspace</Badge>
+            <span className="text-[10px] font-medium text-tv-muted">Data server + LensAI</span>
           </div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-white md:text-[28px]">Market workspace</h1>
+          <p className="mt-1 text-xs leading-relaxed text-tv-muted">Mulai dari kondisi pasar, temukan kandidat, lalu masuk ke analisis yang lebih dalam.</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+          <Link href="/breakout-radar" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
+            <Radar className="h-3.5 w-3.5 text-tv-purple" /> Peluang hari ini
+          </Link>
+          <Link href="/screener" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
+            <Filter className="h-3.5 w-3.5 text-tv-blue" /> Scan saham
+          </Link>
         </div>
       </div>
 
       {/* AI Insight - hero */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 w-10 h-10 rounded-lg bg-tv-blue flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+        <Card variant="glass" padding="lg" className="border-tv-blue/20 bg-gradient-to-br from-tv-blue/[0.07] via-tv-card/90 to-tv-purple/[0.05] shadow-2">
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-accent shadow-[0_12px_32px_rgba(79,140,255,0.22)]">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
