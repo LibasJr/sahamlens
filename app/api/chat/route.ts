@@ -1,4 +1,4 @@
-import { guard } from '@/lib/sahamLensGuard';
+﻿import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 // BUG FIX (2026-08-05, diagnostik log produksi - lihat catatan lengkap di
@@ -130,6 +130,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Pertanyaan tidak boleh kosong' }, { status: 400 });
     }
 
+    // Fast-path untuk sapaan/small talk sederhana.
+    // Jangan kirim ke AI provider karena model kadang terlalu ketat terhadap scope saham.
+    const normalizedPrompt = prompt
+      .trim()
+      .toLowerCase()
+      .replace(/[!?.,]+$/g, '')
+      .replace(/\s+/g, ' ');
+
+    const greetingResponses: Record<string, string> = {
+      'halo': 'Halo! Saya LensAI dari SahamLens. Ada yang ingin kamu cek atau tanyakan?',
+      'hai': 'Hai! Saya LensAI dari SahamLens. Ada yang ingin kamu cek atau tanyakan?',
+      'hi': 'Hai! Saya LensAI dari SahamLens. Ada yang ingin kamu cek atau tanyakan?',
+      'selamat pagi': 'Selamat pagi! Ada saham, kondisi pasar, atau fitur SahamLens yang ingin kamu cek?',
+      'selamat siang': 'Selamat siang! Ada saham, kondisi pasar, atau fitur SahamLens yang ingin kamu cek?',
+      'selamat sore': 'Selamat sore! Ada saham, kondisi pasar, atau fitur SahamLens yang ingin kamu cek?',
+      'selamat malam': 'Selamat malam! Ada saham, kondisi pasar, atau fitur SahamLens yang ingin kamu cek?',
+      'pagi': 'Selamat pagi! Ada yang ingin kamu cek di SahamLens?',
+      'siang': 'Selamat siang! Ada yang ingin kamu cek di SahamLens?',
+      'sore': 'Selamat sore! Ada yang ingin kamu cek di SahamLens?',
+      'malam': 'Selamat malam! Ada yang ingin kamu cek di SahamLens?',
+      'makasih': 'Sama-sama! Kalau ada saham atau fitur SahamLens yang ingin dicek lagi, tinggal tanya.',
+      'terima kasih': 'Sama-sama! Kalau ada saham atau fitur SahamLens yang ingin dicek lagi, tinggal tanya.',
+      'thanks': 'Sama-sama! Kalau ada yang ingin dicek lagi di SahamLens, tinggal tanya.',
+      'siapa kamu': 'Saya LensAI, asisten di SahamLens. Saya bisa membantu menjelaskan analisis saham, fundamental, teknikal, valuasi, kondisi pasar, dan fitur SahamLens.',
+      'kamu siapa': 'Saya LensAI, asisten di SahamLens. Saya bisa membantu menjelaskan analisis saham, fundamental, teknikal, valuasi, kondisi pasar, dan fitur SahamLens.',
+      'bisa bantu apa': 'Saya bisa membantu analisis saham, membaca fundamental dan teknikal, menjelaskan valuasi dan sinyal, serta menjelaskan fitur-fitur SahamLens.',
+      'apa kabar': 'Baik, terima kasih! Ada saham atau fitur SahamLens yang ingin kamu cek hari ini?'
+    };
+
+    const directGreeting = greetingResponses[normalizedPrompt];
+
+    if (directGreeting) {
+      return NextResponse.json({
+        role: 'assistant',
+        content: directGreeting,
+      });
+    }
+
     if (!hasAnyAIProvider()) {
       return NextResponse.json({
         // AUDIT DATA INTEGRITY 2026-08-03 (temuan C-08): fallback ini SEBELUMNYA
@@ -187,3 +225,4 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
+
