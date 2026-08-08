@@ -1,0 +1,16 @@
+app/api/chat/__tests__/chat-data-router.test.ts
+app/api/chat/__tests__/chat-date.test.ts
+app/api/chat/__tests__/chat-intent.test.ts
+app/api/chat/__tests__/chat-normalize.test.ts
+app/api/chat/__tests__/extract-ticker.test.ts
+app/api/chat/chat-data-router.ts
+app/api/chat/chat-date.ts
+app/api/chat/chat-intent.ts
+app/api/chat/chat-normalize.ts
+app/api/chat/extract-ticker.ts
+app/api/chat/route.ts
+app/api/fundamental/[ticker]/route.ts
+components/AIChat.tsx
+lib/__tests__/aiProviders.test.ts
+lib/aiProviders.ts
+modules/fundamental/service/current-fundamental-source.service.ts
