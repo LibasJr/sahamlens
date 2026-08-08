@@ -7,7 +7,7 @@ import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, 
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
-import { Card, SegmentedControl, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 
@@ -848,28 +848,19 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                {/* max-w-full + overflow-x-auto (permintaan user) - 8 pilihan timeframe
-                    (nambah 1M/3M) muat digulir ke samping di layar sempit, bukan
-                    ke-wrap jadi berbaris-baris atau kepotong. */}
-                <div className="max-w-full overflow-x-auto">
-                  <SegmentedControl
-                    options={TIMEFRAMES.map(t => ({ label: t, value: t }))}
-                    value={timeframe}
-                    onChange={setTimeframe}
-                    layoutId="landing-timeframe"
-                    className="shrink-0"
-                  />
-                </div>
               </div>
 
               {/* Chart */}
-              <div className="relative mt-6 rounded-lg overflow-hidden shadow-1 border border-tv-border/50">
+              <div className="relative mt-6 min-w-0">
                 {chartData.length > 0 ? (
                   <TradingViewChart
                     symbol={ticker.symbol}
                     candles={chartData}
-                    height={340}
+                    height={410}
                     timeframe={timeframe}
+                    timeframeOptions={TIMEFRAMES}
+                    onTimeframeChange={setTimeframe}
+                    variant="compact"
                     onHoverCandle={setHoveredTime}
                     technical={{
                       // null (bukan 'NETRAL') kalau MA belum bisa dihitung (temuan C-1),
@@ -890,7 +881,7 @@ export default function Dashboard() {
                     />
                   </div>
                 ) : (
-                  <div className="h-[340px] bg-tv-bg p-4 flex flex-col justify-end gap-2">
+                  <div className="min-h-[290px] sm:min-h-[360px] bg-tv-bg p-4 flex flex-col justify-end gap-2">
                     {/* Kerangka menyerupai bentuk chart batang, bukan teks "Memuat grafik..."
                         di tengah kotak kosong setinggi 340px. */}
                     <div className="flex items-end gap-1.5 h-full">
