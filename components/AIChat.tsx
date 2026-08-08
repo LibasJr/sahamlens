@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
@@ -130,7 +130,7 @@ export default function AIChat() {
         // Response error (rate limit/paywall/500) sering tetap balas JSON, jadi tanpa
         // cek res.ok bubble chat akan dirender dengan content=undefined - kosong tanpa
         // indikasi ada yang salah, bukan pesan error yang ramah di blok catch di bawah.
-        setMessages(prev => [...prev, { role: 'assistant', content: data?.error || 'Maaf, sistem AI sedang mengalami gangguan. Silakan coba lagi.' }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: data?.error || data?.content || 'Maaf, sistem AI sedang mengalami gangguan. Silakan coba lagi.' }]);
         return;
       }
 
@@ -280,3 +280,4 @@ export default function AIChat() {
     </div>
   );
 }
+

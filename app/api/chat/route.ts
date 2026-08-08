@@ -271,7 +271,10 @@ export async function POST(request: Request) {
       .trim()
       .toLowerCase()
       .replace(/[!?.,]+$/g, '')
-      .replace(/\s+/g, ' ');
+      .replace(/\s+/g, ' ')
+      .replace(/\bhal+o+\b/g, 'halo')
+      .replace(/\bhai+\b/g, 'hai')
+      .replace(/\bmakasih+\b/g, 'makasih');
 
     const greetingResponses: Record<string, string> = {
       'halo': 'Halo! Saya LensAI dari SahamLens. Ada yang ingin kamu cek atau tanyakan?',
