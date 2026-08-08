@@ -304,7 +304,8 @@ export function buildLensHistoryUpsert(rows) {
 export async function loadFundamentalHistory(pool, tickers, endDate) {
   const { rows } = await pool.query(
     `
-    SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth
+    SELECT ticker, observed_date::text AS observed_date,
+           per, pbv, roe, der, current_ratio, revenue_growth
     FROM fundamental_history
     WHERE ticker = ANY($1)
       AND observed_date <= $2::date
@@ -318,6 +319,12 @@ export async function loadFundamentalHistory(pool, tickers, endDate) {
     const ticker = String(row.ticker).toUpperCase();
     const list = byTicker.get(ticker) ?? [];
     list.push({
+      // Query di atas meng-cast observed_date ke ::text, jadi jalur yang dipakai adalah
+      // string. JANGAN kembalikan ke kolom DATE mentah: node-postgres mem-parse DATE
+      // menjadi Date tengah malam WAKTU LOKAL, sehingga dateKeyUtc() (toISOString) di
+      // server non-UTC memundurkan tanggal satu hari - mis. 2025-04-09 terbaca
+      // 2025-04-08. Akibatnya fundamentalAsOf() menganggap laporan sudah diketahui
+      // sehari SEBELUM terbit, yaitu look-ahead bias yang justru ingin dicegah arsip ini.
       observedDate: row.observed_date instanceof Date ? dateKeyUtc(row.observed_date) : String(row.observed_date).slice(0, 10),
       per: numericOrNull(row.per),
       pbv: numericOrNull(row.pbv),
