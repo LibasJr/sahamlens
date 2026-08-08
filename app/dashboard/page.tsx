@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -334,7 +334,7 @@ function DashboardContent() {
     // artefak yang diteruskan ke orang lain tanpa konteks halaman - justru di situ
     // label BUY yang tidak layak paling berbahaya.
     const advisoryLabel = data.decision && data.decision.advisory === false
-      ? 'TECHNICAL: NETRAL'
+      ? 'TIDAK DIREKOMENDASIKAN'
       : data.scoring.kategori;
     doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} ${advisoryLabel}`, 14, 20);
     
@@ -883,7 +883,7 @@ function DashboardContent() {
                     tampil di atas: pengguna berhak melihat angkanya. */}
                 {data.decision && data.decision.advisory === false ? (
                   <div className="text-xs font-bold font-sans px-3 py-1 rounded-full border bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40 text-center">
-                    TECHNICAL: NETRAL
+                    TIDAK DIREKOMENDASIKAN
                   </div>
                 ) : (
                   <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
@@ -897,7 +897,7 @@ function DashboardContent() {
                 )}
                 {data.decision && data.decision.advisory === false && data.decision.explanation && (
                   <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[220px]">
-                    Sinyal teknikal belum cukup kuat untuk mengonfirmasi entry. Gunakan LensAI Recommendation sebagai keputusan komposit utama.
+                    {data.decision.explanation}
                   </p>
                 )}
               </div>
