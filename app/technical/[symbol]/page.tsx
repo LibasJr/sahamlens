@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+﻿import React, { Suspense } from 'react';
 import Link from 'next/link';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
@@ -33,12 +33,129 @@ async function getCouncilData(symbol: string): Promise<{ data: any; status: numb
     }
     return { data: await res.json(), status: 200 };
   } catch (e) {
-    console.error('Council API fetch error:', e);
+    console.error('LensAI API fetch error:', e);
     return { data: null, status: 500 };
   }
 }
 
-async function CouncilDisplay({ symbol }: { symbol: string }) {
+async function getOrchestratorData(symbol: string): Promise<any | null> {
+  const headersList = await headers();
+  const host = headersList.get('host');
+  const protocol =
+    host?.startsWith('localhost') || host?.startsWith('127.0.0.1')
+      ? 'http'
+      : 'https';
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
+
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c: { name: string; value: string }) => `${c.name}=${c.value}`)
+    .join('; ');
+
+  try {
+    const res = await fetch(`${baseUrl}/api/agents/orchestrator`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: cookieHeader,
+      },
+      body: JSON.stringify({
+        ticker: symbol,
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    return await res.json();
+  } catch (error) {
+    console.error('Orchestrator API fetch error:', error);
+    return null;
+  }
+}
+
+async function OrchestratorRecommendation({
+  symbol,
+}: {
+  symbol: string;
+}) {
+  const result = await getOrchestratorData(symbol);
+  const quant = result?.quant;
+
+  if (!quant) return null;
+
+  const decision =
+    typeof quant.decision === 'string'
+      ? quant.decision
+      : 'DATA TIDAK TERSEDIA';
+
+  const score =
+    typeof quant.final_score === 'number'
+      ? quant.final_score
+      : null;
+
+  const coverage =
+    typeof quant.coverage_weight_pct === 'number'
+      ? quant.coverage_weight_pct
+      : null;
+
+  const decisionClass =
+    decision.includes('BUY')
+      ? 'text-tv-green'
+      : decision.includes('SELL')
+        ? 'text-tv-red'
+        : decision === 'DATA TERBATAS' || decision === 'DATA TIDAK TERSEDIA'
+          ? 'text-tv-yellow'
+          : 'text-tv-blue';
+
+  return (
+    <div className="mb-6 rounded-xl border border-tv-border bg-tv-card p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-tv-muted">
+            SahamLens Quant Recommendation
+          </div>
+
+          <div className={`text-3xl font-bold ${decisionClass}`}>
+            {decision}
+          </div>
+
+          {typeof quant.master_agent_summary === 'string' && (
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted">
+              {quant.master_agent_summary}
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 gap-3">
+          <div className="min-w-24 rounded-lg border border-tv-borderLight bg-tv-bg p-3 text-center">
+            <div className="text-xs uppercase text-tv-muted">Score</div>
+            <div className="text-2xl font-bold text-white">
+              {score == null ? 'N/A' : score}
+            </div>
+            {score != null && (
+              <div className="text-xs text-tv-muted">/100</div>
+            )}
+          </div>
+
+          <div className="min-w-24 rounded-lg border border-tv-borderLight bg-tv-bg p-3 text-center">
+            <div className="text-xs uppercase text-tv-muted">Coverage</div>
+            <div className="text-2xl font-bold text-white">
+              {coverage == null ? 'N/A' : coverage}
+            </div>
+            {coverage != null && (
+              <div className="text-xs text-tv-muted">/82</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
   const { data: council, status } = await getCouncilData(symbol);
 
   if (!council) {
@@ -91,7 +208,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
             alih-alih membiarkan pengguna menebak. */}
         <EmptyState
           illustration="empty"
-          title={`Rapat LensAI untuk ${symbol} gagal dimuat`}
+          title={`Analisis LensAI untuk ${symbol} gagal dimuat`}
           description="Analisis 10 agen tidak berhasil diambil dari server. Grafik dan indikator di atas tetap bisa dipakai - keduanya tidak bergantung pada layanan ini."
         />
         <div className="pb-8 text-center">
@@ -125,7 +242,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
     <div className="space-y-6">
       <div className="bg-tv-card border border-tv-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-heading text-white font-bold">Final Suggestion</h2>
+          <h2 className="font-heading text-white font-bold">Rekomendasi LensAI</h2>
           <TechnicalExportSection
             symbol={symbol}
             finalSuggestion={council.final_suggestion}
@@ -163,7 +280,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
             {/* Storytelling: batang di atas menunjukkan sebaran suara, tapi tidak
                 pernah menyebut hal yang paling penting - seberapa BULAT kesepakatannya.
                 Sepuluh agen yang sepakat dan sepuluh agen yang terbelah 5-5 menghasilkan
-                satu "Final Suggestion" yang terlihat sama meyakinkannya. */}
+                satu "Rekomendasi LensAI" yang terlihat sama meyakinkannya. */}
             {(() => {
               const tallies = [
                 { label: 'BUY', pct: buyPct },
@@ -244,7 +361,7 @@ async function CouncilDisplay({ symbol }: { symbol: string }) {
   );
 }
 
-function CouncilSkeleton({ symbol }: { symbol: string }) {
+function LensAIAnalysisSkeleton({ symbol }: { symbol: string }) {
   return (
     // Kerangka mengikuti bentuk hasil aslinya (batang suara + kartu agen), bukan
     // kotak-kotak kosong berdenyut yang tidak menyerupai apa pun. Tunggu 5-10 detik
@@ -293,10 +410,16 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
 
         <StockChartPanel symbol={symbol} />
 
-        <Suspense fallback={<CouncilSkeleton symbol={symbol} />}>
-          <CouncilDisplay symbol={symbol} />
+        <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
+          <OrchestratorRecommendation symbol={symbol} />
+        </Suspense>
+
+        <Suspense fallback={<LensAIAnalysisSkeleton symbol={symbol} />}>
+          <LensAIAnalysisDisplay symbol={symbol} />
         </Suspense>
       </PageContainer>
     </div>
   );
 }
+
+
