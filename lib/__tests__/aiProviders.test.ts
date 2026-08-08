@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { buildCombos, buildSmartAttemptOrder, __resetAIRotationForTests, hasAnyAIProvider } from '../aiProviders';
+import { buildCombos, buildSmartAttemptOrder, __resetAIRotationForTests, generateAIResult, hasAnyAIProvider } from '../aiProviders';
 
 const ALL_KEYS = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY', 'KIMI_API_KEY', 'NVIDIA_API_KEY'];
 
@@ -19,6 +19,51 @@ describe('hasAnyAIProvider', () => {
     clearAllKeys();
     vi.stubEnv('KIMI_API_KEY', 'sk-test');
     expect(hasAnyAIProvider()).toBe(true);
+  });
+});
+
+
+describe('generateAIResult error contract', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    __resetAIRotationForTests();
+  });
+
+  it('membedakan no provider configured tanpa mencoba jaringan', async () => {
+    clearAllKeys();
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const result = await generateAIResult({ prompt: 'test' });
+    expect(result.text).toBeNull();
+    expect(result.errorCode).toBe('NO_PROVIDER_CONFIGURED');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [429, 'RATE_LIMIT'],
+    [401, 'AUTH_ERROR'],
+    [404, 'INVALID_MODEL'],
+    [500, 'PROVIDER_ERROR'],
+  ] as const)('memetakan HTTP %s ke %s tanpa membuka detail provider ke caller', async (status, expected) => {
+    clearAllKeys();
+    vi.stubEnv('GROQ_API_KEY', 'test-key');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"sanitized"}', { status })));
+
+    const result = await generateAIResult({ prompt: 'test', timeoutMs: 50 });
+    expect(result.text).toBeNull();
+    expect(result.errorCode).toBe(expected);
+  });
+
+  it('membedakan timeout provider', async () => {
+    clearAllKeys();
+    vi.stubEnv('GROQ_API_KEY', 'test-key');
+    const abortError = Object.assign(new Error('aborted'), { name: 'AbortError' });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+    const result = await generateAIResult({ prompt: 'test', timeoutMs: 10 });
+    expect(result.text).toBeNull();
+    expect(result.errorCode).toBe('TIMEOUT');
   });
 });
 
