@@ -16,6 +16,7 @@ import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
+import { getDecisionPresentation } from '@/modules/eligibility';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
@@ -50,6 +51,14 @@ const getMAStatus = (price: number, ma50: number, ma200: number) => {
   if (price < ma50 && price < ma200) return { label: 'DOWNTREND - Di bawah MA50 & MA200', color: 'text-tv-red', bg: 'bg-tv-red/15 border-tv-red/30' };
   return { label: 'SIDEWAYS', color: 'text-tv-muted', bg: 'bg-tv-hover' };
 };
+
+
+const signalBadgeTone = (signal: string | null | undefined) =>
+  signal === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
+  signal === 'BUY' ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/50' :
+  signal === 'HOLD' || signal === 'DATA TIDAK CUKUP' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
+  signal === 'SELL' ? 'bg-tv-red/20 text-tv-red border-tv-red/50' :
+  'bg-tv-hover text-tv-muted border-tv-border';
 
 function DashboardContent() {
   const router = useRouter();
@@ -166,7 +175,10 @@ function DashboardContent() {
             council: jsonAlgo.council,
             technical: jsonAlgo.technical,
             consensus: jsonAlgo.consensus,
-            score: jsonAlgo.score
+            score: jsonAlgo.score,
+            modelSignal: jsonAlgo.scoring?.kategori,
+            decision: jsonAlgo.decision,
+            eligibility: jsonAlgo.eligibility
           }
         }));
         
@@ -330,13 +342,14 @@ function DashboardContent() {
     ]);
     const doc = new jsPDF();
     doc.setFontSize(16);
-    // Phase 0 / P0-3: label rekomendasi di PDF ikut gerbang kelayakan. PDF adalah
-    // artefak yang diteruskan ke orang lain tanpa konteks halaman - justru di situ
-    // label BUY yang tidak layak paling berbahaya.
-    const advisoryLabel = data.decision && data.decision.advisory === false
-      ? 'TIDAK DIREKOMENDASIKAN'
-      : data.scoring.kategori;
-    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} ${advisoryLabel}`, 14, 20);
+    // Presentation semantics: hasil LensScore tetap terlihat sebagai SINYAL MODEL,
+    // sedangkan recommendation actionable hanya boleh berasal dari `decision.action`.
+    // MODEL_UNVALIDATED bukan sinonim NETRAL dan bukan penolakan atas sahamnya.
+    const decisionPresentation = getDecisionPresentation(data.scoring.kategori, data.decision);
+    const reportLabel = decisionPresentation.recommendationLabel
+      ?? decisionPresentation.modelSignalLabel
+      ?? 'STATUS MODEL TIDAK TERSEDIA';
+    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} - ${reportLabel}`, 14, 20);
     
     let finalY = 30;
     
@@ -376,14 +389,12 @@ function DashboardContent() {
     finalY = (doc as any).lastAutoTable?.finalY || finalY + 30;
     
     doc.setFontSize(11);
-    doc.text(
-      data.decision && data.decision.advisory === false
-        ? `Rekomendasi: TIDAK DIBERIKAN (${data.decision.explanation || 'saham tidak lolos gerbang kelayakan'}). Skor informasional: ${data.scoring.total_score}/100`
-        : `Rekomendasi: ${data.scoring.kategori} dengan skor ${data.scoring.total_score}/100`,
-      14,
-      finalY + 15
-    );
-    doc.text(`Harga di bawah/atas indikator MA konfirmasi trend saat ini.`, 14, finalY + 22);
+    const decisionText = decisionPresentation.actionable
+      ? `${decisionPresentation.recommendationLabel} dengan skor ${data.scoring.total_score}/100.`
+      : `${decisionPresentation.modelSignalLabel || 'Sinyal model tidak tersedia'}. Status: ${decisionPresentation.statusLabel || 'rekomendasi tidak tersedia'}. ${decisionPresentation.explanation || ''} Skor ${data.scoring.total_score}/100 tetap ditampilkan sebagai informasi.`;
+    const decisionLines = doc.splitTextToSize(decisionText, 180);
+    doc.text(decisionLines, 14, finalY + 15);
+    doc.text(`Harga di bawah/atas indikator MA mengonfirmasi tren saat ini.`, 14, finalY + 20 + (decisionLines.length * 5));
     
     doc.setFontSize(9);
     doc.text('Disclaimer: Laporan ini di-generate secara otomatis oleh AI. Bukan ajakan beli/jual.', 14, 280);
@@ -461,6 +472,9 @@ function DashboardContent() {
   // komputasi baru. Tidak ikut total_score/kategori BUY-SELL.
   const momentum = data?.scoring ? momentumScore(analyzers) : null;
   const risk = data?.scoring ? riskScore(analyzers, stock.current_price ?? data?.price) : null;
+  const decisionPresentation = data?.scoring
+    ? getDecisionPresentation(data.scoring.kategori, data.decision)
+    : null;
 
   // Backtest hit-rate per indikator, dihitung dari histori harga NYATA saham yang sedang
   // dibuka: "berapa persen dari sinyal indikator ini yang diikuti kenaikan > 3% dalam 10
@@ -874,30 +888,36 @@ function DashboardContent() {
                 }`}>
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
-                {/* Phase 0 / P0-3: `decision` (dari gerbang kelayakan minimal) yang
-                    menentukan apakah label ini boleh dibaca sebagai ajakan bertindak.
-                    `data.scoring.kategori` SENGAJA tidak diubah di API (backward
-                    compatibility), jadi penyaringnya di sini: saat advisory === false,
-                    yang ditampilkan adalah STATUS, bukan BUY/SELL. Tidak diganti "HOLD" -
-                    itu tetap sebuah rekomendasi, cuma yang lain. Skornya sendiri tetap
-                    tampil di atas: pengguna berhak melihat angkanya. */}
-                {data.decision && data.decision.advisory === false ? (
-                  <div className="text-xs font-bold font-sans px-3 py-1 rounded-full border bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40 text-center">
-                    TIDAK DIREKOMENDASIKAN
+                {/* Hasil model, kelayakan, dan recommendation actionable adalah tiga
+                    hal berbeda. `decision.action` adalah satu-satunya sumber aksi;
+                    `scoring.kategori` tetap ditampilkan sebagai sinyal informasional. */}
+                {decisionPresentation?.actionable ? (
+                  <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${signalBadgeTone(data.decision?.action)}`}>
+                    {decisionPresentation.recommendationLabel}
                   </div>
                 ) : (
-                  <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
-                    data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
-                    data.scoring.kategori === 'BUY' ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/50' :
-                    data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
-                    'bg-tv-red/20 text-tv-red border-tv-red/50'
-                  }`}>
-                    {data.scoring.kategori}
+                  <div className="flex flex-col items-center gap-1.5">
+                    {decisionPresentation?.modelSignalLabel && (
+                      <div className={`text-xs font-bold font-sans px-3 py-1 rounded-full border text-center ${signalBadgeTone(decisionPresentation.modelSignal)}`}>
+                        {decisionPresentation.modelSignalLabel}
+                      </div>
+                    )}
+                    {decisionPresentation?.statusLabel && (
+                      <div className={`text-[10px] font-bold font-sans px-2.5 py-1 rounded-full border text-center ${
+                        decisionPresentation.kind === 'MODEL_UNVALIDATED'
+                          ? 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40'
+                          : decisionPresentation.kind === 'INELIGIBLE'
+                            ? 'bg-tv-red/10 text-tv-red border-tv-red/40'
+                            : 'bg-tv-hover text-tv-muted border-tv-border'
+                      }`}>
+                        {decisionPresentation.statusLabel}
+                      </div>
+                    )}
                   </div>
                 )}
-                {data.decision && data.decision.advisory === false && data.decision.explanation && (
-                  <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[220px]">
-                    {data.decision.explanation}
+                {!decisionPresentation?.actionable && decisionPresentation?.explanation && (
+                  <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[240px]">
+                    {decisionPresentation.explanation}
                   </p>
                 )}
               </div>

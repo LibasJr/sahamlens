@@ -8,6 +8,7 @@ import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
 import { getTickerName } from '@/lib/trendingTickers';
 import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { getDecisionPresentation } from '@/modules/eligibility';
 
 interface WatchlistItem {
   symbol: string;
@@ -420,11 +421,26 @@ export default function WatchlistPage() {
                 const supportTarget = supportMatch ? supportMatch[1] : '';
 
                 const scoreVal = data?.scoring?.total_score;
-                // #8B94B6 (muted lama) dan #10B981 (hijau lama) diganti nilai palet Lens.
-                const scoreColor = scoreVal == null ? '#94A3B8' : scoreVal < 40 ? '#EF4444' : scoreVal < 60 ? '#F59E0B' : '#22C55E';
-                // "..." terbaca seperti sedang memuat padahal bisa jadi skornya memang
-                // tidak tersedia untuk emiten ini. Dibedakan dari keadaan loading nyata.
-                const scoreLabel = scoreVal == null ? (loading ? 'memuat' : 'skor N/A') : scoreVal < 40 ? 'SELL' : scoreVal < 60 ? 'HOLD' : 'BUY';
+                const scorePresentation = data?.scoring
+                  ? getDecisionPresentation(data.scoring.kategori, data.decision)
+                  : null;
+                const scoreSignal = scorePresentation?.actionable
+                  ? data?.decision?.action
+                  : scorePresentation?.modelSignal;
+                // Jangan membuat threshold BUY/HOLD/SELL kedua di UI. Arah sinyal selalu
+                // memakai kategori dari scoring engine; action hanya dari decision.action.
+                const scoreColor = scoreVal == null ? '#94A3B8'
+                  : scoreSignal === 'STRONG BUY' || scoreSignal === 'BUY' ? '#22C55E'
+                  : scoreSignal === 'HOLD' || scoreSignal === 'DATA TIDAK CUKUP' ? '#F59E0B'
+                  : scoreSignal === 'SELL' ? '#EF4444'
+                  : '#94A3B8';
+                const scoreLabel = scoreVal == null
+                  ? (loading ? 'memuat' : 'skor N/A')
+                  : scorePresentation?.actionable && data?.decision?.action
+                    ? data.decision.action
+                    : scorePresentation?.modelSignal
+                      ? `SINYAL ${scorePresentation.modelSignal}`
+                      : 'sinyal N/A';
 
                 return (
                   <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex items-center gap-3">
@@ -444,6 +460,13 @@ export default function WatchlistPage() {
                         </span>
                       </div>
                       <div className="text-[11px] text-tv-muted truncate">{companyName}</div>
+                      {scorePresentation && !scorePresentation.actionable && scorePresentation.statusLabel && (
+                        <div className={`text-[9px] font-semibold uppercase tracking-wide mt-0.5 ${
+                          scorePresentation.kind === 'INELIGIBLE' ? 'text-tv-red' : 'text-tv-yellow'
+                        }`}>
+                          {scorePresentation.statusLabel}
+                        </div>
+                      )}
                       {pnl < -20 && data?.scoring?.kategori?.includes('SELL') && supportTarget && (
                         <button
                           type="button"

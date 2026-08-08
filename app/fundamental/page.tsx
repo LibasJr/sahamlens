@@ -99,7 +99,10 @@ function FundamentalContent() {
             council: jsonAlgo.council,
             technical: jsonAlgo.technical,
             consensus: jsonAlgo.consensus,
-            score: jsonAlgo.score
+            score: jsonAlgo.score,
+            modelSignal: jsonStock?.scoring?.kategori,
+            decision: jsonStock?.decision,
+            eligibility: jsonStock?.eligibility
           }
         }));
         
