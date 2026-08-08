@@ -50,12 +50,18 @@ export interface FundamentalPitBackfillInput extends FundamentalInput {
   source: string;
 }
 
-/** DATE Postgres kembali sebagai objek Date (pg tidak mem-parse-nya jadi string).
- * Diformat lewat komponen UTC-nya, BUKAN toISOString() lokal maupun
- * `toISOString().split('T')[0]` atas Date bertimezone server: driver pg membangun
- * Date dari DATE murni pada tengah malam UTC, jadi getUTCFullYear/Month/Date
- * mengembalikan hari yang sama persis dengan yang tersimpan, apa pun TZ server. */
+/** DATE dibaca sebagai STRING ISO, bukan objek Date.
+ *
+ * node-postgres mem-parse tipe `date` (OID 1082) menjadi JS Date pada tengah malam
+ * WAKTU LOKAL server - jadi `getUTC*` di server non-UTC menggeser tanggal satu hari
+ * (mis. 2025-04-09 tampil 2025-04-08). Untuk menghindari SELURUH ambiguitas timezone,
+ * query di file ini meng-cast kolom DATE ke `::text`: Postgres mengirim 'YYYY-MM-DD'
+ * (DateStyle ISO) apa adanya, tanpa objek Date dan tanpa konversi waktu apa pun.
+ * Nilai tinggal diambil 10 karakter pertamanya - deterministik di TZ mana pun. */
 function toDateKey(value: unknown): string {
+  if (typeof value === 'string') return value.slice(0, 10);
+  // Fallback defensif bila ada pemanggil yang belum meng-cast ::text. Pakai komponen
+  // UTC (deterministik), bukan waktu lokal. Jalur ini tidak dipakai query di file ini.
   if (value instanceof Date) {
     const y = value.getUTCFullYear();
     const m = String(value.getUTCMonth() + 1).padStart(2, '0');
@@ -229,7 +235,8 @@ export async function asOf(
   await ensureSharedSchema();
 
   const { rows } = await pool.query(
-    `SELECT ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth
+    `SELECT ticker, observed_date::text AS observed_date, period_end::text AS period_end,
+             per, pbv, roe, der, current_ratio, revenue_growth
        FROM fundamental_history
       WHERE ticker = $1 AND observed_date <= $2::date
       ORDER BY observed_date DESC
@@ -244,7 +251,8 @@ export async function asOf(
 export async function listHistory(ticker: string): Promise<FundamentalHistoryRow[]> {
   await ensureSharedSchema();
   const { rows } = await pool.query(
-    `SELECT ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth
+    `SELECT ticker, observed_date::text AS observed_date, period_end::text AS period_end,
+             per, pbv, roe, der, current_ratio, revenue_growth
        FROM fundamental_history
       WHERE ticker = $1
       ORDER BY observed_date ASC`,

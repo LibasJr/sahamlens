@@ -34,6 +34,50 @@ describe('backfill-lens-history script', () => {
     expect(script.fundamentalAsOf(history, '2026-01-09')).toBeNull();
   });
 
+  // REGRESI: look-ahead satu hari lewat pergeseran timezone.
+  //
+  // node-postgres mem-parse kolom DATE menjadi Date tengah malam WAKTU LOKAL. Dulu
+  // loadFundamentalHistory() memformatnya dengan dateKeyUtc() (toISOString), sehingga di
+  // server UTC+7 observed_date 2025-04-09 terbaca 2025-04-08. fundamentalAsOf() lalu
+  // menganggap laporan sudah diketahui SEHARI SEBELUM terbit - skor tanggal 8 April
+  // memakai laporan yang baru dipublikasikan 9 April. Pencegahnya: query meng-cast
+  // observed_date ke ::text sehingga Postgres mengirim 'YYYY-MM-DD' dan tidak ada objek
+  // Date yang perlu dikonversi sama sekali.
+  describe('observed_date tidak bergeser oleh timezone', () => {
+    it('query meng-cast observed_date ke ::text, bukan menyerahkannya sebagai DATE', async () => {
+      const captured: string[] = [];
+      const pool = {
+        query: async (text: string) => {
+          captured.push(text);
+          return { rows: [] };
+        },
+      };
+
+      await script.loadFundamentalHistory(pool, ['ANTM.JK'], '2026-01-01');
+
+      expect(captured).toHaveLength(1);
+      expect(captured[0].replace(/\s+/g, ' ')).toContain('observed_date::text AS observed_date');
+    });
+
+    it('tanggal dari Postgres dipetakan apa adanya dan H-1 tetap buta', async () => {
+      const pool = {
+        query: async () => ({
+          rows: [
+            // Bentuk persis yang dikirim Postgres untuk ::text atas DATE.
+            { ticker: 'ANTM.JK', observed_date: '2025-04-09', per: 9.72, pbv: 1.13, roe: 11.59, der: 0.39, current_ratio: 1.84, revenue_growth: 68.57 },
+          ],
+        }),
+      };
+
+      const byTicker = await script.loadFundamentalHistory(pool, ['ANTM.JK'], '2026-01-01');
+      const history = byTicker.get('ANTM.JK');
+
+      expect(history[0].observedDate).toBe('2025-04-09');          // BUKAN 2025-04-08
+      expect(script.fundamentalAsOf(history, '2025-04-09')?.roe).toBe(11.59);
+      expect(script.fundamentalAsOf(history, '2025-04-08')).toBeNull(); // tidak bocor ke H-1
+    });
+  });
+
   it('buildLensHistoryUpsert idempoten via ON CONFLICT(date,ticker) dan menyimpan price-basis metadata', () => {
     const query = script.buildLensHistoryUpsert([
       {
