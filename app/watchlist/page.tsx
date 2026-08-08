@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles, Menu } from 'lucide-react';
+import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
@@ -279,15 +279,9 @@ export default function WatchlistPage() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-      <header className="bg-tv-surface border-b border-tv-border px-6 py-6 sticky top-0 z-20 shadow-2">
+      <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-5 backdrop-blur-xl md:px-6">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
             <div className="p-2.5 rounded-lg bg-tv-blue text-white">
               <Bell className="w-5 h-5" />
             </div>
@@ -344,7 +338,7 @@ export default function WatchlistPage() {
         </div>
       </header>
 
-      <PageContainer className="p-6 space-y-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Watchlist Section */}
         <div className="lg:col-span-2 space-y-6">

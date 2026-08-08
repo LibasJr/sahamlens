@@ -212,7 +212,7 @@ function FundamentalContent() {
         <Header currentTicker={ticker} onTickerChange={setTicker} moduleTitle="LensFundamental" moduleBank="LENSFUNDAMENTAL" />
         {/* Sebelumnya satu spinner teal-500 - warna yang tidak ada di palet - di tengah
             halaman kosong. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
-        <PageContainer className="p-6 space-y-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
           <Skeleton className="h-24 w-full" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Skeleton className="h-48 w-full" />
@@ -238,7 +238,7 @@ function FundamentalContent() {
         />
         {/* Pesan lama menyalahkan kuota pengguna untuk SEMUA sebab kegagalan, dan
             tidak menyediakan tombol coba lagi sama sekali. */}
-        <PageContainer className="p-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7">
           {showLoginPrompt ? (
             <EmptyState
               illustration="locked"
@@ -315,7 +315,7 @@ function FundamentalContent() {
         moduleBank="LENSFUNDAMENTAL"
       />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {/* Status Badge */}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">

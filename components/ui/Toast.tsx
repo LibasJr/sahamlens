@@ -24,7 +24,7 @@ export default function Toast({ message, durationMs = 5000 }: { message: string 
         <motion.div
           role="status"
           aria-live="polite"
-          className="fixed top-4 left-1/2 z-[200] flex max-w-[92vw] -translate-x-1/2 items-start gap-2 rounded-lg border border-tv-blue/40 bg-tv-cardAlt px-4 py-3 text-[13px] text-tv-text shadow-2"
+          className="fixed top-4 left-1/2 z-[200] flex max-w-[92vw] -translate-x-1/2 items-start gap-2 rounded-2xl border border-tv-blue/25 bg-[#101A2A]/95 px-4 py-3 backdrop-blur-xl text-[13px] text-tv-text shadow-2"
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}

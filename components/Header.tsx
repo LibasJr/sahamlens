@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 
 interface HeaderProps {
@@ -9,7 +9,6 @@ interface HeaderProps {
   onTickerChange: (ticker: string) => void;
   moduleTitle?: string;
   moduleBank?: string;
-  /** Sisa kuota analisa gratis hari ini. Infinity = Pro/Admin (unlimited), undefined = badge disembunyikan. */
   analisaRemaining?: number;
   analisaTotal?: number;
   isAdmin?: boolean;
@@ -22,60 +21,41 @@ export default function Header({
   moduleBank = 'LENSAI',
   analisaRemaining,
   analisaTotal = 5,
-  isAdmin = false
+  isAdmin = false,
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border-b border-tv-border bg-tv-surface/90 backdrop-blur-md shadow-2">
-
-      {/* Top Mobile Row: Hamburger + Search */}
-      <div className="flex items-center gap-3 w-full md:w-auto">
-        <button
-          onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-          className="md:hidden p-2 -ml-2 text-tv-muted hover:text-tv-text rounded-md hover:bg-tv-hover transition-colors"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-
-        {/* BUG FIX (2026-08-05, unifikasi search - permintaan user): SEBELUMNYA input
-            teks + SymbolAutocomplete sendiri di sini, terpisah dari search global
-            TopMarketBar ("Cari saham...", components/AppShell.tsx) yang SUDAH tampil di
-            atas halaman ini juga - dua UI pencarian beda gaya di satu layar. Sekarang
-            pakai CommandPalette yang sama (satu komponen, satu sumber data /api/emiten),
-            `onSelect` bikin pemilihan ganti ticker DI HALAMAN INI (bukan navigasi keluar
-            kayak instance global). `enableShortcut={false}` WAJIB - instance global di
-            TopMarketBar sudah pegang shortcut Ctrl/Cmd+K, tanpa ini kepencet dua modal
-            sekaligus. */}
-        <div className="relative w-full md:w-64">
-          <CommandPalette
-            onSelect={(symbol) => onTickerChange(symbol.toUpperCase())}
-            enableShortcut={false}
-          />
+    <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/15 bg-tv-blue/[0.08] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-tv-blue">
+              <Sparkles className="h-3 w-3" /> {moduleBank}
+            </span>
+            {currentTicker && (
+              <span className="font-number text-[10px] font-semibold text-tv-muted">{currentTicker.replace('.JK', '')}.JK</span>
+            )}
+          </div>
+          <h1 className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</h1>
         </div>
-      </div>
 
-      {/* Module title/bank - sebelumnya diterima sebagai prop tapi tidak pernah
-          dirender (dead prop, ditemukan saat smoke test brand rename 2026-08-03).
-          Disembunyikan di mobile (layar sempit sudah penuh hamburger+search),
-          konteks halaman di mobile tetap didapat dari Sidebar. */}
-      <div className="hidden md:flex flex-col min-w-0 flex-1 px-2">
-        <span className="text-[10px] font-sans text-tv-blue uppercase tracking-wider font-bold">{moduleBank}</span>
-        <h2 className="text-sm font-heading font-bold text-tv-text truncate">{moduleTitle}</h2>
-      </div>
+        <div className="flex w-full items-center gap-2 md:w-auto">
+          <div className="relative min-w-0 flex-1 md:w-[320px] md:flex-none">
+            <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-tv-muted"><Search className="h-3.5 w-3.5" /></span>
+            <div className="[&_button]:pl-9">
+              <CommandPalette
+                onSelect={(symbol) => onTickerChange(symbol.toUpperCase())}
+                enableShortcut={false}
+              />
+            </div>
+          </div>
 
-      {/* Right side controls */}
-      <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-
-        <div className="flex items-center gap-3">
-          {/* Profil, badge role, dan logout sudah tersedia konsisten di footer Sidebar
-              (semua halaman, termasuk halaman ini) - dihapus dari sini supaya tidak
-              dobel di satu layar. Lihat components/Sidebar.tsx + UserProfileModal.tsx. */}
           {!isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining) && (
-            <span className={`px-3 py-1.5 rounded-md border text-xs font-bold whitespace-nowrap ${
+            <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold sm:inline-flex ${
               analisaRemaining <= 0
-                ? 'bg-tv-red/10 border-tv-red/30 text-tv-red'
-                : 'bg-tv-green/10 border-tv-green/30 text-tv-green'
+                ? 'border-tv-red/20 bg-tv-red/10 text-tv-red'
+                : 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green'
             }`}>
-              <span className="hidden sm:inline">Limit: </span>{analisaRemaining}/{analisaTotal}
+              {analisaRemaining}/{analisaTotal} analisa
             </span>
           )}
         </div>

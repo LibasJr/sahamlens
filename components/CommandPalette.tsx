@@ -161,11 +161,11 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       <button
         onClick={() => setOpen(true)}
         title="Cari saham (Ctrl+K)"
-        className="flex items-center justify-center sm:justify-start gap-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 px-2.5 sm:px-3 py-1.5 text-[12px] text-white/70 transition-colors w-full h-9"
+        className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-medium text-tv-muted transition-colors hover:border-white/[0.11] hover:bg-white/[0.06] hover:text-white sm:justify-start"
       >
         <Search className="h-3.5 w-3.5 shrink-0" />
-        <span className="hidden sm:inline truncate">Cari saham...</span>
-        <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded border border-white/20 px-1.5 py-0.5 text-[10px] font-mono text-white/50">⌘K</kbd>
+        <span className="hidden sm:inline truncate">Cari saham, kode emiten, atau perusahaan...</span>
+        <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-white/10 bg-black/10 px-1.5 py-0.5 text-[9px] font-mono text-white/40">⌘K</kbd>
       </button>
 
       {open && (
@@ -173,26 +173,26 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
         // (IHSG, jam bursa, notifikasi, profil) yang ada DI ATAS trigger ini juga. User cuma
         // mau buka pencarian, bukan kehilangan akses ke top bar. Modal sekarang mulai persis
         // di bawah TopMarketBar (tinggi baris itu ~56px - lihat TopMarketBar.tsx px-4 py-2.5).
-        <div className="fixed inset-x-0 top-14 bottom-0 z-[100] flex items-start justify-center pt-[6vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
+        <div className="fixed inset-x-0 top-16 bottom-0 z-[100] flex items-start justify-center pt-[6vh] px-4 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
           <div
             ref={modalRef}
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-[560px] rounded-2xl bg-white dark:bg-[#152238] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden"
+            className="w-full max-w-[620px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0D1522] shadow-[0_30px_90px_rgba(0,0,0,0.55)]"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleModalKeyDown}
           >
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <Search className="h-4 w-4 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.07]">
+              <Search className="h-4 w-4 text-tv-muted shrink-0" />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Cari kode saham atau nama perusahaan (mis. BBCA atau Bank Central Asia)"
-                className="flex-1 bg-transparent text-[14px] text-[#0A1931] dark:text-white focus:outline-none placeholder:text-slate-400"
+                className="flex-1 bg-transparent text-[14px] text-white focus:outline-none placeholder:text-tv-muted/70"
               />
-              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-[#0A1931] dark:hover:text-white transition-colors">
+              <button onClick={() => setOpen(false)} className="text-tv-muted hover:text-white transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -200,60 +200,60 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
             <div className="flex max-h-[60vh]">
               <div className="flex-1 overflow-y-auto py-1.5 max-w-[60%]">
                 {!loaded && (
-                  <div className="px-4 py-8 text-center text-[12px] text-slate-400 flex items-center justify-center gap-2">
+                  <div className="px-4 py-8 text-center text-[12px] text-tv-muted flex items-center justify-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat daftar emiten...
                   </div>
                 )}
                 {loaded && results.length === 0 && (
-                  <div className="px-4 py-8 text-center text-[12px] text-slate-400">Tidak ada saham yang cocok.</div>
+                  <div className="px-4 py-8 text-center text-[12px] text-tv-muted">Tidak ada saham yang cocok.</div>
                 )}
                 {results.map((r, idx) => (
                   <button
                     key={r.symbol}
                     onMouseEnter={() => setActiveIdx(idx)}
                     onClick={() => goTo(r)}
-                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${idx === activeIdx ? 'bg-[#3A86FF]/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
+                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${idx === activeIdx ? 'bg-tv-blue/10' : 'hover:bg-white/[0.04]'}`}
                   >
                     <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0A1931] dark:text-white font-mono">{r.symbol}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{r.name}</div>
+                      <div className="text-[13px] font-bold text-white font-mono">{r.symbol}</div>
+                      <div className="text-[11px] text-tv-muted truncate">{r.name}</div>
                     </div>
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 shrink-0">{r.board}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
                   </button>
                 ))}
               </div>
 
               {/* Mini chart preview */}
-              <div className="hidden sm:flex flex-col flex-1 border-l border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/30">
+              <div className="hidden sm:flex flex-col flex-1 border-l border-white/[0.07] p-4 bg-black/10">
                 {!active ? (
-                  <div className="m-auto text-[11px] text-slate-400 text-center">Arahkan kursor ke saham untuk melihat preview chart</div>
+                  <div className="m-auto text-[11px] text-tv-muted text-center">Arahkan kursor ke saham untuk melihat preview chart</div>
                 ) : (
                   <>
-                    <div className="text-[13px] font-bold text-[#0A1931] dark:text-white font-mono">{active.symbol}</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mb-3">{active.name}</div>
+                    <div className="text-[13px] font-bold text-white font-mono">{active.symbol}</div>
+                    <div className="text-[10px] text-tv-muted truncate mb-3">{active.name}</div>
                     {previewLoading ? (
-                      <div className="flex-1 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-slate-400" /></div>
+                      <div className="flex-1 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-tv-muted" /></div>
                     ) : preview ? (
                       <>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="font-number text-[16px] font-bold text-[#0A1931] dark:text-white">Rp {Math.round(preview.price).toLocaleString('id-ID')}</span>
+                          <span className="font-number text-[16px] font-bold text-white">Rp {Math.round(preview.price).toLocaleString('id-ID')}</span>
                           <span className={`font-number inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             {preview.changePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                             {preview.changePct >= 0 ? '+' : ''}{preview.changePct.toFixed(2)}%
                           </span>
                         </div>
                         <Sparkline closes={preview.closes} />
-                        <div className="text-[10px] text-slate-400 mt-2">1 bulan terakhir</div>
+                        <div className="text-[10px] text-tv-muted mt-2">1 bulan terakhir</div>
                       </>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center text-[11px] text-slate-400">Data chart tidak tersedia</div>
+                      <div className="flex-1 flex items-center justify-center text-[11px] text-tv-muted">Data chart tidak tersedia</div>
                     )}
                   </>
                 )}
               </div>
             </div>
 
-            <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+            <div className="px-4 py-2 border-t border-white/[0.07] flex items-center justify-between text-[10px] text-tv-muted">
               <span>↑↓ navigasi • {onSelect ? 'Enter tampilkan di chart' : 'Enter buka analisis'}</span>
               {!onSelect && <span>Grafik & indikator gratis • LensAI penuh perlu akun</span>}
             </div>
@@ -278,7 +278,7 @@ function Sparkline({ closes }: { closes: number[] }) {
   const isUp = closes[closes.length - 1] >= closes[0];
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-      <polyline points={points} fill="none" stroke={isUp ? '#10B981' : '#EF4444'} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={points} fill="none" stroke={isUp ? '#23C483' : '#FF5D6C'} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
