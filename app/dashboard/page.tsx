@@ -10,7 +10,7 @@ import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
 import { grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
@@ -595,7 +595,7 @@ function DashboardContent() {
         {/* Dulu satu spinner tunggal berwarna teal-500 - warna yang tidak ada di
             palet mana pun - di tengah halaman kosong, tanpa petunjuk apa yang
             sedang disiapkan. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
-        <PageContainer className="p-6 space-y-4">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-4">
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-32 w-full" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -630,7 +630,7 @@ function DashboardContent() {
             kasus ini karena ia hidup di cabang yang menuntut `data` sudah terisi -
             padahal kegagalan muat PERTAMA justru meninggalkan `data` null dan
             berhenti di sini. */}
-        <PageContainer className="p-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7">
           {showLoginPrompt ? (
             <EmptyState
               illustration="locked"
@@ -687,27 +687,27 @@ function DashboardContent() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="LensTechnical â€” Pure Algorithmic Trading"
+        moduleTitle="LensTechnical — Pure Algorithmic Trading"
         moduleBank="LENSTECHNICAL"
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}
       />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {/* Status Badge */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
-          <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 text-xs font-sans">
+          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
             <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
             {marketClosed ? 'Market Closed' : 'Market Open'}
           </div>
-          <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            {marketClosed ? 'No Polling' : '1m refresh'}
+          <div className="rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
+            {marketClosed ? 'No polling' : 'Refresh otomatis 1m'}
           </div>
           <button 
             onClick={handleRefresh}
             disabled={loading}
-            className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07] disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
@@ -715,20 +715,20 @@ function DashboardContent() {
           
           <button 
             onClick={() => router.push(`/compare?symbol1=${ticker}`)}
-            className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors ml-auto"
+            className="ml-auto flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07]"
           >
-            âš”ï¸ Compare
+            Compare
           </button>
           
           <button
             onClick={() => { setTradeType('BUY'); setTradeModalOpen(true); }}
-            className="bg-tv-green/10 border border-tv-green/30 hover:bg-tv-green hover:text-white text-tv-green px-4 py-1.5 rounded-full font-bold transition-colors"
+            className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-3.5 py-2 font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]"
           >
             BUY Virtual
           </button>
           <button
             onClick={() => { setTradeType('SELL'); setTradeModalOpen(true); }}
-            className="bg-tv-red/10 border border-tv-red/30 hover:bg-tv-red hover:text-white text-tv-red px-4 py-1.5 rounded-full font-bold transition-colors"
+            className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-3.5 py-2 font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white"
           >
             SELL Virtual
           </button>
@@ -737,14 +737,14 @@ function DashboardContent() {
 
         {/* Hero */}
         {fetchError ? (
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2">
             <EmptyState
               title="Data pasar sementara tidak tersedia."
               action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
             />
           </div>
         ) : loading && !data ? (
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex items-center gap-4">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2 flex items-center gap-4">
             <Skeleton variant="circle" className="w-12 h-12" />
             <div className="space-y-2">
               <Skeleton variant="text" className="w-40 h-6" />
@@ -765,14 +765,14 @@ function DashboardContent() {
               </div>
             </div>
           )}
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               {/* Ikon petir kuning yang sama dipakai untuk SEMUA saham - tidak
                   membedakan apa pun. Diganti avatar berwarna deterministik per emiten. */}
               <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="font-heading text-2xl font-bold text-white">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                  <h1 className="font-heading text-2xl font-bold tracking-tight text-white md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
                   <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
                 </div>
                 <div className="flex items-center gap-3 mt-1">
@@ -783,7 +783,7 @@ function DashboardContent() {
                     <AnimatedNumber
                       value={stock.current_price}
                       format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
-                      className="font-number text-2xl font-bold text-white tabular-nums"
+                      className="font-number text-2xl font-bold tracking-tight text-white tabular-nums md:text-[28px]"
                     />
                   ) : (
                     <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
@@ -810,7 +810,7 @@ function DashboardContent() {
                     dirender identik dengan data hari ini. Sekarang ditampilkan apa adanya. */}
                 <p className="text-[11px] text-tv-muted mt-1">
                   Diterima: {formatTime(lastUpdate)}
-                  {dataFreshness && <span className="ml-2">â€¢ Data pasar: {dataFreshness.label}</span>}
+                  {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
                 </p>
               </div>
             </div>
@@ -857,7 +857,7 @@ function DashboardContent() {
         {/* AI Summary - breakdown skor + top alasan, dipindah tepat di bawah Hero
             supaya konsensus AI terlihat sebelum user scroll ke chart/teknikal. */}
         {data?.scoring && (
-          <div className="w-full bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+          <div className="w-full rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 md:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-tv-blue" />
               <h2 className="font-heading text-sm font-semibold text-white">Technical Summary</h2>
@@ -1011,7 +1011,7 @@ function DashboardContent() {
                   <div className="mt-3 pt-3 border-t border-tv-border">
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-1">RISK</div>
                     <div className="flex items-start gap-2 text-xs">
-                      <span className="text-tv-red font-bold">âš </span>
+                      <span className="text-tv-red font-bold">⚠</span>
                       <span className="text-tv-muted font-sans">{data.scoring.risk}</span>
                     </div>
                   </div>
@@ -1030,7 +1030,7 @@ function DashboardContent() {
               <span className="text-[10px] font-sans font-semibold text-tv-muted uppercase">LensRadar</span>
               <div className="text-sm text-white">
                 Skor <strong className="font-number">{radarRank.finalScore}</strong>
-                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> â€” {radarRank.topReasons[0]}</span>}
+                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
               </div>
             </div>
           </div>
@@ -1071,17 +1071,14 @@ function DashboardContent() {
           })()}
 
           <div className="w-full space-y-3">
-            <SegmentedControl
-              options={['1D', '3D', '7D', '1Y', '10Y', 'ALL'].map((t) => ({ label: t, value: t }))}
-              value={timeframe}
-              onChange={setTimeframe}
-              layoutId="dashboard-timeframe"
-            />
             <TradingViewChart
               candles={candles}
               technical={chartTechnical}
               symbol={stock.symbol || ticker}
               timeframe={timeframe}
+              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
+              onTimeframeChange={setTimeframe}
+              variant="full"
               height={600}
             />
           </div>
@@ -1136,7 +1133,7 @@ function DashboardContent() {
                       ? 'Menganalisis berita...'
                       : overall === null
                       ? 'Belum ada berita spesifik untuk dianalisis'
-                      : `${overall} â€¢ ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
+                      : `${overall} • ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-tv-muted group-hover:text-tv-text transition-colors shrink-0" />
