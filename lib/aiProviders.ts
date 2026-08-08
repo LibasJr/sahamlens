@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+﻿import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Council AI multi-provider - sebelumnya SELURUH app cuma bisa pakai Gemini, dan kuota
 // gratis Gemini dibatasi PER MODEL PER HARI (20/hari/model - lihat lib/gemini.ts versi
@@ -93,7 +93,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: OpenAICompatibleProvider[] = [
 ];
 
 type Combo =
-  | { kind: 'gemini'; model: string }
+  | { kind: 'gemini'; model: string; envVar: string }
   | { kind: 'openai-compatible'; provider: OpenAICompatibleProvider; model: string };
 
 
@@ -218,23 +218,51 @@ function priorityRank(model: string): number {
   return idx === -1 ? MODEL_PRIORITY.length : idx;
 }
 
+const GEMINI_API_KEY_ENV_VARS = [
+  'GEMINI_API_KEY',
+  'GEMINI_API_KEY_2',
+  'GEMINI_API_KEY_3',
+  'GEMINI_API_KEY_4',
+  'GEMINI_API_KEY_5',
+] as const;
 export function buildCombos(): Combo[] {
-  const combos: Combo[] = [];
-  if (process.env.GEMINI_API_KEY) {
-    combos.push(...GEMINI_MODELS.map((model) => ({ kind: 'gemini' as const, model })));
-  }
-  for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
-    if (!process.env[provider.envVar]) continue;
-    combos.push(...provider.models.map((model) => ({ kind: 'openai-compatible' as const, provider, model })));
-  }
-  return combos.sort((a, b) => priorityRank(a.model) - priorityRank(b.model));
+const combos: Combo[] = [];
+
+for (const envVar of GEMINI_API_KEY_ENV_VARS) {
+  if (!process.env[envVar]) continue;
+
+  combos.push(
+    ...GEMINI_MODELS.map((model) => ({
+      kind: 'gemini' as const,
+      model,
+      envVar,
+    })),
+  );
 }
 
+for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
+  if (!process.env[provider.envVar]) continue;
+
+  combos.push(
+    ...provider.models.map((model) => ({
+      kind: 'openai-compatible' as const,
+      provider,
+      model,
+    })),
+  );
+}
+
+return combos.sort((a, b) => priorityRank(a.model) - priorityRank(b.model));
+}
 export function hasAnyAIProvider(): boolean {
-  if (process.env.GEMINI_API_KEY) return true;
-  return OPENAI_COMPATIBLE_PROVIDERS.some((p) => !!process.env[p.envVar]);
+if (GEMINI_API_KEY_ENV_VARS.some((envVar) => !!process.env[envVar])) {
+  return true;
 }
 
+return OPENAI_COMPATIBLE_PROVIDERS.some(
+  (p) => !!process.env[p.envVar],
+);
+}
 interface AICallResult {
   text: string | null;
   failureKind?: FailureKind;
@@ -250,9 +278,9 @@ function classifyErrorMessage(message: string): FailureKind {
   return 'other';
 }
 
-async function callGemini(model: string, system: string | undefined, prompt: string, json: boolean, timeoutMs: number): Promise<AICallResult> {
+async function callGemini(apiKey: string, model: string, system: string | undefined, prompt: string, json: boolean, timeoutMs: number): Promise<AICallResult> {
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const genAI = new GoogleGenerativeAI(apiKey);
     const gModel = genAI.getGenerativeModel({
       model,
       systemInstruction: system,
@@ -352,7 +380,14 @@ export async function generateAI(opts: { system?: string; prompt: string; json?:
 
   for (const combo of combos) {
     const result = combo.kind === 'gemini'
-      ? await callGemini(combo.model, system, prompt, json, timeoutMs)
+      ? await callGemini(
+    process.env[combo.envVar]!,
+    combo.model,
+    system,
+    prompt,
+    json,
+    timeoutMs
+  )
       : await callOpenAICompatible(
           combo.provider,
           process.env[combo.provider.envVar]!,
@@ -377,3 +412,6 @@ export async function generateAI(opts: { system?: string; prompt: string; json?:
   );
   return null;
 }
+
+
+
