@@ -1,4 +1,4 @@
-﻿import { guard } from '@/lib/sahamLensGuard';
+import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 // BUG FIX (2026-08-05, diagnostik log produksi - lihat catatan lengkap di
@@ -13,6 +13,16 @@ import { fetchYahooHistory, calculateRsi } from '@/modules/technical';
 import { classifyFreshness } from '@/shared/http/freshness';
 import { extractMentionedTicker } from './extract-ticker';
 import { SAHAMLENS_KNOWLEDGE_BASE } from '@/modules/ai/knowledge/sahamlens-knowledge';
+import { asOf } from '@/modules/fundamental/repository/fundamental-history.repository';
+import { fundamentalPitToAnalyzerPayload } from '@/modules/fundamental/service/fundamental-pit-adapter';
+import {
+  analyzePe,
+  analyzePbv,
+  analyzeRoe,
+  analyzeDer,
+  analyzeCurrentRatio,
+  analyzeRevenueGrowth,
+} from '@/modules/fundamental';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -32,17 +42,142 @@ const MAX_HISTORY_TURNS = 8;
 // terdengar meyakinkan di atasnya. Sekarang server mengambil sendiri harga & RSI terkini
 // untuk simbol yang sedang dibahas, dan blok terverifikasi itu dinyatakan MENANG atas
 // angka apa pun di context bila keduanya berselisih.
-async function buildVerifiedBlock(symbol: string | null): Promise<string> {
+const MONTHS_ID: Record<string, number> = {
+  januari: 1,
+  februari: 2,
+  maret: 3,
+  april: 4,
+  mei: 5,
+  juni: 6,
+  juli: 7,
+  agustus: 8,
+  september: 9,
+  oktober: 10,
+  november: 11,
+  desember: 12,
+};
+
+function isValidDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+function extractRequestedAsOf(prompt: string): string | null {
+  const iso = prompt.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  if (iso && isValidDateKey(iso[1])) return iso[1];
+
+  const normalized = prompt.toLowerCase();
+  const match = normalized.match(
+    /\b(\d{1,2})\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+(20\d{2})\b/,
+  );
+
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = MONTHS_ID[match[2]];
+  const year = Number(match[3]);
+
+  const result =
+    `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  return isValidDateKey(result) ? result : null;
+}
+
+async function buildVerifiedBlock(
+  symbol: string | null,
+  requestedAsOf: string | null = null,
+): Promise<string> {
   if (!symbol) return '';
-  const ticker = symbol.toUpperCase().includes('.') || symbol.startsWith('^')
-    ? symbol.toUpperCase()
-    : `${symbol.toUpperCase()}.JK`;
+
+  const ticker =
+    symbol.toUpperCase().includes('.') || symbol.startsWith('^')
+      ? symbol.toUpperCase()
+      : `${symbol.toUpperCase()}.JK`;
+
+  /*
+   * Historical query WAJIB fail-closed.
+   * Jangan mengambil chart/harga/RSI current ketika user meminta tanggal masa lalu.
+   */
+  if (requestedAsOf) {
+    if (ticker.startsWith('^')) {
+      return [
+        '',
+        '## Data Terverifikasi Server:',
+        `- Simbol: ${ticker}`,
+        `- Mode: HISTORICAL`,
+        `- requested_as_of: ${requestedAsOf}`,
+        '- Fundamental PIT: tidak berlaku untuk indeks.',
+      ].join('\n');
+    }
+
+    try {
+      const pit = await asOf(ticker, requestedAsOf);
+
+      if (!pit) {
+        return [
+          '',
+          '## Data Terverifikasi Server (OTORITATIF):',
+          `- Simbol: ${ticker}`,
+          '- Mode: PIT HISTORICAL',
+          `- requested_as_of: ${requestedAsOf}`,
+          '- Fundamental PIT: TIDAK TERSEDIA sampai tanggal tersebut.',
+          '- WAJIB fail-closed: jangan memakai fundamental, harga, RSI, atau valuasi current sebagai pengganti.',
+        ].join('\n');
+      }
+
+      const payload = fundamentalPitToAnalyzerPayload(pit);
+
+      const pe = analyzePe(payload);
+      const pbv = analyzePbv(payload);
+      const roe = analyzeRoe(payload);
+      const der = analyzeDer(payload);
+      const currentRatio = analyzeCurrentRatio(payload);
+      const revenueGrowth = analyzeRevenueGrowth(payload);
+
+      return [
+        '',
+        '## Data Terverifikasi Server (OTORITATIF - HISTORICAL PIT):',
+        `- Simbol: ${ticker}`,
+        '- Mode: PIT HISTORICAL',
+        `- requested_as_of: ${requestedAsOf}`,
+        `- observed_date: ${pit.observedDate}`,
+        `- period_end: ${pit.periodEnd}`,
+        `- ${pe.label}: ${pe.value} (${pe.decision})`,
+        `- ${pbv.label}: ${pbv.value} (${pbv.decision})`,
+        `- ${roe.label}: ${roe.value} (${roe.decision})`,
+        `- ${der.label}: ${der.value} (${der.decision})`,
+        `- ${currentRatio.label}: ${currentRatio.value} (${currentRatio.decision})`,
+        `- ${revenueGrowth.label}: ${revenueGrowth.value} (${revenueGrowth.decision})`,
+        '- CATATAN WAJIB: data current tidak boleh dicampur ke analisis historical ini.',
+      ].join('\n');
+    } catch {
+      return [
+        '',
+        '## Data Terverifikasi Server (OTORITATIF):',
+        `- Simbol: ${ticker}`,
+        '- Mode: PIT HISTORICAL',
+        `- requested_as_of: ${requestedAsOf}`,
+        '- Fundamental PIT gagal dibaca.',
+        '- Jangan mengganti dengan data current.',
+      ].join('\n');
+    }
+  }
+
+  // Current mode tetap seperti sebelumnya.
   try {
     const chart = await fetchYahooHistory(ticker, '1y');
     if (!chart) return '';
+
     const closes = chart.history.map((h) => h.AdjClose ?? h.Close);
     const rsi = calculateRsi(closes, 14);
     const fresh = classifyFreshness(chart.regularMarketTime);
+
     return [
       '',
       '## Data Terverifikasi Server (OTORITATIF - kalau ada angka di "Data Referensi" yang berbeda dari sini, PAKAI YANG DI SINI):',
@@ -136,7 +271,10 @@ export async function POST(request: Request) {
       .trim()
       .toLowerCase()
       .replace(/[!?.,]+$/g, '')
-      .replace(/\s+/g, ' ');
+      .replace(/\s+/g, ' ')
+      .replace(/\bhal+o+\b/g, 'halo')
+      .replace(/\bhai+\b/g, 'hai')
+      .replace(/\bmakasih+\b/g, 'makasih');
 
     const greetingResponses: Record<string, string> = {
       'halo': 'Halo! Saya LensAI dari SahamLens. Ada yang ingin kamu cek atau tanyakan?',
@@ -194,7 +332,11 @@ export async function POST(request: Request) {
     // sedang dibuka - user yang tanya "BJBR" jelas ingin bahas BJBR, apa pun halaman yang
     // sedang mereka lihat (lihat catatan lengkap di extract-ticker.ts).
     const mentionedTicker = extractMentionedTicker(prompt);
-    const verifiedBlock = await buildVerifiedBlock(mentionedTicker || symbol);
+    const requestedAsOf = extractRequestedAsOf(prompt);
+    const verifiedBlock = await buildVerifiedBlock(
+      mentionedTicker || symbol,
+      requestedAsOf,
+    );
     const responseText = await generateAI({
       system: buildSystemPrompt(context, history.length > 0, verifiedBlock, mentionedTicker),
       prompt: fullPrompt,
