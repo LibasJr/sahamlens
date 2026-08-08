@@ -1,5 +1,9 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import { getNodeEnv } from '../config/env';
+
+// PostgreSQL DATE harus tetap YYYY-MM-DD string.
+// Mencegah pergeseran tanggal karena timezone.
+types.setTypeParser(1082, (value: string) => value);
 
 // Reused across hot reloads in dev and across warm serverless invocations in prod,
 // so we don't open a fresh pool (and hit Neon's connection limit) on every request.
