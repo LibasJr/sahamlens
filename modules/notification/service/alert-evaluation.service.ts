@@ -47,7 +47,7 @@ function isFreshEnoughForAlert(data: any): boolean {
   return meta.source !== 'stale-cache' && meta.freshness !== 'STALE';
 }
 
-function isTriggered(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadth?: any }): boolean {
+export function isTriggered(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadth?: any }): boolean {
   const target = Number(alert.condition_value);
   switch (alert.condition_type) {
     case 'PRICE_BELOW': {
@@ -58,15 +58,15 @@ function isTriggered(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadt
       const p = getPrice(ctx.stock);
       return p != null && p >= target;
     }
-    case 'CONSENSUS_STRONG_BUY':
-      // Phase 0 / P0-3: alert ini MENGIRIM ajakan beli ke perangkat pengguna, jadi ia
-      // jalur rekomendasi actionable - bukan sekadar tampilan. Gerbang kelayakan dari
-      // /api/stock/[ticker] (`decision.advisory`) wajib dihormati di sini juga, kalau
-      // tidak seluruh gate bisa di-bypass lewat notifikasi. `advisory === false` saja
-      // yang memblokir: payload lama/stale tanpa field `decision` tidak mengubah
-      // perilaku alert yang sudah ada.
-      if (ctx.stock?.decision?.advisory === false) return false;
+    case 'CONSENSUS_STRONG_BUY': {
+      // Alert ini adalah jalur actionable. Fail-closed: payload lama/tidak lengkap tanpa
+      // `decision` TIDAK boleh menghidupkan ajakan beli. Selain advisory=true, arah aksi
+      // resmi juga harus BUY/STRONG BUY; consensus teknikal saja tidak cukup.
+      if (ctx.stock?.decision?.advisory !== true) return false;
+      const action = ctx.stock?.decision?.action;
+      if (action !== 'BUY' && action !== 'STRONG BUY') return false;
       return ctx.stock?.consensusData?.kategori === 'STRONG BUY';
+    }
     case 'RSI_OVERSOLD': {
       const rsi = getRsi(ctx.stock);
       return rsi !== null && rsi < 30;

@@ -123,6 +123,7 @@ export default function Recommendations() {
             window.dispatchEvent(new CustomEvent('update-ai-context', { 
               detail: {
                 symbol: 'RECOMMENDATIONS',
+                modelValidation: json.modelValidation,
                 recommendations: merged.map((r: any) => ({
                   ticker: r.ticker,
                   price: r.price,
@@ -130,7 +131,11 @@ export default function Recommendations() {
                   consensus: r.consensus,
                   confidence: r.confidence,
                   foreignFlow: r.foreignFlow,
-                  sentiment: r.sentimentLabel
+                  sentiment: r.sentimentLabel,
+                  modelSignal: r.scoringKategori,
+                  decision: r.decision,
+                  eligibilityStatus: r.eligibilityStatus,
+                  eligibilityReasons: r.eligibilityReasons
                 }))
               }
             }));
