@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 /**
  * Fundamental PIT Backfill v2
@@ -33,12 +33,21 @@ const repoRoot = path.resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 
 const TARGET_PERIODS = new Set(['2024-09-30', '2024-12-31', '2025-03-31', '2025-06-30']);
-const PILOT = new Set([
-  'ASII.JK','BBCA.JK','BBRI.JK','TLKM.JK','STAA.JK',
-  'AUTO.JK','BFIN.JK','GJTL.JK','INDF.JK','ICBP.JK',
+const BATCH_51 = new Set([
+  'BBCA.JK','TPIA.JK','BMRI.JK','BBRI.JK','BRPT.JK',
+  'DSSA.JK','AMMN.JK','ANTM.JK','TLKM.JK','ASII.JK',
+  'CUAN.JK','DEWA.JK','BRMS.JK','BREN.JK','BBNI.JK',
+  'MDKA.JK','TINS.JK','RAJA.JK','AMRT.JK','UNTR.JK',
+  'ADRO.JK','BULL.JK','ENRG.JK','INCO.JK','MAPI.JK',
+  'MBMA.JK','MEDC.JK','KLBF.JK','ESSA.JK','INDY.JK',
+  'INDF.JK','NCKL.JK','INKP.JK','PGAS.JK','ADMR.JK',
+  'WIFI.JK','ITMG.JK','PTBA.JK','CPIN.JK','JPFA.JK',
+  'ISAT.JK','TAPG.JK','BRIS.JK','ICBP.JK','UNVR.JK',
+  'AKRA.JK','STAA.JK','AUTO.JK','BFIN.JK','GJTL.JK',
+  'DGWG.JK',
 ]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const NULLISH = new Set(['', '-', '—', 'na', 'n/a', 'null', 'undefined']);
+const NULLISH = new Set(['', '-', 'â€”', 'na', 'n/a', 'null', 'undefined']);
 
 function loadEnvFile(filePath = path.join(repoRoot, '.env.local')) {
   if (!fs.existsSync(filePath)) return;
@@ -227,7 +236,7 @@ async function main() {
       auditFundamentalHistoryCounts,
     } = require(path.join(repoRoot, 'modules/fundamental/repository/fundamental-history.repository.ts'));
 
-    const universe = new Set(args.pilot ? [...PILOT] : BACKTEST_UNIVERSE);
+    const universe = new Set(BATCH_51);
     if (!args.pilot && BACKTEST_UNIVERSE.length !== 109) {
       console.warn(`[PIT v2] WARNING: BACKTEST_UNIVERSE sekarang ${BACKTEST_UNIVERSE.length}, bukan 109; memakai isi repo apa adanya.`);
     }
@@ -248,7 +257,7 @@ async function main() {
     const distinctTickers = new Set(rows.map((r) => r.ticker));
     const periods = [...new Set(rows.map((r) => r.periodEnd))].sort();
 
-    console.log('[PIT v2] mode:', args.pilot ? 'PILOT-10' : 'BACKTEST_UNIVERSE');
+    console.log('[PIT v2] mode: BATCH-51');
     console.log('[PIT v2] source dir:', args.dir);
     console.log('[PIT v2] candidate rows:', rows.length);
     console.log('[PIT v2] distinct tickers:', distinctTickers.size);
@@ -295,3 +304,7 @@ if (import.meta.url === `file://${process.argv[1]}` || path.resolve(process.argv
     process.exitCode = 1;
   });
 }
+
+
+
+

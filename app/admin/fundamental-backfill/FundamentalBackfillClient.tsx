@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
@@ -24,9 +24,9 @@ interface ImportResult {
   meta?: { requestId?: string };
 }
 
-const SAMPLE = `Kode,observed_date,PER,PBV,ROE,DER,current_ratio,revenue_growth,source
-BBCA,2026-01-31,22.1,4.3,18.5,0.2,1.4,8.0,IDX
-BBRI,2026-01-31,12.4,2.1,15.2,5.8,,6.5,IDX`;
+const SAMPLE = `Kode,observed_date,period_end,PER,PBV,ROE,DER,current_ratio,revenue_growth,source
+BBCA,2024-10-31,2024-09-30,22.1,4.3,18.5,0.2,1.4,8.0,IDX
+BBRI,2024-10-30,2024-09-30,12.4,2.1,15.2,5.8,,6.5,IDX`;
 
 function SummaryCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -292,3 +292,4 @@ export default function FundamentalBackfillClient() {
     </div>
   );
 }
+
