@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -673,7 +673,7 @@ function DashboardContent() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="LensTechnical — Pure Algorithmic Trading"
+        moduleTitle="LensTechnical â€” Pure Algorithmic Trading"
         moduleBank="LENSTECHNICAL"
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
@@ -703,7 +703,7 @@ function DashboardContent() {
             onClick={() => router.push(`/compare?symbol1=${ticker}`)}
             className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors ml-auto"
           >
-            ⚔️ Compare
+            âš”ï¸ Compare
           </button>
           
           <button
@@ -796,7 +796,7 @@ function DashboardContent() {
                     dirender identik dengan data hari ini. Sekarang ditampilkan apa adanya. */}
                 <p className="text-[11px] text-tv-muted mt-1">
                   Diterima: {formatTime(lastUpdate)}
-                  {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
+                  {dataFreshness && <span className="ml-2">â€¢ Data pasar: {dataFreshness.label}</span>}
                 </p>
               </div>
             </div>
@@ -846,7 +846,7 @@ function DashboardContent() {
           <div className="w-full bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-tv-blue" />
-              <h2 className="font-heading text-sm font-semibold text-white">AI Summary</h2>
+              <h2 className="font-heading text-sm font-semibold text-white">Technical Summary</h2>
             </div>
             <div className="flex flex-col md:flex-row gap-6 relative">
               {/* Action Buttons - tombol "LensAI" sengaja dihapus dari sini (2026-08-01):
@@ -983,7 +983,7 @@ function DashboardContent() {
                 <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
                 {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
                   <div key={i} className="flex items-start gap-2 text-xs">
-                    <span className="text-tv-green font-bold">✓</span>
+                    <span className="text-tv-green font-bold">âœ“</span>
                     <span className="text-tv-text font-sans">{reason}</span>
                   </div>
                 ))}
@@ -991,7 +991,7 @@ function DashboardContent() {
                   <div className="mt-3 pt-3 border-t border-tv-border">
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-1">RISK</div>
                     <div className="flex items-start gap-2 text-xs">
-                      <span className="text-tv-red font-bold">⚠</span>
+                      <span className="text-tv-red font-bold">âš </span>
                       <span className="text-tv-muted font-sans">{data.scoring.risk}</span>
                     </div>
                   </div>
@@ -1010,7 +1010,7 @@ function DashboardContent() {
               <span className="text-[10px] font-sans font-semibold text-tv-muted uppercase">LensRadar</span>
               <div className="text-sm text-white">
                 Skor <strong className="font-number">{radarRank.finalScore}</strong>
-                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
+                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> â€” {radarRank.topReasons[0]}</span>}
               </div>
             </div>
           </div>
@@ -1116,7 +1116,7 @@ function DashboardContent() {
                       ? 'Menganalisis berita...'
                       : overall === null
                       ? 'Belum ada berita spesifik untuk dianalisis'
-                      : `${overall} • ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
+                      : `${overall} â€¢ ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-tv-muted group-hover:text-tv-text transition-colors shrink-0" />
@@ -1145,7 +1145,7 @@ function DashboardContent() {
           <div className="bg-tv-bg border-2 border-tv-blue/50 rounded-xl w-full max-w-md overflow-hidden shadow-2 flex flex-col">
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
-                <span className="text-xl">✨</span>
+                <span className="text-xl">âœ¨</span>
                 <h3 className="font-heading text-tv-text font-bold">
                   AI Explain: {aiModalData?.algo?.label}
                 </h3>
@@ -1154,7 +1154,7 @@ function DashboardContent() {
                 onClick={() => setAiModalOpen(false)}
                 className="text-tv-muted hover:text-tv-text transition-colors"
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -1202,7 +1202,7 @@ function DashboardContent() {
           <div className="bg-tv-bg border-2 border-tv-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
-                <span className="text-xl">💰</span>
+                <span className="text-xl">ðŸ’°</span>
                 <h3 className="font-heading text-tv-text font-bold">
                   {tradeType} Virtual Trade
                 </h3>
@@ -1211,7 +1211,7 @@ function DashboardContent() {
                 onClick={() => setTradeModalOpen(false)}
                 className="text-tv-muted hover:text-tv-text transition-colors"
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -1354,4 +1354,6 @@ export default function Dashboard() {
     </Suspense>
   );
 }
+
+
 
