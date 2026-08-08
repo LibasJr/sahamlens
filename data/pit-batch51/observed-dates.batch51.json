@@ -1,0 +1,52 @@
+{
+  "_note": "Human-verified observed_date worklist for PIT backfill batch (Batch-51 missing cells). observed_date = tanggal publikasi laporan ke pasar, diverifikasi dari artikel IPOTNEWS/IndoPremier RESEARCHNEWS 'Financial Statements'. Q3 2024 sengaja tidak diisi: Yahoo fundamentalsTimeSeries hanya menyimpan ~4 kuartal terakhir sehingga period 2024-09-30 tidak lagi tersedia. Bukan input final DB — ini worklist. File final CSV ada di ./staging/.",
+  "entries": [
+    {
+      "ticker": "TPIA.JK",
+      "period_end": "2024-12-31",
+      "period_kind": "FY",
+      "observed_date": "2025-03-18",
+      "source": "IPOTNEWS RESEARCHNEWS 'Financial Statements Full Year 2024 of TPIA' (news_id=460498), published Tuesday March 18, 2025 14:00 WIB",
+      "crosscheck": "Article net loss FY24 Rp1.12T; revenue 12M24 Rp29.0T (YoY -12.9% vs 12M23 Rp33.3T)"
+    },
+    {
+      "ticker": "TPIA.JK",
+      "period_end": "2025-03-31",
+      "period_kind": "Q1",
+      "observed_date": "2025-04-30",
+      "source": "IPOTNEWS RESEARCHNEWS 'Financial Statements 1Q 2025 of TPIA' (news_id=463431), published Wednesday April 30, 2025 19:15 WIB",
+      "crosscheck": "Article net loss Q1 Rp425.4B; Yahoo Q1'25 ni=-25,644k USD"
+    },
+    {
+      "ticker": "TPIA.JK",
+      "period_end": "2025-06-30",
+      "period_kind": "H1",
+      "observed_date": "2025-08-01",
+      "source": "IPOTNEWS RESEARCHNEWS 'Financial Statements 2Q 2025 of TPIA' (news_id=470710), published Friday August 01, 2025 10:08 WIB",
+      "crosscheck": "Article net profit Q2 Rp20.66T; revenue 6M25 Rp47.5T; Yahoo H1'25 rev=2,926,184k USD (~Rp47T)"
+    },
+    {
+      "ticker": "ANTM.JK",
+      "period_end": "2024-12-31",
+      "period_kind": "FY",
+      "observed_date": "2025-04-09",
+      "source": "IPOTNEWS RESEARCHNEWS 'Financial Statements Full Year 2024 of ANTM' (news_id=461648), published Wednesday April 09, 2025 14:55 WIB",
+      "crosscheck": "Article net income FY24 Rp3.65T, EPS Rp151.97; Yahoo annual 2024 ni=3,647,210M IDR"
+    },
+    {
+      "ticker": "ANTM.JK",
+      "period_end": "2025-03-31",
+      "period_kind": "Q1",
+      "observed_date": "2025-04-30",
+      "source": "IPOTNEWS RESEARCHNEWS 'Financial Statements 1Q 2025 of ANTM' (news_id=463451), published Wednesday April 30, 2025 20:33 WIB",
+      "crosscheck": "Article net income Q1 Rp2.13T; Yahoo Q1'25 ni=2,131,188M IDR; revenue 3M25 Rp26.2T = Yahoo 26,151,701M"
+    }
+  ],
+  "deliberately_missing": [
+    {
+      "ticker": "ANTM.JK",
+      "period_end": "2025-06-30",
+      "reason": "H1 2025 report delayed (limited review by external auditor); as of late July 2025 not yet published to IDX. observed_date not verifiable at generation time -> leave MISSING."
+    }
+  ]
+}

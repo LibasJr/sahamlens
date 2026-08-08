@@ -36,7 +36,10 @@ const { fakePool, queries, state } = vi.hoisted(() => {
 
       if (sql.startsWith('INSERT INTO fundamental_history')) {
         // Pengganti untuk PRIMARY KEY (ticker, observed_date) + ON CONFLICT DO NOTHING.
-        const columns = ['ticker', 'observed_date', 'per', 'pbv', 'roe', 'der', 'current_ratio', 'revenue_growth'];
+        // Urutan WAJIB sama persis dengan tuple INSERT di repository (10 kolom sejak
+        // PIT v2 menambahkan period_end dan source) - kalau meleset, pemotongan params
+        // bergeser dan hasil hitung baris jadi salah.
+        const columns = ['ticker', 'observed_date', 'period_end', 'per', 'pbv', 'roe', 'der', 'current_ratio', 'revenue_growth', 'source'];
         let inserted = 0;
         for (let i = 0; i < values.length; i += columns.length) {
           const row: Record<string, unknown> = {};
@@ -149,8 +152,8 @@ describe('archiveFundamentalSnapshot - penyimpanan & idempotensi', () => {
     expect(normalize(q.text)).toContain('ON CONFLICT (ticker, observed_date) DO NOTHING');
     // Tidak ada UPDATE/DO UPDATE - arsip ini append-only.
     expect(normalize(q.text)).not.toContain('DO UPDATE');
-    // 2 baris x 8 kolom, dan tidak ada nilai yang tertanam di string SQL.
-    expect(q.values).toHaveLength(16);
+    // 2 baris x 10 kolom, dan tidak ada nilai yang tertanam di string SQL.
+    expect(q.values).toHaveLength(20);
     expect(q.text).not.toContain('BBCA.JK');
     expect(q.text).not.toContain('2026-08-05');
   });
@@ -207,6 +210,50 @@ describe('asOf - bebas look-ahead bias (TEST 8)', () => {
 
   it('requestedDate tidak valid ditolak, bukan diam-diam jadi hari ini', async () => {
     await expect(asOf('BBCA.JK', 'kemarin')).rejects.toThrow(/YYYY-MM-DD/);
+  });
+});
+
+// REGRESI: pergeseran tanggal satu hari di server non-UTC.
+//
+// node-postgres mem-parse tipe `date` (OID 1082) jadi JS Date pada tengah malam WAKTU
+// LOKAL. Dulu repository membaca kolom DATE apa adanya lalu memformatnya dengan
+// getUTC*, jadi di TZ positif (mis. WIB/UTC+7) 2025-04-09 terbaca 2025-04-08 - tanggal
+// publikasi laporan mundur sehari di seluruh API. Pencegahnya: SELECT meng-cast DATE ke
+// ::text sehingga Postgres mengirim 'YYYY-MM-DD' dan tidak ada objek Date sama sekali.
+describe('pemetaan DATE tidak bergeser oleh timezone', () => {
+  it('SELECT meng-cast kolom DATE ke ::text (bukan menyerahkannya jadi objek Date)', async () => {
+    await asOf('BBCA.JK', '2026-08-04');
+    await listHistory('BBCA.JK');
+
+    const selects = queries.filter((x) => normalize(x.text).startsWith('SELECT ticker'));
+    expect(selects).toHaveLength(2);
+    for (const q of selects) {
+      expect(normalize(q.text)).toContain('observed_date::text AS observed_date');
+      expect(normalize(q.text)).toContain('period_end::text AS period_end');
+    }
+  });
+
+  it('string YYYY-MM-DD dari Postgres dipetakan apa adanya, tanpa konversi waktu', async () => {
+    // Persis bentuk yang dikirim Postgres untuk `::text` atas DATE (DateStyle ISO).
+    state.table.push({
+      ticker: 'ANTM.JK', observed_date: '2025-04-09', period_end: '2024-12-31',
+      per: null, pbv: null, roe: null, der: null, current_ratio: null, revenue_growth: null,
+    });
+
+    const r = await asOf('ANTM.JK', '2025-04-09');
+    expect(r?.observedDate).toBe('2025-04-09');   // BUKAN 2025-04-08
+    expect(r?.periodEnd).toBe('2024-12-31');      // BUKAN 2024-12-30
+  });
+
+  it('period_end NULL tetap null, tidak berubah jadi string kosong/epoch', async () => {
+    state.table.push({
+      ticker: 'LAMA.JK', observed_date: '2026-01-30', period_end: null,
+      per: 10, pbv: null, roe: null, der: null, current_ratio: null, revenue_growth: null,
+    });
+
+    const r = await asOf('LAMA.JK', '2026-01-30');
+    expect(r?.observedDate).toBe('2026-01-30');
+    expect(r?.periodEnd).toBeNull();
   });
 });
 

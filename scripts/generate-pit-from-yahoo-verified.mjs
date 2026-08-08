@@ -157,6 +157,19 @@ for (const [code, requestedRows] of byTicker) {
   console.log(`\n${ticker}`);
 
   try {
+    // JENDELA INI SENGAJA DIPATOK DEKAT PERIODE TARGET, JANGAN DIGANTI KE new Date().
+    //
+    // Empiris (yahoo-finance2 v4, 2026-08-08): fundamentalsTimeSeries hanya MENGISI
+    // nilai untuk ~4 periode terakhir relatif ke period2. Kalau period2 digeser jauh ke
+    // depan (mis. hari ini), baris tanggal untuk kuartal lama TETAP dikembalikan tetapi
+    // seluruh field-nya kosong - totalRevenue/stockholdersEquity hilang tanpa error.
+    // Efeknya senyap: metrik jadi null dan coverage turun, bukan gagal keras. Terbukti
+    // pada RAJA/INKP/WIFI untuk period_end 2025-03-31.
+    //
+    // Tanggal di bawah cocok untuk batch 41 (target s/d Q2 2025). Untuk periode yang
+    // lebih baru, geser period2 ke sekitar period_end target + ~120 hari - jangan ke
+    // hari ini. scripts/generate-pit-from-yahoo.mjs menurunkannya otomatis dari
+    // worklist dan melaporkan baris yang sumbernya tidak lengkap.
     const [annualRows, quarterlyRows, currencyInfo] = await Promise.all([
       yahooFinance.fundamentalsTimeSeries(ticker, {
         period1: new Date("2023-01-01"),
