@@ -1,3 +1,5 @@
+﻿import { asOf } from '@/modules/fundamental/repository/fundamental-history.repository';
+import { fundamentalPitToAnalyzerPayload } from '@/modules/fundamental/service/fundamental-pit-adapter';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
@@ -50,6 +52,124 @@ export async function GET(
       ticker = `${ticker}.JK`;
     }
 
+
+    // ============================================================
+    // FUNDAMENTAL POINT-IN-TIME HISTORICAL MODE
+    // ?as_of=YYYY-MM-DD
+    // ============================================================
+    const url = new URL(request.url);
+    const asOfDate = url.searchParams.get('as_of');
+
+    if (asOfDate !== null) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) {
+        return NextResponse.json(
+          { error: 'as_of wajib format YYYY-MM-DD' },
+          { status: 400 },
+        );
+      }
+
+      console.log('[PIT ROUTE TEST]', ticker, asOfDate);
+
+      const pit = await asOf(ticker, asOfDate);
+
+      if (!pit) {
+        return NextResponse.json(
+          {
+            ticker,
+            mode: 'PIT',
+            requested_as_of: asOfDate,
+            available: false,
+            message: 'Belum ada fundamental yang diketahui pasar pada tanggal tersebut.',
+          },
+          { status: 404 },
+        );
+      }
+
+      const pitPayload = fundamentalPitToAnalyzerPayload(pit);
+
+      const analyzersResult = await Promise.all([
+        Promise.resolve(analyzePe(pitPayload)),
+        Promise.resolve(analyzePbv(pitPayload)),
+        Promise.resolve(analyzeRoe(pitPayload)),
+        Promise.resolve(analyzeRoa(pitPayload)),
+        Promise.resolve(analyzeDer(pitPayload)),
+        Promise.resolve(analyzeCurrentRatio(pitPayload)),
+        Promise.resolve(analyzeQuickRatio(pitPayload)),
+        Promise.resolve(analyzeDividend(pitPayload)),
+        Promise.resolve(analyzeEpsGrowth(pitPayload)),
+        Promise.resolve(analyzeRevenueGrowth(pitPayload)),
+        Promise.resolve(analyzeGrossMargin(pitPayload)),
+        Promise.resolve(analyzeOperatingMargin(pitPayload)),
+        Promise.resolve(analyzeNetMargin(pitPayload)),
+      ]);
+
+      let bullish = 0;
+      let bearish = 0;
+      let bestPerformer = analyzersResult[0];
+
+      for (const result of analyzersResult) {
+        if (result.decision === 'BULLISH') bullish++;
+        else if (result.decision === 'BEARISH') bearish++;
+
+        if (result.confidence > bestPerformer.confidence) {
+          bestPerformer = result;
+        }
+      }
+
+      const fundamentalQuality =
+        computeFundamentalQuality(bullish, bearish);
+
+      return NextResponse.json({
+        ticker,
+        mode: 'PIT',
+        requested_as_of: asOfDate,
+        available: true,
+
+        pit: {
+          observed_date: pit.observedDate,
+          period_end: pit.periodEnd,
+        },
+
+        price: null,
+        analyzers: analyzersResult,
+        fundamentalQuality,
+        bestPerformer,
+
+        consensus:
+          'DATA PIT HISTORIS - valuasi current tidak digunakan',
+
+        fundamentals: {
+          marketCap: null,
+          trailingPE: pit.per,
+          forwardPE: null,
+          priceToBook: pit.pbv,
+
+          returnOnEquity:
+            pit.roe == null ? null : pit.roe / 100,
+
+          returnOnAssets: null,
+
+          debtToEquity:
+            pit.der == null ? null : pit.der * 100,
+
+          currentRatio: pit.currentRatio,
+
+          revenueGrowth:
+            pit.revenueGrowth == null
+              ? null
+              : pit.revenueGrowth / 100,
+
+          totalRevenue: null,
+          ebitda: null,
+          profitMargins: null,
+          dividendYield: null,
+          grossMargins: null,
+          operatingMargins: null,
+          netProfitMargins: null,
+          nim: null,
+        },
+      });
+    }
     // Fetch Yahoo Finance Fundamental Data
     const quoteSummary = await yahooFinance.quoteSummary(ticker, {
       modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price', 'assetProfile']
@@ -270,3 +390,4 @@ export async function GET(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
