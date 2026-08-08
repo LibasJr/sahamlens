@@ -1,4 +1,4 @@
-import { ensureSharedSchema } from '@/shared/database/schema.service';
+﻿import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { pool as defaultPool } from '@/shared/database/postgres.client';
 import { ValidationError } from '@/shared/errors/app-error';
 
@@ -49,7 +49,7 @@ interface ImportDeps {
 }
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const NULLISH = new Set(['', '-', '—', 'na', 'n/a', 'null', 'undefined']);
+const NULLISH = new Set(['', '-', 'â€”', 'na', 'n/a', 'null', 'undefined']);
 const DEFAULT_SOURCE = 'admin-ui-point-in-time-import';
 const INSERT_BATCH_SIZE = 500;
 const MAX_CSV_BYTES = 1_000_000;
@@ -196,8 +196,21 @@ function normalizeRow(
   ).slice(0, 10);
   assertDateKey(observedDate, `Baris ${lineNumber} observed_date`);
   if (observedDate > options.maxObservedDate) {
-    throw new ValidationError(`Baris ${lineNumber}: observed_date ${observedDate} ada di masa depan`);
-  }
+  throw new ValidationError(`Baris ${lineNumber}: observed_date ${observedDate} ada di masa depan`);
+}
+
+const periodEnd = String(
+  pick(row, ['period_end', 'periodEnd', 'financial_period_end', 'financialPeriodEnd'])
+  ?? ''
+).slice(0, 10);
+
+assertDateKey(periodEnd, `Baris ${lineNumber} period_end`);
+
+if (periodEnd > observedDate) {
+  throw new ValidationError(
+    `Baris ${lineNumber}: period_end ${periodEnd} tidak boleh sesudah observed_date ${observedDate}`
+  );
+}
 
   const per = parseNullableNumber(pick(row, METRIC_ALIASES[0]), `Baris ${lineNumber} per`);
   const pbv = parseNullableNumber(pick(row, METRIC_ALIASES[1]), `Baris ${lineNumber} pbv`);
@@ -268,13 +281,13 @@ export function buildFundamentalBackfillInsert(rows: FundamentalBackfillRow[]): 
       row.revenueGrowth,
       row.source
     );
-    return `($${base + 1}, $${base + 2}::date, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9})`;
+    return `(${base + 1}, ${base + 2}::date, ${base + 3}::date, ${base + 4}, ${base + 5}, ${base + 6}, ${base + 7}, ${base + 8}, ${base + 9}, ${base + 10})`;
   });
 
   return {
     text: `
       INSERT INTO fundamental_history
-        (ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth, source)
+        (ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth, source)
       VALUES ${tuples.join(', ')}
       ON CONFLICT (ticker, observed_date) DO NOTHING
     `,
@@ -335,3 +348,5 @@ export async function runFundamentalBackfillImport(
     percentInput,
   };
 }
+
+
