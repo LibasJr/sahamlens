@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
@@ -145,10 +145,21 @@ export default function AIChat() {
       const data = await res.json();
 
       if (!res.ok || !data?.content) {
-        // Response error (rate limit/paywall/500) sering tetap balas JSON, jadi tanpa
-        // cek res.ok bubble chat akan dirender dengan content=undefined - kosong tanpa
-        // indikasi ada yang salah, bukan pesan error yang ramah di blok catch di bawah.
-        setMessages(prev => [...prev, { role: 'assistant', content: data?.error || data?.content || 'Maaf, sistem AI sedang mengalami gangguan. Silakan coba lagi.' }]);
+        // Contract error LensAI tetap boleh membawa `content` yang aman dan spesifik
+        // (AUTH_ERROR, DATA_ERROR, RATE_LIMIT, PROVIDER_ERROR, INTERNAL_ERROR). Jangan
+        // membuang content itu atau menyamakan semua kegagalan menjadi satu pesan palsu.
+        const fallbackByCode: Record<string, string> = {
+          AUTH_ERROR: 'Silakan login untuk menggunakan LensAI.',
+          DATA_ERROR: 'Data yang dibutuhkan untuk menjawab pertanyaan ini belum tersedia.',
+          RATE_LIMIT: 'LensAI sedang terkena batas kuota penyedia AI. Silakan coba lagi nanti.',
+          PROVIDER_ERROR: 'LensAI sedang mengalami gangguan koneksi ke penyedia AI.',
+          INTERNAL_ERROR: 'LensAI mengalami kesalahan internal saat memproses pertanyaan.',
+        };
+        const safeMessage = data?.content
+          || fallbackByCode[data?.errorCode]
+          || data?.error
+          || 'Maaf, LensAI belum dapat memproses pertanyaan ini.';
+        setMessages(prev => [...prev, { role: 'assistant', content: safeMessage }]);
         return;
       }
 
