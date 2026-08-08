@@ -41,28 +41,9 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="bg-tv-card border border-tv-border rounded-xl p-4 sm:p-5 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* max-w-full + overflow-x-auto (permintaan user) - 8 pilihan timeframe (nambah
-            1M/3M) muat digulir ke samping di layar sempit, bukan ke-wrap/kepotong. */}
-        <div className="max-w-full overflow-x-auto">
-          <div className="flex items-center gap-2 rounded-full bg-tv-hover p-1 w-max">
-            {TIMEFRAMES.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTimeframe(t)}
-                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide font-mono transition ${
-                  timeframe === t ? 'bg-tv-blue text-white shadow' : 'text-tv-muted hover:text-white'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-        {ind && (
+      {ind && (
+        <div className="flex justify-end">
           <span
-            // BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data tabular/kode
-            // (aturan app/globals.css) - "BUY"/"SELL"/"HOLD" kata status, bukan angka.
             className={`rounded-full border px-2.5 py-1 text-[10px] font-bold font-sans ${
               finalSignal === 'BUY'
                 ? 'bg-tv-green/10 border-tv-green/30 text-tv-green'
@@ -73,15 +54,18 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           >
             {finalSignal}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {chartData.length > 0 ? (
         <TradingViewChart
           symbol={code}
           candles={chartData}
-          height={340}
+          height={580}
           timeframe={timeframe}
+          timeframeOptions={TIMEFRAMES}
+          onTimeframeChange={setTimeframe}
+          variant="full"
           technical={{
             // null (bukan 'NETRAL') kalau MA belum bisa dihitung - "netral" adalah
             // kesimpulan pasar, ketiadaan data bukan (temuan C-1).
@@ -93,7 +77,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           }}
         />
       ) : (
-        <div className="h-[340px] flex items-center justify-center bg-[#131722] text-tv-muted rounded-lg">Memuat grafik...</div>
+        <div className="min-h-[360px] sm:min-h-[460px] flex items-center justify-center bg-[#131722] text-tv-muted rounded-lg">Memuat grafik...</div>
       )}
 
       <div className="flex items-start gap-2 rounded-lg bg-tv-hover border border-tv-border p-3">

@@ -10,7 +10,7 @@ import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
 import { grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
@@ -1071,17 +1071,14 @@ function DashboardContent() {
           })()}
 
           <div className="w-full space-y-3">
-            <SegmentedControl
-              options={['1D', '3D', '7D', '1Y', '10Y', 'ALL'].map((t) => ({ label: t, value: t }))}
-              value={timeframe}
-              onChange={setTimeframe}
-              layoutId="dashboard-timeframe"
-            />
             <TradingViewChart
               candles={candles}
               technical={chartTechnical}
               symbol={stock.symbol || ticker}
               timeframe={timeframe}
+              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
+              onTimeframeChange={setTimeframe}
+              variant="full"
               height={600}
             />
           </div>
