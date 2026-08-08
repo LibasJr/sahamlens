@@ -58,14 +58,24 @@ const asOfDate =
     ? body.as_of.trim()
     : undefined;
 
-if (
-  asOfDate !== undefined &&
-  !/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)
-) {
-  return NextResponse.json(
-    { error: 'as_of wajib format YYYY-MM-DD' },
-    { status: 400 },
-  );
+if (asOfDate !== undefined) {
+  const validFormat = /^\d{4}-\d{2}-\d{2}$/.test(asOfDate);
+
+  const parsedDate = validFormat
+    ? new Date(`${asOfDate}T00:00:00Z`)
+    : null;
+
+  const validCalendarDate =
+    parsedDate !== null &&
+    !Number.isNaN(parsedDate.getTime()) &&
+    parsedDate.toISOString().slice(0, 10) === asOfDate;
+
+  if (!validFormat || !validCalendarDate) {
+    return NextResponse.json(
+      { error: 'as_of wajib tanggal valid format YYYY-MM-DD' },
+      { status: 400 },
+    );
+  }
 }
 
 const cacheKey = asOfDate
@@ -85,6 +95,7 @@ const response = NextResponse.json(result);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
 
 
 

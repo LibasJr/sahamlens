@@ -341,23 +341,56 @@ export async function runMultiAgentOrchestrator(rawTicker: string, requestedDate
   }
 
   if (fundamentals) {
-    const pe = analyzePe(fundamentals);
-    const pbv = analyzePbv(fundamentals);
-    const roe = analyzeRoe(fundamentals);
-    const roa = analyzeRoa(fundamentals);
-    const der = analyzeDer(fundamentals);
-    const currentRatio = analyzeCurrentRatio(fundamentals);
+  const pe = analyzePe(fundamentals);
+  const pbv = analyzePbv(fundamentals);
+  const roe = analyzeRoe(fundamentals);
+  const roa = analyzeRoa(fundamentals);
+  const der = analyzeDer(fundamentals);
+  const currentRatio = analyzeCurrentRatio(fundamentals);
+
+  // Hanya metric yang benar-benar memiliki data yang boleh ikut scoring.
+  // N/A dengan confidence=0 tidak boleh diam-diam menjadi skor netral 50.
+  const fundamentalSignals = [
+    pe,
+    pbv,
+    roe,
+    roa,
+    der,
+    currentRatio,
+  ];
+
+  const availableFundamentalSignals = fundamentalSignals.filter(
+    (a) => Number.isFinite(a.confidence) && a.confidence > 0,
+  );
+
+  if (availableFundamentalSignals.length > 0) {
     agentBreakdown.fundamental_agent = {
       weight_pct: 15,
-      score: avg([pe, pbv, roe, roa, der, currentRatio].map((a) => scoreFromDecision(a.decision, a.confidence))),
+      score: avg(
+        availableFundamentalSignals.map((a) =>
+          scoreFromDecision(a.decision, a.confidence),
+        ),
+      ),
       summary: `${pe.label}: ${pe.value}. ${roe.label}: ${roe.value}.`,
       available: true,
     };
   } else {
-    agentBreakdown.fundamental_agent = { weight_pct: 0, score: 50, summary: 'Data fundamental tidak tersedia saat ini.', available: false };
+    agentBreakdown.fundamental_agent = {
+      weight_pct: 0,
+      score: 50,
+      summary: 'Snapshot fundamental ada, tetapi tidak memiliki metric yang dapat dinilai.',
+      available: false,
+    };
   }
-
-  if (dcf && dcf.fair_value > 0) {
+} else {
+  agentBreakdown.fundamental_agent = {
+    weight_pct: 0,
+    score: 50,
+    summary: 'Data fundamental tidak tersedia saat ini.',
+    available: false,
+  };
+}
+if (dcf && dcf.fair_value > 0) {
     // BUG FIX (review kuantitatif 2026-08-05, temuan P1-13). Dua masalah sekaligus:
     //
     // 1. PEMETAAN SANGAT TIDAK LINIER. Rumus lama `clamp(50 + mos, 0, 100)` memakai
@@ -449,6 +482,8 @@ export async function runMultiAgentOrchestrator(rawTicker: string, requestedDate
     },
   };
 }
+
+
 
 
 
