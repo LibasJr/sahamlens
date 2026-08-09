@@ -298,7 +298,7 @@ function CompareContent() {
                           {row.winner !== '-' && (
                             <span className="inline-block mb-1 text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded text-[10px]">{row.winner} unggul</span>
                           )}
-                          <p className="text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                          <p className="font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
                         </td>
                       </tr>
                     ))}
@@ -330,15 +330,15 @@ function CompareContent() {
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data1.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.a}</div>
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data2.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.b}</div>
                     </div>
-                    <p className="mt-1.5 text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                    <p className="mt-1.5 font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
                   </motion.div>
                 ))}
               </div>
 
               {data.conclusion && (
-                <div className="p-6 bg-tv-bg border-t border-tv-border">
+                <div className="p-6 bg-tv-bg border-t border-tv-border font-sans">
                   <h3 className="font-heading text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan LensAI</h3>
-                  <p className="text-base text-tv-text leading-relaxed">
+                  <p className="font-sans text-sm font-normal text-tv-text leading-relaxed sm:text-base">
                     {data.conclusion}
                   </p>
                 </div>
