@@ -35,6 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 lens-ambient-bg" />
           <div className="relative z-[1] min-h-full">
             {children}
+            <div aria-hidden="true" className="lens-mobile-scroll-clearance pointer-events-none md:hidden" />
           </div>
         </main>
       </div>
