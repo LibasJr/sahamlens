@@ -5,7 +5,7 @@ import type { MetadataRoute } from 'next';
 // yang didaftarkan - halaman auth (/login, /signup, dst) dan rute dinamis tanpa
 // index page sendiri (/technical/[symbol], /market/[category]) sengaja tidak
 // dimasukkan, sama seperti pengecualian di app/robots.ts.
-const SITE_URL = 'https://sahamlens.vercel.app';
+const SITE_URL = 'https://sahamlens.id';
 
 const STATIC_ROUTES = [
   '', 'home', 'dashboard', 'screener', 'backtest', 'breakout-radar', 'recommendations',
