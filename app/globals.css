@@ -255,8 +255,25 @@ body {
   outline-offset: 2px;
 }
 
-/* Mobile: beri napas di atas bottom navigation dan kurangi density tabel raw. */
+/* Mobile overlay clearance:
+   Bottom navigation + LensAI memakai position:fixed sehingga tidak mengambil ruang
+   di document flow. Sisakan ruang scroll nyata di akhir SEMUA halaman agar baris/teks
+   terakhir dapat digeser sepenuhnya ke atas kedua overlay, termasuk safe-area iOS/
+   Android WebView. Jangan menyembunyikan overflow sebagai workaround. */
 @media (max-width: 767px) {
+  .lens-main {
+    padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lens-mobile-nav {
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lens-ai-floating {
+    bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .lens-main table th,
   .lens-main table td {
     white-space: nowrap;
