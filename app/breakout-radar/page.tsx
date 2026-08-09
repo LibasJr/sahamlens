@@ -394,7 +394,7 @@ export default function AiPickPage() {
               <Target className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight flex items-center gap-2">
+              <h1 className="lens-page-title flex items-center gap-2">
                 LensRadar Live
                 {/* BUG FIX (audit integritas data 2026-08-03): badge "Live" dulu TETAP
                     tampil walau data sebenarnya dari sesi bursa sebelumnya (bisa 2+ hari
@@ -746,7 +746,7 @@ export default function AiPickPage() {
                                   ['Arus Dana', it.breakdown?.flow, 30],
                                 ] as const).map(([label, value, max]) => (
                                   <div key={label}>
-                                    <div className="text-tv-muted uppercase text-[9px] tracking-wide">{label}</div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{label}</div>
                                     <div className="font-bold font-number text-tv-text text-sm">
                                       {value ?? 'N/A'}<span className="text-tv-muted text-[10px] font-normal">/{max}</span>
                                     </div>
@@ -757,7 +757,7 @@ export default function AiPickPage() {
                                 ))}
                               </div>
                               <div className="mt-3">
-                                <div className="text-tv-muted uppercase text-[9px] tracking-wide mb-1">Alasan Utama</div>
+                                <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">Alasan Utama</div>
                                 {it.topReasons && it.topReasons.length > 0 ? (
                                   <ul className="space-y-0.5">
                                     {it.topReasons.map((r, i) => <li key={i} className="text-[11px] text-tv-text">✓ {r}</li>)}

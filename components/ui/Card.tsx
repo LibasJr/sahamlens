@@ -39,15 +39,15 @@ export function GlassCard({ className, ...props }: Omit<CardProps, 'variant'>) {
 }
 
 export function CardHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('mb-4 flex items-center justify-between gap-3', className)} {...props}>{children}</div>;
+  return <div className={cn('mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3', className)} {...props}>{children}</div>;
 }
 
 export function CardTitle({ className, children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('font-heading text-sm font-semibold tracking-tight text-tv-text md:text-[15px]', className)} {...props}>{children}</h3>;
+  return <h3 className={cn('min-w-0 font-heading text-[15px] font-semibold leading-snug tracking-tight text-tv-text md:text-base', className)} {...props}>{children}</h3>;
 }
 
 export function CardSubtitle({ className, children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('mt-1 text-[11px] leading-relaxed text-tv-muted', className)} {...props}>{children}</p>;
+  return <p className={cn('mt-1 text-xs leading-relaxed text-tv-muted', className)} {...props}>{children}</p>;
 }
 
 export default Card;

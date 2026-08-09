@@ -286,7 +286,7 @@ export default function WatchlistPage() {
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-heading font-bold text-xl text-white tracking-tight">LensWatch</h2>
+              <h2 className="lens-page-title">LensWatch</h2>
               <p className="text-xs text-white/50">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
             </div>
           </div>
@@ -455,7 +455,7 @@ export default function WatchlistPage() {
                       </div>
                       <div className="text-[11px] text-tv-muted truncate">{companyName}</div>
                       {scorePresentation && !scorePresentation.actionable && scorePresentation.statusLabel && (
-                        <div className={`text-[9px] font-semibold uppercase tracking-wide mt-0.5 ${
+                        <div className={`text-[10px] font-semibold uppercase tracking-wide mt-0.5 ${
                           scorePresentation.kind === 'INELIGIBLE' ? 'text-tv-red' : 'text-tv-yellow'
                         }`}>
                           {scorePresentation.statusLabel}

@@ -403,7 +403,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
           <TickerAvatar symbol={symbol} size="lg" />
           <div>
-            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">LensAI: {symbol}</h1>
+            <h1 className="lens-page-title">LensAI: {symbol}</h1>
             <p className="text-sm text-tv-muted">Rapat 10 agen analisis atas satu emiten</p>
           </div>
         </div>

@@ -166,7 +166,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       >
         <Search className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden sm:inline truncate">Cari saham, kode emiten, atau perusahaan...</span>
-        <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-white/10 bg-black/10 px-1.5 py-0.5 text-[9px] font-mono text-white/40">⌘K</kbd>
+        <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-white/10 bg-black/10 px-1.5 py-0.5 text-[10px] font-mono text-white/40">⌘K</kbd>
       </button>
 
       {open && (
@@ -219,7 +219,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                       <div className="text-[13px] font-bold text-white font-mono">{r.symbol}</div>
                       <div className="text-[11px] text-tv-muted truncate">{r.name}</div>
                     </div>
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
                   </button>
                 ))}
               </div>

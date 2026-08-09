@@ -124,7 +124,7 @@ function RiskCalculatorContent() {
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">Risk Calculator</h1>
+            <h1 className="lens-page-title">Risk Calculator</h1>
             <p className="text-tv-muted text-sm">Hitung ukuran posisi & rasio risk/reward sebelum entry - murni matematika dari input Anda.</p>
           </div>
         </div>

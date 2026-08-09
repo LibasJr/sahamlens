@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "backfill:lens-history": "node scripts/backfill-lens-history.mjs",
-    "backfill:fundamental-history": "node scripts/backfill-fundamental-history.mjs"
+    "backfill:fundamental-history": "node scripts/backfill-fundamental-history.mjs",
+    "audit:ui": "node scripts/audit-ui-consistency.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

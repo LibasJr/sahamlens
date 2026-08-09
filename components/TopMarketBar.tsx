@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, Clock3, Menu, User as UserIcon } from 'lucide-react';
 import { isMarketOpen } from '@/lib/utils/market';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
-import CommandPalette from './CommandPalette';
+
+const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
 const MODULE_SEARCH_ROUTES = ['/dashboard', '/fundamental', '/macro', '/screener', '/multi-agent'];
 
@@ -56,7 +58,7 @@ export default function TopMarketBar() {
       </button>
 
       <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 md:px-3">
-        <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-tv-muted">IHSG</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-tv-muted">IHSG</span>
         {ihsg ? (
           <>
             <span className="hidden font-number text-xs font-bold text-white sm:inline">{ihsg.price.toLocaleString('id-ID')}</span>

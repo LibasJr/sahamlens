@@ -97,7 +97,7 @@ export default function NewsPage() {
             <Newspaper className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight">Berita & Sentimen Pasar</h1>
+            <h1 className="lens-page-title">Berita & Sentimen Pasar</h1>
             <p className="text-xs text-tv-muted">Berita pasar dari 10 sumber kredibel, sentimen dinilai LensAI</p>
           </div>
         </div>

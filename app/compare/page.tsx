@@ -145,7 +145,7 @@ function CompareContent() {
                 <ArrowRightLeft className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight">Stock Compare</h1>
+                <h1 className="lens-page-title">Stock Compare</h1>
                 <p className="text-xs text-tv-muted">Head-to-head Fundamental & Technical Analysis</p>
               </div>
             </div>

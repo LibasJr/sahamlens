@@ -20,7 +20,7 @@ import { getDecisionPresentation } from '@/modules/eligibility';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper, ChevronRight, Radar
+  Sparkles, Calculator, Newspaper, ChevronRight, Radar, CheckCircle2, X, CircleDollarSign
 } from 'lucide-react';
 // jsPDF/jspdf-autotable TIDAK di-import statis di sini (optimasi loading 2026-08-05) -
 // keduanya cukup berat dan sebelumnya dibundel ke JS awal /dashboard (halaman paling
@@ -1017,7 +1017,7 @@ function DashboardContent() {
                 <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
                 {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
                   <div key={i} className="flex items-start gap-2 text-xs">
-                    <span className="text-tv-green font-bold">âœ“</span>
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-green" aria-hidden="true" />
                     <span className="text-tv-text font-sans">{reason}</span>
                   </div>
                 ))}
@@ -1176,7 +1176,7 @@ function DashboardContent() {
           <div className="bg-tv-bg border-2 border-tv-blue/50 rounded-xl w-full max-w-md overflow-hidden shadow-2 flex flex-col">
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
-                <span className="text-xl">âœ¨</span>
+                <Sparkles className="h-5 w-5 text-tv-blue" aria-hidden="true" />
                 <h3 className="font-heading text-tv-text font-bold">
                   AI Explain: {aiModalData?.algo?.label}
                 </h3>
@@ -1185,7 +1185,8 @@ function DashboardContent() {
                 onClick={() => setAiModalOpen(false)}
                 className="text-tv-muted hover:text-tv-text transition-colors"
               >
-                âœ•
+                <X className="h-5 w-5" aria-hidden="true" />
+                <span className="sr-only">Tutup</span>
               </button>
             </div>
 
@@ -1233,7 +1234,7 @@ function DashboardContent() {
           <div className="bg-tv-bg border-2 border-tv-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
-                <span className="text-xl">ðŸ’°</span>
+                <CircleDollarSign className="h-5 w-5 text-tv-green" aria-hidden="true" />
                 <h3 className="font-heading text-tv-text font-bold">
                   {tradeType} Virtual Trade
                 </h3>
@@ -1242,7 +1243,8 @@ function DashboardContent() {
                 onClick={() => setTradeModalOpen(false)}
                 className="text-tv-muted hover:text-tv-text transition-colors"
               >
-                âœ•
+                <X className="h-5 w-5" aria-hidden="true" />
+                <span className="sr-only">Tutup</span>
               </button>
             </div>
 

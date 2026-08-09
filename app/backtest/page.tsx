@@ -220,7 +220,7 @@ export default function BacktestPage() {
               <Settings2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight">Strategy Builder + AI Backtester</h1>
+              <h1 className="lens-page-title">Strategy Builder + AI Backtester</h1>
               <p className="text-xs text-tv-muted">Build custom rules and backtest on historical data</p>
             </div>
           </div>

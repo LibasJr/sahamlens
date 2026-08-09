@@ -1,12 +1,10 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import Header from './Header';
 import { Card } from './ui/Card';
 import { PageContainer } from './ui/PageContainer';
 import { cn } from '../lib/utils/cn';
-import { fadeUp } from '../lib/motion';
 
 type ShellAccent = 'purple' | 'pink' | 'green' | 'red' | 'blue' | 'warning';
 
@@ -45,11 +43,11 @@ export function TickerAnalysisShell({
   children,
 }: TickerAnalysisShellProps) {
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-tv-bg">
+    <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col bg-tv-bg">
       <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} />
 
-      <PageContainer className="space-y-6 p-4 md:p-6 lg:p-7">
-        <motion.div initial="hidden" animate="show" variants={fadeUp}>
+      <PageContainer className="min-w-0 space-y-5 p-4 sm:space-y-6 md:p-6 lg:p-7">
+        <div>
           <Card
             variant="glass"
             padding="lg"
@@ -60,14 +58,14 @@ export function TickerAnalysisShell({
                 {icon}
               </div>
               <div className="min-w-0">
-                <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-tv-muted">Analysis workspace</div>
-                <h1 className="font-heading text-xl font-bold tracking-tight text-tv-text md:text-2xl">{title}</h1>
-                {subtitle && <p className="mt-1 max-w-3xl text-xs leading-relaxed text-tv-muted">{subtitle}</p>}
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">Analysis workspace</div>
+                <h1 className="font-heading text-xl font-bold leading-tight tracking-tight text-tv-text sm:text-2xl">{title}</h1>
+                {subtitle && <p className="mt-1 max-w-3xl text-sm leading-relaxed text-tv-muted">{subtitle}</p>}
               </div>
             </div>
             {headerExtra && <div className="w-full shrink-0 md:w-auto">{headerExtra}</div>}
           </Card>
-        </motion.div>
+        </div>
 
         {children}
       </PageContainer>

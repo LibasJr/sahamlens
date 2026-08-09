@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils/cn';
 import { AnimatedNumber } from './AnimatedNumber';
 
@@ -88,10 +87,7 @@ export function MetricCard({
   const interactive = Boolean(onClick);
 
   return (
-    <motion.div
-      whileHover={interactive ? { scale: 1.01, y: -2 } : undefined}
-      whileTap={interactive ? { scale: 0.99 } : undefined}
-      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+    <div
       onClick={onClick}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
@@ -141,7 +137,7 @@ export function MetricCard({
       )}
 
       {hint && <p className="mt-2 text-[11px] leading-relaxed text-tv-muted/80">{hint}</p>}
-    </motion.div>
+    </div>
   );
 }
 

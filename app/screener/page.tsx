@@ -147,7 +147,7 @@ export default function ScreenerPage() {
               <Sliders className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-heading text-xl font-bold text-white tracking-tight">Seleksi Profil Risiko Investor</h1>
+              <h1 className="lens-page-title">Seleksi Profil Risiko Investor</h1>
               {/* font-mono dilepas: aturan tipografi di app/globals.css menyebut
                   font-mono HANYA untuk data tabular/kode, bukan kalimat. */}
               <p className="text-xs text-tv-muted">
@@ -342,7 +342,7 @@ export default function ScreenerPage() {
                           }`}>
                             {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`}
                           </span>
-                          <span className="text-[9px] font-semibold uppercase tracking-wide text-tv-yellow">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-tv-yellow">
                             {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED')
                               ? 'Model belum tervalidasi'
                               : item.eligibility_status && item.eligibility_status !== 'ELIGIBLE'
@@ -461,7 +461,7 @@ export default function ScreenerPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-4 gap-2 border-t border-tv-border pt-2.5">
+                    <div className="mt-3 grid grid-cols-2 gap-2 border-t sm:grid-cols-4 border-tv-border pt-2.5">
                       {([
                         ['PER', item.per != null ? `${item.per}x` : 'N/A', 'text-white'],
                         ['ROE', item.roe, 'text-tv-accent'],
@@ -469,7 +469,7 @@ export default function ScreenerPage() {
                         ['Div', item.div_yield, 'text-tv-yellow'],
                       ] as const).map(([label, value, tone]) => (
                         <div key={label}>
-                          <div className="text-[9px] uppercase tracking-wide text-tv-muted">{label}</div>
+                          <div className="text-[10px] uppercase tracking-wide text-tv-muted">{label}</div>
                           <div className={`font-number text-xs font-bold ${tone}`}>{value ?? 'N/A'}</div>
                         </div>
                       ))}

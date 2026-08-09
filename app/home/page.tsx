@@ -472,7 +472,7 @@ export default function HomePage() {
             <Badge variant="info">Daily workspace</Badge>
             <span className="text-[10px] font-medium text-tv-muted">Data server + LensAI</span>
           </div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-white md:text-[28px]">Market workspace</h1>
+          <h1 className="lens-page-title">Market workspace</h1>
           <p className="mt-1 text-xs leading-relaxed text-tv-muted">Mulai dari kondisi pasar, temukan kandidat, lalu masuk ke analisis yang lebih dalam.</p>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
@@ -944,7 +944,7 @@ export default function HomePage() {
                       href={`/technical/${w.symbol}`}
                       className="flex items-center gap-2 font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md pl-1.5 pr-2.5 py-1.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors"
                     >
-                      <TickerAvatar symbol={w.symbol} size="sm" className="!w-5 !h-5 !text-[8px]" />
+                      <TickerAvatar symbol={w.symbol} size="sm" className="!w-5 !h-5 !text-[10px]" />
                       {w.symbol.replace('.JK', '')}
                     </Link>
                   ))}

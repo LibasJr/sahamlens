@@ -589,7 +589,7 @@ export default function TradingViewChart({
 
         {paneLabels.map((pane) => (
           <div key={pane.id} className="pointer-events-none absolute left-0 right-0 z-10 border-t border-tv-border/70" style={{ top: pane.top }}>
-            <span className="absolute left-2 top-1 rounded bg-[#131722]/85 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-tv-muted sm:left-3 sm:text-[10px]">
+            <span className="absolute left-2 top-1 rounded bg-[#131722]/85 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-tv-muted sm:left-3 sm:text-[10px]">
               {pane.label}{pane.latest != null ? `  ${pane.latest}` : ''}
             </span>
           </div>
