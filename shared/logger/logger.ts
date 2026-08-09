@@ -17,14 +17,22 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
-const SENSITIVE_KEYS = new Set(['password', 'password_hash', 'token', 'secret', 'hash', 'code', 'verification_code', 'reset_code']);
+const SENSITIVE_KEYS = new Set(['password', 'password_hash', 'token', 'secret', 'hash', 'code', 'verification_code', 'reset_code', 'authorization', 'cookie', 'database_url']);
 
-function redact(context: LogContext): LogContext {
-  const out: LogContext = {};
-  for (const [key, value] of Object.entries(context)) {
-    out[key] = SENSITIVE_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : value;
+function redactValue(value: unknown, seen: WeakSet<object>): unknown {
+  if (value == null || typeof value !== 'object') return value;
+  if (seen.has(value)) return '[CIRCULAR]';
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, seen));
+  const out: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    out[key] = SENSITIVE_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : redactValue(nested, seen);
   }
   return out;
+}
+
+function redact(context: LogContext): LogContext {
+  return redactValue(context, new WeakSet()) as LogContext;
 }
 
 function write(level: LogLevel, message: string, context: LogContext = {}) {
@@ -51,7 +59,7 @@ export const logger = {
 
     try {
       Sentry.withScope((scope) => {
-        scope.setContext('log', rest as Record<string, unknown>);
+        scope.setContext('log', redact(rest) as Record<string, unknown>);
         if (err instanceof Error) {
           Sentry.captureException(err, { extra: { message } });
         } else {
