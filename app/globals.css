@@ -255,6 +255,23 @@ body {
   outline-offset: 2px;
 }
 
+
+/* Typography consistency: all native interactive controls inherit SahamLens
+   body typography (Inter). Numeric/price surfaces keep using .font-number. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.lens-mobile-nav,
+.lens-mobile-nav button,
+.lens-mobile-nav a,
+.lens-ai-floating {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+}
+
 /* Mobile viewport + bottom overlay clearance.
    Dynamic viewport fixes mobile browser chrome without adding a large fake
    spacer after the page. The bottom inset only reserves the area actually

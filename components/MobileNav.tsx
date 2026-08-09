@@ -54,7 +54,7 @@ export default function MobileNav() {
   }, []);
 
   return (
-    <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 md:hidden" aria-label="Navigasi utama mobile">
+    <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 font-sans md:hidden" aria-label="Navigasi utama mobile">
       <div className="grid grid-cols-5 items-center rounded-[22px] border border-white/10 bg-[#0A101B]/95 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.55)] backdrop-blur-xl">
         {ITEMS.map((item) => {
           const active = item.matches.some((match) => match.endsWith('/') ? pathname.startsWith(match) : pathname === match || pathname.startsWith(`${match}/`));
