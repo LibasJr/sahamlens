@@ -47,7 +47,7 @@ describe('createBoundedLoader', () => {
     expect(calls).toBe(1);
   });
 
-  it('caches only successful values', async () => {
+  it('does not cache rejected requests', async () => {
     let calls = 0;
     const loader = createBoundedLoader(
       async (key: string) => {
@@ -62,6 +62,28 @@ describe('createBoundedLoader', () => {
     await expect(loader.get('A')).rejects.toThrow('temporary');
     await expect(loader.get('A')).resolves.toBe('A');
     await expect(loader.get('A')).resolves.toBe('A');
+    expect(calls).toBe(2);
+  });
+
+  it('does not cache sentinel failure values rejected by shouldCache', async () => {
+    let calls = 0;
+    const loader = createBoundedLoader(
+      async () => {
+        calls++;
+        return calls === 1 ? null : 'ok';
+      },
+      () => 'same',
+      {
+        concurrency: 1,
+        ttlMs: 10_000,
+        timeoutMs: 1000,
+        shouldCache: (value) => value !== null,
+      },
+    );
+
+    await expect(loader.get('A')).resolves.toBeNull();
+    await expect(loader.get('A')).resolves.toBe('ok');
+    await expect(loader.get('A')).resolves.toBe('ok');
     expect(calls).toBe(2);
   });
 });

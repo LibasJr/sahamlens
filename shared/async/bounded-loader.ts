@@ -1,8 +1,10 @@
-export interface BoundedLoaderOptions {
+export interface BoundedLoaderOptions<V> {
   concurrency: number;
   ttlMs: number;
   timeoutMs: number;
   maxEntries?: number;
+  /** Optional value-level cache gate. Useful when a loader returns null for failure. */
+  shouldCache?: (value: V) => boolean;
 }
 
 interface CacheEntry<T> {
@@ -38,7 +40,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
  * - hard concurrency ceiling;
  * - in-flight de-duplication;
  * - short-lived success cache;
- * - failed requests are NEVER cached;
+ * - thrown/rejected requests are NEVER cached;
+ * - value-level cache gate for sentinel failures such as null;
  * - timeout isolation per task;
  * - no dependency on Redis/database.
  *
@@ -47,7 +50,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 export function createBoundedLoader<K, V>(
   load: (key: K) => Promise<V>,
   keyOf: (key: K) => string,
-  options: BoundedLoaderOptions,
+  options: BoundedLoaderOptions<V>,
 ): {
   get: (key: K) => Promise<V>;
   clear: () => void;
@@ -63,6 +66,7 @@ export function createBoundedLoader<K, V>(
   const ttlMs = Math.max(0, Math.floor(options.ttlMs));
   const timeoutMs = Math.max(0, Math.floor(options.timeoutMs));
   const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? 256));
+  const shouldCache = options.shouldCache ?? (() => true);
 
   const cache = new Map<string, CacheEntry<V>>();
   const inFlight = new Map<string, Promise<V>>();
@@ -111,7 +115,7 @@ export function createBoundedLoader<K, V>(
         normalizedKey,
       );
 
-      if (ttlMs > 0) {
+      if (ttlMs > 0 && shouldCache(value)) {
         cache.set(normalizedKey, {
           value,
           expiresAt: Date.now() + ttlMs,
