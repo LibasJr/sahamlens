@@ -1,3 +1,39 @@
+// Policy freshness data pasar IDX: 1 menit saat sesi reguler aktif, 30 menit saat
+// bursa tutup. Dihitung dalam zona Asia/Jakarta agar tidak bergantung timezone server.
+export const MARKET_OPEN_TTL_SEC = 60;
+export const MARKET_CLOSED_TTL_SEC = 30 * 60;
+
+export function isIdxMarketOpen(now: Date = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'short',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+
+  const weekday = parts.find((part) => part.type === 'weekday')?.value;
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+  const isWeekday = weekday != null && !['Sat', 'Sun'].includes(weekday);
+
+  return isWeekday && Number.isFinite(hour) && hour >= 9 && hour < 16;
+}
+
+export function getMarketAwareTtlSec(now: Date = new Date()): number {
+  return isIdxMarketOpen(now) ? MARKET_OPEN_TTL_SEC : MARKET_CLOSED_TTL_SEC;
+}
+
+export function getMarketAwareTtlMs(now: Date = new Date()): number {
+  return getMarketAwareTtlSec(now) * 1000;
+}
+
+export function getMarketAwareCacheHeaders(now: Date = new Date()): Record<string, string> {
+  const ttl = getMarketAwareTtlSec(now);
+  return {
+    'Cache-Control': 'public, max-age=0',
+    'Vercel-CDN-Cache-Control': `public, s-maxage=${ttl}`,
+  };
+}
+
 // BUILD 007 (Cache Layer) - satu titik dokumentasi TTL per domain, sesuai daftar di
 // roadmap ("Redis dengan TTL berbeda per Fundamental/Technical/Market/AI/News/Ticker").
 // Nilai di sini SUDAH mencerminkan angka yang sebelumnya tersebar sebagai magic
@@ -7,13 +43,13 @@
 export const CACHE_TTL_SEC = {
   // Data teknikal (harga+indikator) - berubah tiap menit saat market buka, TTL
   // pendek. Dipakai app/api/stock/[ticker], app/api/agents/orchestrator.
-  TECHNICAL: 3 * 60,
+  get TECHNICAL() { return getMarketAwareTtlSec(); },
 
   // Snapshot pasar (indeks/sektor/breadth) - diisi cron tiap 5 menit (app/api/cron/
   // market-pulse), TTL sedikit lebih panjang dari interval jadwal sebagai toleransi
   // keterlambatan run. AMAN pendek karena route-nya (app/api/market-pulse) punya
   // fallback live-scan saat cache miss - beda dari BREAKOUT_RADAR di bawah.
-  MARKET: 6 * 60,
+  get MARKET() { return getMarketAwareTtlSec(); },
 
   // BUG FIX (audit integritas data 2026-08-03, ditemukan setelah user lapor "Live AI
   // Pick" kosong): breakout-scan cron (app/api/cron/breakout-scan) SEBELUMNYA memakai
@@ -38,12 +74,12 @@ export const CACHE_TTL_SEC = {
   // 250 saham (bisa berumur beberapa detik) - salah satu sumber utama keluhan "lambat"
   // karena inilah halaman yang paling sering dibuka. 6 menit = interval cron (5m) +
   // buffer 1 run, sama seperti pola MARKET (market-pulse) di bawah.
-  MARKET_SUMMARY: 6 * 60,
+  get MARKET_SUMMARY() { return getMarketAwareTtlSec(); },
 
   // Skor rekomendasi (gabungan teknikal+fundamental+flow) - diisi cron tiap 15
   // menit (app/api/cron/recommendation-scan), lebih lambat berubah dari data
   // teknikal mentah.
-  RECOMMENDATION: 15 * 60,
+  get RECOMMENDATION() { return getMarketAwareTtlSec(); },
 
   // Hasil AI Council (Gemini) - dikunci per simbol+tanggal+kuartal-terakhir-dilaporkan
   // (lihat app/api/council/route.ts), jadi laporan keuangan baru sudah otomatis

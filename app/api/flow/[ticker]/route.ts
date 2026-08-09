@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 
@@ -41,7 +42,7 @@ export async function GET(
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=2mo&interval=1d`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      next: { revalidate: 300 },
+      next: { revalidate: getMarketAwareTtlSec() },
     });
     if (!res.ok) throw new Error('Gagal mengambil data Yahoo Finance');
 
