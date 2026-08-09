@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { getMarketAwareTtlMs } from '@/shared/cache/ttl-policy';
 
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
@@ -11,9 +12,9 @@ type Preview = { closes: number[]; price: number; changePct: number } | null;
 // punya TTL - sekali simbol di-hover, hasilnya (termasuk harga) FROZEN di memori
 // browser sepanjang komponen ini mount, walau harga real sudah berubah (contoh nyata:
 // DGWG tetap tampil 290 di search walau harga sudah 300). /api/public-chart sendiri
-// sudah punya cache 60 detik (route revalidate) - PREVIEW_CACHE_TTL_MS disamakan
-// supaya cache client ini gak lebih lama hidup dari cache server yang membungkusnya.
-const PREVIEW_CACHE_TTL_MS = 60_000;
+// Preview mengikuti policy cache pasar: 60 detik saat bursa buka, 30 menit saat
+// bursa tutup. Cache ini hanya menyimpan preview client, bukan source of truth harga.
+
 
 interface CommandPaletteProps {
   // Kalau diisi, memilih saham (klik/Enter) memanggil ini alih-alih pindah halaman ke
@@ -87,7 +88,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
     if (!active) { setPreview(null); return; }
     const symbol = active.symbol;
     const cached = previewCache.current.get(symbol);
-    if (cached !== undefined && Date.now() - cached.fetchedAt < PREVIEW_CACHE_TTL_MS) {
+    if (cached !== undefined && Date.now() - cached.fetchedAt < getMarketAwareTtlMs()) {
       setPreview(cached.data);
       return;
     }

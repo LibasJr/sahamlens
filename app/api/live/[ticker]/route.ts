@@ -2,9 +2,9 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
 
-export const revalidate = 60; // Cache for 60 seconds
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -31,7 +31,7 @@ export async function GET(
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
-      next: { revalidate: 60 }
+      next: { revalidate: getMarketAwareTtlSec() }
     });
 
     if (yahooRes.ok) {
@@ -66,7 +66,7 @@ export async function GET(
           freshness: fresh.freshness,
           source: 'Yahoo Finance',
           delay: null
-        });
+        }, { headers: getMarketAwareCacheHeaders() });
       }
       console.warn(`Yahoo Finance returned no valid price for ${ticker}`);
     } else if (yahooRes.status === 429 || yahooRes.status === 403) {
