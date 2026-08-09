@@ -24,6 +24,16 @@ import { buildExportFileName } from '@/shared/format/export-filename';
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
+const splitStatusText = (value?: string | null) => {
+  const text = (value || '').trim();
+  if (!text) return { primary: 'AWAITING', detail: '' };
+  const match = text.match(/^([^()]+?)\s*(?:\((.+)\))?$/);
+  return {
+    primary: (match?.[1] || text).trim(),
+    detail: (match?.[2] || '').trim(),
+  };
+};
+
 // BUG FIX (2026-08-01): sama seperti /dcf - dulu tidak baca ?symbol= dari URL sama
 // sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
 // Analyzer (yang sekarang mengirim ?symbol=<ticker aktif>) langsung akurat.
@@ -212,7 +222,7 @@ function FundamentalContent() {
         <Header currentTicker={ticker} onTickerChange={setTicker} moduleTitle="LensFundamental" moduleBank="LENSFUNDAMENTAL" />
         {/* Sebelumnya satu spinner teal-500 - warna yang tidak ada di palet - di tengah
             halaman kosong. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
-        <PageContainer className="p-6 space-y-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
           <Skeleton className="h-24 w-full" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Skeleton className="h-48 w-full" />
@@ -238,7 +248,7 @@ function FundamentalContent() {
         />
         {/* Pesan lama menyalahkan kuota pengguna untuk SEMUA sebab kegagalan, dan
             tidak menyediakan tombol coba lagi sama sekali. */}
-        <PageContainer className="p-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7">
           {showLoginPrompt ? (
             <EmptyState
               illustration="locked"
@@ -315,7 +325,7 @@ function FundamentalContent() {
         moduleBank="LENSFUNDAMENTAL"
       />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {/* Status Badge */}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
@@ -368,21 +378,21 @@ function FundamentalContent() {
         )}
 
         {/* Top Summary Banner */}
-        <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="bg-tv-card border border-tv-border rounded-xl p-4 sm:p-5 shadow-1 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             {/* Ikon petir kuning identik untuk semua emiten diganti avatar per-emiten. */}
             <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-extrabold text-white font-heading">{displayTicker(stock.symbol || ticker)}.JK</h1>
-                <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
+              <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
+                <h1 className="shrink-0 text-xl font-bold tracking-tight text-white font-heading sm:text-2xl">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                <span className="min-w-0 truncate text-xs text-tv-muted font-sans font-normal sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
                 {typeof stock.current_price === 'number' && Number.isFinite(stock.current_price) ? (
                   <AnimatedNumber
                     value={stock.current_price}
                     format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
-                    className="font-number text-2xl font-bold text-white tabular-nums"
+                    className="font-number text-xl font-bold text-white tabular-nums sm:text-2xl"
                   />
                 ) : (
                   <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
@@ -401,7 +411,7 @@ function FundamentalContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="grid w-full grid-cols-2 gap-3 md:flex md:w-auto md:items-stretch md:gap-3">
              {data?.bestPerformer && (
                 <div className="text-right border-r border-tv-border pr-6 hidden md:block">
                   <div className="text-[10px] text-tv-muted uppercase tracking-wide">TOP METHOD TODAY</div>
@@ -418,49 +428,50 @@ function FundamentalContent() {
                 Value di bawah), bukan lagi vote 13-analyzer campur aduk kualitas+valuasi.
                 Cek warna diganti dari 'BULLISH'/'BEARISH' (kata itu sudah tidak pernah
                 muncul lagi di string consensus) jadi 'UNDERVALUED'/'OVERVALUED'. */}
-            <div className="text-right">
-              <div className="text-[10px] text-tv-muted uppercase tracking-wide">Valuasi Harga</div>
-              {/* BUG FIX (2026-08-06, laporan user "font beda, kegedean"): font-mono
-                  (JetBrains Mono, dikhususkan untuk kolom angka - lihat tailwind.config.js)
-                  dulu dipakai untuk kata status ("UNDERVALUED"), bukan angka - itu sumber
-                  "font-nya beda" dari badge sejenis di LensTechnical (yang sudah font-sans).
-                  Ukuran turun dari text-xl font-extrabold ke text-sm font-bold - proporsional
-                  ke label 10px di atasnya, tidak lagi 2x lebih besar dari sekitarnya. */}
-              <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
-                data?.consensus?.includes('UNDERVALUED')
-                  ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                  : data?.consensus?.includes('OVERVALUED')
-                  ? 'bg-tv-red/20 text-tv-red border-tv-red'
-                  : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
-              }`}>
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
-              </div>
+            <div className="min-w-0">
+              <div className="mb-1.5 text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Valuasi Harga</div>
+              {(() => {
+                const valuation = splitStatusText(data?.consensus);
+                return (
+                  <div className={`min-h-[78px] w-full rounded-xl border px-3 py-2.5 shadow-1 flex flex-col items-center justify-center text-center font-sans ${
+                    data?.consensus?.includes('UNDERVALUED')
+                      ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
+                      : data?.consensus?.includes('OVERVALUED')
+                      ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
+                      : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
+                  }`}>
+                    <div className="flex items-center justify-center gap-1.5">
+                      {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
+                      <span className="text-sm font-bold leading-tight sm:text-base">{loading ? 'Calculating...' : valuation.primary}</span>
+                    </div>
+                    {!loading && valuation.detail && <div className="mt-1 text-[11px] font-semibold opacity-80 sm:text-xs">{valuation.detail}</div>}
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* Badge baru (audit skor fundamental 2026-08-05): "bisnisnya bagus atau
-                buruk" dijawab TERPISAH dari "sahamnya murah atau mahal" di atas - dua
-                pertanyaan beda, gak dicampur jadi satu skor yang menyesatkan (lihat
-                consensus-labels.service.ts). */}
-            <div className="text-right">
-              <div className="text-[10px] text-tv-muted uppercase tracking-wide">Kualitas Fundamental</div>
-              <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
+            <div className="min-w-0">
+              <div className="mb-1.5 text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Kualitas Fundamental</div>
+              <div className={`min-h-[78px] w-full rounded-xl border px-3 py-2.5 shadow-1 flex flex-col items-center justify-center text-center font-sans ${
                 data?.fundamentalQuality?.label === 'BAGUS'
-                  ? 'bg-tv-green/20 text-tv-green border-tv-green'
+                  ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
                   : data?.fundamentalQuality?.label === 'BURUK'
-                  ? 'bg-tv-red/20 text-tv-red border-tv-red'
-                  : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
+                  ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
+                  : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
               }`}>
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                {loading
-                  ? 'Calculating...'
-                  : data?.fundamentalQuality
-                  ? `${data.fundamentalQuality.label} (${data.fundamentalQuality.pct}%)`
-                  : 'AWAITING'}
+                <div className="flex items-center justify-center gap-1.5">
+                  {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4 shrink-0" />}
+                  <span className="text-sm font-bold leading-tight sm:text-base">
+                    {loading ? 'Calculating...' : data?.fundamentalQuality?.label || 'AWAITING'}
+                  </span>
+                </div>
+                {!loading && data?.fundamentalQuality && (
+                  <div className="mt-1 text-[11px] font-semibold opacity-80 sm:text-xs">Score {data.fundamentalQuality.pct}%</div>
+                )}
               </div>
             </div>
+            </div>
           </div>
-        </div>
 
         {/* Storytelling: dua badge di atas sengaja memisahkan "murah atau mahal" dari
             "bisnisnya bagus atau buruk" - tapi yang menentukan keputusan justru
