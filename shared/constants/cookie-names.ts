@@ -25,10 +25,6 @@ export const ROLE_BADGE_COOKIE = 'role';
 // Cookie identitas dari Telegram Login Widget (non-HttpOnly, hanya nama/username).
 export const TELEGRAM_USER_COOKIE = 'sahamlens_user';
 
-// Cookie sesi akun Demo/Paper Trading - dipertahankan untuk kompatibilitas mundur
-// dengan sistem portofolio yang lama.
-export const DEMO_SESSION_COOKIE = 'sahamlens_demo_session';
-
 // Cookie trial 7 hari untuk pengunjung TANPA akun (HttpOnly, ditandatangani -
 // lihat shared/auth/anonymous-trial.ts). Beda dari SESSION_COOKIE (itu untuk akun
 // yang sudah login) - cookie ini murni penanda "kapan pertama kali dilihat".

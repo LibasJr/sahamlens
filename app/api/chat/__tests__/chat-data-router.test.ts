@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const asOfMock = vi.fn();
-const historyMock = vi.fn();
+const { asOfMock, historyMock } = vi.hoisted(() => ({
+  asOfMock: vi.fn(),
+  historyMock: vi.fn(),
+}));
 
 vi.mock('@/modules/fundamental/repository/fundamental-history.repository', () => ({
   asOf: asOfMock,

@@ -4,6 +4,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
 
 import {
@@ -44,10 +45,8 @@ export async function GET(
 ) {
   try {
     const { ticker: rawTicker } = await params;
-    let ticker = rawTicker.toUpperCase();
-    if (!ticker.includes('.')) {
-      ticker = `${ticker}.JK`;
-    }
+    const ticker = normalizeIdxTickerParam(rawTicker);
+    if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
 
 
     // ============================================================

@@ -60,7 +60,7 @@ describe('buildLongTradingSetup', () => {
   });
 
   it('fail-closed kalau resistance terdekat membuat RR kurang dari 1.5', () => {
-    const setup = buildLongTradingSetup(baseHistory(), 116, 5);
+    const setup = buildLongTradingSetup(baseHistory(123), 116, 5);
     expect(setup).toBeNull();
   });
 

@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
 
@@ -19,10 +20,9 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   const { ticker: rawTicker } = await params;
-  let ticker = rawTicker;
-  if (!ticker.endsWith('.JK') && !ticker.includes('^')) {
-    ticker = `${ticker}.JK`;
-  }
+  const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
+  if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+  const ticker = normalizedTicker;
 
   try {
     // Primary Data Source: Yahoo Finance v8

@@ -4,6 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { checkAndTriggerAlerts } from '@/modules/notification';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
+import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 
 // WAJIB - route ini tidak memanggil cookies()/headers() sama sekali, jadi tanpa
 // penanda ini Next.js men-static-generate-nya SEKALI saat `next build` dan
@@ -38,11 +39,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const host = req.headers.get('host');
-    const protocol = req.headers.get('x-forwarded-proto') || 'http';
-    const origin = `${protocol}://${host}`;
-
-    const result = await checkAndTriggerAlerts(origin);
+    const result = await checkAndTriggerAlerts(getTrustedAppOrigin());
     return NextResponse.json(result);
   } catch (err) {
     console.error('Error checking alerts:', err);

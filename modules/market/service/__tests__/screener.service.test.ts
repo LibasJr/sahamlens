@@ -36,7 +36,7 @@ describe('atr14Pct', () => {
 describe('filterCurated', () => {
   it('membuang saham yang tidak lolos standar kualitas', () => {
     const stocks = [
-      { ticker: 'BBCA' }, { ticker: 'GOTO' }, { ticker: 'BUKA' },
+      { ticker: 'BBCA' }, { ticker: 'GOTO' }, { ticker: 'ZZZZ' },
       { ticker: 'MEGA' }, { ticker: 'BYAN' }, { ticker: 'SILO' },
     ];
 
@@ -82,7 +82,7 @@ function rawStock(ticker: string, over: Record<string, unknown> = {}) {
 
 describe('rankScreener', () => {
   it('tidak pernah mengembalikan saham di luar daftar tersaring', () => {
-    const universe = [rawStock('BBCA'), rawStock('GOTO'), rawStock('BUKA'), rawStock('TLKM')];
+    const universe = [rawStock('BBCA'), rawStock('GOTO'), rawStock('ZZZZ'), rawStock('TLKM')];
 
     const result = rankScreener(universe as any, 'Moderat');
 
@@ -90,7 +90,7 @@ describe('rankScreener', () => {
   });
 
   it('mengembalikan array kosong kalau seluruh universe tersaring habis', () => {
-    const universe = [rawStock('GOTO'), rawStock('BUKA'), rawStock('MEGA')];
+    const universe = [rawStock('GOTO'), rawStock('ZZZZ'), rawStock('MEGA')];
 
     expect(rankScreener(universe as any, 'Moderat')).toEqual([]);
   });
