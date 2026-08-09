@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import TopMarketBar from '@/components/TopMarketBar';
 import MobileNav from '@/components/MobileNav';
 import TrialExpiredGate from '@/components/TrialExpiredGate';
+import SmartBackNavigation from '@/components/SmartBackNavigation';
 
 const AIChat = dynamic(() => import('@/components/AIChat'), { ssr: false, loading: () => null });
 
@@ -41,6 +42,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+      <SmartBackNavigation />
       <MobileNav />
       <AIChat />
       <TrialExpiredGate />
