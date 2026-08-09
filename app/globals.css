@@ -255,14 +255,10 @@ body {
   outline-offset: 2px;
 }
 
-/* Mobile overlay clearance:
-   Bottom navigation + LensAI memakai position:fixed sehingga tidak mengambil ruang
-   di document flow. Sisakan ruang scroll nyata di akhir SEMUA halaman agar baris/teks
-   terakhir dapat digeser sepenuhnya ke atas kedua overlay, termasuk safe-area iOS/
-   Android WebView. Jangan menyembunyikan overflow sebagai workaround. */
-/* Mobile browsers have a dynamic visual viewport. `100vh` may include browser
-   chrome that is not currently visible, which can leave the final content behind
-   fixed navigation even when padding looks sufficient. Use dvh when supported. */
+/* Mobile viewport + bottom overlay clearance.
+   Dynamic viewport fixes mobile browser chrome without adding a large fake
+   spacer after the page. The bottom inset only reserves the area actually
+   needed by the fixed mobile navigation and device safe-area. */
 .lens-shell-viewport {
   height: 100vh;
 }
@@ -273,25 +269,11 @@ body {
   }
 }
 
-.lens-mobile-scroll-spacer {
-  display: none;
-}
-
 @media (max-width: 767px) {
   .lens-main {
-    /* Keep a smaller intrinsic inset on the actual scroll container for keyboard/
-       anchor scrolling. The real clearance is the flow spacer below the page. */
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    scroll-padding-bottom: calc(11rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
     overscroll-behavior-y: contain;
-  }
-
-  .lens-mobile-scroll-spacer {
-    display: block;
-    width: 100%;
-    height: calc(11rem + env(safe-area-inset-bottom, 0px));
-    flex: 0 0 auto;
-    pointer-events: none;
   }
 
   .lens-mobile-nav {
