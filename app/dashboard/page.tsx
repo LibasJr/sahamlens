@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
-import TradingViewChart from '@/components/TradingViewChart';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
@@ -31,6 +31,12 @@ import {
 // klik "Download PDF Report". Sekarang di-import dinamis di dalam downloadTechnicalPDF()
 // - library itu baru diunduh & di-parse browser saat tombolnya diklik, bukan di setiap
 // kunjungan halaman.
+
+
+const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
+  ssr: false,
+  loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
+});
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';

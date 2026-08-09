@@ -4,6 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { getSession, checkProAccessLive } from '../../../modules/user';
 import { logger } from '../../../shared/logger/logger';
+import { computeActorFromRequest, consumeComputeBudget } from '../../../shared/middleware/compute-budget';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '../../../shared/auth/anonymous-trial';
 import {
   readBacktestCache,
@@ -33,8 +34,8 @@ function fmtPct(n: number): string {
   return `${n >= 0 ? '+' : ''}${formatted}%`;
 }
 
-async function getCache(): Promise<BacktestIndicatorCache> {
-  let cache = await readBacktestCache();
+async function getCache(existing?: BacktestIndicatorCache | null): Promise<BacktestIndicatorCache> {
+  let cache = existing ?? await readBacktestCache();
   if (!cache) {
     // Cron belum pernah jalan / cache kadaluarsa - hitung langsung (lambat, tapi
     // tetap data asli, bukan gagal). Pola sama seperti market-pulse/breakout-radar.
@@ -66,6 +67,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
+    const cachedBacktest = await readBacktestCache();
+    const budget = await consumeComputeBudget(
+      computeActorFromRequest(request, session?.id),
+      cachedBacktest ? 2 : 10,
+      session ? 'authenticated' : 'public',
+    );
+    if (!budget.allowed) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak komputasi berat dalam waktu singkat. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
+        { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined },
+      );
+    }
+
     const body = await request.json();
 
     const rawFilters: unknown[] = Array.isArray(body?.filters) ? body.filters : [];
@@ -89,7 +103,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Periode tidak valid' }, { status: 400 });
     }
 
-    const cache = await getCache();
+    const cache = await getCache(cachedBacktest);
     const result = simulateBacktest(cache, { filters, modal, periodMonths: period });
 
     const responseBody: Record<string, unknown> = {

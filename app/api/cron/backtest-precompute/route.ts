@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { precomputeBacktestData, writeBacktestCache } from '@/modules/backtest';
 
@@ -21,11 +22,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await withJobRunLog('backtest-precompute', async () => {
+    const guarded = await runWithJobConcurrencyGuard('backtest-precompute', () => withJobRunLog('backtest-precompute', async () => {
       const data = await precomputeBacktestData();
       await writeBacktestCache(data);
       return { tickers: data.tickers.length, computedAt: data.computedAt };
-    });
+    }));
+    if (!guarded.executed) {
+      return NextResponse.json({ success: true, skipped: true, reason: guarded.reason }, { status: 202 });
+    }
+    const result = guarded.value;
     return NextResponse.json({ success: true, result });
   } catch (err) {
     logger.error('Job backtest-precompute gagal', { err });

@@ -8,6 +8,7 @@ export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
+import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import { generateAIResult, type AIProviderErrorCode } from '@/lib/aiProviders';
 import { resolveConversationTickers } from './extract-ticker';
 import { normalizeChatText, getDeterministicSmallTalkResponse } from './chat-normalize';
@@ -157,6 +158,19 @@ export async function POST(request: Request) {
         content: 'Silakan login untuk menggunakan LensAI.',
         errorCode: 'AUTH_ERROR',
       }, { status: 401 });
+    }
+
+    const budget = await consumeComputeBudget(
+      computeActorFromRequest(request, session.id),
+      3,
+      'authenticated',
+    );
+    if (!budget.allowed) {
+      return NextResponse.json({
+        role: 'assistant',
+        content: 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.',
+        errorCode: 'RATE_LIMIT',
+      }, { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined });
     }
 
     const body = await request.json();

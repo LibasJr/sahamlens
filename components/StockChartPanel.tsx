@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Sparkles } from 'lucide-react';
-import TradingViewChart from '@/components/TradingViewChart';
 import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
+
+const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
+  ssr: false,
+  loading: () => <div className="min-h-[360px] sm:min-h-[460px] animate-pulse rounded-lg bg-[#131722]" aria-label="Memuat grafik" />,
+});
 
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
 // lihat catatan lengkap di components/Dashboard.tsx (TIMEFRAMES array yang sama) - 1M/3M
@@ -20,13 +25,17 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
+    const controller = new AbortController();
     setChartData([]);
-    fetch(`/api/public-chart/${code}?tf=${timeframe}`)
+    fetch(`/api/public-chart/${code}?tf=${timeframe}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.history && data.history.length > 0) setChartData(data.history);
+        if (!controller.signal.aborted && data && data.history && data.history.length > 0) setChartData(data.history);
       })
-      .catch(console.error);
+      .catch((error) => {
+        if (error?.name !== 'AbortError') console.error(error);
+      });
+    return () => controller.abort();
   }, [code, timeframe]);
 
   const ind: Indicators | null = useMemo(() => {

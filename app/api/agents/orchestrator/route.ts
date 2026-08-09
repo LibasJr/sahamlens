@@ -1,4 +1,4 @@
-﻿import { guard } from '@/lib/sahamLensGuard';
+import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
@@ -6,6 +6,7 @@ import { getSession, checkProAccessLive } from '@/modules/user';
 import { runMultiAgentOrchestrator } from '@/modules/ai';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 
 // BUILD 004 (AI Architecture) - endpoint ini SEBELUMNYA TIDAK PERNAH ADA.
@@ -37,6 +38,18 @@ export async function POST(request: Request) {
     const hasPro = anonTrial?.active === true || await checkProAccessLive(session);
     if (!hasPro) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+    }
+
+    const budget = await consumeComputeBudget(
+      computeActorFromRequest(request, session?.id),
+      6,
+      session ? 'authenticated' : 'public',
+    );
+    if (!budget.allowed) {
+      return NextResponse.json(
+        { error: 'Analisis multi-agent terlalu sering dijalankan. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
+        { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined },
+      );
     }
 
     const body = await request.json().catch(() => ({}));

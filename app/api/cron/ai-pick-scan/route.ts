@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { scanAiPickScores } from '@/modules/recommendation/service/ai-pick-scan.service';
 import { writeAiPickScores } from '@/shared/cache/ai-pick-cache';
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   let stage = 'request:accepted';
 
   try {
-    const result = await withJobRunLog('ai-pick-scan', async () => {
+    const guarded = await runWithJobConcurrencyGuard('ai-pick-scan', () => withJobRunLog('ai-pick-scan', async () => {
       stage = 'scan:start';
       const { scores, bearishSymbols } = await scanAiPickScores();
 
@@ -47,7 +48,11 @@ export async function POST(req: NextRequest) {
 
       stage = 'job:complete';
       return { scored: scores.length, bearish: bearishSymbols.length, archived };
-    });
+    }));
+    if (!guarded.executed) {
+      return NextResponse.json({ success: true, skipped: true, reason: guarded.reason, scanWindow }, { status: 202 });
+    }
+    const result = guarded.value;
     return NextResponse.json({ success: true, skipped: false, scanWindow, result });
   } catch (err) {
     logger.error('Job ai-pick-scan gagal', { stage, err });

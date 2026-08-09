@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheSet } from '@/shared/cache/redis-cache';
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await withJobRunLog('recommendation-scan', async () => {
+    const guarded = await runWithJobConcurrencyGuard('recommendation-scan', () => withJobRunLog('recommendation-scan', async () => {
       let scanned = 0;
       for (let i = 0; i < SCAN_SYMBOLS.length; i += 5) {
         const chunk = SCAN_SYMBOLS.slice(i, i + 5);
@@ -44,7 +45,11 @@ export async function POST(req: NextRequest) {
         scanned += chunkResults.filter(Boolean).length;
       }
       return { scanned, total: SCAN_SYMBOLS.length };
-    });
+    }));
+    if (!guarded.executed) {
+      return NextResponse.json({ success: true, skipped: true, reason: guarded.reason }, { status: 202 });
+    }
+    const result = guarded.value;
     return NextResponse.json({ success: true, result });
   } catch (err) {
     logger.error('Job recommendation-scan gagal', { err });

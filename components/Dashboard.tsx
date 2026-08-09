@@ -2,14 +2,21 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter } from 'lucide-react';
-import TradingViewChart from '@/components/TradingViewChart';
-import CommandPalette from '@/components/CommandPalette';
+
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
+
+
+const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
+  ssr: false,
+  loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
+});
+const CommandPalette = dynamic(() => import('@/components/CommandPalette'), { ssr: false });
 
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
 // '1M'/'3M' DIHILANGKAN dari daftar pilihan (bukan cuma default) - backend

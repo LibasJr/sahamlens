@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { runCouncilAnalysis } from '@/modules/ai';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import {
   readOrIssueAnonymousTrial,
   applyAnonymousTrialCookie,
@@ -43,6 +44,18 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' },
         { status: 402 },
+      );
+    }
+
+    const budget = await consumeComputeBudget(
+      computeActorFromRequest(req, session?.id),
+      5,
+      session ? 'authenticated' : 'public',
+    );
+    if (!budget.allowed) {
+      return NextResponse.json(
+        { error: 'Analisis berat terlalu sering dijalankan. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
+        { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined },
       );
     }
 
