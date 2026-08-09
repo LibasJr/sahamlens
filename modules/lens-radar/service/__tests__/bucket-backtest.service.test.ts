@@ -58,7 +58,8 @@ describe('calculateLensBucketStats', () => {
     // (110/105 - 1) * 100 - 0.5 = 4.26%.
     expect(high.avg_T1).toBe(4.26);
     expect(high.avg_T5).toBe(51.88);
-    expect(high.totalSamples).toBe(1);
+    // totalSamples mengikuti endpoint primer T20; fixture ini hanya matang sampai T5.
+    expect(high.totalSamples).toBe(0);
   });
 
   it('membuat 4 bucket dengan shape output Strategy Builder', async () => {

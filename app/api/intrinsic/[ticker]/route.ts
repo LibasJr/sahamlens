@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 
 // BUILD 004 (AI Architecture) - logika DCF/Graham/PBV/PER/DDM dipindah ke
@@ -14,7 +15,9 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = await params;
+    const { ticker: rawTicker } = await params;
+    const ticker = normalizeIdxTickerParam(rawTicker);
+    if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     const result = await calculateIntrinsicValue(ticker);
     if (!result) {
       return NextResponse.json({ error: 'No data found' }, { status: 404 });

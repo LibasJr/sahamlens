@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
@@ -35,8 +36,9 @@ export async function GET(
   }
 
   const { ticker: rawTicker } = await params;
-  const cleanTicker = rawTicker.toUpperCase().replace('.JK', '');
-  const ticker = `${cleanTicker}.JK`;
+  const ticker = normalizeIdxTickerParam(rawTicker);
+  if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+  const cleanTicker = ticker.replace('.JK', '');
 
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=2mo&interval=1d`;

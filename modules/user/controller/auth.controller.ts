@@ -1,5 +1,5 @@
 import { getSession, checkProAccess } from '../../../shared/auth/session';
-import { SESSION_COOKIE, DEMO_SESSION_COOKIE } from '../../../shared/constants/cookie-names';
+import { SESSION_COOKIE } from '../../../shared/constants/cookie-names';
 import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 import { loginSchema, signupSchema, verifySchema, forgotPasswordSchema, resetPasswordSchema } from '../validator/auth.validator';
 import { login, signup, verifyAccount, type AuthSessionResult } from '../service/auth.service';
@@ -14,12 +14,6 @@ function sessionCookies(result: AuthSessionResult) {
       name: SESSION_COOKIE,
       value: result.token,
       options: { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/', maxAge: result.maxAgeSec },
-    },
-    // Kompatibilitas mundur dengan sistem portofolio demo lama (lihat app/api/portfolio/*).
-    {
-      name: DEMO_SESSION_COOKIE,
-      value: JSON.stringify({ id: result.userId, username: result.email, role: result.role }),
-      options: { httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge: 60 * 60 * 24 * 30 },
     },
   ];
 }
@@ -56,13 +50,26 @@ export async function handleResetPassword(rawBody: unknown): Promise<HttpResult>
 }
 
 export async function handleLogout(): Promise<HttpResult> {
-  return { status: 200, body: { success: true }, cookiesToClear: [SESSION_COOKIE, DEMO_SESSION_COOKIE] };
+  return { status: 200, body: { success: true }, cookiesToClear: [SESSION_COOKIE, 'sahamlens_demo_session'] };
 }
 
 export async function handleMe(): Promise<HttpResult> {
   const session = await getSession();
   if (!session) return { status: 401, body: { authenticated: false } };
-  return { status: 200, body: { authenticated: true, user: session } };
+  return {
+    status: 200,
+    body: {
+      authenticated: true,
+      user: {
+        id: session.id,
+        email: session.email,
+        role: session.role,
+        is_pro: Boolean(session.is_pro),
+        trial_ends_at: session.trial_ends_at ?? null,
+        pro_expires_at: session.pro_expires_at ?? null,
+      },
+    },
+  };
 }
 
 export async function handleGetProfile(): Promise<HttpResult> {

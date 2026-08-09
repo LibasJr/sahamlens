@@ -21,6 +21,7 @@ import { getSession, checkProAccessLive } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 
 function makeRequest(): Request {
   return new Request('http://localhost/api/recommendations?symbols=BBCA.JK');
@@ -55,7 +56,7 @@ describe('GET /api/recommendations', () => {
     expect(res.status).toBe(200);
     expect(json.recommendations).toEqual([{
       ticker: 'BBCA.JK', consensus: 'HOLD',
-      _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: 15 * 60 },
+      _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION },
     }]);
     expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
   });
