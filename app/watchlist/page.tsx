@@ -9,6 +9,7 @@ import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limi
 import { getTickerName } from '@/lib/trendingTickers';
 import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
+import Toast, { type ToastVariant } from '@/components/ui/Toast';
 
 interface WatchlistItem {
   symbol: string;
@@ -49,15 +50,25 @@ export default function WatchlistPage() {
   // Sebelumnya diendus dari cookie yang tidak pernah ditulis untuk pelanggan Pro,
   // jadi pelanggan berbayar tetap mentok di 3 saham (lihat lib/limits.ts).
   const [hasPro, setHasPro] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
+
+  const showToast = (message: string, variant: ToastVariant = 'info') => {
+    setToastVariant(variant);
+    setToastMessage(null);
+    window.setTimeout(() => setToastMessage(message), 0);
+  };
 
   useEffect(() => {
+    const controller = new AbortController();
     refreshAdminStatus().then(setHasPro);
-    checkAdmin();
+    checkAdmin(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const checkAdmin = async () => {
+  const checkAdmin = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { signal });
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.user?.role === 'admin') {
@@ -68,13 +79,15 @@ export default function WatchlistPage() {
   };
 
   useEffect(() => {
-    fetchWatchlist();
-    fetchAlerts();
+    const controller = new AbortController();
+    fetchWatchlist(controller.signal);
+    fetchAlerts(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const fetchWatchlist = async () => {
+  const fetchWatchlist = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/watchlist');
+      const res = await fetch('/api/watchlist', { signal });
       if (res.status === 401) {
         setShowLoginPrompt(true);
         return;
@@ -90,50 +103,63 @@ export default function WatchlistPage() {
         setWatchlistError(true);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to fetch watchlist', e);
       setWatchlistError(true);
     }
   };
 
   useEffect(() => {
-    // Fetch live data for watchlist items
+    const controller = new AbortController();
+    // Fetch live data for watchlist items. Request lama dibatalkan bila isi watchlist
+    // berubah supaya harga dari daftar lama tidak menimpa daftar yang baru.
     if (watchlist.length > 0) {
-      fetchLiveData();
+      fetchLiveData(controller.signal);
     } else {
       setLoading(false);
     }
+    return () => controller.abort();
   }, [watchlist]);
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/alert');
+      const res = await fetch('/api/alert', { signal });
       if (res.ok) {
         const json = await res.json();
         setAlerts(json?.data || []);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to fetch alerts', e);
     }
   };
 
-  const fetchLiveData = async () => {
+  const fetchLiveData = async (signal?: AbortSignal) => {
     setLoading(true);
-    // BUG FIX (2026-08-01, audit dummy-data): sebelumnya for-await sekuensial - total
-    // waktu = JUMLAH semua fetch simbol di watchlist, bukan MAKSIMUM salah satu (pola
-    // sama yang sudah diperbaiki di modules/notification/service/alert-evaluation.service.ts).
-    const results = await Promise.all(watchlist.map(async (item) => {
-      try {
-        const res = await fetch(`/api/stock/${item.symbol.replace('.JK', '')}`);
-        if (res.ok) return [item.symbol, await res.json()] as const;
-      } catch (e) {
-        console.error(`Failed to fetch data for ${item.symbol}`);
+    try {
+      // BUG FIX (2026-08-01, audit dummy-data): sebelumnya for-await sekuensial - total
+      // waktu = JUMLAH semua fetch simbol di watchlist, bukan MAKSIMUM salah satu (pola
+      // sama yang sudah diperbaiki di modules/notification/service/alert-evaluation.service.ts).
+      const results = await Promise.all(watchlist.map(async (item) => {
+        try {
+          const res = await fetch(`/api/stock/${item.symbol.replace('.JK', '')}`, { signal });
+          if (res.ok) return [item.symbol, await res.json()] as const;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') throw e;
+          console.error(`Failed to fetch data for ${item.symbol}`);
+        }
+        return null;
+      }));
+      const newData: Record<string, any> = {};
+      results.forEach((r) => { if (r) newData[r[0]] = r[1]; });
+      if (!signal?.aborted) setLiveData(newData);
+    } catch (e) {
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        console.error('Failed to refresh watchlist prices', e);
       }
-      return null;
-    }));
-    const newData: Record<string, any> = {};
-    results.forEach((r) => { if (r) newData[r[0]] = r[1]; });
-    setLiveData(newData);
-    setLoading(false);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   };
 
   const addWatchlist = async (e: React.FormEvent) => {
@@ -194,7 +220,7 @@ export default function WatchlistPage() {
     // pun ke user (klik "Set Alert" terlihat seperti tidak terjadi apa-apa).
     const parsedValue = alertValue.trim() ? Number(alertValue) : null;
     if (needsValue && (parsedValue === null || Number.isNaN(parsedValue))) {
-      alert('Target Nilai wajib diisi dengan angka.');
+      showToast('Target Nilai wajib diisi dengan angka.', 'error');
       return;
     }
 
@@ -219,13 +245,14 @@ export default function WatchlistPage() {
         fetchAlerts();
         setAlertSymbol('');
         setAlertValue('');
+        showToast('Alert berhasil dibuat.', 'success');
       } else {
         const errBody = await res.json().catch(() => null);
-        alert(errBody?.error || errBody?.message || 'Gagal membuat alert. Coba lagi.');
+        showToast(errBody?.error || errBody?.message || 'Gagal membuat alert. Coba lagi.', 'error');
       }
     } catch (err) {
       console.error('Failed to add alert', err);
-      alert('Gagal membuat alert. Coba lagi.');
+      showToast('Gagal membuat alert. Coba lagi.', 'error');
     }
   };
 
@@ -251,10 +278,10 @@ export default function WatchlistPage() {
             });
           });
         } else {
-          alert(`Cron triggered! Alerts:\n` + json.triggeredAlerts.map((a: any) => a.message).join('\n\n'));
+          showToast(`${json.triggeredAlerts.length} alert berhasil dipicu.`, 'success');
         }
       } else {
-        alert(`Cron triggered. No new alerts triggered. (Checked ${json.checked})`);
+        showToast(`Pemeriksaan selesai. Tidak ada alert baru (${json.checked ?? 0} diperiksa).`, 'info');
       }
 
       fetchAlerts();
@@ -279,6 +306,7 @@ export default function WatchlistPage() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <Toast message={toastMessage} variant={toastVariant} />
       <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-5 backdrop-blur-xl md:px-6">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div className="flex items-center gap-3">
@@ -291,7 +319,7 @@ export default function WatchlistPage() {
             </div>
           </div>
           <button
-            onClick={fetchLiveData}
+            onClick={() => fetchLiveData()}
             disabled={loading}
             className="bg-white/5 border border-white/10 hover:bg-white/10 px-4 py-2 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50 text-xs font-semibold"
           >
@@ -572,7 +600,7 @@ export default function WatchlistPage() {
               {/* BUG FIX (2026-08-06): `isAdmin` dihitung dari /api/auth/me sejak awal
                   (lihat checkAdmin) tapi TIDAK PERNAH dibaca di mana pun, sehingga
                   tombol debug ini tampil untuk semua pengguna. Menekannya memicu
-                  pemeriksaan cron manual dan memunculkan alert() berisi keluaran
+                  pemeriksaan cron manual dan menampilkan notifikasi hasil
                   mentahnya - tampilan internal yang tidak seharusnya sampai ke
                   pengguna biasa. Sekarang benar-benar digerbangi. */}
               {isAdmin && (

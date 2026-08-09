@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -267,16 +267,20 @@ export default function MarketPulse() {
   // hanya sampai user menutup modal itu.
   const [loadError, setLoadError] = useState(false);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const fetchData = useCallback(async () => {
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch('/api/market-pulse', { cache: 'no-store' });
+      const res = await fetch('/api/market-pulse', { cache: 'no-store', signal: controller.signal });
       if (res.status === 401) {
         setGated('login');
         setShowLoginPrompt(true);
@@ -296,7 +300,7 @@ export default function MarketPulse() {
         return;
       }
 
-      const res2 = await fetch('/api/breakout-radar');
+      const res2 = await fetch('/api/breakout-radar', { signal: controller.signal });
       if (res2.ok) {
         const json2 = await res2.json();
         setBreakoutData(json2.data || []);
@@ -306,17 +310,24 @@ export default function MarketPulse() {
       setData(json);
       setLastUpdate(new Date());
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
       setLoadError(true);
     } finally {
-      setLoading(false);
+      if (fetchAbortRef.current === controller) {
+        fetchAbortRef.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 120000); // 2 min refresh
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      fetchAbortRef.current?.abort();
+    };
   }, [fetchData]);
 
   // Satu tempat memutuskan apa yang dirender tiap section, supaya urutan cek
