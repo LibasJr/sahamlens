@@ -33,6 +33,16 @@ import {
 const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
+const splitStatusText = (value?: string | null) => {
+  const text = (value || '').trim();
+  if (!text) return { primary: 'AWAITING', detail: '' };
+  const match = text.match(/^([^()]+?)\s*(?:\((.+)\))?$/);
+  return {
+    primary: (match?.[1] || text).trim(),
+    detail: (match?.[2] || '').trim(),
+  };
+};
+
 /** SMA dari candle yang sedang ditampilkan - `undefined` (bukan angka seadanya) kalau
  * bar-nya kurang dari periode, supaya legend chart menampilkan "-" alih-alih rata-rata
  * 60 hari yang dilabeli "MA 200" (audit logika & algoritma 2026-08-05, temuan H-2). */
@@ -765,15 +775,15 @@ function DashboardContent() {
               </div>
             </div>
           )}
-          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 sm:p-5 shadow-2 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               {/* Ikon petir kuning yang sama dipakai untuk SEMUA saham - tidak
                   membedakan apa pun. Diganti avatar berwarna deterministik per emiten. */}
               <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="font-heading text-2xl font-bold tracking-tight text-white md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
-                  <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
+                <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
+                  <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                  <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
                 </div>
                 <div className="flex items-center gap-3 mt-1">
                   {/* `|| '-'` sebelumnya merender "Rp -" saat harga tidak ada: sebuah
@@ -783,7 +793,7 @@ function DashboardContent() {
                     <AnimatedNumber
                       value={stock.current_price}
                       format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
-                      className="font-number text-2xl font-bold tracking-tight text-white tabular-nums md:text-[28px]"
+                      className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
                     />
                   ) : (
                     <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
@@ -815,7 +825,7 @@ function DashboardContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex w-full min-w-0 items-stretch gap-4 md:w-auto md:items-center md:gap-6">
                {data?.bestPerformer && (
                   <div className="text-right border-r border-tv-border pr-6 hidden md:block">
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">TOP METHOD TODAY</div>
@@ -825,27 +835,31 @@ function DashboardContent() {
                     </div>
                   </div>
                )}
-              <div className="text-right">
-                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
-                {/* BUG FIX (2026-08-06, laporan user "kegedean"): text-xl font-extrabold
-                    turun ke text-sm font-bold - disamakan dengan badge sejenis di halaman
-                    Fundamental (Valuasi Harga/Kualitas Fundamental), supaya "verdict badge"
-                    konsisten ukurannya di semua halaman, bukan cuma di halaman ini. */}
-                <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
-                  data?.consensus?.includes('BUY')
-                    ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                    : data?.consensus?.includes('SELL')
-                    ? 'bg-tv-red/20 text-tv-red border-tv-red'
-                    : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
-                }`}>
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                  {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
-                </div>
+              <div className="w-full min-w-0 md:w-auto md:min-w-[250px]">
+                <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus AI</div>
+                {(() => {
+                  const consensus = splitStatusText(data?.consensus);
+                  return (
+                    <div className={`min-h-[62px] w-full rounded-xl border px-3.5 py-2.5 shadow-1 flex items-center gap-2.5 md:min-w-[250px] ${
+                      data?.consensus?.includes('BUY')
+                        ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
+                        : data?.consensus?.includes('SELL')
+                        ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
+                        : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
+                    }`}>
+                      {loading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
+                      <div className="min-w-0 font-sans">
+                        <div className="text-base font-bold leading-tight sm:text-lg">{loading ? 'Calculating...' : consensus.primary}</div>
+                        {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">{consensus.detail}</div>}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {data?.consensusData && (
-                  <div className="flex items-center gap-3 mt-1.5 justify-end text-[10px] font-mono text-tv-muted">
-                    <span>Vote: <strong className="text-white">{data.consensusData.vote}</strong> (Bull:Bear)</span>
-                    <span>|</span>
-                    <span>Median: <strong className="text-white">{data.consensusData.median_skor}</strong></span>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-number text-tv-muted md:justify-end">
+                    <span>Vote <strong className="text-white">{data.consensusData.vote}</strong></span>
+                    <span className="text-tv-borderLight">•</span>
+                    <span>Median <strong className="text-white">{data.consensusData.median_skor}</strong></span>
                   </div>
                 )}
               </div>
