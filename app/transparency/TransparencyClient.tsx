@@ -394,18 +394,18 @@ export default function TransparencyClient() {
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {([['T+1', row.avgT1], ['T+5', row.avgT5], ['T+20', row.avgT20]] as const).map(([label, v]) => (
                       <div key={label}>
-                        <div className="text-[9px] uppercase tracking-wide text-tv-muted">Avg {label}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-tv-muted">Avg {label}</div>
                         <Cell value={v} tone="up" className="text-sm font-bold" />
                       </div>
                     ))}
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-2 border-t border-tv-border pt-2">
                     <div>
-                      <div className="text-[9px] uppercase tracking-wide text-tv-muted">Win Rate</div>
+                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Win Rate</div>
                       <Cell value={row.winRateT20} className="text-sm" />
                     </div>
                     <div>
-                      <div className="text-[9px] uppercase tracking-wide text-tv-muted">Max DD (P95)</div>
+                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Max DD (P95)</div>
                       <Cell value={row.maxDdP95T20} tone="fixed-red" className="text-sm" />
                     </div>
                   </div>

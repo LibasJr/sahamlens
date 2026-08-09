@@ -1,25 +1,79 @@
-﻿import React, { Suspense } from 'react';
+import React, { Suspense } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
 import { LogIn, Crown } from 'lucide-react';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
+import { SESSION_COOKIE } from '@/shared/constants/cookie-names';
+import { getTrustedAppOrigin } from '@/shared/http/server-origin';
+import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
+import { getSession, checkProAccessLive } from '@/modules/user';
+import { runMultiAgentOrchestrator } from '@/modules/ai';
+import { getOrCompute } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+
+
+const SITE_URL = 'https://sahamlens.id';
+
+function normalizeTechnicalSymbol(rawSymbol: string): string {
+  return rawSymbol.trim().toUpperCase().replace(/\.JK$/, '');
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ symbol: string }>;
+}): Promise<Metadata> {
+  const { symbol: rawSymbol } = await params;
+  const code = normalizeTechnicalSymbol(rawSymbol);
+  const emiten = loadEmitenList().find((item) => item.symbol === code);
+
+  if (!emiten) {
+    return {
+      title: 'Emiten tidak ditemukan | SahamLens',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const displayName = emiten.name === code ? code : emiten.name;
+  const title = `Analisis Saham ${code} - Teknikal, Chart & LensScore | SahamLens`;
+  const description = `Analisis teknikal saham ${code}${displayName !== code ? ` (${displayName})` : ''}: chart interaktif, indikator, LensScore, momentum, flow, dan konteks risiko berbasis data SahamLens.`;
+  const canonical = `${SITE_URL}/technical/${code}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: 'website',
+      siteName: 'SahamLens',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  };
+}
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
   // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
   // http://localhost:3001 in production - a server-to-server fetch to a port nothing
   // listens on there, which always failed. Derive the base URL from the actual
   // incoming request instead so this works both locally and on any Vercel deployment.
-  const headersList = await headers();
-  const host = headersList.get('host');
-  const protocol = host?.startsWith('localhost') || host?.startsWith('127.0.0.1') ? 'http' : 'https';
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
+  const baseUrl = getTrustedAppOrigin();
   const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map((c: { name: string; value: string }) => `${c.name}=${c.value}`).join('; ');
+  const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+  const cookieHeader = sessionCookie ? `${SESSION_COOKIE}=${sessionCookie}` : '';
 
   try {
     const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, {
@@ -39,40 +93,36 @@ async function getCouncilData(symbol: string): Promise<{ data: any; status: numb
 }
 
 async function getOrchestratorData(symbol: string): Promise<any | null> {
-  const headersList = await headers();
-  const host = headersList.get('host');
-  const protocol =
-    host?.startsWith('localhost') || host?.startsWith('127.0.0.1')
-      ? 'http'
-      : 'https';
-
-  const baseUrl =
-    process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
-
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((c: { name: string; value: string }) => `${c.name}=${c.value}`)
-    .join('; ');
-
   try {
+    // Server Component tidak perlu melakukan HTTP round-trip ke function SahamLens
+    // sendiri untuk user yang sudah punya sesi. Jalankan service langsung sehingga
+    // tidak ada invocation/cold-start kedua dan tidak perlu meneruskan cookie manual.
+    // Guest tetap memakai route HTTP existing agar anonymous-trial cookie semantics
+    // tetap ditangani oleh Route Handler response.
+    const session = await getSession();
+    if (session) {
+      const hasPro = await checkProAccessLive(session);
+      if (!hasPro) return null;
+      const cacheKey = `sahamlens:cache:computed:orchestrator:${symbol.toUpperCase()}`;
+      return await getOrCompute(
+        cacheKey,
+        CACHE_TTL_SEC.TECHNICAL,
+        () => runMultiAgentOrchestrator(symbol),
+      );
+    }
+
+    const baseUrl = getTrustedAppOrigin();
     const res = await fetch(`${baseUrl}/api/agents/orchestrator`, {
       method: 'POST',
       cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: cookieHeader,
-      },
-      body: JSON.stringify({
-        ticker: symbol,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker: symbol }),
     });
 
     if (!res.ok) return null;
-
     return await res.json();
   } catch (error) {
-    console.error('Orchestrator API fetch error:', error);
+    console.error('Orchestrator data error:', error);
     return null;
   }
 }
@@ -390,7 +440,9 @@ function LensAIAnalysisSkeleton({ symbol }: { symbol: string }) {
 
 export default async function TechnicalPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = await params;
-  const symbol = rawSymbol.toUpperCase();
+  const code = normalizeTechnicalSymbol(rawSymbol);
+  if (!getEmitenSymbolSet().has(code)) notFound();
+  const symbol = `${code}.JK`;
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -398,12 +450,12 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
       
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
           max-w-7xl = 1280px). */}
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         <div className="flex items-center gap-3 mb-8">
           {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
           <TickerAvatar symbol={symbol} size="lg" />
           <div>
-            <h1 className="font-heading font-bold text-2xl text-white tracking-tight">LensAI: {symbol}</h1>
+            <h1 className="lens-page-title">LensAI: {symbol}</h1>
             <p className="text-sm text-tv-muted">Rapat 10 agen analisis atas satu emiten</p>
           </div>
         </div>

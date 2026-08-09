@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import {
   analyzeEma,
   analyzeRsi,
@@ -50,7 +51,6 @@ function isFiniteNonNegative(value: unknown): value is number {
 // pernah membersihkan entry basi (memory leak lambat). Kalau Redis belum
 // dikonfigurasi / sedang down, cacheGet/cacheSet degrade aman ke cache-miss/no-op
 // (lihat shared/cache/redis-cache.ts) - endpoint tetap jalan, cuma tanpa cache.
-const CACHE_TTL_SEC = TTL.TECHNICAL;
 
 // Kuota TIDAK ikut disimpan di cacheKey (dia dibagi semua requester, lintas user) -
 // dicatat & ditempel terpisah setiap kali payload (cache hit ATAU compute baru)
@@ -70,6 +70,8 @@ export async function GET(
 ) {
   try {
     const { ticker: rawTicker } = await params;
+    const normalizedTicker = normalizeIdxTickerParam(rawTicker);
+    if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
     if (!isInternal && !session) {
@@ -92,10 +94,7 @@ export async function GET(
         );
       }
     }
-    let ticker = rawTicker.toUpperCase();
-    if (!ticker.includes('.')) {
-      ticker = `${ticker}.JK`;
-    }
+    const ticker = normalizedTicker;
 
     if (!isInternal) {
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
@@ -599,7 +598,7 @@ export async function GET(
       },
     };
 
-    await cacheSet(cacheKey, resultPayload, CACHE_TTL_SEC);
+    await cacheSet(cacheKey, resultPayload, TTL.TECHNICAL);
     await cacheSet(staleFallbackKey, resultPayload, TTL.STALE_FALLBACK);
 
     return NextResponse.json(await withQuotaInfo(resultPayload, ticker, session?.id, hasPro, isInternal));

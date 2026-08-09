@@ -2,9 +2,10 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
 
-export const revalidate = 60; // Cache for 60 seconds
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -19,10 +20,9 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   const { ticker: rawTicker } = await params;
-  let ticker = rawTicker;
-  if (!ticker.endsWith('.JK') && !ticker.includes('^')) {
-    ticker = `${ticker}.JK`;
-  }
+  const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
+  if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+  const ticker = normalizedTicker;
 
   try {
     // Primary Data Source: Yahoo Finance v8
@@ -31,7 +31,7 @@ export async function GET(
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
-      next: { revalidate: 60 }
+      next: { revalidate: getMarketAwareTtlSec() }
     });
 
     if (yahooRes.ok) {
@@ -66,7 +66,7 @@ export async function GET(
           freshness: fresh.freshness,
           source: 'Yahoo Finance',
           delay: null
-        });
+        }, { headers: getMarketAwareCacheHeaders() });
       }
       console.warn(`Yahoo Finance returned no valid price for ${ticker}`);
     } else if (yahooRes.status === 429 || yahooRes.status === 403) {

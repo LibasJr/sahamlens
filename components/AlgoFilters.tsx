@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, RefreshCw, Lock } from 'lucide-react';
+import { Info, Layers, RefreshCw, Lock } from 'lucide-react';
 
 // Filter yang tetap terlihat jelas di free tier - cocok dengan comment spek:
 // "cuma EMA, RSI, MA Trend". Dicocokkan berdasarkan label (bukan posisi index)
@@ -28,6 +28,8 @@ export default function AlgoFilters({
   isAdmin = false,
 }: AlgoFiltersProps) {
   const lockedAnalyzers = isAdmin ? [] : analyzers.filter((a) => !isVisibleForFree(a.label));
+  const visibleAnalyzers = analyzers.filter((a) => isAdmin || isVisibleForFree(a.label));
+  const lowSampleCount = visibleAnalyzers.filter((a) => getAccuracyPct(a.label) == null).length;
 
   return (
     <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
@@ -45,9 +47,16 @@ export default function AlgoFilters({
       </div>
 
       {!isAdmin && lockedAnalyzers.length > 0 && (
-        <div className="mb-4 px-3 py-2 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-mono flex items-center gap-2">
+        <div className="mb-4 px-3 py-2 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-sans flex items-center gap-2">
           <Lock className="w-3.5 h-3.5 flex-shrink-0" />
           {lockedAnalyzers.length} filter terkunci ({lockedAnalyzers.slice(0, 2).map((a) => a.label).join(', ')}, dll) - Buka di Pro
+        </div>
+      )}
+
+      {lowSampleCount > 0 && (
+        <div className="mb-4 rounded-lg border border-tv-border bg-tv-bg/70 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+          <span className="font-semibold text-tv-text">Validasi historis sedang mengumpulkan sampel.</span>{' '}
+          {lowSampleCount} indikator yang terlihat belum mencapai minimum 20 observasi. Detail hit-rate hanya ditampilkan setelah sampel cukup.
         </div>
       )}
 
@@ -98,11 +107,16 @@ export default function AlgoFilters({
                 <span className="text-white">Conf: {algo.confidence}%</span>
               </div>
               <div className="pt-2 border-t border-tv-hover text-[10px]">
-                {/* Label diperjelas (audit 2026-08-05, temuan C-3): ini HIT-RATE historis
-                    (sinyal diikuti kenaikan >3% dalam 10 hari bursa) atas saham ini saja,
-                    bukan "akurasi" model secara umum. "-" berarti sampel belum cukup. */}
-                <span className="text-tv-muted block">Hit-rate historis (saham ini)</span>
-                <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? 'Sampel belum cukup'}</span>
+                {getAccuracyPct(algo.label) ? (
+                  <>
+                    <span className="text-tv-muted block">Hit-rate historis (saham ini)</span>
+                    <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
+                  </>
+                ) : (
+                  <span className="inline-flex rounded-full border border-tv-border bg-tv-card px-2 py-0.5 font-medium text-tv-muted" title="Belum mencapai minimum 20 observasi">
+                    Sampel rendah <Info className="ml-1 h-3 w-3" aria-hidden="true" />
+                  </span>
+                )}
               </div>
             </div>
           );

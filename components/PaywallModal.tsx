@@ -191,7 +191,7 @@ export default function PaywallModal({
                   }`}
                 >
                   {plan.badge && (
-                    <span className="absolute -top-2 right-2 bg-tv-blue text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded">
+                    <span className="absolute -top-2 right-2 bg-tv-blue text-white text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded">
                       {plan.badge}
                     </span>
                   )}

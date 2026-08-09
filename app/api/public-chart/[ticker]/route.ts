@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 
-export const revalidate = 60;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -11,6 +12,8 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   const { ticker: rawTicker } = await params;
+  const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
+  if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
   const { searchParams } = new URL(request.url);
   // Default '1Y' (bukan lagi '1M') - permintaan eksplisit supaya semua chart (Beranda,
   // Teknikal, Dashboard) default menampilkan histori 1 tahun.
@@ -31,16 +34,13 @@ export async function GET(
   else if (tf === '10Y') { range = '10y'; interval = '1d'; }
   else if (tf === 'ALL') { range = '20y'; interval = '1d'; }
 
-  let ticker = rawTicker;
-  if (!ticker.endsWith('.JK') && !ticker.includes('^')) {
-    ticker = `${ticker}.JK`;
-  }
+  const ticker = normalizedTicker;
 
   try {
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
     const res = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 60 }
+      next: { revalidate: getMarketAwareTtlSec() }
     });
 
     if (!res.ok) throw new Error('Failed to fetch from Yahoo');

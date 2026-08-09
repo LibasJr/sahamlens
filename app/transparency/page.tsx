@@ -18,7 +18,7 @@ export default function TransparencyPage() {
           <p className="text-xs text-tv-accent font-semibold uppercase tracking-[0.2em] mb-2">
             Public Model Transparency
           </p>
-          <h1 className="font-heading text-2xl sm:text-4xl font-bold text-tv-text">
+          <h1 className="lens-page-title">
             Transparansi Validasi LensRadar
           </h1>
           <p className="text-sm text-tv-muted mt-2 max-w-3xl">

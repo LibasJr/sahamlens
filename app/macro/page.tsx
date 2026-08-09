@@ -27,13 +27,13 @@ export default function MacroPage() {
         moduleTitle="Macroeconomic Outlook"
       />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-indigo-400/10 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
             <Globe className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white font-heading">Outlook Makroekonomi Indonesia</h1>
+            <h1 className="lens-page-title">Outlook Makroekonomi Indonesia</h1>
             <p className="text-xs text-tv-muted font-sans">
               Analisis dampak makro (BI Rate, Fed Rate, inflasi, kurs Rupiah) terhadap emiten IDX.
             </p>

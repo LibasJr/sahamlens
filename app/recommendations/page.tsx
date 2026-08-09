@@ -123,6 +123,7 @@ export default function Recommendations() {
             window.dispatchEvent(new CustomEvent('update-ai-context', { 
               detail: {
                 symbol: 'RECOMMENDATIONS',
+                modelValidation: json.modelValidation,
                 recommendations: merged.map((r: any) => ({
                   ticker: r.ticker,
                   price: r.price,
@@ -130,7 +131,11 @@ export default function Recommendations() {
                   consensus: r.consensus,
                   confidence: r.confidence,
                   foreignFlow: r.foreignFlow,
-                  sentiment: r.sentimentLabel
+                  sentiment: r.sentimentLabel,
+                  modelSignal: r.scoringKategori,
+                  decision: r.decision,
+                  eligibilityStatus: r.eligibilityStatus,
+                  eligibilityReasons: r.eligibilityReasons
                 }))
               }
             }));
@@ -226,26 +231,26 @@ export default function Recommendations() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-heading font-bold text-lg text-white tracking-tight">Scanner Teknikal Top 50 (LensScanner)</h2>
-              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">
+              <h2 className="lens-page-title">Scanner Teknikal Top 50 (LensScanner)</h2>
+              <span className="text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">
                 LENSSCANNER
               </span>
             </div>
-            <p className="text-xs text-tv-muted font-mono">
+            <p className="text-xs text-tv-muted font-sans">
               Memindai {LIQUID_STOCKS.length} saham aktif dari data pasar; sinyal belum merupakan rekomendasi BUY/SELL.
             </p>
           </div>
         </div>
       </header>
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {modelNotice && (
           <div className="rounded-lg border border-tv-warning/40 bg-tv-warning/10 px-4 py-3 text-xs text-tv-warning">
             {modelNotice}
           </div>
         )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
             <button
               onClick={fetchRecommendations}
               disabled={loading}
@@ -273,7 +278,7 @@ export default function Recommendations() {
               onChange={(val) => setSearchTerm(val)}
               onFocus={(e: any) => e.target.select()}
               placeholder="Cari simbol, sinyal..."
-              className="w-full bg-tv-card border border-tv-border rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-tv-muted focus:outline-none focus:border-tv-green font-mono transition-colors shadow-sm"
+              className="w-full bg-tv-card border border-tv-border rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-tv-muted focus:outline-none focus:border-tv-green font-sans transition-colors shadow-sm"
             />
           </div>
         </div>

@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -8,18 +8,22 @@ import TradingViewChart from '@/components/TradingViewChart';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
+import AnalysisGlossary from '@/components/AnalysisGlossary';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, SegmentedControl, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
+import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { grantProFromLink, FREE_LIMITS } from '@/lib/limits';
 import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
+import { getDecisionPresentation } from '@/modules/eligibility';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper, ChevronRight, Radar
+  Sparkles, Calculator, Newspaper, ChevronRight, Radar, CheckCircle2, X, CircleDollarSign
 } from 'lucide-react';
 // jsPDF/jspdf-autotable TIDAK di-import statis di sini (optimasi loading 2026-08-05) -
 // keduanya cukup berat dan sebelumnya dibundel ke JS awal /dashboard (halaman paling
@@ -31,6 +35,16 @@ import {
 // Normalisasi simbol: pastikan hanya 1x .JK
 const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
+
+const splitStatusText = (value?: string | null) => {
+  const text = (value || '').trim();
+  if (!text) return { primary: 'AWAITING', detail: '' };
+  const match = text.match(/^([^()]+?)\s*(?:\((.+)\))?$/);
+  return {
+    primary: (match?.[1] || text).trim(),
+    detail: (match?.[2] || '').trim(),
+  };
+};
 
 /** SMA dari candle yang sedang ditampilkan - `undefined` (bukan angka seadanya) kalau
  * bar-nya kurang dari periode, supaya legend chart menampilkan "-" alih-alih rata-rata
@@ -51,6 +65,14 @@ const getMAStatus = (price: number, ma50: number, ma200: number) => {
   return { label: 'SIDEWAYS', color: 'text-tv-muted', bg: 'bg-tv-hover' };
 };
 
+
+const signalBadgeTone = (signal: string | null | undefined) =>
+  signal === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
+  signal === 'BUY' ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/50' :
+  signal === 'HOLD' || signal === 'DATA TIDAK CUKUP' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
+  signal === 'SELL' ? 'bg-tv-red/20 text-tv-red border-tv-red/50' :
+  'bg-tv-hover text-tv-muted border-tv-border';
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,6 +84,7 @@ function DashboardContent() {
   const [marketClosed, setMarketClosed] = useState(false);
   const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(true);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('full');
 
   // Timeframe chart terpisah dari /api/stock (yang selalu histori 1 tahun untuk
   // kebutuhan 10 analyzer/scoring) - sama seperti dashboard publik & halaman
@@ -69,6 +92,20 @@ function DashboardContent() {
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<any[]>([]);
   const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('sahamlens.analysis-view.dashboard');
+    if (saved === 'compact' || saved === 'full') {
+      setViewMode(saved);
+      return;
+    }
+    if (window.matchMedia('(max-width: 767px)').matches) setViewMode('compact');
+  }, []);
+
+  const changeViewMode = (mode: 'compact' | 'full') => {
+    setViewMode(mode);
+    window.localStorage.setItem('sahamlens.analysis-view.dashboard', mode);
+  };
 
   // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
   // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
@@ -104,6 +141,15 @@ function DashboardContent() {
   const [adminReady, setAdminReady] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
+  const analyzerAbortRef = useRef<AbortController | null>(null);
+
+  const showToast = (message: string, variant: ToastVariant = 'info') => {
+    setToastVariant(variant);
+    setToastMessage(null);
+    window.setTimeout(() => setToastMessage(message), 0);
+  };
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -113,11 +159,15 @@ function DashboardContent() {
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
+    analyzerAbortRef.current?.abort();
+    const controller = new AbortController();
+    analyzerAbortRef.current = controller;
     setLoading(true);
     setFetchError(false);
     try {
-      // Fetch new TS analyzers (which now also returns stock history)
-      const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store' });
+      // Abort request lama saat ticker berganti/refresh berikutnya dimulai supaya response
+      // BBCA yang lambat tidak bisa menimpa state setelah user sudah pindah ke BBRI.
+      const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store', signal: controller.signal });
       const jsonAlgo = await resAlgo.json();
 
       if (resAlgo.status === 401) {
@@ -140,7 +190,7 @@ function DashboardContent() {
         setLastUpdate(new Date());
         // LensRadar rank badge - best-effort, tidak menghalangi render utama kalau gagal
         // atau ticker ini memang tidak ada di daftar ranking hari ini (lihat spec section C).
-        fetch('/api/ai-pick', { cache: 'no-store' })
+        fetch('/api/ai-pick', { cache: 'no-store', signal: controller.signal })
           .then((r) => (r.ok ? r.json() : null))
           .then((d) => {
             const match = (d?.items || []).find((it: any) => it.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
@@ -166,7 +216,10 @@ function DashboardContent() {
             council: jsonAlgo.council,
             technical: jsonAlgo.technical,
             consensus: jsonAlgo.consensus,
-            score: jsonAlgo.score
+            score: jsonAlgo.score,
+            modelSignal: jsonAlgo.scoring?.kategori,
+            decision: jsonAlgo.decision,
+            eligibility: jsonAlgo.eligibility
           }
         }));
         
@@ -174,10 +227,14 @@ function DashboardContent() {
         trackAccuracy(symbol, jsonAlgo.price, jsonAlgo.analyzers);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to fetch data', e);
       setFetchError(true);
     } finally {
-      setLoading(false);
+      if (analyzerAbortRef.current === controller) {
+        analyzerAbortRef.current = null;
+        setLoading(false);
+      }
     }
   };
 
@@ -224,6 +281,7 @@ function DashboardContent() {
   const handleRefresh = () => fetchAnalyzerData(ticker);
 
   useEffect(() => {
+    const controller = new AbortController();
     setMounted(true);
 
     // Link "Grant Pro" yang di-generate admin di /admin - lihat lib/limits.ts grantProFromLink().
@@ -238,7 +296,7 @@ function DashboardContent() {
     // trial yang sudah lewat, dan langsung disodori paywall. Sekarang keputusannya
     // dari computeRole() (lib/hooks/useAuthUser.ts), logic yang sama dengan
     // checkProAccess() di server, sehingga UI dan API tidak lagi berbeda pendapat.
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', { signal: controller.signal })
       .then(res => res.json())
       .then(d => {
         const user = d.authenticated && d.user ? d.user : null;
@@ -248,7 +306,9 @@ function DashboardContent() {
         setShowPaywall(isTrialExpired);
         setAdminReady(true);
       })
-      .catch(() => setAdminReady(true));
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setAdminReady(true);
+      });
 
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
@@ -267,10 +327,14 @@ function DashboardContent() {
     }
 
     // Fetch portfolio for cash balance
-    fetch('/api/portfolio')
+    fetch('/api/portfolio', { signal: controller.signal })
       .then(res => res.json())
       .then(d => setPortfolioData(d))
-      .catch(e => console.error(e));
+      .catch(e => {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) console.error(e);
+      });
+
+    return () => controller.abort();
   }, [searchParams]);
 
   useEffect(() => {
@@ -297,28 +361,39 @@ function DashboardContent() {
     // Load initial scores
     setScores(JSON.parse(localStorage.getItem('trading_scores') || '{}'));
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      analyzerAbortRef.current?.abort();
+    };
   }, [ticker, mounted, adminReady]);
 
   useEffect(() => {
     if (!mounted) return;
+    const controller = new AbortController();
     const code = ticker.replace('.JK', '');
-    fetch(`/api/public-chart/${code}?tf=${timeframe}`)
+    fetch(`/api/public-chart/${code}?tf=${timeframe}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((d) => { if (d?.history?.length > 0) setChartCandles(d.history); })
-      .catch(() => {});
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Chart fetch failed', error);
+      });
+    return () => controller.abort();
   }, [ticker, timeframe, mounted]);
 
   useEffect(() => {
     if (!mounted || !data?.stock?.symbol) return;
+    const controller = new AbortController();
     setLoadingStockNews(true);
     const code = ticker.replace('.JK', '');
     const name = data.stock.name || '';
-    fetch(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`)
+    fetch(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setStockNews(d?.items || []))
-      .catch(() => {})
-      .finally(() => setLoadingStockNews(false));
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Stock news fetch failed', error);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoadingStockNews(false); });
+    return () => controller.abort();
   }, [ticker, mounted, data?.stock?.symbol]);
 
   const downloadTechnicalPDF = async () => {
@@ -330,13 +405,14 @@ function DashboardContent() {
     ]);
     const doc = new jsPDF();
     doc.setFontSize(16);
-    // Phase 0 / P0-3: label rekomendasi di PDF ikut gerbang kelayakan. PDF adalah
-    // artefak yang diteruskan ke orang lain tanpa konteks halaman - justru di situ
-    // label BUY yang tidak layak paling berbahaya.
-    const advisoryLabel = data.decision && data.decision.advisory === false
-      ? 'TECHNICAL: NETRAL'
-      : data.scoring.kategori;
-    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} ${advisoryLabel}`, 14, 20);
+    // Presentation semantics: hasil LensScore tetap terlihat sebagai SINYAL MODEL,
+    // sedangkan recommendation actionable hanya boleh berasal dari `decision.action`.
+    // MODEL_UNVALIDATED bukan sinonim NETRAL dan bukan penolakan atas sahamnya.
+    const decisionPresentation = getDecisionPresentation(data.scoring.kategori, data.decision);
+    const reportLabel = decisionPresentation.recommendationLabel
+      ?? decisionPresentation.modelSignalLabel
+      ?? 'STATUS MODEL TIDAK TERSEDIA';
+    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} - ${reportLabel}`, 14, 20);
     
     let finalY = 30;
     
@@ -376,14 +452,12 @@ function DashboardContent() {
     finalY = (doc as any).lastAutoTable?.finalY || finalY + 30;
     
     doc.setFontSize(11);
-    doc.text(
-      data.decision && data.decision.advisory === false
-        ? `Rekomendasi: TIDAK DIBERIKAN (${data.decision.explanation || 'saham tidak lolos gerbang kelayakan'}). Skor informasional: ${data.scoring.total_score}/100`
-        : `Rekomendasi: ${data.scoring.kategori} dengan skor ${data.scoring.total_score}/100`,
-      14,
-      finalY + 15
-    );
-    doc.text(`Harga di bawah/atas indikator MA konfirmasi trend saat ini.`, 14, finalY + 22);
+    const decisionText = decisionPresentation.actionable
+      ? `${decisionPresentation.recommendationLabel} dengan skor ${data.scoring.total_score}/100.`
+      : `${decisionPresentation.modelSignalLabel || 'Sinyal model tidak tersedia'}. Status: ${decisionPresentation.statusLabel || 'rekomendasi tidak tersedia'}. ${decisionPresentation.explanation || ''} Skor ${data.scoring.total_score}/100 tetap ditampilkan sebagai informasi.`;
+    const decisionLines = doc.splitTextToSize(decisionText, 180);
+    doc.text(decisionLines, 14, finalY + 15);
+    doc.text(`Harga di bawah/atas indikator MA mengonfirmasi tren saat ini.`, 14, finalY + 20 + (decisionLines.length * 5));
     
     doc.setFontSize(9);
     doc.text('Disclaimer: Laporan ini di-generate secara otomatis oleh AI. Bukan ajakan beli/jual.', 14, 280);
@@ -461,6 +535,9 @@ function DashboardContent() {
   // komputasi baru. Tidak ikut total_score/kategori BUY-SELL.
   const momentum = data?.scoring ? momentumScore(analyzers) : null;
   const risk = data?.scoring ? riskScore(analyzers, stock.current_price ?? data?.price) : null;
+  const decisionPresentation = data?.scoring
+    ? getDecisionPresentation(data.scoring.kategori, data.decision)
+    : null;
 
   // Backtest hit-rate per indikator, dihitung dari histori harga NYATA saham yang sedang
   // dibuka: "berapa persen dari sinyal indikator ini yang diikuti kenaikan > 3% dalam 10
@@ -581,7 +658,7 @@ function DashboardContent() {
         {/* Dulu satu spinner tunggal berwarna teal-500 - warna yang tidak ada di
             palet mana pun - di tengah halaman kosong, tanpa petunjuk apa yang
             sedang disiapkan. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
-        <PageContainer className="p-6 space-y-4">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-4">
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-32 w-full" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -616,7 +693,7 @@ function DashboardContent() {
             kasus ini karena ia hidup di cabang yang menuntut `data` sudah terisi -
             padahal kegagalan muat PERTAMA justru meninggalkan `data` null dan
             berhenti di sini. */}
-        <PageContainer className="p-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7">
           {showLoginPrompt ? (
             <EmptyState
               illustration="locked"
@@ -673,27 +750,27 @@ function DashboardContent() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="LensTechnical â€” Pure Algorithmic Trading"
+        moduleTitle="LensTechnical — Pure Algorithmic Trading"
         moduleBank="LENSTECHNICAL"
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}
       />
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {/* Status Badge */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
-          <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 text-xs font-sans">
+          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
             <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
             {marketClosed ? 'Market Closed' : 'Market Open'}
           </div>
-          <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            {marketClosed ? 'No Polling' : '1m refresh'}
+          <div className="rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
+            {marketClosed ? 'No polling' : 'Refresh otomatis 1m'}
           </div>
           <button 
             onClick={handleRefresh}
             disabled={loading}
-            className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07] disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
@@ -701,36 +778,38 @@ function DashboardContent() {
           
           <button 
             onClick={() => router.push(`/compare?symbol1=${ticker}`)}
-            className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors ml-auto"
+            className="ml-auto flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07]"
           >
-            âš”ï¸ Compare
+            Compare
           </button>
           
           <button
             onClick={() => { setTradeType('BUY'); setTradeModalOpen(true); }}
-            className="bg-tv-green/10 border border-tv-green/30 hover:bg-tv-green hover:text-white text-tv-green px-4 py-1.5 rounded-full font-bold transition-colors"
+            className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-3.5 py-2 font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]"
           >
             BUY Virtual
           </button>
           <button
             onClick={() => { setTradeType('SELL'); setTradeModalOpen(true); }}
-            className="bg-tv-red/10 border border-tv-red/30 hover:bg-tv-red hover:text-white text-tv-red px-4 py-1.5 rounded-full font-bold transition-colors"
+            className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-3.5 py-2 font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white"
           >
             SELL Virtual
           </button>
         </div>
 
+        <AnalysisViewModeToggle mode={viewMode} onChange={changeViewMode} />
+        <AnalysisGlossary />
 
         {/* Hero */}
         {fetchError ? (
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2">
             <EmptyState
               title="Data pasar sementara tidak tersedia."
               action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
             />
           </div>
         ) : loading && !data ? (
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex items-center gap-4">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2 flex items-center gap-4">
             <Skeleton variant="circle" className="w-12 h-12" />
             <div className="space-y-2">
               <Skeleton variant="text" className="w-40 h-6" />
@@ -751,15 +830,15 @@ function DashboardContent() {
               </div>
             </div>
           )}
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-2 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 sm:p-5 shadow-2 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               {/* Ikon petir kuning yang sama dipakai untuk SEMUA saham - tidak
                   membedakan apa pun. Diganti avatar berwarna deterministik per emiten. */}
               <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="font-heading text-2xl font-bold text-white">{displayTicker(stock.symbol || ticker)}.JK</h1>
-                  <span className="text-sm text-tv-muted font-sans font-normal">{stock.name || ticker.replace('.JK', '')}</span>
+                <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
+                  <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                  <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
                 </div>
                 <div className="flex items-center gap-3 mt-1">
                   {/* `|| '-'` sebelumnya merender "Rp -" saat harga tidak ada: sebuah
@@ -769,7 +848,7 @@ function DashboardContent() {
                     <AnimatedNumber
                       value={stock.current_price}
                       format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
-                      className="font-number text-2xl font-bold text-white tabular-nums"
+                      className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
                     />
                   ) : (
                     <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
@@ -796,12 +875,12 @@ function DashboardContent() {
                     dirender identik dengan data hari ini. Sekarang ditampilkan apa adanya. */}
                 <p className="text-[11px] text-tv-muted mt-1">
                   Diterima: {formatTime(lastUpdate)}
-                  {dataFreshness && <span className="ml-2">â€¢ Data pasar: {dataFreshness.label}</span>}
+                  {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex w-full min-w-0 items-stretch gap-4 md:w-auto md:items-center md:gap-6">
                {data?.bestPerformer && (
                   <div className="text-right border-r border-tv-border pr-6 hidden md:block">
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">TOP METHOD TODAY</div>
@@ -811,27 +890,31 @@ function DashboardContent() {
                     </div>
                   </div>
                )}
-              <div className="text-right">
-                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">KONSENSUS AI (MEDIAN + VOTING)</div>
-                {/* BUG FIX (2026-08-06, laporan user "kegedean"): text-xl font-extrabold
-                    turun ke text-sm font-bold - disamakan dengan badge sejenis di halaman
-                    Fundamental (Valuasi Harga/Kualitas Fundamental), supaya "verdict badge"
-                    konsisten ukurannya di semua halaman, bukan cuma di halaman ini. */}
-                <div className={`text-sm font-bold font-sans px-3 py-1.5 rounded-lg border shadow-1 flex items-center gap-1.5 ${
-                  data?.consensus?.includes('BUY')
-                    ? 'bg-tv-green/20 text-tv-green border-tv-green'
-                    : data?.consensus?.includes('SELL')
-                    ? 'bg-tv-red/20 text-tv-red border-tv-red'
-                    : 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow'
-                }`}>
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                  {loading ? 'Calculating...' : data?.consensus || 'AWAITING'}
-                </div>
+              <div className="w-full min-w-0 md:w-auto md:min-w-[250px]">
+                <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus AI</div>
+                {(() => {
+                  const consensus = splitStatusText(data?.consensus);
+                  return (
+                    <div className={`min-h-[62px] w-full rounded-xl border px-3.5 py-2.5 shadow-1 flex items-center gap-2.5 md:min-w-[250px] ${
+                      data?.consensus?.includes('BUY')
+                        ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
+                        : data?.consensus?.includes('SELL')
+                        ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
+                        : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
+                    }`}>
+                      {loading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
+                      <div className="min-w-0 font-sans">
+                        <div className="text-base font-bold leading-tight sm:text-lg">{loading ? 'Calculating...' : consensus.primary}</div>
+                        {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">{consensus.detail}</div>}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {data?.consensusData && (
-                  <div className="flex items-center gap-3 mt-1.5 justify-end text-[10px] font-mono text-tv-muted">
-                    <span>Vote: <strong className="text-white">{data.consensusData.vote}</strong> (Bull:Bear)</span>
-                    <span>|</span>
-                    <span>Median: <strong className="text-white">{data.consensusData.median_skor}</strong></span>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-number text-tv-muted md:justify-end">
+                    <span>Vote <strong className="text-white">{data.consensusData.vote}</strong></span>
+                    <span className="text-tv-borderLight">•</span>
+                    <span>Median <strong className="text-white">{data.consensusData.median_skor}</strong></span>
                   </div>
                 )}
               </div>
@@ -843,7 +926,7 @@ function DashboardContent() {
         {/* AI Summary - breakdown skor + top alasan, dipindah tepat di bawah Hero
             supaya konsensus AI terlihat sebelum user scroll ke chart/teknikal. */}
         {data?.scoring && (
-          <div className="w-full bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+          <div className="w-full rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 md:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-tv-blue" />
               <h2 className="font-heading text-sm font-semibold text-white">Technical Summary</h2>
@@ -874,30 +957,36 @@ function DashboardContent() {
                 }`}>
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
-                {/* Phase 0 / P0-3: `decision` (dari gerbang kelayakan minimal) yang
-                    menentukan apakah label ini boleh dibaca sebagai ajakan bertindak.
-                    `data.scoring.kategori` SENGAJA tidak diubah di API (backward
-                    compatibility), jadi penyaringnya di sini: saat advisory === false,
-                    yang ditampilkan adalah STATUS, bukan BUY/SELL. Tidak diganti "HOLD" -
-                    itu tetap sebuah rekomendasi, cuma yang lain. Skornya sendiri tetap
-                    tampil di atas: pengguna berhak melihat angkanya. */}
-                {data.decision && data.decision.advisory === false ? (
-                  <div className="text-xs font-bold font-sans px-3 py-1 rounded-full border bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40 text-center">
-                    TECHNICAL: NETRAL
+                {/* Hasil model, kelayakan, dan recommendation actionable adalah tiga
+                    hal berbeda. `decision.action` adalah satu-satunya sumber aksi;
+                    `scoring.kategori` tetap ditampilkan sebagai sinyal informasional. */}
+                {decisionPresentation?.actionable ? (
+                  <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${signalBadgeTone(data.decision?.action)}`}>
+                    {decisionPresentation.recommendationLabel}
                   </div>
                 ) : (
-                  <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${
-                    data.scoring.kategori === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
-                    data.scoring.kategori === 'BUY' ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/50' :
-                    data.scoring.kategori === 'HOLD' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
-                    'bg-tv-red/20 text-tv-red border-tv-red/50'
-                  }`}>
-                    {data.scoring.kategori}
+                  <div className="flex flex-col items-center gap-1.5">
+                    {decisionPresentation?.modelSignalLabel && (
+                      <div className={`text-xs font-bold font-sans px-3 py-1 rounded-full border text-center ${signalBadgeTone(decisionPresentation.modelSignal)}`}>
+                        {decisionPresentation.modelSignalLabel}
+                      </div>
+                    )}
+                    {decisionPresentation?.statusLabel && (
+                      <div className={`text-[10px] font-bold font-sans px-2.5 py-1 rounded-full border text-center ${
+                        decisionPresentation.kind === 'MODEL_UNVALIDATED'
+                          ? 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40'
+                          : decisionPresentation.kind === 'INELIGIBLE'
+                            ? 'bg-tv-red/10 text-tv-red border-tv-red/40'
+                            : 'bg-tv-hover text-tv-muted border-tv-border'
+                      }`}>
+                        {decisionPresentation.statusLabel}
+                      </div>
+                    )}
                   </div>
                 )}
-                {data.decision && data.decision.advisory === false && data.decision.explanation && (
-                  <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[220px]">
-                    Sinyal teknikal belum cukup kuat untuk mengonfirmasi entry. Gunakan LensAI Recommendation sebagai keputusan komposit utama.
+                {!decisionPresentation?.actionable && decisionPresentation?.explanation && (
+                  <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[240px]">
+                    {decisionPresentation.explanation}
                   </p>
                 )}
               </div>
@@ -983,7 +1072,7 @@ function DashboardContent() {
                 <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
                 {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
                   <div key={i} className="flex items-start gap-2 text-xs">
-                    <span className="text-tv-green font-bold">âœ“</span>
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-green" aria-hidden="true" />
                     <span className="text-tv-text font-sans">{reason}</span>
                   </div>
                 ))}
@@ -991,7 +1080,7 @@ function DashboardContent() {
                   <div className="mt-3 pt-3 border-t border-tv-border">
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-1">RISK</div>
                     <div className="flex items-start gap-2 text-xs">
-                      <span className="text-tv-red font-bold">âš </span>
+                      <span className="text-tv-red font-bold">⚠</span>
                       <span className="text-tv-muted font-sans">{data.scoring.risk}</span>
                     </div>
                   </div>
@@ -1010,7 +1099,7 @@ function DashboardContent() {
               <span className="text-[10px] font-sans font-semibold text-tv-muted uppercase">LensRadar</span>
               <div className="text-sm text-white">
                 Skor <strong className="font-number">{radarRank.finalScore}</strong>
-                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> â€” {radarRank.topReasons[0]}</span>}
+                {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
               </div>
             </div>
           </div>
@@ -1033,6 +1122,7 @@ function DashboardContent() {
               ? getMAStatus(price, ma50 as number, ma200 as number)
               : { label: 'Data historis belum cukup (butuh 200 hari bursa)', color: 'text-tv-muted', bg: 'bg-tv-hover border-tv-border' };
             return (
+              <>
               <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border ${status.bg}`}>
                 <Activity className={`w-5 h-5 ${status.color}`} />
                 <div>
@@ -1047,42 +1137,63 @@ function DashboardContent() {
                   <span>Harga: <strong className="text-white">{price?.toLocaleString('id-ID')}</strong></span>
                 </div>
               </div>
+              {maDataReady && (
+                <div className="mt-2 rounded-lg border border-tv-border bg-tv-card/60 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+                  <span className="font-semibold text-tv-text">Konteks tren:</span>{' '}
+                  {price < (ma200 as number)
+                    ? 'Momentum jangka pendek bisa membaik, tetapi tren besar belum pulih karena harga masih di bawah MA200. Sinyal bullish pendek tidak otomatis berarti uptrend jangka panjang.'
+                    : price < (ma50 as number)
+                      ? 'Harga masih di atas MA200, tetapi berada di bawah MA50. Ini lebih cocok dibaca sebagai koreksi jangka pendek di dalam struktur tren yang lebih kuat.'
+                      : 'Harga berada di atas MA50 dan MA200. Momentum pendek dan struktur tren utama saat ini lebih selaras, tetapi tetap perlu melihat volume dan risiko.'}
+                </div>
+              )}
+              </>
             );
           })()}
 
           <div className="w-full space-y-3">
-            <SegmentedControl
-              options={['1D', '3D', '7D', '1Y', '10Y', 'ALL'].map((t) => ({ label: t, value: t }))}
-              value={timeframe}
-              onChange={setTimeframe}
-              layoutId="dashboard-timeframe"
-            />
             <TradingViewChart
               candles={candles}
               technical={chartTechnical}
               symbol={stock.symbol || ticker}
               timeframe={timeframe}
+              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
+              onTimeframeChange={setTimeframe}
+              variant="full"
               height={600}
             />
           </div>
 
-          {/* Bandar Flow Analysis */}
-          <div className="w-full">
-            <BandarFlowPro symbol={stock.symbol || ticker} />
-          </div>
+          {viewMode === 'full' ? (
+            <>
+              {/* Bandar Flow Analysis */}
+              <div className="w-full">
+                <BandarFlowPro symbol={stock.symbol || ticker} />
+              </div>
 
-          <div className="w-full">
-            {/* Risk/Reward Calculator */}
-            <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
-
-            <AlgoFilters
-              analyzers={analyzers}
-              sortByConfidence={sortByConfidence}
-              setSortByConfidence={setSortByConfidence}
-              getAccuracyPct={getAccuracyPct}
-              isAdmin={isAdminUser}
-            />
-          </div>
+              <div className="w-full space-y-4">
+                <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+                <AlgoFilters
+                  analyzers={analyzers}
+                  sortByConfidence={sortByConfidence}
+                  setSortByConfidence={setSortByConfidence}
+                  getAccuracyPct={getAccuracyPct}
+                  isAdmin={isAdminUser}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="w-full space-y-4">
+              <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+              <button
+                type="button"
+                onClick={() => changeViewMode('full')}
+                className="w-full rounded-xl border border-tv-blue/30 bg-tv-blue/10 px-4 py-3 text-sm font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15"
+              >
+                Lihat semua indikator teknikal & LensFlow
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Fundamental (link-out) diganti Sentimen Berita AI - tabel Fundamental
@@ -1116,7 +1227,7 @@ function DashboardContent() {
                       ? 'Menganalisis berita...'
                       : overall === null
                       ? 'Belum ada berita spesifik untuk dianalisis'
-                      : `${overall} â€¢ ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
+                      : `${overall} • ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-tv-muted group-hover:text-tv-text transition-colors shrink-0" />
@@ -1145,7 +1256,7 @@ function DashboardContent() {
           <div className="bg-tv-bg border-2 border-tv-blue/50 rounded-xl w-full max-w-md overflow-hidden shadow-2 flex flex-col">
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
-                <span className="text-xl">âœ¨</span>
+                <Sparkles className="h-5 w-5 text-tv-blue" aria-hidden="true" />
                 <h3 className="font-heading text-tv-text font-bold">
                   AI Explain: {aiModalData?.algo?.label}
                 </h3>
@@ -1154,7 +1265,8 @@ function DashboardContent() {
                 onClick={() => setAiModalOpen(false)}
                 className="text-tv-muted hover:text-tv-text transition-colors"
               >
-                âœ•
+                <X className="h-5 w-5" aria-hidden="true" />
+                <span className="sr-only">Tutup</span>
               </button>
             </div>
 
@@ -1202,7 +1314,7 @@ function DashboardContent() {
           <div className="bg-tv-bg border-2 border-tv-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
             <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
               <div className="flex items-center gap-2">
-                <span className="text-xl">ðŸ’°</span>
+                <CircleDollarSign className="h-5 w-5 text-tv-green" aria-hidden="true" />
                 <h3 className="font-heading text-tv-text font-bold">
                   {tradeType} Virtual Trade
                 </h3>
@@ -1211,7 +1323,8 @@ function DashboardContent() {
                 onClick={() => setTradeModalOpen(false)}
                 className="text-tv-muted hover:text-tv-text transition-colors"
               >
-                âœ•
+                <X className="h-5 w-5" aria-hidden="true" />
+                <span className="sr-only">Tutup</span>
               </button>
             </div>
 
@@ -1288,13 +1401,13 @@ function DashboardContent() {
                     });
                     const json = await res.json();
                     if (json.error) {
-                      alert(json.error);
+                      showToast(json.error, 'error');
                     } else {
-                      alert(`Berhasil ${tradeType} ${tradeLots} lot ${ticker}!`);
-                      router.push('/portfolio');
+                      showToast(`Berhasil ${tradeType} ${tradeLots} lot ${ticker}!`, 'success');
+                      window.setTimeout(() => router.push('/portfolio'), 650);
                     }
                   } catch(e) {
-                    alert('Error: ' + String(e));
+                    showToast('Transaksi virtual gagal diproses. Coba lagi.', 'error');
                   }
                   setTradeLoading(false);
                 }}
@@ -1310,6 +1423,8 @@ function DashboardContent() {
         </div>
       )}
       
+      <Toast message={toastMessage} variant={toastVariant} />
+
       <StockNewsModal
         open={newsModalOpen}
         onClose={() => setNewsModalOpen(false)}

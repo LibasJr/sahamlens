@@ -251,7 +251,7 @@ export default function TpclValidationClient() {
             <div key={protocol.protocolId} className="rounded-xl border border-tv-border bg-tv-bg/50 p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-bold">{protocol.label}</div>
-                <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${oosBadgeClass(protocol.status)}`}>
+                <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${oosBadgeClass(protocol.status)}`}>
                   {protocol.status}
                 </span>
               </div>

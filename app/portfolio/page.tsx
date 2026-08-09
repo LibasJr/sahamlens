@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, Search, Bell, ArrowUpRight, ArrowDownRight, Clock, Menu } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 // xlsx/jsPDF/jspdf-autotable TIDAK di-import statis (optimasi loading 2026-08-05) -
 // ketiganya berat dan cuma dipakai saat tombol Export diklik; di-import dinamis di
 // dalam downloadExcel()/downloadPDF() supaya tidak ikut terunduh & ter-parse di setiap
 // kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { fadeUp } from '@/lib/motion';
+import { getDecisionPresentation } from '@/modules/eligibility';
 
 const formatIDR = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
@@ -46,6 +48,14 @@ export default function PortfolioPage() {
   // step ini sebelumnya tidak ada sama sekali di form, ditambahkan di bawah.
   const [pendingVerification, setPendingVerification] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
+
+  const showToast = (message: string, variant: ToastVariant = 'info') => {
+    setToastVariant(variant);
+    setToastMessage(null);
+    window.setTimeout(() => setToastMessage(message), 0);
+  };
 
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderType, setOrderType] = useState<'BUY' | 'SELL'>('BUY');
@@ -74,34 +84,37 @@ export default function PortfolioPage() {
         setOrderSymbol('');
         setOrderPrice('');
         setOrderLots('');
+        showToast(`Order ${orderType} virtual berhasil dicatat.`, 'success');
         loadData();
       } else {
         const err = await res.json();
-        alert('Gagal: ' + err.error);
+        showToast('Gagal: ' + (err.error || 'order tidak dapat diproses'), 'error');
       }
     } catch(err) {
-      alert('Error submitting order');
+      showToast('Order virtual gagal dikirim. Coba lagi.', 'error');
     }
     setOrderLoading(false);
   };
 
   useEffect(() => {
-    checkAuth();
+    const controller = new AbortController();
+    checkAuth(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { signal });
       const data = await res.json();
       if (res.ok) {
         setIsLoggedIn(true);
         setCurrentUser({ email: data.user?.email, role: data.user?.role });
-        loadData();
+        loadData(signal);
       } else {
         setLoading(false);
       }
     } catch (e) {
-      setLoading(false);
+      if (!(e instanceof DOMException && e.name === 'AbortError')) setLoading(false);
     }
   };
 
@@ -164,11 +177,11 @@ export default function PortfolioPage() {
     setAuthLoading(false);
   };
 
-  const loadData = async () => {
+  const loadData = async (signal?: AbortSignal) => {
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch('/api/portfolio');
+      const res = await fetch('/api/portfolio', { signal });
       const data = await res.json();
 
       setPortfolio(data.portfolio);
@@ -185,21 +198,27 @@ export default function PortfolioPage() {
         let priceStale = true;
         let scoreLabel: string | null = null;
         try {
-          const res = await fetch(`/api/stock/${h.symbol}`);
+          const res = await fetch(`/api/stock/${h.symbol}`, { signal });
           const s = await res.json();
           if (typeof s?.stock?.current_price === 'number' && Number.isFinite(s.stock.current_price) && s.stock.current_price > 0) {
             currentPrice = s.stock.current_price;
             priceStale = false;
           }
           if (s?.scoring) {
-            // Phase 0 / P0-3: label BUY/SELL hanya ditampilkan kalau saham lolos gerbang
-            // kelayakan. Skornya tetap ditampilkan (informasional) - pemilik saham berhak
-            // melihat angkanya; yang dicabut cuma ajakan bertindaknya.
-            scoreLabel = s?.decision && s.decision.advisory === false
-              ? `${s.scoring.total_score} (tidak direkomendasikan)`
-              : `${s.scoring.total_score} ${s.scoring.kategori}`;
+            const presentation = getDecisionPresentation(s.scoring.kategori, s.decision);
+            if (presentation.actionable && s.decision?.action) {
+              scoreLabel = `${s.scoring.total_score} · ${s.decision.action}`;
+            } else if (presentation.kind === 'MODEL_UNVALIDATED') {
+              scoreLabel = `${s.scoring.total_score} · sinyal ${presentation.modelSignal || 'N/A'} · model belum tervalidasi`;
+            } else if (presentation.kind === 'INELIGIBLE') {
+              scoreLabel = `${s.scoring.total_score} · sinyal ${presentation.modelSignal || 'N/A'} · tidak layak direkomendasikan`;
+            } else {
+              scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignal || 'sinyal N/A'} · rekomendasi tidak tersedia`;
+            }
           }
-        } catch(e) {}
+        } catch(e) {
+          if (e instanceof DOMException && e.name === 'AbortError') throw e;
+        }
 
         const currentValue = currentPrice * h.lots * 100;
         const pnl = currentValue - h.totalCost;
@@ -226,10 +245,11 @@ export default function PortfolioPage() {
       setBadges(newBadges);
 
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
       setLoadError(true);
     }
-    setLoading(false);
+    if (!signal?.aborted) setLoading(false);
   };
 
   const downloadExcel = async () => {
@@ -407,33 +427,21 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-tv-bg text-white font-sans pb-20">
-      {/* Top Navbar */}
-      <nav className="bg-tv-card border-b border-tv-border px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-            className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/dashboard')}>
-            <div className="w-8 h-8 rounded-full bg-tv-green flex items-center justify-center">
-              <span className="text-white font-bold text-sm">SL</span>
-            </div>
-            <span className="font-bold text-lg text-white tracking-tight">Akun Demo</span>
+      <Toast message={toastMessage} variant={toastVariant} />
+      {/* Portfolio workspace header */}
+      <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">Paper portfolio</div>
+            <h1 className="lens-page-title">Akun Demo</h1>
+            <p className="mt-0.5 text-xs text-tv-muted">Simulasikan posisi, pantau P/L, dan evaluasi disiplin trading tanpa dana riil.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">BUY Virtual</button>
+            <button onClick={() => { setOrderType('SELL'); setShowOrderModal(true); }} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">SELL Virtual</button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="bg-tv-blue hover:opacity-90 text-white px-3 py-1.5 rounded text-xs font-bold transition-opacity">BUY</button>
-          <button onClick={() => { setOrderType('SELL'); setShowOrderModal(true); }} className="bg-tv-red hover:opacity-90 text-white px-3 py-1.5 rounded text-xs font-bold transition-opacity">SELL</button>
-          <Search className="w-5 h-5 text-tv-muted hidden sm:block" />
-          <Bell className="w-5 h-5 text-tv-muted hidden sm:block" />
-          <div className="flex flex-col text-right">
-            <span className="text-xs font-bold text-white">{currentUser?.email}</span>
-            <span className="text-[10px] text-tv-muted">{currentUser?.role === 'admin' ? 'Admin' : 'Virtual'}</span>
-          </div>
-        </div>
-      </nav>
+      </header>
 
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. Isinya direstruktur
           jadi 2 kolom di layar lebar (kartu ekuitas sticky di kiri, holdings/riwayat di
@@ -443,7 +451,7 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
         <div className="space-y-4 lg:sticky lg:top-[73px]">
         {/* Hero Equity Card */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-tv-card rounded-xl shadow-1 border border-tv-border overflow-hidden">
+        <motion.div variants={fadeUp} initial="hidden" animate="show" className="overflow-hidden rounded-2xl border border-white/[0.075] bg-tv-card shadow-1">
           <div className="p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-tv-muted text-sm font-medium">Total Ekuitas</span>
@@ -562,7 +570,7 @@ export default function PortfolioPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-white leading-tight font-number">{tickerCode(h.symbol)}</span>
                               {h.scoreLabel && (
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
                                   {h.scoreLabel}
                                 </span>
                               )}
@@ -638,7 +646,7 @@ export default function PortfolioPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <TickerAvatar symbol={t.symbol} size="sm" />
                             <span className="font-bold text-white text-sm font-number">{tickerCode(t.symbol)}</span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
                           </div>
                           <div className="text-[11px] text-tv-muted">
                             {t.lots.toLocaleString('id-ID')} lot @ {t.price.toLocaleString('id-ID')} · {new Date(t.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
