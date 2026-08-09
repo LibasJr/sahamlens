@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500'
 // metadataBase/OpenGraph/robots/canonical, dan tanpa tagline resmi ("Lihat Peluang
 // Lebih Jelas.") di mana pun. metadataBase WAJIB diisi supaya path relatif di
 // openGraph.images/robots di bawah di-resolve ke domain absolut, bukan localhost.
-const SITE_URL = 'https://sahamlens.vercel.app';
+const SITE_URL = 'https://sahamlens.id';
 const TAGLINE = 'Lihat Peluang Lebih Jelas.';
 
 export const metadata = {
@@ -28,6 +28,7 @@ export const metadata = {
   },
   description: `SahamLens - ${TAGLINE} Screener & analisis saham IDX berbasis data riil (Yahoo Finance) dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi. Bukan saran finansial, untuk edukasi.`,
   manifest: '/manifest.json',
+  alternates: { canonical: '/' },
   robots: { index: true, follow: true },
   openGraph: {
     type: 'website',

@@ -10,6 +10,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/admin', '/admin-login', '/login', '/signup', '/forgot-password', '/reset-password'],
     },
-    sitemap: 'https://sahamlens.vercel.app/sitemap.xml',
+    sitemap: 'https://sahamlens.id/sitemap.xml',
   };
 }

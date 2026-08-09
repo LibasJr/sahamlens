@@ -166,7 +166,18 @@ function SignalVerticalTicker({
   );
 }
 
-export default function Dashboard() {
+type DashboardProps = {
+  initialIhsg?: { price: number; change: number; pointChange: number } | null;
+  initialRenderedAt?: string;
+  initialLensRadar?: {
+    items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number }[];
+    computedAt: string | null;
+    advisoryEnabled: boolean;
+    note: string | null;
+  } | null;
+};
+
+export default function Dashboard({ initialIhsg = null, initialRenderedAt, initialLensRadar = null }: DashboardProps) {
   // Default chart beranda = IHSG (permintaan eksplisit) - bukan lagi saham trending
   // acak. User tetap bisa ketik nama emiten di search (CommandPalette onSelect di
   // bawah) untuk mengganti chart ke saham tertentu; ticker.symbol yang diawali '^'
@@ -179,11 +190,17 @@ export default function Dashboard() {
   const isIndex = ticker.symbol.startsWith('^');
   const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
   const [timeframe, setTimeframe] = useState('1Y');
-  const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
+  const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(initialIhsg);
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
-  const [now, setNow] = useState<Date | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [now, setNow] = useState<Date | null>(() => initialRenderedAt ? new Date(initialRenderedAt) : null);
+  const initialRenderedLabel = React.useMemo(() => {
+    if (!initialRenderedAt) return null;
+    const date = new Date(initialRenderedAt);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(date) + ' WIB';
+  }, [initialRenderedAt]);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(initialRenderedLabel);
 
   React.useEffect(() => {
     setNow(new Date());
@@ -311,15 +328,23 @@ export default function Dashboard() {
       signals?: string[];
       coverage?: number | null;
       tp1: number | null; tp2: number | null; cl1: number | null; cl2: number | null;
+      flagged?: boolean;
     }[] | null
-  >(null);
+  >(initialLensRadar?.items ? initialLensRadar.items.map((item) => ({
+    ...item,
+    changePct: typeof item.changePct === 'number' ? item.changePct : 0,
+    cl2: item.cl2 ?? null,
+  })) : null);
   // Panel ini live (cron refresh tiap 5 menit ngikutin harga pasar) - ranking top-5 bisa
   // geser antar refresh kalau beberapa menit sudah lewat. Label "Update HH:MM" bikin ini
   // kelihatan sebagai data live yang wajar berubah, bukan seperti acak/bug (keluhan user
   // 2026-08-04 - panel ini sebelumnya tidak punya indikator jam sama sekali).
-  const [aiPicksUpdatedAt, setAiPicksUpdatedAt] = useState<string | null>(null);
-  const [aiPicksNote, setAiPicksNote] = useState<string | null>(null);
-  const [aiPicksAdvisoryEnabled, setAiPicksAdvisoryEnabled] = useState(false);
+  const [aiPicksUpdatedAt, setAiPicksUpdatedAt] = useState<string | null>(() => {
+    if (!initialLensRadar?.computedAt) return null;
+    return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(initialLensRadar.computedAt)) + ' WIB';
+  });
+  const [aiPicksNote, setAiPicksNote] = useState<string | null>(initialLensRadar?.note ?? null);
+  const [aiPicksAdvisoryEnabled, setAiPicksAdvisoryEnabled] = useState(initialLensRadar?.advisoryEnabled === true);
 
   React.useEffect(() => {
     fetch('/api/ai-pick')
@@ -447,8 +472,8 @@ export default function Dashboard() {
                 <span className="text-[11px] font-medium text-white">{marketOpen ? 'Live' : 'Tutup'}</span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-medium text-white/50">
-                <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Memuat waktu...'}</span>
-                <span className="sm:hidden">{jakartaTime || '--:--'}</span>
+                <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Waktu Jakarta'}</span>
+                <span className="sm:hidden">{jakartaTime || 'WIB'}</span>
               </div>
             </div>
           </div>
@@ -514,7 +539,7 @@ export default function Dashboard() {
                     href="/home"
                     className="rounded-lg bg-tv-blue px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
                   >
-                    Mulai Sekarang
+                    Mulai Analisis Saham
                   </Link>
                   <Link
                     href="/breakout-radar"
@@ -565,7 +590,10 @@ export default function Dashboard() {
               <div className="grid gap-4 lg:grid-cols-2 h-full">
               <div className="h-full rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm flex flex-col justify-between">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
+                    <span className="text-[10px] text-tv-muted">Yahoo Finance • delay dapat mencapai ~15 menit</span>
+                  </div>
                   {ihsg ? (
                     <>
                       <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
@@ -591,7 +619,7 @@ export default function Dashboard() {
                 <div className="mt-5 grid grid-cols-2 gap-3 border-t border-tv-border pt-4">
                   <div>
                     <div className="font-number text-lg font-bold text-tv-text">109</div>
-                    <div className="text-[10px] text-tv-muted leading-tight">saham likuid dipindai tiap sesi</div>
+                    <div className="text-[10px] text-tv-muted leading-tight">universe historis likuid dipindai tiap sesi</div>
                   </div>
                   <div>
                     <div className="font-number text-lg font-bold text-tv-text">
@@ -600,6 +628,10 @@ export default function Dashboard() {
                     <div className="text-[10px] text-tv-muted leading-tight">lolos ambang skor hari ini</div>
                   </div>
                 </div>
+                <p className="mt-3 text-[10px] leading-relaxed text-tv-muted">
+                  Universe 109 dibentuk dari emiten IDX yang lolos filter historis harga, likuiditas, dan volatilitas.
+                  LensRadar live dapat memindai cakupan lebih luas, tetapi setiap kandidat tetap melalui gerbang kelayakan data.
+                </p>
               </div>
 
                 <SignalVerticalTicker items={aiPicks} updatedAt={aiPicksUpdatedAt} advisoryEnabled={aiPicksAdvisoryEnabled} />
@@ -679,13 +711,13 @@ export default function Dashboard() {
                 <span className="text-lg leading-none">🔥</span> Pantauan LensRadar
               </h2>
               <p className="mt-1 text-[13px] text-tv-muted max-w-2xl">
-                Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
-                Ini scanner, bukan instruksi beli/jual.
+                Skor komposit teknikal, fundamental, dan arus dana dari universe LensRadar IDX.
+                109 emiten pertama berasal dari universe historis terfilter; cakupan live dapat lebih luas dan tetap melalui gerbang kelayakan. Ini scanner, bukan instruksi beli/jual.
               </p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[11px] text-tv-muted">
-                Update {aiPicksUpdatedAt || '--:--'}
+                {aiPicksUpdatedAt ? `Update ${aiPicksUpdatedAt}` : 'Menunggu snapshot LensRadar'}
               </span>
               <Link
                 href="/breakout-radar"
@@ -821,7 +853,7 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
-                      <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
+                      <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : '—'}</span>
                       {change != null && changePct != null && (
                         <span className={`inline-flex items-center gap-1 font-semibold font-number ${change>=0 ? 'text-tv-green' : 'text-tv-red'}`}>
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
