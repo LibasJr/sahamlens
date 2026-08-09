@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -29,10 +30,13 @@ import {
   AnimatedNumber,
 } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
-import PromoUpgradeModal from '@/components/PromoUpgradeModal';
-import PaywallModal from '@/components/PaywallModal';
+
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
+
+
+const PromoUpgradeModal = dynamic(() => import('@/components/PromoUpgradeModal'), { ssr: false });
+const PaywallModal = dynamic(() => import('@/components/PaywallModal'), { ssr: false });
 
 interface MarketMover {
   symbol: string;

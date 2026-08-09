@@ -3,6 +3,7 @@ import { fetchScreenerUniverse, rankScreener, type RiskProfile } from '@/modules
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { describeCacheAge } from '@/shared/http/freshness';
+import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 
 // Publik (alat gratis, konsisten dengan /dcf & /screener page itu sendiri). Universe
 // mentah (fetch fundamental ~50 saham) di-cache 30 menit dan dipakai ulang untuk
@@ -21,6 +22,19 @@ export async function GET(request: Request) {
     const profile = (searchParams.get('profile') || 'Moderat') as RiskProfile;
     if (!['Konservatif', 'Moderat', 'Agresif'].includes(profile)) {
       return NextResponse.json({ error: 'profile harus Konservatif/Moderat/Agresif' }, { status: 400 });
+    }
+
+    const ttlBefore = await getCacheTtlRemaining(CACHE_KEY);
+    const budget = await consumeComputeBudget(
+      computeActorFromRequest(request),
+      ttlBefore && ttlBefore > 0 ? 1 : 5,
+      'public',
+    );
+    if (!budget.allowed) {
+      return NextResponse.json(
+        { error: 'Screener terlalu sering diminta dalam waktu singkat. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
+        { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined },
+      );
     }
 
     const universe = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.SCREENER_UNIVERSE, fetchScreenerUniverse);

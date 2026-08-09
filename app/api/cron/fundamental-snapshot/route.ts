@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import YahooFinanceClass from 'yahoo-finance2';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 import { writeFundamentalSnapshot, type FundamentalSnapshot } from '@/shared/cache/ai-pick-cache';
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await withJobRunLog('fundamental-snapshot', async () => {
+    const guarded = await runWithJobConcurrencyGuard('fundamental-snapshot', () => withJobRunLog('fundamental-snapshot', async () => {
       const snapshot: FundamentalSnapshot = {};
       for (let i = 0; i < AI_PICK_UNIVERSE.length; i += BATCH_SIZE) {
         const batch = AI_PICK_UNIVERSE.slice(i, i + BATCH_SIZE);
@@ -96,7 +97,11 @@ export async function POST(req: NextRequest) {
         archivedRows: archive.archived,
         archiveError: archive.error,
       };
-    });
+    }));
+    if (!guarded.executed) {
+      return NextResponse.json({ success: true, skipped: true, reason: guarded.reason }, { status: 202 });
+    }
+    const result = guarded.value;
     return NextResponse.json({ success: true, result });
   } catch (err) {
     logger.error('Job fundamental-snapshot gagal', { err });

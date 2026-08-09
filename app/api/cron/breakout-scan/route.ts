@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { cacheSet } from '@/shared/cache/redis-cache';
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await withJobRunLog('breakout-scan', async () => {
+    const guarded = await runWithJobConcurrencyGuard('breakout-scan', () => withJobRunLog('breakout-scan', async () => {
       const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
       const payload = { data, crossSignals, lastUpdate: new Date().toISOString() };
       // TTL.BREAKOUT_RADAR (3 hari), bukan TTL.MARKET (6 menit) - lihat komentar di
@@ -31,7 +32,11 @@ export async function POST(req: NextRequest) {
       // dari cron intervalnya sendiri (tidak ada fallback live-scan di pemanggil).
       await cacheSet(CACHE_KEY, payload, TTL.BREAKOUT_RADAR);
       return { scanned: data.length };
-    });
+    }));
+    if (!guarded.executed) {
+      return NextResponse.json({ success: true, skipped: true, reason: guarded.reason }, { status: 202 });
+    }
+    const result = guarded.value;
     return NextResponse.json({ success: true, result });
   } catch (err) {
     logger.error('Job breakout-scan gagal', { err });

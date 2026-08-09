@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { getMarketPulse } from '@/modules/market';
 import { cacheSet } from '@/shared/cache/redis-cache';
@@ -26,11 +27,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await withJobRunLog('market-pulse', async () => {
+    const guarded = await runWithJobConcurrencyGuard('market-pulse', () => withJobRunLog('market-pulse', async () => {
       const data = await getMarketPulse();
       await cacheSet(CACHE_KEY, data, TTL.MARKET);
       return { indices: data.indices?.length ?? 0, sectors: data.sectorHeatmap?.length ?? 0 };
-    });
+    }));
+    if (!guarded.executed) {
+      return NextResponse.json({ success: true, skipped: true, reason: guarded.reason }, { status: 202 });
+    }
+    const result = guarded.value;
     return NextResponse.json({ success: true, result });
   } catch (err) {
     logger.error('Job market-pulse gagal', { err });
