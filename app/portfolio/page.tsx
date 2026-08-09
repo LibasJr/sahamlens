@@ -10,6 +10,7 @@ import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, ArrowUpRi
 // kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { fadeUp } from '@/lib/motion';
 import { getDecisionPresentation } from '@/modules/eligibility';
 
@@ -47,6 +48,14 @@ export default function PortfolioPage() {
   // step ini sebelumnya tidak ada sama sekali di form, ditambahkan di bawah.
   const [pendingVerification, setPendingVerification] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
+
+  const showToast = (message: string, variant: ToastVariant = 'info') => {
+    setToastVariant(variant);
+    setToastMessage(null);
+    window.setTimeout(() => setToastMessage(message), 0);
+  };
 
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderType, setOrderType] = useState<'BUY' | 'SELL'>('BUY');
@@ -75,34 +84,37 @@ export default function PortfolioPage() {
         setOrderSymbol('');
         setOrderPrice('');
         setOrderLots('');
+        showToast(`Order ${orderType} virtual berhasil dicatat.`, 'success');
         loadData();
       } else {
         const err = await res.json();
-        alert('Gagal: ' + err.error);
+        showToast('Gagal: ' + (err.error || 'order tidak dapat diproses'), 'error');
       }
     } catch(err) {
-      alert('Error submitting order');
+      showToast('Order virtual gagal dikirim. Coba lagi.', 'error');
     }
     setOrderLoading(false);
   };
 
   useEffect(() => {
-    checkAuth();
+    const controller = new AbortController();
+    checkAuth(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { signal });
       const data = await res.json();
       if (res.ok) {
         setIsLoggedIn(true);
         setCurrentUser({ email: data.user?.email, role: data.user?.role });
-        loadData();
+        loadData(signal);
       } else {
         setLoading(false);
       }
     } catch (e) {
-      setLoading(false);
+      if (!(e instanceof DOMException && e.name === 'AbortError')) setLoading(false);
     }
   };
 
@@ -165,11 +177,11 @@ export default function PortfolioPage() {
     setAuthLoading(false);
   };
 
-  const loadData = async () => {
+  const loadData = async (signal?: AbortSignal) => {
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch('/api/portfolio');
+      const res = await fetch('/api/portfolio', { signal });
       const data = await res.json();
 
       setPortfolio(data.portfolio);
@@ -186,7 +198,7 @@ export default function PortfolioPage() {
         let priceStale = true;
         let scoreLabel: string | null = null;
         try {
-          const res = await fetch(`/api/stock/${h.symbol}`);
+          const res = await fetch(`/api/stock/${h.symbol}`, { signal });
           const s = await res.json();
           if (typeof s?.stock?.current_price === 'number' && Number.isFinite(s.stock.current_price) && s.stock.current_price > 0) {
             currentPrice = s.stock.current_price;
@@ -204,7 +216,9 @@ export default function PortfolioPage() {
               scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignal || 'sinyal N/A'} · rekomendasi tidak tersedia`;
             }
           }
-        } catch(e) {}
+        } catch(e) {
+          if (e instanceof DOMException && e.name === 'AbortError') throw e;
+        }
 
         const currentValue = currentPrice * h.lots * 100;
         const pnl = currentValue - h.totalCost;
@@ -231,10 +245,11 @@ export default function PortfolioPage() {
       setBadges(newBadges);
 
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
       setLoadError(true);
     }
-    setLoading(false);
+    if (!signal?.aborted) setLoading(false);
   };
 
   const downloadExcel = async () => {
@@ -412,6 +427,7 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-tv-bg text-white font-sans pb-20">
+      <Toast message={toastMessage} variant={toastVariant} />
       {/* Portfolio workspace header */}
       <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
         <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

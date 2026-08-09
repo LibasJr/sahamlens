@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { loadEmitenList } from '@/shared/market/emiten-list';
 
 const SITE_URL = 'https://sahamlens.id';
 
@@ -19,10 +20,22 @@ const PUBLIC_ROUTES = [
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
-  return PUBLIC_ROUTES.map(({ path, priority, changeFrequency }) => ({
+  const publicPages = PUBLIC_ROUTES.map(({ path, priority, changeFrequency }) => ({
     url: path ? `${SITE_URL}/${path}` : SITE_URL,
     lastModified,
     changeFrequency,
     priority,
   }));
+
+  // Halaman technical per-emiten adalah landing page publik bernilai long-tail SEO.
+  // Daftar diambil dari universe emiten server yang sama dengan ticker validation, bukan
+  // hard-code beberapa saham populer. Jumlahnya masih jauh di bawah batas 50.000 URL/sitemap.
+  const technicalPages: MetadataRoute.Sitemap = loadEmitenList().map(({ symbol }) => ({
+    url: `${SITE_URL}/technical/${symbol}`,
+    lastModified,
+    changeFrequency: 'daily',
+    priority: 0.7,
+  }));
+
+  return [...publicPages, ...technicalPages];
 }
