@@ -49,3 +49,6 @@ data/council_cache.json
 local_db.json
 .env*
 scripts/.backtest-universe-stats.json
+
+# Template env aman untuk onboarding developer; secret nyata tetap di-ignore.
+!/.env.example

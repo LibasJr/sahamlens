@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -13,7 +13,8 @@ import AnalysisGlossary from '@/components/AnalysisGlossary';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
-import { grantProFromLink, FREE_LIMITS } from '@/lib/limits';
+import Toast, { type ToastVariant } from '@/components/ui/Toast';
+import { FREE_LIMITS } from '@/lib/limits';
 import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
@@ -140,6 +141,15 @@ function DashboardContent() {
   const [adminReady, setAdminReady] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
+  const analyzerAbortRef = useRef<AbortController | null>(null);
+
+  const showToast = (message: string, variant: ToastVariant = 'info') => {
+    setToastVariant(variant);
+    setToastMessage(null);
+    window.setTimeout(() => setToastMessage(message), 0);
+  };
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -149,11 +159,15 @@ function DashboardContent() {
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
+    analyzerAbortRef.current?.abort();
+    const controller = new AbortController();
+    analyzerAbortRef.current = controller;
     setLoading(true);
     setFetchError(false);
     try {
-      // Fetch new TS analyzers (which now also returns stock history)
-      const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store' });
+      // Abort request lama saat ticker berganti/refresh berikutnya dimulai supaya response
+      // BBCA yang lambat tidak bisa menimpa state setelah user sudah pindah ke BBRI.
+      const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store', signal: controller.signal });
       const jsonAlgo = await resAlgo.json();
 
       if (resAlgo.status === 401) {
@@ -176,7 +190,7 @@ function DashboardContent() {
         setLastUpdate(new Date());
         // LensRadar rank badge - best-effort, tidak menghalangi render utama kalau gagal
         // atau ticker ini memang tidak ada di daftar ranking hari ini (lihat spec section C).
-        fetch('/api/ai-pick', { cache: 'no-store' })
+        fetch('/api/ai-pick', { cache: 'no-store', signal: controller.signal })
           .then((r) => (r.ok ? r.json() : null))
           .then((d) => {
             const match = (d?.items || []).find((it: any) => it.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
@@ -213,10 +227,14 @@ function DashboardContent() {
         trackAccuracy(symbol, jsonAlgo.price, jsonAlgo.analyzers);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to fetch data', e);
       setFetchError(true);
     } finally {
-      setLoading(false);
+      if (analyzerAbortRef.current === controller) {
+        analyzerAbortRef.current = null;
+        setLoading(false);
+      }
     }
   };
 
@@ -263,12 +281,8 @@ function DashboardContent() {
   const handleRefresh = () => fetchAnalyzerData(ticker);
 
   useEffect(() => {
+    const controller = new AbortController();
     setMounted(true);
-
-    // Link "Grant Pro" yang di-generate admin di /admin - lihat lib/limits.ts grantProFromLink().
-    if (searchParams.get('grantPro') === '1') {
-      grantProFromLink();
-    }
 
     // BUG FIX (2026-08-06, dilaporkan user "pelanggan Pro 1 bulan masih dapat notif
     // limit habis"): blok ini dulu memutuskan status Pro dari `role === 'pro'` lalu
@@ -277,7 +291,7 @@ function DashboardContent() {
     // trial yang sudah lewat, dan langsung disodori paywall. Sekarang keputusannya
     // dari computeRole() (lib/hooks/useAuthUser.ts), logic yang sama dengan
     // checkProAccess() di server, sehingga UI dan API tidak lagi berbeda pendapat.
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', { signal: controller.signal })
       .then(res => res.json())
       .then(d => {
         const user = d.authenticated && d.user ? d.user : null;
@@ -287,7 +301,9 @@ function DashboardContent() {
         setShowPaywall(isTrialExpired);
         setAdminReady(true);
       })
-      .catch(() => setAdminReady(true));
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setAdminReady(true);
+      });
 
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
@@ -306,10 +322,14 @@ function DashboardContent() {
     }
 
     // Fetch portfolio for cash balance
-    fetch('/api/portfolio')
+    fetch('/api/portfolio', { signal: controller.signal })
       .then(res => res.json())
       .then(d => setPortfolioData(d))
-      .catch(e => console.error(e));
+      .catch(e => {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) console.error(e);
+      });
+
+    return () => controller.abort();
   }, [searchParams]);
 
   useEffect(() => {
@@ -336,28 +356,39 @@ function DashboardContent() {
     // Load initial scores
     setScores(JSON.parse(localStorage.getItem('trading_scores') || '{}'));
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      analyzerAbortRef.current?.abort();
+    };
   }, [ticker, mounted, adminReady]);
 
   useEffect(() => {
     if (!mounted) return;
+    const controller = new AbortController();
     const code = ticker.replace('.JK', '');
-    fetch(`/api/public-chart/${code}?tf=${timeframe}`)
+    fetch(`/api/public-chart/${code}?tf=${timeframe}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((d) => { if (d?.history?.length > 0) setChartCandles(d.history); })
-      .catch(() => {});
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Chart fetch failed', error);
+      });
+    return () => controller.abort();
   }, [ticker, timeframe, mounted]);
 
   useEffect(() => {
     if (!mounted || !data?.stock?.symbol) return;
+    const controller = new AbortController();
     setLoadingStockNews(true);
     const code = ticker.replace('.JK', '');
     const name = data.stock.name || '';
-    fetch(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`)
+    fetch(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setStockNews(d?.items || []))
-      .catch(() => {})
-      .finally(() => setLoadingStockNews(false));
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Stock news fetch failed', error);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoadingStockNews(false); });
+    return () => controller.abort();
   }, [ticker, mounted, data?.stock?.symbol]);
 
   const downloadTechnicalPDF = async () => {
@@ -1365,13 +1396,13 @@ function DashboardContent() {
                     });
                     const json = await res.json();
                     if (json.error) {
-                      alert(json.error);
+                      showToast(json.error, 'error');
                     } else {
-                      alert(`Berhasil ${tradeType} ${tradeLots} lot ${ticker}!`);
-                      router.push('/portfolio');
+                      showToast(`Berhasil ${tradeType} ${tradeLots} lot ${ticker}!`, 'success');
+                      window.setTimeout(() => router.push('/portfolio'), 650);
                     }
                   } catch(e) {
-                    alert('Error: ' + String(e));
+                    showToast('Transaksi virtual gagal diproses. Coba lagi.', 'error');
                   }
                   setTradeLoading(false);
                 }}
@@ -1387,6 +1418,8 @@ function DashboardContent() {
         </div>
       )}
       
+      <Toast message={toastMessage} variant={toastVariant} />
+
       <StockNewsModal
         open={newsModalOpen}
         onClose={() => setNewsModalOpen(false)}

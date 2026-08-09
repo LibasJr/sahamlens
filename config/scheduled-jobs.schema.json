@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["timezone", "jobs"],
+  "properties": {
+    "timezone": { "type": "string" },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "provider", "schedule", "scheduleStatus", "source"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^/api/cron/" },
+          "provider": { "enum": ["vercel", "qstash"] },
+          "schedule": { "type": ["string", "null"] },
+          "scheduleStatus": { "enum": ["known", "verify-dashboard"] },
+          "source": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

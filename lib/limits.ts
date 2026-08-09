@@ -45,8 +45,5 @@ export function incrementAnalisa(symbol: string) {
   return { allowed: true, remaining: 999 };
 }
 
-export function grantProFromLink() {
-  // Legacy function for client-side pro granting, replaced by admin panel
-}
 
 
