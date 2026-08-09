@@ -49,6 +49,7 @@ export default function FundamentalBackfillClient() {
   // Dipakai untuk memastikan Dry Run yang sudah lolos benar-benar menguji kombinasi
   // yang sama dengan yang akan di-insert.
   const [verifiedInput, setVerifiedInput] = useState<string | null>(null);
+  const [confirmInsertOpen, setConfirmInsertOpen] = useState(false);
 
   const lineCount = useMemo(() => csvText.split(/\r?\n/).filter((line) => line.trim()).length, [csvText]);
   const inputFingerprint = useMemo(
@@ -202,16 +203,7 @@ export default function FundamentalBackfillClient() {
               type="button"
               disabled={!csvText.trim() || loadingMode !== null || !dryRunValid}
               title={!dryRunValid ? 'Jalankan Dry Run atas masukan ini dulu' : undefined}
-              onClick={() => {
-                const ringkas = result
-                  ? `${result.parsedRows} baris dari ${result.tickers} emiten, ${result.minObservedDate} s/d ${result.maxObservedDate}`
-                  : '';
-                if (window.confirm(
-                  `Insert append-only ke fundamental_history?\n\n${ringkas}\n\nBaris yang sudah ada TIDAK ditimpa. Koreksi setelah ini menuntut DELETE bertarget - pastikan tanggal dan sumbernya benar.`
-                )) {
-                  submit('insert');
-                }
-              }}
+              onClick={() => setConfirmInsertOpen(true)}
               className="flex w-full items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loadingMode === 'insert' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
@@ -229,6 +221,33 @@ export default function FundamentalBackfillClient() {
           </div>
         </div>
       </div>
+
+      {confirmInsertOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-backfill-title">
+          <div className="w-full max-w-md rounded-2xl border border-tv-border bg-tv-card p-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-tv-yellow/10 p-2 text-tv-yellow"><AlertTriangle className="h-5 w-5" /></div>
+              <div>
+                <h3 id="confirm-backfill-title" className="font-heading text-base font-bold text-tv-text">Konfirmasi insert append-only</h3>
+                <p className="mt-2 text-sm leading-relaxed text-tv-muted">
+                  {result ? `${result.parsedRows} baris dari ${result.tickers} emiten, ${result.minObservedDate} s/d ${result.maxObservedDate}. ` : ''}
+                  Baris yang sudah ada tidak ditimpa. Koreksi setelah insert membutuhkan DELETE bertarget, jadi pastikan tanggal dan sumber sudah benar.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmInsertOpen(false)} className="rounded-lg border border-tv-border px-4 py-2 text-sm font-semibold text-tv-muted hover:text-tv-text">Batal</button>
+              <button
+                type="button"
+                onClick={() => { setConfirmInsertOpen(false); submit('insert'); }}
+                className="rounded-lg bg-tv-blue px-4 py-2 text-sm font-bold text-white hover:bg-tv-blueHover"
+              >
+                Ya, insert ke DB
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-tv-red/30 bg-tv-card">

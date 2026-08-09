@@ -114,13 +114,13 @@ export function EmptyState({
   const remainingDays = countdown ? daysUntilJakarta(countdown.targetDate) : 0;
 
   return (
-    <div className={cn('flex flex-col items-center justify-center text-center py-12 px-6', className)}>
+    <div className={cn('flex flex-col items-center justify-center px-6 py-12 text-center', className)}>
       {illustration ? (
         <div className="mb-4">
           <Illustration variant={illustration} />
         </div>
       ) : icon ? (
-        <div className="w-12 h-12 rounded-full bg-tv-hover flex items-center justify-center text-tv-muted mb-4">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.035] text-tv-muted">
           {icon}
         </div>
       ) : null}

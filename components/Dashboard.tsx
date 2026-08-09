@@ -7,7 +7,7 @@ import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, 
 import TradingViewChart from '@/components/TradingViewChart';
 import CommandPalette from '@/components/CommandPalette';
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
-import { Card, SegmentedControl, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 
@@ -166,7 +166,18 @@ function SignalVerticalTicker({
   );
 }
 
-export default function Dashboard() {
+type DashboardProps = {
+  initialIhsg?: { price: number; change: number; pointChange: number } | null;
+  initialRenderedAt?: string;
+  initialLensRadar?: {
+    items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number }[];
+    computedAt: string | null;
+    advisoryEnabled: boolean;
+    note: string | null;
+  } | null;
+};
+
+export default function Dashboard({ initialIhsg = null, initialRenderedAt, initialLensRadar = null }: DashboardProps) {
   // Default chart beranda = IHSG (permintaan eksplisit) - bukan lagi saham trending
   // acak. User tetap bisa ketik nama emiten di search (CommandPalette onSelect di
   // bawah) untuk mengganti chart ke saham tertentu; ticker.symbol yang diawali '^'
@@ -179,11 +190,17 @@ export default function Dashboard() {
   const isIndex = ticker.symbol.startsWith('^');
   const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
   const [timeframe, setTimeframe] = useState('1Y');
-  const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(null);
+  const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(initialIhsg);
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
-  const [now, setNow] = useState<Date | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [now, setNow] = useState<Date | null>(() => initialRenderedAt ? new Date(initialRenderedAt) : null);
+  const initialRenderedLabel = React.useMemo(() => {
+    if (!initialRenderedAt) return null;
+    const date = new Date(initialRenderedAt);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(date) + ' WIB';
+  }, [initialRenderedAt]);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(initialRenderedLabel);
 
   React.useEffect(() => {
     setNow(new Date());
@@ -192,7 +209,8 @@ export default function Dashboard() {
   }, []);
 
   React.useEffect(() => {
-    fetch('/api/live/^JKSE')
+    const controller = new AbortController();
+    fetch('/api/live/^JKSE', { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         if (
@@ -209,10 +227,14 @@ export default function Dashboard() {
           setIhsgFailed(true);
         }
       })
-      .catch((e) => { console.error(e); setIhsgFailed(true); });
+      .catch((e) => {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setIhsgFailed(true); }
+      });
+    return () => controller.abort();
   }, []);
 
   const chartRef = useRef<HTMLDivElement>(null);
+  const chartAbortRef = useRef<AbortController | null>(null);
 
   const [chartData, setChartData] = useState<any[]>([]);
 
@@ -226,9 +248,12 @@ export default function Dashboard() {
   const [chartError, setChartError] = useState(false);
 
   const loadChart = React.useCallback(() => {
+    chartAbortRef.current?.abort();
+    const controller = new AbortController();
+    chartAbortRef.current = controller;
     setChartError(false);
     setHoveredTime(null); // stale hover position from the previous series wouldn't line up
-    fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`)
+    fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`, { signal: controller.signal })
       .then(r => (r.ok ? r.json() : Promise.reject(new Error('chart'))))
       .then(data => {
          if (data && data.history && data.history.length > 0) {
@@ -237,10 +262,15 @@ export default function Dashboard() {
             setChartError(true);
          }
       })
-      .catch((e) => { console.error(e); setChartError(true); });
+      .catch((e) => {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setChartError(true); }
+      });
   }, [timeframe, ticker.symbol]);
 
-  React.useEffect(() => { loadChart(); }, [loadChart]);
+  React.useEffect(() => {
+    loadChart();
+    return () => chartAbortRef.current?.abort();
+  }, [loadChart]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
   const prevClose = chartData.length > 1 ? chartData[chartData.length - 2].price : null;
@@ -311,18 +341,27 @@ export default function Dashboard() {
       signals?: string[];
       coverage?: number | null;
       tp1: number | null; tp2: number | null; cl1: number | null; cl2: number | null;
+      flagged?: boolean;
     }[] | null
-  >(null);
+  >(initialLensRadar?.items ? initialLensRadar.items.map((item) => ({
+    ...item,
+    changePct: typeof item.changePct === 'number' ? item.changePct : 0,
+    cl2: item.cl2 ?? null,
+  })) : null);
   // Panel ini live (cron refresh tiap 5 menit ngikutin harga pasar) - ranking top-5 bisa
   // geser antar refresh kalau beberapa menit sudah lewat. Label "Update HH:MM" bikin ini
   // kelihatan sebagai data live yang wajar berubah, bukan seperti acak/bug (keluhan user
   // 2026-08-04 - panel ini sebelumnya tidak punya indikator jam sama sekali).
-  const [aiPicksUpdatedAt, setAiPicksUpdatedAt] = useState<string | null>(null);
-  const [aiPicksNote, setAiPicksNote] = useState<string | null>(null);
-  const [aiPicksAdvisoryEnabled, setAiPicksAdvisoryEnabled] = useState(false);
+  const [aiPicksUpdatedAt, setAiPicksUpdatedAt] = useState<string | null>(() => {
+    if (!initialLensRadar?.computedAt) return null;
+    return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(initialLensRadar.computedAt)) + ' WIB';
+  });
+  const [aiPicksNote, setAiPicksNote] = useState<string | null>(initialLensRadar?.note ?? null);
+  const [aiPicksAdvisoryEnabled, setAiPicksAdvisoryEnabled] = useState(initialLensRadar?.advisoryEnabled === true);
 
   React.useEffect(() => {
-    fetch('/api/ai-pick')
+    const controller = new AbortController();
+    fetch('/api/ai-pick', { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         // Butuh akun/trial - pengunjung yang trialnya habis dapat 402. Tampilkan daftar
@@ -337,22 +376,26 @@ export default function Dashboard() {
           setAiPicksUpdatedAt(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.computedAt)) + ' WIB');
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         setAiPicks([]);
         setAiPicksNote(null);
         setAiPicksAdvisoryEnabled(false);
       });
+    return () => controller.abort();
   }, []);
 
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; pubDate: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
 
   React.useEffect(() => {
-    fetch('/api/news', { cache: 'no-store' })
+    const controller = new AbortController();
+    fetch('/api/news', { cache: 'no-store', signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setNewsItems((d?.items || []).slice(0, 6)))
-      .catch(() => {})
-      .finally(() => setLoadingNews(false));
+      .catch((error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('News fetch failed', error); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingNews(false); });
+    return () => controller.abort();
   }, []);
 
   // Jadwal Terdekat (Dividen/Earnings) - ngisi ruang kosong di bawah "Berita Terkini"
@@ -363,7 +406,8 @@ export default function Dashboard() {
   >(null);
 
   React.useEffect(() => {
-    fetch('/api/calendar', { cache: 'no-store' })
+    const controller = new AbortController();
+    fetch('/api/calendar', { cache: 'no-store', signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const map = d?.events as Record<string, { symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[]> | undefined;
@@ -376,11 +420,13 @@ export default function Dashboard() {
           .slice(0, 5);
         setCalendarEvents(flat);
       })
-      .catch(() => setCalendarEvents([]));
+      .catch((error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setCalendarEvents([]); });
+    return () => controller.abort();
   }, []);
 
   React.useEffect(() => {
-    fetch('/api/market-summary').then(r => r.json()).then(data => {
+    const controller = new AbortController();
+    fetch('/api/market-summary', { signal: controller.signal }).then(r => r.json()).then(data => {
       if (data && !data.error) {
         // topGainers + topLosers (bukan topValue - itu tidak punya field changePct)
         // digabung supaya ticker menampilkan campuran saham naik & turun, dideduplikasi.
@@ -400,7 +446,10 @@ export default function Dashboard() {
       } else {
         setTickerFailed(true);
       }
-    }).catch((e) => { console.error(e); setTickerFailed(true); });
+    }).catch((e) => {
+      if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setTickerFailed(true); }
+    });
+    return () => controller.abort();
   }, []);
 
   const jakartaDate = now ? new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now) : null;
@@ -447,8 +496,8 @@ export default function Dashboard() {
                 <span className="text-[11px] font-medium text-white">{marketOpen ? 'Live' : 'Tutup'}</span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-medium text-white/50">
-                <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Memuat waktu...'}</span>
-                <span className="sm:hidden">{jakartaTime || '--:--'}</span>
+                <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Waktu Jakarta'}</span>
+                <span className="sm:hidden">{jakartaTime || 'WIB'}</span>
               </div>
             </div>
           </div>
@@ -514,7 +563,7 @@ export default function Dashboard() {
                     href="/home"
                     className="rounded-lg bg-tv-blue px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
                   >
-                    Mulai Sekarang
+                    Mulai Analisis Saham
                   </Link>
                   <Link
                     href="/breakout-radar"
@@ -565,7 +614,10 @@ export default function Dashboard() {
               <div className="grid gap-4 lg:grid-cols-2 h-full">
               <div className="h-full rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm flex flex-col justify-between">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
+                    <span className="text-[10px] text-tv-muted">Yahoo Finance • delay dapat mencapai ~15 menit</span>
+                  </div>
                   {ihsg ? (
                     <>
                       <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
@@ -591,7 +643,7 @@ export default function Dashboard() {
                 <div className="mt-5 grid grid-cols-2 gap-3 border-t border-tv-border pt-4">
                   <div>
                     <div className="font-number text-lg font-bold text-tv-text">109</div>
-                    <div className="text-[10px] text-tv-muted leading-tight">saham likuid dipindai tiap sesi</div>
+                    <div className="text-[10px] text-tv-muted leading-tight">universe historis likuid dipindai tiap sesi</div>
                   </div>
                   <div>
                     <div className="font-number text-lg font-bold text-tv-text">
@@ -600,6 +652,10 @@ export default function Dashboard() {
                     <div className="text-[10px] text-tv-muted leading-tight">lolos ambang skor hari ini</div>
                   </div>
                 </div>
+                <p className="mt-3 text-[10px] leading-relaxed text-tv-muted">
+                  Universe 109 dibentuk dari emiten IDX yang lolos filter historis harga, likuiditas, dan volatilitas.
+                  LensRadar live dapat memindai cakupan lebih luas, tetapi setiap kandidat tetap melalui gerbang kelayakan data.
+                </p>
               </div>
 
                 <SignalVerticalTicker items={aiPicks} updatedAt={aiPicksUpdatedAt} advisoryEnabled={aiPicksAdvisoryEnabled} />
@@ -679,13 +735,13 @@ export default function Dashboard() {
                 <span className="text-lg leading-none">🔥</span> Pantauan LensRadar
               </h2>
               <p className="mt-1 text-[13px] text-tv-muted max-w-2xl">
-                Skor komposit teknikal, fundamental, dan arus dana dari 109 saham likuid IDX.
-                Ini scanner, bukan instruksi beli/jual.
+                Skor komposit teknikal, fundamental, dan arus dana dari universe LensRadar IDX.
+                109 emiten pertama berasal dari universe historis terfilter; cakupan live dapat lebih luas dan tetap melalui gerbang kelayakan. Ini scanner, bukan instruksi beli/jual.
               </p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[11px] text-tv-muted">
-                Update {aiPicksUpdatedAt || '--:--'}
+                {aiPicksUpdatedAt ? `Update ${aiPicksUpdatedAt}` : 'Menunggu snapshot LensRadar'}
               </span>
               <Link
                 href="/breakout-radar"
@@ -821,7 +877,7 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
-                      <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : 'Memuat...'}</span>
+                      <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : '—'}</span>
                       {change != null && changePct != null && (
                         <span className={`inline-flex items-center gap-1 font-semibold font-number ${change>=0 ? 'text-tv-green' : 'text-tv-red'}`}>
                           {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
@@ -848,28 +904,19 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                {/* max-w-full + overflow-x-auto (permintaan user) - 8 pilihan timeframe
-                    (nambah 1M/3M) muat digulir ke samping di layar sempit, bukan
-                    ke-wrap jadi berbaris-baris atau kepotong. */}
-                <div className="max-w-full overflow-x-auto">
-                  <SegmentedControl
-                    options={TIMEFRAMES.map(t => ({ label: t, value: t }))}
-                    value={timeframe}
-                    onChange={setTimeframe}
-                    layoutId="landing-timeframe"
-                    className="shrink-0"
-                  />
-                </div>
               </div>
 
               {/* Chart */}
-              <div className="relative mt-6 rounded-lg overflow-hidden shadow-1 border border-tv-border/50">
+              <div className="relative mt-6 min-w-0">
                 {chartData.length > 0 ? (
                   <TradingViewChart
                     symbol={ticker.symbol}
                     candles={chartData}
-                    height={340}
+                    height={410}
                     timeframe={timeframe}
+                    timeframeOptions={TIMEFRAMES}
+                    onTimeframeChange={setTimeframe}
+                    variant="compact"
                     onHoverCandle={setHoveredTime}
                     technical={{
                       // null (bukan 'NETRAL') kalau MA belum bisa dihitung (temuan C-1),
@@ -890,7 +937,7 @@ export default function Dashboard() {
                     />
                   </div>
                 ) : (
-                  <div className="h-[340px] bg-tv-bg p-4 flex flex-col justify-end gap-2">
+                  <div className="min-h-[290px] sm:min-h-[360px] bg-tv-bg p-4 flex flex-col justify-end gap-2">
                     {/* Kerangka menyerupai bentuk chart batang, bukan teks "Memuat grafik..."
                         di tengah kotak kosong setinggi 340px. */}
                     <div className="flex items-end gap-1.5 h-full">
@@ -955,7 +1002,7 @@ export default function Dashboard() {
                               halaman depan dibuang - padahal itu pembeda utamanya dari
                               daftar berita biasa. */}
                           {n.sentiment && (
-                            <span className={`rounded px-1.5 py-px text-[9px] font-bold ${
+                            <span className={`rounded px-1.5 py-px text-[10px] font-bold ${
                               n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green'
                                 : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red'
                                 : 'bg-tv-hover text-tv-muted'

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Target, Clock, Menu, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
+import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
@@ -388,19 +388,13 @@ export default function AiPickPage() {
     // memperhitungkan bilah alamat browser mobile. Disamakan dengan halaman lain.
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
-        <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
+        <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-              className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
             <div className="p-2 rounded-md bg-tv-blue text-white">
               <Target className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight flex items-center gap-2">
+              <h1 className="lens-page-title flex items-center gap-2">
                 LensRadar Live
                 {/* BUG FIX (audit integritas data 2026-08-03): badge "Live" dulu TETAP
                     tampil walau data sebenarnya dari sesi bursa sebelumnya (bisa 2+ hari
@@ -419,7 +413,7 @@ export default function AiPickPage() {
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
             1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
-        <PageContainer className="p-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7">
           <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
@@ -752,7 +746,7 @@ export default function AiPickPage() {
                                   ['Arus Dana', it.breakdown?.flow, 30],
                                 ] as const).map(([label, value, max]) => (
                                   <div key={label}>
-                                    <div className="text-tv-muted uppercase text-[9px] tracking-wide">{label}</div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{label}</div>
                                     <div className="font-bold font-number text-tv-text text-sm">
                                       {value ?? 'N/A'}<span className="text-tv-muted text-[10px] font-normal">/{max}</span>
                                     </div>
@@ -763,7 +757,7 @@ export default function AiPickPage() {
                                 ))}
                               </div>
                               <div className="mt-3">
-                                <div className="text-tv-muted uppercase text-[9px] tracking-wide mb-1">Alasan Utama</div>
+                                <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">Alasan Utama</div>
                                 {it.topReasons && it.topReasons.length > 0 ? (
                                   <ul className="space-y-0.5">
                                     {it.topReasons.map((r, i) => <li key={i} className="text-[11px] text-tv-text">✓ {r}</li>)}

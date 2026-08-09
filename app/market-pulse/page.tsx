@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Activity, TrendingUp, TrendingDown, BarChart3,
-  RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, Menu, X
+  RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, X
 } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
@@ -92,7 +92,7 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
         <div className="text-xs font-bold text-white truncate">{sector}</div>
         {/* Dinyatakan apa adanya: ini rata-rata beberapa saham wakil, bukan indeks sektor
             resmi IDX (temuan M-3). */}
-        {sampleSize ? <div className="text-[9px] text-white/60">rata-rata {sampleSize} saham wakil</div> : null}
+        {sampleSize ? <div className="text-[10px] text-white/60">rata-rata {sampleSize} saham wakil</div> : null}
         {/* Angka % dulu pakai text-tv-green/text-tv-red di atas background yang juga
             hijau/merah (hue sama) - kontras rendah, apalagi saat perubahan besar bikin
             background makin pekat. Ganti jadi putih (kontras tinggi di kedua background)
@@ -110,7 +110,7 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
         {stocks?.slice(0, 4).map((s: any) => (
           <span
             key={s.symbol}
-            className={`text-[9px] font-number font-semibold px-1 py-0.5 rounded text-white ${
+            className={`text-[10px] font-number font-semibold px-1 py-0.5 rounded text-white ${
               s.changePct >= 0 ? 'bg-tv-green/60' : 'bg-tv-red/60'
             }`}
           >
@@ -118,7 +118,7 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
           </span>
         ))}
         {stocks?.length > 4 && (
-          <span className="text-[9px] text-white/60 font-medium">+{stocks.length - 4} lainnya</span>
+          <span className="text-[10px] text-white/60 font-medium">+{stocks.length - 4} lainnya</span>
         )}
       </div>
     </motion.button>
@@ -231,13 +231,13 @@ function BreadthBar({ advancing, declining, unchanged, total }: any) {
         aria-label={`${advancing} saham naik, ${unchanged} stagnan, ${declining} turun, dari ${total} saham terpantau`}
       >
         <div className="bg-tv-green transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${advPct}%` }}>
-          {advPct > 10 && <span className="text-[9px] font-number font-bold text-white">{advancing}</span>}
+          {advPct > 10 && <span className="text-[10px] font-number font-bold text-white">{advancing}</span>}
         </div>
         <div className="bg-tv-muted transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${uncPct}%` }}>
-          {uncPct > 10 && <span className="text-[9px] font-number font-bold text-white">{unchanged}</span>}
+          {uncPct > 10 && <span className="text-[10px] font-number font-bold text-white">{unchanged}</span>}
         </div>
         <div className="bg-tv-red transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${decPct}%` }}>
-          {decPct > 10 && <span className="text-[9px] font-number font-bold text-white">{declining}</span>}
+          {decPct > 10 && <span className="text-[10px] font-number font-bold text-white">{declining}</span>}
         </div>
       </div>
       <div className="flex justify-between text-[10px] font-number">
@@ -267,16 +267,20 @@ export default function MarketPulse() {
   // hanya sampai user menutup modal itu.
   const [loadError, setLoadError] = useState(false);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const fetchData = useCallback(async () => {
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch('/api/market-pulse', { cache: 'no-store' });
+      const res = await fetch('/api/market-pulse', { cache: 'no-store', signal: controller.signal });
       if (res.status === 401) {
         setGated('login');
         setShowLoginPrompt(true);
@@ -296,7 +300,7 @@ export default function MarketPulse() {
         return;
       }
 
-      const res2 = await fetch('/api/breakout-radar');
+      const res2 = await fetch('/api/breakout-radar', { signal: controller.signal });
       if (res2.ok) {
         const json2 = await res2.json();
         setBreakoutData(json2.data || []);
@@ -306,17 +310,24 @@ export default function MarketPulse() {
       setData(json);
       setLastUpdate(new Date());
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
       setLoadError(true);
     } finally {
-      setLoading(false);
+      if (fetchAbortRef.current === controller) {
+        fetchAbortRef.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 120000); // 2 min refresh
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      fetchAbortRef.current?.abort();
+    };
   }, [fetchData]);
 
   // Satu tempat memutuskan apa yang dirender tiap section, supaya urutan cek
@@ -343,20 +354,14 @@ export default function MarketPulse() {
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       {/* Top Header */}
-      <header className="bg-tv-surface border-b border-tv-border px-4 sm:px-6 py-3 sticky top-0 z-20 shadow-2">
+      <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl sm:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-              className="md:hidden p-2 -ml-2 shrink-0 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
             <div className="p-2 rounded-md bg-tv-blue text-white shrink-0">
               <Activity className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight truncate">LensMarket</h2>
+              <h2 className="lens-page-title truncate">LensMarket</h2>
               <p className="text-xs text-tv-muted truncate">IDX Algorithmic Suite — diperbarui tiap 5 menit</p>
             </div>
           </div>
@@ -382,7 +387,7 @@ export default function MarketPulse() {
         </div>
       </header>
 
-      <PageContainer className="p-6 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         {/* === SECTION 1: INDEX CARDS === */}
         {blocker && blocker !== 'loading' ? (
           <div className="bg-tv-card border border-tv-border rounded-lg shadow-1">
@@ -499,7 +504,7 @@ export default function MarketPulse() {
                         <span className="block h-full rounded-full bg-tv-blue" style={{ width: `${Math.min(100, (Number(item.score) / 8) * 100)}%` }} />
                       </span>
                     </div>
-                    <span className="text-[9px] text-tv-muted bg-tv-hover px-2 rounded font-number shrink-0">RR {item.rr}</span>
+                    <span className="text-[10px] text-tv-muted bg-tv-hover px-2 rounded font-number shrink-0">RR {item.rr}</span>
                   </div>
                 </motion.a>
               ))
@@ -583,15 +588,15 @@ export default function MarketPulse() {
               <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1 content-start">
                 <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
                   <AnimatedNumber value={data.breadth.advancing} className="block text-xl sm:text-3xl font-extrabold text-tv-green font-number" />
-                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
+                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
                 </div>
                 <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center">
                   <AnimatedNumber value={data.breadth.unchanged} className="block text-xl sm:text-3xl font-extrabold text-tv-muted font-number" />
-                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
+                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
                 </div>
                 <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-2 sm:p-4 text-center">
                   <AnimatedNumber value={data.breadth.declining} className="block text-xl sm:text-3xl font-extrabold text-tv-red font-number" />
-                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
+                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
                 </div>
                 <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center flex flex-col items-center justify-center">
                   <AnimatedNumber
@@ -601,7 +606,7 @@ export default function MarketPulse() {
                       data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
                     }`}
                   />
-                  <div className="text-[9px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">AD Ratio</div>
+                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">AD Ratio</div>
                 </div>
               </div>
 

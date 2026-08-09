@@ -2,6 +2,8 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 
@@ -34,14 +36,15 @@ export async function GET(
   }
 
   const { ticker: rawTicker } = await params;
-  const cleanTicker = rawTicker.toUpperCase().replace('.JK', '');
-  const ticker = `${cleanTicker}.JK`;
+  const ticker = normalizeIdxTickerParam(rawTicker);
+  if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+  const cleanTicker = ticker.replace('.JK', '');
 
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=2mo&interval=1d`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      next: { revalidate: 300 },
+      next: { revalidate: getMarketAwareTtlSec() },
     });
     if (!res.ok) throw new Error('Gagal mengambil data Yahoo Finance');
 

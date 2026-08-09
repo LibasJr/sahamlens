@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Search, ArrowRightLeft, Menu } from 'lucide-react';
+import { Target, Search, ArrowRightLeft } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -138,20 +138,14 @@ function CompareContent() {
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-tv-surface border-b border-tv-border px-6 py-4 sticky top-0 z-20 shadow-2">
+        <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-                className="md:hidden p-2 -ml-2 text-tv-muted hover:text-white rounded-lg hover:bg-white/5"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
               <div className="p-2 rounded-md bg-tv-blue text-white">
                 <ArrowRightLeft className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="font-heading font-bold text-xl text-tv-text tracking-tight">Stock Compare</h1>
+                <h1 className="lens-page-title">Stock Compare</h1>
                 <p className="text-xs text-tv-muted">Head-to-head Fundamental & Technical Analysis</p>
               </div>
             </div>
@@ -159,7 +153,7 @@ function CompareContent() {
         </header>
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
-        <PageContainer className="p-6 space-y-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
 
           <form onSubmit={handleCompare} className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
@@ -304,7 +298,7 @@ function CompareContent() {
                           {row.winner !== '-' && (
                             <span className="inline-block mb-1 text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded text-[10px]">{row.winner} unggul</span>
                           )}
-                          <p className="text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                          <p className="font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
                         </td>
                       </tr>
                     ))}
@@ -336,15 +330,15 @@ function CompareContent() {
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data1.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.a}</div>
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data2.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.b}</div>
                     </div>
-                    <p className="mt-1.5 text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                    <p className="mt-1.5 font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
                   </motion.div>
                 ))}
               </div>
 
               {data.conclusion && (
-                <div className="p-6 bg-tv-bg border-t border-tv-border">
+                <div className="p-6 bg-tv-bg border-t border-tv-border font-sans">
                   <h3 className="font-heading text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan LensAI</h3>
-                  <p className="text-base text-tv-text leading-relaxed">
+                  <p className="font-sans text-sm font-normal text-tv-text leading-relaxed sm:text-base">
                     {data.conclusion}
                   </p>
                 </div>

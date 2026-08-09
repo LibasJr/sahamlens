@@ -66,7 +66,16 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     return null;
   }
 
-  const { fair_value, harga, mos, methods, sektor } = data;
+  const { fair_value, harga, mos, methods, sektor, applied_rule = {} } = data;
+  const weightedParts = Object.entries(applied_rule)
+    .map(([key, weight]) => {
+      const method = methods?.[key];
+      const numericWeight = typeof weight === 'number' ? weight : Number(weight);
+      if (!method || !Number.isFinite(method.value) || !Number.isFinite(numericWeight)) return null;
+      return { key, name: method.name, value: method.value as number, weight: numericWeight };
+    })
+    .filter(Boolean) as Array<{ key: string; name: string; value: number; weight: number }>;
+  const hasWeightedFormula = weightedParts.length > 0;
   
   // Format data for chart
   const chartData = Object.keys(methods).map(key => ({
@@ -85,7 +94,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
   let mosBg = 'bg-[#f59e0b]';
   let mosBorder = 'border-[#f59e0b]';
   let mosText = 'text-[#f59e0b]';
-  let mosLabel = 'Harga Wajar (Fair)';
+  let mosLabel = 'Harga sekitar nilai wajar model';
   let Icon = Target;
 
   if (mos >= 15) {
@@ -94,7 +103,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     mosBg = 'bg-tv-green';
     mosBorder = 'border-tv-green';
     mosText = 'text-tv-green';
-    mosLabel = 'Saham Undervalued / Diskon';
+    mosLabel = 'Harga di bawah nilai wajar model';
     Icon = TrendingUp;
   } else if (mos <= -15) {
     mosStatus = 'OVERVALUED';
@@ -102,7 +111,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     mosBg = 'bg-tv-red';
     mosBorder = 'border-tv-red';
     mosText = 'text-tv-red';
-    mosLabel = 'Saham Overvalued / Premium';
+    mosLabel = 'Harga di atas nilai wajar model';
     Icon = TrendingDown;
   }
   
@@ -157,8 +166,11 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
             <div className="font-number text-2xl font-extrabold">
               {mos > 0 ? '+' : ''}{mos.toFixed(2)}%
             </div>
-            <div className="text-xs mt-1 opacity-80">
-              {mosStatus} - {mosLabel}
+            <div className="text-xs mt-1 opacity-90 font-sans">
+              <span className="font-semibold">{mosStatus === 'FAIR' ? 'HARGA SEKITAR NILAI WAJAR' : mosStatus}</span>
+              <span className="block mt-0.5 opacity-80">
+                {Math.abs(mos).toFixed(2)}% {mos >= 0 ? 'di bawah' : 'di atas'} nilai model · {mosLabel}
+              </span>
             </div>
           </div>
         </div>
@@ -208,6 +220,28 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
                   </div>
                 ))}
               </div>
+              {hasWeightedFormula && (
+                <details className="mt-3 rounded-lg border border-tv-border bg-tv-bg/70">
+                  <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-blue">
+                    Lihat cara Rp {formatIDR(fair_value)} dihitung
+                  </summary>
+                  <div className="border-t border-tv-border px-3 py-3 text-[11px] leading-relaxed text-tv-muted">
+                    <div className="mb-2">Nilai model adalah penjumlahan nilai tiap metode × bobot aktif setelah redistribusi metode yang tersedia.</div>
+                    <div className="space-y-1 font-number">
+                      {weightedParts.map((part) => (
+                        <div key={part.key} className="flex items-center justify-between gap-3">
+                          <span className="min-w-0 truncate font-sans text-tv-text">{part.name}</span>
+                          <span className="shrink-0">Rp {formatIDR(part.value)} × {(part.weight * 100).toFixed(0)}%</span>
+                        </div>
+                      ))}
+                      <div className="mt-2 border-t border-tv-border pt-2 flex items-center justify-between font-bold text-white">
+                        <span className="font-sans">Hasil model</span>
+                        <span>≈ Rp {formatIDR(fair_value)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </div>

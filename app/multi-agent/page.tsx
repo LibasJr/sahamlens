@@ -151,7 +151,7 @@ export default function MultiAgentPage() {
             {/* Top Header Stats */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-tv-border pb-6">
               <div>
-                <h1 className="text-3xl font-bold font-heading tracking-tight flex items-center gap-3">
+                <h1 className="lens-page-title flex items-center gap-3">
                   {ticker}
                 </h1>
               </div>
@@ -184,7 +184,7 @@ export default function MultiAgentPage() {
                   <div className="text-5xl font-bold mb-4">
                     {quant.decision || 'WAITING...'}
                   </div>
-                  <p className="text-tv-text font-mono text-sm leading-relaxed max-w-2xl">
+                  <p className="text-tv-text font-sans text-sm leading-relaxed max-w-2xl">
                     {quant.master_agent_summary || 'Analyzing 9 specialized AI models...'}
                   </p>
                 </div>

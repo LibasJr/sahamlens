@@ -200,3 +200,203 @@ h1, h2, h3 {
 .ai-response a:hover {
   color: #93c5fd;
 }
+
+/* ===== SahamLens UI/UX V2 — Hybrid Fintech Analytics ===== */
+html {
+  background: #070B12;
+}
+
+body {
+  background:
+    radial-gradient(circle at 80% -10%, rgba(79, 140, 255, 0.09), transparent 28rem),
+    radial-gradient(circle at 10% 110%, rgba(139, 124, 255, 0.06), transparent 34rem),
+    #070B12;
+}
+
+.lens-app-shell {
+  isolation: isolate;
+}
+
+.lens-main {
+  background: linear-gradient(180deg, rgba(10, 17, 29, 0.22), rgba(7, 11, 18, 0.9));
+}
+
+.lens-ambient-bg {
+  background:
+    radial-gradient(circle at 78% 8%, rgba(79, 140, 255, 0.055), transparent 30rem),
+    radial-gradient(circle at 38% 105%, rgba(139, 124, 255, 0.045), transparent 34rem);
+}
+
+/* Shared visual upgrade untuk panel lama yang masih memakai class raw. */
+.bg-tv-card,
+.bg-tv-cardAlt {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0));
+}
+
+.border-tv-border {
+  border-color: rgba(120, 148, 184, 0.16);
+}
+
+.shadow-1 {
+  box-shadow: 0 12px 34px -24px rgba(0, 0, 0, 0.68);
+}
+
+.shadow-2 {
+  box-shadow: 0 20px 54px -26px rgba(0, 0, 0, 0.78);
+}
+
+::selection {
+  background: rgba(79, 140, 255, 0.28);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(79, 140, 255, 0.72);
+  outline-offset: 2px;
+}
+
+
+/* Typography consistency: all native interactive controls inherit SahamLens
+   body typography (Inter). Numeric/price surfaces keep using .font-number. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.lens-mobile-nav,
+.lens-mobile-nav button,
+.lens-mobile-nav a,
+.lens-ai-floating {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+}
+
+/* Mobile viewport + bottom overlay clearance.
+   Dynamic viewport fixes mobile browser chrome without adding a large fake
+   spacer after the page. The bottom inset only reserves the area actually
+   needed by the fixed mobile navigation and device safe-area. */
+.lens-shell-viewport {
+  height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  .lens-shell-viewport {
+    height: 100dvh;
+  }
+}
+
+@media (max-width: 767px) {
+  .lens-main {
+    padding-bottom: 0;
+    scroll-padding-bottom: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
+    overscroll-behavior-y: contain;
+  }
+
+  /* Real in-flow scroll room. MobileNav measures its own rendered size and
+     writes --lens-mobile-nav-clearance at runtime, so this is neither a fixed
+     oversized spacer nor a too-small guess. */
+  .lens-mobile-scroll-clearance {
+    height: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
+    min-height: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
+    flex: 0 0 auto;
+  }
+
+  .lens-mobile-nav {
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lens-ai-floating {
+    bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lens-main table th,
+  .lens-main table td {
+    white-space: nowrap;
+  }
+
+  .lens-main h1 {
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ===== UI production-readiness guardrails =====
+   Shared rules untuk seluruh menu. Tujuannya mencegah child grid/card melebar,
+   menjaga typography native controls konsisten, dan membuat scroll mobile halus
+   tanpa mengubah urutan/logic halaman. */
+.lens-main,
+.lens-main * {
+  box-sizing: border-box;
+}
+
+.lens-main :where(section, article, header, footer, nav, form),
+.lens-main :where(.grid) > *,
+.lens-main :where(.flex) > * {
+  min-width: 0;
+}
+
+.lens-main :where(img, video) {
+  max-width: 100%;
+  height: auto;
+}
+
+.lens-main :where(p, li, dd, figcaption) {
+  overflow-wrap: break-word;
+}
+
+.lens-main :where(button, a, input, select, textarea) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lens-main :where(.overflow-x-auto) {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Typography roles yang menjadi kontrak halaman baru/refactor berikutnya. */
+.lens-page-title {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #F5F7FB;
+}
+
+.lens-section-title {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #F5F7FB;
+}
+
+.lens-eyebrow {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.625rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8EA0B8;
+}
+
+@media (min-width: 640px) {
+  .lens-page-title { font-size: 1.5rem; }
+  .lens-section-title { font-size: 1rem; }
+}
+
+@media (max-width: 767px) {
+  .lens-main {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pinch-zoom;
+  }
+}
+
+/* Hover transforms di touch devices terasa seperti card "loncat" setelah tap. */
+@media (max-width: 767px) and (hover: none) {
+  .lens-main [class*="hover:-translate-y"]:hover {
+    transform: none !important;
+  }
+}

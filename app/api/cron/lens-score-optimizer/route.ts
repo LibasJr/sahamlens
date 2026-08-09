@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
 import { runLensScoreOptimizer } from '@/modules/lens-radar/service/lens-score-optimizer.service';
@@ -8,7 +9,7 @@ export const maxDuration = 300;
 function isAuthorizedCron(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) return false;
-  return req.headers.get('authorization') === `Bearer ${cronSecret}`;
+  return timingSafeStringEqual(req.headers.get('authorization') ?? '', `Bearer ${cronSecret}`);
 }
 
 export async function GET(req: NextRequest) {
