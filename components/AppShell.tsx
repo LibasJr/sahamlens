@@ -29,11 +29,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="lens-app-shell flex min-h-screen w-full bg-tv-bg text-tv-text">
       <Sidebar />
-      <div className="relative flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
+      <div className="lens-shell-viewport relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopMarketBar />
         <main className="lens-main relative flex min-w-0 flex-1 flex-col overflow-y-auto">
           <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 lens-ambient-bg" />
-          <div className="relative z-[1] min-h-full">{children}</div>
+          <div className="relative z-[1] min-h-full">
+            {children}
+            <div aria-hidden="true" className="lens-mobile-scroll-spacer" />
+          </div>
         </main>
       </div>
       <MobileNav />
