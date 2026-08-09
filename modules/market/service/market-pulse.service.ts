@@ -1,3 +1,4 @@
+import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-pulse/route.ts, verbatim.
 // IDX Indices
 //
@@ -58,7 +59,7 @@ async function fetchYahooQuote(symbol: string) {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      next: { revalidate: 60 },
+      next: { revalidate: getMarketAwareTtlSec() },
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -106,7 +107,7 @@ async function fetchQuoteSimple(symbol: string) {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      next: { revalidate: 120 },
+      next: { revalidate: getMarketAwareTtlSec() },
       signal: controller.signal
     });
     clearTimeout(timeoutId);
