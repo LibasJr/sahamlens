@@ -76,6 +76,13 @@ export async function proxy(req: NextRequest) {
         { status: 429, headers: authRate.retryAfterSec ? { 'Retry-After': String(authRate.retryAfterSec) } : undefined },
       );
     }
+
+    // Auth sudah punya limiter pre-auth khusus di atas. Jangan teruskan request ini
+    // ke limiter umum 150 request/hari di bawah: satu IP publik (Wi-Fi kantor/rumah,
+    // CGNAT operator) bisa dipakai banyak perangkat/user. Sebelumnya login yang sah
+    // ikut menghabiskan kuota umum dan akhirnya HP + laptop pada IP yang sama sama-sama
+    // menerima 429 "Terlalu banyak request" meskipun percobaan login tidak berlebihan.
+    return NextResponse.next();
   }
 
   // GUEST (belum login sama sekali) -> tendang ke /login. Sengaja HANYA cek "ada sesi

@@ -9,6 +9,7 @@ import { TRIAL_DAYS, VERIFICATION_CODE_TTL_MIN } from '../constants/user.constan
 import { InvalidCredentialsError, EmailNotVerifiedError, EmailAlreadyRegisteredError, InvalidVerificationCodeError, VerificationCodeExpiredError } from '../types/user.errors';
 import { timingSafeStringEqual } from '../../../shared/security/timing-safe-equal';
 import { NotFoundError, ValidationError } from '../../../shared/errors/app-error';
+import { clearVerifyOtpAttempts, isVerifyOtpAttemptBlocked, recordVerifyOtpFailure } from '../../../shared/security/otp-attempt-limiter';
 import type { LoginInput, SignupInput, VerifyInput } from '../validator/auth.validator';
 
 // Hash dummy dipakai saat user tidak ditemukan, supaya waktu respons login mirip
@@ -30,12 +31,16 @@ export async function login(input: LoginInput): Promise<AuthSessionResult> {
     await bcrypt.compare(input.password, DUMMY_HASH);
     throw new InvalidCredentialsError();
   }
+
+  // Selalu validasi password lebih dulu. Sebelumnya status EMAIL_NOT_VERIFIED
+  // dikembalikan sebelum password dicek, sehingga orang yang hanya tahu sebuah email
+  // dapat membedakan akun yang ada-belum-verifikasi dari akun yang tidak ada.
+  const isValid = await bcrypt.compare(input.password, user.password_hash);
+  if (!isValid) throw new InvalidCredentialsError();
+
   if (!user.is_verified && user.role !== 'admin') {
     throw new EmailNotVerifiedError();
   }
-
-  const isValid = await bcrypt.compare(input.password, user.password_hash);
-  if (!isValid) throw new InvalidCredentialsError();
 
   const maxAgeSec = input.remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
   const sessionExpires = input.remember ? '30d' : '24h';
@@ -86,10 +91,20 @@ export async function signup(input: SignupInput): Promise<void> {
 }
 
 export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResult> {
+  if (await isVerifyOtpAttemptBlocked(input.email)) {
+    // Tetap gunakan pesan kode salah yang generik; jangan memberi petunjuk tambahan
+    // kepada penyerang bahwa suatu email memang memiliki OTP aktif.
+    throw new InvalidVerificationCodeError();
+  }
+
   const user = await getUserByEmail(input.email);
-  if (!user) throw new NotFoundError('Email tidak ditemukan');
+  if (!user) {
+    await recordVerifyOtpFailure(input.email);
+    throw new InvalidVerificationCodeError();
+  }
   if (user.is_verified) throw new ValidationError('Akun sudah terverifikasi');
   if (!user.verification_code || !timingSafeStringEqual(user.verification_code, input.code)) {
+    await recordVerifyOtpFailure(input.email);
     throw new InvalidVerificationCodeError();
   }
   if (user.verification_code_expires && new Date(user.verification_code_expires).getTime() < Date.now()) {
@@ -101,6 +116,7 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
   const trialEndsAtIso = trialEndsAt.toISOString();
 
   await updateUser(user.id, { is_verified: true, verification_code: null, verification_code_expires: null, trial_ends_at: trialEndsAtIso });
+  await clearVerifyOtpAttempts(user.email);
 
   // Provisioning portofolio virtual lewat public API modules/portfolio - sebelumnya
   // reach-through langsung ke lib/dbLocal (file JSON), sekarang Postgres sungguhan
