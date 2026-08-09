@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import {
   analyzeEma,
   analyzeRsi,
@@ -69,6 +70,8 @@ export async function GET(
 ) {
   try {
     const { ticker: rawTicker } = await params;
+    const normalizedTicker = normalizeIdxTickerParam(rawTicker);
+    if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
     if (!isInternal && !session) {
@@ -91,10 +94,7 @@ export async function GET(
         );
       }
     }
-    let ticker = rawTicker.toUpperCase();
-    if (!ticker.includes('.')) {
-      ticker = `${ticker}.JK`;
-    }
+    const ticker = normalizedTicker;
 
     if (!isInternal) {
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()

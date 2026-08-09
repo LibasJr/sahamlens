@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateDcfModel } from '@/modules/fundamental';
 import { getMarketAwareCacheHeaders } from '@/shared/cache/ttl-policy';
 
@@ -16,7 +17,9 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = await params;
+    const { ticker: rawTicker } = await params;
+    const ticker = normalizeIdxTickerParam(rawTicker);
+    if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     const result = await calculateDcfModel(ticker);
     if (!result) {
       return NextResponse.json({ error: 'Data DCF tidak tersedia untuk simbol ini' }, { status: 404 });

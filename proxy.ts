@@ -25,6 +25,17 @@ const RATE_LIMIT_CONFIG = {
   blockMs: 60 * 60 * 1000,
 };
 
+// Auth endpoints need a much tighter pre-auth limit. This branch runs BEFORE
+// Pro/admin bypass logic, so a stale/forged entitlement cannot disable brute-force protection.
+const AUTH_RATE_LIMIT_CONFIG = { windowMs: 60_000, maxPerWindow: 10, blockMs: 15 * 60_000 };
+
+function hasLiveProEntitlement(payload: any): boolean {
+  if (!payload?.is_pro) return false;
+  if (!payload.pro_expires_at) return true;
+  const expires = new Date(payload.pro_expires_at).getTime();
+  return Number.isFinite(expires) && expires > Date.now();
+}
+
 // Daftar halaman terproteksi pindah ke shared/constants/access.ts - dipakai bersama
 // oleh proxy ini DAN Sidebar (satu sumber, supaya menu yang tampil dan halaman yang
 // boleh dibuka tidak pernah berbeda). Aturan 2026-08-01 ("semua halaman analisis
@@ -48,6 +59,24 @@ export async function proxy(req: NextRequest) {
   // salah ditempel sebagai "session") tidak boleh lolos sebagai payload sesi di sini,
   // bahkan kalau PROTECTED_PAGES diisi lagi nanti.
   const payload = decrypted && typeof decrypted.id === 'string' && decrypted.id ? decrypted : null;
+
+  const sensitiveAuthPaths = new Set([
+    '/api/auth/login',
+    '/api/auth/signup',
+    '/api/auth/verify',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+  ]);
+  if (req.method === 'POST' && sensitiveAuthPaths.has(req.nextUrl.pathname)) {
+    const ip = getClientIp(req);
+    const authRate = await checkRateLimitShared(`auth:${req.nextUrl.pathname}:${ip}`, Date.now(), AUTH_RATE_LIMIT_CONFIG);
+    if (!authRate.allowed) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak percobaan autentikasi. Coba lagi nanti.' },
+        { status: 429, headers: authRate.retryAfterSec ? { 'Retry-After': String(authRate.retryAfterSec) } : undefined },
+      );
+    }
+  }
 
   // GUEST (belum login sama sekali) -> tendang ke /login. Sengaja HANYA cek "ada sesi
   // atau tidak", BUKAN status trial: user yang sesinya valid tapi trialnya habis tetap
@@ -79,7 +108,7 @@ export async function proxy(req: NextRequest) {
     // middleware cuma cek role/trial, jadi user yang di-grant is_pro=true tanpa role
     // diubah ke 'pro' tetap kena rate limit 20/hari di sini walau route lain (mis.
     // /api/council) sudah menganggapnya Pro.
-    if (payload.role === 'admin' || payload.role === 'pro' || payload.is_pro) {
+    if (payload.role === 'admin' || hasLiveProEntitlement(payload)) {
       isAdminOrTrial = true;
     } else if (payload.trial_ends_at && new Date(payload.trial_ends_at).getTime() > Date.now()) {
       isAdminOrTrial = true;
@@ -114,6 +143,7 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    '/api/auth/:path*',
     '/api/stock/:path*',
     '/api/fundamental/:path*',
     '/api/chat/:path*',

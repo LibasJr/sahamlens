@@ -3,23 +3,23 @@ import Link from 'next/link';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
 import { LogIn, Crown } from 'lucide-react';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
+import { SESSION_COOKIE } from '@/shared/constants/cookie-names';
+import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 
 async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
   // NEXT_PUBLIC_API_URL is never set in Vercel, so it used to always fall back to
   // http://localhost:3001 in production - a server-to-server fetch to a port nothing
   // listens on there, which always failed. Derive the base URL from the actual
   // incoming request instead so this works both locally and on any Vercel deployment.
-  const headersList = await headers();
-  const host = headersList.get('host');
-  const protocol = host?.startsWith('localhost') || host?.startsWith('127.0.0.1') ? 'http' : 'https';
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
+  const baseUrl = getTrustedAppOrigin();
   const cookieStore = await cookies();
-  const cookieHeader = cookieStore.getAll().map((c: { name: string; value: string }) => `${c.name}=${c.value}`).join('; ');
+  const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+  const cookieHeader = sessionCookie ? `${SESSION_COOKIE}=${sessionCookie}` : '';
 
   try {
     const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, {
@@ -39,21 +39,10 @@ async function getCouncilData(symbol: string): Promise<{ data: any; status: numb
 }
 
 async function getOrchestratorData(symbol: string): Promise<any | null> {
-  const headersList = await headers();
-  const host = headersList.get('host');
-  const protocol =
-    host?.startsWith('localhost') || host?.startsWith('127.0.0.1')
-      ? 'http'
-      : 'https';
-
-  const baseUrl =
-    process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
-
+  const baseUrl = getTrustedAppOrigin();
   const cookieStore = await cookies();
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((c: { name: string; value: string }) => `${c.name}=${c.value}`)
-    .join('; ');
+  const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+  const cookieHeader = sessionCookie ? `${SESSION_COOKIE}=${sessionCookie}` : '';
 
   try {
     const res = await fetch(`${baseUrl}/api/agents/orchestrator`, {
