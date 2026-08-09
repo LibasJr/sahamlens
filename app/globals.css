@@ -271,9 +271,18 @@ body {
 
 @media (max-width: 767px) {
   .lens-main {
-    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
-    scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
+    scroll-padding-bottom: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
     overscroll-behavior-y: contain;
+  }
+
+  /* Real in-flow scroll room. MobileNav measures its own rendered size and
+     writes --lens-mobile-nav-clearance at runtime, so this is neither a fixed
+     oversized spacer nor a too-small guess. */
+  .lens-mobile-scroll-clearance {
+    height: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
+    min-height: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
+    flex: 0 0 auto;
   }
 
   .lens-mobile-nav {
