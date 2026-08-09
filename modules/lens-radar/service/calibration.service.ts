@@ -2,7 +2,7 @@ import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import { pool } from '@/shared/database/postgres.client';
 import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
-import { fetchYahooHistory } from '@/modules/technical';
+import { fetchCalibrationYahooHistory5y } from './calibration-yahoo-history.service';
 import {
   LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
@@ -158,7 +158,7 @@ export interface ThresholdRecommendation {
 
 class YahooDailyOpenProvider implements DailyOpenProvider {
   async getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]> {
-    const history = await fetchYahooHistory(ticker, '5y');
+    const history = await fetchCalibrationYahooHistory5y(ticker);
     const normalized = normalizeYahooOhlcRows(history?.history ?? [], ticker, history?.regularMarketTime ? new Date(history.regularMarketTime * 1000).toISOString() : null);
     return selectPriceSeries(normalized, RETURN_PRICE_BASIS).bars
       .map((bar) => ({
