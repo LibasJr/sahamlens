@@ -3,8 +3,19 @@ import { cacheGet } from '@/shared/cache/redis-cache';
 import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
 import { getLensScoreValidationStatus } from '@/modules/validation';
+import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
+
+const WEBSITE_STRUCTURED_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'SahamLens',
+  alternateName: 'SahamLens.id',
+  url: 'https://sahamlens.id',
+  inLanguage: 'id-ID',
+  description: 'Screener dan analisis saham IDX berbasis data dan AI untuk membantu riset saham Indonesia.',
+};
 
 async function getInitialIhsg() {
   try {
@@ -12,7 +23,7 @@ async function getInitialIhsg() {
     // hydration using the market-aware cache policy, so this does not replace live data.
     const response = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EJKSE', {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 300 },
+      next: { revalidate: getMarketAwareTtlSec() },
     });
     if (!response.ok) return null;
 
@@ -72,10 +83,18 @@ export default async function Home() {
   ]);
 
   return (
-    <Dashboard
-      initialIhsg={initialIhsg}
-      initialRenderedAt={new Date().toISOString()}
-      initialLensRadar={initialLensRadar}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(WEBSITE_STRUCTURED_DATA).replace(/</g, '\\u003c'),
+        }}
+      />
+      <Dashboard
+        initialIhsg={initialIhsg}
+        initialRenderedAt={new Date().toISOString()}
+        initialLensRadar={initialLensRadar}
+      />
+    </>
   );
 }

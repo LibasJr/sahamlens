@@ -18,31 +18,45 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500'
 // Lebih Jelas.") di mana pun. metadataBase WAJIB diisi supaya path relatif di
 // openGraph.images/robots di bawah di-resolve ke domain absolut, bukan localhost.
 const SITE_URL = 'https://sahamlens.id';
-const TAGLINE = 'Lihat Peluang Lebih Jelas.';
+const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `SahamLens - ${TAGLINE}`,
+    default: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
     template: '%s | SahamLens',
   },
-  description: `SahamLens - ${TAGLINE} Screener & analisis saham IDX berbasis data riil (Yahoo Finance) dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi. Bukan saran finansial, untuk edukasi.`,
+  description: 'Pantau skor teknikal, fundamental, dan arus dana saham likuid IDX. Gunakan screener, LensRadar, backtest, dan LensAI untuk membantu riset saham Indonesia.',
+  applicationName: 'SahamLens',
   manifest: '/manifest.json',
   alternates: { canonical: '/' },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  verification: GOOGLE_SITE_VERIFICATION
+    ? { google: GOOGLE_SITE_VERIFICATION }
+    : undefined,
   openGraph: {
     type: 'website',
     locale: 'id_ID',
     url: SITE_URL,
     siteName: 'SahamLens',
-    title: `SahamLens - ${TAGLINE}`,
-    description: `Screener & analisis saham IDX berbasis data riil dan AI - teknikal, fundamental, backtest, dan rekomendasi dalam satu aplikasi.`,
+    title: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    description: 'Pantau skor teknikal, fundamental, dan arus dana saham likuid IDX untuk membantu riset saham Indonesia.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'SahamLens' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: `SahamLens - ${TAGLINE}`,
-    description: `Screener & analisis saham IDX berbasis data riil dan AI.`,
+    title: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    description: 'Pantau skor teknikal, fundamental, dan arus dana saham likuid IDX untuk membantu riset saham Indonesia.',
     images: ['/og-image.png'],
   },
 };

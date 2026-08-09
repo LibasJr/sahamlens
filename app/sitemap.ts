@@ -1,24 +1,28 @@
 import type { MetadataRoute } from 'next';
 
-// Audit BUILD 002 (SEO) - sebelumnya tidak ada sitemap sama sekali. Cuma halaman
-// tool/analisis statis (public, tanpa login - lihat middleware.ts PROTECTED_PAGES)
-// yang didaftarkan - halaman auth (/login, /signup, dst) dan rute dinamis tanpa
-// index page sendiri (/technical/[symbol], /market/[category]) sengaja tidak
-// dimasukkan, sama seperti pengecualian di app/robots.ts.
 const SITE_URL = 'https://sahamlens.id';
 
-const STATIC_ROUTES = [
-  '', 'home', 'dashboard', 'screener', 'backtest', 'breakout-radar', 'recommendations',
-  'compare', 'dcf', 'dividend', 'earnings', 'macro', 'market-pulse', 'moat', 'multi-agent',
-  'news', 'pattern', 'risk', 'risk-calculator', 'watchlist', 'calendar', 'fundamental',
+// Hanya URL publik/indexable. Jangan masukkan halaman yang redirect ke /login,
+// karena sitemap harus membantu crawler menemukan konten yang benar-benar bisa
+// diakses tanpa sesi pengguna.
+const PUBLIC_ROUTES = [
+  { path: '', priority: 1.0, changeFrequency: 'daily' as const },
+  { path: 'home', priority: 0.9, changeFrequency: 'daily' as const },
+  { path: 'breakout-radar', priority: 0.8, changeFrequency: 'daily' as const },
+  { path: 'screener', priority: 0.8, changeFrequency: 'daily' as const },
+  { path: 'market-pulse', priority: 0.8, changeFrequency: 'daily' as const },
+  { path: 'news', priority: 0.8, changeFrequency: 'hourly' as const },
+  { path: 'calendar', priority: 0.7, changeFrequency: 'daily' as const },
+  { path: 'about', priority: 0.6, changeFrequency: 'monthly' as const },
+  { path: 'transparency', priority: 0.6, changeFrequency: 'monthly' as const },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-  return STATIC_ROUTES.map((path) => ({
-    url: `${SITE_URL}/${path}`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: path === '' ? 1 : 0.7,
+  const lastModified = new Date();
+  return PUBLIC_ROUTES.map(({ path, priority, changeFrequency }) => ({
+    url: path ? `${SITE_URL}/${path}` : SITE_URL,
+    lastModified,
+    changeFrequency,
+    priority,
   }));
 }
