@@ -115,7 +115,7 @@ export default function Signup() {
     <AuthShell
       eyebrow="Free Trial 7 Hari"
       title={step === 1 ? 'Buat Akun Baru' : 'Verifikasi Email'}
-      subtitle={step === 1 ? 'Gratis, tanpa kartu kredit' : `Kode dikirim ke ${email}`}
+      subtitle={step === 1 ? 'Mulai perjalanan investasimu bersama SahamLens' : `Kode dikirim ke ${email}`}
     >
       {error && <AuthAlert variant="error">{error}</AuthAlert>}
       {successMsg && <AuthAlert variant="success">{successMsg}</AuthAlert>}
