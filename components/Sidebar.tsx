@@ -17,7 +17,6 @@ import {
   FileSpreadsheet,
   Filter,
   GitCompare,
-  Globe2,
   History,
   LayoutDashboard,
   LineChart,
@@ -40,6 +39,7 @@ import {
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
 interface NavItem {
@@ -62,9 +62,8 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     id: 'overview',
-    label: 'Overview',
+    label: 'Utama',
     items: [
-      { id: 'landing', name: 'Halaman Utama', subtitle: 'Landing SahamLens.id', path: '/', icon: Globe2, guest: true },
       { id: 'home', name: 'Beranda', subtitle: 'Snapshot market & akun', path: '/home', icon: LayoutDashboard, guest: true },
       { id: 'market-pulse', name: 'LensMarket', subtitle: 'IHSG, sector & breadth', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
       { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Opportunity scanner', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
@@ -72,38 +71,44 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: 'analyze',
-    label: 'Analyze',
+    id: 'trading',
+    label: 'Trading',
     items: [
       { id: 'dashboard', name: 'LensTechnical', subtitle: 'Trend, momentum & timing', path: '/dashboard', icon: LineChart },
-      { id: 'fundamental', name: 'LensFundamental', subtitle: 'Quality, growth & leverage', path: '/fundamental', icon: Building2 },
-      { id: 'dcf', name: 'Valuation', subtitle: 'Intrinsic value & margin', path: '/dcf', icon: CircleDollarSign },
-      { id: 'compare', name: 'Compare', subtitle: 'Bandingkan multi-emiten', path: '/compare', icon: GitCompare },
       { id: 'screener', name: 'LensScanner', subtitle: 'Multi-factor stock screen', path: '/screener', icon: Filter, guest: true },
+      { id: 'compare', name: 'Compare', subtitle: 'Bandingkan multi-emiten', path: '/compare', icon: GitCompare },
       { id: 'backtest', name: 'Backtest', subtitle: 'Uji strategi historis', path: '/backtest', icon: History },
     ],
   },
   {
-    id: 'research',
-    label: 'Research',
+    id: 'investing',
+    label: 'Investing',
     items: [
-      { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar terbaru', path: '/news', icon: Newspaper, guest: true },
-      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS & aksi', path: '/calendar', icon: CalendarDays, guest: true },
+      { id: 'fundamental', name: 'LensFundamental', subtitle: 'Quality, growth & leverage', path: '/fundamental', icon: Building2 },
+      { id: 'dcf', name: 'Valuation', subtitle: 'Intrinsic value & margin', path: '/dcf', icon: CircleDollarSign },
+      { id: 'moat', name: 'Moat', subtitle: 'Competitive advantage', path: '/moat', icon: Target },
       { id: 'earnings', name: 'Earnings', subtitle: 'Preview & event monitor', path: '/earnings', icon: BarChart3 },
       { id: 'dividend', name: 'Dividend', subtitle: 'Yield & cash-flow simulator', path: '/dividend', icon: PieChart },
-      { id: 'macro', name: 'Macro', subtitle: 'Konteks makro Indonesia', path: '/macro', icon: Waves },
-      { id: 'moat', name: 'Moat', subtitle: 'Competitive advantage', path: '/moat', icon: Target },
-      { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi & metodologi', path: '/transparency', icon: ShieldCheck, guest: true },
     ],
   },
   {
-    id: 'portfolio',
-    label: 'Portfolio',
+    id: 'risk-portfolio',
+    label: 'Portfolio & Risiko',
     items: [
-      { id: 'portfolio', name: 'Akun Demo', subtitle: 'Paper trading & P/L', path: '/portfolio', icon: Wallet },
       { id: 'watchlist', name: 'LensWatch', subtitle: 'Watchlist & alerts', path: '/watchlist', icon: TrendingUp },
+      { id: 'portfolio', name: 'Akun Demo', subtitle: 'Paper trading & P/L', path: '/portfolio', icon: Wallet },
       { id: 'risk', name: 'Risk Matrix', subtitle: 'Stress test portfolio', path: '/risk', icon: ShieldAlert },
       { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position sizing & R:R', path: '/risk-calculator', icon: Zap },
+    ],
+  },
+  {
+    id: 'research',
+    label: 'Research & Lainnya',
+    items: [
+      { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar terbaru', path: '/news', icon: Newspaper, guest: true },
+      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS & aksi', path: '/calendar', icon: CalendarDays, guest: true },
+      { id: 'macro', name: 'Macro', subtitle: 'Konteks makro Indonesia', path: '/macro', icon: Waves },
+      { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi & metodologi', path: '/transparency', icon: ShieldCheck, guest: true },
     ],
   },
 ];
@@ -137,7 +142,6 @@ const ACCENT_CLASS: Record<NonNullable<NavItem['accent']>, string> = {
 
 function isPathActive(pathname: string, item: NavItem) {
   if (item.id === 'lensai') return pathname.startsWith('/technical/');
-  if (item.path === '/') return pathname === '/';
   if (item.path === '/home') return pathname === '/home';
   return pathname === item.path || pathname.startsWith(`${item.path}/`);
 }
@@ -248,7 +252,7 @@ export default function Sidebar() {
         } ${isCollapsed ? 'w-[292px] md:w-[76px]' : 'w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
-          <Link href="/" aria-label="Kembali ke halaman utama SahamLens" className="group flex min-w-0 items-center gap-3">
+          <Link href="/home" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner">
               <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-cover" />
             </div>

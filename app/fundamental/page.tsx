@@ -13,12 +13,14 @@ import { isMarketOpen } from '@/lib/utils/market';
 // /fundamental. Ikon Brain & AlertTriangle juga tidak dipakai di mana pun.
 import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
-  RefreshCw, ShieldCheck, TrendingUp
+  RefreshCw, ShieldCheck, TrendingUp, Info
 } from 'lucide-react';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
+import AnalysisGlossary from '@/components/AnalysisGlossary';
 import { buildExportFileName } from '@/shared/format/export-filename';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
@@ -46,12 +48,27 @@ function FundamentalContent() {
   const [marketClosed, setMarketClosed] = useState(false);
   const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(false);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('full');
   const [mounted, setMounted] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const fundamentalExportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('sahamlens.analysis-view.fundamental');
+    if (saved === 'compact' || saved === 'full') {
+      setViewMode(saved);
+      return;
+    }
+    if (window.matchMedia('(max-width: 767px)').matches) setViewMode('compact');
+  }, []);
+
+  const changeViewMode = (mode: 'compact' | 'full') => {
+    setViewMode(mode);
+    window.localStorage.setItem('sahamlens.analysis-view.fundamental', mode);
+  };
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -316,6 +333,37 @@ function FundamentalContent() {
     return `${Math.round((score.correct / total) * 100)}% (n=${total})`;
   };
 
+  const filteredAnalyzers = analyzers.filter((algo: any) => {
+    if (algo.value === 'N/A' && algo.confidence === 0) return false;
+    if (data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) {
+      if (algo.label?.includes('Debt') || algo.label?.includes('Current Ratio') || algo.label?.includes('Quick Ratio')) return false;
+    }
+    return true;
+  });
+
+  // Mode Ringkas tidak memilih tiga confidence tertinggi secara buta. Pilih satu wakil
+  // dari dimensi valuasi, profitabilitas, dan pertumbuhan/margin agar tidak cherry-pick.
+  const compactAnalyzers = (() => {
+    const groups = [
+      ['P/E', 'PBV', 'Valuation'],
+      ['ROE', 'ROA', 'Profitability'],
+      ['Operating Margin', 'Net Profit Margin', 'Revenue Growth', 'EPS Growth', 'Dividend Yield'],
+    ];
+    const picked: any[] = [];
+    for (const keywords of groups) {
+      const candidates = filteredAnalyzers.filter((algo: any) => keywords.some((k) => algo.label?.includes(k)) && !picked.includes(algo));
+      candidates.sort((a: any, b: any) => (b.confidence || 0) - (a.confidence || 0));
+      if (candidates[0]) picked.push(candidates[0]);
+    }
+    for (const algo of filteredAnalyzers) {
+      if (picked.length >= 3) break;
+      if (!picked.includes(algo)) picked.push(algo);
+    }
+    return picked.slice(0, 3);
+  })();
+  const displayedAnalyzers = viewMode === 'compact' ? compactAnalyzers : filteredAnalyzers;
+  const lowSampleCount = displayedAnalyzers.filter((algo: any) => getAccuracyPct(algo.label) == null).length;
+
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Header
@@ -350,6 +398,9 @@ function FundamentalContent() {
             disabled={!data}
           />
         </div>
+
+        <AnalysisViewModeToggle mode={viewMode} onChange={changeViewMode} />
+        <AnalysisGlossary />
 
         {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
             punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
@@ -605,16 +656,21 @@ function FundamentalContent() {
                 </button>
               </div>
 
+              {lowSampleCount > 0 && (
+                <div className="mb-4 rounded-lg border border-tv-border bg-tv-bg/70 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+                  <span className="font-semibold text-tv-text">Validasi historis indikator masih mengumpulkan sampel.</span>{' '}
+                  {lowSampleCount} dari {displayedAnalyzers.length} indikator yang tampil belum mencapai minimum 20 observasi. Detail hit-rate akan muncul setelah sampel cukup.
+                </div>
+              )}
+              {viewMode === 'compact' && filteredAnalyzers.length > displayedAnalyzers.length && (
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-tv-blue/25 bg-tv-blue/10 px-3 py-2 text-[11px] text-tv-muted">
+                  <span>Mode Ringkas menampilkan wakil valuasi, profitabilitas, dan pertumbuhan/margin — bukan hanya tiga confidence tertinggi.</span>
+                  <button type="button" onClick={() => changeViewMode('full')} className="shrink-0 font-semibold text-tv-blue">Lihat semua</button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
-                {analyzers.length > 0 ? analyzers.filter((algo: any) => {
-                  // BUG 2 FIX: Sembunyikan card yang N/A dengan Conf 0%
-                  if (algo.value === 'N/A' && algo.confidence === 0) return false;
-                  // Sembunyikan DER & CR untuk sektor bank
-                  if (data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) {
-                    if (algo.label?.includes('Debt') || algo.label?.includes('Current Ratio') || algo.label?.includes('Quick Ratio')) return false;
-                  }
-                  return true;
-                }).map((algo: any, idx: number) => {
+                {displayedAnalyzers.length > 0 ? displayedAnalyzers.map((algo: any, idx: number) => {
                   const isTop3 = sortByConfidence && idx < 3;
                   return (
                     // shadow hex rgba(34,171,148,...) adalah hijau kebiruan dari palet
@@ -637,10 +693,16 @@ function FundamentalContent() {
                         <span className="text-white">Conf: {algo.confidence}%</span>
                       </div>
                       <div className="pt-2 border-t border-tv-hover text-[10px]">
-                        {/* Lihat catatan label yang sama di components/AlgoFilters.tsx
-                            (audit 2026-08-05, temuan C-3). */}
-                        <span className="text-tv-muted block">Hit-rate tracking lokal</span>
-                        <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label) ?? 'Sampel belum cukup'}</span>
+                        {getAccuracyPct(algo.label) ? (
+                          <>
+                            <span className="text-tv-muted block">Hit-rate historis (saham ini)</span>
+                            <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
+                          </>
+                        ) : (
+                          <span className="inline-flex rounded-full border border-tv-border bg-tv-card px-2 py-0.5 font-medium text-tv-muted" title="Belum mencapai minimum 20 observasi">
+                            Sampel rendah <Info className="ml-1 h-3 w-3" aria-hidden="true" />
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
