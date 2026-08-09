@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Download } from 'lucide-react';
+import Toast from '@/components/ui/Toast';
 
 interface ExportImageButtonProps {
   targetRef: React.RefObject<HTMLElement>;
@@ -15,6 +16,7 @@ interface ExportImageButtonProps {
 // halaman /fundamental atau /technical, cuma dimuat saat tombol ini benar-benar diklik.
 export default function ExportImageButton({ targetRef, fileName, label = 'Export Gambar', disabled }: ExportImageButtonProps) {
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleExport = async () => {
     if (!targetRef.current) return;
@@ -28,20 +30,23 @@ export default function ExportImageButton({ targetRef, fileName, label = 'Export
       link.click();
     } catch (error) {
       console.error('Export image error:', error);
-      alert('Gagal export gambar');
+      setErrorMessage('Gagal mengekspor gambar. Coba lagi.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button
+    <>
+      <Toast message={errorMessage} variant="error" />
+      <button
       onClick={handleExport}
       disabled={disabled || loading}
       className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
     >
       <Download className="w-3 h-3" />
       {loading ? 'Mengekspor...' : label}
-    </button>
+      </button>
+    </>
   );
 }

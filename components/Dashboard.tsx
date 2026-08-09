@@ -209,7 +209,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   }, []);
 
   React.useEffect(() => {
-    fetch('/api/live/^JKSE')
+    const controller = new AbortController();
+    fetch('/api/live/^JKSE', { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         if (
@@ -226,10 +227,14 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           setIhsgFailed(true);
         }
       })
-      .catch((e) => { console.error(e); setIhsgFailed(true); });
+      .catch((e) => {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setIhsgFailed(true); }
+      });
+    return () => controller.abort();
   }, []);
 
   const chartRef = useRef<HTMLDivElement>(null);
+  const chartAbortRef = useRef<AbortController | null>(null);
 
   const [chartData, setChartData] = useState<any[]>([]);
 
@@ -243,9 +248,12 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   const [chartError, setChartError] = useState(false);
 
   const loadChart = React.useCallback(() => {
+    chartAbortRef.current?.abort();
+    const controller = new AbortController();
+    chartAbortRef.current = controller;
     setChartError(false);
     setHoveredTime(null); // stale hover position from the previous series wouldn't line up
-    fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`)
+    fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`, { signal: controller.signal })
       .then(r => (r.ok ? r.json() : Promise.reject(new Error('chart'))))
       .then(data => {
          if (data && data.history && data.history.length > 0) {
@@ -254,10 +262,15 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             setChartError(true);
          }
       })
-      .catch((e) => { console.error(e); setChartError(true); });
+      .catch((e) => {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setChartError(true); }
+      });
   }, [timeframe, ticker.symbol]);
 
-  React.useEffect(() => { loadChart(); }, [loadChart]);
+  React.useEffect(() => {
+    loadChart();
+    return () => chartAbortRef.current?.abort();
+  }, [loadChart]);
 
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
   const prevClose = chartData.length > 1 ? chartData[chartData.length - 2].price : null;
@@ -347,7 +360,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   const [aiPicksAdvisoryEnabled, setAiPicksAdvisoryEnabled] = useState(initialLensRadar?.advisoryEnabled === true);
 
   React.useEffect(() => {
-    fetch('/api/ai-pick')
+    const controller = new AbortController();
+    fetch('/api/ai-pick', { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         // Butuh akun/trial - pengunjung yang trialnya habis dapat 402. Tampilkan daftar
@@ -362,22 +376,26 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           setAiPicksUpdatedAt(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.computedAt)) + ' WIB');
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         setAiPicks([]);
         setAiPicksNote(null);
         setAiPicksAdvisoryEnabled(false);
       });
+    return () => controller.abort();
   }, []);
 
   const [newsItems, setNewsItems] = useState<{ title: string; link: string; source: string; sentiment: string; pubDate: string }[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
 
   React.useEffect(() => {
-    fetch('/api/news', { cache: 'no-store' })
+    const controller = new AbortController();
+    fetch('/api/news', { cache: 'no-store', signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setNewsItems((d?.items || []).slice(0, 6)))
-      .catch(() => {})
-      .finally(() => setLoadingNews(false));
+      .catch((error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('News fetch failed', error); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingNews(false); });
+    return () => controller.abort();
   }, []);
 
   // Jadwal Terdekat (Dividen/Earnings) - ngisi ruang kosong di bawah "Berita Terkini"
@@ -388,7 +406,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   >(null);
 
   React.useEffect(() => {
-    fetch('/api/calendar', { cache: 'no-store' })
+    const controller = new AbortController();
+    fetch('/api/calendar', { cache: 'no-store', signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const map = d?.events as Record<string, { symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[]> | undefined;
@@ -401,11 +420,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           .slice(0, 5);
         setCalendarEvents(flat);
       })
-      .catch(() => setCalendarEvents([]));
+      .catch((error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setCalendarEvents([]); });
+    return () => controller.abort();
   }, []);
 
   React.useEffect(() => {
-    fetch('/api/market-summary').then(r => r.json()).then(data => {
+    const controller = new AbortController();
+    fetch('/api/market-summary', { signal: controller.signal }).then(r => r.json()).then(data => {
       if (data && !data.error) {
         // topGainers + topLosers (bukan topValue - itu tidak punya field changePct)
         // digabung supaya ticker menampilkan campuran saham naik & turun, dideduplikasi.
@@ -425,7 +446,10 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
       } else {
         setTickerFailed(true);
       }
-    }).catch((e) => { console.error(e); setTickerFailed(true); });
+    }).catch((e) => {
+      if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setTickerFailed(true); }
+    });
+    return () => controller.abort();
   }, []);
 
   const jakartaDate = now ? new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now) : null;

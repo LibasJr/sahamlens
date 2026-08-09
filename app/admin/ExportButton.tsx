@@ -1,13 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
+import Toast from '@/components/ui/Toast';
 // xlsx di-import dinamis (optimasi loading 2026-08-05), sama seperti app/portfolio -
 // hanya dibutuhkan saat tombol ini diklik.
 
 export default function ExportButton() {
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleExport = async () => {
+    setErrorMessage(null);
     setLoading(true);
     try {
       const xlsx = await import('xlsx');
@@ -20,7 +23,7 @@ export default function ExportButton() {
       const data = await res.json();
 
       if (!data.success) {
-        alert('Failed to export data');
+        setErrorMessage('Gagal mengekspor data. Coba lagi.');
         setLoading(false);
         return;
       }
@@ -50,19 +53,22 @@ export default function ExportButton() {
       xlsx.writeFile(wb, `SahamLens_DB_${today}.xlsx`);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting to Excel');
+      setErrorMessage('Export Excel gagal. Coba lagi.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button
+    <>
+      <Toast message={errorMessage} variant="error" />
+      <button
       onClick={handleExport}
       disabled={loading}
       className="bg-tv-card border border-tv-border hover:bg-tv-border text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
     >
       {loading ? 'Exporting...' : 'Export Excel'}
-    </button>
+      </button>
+    </>
   );
 }
