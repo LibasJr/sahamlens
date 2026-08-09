@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   Filter,
   GitCompare,
+  Globe2,
   History,
   LayoutDashboard,
   LineChart,
@@ -39,7 +40,6 @@ import {
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
-
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
 interface NavItem {
@@ -64,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'overview',
     label: 'Overview',
     items: [
+      { id: 'landing', name: 'Halaman Utama', subtitle: 'Landing SahamLens.id', path: '/', icon: Globe2, guest: true },
       { id: 'home', name: 'Beranda', subtitle: 'Snapshot market & akun', path: '/home', icon: LayoutDashboard, guest: true },
       { id: 'market-pulse', name: 'LensMarket', subtitle: 'IHSG, sector & breadth', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
       { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Opportunity scanner', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
@@ -136,6 +137,7 @@ const ACCENT_CLASS: Record<NonNullable<NavItem['accent']>, string> = {
 
 function isPathActive(pathname: string, item: NavItem) {
   if (item.id === 'lensai') return pathname.startsWith('/technical/');
+  if (item.path === '/') return pathname === '/';
   if (item.path === '/home') return pathname === '/home';
   return pathname === item.path || pathname.startsWith(`${item.path}/`);
 }
@@ -246,7 +248,7 @@ export default function Sidebar() {
         } ${isCollapsed ? 'w-[292px] md:w-[76px]' : 'w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
-          <Link href="/home" className="group flex min-w-0 items-center gap-3">
+          <Link href="/" aria-label="Kembali ke halaman utama SahamLens" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner">
               <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-cover" />
             </div>
