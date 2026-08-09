@@ -1,5 +1,5 @@
 import { getSession, checkProAccess } from '../../../shared/auth/session';
-import { SESSION_COOKIE } from '../../../shared/constants/cookie-names';
+import { SESSION_COOKIE, ADMIN_COOKIE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
 import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 import { loginSchema, signupSchema, verifySchema, forgotPasswordSchema, resetPasswordSchema } from '../validator/auth.validator';
 import { login, signup, verifyAccount, type AuthSessionResult } from '../service/auth.service';
@@ -50,7 +50,7 @@ export async function handleResetPassword(rawBody: unknown): Promise<HttpResult>
 }
 
 export async function handleLogout(): Promise<HttpResult> {
-  return { status: 200, body: { success: true }, cookiesToClear: [SESSION_COOKIE, 'sahamlens_demo_session'] };
+  return { status: 200, body: { success: true }, cookiesToClear: [SESSION_COOKIE, ADMIN_COOKIE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE, 'sahamlens_demo_session'] };
 }
 
 export async function handleMe(): Promise<HttpResult> {
