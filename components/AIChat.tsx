@@ -178,7 +178,7 @@ export default function AIChat() {
   };
 
   return (
-    <div className="lens-ai-floating fixed right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
+    <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
 
       {/* Chat Window */}
       {/* Lebar dulu w-[400px]/w-[600px] TETAP tanpa breakpoint sama sekali - di layar HP
