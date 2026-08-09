@@ -8,6 +8,8 @@ import TradingViewChart from '@/components/TradingViewChart';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
+import AnalysisGlossary from '@/components/AnalysisGlossary';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
@@ -81,6 +83,7 @@ function DashboardContent() {
   const [marketClosed, setMarketClosed] = useState(false);
   const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(true);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('full');
 
   // Timeframe chart terpisah dari /api/stock (yang selalu histori 1 tahun untuk
   // kebutuhan 10 analyzer/scoring) - sama seperti dashboard publik & halaman
@@ -88,6 +91,20 @@ function DashboardContent() {
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<any[]>([]);
   const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('sahamlens.analysis-view.dashboard');
+    if (saved === 'compact' || saved === 'full') {
+      setViewMode(saved);
+      return;
+    }
+    if (window.matchMedia('(max-width: 767px)').matches) setViewMode('compact');
+  }, []);
+
+  const changeViewMode = (mode: 'compact' | 'full') => {
+    setViewMode(mode);
+    window.localStorage.setItem('sahamlens.analysis-view.dashboard', mode);
+  };
 
   // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
   // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
@@ -744,6 +761,8 @@ function DashboardContent() {
           </button>
         </div>
 
+        <AnalysisViewModeToggle mode={viewMode} onChange={changeViewMode} />
+        <AnalysisGlossary />
 
         {/* Hero */}
         {fetchError ? (
@@ -1067,6 +1086,7 @@ function DashboardContent() {
               ? getMAStatus(price, ma50 as number, ma200 as number)
               : { label: 'Data historis belum cukup (butuh 200 hari bursa)', color: 'text-tv-muted', bg: 'bg-tv-hover border-tv-border' };
             return (
+              <>
               <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border ${status.bg}`}>
                 <Activity className={`w-5 h-5 ${status.color}`} />
                 <div>
@@ -1081,6 +1101,17 @@ function DashboardContent() {
                   <span>Harga: <strong className="text-white">{price?.toLocaleString('id-ID')}</strong></span>
                 </div>
               </div>
+              {maDataReady && (
+                <div className="mt-2 rounded-lg border border-tv-border bg-tv-card/60 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+                  <span className="font-semibold text-tv-text">Konteks tren:</span>{' '}
+                  {price < (ma200 as number)
+                    ? 'Momentum jangka pendek bisa membaik, tetapi tren besar belum pulih karena harga masih di bawah MA200. Sinyal bullish pendek tidak otomatis berarti uptrend jangka panjang.'
+                    : price < (ma50 as number)
+                      ? 'Harga masih di atas MA200, tetapi berada di bawah MA50. Ini lebih cocok dibaca sebagai koreksi jangka pendek di dalam struktur tren yang lebih kuat.'
+                      : 'Harga berada di atas MA50 dan MA200. Momentum pendek dan struktur tren utama saat ini lebih selaras, tetapi tetap perlu melihat volume dan risiko.'}
+                </div>
+              )}
+              </>
             );
           })()}
 
@@ -1097,23 +1128,36 @@ function DashboardContent() {
             />
           </div>
 
-          {/* Bandar Flow Analysis */}
-          <div className="w-full">
-            <BandarFlowPro symbol={stock.symbol || ticker} />
-          </div>
+          {viewMode === 'full' ? (
+            <>
+              {/* Bandar Flow Analysis */}
+              <div className="w-full">
+                <BandarFlowPro symbol={stock.symbol || ticker} />
+              </div>
 
-          <div className="w-full">
-            {/* Risk/Reward Calculator */}
-            <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
-
-            <AlgoFilters
-              analyzers={analyzers}
-              sortByConfidence={sortByConfidence}
-              setSortByConfidence={setSortByConfidence}
-              getAccuracyPct={getAccuracyPct}
-              isAdmin={isAdminUser}
-            />
-          </div>
+              <div className="w-full space-y-4">
+                <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+                <AlgoFilters
+                  analyzers={analyzers}
+                  sortByConfidence={sortByConfidence}
+                  setSortByConfidence={setSortByConfidence}
+                  getAccuracyPct={getAccuracyPct}
+                  isAdmin={isAdminUser}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="w-full space-y-4">
+              <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+              <button
+                type="button"
+                onClick={() => changeViewMode('full')}
+                className="w-full rounded-xl border border-tv-blue/30 bg-tv-blue/10 px-4 py-3 text-sm font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15"
+              >
+                Lihat semua indikator teknikal & LensFlow
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Fundamental (link-out) diganti Sentimen Berita AI - tabel Fundamental
