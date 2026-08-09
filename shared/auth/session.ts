@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { decrypt, type SessionPayload } from './jwt';
-import { SESSION_COOKIE } from '../constants/cookie-names';
+import { SESSION_COOKIE, ADMIN_COOKIE } from '../constants/cookie-names';
+import { verifyAdminToken } from './admin-token';
 import { touchPresence } from './presence';
 import { fetchLiveProFields } from './pro-status';
 
@@ -11,18 +12,40 @@ export type { SessionPayload };
 // dan bukan di modules/user/ - hanya operasi MEMBUAT/MENGHAPUS sesi (login/logout)
 // yang jadi tanggung jawab domain modules/user (lihat modules/user/service/session.service.ts).
 export async function getSession(): Promise<SessionPayload | null> {
-  const session = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!session) return null;
-  const payload = await decrypt(session);
-  // Guard terhadap token yang valid tanda tangannya tapi bukan sesi login asli (mis.
-  // payload trial anonim yang salah ditempel sebagai cookie "session" secara manual) -
-  // sesi asli SELALU punya id user string, payload lain harus ditolak di sini, bukan
-  // lolos sebagai "user yang login" dengan id kosong.
-  if (!payload || typeof payload.id !== 'string' || !payload.id) return null;
-  // Fire-and-forget - "siapa sedang aktif" untuk panel admin, tidak boleh pernah
-  // menahan atau menggagalkan request pengguna biasa kalau Redis lambat/down.
-  touchPresence(payload).catch(() => {});
-  return payload;
+  const cookieStore = await cookies();
+  const session = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (session) {
+    const payload = await decrypt(session);
+    // Guard terhadap token yang valid tanda tangannya tapi bukan sesi login asli (mis.
+    // payload trial anonim yang salah ditempel sebagai cookie "session" secara manual) -
+    // sesi asli SELALU punya id user string, payload lain harus ditolak di sini, bukan
+    // lolos sebagai "user yang login" dengan id kosong.
+    if (payload && typeof payload.id === 'string' && payload.id) {
+      // Fire-and-forget - "siapa sedang aktif" untuk panel admin, tidak boleh pernah
+      // menahan atau menggagalkan request pengguna biasa kalau Redis lambat/down.
+      touchPresence(payload).catch(() => {});
+      return payload;
+    }
+  }
+
+  // Admin secret login memakai cookie admin terpisah. Sebelumnya halaman admin
+  // mengenalinya lewat /api/admin-status, tetapi seluruh fitur aplikasi (mis.
+  // LensTechnical/Analyzer) memanggil getSession() dan menganggap admin belum login.
+  // Fallback ini menyatukan kedua jalur otorisasi tanpa mempercayai badge cookie
+  // client-side: hanya ADMIN_COOKIE HttpOnly yang JWT-nya lolos verifyAdminToken().
+  if (await verifyAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) {
+    return {
+      id: '__sahamlens_admin__',
+      email: 'admin@sahamlens.local',
+      role: 'admin',
+      is_pro: true,
+      trial_ends_at: null,
+      pro_expires_at: null,
+    };
+  }
+
+  return null;
 }
 
 function isProExpired(expiresAt: string | null | undefined): boolean {
