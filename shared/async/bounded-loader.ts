@@ -75,9 +75,9 @@ export function createBoundedLoader<K, V>(
   const queue: Array<() => void> = [];
 
   function prune(now = Date.now()) {
-    for (const [key, entry] of cache) {
+    cache.forEach((entry, key) => {
       if (entry.expiresAt <= now) cache.delete(key);
-    }
+    });
     while (cache.size > maxEntries) {
       const first = cache.keys().next().value as string | undefined;
       if (!first) break;
