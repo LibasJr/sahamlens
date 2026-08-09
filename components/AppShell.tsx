@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import AIChat from '@/components/AIChat';
 import TopMarketBar from '@/components/TopMarketBar';
 import MobileNav from '@/components/MobileNav';
 import TrialExpiredGate from '@/components/TrialExpiredGate';
+
+const AIChat = dynamic(() => import('@/components/AIChat'), { ssr: false, loading: () => null });
 
 const BARE_AUTH_PAGES = ['/login', '/signup', '/forgot-password', '/reset-password', '/admin-login', '/admin'];
 

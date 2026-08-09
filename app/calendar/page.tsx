@@ -207,7 +207,7 @@ export default function CalendarPage() {
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading font-bold text-lg text-tv-text tracking-tight">Corporate Calendar</h2>
+            <h2 className="lens-page-title">Corporate Calendar</h2>
             <p className="text-xs text-tv-muted">Jadwal Dividen & Rilis Laporan Keuangan (Yahoo Finance)</p>
           </div>
         </div>

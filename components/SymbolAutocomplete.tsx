@@ -98,7 +98,7 @@ export default function SymbolAutocomplete({
 
       {showDropdown && suggestions.length > 0 && (
         <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-white/10 bg-[#101A2A]/98 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
-          <div className="flex items-center gap-2 px-2.5 py-2 text-[9px] font-bold uppercase tracking-[0.14em] text-tv-muted">
+          <div className="flex items-center gap-2 px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
             <Search className="h-3 w-3" /> Hasil emiten
           </div>
           {suggestions.map((item, index) => (

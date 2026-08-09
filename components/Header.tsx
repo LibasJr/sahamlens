@@ -1,8 +1,10 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { Search, Sparkles } from 'lucide-react';
-import CommandPalette from './CommandPalette';
+
+const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
 interface HeaderProps {
   currentTicker: string;
@@ -28,7 +30,7 @@ export default function Header({
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
         <div className="min-w-0">
           <div className="mb-1 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/15 bg-tv-blue/[0.08] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-tv-blue">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/15 bg-tv-blue/[0.08] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">
               <Sparkles className="h-3 w-3" /> {moduleBank}
             </span>
             {currentTicker && (

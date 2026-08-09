@@ -416,8 +416,8 @@ export default function PortfolioPage() {
       <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
         <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-tv-blue">Paper portfolio</div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Akun Demo</h1>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">Paper portfolio</div>
+            <h1 className="lens-page-title">Akun Demo</h1>
             <p className="mt-0.5 text-xs text-tv-muted">Simulasikan posisi, pantau P/L, dan evaluasi disiplin trading tanpa dana riil.</p>
           </div>
           <div className="flex gap-2">
@@ -554,7 +554,7 @@ export default function PortfolioPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-white leading-tight font-number">{tickerCode(h.symbol)}</span>
                               {h.scoreLabel && (
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
                                   {h.scoreLabel}
                                 </span>
                               )}
@@ -630,7 +630,7 @@ export default function PortfolioPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <TickerAvatar symbol={t.symbol} size="sm" />
                             <span className="font-bold text-white text-sm font-number">{tickerCode(t.symbol)}</span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
                           </div>
                           <div className="text-[11px] text-tv-muted">
                             {t.lots.toLocaleString('id-ID')} lot @ {t.price.toLocaleString('id-ID')} · {new Date(t.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}

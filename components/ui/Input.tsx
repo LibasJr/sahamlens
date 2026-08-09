@@ -9,14 +9,14 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, '
   rightIcon?: React.ReactNode;
   size?: InputSize;
 }
-const SIZES: Record<InputSize, string> = { sm: 'h-8 px-3 text-xs', md: 'h-10 px-3.5 text-sm', lg: 'h-11 px-4 text-sm' };
+const SIZES: Record<InputSize, string> = { sm: 'h-9 px-3 text-xs', md: 'h-10 px-3.5 text-sm', lg: 'h-11 px-4 text-sm' };
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, leftIcon, rightIcon, size = 'md', className, id, ...props }, ref) => {
     const inputId = id || props.name;
     return (
       <div className="w-full">
-        {label && <label htmlFor={inputId} className="mb-1.5 block text-[11px] font-semibold text-tv-muted">{label}</label>}
+        {label && <label htmlFor={inputId} className="mb-1.5 block text-xs font-semibold text-tv-muted">{label}</label>}
         <div className="relative">
           {leftIcon && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-tv-muted">{leftIcon}</span>}
           <input
@@ -32,7 +32,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
           {rightIcon && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tv-muted">{rightIcon}</span>}
         </div>
-        {error && <p className="mt-1 text-[10px] font-medium text-tv-red">{error}</p>}
+        {error && <p className="mt-1 text-[11px] font-medium text-tv-red">{error}</p>}
       </div>
     );
   },

@@ -33,7 +33,7 @@ export default function MacroPage() {
             <Globe className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white font-heading">Outlook Makroekonomi Indonesia</h1>
+            <h1 className="lens-page-title">Outlook Makroekonomi Indonesia</h1>
             <p className="text-xs text-tv-muted font-sans">
               Analisis dampak makro (BI Rate, Fed Rate, inflasi, kurs Rupiah) terhadap emiten IDX.
             </p>

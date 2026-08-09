@@ -126,7 +126,7 @@ export default function MarketCategoryPage() {
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">{config.title}</h1>
+            <h1 className="lens-page-title">{config.title}</h1>
             <p className="text-[13px] text-tv-muted">{config.sub}</p>
           </div>
         </div>

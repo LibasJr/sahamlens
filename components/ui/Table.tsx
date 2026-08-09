@@ -7,7 +7,7 @@ export function Table({ className, children, ...props }: React.TableHTMLAttribut
 export function TableHeader({ className, children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) { return <thead className={cn('bg-white/[0.025]', className)} {...props}>{children}</thead>; }
 export function TableBody({ className, children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) { return <tbody className={cn('divide-y divide-white/[0.055]', className)} {...props}>{children}</tbody>; }
 export function TableRow({ className, children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) { return <tr className={cn('transition-colors duration-150 hover:bg-white/[0.035]', className)} {...props}>{children}</tr>; }
-export function TableHead({ className, children, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) { return <th className={cn('px-4 py-3 text-left text-[9px] font-bold uppercase tracking-[0.14em] text-tv-muted', className)} {...props}>{children}</th>; }
+export function TableHead({ className, children, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) { return <th className={cn('px-3 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-tv-muted sm:px-4', className)} {...props}>{children}</th>; }
 interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> { numeric?: boolean; }
-export function TableCell({ numeric = false, className, children, ...props }: TableCellProps) { return <td className={cn('px-4 py-3 text-tv-text', numeric && 'text-right font-number tabular-nums', className)} {...props}>{children}</td>; }
+export function TableCell({ numeric = false, className, children, ...props }: TableCellProps) { return <td className={cn('px-3 py-3 text-sm text-tv-text sm:px-4', numeric && 'text-right font-number tabular-nums', className)} {...props}>{children}</td>; }
 export default Table;

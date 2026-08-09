@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -38,7 +39,8 @@ import {
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
-import UserProfileModal from './UserProfileModal';
+
+const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
 interface NavItem {
   id: string;
@@ -244,18 +246,14 @@ export default function Sidebar() {
         } ${isCollapsed ? 'w-[292px] md:w-[76px]' : 'w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
-          {/* Logo menuju "/" (halaman utama publik), BUKAN /home: di dalam app shell
-              tidak ada satu pun tautan balik ke landing page - item nav "Beranda" dan
-              MobileNav sudah sama-sama menuju /home, jadi logo yang mengarah ke /home
-              cuma jadi tautan ketiga ke tujuan yang sama. */}
-          <Link href="/" title="Halaman utama SahamLens" className="group flex min-w-0 items-center gap-3">
+          <Link href="/home" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner">
               <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-cover" />
             </div>
             <div className={isCollapsed ? 'md:hidden' : ''}>
               <div className="flex items-center gap-2">
                 <span className="text-[15px] font-bold tracking-tight text-white">SahamLens</span>
-                <span className="rounded-full border border-tv-blue/20 bg-tv-blue/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.16em] text-tv-blue">Beta</span>
+                <span className="rounded-full border border-tv-blue/20 bg-tv-blue/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">Beta</span>
               </div>
               <p className="mt-0.5 text-[10px] font-medium text-tv-muted">Intelligence for IDX investors</p>
             </div>
@@ -275,7 +273,7 @@ export default function Sidebar() {
           <div className="space-y-5">
             {visibleGroups.map((group) => (
               <section key={group.id}>
-                <div className={`mb-1.5 px-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white/30 ${isCollapsed ? 'md:hidden' : ''}`}>
+                <div className={`mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 ${isCollapsed ? 'md:hidden' : ''}`}>
                   {group.label}
                 </div>
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
@@ -309,7 +307,7 @@ export default function Sidebar() {
                             <span className="truncate text-[12.5px] font-semibold">{item.name}</span>
                             {item.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.9)]" />}
                           </span>
-                          <span className="mt-0.5 block truncate text-[9.5px] font-medium text-white/32">{item.subtitle}</span>
+                          <span className="mt-0.5 block truncate text-[10px] font-medium text-white/32">{item.subtitle}</span>
                         </span>
                         {!isCollapsed && active && <ChevronRight className="h-3.5 w-3.5 text-white/30" />}
                         {isCollapsed && (
@@ -340,7 +338,7 @@ export default function Sidebar() {
                   </span>
                   <span className={`min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
                     <span className="block truncate text-xs font-semibold text-white">{user.email?.split('@')[0]}</span>
-                    <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-tv-muted">{user.role}</span>
+                    <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-wider text-tv-muted">{user.role}</span>
                   </span>
                 </button>
                 <button
@@ -360,7 +358,7 @@ export default function Sidebar() {
             </Link>
           ) : null}
 
-          <div className={`mt-2.5 flex items-center justify-between px-1 text-[9px] font-medium text-white/25 ${isCollapsed ? 'md:hidden' : ''}`}>
+          <div className={`mt-2.5 flex items-center justify-between px-1 text-[10px] font-medium text-white/25 ${isCollapsed ? 'md:hidden' : ''}`}>
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-tv-green" /> IDX data connected</span>
             <span>v2 UI</span>
           </div>

@@ -946,7 +946,7 @@ export default function Dashboard() {
                               halaman depan dibuang - padahal itu pembeda utamanya dari
                               daftar berita biasa. */}
                           {n.sentiment && (
-                            <span className={`rounded px-1.5 py-px text-[9px] font-bold ${
+                            <span className={`rounded px-1.5 py-px text-[10px] font-bold ${
                               n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green'
                                 : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red'
                                 : 'bg-tv-hover text-tv-muted'
