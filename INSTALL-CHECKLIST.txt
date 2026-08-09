@@ -1,0 +1,12 @@
+SAHAMLENS BROKER SUMMARY ADMIN PATCH
+
+1. Copy folder app/, modules/ dari ZIP ke root repo SahamLens.
+2. Edit components/Sidebar.tsx mengikuti components/Sidebar.BROKER-SUMMARY.patch.txt.
+3. Cek security integration note di README (legacy admin-cookie vs role ADMIN).
+4. npm run typecheck
+5. npm run build
+6. Login ADMIN -> /admin/broker-summary
+7. Dry Run CSV kecil.
+8. Import.
+9. Upload file yang sama sekali lagi: wajib menjadi skipped, bukan overwrite.
+10. Jangan hubungkan ke LensScore dulu.

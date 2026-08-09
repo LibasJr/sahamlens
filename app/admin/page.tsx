@@ -95,6 +95,21 @@ export default async function AdminPage() {
             </p>
           </div>
         </Link>
+
+        <Link
+          href="/admin/broker-summary"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green">
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Broker Summary</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Import broker summary harian melalui upload/paste CSV, validasi Dry Run, lalu simpan data broker flow.
+            </p>
+          </div>
+        </Link>
         </div>
 
         <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">

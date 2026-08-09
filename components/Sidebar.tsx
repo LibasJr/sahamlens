@@ -120,6 +120,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
+    { id: 'admin-broker-summary', name: 'Broker Summary', subtitle: 'Import broker flow harian', path: '/admin/broker-summary', icon: FileSpreadsheet },
   ],
 };
 
