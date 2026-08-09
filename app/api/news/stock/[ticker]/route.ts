@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getStockNews } from '@/modules/news';
 import { getOrCompute } from '@/shared/cache/redis-cache';
+import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 
 // Berita spesifik per-emiten (bukan pasar umum, lihat catatan di news.service.ts).
 export const dynamic = 'force-dynamic';
-const TTL_SEC = 15 * 60;
+
 
 export async function GET(request: Request, { params }: { params: Promise<{ ticker: string }> }) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ tick
     const code = rawTicker.replace('.JK', '').toUpperCase();
     const data = await getOrCompute(
       `sahamlens:cache:computed:stock-news:${code}`,
-      TTL_SEC,
+      getMarketAwareTtlSec(),
       () => getStockNews(code, name)
     );
     return NextResponse.json(data);

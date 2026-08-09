@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 
-export const revalidate = 60;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -40,7 +40,7 @@ export async function GET(
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
     const res = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 60 }
+      next: { revalidate: getMarketAwareTtlSec() }
     });
 
     if (!res.ok) throw new Error('Failed to fetch from Yahoo');
