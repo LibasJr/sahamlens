@@ -8,3 +8,9 @@ export {
   type BrokerSummaryImportResult,
   type BrokerPeriodPreviewRow,
 } from './service/broker-summary-import.service';
+
+export {
+  getLatestBrokerPeriodSummary,
+  type BrokerPeriodView,
+  type BrokerPeriodViewRow,
+} from './service/broker-period-query.service';
