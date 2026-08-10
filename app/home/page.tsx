@@ -5,6 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  ArrowLeft,
   Sparkles,
   Activity,
   Flame,
@@ -480,6 +481,9 @@ export default function HomePage() {
           <p className="mt-1 text-xs leading-relaxed text-tv-muted">Mulai dari kondisi pasar, temukan kandidat, lalu masuk ke analisis yang lebih dalam.</p>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+          <Link href="/" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
+            <ArrowLeft className="h-3.5 w-3.5 text-tv-muted" /> Halaman utama
+          </Link>
           <Link href="/breakout-radar" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
             <Radar className="h-3.5 w-3.5 text-tv-purple" /> Peluang hari ini
           </Link>
