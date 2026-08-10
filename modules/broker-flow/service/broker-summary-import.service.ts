@@ -14,6 +14,7 @@ export interface BrokerSummaryImportInput {
 
 export interface BrokerSummaryImportResult {
   status: 'OK';
+  datasetKind?: 'DAILY_CSV' | 'PERIOD_JSON';
   mode: BrokerImportMode;
   parsedRows: number;
   insertedRows: number;
@@ -24,6 +25,24 @@ export interface BrokerSummaryImportResult {
   maxTradeDate: string | null;
   netBuyValue: number;
   source: string;
+  preview?: BrokerPeriodPreviewRow[];
+}
+
+export interface BrokerPeriodPreviewRow {
+  brokerCode: string;
+  brokerType: string | null;
+  buyValue: number;
+  sellValue: number;
+  netValue: number;
+}
+
+export interface BrokerDistributionJsonInput {
+  jsonText: string;
+  ticker: string;
+  mode: 'dry-run' | 'insert';
+  source?: string;
+  sourceFile?: string | null;
+  maxTradeDate?: string;
 }
 
 interface BrokerSummaryRow {
@@ -359,6 +378,7 @@ export async function importBrokerSummaryCsv(
     return {
       status: 'OK',
       mode: 'DRY_RUN',
+      datasetKind: 'DAILY_CSV',
       parsedRows: rows.length,
       insertedRows: 0,
       skippedExistingRows: null,
@@ -409,6 +429,7 @@ export async function importBrokerSummaryCsv(
   return {
     status: 'OK',
     mode: 'INSERT_APPEND_ONLY',
+    datasetKind: 'DAILY_CSV',
     parsedRows: rows.length,
     insertedRows,
     skippedExistingRows: rows.length - insertedRows,
@@ -418,5 +439,220 @@ export async function importBrokerSummaryCsv(
     maxTradeDate: dates[dates.length - 1] ?? null,
     netBuyValue,
     source,
+  };
+}
+
+
+interface StockbitBrokerNode {
+  detail?: {
+    code?: unknown;
+    type?: unknown;
+    amount?: unknown;
+  };
+}
+
+interface BrokerPeriodRow {
+  startDate: string;
+  endDate: string;
+  asOfDate: string;
+  ticker: string;
+  brokerCode: string;
+  brokerType: string | null;
+  buyValue: number;
+  sellValue: number;
+  source: string;
+  sourceFile: string | null;
+}
+
+function finiteNonNegativeAmount(value: unknown, label: string): number {
+  const amount = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new BrokerSummaryValidationError(`${label}: amount tidak valid.`);
+  }
+  return amount;
+}
+
+function parseStockbitBrokerDistribution(
+  jsonText: string,
+  tickerRaw: string,
+  source: string,
+  sourceFile: string | null,
+  maxTradeDate: string,
+): BrokerPeriodRow[] {
+  if (!jsonText.trim()) throw new BrokerSummaryValidationError('JSON Broker Distribution kosong.');
+
+  let root: any;
+  try {
+    root = JSON.parse(jsonText);
+  } catch {
+    throw new BrokerSummaryValidationError('JSON tidak valid. Salin hanya isi Response JSON Broker Distribution.');
+  }
+
+  const data = root?.data;
+  const byValue = data?.by_value;
+  if (!data || !byValue || !Array.isArray(byValue.top_broker_buy) || !Array.isArray(byValue.top_broker_sell)) {
+    throw new BrokerSummaryValidationError(
+      'Format bukan Broker Distribution Stockbit yang dikenali (butuh data.by_value.top_broker_buy/top_broker_sell).'
+    );
+  }
+
+  const ticker = normalizeTicker(tickerRaw);
+  if (!ticker) throw new BrokerSummaryValidationError('Ticker wajib diisi dan harus valid, contoh BBRI.');
+
+  const startDate = String(data.start_date ?? '').slice(0, 10);
+  const endDate = String(data.end_date ?? '').slice(0, 10);
+  const asOfDate = String(data.date_info ?? endDate).slice(0, 10);
+  assertDateKey(startDate, 'start_date');
+  assertDateKey(endDate, 'end_date');
+  assertDateKey(asOfDate, 'date_info');
+  if (startDate > endDate) throw new BrokerSummaryValidationError('start_date tidak boleh sesudah end_date.');
+  if (endDate > maxTradeDate || asOfDate > maxTradeDate) {
+    throw new BrokerSummaryValidationError('Tanggal Broker Distribution berada di masa depan.');
+  }
+
+  const map = new Map<string, BrokerPeriodRow>();
+  const absorb = (nodes: StockbitBrokerNode[], side: 'buy' | 'sell') => {
+    nodes.forEach((node, index) => {
+      const code = normalizeBrokerCode(String(node?.detail?.code ?? ''));
+      if (!code) throw new BrokerSummaryValidationError(`${side}[${index}]: kode broker tidak valid.`);
+      const amount = finiteNonNegativeAmount(node?.detail?.amount, `${side}[${index}] ${code}`);
+      const rawType = typeof node?.detail?.type === 'string' ? node.detail.type.trim() : '';
+      const brokerType = rawType ? rawType.slice(0, 32) : null;
+      const current = map.get(code) ?? {
+        startDate, endDate, asOfDate, ticker, brokerCode: code, brokerType,
+        buyValue: 0, sellValue: 0, source, sourceFile,
+      };
+      if (!current.brokerType && brokerType) current.brokerType = brokerType;
+      if (side === 'buy') current.buyValue = amount;
+      else current.sellValue = amount;
+      map.set(code, current);
+    });
+  };
+
+  absorb(byValue.top_broker_buy, 'buy');
+  absorb(byValue.top_broker_sell, 'sell');
+
+  const rows = Array.from(map.values());
+  if (!rows.length) throw new BrokerSummaryValidationError('Broker Distribution tidak berisi broker yang dapat diimpor.');
+  return rows;
+}
+
+async function ensurePeriodSchema(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS broker_summary_period (
+      id BIGSERIAL PRIMARY KEY,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      as_of_date DATE NOT NULL,
+      ticker TEXT NOT NULL,
+      broker_code VARCHAR(8) NOT NULL,
+      broker_type VARCHAR(32),
+      buy_value NUMERIC(24,2) NOT NULL DEFAULT 0,
+      sell_value NUMERIC(24,2) NOT NULL DEFAULT 0,
+      net_value NUMERIC(24,2) NOT NULL DEFAULT 0,
+      source TEXT NOT NULL,
+      source_file TEXT,
+      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT broker_summary_period_unique UNIQUE (start_date, end_date, ticker, broker_code, source)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS broker_summary_period_ticker_date_idx
+    ON broker_summary_period (ticker, end_date DESC, start_date DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS broker_summary_period_broker_date_idx
+    ON broker_summary_period (broker_code, end_date DESC)
+  `);
+}
+
+export async function importBrokerDistributionJson(
+  input: BrokerDistributionJsonInput,
+): Promise<BrokerSummaryImportResult> {
+  if (Buffer.byteLength(input.jsonText ?? '', 'utf8') > MAX_BROKER_CSV_BYTES) {
+    throw new BrokerSummaryValidationError('JSON melebihi batas 2 MB.');
+  }
+  if (input.mode !== 'dry-run' && input.mode !== 'insert') {
+    throw new BrokerSummaryValidationError('mode harus dry-run atau insert.');
+  }
+
+  const source = sanitizeSource(input.source || 'STOCKBIT_MANUAL_JSON');
+  const sourceFile = sanitizeSourceFile(input.sourceFile);
+  const maxTradeDate = input.maxTradeDate || todayWib();
+  assertDateKey(maxTradeDate, 'maxTradeDate');
+
+  const rows = parseStockbitBrokerDistribution(
+    input.jsonText,
+    input.ticker,
+    source,
+    sourceFile,
+    maxTradeDate,
+  );
+  const first = rows[0]!;
+  const netBuyValue = rows.reduce((sum, r) => sum + r.buyValue - r.sellValue, 0);
+  const preview = rows
+    .map((r) => ({
+      brokerCode: r.brokerCode,
+      brokerType: r.brokerType,
+      buyValue: r.buyValue,
+      sellValue: r.sellValue,
+      netValue: r.buyValue - r.sellValue,
+    }))
+    .sort((a, b) => Math.abs(b.netValue) - Math.abs(a.netValue))
+    .slice(0, 12);
+
+  const base: Omit<BrokerSummaryImportResult, 'mode' | 'insertedRows' | 'skippedExistingRows'> = {
+    status: 'OK',
+    datasetKind: 'PERIOD_JSON',
+    parsedRows: rows.length,
+    tickers: 1,
+    brokers: rows.length,
+    minTradeDate: first.startDate,
+    maxTradeDate: first.endDate,
+    netBuyValue,
+    source,
+    preview,
+  };
+
+  if (input.mode === 'dry-run') {
+    return { ...base, mode: 'DRY_RUN', insertedRows: 0, skippedExistingRows: null };
+  }
+
+  await ensurePeriodSchema();
+  const client = await pool.connect();
+  let insertedRows = 0;
+  try {
+    await client.query('BEGIN');
+    for (const row of rows) {
+      const result = await client.query(
+        `
+          INSERT INTO broker_summary_period (
+            start_date, end_date, as_of_date, ticker, broker_code, broker_type,
+            buy_value, sell_value, net_value, source, source_file
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          ON CONFLICT (start_date, end_date, ticker, broker_code, source) DO NOTHING
+          RETURNING id
+        `,
+        [
+          row.startDate, row.endDate, row.asOfDate, row.ticker, row.brokerCode, row.brokerType,
+          row.buyValue, row.sellValue, row.buyValue - row.sellValue, row.source, row.sourceFile,
+        ],
+      );
+      insertedRows += result.rowCount ?? 0;
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return {
+    ...base,
+    mode: 'INSERT_APPEND_ONLY',
+    insertedRows,
+    skippedExistingRows: rows.length - insertedRows,
   };
 }
