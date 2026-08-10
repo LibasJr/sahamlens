@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { isAdminFromRequestCookies } from '@/modules/user';
 import {
   BrokerSummaryValidationError,
+  importBrokerDistributionJson,
   importBrokerSummaryCsv,
 } from '@/modules/broker-flow';
 
@@ -18,12 +19,21 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const result = await importBrokerSummaryCsv({
-      csvText: typeof body.csvText === 'string' ? body.csvText : '',
-      mode: body.mode,
-      source: body.source,
-      sourceFile: body.sourceFile,
-    });
+    const format = body.format === 'stockbit-json' ? 'stockbit-json' : 'csv';
+    const result = format === 'stockbit-json'
+      ? await importBrokerDistributionJson({
+          jsonText: typeof body.jsonText === 'string' ? body.jsonText : '',
+          ticker: typeof body.ticker === 'string' ? body.ticker : '',
+          mode: body.mode,
+          source: body.source,
+          sourceFile: body.sourceFile,
+        })
+      : await importBrokerSummaryCsv({
+          csvText: typeof body.csvText === 'string' ? body.csvText : '',
+          mode: body.mode,
+          source: body.source,
+          sourceFile: body.sourceFile,
+        });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof BrokerSummaryValidationError) {
