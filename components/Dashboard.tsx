@@ -173,6 +173,68 @@ function SignalVerticalTicker({
   );
 }
 
+type StockSignalItem = {
+  symbol: string; price: number; changePct: number; finalScore: number;
+  signals?: string[]; tp1: number | null; tp2: number | null;
+  cl1: number | null; cl2: number | null; flagged?: boolean;
+};
+
+function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignalItem[]; advisoryEnabled: boolean }) {
+  const durationSec = Math.max(28, items.length * 7);
+  const renderGroup = (copy: number) => (
+    <div className="flex shrink-0 gap-3 pr-3" aria-hidden={copy === 1 ? true : undefined}>
+      {items.map((item) => {
+        const label = item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'WATCH';
+        const tone = item.flagged
+          ? 'border-tv-red/30 bg-tv-red/10 text-tv-red'
+          : advisoryEnabled
+            ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
+            : 'border-tv-gold/30 bg-tv-gold/10 text-tv-gold';
+        return (
+          <Link
+            key={`${copy}-${item.symbol}`}
+            href={`/technical/${item.symbol}`}
+            tabIndex={copy === 1 ? -1 : undefined}
+            className="group/signal flex w-[280px] shrink-0 items-center gap-3 rounded-xl border border-tv-border bg-tv-card/90 px-4 py-3 transition-colors hover:border-tv-borderLight hover:bg-tv-cardAlt sm:w-[320px]"
+          >
+            <TickerAvatar symbol={item.symbol} size="md" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-number text-sm font-bold text-tv-text group-hover/signal:text-tv-blue">{item.symbol.replace('.JK', '')}</span>
+                <span className={`font-number text-[10px] font-semibold ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
+                </span>
+              </div>
+              <div className="mt-1 truncate text-[10px] text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
+              <div className="mt-1.5 flex gap-2 font-number text-[10px]">
+                <span className="text-tv-green">TP {item.tp1?.toLocaleString('id-ID') ?? '-'}</span>
+                <span className="text-tv-red">CL {item.cl1?.toLocaleString('id-ID') ?? '-'}</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <span className={`inline-flex rounded-full border px-2 py-1 text-[9px] font-bold tracking-wide ${tone}`}>{label}</span>
+              <div className="mt-1.5 font-number text-[10px] text-tv-muted">Rp {Math.round(item.price).toLocaleString('id-ID')}</div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+  return (
+    <div className="sahamlens-signal-wrap overflow-hidden py-1" role="region" aria-label="Running text signal saham">
+      <div className="sahamlens-signal-track flex w-max" style={{ animationDuration: `${durationSec}s` }}>
+        {renderGroup(0)}{renderGroup(1)}
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sahamlens-signal-track { animation-name: sahamlens-signal-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .sahamlens-signal-wrap:hover .sahamlens-signal-track,
+        .sahamlens-signal-wrap:focus-within .sahamlens-signal-track { animation-play-state: paused; }
+        @keyframes sahamlens-signal-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      `}} />
+    </div>
+  );
+}
+
 type DashboardProps = {
   initialIhsg?: { price: number; change: number; pointChange: number } | null;
   initialRenderedAt?: string;
@@ -725,11 +787,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           );
         })()}
 
-        {/* LENSRADAR - dinaikkan dari kolom sempit di samping chart jadi seksi lebar
-            penuh tepat di bawah ringkasan pasar. Ini bagian yang menjelaskan apa yang
-            sebenarnya dikerjakan produk ini; sebelumnya ia terjepit di ~35% lebar
-            dengan teks 10-11px, sementara chart - yang dimiliki setiap situs finansial -
-            menguasai layar pertama. */}
+        {/* Kandidat LensRadar disajikan sebagai running text Signal Saham. */}
         <motion.section
           variants={fadeUp}
           initial="hidden"
@@ -739,11 +797,15 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text flex items-center gap-2">
-                <span className="text-lg leading-none">🔥</span> Pantauan LensRadar
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tv-green opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-tv-green" />
+                </span>
+                Signal Saham
               </h2>
               <p className="mt-1 text-[13px] text-tv-muted max-w-2xl">
-                Skor komposit teknikal, fundamental, dan arus dana dari universe LensRadar IDX.
-                109 emiten pertama berasal dari universe historis terfilter; cakupan live dapat lebih luas dan tetap melalui gerbang kelayakan. Ini scanner, bukan instruksi beli/jual.
+                Running text kandidat saham dari pemindaian teknikal, fundamental, dan arus dana LensRadar IDX.
+                Arahkan kursor atau fokuskan kartu untuk menghentikan pergerakan sementara.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -785,68 +847,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               />
             </Card>
           ) : (
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              animate="show"
-              className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3"
-            >
-              {aiPicks.map((p, idx) => (
-                <motion.div key={p.symbol} variants={fadeUp}>
-                  <Link
-                    href={`/technical/${p.symbol}`}
-                    className="group flex h-full flex-col rounded-xl border border-tv-border bg-tv-card p-4 transition-all duration-250 ease-settle hover:border-tv-borderLight hover:-translate-y-0.5 hover:shadow-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <TickerAvatar symbol={p.symbol} size="md" />
-                        <div className="min-w-0">
-                          <div className="font-number text-[15px] font-bold text-tv-text leading-tight">
-                            {p.symbol.replace('.JK', '')}
-                          </div>
-                          <div className={`font-number text-[11px] ${p.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                            {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(2)}%
-                          </div>
-                        </div>
-                      </div>
-                      {/* Nomor peringkat dijadikan penanda besar - di daftar lama ia
-                          cuma angka 11px yang tenggelam di antara kolom lain. */}
-                      <span className="shrink-0 font-number text-[11px] font-bold text-tv-muted/50">#{idx + 1}</span>
-                    </div>
-
-                    <div className="mt-3 flex items-baseline gap-1">
-                      <span className="font-number text-2xl font-bold text-tv-text">{p.finalScore}</span>
-                      <span className="text-[11px] text-tv-muted">/100</span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-tv-hover overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle"
-                        style={{ width: `${Math.min(100, Math.max(0, p.finalScore))}%` }}
-                      />
-                    </div>
-
-                    <div className="mt-3 flex-1 text-[11px] leading-relaxed text-tv-muted">
-                      {p.signals?.length
-                        ? <span className="text-tv-blue">{p.signals.join(', ')}</span>
-                        : <span className="text-tv-muted/70">Lolos ambang skor tanpa sinyal khusus hari ini</span>}
-                    </div>
-
-                    {/* TP/CL dipindah masuk ke kartu emitennya sendiri. Sebelumnya
-                        angka-angka ini hidup di running text vertikal terpisah, jadi
-                        pembaca harus mencocokkan sendiri level mana milik saham mana -
-                        dan harus menunggu putaran teksnya sampai. */}
-                    {p.tp1 != null && p.cl1 != null && (
-                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-tv-border pt-2.5 text-[10px] font-number">
-                        <span className="text-tv-green">TP1 {p.tp1.toLocaleString('id-ID')}</span>
-                        <span className="text-tv-green text-right">TP2 {p.tp2?.toLocaleString('id-ID') ?? '-'}</span>
-                        <span className="text-tv-red">CL1 {p.cl1.toLocaleString('id-ID')}</span>
-                        <span className="text-tv-red text-right">CL2 {p.cl2?.toLocaleString('id-ID') ?? '-'}</span>
-                      </div>
-                    )}
-                  </Link>
-                </motion.div>
-              ))}
-            </motion.div>
+            <StockSignalRunningText items={aiPicks} advisoryEnabled={aiPicksAdvisoryEnabled} />
           )}
 
           <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
