@@ -21,6 +21,22 @@ export interface DecisionPresentation {
   explanation: string | null;
 }
 
+export type SimpleDecisionLabel = 'WATCH' | 'DATA TERBATAS' | 'TIDAK LAYAK' | 'BUY' | 'SELL' | 'HOLD';
+
+/**
+ * Label satu-baris untuk kartu ringkas. Skor model yang belum tervalidasi sengaja
+ * menjadi WATCH, bukan BUY/SELL. Arah transaksi hanya boleh berasal dari keputusan
+ * advisory yang benar-benar actionable.
+ */
+export function getSimpleDecisionLabel(presentation: DecisionPresentation): SimpleDecisionLabel {
+  if (presentation.modelSignal === 'DATA TIDAK CUKUP') return 'DATA TERBATAS';
+  if (presentation.kind === 'INELIGIBLE') return 'TIDAK LAYAK';
+  if (presentation.kind !== 'ACTIONABLE' || !presentation.recommendationLabel) return 'WATCH';
+
+  const action = presentation.recommendationLabel.replace(/^REKOMENDASI:\s*/, '');
+  return action === 'BUY' || action === 'SELL' || action === 'HOLD' ? action : 'WATCH';
+}
+
 function hasActionableModelSignal(kategori: ScoringKategori | null | undefined): kategori is Exclude<ScoringKategori, 'DATA TIDAK CUKUP'> {
   return kategori === 'STRONG BUY' || kategori === 'BUY' || kategori === 'HOLD' || kategori === 'SELL';
 }

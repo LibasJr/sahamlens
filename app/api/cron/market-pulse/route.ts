@@ -14,7 +14,7 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 // supaya GET /api/market-pulse pengguna tinggal baca cache (lihat perubahan di
 // route itu) - sebelumnya endpoint itu TIDAK PERNAH di-cache sama sekali, setiap
 // pemuatan halaman = ~50 fetch Yahoo baru.
-const CACHE_KEY = 'sahamlens:cache:computed:market-pulse';
+const CACHE_KEY = 'sahamlens:cache:computed:market-pulse:v2';
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');

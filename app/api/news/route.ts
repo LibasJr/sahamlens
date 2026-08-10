@@ -7,7 +7,7 @@ import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 // mengikuti policy pasar: 60 detik saat bursa buka, 30 menit saat bursa tutup.
 export const dynamic = 'force-dynamic';
 
-const CACHE_KEY = 'sahamlens:cache:computed:market-news';
+const CACHE_KEY = 'sahamlens:cache:computed:market-news:v2';
 
 
 export async function GET() {

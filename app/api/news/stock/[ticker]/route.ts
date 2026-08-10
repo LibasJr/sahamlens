@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ tick
     const name = searchParams.get('name') || undefined;
     const code = ticker.replace('.JK', '');
     const data = await getOrCompute(
-      `sahamlens:cache:computed:stock-news:${code}`,
+      `sahamlens:cache:computed:stock-news:v2:${code}`,
       getMarketAwareTtlSec(),
       () => getStockNews(code, name)
     );

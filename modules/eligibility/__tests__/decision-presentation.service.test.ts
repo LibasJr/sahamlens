@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getDecisionPresentation } from '../service/decision-presentation.service';
+import { getDecisionPresentation, getSimpleDecisionLabel } from '../service/decision-presentation.service';
 import type { AdvisoryDecision } from '../service/advisory.service';
 
 function decision(overrides: Partial<AdvisoryDecision>): AdvisoryDecision {
@@ -71,5 +71,33 @@ describe('getDecisionPresentation', () => {
     expect(p.modelSignalLabel).toBe('SINYAL MODEL: BUY');
     expect(p.statusLabel).toBe('REKOMENDASI TIDAK TERSEDIA');
     expect(p.actionable).toBe(false);
+  });
+});
+
+describe('getSimpleDecisionLabel', () => {
+  it('menampilkan WATCH untuk score model tinggi yang belum tervalidasi', () => {
+    const presentation = getDecisionPresentation('STRONG BUY', decision({
+      reasonCodes: ['MODEL_UNVALIDATED'],
+    }));
+
+    expect(getSimpleDecisionLabel(presentation)).toBe('WATCH');
+  });
+
+  it('hanya menampilkan BUY bila advisory actionable', () => {
+    const presentation = getDecisionPresentation('BUY', decision({ action: 'BUY', advisory: true }));
+    expect(getSimpleDecisionLabel(presentation)).toBe('BUY');
+  });
+
+  it('membedakan data terbatas dan saham yang tidak lolos eligibility', () => {
+    const limited = getDecisionPresentation('DATA TIDAK CUKUP', decision({
+      reasonCodes: ['COVERAGE_BELOW_MIN'],
+    }));
+    const ineligible = getDecisionPresentation('BUY', decision({
+      eligibilityStatus: 'LOW_LIQUIDITY',
+      reasonCodes: ['LOW_LIQUIDITY'],
+    }));
+
+    expect(getSimpleDecisionLabel(limited)).toBe('DATA TERBATAS');
+    expect(getSimpleDecisionLabel(ineligible)).toBe('TIDAK LAYAK');
   });
 });

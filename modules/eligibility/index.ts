@@ -2,8 +2,10 @@ export { evaluateMinimalEligibility } from './service/eligibility.service';
 export { toAdvisoryDecision, type AdvisoryAction, type AdvisoryDecision } from './service/advisory.service';
 export {
   getDecisionPresentation,
+  getSimpleDecisionLabel,
   type DecisionPresentation,
   type DecisionPresentationKind,
+  type SimpleDecisionLabel,
 } from './service/decision-presentation.service';
 export type {
   EligibilityBar,

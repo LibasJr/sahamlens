@@ -10,6 +10,7 @@ import {
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
 import PaywallModal from '@/components/PaywallModal';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { MarketRegimePanel } from '@/components/market/MarketRegimePanel';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -364,7 +365,7 @@ export default function MarketPulse() {
             </div>
             <div className="min-w-0">
               <h2 className="lens-page-title truncate">LensMarket</h2>
-              <p className="text-xs text-tv-muted truncate">IDX Algorithmic Suite — diperbarui tiap 5 menit</p>
+              <p className="text-xs text-tv-muted truncate">Quant regime, IHSG, sector, dan breadth</p>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-xs flex-wrap">
@@ -390,6 +391,17 @@ export default function MarketPulse() {
       </header>
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        {/* Skor regime dihitung server-side dari snapshot yang sama. */}
+        {blocker && blocker !== 'loading' ? (
+          <div className="rounded-xl border border-tv-border bg-tv-card shadow-1">
+            {renderBlocker('Market Regime')}
+          </div>
+        ) : data?.marketRegime ? (
+          <MarketRegimePanel data={data.marketRegime} />
+        ) : (
+          <Skeleton className="h-[460px] w-full rounded-xl" />
+        )}
+
         {/* === SECTION 1: INDEX CARDS === */}
         {blocker && blocker !== 'loading' ? (
           <div className="bg-tv-card border border-tv-border rounded-lg shadow-1">
