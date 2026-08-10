@@ -18,23 +18,28 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F19; /* tv-bg */
+  background: #0B0F19;
+  /* tv-bg */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E293B; /* tv-border */
+  background: #1E293B;
+  /* tv-border */
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2B3A55; /* tv-borderLight */
+  background: #2B3A55;
+  /* tv-borderLight */
 }
 
 .tv-glass {
-  background: rgba(18, 24, 43, 0.72); /* tv-card @72% */
+  background: rgba(18, 24, 43, 0.72);
+  /* tv-card @72% */
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(30, 41, 59, 0.9); /* tv-border */
+  border: 1px solid rgba(30, 41, 59, 0.9);
+  /* tv-border */
 }
 
 /* ====== Design System "Lens" - Typography & Glow tokens ======
@@ -43,7 +48,9 @@ body {
    dengan config supaya tidak ada dua sumber kebenaran yang saling bertentangan
    (sebelumnya config bilang Space Grotesk lewat variabel next/font, file ini
    bilang 'Space Grotesk' literal yang tidak pernah benar-benar dimuat). */
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-family: var(--font-inter), 'Inter', sans-serif;
 }
 
@@ -73,7 +80,10 @@ h1, h2, h3 {
 /* Hormati preferensi sistem "kurangi gerakan" - satu aturan global, jadi tiap
    komponen baru tidak perlu mengurus ini sendiri-sendiri. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -97,28 +107,44 @@ h1, h2, h3 {
   margin-bottom: 0;
 }
 
-.ai-response h1, .ai-response h2, .ai-response h3 {
+.ai-response h1,
+.ai-response h2,
+.ai-response h3 {
   color: #ffffff;
   font-weight: 700;
   margin-top: 16px;
   margin-bottom: 8px;
 }
 
-.ai-response h1 { font-size: 18px; }
-.ai-response h2 { font-size: 16px; border-bottom: 1px solid #2563EB; padding-bottom: 4px; }
-.ai-response h3 { font-size: 14px; color: #93c5fd; }
+.ai-response h1 {
+  font-size: 18px;
+}
 
-.ai-response strong, .ai-response b {
+.ai-response h2 {
+  font-size: 16px;
+  border-bottom: 1px solid #2563EB;
+  padding-bottom: 4px;
+}
+
+.ai-response h3 {
+  font-size: 14px;
+  color: #93c5fd;
+}
+
+.ai-response strong,
+.ai-response b {
   color: #ffffff;
   font-weight: 700;
 }
 
-.ai-response em, .ai-response i {
+.ai-response em,
+.ai-response i {
   color: #bfdbfe;
   font-style: italic;
 }
 
-.ai-response ul, .ai-response ol {
+.ai-response ul,
+.ai-response ol {
   margin: 8px 0 12px 0;
   padding-left: 20px;
 }
@@ -230,7 +256,7 @@ body {
 /* Shared visual upgrade untuk panel lama yang masih memakai class raw. */
 .bg-tv-card,
 .bg-tv-cardAlt {
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0));
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));
 }
 
 .border-tv-border {
@@ -330,8 +356,8 @@ textarea {
 }
 
 .lens-main :where(section, article, header, footer, nav, form),
-.lens-main :where(.grid) > *,
-.lens-main :where(.flex) > * {
+.lens-main :where(.grid)>*,
+.lens-main :where(.flex)>* {
   min-width: 0;
 }
 
@@ -383,8 +409,13 @@ textarea {
 }
 
 @media (min-width: 640px) {
-  .lens-page-title { font-size: 1.5rem; }
-  .lens-section-title { font-size: 1rem; }
+  .lens-page-title {
+    font-size: 1.5rem;
+  }
+
+  .lens-section-title {
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 767px) {
@@ -398,5 +429,75 @@ textarea {
 @media (max-width: 767px) and (hover: none) {
   .lens-main [class*="hover:-translate-y"]:hover {
     transform: none !important;
+  }
+}
+
+/* SahamLens — Mobile Accessibility / Senior Friendly
+   Tempelkan isi file ini di PALING BAWAH app/globals.css.
+   Hanya berlaku di layar <= 768px. Desktop tidak berubah. */
+
+@media (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .text-xs {
+    font-size: 0.875rem !important;
+    line-height: 1.35rem !important;
+  }
+
+  .text-sm {
+    font-size: 1rem !important;
+    line-height: 1.5rem !important;
+  }
+
+  .text-\[9px\],
+  .text-\[10px\],
+  .text-\[11px\],
+  .text-\[12px\] {
+    font-size: 0.875rem !important;
+    line-height: 1.35rem !important;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    line-height: 1.9rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    line-height: 1.65rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    line-height: 1.55rem;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  table th,
+  table td {
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
   }
 }
