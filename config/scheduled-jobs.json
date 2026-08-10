@@ -7,6 +7,7 @@
     { "path": "/api/cron/lens-score-optimizer", "provider": "vercel", "schedule": "0 11 * * 0", "scheduleStatus": "known", "source": "vercel.json" },
     { "path": "/api/cron/ai-pick-scan", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
     { "path": "/api/cron/backtest-precompute", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
+    { "path": "/api/cron/broker-summary-scan", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
     { "path": "/api/cron/breakout-scan", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
     { "path": "/api/cron/fundamental-snapshot", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
     { "path": "/api/cron/macro", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
