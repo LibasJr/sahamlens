@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { encrypt, decrypt, type SessionPayload } from '@/shared/auth/jwt';
 
 describe('encrypt/decrypt (generic payload support)', () => {
@@ -23,5 +23,26 @@ describe('encrypt/decrypt (generic payload support)', () => {
   it('mengembalikan null untuk token rusak/tidak valid, bukan throw', async () => {
     const decoded = await decrypt('not-a-real-jwt');
     expect(decoded).toBeNull();
+  });
+
+  it('tidak membaca secret saat import, tetapi tetap fail-closed saat JWT dipakai', async () => {
+    const configuredSecret = process.env.JWT_SECRET_KEY;
+
+    try {
+      delete process.env.JWT_SECRET_KEY;
+      vi.resetModules();
+
+      const jwt = await import('@/shared/auth/jwt');
+
+      await expect(jwt.encrypt({ id: 'u1' })).rejects.toThrow('JWT_SECRET_KEY env var wajib diset');
+      await expect(jwt.decrypt('not-a-real-jwt')).rejects.toThrow('JWT_SECRET_KEY env var wajib diset');
+    } finally {
+      if (configuredSecret === undefined) {
+        delete process.env.JWT_SECRET_KEY;
+      } else {
+        process.env.JWT_SECRET_KEY = configuredSecret;
+      }
+      vi.resetModules();
+    }
   });
 });

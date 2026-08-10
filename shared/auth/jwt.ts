@@ -4,11 +4,21 @@ import { SignJWT, jwtVerify } from 'jose';
 // Edge-safe (dipakai langsung oleh middleware.ts) maupun Node-safe (dipakai oleh
 // shared/auth/session.ts dan modules/user).
 
-const secretKey = process.env.JWT_SECRET_KEY;
-if (!secretKey) {
-  throw new Error('JWT_SECRET_KEY env var wajib diset - lihat .env.local. Aplikasi tidak boleh berjalan dengan secret hardcoded.');
+let cachedKey: Uint8Array | null = null;
+
+function getJwtKey(): Uint8Array {
+  if (cachedKey) return cachedKey;
+
+  const secretKey = process.env.JWT_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error(
+      'JWT_SECRET_KEY env var wajib diset - lihat .env.local. Aplikasi tidak boleh berjalan dengan secret hardcoded.',
+    );
+  }
+
+  cachedKey = new TextEncoder().encode(secretKey);
+  return cachedKey;
 }
-const key = new TextEncoder().encode(secretKey);
 
 export interface SessionPayload {
   id: string;
@@ -32,10 +42,14 @@ export async function encrypt<T extends object>(payload: T, expires = '24h'): Pr
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expires)
-    .sign(key);
+    .sign(getJwtKey());
 }
 
 export async function decrypt<T = SessionPayload>(input: string): Promise<T | null> {
+  // Ambil konfigurasi di luar try/catch agar secret yang hilang tetap menjadi
+  // configuration error yang fail-closed, bukan disamarkan sebagai token invalid.
+  const key = getJwtKey();
+
   try {
     const { payload } = await jwtVerify(input, key, { algorithms: ['HS256'] });
     return payload as unknown as T;
