@@ -9,6 +9,7 @@ export const maxDuration = 60;
 import { NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
 import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
+import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { generateAIResult, type AIProviderErrorCode } from '@/lib/aiProviders';
 import { resolveConversationTickers } from './extract-ticker';
 import { normalizeChatText, getDeterministicSmallTalkResponse } from './chat-normalize';
@@ -21,6 +22,7 @@ import { getLensScoreValidationStatus } from '@/modules/validation';
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
 const MAX_HISTORY_TURNS = 8;
+const GUEST_CHAT_LIMIT_MESSAGE = 'Batas percakapan guest LensAI sudah tercapai. Silakan login untuk meneruskan percakapan.';
 
 // System prompt terpisah dari giliran (turn) pengguna - mitigasi prompt injection asli
 // (bukan sekadar digabung jadi satu string panjang). Riwayat percakapan sebelumnya
@@ -150,26 +152,31 @@ function providerErrorResponse(errorCode: AIProviderErrorCode | null): { status:
 }
 
 export async function POST(request: Request) {
+  let anonTrial: AnonTrialState | null = null;
+  const json = async (body: any, init?: ResponseInit) => {
+    const response = NextResponse.json(body, init);
+    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
+    return response;
+  };
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({
-        role: 'assistant',
-        content: 'Silakan login untuk menggunakan LensAI.',
-        errorCode: 'AUTH_ERROR',
-      }, { status: 401 });
+      anonTrial = await readOrIssueAnonymousTrial();
     }
 
     const budget = await consumeComputeBudget(
-      computeActorFromRequest(request, session.id),
+      session ? computeActorFromRequest(request, session.id) : `anon-chat:${anonTrial!.firstSeenAt}`,
       3,
-      'authenticated',
+      session ? 'authenticated' : 'public',
     );
     if (!budget.allowed) {
-      return NextResponse.json({
+      return json({
         role: 'assistant',
-        content: 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.',
-        errorCode: 'RATE_LIMIT',
+        content: session
+          ? 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.'
+          : GUEST_CHAT_LIMIT_MESSAGE,
+        errorCode: session ? 'RATE_LIMIT' : 'AUTH_REQUIRED_LIMIT',
       }, { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined });
     }
 
@@ -186,7 +193,7 @@ export async function POST(request: Request) {
       .map((m: any) => ({ role: m.role, content: m.content.slice(0, 1000) }));
 
     if (!prompt.trim()) {
-      return NextResponse.json({
+      return json({
         role: 'assistant',
         content: 'Pertanyaan tidak boleh kosong.',
         errorCode: 'DATA_ERROR',
@@ -196,7 +203,7 @@ export async function POST(request: Request) {
     const normalizedPrompt = normalizeChatText(prompt);
     const directSmallTalk = getDeterministicSmallTalkResponse(normalizedPrompt);
     if (directSmallTalk) {
-      return NextResponse.json({
+      return json({
         role: 'assistant',
         content: directSmallTalk,
         routing: { intent: 'SMALL_TALK', providerUsed: false, dataFetches: 0 },
@@ -223,7 +230,7 @@ export async function POST(request: Request) {
     });
 
     if (verified.directResponse) {
-      return NextResponse.json({
+      return json({
         role: 'assistant',
         content: verified.directResponse,
         errorCode: 'DATA_ERROR',
@@ -269,7 +276,7 @@ export async function POST(request: Request) {
 
     if (!aiResult.text) {
       const failure = providerErrorResponse(aiResult.errorCode);
-      return NextResponse.json({
+      return json({
         role: 'assistant',
         content: failure.content,
         errorCode: failure.errorCode,
@@ -284,7 +291,7 @@ export async function POST(request: Request) {
       }, { status: failure.status });
     }
 
-    return NextResponse.json({
+    return json({
       role: 'assistant',
       content: aiResult.text,
       routing: {
@@ -298,7 +305,7 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error('Chat API Error:', error instanceof Error ? error.message : String(error));
-    return NextResponse.json({
+    return json({
       role: 'assistant',
       content: 'LensAI mengalami kesalahan internal saat memproses pertanyaan. Tidak ada data pasar yang diganti atau dibuat-buat.',
       errorCode: 'INTERNAL_ERROR',
