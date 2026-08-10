@@ -216,10 +216,22 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
-          <p className="text-white font-semibold mb-1">Login untuk membuka LensAI</p>
-          <p className="text-tv-muted text-sm mb-4">Grafik & indikator di atas gratis untuk semua orang. Ringkasan Stock Analysis LensAI butuh akun.</p>
+          <p className="text-white font-semibold mb-1">Masuk dulu, yuk, untuk lihat analisis lengkap</p>
+          <p className="text-tv-muted text-sm mb-4">Grafik dan indikator dasar tetap bisa kamu lihat gratis. Untuk rangkuman LensAI yang lebih lengkap, masuk dulu supaya datanya bisa kami tampilkan.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
-            Login Sekarang
+            Masuk sekarang
+          </Link>
+        </div>
+      );
+    }
+    if (status === 429) {
+      return (
+        <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
+          <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
+          <p className="text-white font-semibold mb-1">Jatah coba LensAI kamu sudah habis</p>
+          <p className="text-tv-muted text-sm mb-4">Masuk dulu untuk lanjut ngobrol dengan LensAI dan membuka analisis lengkap {symbol}.</p>
+          <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
+            Masuk untuk lanjut
           </Link>
         </div>
       );
@@ -258,15 +270,21 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
             alih-alih membiarkan pengguna menebak. */}
         <EmptyState
           illustration="empty"
-          title={`Analisis LensAI untuk ${symbol} gagal dimuat`}
-          description="Analisis 10 agen tidak berhasil diambil dari server. Grafik dan indikator di atas tetap bisa dipakai - keduanya tidak bergantung pada layanan ini."
+          title="Masuk dulu untuk lihat analisis lengkap"
+          description="Grafik dasarnya tetap bisa kamu pakai. Untuk membuka rangkuman LensAI lengkap, masuk dulu ya. Kalau kamu sudah masuk, coba muat ulang halaman."
         />
-        <div className="pb-8 text-center">
+        <div className="flex flex-wrap justify-center gap-3 pb-8 text-center">
+          <Link
+            href={`/login?next=/technical/${symbol}`}
+            className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
+          >
+            Masuk untuk buka analisis
+          </Link>
           <Link
             href={`/technical/${symbol}`}
             className="inline-flex items-center gap-2 rounded-full border border-tv-border bg-tv-hover px-5 py-2 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight"
           >
-            Muat ulang halaman
+            Muat ulang
           </Link>
         </div>
       </div>
