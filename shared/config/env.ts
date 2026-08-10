@@ -21,6 +21,7 @@ export const FEATURE_ENV_KEYS = {
   redis: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'] as const,
   qstashReceiver: ['QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY'] as const,
   qstashPublisher: ['QSTASH_TOKEN'] as const,
+  brokerData: ['BROKER_DATA_API_KEY'] as const,
   smtp: ['SMTP_EMAIL', 'SMTP_PASSWORD'] as const,
   telegram: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'] as const,
 } as const;

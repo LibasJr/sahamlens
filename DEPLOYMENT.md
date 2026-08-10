@@ -755,7 +755,8 @@ Mayoritas cron lama dijalankan lewat QStash dan diverifikasi dengan
 `verifyQStashSignature()` di tiap route. Nama job di kolom kedua sama persis dengan
 argumen `withJobRunLog()`, jadi riwayat jalannya bisa ditelusuri lewat log job.
 
-9 jadwal (8 diverifikasi live lewat `GET /v2/schedules` semua status SUCCESS terakhir
+10 jadwal (jadwal broker summary baru harus didaftarkan setelah API key dirotasi dan dipasang;
+jadwal lain diverifikasi live lewat `GET /v2/schedules` semua status SUCCESS terakhir
 jalan, `market-summary` ditambahkan 2026-08-05 - lihat catatan optimasi loading di
 bawah tabel):
 
@@ -770,6 +771,7 @@ bawah tabel):
 | `/api/cron/macro` | `macro` | `0 3 * * 1-5` | 10:00 hari bursa |
 | `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 22 * * 0-4` | 05:00 hari bursa (Senin-Jumat) |
 | `/api/cron/backtest-precompute` | `backtest-precompute` | `30 22 * * 0-4` | 05:30 hari bursa (Senin-Jumat) |
+| `/api/cron/broker-summary-scan` | `broker-summary-scan` | `30 11 * * 1-5` | 18:30 hari bursa, setelah data EOD tersedia |
 
 **Optimasi loading 2026-08-05**: `market-summary` adalah satu-satunya endpoint publik
 berat (scan 250 saham) yang SEBELUMNYA tidak punya cron warmer - murni `getOrCompute()`
@@ -807,7 +809,17 @@ curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/ai
 curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/fundamental-snapshot" \
   -H "Authorization: Bearer $QSTASH_TOKEN" \
   -H "Upstash-Cron: 0 22 * * 0-4"
+
+curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/broker-summary-scan" \
+  -H "Authorization: Bearer $QSTASH_TOKEN" \
+  -H "Upstash-Cron: 30 11 * * 1-5"
 ```
+
+`broker-summary-scan` memakai endpoint batch Index Alpha (maksimal 50 ticker/request),
+sehingga universe LensRadar 150 ticker selesai dalam 3 request HTTP. Kuota provider tetap
+dihitung per ticker. Secret disimpan hanya sebagai `BROKER_DATA_API_KEY` di Vercel; jangan
+memakai prefix `NEXT_PUBLIC_`. Wajib konfirmasi hak penyimpanan dan redistribusi data secara
+tertulis dengan provider sebelum hasil ditampilkan kepada pengguna SahamLens.
 
 Memeriksa jadwal yang aktif:
 
