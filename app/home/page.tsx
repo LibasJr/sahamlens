@@ -470,6 +470,17 @@ export default function HomePage() {
 
   return (
     <PageContainer className="min-h-full flex flex-col space-y-5 p-4 md:p-6 lg:p-7">
+      <div className="flex">
+        <Link
+          href="/"
+          className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-tv-blue/25 bg-tv-blue/10 px-4 text-sm font-bold text-white shadow-[0_12px_34px_rgba(79,140,255,0.14)] transition hover:border-tv-blue/45 hover:bg-tv-blue/15"
+          aria-label="Kembali ke halaman utama SahamLens"
+        >
+          <ArrowLeft className="h-4 w-4 text-tv-blue" />
+          Kembali ke halaman utama
+        </Link>
+      </div>
+
       {/* Workspace header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
@@ -481,9 +492,7 @@ export default function HomePage() {
           <p className="mt-1 text-xs leading-relaxed text-tv-muted">Mulai dari kondisi pasar, temukan kandidat, lalu masuk ke analisis yang lebih dalam.</p>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
-          <Link href="/" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
-            <ArrowLeft className="h-3.5 w-3.5 text-tv-muted" /> Halaman utama
-          </Link>
+
           <Link href="/breakout-radar" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
             <Radar className="h-3.5 w-3.5 text-tv-purple" /> Peluang hari ini
           </Link>
