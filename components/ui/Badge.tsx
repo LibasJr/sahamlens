@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils/cn';
 type BadgeVariant = 'neutral' | 'success' | 'danger' | 'warning' | 'gold' | 'info';
 type BadgeSize = 'sm' | 'md';
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> { variant?: BadgeVariant; dot?: boolean; size?: BadgeSize; }
-const SIZES = { sm: 'px-2 py-0.5 text-[10px]', md: 'px-2.5 py-1 text-[11px]' };
+const SIZES = { sm: 'px-2 py-0.5 text-[12px] leading-4 sm:text-[10px] sm:leading-none', md: 'px-2.5 py-1 text-[13px] leading-4 sm:text-[11px] sm:leading-none' };
 const VARIANTS = {
   neutral: 'border-white/[0.07] bg-white/[0.045] text-tv-muted', success: 'border-tv-green/15 bg-tv-green/10 text-tv-green',
   danger: 'border-tv-red/15 bg-tv-red/10 text-tv-red', warning: 'border-tv-warning/15 bg-tv-warning/10 text-tv-warning',

@@ -13,7 +13,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={textareaId} className="mb-1.5 block text-[11px] font-semibold text-tv-muted">
+          <label htmlFor={textareaId} className="mb-1.5 block text-sm font-semibold text-tv-muted sm:text-[11px]">
             {label}
           </label>
         )}
@@ -21,14 +21,14 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={textareaId}
           className={cn(
-            'min-h-[96px] w-full resize-y rounded-xl border border-white/[0.08] bg-black/15 px-3.5 py-3 text-sm text-tv-text placeholder:text-tv-muted/60 shadow-inner',
+            'min-h-[112px] w-full resize-y rounded-xl border border-white/[0.08] bg-black/15 px-3.5 py-3 text-base text-tv-text placeholder:text-tv-muted/60 shadow-inner sm:min-h-[96px] sm:text-sm',
             'transition-all duration-150 focus:border-tv-blue/65 focus:outline-none focus:ring-2 focus:ring-tv-blue/10',
             error && 'border-tv-red/60 focus:border-tv-red focus:ring-tv-red/10',
             className
           )}
           {...props}
         />
-        {error && <p className="mt-1 text-[10px] font-medium text-tv-red">{error}</p>}
+        {error && <p className="mt-1 text-sm font-medium text-tv-red sm:text-[10px]">{error}</p>}
       </div>
     );
   }
