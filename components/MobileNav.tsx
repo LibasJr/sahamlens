@@ -3,18 +3,23 @@
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Radar, LineChart, Menu } from 'lucide-react';
+import { Home, Activity, Radar, LineChart, Menu, Filter } from 'lucide-react';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
-const ITEMS = [
+const PUBLIC_ITEMS = [
   { label: 'Home', href: '/home', icon: Home, matches: ['/home'] },
   { label: 'Market', href: '/market-pulse', icon: Activity, matches: ['/market-pulse', '/market/'] },
   { label: 'Radar', href: '/breakout-radar', icon: Radar, matches: ['/breakout-radar', '/recommendations'] },
-  { label: 'Analyze', href: '/dashboard', icon: LineChart, matches: ['/dashboard', '/fundamental', '/technical/', '/dcf', '/compare'] },
 ];
+
+const GUEST_PRIMARY_ITEM = { label: 'Scanner', href: '/screener', icon: Filter, matches: ['/screener'] };
+const MEMBER_PRIMARY_ITEM = { label: 'Analyze', href: '/dashboard', icon: LineChart, matches: ['/dashboard', '/fundamental', '/technical/', '/dcf', '/compare'] };
 
 export default function MobileNav() {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
+  const { effectiveRole } = useAuthUser();
+  const items = [...PUBLIC_ITEMS, effectiveRole === 'guest' ? GUEST_PRIMARY_ITEM : MEMBER_PRIMARY_ITEM];
 
   useEffect(() => {
     const nav = navRef.current;
@@ -56,7 +61,7 @@ export default function MobileNav() {
   return (
     <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 font-sans md:hidden" aria-label="Navigasi utama mobile">
       <div className="grid grid-cols-5 items-center rounded-[22px] border border-white/10 bg-[#0A101B]/95 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.55)] backdrop-blur-xl">
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const active = item.matches.some((match) => match.endsWith('/') ? pathname.startsWith(match) : pathname === match || pathname.startsWith(`${match}/`));
           const Icon = item.icon;
           return (

@@ -363,11 +363,11 @@ export default function CalendarPage() {
       <PaywallModal
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat Kalender"
-        body="Corporate Calendar butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
-        ctaHref="/signup"
-        ctaLabel="Daftar Gratis"
-        secondaryLabel="Nanti"
+        title="Kalender belum bisa dimuat"
+        body="Corporate Calendar adalah menu guest. Jika pesan ini muncul, server mengembalikan status login-required yang tidak sesuai rule public menu."
+        ctaHref="/calendar"
+        ctaLabel="Coba Lagi"
+        secondaryLabel="Tutup"
       />
     </div>
   );

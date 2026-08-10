@@ -338,7 +338,7 @@ export default function MarketPulse() {
 
   const renderBlocker = (what: string) => {
     if (blocker === 'login') {
-      return <EmptyState illustration="locked" title={`Login untuk melihat ${what}`} description="LensMarket butuh akun gratis - trial 7 hari akses penuh." action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }} />;
+      return <EmptyState illustration="empty" title={`${what} belum bisa dimuat`} description="Data publik LensMarket belum tersedia dari server. Coba refresh; jika tetap muncul, cek status API." action={{ label: 'Coba lagi sekarang', onClick: fetchData }} />;
     }
     if (blocker === 'pro') {
       return <EmptyState illustration="locked" title="Fitur Pro" description={`${what} tersedia di paket Pro.`} action={{ label: 'Lihat Paket', onClick: () => setShowPaywall(true) }} />;
@@ -659,11 +659,11 @@ export default function MarketPulse() {
       <PaywallModal
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat LensMarket"
-        body="LensMarket butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
-        ctaHref="/signup"
-        ctaLabel="Daftar Gratis"
-        secondaryLabel="Nanti"
+        title="LensMarket belum bisa dimuat"
+        body="Menu ini tersedia untuk guest. Jika pesan ini muncul, server mengembalikan status login-required yang tidak sesuai rule public menu."
+        ctaHref="/market-pulse"
+        ctaLabel="Coba Lagi"
+        secondaryLabel="Tutup"
       />
       {selectedSector && (
         <SectorDetailModal sector={selectedSector} onClose={() => setSelectedSector(null)} />
