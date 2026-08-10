@@ -11,7 +11,20 @@ function idr(value: number) {
 
 export default async function BrokerDistributionPanel({ symbol }: { symbol: string }) {
   const data = await getLatestBrokerPeriodSummary(symbol);
-  if (!data || data.rows.length === 0) return null;
+  if (!data || data.rows.length === 0) {
+    return (
+      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+        <div className="text-xs font-bold uppercase tracking-wider text-tv-muted">Broker Distribution</div>
+        <h2 className="mt-1 font-heading text-lg font-bold text-white">Akumulasi / Distribusi Broker</h2>
+        <div className="mt-4 rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 p-4">
+          <p className="text-sm font-semibold text-tv-yellow">Belum ada data Broker Distribution tersimpan untuk {symbol.replace(/\.JK$/, '')}.</p>
+          <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+            Jika baru selesai import dari Admin → Broker Summary, muat ulang halaman ini. Panel ini membaca tabel broker_summary_period langsung dari database.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   const buyers = [...data.rows].filter((row) => row.netValue > 0).sort((a, b) => b.netValue - a.netValue).slice(0, 5);
   const sellers = [...data.rows].filter((row) => row.netValue < 0).sort((a, b) => a.netValue - b.netValue).slice(0, 5);
