@@ -133,7 +133,12 @@ export async function proxy(req: NextRequest) {
   // boleh memuat halaman, karena yang harus ia lihat adalah modal "Trial habis, upgrade
   // ke premium" (components/AppShell.tsx) - bukan halaman login yang menyuruhnya masuk
   // padahal ia sudah masuk. Datanya sendiri tetap ditolak gerbang API (checkProAccess).
-  if (isProtectedPage(req.nextUrl.pathname) && !payload) {
+  // Login akun memakai SESSION_COOKIE, sedangkan login admin-by-key memakai
+  // ADMIN_COOKIE. Kedua identitas sah harus dikenali sebelum guard redirect ini.
+  // Hasil verifikasi dipakai ulang di bawah agar definisi auth tidak bercabang lagi.
+  const hasVerifiedAdminSession = await verifyAdminToken(req.cookies.get(ADMIN_COOKIE)?.value);
+
+  if (isProtectedPage(req.nextUrl.pathname) && !payload && !hasVerifiedAdminSession) {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('next', req.nextUrl.pathname);
     loginUrl.searchParams.set('notice', 'login_required');
@@ -161,7 +166,7 @@ export async function proxy(req: NextRequest) {
   // Tanda tangan cookie diverifikasi, bukan dibandingkan dengan konstanta. Sebelumnya
   // nilai literal '1' sudah cukup, sehingga siapa pun bisa melewati rate limit -
   // dan lewat isAdminFromRequestCookies, masuk panel admin.
-  if (await verifyAdminToken(req.cookies.get(ADMIN_COOKIE)?.value)) {
+  if (hasVerifiedAdminSession) {
     isAdminOrTrial = true;
   }
 
