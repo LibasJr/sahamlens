@@ -48,6 +48,10 @@ data/transactions.json
 data/council_cache.json
 local_db.json
 .env*
+# Lindungi juga salah nama umum tanpa titik; Next.js tidak memuat file ini,
+# tetapi isinya tetap dapat berupa secret dan tidak boleh ikut ter-commit.
+/env.local
+/env.local.*
 scripts/.backtest-universe-stats.json
 
 # Template env aman untuk onboarding developer; secret nyata tetap di-ignore.
