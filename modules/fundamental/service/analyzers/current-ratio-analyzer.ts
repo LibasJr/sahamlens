@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const currentRatio = data?.financialData?.currentRatio;
-  if (currentRatio === undefined) return { label: 'Current Ratio', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof currentRatio !== 'number' || !Number.isFinite(currentRatio)) return { label: 'Current Ratio', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   let decision = 'NEUTRAL';
   let confidence = 50;

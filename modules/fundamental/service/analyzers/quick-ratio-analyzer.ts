@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const quickRatio = data?.financialData?.quickRatio;
-  if (quickRatio === undefined) return { label: 'Quick Ratio (Liquidity)', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof quickRatio !== 'number' || !Number.isFinite(quickRatio)) return { label: 'Quick Ratio (Liquidity)', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   let decision = 'NEUTRAL';
   let confidence = 50;

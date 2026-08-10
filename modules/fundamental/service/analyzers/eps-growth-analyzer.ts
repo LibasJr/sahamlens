@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const growth = data?.defaultKeyStatistics?.earningsQuarterlyGrowth;
-  if (growth === undefined) return { label: 'EPS Growth (QoQ)', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof growth !== 'number' || !Number.isFinite(growth)) return { label: 'EPS Growth (QoQ)', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   const growthPct = growth * 100;
   let decision = 'NEUTRAL';

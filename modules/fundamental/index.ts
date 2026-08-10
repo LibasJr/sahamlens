@@ -24,6 +24,15 @@ export { calculateIntrinsicValue, calculateDcfModel } from './service/dcf-valuat
 // consensus-labels.service.ts.
 export { computeFundamentalQuality, computeValuationLabel, type FundamentalQuality } from './service/consensus-labels.service';
 
+export {
+  buildMoatProxy,
+  type FundamentalAnalyzerSnapshot,
+  type MoatProxyIndicator,
+  type MoatProxyPillar,
+  type MoatProxyResult,
+  type MoatProxyStatus,
+} from './service/moat-proxy.service';
+
 // Backend real halaman /dividend (2026-08-01) - lihat dividend-plan.service.ts untuk
 // alasan lengkap (menggantikan /api/live/[ticker] yang tidak pernah punya field quant.*).
 export { fetchDividendUniverse, buildDividendPlan, type DividendStock, type DividendPlanResult } from './service/dividend-plan.service';

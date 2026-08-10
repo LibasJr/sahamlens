@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const roe = data?.financialData?.returnOnEquity;
-  if (roe === undefined) return { label: 'Return on Equity', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof roe !== 'number' || !Number.isFinite(roe)) return { label: 'Return on Equity', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   const roePct = roe * 100;
   let decision = 'NEUTRAL';

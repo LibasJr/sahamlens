@@ -119,6 +119,15 @@ export const CACHE_TTL_SEC = {
   // di setiap buka halaman /calendar atau /breakout-radar.
   CORPORATE_CALENDAR: 6 * 60 * 60,
 
+  // Snapshot earnings per emiten (jadwal, konsensus, revisi, dan riwayat kuartalan)
+  // berubah lebih lambat daripada harga. Satu jam menjaga estimasi tetap cukup segar
+  // tanpa memanggil seluruh modul Yahoo Finance setiap kali halaman dibuka.
+  EARNINGS: 60 * 60,
+
+  // Dashboard makro menggabungkan harga pasar harian dan rilis resmi tahunan.
+  // 30 menit cukup segar untuk konteks pasar tanpa membebani sumber publik.
+  MACRO_DASHBOARD: 30 * 60,
+
   // Universe saham dividen (yield/payout/consistency per saham, app/api/dividend-plan)
   // - BARU. Batch quoteSummary+chart(events:dividends) utk ~50 saham, sama mahalnya
   // dengan SCREENER_UNIVERSE - TTL sama (30 menit). Matematika compounding/income

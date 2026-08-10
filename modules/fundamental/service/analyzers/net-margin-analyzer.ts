@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const margin = data?.financialData?.profitMargins;
-  if (margin === undefined) return { label: 'Net Profit Margin', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof margin !== 'number' || !Number.isFinite(margin)) return { label: 'Net Profit Margin', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   const marginPct = margin * 100;
   let decision = 'NEUTRAL';

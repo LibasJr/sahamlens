@@ -272,6 +272,12 @@ export async function GET(
     return NextResponse.json({
       ticker,
       price: currentPrice,
+      source: {
+        provider: 'Yahoo Finance',
+        sourceType: 'PUBLIC_THIRD_PARTY',
+        retrievedAt: new Date().toISOString(),
+        period: 'Snapshot terbaru yang tersedia',
+      },
       dataQuality,
       analyzers: analyzersResult,
       consensus,
@@ -309,11 +315,21 @@ export async function GET(
         returnOnEquity: quoteSummary.financialData?.returnOnEquity ?? null,
         returnOnAssets: quoteSummary.financialData?.returnOnAssets ?? null,
         debtToEquity: quoteSummary.financialData?.debtToEquity ?? null,
+        currentRatio: quoteSummary.financialData?.currentRatio ?? null,
+        quickRatio: quoteSummary.financialData?.quickRatio ?? null,
+        revenueGrowth: quoteSummary.financialData?.revenueGrowth ?? null,
+        earningsGrowth: quoteSummary.defaultKeyStatistics?.earningsQuarterlyGrowth ?? null,
         totalRevenue: quoteSummary.financialData?.totalRevenue ?? null,
         ebitda: quoteSummary.financialData?.ebitda ?? null,
         profitMargins: quoteSummary.financialData?.profitMargins ?? null,
         dividendYield: quoteSummary.summaryDetail?.dividendYield ?? null,
         grossMargins: quoteSummary.financialData?.grossMargins ?? null,
+        operatingMargins: quoteSummary.financialData?.operatingMargins ?? null,
+        freeCashflow: quoteSummary.financialData?.freeCashflow ?? null,
+        operatingCashflow: quoteSummary.financialData?.operatingCashflow ?? null,
+        totalDebt: quoteSummary.financialData?.totalDebt ?? null,
+        totalCash: quoteSummary.financialData?.totalCash ?? null,
+        financialCurrency: quoteSummary.financialData?.financialCurrency ?? null,
         // Dulu ada fallback angka karangan (0.0546/0.055) kalau Yahoo tidak punya NIM -
         // dihapus sejak audit sebelumnya; sekarang null, bukan 0.
         nim: quoteSummary.financialData?.netInterestMargin ?? null
@@ -325,4 +341,3 @@ export async function GET(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
