@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter } from 'lucide-react';
 
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
@@ -97,78 +97,6 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
            (ada di TRACK yang width:max-content, bukan di pembungkus) - dua lapis
            kegagalan sekaligus. Dibuang semua, ticker sekarang selalu jalan. */
       `}} />
-    </div>
-  );
-}
-
-function SignalVerticalTicker({
-  items,
-  updatedAt,
-  advisoryEnabled,
-}: {
-  items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null }[] | null;
-  updatedAt: string | null;
-  advisoryEnabled: boolean;
-}) {
-  const [activeIndex, setActiveIndex] = React.useState(0);
-  const usable = React.useMemo(() => (items || []).filter((item) => item.symbol), [items]);
-
-  React.useEffect(() => {
-    setActiveIndex(0);
-    if (usable.length <= 1) return;
-    const timer = window.setInterval(() => setActiveIndex((i) => (i + 1) % usable.length), 4000);
-    return () => window.clearInterval(timer);
-  }, [usable]);
-
-  const item = usable[activeIndex];
-  const rupiah = (value: number | null) => value == null ? '—' : Math.round(value).toLocaleString('id-ID');
-
-  return (
-    <div className="h-full rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm flex flex-col min-h-[230px]">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Signal Saham</div>
-          <div className="mt-1 text-[11px] text-tv-muted">Bergerak vertikal • sumber AI Pick</div>
-        </div>
-        {updatedAt && <span className="text-[10px] text-tv-muted">{updatedAt}</span>}
-      </div>
-
-      <div className="relative mt-4 flex-1 overflow-hidden rounded-lg border border-tv-border/50 bg-tv-card/50 p-4">
-        {!items ? (
-          <div className="space-y-3"><Skeleton className="h-6 w-24" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-4/5" /></div>
-        ) : !item ? (
-          <div className="h-full flex items-center justify-center text-center text-xs text-tv-muted">Belum ada kandidat signal yang lolos filter saat ini.</div>
-        ) : (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${item.symbol}-${activeIndex}`}
-              initial={{ opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -28 }}
-              transition={{ duration: 0.45 }}
-              className="absolute inset-4 flex flex-col justify-center"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <Link href={`/technical/${item.symbol}`} className="font-number text-xl font-bold text-white hover:text-tv-blue transition-colors">
-                  {item.symbol.replace('.JK', '')}
-                </Link>
-                <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${item.flagged ? 'bg-tv-red/15 text-tv-red' : advisoryEnabled ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-gold/15 text-tv-gold'}`}>
-                  {item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'WATCH'}
-                </span>
-              </div>
-              <div className="mt-2 text-xs text-tv-muted">LensScore <span className="font-number font-semibold text-tv-text">{Math.round(item.finalScore)}</span></div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                <div><span className="block text-tv-muted">TP1</span><span className="font-number font-semibold text-tv-green">{rupiah(item.tp1)}</span></div>
-                <div><span className="block text-tv-muted">TP2</span><span className="font-number font-semibold text-tv-green">{rupiah(item.tp2)}</span></div>
-                <div><span className="block text-tv-muted">CL</span><span className="font-number font-semibold text-tv-red">{rupiah(item.cl1)}</span></div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        )}
-      </div>
-      <div className="mt-3 text-[10px] leading-relaxed text-tv-muted">
-        {advisoryEnabled ? 'Signal mengikuti status advisory model.' : 'Model belum berstatus advisory; kandidat ditampilkan sebagai WATCH, bukan ajakan transaksi.'}
-      </div>
     </div>
   );
 }
@@ -680,7 +608,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   aslinya jauh lebih pendek dari kolom kiri), menyisakan celah kosong
                   di atas DAN di bawahnya. Sekarang panel meregang penuh mengikuti
                   kolom kiri, isinya disebar dari atas ke bawah. */}
-              <div className="grid gap-4 lg:grid-cols-2 h-full">
+              <div className="h-full">
               <div className="h-full rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm flex flex-col justify-between">
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -726,8 +654,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   LensRadar live dapat memindai cakupan lebih luas, tetapi setiap kandidat tetap melalui gerbang kelayakan data.
                 </p>
               </div>
-
-                <SignalVerticalTicker items={aiPicks} updatedAt={aiPicksUpdatedAt} advisoryEnabled={aiPicksAdvisoryEnabled} />
               </div>
             </div>
           </Card>
