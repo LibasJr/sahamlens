@@ -9,6 +9,7 @@ import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
+import BrokerDistributionPanel from './BrokerDistributionPanel';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
 import { getSession, checkProAccessLive } from '@/modules/user';
@@ -460,6 +461,10 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
         </div>
 
         <StockChartPanel symbol={symbol} />
+
+        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+          <BrokerDistributionPanel symbol={symbol} />
+        </Suspense>
 
         <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
           <OrchestratorRecommendation symbol={symbol} />
