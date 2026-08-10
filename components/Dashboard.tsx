@@ -10,6 +10,7 @@ import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel,
 import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
+import ThemeToggle from '@/components/ThemeToggle';
 
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
@@ -140,7 +141,7 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <span className={`inline-flex rounded-full border px-2 py-1 text-[9px] font-bold tracking-wide ${tone}`}>{label}</span>
+              <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-bold tracking-wide ${tone}`}>{label}</span>
               <div className="mt-1.5 font-number text-[10px] text-tv-muted">Rp {Math.round(item.price).toLocaleString('id-ID')}</div>
             </div>
           </Link>
@@ -201,7 +202,9 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
 
   React.useEffect(() => {
     setNow(new Date());
-    const t = setInterval(() => setNow(new Date()), 30000);
+    const t = setInterval(() => {
+      if (!document.hidden) setNow(new Date());
+    }, 30000);
     return () => clearInterval(t);
   }, []);
 
@@ -485,6 +488,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             </div>
 
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
                 <CommandPalette onSelect={(symbol, name) => setTicker({ symbol, name })} />
               </div>

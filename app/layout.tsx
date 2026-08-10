@@ -65,20 +65,19 @@ export const metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  colorScheme: 'dark light',
 };
 
-// Dark mode PERMANEN di seluruh app - sengaja tidak ada toggle. Nyaris semua halaman
-// setelah login (Sidebar, Market Pulse, Fundamental, dll.) hardcode warna gelap tanpa
-// versi terang sama sekali, jadi kalau class 'dark' pernah dilepas dari <html>,
-// background <body> (yang punya varian dark:) jadi terang dan "bocor" di celah-celah
-// yang tidak tertutup card gelap. Satu tema, konsisten di semua halaman, tanpa celah.
+const themeBootScript = `(function(){try{var saved=localStorage.getItem('sahamlens_theme');var system=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var theme=saved==='light'||saved==='dark'?saved:system;document.documentElement.classList.add(theme);document.documentElement.style.colorScheme=theme;}catch(e){document.documentElement.classList.add('dark');}})()`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="id" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootScript }} /></head>
       <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25`}>
         <AppShell>{children}</AppShell>
       </body>

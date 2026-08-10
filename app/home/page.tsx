@@ -461,7 +461,9 @@ export default function HomePage() {
   // kalau cuma 1 slot (tidak ada apa pun untuk dirotasi).
   useEffect(() => {
     if (insightSlots.length <= 1) return;
-    const t = setInterval(() => setInsightIndex((i) => i + 1), INSIGHT_ROTATE_MS);
+    const t = setInterval(() => {
+      if (!document.hidden) setInsightIndex((i) => i + 1);
+    }, INSIGHT_ROTATE_MS);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [insightSlots.length]);
