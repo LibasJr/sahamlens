@@ -171,7 +171,7 @@ export default function FinancialChartToolbar({
                     key={option}
                     type="button"
                     onClick={() => onTimeframeChange(option)}
-                    className={`min-h-10 shrink-0 rounded-md px-2.5 text-[11px] font-bold transition-colors sm:px-3 ${
+                    className={`min-h-11 shrink-0 rounded-md px-3 text-sm font-bold transition-colors sm:min-h-10 sm:px-2.5 sm:text-[11px] ${
                       timeframe === option
                         ? 'bg-tv-blue text-white'
                         : 'text-tv-muted hover:bg-tv-hover hover:text-white'
@@ -192,7 +192,7 @@ export default function FinancialChartToolbar({
                 setChartTypeOpen((open) => !open);
                 setMoreOpen(false);
               }}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs font-semibold text-tv-text hover:border-tv-borderLight hover:bg-tv-hover sm:px-3"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-tv-border bg-tv-bg px-3 text-sm font-semibold text-tv-text hover:border-tv-borderLight hover:bg-tv-hover sm:min-h-10 sm:px-2.5 sm:text-xs"
               aria-haspopup="menu"
               aria-expanded={chartTypeOpen}
             >
@@ -211,7 +211,7 @@ export default function FinancialChartToolbar({
                       onChartTypeChange(item.value);
                       setChartTypeOpen(false);
                     }}
-                    className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs transition-colors ${
+                    className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm transition-colors sm:text-xs ${
                       chartType === item.value ? 'bg-tv-blue/15 text-tv-blue' : 'text-tv-text hover:bg-tv-hover'
                     }`}
                   >
@@ -226,11 +226,11 @@ export default function FinancialChartToolbar({
           <button
             type="button"
             onClick={() => setIndicatorOpen(true)}
-            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs font-semibold text-tv-text hover:border-tv-borderLight hover:bg-tv-hover sm:px-3"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-tv-border bg-tv-bg px-3 text-sm font-semibold text-tv-text hover:border-tv-borderLight hover:bg-tv-hover sm:min-h-10 sm:px-2.5 sm:text-xs"
           >
             <SlidersHorizontal className="h-4 w-4" />
             <span className="hidden sm:inline">Indicators</span>
-            <span className="sm:hidden">ƒx</span>
+            <span className="sm:hidden">Ind.</span>
           </button>
 
           <button
@@ -258,13 +258,13 @@ export default function FinancialChartToolbar({
             </button>
             {moreOpen && (
               <div className="absolute right-0 top-[calc(100%+0.4rem)] z-50 w-48 rounded-xl border border-tv-border bg-tv-surface p-1.5 shadow-2xl">
-                <button type="button" onClick={() => { onFitContent(); setMoreOpen(false); }} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-xs text-tv-text hover:bg-tv-hover">
+                <button type="button" onClick={() => { onFitContent(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
                   <RotateCcw className="h-4 w-4" /> Fit content
                 </button>
-                <button type="button" onClick={() => { onReset(); setMoreOpen(false); }} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-xs text-tv-text hover:bg-tv-hover">
+                <button type="button" onClick={() => { onReset(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
                   <Settings2 className="h-4 w-4" /> Reset chart
                 </button>
-                <button type="button" onClick={() => { onToggleFullscreen(); setMoreOpen(false); }} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-xs text-tv-text hover:bg-tv-hover">
+                <button type="button" onClick={() => { onToggleFullscreen(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
                   {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   {isFullscreen ? 'Keluar fullscreen' : 'Fullscreen'}
                 </button>
@@ -288,7 +288,7 @@ export default function FinancialChartToolbar({
           <div className="min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex w-max items-center gap-1.5 pr-2">
               {activeIndicators.map((indicator) => (
-                <div key={indicator.id} className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-tv-border bg-tv-bg text-[10px] font-semibold text-tv-muted">
+                <div key={indicator.id} className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-tv-border bg-tv-bg text-[12px] font-semibold text-tv-muted sm:text-[10px]">
                   <button
                     type="button"
                     className="inline-flex min-h-8 items-center gap-1 px-2 hover:text-white"
@@ -319,7 +319,7 @@ export default function FinancialChartToolbar({
             <div className="flex items-center justify-between border-b border-tv-border px-4 py-3">
               <div>
                 <div className="text-sm font-bold text-white">Indicators</div>
-                <div className="text-[11px] text-tv-muted">Visualisasi chart saja — tidak mengubah LensScore atau sinyal production.</div>
+                <div className="text-sm text-tv-muted sm:text-[11px]">Visualisasi chart saja — tidak mengubah LensScore atau sinyal production.</div>
               </div>
               <button type="button" onClick={() => setIndicatorOpen(false)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-white" aria-label="Tutup daftar indikator">
                 <X className="h-4 w-4" />
@@ -333,7 +333,7 @@ export default function FinancialChartToolbar({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Cari SMA, RSI, MACD..."
-                  className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-tv-muted"
+                  className="min-w-0 flex-1 bg-transparent text-base text-white sm:text-sm outline-none placeholder:text-tv-muted"
                   autoFocus
                 />
               </label>
@@ -364,7 +364,7 @@ export default function FinancialChartToolbar({
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-semibold text-tv-text">{item.name}</span>
-                              <span className="block truncate text-[11px] text-tv-muted">{item.description}</span>
+                              <span className="block truncate text-sm text-tv-muted sm:text-[11px]">{item.description}</span>
                             </span>
                             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-tv-muted">
                               {singleExisting ? <Settings2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -393,7 +393,7 @@ export default function FinancialChartToolbar({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <div className="text-sm font-bold text-white">{indicatorLabel(draftIndicator)}</div>
-                <div className="text-[11px] text-tv-muted">Pengaturan visual chart, bukan parameter model SahamLens.</div>
+                <div className="text-sm text-tv-muted sm:text-[11px]">Pengaturan visual chart, bukan parameter model SahamLens.</div>
               </div>
               <button type="button" onClick={() => setDraftIndicator(null)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-white" aria-label="Tutup pengaturan indikator">
                 <X className="h-4 w-4" />

@@ -250,7 +250,7 @@ export default function Sidebar() {
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-white/[0.07] bg-[#090E18]/98 shadow-[18px_0_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-300 md:relative md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${isCollapsed ? 'w-[292px] md:w-[76px]' : 'w-[292px]'}`}
+        } ${isCollapsed ? 'w-[min(22rem,calc(100vw-1rem))] md:w-[76px]' : 'w-[min(22rem,calc(100vw-1rem))] md:w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
           <Link href="/home" className="group flex min-w-0 items-center gap-3">
@@ -259,10 +259,10 @@ export default function Sidebar() {
             </div>
             <div className={isCollapsed ? 'md:hidden' : ''}>
               <div className="flex items-center gap-2">
-                <span className="text-[15px] font-bold tracking-tight text-white">SahamLens</span>
-                <span className="rounded-full border border-tv-blue/20 bg-tv-blue/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">Beta</span>
+                <span className="text-base font-bold tracking-tight text-white md:text-[15px]">SahamLens</span>
+                <span className="rounded-full border border-tv-blue/20 bg-tv-blue/10 px-1.5 py-0.5 text-[12px] font-bold uppercase tracking-[0.14em] text-tv-blue md:text-[10px] md:tracking-[0.16em]">Beta</span>
               </div>
-              <p className="mt-0.5 text-[10px] font-medium text-tv-muted">Intelligence for IDX investors</p>
+              <p className="mt-0.5 text-xs font-medium text-tv-muted md:text-[10px]">Intelligence for IDX investors</p>
             </div>
           </Link>
           <button
@@ -280,7 +280,7 @@ export default function Sidebar() {
           <div className="space-y-5">
             {visibleGroups.map((group) => (
               <section key={group.id}>
-                <div className={`mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 ${isCollapsed ? 'md:hidden' : ''}`}>
+                <div className={`mb-1.5 px-2 text-xs font-bold uppercase tracking-[0.14em] text-white/35 md:text-[10px] md:tracking-[0.18em] ${isCollapsed ? 'md:hidden' : ''}`}>
                   {group.label}
                 </div>
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
@@ -295,7 +295,7 @@ export default function Sidebar() {
                         key={item.id}
                         href={href}
                         onClick={() => setIsOpen(false)}
-                        className={`group relative flex min-h-[46px] items-center rounded-xl transition-all duration-200 ${
+                        className={`group relative flex min-h-14 items-center rounded-xl md:min-h-[46px] transition-all duration-200 ${
                           isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
                         } ${active ? 'bg-white/[0.075] text-white' : 'text-white/65 hover:bg-white/[0.045] hover:text-white'}`}
                       >
@@ -306,15 +306,15 @@ export default function Sidebar() {
                             transition={{ type: 'spring', stiffness: 520, damping: 34 }}
                           />
                         )}
-                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all ${active ? 'bg-tv-blue/[0.12] text-tv-blue' : accentClass}`}>
-                          <Icon className="h-[16px] w-[16px]" />
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl md:h-8 md:w-8 transition-all ${active ? 'bg-tv-blue/[0.12] text-tv-blue' : accentClass}`}>
+                          <Icon className="h-[18px] w-[18px] md:h-[16px] md:w-[16px]" />
                         </span>
                         <span className={`ml-2.5 min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-[12.5px] font-semibold">{item.name}</span>
+                            <span className="truncate text-sm font-semibold md:text-[12.5px]">{item.name}</span>
                             {item.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.9)]" />}
                           </span>
-                          <span className="mt-0.5 block truncate text-[10px] font-medium text-white/32">{item.subtitle}</span>
+                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/40 md:truncate md:text-[10px] md:leading-normal md:text-white/32">{item.subtitle}</span>
                         </span>
                         {!isCollapsed && active && <ChevronRight className="h-3.5 w-3.5 text-white/30" />}
                         {isCollapsed && (
@@ -340,12 +340,12 @@ export default function Sidebar() {
                   onClick={() => setShowProfileModal(true)}
                   className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl p-1.5 text-left transition-colors hover:bg-white/[0.04] ${isCollapsed ? 'md:flex-none md:p-1' : ''}`}
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-tv-blue/25 to-tv-purple/20 text-tv-blue">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl md:h-8 md:w-8 bg-gradient-to-br from-tv-blue/25 to-tv-purple/20 text-tv-blue">
                     <User className="h-4 w-4" />
                   </span>
                   <span className={`min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
-                    <span className="block truncate text-xs font-semibold text-white">{user.email?.split('@')[0]}</span>
-                    <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-wider text-tv-muted">{user.role}</span>
+                    <span className="block truncate text-sm font-semibold text-white md:text-xs">{user.email?.split('@')[0]}</span>
+                    <span className="mt-0.5 block text-xs font-bold uppercase tracking-wider text-tv-muted md:text-[10px]">{user.role}</span>
                   </span>
                 </button>
                 <button
@@ -361,7 +361,7 @@ export default function Sidebar() {
           ) : !authLoading ? (
             <Link href="/login" className={`flex items-center gap-2 rounded-2xl border border-tv-blue/15 bg-tv-blue/10 p-2.5 font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15 ${isCollapsed ? 'md:justify-center md:px-0' : ''}`}>
               <LogIn className="h-4 w-4 shrink-0" />
-              <span className={`text-xs ${isCollapsed ? 'md:hidden' : ''}`}>Masuk / Daftar</span>
+              <span className={`text-sm ${isCollapsed ? 'md:hidden' : ''}`}>Masuk / Daftar</span>
             </Link>
           ) : null}
 

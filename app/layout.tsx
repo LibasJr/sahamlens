@@ -1,6 +1,7 @@
 import './globals.css';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import React from 'react';
+import type { Viewport } from 'next';
 import AppShell from '@/components/AppShell';
 
 // Design System "Lens" (2026-08-06): dua font saja, bukan empat.
@@ -61,6 +62,11 @@ export const metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 // Dark mode PERMANEN di seluruh app - sengaja tidak ada toggle. Nyaris semua halaman
 // setelah login (Sidebar, Market Pulse, Fundamental, dll.) hardcode warna gelap tanpa
 // versi terang sama sekali, jadi kalau class 'dark' pernah dilepas dari <html>,
@@ -73,7 +79,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative overflow-x-hidden selection:bg-tv-blue/25`}>
+      <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

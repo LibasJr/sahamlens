@@ -20,6 +20,10 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 
 const SITE_URL = 'https://sahamlens.id';
 
+// Sementara disembunyikan dari halaman Technical sampai validasi/UX Broker Summary siap.
+// Admin import dan data broker_summary_period tetap dipertahankan.
+const SHOW_BROKER_DISTRIBUTION_PANEL = false;
+
 function normalizeTechnicalSymbol(rawSymbol: string): string {
   return rawSymbol.trim().toUpperCase().replace(/\.JK$/, '');
 }
@@ -480,9 +484,11 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
 
         <StockChartPanel symbol={symbol} />
 
-        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
-          <BrokerDistributionPanel symbol={symbol} />
-        </Suspense>
+        {SHOW_BROKER_DISTRIBUTION_PANEL && (
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+            <BrokerDistributionPanel symbol={symbol} />
+          </Suspense>
+        )}
 
         <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
           <OrchestratorRecommendation symbol={symbol} />
