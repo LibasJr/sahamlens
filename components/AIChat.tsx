@@ -195,12 +195,12 @@ export default function AIChat() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-accent shadow-[0_10px_26px_rgba(79,140,255,0.22)]">
+              <div className="flex h-10 w-10 items-center sm:h-9 sm:w-9 justify-center rounded-xl bg-gradient-accent shadow-[0_10px_26px_rgba(79,140,255,0.22)]">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="font-heading text-sm font-bold text-tv-text">LensAI Copilot</h3>
-                <p className="flex items-center gap-1 text-[10px] font-semibold text-tv-green">
+                <h3 className="font-heading text-base font-bold text-tv-text sm:text-sm">LensAI Copilot</h3>
+                <p className="flex items-center gap-1 text-xs font-semibold text-tv-green sm:text-[10px]">
                   <span className="w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse"></span>
                   AI sedang aktif
                 </p>
@@ -224,12 +224,12 @@ export default function AIChat() {
                   <Bot className="w-8 h-8 text-tv-blue" />
                 </div>
                 <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
-                <p className="text-sm text-tv-muted max-w-xs">
+                <p className="max-w-xs text-base leading-relaxed text-tv-muted sm:text-sm">
                   Tanya tentang fitur SahamLens, teknikal, fundamental, LensScore, TP/CL, atau konsep pasar modal Indonesia. Saya akan jelaskan dengan bahasa sederhana.
                 </p>
                 <button
                   onClick={setDemoPrompt}
-                  className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-xs text-tv-muted transition-colors hover:bg-white/[0.06] hover:text-white"
+                  className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
                 >
                   {(() => {
                     const segments = pathname.split('/');
@@ -241,7 +241,7 @@ export default function AIChat() {
             ) : (
               messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl p-4 text-sm ${
+                  <div className={`max-w-[85%] rounded-2xl p-4 text-base leading-relaxed sm:text-sm ${
                     msg.role === 'user'
                       ? 'bg-tv-blue text-white rounded-tr-md shadow-[0_8px_24px_rgba(79,140,255,0.16)]'
                       : 'border border-white/[0.07] bg-white/[0.04] text-tv-text rounded-tl-md'
@@ -260,7 +260,7 @@ export default function AIChat() {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-sm text-tv-muted">
+                <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-base text-tv-muted sm:text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   AI sedang menganalisis...
                 </div>
@@ -278,14 +278,14 @@ export default function AIChat() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Tanya LensAI tentang saham atau fitur SahamLens..."
-                className="w-full rounded-2xl border border-white/[0.08] bg-black/20 py-3 pl-4 pr-12 text-sm text-tv-text placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
+                className="w-full rounded-2xl border border-white/[0.08] bg-black/20 min-h-12 py-3 pl-4 pr-12 text-base text-tv-text sm:min-h-0 sm:text-sm placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
               />
               <button
                 type="button"
                 aria-label="Kirim pertanyaan"
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 rounded-xl bg-gradient-accent p-2 text-white transition-all hover:brightness-110 disabled:opacity-40"
+                className="absolute right-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-gradient-accent p-2 text-white transition-all hover:brightness-110 disabled:opacity-40"
               >
                 <Send className="w-4 h-4" />
               </button>
