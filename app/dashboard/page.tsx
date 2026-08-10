@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
@@ -12,7 +12,7 @@ import AnalysisGlossary from '@/components/AnalysisGlossary';
 import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/lib/limits';
 import { computeRole } from '@/lib/hooks/useAuthUser';
@@ -23,7 +23,7 @@ import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligi
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper, ChevronRight, Radar, CheckCircle2, X, CircleDollarSign
+  Sparkles, Calculator, Newspaper, ChevronRight, Radar, CheckCircle2, X
 } from 'lucide-react';
 // jsPDF/jspdf-autotable TIDAK di-import statis di sini (optimasi loading 2026-08-05) -
 // keduanya cukup berat dan sebelumnya dibundel ke JS awal /dashboard (halaman paling
@@ -80,7 +80,6 @@ const signalBadgeTone = (signal: string | null | undefined) =>
   'bg-tv-hover text-tv-muted border-tv-border';
 
 function DashboardContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [ticker, setTickerState] = useState('DGWG.JK');
   const [loading, setLoading] = useState(false);
@@ -142,14 +141,6 @@ function DashboardContent() {
   const [aiModalData, setAiModalData] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  // Virtual Trading Modal State
-  const [tradeModalOpen, setTradeModalOpen] = useState(false);
-  const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
-  const [tradeLots, setTradeLots] = useState('10');
-  const [tradeNote, setTradeNote] = useState('Algo Signal');
-  const [tradeLoading, setTradeLoading] = useState(false);
-  const [portfolioData, setPortfolioData] = useState<any>(null);
 
   // Free-tier "analisa per hari" limit
   const [analisaRemaining, setAnalisaRemaining] = useState<number>(FREE_LIMITS.analisaPerHari);
@@ -336,21 +327,6 @@ function DashboardContent() {
         setTickerState(savedTicker);
       }
     }
-    
-    // Check if coming from portfolio SELL action
-    if (searchParams.get('action') === 'sell') {
-       setTradeType('SELL');
-       setTradeModalOpen(true);
-    }
-
-    // Fetch portfolio for cash balance
-    fetch('/api/portfolio', { signal: controller.signal })
-      .then(res => res.json())
-      .then(d => setPortfolioData(d))
-      .catch(e => {
-        if (!(e instanceof DOMException && e.name === 'AbortError')) console.error(e);
-      });
-
     return () => controller.abort();
   }, [searchParams]);
 
@@ -794,26 +770,6 @@ function DashboardContent() {
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
-          </button>
-          
-          <button 
-            onClick={() => router.push(`/compare?symbol1=${ticker}`)}
-            className="ml-auto flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07]"
-          >
-            Compare
-          </button>
-          
-          <button
-            onClick={() => { setTradeType('BUY'); setTradeModalOpen(true); }}
-            className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-3.5 py-2 font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]"
-          >
-            BUY Virtual
-          </button>
-          <button
-            onClick={() => { setTradeType('SELL'); setTradeModalOpen(true); }}
-            className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-3.5 py-2 font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white"
-          >
-            SELL Virtual
           </button>
         </div>
 
@@ -1341,121 +1297,6 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Virtual Trade Modal */}
-      {tradeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-tv-bg border-2 border-tv-border rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
-              <div className="flex items-center gap-2">
-                <CircleDollarSign className="h-5 w-5 text-tv-green" aria-hidden="true" />
-                <h3 className="font-heading text-tv-text font-bold">
-                  {tradeType} Virtual Trade
-                </h3>
-              </div>
-              <button
-                onClick={() => setTradeModalOpen(false)}
-                className="text-tv-muted hover:text-tv-text transition-colors"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-                <span className="sr-only">Tutup</span>
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-               <div>
-                 <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide">Symbol</label>
-                 <div className="font-bold text-tv-text font-number text-lg">{ticker}</div>
-               </div>
-
-               <div>
-                 <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide">Current Price</label>
-                 <div className="font-bold text-tv-text font-number text-lg">Rp {(stock?.current_price || 0).toLocaleString('id-ID')}</div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-1.5">
-                   <label className="text-xs text-tv-muted uppercase font-semibold tracking-wide">Lots (1 Lot = 100 lembar)</label>
-                   {tradeType === 'SELL' && (
-                     <span className="text-[10px] text-tv-green bg-tv-green/10 px-2 py-0.5 rounded border border-tv-green/20 font-number">
-                       Tersedia: {portfolioData?.holdings?.find((h: any) => h.symbol === ticker)?.lots || 0} Lot
-                     </span>
-                   )}
-                 </div>
-                 <Input
-                   type="number"
-                   value={tradeLots}
-                   onChange={e => setTradeLots(e.target.value)}
-                   className="font-number"
-                 />
-               </div>
-
-               <Select label="Trade Reason / Note" value={tradeNote} onChange={e => setTradeNote(e.target.value)}>
-                 <option value="Algo Signal">Algo Signal (Analyzer)</option>
-                 <option value="Breakout">Breakout MA/Resist</option>
-                 <option value="Manual / Feeling">Manual / Feeling</option>
-               </Select>
-
-               <div className="pt-4 border-t border-tv-border">
-                 <div className="flex justify-between items-center mb-1">
-                   <span className="text-xs text-tv-muted">Total Value:</span>
-                   <span className="font-bold text-tv-text font-number text-lg">Rp {((stock?.current_price || 0) * (parseInt(tradeLots)||0) * 100).toLocaleString('id-ID')}</span>
-                 </div>
-                 {portfolioData && (
-                   <div className="flex justify-between items-center">
-                     <span className="text-xs text-tv-muted">Sisa Cash (Virtual):</span>
-                     <span className="text-xs text-tv-muted font-number">Rp {portfolioData?.portfolio?.cash?.toLocaleString('id-ID')}</span>
-                   </div>
-                 )}
-               </div>
-            </div>
-
-            <div className="p-4 border-t border-tv-border bg-tv-card flex justify-end gap-3">
-              <button
-                onClick={() => setTradeModalOpen(false)}
-                className="px-4 py-2 text-sm text-tv-muted hover:text-tv-text transition-colors"
-                disabled={tradeLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setTradeLoading(true);
-                  try {
-                    const price = stock?.current_price || 0;
-                    const res = await fetch(`/api/portfolio/${tradeType.toLowerCase()}`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        symbol: ticker,
-                        price,
-                        lots: parseInt(tradeLots),
-                        note: tradeNote
-                      })
-                    });
-                    const json = await res.json();
-                    if (json.error) {
-                      showToast(json.error, 'error');
-                    } else {
-                      showToast(`Berhasil ${tradeType} ${tradeLots} lot ${ticker}!`, 'success');
-                      window.setTimeout(() => router.push('/portfolio'), 650);
-                    }
-                  } catch(e) {
-                    showToast('Transaksi virtual gagal diproses. Coba lagi.', 'error');
-                  }
-                  setTradeLoading(false);
-                }}
-                disabled={tradeLoading}
-                className={`px-6 py-2 text-sm font-bold rounded-md transition-colors text-white ${
-                  tradeType === 'BUY' ? 'bg-tv-green hover:bg-tv-greenHover' : 'bg-tv-red hover:bg-tv-redHover'
-                }`}
-              >
-                {tradeLoading ? 'Processing...' : `Confirm ${tradeType}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
       <Toast message={toastMessage} variant={toastVariant} />
 
       <StockNewsModal
@@ -1502,5 +1343,3 @@ export default function Dashboard() {
     </Suspense>
   );
 }
-
-
