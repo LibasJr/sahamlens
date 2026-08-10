@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const roa = data?.financialData?.returnOnAssets;
-  if (roa === undefined) return { label: 'Return on Assets', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof roa !== 'number' || !Number.isFinite(roa)) return { label: 'Return on Assets', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   const roaPct = roa * 100;
   let decision = 'NEUTRAL';

@@ -1,6 +1,6 @@
 export function analyze(data: any) {
   const der = data?.financialData?.debtToEquity;
-  if (der === undefined) return { label: 'Debt to Equity', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (typeof der !== 'number' || !Number.isFinite(der)) return { label: 'Debt to Equity', value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
 
   let decision = 'NEUTRAL';
   let confidence = 50;
