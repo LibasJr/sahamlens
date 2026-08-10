@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import BrokerSummaryUploadClient from './BrokerSummaryUploadClient';
+import BrokerSummaryBatchUploadClient from './BrokerSummaryBatchUploadClient';
 
 export default async function BrokerSummaryPage() {
   if (!(await isAdminServer())) {
@@ -27,6 +28,7 @@ export default async function BrokerSummaryPage() {
           </p>
         </div>
         <BrokerSummaryUploadClient />
+        <BrokerSummaryBatchUploadClient />
       </div>
     </div>
   );
