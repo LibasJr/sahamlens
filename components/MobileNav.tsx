@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Radar, LineChart, Menu, Filter } from 'lucide-react';
+import { Home, Activity, Radar, LineChart, Menu, Sparkles } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
 const PUBLIC_ITEMS = [
@@ -12,7 +12,7 @@ const PUBLIC_ITEMS = [
   { label: 'Radar', href: '/breakout-radar', icon: Radar, matches: ['/breakout-radar', '/recommendations'] },
 ];
 
-const GUEST_PRIMARY_ITEM = { label: 'Scanner', href: '/screener', icon: Filter, matches: ['/screener'] };
+const GUEST_PRIMARY_ITEM = { label: 'LensAI', href: '/technical/BBCA.JK', icon: Sparkles, matches: ['/technical/'] };
 const MEMBER_PRIMARY_ITEM = { label: 'Analyze', href: '/dashboard', icon: LineChart, matches: ['/dashboard', '/fundamental', '/technical/', '/dcf', '/compare'] };
 
 export default function MobileNav() {

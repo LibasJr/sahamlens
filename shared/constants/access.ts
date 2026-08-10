@@ -6,7 +6,8 @@
 // ATURAN (keputusan produk 2026-08-06, menggantikan aturan 2026-08-01 "semua
 // halaman analisis boleh dibuka tanpa login"): pengunjung tanpa login boleh mengakses seluruh grup Discover (Beranda, LensMarket,
 // Transparansi, LensRadar, LensScanner) serta menu publik lain yang memang ditandai guest.
-// Grup Analyze dan LensAI tetap membutuhkan login. Sisanya
+// LensAI/Technical boleh dibuka guest untuk chart + Ask AI terbatas; ringkasan Pro tetap
+// digerbang di API/server component. Grup Analyze lain tetap membutuhkan login. Sisanya
 // redirect ke /login. Gerbang di level API (checkProAccess/checkProAccessLive)
 // TETAP ada dan tidak digantikan oleh file ini - ini lapisan navigasi, bukan
 // pengganti otorisasi data.
@@ -15,7 +16,6 @@ export const PROTECTED_PAGES = [
   '/fundamental',
   '/compare',
   '/backtest',
-  '/technical',
   '/portfolio',
   '/watchlist',
   '/risk-calculator',

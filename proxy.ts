@@ -51,6 +51,49 @@ function getClientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') || 'unknown';
 }
 
+function isPublicGuestApi(pathname: string): boolean {
+  return (
+    pathname === '/api/market-pulse' ||
+    pathname === '/api/breakout-radar' ||
+    pathname === '/api/calendar' ||
+    pathname === '/api/news' ||
+    pathname.startsWith('/api/news/') ||
+    pathname === '/api/screener' ||
+    pathname === '/api/ai-pick' ||
+    pathname === '/api/daily-picks' ||
+    pathname === '/api/market-summary' ||
+    pathname === '/api/emiten' ||
+    pathname.startsWith('/api/public-chart/')
+  );
+}
+
+function hasOwnGuestLimiterApi(pathname: string): boolean {
+  return (
+    pathname === '/api/chat' ||
+    pathname === '/api/council' ||
+    pathname.startsWith('/api/agents/orchestrator')
+  );
+}
+
+function isPublicGuestPage(pathname: string): boolean {
+  return (
+    pathname === '/home' ||
+    pathname.startsWith('/home/') ||
+    pathname === '/market-pulse' ||
+    pathname.startsWith('/market-pulse/') ||
+    pathname === '/calendar' ||
+    pathname.startsWith('/calendar/') ||
+    pathname === '/breakout-radar' ||
+    pathname.startsWith('/breakout-radar/') ||
+    pathname === '/screener' ||
+    pathname.startsWith('/screener/') ||
+    pathname === '/transparency' ||
+    pathname.startsWith('/transparency/') ||
+    pathname === '/technical' ||
+    pathname.startsWith('/technical/')
+  );
+}
+
 export async function proxy(req: NextRequest) {
   const sessionCookie = req.cookies.get(SESSION_COOKIE)?.value;
   const decrypted = sessionCookie ? await decrypt(sessionCookie) : null;
@@ -95,6 +138,18 @@ export async function proxy(req: NextRequest) {
     loginUrl.searchParams.set('next', req.nextUrl.pathname);
     loginUrl.searchParams.set('notice', 'login_required');
     return NextResponse.redirect(loginUrl);
+  }
+
+  // API/halaman publik untuk guest tidak boleh ikut limiter umum berbasis IP harian.
+  // Kalau tidak, satu Wi-Fi/CGNAT bisa membuat LensMarket/LensRadar/Ask LensAI kosong
+  // untuk semua guest. Endpoint mahal yang dibuka untuk guest tetap punya limiter
+  // server-side sendiri (mis. compute budget /api/chat, /api/council, orchestrator).
+  if (
+    isPublicGuestPage(req.nextUrl.pathname) ||
+    isPublicGuestApi(req.nextUrl.pathname) ||
+    hasOwnGuestLimiterApi(req.nextUrl.pathname)
+  ) {
+    return NextResponse.next();
   }
 
   let isAdminOrTrial = false;
