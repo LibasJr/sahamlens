@@ -106,7 +106,7 @@ export default async function AdminPage() {
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">Broker Summary</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Import broker summary harian melalui upload/paste CSV, validasi Dry Run, lalu simpan data broker flow.
+              Pantau sinkronisasi otomatis, cari ticker, lihat top broker, atau jalankan import manual cadangan.
             </p>
           </div>
         </Link>

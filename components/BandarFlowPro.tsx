@@ -181,8 +181,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
         </div>
 
-        {/* Ringkasan 20 Hari - pengganti panel broker (dihapus, tidak ada sumber data
-            broker gratis) - dua angka nyata dari histori harga/volume yang sama. */}
+        {/* Ringkasan 20 Hari berbasis CMF dari histori harga dan volume. */}
         <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
           <h4 className="text-sm font-bold text-white font-heading mb-4">Ringkasan 20 Hari</h4>
 
@@ -228,7 +227,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
 
           <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
-            Dihitung dari Chaikin Money Flow (posisi close di range High-Low harian, Yahoo Finance) - proxy tekanan beli/jual pasar, BUKAN data broker/asing resmi (IDX tidak menyediakan feed broker gratis).
+            Data hanya berasal dari Chaikin Money Flow (CMF).
           </div>
         </div>
       </div>
