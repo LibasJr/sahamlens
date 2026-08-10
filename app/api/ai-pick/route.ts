@@ -2,42 +2,21 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccessLive } from '@/modules/user';
-import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
-// TIDAK ADA fallback scan di sini - itu inti perubahannya. Kalau cache belum terisi,
-// jawab apa adanya supaya UI bisa bilang "data sedang disiapkan", bukan diam-diam
-// menembak Yahoo ratusan kali di dalam request seorang pengguna.
-export async function GET(request: Request) {
+// Public-read karena LensRadar ada di menu guest. TIDAK ADA fallback scan di sini: kalau
+// cache belum terisi, jawab apa adanya supaya UI bisa bilang "data sedang disiapkan",
+// bukan diam-diam menembak Yahoo ratusan kali di dalam request seorang pengguna.
+export async function GET() {
   try {
-    const isInternal = isInternalServiceRequest(request);
-    const session = isInternal ? null : await getSession();
-
-    let anonTrial: AnonTrialState | null = null;
-    if (!isInternal && !session) {
-      anonTrial = await readOrIssueAnonymousTrial();
-      if (!anonTrial.active) {
-        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-      }
-    }
-
-    const hasPro = isInternal || anonTrial?.active === true || (await checkProAccessLive(session));
-    if (!hasPro) {
-      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
-    }
-
     const scoreData = await readAiPickScores();
     if (!scoreData) {
-      const notReady = NextResponse.json({ ready: false, items: [], computedAt: null, note: null });
-      if (anonTrial) await applyAnonymousTrialCookie(notReady, anonTrial);
-      return notReady;
+      return NextResponse.json({ ready: false, items: [], computedAt: null, note: null });
     }
 
     const cachedBreakout = await cacheGet<any>(BREAKOUT_CACHE_KEY);
@@ -75,7 +54,7 @@ export async function GET(request: Request) {
     const scanned = scoreData.scores.length;
     const legacyCacheShape = scanned > 0 && scoreData.scores.every((s) => s.eligibilityStatus == null);
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       ready: true,
       items,
       computedAt: scoreData.computedAt,
@@ -93,8 +72,6 @@ export async function GET(request: Request) {
           ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'
           : null,
     });
-    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
-    return response;
   } catch (error) {
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }
