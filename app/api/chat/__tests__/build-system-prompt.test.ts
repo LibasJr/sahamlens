@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSystemPrompt } from '../route';
+import { buildSystemPrompt } from '../build-system-prompt';
 
 // BUG FIX (2026-08-05, laporan user): tanya soal saham spesifik sambil context halaman
 // masih bilang "sedang melihat INDEKS IHSG" bikin jawaban nyasar bahas IHSG, karena rule
