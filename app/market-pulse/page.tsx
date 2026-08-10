@@ -323,7 +323,9 @@ export default function MarketPulse() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 120000); // 2 min refresh
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchData();
+    }, 120000); // 2 min refresh; pause saat tab tidak terlihat
     return () => {
       clearInterval(interval);
       fetchAbortRef.current?.abort();

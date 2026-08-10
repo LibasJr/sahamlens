@@ -3,8 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --background: #0B0F19;
-  --foreground: #F1F5F9;
+  --lens-bg: 7 11 18;
+  --lens-surface: 10 17 29;
+  --lens-card: 15 23 36;
+  --lens-card-alt: 19 29 46;
+  --lens-hover: 23 35 56;
+  --lens-border: 26 41 64;
+  --lens-border-light: 42 62 93;
+  --lens-text: 245 247 251;
+  --lens-muted: 142 160 184;
+  --background: rgb(var(--lens-bg));
+  --foreground: rgb(var(--lens-text));
+}
+
+html.light {
+  --lens-bg: 244 247 251;
+  --lens-surface: 255 255 255;
+  --lens-card: 255 255 255;
+  --lens-card-alt: 247 249 252;
+  --lens-hover: 235 241 248;
+  --lens-border: 210 220 232;
+  --lens-border-light: 174 190 210;
+  --lens-text: 20 31 48;
+  --lens-muted: 79 96 120;
 }
 
 body {
@@ -18,18 +39,18 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F19;
+  background: rgb(var(--lens-bg));
   /* tv-bg */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
+  background: rgb(var(--lens-border));
   /* tv-border */
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2B3A55;
+  background: rgb(var(--lens-border-light));
   /* tv-borderLight */
 }
 
@@ -229,14 +250,16 @@ h3 {
 
 /* ===== SahamLens UI/UX V2 — Hybrid Fintech Analytics ===== */
 html {
-  background: #070B12;
+  background: rgb(var(--lens-bg));
 }
 
 body {
   background:
     radial-gradient(circle at 80% -10%, rgba(79, 140, 255, 0.09), transparent 28rem),
     radial-gradient(circle at 10% 110%, rgba(139, 124, 255, 0.06), transparent 34rem),
-    #070B12;
+    rgb(var(--lens-bg));
+  color: rgb(var(--lens-text));
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 .lens-app-shell {
@@ -245,6 +268,16 @@ body {
 
 .lens-main {
   background: linear-gradient(180deg, rgba(10, 17, 29, 0.22), rgba(7, 11, 18, 0.9));
+}
+
+.light .lens-main {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(244, 247, 251, 0.94));
+}
+
+.light .lens-ambient-bg {
+  background:
+    radial-gradient(circle at 78% 8%, rgba(79, 140, 255, 0.08), transparent 30rem),
+    radial-gradient(circle at 38% 105%, rgba(139, 124, 255, 0.06), transparent 34rem);
 }
 
 .lens-ambient-bg {
@@ -260,7 +293,92 @@ body {
 }
 
 .border-tv-border {
-  border-color: rgba(120, 148, 184, 0.16);
+  border-color: rgb(var(--lens-border) / 0.9);
+}
+
+/* Compatibility layer for legacy dark-only utility classes. New UI should use
+   tv-* semantic tokens; these rules keep older screens readable in light mode. */
+.light .text-white { color: rgb(var(--lens-text)) !important; }
+.light .text-white\/80 { color: rgb(var(--lens-text) / .8) !important; }
+.light .text-white\/65,
+.light .text-white\/60 { color: rgb(var(--lens-text) / .68) !important; }
+.light .text-white\/50,
+.light .text-white\/45,
+.light .text-white\/40,
+.light .text-white\/35,
+.light .text-white\/30,
+.light .text-white\/25 { color: rgb(var(--lens-muted)) !important; }
+.light .bg-black\/10,
+.light .bg-black\/15,
+.light .bg-black\/20 { background-color: rgb(229 236 245 / .72) !important; }
+.light .bg-white\/5,
+.light .bg-white\/10,
+.light .bg-white\/\[0\.025\],
+.light .bg-white\/\[0\.035\],
+.light .bg-white\/\[0\.045\] { background-color: rgb(15 23 42 / .035) !important; }
+.light .bg-\[\#090E18\]\/98,
+.light .bg-\[\#0A101B\]\/95,
+.light .bg-\[\#080D16\]\/88,
+.light .bg-\[\#111A29\] { background-color: rgb(var(--lens-surface) / .98) !important; }
+
+/* Landing/auth pages do not render TopMarketBar, so their theme control floats. */
+body > .lens-theme-toggle,
+body > div > .lens-theme-toggle {
+  position: fixed;
+  right: 1rem;
+  top: 1rem;
+  z-index: 120;
+}
+.light .border-white\/10,
+.light .border-white\/15,
+.light .border-white\/\[0\.06\],
+.light .border-white\/\[0\.07\],
+.light .border-white\/\[0\.075\],
+.light .border-white\/\[0\.08\],
+.light .border-white\/\[0\.09\] { border-color: rgb(var(--lens-border) / .92) !important; }
+.light .bg-white\/30 { background-color: rgb(var(--lens-muted) / .55) !important; }
+.light .shadow-1 { box-shadow: 0 12px 34px -24px rgba(35, 52, 77, .3); }
+.light .shadow-2 { box-shadow: 0 20px 54px -30px rgba(35, 52, 77, .35); }
+.light .ai-response { color: #24364f; }
+.light .ai-response h1,
+.light .ai-response h2,
+.light .ai-response strong,
+.light .ai-response b { color: #142033; }
+.light .ai-response h3,
+.light .ai-response em,
+.light .ai-response i { color: #285b9d; }
+.light .ai-response pre { background: #eef3f9; border-color: #d2dce8; }
+.light .ai-response blockquote { color: #28476d; background: rgba(58, 134, 255, .08); }
+.light .ai-response td,
+.light .ai-response th { border-color: #d2dce8; }
+
+.lens-theme-toggle { -webkit-tap-highlight-color: transparent; }
+
+/* Keep route changes responsive: GPU-friendly opacity/transform only. */
+.lens-main > div,
+.lens-main > div > div {
+  min-width: 0;
+}
+
+/* Battery/data saver: decorative infinite motion stops when the tab is hidden
+   or Android Data Saver is active. Loading spinners remain functional. */
+.lens-page-hidden .animate-pulse,
+.lens-page-hidden .animate-ping,
+.lens-page-hidden .sahamlens-ticker-track,
+.lens-page-hidden .sahamlens-signal-track,
+.lens-save-data .animate-pulse,
+.lens-save-data .animate-ping,
+.lens-save-data .sahamlens-ticker-track,
+.lens-save-data .sahamlens-signal-track {
+  animation-play-state: paused !important;
+}
+
+@media (max-width: 767px) {
+  /* Ping paints continuously and is purely decorative; a static status dot is
+     clearer and cheaper on mobile. */
+  .lens-energy-mobile .animate-ping {
+    animation: none !important;
+  }
 }
 
 .shadow-1 {
@@ -313,6 +431,24 @@ textarea {
 }
 
 @media (max-width: 767px) {
+  html { font-size: 16px; }
+
+  .lens-main :where(p, li, label, input, select, textarea) {
+    line-height: 1.55;
+  }
+
+  .lens-main :where(button, a) {
+    touch-action: manipulation;
+  }
+
+  .lens-main :where(.text-\[10px\], .text-\[11px\]) {
+    font-size: 0.75rem;
+  }
+
+  .lens-main :where(.text-xs) {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
   .lens-main {
     padding-bottom: 0;
     scroll-padding-bottom: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);

@@ -354,7 +354,7 @@ function DashboardContent() {
     const interval = setInterval(() => {
       const closed = !isMarketOpen(new Date());
       setMarketClosed(closed);
-      if (!closed) {
+      if (!document.hidden && !closed) {
         fetchAnalyzerData(ticker);
       }
     }, 60000);
@@ -1470,7 +1470,6 @@ export default function Dashboard() {
     </Suspense>
   );
 }
-
 
 
 

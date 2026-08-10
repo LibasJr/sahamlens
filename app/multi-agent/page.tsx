@@ -91,7 +91,7 @@ export default function MultiAgentPage() {
     // Auto polling every 1 minute
     const interval = setInterval(() => {
       const isOpen = checkMarketStatus();
-      if (isOpen) {
+      if (!document.hidden && isOpen) {
         fetchData(ticker);
       }
     }, 60000); // 1 minute

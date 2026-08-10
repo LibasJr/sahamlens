@@ -8,6 +8,7 @@ import { Bell, Clock3, Menu, User as UserIcon } from 'lucide-react';
 import { isMarketOpen } from '@/lib/utils/market';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
+import ThemeToggle from './ThemeToggle';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
@@ -21,7 +22,9 @@ export default function TopMarketBar() {
 
   useEffect(() => {
     setNow(new Date());
-    const timer = setInterval(() => setNow(new Date()), 30000);
+    const timer = setInterval(() => {
+      if (!document.hidden) setNow(new Date());
+    }, 30000);
     return () => clearInterval(timer);
   }, []);
 
@@ -87,6 +90,8 @@ export default function TopMarketBar() {
         <div className="hidden items-center gap-1.5 px-2 text-[10px] font-medium text-tv-muted xl:flex">
           <Clock3 className="h-3.5 w-3.5" /> {jakartaTime}
         </div>
+
+        <ThemeToggle />
 
         <TrialCountdown daysLeft={trialDaysLeft} />
 
