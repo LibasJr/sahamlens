@@ -53,7 +53,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
       {ind && (
         <div className="flex justify-end">
           <span
-            className={`rounded-full border px-2.5 py-1 text-[10px] font-bold font-sans ${
+            className={`rounded-full border px-2.5 py-1 text-[12px] font-bold sm:text-[10px] font-sans ${
               finalSignal === 'BUY'
                 ? 'bg-tv-green/10 border-tv-green/30 text-tv-green'
                 : finalSignal === 'SELL'
@@ -91,7 +91,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
 
       <div className="flex items-start gap-2 rounded-lg bg-tv-hover border border-tv-border p-3">
         <Sparkles className="w-4 h-4 text-tv-blue shrink-0 mt-0.5" />
-        <p className="text-[12px] leading-[1.5] text-tv-muted">
+        <p className="text-sm leading-relaxed text-tv-muted sm:text-[12px] sm:leading-[1.5]">
           {council ? council.summary : ind ? 'Menghitung ringkasan LensAI...' : 'Memuat data teknikal...'}
         </p>
       </div>

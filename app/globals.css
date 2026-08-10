@@ -8,7 +8,7 @@
 }
 
 body {
-  overflow-x: hidden;
+  min-width: 0;
 }
 
 /* Custom Scrollbar for TradingView feel */
@@ -433,8 +433,9 @@ textarea {
 }
 
 /* SahamLens — Mobile Accessibility / Senior Friendly
-   Tempelkan isi file ini di PALING BAWAH app/globals.css.
-   Hanya berlaku di layar <= 768px. Desktop tidak berubah. */
+   Global rule dibuat tipis: body nyaman dibaca, touch target cukup, lalu komponen
+   penting memakai responsive utility lokal. Jangan override semua `.text-xs/.text-sm`
+   karena badge, tabel, chart, dan nav butuh ukuran compact yang berbeda. */
 
 @media (max-width: 768px) {
   html {
@@ -447,37 +448,33 @@ textarea {
     line-height: 1.6;
   }
 
-  .text-xs {
-    font-size: 0.875rem !important;
-    line-height: 1.35rem !important;
+  .lens-page-title {
+    font-size: 1.45rem;
+    line-height: 1.25;
   }
 
-  .text-sm {
-    font-size: 1rem !important;
-    line-height: 1.5rem !important;
-  }
-
-  .text-\[9px\],
-  .text-\[10px\],
-  .text-\[11px\],
-  .text-\[12px\] {
-    font-size: 0.875rem !important;
-    line-height: 1.35rem !important;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-    line-height: 1.9rem;
-  }
-
-  h2 {
-    font-size: 1.25rem;
-    line-height: 1.65rem;
-  }
-
-  h3 {
+  .lens-section-title {
     font-size: 1.125rem;
-    line-height: 1.55rem;
+    line-height: 1.35;
+  }
+
+  .lens-eyebrow {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    letter-spacing: 0.1em;
+  }
+
+  .ai-response {
+    font-size: 0.9375rem;
+    line-height: 1.75;
+  }
+
+  .ai-response h1 { font-size: 1.375rem; }
+  .ai-response h2 { font-size: 1.1875rem; }
+  .ai-response h3 { font-size: 1.0625rem; }
+  .ai-response code,
+  .ai-response table {
+    font-size: 0.875rem;
   }
 
   button,
@@ -485,14 +482,6 @@ textarea {
   select,
   textarea {
     min-height: 44px;
-  }
-
-  button,
-  a,
-  input,
-  select,
-  textarea {
-    font-size: 16px;
   }
 
   table th,

@@ -60,7 +60,7 @@ export default function MobileNav() {
 
   return (
     <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 font-sans md:hidden" aria-label="Navigasi utama mobile">
-      <div className="grid grid-cols-5 items-center rounded-[22px] border border-white/10 bg-[#0A101B]/95 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+      <div className="grid grid-cols-5 items-stretch rounded-[22px] border border-white/10 bg-[#0A101B]/95 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.55)] backdrop-blur-xl">
         {items.map((item) => {
           const active = item.matches.some((match) => match.endsWith('/') ? pathname.startsWith(match) : pathname === match || pathname.startsWith(`${match}/`));
           const Icon = item.icon;
@@ -68,11 +68,11 @@ export default function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-semibold transition-colors ${
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-xs font-semibold leading-tight transition-colors ${
                 active ? 'bg-tv-blue/15 text-white' : 'text-tv-muted hover:bg-white/5 hover:text-white'
               }`}
             >
-              <Icon className={`h-[18px] w-[18px] ${active ? 'text-tv-blue' : ''}`} />
+              <Icon className={`h-5 w-5 ${active ? 'text-tv-blue' : ''}`} />
               <span>{item.label}</span>
             </Link>
           );
@@ -80,9 +80,9 @@ export default function MobileNav() {
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-semibold text-tv-muted transition-colors hover:bg-white/5 hover:text-white"
+          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/5 hover:text-white"
         >
-          <Menu className="h-[18px] w-[18px]" />
+          <Menu className="h-5 w-5" />
           <span>Menu</span>
         </button>
       </div>

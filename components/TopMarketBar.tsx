@@ -52,17 +52,17 @@ export default function TopMarketBar() {
         type="button"
         onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
         aria-label="Buka menu"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-tv-muted transition-colors hover:bg-white/[0.05] hover:text-white md:hidden"
+        className="flex h-11 w-11 shrink-0 items-center justify-center md:h-9 md:w-9 rounded-xl text-tv-muted transition-colors hover:bg-white/[0.05] hover:text-white md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 md:px-3">
-        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-tv-muted">IHSG</span>
+      <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.025] min-h-11 px-2.5 py-1.5 md:min-h-0 md:px-3">
+        <span className="text-xs font-bold uppercase tracking-[0.14em] text-tv-muted md:text-[10px] md:tracking-[0.16em]">IHSG</span>
         {ihsg ? (
           <>
             <span className="hidden font-number text-xs font-bold text-white sm:inline">{ihsg.price.toLocaleString('id-ID')}</span>
-            <span className={`font-number text-[11px] font-bold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+            <span className={`font-number text-xs font-bold md:text-[11px] ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
               {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%
             </span>
           </>
@@ -117,7 +117,7 @@ export default function TopMarketBar() {
             <span className="hidden max-w-[90px] truncate text-[10px] font-semibold text-white/80 2xl:block">{user.email?.split('@')[0]}</span>
           </button>
         ) : (
-          <Link href="/login" className="rounded-xl bg-tv-blue px-3 py-2 text-[11px] font-bold text-white shadow-[0_8px_24px_rgba(79,140,255,0.18)] transition hover:bg-tv-blueHover">
+          <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-tv-blue px-3 py-2 text-sm font-bold md:min-h-0 md:text-[11px] text-white shadow-[0_8px_24px_rgba(79,140,255,0.18)] transition hover:bg-tv-blueHover">
             Masuk
           </Link>
         )}
