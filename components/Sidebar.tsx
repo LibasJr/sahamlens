@@ -65,7 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Utama',
     items: [
       { id: 'home', name: 'Beranda', subtitle: 'Snapshot market & akun', path: '/home', icon: LayoutDashboard, guest: true },
-      { id: 'market-pulse', name: 'LensMarket', subtitle: 'IHSG, sector & breadth', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
+      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Regime, IHSG & breadth', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
       { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Opportunity scanner', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
       { id: 'lensai', name: 'LensAI', subtitle: 'Copilot analisis saham', path: '/technical/BBCA.JK', icon: Sparkles, guest: true, accent: 'purple' },
     ],

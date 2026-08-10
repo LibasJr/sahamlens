@@ -1,4 +1,8 @@
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
+import {
+  computeQuantitativeMarketRegime,
+  type RegimeDailyBar,
+} from './market-regime.service';
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-pulse/route.ts, verbatim.
 // IDX Indices
 //
@@ -139,6 +143,41 @@ async function fetchQuoteSimple(symbol: string) {
   }
 }
 
+async function fetchDailyHistory(symbol: string): Promise<RegimeDailyBar[]> {
+  try {
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbol + '?range=1y&interval=1d';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      next: { revalidate: getMarketAwareTtlSec() },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const result = json.chart?.result?.[0];
+    const timestamps: unknown[] = result?.timestamp ?? [];
+    const closes: unknown[] = result?.indicators?.quote?.[0]?.close ?? [];
+    return timestamps.flatMap((timestamp, index) => {
+      const close = closes[index];
+      if (
+        typeof timestamp !== 'number' ||
+        !Number.isFinite(timestamp) ||
+        typeof close !== 'number' ||
+        !Number.isFinite(close) ||
+        close <= 0
+      ) return [];
+      return [{
+        date: new Date(timestamp * 1000).toISOString().slice(0, 10),
+        close,
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
+
 // Coba tiap simbol berurutan, pakai quote PERTAMA yang benar-benar punya harga (> 0).
 // Sebelumnya ini ditulis sebagai `await fetchYahooQuote(a) || await fetchYahooQuote(b)` -
 // operator || gagal karena Yahoo sering mengembalikan OBJEK truthy dengan price: 0 untuk
@@ -154,6 +193,9 @@ async function tryFetchQuote(...symbols: string[]) {
 }
 
 export async function getMarketPulse() {
+  // Histori dimulai bersama fetch indeks agar tidak menambah waterfall request.
+  const ihsgHistoryPromise = fetchDailyHistory('^JKSE');
+
   // 1. Fetch indices with sparkline
   const indicesData = await Promise.all(
     IDX_INDICES.map(async (idx) => {
@@ -249,9 +291,30 @@ export async function getMarketPulse() {
   const advancing = breadthQuotes.filter(s => s.changePct > 0.1).length;
   const declining = breadthQuotes.filter(s => s.changePct < -0.1).length;
   const unchanged = breadthQuotes.length - advancing - declining;
+  const ihsgHistory = await ihsgHistoryPromise;
+  const marketRegime = computeQuantitativeMarketRegime({
+    asOf: new Date().toISOString(),
+    ihsgHistory,
+    breadth: {
+      total: breadthQuotes.length,
+      expectedTotal: BREADTH_STOCKS.length,
+      advancing,
+      declining,
+      unchanged,
+    },
+    indices: indicesData.map((index) => ({
+      name: index.name,
+      changePct: index.changePct,
+    })),
+    sectors: sectorHeatmap.map((sector) => ({
+      sector: sector.sector,
+      changePct: sector.changePct,
+    })),
+  });
 
   return {
     timestamp: new Date().toISOString(),
+    marketRegime,
     indices: indicesData,
     sectorHeatmap: sectorHeatmap.sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0)),
     breadth: {

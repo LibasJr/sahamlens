@@ -11,7 +11,7 @@ import { cacheGet } from '@/shared/cache/redis-cache';
 // /market-pulse adalah menu guest, jadi tidak boleh kosong hanya karena anonymous trial
 // lama sudah kedaluwarsa. Data yang dikembalikan adalah ringkasan pasar/cache publik,
 // bukan data akun atau otorisasi user.
-const CACHE_KEY = 'sahamlens:cache:computed:market-pulse';
+const CACHE_KEY = 'sahamlens:cache:computed:market-pulse:v2';
 
 export async function GET() {
   try {

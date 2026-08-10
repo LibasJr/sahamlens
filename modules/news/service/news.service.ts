@@ -1,5 +1,10 @@
 import Parser from 'rss-parser';
 import { generateAI } from '@/lib/aiProviders';
+import {
+  classifyEventByRules,
+  type StructuredEventIntelligence,
+} from './structured-event-intelligence.service';
+import { classifyStructuredWithCouncilAI } from './news-intelligence-ai.service';
 
 // Berita & Sentimen Pasar - sebelumnya cuma placeholder "Segera hadir" di app/home,
 // tidak ada backend sama sekali. Sumber berita: RSS publik gratis (bukan API
@@ -43,6 +48,7 @@ export type NewsItem = {
   pubDate: string;
   sentiment: Sentiment;
   reason: string;
+  intelligence: StructuredEventIntelligence;
 };
 
 async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
@@ -123,7 +129,12 @@ Balas HANYA dalam format JSON array, urut sesuai nomor, tanpa teks lain:
   }
 }
 
-export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSource: 'council-ai' | 'keyword-fallback' }> {
+export async function getMarketNews(): Promise<{
+  items: NewsItem[];
+  sentimentSource: 'council-ai' | 'keyword-fallback';
+  intelligenceSource: 'council-ai' | 'rule-fallback';
+  intelligenceBasis: 'headline-only';
+}> {
   // limit 30 (bukan default 15) - filter isMarketRelevant() di bawah cukup ketat
   // (istilah pasar saham spesifik), jadi dari 15 judul/sumber sering cuma segelintir
   // yang lolos (diverifikasi live: 10 sumber x 15 = ~150 mentah -> cuma 8 lolos filter,
@@ -156,15 +167,19 @@ export async function getMarketNews(): Promise<{ items: NewsItem[]; sentimentSou
   pool.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
   const top = pool.slice(0, 40);
 
-  const aiSentiments = await classifyWithCouncilAI(top.map((t) => t.title));
-  const sentimentSource: 'council-ai' | 'keyword-fallback' = aiSentiments ? 'council-ai' : 'keyword-fallback';
+  const aiClassifications = await classifyStructuredWithCouncilAI(top.map((t) => t.title));
+  const sentimentSource: 'council-ai' | 'keyword-fallback' = aiClassifications ? 'council-ai' : 'keyword-fallback';
+  const intelligenceSource: 'council-ai' | 'rule-fallback' = aiClassifications ? 'council-ai' : 'rule-fallback';
 
   const items: NewsItem[] = top.map((item, i) => {
-    const s = aiSentiments ? aiSentiments[i] : keywordSentiment(item.title);
-    return { ...item, sentiment: s.sentiment, reason: s.reason };
+    const sentiment = aiClassifications ? aiClassifications[i] : keywordSentiment(item.title);
+    const intelligence = aiClassifications
+      ? aiClassifications[i].intelligence
+      : classifyEventByRules(item.title);
+    return { ...item, sentiment: sentiment.sentiment, reason: sentiment.reason, intelligence };
   });
 
-  return { items, sentimentSource };
+  return { items, sentimentSource, intelligenceSource, intelligenceBasis: 'headline-only' };
 }
 
 // `sentiment: null` = saham TIDAK disebut media dalam siklus data ini (tidak ada
@@ -284,7 +299,12 @@ export async function getBatchStockSentiment(
 // Jadi sumbernya tetap RSS_FEEDS yang sama, difilter berdasarkan penyebutan kode
 // ticker/nama perusahaan di judul. Konsekuensinya: cakupan tipis untuk emiten yang
 // jarang diberitakan - itu jujur lebih baik daripada menampilkan berita tidak terkait.
-export async function getStockNews(symbol: string, companyName?: string): Promise<{ items: NewsItem[]; sentimentSource: 'council-ai' | 'keyword-fallback' }> {
+export async function getStockNews(symbol: string, companyName?: string): Promise<{
+  items: NewsItem[];
+  sentimentSource: 'council-ai' | 'keyword-fallback';
+  intelligenceSource: 'council-ai' | 'rule-fallback';
+  intelligenceBasis: 'headline-only';
+}> {
   const results = await Promise.all(RSS_FEEDS.map((f) => fetchFeed(f, 40)));
   const merged = results.flat();
 
@@ -302,13 +322,17 @@ export async function getStockNews(symbol: string, companyName?: string): Promis
   deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
   const top = deduped.slice(0, 8);
 
-  const aiSentiments = await classifyWithCouncilAI(top.map((t) => t.title));
-  const sentimentSource: 'council-ai' | 'keyword-fallback' = aiSentiments ? 'council-ai' : 'keyword-fallback';
+  const aiClassifications = await classifyStructuredWithCouncilAI(top.map((t) => t.title));
+  const sentimentSource: 'council-ai' | 'keyword-fallback' = aiClassifications ? 'council-ai' : 'keyword-fallback';
+  const intelligenceSource: 'council-ai' | 'rule-fallback' = aiClassifications ? 'council-ai' : 'rule-fallback';
 
   const items: NewsItem[] = top.map((item, i) => {
-    const s = aiSentiments ? aiSentiments[i] : keywordSentiment(item.title);
-    return { ...item, sentiment: s.sentiment, reason: s.reason };
+    const sentiment = aiClassifications ? aiClassifications[i] : keywordSentiment(item.title);
+    const intelligence = aiClassifications
+      ? aiClassifications[i].intelligence
+      : classifyEventByRules(item.title);
+    return { ...item, sentiment: sentiment.sentiment, reason: sentiment.reason, intelligence };
   });
 
-  return { items, sentimentSource };
+  return { items, sentimentSource, intelligenceSource, intelligenceBasis: 'headline-only' };
 }

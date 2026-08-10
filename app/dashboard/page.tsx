@@ -8,8 +8,8 @@ import Header from '@/components/Header';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
-import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
+import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Input, Select, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
@@ -19,7 +19,7 @@ import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
-import { getDecisionPresentation } from '@/modules/eligibility';
+import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
@@ -90,7 +90,7 @@ function DashboardContent() {
   const [marketClosed, setMarketClosed] = useState(false);
   const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(true);
-  const [viewMode, setViewMode] = useState<'compact' | 'full'>('full');
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   // Timeframe chart terpisah dari /api/stock (yang selalu histori 1 tahun untuk
   // kebutuhan 10 analyzer/scoring) - sama seperti dashboard publik & halaman
@@ -100,7 +100,7 @@ function DashboardContent() {
   const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem('sahamlens.analysis-view.dashboard');
+    const saved = window.localStorage.getItem('sahamlens.analysis-view.dashboard.v2');
     if (saved === 'compact' || saved === 'full') {
       setViewMode(saved);
       return;
@@ -110,7 +110,23 @@ function DashboardContent() {
 
   const changeViewMode = (mode: 'compact' | 'full') => {
     setViewMode(mode);
-    window.localStorage.setItem('sahamlens.analysis-view.dashboard', mode);
+    window.localStorage.setItem('sahamlens.analysis-view.dashboard.v2', mode);
+  };
+
+  const openFullAnalysis = () => {
+    changeViewMode('full');
+    window.requestAnimationFrame(() => {
+      const detail = document.getElementById('analysis-detail');
+      detail?.focus({ preventScroll: true });
+      detail?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const collapseAnalysis = () => {
+    changeViewMode('compact');
+    window.requestAnimationFrame(() => {
+      document.getElementById('score-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
@@ -539,6 +555,9 @@ function DashboardContent() {
   const decisionPresentation = data?.scoring
     ? getDecisionPresentation(data.scoring.kategori, data.decision)
     : null;
+  const simpleDecisionLabel = decisionPresentation
+    ? getSimpleDecisionLabel(decisionPresentation)
+    : null;
 
   // Backtest hit-rate per indikator, dihitung dari histori harga NYATA saham yang sedang
   // dibuka: "berapa persen dari sinyal indikator ini yang diikuti kenaikan > 3% dalam 10
@@ -798,7 +817,6 @@ function DashboardContent() {
           </button>
         </div>
 
-        <AnalysisViewModeToggle mode={viewMode} onChange={changeViewMode} />
         <AnalysisGlossary />
 
         {/* Hero */}
@@ -924,10 +942,24 @@ function DashboardContent() {
           </>
         )}
 
+        {data?.scoring && simpleDecisionLabel && (
+          <DecisionScoreCard
+            verdict={simpleDecisionLabel}
+            totalScore={data.scoring.total_score}
+            technicalScore={data.scoring.technical_score}
+            fundamentalScore={data.scoring.fundamental_score}
+            flowScore={data.scoring.flow_score}
+            coveragePct={data.scoring.coverage_pct}
+            expanded={viewMode === 'full'}
+            onExplain={openFullAnalysis}
+            onCollapse={collapseAnalysis}
+          />
+        )}
+
         {/* AI Summary - breakdown skor + top alasan, dipindah tepat di bawah Hero
             supaya konsensus AI terlihat sebelum user scroll ke chart/teknikal. */}
-        {data?.scoring && (
-          <div className="w-full rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 md:p-6">
+        {viewMode === 'full' && data?.scoring && (
+          <div id="analysis-detail" tabIndex={-1} className="w-full scroll-mt-4 rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 outline-none md:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-tv-blue" />
               <h2 className="font-heading text-sm font-semibold text-white">Technical Summary</h2>
@@ -1470,6 +1502,5 @@ export default function Dashboard() {
     </Suspense>
   );
 }
-
 
 

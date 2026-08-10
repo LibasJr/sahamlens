@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink } from 'lucide-react';
+import { Newspaper } from 'lucide-react';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
-import { fadeUp, staggerContainer } from '@/lib/motion';
+import { StructuredNewsCard, StructuredNewsIntro } from '@/components/news/StructuredNewsCard';
+import { staggerContainer } from '@/lib/motion';
 
 interface NewsItemDto {
   title: string;
@@ -13,6 +14,19 @@ interface NewsItemDto {
   sentiment: string;
   reason: string;
   pubDate: string;
+  intelligence?: {
+    eventType: string;
+    eventLabel: string;
+    affectedMetrics: string[];
+    horizon: string;
+    expectedImpact: {
+      direction: string;
+      magnitude: string;
+      summary: string;
+    };
+    confidence: number;
+    evidenceBasis: 'HEADLINE_ONLY';
+  };
 }
 
 function formatNewsDate(pubDate: string): string | null {
@@ -97,8 +111,8 @@ export default function NewsPage() {
             <Newspaper className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="lens-page-title">Berita & Sentimen Pasar</h1>
-            <p className="text-xs text-tv-muted">Berita pasar dari 10 sumber kredibel, sentimen dinilai LensAI</p>
+            <h1 className="lens-page-title">Event &amp; News Intelligence</h1>
+            <p className="text-xs text-tv-muted">Event, metrik terdampak, horizon, expected impact, dan confidence</p>
           </div>
         </div>
       </header>
@@ -108,6 +122,9 @@ export default function NewsPage() {
           berita direntangkan sepanjang itu, terlalu lebar untuk dibaca nyaman. Lebar
           kontainer dan lebar baris teks dua urusan berbeda. */}
       <PageContainer className="p-4 md:p-6 lg:p-7">
+        {!loading && !error && newsItems.length > 0 && (
+          <StructuredNewsIntro itemCount={newsItems.length} />
+        )}
         {/* Halaman ini bernama "Sentimen Pasar" tapi tidak pernah menjumlahkan
             sentimennya - tiap berita punya badge sendiri, dan pembaca harus
             menghitung sendiri untuk tahu nada pasarnya condong ke mana. */}
@@ -199,7 +216,7 @@ export default function NewsPage() {
             initial="hidden"
             animate="show"
             variants={staggerContainer}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-3"
+            className="grid grid-cols-1 gap-3"
           >
             {visibleItems.map((n) => {
               // Bagian meta dirangkai dari potongan yang BENAR-BENAR ada, bukan
@@ -209,43 +226,12 @@ export default function NewsPage() {
               const tanggal = formatNewsDate(n.pubDate);
               const meta = [n.source, relative ?? tanggal].filter(Boolean);
               return (
-                <motion.a
+                <StructuredNewsCard
                   key={n.link || n.title}
-                  variants={fadeUp}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.995 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  href={n.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-start justify-between gap-3 p-4 rounded-lg border border-tv-border bg-tv-card hover:border-tv-borderLight hover:bg-tv-hover/30 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-tv-text leading-snug">{n.title}</p>
-                    <p className="text-xs text-tv-muted mt-1">
-                      {meta.join(' • ')}
-                      {relative && tanggal && <span className="text-tv-muted/60"> · {tanggal}</span>}
-                    </p>
-                    {/* `reason` adalah alasan LensAI memberi label sentimen itu -
-                        sebelumnya diselipkan di ujung baris meta, terbaca seperti
-                        bagian dari nama sumber. Dipisah ke barisnya sendiri. */}
-                    {n.reason && (
-                      <p className="mt-1.5 text-[11px] leading-relaxed text-tv-muted/80 border-l-2 border-tv-border pl-2">
-                        {n.reason}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    <Badge
-                      variant={n.sentiment === 'POSITIF' ? 'success' : n.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}
-                    >
-                      {n.sentiment}
-                    </Badge>
-                    {/* Kartu ini membuka tab baru - tanpa penanda, tidak ada isyarat
-                        bahwa ia meninggalkan aplikasi. */}
-                    <ExternalLink className="w-3 h-3 text-tv-muted/50 group-hover:text-tv-muted transition-colors" />
-                  </div>
-                </motion.a>
+                  item={n}
+                  meta={meta as string[]}
+                  absoluteDate={relative ? tanggal : null}
+                />
               );
             })}
           </motion.div>
