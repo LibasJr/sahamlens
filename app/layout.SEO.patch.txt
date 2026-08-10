@@ -1,0 +1,76 @@
+SAHAMLENS SEO HOMEPAGE PATCH
+============================
+
+Target homepage publik:
+https://sahamlens.id/
+
+JANGAN replace seluruh app/layout.tsx.
+MERGE bagian ini ke `export const metadata` yang sudah ada.
+
+Jika belum ada:
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  metadataBase: new URL('https://sahamlens.id'),
+
+  title: {
+    default: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    template: '%s | SahamLens',
+  },
+
+  description:
+    'SahamLens adalah platform analisis saham IDX berbasis data dan AI untuk teknikal, fundamental, LensRadar, screener, backtest, risiko, dan insight pasar modal Indonesia.',
+
+  applicationName: 'SahamLens',
+
+  alternates: {
+    canonical: '/',
+  },
+
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/icon.png', type: 'image/png', sizes: '96x96' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      { url: '/apple-icon.png', type: 'image/png', sizes: '180x180' },
+    ],
+  },
+
+  openGraph: {
+    type: 'website',
+    locale: 'id_ID',
+    url: 'https://sahamlens.id/',
+    siteName: 'SahamLens',
+    title: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    description:
+      'Analisis saham IDX berbasis data dan AI: teknikal, fundamental, LensRadar, screener, backtest, risiko, dan insight pasar Indonesia.',
+  },
+
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    description:
+      'Analisis saham IDX berbasis data dan AI untuk teknikal, fundamental, screener, backtest, risiko, dan insight pasar.',
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+};
+
+CATATAN:
+- Jika key metadata sudah ada, merge nilainya. Jangan membuat duplikat.
+- Jangan set canonical ke /workspace.
+- Jangan ubah title homepage menjadi "Market workspace".
+- Jangan menambahkan klaim profit/akurasi/advisory yang tidak tervalidasi.
+- Pertahankan disclaimer dan semantik MODEL_UNVALIDATED existing.
