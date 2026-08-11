@@ -109,7 +109,15 @@ export async function handleSetProStatus(
     if (typeof body.expiresAt === 'string' && body.expiresAt) {
       // Tanggal bebas dipakai apa adanya - termasuk tanggal di masa lalu, yang efeknya
       // sama dengan mencabut akses. Itu bisa disengaja, jadi tidak ditolak.
-      proExpiresAt = new Date(body.expiresAt).toISOString();
+      //
+      // Tapi tanggal yang TIDAK BISA DIBACA harus ditolak sebagai kesalahan input. Tanpa
+      // guard ini `new Date('30-02-2026').toISOString()` melempar RangeError mentah, dan
+      // admin cuma melihat "Internal Server Error" tanpa tahu kolom mana yang salah.
+      const parsed = new Date(body.expiresAt);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new ValidationError(`Tanggal kedaluwarsa "${body.expiresAt}" tidak bisa dibaca. Pakai format YYYY-MM-DD.`);
+      }
+      proExpiresAt = parsed.toISOString();
     } else {
       const months = typeof body.months === 'number' && body.months > 0 ? body.months : 1;
       proExpiresAt = extendProExpiry(user.pro_expires_at ?? null, months);
