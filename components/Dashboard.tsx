@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter, Target, BarChart3, Waves } from 'lucide-react';
 
 import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
@@ -554,8 +554,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   Lihat Peluang<br className="hidden sm:block" /> Lebih Jelas.
                 </h2>
                 <p className="mt-4 text-sm sm:text-base text-tv-muted max-w-lg leading-relaxed">
-                  Screener &amp; analisis saham IDX berbasis data riil dan AI - teknikal,
-                  fundamental, backtest, dan rekomendasi dalam satu aplikasi.
+                  Screener &amp; analisis saham IDX berbasis data riil dan AI — mencakup teknikal,
+                  fundamental, backtest, Moat proxy, Earnings Monitor, hingga Dashboard Makroekonomi dalam satu aplikasi.
                 </p>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -661,6 +661,100 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             </div>
           </Card>
         </motion.div>
+
+        <motion.section
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="mb-8"
+        >
+          <div className="mb-4 flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-blue">Cakupan Analisis</span>
+            <h2 className="font-heading text-xl font-bold tracking-tight text-tv-text sm:text-2xl">Cakupan Analisis SahamLens</h2>
+            <p className="max-w-3xl text-sm leading-relaxed text-tv-muted">
+              Satu workspace untuk membaca saham dari sisi teknikal, fundamental, validasi historis,
+              daya saing bisnis, event laporan keuangan, sampai konteks makro pasar Indonesia.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                icon: LineChart,
+                title: 'LensTechnical',
+                desc: 'Chart, tren, momentum, RSI, MA, volatilitas, dan pembacaan timing berbasis data pasar.',
+                href: '/dashboard',
+                tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
+              },
+              {
+                icon: Building2,
+                title: 'LensFundamental',
+                desc: 'Quality, growth, leverage, valuasi dasar, dan kesehatan bisnis emiten dalam satu tampilan.',
+                href: '/fundamental',
+                tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
+              },
+              {
+                icon: Filter,
+                title: 'LensScanner',
+                desc: 'Screener multi-factor untuk menyaring saham IDX berdasarkan kriteria teknikal dan data.',
+                href: '/screener',
+                tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
+              },
+              {
+                icon: History,
+                title: 'Backtest',
+                desc: 'Uji strategi secara historis agar sinyal tidak hanya terlihat bagus di kondisi hari ini.',
+                href: '/backtest',
+                tone: 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20',
+              },
+              {
+                icon: Target,
+                title: 'Moat Proxy',
+                desc: 'Estimasi keunggulan kompetitif berbasis proxy fundamental dan ketahanan performa bisnis.',
+                href: '/moat',
+                tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
+              },
+              {
+                icon: BarChart3,
+                title: 'Earnings Monitor',
+                desc: 'Pantau jadwal earnings, rilis laporan, dan event yang berpotensi mengubah ekspektasi pasar.',
+                href: '/earnings',
+                tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
+              },
+              {
+                icon: Waves,
+                title: 'Dashboard Makroekonomi',
+                desc: 'Baca konteks makro Indonesia untuk memahami sentimen pasar dan risiko sistemik.',
+                href: '/macro',
+                tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
+              },
+              {
+                icon: Users,
+                title: 'LensAI',
+                desc: 'Copilot untuk merangkum konteks teknikal, fundamental, risiko, dan pertanyaan seputar SahamLens.',
+                href: '/technical/BBCA.JK',
+                tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
+              },
+            ].map(({ icon: Icon, title, desc, href, tone }) => (
+              <Link
+                key={title}
+                href={href}
+                className="group rounded-2xl border border-white/[0.075] bg-tv-card p-4 shadow-1 transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt"
+              >
+                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl border ${tone}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-heading text-base font-bold text-tv-text">{title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
+                  {desc}
+                </p>
+                <span className="mt-3 inline-flex text-xs font-bold text-tv-blue transition-colors group-hover:text-white">
+                  Buka fitur →
+                </span>
+              </Link>
+            ))}
+          </div>
+        </motion.section>
 
         {/* Title Block. Badge "Powered by SahamLens" DIHAPUS (permintaan user
             2026-08-06) - ganjil bilang situs SahamLens "powered by" SahamLens sendiri
