@@ -153,6 +153,8 @@ export type AiPickItem = {
   cl1: number | null;
   cl2: number | null;
   rr: number | null;
+  brokerNetValue?: number | null;
+  brokerTradeDate?: string | null;
 };
 
 /**

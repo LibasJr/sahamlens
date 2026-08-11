@@ -51,6 +51,8 @@ describe('syncIndexAlphaBrokerSummary', () => {
       tradeDate: '2026-08-11',
       apiKey: 'test-key',
       fetcher,
+      dailyLimit: 100,
+      cachedTickerLookup: async () => new Set(),
     });
 
     expect(fetcher).toHaveBeenCalledTimes(2);

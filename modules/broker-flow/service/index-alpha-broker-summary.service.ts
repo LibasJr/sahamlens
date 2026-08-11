@@ -1,4 +1,5 @@
 import { importBrokerSummaryCsv } from './broker-summary-import.service';
+import { getCachedBrokerTickers } from './broker-summary-cache.service';
 
 const DEFAULT_BASE_URL = 'https://api.indexalpha.id';
 const BATCH_SIZE = 50;
@@ -33,6 +34,9 @@ export interface IndexAlphaSyncResult {
   parsedRows: number;
   insertedRows: number;
   skippedExistingRows: number;
+  skippedCachedTickers: number;
+  cappedTickers: number;
+  quotaUsed: number;
 }
 
 function normalizeTicker(value: string): string {
@@ -88,12 +92,21 @@ async function fetchBatch(
   baseUrl: string,
   fetcher: FetchLike,
 ): Promise<Record<string, IndexAlphaBrokerRow[]>> {
-  const response = await fetcher(`${baseUrl.replace(/\/$/, '')}/stocks/broker-summary/batch`, {
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetcher(`${baseUrl.replace(/\/$/, '')}/stocks/broker-summary/batch`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ tickers, from: tradeDate, to: tradeDate, investor: 'all', market: 'RG' }),
     cache: 'no-store',
-  });
+    });
+    if (response.status !== 429 && response.status < 500) break;
+    if (attempt < 2) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      await new Promise((resolve) => setTimeout(resolve, Number.isFinite(retryAfter) ? retryAfter * 1000 : 600 * (attempt + 1)));
+    }
+  }
+  if (!response) throw new Error('Index Alpha tidak merespons.');
   if (!response.ok) throw new Error(`Index Alpha HTTP ${response.status}.`);
   const payload = await response.json() as IndexAlphaBatchEnvelope;
   if (payload.success !== true || !payload.data) throw new Error(payload.error || 'Index Alpha tidak mengembalikan data.');
@@ -106,14 +119,20 @@ export async function syncIndexAlphaBrokerSummary(input: {
   apiKey?: string;
   baseUrl?: string;
   fetcher?: FetchLike;
+  dailyLimit?: number;
+  cachedTickerLookup?: typeof getCachedBrokerTickers;
 }): Promise<IndexAlphaSyncResult> {
   assertDateKey(input.tradeDate);
-  const apiKey = (input.apiKey ?? process.env.BROKER_DATA_API_KEY ?? '').trim();
-  if (!apiKey) throw new Error('BROKER_DATA_API_KEY belum dikonfigurasi.');
+  const apiKey = (input.apiKey ?? process.env.INDEXALPHA_API_KEY ?? process.env.BROKER_DATA_API_KEY ?? '').trim();
+  if (!apiKey) throw new Error('INDEXALPHA_API_KEY belum dikonfigurasi.');
   const provider = (process.env.BROKER_DATA_PROVIDER || 'indexalpha').trim().toLowerCase();
   if (provider !== 'indexalpha') throw new Error(`BROKER_DATA_PROVIDER belum didukung: ${provider}`);
 
-  const tickers = Array.from(new Set(input.tickers.map(normalizeTicker)));
+  const candidates = Array.from(new Set(input.tickers.map(normalizeTicker)));
+  const dailyLimit = Math.max(1, input.dailyLimit ?? (Number(process.env.INDEXALPHA_DAILY_TICKER_LIMIT) || 5));
+  const cached = await (input.cachedTickerLookup ?? getCachedBrokerTickers)(input.tradeDate, candidates);
+  const uncached = candidates.filter((ticker) => !cached.has(ticker));
+  const tickers = uncached.slice(0, dailyLimit);
   const baseUrl = input.baseUrl ?? process.env.BROKER_DATA_API_BASE_URL ?? DEFAULT_BASE_URL;
   const fetcher = input.fetcher ?? fetch;
   const found = new Set<string>();
@@ -150,5 +169,8 @@ export async function syncIndexAlphaBrokerSummary(input: {
     parsedRows,
     insertedRows,
     skippedExistingRows,
+    skippedCachedTickers: cached.size,
+    cappedTickers: Math.max(0, uncached.length - tickers.length),
+    quotaUsed: tickers.length,
   };
 }
