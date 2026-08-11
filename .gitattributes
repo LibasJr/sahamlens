@@ -1,0 +1,26 @@
+# Script .mjs WAJIB checkout dengan akhiran baris LF.
+#
+# BUG (ditemukan 2026-08-12 saat merge audit Fase 2): di mesin Windows dengan
+# `core.autocrlf=true` - default Git for Windows - setiap `git checkout` menulis ulang
+# file repo dengan CRLF. Untuk .mjs yang diawali shebang, kombinasi itu membuat vitest
+# gagal MEMUAT modulnya:
+#
+#     SyntaxError: Invalid or unexpected token
+#
+# Diisolasi: CRLF saja tidak masalah, shebang saja tidak masalah - hanya kombinasi
+# `#!/usr/bin/env node` + CRLF yang pecah (transform meninggalkan \r yatim setelah baris
+# shebang dibuang).
+#
+# Gejalanya menyesatkan karena bergantung pada SIAPA yang terakhir menulis file:
+# `npm test` hijau tepat setelah file diedit editor (LF), lalu merah setelah
+# `git checkout` (CRLF) tanpa satu baris kode pun berubah. CI (ubuntu, LF) selalu hijau,
+# jadi kegagalannya cuma muncul di mesin developer Windows dan mudah disalahartikan
+# sebagai test yang flaky.
+#
+# scripts/*.mjs yang berisiko: audit-ui-consistency, backfill-fundamental-history,
+# backfill-lens-history, generate-pit-from-yahoo, inspect-fundamental-pit.
+#
+# Setelah menarik perubahan ini, jalankan sekali untuk memperbaiki file yang terlanjur
+# CRLF di working tree:
+#     git add --renormalize . && git checkout -- .
+*.mjs text eol=lf
