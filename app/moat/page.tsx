@@ -23,6 +23,23 @@ import {
 interface MoatPayload {
   ticker: string;
   analyzers?: FundamentalAnalyzerSnapshot[];
+  /** Pilar ketahanan 4 tahun buku - lihat modules/fundamental/service/moat-durability.service.ts.
+   * Opsional: emiten yang tahun bukunya kurang dari minimum tidak mengirimnya. */
+  moatDurability?: {
+    status: 'TAHAN' | 'CAMPURAN' | 'RAPUH' | 'DATA TERBATAS';
+    years: number;
+    firstFiscalYear: number | null;
+    lastFiscalYear: number | null;
+    yearsAboveCostOfEquity: number;
+    costOfEquityPct: number;
+    checks: Array<{
+      key: string;
+      label: string;
+      detail: string;
+      verdict: 'SUPPORTIVE' | 'CAUTION' | 'NOT_APPLICABLE';
+    }>;
+    conclusion: string;
+  };
   stock?: {
     name?: string;
     current_price?: number | null;
@@ -106,6 +123,17 @@ function formatRetrievedAt(value?: string) {
 function statusBadge(status: MoatProxyStatus) {
   if (status === 'KUAT') return <Badge variant='success' dot>KUAT</Badge>;
   if (status === 'LEMAH') return <Badge variant='danger' dot>LEMAH</Badge>;
+  if (status === 'CAMPURAN') return <Badge variant='warning' dot>CAMPURAN</Badge>;
+  return <Badge variant='neutral' dot>DATA TERBATAS</Badge>;
+}
+
+// Kosakata SENGAJA berbeda dari statusBadge di atas. "KUAT/LEMAH" menjawab "bagaimana
+// rasionya sekarang"; "TAHAN/RAPUH" menjawab "apakah bertahan lintas waktu". Memakai kata
+// yang sama untuk dua pertanyaan berbeda adalah cara tercepat membuat pembaca mengira
+// keduanya mengukur hal yang sama - persis kegagalan kartu verdict di halaman teknikal.
+function durabilityBadge(status: 'TAHAN' | 'CAMPURAN' | 'RAPUH' | 'DATA TERBATAS') {
+  if (status === 'TAHAN') return <Badge variant='success' dot>TAHAN</Badge>;
+  if (status === 'RAPUH') return <Badge variant='danger' dot>RAPUH</Badge>;
   if (status === 'CAMPURAN') return <Badge variant='warning' dot>CAMPURAN</Badge>;
   return <Badge variant='neutral' dot>DATA TERBATAS</Badge>;
 }
@@ -285,10 +313,69 @@ export default function MoatPage() {
             </Card>
           </div>
 
+          {/* KETAHANAN (2026-08-12). Empat pilar di bawah dinilai dari rasio TERKINI.
+              Moat menurut definisinya adalah daya tahan lintas waktu, jadi satu potret
+              mengukur hal yang berbeda dari yang dijanjikan namanya: emiten di puncak
+              siklus tampil kuat, bisnis bagus di tahun lemah tampil lemah. Bagian ini
+              menilai 4 tahun buku, dan sengaja ditaruh DI ATAS keempat pilar itu. */}
+          {payload?.moatDurability && (
+            <section>
+              <div className='mb-3 flex items-center gap-2'>
+                <Award className='h-5 w-5 text-tv-purple' />
+                <h2 className='font-heading text-lg font-bold text-tv-text'>
+                  Ketahanan lintas waktu
+                  {payload.moatDurability.firstFiscalYear
+                    ? ' (' + payload.moatDurability.firstFiscalYear + '-' + payload.moatDurability.lastFiscalYear + ')'
+                    : ''}
+                </h2>
+                {durabilityBadge(payload.moatDurability.status)}
+              </div>
+
+              {payload.moatDurability.checks.length > 0 ? (
+                <div className='space-y-2'>
+                  {payload.moatDurability.checks.map((check: any) => (
+                    <div
+                      key={check.key}
+                      className={'rounded-lg border p-3 ' + (
+                        check.verdict === 'SUPPORTIVE' ? 'border-tv-green/30 bg-tv-green/5'
+                          : check.verdict === 'CAUTION' ? 'border-tv-red/30 bg-tv-red/5'
+                            : 'border-tv-border bg-tv-bg'
+                      )}
+                    >
+                      <div className='flex items-center justify-between gap-3'>
+                        <span className='text-sm font-semibold text-tv-text'>{check.label}</span>
+                        <span className={'text-[11px] font-bold ' + (
+                          check.verdict === 'SUPPORTIVE' ? 'text-tv-green'
+                            : check.verdict === 'CAUTION' ? 'text-tv-red'
+                              : 'text-tv-muted'
+                        )}>
+                          {check.verdict === 'SUPPORTIVE' ? 'BERTAHAN'
+                            : check.verdict === 'CAUTION' ? 'TIDAK BERTAHAN'
+                              : 'TIDAK BERLAKU'}
+                        </span>
+                      </div>
+                      <p className='mt-1 text-xs leading-relaxed text-tv-muted'>{check.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <p className='mt-3 text-[11px] leading-relaxed text-tv-muted'>
+                {payload.moatDurability.conclusion}
+              </p>
+              <p className='mt-2 text-[11px] leading-relaxed text-tv-muted/80'>
+                Jendela 4 tahun buku dan bergulir setiap tahun - lebih pendek dari satu siklus
+                komoditas penuh, jadi ini indikasi ketahanan jangka menengah, bukan vonis.
+                Ambang tiap pemeriksaan belum diuji terhadap data historis IDX.
+              </p>
+            </section>
+          )}
+
           <section>
             <div className='mb-3 flex items-center gap-2'>
               <BarChart3 className='h-5 w-5 text-tv-purple' />
               <h2 className='font-heading text-lg font-bold text-tv-text'>Empat pilar proxy kuantitatif</h2>
+              <span className='text-[11px] text-tv-muted'>— potret terkini</span>
             </div>
             <div className='grid gap-4 lg:grid-cols-2'>
               {moat.pillars.map((pillar) => (

@@ -58,6 +58,14 @@ export interface AnnualRoeObservation {
   netIncome: number;
   equity: number;
   roePct: number;
+  /** Pendapatan tahun itu. `null` kalau Yahoo tidak memberikannya. */
+  revenue: number | null;
+  /** Margin operasi, persen. `null` untuk bank - mereka tidak melaporkan laba operasi
+   * dalam pengertian yang sama, dan memaksakan angka di situ sama salahnya dengan
+   * menilai bank lewat DER. */
+  operatingMarginPct: number | null;
+  /** Margin bersih, persen. */
+  netMarginPct: number | null;
 }
 
 export interface NormalizedEarnings {
@@ -96,7 +104,13 @@ function round(value: number, digits = 2): number {
  * membuangnya akan menaikkan "normal" persis pada emiten yang paling siklikal.
  */
 export function summarizeAnnualRoe(
-  rows: Array<{ fiscalYear: number; netIncome: number | null; equity: number | null }>,
+  rows: Array<{
+    fiscalYear: number;
+    netIncome: number | null;
+    equity: number | null;
+    revenue?: number | null;
+    operatingIncome?: number | null;
+  }>,
 ): NormalizedEarnings | null {
   const observations: AnnualRoeObservation[] = [];
   const seen = new Set<number>();
@@ -107,11 +121,25 @@ export function summarizeAnnualRoe(
     if (typeof netIncome !== 'number' || !Number.isFinite(netIncome)) continue;
     if (typeof equity !== 'number' || !Number.isFinite(equity) || equity <= 0) continue;
     seen.add(row.fiscalYear);
+    const revenue = typeof row.revenue === 'number' && Number.isFinite(row.revenue) && row.revenue > 0
+      ? row.revenue
+      : null;
+    const operatingIncome = typeof row.operatingIncome === 'number' && Number.isFinite(row.operatingIncome)
+      ? row.operatingIncome
+      : null;
     observations.push({
       fiscalYear: row.fiscalYear,
       netIncome,
       equity,
       roePct: round((netIncome / equity) * 100),
+      revenue,
+      // Penyebut wajib pendapatan POSITIF - margin atas pendapatan nol/negatif tidak
+      // punya arti, dan membiarkannya menghasilkan angka raksasa yang terlihat seperti
+      // temuan.
+      operatingMarginPct: revenue != null && operatingIncome != null
+        ? round((operatingIncome / revenue) * 100)
+        : null,
+      netMarginPct: revenue != null ? round((netIncome / revenue) * 100) : null,
     });
   }
 
@@ -165,7 +193,8 @@ export async function fetchNormalizedEarnings(
   deps: NormalizedEarningsDeps = {},
 ): Promise<NormalizedEarnings | null> {
   const ticker = rawTicker.toUpperCase().includes('.') ? rawTicker.toUpperCase() : `${rawTicker.toUpperCase()}.JK`;
-  const cacheKey = `sahamlens:cache:computed:normalized-earnings:v1:${ticker}`;
+  // v2: observasi kini membawa pendapatan & margin untuk pilar ketahanan moat.
+  const cacheKey = `sahamlens:cache:computed:normalized-earnings:v2:${ticker}`;
   const get = deps.cacheGet ?? cacheGet;
   const set = deps.cacheSet ?? cacheSet;
 
@@ -203,7 +232,13 @@ export async function fetchNormalizedEarnings(
     const year = fiscalYearOf(row);
     if (year == null) return [];
     const netIncome = numberOrNull(row.netIncomeCommonStockholders) ?? numberOrNull(row.netIncome);
-    return [{ fiscalYear: year, netIncome, equity: equityByYear.get(year) ?? null }];
+    return [{
+      fiscalYear: year,
+      netIncome,
+      equity: equityByYear.get(year) ?? null,
+      revenue: numberOrNull(row.totalRevenue) ?? numberOrNull(row.operatingRevenue),
+      operatingIncome: numberOrNull(row.operatingIncome),
+    }];
   });
 
   const summary = summarizeAnnualRoe(rows);
