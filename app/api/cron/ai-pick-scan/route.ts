@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
-import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { withJobRunLog, recordJobNonRun } from '@/shared/scheduler/job-run-log.repository';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { scanAiPickScores } from '@/modules/recommendation/service/ai-pick-scan.service';
@@ -19,12 +19,22 @@ export async function POST(req: NextRequest) {
 
   if (!(await verifyQStashSignature(signature, rawBody))) {
     logger.warn('Menolak request /api/cron/ai-pick-scan - signature QStash tidak valid');
+    // Dicatat, bukan cuma di-log. Penolakan signature (mis. QSTASH_CURRENT_SIGNING_KEY
+    // salah/kosong di environment) dulu tidak meninggalkan jejak di database, jadi tidak
+    // bisa dibedakan dari "cron ini memang tidak pernah dijadwalkan" - padahal yang satu
+    // dibetulkan dengan mengisi env var, yang lain dengan membuat jadwalnya.
+    await recordJobNonRun('ai-pick-scan', 'REJECTED', 'Signature QStash tidak valid', {
+      hasSignatureHeader: Boolean(signature),
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const scanWindow = getAiPickScanWindow(new Date());
   if (scanWindow === 'CLOSED') {
     logger.info('ai-pick-scan dilewati di luar sesi IDX', { scanWindow });
+    // Ikut dicatat supaya panel /admin/jobs bisa membedakan "dipanggil tapi selalu di luar
+    // jam bursa" (jadwal QStash-nya salah jam) dari "tidak pernah dipanggil sama sekali".
+    await recordJobNonRun('ai-pick-scan', 'SKIPPED', 'Di luar jendela scan IDX', { scanWindow });
     return NextResponse.json({
       success: true,
       skipped: true,
