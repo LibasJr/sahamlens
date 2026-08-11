@@ -86,18 +86,6 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
         ))}
       </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
-        .sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; width: max-content; }
-        .sahamlens-ticker-track:hover { animation-play-state: paused; }
-        @keyframes sahamlens-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        /* SENGAJA tidak menghormati prefers-reduced-motion di sini. Ini ticker harga
-           berjalan (live data), bukan animasi dekoratif - sama seperti running text
-           kurs/skor pertandingan, pengguna mengharapkannya bergerak terus. Percobaan
-           sebelumnya mematikan animasi lewat media query itu, dan hasilnya persis
-           keluhan "diam total" karena fallback overflow-scroll-nya juga salah pasang
-           (ada di TRACK yang width:max-content, bukan di pembungkus) - dua lapis
-           kegagalan sekaligus. Dibuang semua, ticker sekarang selalu jalan. */
-      `}} />
     </div>
   );
 }
@@ -140,10 +128,16 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
                 </span>
               </div>
               <div className="mt-1 truncate text-[10px] text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
-              <div className="mt-1.5 flex gap-2 font-number text-[10px]">
-                <span className="text-tv-green">TP {item.tp1?.toLocaleString('id-ID') ?? '-'}</span>
-                <span className="text-tv-red">CL {item.cl1?.toLocaleString('id-ID') ?? '-'}</span>
-              </div>
+              {item.tp1 != null && item.cl1 != null ? (
+                <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number text-[10px] font-semibold leading-tight">
+                  <span className="text-tv-green">TP1 {item.tp1.toLocaleString('id-ID')}</span>
+                  <span className="text-tv-red">CL1 {item.cl1.toLocaleString('id-ID')}</span>
+                  {item.tp2 != null && <span className="text-tv-green/80">TP2 {item.tp2.toLocaleString('id-ID')}</span>}
+                  {item.cl2 != null && <span className="text-tv-red/80">CL2 {item.cl2.toLocaleString('id-ID')}</span>}
+                </div>
+              ) : (
+                <div className="mt-1.5 text-[10px] font-medium text-tv-muted">TP/CL belum tersedia</div>
+              )}
               {typeof item.brokerNetValue === 'number' && item.brokerNetValue !== 0 && (
                 <div className={`mt-1.5 text-[10px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   Bandar: Net {item.brokerNetValue > 0 ? 'Buy' : 'Sell'} Rp{formatBrokerFlow(item.brokerNetValue)}
@@ -164,12 +158,6 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
       <div className="sahamlens-signal-track flex w-max" style={{ animationDuration: `${durationSec}s` }}>
         {renderGroup(0)}{renderGroup(1)}
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
-        .sahamlens-signal-track { animation-name: sahamlens-signal-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .sahamlens-signal-wrap:hover .sahamlens-signal-track,
-        .sahamlens-signal-wrap:focus-within .sahamlens-signal-track { animation-play-state: paused; }
-        @keyframes sahamlens-signal-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-      `}} />
     </div>
   );
 }
