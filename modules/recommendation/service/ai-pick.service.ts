@@ -117,6 +117,16 @@ export type ScoredStock = {
     cl2: number;
     rr: number;
   } | null;
+  /** Kandidat mesin V2 untuk shadow backtest; tidak dipakai sebagai advisory/UI. */
+  hybridV2TradeSetup?: {
+    tp1: number; tp2: number; cl1: number; cl2: number; rr: number;
+    marketRegime: 'UPTREND' | 'SIDEWAYS' | 'DOWNTREND' | 'UNKNOWN';
+    volatilityRegime: 'LOW' | 'NORMAL' | 'HIGH';
+    atrPercentile: number;
+    suggestedTrailingStop: number | null;
+    version: string;
+    calibrationStatus: 'SHADOW_UNCALIBRATED';
+  } | null;
 };
 
 export type BreakoutInfo = {
