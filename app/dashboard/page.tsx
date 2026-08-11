@@ -1242,36 +1242,12 @@ function DashboardContent() {
                 }`}>
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
-                {/* Hasil model, kelayakan, dan recommendation actionable adalah tiga
-                    hal berbeda. `decision.action` adalah satu-satunya sumber aksi;
-                    `scoring.kategori` tetap ditampilkan sebagai sinyal informasional. */}
-                {decisionPresentation?.actionable ? (
-                  <div className={`text-sm font-bold font-sans px-3 py-1 rounded-full border ${signalBadgeTone(data.decision?.action)}`}>
-                    {decisionPresentation.recommendationLabel}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-1.5">
-                    {decisionPresentation?.modelSignalLabel && (
-                      <div className={`text-xs font-bold font-sans px-3 py-1 rounded-full border text-center ${signalBadgeTone(decisionPresentation.modelSignal)}`}>
-                        {decisionPresentation.modelSignalLabel}
-                      </div>
-                    )}
-                    {decisionPresentation?.statusLabel && (
-                      <div className={`text-[10px] font-bold font-sans px-2.5 py-1 rounded-full border text-center ${
-                        decisionPresentation.kind === 'MODEL_UNVALIDATED'
-                          ? 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/40'
-                          : decisionPresentation.kind === 'INELIGIBLE'
-                            ? 'bg-tv-red/10 text-tv-red border-tv-red/40'
-                            : 'bg-tv-hover text-tv-muted border-tv-border'
-                      }`}>
-                        {decisionPresentation.statusLabel}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Di kartu detail ini cukup tampilkan angka LensScore. Arah keputusan
+                    BUY/SELL/HOLD/WATCH sengaja tidak diulang di bawah agar tidak
+                    bentrok dengan Ringkasan SahamLens/Konsensus AI di atas. */}
                 {!decisionPresentation?.actionable && decisionPresentation?.explanation && (
                   <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[240px]">
-                    {decisionPresentation.explanation}
+                    LensScore {data.scoring.total_score}/100 adalah skor informasi. Belum otomatis menjadi rekomendasi transaksi. {decisionPresentation.explanation}
                   </p>
                 )}
               </div>
