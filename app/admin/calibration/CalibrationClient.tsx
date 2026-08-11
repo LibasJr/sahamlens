@@ -204,6 +204,22 @@ function weightText(weights: LensScoreWeights | null | undefined): string {
   return `Teknikal ${weights.technical}% • Fundamental ${weights.fundamental}% • Flow ${weights.flow}%`;
 }
 
+// Label TAMPILAN untuk status proposal. Nilai enum-nya sendiri (PENDING_APPROVAL, dst)
+// SENGAJA tidak diubah - itu tersimpan di baris database lama dan dipakai service, jadi
+// mengganti namanya berarti migrasi data demi sekadar kata-kata.
+//
+// "PENDING_APPROVAL" apa adanya menyesatkan: pembaca mencari tombol Approve, padahal
+// tidak pernah ada dan memang tidak dirancang ada. Menerapkan proposal = mengubah bobot
+// di kode lalu deploy, supaya perubahan yang menggeser skor SELURUH saham untuk SEMUA
+// pengguna tetap punya jejak git, bisa di-review, dan bisa di-rollback. Labelnya sekarang
+// menyebutkan jalur itu, dan langkah persisnya ditulis di bawah kartu proposal.
+const PROPOSAL_STATUS_LABEL: Record<string, string> = {
+  PENDING_APPROVAL: 'Siap direview — diterapkan lewat deploy',
+  INSUFFICIENT_STATS: 'Statistik belum cukup',
+  INSUFFICIENT_COMPONENT_HISTORY: 'Histori komponen belum cukup',
+  NO_VALID_CANDIDATE: 'Tidak ada kandidat yang lolos',
+};
+
 /**
  * Tooltip batang per bucket. Bawaan Recharts cuma menyebut nilainya; jumlah sampel
  * di balik angka itu justru yang menentukan apakah ia layak dipercaya.
@@ -727,7 +743,7 @@ export default function CalibrationClient() {
                 ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
                 : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
             }`}>
-              {data.latestWeightProposal.status.replaceAll('_', ' ')}
+              {PROPOSAL_STATUS_LABEL[data.latestWeightProposal.status] ?? data.latestWeightProposal.status.replaceAll('_', ' ')}
             </span>
           )}
         </div>
@@ -789,6 +805,33 @@ export default function CalibrationClient() {
                 </div>
               </div>
             </div>
+
+            {data.latestWeightProposal.status === 'PENDING_APPROVAL' && (
+              <div className="rounded-lg border border-tv-blue/25 bg-tv-blue/[0.06] p-4">
+                <div className="text-sm font-bold text-tv-text">Cara menerapkan proposal ini</div>
+                <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+                  Tidak ada tombol Approve di halaman ini, dan itu disengaja. Mengubah bobot menggeser
+                  skor seluruh saham untuk semua pengguna sekaligus; lewat kode, perubahan itu punya
+                  jejak git, bisa direview, dan bisa dibatalkan kalau hasilnya memburuk.
+                </p>
+                <ol className="mt-3 space-y-1.5 text-xs leading-relaxed text-tv-text">
+                  <li>
+                    1. Buka <code className="font-mono text-tv-blue">shared/constants/lens-score-weights.ts</code>
+                  </li>
+                  <li>
+                    2. Ubah <code className="font-mono text-tv-blue">LENS_SCORE_WEIGHTS</code> menjadi{' '}
+                    <span className="font-bold">{weightText(data.latestWeightProposal.proposedWeights)}</span>
+                  </li>
+                  <li>3. Jalankan <code className="font-mono text-tv-blue">npm test</code> — bobot wajib berjumlah 100 dan ada test yang menjaganya</li>
+                  <li>4. Commit dengan alasan + angka p-value/spread di atas, lalu deploy</li>
+                  <li>5. Muat ulang halaman ini: kolom &quot;Bobot Saat Ini&quot; harus berubah mengikuti angka baru</li>
+                </ol>
+                <p className="mt-3 text-xs leading-relaxed text-tv-muted">
+                  Belum yakin? Biarkan saja. Proposal ini tidak kedaluwarsa dan tidak mengubah apa pun
+                  selama belum di-deploy — optimizer akan mengusulkan ulang setiap Minggu.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </section>

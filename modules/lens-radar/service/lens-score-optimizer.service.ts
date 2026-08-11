@@ -8,10 +8,19 @@ import {
   type CalibrationObservation,
 } from './calibration.service';
 import type { LensRadarHistoryEntry, LensScoreBucket } from './bucket-backtest.service';
+import { LENS_SCORE_WEIGHTS, type LensScoreWeights } from '@/shared/constants/lens-score-weights';
+
+// Di-re-export supaya pemanggil lama yang mengimpor tipe ini dari service tidak perlu
+// diubah. Definisinya kini tinggal di shared/constants/lens-score-weights.ts.
+export type { LensScoreWeights };
 
 const LOOKBACK_DAYS = 90;
-const CURRENT_WEIGHTS: LensScoreWeights = { technical: 40, fundamental: 30, flow: 30 };
-const COMPONENT_MAX = { technical: 40, fundamental: 30, flow: 30 } as const;
+// Baseline pembanding proposal = bobot produksi yang SAMA dipakai scoring.service.ts.
+// Sebelumnya ditulis ulang sebagai salinan lokal di sini; kalau salinan itu tertinggal saat
+// bobot produksi berubah, seluruh perbandingan di calibration lab jadi mengukur terhadap
+// baseline yang tidak pernah dipakai siapa pun - tanpa satu pun tanda di layar.
+const CURRENT_WEIGHTS: LensScoreWeights = LENS_SCORE_WEIGHTS;
+const COMPONENT_MAX = LENS_SCORE_WEIGHTS;
 const MIN_BUCKET_SAMPLE = 2;
 const MIN_OOS_BUCKET_SAMPLE = 10;
 const TRAIN_FRACTION = 0.7;
@@ -19,12 +28,6 @@ const OOS_MAX_P_VALUE = 0.10;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
-}
-
-export interface LensScoreWeights {
-  technical: number;
-  fundamental: number;
-  flow: number;
 }
 
 export interface WeightOptimizationSample {
@@ -118,7 +121,7 @@ export function generateWeightCandidates(step = 5): LensScoreWeights[] {
       candidates.push({ technical, fundamental, flow });
     }
   }
-  if (!candidates.some((w) => w.technical === 40 && w.fundamental === 30 && w.flow === 30)) {
+  if (!candidates.some((w) => w.technical === CURRENT_WEIGHTS.technical && w.fundamental === CURRENT_WEIGHTS.fundamental && w.flow === CURRENT_WEIGHTS.flow)) {
     candidates.push(CURRENT_WEIGHTS);
   }
   return candidates;

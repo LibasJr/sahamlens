@@ -103,6 +103,27 @@ describe('handleSetProStatus', () => {
     expect(result.status).toBe(200);
     expect(result.body).toMatchObject({ email: 'user@test.com', isPro: true });
   });
+
+  it('expiresAt yang tidak bisa dibaca ditolak sebagai ValidationError, bukan 500', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', email: 'user@test.com' }));
+
+    // Tanpa guard, new Date('30-02-2026').toISOString() melempar RangeError mentah dan
+    // admin hanya melihat "Internal Server Error" tanpa tahu kolom mana yang salah.
+    await expect(
+      handleSetProStatus(adminCookieStore(true), { email: 'user@test.com', isPro: true, expiresAt: '30-02-2026' })
+    ).rejects.toThrow(ValidationError);
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it('expiresAt valid dipakai apa adanya, termasuk tanggal masa lalu (cabut akses)', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', email: 'user@test.com' }));
+    vi.mocked(updateUser).mockResolvedValue(undefined);
+
+    await handleSetProStatus(adminCookieStore(true), { email: 'user@test.com', isPro: true, expiresAt: '2020-01-15' });
+
+    const arg = vi.mocked(updateUser).mock.calls[0][1] as any;
+    expect(arg.pro_expires_at).toBe(new Date('2020-01-15').toISOString());
+  });
 });
 
 describe('handleAdminLoginByKey', () => {

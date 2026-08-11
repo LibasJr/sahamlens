@@ -37,6 +37,11 @@
  */
 
 import { SCORING_KATEGORI_THRESHOLDS } from './decision-thresholds';
+// Bobot kelompok TIDAK lagi ditulis sebagai angka di file ini. Nilai yang sama juga
+// dipakai calibration lab sebagai baseline pembanding proposal bobot baru - kalau salah
+// satunya berubah sendirian, lab itu membandingkan terhadap baseline fiktif tanpa tanda
+// apa pun. Lihat shared/constants/lens-score-weights.ts.
+import { LENS_SCORE_WEIGHTS, LENS_SCORE_TOTAL_WEIGHT } from '@/shared/constants/lens-score-weights';
 import { resolveSectorProfile, isPeakCycleSignature } from '@/modules/sector';
 import {
   impliedMultiples,
@@ -769,23 +774,23 @@ export function calculateScore(
   const rsi = scoreRsi(technical);
   const macd = scoreMacd(technical);
   const volume = scoreVolume(technical);
-  const technicalGroup = combine([maTrend, rsi, macd, volume], 40);
+  const technicalGroup = combine([maTrend, rsi, macd, volume], LENS_SCORE_WEIGHTS.technical);
 
   const valuasi = scoreValuasi(fundamental);
   const profitabilitas = scoreProfitabilitas(fundamental);
   const kesehatan = scoreKesehatan(fundamental);
-  const fundamentalGroup = combine([valuasi, profitabilitas, kesehatan], 30);
+  const fundamentalGroup = combine([valuasi, profitabilitas, kesehatan], LENS_SCORE_WEIGHTS.fundamental);
 
   const flowTekanan = scoreFlowTekanan(flow);
   const flowPersistensi = scoreFlowPersistensi(flow);
-  const flowGroup = combine([flowTekanan, flowPersistensi], 30);
+  const flowGroup = combine([flowTekanan, flowPersistensi], LENS_SCORE_WEIGHTS.flow);
 
   const allComponents = [maTrend, rsi, macd, volume, valuasi, profitabilitas, kesehatan, flowTekanan, flowPersistensi];
   const availableMaxTotal = technicalGroup.availableMax + fundamentalGroup.availableMax + flowGroup.availableMax;
-  // Penyebut = jumlah bobot kelompok yang DIDEKLARASIKAN (40 + 30 + 30), konstan.
-  // Ditulis sebagai konstanta bernama supaya hubungannya dengan groupMax di atas
-  // eksplisit, bukan angka 100 yang kebetulan cocok (P0-2).
-  const DECLARED_TOTAL_WEIGHT = 100;
+  // Penyebut = jumlah bobot kelompok yang DIDEKLARASIKAN, konstan. Dihitung dari
+  // LENS_SCORE_WEIGHTS, bukan ditulis 100, supaya hubungannya dengan groupMax di atas
+  // eksplisit dan tidak bisa meleset kalau bobotnya berubah (P0-2).
+  const DECLARED_TOTAL_WEIGHT = LENS_SCORE_TOTAL_WEIGHT;
   const coveragePct = Math.round((availableMaxTotal / DECLARED_TOTAL_WEIGHT) * 100);
 
   // Skor akhir diskalakan ke 0-100 atas bobot yang BENAR-BENAR punya data. Tanpa ini,
