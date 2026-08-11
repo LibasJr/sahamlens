@@ -6,6 +6,8 @@
 // untuk analisis mendalam yang butuh akun Pro.
 
 import { calculateRsi } from '@/modules/technical/service/rsi';
+import { calculateEmaSeries, MACD_FAST, MACD_SLOW, MACD_SIGNAL } from '@/modules/technical/service/ema';
+import { CONSENSUS_VOTE_THRESHOLDS } from '@/modules/technical/service/decision-thresholds';
 import { analyzeBandarmology } from '@/modules/market/service/foreign-flow-proxy';
 
 export type Candle = { time: string; open: number; high: number; low: number; close: number; volume: number };
@@ -66,13 +68,12 @@ function sma(values: number[], period: number): number | null {
   return slice.reduce((a, b) => a + b, 0) / period;
 }
 
-function ema(values: number[], period: number): number[] {
-  if (values.length === 0) return [];
-  const k = 2 / (period + 1);
-  const out: number[] = [values[0]];
-  for (let i = 1; i < values.length; i++) out.push(values[i] * k + out[i - 1] * (1 - k));
-  return out;
-}
+// BUG FIX (2026-08-12): salinan EMA di file ini di-seed dengan HARGA PERTAMA, bukan SMA -
+// bug L-3 yang sudah diperbaiki di ema-analyzer & macd-analyzer pada audit 2026-08-05
+// tetapi tidak ikut sampai ke sini. Akibatnya MACD "Konsensus AI" di halaman ini berasal
+// dari EMA yang berbeda dari MACD yang dipakai LensScore, padahal keduanya tampil
+// bersamaan. Sekarang satu implementasi: modules/technical/service/ema.ts.
+const ema = calculateEmaSeries;
 
 function stddev(values: number[]): number {
   if (values.length === 0) return 0;
@@ -144,6 +145,9 @@ export type CouncilResult = {
   agents: MiniAgent[];
   buyPct: number; sellPct: number; holdPct: number;
   finalSignal: Signal; confidence: number;
+  /** true = tidak ada arah yang mencapai ambang konsensus; agennya terpecah, bukan netral.
+   * UI WAJIB membedakan keduanya - "terpecah" adalah informasi, "netral" adalah kesimpulan. */
+  divided: boolean;
   summary: string;
 };
 
@@ -193,10 +197,14 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
 
   // 4. MACD Agent
   if (closes.length >= 35) {
-    const emaFast = ema(closes, 12);
-    const emaSlow = ema(closes, 26);
-    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
-    const signalLine = ema(macdLine, 9);
+    // Signal line dihitung hanya atas MACD line yang SAH (mulai indeks MACD_SLOW - 1),
+    // sama seperti macd-analyzer. Menghitungnya atas seluruh deret ikut memasukkan
+    // rentang tempat helper EMA masih mengisi konstanta seed - itu bukan MACD.
+    const emaFast = ema(closes, MACD_FAST);
+    const emaSlow = ema(closes, MACD_SLOW);
+    const firstValid = MACD_SLOW - 1;
+    const macdLine = emaFast.slice(firstValid).map((v, i) => v - emaSlow[i + firstValid]!);
+    const signalLine = ema(macdLine, MACD_SIGNAL);
     const macdNow = macdLine[macdLine.length - 1];
     const sigNow = signalLine[signalLine.length - 1];
     const macdPrev = macdLine[macdLine.length - 2];
@@ -280,10 +288,23 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   const sellPct = Math.round((sellCount / total) * 100);
   const holdPct = Math.round((holdCount / total) * 100);
 
+  // BUG FIX (2026-08-12): dulu ini PLURALITAS - `buyCount > sellCount && buyCount > holdCount`.
+  // Empat agen dari sepuluh sudah cukup mengeluarkan "SELL", dengan confidence 40% yang
+  // dirender sebagai perintah. Pada suara yang sama persis, calculateConsensus() -
+  // yang tampil di kartu sebelahnya - menyebutnya HOLD karena butuh >= 60% satu arah.
+  // Dua verdict berlawanan di satu layar, dan tidak ada angka yang salah di keduanya:
+  // yang berbeda hanya aturan penjumlahan suaranya.
+  //
+  // Sekarang ambangnya sama dengan CONSENSUS_VOTE_THRESHOLDS.NORMAL. Di bawah itu
+  // hasilnya HOLD - bukan karena pasar netral, melainkan karena agen-agennya TERPECAH,
+  // dan itu keadaan yang harus dinyatakan apa adanya, bukan dibulatkan jadi arah.
   let finalSignal: Signal = 'HOLD';
   let confidence = holdPct;
-  if (buyCount > sellCount && buyCount > holdCount) { finalSignal = 'BUY'; confidence = buyPct; }
-  else if (sellCount > buyCount && sellCount > holdCount) { finalSignal = 'SELL'; confidence = sellPct; }
+  if (buyPct >= CONSENSUS_VOTE_THRESHOLDS.NORMAL) { finalSignal = 'BUY'; confidence = buyPct; }
+  else if (sellPct >= CONSENSUS_VOTE_THRESHOLDS.NORMAL) { finalSignal = 'SELL'; confidence = sellPct; }
+
+  /** Agen terpecah: tidak ada arah yang mencapai ambang konsensus. */
+  const divided = finalSignal === 'HOLD' && holdPct < CONSENSUS_VOTE_THRESHOLDS.NORMAL;
 
   // Ringkasan ditulis sebagai kesimpulan langsung yang substantif - bukan rincian
   // "sekian suara BUY/HOLD/SELL" atau menyebut jumlah agen. Metodenya tetap gabungan
@@ -305,7 +326,7 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   if (supporting.length) summary += ` ${supporting.join(' ')}`;
   if (opposing) summary += ` Yang perlu diwaspadai: ${opposing.reason}`;
 
-  return { agents, buyPct, sellPct, holdPct, finalSignal, confidence, summary };
+  return { agents, buyPct, sellPct, holdPct, finalSignal, confidence, divided, summary };
 }
 
 // Insight naratif ringkas (dipakai untuk kartu "Insight Terkini") - juga rule-based,

@@ -1,13 +1,11 @@
+import { calculateMacd, MACD_FAST, MACD_SLOW, MACD_SIGNAL } from '../ema';
+
 // BUG FIX (audit integritas data 2026-08-03, temuan M-03): sama seperti rsi-analyzer.ts
 // - pemanggil sebelumnya mem-parse macdLine/macdSignal/macdHist dari string `value`
 // pakai regex (`/MACD: ([\-\d.]+), Sig: ([\-\d.]+), Hist: ([\-\d.]+)/`). Kalau regex
 // tidak match (mis. format berubah), kegagalan DIAM-DIAM menghasilkan 0/0/0 yang masuk
 // ke scoring sebagai "MACD bearish" - bukan error yang terlihat. `raw` (angka asli)
 // disediakan supaya pemanggil tidak perlu regex sama sekali.
-const MACD_FAST = 12;
-const MACD_SLOW = 26;
-const MACD_SIGNAL = 9;
-
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 35) return { label: 'MACD', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
 
@@ -17,27 +15,16 @@ export function analyze(history: any[], currentPrice: number) {
   if (closes.some((close) => close == null)) {
     return { label: 'MACD', value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
   }
-  const ema12 = calculateEMA(closes as number[], MACD_FAST);
-  const ema26 = calculateEMA(closes as number[], MACD_SLOW);
-
-  // BUG FIX (audit kuantitatif Fase 3, temuan M-10): signal line dulu dihitung atas
-  // SELURUH panjang deret, termasuk indeks 0..24 tempat calculateEMA masih mengisi nilai
-  // seed konstan supaya panjang array tetap sama. MACD line belum ada di sana - EMA 26
-  // baru punya seed di indeks 25 - jadi sembilan nilai pertama yang men-seed signal line
-  // adalah selisih antar dua konstanta buatan, bukan MACD.
-  //
-  // Ditemukan oleh cross-check terhadap lib/chart-indicators.ts, yang sudah benar:
-  // selisihnya 0,00017 pada deret golden 80 bar. Kecil, tetapi artinya garis signal di
-  // chart bukan garis signal yang dipakai scoring - dan pada deret pendek selisihnya lebih
-  // besar. Definisi baku (Appel; sama dengan TradingView): MACD line sah mulai indeks
-  // MACD_SLOW - 1, dan signal adalah EMA 9 atas bagian yang sah itu saja.
-  const firstValidIndex = MACD_SLOW - 1;
-  const macdLine = ema12.slice(firstValidIndex).map((val, i) => val - ema26[i + firstValidIndex]);
-  const signalLine = calculateEMA(macdLine, MACD_SIGNAL);
-
-  const lastMacd = macdLine[macdLine.length - 1];
-  const lastSignal = signalLine[signalLine.length - 1];
-  const histogram = lastMacd - lastSignal;
+  // Satu implementasi MACD untuk seluruh aplikasi - lihat modules/technical/service/ema.ts.
+  // Sebelumnya file ini punya salinan EMA sendiri, begitu pula ema-analyzer dan
+  // lib/miniCouncil (yang salinannya masih memakai seed lama yang salah).
+  const macd = calculateMacd(closes as number[], MACD_FAST, MACD_SLOW, MACD_SIGNAL);
+  if (!macd) {
+    return { label: 'MACD', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
+  }
+  const lastMacd = macd.macdLine;
+  const lastSignal = macd.macdSignal;
+  const histogram = macd.macdHist;
 
   let decision = 'NEUTRAL';
   let confidence = 50;
@@ -58,33 +45,4 @@ export function analyze(history: any[], currentPrice: number) {
     confidence: Math.round(confidence),
     raw: { macdLine: lastMacd, macdSignal: lastSignal, macdHist: histogram },
   };
-}
-
-// EMA baku: di-seed dengan SMA periode pertama, bukan harga pertama.
-//
-// BUG FIX (audit logika & algoritma 2026-08-05, temuan L-3): implementasi lama memulai
-// deret dengan `ema[0] = prices[0]` - satu harga tunggal sebagai titik awal rata-rata
-// bergerak. Efeknya mengecil seiring bertambahnya bar (bobot awal meluruh eksponensial)
-// dan pada 200 bar praktis hilang, tapi untuk deret pendek - dan untuk MACD, yang
-// meng-EMA-kan hasil EMA sehingga bias awalnya bertumpuk - hasilnya menyimpang dari EMA
-// yang dilihat pengguna di platform lain. Seed SMA adalah definisi yang dipakai
-// TradingView/Stockbit dkk.
-function calculateEMA(prices: number[], period: number) {
-  if (prices.length === 0) return [];
-  const k = 2 / (period + 1);
-  const ema: number[] = [];
-  if (prices.length < period) {
-    // Bar belum cukup untuk seed SMA - kembalikan deret dari harga pertama seperti
-    // sebelumnya; pemanggil sudah menjaga panjang minimum sebelum memakai hasilnya.
-    ema.push(prices[0]);
-    for (let i = 1; i < prices.length; i++) ema.push(prices[i] * k + ema[i - 1] * (1 - k));
-    return ema;
-  }
-  const seed = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  // Indeks 0..period-2 diisi seed supaya panjang array tetap sama dengan `prices`
-  // (pemanggil mengambil elemen terakhir & memetakan per indeks).
-  for (let i = 0; i < period - 1; i++) ema.push(seed);
-  ema.push(seed);
-  for (let i = period; i < prices.length; i++) ema.push(prices[i] * k + ema[i - 1] * (1 - k));
-  return ema;
 }
