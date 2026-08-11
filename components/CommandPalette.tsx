@@ -128,7 +128,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
     if (onSelect) {
       onSelect(emiten.symbol, emiten.name);
     } else {
-      const routeSymbol = emiten.symbol.startsWith('^') ? emiten.symbol : `${emiten.symbol}.JK`;
+      const routeSymbol = emiten.symbol.startsWith('^') ? 'IHSG' : `${emiten.symbol}.JK`;
       router.push(`/technical/${encodeURIComponent(routeSymbol)}`);
     }
   };

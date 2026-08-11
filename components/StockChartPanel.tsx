@@ -27,7 +27,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   useEffect(() => {
     const controller = new AbortController();
     setChartData([]);
-    fetch(`/api/public-chart/${code}?tf=${timeframe}`, { signal: controller.signal })
+    fetch(`/api/public-chart/${encodeURIComponent(code)}?tf=${timeframe}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         if (!controller.signal.aborted && data && data.history && data.history.length > 0) setChartData(data.history);
