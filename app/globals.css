@@ -98,11 +98,35 @@ h3 {
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4), 0 0 24px 0 rgba(59, 130, 246, 0.15);
 }
 
+/* Running market information lives globally so hydration/route transitions cannot
+   drop component-scoped keyframes. Two identical groups make -50% a seamless loop. */
+@keyframes sahamlens-ticker-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes sahamlens-signal-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+.sahamlens-ticker-track,
+.sahamlens-signal-track {
+  width: max-content;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-play-state: running;
+  will-change: transform;
+}
+
+.sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; }
+.sahamlens-signal-track { animation-name: sahamlens-signal-scroll; }
+
 /* Hormati preferensi sistem "kurangi gerakan" - satu aturan global, jadi tiap
    komponen baru tidak perlu mengurus ini sendiri-sendiri. */
 @media (prefers-reduced-motion: reduce) {
 
-  *,
+  *:not(.sahamlens-ticker-track):not(.sahamlens-signal-track),
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
@@ -367,9 +391,7 @@ body > div > .lens-theme-toggle {
 .lens-page-hidden .sahamlens-ticker-track,
 .lens-page-hidden .sahamlens-signal-track,
 .lens-save-data .animate-pulse,
-.lens-save-data .animate-ping,
-.lens-save-data .sahamlens-ticker-track,
-.lens-save-data .sahamlens-signal-track {
+.lens-save-data .animate-ping {
   animation-play-state: paused !important;
 }
 
