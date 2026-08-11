@@ -5,7 +5,9 @@ import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, 
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
-import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
+import { checkWatchlistLimit } from '@/lib/limits';
+import { FREE_LIMITS } from '@/shared/constants/limits';
+import { fetchProAccess } from '@/lib/hooks/useAuthUser';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { getTickerName } from '@/lib/trendingTickers';
 import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
@@ -62,7 +64,7 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    refreshAdminStatus().then(setHasPro);
+    fetchProAccess().then(setHasPro);
     checkAdmin(controller.signal);
     return () => controller.abort();
   }, []);

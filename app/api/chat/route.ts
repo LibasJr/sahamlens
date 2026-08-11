@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
 import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
+import { consumeGuestChat, GUEST_CHAT_LIMIT_MESSAGE } from '@/shared/usage/guest-chat-quota';
 import { generateAIResult, type AIProviderErrorCode } from '@/lib/aiProviders';
 import { resolveConversationTickers } from './extract-ticker';
 import { normalizeChatText, getDeterministicSmallTalkResponse } from './chat-normalize';
@@ -21,7 +22,6 @@ import { buildSystemPrompt } from './build-system-prompt';
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
 const MAX_HISTORY_TURNS = 8;
-const GUEST_CHAT_LIMIT_MESSAGE = 'Batas percakapan guest LensAI sudah tercapai. Silakan login untuk meneruskan percakapan.';
 
 function providerErrorResponse(errorCode: AIProviderErrorCode | null): { status: number; errorCode: 'PROVIDER_ERROR' | 'RATE_LIMIT'; content: string; detailCode: string } {
   switch (errorCode) {
@@ -90,12 +90,13 @@ export async function POST(request: Request) {
       session ? 'authenticated' : 'public',
     );
     if (!budget.allowed) {
+      // Murni pengaman lonjakan CPU, BUKAN batas produk - batas produk guest ditegakkan
+      // di bawah lewat consumeGuestChat (5 pertanyaan). Pesannya karena itu sama untuk
+      // guest maupun user login: "terlalu cepat", bukan "jatahmu habis, silakan login".
       return json({
         role: 'assistant',
-        content: session
-          ? 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.'
-          : GUEST_CHAT_LIMIT_MESSAGE,
-        errorCode: session ? 'RATE_LIMIT' : 'AUTH_REQUIRED_LIMIT',
+        content: 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.',
+        errorCode: 'RATE_LIMIT',
       }, { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined });
     }
 
@@ -117,6 +118,20 @@ export async function POST(request: Request) {
         content: 'Pertanyaan tidak boleh kosong.',
         errorCode: 'DATA_ERROR',
       }, { status: 400 });
+    }
+
+    // Batas produk guest: 5 pertanyaan (shared/usage/guest-chat-quota.ts). Ditagih SETELAH
+    // prompt lolos validasi supaya request kosong tidak memotong jatah, dan SEBELUM
+    // pemanggilan AI/data yang mahal.
+    if (!session) {
+      const guestQuota = await consumeGuestChat(anonTrial!.firstSeenAt);
+      if (!guestQuota.allowed) {
+        return json({
+          role: 'assistant',
+          content: GUEST_CHAT_LIMIT_MESSAGE,
+          errorCode: 'AUTH_REQUIRED_LIMIT',
+        }, { status: 429 });
+      }
     }
 
     const normalizedPrompt = normalizeChatText(prompt);

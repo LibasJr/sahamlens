@@ -1,5 +1,5 @@
 import { listAlerts, countAlerts, createAlert, deleteAlert, listPendingAlerts, markTriggered } from '../repository/alert.repository';
-import { FREE_LIMITS } from '../constants/watchlist.constants';
+import { FREE_LIMITS } from '@/shared/constants/limits';
 import { AlertLimitReachedError } from '../types/watchlist.errors';
 import type { Alert } from '../types/watchlist.types';
 import type { AlertInput } from '../validator/watchlist.validator';

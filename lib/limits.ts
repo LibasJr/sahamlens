@@ -1,25 +1,27 @@
-// checkAnalisaLimit/decrementAnalisaLimit (limit analisa bot Telegram, berbasis
-// shim lib/supabase.ts) dihapus - login/bot Telegram sudah tidak dipakai, dan kedua
-// fungsi ini sudah jadi dead code (di-import tapi tidak pernah dipanggil di
-// app/api/stock/[ticker]/route.ts). Limit yang aktif sekarang murni checkProAccess
-// (shared/auth/session.ts).
-
-import { fetchProAccess } from './hooks/useAuthUser';
-
-export const FREE_LIMITS = {
-  WATCHLIST: 3,
-  ALERTS: 2,
-  analisaPerHari: 5
-};
+// Sisa helper limit sisi-KLIEN. Angkanya sendiri tinggal di shared/constants/limits.ts
+// (sumber tunggal, dipakai juga oleh penegakan server) - di sini cuma di-re-export supaya
+// halaman yang sudah mengimpor dari '@/lib/limits' tidak perlu diubah semua.
+//
+// PENTING: ini lapisan UI, BUKAN gerbang otorisasi. Penegakan sesungguhnya ada di server
+// (modules/watchlist/service/*.service.ts dengan advisory lock, dan
+// shared/usage/daily-analisa-quota.ts lewat /api/stock/[ticker]).
+//
+// Tiga stub mati DIHAPUS di sini (2026-08-11): `getUsedSymbolsToday()` yang selalu
+// mengembalikan array kosong, `incrementAnalisa()` yang selalu menjawab
+// `{allowed:true, remaining:999}` tanpa menghitung apa pun, dan alias satu baris
+// `refreshAdminStatus()`. Ketiganya peninggalan arsitektur lama; yang berbahaya bukan
+// kode matinya, tapi namanya - `incrementAnalisa` terbaca seperti penegak kuota padahal
+// tidak pernah menolak siapa pun, jadi pemanggil berikutnya mengira kuotanya sudah dijaga.
+export { FREE_LIMITS } from '@/shared/constants/limits';
+import { FREE_LIMITS } from '@/shared/constants/limits';
 
 // BUG FIX (2026-08-06, dilaporkan user): pelanggan Pro 1 bulan tetap kena notifikasi
-// "limit habis". Semua fungsi di bawah dulu mengendus cookie - `saham_admin=true`,
-// `role=admin`, `role=pro`. Dua yang terakhir tidak pernah cocok untuk pelanggan
-// sungguhan: panel admin mengaktifkan Pro dengan HANYA menulis is_pro +
-// pro_expires_at (handleSetProStatus), kolom `role` tidak pernah diubah siapa pun,
-// dan cookie `role` hanya pernah diisi nilai 'admin' saat login admin. Jadi status
-// Pro sekarang ditanyakan ke server (sumber yang sama dengan gerbang API), bukan
-// ditebak dari cookie yang tidak pernah ditulis.
+// "limit habis". Fungsi ini dulu mengendus cookie - `saham_admin=true`, `role=admin`,
+// `role=pro`. Dua yang terakhir tidak pernah cocok untuk pelanggan sungguhan: panel admin
+// mengaktifkan Pro dengan HANYA menulis is_pro + pro_expires_at (handleSetProStatus),
+// kolom `role` tidak pernah diubah siapa pun. Status Pro sekarang dikirim pemanggil dari
+// sumber yang sama dengan gerbang API (hasProAccessFor/fetchProAccess di
+// lib/hooks/useAuthUser.ts), bukan ditebak dari cookie yang tidak pernah ditulis.
 export function checkWatchlistLimit(currentCount: number, hasPro: boolean) {
   if (hasPro) return { allowed: true };
 
@@ -29,21 +31,3 @@ export function checkWatchlistLimit(currentCount: number, hasPro: boolean) {
 
   return { allowed: true };
 }
-
-export async function refreshAdminStatus() {
-  return fetchProAccess();
-}
-
-export function getUsedSymbolsToday() {
-  // Now handled by server-side usage_logs, returning empty array to satisfy frontend types
-  return [];
-}
-
-export function incrementAnalisa(symbol: string) {
-  // Real check is now done Server-Side via /api/stock/[ticker]
-  // This just bypasses the old client side check
-  return { allowed: true, remaining: 999 };
-}
-
-
-

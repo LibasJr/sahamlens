@@ -190,11 +190,6 @@ export default function PaywallModal({
                       : 'border-tv-border hover:bg-tv-hover'
                   }`}
                 >
-                  {plan.badge && (
-                    <span className="absolute -top-2 right-2 bg-tv-blue text-white text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded">
-                      {plan.badge}
-                    </span>
-                  )}
                   <p className="text-xs font-bold text-tv-text">{plan.label}</p>
                   {plan.discountPct > 0 && (
                     <p className="text-[10px] text-tv-muted line-through font-number">{formatRupiah(plan.normalPrice)}</p>

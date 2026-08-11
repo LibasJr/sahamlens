@@ -6,10 +6,10 @@ import { checkAndTriggerAlerts } from '@/modules/notification';
 
 // BUILD 006 (Scheduler) - lihat catatan pola di app/api/cron/macro/route.ts.
 // Logika evaluasi alert (checkAndTriggerAlerts) SUDAH ADA sejak BUILD 002 lewat
-// app/api/alerts/check (GET, TANPA verifikasi signature apapun) - endpoint itu
-// SENGAJA DIBIARKAN apa adanya (tidak tahu apakah ada pemicu eksternal yang sudah
-// bergantung padanya), dan job baru ini ditambahkan sebagai jalur QStash yang
-// benar-benar terverifikasi untuk didaftarkan sebagai schedule resmi.
+// app/api/alerts/check. Route ini adalah jalur TERJADWAL resmi, diverifikasi lewat
+// signature QStash. Sejak 2026-08-11 /api/alerts/check tidak lagi terbuka untuk publik:
+// pemanggilnya ditelusuri cuma tombol manual di halaman watchlist, jadi endpoint itu
+// sekarang mewajibkan sesi login (lihat catatan lengkap di file tersebut).
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();

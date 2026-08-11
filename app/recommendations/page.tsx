@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, Search, ArrowUpDown, ChevronUp, ChevronDown, Calendar, Bot } from 'lucide-react';
-import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { FREE_LIMITS } from '@/shared/constants/limits';
+import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -65,7 +66,6 @@ export default function Recommendations() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey, direction: 'asc' | 'desc' } | null>(null);
   
   const [showPaywall, setShowPaywall] = useState(false);
-  const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // Badge "Ada Corporate Action Hari Ini" - sebelumnya pakai data/calendar.json dummy
@@ -103,7 +103,6 @@ export default function Recommendations() {
           return;
         }
         if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
-          setUsedSymbolsToday(getUsedSymbolsToday());
           setShowPaywall(true);
           return;
         }
@@ -438,7 +437,7 @@ export default function Recommendations() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',

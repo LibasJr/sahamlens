@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Coins, ShieldCheck, Repeat } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { Input } from '@/components/ui';
+import PaywallModal from '@/components/PaywallModal';
+import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 
 export default function DividendPage() {
   const [capital, setCapital] = useState(200_000_000);
@@ -12,6 +14,7 @@ export default function DividendPage() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Catatan: kalkulator ini menghitung rata-rata dari 15-20 saham dividen IDX terbaik
   // (universe likuid, lihat modules/fundamental/service/dividend-plan.service.ts),
@@ -24,6 +27,13 @@ export default function DividendPage() {
     try {
       const res = await fetch(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
       const json = await res.json();
+      // 402 = butuh Pro. Tampilkan modal upgrade (jalan keluar yang bisa ditindaklanjuti),
+      // bukan teks error merah yang jadi jalan buntu seperti kegagalan teknis.
+      if (res.status === 402 || json?.code === 'SUBSCRIPTION_REQUIRED') {
+        setShowPaywall(true);
+        setData(null);
+        return;
+      }
       if (!res.ok) {
         setError(json?.error || 'Gagal memuat simulasi dividen');
         setData(null);
@@ -184,6 +194,17 @@ export default function DividendPage() {
           </div>
         </div>
       </div>
+      <PaywallModal
+        open={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        title="Fitur Pro"
+        body={`Dividend Compounding Planner termasuk paket Pro. Upgrade mulai ${formatRupiah(MONTHLY_PRICE)}/bulan untuk membuka simulasi cash flow dividen lengkap.`}
+        benefits={[
+          'Simulasi compounding & DRIP multi-tahun',
+          'Universe saham dividen IDX terlikuid',
+          'Seluruh modul Pro lain ikut terbuka',
+        ]}
+      />
     </TickerAnalysisShell>
   );
 }

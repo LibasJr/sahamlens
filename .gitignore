@@ -6,14 +6,11 @@ dist/
 .env
 .env.local
 .DS_Store
-mobile/node_modules/
-mobile/android/app/build/
-mobile/android/.gradle/
-mobile/.expo/
 converted.png
 
-# Android (sahamlens-android, android-webview) - path SDK lokal & cache Gradle, bukan
-# bagian dari source yang perlu di-commit.
+# Android (sahamlens-android) - path SDK lokal & cache Gradle, bukan bagian dari
+# source yang perlu di-commit. Aturan khusus mobile/ (Expo) & android-webview/ dibuang
+# 2026-08-11 bersama foldernya: keduanya digantikan sahamlens-android.
 local.properties
 .gradle/
 .kotlin/
@@ -28,6 +25,9 @@ scratch/
 # (error-learning log itu dokumentasi kerja Android yang sengaja tetap di-commit).
 /.claude/
 /.agents/
+# Konfigurasi IDE JetBrains - lokal per mesin (masih menyebut nama proyek lama
+# "trading" & path library mesin developer), tidak ada hubungannya dengan build.
+/.idea/
 /.antigravity/
 /.artifacts/
 /skills-lock.json

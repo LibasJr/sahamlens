@@ -77,7 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Trading',
     items: [
       { id: 'dashboard', name: 'LensTechnical', subtitle: 'Trend, momentum & timing', path: '/dashboard', icon: LineChart },
-      { id: 'screener', name: 'LensScanner', subtitle: 'Multi-factor stock screen', path: '/screener', icon: Filter, guest: true },
+      { id: 'screener', name: 'LensScanner', subtitle: 'Multi-factor stock screen', path: '/screener', icon: Filter },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan multi-emiten', path: '/compare', icon: GitCompare },
       { id: 'backtest', name: 'Backtest', subtitle: 'Uji strategi historis', path: '/backtest', icon: History },
     ],
@@ -152,7 +152,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { loading: authLoading, user, effectiveRole } = useAuthUser();
+  const { loading: authLoading, user, resolved: authResolved, effectiveRole } = useAuthUser();
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -290,7 +290,11 @@ export default function Sidebar() {
                   {group.items.map((item) => {
                     const targetHref = item.id === 'lensai' ? `/technical/${councilTicker.symbol}.JK` : item.path;
                     const active = isPathActive(pathname, item);
-                    const lockedForGuest = !authLoading && !user && role === 'guest' && isProtectedPage(item.path);
+                    // `authResolved` wajib: kalau /api/auth/me gagal dihubungi, user yang
+                    // SUDAH login akan terlihat seperti guest di sini dan seluruh menunya
+                    // dipasangi gembok + tautan /login-required - persis keluhan "sudah
+                    // login tapi disuruh login lagi". Ragu = jangan kunci.
+                    const lockedForGuest = !authLoading && authResolved && !user && role === 'guest' && isProtectedPage(item.path);
                     const href = lockedForGuest
                       ? `/login-required?next=${encodeURIComponent(targetHref)}&feature=${encodeURIComponent(item.name)}`
                       : targetHref;

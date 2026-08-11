@@ -150,7 +150,7 @@ export default function AIChat() {
         // membuang content itu atau menyamakan semua kegagalan menjadi satu pesan palsu.
         const fallbackByCode: Record<string, string> = {
           AUTH_ERROR: 'Silakan login untuk menggunakan LensAI.',
-          AUTH_REQUIRED_LIMIT: 'Batas percakapan guest LensAI sudah tercapai. Silakan login untuk meneruskan percakapan.',
+          AUTH_REQUIRED_LIMIT: 'Jatah pertanyaan LensAI untuk pengunjung sudah habis. Silakan masuk untuk melanjutkan percakapan.',
           DATA_ERROR: 'Data yang dibutuhkan untuk menjawab pertanyaan ini belum tersedia.',
           RATE_LIMIT: 'LensAI sedang terkena batas kuota penyedia AI. Silakan coba lagi nanti.',
           PROVIDER_ERROR: 'LensAI sedang mengalami gangguan koneksi ke penyedia AI.',

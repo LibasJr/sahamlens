@@ -1,6 +1,8 @@
-mobile
+# Tidak dipakai app Next.js - jangan ikut diunggah ke Vercel.
+#
+# Dibersihkan 2026-08-11: entri lama `mobile`, `test.js`, `test-models.js`,
+# `migrate_watchlist.js`, dan `inject_guard.js` dibuang karena file/foldernya sendiri
+# sudah tidak ada di repo. Mengabaikan path yang tidak eksis cuma bikin pembaca
+# berikutnya salah sangka file itu masih ada.
+sahamlens-android
 __tests__
-test.js
-test-models.js
-migrate_watchlist.js
-inject_guard.js
