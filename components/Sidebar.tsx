@@ -156,6 +156,7 @@ export default function Sidebar() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 
   useEffect(() => {
@@ -299,8 +300,29 @@ export default function Sidebar() {
                       <Link
                         key={item.id}
                         href={href}
-                        aria-label={lockedForGuest ? `${item.name}, login diperlukan` : undefined}
+                        title={lockedForGuest ? `${item.name} - login diperlukan` : item.name}
+                        aria-label={lockedForGuest ? `${item.name}, login diperlukan` : item.name}
                         onClick={() => setIsOpen(false)}
+                        onMouseEnter={(event) => {
+                          if (!isCollapsed) return;
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          setHoveredNav({
+                            label: item.name,
+                            top: rect.top + rect.height / 2,
+                            locked: lockedForGuest,
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredNav(null)}
+                        onFocus={(event) => {
+                          if (!isCollapsed) return;
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          setHoveredNav({
+                            label: item.name,
+                            top: rect.top + rect.height / 2,
+                            locked: lockedForGuest,
+                          });
+                        }}
+                        onBlur={() => setHoveredNav(null)}
                         className={`group relative flex min-h-14 items-center rounded-xl md:min-h-[46px] transition-all duration-200 ${
                           isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
                         } ${active ? 'bg-white/[0.075] text-white' : 'text-white/65 hover:bg-white/[0.045] hover:text-white'} ${
@@ -333,11 +355,6 @@ export default function Sidebar() {
                             <LockKeyhole className="h-2.5 w-2.5" aria-hidden="true" />
                           </span>
                         )}
-                        {isCollapsed && (
-                          <span className="pointer-events-none absolute left-full z-[80] ml-3 hidden min-w-max items-center rounded-xl border border-white/10 bg-[#111A29] px-3 py-2 text-xs font-semibold text-white shadow-2xl md:group-hover:flex">
-                            {item.name}{lockedForGuest ? ' · Login diperlukan' : ''}
-                          </span>
-                        )}
                       </Link>
                     );
                   })}
@@ -346,6 +363,17 @@ export default function Sidebar() {
             ))}
           </div>
         </div>
+        {isCollapsed && hoveredNav && (
+          <div
+            className="pointer-events-none fixed left-[86px] z-[100] hidden -translate-y-1/2 items-center rounded-xl border border-white/10 bg-[#111A29] px-3 py-2 text-xs font-semibold text-white shadow-2xl md:flex"
+            style={{ top: hoveredNav.top }}
+          >
+            <span className="absolute -left-1.5 h-3 w-3 rotate-45 border-b border-l border-white/10 bg-[#111A29]" aria-hidden="true" />
+            <span className="relative">
+              {hoveredNav.label}{hoveredNav.locked ? ' · Login diperlukan' : ''}
+            </span>
+          </div>
+        )}
 
         <div className="border-t border-white/[0.06] p-3">
           {!authLoading && user ? (
