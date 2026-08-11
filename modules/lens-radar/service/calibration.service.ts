@@ -12,6 +12,7 @@ import {
   type LensRadarHistoryEntry,
 } from './bucket-backtest.service';
 import {
+  barAtForwardTradingOffset,
   barAtTradingOffset,
   buildTradingCalendar,
   decorrelateByTicker,
@@ -137,6 +138,10 @@ export interface CalibrationDashboardData {
   sourceRows: number;
   uniqueTickers: number;
   observationsT20: number;
+  /** Sinyal yang dibuang karena tidak punya bar bursa MAJU untuk entry (temuan C-03).
+   * Sebelum perbaikan, sinyal seperti ini dieksekusi pada bar tanggal sinyal itu sendiri
+   * dan hasilnya masuk ke seluruh angka di halaman ini sebagai look-ahead. */
+  skippedNoForwardEntry: number;
   chart: CalibrationBucketChartRow[];
   chartSource: 'live-calibration-observations';
   cronComparison: CalibrationCronComparison;
@@ -325,6 +330,8 @@ export async function calculateCalibrationObservations(
   normalizedRows: number;
   uniqueTickers: number;
   observations: CalibrationObservation[];
+  /** Sinyal yang dibuang karena tidak punya bar bursa maju untuk entry (temuan C-03). */
+  skippedNoForwardEntry: number;
   scoreVersion: string | null;
   requestedScoreVersion: string;
   rejectedRows: number;
@@ -347,6 +354,7 @@ export async function calculateCalibrationObservations(
   const tickers = Array.from(byTicker.keys());
   const openMaps = await loadOpenMaps(tickers, provider);
   const observations: CalibrationObservation[] = [];
+  let skippedNoForwardEntry = 0;
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
     const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
@@ -356,8 +364,13 @@ export async function calculateCalibrationObservations(
       if (!signal) continue;
       const signalCalendarIndex = calendarIndex.get(signal.date);
       if (signalCalendarIndex == null) continue;
-      const entry = barAtTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 1);
-      if (!entry) continue;
+      // Entry WAJIB maju dari tanggal sinyal (temuan C-03) - lihat
+      // barAtForwardTradingOffset() untuk mekanisme kebocorannya.
+      const entry = barAtForwardTradingOffset(byDate, tradingCalendar, signalCalendarIndex, 1);
+      if (!entry) {
+        skippedNoForwardEntry++;
+        continue;
+      }
       const entryOpen = openByDate.get(entry.date);
       if (!isFinitePositive(entryOpen)) continue;
 
@@ -366,6 +379,10 @@ export async function calculateCalibrationObservations(
 
       const toReturn = (exit: NormalizedHistoryEntry | null): number | null => {
         if (!exit || !isFinitePositive(exit.closePrice)) return null;
+        // Exit harus benar-benar setelah entry: toleransi dua arah pada offset exit bisa
+        // menariknya sampai bertemu bar entry, dan return nol-hari itu bukan pengukuran
+        // horizon T+5 maupun T+20 (temuan C-03, kasus turunan).
+        if (exit.date <= entry.date) return null;
         if (hasCorporateActionGap(series, entry.date, exit.date)) return null;
         const ret = calculateForwardReturnPct({
           ticker,
@@ -423,6 +440,7 @@ export async function calculateCalibrationObservations(
     normalizedRows: normalized.length,
     uniqueTickers: tickers.length,
     observations,
+    skippedNoForwardEntry,
     scoreVersion: partition.version,
     requestedScoreVersion,
     rejectedRows: partition.rejected.length,
@@ -760,6 +778,7 @@ export async function getCalibrationDashboardData(
     normalizedRows,
     uniqueTickers,
     observations,
+    skippedNoForwardEntry,
     scoreVersion,
     rejectedRows,
     unversionedRows,
@@ -808,6 +827,7 @@ export async function getCalibrationDashboardData(
     sourceRows: normalizedRows,
     uniqueTickers,
     observationsT20,
+    skippedNoForwardEntry,
     chart,
     chartSource: 'live-calibration-observations',
     cronComparison,

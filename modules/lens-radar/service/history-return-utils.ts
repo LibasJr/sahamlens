@@ -55,6 +55,48 @@ export function buildTradingCalendar(rows: { date: string }[]): string[] {
   return Array.from(new Set(rows.map((row) => row.date))).sort();
 }
 
+/**
+ * Bar pada offset MAJU dari tanggal sinyal - toleransi hanya boleh ke depan.
+ *
+ * BUG FIX (audit kuantitatif 2026-08-11, temuan C-03): bar entry dulu dicari dengan
+ * `barAtTradingOffset(byDate, calendar, signalIndex, 1)` yang toleransinya DUA ARAH.
+ * Urutan probe-nya menjadi
+ *
+ *     signalIdx+1 -> signalIdx -> signalIdx+2 -> signalIdx-1 -> signalIdx+3
+ *
+ * dan probe KEDUA adalah tanggal sinyal itu sendiri - bar yang SELALU ada di `byDate`,
+ * karena sinyalnya memang lahir dari bar itu. Jadi setiap kali ticker tidak punya baris
+ * di hari bursa berikutnya (suspensi, hari scan yang terlewat, ticker yang baru masuk
+ * universe, atau baris yang dibuang gerbang likuiditas), entry jatuh ke bar tanggal
+ * sinyal dan `entryOpen` menjadi harga pembukaan hari itu - yaitu harga SEBELUM close
+ * yang melahirkan sinyalnya diketahui. Probe keempat bahkan mundur satu hari lagi.
+ *
+ * Biasnya searah positif: skor memberi nilai penuh untuk volume yang mengonfirmasi
+ * kenaikan hari itu, dan hari dengan close kuat cenderung dibuka lebih rendah daripada
+ * close-nya. Sinyal jadi "dibeli" lebih murah daripada yang bisa dicapai siapa pun.
+ *
+ * Fungsi ini menutupnya dengan dua cara sekaligus: probe hanya maju, DAN ada penjaga
+ * eksplisit `idx > fromIndex` supaya kombinasi argumen apa pun tetap tidak bisa memilih
+ * bar pada/sebelum tanggal sinyal.
+ */
+export function barAtForwardTradingOffset<T extends { date: string }>(
+  byDate: Map<string, T>,
+  calendar: string[],
+  fromIndex: number,
+  offset: number,
+  forwardTolerance = 2
+): T | null {
+  if (offset <= 0) return null;
+  for (let probe = 0; probe <= forwardTolerance; probe++) {
+    const idx = fromIndex + offset + probe;
+    if (idx <= fromIndex) continue;
+    if (idx >= calendar.length) return null;
+    const bar = byDate.get(calendar[idx]!);
+    if (bar) return bar;
+  }
+  return null;
+}
+
 export function barAtTradingOffset<T extends { date: string }>(
   byDate: Map<string, T>,
   calendar: string[],
