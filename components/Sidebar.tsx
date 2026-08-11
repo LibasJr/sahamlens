@@ -40,7 +40,7 @@ import {
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
-import Toast from '@/components/ui/Toast';
+import { isProtectedPage } from '@/shared/constants/access';
 
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
@@ -156,7 +156,6 @@ export default function Sidebar() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [loginNoticeId, setLoginNoticeId] = useState<number | null>(null);
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 
   useEffect(() => {
@@ -288,9 +287,12 @@ export default function Sidebar() {
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
-                    const href = item.id === 'lensai' ? `/technical/${councilTicker.symbol}.JK` : item.path;
+                    const targetHref = item.id === 'lensai' ? `/technical/${councilTicker.symbol}.JK` : item.path;
                     const active = isPathActive(pathname, item);
-                    const lockedForGuest = !authLoading && role === 'guest' && !item.guest;
+                    const lockedForGuest = !authLoading && !user && role === 'guest' && isProtectedPage(item.path);
+                    const href = lockedForGuest
+                      ? `/login-required?next=${encodeURIComponent(targetHref)}&feature=${encodeURIComponent(item.name)}`
+                      : targetHref;
                     const Icon = item.icon;
                     const accentClass = item.accent ? ACCENT_CLASS[item.accent] : 'text-white/45 bg-white/[0.03]';
                     return (
@@ -298,14 +300,7 @@ export default function Sidebar() {
                         key={item.id}
                         href={href}
                         aria-label={lockedForGuest ? `${item.name}, login diperlukan` : undefined}
-                        onClick={(event) => {
-                          if (lockedForGuest) {
-                            event.preventDefault();
-                            setLoginNoticeId(Date.now());
-                            return;
-                          }
-                          setIsOpen(false);
-                        }}
+                        onClick={() => setIsOpen(false)}
                         className={`group relative flex min-h-14 items-center rounded-xl md:min-h-[46px] transition-all duration-200 ${
                           isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
                         } ${active ? 'bg-white/[0.075] text-white' : 'text-white/65 hover:bg-white/[0.045] hover:text-white'} ${
@@ -392,12 +387,6 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
-      <Toast
-        key={loginNoticeId ?? 'guest-login-notice'}
-        message={loginNoticeId ? 'Fitur ini memerlukan akun. Silakan masuk untuk melanjutkan.' : null}
-        variant="info"
-        durationMs={6000}
-      />
       <UserProfileModal open={showProfileModal} onClose={closeProfileModal} />
     </>
   );
