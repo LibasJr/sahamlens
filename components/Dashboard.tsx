@@ -106,7 +106,12 @@ type StockSignalItem = {
   symbol: string; price: number; changePct: number; finalScore: number;
   signals?: string[]; tp1: number | null; tp2: number | null;
   cl1: number | null; cl2: number | null; flagged?: boolean;
+  brokerNetValue?: number | null; brokerTradeDate?: string | null;
 };
+
+function formatBrokerFlow(value: number): string {
+  return new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(Math.abs(value));
+}
 
 function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignalItem[]; advisoryEnabled: boolean }) {
   const durationSec = Math.max(28, items.length * 7);
@@ -139,6 +144,11 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
                 <span className="text-tv-green">TP {item.tp1?.toLocaleString('id-ID') ?? '-'}</span>
                 <span className="text-tv-red">CL {item.cl1?.toLocaleString('id-ID') ?? '-'}</span>
               </div>
+              {typeof item.brokerNetValue === 'number' && item.brokerNetValue !== 0 && (
+                <div className={`mt-1.5 text-[10px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  Bandar: Net {item.brokerNetValue > 0 ? 'Buy' : 'Sell'} Rp{formatBrokerFlow(item.brokerNetValue)}
+                </div>
+              )}
             </div>
             <div className="shrink-0 text-right">
               <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-bold tracking-wide ${tone}`}>{label}</span>
@@ -168,7 +178,7 @@ type DashboardProps = {
   initialIhsg?: { price: number; change: number; pointChange: number } | null;
   initialRenderedAt?: string;
   initialLensRadar?: {
-    items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number }[];
+    items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number; brokerNetValue?: number | null; brokerTradeDate?: string | null }[];
     computedAt: string | null;
     advisoryEnabled: boolean;
     note: string | null;
@@ -342,6 +352,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
       coverage?: number | null;
       tp1: number | null; tp2: number | null; cl1: number | null; cl2: number | null;
       flagged?: boolean;
+      brokerNetValue?: number | null; brokerTradeDate?: string | null;
     }[] | null
   >(initialLensRadar?.items ? initialLensRadar.items.map((item) => ({
     ...item,
@@ -612,8 +623,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   aslinya jauh lebih pendek dari kolom kiri), menyisakan celah kosong
                   di atas DAN di bawahnya. Sekarang panel meregang penuh mengikuti
                   kolom kiri, isinya disebar dari atas ke bawah. */}
-              <div className="h-full">
-              <div className="h-full rounded-xl border border-tv-border/60 bg-tv-bg/40 p-5 backdrop-blur-sm flex flex-col justify-between">
+              <div>
+              <div className="rounded-xl border border-tv-border/60 bg-tv-bg/40 p-4 backdrop-blur-sm">
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">IHSG hari ini</div>
@@ -621,10 +632,10 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   </div>
                   {ihsg ? (
                     <>
-                      <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
+                      <div className="mt-1.5 font-number text-2xl sm:text-3xl font-bold tracking-tight text-tv-text">
                         {ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${
+                      <div className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
                         ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
                       }`}>
                         {ihsg.change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
@@ -641,19 +652,19 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   )}
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3 border-t border-tv-border pt-4">
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-tv-border pt-3">
                   <div>
-                    <div className="font-number text-lg font-bold text-tv-text">109</div>
+                    <div className="font-number text-base font-bold text-tv-text">109</div>
                     <div className="text-[10px] text-tv-muted leading-tight">universe historis likuid dipindai tiap sesi</div>
                   </div>
                   <div>
-                    <div className="font-number text-lg font-bold text-tv-text">
+                    <div className="font-number text-base font-bold text-tv-text">
                       {aiPicks === null ? '—' : aiPicks.length}
                     </div>
                     <div className="text-[10px] text-tv-muted leading-tight">lolos ambang skor hari ini</div>
                   </div>
                 </div>
-                <p className="mt-3 text-[10px] leading-relaxed text-tv-muted">
+                <p className="mt-2.5 text-[9px] leading-relaxed text-tv-muted">
                   Universe 109 dibentuk dari emiten IDX yang lolos filter historis harga, likuiditas, dan volatilitas.
                   LensRadar live dapat memindai cakupan lebih luas, tetapi setiap kandidat tetap melalui gerbang kelayakan data.
                 </p>

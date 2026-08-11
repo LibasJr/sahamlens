@@ -475,10 +475,10 @@ export default function HomePage() {
       <div className="flex">
         <Link
           href="/"
-          className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-tv-blue/25 bg-tv-blue/10 px-4 text-sm font-bold text-white shadow-[0_12px_34px_rgba(79,140,255,0.14)] transition hover:border-tv-blue/45 hover:bg-tv-blue/15"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-tv-blue/25 bg-tv-blue/10 px-3 text-xs font-semibold text-white transition hover:border-tv-blue/45 hover:bg-tv-blue/15"
           aria-label="Kembali ke halaman utama SahamLens"
         >
-          <ArrowLeft className="h-4 w-4 text-tv-blue" />
+          <ArrowLeft className="h-3.5 w-3.5 text-tv-blue" />
           Kembali ke halaman utama
         </Link>
       </div>

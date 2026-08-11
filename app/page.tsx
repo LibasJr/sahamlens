@@ -4,6 +4,7 @@ import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
+import { getBrokerFlowBadges } from '@/modules/broker-flow/service/broker-summary-cache.service';
 
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
@@ -59,9 +60,15 @@ async function getInitialLensRadar() {
     };
 
     const validation = getLensScoreValidationStatus();
-    const items = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols, {
+    const rankedItems = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols, {
       mode: validation.validated ? 'advisory' : 'scanner',
     }).slice(0, 5);
+    const brokerBadges = await getBrokerFlowBadges(rankedItems.map((item) => item.symbol));
+    const items = rankedItems.map((item) => ({
+      ...item,
+      brokerNetValue: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.netValue ?? null,
+      brokerTradeDate: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.tradeDate ?? null,
+    }));
 
     return {
       items,

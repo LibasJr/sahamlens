@@ -6,6 +6,7 @@ import { cacheGet } from '@/shared/cache/redis-cache';
 import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
 import { getLensScoreValidationStatus } from '@/modules/validation';
+import { getBrokerFlowBadges } from '@/modules/broker-flow/service/broker-summary-cache.service';
 
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
@@ -36,7 +37,12 @@ export async function GET() {
     const advisoryEnabled = modelValidation.validated;
     const rankMode = advisoryEnabled ? 'advisory' : 'scanner';
     const rankedItems = rankAiPicks(scoreData.scores, breakout, scoreData.bearishSymbols, { mode: rankMode });
-    const items = rankedItems;
+    const brokerBadges = await getBrokerFlowBadges(rankedItems.map((item) => item.symbol));
+    const items = rankedItems.map((item) => ({
+      ...item,
+      brokerNetValue: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.netValue ?? null,
+      brokerTradeDate: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.tradeDate ?? null,
+    }));
 
     // BUG FIX (audit integritas data 2026-08-03): TTL cache skor diperpanjang ke 3 hari
     // (lihat shared/cache/ai-pick-cache.ts) supaya halaman ini tidak kosong total di

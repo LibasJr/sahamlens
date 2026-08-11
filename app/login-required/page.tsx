@@ -25,20 +25,20 @@ export default async function LoginRequiredPage({
   const loginHref = `/login?next=${encodeURIComponent(nextPath)}&notice=login_required`;
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4 md:p-8">
-      <section className="w-full max-w-3xl rounded-2xl border border-tv-border bg-tv-card px-6 py-12 text-center shadow-2 md:px-10 md:py-16">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-tv-blue/15 bg-tv-blue/[0.07] text-tv-blue">
-          <LockKeyhole className="h-8 w-8" aria-hidden="true" />
+    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4 md:p-6">
+      <section className="w-full max-w-2xl rounded-2xl border border-tv-border bg-tv-card px-5 py-8 text-center shadow-2 sm:px-8 md:py-10">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-tv-blue/15 bg-tv-blue/[0.07] text-tv-blue">
+          <LockKeyhole className="h-6 w-6" aria-hidden="true" />
         </div>
 
-        <h1 className="mt-6 font-heading text-xl font-bold tracking-tight text-tv-text md:text-2xl">
+        <h1 className="mt-5 font-heading text-lg font-bold tracking-tight text-tv-text md:text-xl">
           Fitur ini memerlukan akun
         </h1>
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-tv-muted md:text-base">
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-tv-muted">
           Silakan masuk untuk melanjutkan{feature ? ` dan membuka ${feature}` : ' dan menggunakan fitur ini'}.
         </p>
 
-        <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           <Link
             href={loginHref}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-tv-blue px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
