@@ -1,20 +1,25 @@
+import { ATR_PERIOD, calculateWilderAtr } from '../atr';
+
 // `raw.atr` (angka asli, temuan M-03) disediakan supaya pemanggil (app/api/council/
 // route.ts) tidak perlu parse string `value`.
+//
+// BUG FIX (audit kuantitatif 2026-08-11, temuan C-01): ATR di sini dulu dihitung sebagai
+// RATA-RATA ARITMATIK SEDERHANA dari 14 True Range terakhir, sementara TP/CL Validation
+// Lab mengukur setup memakai Wilder smoothing. Selisihnya -5% s/d -14% pada saham nyata,
+// dan karena angka ini masuk langsung ke stop loss & target harga lewat
+// buildLongTradingSetup(), lab itu memvalidasi setup yang tidak pernah dikirim ke
+// pengguna. Sekarang satu implementasi baku dipakai keduanya - lihat modules/technical/
+// service/atr.ts untuk bukti empirisnya.
 export function analyze(history: any[], currentPrice: number) {
-  if (history.length < 15) return { label: 'Volatility (ATR)', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { atr: null as number | null } };
+  if (history.length < ATR_PERIOD + 1) return { label: 'Volatility (ATR)', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { atr: null as number | null } };
 
-  let trSum = 0;
-  for (let i = history.length - 14; i < history.length; i++) {
-    const high = history[i].High;
-    const low = history[i].Low;
-    // FASE 3: ATR adalah indikator OHLC-dependent/trading-risk, jadi satu basis RAW:
-    // High/Low raw dibanding prev Close raw. Dilarang mencampur High/Low raw dengan
-    // AdjClose karena true range akan palsu di sekitar corporate action.
-    const prevClose = history[i - 1].Close;
-    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-    trSum += tr;
+  // FASE 3: ATR adalah indikator OHLC-dependent/trading-risk, jadi satu basis RAW:
+  // High/Low raw dibanding prev Close raw. Dilarang mencampur High/Low raw dengan
+  // AdjClose karena true range akan palsu di sekitar corporate action.
+  const atr = calculateWilderAtr(history.map((h) => ({ high: h.High, low: h.Low, close: h.Close })));
+  if (atr == null || !Number.isFinite(currentPrice) || currentPrice <= 0) {
+    return { label: 'Volatility (ATR)', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { atr: null as number | null } };
   }
-  const atr = trSum / 14;
   const volatilityPct = (atr / currentPrice) * 100;
 
   // BUG FIX (audit integritas data 2026-08-03, temuan H-08): sebelumnya volatilitas
@@ -34,6 +39,8 @@ export function analyze(history: any[], currentPrice: number) {
       : 50;
 
   return {
+    // Label literal, BUKAN template: string ini dipakai sebagai kunci pemetaan dimensi
+    // di consensus.service.ts dan sebagai IndicatorName di modul backtest.
     label: 'Volatility (ATR 14)',
     value: `ATR: ${atr.toFixed(0)} (${volatilityPct.toFixed(2)}%)`,
     decision: 'NEUTRAL',

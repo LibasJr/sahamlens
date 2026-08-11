@@ -1,5 +1,5 @@
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
-import { calculateRsi } from '../../technical';
+import { calculateRsi, calculateWilderAtr } from '../../technical';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { buildLongTradingSetup, type LongTradingSetup } from './trading-setup';
 
@@ -143,16 +143,15 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const rsi = calculateRsi(closes, 14);
     const isRsiBreakout = rsi != null && rsi >= 55 && rsi < 70;
 
-    // ATR-14 (Average True Range) - dasar setup trading berbasis risk/reward.
-    let trSum = 0;
-    for (let i = history.length - 14; i < history.length; i++) {
-      const high = history[i].high;
-      const low = history[i].low;
-      const prevClose = history[i - 1].close;
-      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-      trSum += tr;
-    }
-    const atr = trSum / 14;
+    // ATR-14 Wilder - dasar setup trading berbasis risk/reward.
+    //
+    // BUG FIX (audit kuantitatif 2026-08-11, temuan C-01): di sini dulu ada salinan
+    // KETIGA formula ATR, dan sama seperti volatility-analyzer.ts ia memakai rata-rata
+    // aritmatik 14 True Range terakhir, bukan Wilder smoothing yang dipakai TP/CL
+    // Validation Lab untuk mengukur setup yang sama. Satu implementasi baku sekarang -
+    // lihat modules/technical/service/atr.ts.
+    const atr = calculateWilderAtr(history.map((h) => ({ high: h.high, low: h.low, close: h.close })));
+    if (atr == null) return null;
 
     const setupHistory = history.map((h) => ({ High: h.high, Low: h.low, Close: h.close }));
     const setup = buildLongTradingSetup(setupHistory, currentPrice, atr);

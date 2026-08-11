@@ -1,6 +1,6 @@
 import { pool } from '@/shared/database/postgres.client';
 import { ensureSharedSchema } from '@/shared/database/schema.service';
-import { fetchYahooHistory } from '@/modules/technical';
+import { fetchYahooHistory, wilderAtrAt, ATR_PERIOD } from '@/modules/technical';
 import {
   detectCorporateAction,
   normalizeYahooOhlcRows,
@@ -16,19 +16,34 @@ import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
 import {
   buildLongTradingSetup,
   DEFAULT_TRADING_SETUP_PARAMETERS,
+  STRUCTURE_LOOKBACK_BARS,
   type TradingSetupParameters,
 } from './trading-setup';
 
 const SIGNAL_SCORE_THRESHOLD = 80;
-const ATR_PERIOD = 14;
-const STRUCTURE_LOOKBACK = 60;
+// ATR_PERIOD & STRUCTURE_LOOKBACK_BARS kini berasal dari sumber bersama yang SAMA dengan
+// produksi (modules/technical/service/atr.ts & trading-setup.ts). Sebelumnya keduanya
+// konstanta lokal di file ini, dan itulah yang membuat lab bisa diam-diam mengukur setup
+// yang berbeda dari yang dikirim ke pengguna (temuan C-01).
+const STRUCTURE_LOOKBACK = STRUCTURE_LOOKBACK_BARS;
 const HOLDING_DAYS = 20;
 const FETCH_BATCH = 10;
 const MIN_METRIC_SAMPLES = 30;
 
-const TPCL_OOS_FREEZE_DATE = '2026-08-07' as const;
-const TPCL_FROZEN_PARAMETER_VERSION = 'tpcl-production-v1.0.0' as const;
+// PEMBEKUAN ULANG 2026-08-12 (temuan C-01). Freeze sebelumnya 2026-08-07 mengukur setup
+// yang dibangun dari ATR Wilder dan jendela struktur 60 bar, sementara produksi mengirim
+// setup dari ATR rata-rata sederhana (~10% lebih kecil) dan jendela struktur penuh. Sampel
+// forward lama karena itu mengukur strategi yang tidak pernah dikirim ke pengguna dan
+// TIDAK dibawa ke protocol ini.
+const TPCL_OOS_FREEZE_DATE = '2026-08-12' as const;
+const TPCL_FROZEN_PARAMETER_VERSION = 'tpcl-production-v1.1.0' as const;
 const TPCL_OOS_MIN_EXECUTABLE_SAMPLES = 30;
+// Nomor protocol ditulis SEKALI di sini lalu dirujuk lewat `typeof` di tipe & keluaran.
+// Sebelumnya string yang sama muncul sebagai literal di tipe DAN di objek yang
+// dikembalikan - dua tempat yang harus diingat untuk diubah bersamaan, dan itu persis
+// bentuk kegagalan diam-diam yang sudah berkali-kali muncul di basis kode ini.
+const TPCL_OOS_PROTOCOL_VERSION = 'tpcl-oos-v1.1' as const;
+const TPCL_LAB_PROTOCOL_VERSION = 'tpcl-lab-v1.3' as const;
 
 
 export type TpclOutcome = 'TP1' | 'SL' | 'TIME_EXIT';
@@ -116,9 +131,9 @@ export interface TpclOosProtocolResult {
 }
 
 export interface TpclForwardOos {
-  protocolVersion: 'tpcl-oos-v1.0';
-  freezeDate: '2026-08-07';
-  frozenParameterVersion: 'tpcl-production-v1.0.0';
+  protocolVersion: typeof TPCL_OOS_PROTOCOL_VERSION;
+  freezeDate: typeof TPCL_OOS_FREEZE_DATE;
+  frozenParameterVersion: typeof TPCL_FROZEN_PARAMETER_VERSION;
   frozenParameters: TradingSetupParameters;
   parameterFingerprint: string;
   minimumExecutableSamples: number;
@@ -148,7 +163,7 @@ export interface BearFilterDiagnostic {
 }
 
 export interface TpclValidationDashboard {
-  protocolVersion: 'tpcl-lab-v1.2';
+  protocolVersion: typeof TPCL_LAB_PROTOCOL_VERSION;
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -260,21 +275,11 @@ function metrics(rows: TpclTradeObservation[]): TpclMetrics {
   };
 }
 
-function wilderAtrAt(bars: SelectedPriceBar[], index: number, period = ATR_PERIOD): number | null {
-  if (index < period || bars.length <= index) return null;
-  const trs: number[] = [];
-  for (let i = 1; i <= index; i++) {
-    const curr = bars[i];
-    const prev = bars[i - 1];
-    if (!curr || !prev) continue;
-    const tr = Math.max(curr.high - curr.low, Math.abs(curr.high - prev.close), Math.abs(curr.low - prev.close));
-    if (Number.isFinite(tr) && tr > 0) trs.push(tr);
-  }
-  if (trs.length < period) return null;
-  let atr = trs.slice(0, period).reduce((s, v) => s + v, 0) / period;
-  for (let i = period; i < trs.length; i++) atr = ((atr * (period - 1)) + trs[i]!) / period;
-  return Number.isFinite(atr) && atr > 0 ? atr : null;
-}
+// BUG FIX (audit kuantitatif 2026-08-11, temuan C-01): salinan lokal Wilder ATR di sini
+// DIHAPUS dan diganti implementasi bersama modules/technical/service/atr.ts - yang sama
+// persis dipakai produksi. Selama keduanya hidup terpisah, lab ini mengukur setup dengan
+// ATR Wilder sementara produksi mengirim setup dengan ATR rata-rata sederhana yang ~10%
+// lebih kecil, sehingga seluruh metrik di bawah milik strategi yang berbeda.
 
 function hasCorporateActionRisk(
   normalized: ReturnType<typeof normalizeYahooOhlcRows>,
@@ -444,6 +449,21 @@ function simulateTrade(
 
 
 
+/**
+ * Sidik jari setup yang dibekukan protocol forward-OOS.
+ *
+ * BUG FIX (audit kuantitatif 2026-08-11, temuan C-01): fingerprint ini dulu HANYA
+ * mem-hash enam parameter numerik (buffer/stop/RR/TP). Padahal setup yang benar-benar
+ * dihasilkan juga ditentukan oleh METODE ATR dan PANJANG JENDELA STRUKTUR - dan justru
+ * kedua hal itulah yang berbeda antara produksi dan lab tanpa terdeteksi siapa pun selama
+ * berbulan-bulan. Fingerprint yang tidak berubah saat setup berubah bukan sekadar tidak
+ * berguna: ia memberi keyakinan palsu bahwa dua kumpulan sampel forward boleh digabung.
+ *
+ * Sekarang metode ATR dan jendela struktur ikut di-hash. Kalau salah satunya diganti,
+ * fingerprint berubah, dan perbedaan protocol menjadi terlihat di layar.
+ */
+const ATR_METHOD = `wilder-${ATR_PERIOD}` as const;
+
 function frozenParameterFingerprint(parameters: TradingSetupParameters): string {
   const canonical = [
     parameters.supportBufferAtr,
@@ -452,7 +472,9 @@ function frozenParameterFingerprint(parameters: TradingSetupParameters): string 
     parameters.minLongRr,
     parameters.tp1R,
     parameters.tp2R,
-  ].map((v) => Number(v).toFixed(6)).join('|');
+  ].map((v) => Number(v).toFixed(6))
+    .concat(ATR_METHOD, `structure-${STRUCTURE_LOOKBACK_BARS}`)
+    .join('|');
 
   // Small deterministic non-cryptographic hash for audit display.
   let hash = 2166136261 >>> 0;
@@ -729,7 +751,7 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
   const excludeBearOosState = oosStatus(forwardSignals.length, forwardMatureSignals, forwardExcludeBearRows);
 
   const forwardOos: TpclForwardOos = {
-    protocolVersion: 'tpcl-oos-v1.0',
+    protocolVersion: TPCL_OOS_PROTOCOL_VERSION,
     freezeDate: TPCL_OOS_FREEZE_DATE,
     frozenParameterVersion: TPCL_FROZEN_PARAMETER_VERSION,
     frozenParameters: { ...DEFAULT_TRADING_SETUP_PARAMETERS },
@@ -771,7 +793,7 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
   };
 
   return {
-    protocolVersion: 'tpcl-lab-v1.2',
+    protocolVersion: TPCL_LAB_PROTOCOL_VERSION,
     researchOnly: true,
     genuineOos: false,
     scoreVersion: SCORE_VERSION,
