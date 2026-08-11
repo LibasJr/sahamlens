@@ -13,16 +13,16 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
   // yang dilihat lewat klik link tidak pernah tersimpan, dan Fundamental/DCF yang
   // dibuka setelahnya tidak tahu emiten ini baru dilihat (jatuh ke default TLKM/BBCA).
   useEffect(() => {
-    const formattedTicker = symbol.includes('.JK') ? symbol : `${symbol}.JK`;
+    const formattedTicker = symbol.startsWith('^') ? symbol : symbol.includes('.JK') ? symbol : `${symbol}.JK`;
     window.localStorage.setItem('last_searched_ticker', formattedTicker);
   }, [symbol]);
 
   const handleTickerChange = (newTicker: string) => {
-    const formattedTicker = newTicker.includes('.JK') ? newTicker : `${newTicker}.JK`;
+    const formattedTicker = newTicker.startsWith('^') ? newTicker : newTicker.includes('.JK') ? newTicker : `${newTicker}.JK`;
     // Simpan ke key yang sama dipakai Teknikal/Fundamental/DCF supaya emiten yang
     // dicari di LensAI juga ikut ke halaman lain (dan sidebar), bukan cuma satu arah.
     window.localStorage.setItem('last_searched_ticker', formattedTicker);
-    router.push(`/technical/${formattedTicker}`);
+    router.push(`/technical/${encodeURIComponent(formattedTicker)}`);
   };
 
   return <Header currentTicker={symbol.replace('.JK', '')} onTickerChange={handleTickerChange} />;
