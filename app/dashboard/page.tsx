@@ -90,6 +90,37 @@ function smaOf(candles: { close: number }[], period: number): number | undefined
   return Math.round(slice.reduce((sum, c) => sum + c.close, 0) / period);
 }
 
+function pctChange(candles: { close: number }[], days: number): number | null {
+  if (!candles || candles.length <= days) return null;
+  const last = candles[candles.length - 1]?.close;
+  const base = candles[candles.length - 1 - days]?.close;
+  if (typeof last !== 'number' || typeof base !== 'number' || base <= 0) return null;
+  return Number((((last - base) / base) * 100).toFixed(2));
+}
+
+function volatility20D(candles: { close: number }[]): number | null {
+  if (!candles || candles.length < 22) return null;
+  const returns = candles.slice(-21).slice(1).map((c, i) => {
+    const prev = candles[candles.length - 21 + i]?.close;
+    return prev > 0 ? (c.close - prev) / prev : 0;
+  });
+  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const variance = returns.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / returns.length;
+  return Number((Math.sqrt(variance) * Math.sqrt(252) * 100).toFixed(1));
+}
+
+function formatPct(value: number | null) {
+  if (value == null) return 'N/A';
+  return `${value > 0 ? '+' : ''}${value}%`;
+}
+
+function toneClass(value: number | null) {
+  if (value == null) return 'text-tv-muted';
+  if (value > 0) return 'text-tv-green';
+  if (value < 0) return 'text-tv-red';
+  return 'text-tv-muted';
+}
+
 // BUG 3 FIX: MA Status Badge
 const getMAStatus = (price: number, ma50: number, ma200: number) => {
   if (!price || !ma50 || !ma200) return { label: 'N/A', color: 'text-tv-muted', bg: 'bg-tv-hover' };
@@ -579,6 +610,75 @@ function DashboardContent() {
     ma200: smaOf(candles, 200),
   };
 
+  const indexTechnicalSummary = React.useMemo(() => {
+    if (!currentIsIndex || candles.length < 2) return null;
+    const closes = candles.map((c: any) => c.close).filter((value: unknown): value is number => typeof value === 'number' && Number.isFinite(value));
+    const price = closes[closes.length - 1] ?? null;
+    const ma20 = smaOf(candles, 20);
+    const ma50 = smaOf(candles, 50);
+    const ma200 = smaOf(candles, 200);
+    const rsi = calculateRsi(closes, 14);
+    const change1D = pctChange(candles, 1);
+    const change5D = pctChange(candles, 5);
+    const change20D = pctChange(candles, 20);
+    const vol20 = volatility20D(candles);
+
+    let trend = 'Netral / konsolidasi';
+    let trendTone = 'text-tv-yellow';
+    if (price != null && ma20 && ma50 && price > ma20 && ma20 > ma50) {
+      trend = 'Bullish jangka pendek';
+      trendTone = 'text-tv-green';
+    } else if (price != null && ma20 && ma50 && price < ma20 && ma20 < ma50) {
+      trend = 'Bearish jangka pendek';
+      trendTone = 'text-tv-red';
+    }
+
+    let structure = 'Struktur besar belum cukup data';
+    if (price != null && ma50 && ma200) {
+      if (price > ma50 && ma50 > ma200) structure = 'Uptrend utama masih sehat';
+      else if (price < ma50 && ma50 < ma200) structure = 'Downtrend utama masih dominan';
+      else if (price > ma200) structure = 'Masih di atas tren besar, tapi momentum belum rapi';
+      else structure = 'Di bawah tren besar, pemulihan perlu konfirmasi';
+    }
+
+    let momentum = 'Momentum netral';
+    let momentumTone = 'text-tv-yellow';
+    if (rsi != null) {
+      if (rsi >= 70) { momentum = 'Momentum kuat, mulai rawan jenuh beli'; momentumTone = 'text-tv-yellow'; }
+      else if (rsi >= 55) { momentum = 'Momentum positif'; momentumTone = 'text-tv-green'; }
+      else if (rsi <= 30) { momentum = 'Oversold, rawan technical rebound'; momentumTone = 'text-tv-yellow'; }
+      else if (rsi < 45) { momentum = 'Momentum melemah'; momentumTone = 'text-tv-red'; }
+    }
+
+    const score =
+      (change1D != null && change1D > 0 ? 1 : change1D != null && change1D < 0 ? -1 : 0) +
+      (change5D != null && change5D > 0 ? 1 : change5D != null && change5D < 0 ? -1 : 0) +
+      (change20D != null && change20D > 0 ? 1 : change20D != null && change20D < 0 ? -1 : 0) +
+      (price != null && ma20 && price > ma20 ? 1 : price != null && ma20 && price < ma20 ? -1 : 0) +
+      (price != null && ma50 && price > ma50 ? 1 : price != null && ma50 && price < ma50 ? -1 : 0) +
+      (rsi != null && rsi >= 55 && rsi < 75 ? 1 : rsi != null && rsi < 45 ? -1 : 0);
+
+    const sentiment =
+      score >= 3 ? 'Positif' :
+      score <= -3 ? 'Negatif' :
+      'Netral';
+    const sentimentTone =
+      sentiment === 'Positif' ? 'text-tv-green' :
+      sentiment === 'Negatif' ? 'text-tv-red' :
+      'text-tv-yellow';
+
+    const explanation = sentiment === 'Positif'
+      ? 'Mayoritas indikator teknikal mendukung risk-on: harga dan momentum indeks cenderung menguat. Tetap tunggu konfirmasi volume dan level support/resistance.'
+      : sentiment === 'Negatif'
+        ? 'Mayoritas indikator teknikal menunjukkan tekanan: momentum indeks melemah atau posisi harga berada di bawah moving average penting. Fokus ke proteksi risiko dan tunggu konfirmasi pemulihan.'
+        : 'Sinyal teknikal bercampur. IHSG belum memberi arah dominan, sehingga strategi lebih aman adalah selektif pada saham kuat dan menunggu breakout/breakdown yang jelas.';
+
+    return {
+      price, ma20, ma50, ma200, rsi, change1D, change5D, change20D, vol20,
+      trend, trendTone, structure, momentum, momentumTone, sentiment, sentimentTone, explanation,
+    };
+  }, [currentIsIndex, candles]);
+
   // Kesegaran data pasar dari `_meta` yang dikirim /api/stock (temuan C-8). Tiga keadaan
   // yang WAJIB bisa dibedakan pengguna: data intraday (delayed ~15 menit), data penutupan
   // (EOD), dan data cache darurat saat Yahoo down (bisa berumur sampai 24 jam).
@@ -901,6 +1001,66 @@ function DashboardContent() {
               variant="full"
               height={600}
             />
+
+            {indexTechnicalSummary && (
+              <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 shadow-2 sm:p-5">
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-tv-muted">Analisa Teknikal IHSG</p>
+                    <h2 className="mt-1 font-heading text-lg font-bold text-white sm:text-xl">
+                      Sentimen pasar: <span className={indexTechnicalSummary.sentimentTone}>{indexTechnicalSummary.sentiment}</span>
+                    </h2>
+                  </div>
+                  <div className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold ${indexTechnicalSummary.trendTone}`}>
+                    {indexTechnicalSummary.trend}
+                  </div>
+                </div>
+
+                <p className="mb-4 text-sm leading-relaxed text-tv-muted">
+                  {indexTechnicalSummary.explanation}
+                </p>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Perubahan</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-tv-muted">1D</span><span className={`font-number font-bold ${toneClass(indexTechnicalSummary.change1D)}`}>{formatPct(indexTechnicalSummary.change1D)}</span></div>
+                      <div className="flex justify-between"><span className="text-tv-muted">5D</span><span className={`font-number font-bold ${toneClass(indexTechnicalSummary.change5D)}`}>{formatPct(indexTechnicalSummary.change5D)}</span></div>
+                      <div className="flex justify-between"><span className="text-tv-muted">20D</span><span className={`font-number font-bold ${toneClass(indexTechnicalSummary.change20D)}`}>{formatPct(indexTechnicalSummary.change20D)}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Moving Average</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-tv-muted">MA20</span><span className="font-number font-bold text-white">{indexTechnicalSummary.ma20?.toLocaleString('id-ID') ?? 'N/A'}</span></div>
+                      <div className="flex justify-between"><span className="text-tv-muted">MA50</span><span className="font-number font-bold text-white">{indexTechnicalSummary.ma50?.toLocaleString('id-ID') ?? 'N/A'}</span></div>
+                      <div className="flex justify-between"><span className="text-tv-muted">MA200</span><span className="font-number font-bold text-white">{indexTechnicalSummary.ma200?.toLocaleString('id-ID') ?? 'N/A'}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Momentum</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-tv-muted">RSI14</span><span className={`font-number font-bold ${indexTechnicalSummary.momentumTone}`}>{indexTechnicalSummary.rsi?.toFixed(1) ?? 'N/A'}</span></div>
+                      <div className="text-xs leading-relaxed text-tv-muted">{indexTechnicalSummary.momentum}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Risiko Pasar</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-tv-muted">Vol 20D annual</span><span className="font-number font-bold text-white">{indexTechnicalSummary.vol20 != null ? `${indexTechnicalSummary.vol20}%` : 'N/A'}</span></div>
+                      <div className="text-xs leading-relaxed text-tv-muted">{indexTechnicalSummary.structure}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-tv-blue/20 bg-tv-blue/10 p-3 text-xs leading-relaxed text-tv-muted">
+                  Kesimpulan ini membaca IHSG sebagai kondisi pasar keseluruhan. Untuk keputusan saham individual, tetap cek teknikal emiten masing-masing karena saham kuat bisa naik saat IHSG datar, dan saham lemah bisa turun saat IHSG menguat.
+                </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-tv-border bg-tv-card p-4 text-sm leading-relaxed text-tv-muted">
               IHSG adalah indeks pasar, bukan saham emiten. Di menu Teknikal ini SahamLens menampilkan chart, tren, momentum, dan volatilitas IHSG. Analisis LensAI saham, TP/CL, fundamental, broker flow, dan rekomendasi per lot tidak ditampilkan untuk indeks.
