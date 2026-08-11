@@ -9,6 +9,7 @@ import {
 } from '../calibration.service';
 import type { DailyOpenProvider, LensRadarHistoryEntry } from '../bucket-backtest.service';
 import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
+import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
 
 function row(date: string, ticker: string, score: number, close: number, marketCap = 1_000_000_000): LensRadarHistoryEntry {
   return {
@@ -20,7 +21,7 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     adjusted_close_price: close,
     price_basis: RETURN_PRICE_BASIS,
     market_cap: marketCap,
-    score_version: 'lens-score-v1.3.0',
+    score_version: SCORE_VERSION,
     avg_value_20d: 5_000_000_000,
   };
 }
@@ -179,7 +180,7 @@ describe('calibration.service', () => {
     const opens: Record<string, Record<string, number>> = { 'AAAA.JK': {}, 'BBBB.JK': {} };
     for (let i = 1; i <= 21; i++) {
       const date = `2026-01-${String(i).padStart(2, '0')}`;
-      rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: SCORE_VERSION });
       rows.push({ ...row(date, 'BBBB.JK', 85, 100 + i), score_version: 'lens-score-v1.2.0' });
       opens['AAAA.JK'][date] = 100;
       opens['BBBB.JK'][date] = 100;
@@ -187,7 +188,7 @@ describe('calibration.service', () => {
 
     const result = await calculateCalibrationObservations(rows, provider(opens));
 
-    expect(result.scoreVersion).toBe('lens-score-v1.3.0');
+    expect(result.scoreVersion).toBe(SCORE_VERSION);
     expect(result.rejectedRows).toBe(21);
     expect(result.observations.every((obs) => obs.ticker === 'AAAA.JK')).toBe(true);
   });
@@ -197,7 +198,7 @@ describe('calibration.service', () => {
     const opens: Record<string, Record<string, number>> = { 'AAAA.JK': {}, 'BBBB.JK': {} };
     for (let i = 1; i <= 21; i++) {
       const date = `2026-01-${String(i).padStart(2, '0')}`;
-      rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: SCORE_VERSION });
       rows.push({ ...row(date, 'BBBB.JK', 85, 200 + i), score_version: 'lens-score-v1.2.0' });
       opens['AAAA.JK'][date] = 100;
       opens['BBBB.JK'][date] = 200;

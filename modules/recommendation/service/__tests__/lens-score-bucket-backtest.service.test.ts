@@ -5,6 +5,7 @@ import {
   type LensRadarHistoryRow,
 } from '../lens-score-bucket-backtest.service';
 import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
+import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
 
 function row(date: string, ticker: string, score: number, close: number): LensRadarHistoryRow {
   return {
@@ -15,7 +16,7 @@ function row(date: string, ticker: string, score: number, close: number): LensRa
     raw_close_price: close,
     adjusted_close_price: close,
     price_basis: RETURN_PRICE_BASIS,
-    score_version: 'lens-score-v1.3.0',
+    score_version: SCORE_VERSION,
   };
 }
 
@@ -87,7 +88,7 @@ describe('computeLensScoreBucketBacktest', () => {
   it('menerima filter score_version dan fail-closed terhadap versi lain/legacy', () => {
     const rows: LensRadarHistoryRow[] = [];
     for (let i = 0; i < 7; i++) {
-      rows.push({ ...row(dateFromStart(i), 'NEW.JK', 85, 100 * 1.1 ** i), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(dateFromStart(i), 'NEW.JK', 85, 100 * 1.1 ** i), score_version: SCORE_VERSION });
       rows.push({ ...row(dateFromStart(i), 'OLD.JK', 85, 100 * 0.9 ** i), score_version: 'lens-score-v1.2.0' });
       rows.push({ ...row(dateFromStart(i), 'LEGACY.JK', 85, 100), score_version: null });
     }

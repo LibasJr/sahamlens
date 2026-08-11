@@ -34,7 +34,7 @@ interface Candidate {
   note: string;
 }
 interface Dashboard {
-  protocolVersion: 'tpcl-lab-v1.2';
+  protocolVersion: string;
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -61,9 +61,9 @@ interface Dashboard {
     baselineAll: Metrics; excludeBear: Metrics; bearOnly: Metrics; excludedTrades: number; note: string;
   };
   forwardOos: {
-    protocolVersion: 'tpcl-oos-v1.0';
-    freezeDate: '2026-08-07';
-    frozenParameterVersion: 'tpcl-production-v1.0.0';
+    protocolVersion: string;
+    freezeDate: string;
+    frozenParameterVersion: string;
     frozenParameters: {
       supportBufferAtr: number; minStopDistanceAtr: number; fallbackStopAtr: number;
       minLongRr: number; tp1R: number; tp2R: number;

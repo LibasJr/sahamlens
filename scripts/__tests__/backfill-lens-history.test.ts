@@ -1,4 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+// Versi model diimpor, BUKAN disalin sebagai literal: fixture yang menyalin nomor versi
+// akan diam-diam menguji versi yang sudah tidak dipakai siapa pun begitu versinya naik.
+import {
+  DATA_SNAPSHOT_VERSION,
+  SCORE_VERSION,
+  SIGNAL_VERSION,
+} from '@/modules/lens-radar/constants/model-version';
 
 let script: any;
 
@@ -46,10 +53,10 @@ describe('backfill-lens-history script', () => {
         fundamentalScore: 20,
         flowScore: 29,
         coveragePct: 80,
-        scoreVersion: 'lens-score-v1.3.0',
+        scoreVersion: SCORE_VERSION,
         valuationVersion: 'valuation-v1.2.0',
-        signalVersion: 'lens-radar-signal-v1.2.0',
-        dataSnapshotVersion: 'lens-radar-history-v1.1.0',
+        signalVersion: SIGNAL_VERSION,
+        dataSnapshotVersion: DATA_SNAPSHOT_VERSION,
         calculationTimestamp: '2026-01-02T10:00:00.000Z',
         rawClosePrice: 9100,
         adjustedClosePrice: 9000,

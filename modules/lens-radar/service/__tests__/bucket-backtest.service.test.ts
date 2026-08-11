@@ -6,6 +6,7 @@ import {
   type LensRadarHistoryEntry,
 } from '../bucket-backtest.service';
 import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
+import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
 
 function row(date: string, ticker: string, score: number, close: number, marketCap = 1_000_000_000): LensRadarHistoryEntry {
   return {
@@ -17,7 +18,7 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     adjusted_close_price: close,
     price_basis: RETURN_PRICE_BASIS,
     market_cap: marketCap,
-    score_version: 'lens-score-v1.3.0',
+    score_version: SCORE_VERSION,
     // Default likuid: test di file ini menguji return/drawdown, bukan gerbang ADV20.
     // Kasus tidak likuid diuji eksplisit dengan menimpa field ini.
     avg_value_20d: 5_000_000_000,
@@ -169,7 +170,7 @@ describe('calculateLensBucketStats', () => {
     const opens: Record<string, Record<string, number>> = { 'NEW.JK': {}, 'OLD.JK': {} };
     for (let i = 0; i < 6; i++) {
       const date = dateFromStart(i);
-      rows.push({ ...row(date, 'NEW.JK', 85, 100 + i * 10), score_version: 'lens-score-v1.3.0' });
+      rows.push({ ...row(date, 'NEW.JK', 85, 100 + i * 10), score_version: SCORE_VERSION });
       rows.push({ ...row(date, 'OLD.JK', 85, 500 - i * 10), score_version: 'lens-score-v1.2.0' });
       opens['NEW.JK'][date] = 100;
       opens['OLD.JK'][date] = 500;
