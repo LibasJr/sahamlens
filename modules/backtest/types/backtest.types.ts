@@ -1,3 +1,5 @@
+import type { PerformanceMetrics } from '../service/performance-metrics';
+
 // 9 filter yang bisa dipilih user di app/backtest/page.tsx, dipetakan 1:1 ke 9 dari
 // 10 analyzer di modules/technical (analyzeMomentum sengaja tidak dipakai filter
 // manapun).
@@ -67,6 +69,9 @@ export interface SimulateResult {
   winRatePct: number;
   totalTrades: number;
   maxDrawdownPct: number;
+  /** Metrik risiko/kinerja yang sebelumnya tidak ada sama sekali (temuan H-05):
+   * CAGR, volatilitas, Sharpe, Sortino, profit factor, expectancy, turnover. */
+  performance: PerformanceMetrics;
   equityCurve: number[]; // panjang periodMonths+1, mulai dari modal
   ihsgCurve: number[]; // sama panjang, direbase ke skala modal
   trades: TradeRecord[]; // terurut terbaru dulu

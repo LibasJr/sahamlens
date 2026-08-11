@@ -217,24 +217,41 @@ export function macdSeries(candles: ChartCandle[], fast: number, slow: number, s
   return { macd, signal: signalLine, histogram };
 }
 
+/**
+ * ATR Wilder untuk chart. Definisi True Range-nya WAJIB sama dengan
+ * modules/technical/service/atr.ts - garis ATR yang dilihat pengguna dan ATR yang dipakai
+ * menghitung stop-loss harus angka yang sama.
+ *
+ * BUG FIX (audit kuantitatif Fase 3, temuan M-10): versi sebelumnya memberi bar pertama
+ * TR = high - low. Bar itu tidak punya close sebelumnya, jadi ia tidak punya True Range
+ * sama sekali; memberinya nilai semu membuat seed rata-rata hanya berisi 13 TR asli dan
+ * satu angka yang bukan TR. Hasilnya ATR chart selalu sedikit lebih rendah daripada ATR
+ * scoring. Diukur pada deret golden 80 bar: -2,05% pada 20 bar, -1,04% pada 30 bar,
+ * -0,03% pada 80 bar. Kecil di ujung kanan, tetapi terbesar persis di emiten berhistori
+ * pendek - dan selisih apa pun di sini berarti garis ATR di layar bukan ATR yang dipakai
+ * menentukan stop.
+ */
 export function atrSeries(candles: ChartCandle[], period: number): Array<number | null> {
   const safePeriod = Math.max(2, Math.floor(period));
   const out: Array<number | null> = Array(candles.length).fill(null);
-  if (candles.length < safePeriod) return out;
-  const trueRanges = candles.map((candle, index) => {
-    if (index === 0) return candle.high - candle.low;
-    const previousClose = candles[index - 1].close;
-    return Math.max(
-      candle.high - candle.low,
-      Math.abs(candle.high - previousClose),
-      Math.abs(candle.low - previousClose),
-    );
-  });
+  if (candles.length < safePeriod + 1) return out;
+
+  // trueRanges[k] milik candles[k + 1]: bar 0 sengaja tidak punya TR.
+  const trueRanges: number[] = [];
+  for (let i = 1; i < candles.length; i += 1) {
+    const previousClose = candles[i - 1].close;
+    trueRanges.push(Math.max(
+      candles[i].high - candles[i].low,
+      Math.abs(candles[i].high - previousClose),
+      Math.abs(candles[i].low - previousClose),
+    ));
+  }
+
   let atr = mean(trueRanges.slice(0, safePeriod));
-  out[safePeriod - 1] = atr;
-  for (let i = safePeriod; i < candles.length; i += 1) {
+  out[safePeriod] = atr;
+  for (let i = safePeriod; i < trueRanges.length; i += 1) {
     atr = ((atr * (safePeriod - 1)) + trueRanges[i]) / safePeriod;
-    out[i] = atr;
+    out[i + 1] = atr;
   }
   return out;
 }

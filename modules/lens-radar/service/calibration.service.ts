@@ -27,6 +27,7 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { buildScoreCalibration, type ScoreCalibrationResult } from './score-calibration.service';
 import {
   VALIDATION_LIMITATIONS,
   VALIDATION_LIMITATIONS_REVIEWED_ON,
@@ -174,6 +175,9 @@ export interface CalibrationDashboardData {
   robustValidation: RobustValidationResult;
   retrospectiveWalkForward: RetrospectiveWalkForwardResult;
   genuineOos: GenuineOosResult;
+  /** Kalibrasi sungguhan - reliability bin, Wilson CI, Brier, ECE, isotonic (temuan C-04).
+   * Sebelum ini, modul bernama "Calibration Lab" hanya mengukur discrimination. */
+  scoreCalibration: ScoreCalibrationResult;
   thresholdSimulations: ThresholdSimulation[];
 }
 
@@ -893,6 +897,10 @@ export async function getCalibrationDashboardData(
     robustValidation: buildRobustValidation(effectiveT20),
     retrospectiveWalkForward: buildRetrospectiveWalkForward(effectiveT20),
     genuineOos: buildGenuineOosValidation(observations, effectiveT20, { asOfDate, scoreVersion: scoreVersion ?? requestedScoreVersion }),
+    // Sengaja memakai effectiveT20 (sudah didekorelasi), bukan observations mentah:
+    // interval Wilson mengasumsikan pengamatan independen, dan satu ticker yang menyumbang
+    // beberapa jendela T+20 yang tumpang tindih akan mempersempit CI itu secara palsu.
+    scoreCalibration: buildScoreCalibration(effectiveT20),
     thresholdSimulations: calculateThresholdSimulations(observations),
   };
 }
