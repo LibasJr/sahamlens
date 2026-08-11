@@ -1,10 +1,20 @@
 import { SCORE_VERSION } from '../constants/model-version';
 import { buildRobustValidation, type RobustValidationResult } from './robust-validation.service';
 
-export const LENS_RADAR_OOS_PROTOCOL_VERSION = 'oos-v1.0' as const;
+export const LENS_RADAR_OOS_PROTOCOL_VERSION = 'oos-v1.1' as const;
 // Freeze point is intentionally explicit and forward-only. Historical rows before this
 // date can support research diagnostics, but can never be re-labelled as genuine OOS.
-export const LENS_RADAR_OOS_FREEZE_DATE = '2026-08-07' as const;
+//
+// PEMBEKUAN ULANG 2026-08-12 (temuan C-01/C-02/C-03). Freeze sebelumnya 2026-08-07 di
+// bawah protocol oos-v1.0. Model yang diukur berubah setelah tanggal itu: skor historis
+// kini memakai sektor point-in-time, dan bar entry backtest tidak lagi bisa jatuh pada
+// tanggal sinyal. Sampel forward yang terkumpul di bawah aturan lama mengukur model lain,
+// jadi ia TIDAK dibawa ke protocol ini - freeze diulang, hitungan sampel mulai dari nol.
+//
+// Membiarkan freeze lama sambil mengubah modelnya adalah bentuk data snooping yang paling
+// mudah terjadi tanpa disadari: sampel forward yang sudah terlihat hasilnya ikut membenarkan
+// model yang baru.
+export const LENS_RADAR_OOS_FREEZE_DATE = '2026-08-12' as const;
 export const LENS_RADAR_OOS_MIN_EFFECTIVE_PER_EDGE_BUCKET = 30;
 
 export interface WalkForwardObservation {
@@ -213,7 +223,7 @@ export function buildGenuineOosValidation(
     const pass = gate.spreadPositive && gate.bootstrapSupportive && gate.permutationPass && gate.icPositive && gate.monotonicityPass;
     status = pass ? 'PASS' : 'FAIL';
     conclusion = pass
-      ? 'Genuine forward OOS memenuhi gate statistik protocol oos-v1.0. Status produk tetap memerlukan review/approval manual; tidak ada auto-promotion.'
+      ? `Genuine forward OOS memenuhi gate statistik protocol ${LENS_RADAR_OOS_PROTOCOL_VERSION}. Status produk tetap memerlukan review/approval manual; tidak ada auto-promotion.`
       : 'Genuine forward OOS sudah cukup sampel tetapi gagal satu atau lebih gate robustness. Jangan promosikan model ke validated tanpa investigasi/revisi protocol.';
   }
 
