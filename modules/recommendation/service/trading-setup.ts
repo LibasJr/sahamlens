@@ -3,6 +3,26 @@ import { findStructuralZones, type SwingBar, type StructuralLevel } from '../../
 export const MIN_LONG_RR = 1.5;
 export const MIN_CONFIRMED_LEVEL_TOUCHES = 2;
 
+/**
+ * Jendela bar yang dipakai mencari support/resistance struktural.
+ *
+ * BUG FIX (audit kuantitatif 2026-08-11, temuan C-01): panjang jendela ini dulu ditentukan
+ * PEMANGGIL, dan pemanggilnya tidak sepakat - TP/CL Validation Lab memotong ke 60 bar
+ * (konstanta lokalnya sendiri) sementara produksi (ai-pick-scan.service.ts,
+ * breakout.service.ts) mengirim seluruh histori 2 tahun. Swing level yang ditemukan atas
+ * 500 bar berbeda dari yang ditemukan atas 60 bar, jadi stop & target yang diukur lab
+ * bukan stop & target yang dikirim ke pengguna - divergensi kedua di fungsi yang sama,
+ * di luar perbedaan formula ATR.
+ *
+ * Sekarang pemotongan dilakukan DI DALAM buildLongTradingSetup(), bukan di pemanggil.
+ * Itu pilihan yang disengaja: selama panjang jendela bisa ditentukan dari luar, pemanggil
+ * berikutnya bisa berbeda lagi tanpa ada yang menyadarinya.
+ *
+ * 60 bar (~3 bulan bursa) memberi ruang untuk beberapa swing terkonfirmasi tanpa menarik
+ * level dari rezim harga yang sudah tidak relevan.
+ */
+export const STRUCTURE_LOOKBACK_BARS = 60;
+
 export interface TradingSetupParameters {
   supportBufferAtr: number;
   minStopDistanceAtr: number;
@@ -103,7 +123,9 @@ export function buildLongTradingSetup(
   const parameters = validParameters(parameterOverrides);
   if (!parameters) return null;
 
-  const zones = findStructuralZones(history, currentPrice);
+  // Jendela struktur dipotong DI SINI supaya semua pemanggil - produksi maupun
+  // validation lab - melihat level yang sama. Lihat STRUCTURE_LOOKBACK_BARS.
+  const zones = findStructuralZones(history.slice(-STRUCTURE_LOOKBACK_BARS), currentPrice);
   const nearestSupport = zones.support;
   const confirmedSupport =
     nearestSupport && nearestSupport.touches >= MIN_CONFIRMED_LEVEL_TOUCHES ? nearestSupport : null;

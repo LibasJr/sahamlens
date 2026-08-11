@@ -4,6 +4,7 @@
 // SENGAJA tetap di sini meski menyentuh data fundamental, karena konsumennya selalu bersamaan
 // dengan analyzer teknikal di app/api/stock/[ticker], bukan dipisah ke modules/fundamental).
 export { calculateRsi } from './service/rsi';
+export { calculateWilderAtr, wilderAtrAt, ATR_PERIOD, type TrueRangeBar } from './service/atr';
 export { analyze as analyzeEma } from './service/analyzers/ema-analyzer';
 export { analyze as analyzeRsi } from './service/analyzers/rsi-analyzer';
 export { analyze as analyzeMacd } from './service/analyzers/macd-analyzer';
