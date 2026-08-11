@@ -14,6 +14,7 @@ import {
   type IndicatorName,
   type BacktestIndicatorCache,
 } from '../../../modules/backtest';
+import { BACKTEST_PERIOD_MONTHS } from '../../../modules/backtest/constants/backtest-periods';
 
 export const maxDuration = 60;
 
@@ -21,7 +22,11 @@ const VALID_FILTERS: IndicatorName[] = [
   'EMA 20/50 Cross', 'Volume vs Avg 20D', 'RSI 14', 'MACD', 'Volatility (ATR 14)',
   'MA Trend IDX (20,50,200)', 'Support & Resistance', 'Market Flow Index', 'SMA Score (5,10,20)',
 ];
-const VALID_PERIODS = [3, 6, 12, 24];
+// Daftar periode TIDAK lagi ditulis di sini - satu sumber di
+// modules/backtest/constants/backtest-periods.ts, yang juga dipakai UI dan diikat ke
+// RETAIN_DAYS precompute lewat test invarian. Menambah periode tanpa menaikkan retensi
+// tidak menghasilkan error, melainkan backtest kosong tanpa penjelasan.
+const VALID_PERIODS: readonly number[] = BACKTEST_PERIOD_MONTHS;
 const MAX_TRADES_IN_RESPONSE = 30;
 
 // Mode 'live-signal' dihapus 2026-08-03 bersama tab "Sinyal Hari Ini" di UI - pertanyaan
@@ -117,6 +122,10 @@ export async function POST(request: Request) {
       // ditanggung untuk mendapatkannya. Dikirim mentah (null tetap null) supaya UI yang
       // memutuskan cara merendernya, bukan diformat jadi "0" yang menyamar sebagai hasil.
       performance: result.performance,
+      // Berapa emiten yang gugur karena histori kurang panjang. Wajib dikirim: penyaringnya
+      // memperkuat survivorship bias sebanding dengan panjang periode, dan tanpa angka ini
+      // penyusutan universe tidak terlihat sama sekali di layar.
+      universe: result.universe,
       equityCurve: result.equityCurve,
       ihsgCurve: result.ihsgCurve,
       trades: result.trades.slice(0, MAX_TRADES_IN_RESPONSE).map((t) => ({

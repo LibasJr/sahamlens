@@ -72,6 +72,15 @@ export interface SimulateResult {
   /** Metrik risiko/kinerja yang sebelumnya tidak ada sama sekali (temuan H-05):
    * CAGR, volatilitas, Sharpe, Sortino, profit factor, expectancy, turnover. */
   performance: PerformanceMetrics;
+  /** Berapa emiten yang benar-benar bisa diuji pada periode ini. `excludedShortHistory`
+   * naik seiring panjang periode - emiten yang belum listing selama itu gugur dari
+   * universe, dan itu memperkuat survivorship bias yang sudah ada. */
+  universe: {
+    inCache: number;
+    eligible: number;
+    excludedShortHistory: number;
+    requiredTradingDays: number;
+  };
   equityCurve: number[]; // panjang periodMonths+1, mulai dari modal
   ihsgCurve: number[]; // sama panjang, direbase ke skala modal
   trades: TradeRecord[]; // terurut terbaru dulu

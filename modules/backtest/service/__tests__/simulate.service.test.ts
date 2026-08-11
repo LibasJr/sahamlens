@@ -27,6 +27,57 @@ function makeCache(days: number): BacktestIndicatorCache {
   };
 }
 
+/**
+ * Penyusutan universe pada periode panjang (2026-08-12, saat periode diperpanjang ke 60
+ * bulan). Penyaring "histori harus menutupi seluruh jendela" membuang emiten yang belum
+ * listing selama itu - dan sebelum ini penyaringan itu terjadi tanpa satu angka pun yang
+ * menyatakannya ke pengguna.
+ */
+describe('simulateBacktest - pelaporan universe', () => {
+  function cacheWithMixedHistory(): BacktestIndicatorCache {
+    const panjang = 700;
+    const bars = Array.from({ length: panjang }, (_, i) => ({ date: dateAt(i), close: 1000, open: 1000 }));
+    // Emiten kedua baru "listing" di pertengahan: hanya separuh bar terakhir yang dimiliki.
+    const pendek = bars.slice(-300);
+    return {
+      computedAt: '2026-08-01T00:00:00.000Z',
+      ihsg: bars.map((b) => ({ ...b })),
+      tickers: [
+        { ticker: 'LAMA.JK', bars: bars.map((b) => ({ ...b })), decisions: neutralDecisions(panjang) },
+        { ticker: 'BARU.JK', bars: pendek.map((b) => ({ ...b })), decisions: neutralDecisions(pendek.length) },
+      ],
+    };
+  }
+
+  it('periode pendek: kedua emiten lolos', () => {
+    const out = simulateBacktest(cacheWithMixedHistory(), { filters: ALL_INDICATORS, modal: 10_000_000, periodMonths: 6 });
+    expect(out.universe.inCache).toBe(2);
+    expect(out.universe.eligible).toBe(2);
+    expect(out.universe.excludedShortHistory).toBe(0);
+    expect(out.universe.requiredTradingDays).toBe(6 * 22);
+  });
+
+  it('periode panjang: emiten berhistori pendek gugur DAN jumlahnya dilaporkan', () => {
+    const out = simulateBacktest(cacheWithMixedHistory(), { filters: ALL_INDICATORS, modal: 10_000_000, periodMonths: 24 });
+    expect(out.universe.requiredTradingDays).toBe(24 * 22);
+    expect(out.universe.eligible).toBe(1);
+    // Inilah angka yang dulu tidak pernah muncul di mana pun: universe menyusut diam-diam.
+    expect(out.universe.excludedShortHistory).toBe(1);
+  });
+
+  it('penyusutannya monoton terhadap panjang periode', () => {
+    const cache = cacheWithMixedHistory();
+    const sebelumnya: number[] = [];
+    for (const periodMonths of [3, 6, 12, 24]) {
+      const out = simulateBacktest(cache, { filters: ALL_INDICATORS, modal: 10_000_000, periodMonths });
+      sebelumnya.push(out.universe.excludedShortHistory);
+    }
+    for (let i = 1; i < sebelumnya.length; i++) {
+      expect(sebelumnya[i]!).toBeGreaterThanOrEqual(sebelumnya[i - 1]!);
+    }
+  });
+});
+
 describe('simulateBacktest', () => {
   it('tidak ada trade kalau filter tidak pernah semua BULLISH - metrik nol, bukan NaN/Infinity', () => {
     const cache = makeCache(66); // 3 bulan ~= 66 hari bursa
