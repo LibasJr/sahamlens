@@ -8,6 +8,7 @@ import {
   RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, X
 } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { MarketRegimePanel } from '@/components/market/MarketRegimePanel';
@@ -283,8 +284,12 @@ export default function MarketPulse() {
     try {
       const res = await fetch('/api/market-pulse', { cache: 'no-store', signal: controller.signal });
       if (res.status === 401) {
-        setGated('login');
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setGated('login');
+          setShowLoginPrompt(true);
+        } else {
+          setLoadError(true);
+        }
         return;
       }
       const json = await res.json();

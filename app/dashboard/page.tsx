@@ -15,6 +15,7 @@ import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/lib/limits';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { computeRole } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
@@ -224,7 +225,11 @@ function DashboardContent() {
       const jsonAlgo = await resAlgo.json();
 
       if (resAlgo.status === 401) {
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setShowLoginPrompt(true);
+        } else {
+          setFetchError(true);
+        }
         return;
       }
       if (resAlgo.status === 402 || jsonAlgo.code === 'SUBSCRIPTION_REQUIRED') {

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '');
@@ -331,8 +332,12 @@ export default function AiPickPage() {
     fetch('/api/ai-pick')
       .then(async (res) => {
         if (res.status === 401) {
-          setGated('login');
-          setShowLoginPrompt(true);
+          if (await shouldShowLoginPromptFor401()) {
+            setGated('login');
+            setShowLoginPrompt(true);
+          } else {
+            setLoadError(true);
+          }
           return null;
         }
         if (res.status === 402) {

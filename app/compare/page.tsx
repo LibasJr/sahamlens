@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Search, ArrowRightLeft } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
@@ -81,8 +82,12 @@ function CompareContent() {
       if (seq !== fetchSeqRef.current) return; // response basi, sudah ada request lebih baru
 
       if (res.status === 401) {
-        setGated('login');
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setGated('login');
+          setShowLoginPrompt(true);
+        } else {
+          setFetchError(true);
+        }
         return;
       }
       if (res.status === 402 || res.status === 403 || json.code === 'SUBSCRIPTION_REQUIRED') {
