@@ -37,4 +37,4 @@ export function isProtectedPage(pathname: string): boolean {
 
 // Pesan yang ditampilkan halaman /login saat kedatangan berasal dari redirect di
 // atas (dibaca lewat query ?notice=login_required - lihat app/login/page.tsx).
-export const LOGIN_REQUIRED_NOTICE = 'Silahkan login untuk akses fitur ini';
+export const LOGIN_REQUIRED_NOTICE = 'Silakan masuk untuk melanjutkan.';
