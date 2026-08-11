@@ -229,6 +229,25 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS coverage_pct NUMERIC;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS score_version TEXT;
+
+      -- VERDICT PEMBANDING (2026-08-12). Sampai sekarang hanya LensScore yang diarsipkan,
+      -- sementara kartu "Konsensus AI" dihitung di browser, ditampilkan, lalu hilang.
+      -- Akibatnya pertanyaan "mana yang paling mendekati kenyataan" tidak bisa dijawab -
+      -- bukan karena sulit, melainkan karena rekam jejak salah satunya tidak pernah ada.
+      -- Empat kolom ini membuat verdict miniCouncil bisa diuji terhadap return T+20 yang
+      -- SAMA dengan yang dipakai menguji LensScore, di populasi yang sama.
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS council_signal TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS council_confidence NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS council_buy_pct NUMERIC;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS council_sell_pct NUMERIC;
+      -- Dipisah dari signal='HOLD': "agen terpecah" dan "pasar netral" adalah dua keadaan
+      -- berbeda, dan menyatukannya akan membuat keduanya tidak bisa diukur terpisah.
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS council_divided BOOLEAN;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS valuation_version TEXT;
       ALTER TABLE lens_radar_history

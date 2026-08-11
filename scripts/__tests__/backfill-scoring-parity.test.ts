@@ -8,6 +8,7 @@ import {
 } from '@/modules/market';
 import { analyzeMacd, analyzeRsi } from '@/modules/technical';
 import { evaluateMinimalEligibility } from '@/modules/eligibility';
+import { computeMiniCouncil } from '@/lib/miniCouncil';
 import {
   DATA_SNAPSHOT_VERSION,
   SCORE_VERSION,
@@ -66,6 +67,7 @@ function yahooRows(bars = 260) {
 
 const deps = {
   calculateScore,
+  computeMiniCouncil,
   evaluateMinimalEligibility,
   analyzeRsi,
   analyzeMacd,
@@ -208,5 +210,64 @@ describe('C-02 - konteks sektor point-in-time sampai ke scoring historis', () =>
     const sesudah = seen[seen.length - 1];
     expect(sebelum.fundamental.sector.yahooSector).toBe('Financial Services');
     expect(sesudah.fundamental.sector.yahooSector).toBe('Energy');
+  });
+});
+
+/**
+ * VERDICT PEMBANDING (2026-08-12). Hanya LensScore yang selama ini diarsipkan; verdict
+ * "Konsensus AI" dihitung di browser lalu hilang. Akibatnya pertanyaan "verdict mana yang
+ * paling mendekati kenyataan" tidak bisa dijawab - rekam jejak salah satunya tidak ada.
+ *
+ * Yang diuji di sini bukan isi verdict-nya (itu urusan miniCouncil sendiri), melainkan
+ * bahwa ia BENAR-BENAR terarsip dan point-in-time.
+ */
+describe('arsip verdict pembanding', () => {
+  it('setiap baris membawa verdict council, bukan null diam-diam', () => {
+    const { rows } = runBackfill([bankPitRow]);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(['BUY', 'HOLD', 'SELL']).toContain(row.councilSignal);
+      expect(typeof row.councilConfidence).toBe('number');
+      expect(typeof row.councilBuyPct).toBe('number');
+      expect(typeof row.councilSellPct).toBe('number');
+      expect(typeof row.councilDivided).toBe('boolean');
+    }
+  });
+
+  it('POINT-IN-TIME: verdict tanggal awal tidak berubah walau data sesudahnya ditambah', () => {
+    // Kalau council diam-diam melihat bar setelah tanggal sinyal, memperpanjang deret
+    // akan menggeser verdict di tanggal-tanggal awal. Inilah bentuk look-ahead yang sama
+    // dengan temuan C-03, dan satu-satunya cara menangkapnya adalah membandingkan dua
+    // jendela yang berbagi awal yang sama.
+    const pendek = runBackfill([bankPitRow]).rows;
+    const panjang = script.buildHistoricalLensRows({
+      ticker: 'TEST.JK',
+      yahooRows: yahooRows(320),
+      fundamentals: [bankPitRow],
+      startDate: '2025-09-01',
+      endDate: '2025-09-30',
+      dataTimestamp: '2025-09-30T10:00:00.000Z',
+      runTimestamp: '2025-09-30T10:00:00.000Z',
+      deps,
+    });
+
+    const byDatePanjang = new Map<string, any>(panjang.map((r: any) => [r.date, r]));
+    let dibandingkan = 0;
+    for (const row of pendek) {
+      const lain = byDatePanjang.get(row.date);
+      if (!lain) continue;
+      dibandingkan++;
+      expect(lain.councilSignal).toBe(row.councilSignal);
+      expect(lain.councilBuyPct).toBe(row.councilBuyPct);
+    }
+    expect(dibandingkan).toBeGreaterThan(0);
+  });
+
+  it('`divided` dibedakan dari HOLD - dua keadaan yang berbeda', () => {
+    const { rows } = runBackfill([bankPitRow]);
+    for (const row of rows) {
+      // divided hanya boleh true saat sinyalnya HOLD.
+      if (row.councilDivided) expect(row.councilSignal).toBe('HOLD');
+    }
   });
 });

@@ -261,9 +261,14 @@ export function buildLensHistoryUpsert(rows) {
       row.eligibilityReasonCodes ?? null,
       row.technicalAvailableMax ?? null,
       row.fundamentalAvailableMax ?? null,
-      row.flowAvailableMax ?? null
+      row.flowAvailableMax ?? null,
+      row.councilSignal ?? null,
+      row.councilConfidence ?? null,
+      row.councilBuyPct ?? null,
+      row.councilSellPct ?? null,
+      row.councilDivided ?? null
     );
-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, now())`;
+    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, now())`;
   });
 
   return {
@@ -278,6 +283,7 @@ export function buildLensHistoryUpsert(rows) {
         avg_value_20d,
         eligibility_status, eligibility_reason_codes,
         technical_available_max, fundamental_available_max, flow_available_max,
+        council_signal, council_confidence, council_buy_pct, council_sell_pct, council_divided,
         updated_at
       )
       VALUES ${tuples.join(', ')}
@@ -297,6 +303,11 @@ export function buildLensHistoryUpsert(rows) {
         raw_close_price = EXCLUDED.raw_close_price,
         adjusted_close_price = EXCLUDED.adjusted_close_price,
         price_basis = EXCLUDED.price_basis,
+        council_signal = EXCLUDED.council_signal,
+        council_confidence = EXCLUDED.council_confidence,
+        council_buy_pct = EXCLUDED.council_buy_pct,
+        council_sell_pct = EXCLUDED.council_sell_pct,
+        council_divided = EXCLUDED.council_divided,
         adjustment_factor = EXCLUDED.adjustment_factor,
         corporate_action_status = EXCLUDED.corporate_action_status,
         price_data_timestamp = EXCLUDED.price_data_timestamp,
@@ -459,6 +470,24 @@ export function buildHistoricalLensRows(input) {
     const bandarmology = deps.analyzeBandarmology(dailyHistory.slice(-20));
     const fundamental = fundamentalAsOf(fundamentals, bar.date);
 
+    // VERDICT PEMBANDING (2026-08-12). Dihitung dari `historyToDate` yang SAMA dengan
+    // yang memberi makan calculateScore - jadi point-in-time, tanpa bar sesudah tanggal
+    // sinyal. Tujuannya satu: membuat pertanyaan "verdict mana yang paling mendekati
+    // kenyataan" bisa DIUKUR terhadap return T+20 yang sama, bukan diperdebatkan.
+    //
+    // computeMiniCouncil() adalah fungsi murni atas OHLCV, jadi tidak ada jalur produksi
+    // yang perlu diubah untuk ini - tidak ada risiko divergensi seperti temuan C-02.
+    const council = deps.computeMiniCouncil
+      ? deps.computeMiniCouncil(historyToDate.map((row) => ({
+        time: String(row.Date).slice(0, 10),
+        open: row.Open,
+        high: row.High,
+        low: row.Low,
+        close: row.Close,
+        volume: row.Volume,
+      })), false)
+      : null;
+
     const rsiResult = deps.analyzeRsi(historyToDate, rawClose);
     const macdResult = deps.analyzeMacd(historyToDate, rawClose);
     const score = deps.calculateScore(
@@ -544,6 +573,13 @@ export function buildHistoricalLensRows(input) {
       technicalAvailableMax: score.available_max.technical,
       fundamentalAvailableMax: score.available_max.fundamental,
       flowAvailableMax: score.available_max.flow,
+      // `null` kalau council tidak terhitung (bar kurang) - JANGAN diisi 'HOLD', karena
+      // "tidak terhitung" dan "netral" adalah dua hal berbeda dan keduanya akan diukur.
+      councilSignal: council?.finalSignal ?? null,
+      councilConfidence: council?.confidence ?? null,
+      councilBuyPct: council?.buyPct ?? null,
+      councilSellPct: council?.sellPct ?? null,
+      councilDivided: council?.divided ?? null,
     });
   }
 
@@ -578,6 +614,8 @@ async function loadProductionDeps() {
     analyzeAccumulationSignal,
     analyzeBandarmology,
   } = require('../modules/market/index.ts');
+  // Verdict pembanding - fungsi murni atas OHLCV, dipakai kartu "Konsensus AI" di UI.
+  const { computeMiniCouncil } = require('../lib/miniCouncil.ts');
   const {
     SCORE_VERSION,
     VALUATION_VERSION,
@@ -609,6 +647,7 @@ async function loadProductionDeps() {
     computeAccumulationStreak,
     analyzeAccumulationSignal,
     analyzeBandarmology,
+    computeMiniCouncil,
     SCORE_VERSION,
     VALUATION_VERSION,
     SIGNAL_VERSION,
