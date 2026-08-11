@@ -42,7 +42,7 @@ import { SCORING_KATEGORI_THRESHOLDS } from './decision-thresholds';
 // satunya berubah sendirian, lab itu membandingkan terhadap baseline fiktif tanpa tanda
 // apa pun. Lihat shared/constants/lens-score-weights.ts.
 import { LENS_SCORE_WEIGHTS, LENS_SCORE_TOTAL_WEIGHT } from '@/shared/constants/lens-score-weights';
-import { resolveSectorProfile, isPeakCycleSignature } from '@/modules/sector';
+import { resolveSectorProfile, peakCycleSeverity } from '@/modules/sector';
 import {
   impliedMultiples,
   scoreMultipleRatio,
@@ -565,12 +565,17 @@ function scoreValuasi(f: FundamentalInput): Component {
 
   // --- Penjaga puncak siklus (P1-10) ---
   let caveat: string | undefined;
-  if (isPeakCycleSignature(profile, f.per, f.roe)) {
-    const capped = Math.min(score, availableMax * 0.4);
-    caveat = `Pola laba puncak siklus (${profile.label}: PER ${f.per?.toFixed(1)}x + ROE ${f.roe?.toFixed(1)}%) - laba TTM kemungkinan tidak berkelanjutan, valuasi murahnya bisa menyesatkan`;
+  // Fase 4 #16: batasnya kini sebanding dengan seberapa kuat tanda tangannya, bukan
+  // saklar 40% yang menyala di satu titik. Pada keparahan penuh hasilnya tetap 0,4 x
+  // availableMax - sama dengan perilaku lama untuk kasus yang memang ekstrem.
+  const peakSeverity = peakCycleSeverity(profile, f.per, f.roe);
+  if (peakSeverity > 0) {
+    const capFactor = 1 - 0.6 * peakSeverity;
+    const capped = Math.min(score, availableMax * capFactor);
+    caveat = `Pola laba puncak siklus (${profile.label}: PER ${f.per?.toFixed(1)}x + ROE ${f.roe?.toFixed(1)}%, keparahan ${(peakSeverity * 100).toFixed(0)}%) - laba TTM kemungkinan tidak berkelanjutan, valuasi murahnya bisa menyesatkan`;
     if (capped < score) {
       score = capped;
-      parts.push(`dibatasi karena pola puncak siklus`);
+      parts.push(`dibatasi ${(peakSeverity * 100).toFixed(0)}% karena pola puncak siklus`);
     }
   }
 

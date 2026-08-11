@@ -230,15 +230,61 @@ export function resolveSectorProfile(yahooSector: string | null | undefined, yah
  * PER 4x itu sebagai "murah" adalah kesalahan membaca sinyal pasar, bukan menemukan
  * peluang yang terlewat.
  *
- * Ambang: PER < 8 DAN ROE > 25%. Keduanya sengaja longgar - yang ditangkap hanya kasus
- * yang tanda tangannya jelas, bukan setiap emiten komoditas berlaba baik.
+ * PERBAIKAN Fase 4 #16 (audit kuantitatif 2026-08-11): sampai perbaikan ini, penjaganya
+ * adalah SATU ambang biner - `per < 8 && roe > 25` - dengan konsekuensi penuh di satu
+ * sisi dan nol di sisi lain. Emiten dengan PER 7,9 dan ROE 25,1 dipotong valuasinya ke 40%;
+ * emiten dengan PER 8,1 dan ROE 24,9 tidak dipotong sama sekali. Selisih fundamental antara
+ * keduanya nyaris nol, selisih perlakuannya maksimal. Tebing seperti itu tidak punya
+ * pembenaran ekonomi, dan ia menghukum ketepatan data yang tidak dimiliki siapa pun -
+ * PER dan ROE dari Yahoo sendiri punya galat lebih besar dari lebar tebingnya.
  *
- * [HIPOTESIS] Ambang 8x & 25% belum diuji terhadap data historis siklus batu bara/nikel
- * IDX. Konsekuensi salah tangkap dibuat ringan secara sengaja: valuasi diturunkan ke
- * "wajar", tidak dijadikan negatif.
+ * Sekarang keparahannya kontinu: dua ramp linier yang di-AND-kan lewat `min`, karena kedua
+ * syarat memang harus berlaku bersamaan.
+ *
+ *     PER  <= 4  -> 1,0      PER  >= 12 -> 0,0     (linier di antaranya)
+ *     ROE  >= 32 -> 1,0      ROE  <= 18 -> 0,0
+ *
+ * Di titik ambang lama (PER 8, ROE 25) keparahannya 0,5 - dipotong sebagian, bukan
+ * dipotong penuh maupun dibiarkan. Kasus yang tanda tangannya ekstrem tetap dipotong sama
+ * dalamnya seperti sebelumnya.
+ *
+ * NORMALIZED EARNINGS BELUM DIPAKAI. Perbaikan yang benar-benar tepat adalah menilai
+ * siklikal dengan laba rata-rata sepanjang siklus, bukan laba TTM. Itu butuh laba tahunan
+ * 7-10 tahun ke belakang; aplikasi ini tidak punya sumber datanya (Yahoo memberi 4 periode
+ * tahunan, terlalu pendek untuk satu siklus batu bara/nikel) dan `fundamental_history`
+ * sendiri baru terisi sejak cron harian mulai berjalan. Perbaikan ini menghilangkan
+ * tebingnya, bukan menggantikan normalized earnings.
+ *
+ * [HIPOTESIS] Keempat titik ramp belum diuji terhadap data historis siklus IDX. Yang sudah
+ * pasti benar adalah bahwa satu tebing tunggal SALAH; ramp di bawah adalah perbaikan arah,
+ * bukan kalibrasi. Konsekuensi salah tangkap tetap dibuat ringan secara sengaja: valuasi
+ * diturunkan, tidak dijadikan negatif.
  */
+const PEAK_CYCLE_PER_FULL = 4;
+const PEAK_CYCLE_PER_NONE = 12;
+const PEAK_CYCLE_ROE_NONE = 18;
+const PEAK_CYCLE_ROE_FULL = 32;
+
+function ramp(value: number, zeroAt: number, oneAt: number): number {
+  if (zeroAt === oneAt) return value >= oneAt ? 1 : 0;
+  const t = (value - zeroAt) / (oneAt - zeroAt);
+  return Math.min(1, Math.max(0, t));
+}
+
+/**
+ * Keparahan tanda tangan puncak siklus, 0..1. 0 berarti tidak ada tanda tangan sama sekali.
+ */
+export function peakCycleSeverity(profile: SectorProfile, per: number | null, roe: number | null): number {
+  if (!profile.cyclical) return 0;
+  if (per == null || roe == null || per <= 0) return 0;
+  const perSeverity = ramp(per, PEAK_CYCLE_PER_NONE, PEAK_CYCLE_PER_FULL);
+  const roeSeverity = ramp(roe, PEAK_CYCLE_ROE_NONE, PEAK_CYCLE_ROE_FULL);
+  // `min` = konjungsi: PER murah SAJA bukan tanda puncak siklus, begitu pula ROE tinggi saja.
+  return Math.min(perSeverity, roeSeverity);
+}
+
+/** Ada tanda tangan puncak siklus sama sekali? Dipertahankan untuk pemanggil yang hanya
+ * butuh ya/tidak; besarannya ada di `peakCycleSeverity`. */
 export function isPeakCycleSignature(profile: SectorProfile, per: number | null, roe: number | null): boolean {
-  if (!profile.cyclical) return false;
-  if (per == null || roe == null) return false;
-  return per > 0 && per < 8 && roe > 25;
+  return peakCycleSeverity(profile, per, roe) > 0;
 }

@@ -19,8 +19,29 @@
 // perilaku yang benar - angka lama dihitung dengan model yang berbeda dan mencampurnya
 // dengan angka baru justru yang tidak boleh terjadi. `versionRejectedReason` sudah
 // menyatakannya ke pengguna. Jalankan: npm run backfill:lens-history
-export const SCORE_VERSION = 'lens-score-v1.4.0';
-export const VALUATION_VERSION = 'valuation-v1.2.0';
+// KENAIKAN VERSI FASE 3-4 (2026-08-12, perbaikan C-05/H-04/M-10 dan Fase 4 #16).
+//
+// SCORE_VERSION NAIK karena nilai skornya BERUBAH - berbeda dari Fase 2 yang sengaja tidak
+// menaikkannya. Dua perubahan yang menggerakkan angka:
+//
+//   Fase 4 #16   penjaga puncak siklus tidak lagi saklar biner di PER<8 & ROE>25. Batasnya
+//                kini sebanding dengan keparahan tanda tangannya, jadi skor Valuasi emiten
+//                komoditas di sekitar ambang lama berubah.
+//   M-10         MACD signal line diperbaiki ke definisi baku (EMA 9 atas MACD line yang
+//                SAH saja, bukan atas indeks tempat helper EMA masih mengisi konstanta
+//                seed). Nilai macdHist berubah, dan macdHist masuk ke skor.
+//
+// VALUATION_VERSION NAIK karena PBV & PER wajar di kartu "Harga Wajar" kini memakai
+// impliedMultiples() - model yang sama dengan komponen Valuasi LensScore - bukan lagi
+// heuristik (ROE/12) x 0,85 dan pengali PER tetap 15x (temuan C-05).
+//
+// TANGGAL FREEZE OOS TIDAK DIULANG. Freeze berjalan sejak 2026-08-12 dan hari ini masih
+// tanggal yang sama: belum ada satu pun sinyal forward yang matang (butuh T+20), jadi tidak
+// ada sampel yang terkumpul di bawah model lama yang perlu dibuang. Kalau perubahan skor
+// seperti ini terjadi SETELAH sampel forward mulai terkumpul, freeze WAJIB diulang - lihat
+// catatan di walk-forward-validation.service.ts.
+export const SCORE_VERSION = 'lens-score-v1.5.0';
+export const VALUATION_VERSION = 'valuation-v1.3.0';
 export const SIGNAL_VERSION = 'lens-radar-signal-v1.3.0';
 // FASE 2 (2026-08-12): bentuk baris arsip bertambah kolom kelayakan point-in-time dan
 // penyebut availableMax per kelompok (temuan H-01 & H-03).
