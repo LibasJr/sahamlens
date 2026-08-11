@@ -22,7 +22,18 @@
 export const SCORE_VERSION = 'lens-score-v1.4.0';
 export const VALUATION_VERSION = 'valuation-v1.2.0';
 export const SIGNAL_VERSION = 'lens-radar-signal-v1.3.0';
-export const DATA_SNAPSHOT_VERSION = 'lens-radar-history-v1.2.0';
+// FASE 2 (2026-08-12): bentuk baris arsip bertambah kolom kelayakan point-in-time dan
+// penyebut availableMax per kelompok (temuan H-01 & H-03).
+//
+// SCORE_VERSION SENGAJA TIDAK IKUT NAIK: nilai skornya tidak berubah sedikit pun -
+// calculateScore() hanya mengekspos angka yang sudah dihitungnya. Menaikkannya akan
+// menyatakan model berubah padahal tidak.
+//
+// Konsekuensinya baris yang diarsipkan di bawah v1.2.0 tidak punya kolom gerbang, dan
+// gerbang populasi memperlakukannya FAIL-CLOSED. Baris itu tidak hilang diam-diam:
+// jumlahnya muncul sebagai unknownCoverage/unknownEligibility di Calibration Lab dan di
+// hasil bucket backtest. Jalankan ulang backfill untuk mengisinya.
+export const DATA_SNAPSHOT_VERSION = 'lens-radar-history-v1.3.0';
 
 export interface ModelVersionStamp {
   score_version: string;
