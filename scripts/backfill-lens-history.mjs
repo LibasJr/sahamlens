@@ -304,7 +304,8 @@ export function buildLensHistoryUpsert(rows) {
 export async function loadFundamentalHistory(pool, tickers, endDate) {
   const { rows } = await pool.query(
     `
-    SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth
+    SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth,
+           yahoo_sector, yahoo_industry, payout_ratio
     FROM fundamental_history
     WHERE ticker = ANY($1)
       AND observed_date <= $2::date
@@ -325,10 +326,43 @@ export async function loadFundamentalHistory(pool, tickers, endDate) {
       der: numericOrNull(row.der),
       currentRatio: numericOrNull(row.current_ratio),
       revenueGrowth: numericOrNull(row.revenue_growth),
+      // Konteks sektor point-in-time (temuan C-02) - lihat sectorContextAsOf().
+      yahooSector: typeof row.yahoo_sector === 'string' && row.yahoo_sector.trim() ? row.yahoo_sector.trim() : null,
+      yahooIndustry: typeof row.yahoo_industry === 'string' && row.yahoo_industry.trim() ? row.yahoo_industry.trim() : null,
+      payoutRatio: numericOrNull(row.payout_ratio),
     });
     byTicker.set(ticker, list);
   }
   return byTicker;
+}
+
+/**
+ * Konteks sektor yang DIKETAHUI pada tanggal sinyal.
+ *
+ * BUG FIX (audit kuantitatif 2026-08-11, temuan C-02): backfill dulu selalu mengirim
+ * sector berisi null semua ke calculateScore(), sementara app/api/stock/[ticker]:482
+ * mengirim assetProfile Yahoo yang asli. Akibatnya seluruh histori dinilai sebagai
+ * 'UNCLASSIFIED': bank dihukum lewat DER yang di produksi dinyatakan TIDAK BERLAKU,
+ * penjaga puncak siklus emiten komoditas TIDAK PERNAH aktif, dan beta acuan sektor selalu
+ * 1,0 sehingga PER/PBV wajar ikut berbeda. Diuji atas 110.592 kombinasi fundamental:
+ * selisih sampai 10 poin LensScore dan 8,4% berpindah bucket - dan bucket adalah unit
+ * analisis SELURUH Calibration Lab, Bucket Backtest, dan TP/CL Lab.
+ *
+ * Baris yang direkam sebelum kolom sektor ada tetap mengembalikan null - itu memang yang
+ * kita ketahui pada tanggal itu, dan menambalnya dengan sektor hari ini justru akan
+ * mengembalikan look-ahead yang baru saja dihapus.
+ *
+ * `beta` tetap null: ia dihitung dari harga terhadap IHSG per-request dan tidak pernah
+ * diarsipkan; calculateScore() sudah menyatakan pemakaian beta acuan sektor lewat
+ * `betaSource` di keluaran valuasi.
+ */
+export function sectorContextAsOf(fundamental) {
+  return {
+    yahooSector: fundamental?.yahooSector ?? null,
+    yahooIndustry: fundamental?.yahooIndustry ?? null,
+    payoutRatio: fundamental?.payoutRatio ?? null,
+    beta: null,
+  };
 }
 
 function numericOrNull(value) {
@@ -443,7 +477,7 @@ export function buildHistoricalLensRows(input) {
         der: fundamental?.der ?? null,
         currentRatio: fundamental?.currentRatio ?? null,
         revenueGrowth: fundamental?.revenueGrowth ?? null,
-        sector: { yahooSector: null, yahooIndustry: null, payoutRatio: null, beta: null },
+        sector: sectorContextAsOf(fundamental),
       },
       {
         cmf20: bandarmology.cmf20,

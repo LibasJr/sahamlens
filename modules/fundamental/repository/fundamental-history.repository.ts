@@ -31,6 +31,12 @@ export interface FundamentalHistoryRow {
   der: number | null;
   currentRatio: number | null;
   revenueGrowth: number | null;
+  /** Konteks sektor SEBAGAIMANA DIKETAHUI pada `observedDate` (temuan C-02). Null untuk
+   * baris arsip lama yang direkam sebelum kolom ini ada - dan itu memang fakta yang benar
+   * untuk baris itu, bukan kekurangan yang perlu ditambal mundur. */
+  yahooSector: string | null;
+  yahooIndustry: string | null;
+  payoutRatio: number | null;
 }
 
 export interface FundamentalHistoryInput extends FundamentalInput {
@@ -73,6 +79,12 @@ function toNum(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function toText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 function mapRow(row: Record<string, unknown>): FundamentalHistoryRow {
   return {
     ticker: String(row.ticker),
@@ -84,7 +96,58 @@ function mapRow(row: Record<string, unknown>): FundamentalHistoryRow {
     der: toNum(row.der),
     currentRatio: toNum(row.current_ratio),
     revenueGrowth: toNum(row.revenue_growth),
+    yahooSector: toText(row.yahoo_sector),
+    yahooIndustry: toText(row.yahoo_industry),
+    payoutRatio: toNum(row.payout_ratio),
   };
+}
+
+/** Kolom yang dibaca as-of. Satu daftar, dipakai asOf() DAN listHistory() - kalau
+ * ditulis dua kali, satu di antaranya pasti tertinggal saat kolom bertambah. */
+const AS_OF_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
+       current_ratio, revenue_growth, yahoo_sector, yahoo_industry, payout_ratio`;
+
+/** Kolom yang DITULIS arsip. Satu daftar untuk kedua penulis (snapshot cron & PIT
+ * backfill v2) - kelas bug "daftar kolom dan daftar nilai bergeser satu posisi" pernah
+ * terjadi persis di importer admin (lihat catatan di
+ * modules/fundamental/service/fundamental-backfill-import.service.ts), jadi di sini
+ * keduanya dihasilkan dari satu fungsi. */
+const ARCHIVE_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
+        current_ratio, revenue_growth, source, yahoo_sector, yahoo_industry, payout_ratio`;
+
+/** Dorong satu baris ke `params` dan kembalikan placeholder-nya. Urutan nilai di sini
+ * WAJIB sama dengan ARCHIVE_COLUMNS di atas. */
+function pushArchiveRow(
+  params: unknown[],
+  row: FundamentalHistoryInput,
+  source: string
+): string {
+  const base = params.length;
+  params.push(
+    row.ticker,
+    row.observedDate,
+    row.periodEnd ?? null,
+    row.per,
+    row.pbv,
+    row.roe,
+    row.der,
+    row.currentRatio,
+    row.revenueGrowth,
+    source,
+    // Konteks sektor point-in-time (temuan C-02). `beta` sengaja TIDAK diarsipkan:
+    // ia dihitung dari harga per-request terhadap IHSG, jadi ia turunan dari data
+    // harga yang sudah punya arsipnya sendiri - menyimpannya di sini akan menciptakan
+    // sumber kedua yang bisa berbeda.
+    row.sector?.yahooSector ?? null,
+    row.sector?.yahooIndustry ?? null,
+    row.sector?.payoutRatio ?? null
+  );
+  return [
+    `$${base + 1}`, `$${base + 2}::date`, `$${base + 3}::date`,
+    `$${base + 4}`, `$${base + 5}`, `$${base + 6}`, `$${base + 7}`,
+    `$${base + 8}`, `$${base + 9}`, `$${base + 10}`,
+    `$${base + 11}`, `$${base + 12}`, `$${base + 13}`,
+  ].join(', ');
 }
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -115,26 +178,11 @@ export async function archiveFundamentalSnapshot(
   // Satu statement multi-VALUES, bukan N round-trip: 109 ticker x satu koneksi Neon.
   // Parameterized penuh ($1..$n) - tidak ada nilai yang diinterpolasi ke SQL string.
   const params: unknown[] = [];
-  const tuples = rows.map((r) => {
-    const base = params.length;
-    params.push(
-      r.ticker,
-      r.observedDate,
-      r.periodEnd ?? null,
-      r.per,
-      r.pbv,
-      r.roe,
-      r.der,
-      r.currentRatio,
-      r.revenueGrowth,
-      r.source ?? 'yahoo-quoteSummary'
-    );
-    return `($${base + 1}, $${base + 2}::date, $${base + 3}::date, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
-  });
+  const tuples = rows.map((r) => `(${pushArchiveRow(params, r, 'yahoo-quoteSummary')})`);
 
   const { rowCount } = await pool.query(
     `INSERT INTO fundamental_history
-       (ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth, source)
+       (${ARCHIVE_COLUMNS})
      VALUES ${tuples.join(', ')}
      ON CONFLICT (ticker, observed_date) DO NOTHING`,
     params
@@ -169,26 +217,11 @@ export async function archiveFundamentalPitBackfill(
   await ensureSharedSchema();
 
   const params: unknown[] = [];
-  const tuples = rows.map((r) => {
-    const base = params.length;
-    params.push(
-      r.ticker,
-      r.observedDate,
-      r.periodEnd,
-      r.per,
-      r.pbv,
-      r.roe,
-      r.der,
-      r.currentRatio,
-      r.revenueGrowth,
-      r.source.trim()
-    );
-    return `($${base + 1}, $${base + 2}::date, $${base + 3}::date, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
-  });
+  const tuples = rows.map((r) => `(${pushArchiveRow(params, r, r.source.trim())})`);
 
   const { rowCount } = await pool.query(
     `INSERT INTO fundamental_history
-       (ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth, source)
+       (${ARCHIVE_COLUMNS})
      VALUES ${tuples.join(', ')}
      ON CONFLICT (ticker, observed_date) DO NOTHING`,
     params
@@ -229,7 +262,7 @@ export async function asOf(
   await ensureSharedSchema();
 
   const { rows } = await pool.query(
-    `SELECT ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth
+    `SELECT ${AS_OF_COLUMNS}
        FROM fundamental_history
       WHERE ticker = $1 AND observed_date <= $2::date
       ORDER BY observed_date DESC
@@ -244,7 +277,7 @@ export async function asOf(
 export async function listHistory(ticker: string): Promise<FundamentalHistoryRow[]> {
   await ensureSharedSchema();
   const { rows } = await pool.query(
-    `SELECT ticker, observed_date, period_end, per, pbv, roe, der, current_ratio, revenue_growth
+    `SELECT ${AS_OF_COLUMNS}
        FROM fundamental_history
       WHERE ticker = $1
       ORDER BY observed_date ASC`,
