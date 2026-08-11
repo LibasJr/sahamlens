@@ -7,6 +7,9 @@ import { getMarketAwareTtlMs } from '@/shared/cache/ttl-policy';
 
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
+const MARKET_INDEXES: Emiten[] = [
+  { symbol: '^JKSE', name: 'Indeks Harga Saham Gabungan (IHSG)', board: 'INDEKS' },
+];
 
 // BUG FIX (search homepage harga basi, 2026-08-05): previewCache di bawah dulu gak
 // punya TTL - sekali simbol di-hover, hasilnya (termasuk harga) FROZEN di memori
@@ -73,8 +76,9 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return emiten.slice(0, 8);
-    return emiten
+    const searchable = [...MARKET_INDEXES, ...emiten];
+    if (!q) return searchable.slice(0, 8);
+    return searchable
       .filter((e) => e.symbol.toLowerCase().includes(q) || e.name.toLowerCase().includes(q))
       .slice(0, 8);
   }, [query, emiten]);
@@ -93,7 +97,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       return;
     }
     setPreviewLoading(true);
-    fetch(`/api/public-chart/${symbol}?tf=1M`)
+    fetch(`/api/public-chart/${encodeURIComponent(symbol)}?tf=1M`)
       .then((r) => r.json())
       .then((data) => {
         // Kalau user sudah hover ke baris lain sebelum response ini balik, jangan timpa
@@ -124,7 +128,8 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
     if (onSelect) {
       onSelect(emiten.symbol, emiten.name);
     } else {
-      router.push(`/technical/${emiten.symbol}.JK`);
+      const routeSymbol = emiten.symbol.startsWith('^') ? emiten.symbol : `${emiten.symbol}.JK`;
+      router.push(`/technical/${encodeURIComponent(routeSymbol)}`);
     }
   };
 
@@ -165,7 +170,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
         className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-medium text-tv-muted transition-colors hover:border-white/[0.11] hover:bg-white/[0.06] hover:text-white sm:justify-start"
       >
         <Search className="h-3.5 w-3.5 shrink-0" />
-        <span className="hidden sm:inline truncate">Cari saham, kode emiten, atau perusahaan...</span>
+        <span className="hidden sm:inline truncate">Cari saham, IHSG, kode emiten, atau perusahaan...</span>
         <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-white/10 bg-black/10 px-1.5 py-0.5 text-[10px] font-mono text-white/40">⌘K</kbd>
       </button>
 
@@ -190,7 +195,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Cari kode saham atau nama perusahaan (mis. BBCA atau Bank Central Asia)"
+                placeholder="Cari IHSG, kode saham, atau perusahaan (mis. IHSG atau BBCA)"
                 className="flex-1 bg-transparent text-[14px] text-white focus:outline-none placeholder:text-tv-muted/70"
               />
               <button onClick={() => setOpen(false)} className="text-tv-muted hover:text-white transition-colors">

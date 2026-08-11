@@ -25,7 +25,9 @@ const SITE_URL = 'https://sahamlens.id';
 const SHOW_BROKER_DISTRIBUTION_PANEL = false;
 
 function normalizeTechnicalSymbol(rawSymbol: string): string {
-  return rawSymbol.trim().toUpperCase().replace(/\.JK$/, '');
+  const value = rawSymbol.trim().toUpperCase();
+  if (value === 'IHSG' || value === 'JKSE' || value === '^JKSE.JK') return '^JKSE';
+  return value.replace(/\.JK$/, '');
 }
 
 export async function generateMetadata({
@@ -35,6 +37,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { symbol: rawSymbol } = await params;
   const code = normalizeTechnicalSymbol(rawSymbol);
+  if (code === '^JKSE') {
+    return {
+      title: 'Analisis Teknikal IHSG | SahamLens',
+      description: 'Chart dan indikator teknikal Indeks Harga Saham Gabungan (IHSG).',
+      alternates: { canonical: `${SITE_URL}/technical/%5EJKSE` },
+    };
+  }
   const emiten = loadEmitenList().find((item) => item.symbol === code);
 
   if (!emiten) {
@@ -463,8 +472,9 @@ function LensAIAnalysisSkeleton({ symbol }: { symbol: string }) {
 export default async function TechnicalPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = await params;
   const code = normalizeTechnicalSymbol(rawSymbol);
-  if (!getEmitenSymbolSet().has(code)) notFound();
-  const symbol = `${code}.JK`;
+  const isIndex = code === '^JKSE';
+  if (!isIndex && !getEmitenSymbolSet().has(code)) notFound();
+  const symbol = isIndex ? '^JKSE' : `${code}.JK`;
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -477,29 +487,37 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
           <TickerAvatar symbol={symbol} size="lg" />
           <div>
-            <h1 className="lens-page-title">LensAI: {symbol}</h1>
-            <p className="text-sm text-tv-muted">Rapat 10 agen analisis atas satu emiten</p>
+            <h1 className="lens-page-title">{isIndex ? 'LensTechnical: IHSG' : `LensAI: ${symbol}`}</h1>
+            <p className="text-sm text-tv-muted">
+              {isIndex ? 'Chart dan indikator teknikal Indeks Harga Saham Gabungan' : 'Rapat 10 agen analisis atas satu emiten'}
+            </p>
           </div>
         </div>
 
         <StockChartPanel symbol={symbol} />
 
-        {SHOW_BROKER_DISTRIBUTION_PANEL && (
+        {!isIndex && SHOW_BROKER_DISTRIBUTION_PANEL && (
           <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
             <BrokerDistributionPanel symbol={symbol} />
           </Suspense>
         )}
 
-        <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
-          <OrchestratorRecommendation symbol={symbol} />
-        </Suspense>
-
-        <Suspense fallback={<LensAIAnalysisSkeleton symbol={symbol} />}>
-          <LensAIAnalysisDisplay symbol={symbol} />
-        </Suspense>
+        {isIndex ? (
+          <div className="rounded-xl border border-tv-border bg-tv-card p-4 text-sm leading-relaxed text-tv-muted">
+            IHSG adalah indeks pasar, bukan saham emiten. Karena itu halaman ini menampilkan chart, tren, momentum, dan volatilitas indeks tanpa fundamental perusahaan, broker summary, TP/CL saham, atau rekomendasi beli per lot.
+          </div>
+        ) : (
+          <>
+            <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
+              <OrchestratorRecommendation symbol={symbol} />
+            </Suspense>
+            <Suspense fallback={<LensAIAnalysisSkeleton symbol={symbol} />}>
+              <LensAIAnalysisDisplay symbol={symbol} />
+            </Suspense>
+          </>
+        )}
       </PageContainer>
     </div>
   );
 }
-
 

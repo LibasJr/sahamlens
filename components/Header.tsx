@@ -34,7 +34,9 @@ export default function Header({
               <Sparkles className="h-3 w-3" /> {moduleBank}
             </span>
             {currentTicker && (
-              <span className="font-number text-[10px] font-semibold text-tv-muted">{currentTicker.replace('.JK', '')}.JK</span>
+              <span className="font-number text-[10px] font-semibold text-tv-muted">
+                {currentTicker.startsWith('^') ? 'IHSG' : `${currentTicker.replace('.JK', '')}.JK`}
+              </span>
             )}
           </div>
           <h1 className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</h1>
