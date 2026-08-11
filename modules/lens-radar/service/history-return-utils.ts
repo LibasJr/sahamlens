@@ -51,8 +51,47 @@ export function drawdownPercentile95Pct(values: number[]): number | null {
   return -magnitudes[rank - 1];
 }
 
+/**
+ * Kalender hari bursa dari tanggal yang ADA DI DATA.
+ *
+ * FALLBACK, bukan pilihan utama - lihat buildIdxTradingCalendar(). Kalender ini benar
+ * hanya selama setidaknya satu ticker ter-scan pada setiap hari bursa. Kalau satu hari
+ * gagal di-scan untuk SELURUH universe, hari itu lenyap dari kalender dan seluruh offset
+ * T+5/T+20 bergeser satu hari untuk semua ticker, tanpa satu pun tanda di layar.
+ */
 export function buildTradingCalendar(rows: { date: string }[]): string[] {
   return Array.from(new Set(rows.map((row) => row.date))).sort();
+}
+
+export type TradingCalendarSource = 'IDX_BENCHMARK_BARS' | 'OBSERVED_SIGNAL_DATES';
+
+export interface TradingCalendar {
+  dates: string[];
+  source: TradingCalendarSource;
+}
+
+/**
+ * Kalender hari bursa IDX dari tanggal bar indeks acuan (^JKSE).
+ *
+ * BUG FIX (audit kuantitatif 2026-08-11, temuan M-14): kalender sebelumnya dibangun dari
+ * tanggal yang kebetulan ada di lens_radar_history, bukan dari kalender bursa. Indeks
+ * komposit diperdagangkan pada SETIAP hari bursa dan tidak pernah disuspensi, jadi
+ * tanggal barnya ADALAH kalender bursa IDX - sumber yang benar dan sudah tersedia,
+ * berbeda dari shared/calendar/idx-trading-calendar.ts yang sengaja hanya mengelola jam
+ * sesi dan menyatakan sendiri bahwa hari libur bursa belum dikelola di sana.
+ *
+ * Kalau benchmark tidak tersedia (fetch gagal), fungsi ini jatuh balik ke tanggal yang
+ * terobservasi dan MENYATAKANNYA lewat `source`. Sumbernya wajib ikut dilaporkan ke
+ * pemanggil: kalender yang berbeda menghasilkan horizon yang berbeda, dan pembaca berhak
+ * tahu yang mana yang dipakai.
+ */
+export function buildIdxTradingCalendar(
+  benchmarkBarDates: string[],
+  observedRows: { date: string }[]
+): TradingCalendar {
+  const benchmark = Array.from(new Set(benchmarkBarDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))).sort();
+  if (benchmark.length) return { dates: benchmark, source: 'IDX_BENCHMARK_BARS' };
+  return { dates: buildTradingCalendar(observedRows), source: 'OBSERVED_SIGNAL_DATES' };
 }
 
 /**

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { barAtForwardTradingOffset, barAtTradingOffset } from '../history-return-utils';
+import {
+  barAtForwardTradingOffset,
+  barAtTradingOffset,
+  buildIdxTradingCalendar,
+} from '../history-return-utils';
 
 // REGRESI C-03 (audit kuantitatif 2026-08-11): bar entry backtest tidak boleh jatuh pada
 // atau sebelum tanggal sinyal.
@@ -58,6 +62,44 @@ describe('barAtForwardTradingOffset - entry tidak pernah mundur', () => {
       const entry = barAtForwardTradingOffset(mapOf(dates), CALENDAR, SIGNAL_INDEX, 1);
       if (entry) expect(entry.date > SIGNAL_DATE).toBe(true);
     }
+  });
+});
+
+// REGRESI M-14: kalender hari bursa berasal dari bar indeks acuan, bukan dari tanggal
+// yang kebetulan ada di data. Kalau satu hari bursa gagal di-scan untuk SELURUH universe,
+// kalender turunan-data kehilangan hari itu dan seluruh offset T+5/T+20 bergeser.
+describe('buildIdxTradingCalendar', () => {
+  it('memakai tanggal bar benchmark saat tersedia', () => {
+    const calendar = buildIdxTradingCalendar(
+      ['2026-01-07', '2026-01-05', '2026-01-06', '2026-01-05'],
+      [{ date: '2026-01-05' }, { date: '2026-01-07' }]
+    );
+    expect(calendar.source).toBe('IDX_BENCHMARK_BARS');
+    // Terurut, unik, dan MEMUAT 2026-01-06 - hari bursa yang tidak ada di data sama sekali.
+    expect(calendar.dates).toEqual(['2026-01-05', '2026-01-06', '2026-01-07']);
+  });
+
+  it('hari bursa yang hilang dari data tetap ada di kalender, jadi offset tidak bergeser', () => {
+    const benchmark = ['2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08'];
+    const dataBolong = [{ date: '2026-01-05' }, { date: '2026-01-08' }];
+    const dariBenchmark = buildIdxTradingCalendar(benchmark, dataBolong);
+    const dariData = buildIdxTradingCalendar([], dataBolong);
+
+    // Jarak 05 -> 08 adalah 3 hari bursa menurut kalender sebenarnya, tapi hanya 1
+    // menurut kalender turunan-data. Selisih itulah yang menggeser horizon.
+    expect(dariBenchmark.dates.indexOf('2026-01-08') - dariBenchmark.dates.indexOf('2026-01-05')).toBe(3);
+    expect(dariData.dates.indexOf('2026-01-08') - dariData.dates.indexOf('2026-01-05')).toBe(1);
+  });
+
+  it('jatuh balik ke tanggal terobservasi dan MENYATAKANNYA saat benchmark tidak tersedia', () => {
+    const calendar = buildIdxTradingCalendar([], [{ date: '2026-01-06' }, { date: '2026-01-05' }]);
+    expect(calendar.source).toBe('OBSERVED_SIGNAL_DATES');
+    expect(calendar.dates).toEqual(['2026-01-05', '2026-01-06']);
+  });
+
+  it('membuang tanggal benchmark yang bentuknya tidak valid', () => {
+    const calendar = buildIdxTradingCalendar(['bukan-tanggal', '2026-01-05'], []);
+    expect(calendar.dates).toEqual(['2026-01-05']);
   });
 });
 
