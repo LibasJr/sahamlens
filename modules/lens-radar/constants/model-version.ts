@@ -1,7 +1,28 @@
-export const SCORE_VERSION = 'lens-score-v1.3.0';
+// KENAIKAN VERSI 2026-08-12 (perbaikan temuan C-01/C-02/C-03 audit kuantitatif).
+//
+// Ketiga versi di bawah naik BERSAMAAN dan itu disengaja - ketiganya berubah oleh satu
+// paket perbaikan yang sama:
+//
+//   SCORE_VERSION          skor historis kini memakai konteks sektor point-in-time
+//                          (fundamental_history.yahoo_sector/industry/payout_ratio),
+//                          bukan lagi sector null yang membuat SELURUH histori dinilai
+//                          'UNCLASSIFIED'. Diuji atas 110.592 kombinasi: selisih sampai
+//                          10 poin dan 8,4% berpindah bucket (temuan C-02).
+//   SIGNAL_VERSION         bar entry backtest wajib MAJU dari tanggal sinyal; sinyal
+//                          tanpa bar maju dibuang dan dihitung, bukan dieksekusi pada
+//                          bar tanggal sinyal (temuan C-03).
+//   DATA_SNAPSHOT_VERSION  fundamental_history bertambah kolom sektor.
+//
+// KONSEKUENSI YANG DISENGAJA: partitionByScoreVersion() akan MENOLAK seluruh baris
+// lens_radar_history berversi lama, sehingga Calibration Lab, Bucket Backtest, dan
+// halaman Transparency menampilkan nol sampel sampai backfill dijalankan ulang. Itu
+// perilaku yang benar - angka lama dihitung dengan model yang berbeda dan mencampurnya
+// dengan angka baru justru yang tidak boleh terjadi. `versionRejectedReason` sudah
+// menyatakannya ke pengguna. Jalankan: npm run backfill:lens-history
+export const SCORE_VERSION = 'lens-score-v1.4.0';
 export const VALUATION_VERSION = 'valuation-v1.2.0';
-export const SIGNAL_VERSION = 'lens-radar-signal-v1.2.0';
-export const DATA_SNAPSHOT_VERSION = 'lens-radar-history-v1.1.0';
+export const SIGNAL_VERSION = 'lens-radar-signal-v1.3.0';
+export const DATA_SNAPSHOT_VERSION = 'lens-radar-history-v1.2.0';
 
 export interface ModelVersionStamp {
   score_version: string;
