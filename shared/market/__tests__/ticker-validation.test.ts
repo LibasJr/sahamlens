@@ -16,5 +16,7 @@ describe('normalizeIdxTickerParam', () => {
   it('only allows the explicit market index where requested', () => {
     expect(normalizeIdxTickerParam('^JKSE')).toBeNull();
     expect(normalizeIdxTickerParam('^JKSE', { allowMarketIndex: true })).toBe('^JKSE');
+    expect(normalizeIdxTickerParam('%5EJKSE', { allowMarketIndex: true })).toBe('^JKSE');
+    expect(normalizeIdxTickerParam('IHSG', { allowMarketIndex: true })).toBe('^JKSE');
   });
 });
