@@ -706,7 +706,13 @@ async function main() {
     priceBasis: deps.RETURN_PRICE_BASIS,
   }, null, 2));
 
-  if (typeof deps.pool.end === 'function') await deps.pool.end();
+  // Dry-run tidak pernah membuka koneksi database - `loadFundamentalHistory` sengaja
+  // ditangkap di atas dan fundamentalnya dikosongkan. Menyentuh `deps.pool` DI SINI
+  // tetap memaksa lazy getter-nya menuntut DATABASE_URL, sehingga dry-run yang sudah
+  // selesai dan sudah mencetak ringkasannya tetap mati di baris terakhir dengan
+  // ZodError. Efeknya: satu-satunya cara memeriksa pipeline tanpa database jadi
+  // terlihat gagal padahal hasilnya benar.
+  if (!options.dryRun && typeof deps.pool.end === 'function') await deps.pool.end();
   if (failedTickers === tickers.length) process.exitCode = 1;
 }
 
