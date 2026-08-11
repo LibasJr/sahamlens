@@ -14,16 +14,21 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
   // dibuka setelahnya tidak tahu emiten ini baru dilihat (jatuh ke default TLKM/BBCA).
   useEffect(() => {
     const formattedTicker = symbol.startsWith('^') ? symbol : symbol.includes('.JK') ? symbol : `${symbol}.JK`;
-    window.localStorage.setItem('last_searched_ticker', formattedTicker);
+    if (!formattedTicker.startsWith('^')) {
+      window.localStorage.setItem('last_searched_ticker', formattedTicker);
+    }
   }, [symbol]);
 
   const handleTickerChange = (newTicker: string) => {
     const formattedTicker = newTicker.startsWith('^') ? newTicker : newTicker.includes('.JK') ? newTicker : `${newTicker}.JK`;
     // Simpan ke key yang sama dipakai Teknikal/Fundamental/DCF supaya emiten yang
     // dicari di LensAI juga ikut ke halaman lain (dan sidebar), bukan cuma satu arah.
-    window.localStorage.setItem('last_searched_ticker', formattedTicker);
-    router.push(`/technical/${encodeURIComponent(formattedTicker)}`);
+    if (!formattedTicker.startsWith('^')) {
+      window.localStorage.setItem('last_searched_ticker', formattedTicker);
+    }
+    const routeSymbol = formattedTicker.startsWith('^') ? 'IHSG' : formattedTicker;
+    router.push(`/technical/${encodeURIComponent(routeSymbol)}`);
   };
 
-  return <Header currentTicker={symbol.replace('.JK', '')} onTickerChange={handleTickerChange} />;
+  return <Header currentTicker={symbol === '^JKSE' ? 'IHSG' : symbol.replace('.JK', '')} onTickerChange={handleTickerChange} />;
 }

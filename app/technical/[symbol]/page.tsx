@@ -12,6 +12,7 @@ import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getSession, checkProAccessLive } from '@/modules/user';
 import { runCouncilAnalysis, runMultiAgentOrchestrator } from '@/modules/ai';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -25,9 +26,9 @@ const SITE_URL = 'https://sahamlens.id';
 const SHOW_BROKER_DISTRIBUTION_PANEL = false;
 
 function normalizeTechnicalSymbol(rawSymbol: string): string {
-  const value = rawSymbol.trim().toUpperCase();
-  if (value === 'IHSG' || value === 'JKSE' || value === '^JKSE.JK') return '^JKSE';
-  return value.replace(/\.JK$/, '');
+  const normalized = normalizeIdxTickerParam(rawSymbol, { allowMarketIndex: true });
+  if (!normalized) return '';
+  return normalized === '^JKSE' ? '^JKSE' : normalized.replace(/\.JK$/, '');
 }
 
 export async function generateMetadata({
@@ -41,7 +42,7 @@ export async function generateMetadata({
     return {
       title: 'Analisis Teknikal IHSG | SahamLens',
       description: 'Chart dan indikator teknikal Indeks Harga Saham Gabungan (IHSG).',
-      alternates: { canonical: `${SITE_URL}/technical/%5EJKSE` },
+      alternates: { canonical: `${SITE_URL}/technical/IHSG` },
     };
   }
   const emiten = loadEmitenList().find((item) => item.symbol === code);
@@ -473,6 +474,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
   const { symbol: rawSymbol } = await params;
   const code = normalizeTechnicalSymbol(rawSymbol);
   const isIndex = code === '^JKSE';
+  if (!code) notFound();
   if (!isIndex && !getEmitenSymbolSet().has(code)) notFound();
   const symbol = isIndex ? '^JKSE' : `${code}.JK`;
 
@@ -520,4 +522,3 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
     </div>
   );
 }
-
