@@ -21,8 +21,65 @@ function sample(
     fundamentalScore,
     flowScore,
     returnT20,
+    // Coverage penuh: penyebut per kelompok = bobot kelompoknya. Pada kondisi ini
+    // rekonstruksi bobot menyusut kembali menjadi rumus lama, jadi ekspektasi angka di
+    // test-test lama tetap berlaku. Perilaku coverage parsial - inti temuan H-03 -
+    // diuji terpisah di bawah.
+    technicalAvailableMax: 40,
+    fundamentalAvailableMax: 30,
+    flowAvailableMax: 30,
   };
 }
+
+describe('H-03 - rekonstruksi bobot memakai penyebut yang tersedia, bukan 40/30/30', () => {
+  /** Saham dengan mutu SEMPURNA di setiap kelompok, tapi fundamentalnya cuma separuh
+   * terdata (mis. emiten rugi: PER tidak bermakna). calculateScore() memberinya 100. */
+  const coveragePartial: WeightOptimizationSample = {
+    ticker: 'PARTIAL', signalDate: '2026-01-01', returnT20: 5,
+    technicalScore: 40, fundamentalScore: 15, flowScore: 30,
+    technicalAvailableMax: 40, fundamentalAvailableMax: 15, flowAvailableMax: 30,
+  };
+  const coverageFull: WeightOptimizationSample = {
+    ticker: 'FULL', signalDate: '2026-01-01', returnT20: 5,
+    technicalScore: 40, fundamentalScore: 30, flowScore: 30,
+    technicalAvailableMax: 40, fundamentalAvailableMax: 30, flowAvailableMax: 30,
+  };
+
+  it('mutu sempurna dengan data separuh tetap masuk bucket teratas', () => {
+    // Rumus lama: (40/40 + 15/30 + 30/30) berbobot 40/30/30 = 85 -> bucket '80-100'
+    // masih kena, tapi untuk fundamental yang lebih tipis lagi ia jatuh ke bucket bawah
+    // PADAHAL calculateScore() memberinya 100. Rumus yang benar mengembalikan 100 di
+    // kedua kasus, karena kualitas keduanya memang sama.
+    const hasil = evaluateWeightCandidate(
+      [coveragePartial, coverageFull],
+      { technical: 40, fundamental: 30, flow: 30 }
+    );
+    expect(hasil.highSamples).toBe(2);
+    expect(hasil.lowSamples).toBe(0);
+  });
+
+  it('coverage fundamental sangat tipis TIDAK menendang sinyal bermutu ke bucket bawah', () => {
+    const nyaris: WeightOptimizationSample = {
+      ...coveragePartial, ticker: 'THIN',
+      fundamentalScore: 3, fundamentalAvailableMax: 3,
+    };
+    // Rumus lama: 40/40*40 + 3/30*30 + 30/30*30 = 40 + 3 + 30 = 73 -> bucket '70-79'.
+    // Rumus yang benar: seluruh kelompok bermutu 100% -> 100 -> bucket '80-100'.
+    const hasil = evaluateWeightCandidate([nyaris], { technical: 40, fundamental: 30, flow: 30 });
+    expect(hasil.highSamples).toBe(1);
+  });
+
+  it('penyebut nol tidak menghasilkan NaN', () => {
+    const kosong: WeightOptimizationSample = {
+      ticker: 'X', signalDate: '2026-01-01', returnT20: 1,
+      technicalScore: 0, fundamentalScore: 0, flowScore: 0,
+      technicalAvailableMax: 0, fundamentalAvailableMax: 0, flowAvailableMax: 0,
+    };
+    const hasil = evaluateWeightCandidate([kosong], { technical: 40, fundamental: 30, flow: 30 });
+    expect(hasil.lowSamples).toBe(1);
+    expect(Number.isFinite(hasil.lowAvgT20 ?? 0)).toBe(true);
+  });
+});
 
 describe('lens-score-optimizer.service', () => {
   it('membuat kandidat bobot termasuk bobot production dan contoh 50/20/30', () => {
@@ -71,6 +128,9 @@ describe('lens-score-optimizer.service', () => {
       fundamentalScore: 15,
       flowScore: 15,
       returnT20: i - 5,
+      technicalAvailableMax: 40,
+      fundamentalAvailableMax: 30,
+      flowAvailableMax: 30,
     }));
 
     const split = chronologicalTrainOosSplit(samples, 0.7);

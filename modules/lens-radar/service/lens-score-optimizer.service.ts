@@ -22,9 +22,14 @@ const LOOKBACK_DAYS = 90;
 const CURRENT_WEIGHTS: LensScoreWeights = LENS_SCORE_WEIGHTS;
 const COMPONENT_MAX = LENS_SCORE_WEIGHTS;
 const MIN_BUCKET_SAMPLE = 2;
-const MIN_OOS_BUCKET_SAMPLE = 10;
+// Disamakan dengan ambang yang dipakai SELURUH lapisan validasi lain
+// (MIN_EFFECTIVE_T_TEST_SAMPLES, LENS_RADAR_OOS_MIN_EFFECTIVE_PER_EDGE_BUCKET,
+// MIN_METRIC_SAMPLES) - audit kuantitatif 2026-08-11, temuan M-04. Sebelumnya 10 sampel
+// dan alpha 0,10, yaitu gerbang jauh lebih longgar daripada gerbang lain untuk keputusan
+// yang justru paling berdampak: mengubah bobot skor produksi.
+const MIN_OOS_BUCKET_SAMPLE = 30;
 const TRAIN_FRACTION = 0.7;
-const OOS_MAX_P_VALUE = 0.10;
+const OOS_MAX_P_VALUE = 0.05;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -37,6 +42,12 @@ export interface WeightOptimizationSample {
   technicalScore: number;
   fundamentalScore: number;
   flowScore: number;
+  /** Bobot yang BENAR-BENAR punya data per kelompok pada tanggal sinyal, dari
+   * `calculateScore().available_max` yang diarsipkan bersama barisnya. Ini penyebut yang
+   * benar - lihat weightedScore() untuk alasan kenapa 40/30/30 salah (temuan H-03). */
+  technicalAvailableMax: number;
+  fundamentalAvailableMax: number;
+  flowAvailableMax: number;
 }
 
 export interface WeightCandidateResult {
@@ -76,6 +87,10 @@ interface LensRadarHistoryWithComponents extends LensRadarHistoryEntry {
   fundamental_score: number | string | null;
   flow_score: number | string | null;
   coverage_pct: number | string | null;
+  eligibility_status?: string | null;
+  technical_available_max?: number | string | null;
+  fundamental_available_max?: number | string | null;
+  flow_available_max?: number | string | null;
 }
 
 function finiteNumber(value: number | string | null | undefined): number | null {
@@ -127,16 +142,49 @@ export function generateWeightCandidates(step = 5): LensScoreWeights[] {
   return candidates;
 }
 
+/**
+ * Rekonstruksi LensScore di bawah bobot alternatif.
+ *
+ * BUG FIX (audit kuantitatif 2026-08-11, temuan H-03): kualitas kelompok dulu dihitung
+ * sebagai `technicalScore / 40` dan seterusnya. Itu BUKAN yang dilakukan
+ * calculateScore(): `combine()` sudah menormalkan skor kelompok atas bobot yang
+ * TERSEDIA, jadi kelompok yang separuh datanya hilang menghasilkan angka lebih kecil
+ * bukan karena mutunya rendah, melainkan karena penyebutnya lebih kecil. Membaginya lagi
+ * dengan bobot penuh menghukum kelompok itu untuk kedua kalinya.
+ *
+ * Kedua rumus hanya identik saat coverage 100%. Untuk baris yang datanya tidak lengkap,
+ * proposal bobot dipilih atas model yang bukan LensScore.
+ *
+ * Bentuk yang benar. Dengan kualitas kelompok = skor / availableMax (0-1), dan
+ * availableMax yang berskala linear terhadap bobot kelompok, mengubah bobot dari w ke
+ * w-baru menskalakan availableMax dengan faktor (w-baru / w). Skor akhir adalah
+ * rata-rata kualitas yang DIBOBOTI ketersediaan data:
+ *
+ *   pembilang = jumlah dari (kualitas x availableMax x w-baru / w)
+ *   penyebut  = jumlah dari (availableMax x w-baru / w)
+ *   skor      = pembilang / penyebut x 100
+ *
+ * Pada coverage penuh ini menyusut kembali menjadi rumus lama, jadi tidak ada asumsi
+ * baru yang diselundupkan - yang berubah hanya perlakuan terhadap baris berdata kurang.
+ */
 function weightedScore(sample: WeightOptimizationSample, weights: LensScoreWeights): number {
-  const technicalQuality = (sample.technicalScore / COMPONENT_MAX.technical) * 100;
-  const fundamentalQuality = (sample.fundamentalScore / COMPONENT_MAX.fundamental) * 100;
-  const flowQuality = (sample.flowScore / COMPONENT_MAX.flow) * 100;
-  const score = (
-    technicalQuality * weights.technical +
-    fundamentalQuality * weights.fundamental +
-    flowQuality * weights.flow
-  ) / 100;
-  return Math.max(0, Math.min(100, score));
+  const groups = [
+    { score: sample.technicalScore, availableMax: sample.technicalAvailableMax, base: COMPONENT_MAX.technical, next: weights.technical },
+    { score: sample.fundamentalScore, availableMax: sample.fundamentalAvailableMax, base: COMPONENT_MAX.fundamental, next: weights.fundamental },
+    { score: sample.flowScore, availableMax: sample.flowAvailableMax, base: COMPONENT_MAX.flow, next: weights.flow },
+  ];
+
+  let numerator = 0;
+  let denominator = 0;
+  for (const group of groups) {
+    if (!(group.availableMax > 0) || !(group.base > 0)) continue;
+    const quality = group.score / group.availableMax;
+    const scaledAvailableMax = group.availableMax * (group.next / group.base);
+    numerator += quality * scaledAvailableMax;
+    denominator += scaledAvailableMax;
+  }
+  if (denominator <= 0) return 0;
+  return Math.max(0, Math.min(100, (numerator / denominator) * 100));
 }
 
 export function evaluateWeightCandidate(
@@ -240,6 +288,13 @@ function buildOptimizationSamples(
     const fundamentalScore = finiteNumber(row.fundamental_score);
     const flowScore = finiteNumber(row.flow_score);
     if (technicalScore == null || fundamentalScore == null || flowScore == null) continue;
+    // Penyebut per kelompok WAJIB ada (temuan H-03). Baris yang diarsipkan sebelum kolom
+    // ini ada dilewati, bukan direkonstruksi dengan penyebut 40/30/30 yang salah -
+    // menebak penyebut adalah bagaimana bug ini bermula.
+    const technicalAvailableMax = finiteNumber(row.technical_available_max ?? null);
+    const fundamentalAvailableMax = finiteNumber(row.fundamental_available_max ?? null);
+    const flowAvailableMax = finiteNumber(row.flow_available_max ?? null);
+    if (technicalAvailableMax == null || fundamentalAvailableMax == null || flowAvailableMax == null) continue;
     samples.push({
       ticker: obs.ticker,
       signalDate: obs.signalDate,
@@ -247,6 +302,9 @@ function buildOptimizationSamples(
       technicalScore,
       fundamentalScore,
       flowScore,
+      technicalAvailableMax,
+      fundamentalAvailableMax,
+      flowAvailableMax,
     });
   }
   return samples;
@@ -280,7 +338,11 @@ async function readHistoryRowsForWindow(db: Queryable = pool, startDate: string 
       technical_score,
       fundamental_score,
       flow_score,
-      coverage_pct
+      coverage_pct,
+      eligibility_status,
+      technical_available_max,
+      fundamental_available_max,
+      flow_available_max
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -432,7 +494,7 @@ export async function runLensScoreOptimizer(db: Queryable = pool): Promise<LensW
   if (!passesOosGate(oosCandidate, oosBaseline)) {
     return saveWeightProposal(buildProposal({
       status: 'NO_VALID_CANDIDATE',
-      reason: `Kandidat train gagal OOS gate setelah ${split.splitDate}: perlu >= ${MIN_OOS_BUCKET_SAMPLE} sampel per bucket, spread OOS positif, p-value OOS <= ${OOS_MAX_P_VALUE}, dan spread OOS harus mengungguli baseline. Bobot production tidak berubah.`,
+      reason: `Kandidat train gagal OOS gate setelah ${split.splitDate}: perlu >= ${MIN_OOS_BUCKET_SAMPLE} sampel efektif per bucket, spread OOS positif, p-value OOS <= ${OOS_MAX_P_VALUE}, dan spread OOS harus mengungguli baseline. Bobot production tidak berubah.`,
       runDate,
       baseline: oosBaseline,
       componentSampleSize: samples.length,
@@ -444,7 +506,7 @@ export async function runLensScoreOptimizer(db: Queryable = pool): Promise<LensW
 
   return saveWeightProposal(buildProposal({
     status: 'PENDING_APPROVAL',
-    reason: `Proposal lolos chronological OOS gate setelah split ${split.splitDate}. Kandidat dipilih hanya dari train; metrik proposal di bawah adalah hasil OOS. Tetap perlu approval manual admin.`,
+    reason: `Proposal lolos chronological OOS gate setelah split ${split.splitDate}. Kandidat dipilih hanya dari train (${trainOptimization.candidates.length} kombinasi bobot diuji); metrik di bawah adalah hasil OOS SEKALI, tanpa koreksi pengujian berganda atas jumlah kandidat itu - baca p-value OOS sebagai indikatif, bukan bukti. Tetap perlu approval manual admin.`,
     runDate,
     baseline: oosBaseline,
     best: oosCandidate,
