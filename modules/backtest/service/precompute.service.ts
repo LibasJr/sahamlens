@@ -29,9 +29,31 @@ const LOOKBACK_DAYS = 200;
 // butuh ratusan tahun histori, cukup ~250 hari terakhir per titik waktu).
 const ANALYZER_WINDOW = 250;
 // Disimpan HANYA RETAIN_DAYS hari terakhir dari hasil precompute (bukan seluruh sisa
-// setelah buffer) - cukup untuk periode backtest maksimal 24 bulan (~528 hari bursa)
-// + margin, sekaligus membatasi ukuran payload Redis.
-const RETAIN_DAYS = 560;
+// setelah buffer) - sekaligus membatasi ukuran payload Redis.
+//
+// DIPERPANJANG 2026-08-12 dari 560 (cukup untuk 24 bulan) ke 1340: periode backtest
+// terpanjang kini 60 bulan, dan simulateBacktest memotong jendelanya sebagai
+// periodMonths x 22 = 1.320 bar. 20 bar sisanya adalah margin.
+//
+// CATATAN SATUAN: 22 hari bursa/bulan adalah aproksimasi. IDX sesungguhnya ~241 hari
+// bursa setahun (diukur dari ^JKSE, bukan diasumsikan), jadi "60 bulan" memotong 1.320
+// bar = ~5,5 tahun kalender, bukan tepat 5. Angka tahun yang SEBENARNYA dilaporkan
+// apa adanya di `performance.years` (modules/backtest/service/performance-metrics.ts),
+// yang menghitungnya dari rentang tanggal, bukan dari aproksimasi ini.
+// BIAYA PENYIMPANAN, diukur bukan diperkirakan (2026-08-12): satu deret ticker pada 1.340
+// hari berukuran ~215 KB JSON, jadi 109 emiten = ~23 MB di Redis (sebelumnya ~9,6 MB pada
+// 560 hari). Masih jauh di bawah batas 1 MB per key Upstash, tetapi ini kenaikan 2,4x pada
+// kuota penyimpanan - dinyatakan di sini supaya keputusan memperpanjang periode dan
+// biayanya terbaca di tempat yang sama.
+export const RETAIN_DAYS = 1340;
+
+// Rentang yang diminta ke Yahoo. Diukur 2026-08-12: '5y' mengembalikan 1.206 bar untuk
+// emiten IDX - setelah dikurangi LOOKBACK_DAYS hanya tersisa ~1.006 hari keputusan, TIDAK
+// cukup untuk 60 bulan. '10y' mengembalikan 2.467 bar. Emiten yang memang belum listing
+// selama itu (GOTO: 1.040 bar) mengembalikan apa adanya, dan itu benar - mereka lalu
+// gugur dari jendela panjang lewat penyaring di simulateBacktest, terhitung sebagai
+// `excludedShortHistory`.
+const FETCH_RANGE = '10y';
 
 const INDICATOR_ANALYZERS: Record<IndicatorName, (history: any[], price: number) => { decision: string }> = {
   'EMA 20/50 Cross': analyzeEma,
@@ -59,8 +81,14 @@ function emptyDecisionMap(): Record<IndicatorName, Decision[]> {
 
 // Diekspor untuk unit test - hitung deret keputusan harian 1 saham dari OHLCV mentah.
 // null kalau data historis lebih pendek dari buffer lookback (saham baru IPO dsb).
-export function computeTickerSeries(ticker: string, history: OhlcRow[]): TickerIndicatorSeries | null {
-  if (history.length <= LOOKBACK_DAYS) return null;
+export function computeTickerSeries(ticker: string, rawHistory: OhlcRow[]): TickerIndicatorSeries | null {
+  if (rawHistory.length <= LOOKBACK_DAYS) return null;
+
+  // Dipotong SEBELUM loop, bukan sesudahnya. Yahoo '10y' mengirim ~2.467 bar sementara
+  // yang disimpan hanya RETAIN_DAYS; menjalankan 9 analyzer atas seluruh 2.267 hari lalu
+  // membuang dua pertiganya berarti membayar 1,7x komputasi untuk hasil yang identik -
+  // dan cron ini punya batas 60 detik.
+  const history = rawHistory.slice(-(RETAIN_DAYS + LOOKBACK_DAYS));
 
   const bars: DailyBar[] = [];
   const decisions = emptyDecisionMap();
@@ -88,7 +116,7 @@ export function computeTickerSeries(ticker: string, history: OhlcRow[]): TickerI
 }
 
 async function fetchTickerSeries(ticker: string): Promise<TickerIndicatorSeries | null> {
-  const result = await fetchYahooHistory(ticker, '5y');
+  const result = await fetchYahooHistory(ticker, FETCH_RANGE);
   if (!result) {
     // fetch gagal - saham ini di-skip, tidak melempar error (spec: satu saham gagal
     // tidak boleh menggagalkan seluruh precompute harian) - tapi dicatat di log.
@@ -113,7 +141,7 @@ export async function precomputeBacktestData(): Promise<BacktestIndicatorCache> 
     }
   }
 
-  const ihsgResult = await fetchYahooHistory('^JKSE', '5y');
+  const ihsgResult = await fetchYahooHistory('^JKSE', FETCH_RANGE);
   const ihsg: DailyBar[] = ihsgResult
     ? ihsgResult.history.slice(LOOKBACK_DAYS).slice(-RETAIN_DAYS).map((h) => ({ date: h.Date.split('T')[0], close: h.Close, open: h.Open }))
     : [];

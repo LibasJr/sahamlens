@@ -14,6 +14,7 @@ import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 // langsung. Sama BACKTEST_PRESETS dipakai modules/market/service/screener.service.ts
 // (server, lewat barrel) supaya preset Backtest & tag pola Screener tidak bercabang.
 import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
+import { BACKTEST_PERIOD_MONTHS } from '@/modules/backtest/constants/backtest-periods';
 import { BACKTEST_LIMITATIONS } from '@/modules/backtest/constants/backtest-limitations';
 
 const fmtRupiah = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
@@ -255,7 +256,7 @@ export default function BacktestPage() {
         <PageContainer className="px-6 pt-6">
           <p className="text-xs text-tv-muted">
             <b>Backtest Sekarang</b>: uji kombinasi filter ini ke data masa lalu (return, win rate,
-            drawdown, 3-24 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi
+            drawdown, 3-60 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi
             kombinasi filter yang sama SEKARANG (data live, bukan simulasi).
           </p>
         </PageContainer>
@@ -305,11 +306,13 @@ export default function BacktestPage() {
 
               <div className="space-y-4 pt-4 border-t border-tv-border">
                 <Input label="Modal Awal (Rp)" type="number" value={modal} onChange={e => setModal(Number(e.target.value))} className="font-number" />
+                {/* Daftar periode dari satu sumber bersama dengan API dan precompute -
+                    lihat modules/backtest/constants/backtest-periods.ts. Menulisnya ulang
+                    di sini pernah menjadi cara ketiganya berpisah tanpa ada yang tahu. */}
                 <Select label="Periode (Bulan)" value={period} onChange={e => setPeriod(Number(e.target.value))}>
-                  <option value={3}>3 Bulan</option>
-                  <option value={6}>6 Bulan</option>
-                  <option value={12}>12 Bulan</option>
-                  <option value={24}>24 Bulan</option>
+                  {BACKTEST_PERIOD_MONTHS.map((bulan) => (
+                    <option key={bulan} value={bulan}>{bulan} Bulan</option>
+                  ))}
                 </Select>
 
                 <Button
@@ -476,6 +479,29 @@ export default function BacktestPage() {
                         <div className="text-xl font-bold font-number text-tv-red">{results.maxDD}</div>
                       </div>
                     </div>
+
+                    {/* Penyusutan universe. Penyaring "histori harus menutupi seluruh
+                        jendela" membuang emiten yang belum listing selama periode itu -
+                        dan porsinya naik seiring panjang periode. Pada 60 bulan, SEMUA
+                        emiten yang IPO dalam lima tahun terakhir hilang, dan justru
+                        merekalah yang paling mungkin berkinerja ekstrem ke dua arah.
+                        Sebelum blok ini ada, penyusutan itu terjadi tanpa satu angka pun
+                        di layar. */}
+                    {results.universe && results.universe.excludedShortHistory > 0 && (
+                      <div className="rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 text-xs text-tv-yellow">
+                        <div className="font-semibold">
+                          Universe menyusut: {results.universe.eligible} dari {results.universe.inCache} emiten
+                        </div>
+                        <div className="mt-1 opacity-90 leading-relaxed">
+                          {results.universe.excludedShortHistory} emiten dibuang karena historinya tidak
+                          menutupi seluruh {results.universe.requiredTradingDays} hari bursa periode ini —
+                          termasuk semua yang IPO setelah periode dimulai. Makin panjang periodenya, makin
+                          banyak yang gugur, dan yang tersisa adalah emiten yang bertahan dan tetap likuid
+                          selama itu. Hasil di bawah adalah hasil dari kelompok penyintas itu, bukan dari
+                          pasar apa adanya.
+                        </div>
+                      </div>
+                    )}
 
                     {/* RISIKO (temuan H-05 audit kuantitatif). Empat angka di atas diam soal
                         satu hal: berapa risiko yang ditanggung untuk mendapatkannya. Return

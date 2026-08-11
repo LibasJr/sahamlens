@@ -8,12 +8,13 @@ import type {
   TickerIndicatorSeries,
 } from '../types/backtest.types';
 import { calculatePerformanceMetrics } from './performance-metrics';
+import { TRADING_DAYS_PER_MONTH } from '../constants/backtest-periods';
 
 // Batasan simulasi (survivorship bias, tanpa penyesuaian dividen, asumsi fee) ada di
 // modules/backtest/constants/backtest-limitations.ts - ditampilkan bersama hasil di UI.
 
 const MAX_SLOTS = 5;
-const TRADING_DAYS_PER_MONTH = 22; // aproksimasi - dipakai konsisten utk periode & sampling chart
+// Aproksimasi hari bursa per bulan - lihat catatan lengkap di constants/backtest-periods.ts.
 
 // REWRITE (2026-08-03) - dulu simulasi ini beli/jual di CLOSE hari yang sama dengan
 // sinyalnya sendiri (look-ahead bias: jam 9 pagi kamu belum tahu close hari itu), dan
@@ -88,8 +89,9 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
   // besar-ke-kecil), jadi tidak perlu parsing Date sama sekali.
   const ihsgAll = endDate ? cache.ihsg.filter((b) => b.date <= endDate) : cache.ihsg;
   const ihsgWindow = ihsgAll.slice(-tradingDays);
-  const tickerIndexes = cache.tickers
-    .map((series) => ({ ticker: series.ticker, index: buildTickerIndex(series) }))
+  const allIndexes = cache.tickers
+    .map((series) => ({ ticker: series.ticker, index: buildTickerIndex(series) }));
+  const tickerIndexes = allIndexes
     // Yang dihitung adalah bar DI DALAM jendela, bukan total bar yang dipunya ticker:
     // saham dengan 5 tahun histori tetap harus punya data cukup di jendela masa lalu
     // yang sedang diuji, bukan lolos hanya karena datanya panjang di masa kini.
@@ -101,6 +103,19 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
       });
       return inWindow >= tradingDays;
     });
+
+  // Penyaring di atas MEMPERBURUK survivorship bias secara proporsional dengan panjang
+  // periode, dan sebelumnya itu terjadi tanpa satu angka pun yang menyatakannya. Pada 24
+  // bulan hanya sedikit emiten yang gugur; pada 60 bulan seluruh emiten yang IPO dalam
+  // lima tahun terakhir hilang dari universe - dan justru merekalah yang paling mungkin
+  // berkinerja ekstrem ke dua arah. Angkanya sekarang ikut dikembalikan supaya UI bisa
+  // menyatakannya, bukan menyajikan hasil dari universe yang diam-diam menyusut.
+  const universe = {
+    inCache: allIndexes.length,
+    eligible: tickerIndexes.length,
+    excludedShortHistory: allIndexes.length - tickerIndexes.length,
+    requiredTradingDays: tradingDays,
+  };
 
   let cash = modal;
   const openPositions: OpenPosition[] = [];
@@ -288,6 +303,7 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     totalTrades: trades.length,
     maxDrawdownPct: Number(maxDrawdownPct.toFixed(2)),
     performance,
+    universe,
     equityCurve,
     ihsgCurve,
     trades: trades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
