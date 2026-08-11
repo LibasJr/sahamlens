@@ -25,10 +25,27 @@
 > `npm run backfill:lens-history` dijalankan ulang. Itu perilaku yang benar — angka lama
 > dihitung dengan model yang berbeda.
 >
-> **Status model TIDAK berubah: masih `NOT VALIDATED`.** Fase 1 memperbaiki *apa* yang
-> diukur; ia tidak menghasilkan bukti baru. Hitungan sampel forward-OOS dimulai dari nol
-> pada 2026-08-12. Temuan C-4, C-5, dan seluruh HIGH/MEDIUM/LOW di bawah **belum
-> dikerjakan** — lihat Fase 2-4 di bagian 22.
+> **Fase 2 juga SUDAH DIKERJAKAN** (12 Agustus 2026). `npx vitest run` lulus **782 test di
+> 97 file**, typecheck bersih, lint 0 error.
+>
+> | Temuan | Perbaikan |
+> |---|---|
+> | **H-1** | Kelayakan minimal dihitung **point-in-time saat backfill** dan diarsipkan (`eligibility_status`), lalu satu gerbang bersama (`validation-population.ts`) memfilter populasi di **empat** pembaca histori: bucket backtest, calibration lab, `/api/lens-score-bucket-backtest`, dan TP/CL Lab. Ambangnya di-*import* dari gerbang produksi, tidak ditulis ulang. Fail-closed: baris tanpa kolom gerbang ditolak dan **dihitung**, bukan diloloskan. |
+> | **H-2** | `VALIDATION_LIMITATIONS` — survivorship, selection bias universe, restatement AdjClose, toleransi horizon, biaya konstanta, korelasi sisa — kini ikut dikirim ke Calibration Lab **dan** halaman Transparency publik, bukan hanya halaman Backtest. |
+> | **H-3** | `calculateScore()` mengekspos `available_max` per kelompok; backfill mengarsipkannya; optimizer bobot memakainya sebagai penyebut. Rekonstruksi kini menyusut kembali ke rumus lama saat coverage 100% dan berhenti menghukum kelompok berdata kurang dua kali. |
+> | **H-7** | Bar yang menyentuh TP1 dan SL sekaligus ditandai, porsinya dilaporkan, dan **skenario tandingan TP-first dijalankan penuh** sebagai batas atas. Selisih expectancy/win-rate keduanya adalah rentang ketidakpastian yang berasal dari asumsi, bukan dari data. |
+> | **M-4** | Ambang OOS optimizer disamakan dengan lapisan lain: n ≥ 30 (dari 10), α = 0,05 (dari 0,10), dan jumlah kandidat yang diuji ikut dinyatakan di `reason` sebagai peringatan pengujian berganda. |
+> | **M-14** | Kalender hari bursa berasal dari **tanggal bar ^JKSE**, bukan dari tanggal yang kebetulan ada di data. `shared/calendar/idx-trading-calendar.ts` ternyata tidak bisa dipakai — file itu menyatakan sendiri bahwa hari libur bursa belum dikelola di sana. Sumber kalender ikut dilaporkan (`tradingCalendarSource`), dengan fallback yang menyebut dirinya fallback. |
+>
+> `DATA_SNAPSHOT_VERSION` naik ke `v1.3.0`. `SCORE_VERSION` **sengaja tidak** naik: nilai
+> skornya tidak berubah sedikit pun. Baris arsip Fase 1 yang belum punya kolom gerbang
+> akan muncul sebagai `unknownCoverage`/`unknownEligibility` di dashboard sampai backfill
+> dijalankan ulang — terlihat, bukan hilang diam-diam.
+>
+> **Status model TIDAK berubah: masih `NOT VALIDATED`.** Fase 1 dan 2 memperbaiki *apa*
+> yang diukur dan *siapa* yang diukur; keduanya tidak menghasilkan bukti baru. Hitungan
+> sampel forward-OOS dimulai dari nol pada 2026-08-12. Temuan **C-4, C-5, H-4, H-5, H-6**
+> dan sisa MEDIUM/LOW **belum dikerjakan** — lihat Fase 3-4 di bagian 22.
 >
 > Bagian di bawah ini dipertahankan apa adanya sebagai catatan temuan aslinya, termasuk
 > angka bukti pra-perbaikan.
