@@ -262,7 +262,12 @@ export default function AIChat() {
               <div className="flex justify-start">
                 <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-base text-tv-muted sm:text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  AI sedang menganalisis...
+                  {/* JANGAN diganti jadi "menulis"/"mengetik" selama /api/chat masih
+                      membalas sekali jadi (NextResponse.json, bukan stream): dua kata itu
+                      menjanjikan teks yang muncul bertahap, padahal pengguna melihat
+                      spinner diam lalu jawaban utuh sekaligus. Boleh dipakai kalau
+                      streaming sudah jalan. */}
+                  LensAI sedang menyiapkan jawaban...
                 </div>
               </div>
             )}

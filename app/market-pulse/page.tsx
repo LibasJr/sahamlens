@@ -155,7 +155,7 @@ function SectorDetailModal({ sector, onClose }: { sector: any; onClose: () => vo
           </button>
         </div>
         <p className="px-4 pt-3 text-[10px] text-tv-muted leading-relaxed">
-          {sector.sampleSize} saham wakil (kurasi manual, bukan seluruh emiten sektor ini - lihat catatan "bukan indeks sektor resmi IDX" di atas Heatmap).
+          {sector.sampleSize} saham wakil (kurasi manual, bukan seluruh emiten sektor ini - lihat catatan &quot;bukan indeks sektor resmi IDX&quot; di atas Heatmap).
         </p>
         <div className="p-4 pt-2 space-y-1.5 max-h-[50vh] overflow-y-auto">
           {sector.stocks.map((s: any) => (
