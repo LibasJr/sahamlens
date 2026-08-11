@@ -1,5 +1,7 @@
 import YahooFinanceClass from 'yahoo-finance2';
 import { getUsdIdrRate } from '../../../shared/market/usd-idr-rate';
+import { impliedMultiples, MACRO_ASSUMPTIONS } from './fair-multiples.service';
+import { resolveSectorProfile } from '../../sector/service/sector-classifier.service';
 
 // BUILD 004 (AI Architecture) - dipindah verbatim dari app/api/intrinsic/[ticker]/route.ts
 // supaya bisa dipakai ulang oleh Valuation Agent di modules/ai/service/orchestrator.service.ts
@@ -26,11 +28,22 @@ export const VALUATION_ASSUMPTIONS = {
   /** Pertumbuhan perpetuitas. Ditahan di 5% (bukan 8%) supaya pembagi (r - g) tidak
    * menyusut ekstrem dan meledakkan nilai wajar saham dividen tinggi. */
   PERPETUAL_GROWTH: 0.05,
-  /** PER "wajar" acuan. Angka konvensi pasar, bukan hasil regresi atas data IDX. */
+  /**
+   * @deprecated TIDAK LAGI DIPAKAI MENGHITUNG APA PUN (perbaikan C-05 & H-04,
+   * audit kuantitatif 2026-08-11).
+   *
+   * PER dan PBV wajar sekarang berasal dari impliedMultiples() di fair-multiples.service.ts
+   * - model yang sama dengan komponen Valuasi LensScore. Konstanta di bawah adalah rumus
+   * lama: pengali PER tetap 15x/14,5x untuk semua emiten, dan PBV heuristik
+   * (ROE / pembagi) x pengali dengan tingkat diskonto 12% yang sama untuk semua.
+   *
+   * Dipertahankan sebagai catatan sejarah, bukan sebagai konstanta hidup: dua model nilai
+   * wajar yang berjalan bersamaan untuk emiten yang sama adalah persis masalah yang
+   * dihapus di sini. Kalau nilainya perlu diubah, yang benar adalah mengubah
+   * MACRO_ASSUMPTIONS, bukan menghidupkan kembali angka-angka ini.
+   */
   FAIR_PER_NON_BANK: 15,
   FAIR_PER_BANK: 14.5,
-  /** Faktor PBV wajar = (ROE / pembagi) x pengali. Heuristik industri, bukan turunan
-   * teoritis - dilaporkan apa adanya ke UI lewat `assumptions` di bawah. */
   BANK_PBV_DIVISOR: 12,
   BANK_PBV_MULTIPLIER: 1.4,
   BANK_HIGH_ROE_DIVISOR: 11,
@@ -42,6 +55,18 @@ export const VALUATION_ASSUMPTIONS = {
   GRAHAM_CONSTANT: 22.5,
 } as const;
 
+/**
+ * Bobot metode valuasi per sektor.
+ *
+ * STATUS: HIPOTESIS, BELUM DIVALIDASI (temuan M-03). Tidak satu pun angka di bawah pernah
+ * diuji terhadap forward return; keduanya berasal dari kebiasaan analis, bukan pengukuran.
+ * Yang bisa dipertanggungjawabkan dari daftar ini hanyalah arahnya - bank dinilai dari
+ * neraca (PBV) dan dividen, bukan dari arus kas bebas yang bagi bank memang tidak bermakna;
+ * emiten konsumsi dinilai dari laba. Besaran angkanya tidak punya dasar empiris.
+ *
+ * Dinyatakan di payload lewat `assumptions.sector_weights_status` supaya pernyataan ini
+ * sampai ke pengguna, bukan berhenti di komentar yang tidak pernah dibaca.
+ */
 const SECTOR_RULES: Record<string, any> = {
   "Banks - Regional": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
   "Banks": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
@@ -165,33 +190,47 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     }
   }
 
-  // 2. PBV Fair
-  if (roe != null && roe > 0 && bvps != null && bvps > 0) {
-    if (isBank) {
-      // FIX: Bank PBV Fair
-      const rawPbv = quoteSummary.defaultKeyStatistics?.priceToBook;
-      let calcBvps = isFinitePositive(rawPbv)
-        ? price / rawPbv
-        : bvps;
+  // 2 & 4. PBV Fair dan PER Fair - SATU model, sama dengan LensScore.
+  //
+  // PERBAIKAN C-05 (audit kuantitatif 2026-08-11). Sampai perbaikan ini, satu emiten yang
+  // sama bisa menampilkan dua nilai wajar yang berbeda di dua tempat sekaligus:
+  //
+  //   komponen Valuasi di LensScore : PBV* = (ROE - g) / (r - g), r per emiten lewat CAPM
+  //   kartu "Harga Wajar" di sini   : PBV* = (ROE / 12) x 0,85, r = 12% untuk SEMUA emiten
+  //
+  // Rumus kedua bahkan dikutip di dalam fair-multiples.service.ts sebagai CONTOH cara yang
+  // salah, sementara ia tetap menghasilkan angka yang dilihat pengguna. Untuk ROE 20%,
+  // g 5%, r 12% selisihnya 1,42x vs 2,14x - 50% pada angka yang langsung menentukan label
+  // UNDERVALUED/OVERVALUED. Tidak ada cara bagi pengguna untuk tahu keduanya beda model.
+  //
+  // Sekarang keduanya memanggil impliedMultiples() yang sama. Konstanta PBV heuristik
+  // (BANK_PBV_DIVISOR dkk) tidak lagi dipakai menghitung apa pun; lihat catatan di
+  // VALUATION_ASSUMPTIONS.
+  const sectorProfile = resolveSectorProfile(
+    quoteSummary.assetProfile?.sector ?? null,
+    quoteSummary.assetProfile?.industry ?? null,
+  );
+  const implied = impliedMultiples({
+    roePct: roe,
+    payoutRatio: isFiniteNumber(quoteSummary.summaryDetail?.payoutRatio)
+      ? quoteSummary.summaryDetail.payoutRatio
+      : null,
+    beta: isFiniteNumber(quoteSummary.defaultKeyStatistics?.beta)
+      ? quoteSummary.defaultKeyStatistics.beta
+      : null,
+    fallbackBeta: sectorProfile.defaultBeta,
+  });
 
-      let pbvWajar = (roe / VALUATION_ASSUMPTIONS.BANK_PBV_DIVISOR) * VALUATION_ASSUMPTIONS.BANK_PBV_MULTIPLIER;
-      if (roe > 20) {
-        pbvWajar = (roe / VALUATION_ASSUMPTIONS.BANK_HIGH_ROE_DIVISOR) * VALUATION_ASSUMPTIONS.BANK_HIGH_ROE_MULTIPLIER;
-      }
-      // Cap saja di 3.2 (hindari valuasi ekstrem untuk ROE sangat tinggi) - TANPA floor
-      // 2.5. Floor unconditional sebelumnya memaksa bank ber-ROE rendah (mis. 3% -> PBV
-      // mentah 0.35x) tetap dinilai 2.5x, melambungkan fair value/MoS dan berpotensi
-      // menandai bank yang fundamentalnya lemah sebagai "undervalued".
-      pbvWajar = Math.min(pbvWajar, VALUATION_ASSUMPTIONS.BANK_PBV_CAP);
-      intrinsic_pbv = pbvWajar * calcBvps;
-    } else {
-      let pbvWajar = (roe / VALUATION_ASSUMPTIONS.NON_BANK_PBV_DIVISOR) * VALUATION_ASSUMPTIONS.NON_BANK_PBV_MULTIPLIER;
-      intrinsic_pbv = pbvWajar * bvps;
-    }
+  if (implied.fairPbv != null && bvps != null && bvps > 0) {
+    // Bank: BVPS diturunkan dari priceToBook kalau tersedia - bookValue Yahoo untuk bank
+    // kerap tidak sinkron dengan harga. Perilaku ini dipertahankan apa adanya.
+    const rawPbv = quoteSummary.defaultKeyStatistics?.priceToBook;
+    const bvpsUsed = isBank && isFinitePositive(rawPbv) ? price / rawPbv : bvps;
+    intrinsic_pbv = implied.fairPbv * bvpsUsed;
 
     if (intrinsic_pbv > 0) {
       methods.pbv = {
-        name: 'PBV Fair',
+        name: 'PBV Fair (Gordon)',
         value: intrinsic_pbv,
         color: '#10b981' // emerald
       };
@@ -218,25 +257,32 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     if (!isBank) validFairValues.push(intrinsic_ddm);
   }
 
-  // 4. PER Fair
-  if (eps != null && eps > 0) {
-    // FIX PER FAIR: Use 14.5 for banks, 15 for others
-    const defaultPER = isBank ? VALUATION_ASSUMPTIONS.FAIR_PER_BANK : VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK;
-    intrinsic_per = eps * defaultPER;
+  // 4. PER Fair - dari model yang sama, bukan lagi pengali tetap 15x/14,5x untuk semua.
+  if (eps != null && eps > 0 && implied.fairPer != null) {
+    intrinsic_per = eps * implied.fairPer;
     methods.per = {
-      name: 'PER Fair',
+      // Basisnya ikut dinyatakan: 'no-growth' berarti ROE tidak tersedia dan angkanya
+      // adalah perpetuitas 1/r - bersyarat, tidak setara dengan hasil Gordon penuh.
+      name: implied.fairPerBasis === 'gordon' ? 'PER Fair (Gordon)' : 'PER Fair (tanpa pertumbuhan)',
       value: intrinsic_per,
       color: '#8b5cf6' // purple
     };
     if (!isBank) validFairValues.push(intrinsic_per);
   }
 
-  // 5. DCF
+  // 5. Perpetuitas FCF satu tahap.
+  //
+  // PERBAIKAN H-04: metode ini dulu dilabeli "DCF (FCF)". Rumusnya
+  // `fcf x 1,05 / (0,12 - 0,05)` adalah perpetuitas Gordon satu tahap - pengali tetap 15x
+  // FCF untuk setiap emiten non-bank. Tidak ada proyeksi, tidak ada WACC per emiten, tidak
+  // ada CAPEX atau perubahan modal kerja. Menyebutnya DCF membuat pengguna mengira ada
+  // proyeksi arus kas di baliknya. DCF yang sesungguhnya ada di calculateDcfModel()
+  // (halaman /dcf): proyeksi 5 tahun + tabel sensitivitas.
   if (!isBank && fcf_per_share && fcf_per_share > 0) {
     intrinsic_dcf = (fcf_per_share * (1 + VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH))
       / (VALUATION_ASSUMPTIONS.DISCOUNT_RATE - VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH);
     methods.dcf = {
-      name: 'DCF (FCF)',
+      name: 'FCF Perpetuity (1-stage)',
       value: intrinsic_dcf,
       color: '#ec4899' // pink
     };
@@ -318,10 +364,31 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     // pengukuran, bukan konsensus analis.
     assumptions: {
       is_model_estimate: true,
+      // Dua tingkat diskonto sengaja dilaporkan berdampingan, bukan dilebur jadi satu
+      // angka: PBV*/PER* memakai CAPM per emiten, sedangkan DDM dan perpetuitas FCF masih
+      // memakai tarif tetap 12%. Menyembunyikan itu akan membuat "harga wajar" tampak
+      // berasal dari satu model padahal berasal dari dua.
       discount_rate_pct: VALUATION_ASSUMPTIONS.DISCOUNT_RATE * 100,
       perpetual_growth_pct: VALUATION_ASSUMPTIONS.PERPETUAL_GROWTH * 100,
-      fair_per: isBank ? VALUATION_ASSUMPTIONS.FAIR_PER_BANK : VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK,
-      note: 'Nilai wajar adalah hasil model dengan asumsi tetap (discount rate & pertumbuhan perpetuitas sama untuk semua emiten), bukan target harga analis.',
+      fair_per: implied.fairPer,
+      fair_pbv: implied.fairPbv,
+      // Perbaikan C-05: PBV*/PER* kini memakai model yang SAMA dengan komponen Valuasi
+      // LensScore. Ketiga field di bawah wajib ditampilkan ke pengguna - tanpa itu, angka
+      // yang bersyarat (beta default sektor, PER tanpa pertumbuhan) tampak setara dengan
+      // angka yang datanya lengkap.
+      multiples_model: 'gordon-residual-income',
+      fair_per_basis: implied.fairPerBasis,
+      cost_of_equity_pct: implied.costOfEquityPct,
+      growth_pct: implied.growthPct,
+      beta_used: implied.betaUsed,
+      beta_source: implied.betaSource,
+      risk_free_rate_pct: MACRO_ASSUMPTIONS.RISK_FREE_RATE_PCT,
+      equity_risk_premium_pct: MACRO_ASSUMPTIONS.EQUITY_RISK_PREMIUM_PCT,
+      macro_set_on: MACRO_ASSUMPTIONS.SET_ON,
+      // Temuan M-03: bobot per sektor di SECTOR_RULES belum pernah divalidasi terhadap
+      // forward return. Dinyatakan sebagai hipotesis di payload, bukan hanya di komentar.
+      sector_weights_status: 'HYPOTHESIS_NOT_VALIDATED',
+      note: 'PBV & PER wajar memakai model Gordon dengan biaya ekuitas CAPM per emiten - sama dengan komponen Valuasi LensScore. DDM dan perpetuitas FCF masih memakai tingkat diskonto tetap 12% untuk semua emiten. Nilai wajar adalah keluaran model, bukan target harga analis.',
     },
   };
 }

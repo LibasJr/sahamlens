@@ -6,6 +6,9 @@ import {
   scoreMultipleRatio,
   sustainableGrowth,
 } from '../fair-multiples.service';
+import { VALUATION_ASSUMPTIONS } from '../dcf-valuation.service';
+import { calculateScore } from '@/modules/technical';
+import { resolveSectorProfile } from '@/modules/sector/service/sector-classifier.service';
 import {
   buildLongTradingSetup,
   DEFAULT_TRADING_SETUP_PARAMETERS,
@@ -107,6 +110,79 @@ describe('GOLDEN - impliedMultiples', () => {
     const out = impliedMultiples({ roePct: 25, payoutRatio: 0, beta: -0.2, fallbackBeta: 1.0 });
     expect(Number.isFinite(out.fairPbv!)).toBe(true);
     expect(out.fairPbv!).toBeLessThan(100);
+  });
+});
+
+/**
+ * C-05: satu emiten tidak boleh melihat DUA nilai wajar dari dua model berbeda.
+ *
+ * Sampai audit 2026-08-11, komponen Valuasi LensScore memakai PBV* = (ROE - g)/(r - g)
+ * dengan r per emiten, sementara kartu "Harga Wajar" memakai PBV* = (ROE/12) x 0,85 dengan
+ * r = 12% untuk semua emiten - rumus yang dikutip di dalam basis kode ini sendiri sebagai
+ * contoh cara yang salah. Test ini mengunci bahwa keduanya kini satu model.
+ */
+describe('C-05 - satu model nilai wajar', () => {
+  it('REGRESI: heuristik lama memberi angka yang MATERIAL berbeda - itulah kenapa diganti', () => {
+    // Kalau kedua model kebetulan menghasilkan angka yang sama, perbaikan C-05 tidak
+    // bermakna dan test di atas tidak membuktikan apa pun. Assertion ini menjaga premisnya.
+    const roe = 20;
+    const implied = impliedMultiples({ roePct: roe, payoutRatio: 0.4, beta: 1.2, fallbackBeta: 1.0 });
+    const heuristikLama =
+      (roe / VALUATION_ASSUMPTIONS.NON_BANK_PBV_DIVISOR) * VALUATION_ASSUMPTIONS.NON_BANK_PBV_MULTIPLIER;
+
+    expect(heuristikLama).toBeCloseTo(1.4166666, 5);
+    expect(implied.fairPbv!).toBeCloseTo(1.8891687657430731, 9);
+    // Selisih > 30% pada angka yang langsung menentukan label UNDERVALUED/OVERVALUED.
+    expect(Math.abs(implied.fairPbv! - heuristikLama) / heuristikLama).toBeGreaterThan(0.3);
+  });
+
+  it('PER wajar tidak lagi pengali tetap 15x untuk semua emiten', () => {
+    const a = impliedMultiples({ roePct: 30, payoutRatio: 0.2, beta: 0.8, fallbackBeta: 1.0 });
+    const b = impliedMultiples({ roePct: 10, payoutRatio: 0.8, beta: 1.6, fallbackBeta: 1.0 });
+    expect(a.fairPer).not.toBeCloseTo(b.fairPer!, 3);
+    expect(a.fairPer).not.toBe(VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK);
+    expect(b.fairPer).not.toBe(VALUATION_ASSUMPTIONS.FAIR_PER_NON_BANK);
+  });
+
+  it('skor Valuasi LensScore memang digerakkan oleh impliedMultiples, bukan ambang absolut', () => {
+    // Cross-check perilaku, bukan string: sub-skor valuasi harus persis jumlah dua skor
+    // rasio yang dihitung dari pengganda model. Kalau salah satu jalur kembali ke
+    // heuristik lama atau ke ambang PER/PBV absolut, kesamaan ini pecah.
+    const sector = {
+      yahooSector: 'Industrials',
+      yahooIndustry: 'Specialty Industrial Machinery',
+      payoutRatio: 0.4,
+      beta: 1.2,
+    };
+    const per = 12;
+    const pbv = 2.5;
+    const roe = 20;
+
+    const implied = impliedMultiples({
+      roePct: roe,
+      payoutRatio: sector.payoutRatio,
+      beta: sector.beta,
+      fallbackBeta: resolveSectorProfile(sector.yahooSector, sector.yahooIndustry).defaultBeta,
+    });
+    const harapan =
+      scoreMultipleRatio(implied.fairPer! / per)! + scoreMultipleRatio(implied.fairPbv! / pbv)!;
+
+    const scored = calculateScore(
+      'TEST',
+      {
+        currentPrice: 1000, currentRawPrice: 1000, currentAdjustedPrice: 1000,
+        ma20: null, ma50: null, ma200: null, rsi: null,
+        macdHist: null, macdLine: null, macdSignal: null,
+        volToday: null, volAvg20: null,
+      },
+      { per, pbv, roe, der: 0.8, currentRatio: 1.8, revenueGrowth: 10, sector },
+      {
+        cmf20: null, accumulationStatus: null,
+        consecutiveBuyDays: 0, consecutiveSellDays: 0, volRatio: null,
+      },
+    );
+
+    expect(scored.detail.valuasi).toBe(Math.round(harapan));
   });
 });
 

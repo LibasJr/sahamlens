@@ -89,6 +89,11 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     return Math.round(val).toLocaleString('id-ID');
   };
 
+  // Asumsi model boleh null (mis. beta emiten tidak tersedia, ROE hilang). Nilai yang
+  // tidak ada harus terbaca "—", bukan "0%" yang menyamar sebagai hasil hitungan.
+  const fmtNum = (val: unknown, digits = 2) =>
+    typeof val === 'number' && Number.isFinite(val) ? val.toFixed(digits) : '—';
+
   let mosStatus = 'FAIR';
   let mosColor = 'tv-yellow';
   let mosBg = 'bg-[#f59e0b]';
@@ -148,13 +153,28 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
             <div className="font-number text-sm text-tv-muted flex items-center justify-center gap-2">
               Harga saat ini: Rp {formatIDR(harga)}
             </div>
+            {/* Perbaikan C-05: PBV & PER wajar tidak lagi memakai pengali tetap yang sama
+                untuk semua emiten. Keduanya kini dari model Gordon dengan biaya ekuitas
+                CAPM per emiten - model yang SAMA dengan komponen Valuasi LensScore, jadi
+                dua angka di layar tidak lagi berasal dari dua model yang berbeda. */}
             <div className="text-[10px] text-tv-muted/80 mt-2 leading-relaxed">
-              Rata-rata berbobot beberapa metode valuasi menurut sektor, dengan asumsi
-              tetap yang sama untuk semua emiten
-              {data?.assumptions
-                ? ` (diskonto ${data.assumptions.discount_rate_pct}%, pertumbuhan perpetuitas ${data.assumptions.perpetual_growth_pct}%, PER wajar ${data.assumptions.fair_per}x)`
-                : ''}
-              . Keluaran model - bukan target harga analis.
+              Rata-rata berbobot beberapa metode valuasi menurut sektor.
+              {data?.assumptions ? (
+                <>
+                  {' '}PBV &amp; PER wajar dari model Gordon dengan biaya ekuitas{' '}
+                  <span className="font-number">{fmtNum(data.assumptions.cost_of_equity_pct, 2)}%</span>
+                  {' '}(beta <span className="font-number">{fmtNum(data.assumptions.beta_used, 2)}</span>
+                  {data.assumptions.beta_source === 'sector-default' ? ', default sektor' : ''}) dan
+                  pertumbuhan <span className="font-number">{fmtNum(data.assumptions.growth_pct, 2)}%</span>
+                  {data.assumptions.fair_per_basis === 'no-growth'
+                    ? ' — ROE tidak tersedia, PER wajar memakai perpetuitas tanpa pertumbuhan (angka bersyarat)'
+                    : ''}
+                  . DDM dan perpetuitas FCF masih memakai diskonto tetap{' '}
+                  <span className="font-number">{data.assumptions.discount_rate_pct}%</span> untuk semua emiten.
+                  Bobot antar metode per sektor belum divalidasi terhadap forward return.
+                </>
+              ) : null}
+              {' '}Keluaran model - bukan target harga analis.
             </div>
           </div>
 

@@ -47,6 +47,51 @@
 > sampel forward-OOS dimulai dari nol pada 2026-08-12. Temuan **C-4, C-5, H-4, H-5, H-6**
 > dan sisa MEDIUM/LOW **belum dikerjakan** — lihat Fase 3-4 di bagian 22.
 >
+> ---
+>
+> **Fase 3 dan Fase 4 SUDAH DIKERJAKAN** (12 Agustus 2026). `npx vitest run` lulus
+> **874 test di 102 file** (naik dari 782/97), typecheck bersih, lint 0 error.
+>
+> | Temuan | Perbaikan |
+> |---|---|
+> | **C-4** | `score-calibration.service.ts` baru: reliability bin dengan **Wilson CI 95%**, **ECE**, **Brier**, **Brier skill score** terhadap base rate, dan **isotonic regression (PAVA)** yang di-fit pada split TRAIN temporal lalu diuji di TEST. Definisi outcome biner ditulis sebagai konstanta yang diekspor **sebelum** hasilnya dilihat. Bin dibangun dari observasi yang sudah didekorelasi — Wilson mengasumsikan pengamatan independen. Pemetaan naif `p = skor/100` dilabeli di kode dan di UI sebagai **titik acuan, bukan klaim produk**. |
+> | **H-5** | `performance-metrics.ts` baru: CAGR, volatilitas tersetahunkan, **Sharpe**, **Sortino**, **profit factor**, **expectancy**, **turnover**, trade/tahun. Dihitung dari kurva ekuitas **harian**, bukan kurva bulanan milik chart. Penyetahunan diturunkan dari rentang kalender sungguhan, jadi CAGR dan Sharpe tidak bisa memakai asumsi berbeda. Profit factor dihitung dalam **rupiah**, bukan persen. |
+> | **M-10** | Dua file golden dengan nilai acuan dari implementasi terpisah (Wilder 1978, EMA seed SMA, MACD 12/26/9, Gordon residual income), plus **cross-check jalur scoring vs jalur chart**. CI sudah menjalankan `npm test`, jadi keduanya menggerbangi `main` tanpa perubahan workflow. |
+> | **C-5 & H-4** | PBV\* dan PER\* di kartu "Harga Wajar" kini memakai `impliedMultiples()` — model yang **sama** dengan komponen Valuasi LensScore. `betaSource`, `fairPerBasis`, `costOfEquityPct`, `growthPct` ikut dikirim dan dirender. Metode `DCF (FCF)` diganti namanya menjadi **`FCF Perpetuity (1-stage)`** karena memang itulah rumusnya. `SECTOR_RULES` diberi status `HYPOTHESIS_NOT_VALIDATED` di payload, bukan hanya di komentar. |
+> | **Fase 4 #16** | Penjaga puncak siklus tidak lagi tebing biner `PER<8 & ROE>25`. `peakCycleSeverity()` mengembalikan keparahan kontinu 0–1 dari dua ramp linier yang di-AND-kan; pemotongan valuasi sebanding dengan keparahannya. Di titik ambang lama keparahannya 0,5; pada tanda tangan ekstrem pemotongannya tetap 40% seperti sebelumnya. |
+>
+> **Dua bug ditemukan oleh cross-check M-10 dan diperbaiki**, keduanya tidak ada di daftar
+> temuan asli:
+> - **ATR chart ≠ ATR scoring.** `lib/chart-indicators.ts` memberi bar pertama
+>   `TR = high − low`. Bar itu tidak punya close sebelumnya, jadi ia tidak punya True Range;
+>   rata-rata seed berisi 13 TR asli dan satu angka karangan. Selisih terukur pada deret
+>   golden: **−2,05% pada 20 bar**, −1,04% pada 30 bar, −0,03% pada 80 bar. Artinya garis
+>   ATR di layar bukan ATR yang menentukan stop-loss.
+> - **MACD signal chart ≠ scoring.** Jalur scoring menghitung signal line atas **seluruh**
+>   panjang deret, termasuk indeks tempat helper EMA masih mengisi konstanta seed. MACD line
+>   belum ada di sana, jadi sembilan nilai yang men-seed signal adalah selisih antara dua
+>   konstanta buatan. Diperbaiki ke definisi baku (Appel), sama dengan chart.
+>
+> `SCORE_VERSION` → **`lens-score-v1.5.0`**, `VALUATION_VERSION` → **`v1.3.0`**. Kali ini
+> SCORE_VERSION memang naik karena nilai skornya **berubah** (penjaga siklikal + perbaikan
+> macdHist) — berbeda dari Fase 2 yang sengaja tidak menaikkannya. **Tanggal freeze OOS tidak
+> diulang**: freeze berjalan sejak 2026-08-12 dan belum ada satu pun sinyal forward yang
+> matang, jadi tidak ada sampel model lama yang perlu dibuang.
+>
+> **YANG TIDAK DIKERJAKAN, dengan alasannya** — Fase 4 #15 dan #17 **terblokir sumber data**,
+> bukan ditunda karena waktu:
+>
+> | Item | Status | Alasan |
+> |---|---|---|
+> | #15 metrik bank (NIM, NPL, CASA, CAR, LDR, CoC, CIR, PPOP) | **BLOCKED** | Tidak satu pun tersedia di Yahoo `quoteSummary`, dan aplikasi ini tidak punya sumber laporan keuangan IDX. Semuanya adalah pengungkapan regulatoris OJK/IDX yang butuh parsing laporan keuangan triwulanan. Menurunkannya dari data yang ada berarti mengarang. |
+> | #16 normalized earnings | **SEBAGIAN** | Tebing ambangnya dihapus (di atas). Normalized earnings sesungguhnya butuh laba tahunan 7–10 tahun; Yahoo memberi 4 periode — terlalu pendek untuk satu siklus batu bara/nikel — dan `fundamental_history` baru terisi sejak cron harian mulai berjalan (lihat H-6). |
+> | #17 frekuensi transaksi broker | **BLOCKED** | Payload Index Alpha (`/stocks/broker-summary/batch`) hanya mengembalikan `buy_value`, `sell_value`, `buy_avg`, `sell_avg`. Tidak ada kolom frekuensi, jadi rasio value/frequency tidak bisa dihitung. Menambah parser untuk field yang tidak pernah dikirim hanya menghasilkan kode mati. |
+> | #17 cakupan harian 5 ticker | **BUKAN MASALAH KODE** | `INDEXALPHA_DAILY_TICKER_LIMIT` sudah menjadi variabel lingkungan (`index-alpha-broker-summary.service.ts:132`); 5 adalah nilai default. Menaikkannya adalah keputusan kuota API, bukan perubahan kode. |
+>
+> **Status model TETAP `NOT VALIDATED`.** Fase 3 menambahkan alat ukur yang sebelumnya tidak
+> ada dan Fase 4 memperbaiki model valuasinya; keduanya tidak menghasilkan sampel forward
+> baru. Hitungan menuju "VALIDATED FOR RESEARCH" tetap dimulai dari freeze 2026-08-12.
+>
 > Bagian di bawah ini dipertahankan apa adanya sebagai catatan temuan aslinya, termasuk
 > angka bukti pra-perbaikan.
 
