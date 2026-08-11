@@ -2,6 +2,11 @@ import { pool } from '../../../shared/database/postgres.client';
 import { logger } from '../../../shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../../lens-radar/constants/model-version';
 import { RETURN_PRICE_BASIS, type PriceBasis } from '../../../shared/market/price-basis';
+import {
+  countValidationPopulationRejection,
+  emptyValidationPopulationCounters,
+  rejectFromValidationPopulation,
+} from '../../lens-radar/service/validation-population';
 
 export const LENS_SCORE_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 export const LENS_SCORE_MIN_HISTORY_DAYS = 90;
@@ -21,6 +26,8 @@ export interface LensRadarHistoryRow {
   adjusted_close_price?: number | string | null;
   raw_close_price?: number | string | null;
   price_basis?: PriceBasis | string | null;
+  coverage_pct?: number | string | null;
+  eligibility_status?: string | null;
 }
 
 export interface BucketHorizonStats {
@@ -205,6 +212,10 @@ export function computeLensScoreBucketBacktest(
 ): LensScoreBucketBacktestResult {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const partition = partitionByScoreVersion(Array.isArray(rows) ? rows : [], requestedScoreVersion);
+  // Gerbang populasi yang SAMA dengan produksi, bucket backtest, dan calibration lab
+  // (temuan H-01). Endpoint ini publik, jadi tanpa gerbang ini ia menerbitkan angka
+  // bucket dari sinyal yang aplikasinya sendiri tidak akan pernah rekomendasikan.
+  const productionGate = emptyValidationPopulationCounters();
   const normalized = partition.accepted
     .map((row) => {
       const date = toDateKey(row.date);
@@ -212,6 +223,7 @@ export function computeLensScoreBucketBacktest(
       const close = toFiniteNumber(row.adjusted_close_price);
       const ticker = typeof row.ticker === 'string' ? row.ticker.trim().toUpperCase() : '';
       if (!date || !ticker || row.price_basis !== RETURN_PRICE_BASIS || score == null || close == null || close <= 0) return null;
+      if (countValidationPopulationRejection(productionGate, rejectFromValidationPopulation(row))) return null;
       const bucket = assignBucket(score);
       if (!bucket) return null;
       return { date, ticker, score, close, bucket };
@@ -306,7 +318,8 @@ export async function runLensScoreBucketBacktest(
     const { rows } = await db.query(
       `
       SELECT "date", ticker, lens_score, close_price, score_version,
-             raw_close_price, adjusted_close_price, price_basis
+             raw_close_price, adjusted_close_price, price_basis,
+             coverage_pct, eligibility_status
       FROM lens_radar_history
       WHERE lens_score IS NOT NULL
         AND close_price IS NOT NULL

@@ -256,9 +256,14 @@ export function buildLensHistoryUpsert(rows) {
       row.corporateActionStatus,
       row.priceDataTimestamp,
       row.priceDataVersion,
-      row.avgValue20d ?? null
+      row.avgValue20d ?? null,
+      row.eligibilityStatus ?? null,
+      row.eligibilityReasonCodes ?? null,
+      row.technicalAvailableMax ?? null,
+      row.fundamentalAvailableMax ?? null,
+      row.flowAvailableMax ?? null
     );
-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, $${base + 22}, now())`;
+    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, now())`;
   });
 
   return {
@@ -271,6 +276,8 @@ export function buildLensHistoryUpsert(rows) {
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
         avg_value_20d,
+        eligibility_status, eligibility_reason_codes,
+        technical_available_max, fundamental_available_max, flow_available_max,
         updated_at
       )
       VALUES ${tuples.join(', ')}
@@ -295,6 +302,11 @@ export function buildLensHistoryUpsert(rows) {
         price_data_timestamp = EXCLUDED.price_data_timestamp,
         price_data_version = EXCLUDED.price_data_version,
         avg_value_20d = EXCLUDED.avg_value_20d,
+        eligibility_status = EXCLUDED.eligibility_status,
+        eligibility_reason_codes = EXCLUDED.eligibility_reason_codes,
+        technical_available_max = EXCLUDED.technical_available_max,
+        fundamental_available_max = EXCLUDED.fundamental_available_max,
+        flow_available_max = EXCLUDED.flow_available_max,
         updated_at = now()
     `,
     params,
@@ -489,6 +501,21 @@ export function buildHistoricalLensRows(input) {
       }
     );
 
+    // GERBANG KELAYAKAN POINT-IN-TIME (temuan H-01). Dihitung DI SINI, dari bar yang
+    // tersedia sampai tanggal ini saja, lalu diarsipkan. Menghitungnya belakangan saat
+    // backtest berjalan akan menilai kelayakan memakai histori penuh - yaitu menyatakan
+    // saham layak diperdagangkan pada 2025 karena hari ini ia likuid.
+    const eligibility = deps.evaluateMinimalEligibility({
+      ticker,
+      asOf: bar.date,
+      bars: historyToDate.map((row) => ({
+        date: String(row.Date).slice(0, 10),
+        close: finiteNumber(row.Close),
+        volume: finiteNumber(row.Volume),
+      })),
+      coveragePct: score.coverage_pct,
+    });
+
     rows.push({
       date: bar.date,
       ticker,
@@ -512,6 +539,11 @@ export function buildHistoricalLensRows(input) {
       priceDataTimestamp: dataTimestamp ?? runTimestamp,
       priceDataVersion: deps.PRICE_ADJUSTMENT_VERSION,
       avgValue20d,
+      eligibilityStatus: eligibility.status,
+      eligibilityReasonCodes: eligibility.reasonCodes.join(',') || null,
+      technicalAvailableMax: score.available_max.technical,
+      fundamentalAvailableMax: score.available_max.fundamental,
+      flowAvailableMax: score.available_max.flow,
     });
   }
 
@@ -559,6 +591,7 @@ async function loadProductionDeps() {
     selectPriceSeries,
     detectCorporateAction,
   } = require('../shared/market/price-basis.ts');
+  const { evaluateMinimalEligibility } = require('../modules/eligibility/index.ts');
   const { runAndSaveLensBucketBacktest } = require('../modules/lens-radar/service/bucket-backtest.service.ts');
   const { cacheDel } = require('../shared/cache/redis-cache.ts');
   const { TRANSPARENCY_CACHE_KEY } = require('../modules/lens-radar/service/transparency.service.ts');
@@ -567,6 +600,7 @@ async function loadProductionDeps() {
     pool,
     ensureSharedSchema,
     BACKTEST_UNIVERSE,
+    evaluateMinimalEligibility,
     runAndSaveLensBucketBacktest,
     calculateScore,
     analyzeRsi,

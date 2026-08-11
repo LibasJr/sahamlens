@@ -198,6 +198,24 @@ export interface ScoringResult {
    * PER dilaporkan 100% padahal separuh blok valuasi hilang. Nilainya sekarang TURUN
    * untuk banyak saham; itu koreksi, bukan regresi. */
   coverage_pct: number;
+  /** Bobot yang BENAR-BENAR punya data per kelompok, dalam satuan bobot kelompok
+   * (technical <= 40, fundamental <= 30, flow <= 30).
+   *
+   * Ditambahkan untuk temuan H-03 (audit kuantitatif 2026-08-11): calibration lab
+   * merekonstruksi LensScore sebagai `technical_score / 40` dst., padahal `combine()`
+   * sudah menormalkan skor kelompok atas bobot yang TERSEDIA. Kedua rumus itu hanya
+   * identik saat coverage 100%. Untuk baris yang datanya tidak lengkap - mayoritas
+   * histori - rekonstruksi itu meremehkan kualitas kelompok yang datanya justru lengkap,
+   * sehingga proposal bobot dipilih atas model yang salah spesifikasi.
+   *
+   * Penyebut yang benar ada di sini. Tanpa mengarsipkannya, tidak ada cara memulihkannya
+   * dari `coverage_pct` saja: coverage adalah TOTAL, sementara pembobotan ulang butuh
+   * angka PER KELOMPOK. */
+  available_max: {
+    technical: number;
+    fundamental: number;
+    flow: number;
+  };
   kategori: ScoringKategori;
   detail: {
     ma_trend: number | null;
@@ -856,6 +874,11 @@ export function calculateScore(
     flow_score: Math.round(flowGroup.score),
     total_score: totalScore,
     coverage_pct: coveragePct,
+    available_max: {
+      technical: technicalGroup.availableMax,
+      fundamental: fundamentalGroup.availableMax,
+      flow: flowGroup.availableMax,
+    },
     kategori,
     detail: {
       ma_trend: pick(maTrend),

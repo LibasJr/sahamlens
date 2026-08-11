@@ -66,6 +66,11 @@ describe('backfill-lens-history script', () => {
         priceDataTimestamp: '2026-01-02T09:00:00.000Z',
         priceDataVersion: 'price-adjustment-v1',
         avgValue20d: 4_200_000_000,
+        eligibilityStatus: 'ELIGIBLE',
+        eligibilityReasonCodes: null,
+        technicalAvailableMax: 40,
+        fundamentalAvailableMax: 24,
+        flowAvailableMax: 30,
       },
     ]);
 
@@ -76,7 +81,12 @@ describe('backfill-lens-history script', () => {
     expect(query!.text).toContain('price_basis');
     expect(query!.text).toContain('price_data_version');
     expect(query!.text).toContain('avg_value_20d = EXCLUDED.avg_value_20d');
-    expect(query!.params).toHaveLength(22);
+    expect(query!.text).toContain('eligibility_status = EXCLUDED.eligibility_status');
+    expect(query!.text).toContain('technical_available_max = EXCLUDED.technical_available_max');
+    // Diturunkan dari daftar kolom di SQL-nya sendiri, bukan angka yang harus diingat
+    // ulang tiap kolom bertambah - `updated_at` diisi now() jadi tidak punya placeholder.
+    const jumlahKolom = query!.text.match(/lens_radar_history \(([^)]+)\)/)![1].split(',').length;
+    expect(query!.params).toHaveLength(jumlahKolom - 1);
     expect(query!.params).toContain(4_200_000_000);
     expect(query!.params).toContain('TOTAL_RETURN_ADJUSTED');
     expect(query!.params).toContain('price-adjustment-v1');

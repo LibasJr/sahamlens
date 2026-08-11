@@ -17,6 +17,8 @@ function row(date: string, ticker: string, score: number, close: number): LensRa
     adjusted_close_price: close,
     price_basis: RETURN_PRICE_BASIS,
     score_version: SCORE_VERSION,
+    coverage_pct: 100,
+    eligibility_status: 'ELIGIBLE',
   };
 }
 

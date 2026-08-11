@@ -26,6 +26,10 @@ import {
   worstTradeDrawdownPct,
 } from './history-return-utils';
 import { SCORE_VERSION } from '../constants/model-version';
+import {
+  VALIDATION_LIMITATIONS,
+  VALIDATION_LIMITATIONS_REVIEWED_ON,
+} from '../constants/validation-limitations';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
@@ -114,6 +118,11 @@ export interface TransparencyData {
   pValue80VsLt60: number | null;
   significant: boolean;
   disclaimer: string;
+  /** Bias yang melekat pada angka di halaman ini (temuan H-02). Halaman ini PUBLIK dan
+   * dibaca sebagai bukti kualitas model, jadi biasnya harus ikut terbaca - sebelumnya
+   * hanya halaman Backtest yang menyatakannya. */
+  limitations: readonly string[];
+  limitationsReviewedOn: string;
   banner: TransparencyBanner;
   buckets: TransparencyBucketRow[];
   equityCurve: TransparencyEquityPoint[];
@@ -261,7 +270,7 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
-           avg_value_20d
+           avg_value_20d, coverage_pct, eligibility_status
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -422,6 +431,8 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     pValue80VsLt60: pValue,
     significant: tTest.significant,
     disclaimer: `Data point-in-time, entry Open H+1, exit T+N berbasis hari bursa, hanya sinyal dengan nilai transaksi rata-rata 20 hari di atas Rp ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR / 1_000_000_000} miliar/hari pada tanggal sinyal, window equity curve Top 5 tidak tumpang tindih 20 hari, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. ${RESEARCH_ONLY_DISCLAIMER}`,
+    limitations: VALIDATION_LIMITATIONS,
+    limitationsReviewedOn: VALIDATION_LIMITATIONS_REVIEWED_ON,
     banner: buildTransparencyBanner(validationStatus),
     buckets: bucketResult.rows,
     equityCurve: buildTop5EquityCurve(observations, ihsgBars),

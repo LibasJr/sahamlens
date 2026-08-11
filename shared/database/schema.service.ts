@@ -262,6 +262,35 @@ export function ensureSharedSchema(): Promise<void> {
       -- dan backtest menghitungnya terpisah, tidak diam-diam meloloskannya sebagai likuid.
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS avg_value_20d NUMERIC;
+
+      -- KELAYAKAN POINT-IN-TIME (audit kuantitatif 2026-08-11, temuan H-01).
+      --
+      -- Produksi menolak memberi rekomendasi kalau evaluateMinimalEligibility() tidak
+      -- mengembalikan ELIGIBLE - histori terlalu pendek, kemungkinan tidak
+      -- diperdagangkan, data basi, kelengkapan di bawah 55%, atau likuiditas di bawah
+      -- lantai. Backtest DULU tidak menerapkan satu pun gerbang itu, jadi tabel bucket
+      -- memuat sinyal yang aplikasinya sendiri tidak akan pernah rekomendasikan.
+      --
+      -- Statusnya diarsipkan, BUKAN dihitung ulang saat backtest, karena alasan yang
+      -- sama dengan avg_value_20d: gerbang ini menilai apa yang diketahui PADA tanggal
+      -- sinyal. Menghitungnya belakangan dari histori penuh akan menyatakan saham layak
+      -- karena hari ini ia likuid.
+      --
+      -- NULL = baris diarsipkan sebelum kolom ada, artinya "tidak tahu". Backtest
+      -- menghitungnya terpisah dan membuangnya, tidak meloloskannya sebagai layak.
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS eligibility_status TEXT,
+        ADD COLUMN IF NOT EXISTS eligibility_reason_codes TEXT;
+
+      -- Bobot yang BENAR-BENAR punya data per kelompok, dalam satuan bobot kelompok
+      -- (temuan H-03). Penyebut yang benar untuk merekonstruksi kualitas kelompok saat
+      -- calibration lab mensimulasikan bobot alternatif. coverage_pct adalah TOTAL dan
+      -- tidak bisa dipecah balik menjadi per-kelompok, jadi angkanya harus diarsipkan.
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS technical_available_max NUMERIC,
+        ADD COLUMN IF NOT EXISTS fundamental_available_max NUMERIC,
+        ADD COLUMN IF NOT EXISTS flow_available_max NUMERIC;
+
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_ticker_date
         ON lens_radar_history (ticker, date);
       CREATE INDEX IF NOT EXISTS idx_lens_radar_history_score_price_basis_date
