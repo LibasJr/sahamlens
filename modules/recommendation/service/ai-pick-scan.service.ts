@@ -7,6 +7,7 @@ import { evaluateMinimalEligibility } from '../../eligibility';
 import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
 import { buildLongTradingSetup } from './trading-setup';
+import { buildHybridV2TradingSetup } from './trading-setup-hybrid-v2';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -94,6 +95,11 @@ async function scoreOne(
   const volatilityResult = analyzeVolatility(history, currentPrice);
   const atr = typeof volatilityResult?.raw?.atr === 'number' ? volatilityResult.raw.atr : null;
   const tradeSetup = buildLongTradingSetup(
+    history.map((h) => ({ High: h.High, Low: h.Low, Close: h.Close, AdjClose: h.AdjClose })),
+    currentPrice,
+    atr,
+  );
+  const hybridV2TradeSetup = buildHybridV2TradingSetup(
     history.map((h) => ({ High: h.High, Low: h.Low, Close: h.Close, AdjClose: h.AdjClose })),
     currentPrice,
     atr,
@@ -229,6 +235,21 @@ async function scoreOne(
           cl1: tradeSetup.cl1,
           cl2: tradeSetup.cl2,
           rr: tradeSetup.rr,
+        }
+        : null,
+      hybridV2TradeSetup: hybridV2TradeSetup
+        ? {
+          tp1: hybridV2TradeSetup.tp1,
+          tp2: hybridV2TradeSetup.tp2,
+          cl1: hybridV2TradeSetup.cl1,
+          cl2: hybridV2TradeSetup.cl2,
+          rr: hybridV2TradeSetup.rr,
+          marketRegime: hybridV2TradeSetup.marketRegime,
+          volatilityRegime: hybridV2TradeSetup.volatilityRegime,
+          atrPercentile: hybridV2TradeSetup.atrPercentile,
+          suggestedTrailingStop: hybridV2TradeSetup.suggestedTrailingStop,
+          version: hybridV2TradeSetup.version,
+          calibrationStatus: hybridV2TradeSetup.calibrationStatus,
         }
         : null,
       // Audit BUILD 003 (Explainable AI) - breakdown & alasan LANGSUNG dari
