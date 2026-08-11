@@ -579,29 +579,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     Finance..." di bawah), jadi tidak hilang sama sekali, cuma tidak
                     diulang dua kali. */}
 
-                {/* Strip 4 modul - mengisi ruang kosong di bawah CTA (kolom kiri lebih
-                    pendek dari panel IHSG di kanan) dengan menegaskan ulang subjudul
-                    "teknikal, fundamental, backtest, rekomendasi" secara visual, bukan
-                    angka trust/proof yang tidak bisa diverifikasi (lihat catatan audit
-                    landing page sebelumnya soal itu). Ikon SAMA PERSIS dengan Sidebar
-                    (LineChart/Building2/History/Users) - satu bahasa visual, bukan
-                    kebetulan pemilihan berbeda. */}
-                <div className="mt-6 flex flex-wrap gap-x-7 gap-y-3 border-t border-tv-border/60 pt-5">
-                  {[
-                    { icon: LineChart, label: 'LensTechnical' },
-                    { icon: Building2, label: 'LensFundamental' },
-                    { icon: Filter, label: 'LensScanner' },
-                    { icon: History, label: 'Backtest' },
-                    { icon: Users, label: 'LensAI' },
-                  ].map(({ icon: Icon, label }) => (
-                    <div key={label} className="flex items-center gap-2 min-w-0">
-                      <span className="shrink-0 flex h-8 w-8 items-center justify-center rounded-md bg-tv-blue/10 text-tv-blue">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="truncate text-[12px] font-semibold text-tv-text">{label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               {/* Panel angka hidup - IHSG besar + jumlah emiten terpantau. Sebelumnya
