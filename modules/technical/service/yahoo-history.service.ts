@@ -39,6 +39,12 @@ export interface YahooHistoryResult {
    * (bukan `Date.now()` server) - dipakai pemanggil yang butuh melaporkan seberapa
    * segar data ini (lihat shared/http/freshness.ts:classifyFreshness). */
   regularMarketTime: number | null;
+  /** `meta.previousClose` dari Yahoo - penutupan sesi SEBELUMNYA, sumber yang SAMA
+   * dengan yang dipakai /api/live/[ticker] untuk menghitung changePercent di header.
+   * Ditambahkan supaya pemanggil bisa melaporkan perubahan harga tanpa menghitung
+   * ulang dari bar terakhir (yang bisa berbeda tipis dan bikin dua angka di layar
+   * saling bertentangan - lihat catatan di marketBlock, app/api/chat/chat-data-router.ts). */
+  previousClose: number | null;
 }
 
 export async function fetchYahooHistory(ticker: string, range: string = '1y'): Promise<YahooHistoryResult | null> {
@@ -79,7 +85,11 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
     }
     if (history.length === 0) return null;
     const regularMarketTime = typeof result.meta.regularMarketTime === 'number' ? result.meta.regularMarketTime : null;
-    return { history, currentPrice, regularMarketTime };
+    const rawPrevClose = result.meta.previousClose;
+    const previousClose = typeof rawPrevClose === 'number' && Number.isFinite(rawPrevClose) && rawPrevClose > 0
+      ? rawPrevClose
+      : null;
+    return { history, currentPrice, regularMarketTime, previousClose };
   } catch (e) {
     clearTimeout(timeoutId);
     return null;

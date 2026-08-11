@@ -57,7 +57,7 @@ describe('precomputeBacktestData', () => {
     const goodHistory = makeHistory(400);
     vi.mocked(fetchYahooHistory).mockImplementation(async (ticker: string) => {
       if (ticker === 'BBCA.JK') return null; // simulasikan satu saham gagal fetch
-      return { history: goodHistory, currentPrice: goodHistory[goodHistory.length - 1].Close, regularMarketTime: null };
+      return { history: goodHistory, currentPrice: goodHistory[goodHistory.length - 1].Close, regularMarketTime: null, previousClose: null };
     });
 
     const result = await precomputeBacktestData();

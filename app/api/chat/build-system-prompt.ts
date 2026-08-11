@@ -18,6 +18,35 @@ export function buildSystemPrompt(context: string, hasHistory: boolean, verified
     ? `\n## PENTING - Topik Pertanyaan Ini:\nRouter server menetapkan kode saham "${mentionedTicker}" sebagai topik turn ini (dari pertanyaan, follow-up, atau konteks halaman yang tervalidasi). Topik SEKARANG adalah saham ${mentionedTicker} - kalau "Data Referensi" di bawah menyebut halaman/indeks lain, ABAIKAN framing itu untuk pertanyaan ini. JANGAN bahas IHSG atau saham lain kecuali pengguna memang menanyakannya. Pakai "Data Terverifikasi Server" (kalau ada) sebagai sumber angka untuk ${mentionedTicker}.\n`
     : '';
 
+  // BUG FIX (2026-08-11, dari screenshot user): LensAI membuka jawaban dengan "Selamat pagi!"
+  // pada pukul 16.22 WIB. Model memang tidak pernah diberi tahu jam/tanggal sekarang, jadi
+  // sapaan waktu & kata "hari ini" cuma tebakan. Blok ini menjadikannya fakta terverifikasi.
+  const now = new Date();
+  const jakartaDate = now.toLocaleDateString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const jakartaTime = now.toLocaleTimeString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const jakartaHour = Number(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta', hour: '2-digit', hour12: false }));
+  const greeting = jakartaHour < 11 ? 'Selamat pagi'
+    : jakartaHour < 15 ? 'Selamat siang'
+    : jakartaHour < 19 ? 'Selamat sore'
+    : 'Selamat malam';
+  const timeBlock = `## Waktu Sekarang (OTORITATIF - jangan menebak sendiri):
+- Tanggal hari ini: ${jakartaDate}
+- Jam sekarang: ${jakartaTime} WIB
+- Sapaan waktu yang BENAR untuk jam ini: "${greeting}"
+- Kalau pengguna menyebut "hari ini"/"sekarang", yang dimaksud adalah tanggal di atas.
+- DILARANG memakai sapaan waktu selain yang tertulis di atas.
+`;
+
   const modelValidation = getLensScoreValidationStatus();
   const validationBlock = modelValidation.validated
     ? `## Status Validasi Model SahamLens (OTORITATIF):
@@ -58,7 +87,10 @@ ${hasHistory
 18. Untuk pertanyaan fitur/aplikasi, berikan jawaban yang bisa langsung dipakai: apa fungsi fiturnya, data apa yang dibaca, bagaimana pengguna menafsirkannya, dan batasannya.
 19. Jangan mengulang pertanyaan pengguna. Jangan memberi disclaimer panjang di setiap jawaban; sampaikan batasan hanya ketika relevan.
 20. Jangan membuat refusal generik seperti "saya tidak bisa membantu dengan pertanyaan tersebut" untuk sapaan, percakapan ringan, atau pertanyaan umum yang aman. Jika topik benar-benar di luar kemampuan/data, jelaskan batasannya secara singkat lalu arahkan secara natural, bukan menolak dengan template kaku.
+21. ANGKA PERGERAKAN HARGA (naik/turun berapa persen, berapa poin) HANYA boleh dari baris "Perubahan" di Data Terverifikasi Server. Kalau baris itu bilang tidak tersedia, katakan persentasenya belum terbaca - JANGAN memperkirakan, membulatkan, atau menghitung sendiri dari level dan ingatanmu. Angka karangan di sini langsung bertabrakan dengan angka yang dilihat pengguna di header aplikasi.
+22. Untuk pertanyaan "kenapa turun/naik", "ada sentimen apa", atau "beritanya apa": pakai blok Berita & Sentimen kalau tersedia, dan sampaikan sebagai sentimen yang sedang beredar - BUKAN sebab-akibat yang sudah terbukti, karena sentimen itu diklasifikasi dari JUDUL berita saja. Kalau blok berita tidak ada atau kosong, katakan terus terang penyebabnya belum terverifikasi, lalu tawarkan yang memang bisa kamu bacakan (arah & besar pergerakan, RSI, posisi terhadap level teknikal). Jangan menjawab dengan daftar sebab umum yang ditebak sendiri ("arus modal asing, kebijakan moneter, ...") seolah itu temuan.
 
+${timeBlock}
 ${validationBlock}
 ${SAHAMLENS_KNOWLEDGE_BASE}
 ${overrideNote}

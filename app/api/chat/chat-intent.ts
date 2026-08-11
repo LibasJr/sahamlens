@@ -12,6 +12,7 @@ export type ChatIntent =
   | 'BUY_SELL_RECOMMENDATION'
   | 'COMPARE_STOCKS'
   | 'MARKET_GENERAL'
+  | 'NEWS_SENTIMENT'
   | 'SAHAMLENS_PRODUCT_HELP'
   | 'FOLLOW_UP'
   | 'UNKNOWN';
@@ -32,6 +33,10 @@ const VALUATION_TERMS = /\b(valuasi|valuation|per|p\/e|pbv|p\/b|murah|mahal|unde
 const RECOMMENDATION_TERMS = /\b(bagus gak|bagus ga|layak|beli|buy|jual|sell|hold|tahan|entry|masuk|cut loss|stop loss|take profit|tp|cl|investasi\s+\d+\s*(bulan|tahun))\b/;
 const COMPARE_TERMS = /\b(banding|bandingin|dibanding|dibandingkan|versus|vs|atau)\b/;
 const MARKET_TERMS = /\b(ihsg|\^jkse|idx30|lq45|pasar|market|sektor|breadth|market pulse|kondisi bursa)\b/;
+// Pertanyaan berita/sentimen tidak punya intent sendiri sebelum 2026-08-11, jadi selalu
+// jatuh ke UNKNOWN dan berakhir sebagai refusal generik walaupun modules/news punya
+// datanya. Lihat catatan lengkap di chat-data-router.ts (marketNewsBlock).
+const NEWS_TERMS = /\b(sentimen|sentiment|berita|news|kabar|isu|rumor|katalis|penggerak|pemicu|gara-?gara)\b/;
 const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal)\b/;
 const PRODUCT_CALC_TERMS = /\b(cara|bagaimana|gimana)\b.*\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(hitung|dihitung|perhitungan)\b|\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(cara|bagaimana|gimana)\b.*\b(hitung|dihitung|perhitungan)\b/;
 const FOLLOW_UP_TERMS = /^(kenapa|kok|terus|lalu|gimana|bagaimana|kalau|kalo|jadi|yang tadi|tadi|data yang|periode kapan|yang kamu pakai|nya\b|itu\b|sehari sebelumnya)/;
@@ -49,6 +54,11 @@ function compareScope(text: string): CompareScope {
   return 'GENERAL';
 }
 
+// BUG FIX (2026-08-11): MARKET_TERMS & NEWS_TERMS tidak pernah diperiksa di sini, jadi
+// percakapan yang dibuka dengan "Gimana IHSG hari ini" TIDAK PERNAH bisa mewariskan
+// MARKET_GENERAL ke pertanyaan lanjutannya. Follow-up-nya jatuh ke UNKNOWN (tanpa data)
+// atau, kalau kebetulan ada tanggal di kalimatnya, ke jalur historical yang lalu menuntut
+// kode emiten - padahal topiknya indeks, yang memang tidak punya kode emiten.
 function previousDataIntent(history: ChatHistoryMessage[]): ChatIntent | null {
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i].role !== 'user') continue;
@@ -58,6 +68,8 @@ function previousDataIntent(history: ChatHistoryMessage[]): ChatIntent | null {
     if (TECHNICAL_TERMS.test(text)) return 'TECHNICAL_CURRENT';
     if (VALUATION_TERMS.test(text)) return 'VALUATION';
     if (RECOMMENDATION_TERMS.test(text)) return 'BUY_SELL_RECOMMENDATION';
+    if (NEWS_TERMS.test(text)) return 'NEWS_SENTIMENT';
+    if (MARKET_TERMS.test(text)) return 'MARKET_GENERAL';
   }
   return null;
 }
@@ -81,6 +93,12 @@ export function classifyChatIntent(args: {
   // emiten. Karena tidak ada ticker, pertanyaan definisi tidak perlu fetch backend.
   if (args.tickerCount === 0 && CONCEPT_QUERY.test(text)) {
     return { intent: 'UNKNOWN', dataIntent: 'UNKNOWN', compareScope: 'GENERAL', requestedMetrics: metrics };
+  }
+
+  // Diperiksa SEBELUM MARKET_GENERAL: "sentimen pasar gimana" menyebut kedua kelompok
+  // istilah, dan yang diminta pengguna adalah beritanya, bukan level indeks.
+  if (NEWS_TERMS.test(text)) {
+    return { intent: 'NEWS_SENTIMENT', dataIntent: 'NEWS_SENTIMENT', compareScope: 'GENERAL', requestedMetrics: metrics };
   }
 
   if (MARKET_TERMS.test(text) && args.tickerCount === 0) {
