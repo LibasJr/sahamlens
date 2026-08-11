@@ -244,11 +244,17 @@ function BucketTooltip({ active, payload, label }: any) {
   );
 }
 
+// Posisi awal slider simulasi saja - murni tampilan, tidak mengubah ambang apa pun di
+// produksi. Baseline pembanding sengaja TETAP 80: seluruh kolom "Δ vs 80" dan
+// calculateThresholdSimulations() mengukur terhadap 80, jadi menggeser baseline berarti
+// membandingkan angka terhadap dirinya sendiri.
+const DEFAULT_SIMULATION_THRESHOLD = 90;
+
 export default function CalibrationClient() {
   const [data, setData] = useState<CalibrationDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [threshold, setThreshold] = useState(80);
+  const [threshold, setThreshold] = useState(DEFAULT_SIMULATION_THRESHOLD);
   const [recommendation, setRecommendation] = useState<ThresholdRecommendation | null>(null);
   const [recommending, setRecommending] = useState(false);
 
@@ -264,7 +270,7 @@ export default function CalibrationClient() {
         return;
       }
       setData(json);
-      setThreshold(80);
+      setThreshold(DEFAULT_SIMULATION_THRESHOLD);
     } catch {
       setError('Gagal memuat data kalibrasi');
       setData(null);
@@ -284,6 +290,13 @@ export default function CalibrationClient() {
   const baseline80 = useMemo(() => (
     data?.thresholdSimulations.find((sim) => sim.threshold === 80) ?? null
   ), [data]);
+
+  // Ambang tinggi menyaring sinyal dengan cepat: di 90 jumlah sampel bisa jatuh ke satuan,
+  // dan win rate 100% dari 3 sinyal tampil persis seperti edge nyata di kartu paling kiri.
+  // Batasnya memakai konstanta yang sama dengan gerbang validasi lain supaya "cukup sampel"
+  // berarti satu hal saja di seluruh produk.
+  const thinSample = selectedSimulation != null
+    && selectedSimulation.totalSignals < MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION;
 
   async function requestRecommendation() {
     setRecommending(true);
@@ -641,10 +654,20 @@ export default function CalibrationClient() {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:min-w-[660px]">
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Win Rate T+20</div>
-              <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.winRateT20)}</div>
+              <div className={`font-number text-2xl font-bold mt-1 ${thinSample ? 'text-tv-yellow' : ''}`}>
+                {pct(selectedSimulation?.winRateT20)}
+              </div>
               <div className="text-[11px] text-tv-muted mt-1">
                 Δ vs 80: {pct(selectedSimulation?.winRateDeltaPctVs80)}
               </div>
+              {/* Peringatan dipasang PADA angkanya, bukan hanya di panel bawah: mata membaca
+                  win rate lebih dulu, dan kartu jumlah sinyal di sebelahnya tidak menyatakan
+                  bahwa angkanya terlalu kecil untuk dipercaya. */}
+              {thinSample && (
+                <div className="text-[11px] text-tv-yellow mt-0.5">
+                  n={num(selectedSimulation?.totalSignals)} - belum layak dibaca
+                </div>
+              )}
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Jumlah Sinyal</div>
@@ -675,6 +698,20 @@ export default function CalibrationClient() {
             </div>
           </div>
         </div>
+
+        {thinSample && (
+          <div className="mt-4 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 text-xs text-tv-yellow">
+            <div className="font-semibold">Sampel terlalu tipis pada ambang {threshold}</div>
+            <div className="mt-1 opacity-90">
+              Hanya {num(selectedSimulation?.totalSignals)} sinyal lolos ambang ini, di bawah{' '}
+              {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum yang dipakai gerbang validasi lain.
+              Win rate, profit factor, dan median di atas tetap dihitung apa adanya, tetapi pada
+              ukuran ini satu-dua trade sudah cukup membaliknya - selisihnya terhadap baseline 80
+              belum bisa dibedakan dari kebetulan. Turunkan ambang atau tunggu observasi T+20
+              bertambah.
+            </div>
+          </div>
+        )}
 
         {selectedSimulation?.distributionWarning === 'MEAN_POSITIVE_MEDIAN_NEGATIVE' && (
           <div className="mt-4 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 text-xs text-tv-yellow">
