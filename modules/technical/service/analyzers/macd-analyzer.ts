@@ -4,6 +4,10 @@
 // tidak match (mis. format berubah), kegagalan DIAM-DIAM menghasilkan 0/0/0 yang masuk
 // ke scoring sebagai "MACD bearish" - bukan error yang terlihat. `raw` (angka asli)
 // disediakan supaya pemanggil tidak perlu regex sama sekali.
+const MACD_FAST = 12;
+const MACD_SLOW = 26;
+const MACD_SIGNAL = 9;
+
 export function analyze(history: any[], currentPrice: number) {
   if (history.length < 35) return { label: 'MACD', value: 'N/A', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
 
@@ -13,11 +17,23 @@ export function analyze(history: any[], currentPrice: number) {
   if (closes.some((close) => close == null)) {
     return { label: 'MACD', value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0, raw: { macdLine: null as number | null, macdSignal: null as number | null, macdHist: null as number | null } };
   }
-  const ema12 = calculateEMA(closes as number[], 12);
-  const ema26 = calculateEMA(closes as number[], 26);
-  
-  const macdLine = ema12.map((val, i) => val - ema26[i]);
-  const signalLine = calculateEMA(macdLine, 9);
+  const ema12 = calculateEMA(closes as number[], MACD_FAST);
+  const ema26 = calculateEMA(closes as number[], MACD_SLOW);
+
+  // BUG FIX (audit kuantitatif Fase 3, temuan M-10): signal line dulu dihitung atas
+  // SELURUH panjang deret, termasuk indeks 0..24 tempat calculateEMA masih mengisi nilai
+  // seed konstan supaya panjang array tetap sama. MACD line belum ada di sana - EMA 26
+  // baru punya seed di indeks 25 - jadi sembilan nilai pertama yang men-seed signal line
+  // adalah selisih antar dua konstanta buatan, bukan MACD.
+  //
+  // Ditemukan oleh cross-check terhadap lib/chart-indicators.ts, yang sudah benar:
+  // selisihnya 0,00017 pada deret golden 80 bar. Kecil, tetapi artinya garis signal di
+  // chart bukan garis signal yang dipakai scoring - dan pada deret pendek selisihnya lebih
+  // besar. Definisi baku (Appel; sama dengan TradingView): MACD line sah mulai indeks
+  // MACD_SLOW - 1, dan signal adalah EMA 9 atas bagian yang sah itu saja.
+  const firstValidIndex = MACD_SLOW - 1;
+  const macdLine = ema12.slice(firstValidIndex).map((val, i) => val - ema26[i + firstValidIndex]);
+  const signalLine = calculateEMA(macdLine, MACD_SIGNAL);
 
   const lastMacd = macdLine[macdLine.length - 1];
   const lastSignal = signalLine[signalLine.length - 1];

@@ -31,6 +31,16 @@ function parseSignedPct(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+// Metrik risiko dikirim mentah dari server dan boleh null. Nilai yang belum bisa dihitung
+// harus terbaca sebagai "belum ada", bukan sebagai nol - nol adalah hasil pengukuran.
+function metricNum(value: unknown, digits = 2): string {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—';
+}
+
+function metricPct(value: unknown, digits = 2): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(digits)}%` : '—';
+}
+
 function toneOf(value: unknown): string {
   const n = parseSignedPct(value);
   if (n == null || n === 0) return 'text-tv-text';
@@ -466,6 +476,44 @@ export default function BacktestPage() {
                         <div className="text-xl font-bold font-number text-tv-red">{results.maxDD}</div>
                       </div>
                     </div>
+
+                    {/* RISIKO (temuan H-05 audit kuantitatif). Empat angka di atas diam soal
+                        satu hal: berapa risiko yang ditanggung untuk mendapatkannya. Return
+                        40% dengan volatilitas 15% dan return 40% dengan volatilitas 60%
+                        tampil identik sebelum baris ini ada. Angka yang belum bisa dihitung
+                        dirender sebagai "—", bukan 0. */}
+                    {results.performance && (
+                      <div className="rounded-lg border border-tv-border bg-tv-card p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
+                          <div className="text-sm font-semibold text-tv-text">Risiko &amp; kualitas hasil</div>
+                          <div className="text-[11px] text-tv-muted">
+                            Sharpe/Sortino memakai risk-free {results.performance.riskFreeRatePct}%
+                            (asumsi statis, ditinjau {results.performance.riskFreeSetOn})
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {[
+                            { label: 'CAGR', value: metricPct(results.performance.cagrPct), hint: 'return disetahunkan' },
+                            { label: 'Volatilitas', value: metricPct(results.performance.annualizedVolatilityPct), hint: 'disetahunkan' },
+                            { label: 'Sharpe', value: metricNum(results.performance.sharpe), hint: 'per unit volatilitas total' },
+                            { label: 'Sortino', value: metricNum(results.performance.sortino), hint: 'per unit risiko sisi bawah' },
+                            { label: 'Profit Factor', value: metricNum(results.performance.profitFactor), hint: 'laba kotor / rugi kotor' },
+                            { label: 'Expectancy', value: metricPct(results.performance.expectancyPct), hint: 'rata-rata per trade' },
+                            { label: 'Turnover', value: results.performance.turnoverAnnualX == null ? '—' : `${results.performance.turnoverAnnualX.toFixed(2)}x`, hint: 'putaran portofolio / tahun' },
+                            { label: 'Trade / tahun', value: metricNum(results.performance.tradesPerYear), hint: `${results.performance.returnObservations} hari bursa` },
+                          ].map((metric) => (
+                            <div key={metric.label} className="bg-tv-bg border border-tv-border rounded-lg p-3">
+                              <div className="text-[11px] text-tv-muted">{metric.label}</div>
+                              <div className="text-lg font-bold font-number text-tv-text mt-0.5">{metric.value}</div>
+                              <div className="text-[10px] text-tv-muted mt-0.5">{metric.hint}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {results.performance.note && (
+                          <p className="text-[11px] leading-relaxed text-tv-yellow mt-3">{results.performance.note}</p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Storytelling: empat angka di atas dibaca sendiri-sendiri tidak
                         memberi tahu apakah strategi ini layak. Yang menentukan adalah

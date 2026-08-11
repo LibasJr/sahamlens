@@ -113,6 +113,10 @@ export async function POST(request: Request) {
       winRate: `${result.winRatePct.toFixed(0)}%`,
       totalTrades: result.totalTrades,
       maxDD: fmtPct(result.maxDrawdownPct),
+      // Temuan H-05: return dan drawdown saja tidak menyatakan berapa risiko yang
+      // ditanggung untuk mendapatkannya. Dikirim mentah (null tetap null) supaya UI yang
+      // memutuskan cara merendernya, bukan diformat jadi "0" yang menyamar sebagai hasil.
+      performance: result.performance,
       equityCurve: result.equityCurve,
       ihsgCurve: result.ihsgCurve,
       trades: result.trades.slice(0, MAX_TRADES_IN_RESPONSE).map((t) => ({

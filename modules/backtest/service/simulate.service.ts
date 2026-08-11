@@ -7,6 +7,7 @@ import type {
   Decision,
   TickerIndicatorSeries,
 } from '../types/backtest.types';
+import { calculatePerformanceMetrics } from './performance-metrics';
 
 // Batasan simulasi (survivorship bias, tanpa penyesuaian dividen, asumsi fee) ada di
 // modules/backtest/constants/backtest-limitations.ts - ditampilkan bersama hasil di UI.
@@ -105,6 +106,16 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
   const openPositions: OpenPosition[] = [];
   const trades: TradeRecord[] = [];
   const equityCurveDaily: number[] = [];
+  // Tanggal disimpan sejajar dengan kurva ekuitas supaya penyetahunan (CAGR, Sharpe)
+  // memakai rentang kalender sungguhan, bukan aproksimasi 22 hari bursa per bulan yang
+  // hanya dipakai untuk memotong jendela.
+  const equityCurveDates: string[] = [];
+  // P/L rupiah per trade. Profit factor harus dihitung atas uang: ukuran posisi ikut
+  // membesar seiring compounding, jadi menjumlahkan persen memberi bobot sama pada trade
+  // yang nilainya berbeda jauh.
+  const tradePnlValues: number[] = [];
+  let totalBuyValue = 0;
+  let totalSellValue = 0;
 
   function findIndex(symbol: string): Map<string, TickerDayData> {
     return tickerIndexes.find((t) => t.ticker === symbol)!.index;
@@ -127,6 +138,8 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
 
   function closePosition(pos: OpenPosition, exitDate: string, exitPrice: number) {
     cash += pos.shares * exitPrice;
+    totalSellValue += pos.shares * exitPrice;
+    tradePnlValues.push(pos.shares * (exitPrice - pos.entryPrice));
     trades.push({
       entryDate: pos.entryDate,
       date: exitDate,
@@ -172,6 +185,7 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
       if (shares <= 0 || shares * buyPrice > cash) continue;
 
       cash -= shares * buyPrice;
+      totalBuyValue += shares * buyPrice;
       openPositions.push({ symbol, entryDate: date, entryPrice: buyPrice, shares, lastKnownPrice: buyPrice });
     }
 
@@ -208,6 +222,7 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     }
 
     equityCurveDaily.push(portfolioEquity(date));
+    equityCurveDates.push(date);
   }
 
   // 3. Force-close posisi yang masih terbuka saat periode berakhir - tidak ada "besok"
@@ -252,6 +267,19 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     ihsgCurve.push(Math.round(ihsgValueAtIdx));
   }
 
+  // Force-close di atas terjadi SETELAH kurva ekuitas ditutup, jadi trade terakhir sudah
+  // ikut di tradePnlValues sementara equityCurveDaily berhenti di hari terakhir. Itu benar:
+  // mark-to-market hari terakhir dan likuidasi di harga yang sama hanya berbeda oleh
+  // fee/slippage jual, dan biaya itu memang milik trade-nya, bukan milik kurva.
+  const performance = calculatePerformanceMetrics({
+    equityCurveDaily,
+    dates: equityCurveDates,
+    initialCapital: modal,
+    trades: trades.map((trade, index) => ({ pnlValue: tradePnlValues[index] ?? 0, pnlPct: trade.pnlPct })),
+    totalBuyValue,
+    totalSellValue,
+  });
+
   return {
     returnPct: Number(returnPct.toFixed(2)),
     ihsgReturnPct: Number(ihsgReturnPct.toFixed(2)),
@@ -259,6 +287,7 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     winRatePct: Number(winRatePct.toFixed(0)),
     totalTrades: trades.length,
     maxDrawdownPct: Number(maxDrawdownPct.toFixed(2)),
+    performance,
     equityCurve,
     ihsgCurve,
     trades: trades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
