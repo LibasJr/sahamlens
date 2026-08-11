@@ -5,7 +5,7 @@ import { fetchYahooHistory } from '../../technical';
 import {
   barAtForwardTradingOffset,
   barAtTradingOffset,
-  buildTradingCalendar,
+  buildIdxTradingCalendar,
   hasCorporateActionGap,
   MIN_TRADABLE_PRICE_IDR,
   drawdownPercentile95Pct,
@@ -22,8 +22,16 @@ import {
   type CorporateActionStatus,
   type PriceBasis,
 } from '@/shared/market/price-basis';
+import type { TradingCalendarSource } from './history-return-utils';
 
 import { ADV_HARD_FLOOR_IDR } from '@/modules/eligibility';
+import {
+  countValidationPopulationRejection,
+  emptyValidationPopulationCounters,
+  MIN_VALIDATION_COVERAGE_PCT,
+  rejectFromValidationPopulation,
+  type ValidationPopulationCounters,
+} from './validation-population';
 
 export const LENS_BUCKET_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 
@@ -41,6 +49,9 @@ export type ForwardHorizon = 'T1' | 'T5' | 'T20';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const BATCH_SIZE = 12;
+/** Indeks komposit IDX. Diperdagangkan setiap hari bursa dan tidak pernah disuspensi,
+ * jadi tanggal barnya adalah kalender bursa (temuan M-14). */
+export const IDX_BENCHMARK_TICKER = '^JKSE';
 
 export interface LensRadarHistoryEntry {
   date: string | Date;
@@ -57,6 +68,8 @@ export interface LensRadarHistoryEntry {
   price_data_timestamp?: string | Date | null;
   price_data_version?: string | null;
   avg_value_20d?: number | string | null;
+  coverage_pct?: number | string | null;
+  eligibility_status?: string | null;
 }
 
 export interface DailyOpenBar {
@@ -107,6 +120,18 @@ export interface LensBucketBacktestResult {
   /** Baris tanpa avg_value_20d sama sekali: likuiditasnya tidak bisa diuji. */
   unknownLiquidityRows: number;
   minAvgValue20dIdr: number;
+  /** Baris yang dibuang gerbang populasi produksi (temuan H-01): kelengkapan data di
+   * bawah ambang rekomendasi, kelayakan bukan ELIGIBLE, atau keduanya tidak diketahui
+   * karena baris diarsipkan sebelum kolomnya ada. Ditampilkan terpisah supaya terlihat
+   * berapa banyak sinyal yang DULU ikut menghasilkan angka di halaman ini padahal
+   * produksi tidak akan pernah merekomendasikannya. */
+  productionGateRows: ValidationPopulationCounters;
+  minCoveragePct: number;
+  /** Dari mana kalender hari bursa berasal (temuan M-14). 'IDX_BENCHMARK_BARS' = tanggal
+   * bar ^JKSE, yaitu kalender bursa sesungguhnya. 'OBSERVED_SIGNAL_DATES' = fallback dari
+   * tanggal yang kebetulan ada di data; horizon T+5/T+20 bisa bergeser kalau ada hari
+   * bursa yang gagal di-scan seluruh universe. */
+  tradingCalendarSource: TradingCalendarSource;
   /** Sinyal yang dibuang karena tidak punya bar bursa MAJU untuk dijadikan entry
    * (temuan C-03). Sebelum perbaikan, sinyal seperti ini diam-diam dieksekusi pada bar
    * tanggal sinyal itu sendiri - yaitu look-ahead. Angkanya wajib terlihat: kalau besar,
@@ -121,6 +146,14 @@ export interface LensBucketBacktestResult {
 
 export interface DailyOpenProvider {
   getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]>;
+  /** Tanggal bar indeks acuan (^JKSE) = kalender hari bursa IDX (temuan M-14).
+   *
+   * Sengaja bagian dari interface ini, bukan argumen opsional yang dikirim pemanggil:
+   * selama pemanggil yang memutuskan, pemanggil berikutnya bisa lupa dan kalender diam-
+   * diam kembali dibangun dari tanggal yang kebetulan ada di data. Kembalikan array
+   * kosong kalau tidak tersedia - hasilnya jatuh balik ke kalender terobservasi dan
+   * dilaporkan lewat `tradingCalendarSource`. */
+  getIdxTradingCalendarDates(): Promise<string[]>;
 }
 
 interface Queryable {
@@ -144,6 +177,13 @@ interface NormalizedEntry {
 }
 
 class YahooDailyOpenProvider implements DailyOpenProvider {
+  async getIdxTradingCalendarDates(): Promise<string[]> {
+    const history = await fetchYahooHistory(IDX_BENCHMARK_TICKER, '5y').catch(() => null);
+    return (history?.history ?? [])
+      .map((bar) => String(bar.Date).slice(0, 10))
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date));
+  }
+
   async getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]> {
     const history = await fetchYahooHistory(ticker, '5y');
     const normalized = normalizeYahooOhlcRows(history?.history ?? [], ticker, history?.regularMarketTime ? new Date(history.regularMarketTime * 1000).toISOString() : null);
@@ -224,12 +264,14 @@ interface NormalizeOutcome {
   skippedGocap: number;
   skippedIlliquid: number;
   unknownLiquidity: number;
+  productionGate: ValidationPopulationCounters;
 }
 
 function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizeOutcome {
   let skippedGocap = 0;
   let skippedIlliquid = 0;
   let unknownLiquidity = 0;
+  const productionGate = emptyValidationPopulationCounters();
   const entries = rows
     .map((row) => {
       const date = dateKey(row.date);
@@ -263,6 +305,11 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizeOutcome {
         skippedIlliquid++;
         return null;
       }
+      // Gerbang yang SAMA dengan produksi: kelengkapan data + kelayakan minimal
+      // point-in-time. Lihat validation-population.ts (temuan H-01).
+      if (countValidationPopulationRejection(productionGate, rejectFromValidationPopulation(row))) {
+        return null;
+      }
       const bucket = bucketFor(lensScore);
       if (!bucket) return null;
       return {
@@ -282,7 +329,7 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizeOutcome {
     })
     .filter((row): row is NormalizedEntry => row !== null)
     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
-  return { entries, skippedGocap, skippedIlliquid, unknownLiquidity };
+  return { entries, skippedGocap, skippedIlliquid, unknownLiquidity, productionGate };
 }
 
 function initReturns(): Record<LensScoreBucket, Record<ForwardHorizon, number[]>> {
@@ -365,8 +412,12 @@ export async function calculateLensBucketStats(
 ): Promise<LensBucketBacktestResult> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const partition = partitionByScoreVersion(rows, requestedScoreVersion);
-  const { entries: normalized, skippedGocap, skippedIlliquid, unknownLiquidity } = normalizeHistory(partition.accepted);
-  const tradingCalendar = buildTradingCalendar(normalized);
+  const { entries: normalized, skippedGocap, skippedIlliquid, unknownLiquidity, productionGate } = normalizeHistory(partition.accepted);
+  const calendar = buildIdxTradingCalendar(
+    await provider.getIdxTradingCalendarDates().catch(() => []),
+    normalized
+  );
+  const tradingCalendar = calendar.dates;
   const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
   const byTicker = new Map<string, NormalizedEntry[]>();
   for (const row of normalized) {
@@ -497,10 +548,12 @@ export async function calculateLensBucketStats(
   });
 
   logger.info(
-    `lens-bucket-backtest: filtered ${skippedGocap + skippedIlliquid + unknownLiquidity + skippedNoForwardEntry + skippedNoLow} dirty rows out of ${partition.accepted.length} ` +
+    `lens-bucket-backtest: filtered ${skippedGocap + skippedIlliquid + unknownLiquidity + skippedNoForwardEntry + skippedNoLow + productionGate.lowCoverage + productionGate.notEligible + productionGate.unknownCoverage + productionGate.unknownEligibility} dirty rows out of ${partition.accepted.length} ` +
     `(gocap raw < ${MIN_TRADABLE_PRICE_IDR}: ${skippedGocap}, ` +
     `ADV20 < ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR}: ${skippedIlliquid}, ` +
     `ADV20 tidak diketahui: ${unknownLiquidity}, ` +
+    `gerbang produksi (coverage<${MIN_VALIDATION_COVERAGE_PCT}/tidak layak/tidak diketahui): ` +
+    `${productionGate.lowCoverage}/${productionGate.notEligible}/${productionGate.unknownCoverage + productionGate.unknownEligibility}, ` +
     `tanpa bar entry maju: ${skippedNoForwardEntry}, ` +
     `T+20 tanpa low valid: ${skippedNoLow} dari ${t20Trades} trade T+20)`
   );
@@ -511,6 +564,9 @@ export async function calculateLensBucketStats(
     skippedIlliquidRows: skippedIlliquid,
     unknownLiquidityRows: unknownLiquidity,
     minAvgValue20dIdr: LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
+    productionGateRows: productionGate,
+    minCoveragePct: MIN_VALIDATION_COVERAGE_PCT,
+    tradingCalendarSource: calendar.source,
     skippedNoForwardEntryRows: skippedNoForwardEntry,
     skippedDrawdownTrades: skippedNoLow,
     drawdownTrades: t20Trades - skippedNoLow,
@@ -535,7 +591,7 @@ export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRa
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
-           avg_value_20d
+           avg_value_20d, coverage_pct, eligibility_status
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL

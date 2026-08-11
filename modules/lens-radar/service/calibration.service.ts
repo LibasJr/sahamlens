@@ -4,6 +4,7 @@ import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { fetchCalibrationYahooHistory5y } from './calibration-yahoo-history.service';
 import {
+  IDX_BENCHMARK_TICKER,
   LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
   type DailyOpenBar,
@@ -14,10 +15,11 @@ import {
 import {
   barAtForwardTradingOffset,
   barAtTradingOffset,
-  buildTradingCalendar,
+  buildIdxTradingCalendar,
   decorrelateByTicker,
   hasCorporateActionGap,
   LENS_RADAR_HOLDING_DAYS,
+  type TradingCalendarSource,
 } from './history-return-utils';
 import {
   PRODUCT_VALIDATION_STATUS,
@@ -25,6 +27,17 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import {
+  VALIDATION_LIMITATIONS,
+  VALIDATION_LIMITATIONS_REVIEWED_ON,
+} from '../constants/validation-limitations';
+import {
+  countValidationPopulationRejection,
+  emptyValidationPopulationCounters,
+  MIN_VALIDATION_COVERAGE_PCT,
+  rejectFromValidationPopulation,
+  type ValidationPopulationCounters,
+} from './validation-population';
 import { buildRobustValidation, type RobustValidationResult } from './robust-validation.service';
 import {
   buildGenuineOosValidation,
@@ -142,6 +155,18 @@ export interface CalibrationDashboardData {
    * Sebelum perbaikan, sinyal seperti ini dieksekusi pada bar tanggal sinyal itu sendiri
    * dan hasilnya masuk ke seluruh angka di halaman ini sebagai look-ahead. */
   skippedNoForwardEntry: number;
+  /** Baris yang dibuang gerbang populasi produksi (temuan H-01): kelengkapan data di
+   * bawah ambang rekomendasi atau kelayakan bukan ELIGIBLE. Sebelum perbaikan, seluruh
+   * sinyal ini ikut menghasilkan angka di halaman ini walaupun produksi tidak akan
+   * pernah merekomendasikannya. */
+  productionGate: ValidationPopulationCounters;
+  minCoveragePct: number;
+  /** Sumber kalender hari bursa (temuan M-14). */
+  tradingCalendarSource: TradingCalendarSource;
+  /** Bias yang melekat pada angka di halaman ini dan tidak bisa dihilangkan dengan data
+   * yang tersedia sekarang (temuan H-02). Wajib dirender bersama tabelnya. */
+  limitations: readonly string[];
+  limitationsReviewedOn: string;
   chart: CalibrationBucketChartRow[];
   chartSource: 'live-calibration-observations';
   cronComparison: CalibrationCronComparison;
@@ -162,6 +187,13 @@ export interface ThresholdRecommendation {
 }
 
 class YahooDailyOpenProvider implements DailyOpenProvider {
+  async getIdxTradingCalendarDates(): Promise<string[]> {
+    const history = await fetchCalibrationYahooHistory5y(IDX_BENCHMARK_TICKER).catch(() => null);
+    return (history?.history ?? [])
+      .map((bar: { Date: string }) => String(bar.Date).slice(0, 10))
+      .filter((date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date));
+  }
+
   async getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]> {
     const history = await fetchCalibrationYahooHistory5y(ticker);
     const normalized = normalizeYahooOhlcRows(history?.history ?? [], ticker, history?.regularMarketTime ? new Date(history.regularMarketTime * 1000).toISOString() : null);
@@ -256,7 +288,10 @@ function expectancy(values: number[]): number | null {
   return pWin * (average(wins) ?? 0) + pLoss * (average(losses) ?? 0);
 }
 
-function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedHistoryEntry[] {
+function normalizeHistory(
+  rows: LensRadarHistoryEntry[],
+  productionGate: ValidationPopulationCounters
+): NormalizedHistoryEntry[] {
   return rows
     .map((row) => {
       const date = dateKey(row.date);
@@ -280,6 +315,11 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizedHistoryEntry
         avgValue20d < LENS_BUCKET_MIN_AVG_VALUE_20D_IDR ||
         !isValidCorporateActionStatus(row.corporate_action_status)
       ) return null;
+      // Gerbang populasi yang SAMA dengan produksi dan dengan bucket backtest:
+      // kelengkapan data + kelayakan minimal point-in-time (temuan H-01).
+      if (countValidationPopulationRejection(productionGate, rejectFromValidationPopulation(row))) {
+        return null;
+      }
       const bucket = bucketFor(lensScore);
       if (!bucket) return null;
       return {
@@ -332,6 +372,10 @@ export async function calculateCalibrationObservations(
   observations: CalibrationObservation[];
   /** Sinyal yang dibuang karena tidak punya bar bursa maju untuk entry (temuan C-03). */
   skippedNoForwardEntry: number;
+  /** Baris yang dibuang gerbang populasi produksi (temuan H-01). */
+  productionGate: ValidationPopulationCounters;
+  /** Sumber kalender hari bursa (temuan M-14). */
+  tradingCalendarSource: TradingCalendarSource;
   scoreVersion: string | null;
   requestedScoreVersion: string;
   rejectedRows: number;
@@ -341,8 +385,13 @@ export async function calculateCalibrationObservations(
 }> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const partition = partitionByScoreVersion(rows, requestedScoreVersion);
-  const normalized = normalizeHistory(partition.accepted);
-  const tradingCalendar = buildTradingCalendar(normalized);
+  const productionGate = emptyValidationPopulationCounters();
+  const normalized = normalizeHistory(partition.accepted, productionGate);
+  const calendar = buildIdxTradingCalendar(
+    await provider.getIdxTradingCalendarDates().catch(() => []),
+    normalized
+  );
+  const tradingCalendar = calendar.dates;
   const calendarIndex = new Map(tradingCalendar.map((date, index) => [date, index]));
   const byTicker = new Map<string, NormalizedHistoryEntry[]>();
   for (const row of normalized) {
@@ -441,6 +490,8 @@ export async function calculateCalibrationObservations(
     uniqueTickers: tickers.length,
     observations,
     skippedNoForwardEntry,
+    productionGate,
+    tradingCalendarSource: calendar.source,
     scoreVersion: partition.version,
     requestedScoreVersion,
     rejectedRows: partition.rejected.length,
@@ -456,7 +507,7 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
-           avg_value_20d
+           avg_value_20d, coverage_pct, eligibility_status
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
@@ -779,6 +830,8 @@ export async function getCalibrationDashboardData(
     uniqueTickers,
     observations,
     skippedNoForwardEntry,
+    productionGate,
+    tradingCalendarSource,
     scoreVersion,
     rejectedRows,
     unversionedRows,
@@ -828,6 +881,11 @@ export async function getCalibrationDashboardData(
     uniqueTickers,
     observationsT20,
     skippedNoForwardEntry,
+    productionGate,
+    minCoveragePct: MIN_VALIDATION_COVERAGE_PCT,
+    tradingCalendarSource,
+    limitations: VALIDATION_LIMITATIONS,
+    limitationsReviewedOn: VALIDATION_LIMITATIONS_REVIEWED_ON,
     chart,
     chartSource: 'live-calibration-observations',
     cronComparison,

@@ -23,11 +23,20 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     market_cap: marketCap,
     score_version: SCORE_VERSION,
     avg_value_20d: 5_000_000_000,
+    // Gerbang populasi produksi (temuan H-01): baris uji harus lolos kelengkapan data
+    // DAN kelayakan point-in-time, sama seperti sinyal yang benar-benar dikirim ke
+    // pengguna. Kasus yang ditolak gerbang ini diuji eksplisit di test tersendiri.
+    coverage_pct: 100,
+    eligibility_status: 'ELIGIBLE',
   };
 }
 
 function provider(openByTicker: Record<string, Record<string, number>>): DailyOpenProvider {
   return {
+    // Kalender bursa dikembalikan kosong supaya test jatuh balik ke tanggal terobservasi
+    // (temuan M-14) - fixture di bawah memang mendefinisikan kalendernya sendiri lewat
+    // tanggal baris histori, dan itu yang sedang diuji.
+    async getIdxTradingCalendarDates() { return []; },
     async getDailyOpenBars(ticker: string) {
       return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
     },
@@ -161,6 +170,7 @@ describe('calibration.service', () => {
       },
     };
     const provider = {
+      getIdxTradingCalendarDates: async () => [],
       getDailyOpenBars: async () => {
         throw new Error('Provider tidak boleh disentuh saat threshold recommender dibekukan');
       },

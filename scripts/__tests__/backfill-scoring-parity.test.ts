@@ -7,6 +7,7 @@ import {
   computeDailyNetFlow,
 } from '@/modules/market';
 import { analyzeMacd, analyzeRsi } from '@/modules/technical';
+import { evaluateMinimalEligibility } from '@/modules/eligibility';
 import {
   DATA_SNAPSHOT_VERSION,
   SCORE_VERSION,
@@ -65,6 +66,7 @@ function yahooRows(bars = 260) {
 
 const deps = {
   calculateScore,
+  evaluateMinimalEligibility,
   analyzeRsi,
   analyzeMacd,
   computeDailyNetFlow,

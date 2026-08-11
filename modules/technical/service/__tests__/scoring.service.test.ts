@@ -404,9 +404,9 @@ describe('calculateScore - LensScore v1 tetap bekerja (backward compatibility)',
   it('bentuk hasil v1 tidak berubah - seluruh field lama masih ada', () => {
     const r = calculateScore('BBCA', fullTechnical, fullFundamental, fullFlow);
     expect(Object.keys(r).sort()).toEqual([
-      'alasan_3_poin', 'coverage_pct', 'detail', 'flow_score', 'fundamental_score',
-      'harga', 'kategori', 'missing', 'not_applicable', 'price', 'risk', 'simbol',
-      'technical_score', 'total_score',
+      'alasan_3_poin', 'available_max', 'coverage_pct', 'detail', 'flow_score',
+      'fundamental_score', 'harga', 'kategori', 'missing', 'not_applicable', 'price',
+      'risk', 'simbol', 'technical_score', 'total_score',
     ]);
     expect(r.simbol).toBe('BBCA');
     expect(r.harga).toBe(1000);

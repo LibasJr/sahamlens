@@ -22,6 +22,11 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     // Default likuid: test di file ini menguji return/drawdown, bukan gerbang ADV20.
     // Kasus tidak likuid diuji eksplisit dengan menimpa field ini.
     avg_value_20d: 5_000_000_000,
+    // Gerbang populasi produksi (temuan H-01): baris uji harus lolos kelengkapan data
+    // DAN kelayakan point-in-time, sama seperti sinyal yang benar-benar dikirim ke
+    // pengguna. Kasus yang ditolak gerbang ini diuji eksplisit di test tersendiri.
+    coverage_pct: 100,
+    eligibility_status: 'ELIGIBLE',
   };
 }
 
@@ -32,6 +37,10 @@ function dateFromStart(offsetDays: number): string {
 
 function provider(openByTicker: Record<string, Record<string, number>>): DailyOpenProvider {
   return {
+    // Kalender bursa dikembalikan kosong supaya test jatuh balik ke tanggal terobservasi
+    // (temuan M-14) - fixture di bawah memang mendefinisikan kalendernya sendiri lewat
+    // tanggal baris histori, dan itu yang sedang diuji.
+    async getIdxTradingCalendarDates() { return []; },
     async getDailyOpenBars(ticker: string) {
       return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
     },
@@ -227,6 +236,7 @@ describe('calculateLensBucketStats', () => {
     bars[dateFromStart(35)] = { open: 1350, low: 1000 };
 
     const result = await calculateLensBucketStats(rows, {
+      async getIdxTradingCalendarDates() { return []; },
       async getDailyOpenBars() {
         return Object.entries(bars).map(([date, bar]) => ({
           date,
