@@ -4,10 +4,13 @@ vi.mock('@/modules/user', () => ({
   getSession: vi.fn(),
   checkProAccessLive: vi.fn(),
 }));
+// Route ini sekarang memanggil SATU fungsi service, runCouncilAnalysis(), bukan lagi
+// merangkai getCouncil/runLocalCouncil/getCouncilCache sendiri. Mock lama tidak pernah
+// diperbarui setelah refactor itu, jadi runCouncilAnalysis bernilai undefined dan setiap
+// pemanggilannya melempar - dua test berakhir 500 alih-alih 200, seolah gerbang aksesnya
+// yang rusak. Tidak ketahuan karena gerbang CI sedang mati.
 vi.mock('@/modules/ai', () => ({
-  getCouncil: vi.fn(),
-  runLocalCouncil: vi.fn(),
-  getCouncilCache: vi.fn(),
+  runCouncilAnalysis: vi.fn(),
 }));
 vi.mock('@/modules/technical', () => ({
   analyzeEma: vi.fn(),
@@ -33,7 +36,7 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
 
 import { GET } from '../route';
 import { getSession, checkProAccessLive } from '@/modules/user';
-import { getCouncilCache } from '@/modules/ai';
+import { runCouncilAnalysis } from '@/modules/ai';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 
 function makeRequest(): Request {
@@ -58,7 +61,7 @@ describe('GET /api/council', () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const trial = { firstSeenAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-09T00:00:00.000Z', active: true, isNew: true };
     vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(trial);
-    vi.mocked(getCouncilCache).mockResolvedValue({ summary: 'stub cached council' } as any);
+    vi.mocked(runCouncilAnalysis).mockResolvedValue({ ok: true, data: { summary: 'stub cached council' } } as any);
 
     const res = await GET(makeRequest());
     const json = await res.json();
@@ -82,7 +85,7 @@ describe('GET /api/council', () => {
   it('session valid dengan Pro -> 200 (cached), tidak menyentuh logic trial anonim', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
     vi.mocked(checkProAccessLive).mockResolvedValue(true);
-    vi.mocked(getCouncilCache).mockResolvedValue({ summary: 'stub' } as any);
+    vi.mocked(runCouncilAnalysis).mockResolvedValue({ ok: true, data: { summary: 'stub' } } as any);
 
     const res = await GET(makeRequest());
 
