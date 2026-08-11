@@ -38,9 +38,37 @@ const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), 
   loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
 });
 
-// Normalisasi simbol: pastikan hanya 1x .JK
-const normTicker = (s: string) => s.replace('.JK', '').replace('.JK', '') + '.JK';
-const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
+// Normalisasi simbol: pastikan hanya 1x .JK. IHSG diperlakukan sebagai indeks pasar,
+// bukan emiten, sehingga tidak boleh masuk ke endpoint analisis saham /api/stock.
+const isIndexTicker = (s: string) => {
+  const value = s.trim().toUpperCase().replace(/\.JK$/, '');
+  return value === 'IHSG' || value === 'JKSE' || value === '^JKSE';
+};
+const normTicker = (s: string) => isIndexTicker(s) ? '^JKSE' : s.replace('.JK', '').replace('.JK', '') + '.JK';
+const displayTicker = (s: string) => isIndexTicker(s) ? 'IHSG' : s.replace('.JK', '').replace('.JK', '');
+
+function buildIndexPayload(symbol: string, candles: any[]) {
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+  const close = typeof last?.close === 'number' ? last.close : null;
+  const prevClose = typeof prev?.close === 'number' ? prev.close : null;
+  const changePct = close != null && prevClose != null && prevClose > 0
+    ? Number((((close - prevClose) / prevClose) * 100).toFixed(2))
+    : null;
+
+  return {
+    stock: {
+      symbol,
+      name: 'Indeks Harga Saham Gabungan (IHSG)',
+      current_price: close,
+      change_pct: changePct,
+      history: candles,
+    },
+    analyzers: [],
+    technical: {},
+    _meta: null,
+  };
+}
 
 const splitStatusText = (value?: string | null) => {
   const text = (value || '').trim();
@@ -96,6 +124,7 @@ function DashboardContent() {
   // teknikal, chart di sini pakai /api/public-chart yang mendukung parameter tf.
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<any[]>([]);
+  const [chartRefreshKey, setChartRefreshKey] = useState(0);
   const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
 
   useEffect(() => {
@@ -165,13 +194,24 @@ function DashboardContent() {
   };
 
   const setTicker = (newTicker: string) => {
-    setTickerState(newTicker);
+    const nextTicker = normTicker(newTicker);
+    setTickerState(nextTicker);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('last_searched_ticker', newTicker);
+      if (!isIndexTicker(nextTicker)) {
+        localStorage.setItem('last_searched_ticker', nextTicker);
+      }
     }
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
+    if (isIndexTicker(symbol)) {
+      // IHSG adalah indeks pasar. Jangan panggil /api/stock karena endpoint itu khusus
+      // emiten saham dan memang akan menolak ^JKSE. Data indeks diambil oleh effect
+      // /api/public-chart di bawah.
+      setLoading(false);
+      setFetchError(false);
+      return;
+    }
     analyzerAbortRef.current?.abort();
     const controller = new AbortController();
     analyzerAbortRef.current = controller;
@@ -291,7 +331,13 @@ function DashboardContent() {
     setScores(globalScores);
   };
 
-  const handleRefresh = () => fetchAnalyzerData(ticker);
+  const handleRefresh = () => {
+    if (isIndexTicker(ticker)) {
+      setChartRefreshKey((value) => value + 1);
+      return;
+    }
+    fetchAnalyzerData(ticker);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -324,7 +370,7 @@ function DashboardContent() {
     } else {
       const savedTicker = localStorage.getItem('last_searched_ticker');
       if (savedTicker && savedTicker !== ticker) {
-        setTickerState(savedTicker);
+        setTickerState(normTicker(savedTicker));
       }
     }
     return () => controller.abort();
@@ -334,6 +380,13 @@ function DashboardContent() {
     // Tunggu refreshAdminStatus() selesai dulu - supaya admin tidak sempat kehitung
     // sebagai pemakaian free-tier biasa sebelum cache admin ke-update (lihat lib/limits.ts).
     if (!mounted || !adminReady) return;
+    if (isIndexTicker(ticker)) {
+      setMarketClosed(!isMarketOpen(new Date()));
+      setLoading(false);
+      setShowLoginPrompt(false);
+      setShowPaywall(false);
+      return;
+    }
 
     // Kuota "analisa/hari" free-tier sekarang ditegakkan & dihitung di server
     // (app/api/stock/[ticker]/route.ts, lihat shared/usage/daily-analisa-quota.ts) -
@@ -364,14 +417,36 @@ function DashboardContent() {
     if (!mounted) return;
     const controller = new AbortController();
     const code = ticker.replace('.JK', '');
-    fetch(`/api/public-chart/${code}?tf=${timeframe}`, { signal: controller.signal })
+    setChartCandles([]);
+    if (isIndexTicker(ticker)) {
+      setData(null);
+      setLoading(true);
+      setFetchError(false);
+    }
+    fetch(`/api/public-chart/${encodeURIComponent(isIndexTicker(ticker) ? 'IHSG' : code)}?tf=${timeframe}`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((d) => { if (d?.history?.length > 0) setChartCandles(d.history); })
+      .then((d) => {
+        if (d?.history?.length > 0) {
+          setChartCandles(d.history);
+          if (isIndexTicker(ticker)) {
+            setData(buildIndexPayload('^JKSE', d.history));
+            setLastUpdate(new Date());
+          }
+        } else if (isIndexTicker(ticker)) {
+          setFetchError(true);
+        }
+      })
       .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Chart fetch failed', error);
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          console.error('Chart fetch failed', error);
+          if (isIndexTicker(ticker)) setFetchError(true);
+        }
+      })
+      .finally(() => {
+        if (isIndexTicker(ticker) && !controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [ticker, timeframe, mounted]);
+  }, [ticker, timeframe, mounted, chartRefreshKey]);
 
   useEffect(() => {
     if (!mounted || !data?.stock?.symbol) return;
@@ -464,6 +539,7 @@ function DashboardContent() {
   };
 
   const stock = data?.stock || {};
+  const currentIsIndex = isIndexTicker(ticker);
   const candles = chartCandles.length > 0 ? chartCandles : (data?.stock?.history || []);
   let analyzers = data?.analyzers || [];
 
@@ -643,7 +719,7 @@ function DashboardContent() {
     return (
       <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
         <Header
-          currentTicker={ticker}
+          currentTicker={displayTicker(ticker)}
           onTickerChange={setTicker}
           moduleTitle="LensTechnical"
           moduleBank="LENSTECHNICAL"
@@ -672,7 +748,7 @@ function DashboardContent() {
     return (
       <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
         <Header
-          currentTicker={ticker}
+          currentTicker={displayTicker(ticker)}
           onTickerChange={setTicker}
           moduleTitle="LensTechnical"
           moduleBank="LENSTECHNICAL"
@@ -712,8 +788,10 @@ function DashboardContent() {
             <EmptyState
               illustration="empty"
               title={`Data ${displayTicker(ticker)} gagal dimuat`}
-              description="Permintaan ke sumber data tidak sampai. Ini bukan berarti sahamnya bermasalah - coba lagi, atau cari emiten lain lewat kolom pencarian di atas."
-              action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
+              description={currentIsIndex
+                ? 'Data indeks IHSG sementara tidak tersedia dari sumber data pasar. Coba lagi beberapa saat.'
+                : 'Permintaan ke sumber data tidak sampai. Ini bukan berarti sahamnya bermasalah - coba lagi, atau cari emiten lain lewat kolom pencarian di atas.'}
+              action={{ label: 'Coba lagi', onClick: handleRefresh }}
             />
           )}
         </PageContainer>
@@ -744,7 +822,7 @@ function DashboardContent() {
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Header
-        currentTicker={ticker}
+        currentTicker={displayTicker(ticker)}
         onTickerChange={setTicker}
         moduleTitle="LensTechnical — Pure Algorithmic Trading"
         moduleBank="LENSTECHNICAL"
@@ -774,6 +852,59 @@ function DashboardContent() {
         </div>
 
         <AnalysisGlossary />
+
+        {currentIsIndex && (
+          <>
+            <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 sm:p-5 shadow-2">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                <TickerAvatar symbol="IHSG" size="lg" />
+                <div>
+                  <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
+                    <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">IHSG</h1>
+                    <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">Indeks Harga Saham Gabungan</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-3">
+                    {typeof stock.current_price === 'number' ? (
+                      <AnimatedNumber
+                        value={stock.current_price}
+                        format={(n) => n.toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                        className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
+                      />
+                    ) : (
+                      <span className="text-sm text-tv-muted">Level IHSG tidak tersedia</span>
+                    )}
+                    {stock.change_pct != null && (
+                      <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
+                        stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'
+                      }`}>
+                        {stock.change_pct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                        {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <TradingViewChart
+              candles={candles}
+              technical={chartTechnical}
+              symbol="^JKSE"
+              timeframe={timeframe}
+              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
+              onTimeframeChange={setTimeframe}
+              variant="full"
+              height={600}
+            />
+
+            <div className="rounded-xl border border-tv-border bg-tv-card p-4 text-sm leading-relaxed text-tv-muted">
+              IHSG adalah indeks pasar, bukan saham emiten. Di menu Teknikal ini SahamLens menampilkan chart, tren, momentum, dan volatilitas IHSG. Analisis LensAI saham, TP/CL, fundamental, broker flow, dan rekomendasi per lot tidak ditampilkan untuk indeks.
+            </div>
+          </>
+        )}
+
+        {!currentIsIndex && (
+          <>
 
         {/* Hero */}
         {fetchError ? (
@@ -1184,6 +1315,8 @@ function DashboardContent() {
             </div>
           )}
         </div>
+        </>
+        )}
 
         {/* Fundamental (link-out) diganti Sentimen Berita AI - tabel Fundamental
             lengkap sudah punya halaman sendiri (/fundamental), jadi kartu ini dulu
