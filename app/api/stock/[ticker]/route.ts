@@ -30,6 +30,8 @@ import { classifyFreshness } from '@/shared/http/freshness';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
+import { resolveSectorProfile } from '@/modules/sector';
+import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -146,7 +148,20 @@ export async function GET(
 
     const quotePromise = Promise.race([
       yahooFinance.quoteSummary(ticker, {
-        modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']
+        // BUG FIX (Fase 4, ditemukan saat menyambungkan normalized earnings): 'assetProfile'
+        // TIDAK pernah ada di daftar ini, sementara baris ~490 di bawah membaca
+        // `quoteSummary.assetProfile.sector/industry` untuk mengisi konteks sektor
+        // calculateScore(). Field yang tidak diminta selalu undefined, jadi SETIAP skor di
+        // jalur live dihitung sebagai 'UNCLASSIFIED': bank dihukum lewat DER yang produksi
+        // sendiri nyatakan TIDAK BERLAKU, penjaga puncak siklus tidak pernah aktif, dan beta
+        // acuan sektor selalu 1,0.
+        //
+        // Ini kembaran temuan C-02 di sisi yang berlawanan. C-02 memperbaiki jalur backfill
+        // yang mengirim sector null; laporan auditnya menyatakan jalur produksi "mengirim
+        // assetProfile Yahoo yang asli" - dan pernyataan itu keliru, karena route ini membaca
+        // field yang tidak pernah diambilnya. Setelah C-02, backfill-lah yang benar dan
+        // produksi yang salah.
+        modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('quoteSummary timeout')), 8000))
     ]).catch((e: any) => {
@@ -449,6 +464,18 @@ export async function GET(
       ? volWindow.reduce((s, h) => s + h.Volume, 0) / volWindow.length
       : null;
 
+    // Fase 4 #16: hanya untuk sektor siklikal - dua panggilan Yahoo tambahan tidak pantas
+    // dibayar emiten yang penjaga siklusnya memang tidak pernah aktif. Hasilnya di-cache 7
+    // hari (laporan tahunan berubah paling banyak sekali setahun) dan `null` saat gagal,
+    // sehingga permintaan yang seluruh data lainnya sudah ada tidak ikut jatuh.
+    const cycleSectorProfile = resolveSectorProfile(
+      quoteSummary?.assetProfile?.sector ?? null,
+      quoteSummary?.assetProfile?.industry ?? null,
+    );
+    const normalizedEarnings = cycleSectorProfile.cyclical
+      ? await fetchNormalizedEarnings(ticker).catch(() => null)
+      : null;
+
     const scoringResult = calculateScore(
       ticker,
       {
@@ -477,6 +504,13 @@ export async function GET(
       },
       {
         per, pbv, roe, der, currentRatio, revenueGrowth,
+        // Fase 4 #16: median ROE 4 tahun buku, dipakai penjaga puncak siklus untuk
+        // MENGUKUR - bukan menduga dari PER+ROE - apakah emiten sedang mencetak laba di
+        // atas normalnya sendiri. `null` kalau data tahunannya kurang dari 4 tahun, dan
+        // penjaga itu jatuh kembali ke tanda tangan PER+ROE. Sengaja hanya di jalur live:
+        // laporan tahunan yang direstate hari ini tidak tersedia pada tanggal sinyal
+        // historis, jadi backfill TIDAK boleh memakainya.
+        normalizedRoe: normalizedEarnings?.normalizedRoePct ?? null,
         // P1-10/P1-11/P1-12: valuasi & kesehatan neraca dinilai menurut sektor dan
         // risiko emiten ini, bukan ambang tunggal untuk seluruh IDX.
         sector: {

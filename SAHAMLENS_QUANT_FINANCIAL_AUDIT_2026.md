@@ -84,9 +84,27 @@
 > | Item | Status | Alasan |
 > |---|---|---|
 > | #15 metrik bank (NIM, NPL, CASA, CAR, LDR, CoC, CIR, PPOP) | **BLOCKED** | Tidak satu pun tersedia di Yahoo `quoteSummary`, dan aplikasi ini tidak punya sumber laporan keuangan IDX. Semuanya adalah pengungkapan regulatoris OJK/IDX yang butuh parsing laporan keuangan triwulanan. Menurunkannya dari data yang ada berarti mengarang. |
-> | #16 normalized earnings | **SEBAGIAN** | Tebing ambangnya dihapus (di atas). Normalized earnings sesungguhnya butuh laba tahunan 7–10 tahun; Yahoo memberi 4 periode — terlalu pendek untuk satu siklus batu bara/nikel — dan `fundamental_history` baru terisi sejak cron harian mulai berjalan (lihat H-6). |
+> | #16 normalized earnings | **SUDAH, dengan batas yang dinyatakan** | `normalized-earnings.service.ts` memakai `fundamentalsTimeSeries` — 4 tahun buku, diukur sebagai **median ROE** (laba bersih / ekuitas dari laporan & tahun yang sama, jadi kebal split dan mata uang). `peakCycleSeverity` kini mengambil `max(dugaan PER+ROE, ukuran ROE vs normal)`. Batasnya: Yahoo memberi maksimum 5 periode dan jendelanya bergulir, jadi ini daya laba jangka menengah, bukan through-cycle 7–10 tahun. **Live saja** — backfill historis tidak boleh memakainya (laporan yang direstate hari ini adalah look-ahead pada tanggal sinyal). |
 > | #17 frekuensi transaksi broker | **BLOCKED** | Payload Index Alpha (`/stocks/broker-summary/batch`) hanya mengembalikan `buy_value`, `sell_value`, `buy_avg`, `sell_avg`. Tidak ada kolom frekuensi, jadi rasio value/frequency tidak bisa dihitung. Menambah parser untuk field yang tidak pernah dikirim hanya menghasilkan kode mati. |
 > | #17 cakupan harian 5 ticker | **BUKAN MASALAH KODE** | `INDEXALPHA_DAILY_TICKER_LIMIT` sudah menjadi variabel lingkungan (`index-alpha-broker-summary.service.ts:132`); 5 adalah nilai default. Menaikkannya adalah keputusan kuota API, bukan perubahan kode. |
+>
+> **BUG TAMBAHAN YANG DITEMUKAN SAAT MENYAMBUNGKAN #16 — dan ini yang terpenting di halaman
+> ini.** `app/api/stock/[ticker]/route.ts` meminta
+> `modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']` lalu membaca
+> `quoteSummary.assetProfile.sector` 340 baris di bawahnya. **`assetProfile` tidak pernah ada
+> di daftar itu.** Field yang tidak diminta selalu `undefined`, jadi SETIAP skor di jalur live
+> dihitung sebagai `UNCLASSIFIED`: bank dihukum lewat DER yang produksi sendiri nyatakan TIDAK
+> BERLAKU, penjaga puncak siklus tidak pernah aktif, dan beta acuan sektor selalu 1,0.
+>
+> Ini kembaran C-02 di sisi yang berlawanan. C-02 memperbaiki backfill yang mengirim
+> `sector: null`, dan laporan ini menyatakan jalur produksi "mengirim assetProfile Yahoo yang
+> asli" — **pernyataan itu keliru**. Setelah C-02 ditutup, backfill-lah yang benar dan produksi
+> yang salah; parity test yang dibangun untuk C-02 tidak menangkapnya karena ia menguji
+> `calculateScore()` dengan sektor yang dipasok eksplisit, bukan daftar modul milik route.
+>
+> Diperbaiki, dan diberi gerbang kelas-bug: `quote-summary-modules.test.ts` memindai setiap
+> pemanggil `quoteSummary` lalu menggagalkan build kalau ada modul yang dibaca tanpa diminta.
+> Gerbang itu diuji dengan mengembalikan bug aslinya — ia menangkapnya.
 >
 > **Status model TETAP `NOT VALIDATED`.** Fase 3 menambahkan alat ukur yang sebelumnya tidak
 > ada dan Fase 4 memperbaiki model valuasinya; keduanya tidak menghasilkan sampel forward

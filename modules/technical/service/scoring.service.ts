@@ -116,6 +116,14 @@ export interface FundamentalInput {
   revenueGrowth: number | null; // yoy persen
   /** Opsional - lihat SectorContext. Tanpa ini penilaian jatuh ke perlakuan netral. */
   sector?: SectorContext;
+  /** Median ROE 4 tahun buku terakhir, persen - "normal" milik emiten itu sendiri
+   * (modules/fundamental/service/normalized-earnings.service.ts).
+   *
+   * Dipakai HANYA oleh penjaga puncak siklus, dan hanya untuk sektor siklikal. Tanpa ini
+   * penjaga itu jatuh ke tanda tangan PER+ROE yang sifatnya dugaan. Sengaja opsional:
+   * jalur backfill historis TIDAK boleh mengisinya - laporan tahunan yang direstate hari
+   * ini tidak tersedia pada tanggal sinyal, dan memakainya adalah look-ahead. */
+  normalizedRoe?: number | null;
 }
 
 export interface FlowInput {
@@ -568,7 +576,7 @@ function scoreValuasi(f: FundamentalInput): Component {
   // Fase 4 #16: batasnya kini sebanding dengan seberapa kuat tanda tangannya, bukan
   // saklar 40% yang menyala di satu titik. Pada keparahan penuh hasilnya tetap 0,4 x
   // availableMax - sama dengan perilaku lama untuk kasus yang memang ekstrem.
-  const peakSeverity = peakCycleSeverity(profile, f.per, f.roe);
+  const peakSeverity = peakCycleSeverity(profile, f.per, f.roe, f.normalizedRoe ?? null);
   if (peakSeverity > 0) {
     const capFactor = 1 - 0.6 * peakSeverity;
     const capped = Math.min(score, availableMax * capFactor);

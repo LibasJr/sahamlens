@@ -272,15 +272,65 @@ function ramp(value: number, zeroAt: number, oneAt: number): number {
 }
 
 /**
- * Keparahan tanda tangan puncak siklus, 0..1. 0 berarti tidak ada tanda tangan sama sekali.
+ * Rasio ROE berjalan terhadap ROE normal emiten itu sendiri, diubah menjadi keparahan 0..1.
+ *
+ * Ini pengukuran, bukan dugaan: `normalizedRoePct` adalah median ROE 4 tahun buku terakhir
+ * (lihat modules/fundamental/service/normalized-earnings.service.ts). Rasio 1,0 berarti
+ * emiten sedang mencetak laba sebesar normalnya sendiri.
+ *
+ *     rasio <= 1,15 -> 0,0     selisih sebesar ini adalah derau tahunan biasa, bukan puncak
+ *     rasio >= 2,00 -> 1,0     mencetak dua kali daya laba normalnya sendiri
+ *
+ * `null` kalau tidak bisa dihitung - pemanggil jatuh ke tanda tangan PER/ROE.
  */
-export function peakCycleSeverity(profile: SectorProfile, per: number | null, roe: number | null): number {
+export const EARNINGS_ABOVE_NORMAL_NONE = 1.15;
+export const EARNINGS_ABOVE_NORMAL_FULL = 2.0;
+
+export function earningsAboveNormalSeverity(
+  currentRoePct: number | null,
+  normalizedRoePct: number | null,
+): number | null {
+  if (currentRoePct == null || !Number.isFinite(currentRoePct)) return null;
+  // ROE normal <= 0 membuat rasionya tidak bermakna: pembagian dengan nol, atau tanda yang
+  // terbalik pada emiten yang normalnya memang rugi.
+  if (normalizedRoePct == null || !Number.isFinite(normalizedRoePct) || normalizedRoePct <= 0) return null;
+  return ramp(currentRoePct / normalizedRoePct, EARNINGS_ABOVE_NORMAL_NONE, EARNINGS_ABOVE_NORMAL_FULL);
+}
+
+/**
+ * Keparahan tanda tangan puncak siklus, 0..1. 0 berarti tidak ada tanda tangan sama sekali.
+ *
+ * DUA LAPISAN, DIAMBIL YANG TERBESAR - dan itu disengaja, keduanya menangkap kegagalan yang
+ * berbeda:
+ *
+ *   PER + ROE (dugaan)        menangkap keadaan "seluruh jendela adalah tahun boom", saat
+ *                             ROE normal ikut tinggi sehingga rasionya tampak wajar. Juga
+ *                             satu-satunya lapisan yang tersedia kalau data tahunan kurang.
+ *   ROE vs normal (ukuran)    menangkap "tahun ini jauh di atas normal emiten ini sendiri",
+ *                             yang tidak bisa disimpulkan dari PER dan ROE saja.
+ *
+ * `max` dipilih karena konsekuensi kedua lapisan hanya satu arah - valuasi diturunkan,
+ * tidak pernah dijadikan negatif - sehingga salah tangkap berbiaya ringan sementara luput
+ * berbiaya mahal.
+ */
+export function peakCycleSeverity(
+  profile: SectorProfile,
+  per: number | null,
+  roe: number | null,
+  normalizedRoePct: number | null = null,
+): number {
   if (!profile.cyclical) return 0;
-  if (per == null || roe == null || per <= 0) return 0;
-  const perSeverity = ramp(per, PEAK_CYCLE_PER_NONE, PEAK_CYCLE_PER_FULL);
-  const roeSeverity = ramp(roe, PEAK_CYCLE_ROE_NONE, PEAK_CYCLE_ROE_FULL);
-  // `min` = konjungsi: PER murah SAJA bukan tanda puncak siklus, begitu pula ROE tinggi saja.
-  return Math.min(perSeverity, roeSeverity);
+
+  let heuristic = 0;
+  if (per != null && roe != null && per > 0) {
+    const perSeverity = ramp(per, PEAK_CYCLE_PER_NONE, PEAK_CYCLE_PER_FULL);
+    const roeSeverity = ramp(roe, PEAK_CYCLE_ROE_NONE, PEAK_CYCLE_ROE_FULL);
+    // `min` = konjungsi: PER murah SAJA bukan tanda puncak siklus, begitu pula ROE tinggi saja.
+    heuristic = Math.min(perSeverity, roeSeverity);
+  }
+
+  const measured = earningsAboveNormalSeverity(roe, normalizedRoePct) ?? 0;
+  return Math.max(heuristic, measured);
 }
 
 /** Ada tanda tangan puncak siklus sama sekali? Dipertahankan untuk pemanggil yang hanya
