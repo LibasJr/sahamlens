@@ -11,6 +11,10 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
   applyAnonymousTrialCookie: vi.fn(),
 }));
+vi.mock('@/shared/usage/guest-chat-quota', () => ({
+  consumeGuestChat: vi.fn(),
+  GUEST_CHAT_LIMIT_MESSAGE: 'Jatah 5 pertanyaan LensAI untuk pengunjung sudah habis. Silakan masuk untuk melanjutkan percakapan.',
+}));
 vi.mock('@/lib/aiProviders', () => ({
   generateAIResult: vi.fn(),
 }));
@@ -19,42 +23,83 @@ import { POST } from '../route';
 import { getSession } from '@/modules/user';
 import { consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
+import { consumeGuestChat } from '@/shared/usage/guest-chat-quota';
 
-function makeRequest() {
+const TRIAL = {
+  firstSeenAt: '2026-08-10T08:00:00.000Z',
+  expiresAt: '2026-08-17T08:00:00.000Z',
+  active: true,
+  isNew: true,
+};
+
+function makeRequest(prompt = 'analisa BBCA dong') {
   return new Request('http://localhost/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: 'halo' }),
+    body: JSON.stringify({ prompt }),
   });
 }
 
-describe('POST /api/chat guest limit', () => {
-  beforeEach(() => vi.clearAllMocks());
+function budgetAllowed() {
+  vi.mocked(consumeComputeBudget).mockResolvedValue({ allowed: true, used: 3, limit: 40, remaining: 37 });
+}
 
-  it('guest yang sudah kena limit diminta login untuk meneruskan percakapan', async () => {
-    const trial = {
-      firstSeenAt: '2026-08-10T08:00:00.000Z',
-      expiresAt: '2026-08-17T08:00:00.000Z',
-      active: true,
-      isNew: true,
-    };
+describe('POST /api/chat batas pertanyaan guest', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(getSession).mockResolvedValue(null);
-    vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(trial);
-    vi.mocked(consumeComputeBudget).mockResolvedValue({
-      allowed: false,
-      used: 42,
-      limit: 40,
-      remaining: 0,
-      retryAfterSec: 600,
-    });
+    vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(TRIAL);
+  });
+
+  it('guest yang jatah 5 pertanyaannya habis diminta masuk untuk melanjutkan', async () => {
+    budgetAllowed();
+    vi.mocked(consumeGuestChat).mockResolvedValue({ allowed: false, used: 6, remaining: 0, limit: 5 });
 
     const res = await POST(makeRequest());
     const json = await res.json();
 
     expect(res.status).toBe(429);
     expect(json.errorCode).toBe('AUTH_REQUIRED_LIMIT');
-    expect(json.content).toContain('Silakan login untuk meneruskan percakapan');
-    expect(consumeComputeBudget).toHaveBeenCalledWith('anon-chat:2026-08-10T08:00:00.000Z', 3, 'public');
-    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
+    expect(json.content).toContain('Silakan masuk untuk melanjutkan percakapan');
+    expect(consumeGuestChat).toHaveBeenCalledWith('2026-08-10T08:00:00.000Z');
+    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), TRIAL);
+  });
+
+  // Compute budget adalah pengaman lonjakan CPU, BUKAN batas produk. Sebelum perbaikan
+  // ini, guest yang kena compute budget dapat pesan "silakan login" - padahal login tidak
+  // menyelesaikan apa pun untuk limiter jendela 10 menit.
+  it('compute budget habis dibalas RATE_LIMIT (coba lagi), bukan suruhan login', async () => {
+    vi.mocked(consumeComputeBudget).mockResolvedValue({
+      allowed: false, used: 42, limit: 40, remaining: 0, retryAfterSec: 600,
+    });
+
+    const res = await POST(makeRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(json.errorCode).toBe('RATE_LIMIT');
+    expect(json.content).not.toContain('masuk');
+    expect(consumeGuestChat).not.toHaveBeenCalled();
+  });
+
+  it('prompt kosong tidak memotong jatah guest', async () => {
+    budgetAllowed();
+
+    const res = await POST(makeRequest('   '));
+
+    expect(res.status).toBe(400);
+    expect(consumeGuestChat).not.toHaveBeenCalled();
+  });
+
+  it('user yang sudah login tidak kena batas guest sama sekali', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'user-1', email: 'a@b.c', role: 'free', is_pro: true, trial_ends_at: null,
+    } as any);
+    budgetAllowed();
+
+    await POST(makeRequest('halo'));
+
+    expect(consumeGuestChat).not.toHaveBeenCalled();
+    expect(readOrIssueAnonymousTrial).not.toHaveBeenCalled();
   });
 });

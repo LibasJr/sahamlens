@@ -1,6 +1,6 @@
 // 9 filter yang bisa dipilih user di app/backtest/page.tsx, dipetakan 1:1 ke 9 dari
 // 10 analyzer di modules/technical (analyzeMomentum sengaja tidak dipakai filter
-// manapun - lihat tabel pemetaan di docs/superpowers/specs/2026-08-01-real-backtest-engine-design.md).
+// manapun).
 // 'Volatility (ATR 14)' dan 'SMA Score (5,10,20)' adalah rename dari nama filter lama
 // 'Bollinger Bands'/'Trend Price vs MA200' yang tidak punya analyzer asli yang cocok.
 export type IndicatorName =

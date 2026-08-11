@@ -1,6 +1,6 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { listWatchlist, countWatchlist, upsertWatchlistItem, deleteWatchlistItem } from '../repository/watchlist.repository';
-import { FREE_LIMITS } from '../constants/watchlist.constants';
+import { FREE_LIMITS } from '@/shared/constants/limits';
 import { WatchlistLimitReachedError } from '../types/watchlist.errors';
 import type { WatchlistItem } from '../types/watchlist.types';
 import type { AddWatchlistInput } from '../validator/watchlist.validator';

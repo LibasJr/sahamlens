@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/modules/user';
+import { getSession, checkProAccessLive } from '@/modules/user';
 import { fetchDividendUniverse, buildDividendPlan } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -15,6 +15,19 @@ export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+  }
+
+  // "Dividend Compounding Planner" diiklankan sebagai fitur Pro di FULL_FEATURE_LIST
+  // (shared/config/pricing.ts) dan ikut ditampilkan di modal upgrade, tapi route ini
+  // dulu HANYA memeriksa "sudah login" - satu-satunya fitur berbayar yang gerbangnya
+  // tidak cocok dengan yang dijual. Disamakan dengan endpoint Pro lain: 402
+  // SUBSCRIPTION_REQUIRED, memakai checkProAccessLive supaya Pro yang baru diaktifkan
+  // admin langsung berlaku tanpa menunggu JWT-nya diperbarui.
+  if (!(await checkProAccessLive(session))) {
+    return NextResponse.json(
+      { error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' },
+      { status: 402 },
+    );
   }
 
   const { searchParams } = new URL(request.url);

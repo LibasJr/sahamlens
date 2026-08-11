@@ -5,7 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import IntrinsicValue from '@/components/IntrinsicValue';
 import PaywallModal from '@/components/PaywallModal';
-import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { FREE_LIMITS } from '@/shared/constants/limits';
+import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { isMarketOpen } from '@/lib/utils/market';
 // TradingViewChart dihapus dari daftar impor: halaman ini tidak pernah merendernya
 // (lihat komentar `tech` dihapus di bawah - tidak ada satu pun <TradingViewChart/> di
@@ -52,7 +53,6 @@ function FundamentalContent() {
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('full');
   const [mounted, setMounted] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const fundamentalExportRef = useRef<HTMLDivElement>(null);
@@ -100,7 +100,6 @@ function FundamentalContent() {
         return;
       }
       if (resStock.status === 402 || jsonStock.code === 'SUBSCRIPTION_REQUIRED') {
-        setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
         return;
       }
@@ -282,7 +281,7 @@ function FundamentalContent() {
             <EmptyState
               illustration="locked"
               title="Kuota analisa hari ini sudah habis"
-              description={`Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai${usedSymbolsToday.length ? ` untuk ${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}` : ''}. Kuota disetel ulang besok.`}
+              description={`Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai. Kuota disetel ulang besok.`}
               action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
             />
           ) : (
@@ -298,7 +297,7 @@ function FundamentalContent() {
           open={showPaywall}
           onClose={() => setShowPaywall(false)}
           title="Limit Gratis Habis"
-          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
           benefits={[
             'Unlimited LensTechnical (10 filter)',
             'LensRadar LIVE, LensAI & Compare Tool',
@@ -739,7 +738,7 @@ function FundamentalContent() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',

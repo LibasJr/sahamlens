@@ -23,6 +23,12 @@ export type EffectiveRole = 'guest' | 'trial' | 'admin';
 export interface AuthState {
   loading: boolean;
   user: AuthUser | null;
+  /** False kalau /api/auth/me GAGAL dihubungi (network error), bukan kalau server
+   * menjawab "belum login". Bedanya penting: `user === null` karena jaringan putus
+   * TIDAK boleh diperlakukan sebagai "ini guest" lalu memasang gembok + tautan login
+   * di menu untuk user yang sebetulnya sudah masuk. Konsumen yang mengunci UI harus
+   * mensyaratkan `resolved === true` dulu (lihat components/Sidebar.tsx). */
+  resolved: boolean;
   effectiveRole: EffectiveRole;
   /** Sisa hari trial (dibulatkan ke atas, minimal 1) - null kalau bukan trial murni
    * (Pro aktif, admin, atau guest) sehingga tidak perlu badge hitung mundur. */
@@ -34,7 +40,7 @@ export interface AuthState {
 
 // Diekspor supaya bisa diuji tanpa merender komponen - ini fungsi murni, seluruh
 // keputusan role ada di sini (hook di bawah cuma menyediakan datanya).
-export function computeRole(user: AuthUser | null): Omit<AuthState, 'loading' | 'user'> {
+export function computeRole(user: AuthUser | null): Omit<AuthState, 'loading' | 'user' | 'resolved'> {
   if (!user) return { effectiveRole: 'guest', trialDaysLeft: null, isTrialExpired: false };
   if (user.role === 'admin') return { effectiveRole: 'admin', trialDaysLeft: null, isTrialExpired: false };
 
@@ -83,14 +89,16 @@ export async function fetchProAccess(): Promise<boolean> {
 export function useAuthUser(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resolved, setResolved] = useState(true);
 
   useEffect(() => {
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((d) => { if (d.authenticated && d.user) setUser(d.user); })
-      .catch(() => {})
+      // Jaringan putus/response bukan JSON = kita TIDAK TAHU statusnya, bukan "guest".
+      .catch(() => setResolved(false))
       .finally(() => setLoading(false));
   }, []);
 
-  return { loading, user, ...computeRole(user) };
+  return { loading, user, resolved, ...computeRole(user) };
 }

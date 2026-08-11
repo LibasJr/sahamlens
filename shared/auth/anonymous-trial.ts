@@ -6,8 +6,7 @@ import { ANON_TRIAL_COOKIE } from '../constants/cookie-names';
 // Trial 7 hari untuk pengunjung TANPA akun - dipakai 7 endpoint "lihat-analisa" yang
 // sebelumnya wajib login (Market Pulse, Calendar, Multi-agent, Council AI, Backtest,
 // Breakout Radar, Recommendations). TIDAK dipakai endpoint yang menyimpan data pribadi
-// (Watchlist/Alert tetap wajib akun - lihat docs/superpowers/specs/2026-08-02-
-// anonymous-trial-design.md).
+// (Watchlist/Alert tetap wajib akun karena keduanya menyimpan data milik user).
 //
 // Mekanisme: cookie HttpOnly ditandatangani (bukan bisa diedit klien) berisi kapan
 // pertama kali dilihat. Reset via hapus cookie/incognito/browser lain diterima sebagai

@@ -7,7 +7,8 @@ import {
   Activity, TrendingUp, TrendingDown, BarChart3,
   RefreshCw, ArrowUpRight, ArrowDownRight, Layers, Zap, X
 } from 'lucide-react';
-import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { FREE_LIMITS } from '@/shared/constants/limits';
+import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
@@ -259,7 +260,6 @@ export default function MarketPulse() {
   const [isClient, setIsClient] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [selectedSector, setSelectedSector] = useState<any>(null);
   // BUG FIX (2026-08-06): sebelumnya kegagalan fetch dan penolakan akses tidak
   // pernah tercatat di state - `data` tetap null sementara `loading` sudah false,
@@ -296,7 +296,6 @@ export default function MarketPulse() {
 
       if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
         setGated('pro');
-        setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
         return;
       }
@@ -667,7 +666,7 @@ export default function MarketPulse() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',

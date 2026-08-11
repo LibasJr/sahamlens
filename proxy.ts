@@ -38,9 +38,8 @@ function hasLiveProEntitlement(payload: any): boolean {
 
 // Daftar halaman terproteksi pindah ke shared/constants/access.ts - dipakai bersama
 // oleh proxy ini DAN Sidebar (satu sumber, supaya menu yang tampil dan halaman yang
-// boleh dibuka tidak pernah berbeda). Aturan 2026-08-01 ("semua halaman analisis
-// bebas dibuka tanpa login") DICABUT 2026-08-06 atas permintaan produk: guest hanya
-// boleh 4 menu publik, selebihnya redirect ke /login.
+// boleh dibuka tidak pernah berbeda). Guest tetap MELIHAT semua menu di Sidebar, tapi
+// item terproteksi ditandai gembok dan diarahkan ke /login-required saat diklik.
 function getClientIp(req: NextRequest): string {
   // NextRequest.ip dihapus di Next.js 15+ (Vercel Edge tidak lagi mengisinya di objek
   // request) - x-forwarded-for sekarang satu-satunya sumber, diisi platform Vercel dari
@@ -58,7 +57,6 @@ function isPublicGuestApi(pathname: string): boolean {
     pathname === '/api/calendar' ||
     pathname === '/api/news' ||
     pathname.startsWith('/api/news/') ||
-    pathname === '/api/screener' ||
     pathname === '/api/ai-pick' ||
     pathname === '/api/daily-picks' ||
     pathname === '/api/market-summary' ||
@@ -85,8 +83,6 @@ function isPublicGuestPage(pathname: string): boolean {
     pathname.startsWith('/calendar/') ||
     pathname === '/breakout-radar' ||
     pathname.startsWith('/breakout-radar/') ||
-    pathname === '/screener' ||
-    pathname.startsWith('/screener/') ||
     pathname === '/transparency' ||
     pathname.startsWith('/transparency/') ||
     pathname === '/technical' ||

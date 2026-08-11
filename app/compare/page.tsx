@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Search, ArrowRightLeft } from 'lucide-react';
-import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { FREE_LIMITS } from '@/shared/constants/limits';
+import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -39,7 +40,6 @@ function CompareContent() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   // Sebelumnya tidak ada state apa pun untuk kegagalan. Cabang render berakhir dengan
   // `) : null}`, jadi saat fetch gagal atau akses ditolak, seluruh area hasil menjadi
@@ -92,7 +92,6 @@ function CompareContent() {
       }
       if (res.status === 402 || res.status === 403 || json.code === 'SUBSCRIPTION_REQUIRED') {
         setGated('pro');
-        setUsedSymbolsToday(getUsedSymbolsToday());
         setShowPaywall(true);
         return;
       }
@@ -211,7 +210,7 @@ function CompareContent() {
               <EmptyState
                 illustration="locked"
                 title="Kuota analisa hari ini sudah habis"
-                description={`Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai${usedSymbolsToday.length ? ` untuk ${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}` : ''}. Kuota disetel ulang besok.`}
+                description={`Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai. Kuota disetel ulang besok.`}
                 action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
               />
             </div>
@@ -359,7 +358,7 @@ function CompareContent() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensAI & Compare Tool',

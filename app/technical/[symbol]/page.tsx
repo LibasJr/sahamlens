@@ -7,6 +7,7 @@ import StockChartPanel from '@/components/StockChartPanel';
 import { LogIn, Crown } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
+import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
@@ -78,31 +79,39 @@ export async function generateMetadata({
   };
 }
 
-async function getCouncilData(symbol: string): Promise<{ data: any; status: number }> {
+// `signedIn` dikembalikan terpisah dari `status` karena keduanya menjawab pertanyaan
+// yang berbeda. BUG FIX (2026-08-11): dulu SEMUA kegagalan yang bukan 401/402/429
+// jatuh ke teaser "Masuk dulu untuk lihat analisis lengkap", jadi user yang SUDAH
+// login (termasuk admin) disuruh login lagi setiap kali runCouncilAnalysis gagal -
+// mis. 503 saat data provider sedang down. Status kegagalan teknis tidak boleh
+// diterjemahkan menjadi "kamu belum login".
+async function getCouncilData(symbol: string): Promise<{ data: any; status: number; signedIn: boolean }> {
+  let signedIn = false;
   try {
     // Authenticated users do not need an HTTP round-trip to our own /api/council.
     // The Route Handler still owns anonymous-trial cookie issuance, so guests keep
     // using the HTTP path below. This removes the extra Vercel invocation/cold start
     // for signed-in Pro users without changing trial semantics.
     const session = await getSession();
+    signedIn = Boolean(session);
     if (session) {
       const hasPro = await checkProAccessLive(session);
-      if (!hasPro) return { data: null, status: 402 };
+      if (!hasPro) return { data: null, status: 402, signedIn };
 
       const result = await runCouncilAnalysis(symbol);
-      if (!result.ok) return { data: null, status: result.status };
-      return { data: result.data, status: 200 };
+      if (!result.ok) return { data: null, status: result.status, signedIn };
+      return { data: result.data, status: 200, signedIn };
     }
 
     const baseUrl = getTrustedAppOrigin();
     const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, {
       cache: 'no-store',
     });
-    if (!res.ok) return { data: null, status: res.status };
-    return { data: await res.json(), status: 200 };
+    if (!res.ok) return { data: null, status: res.status, signedIn };
+    return { data: await res.json(), status: 200, signedIn };
   } catch (error) {
     console.error('LensAI analysis error:', error);
-    return { data: null, status: 500 };
+    return { data: null, status: 500, signedIn };
   }
 }
 
@@ -220,13 +229,14 @@ async function OrchestratorRecommendation({
   );
 }
 async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
-  const { data: council, status } = await getCouncilData(symbol);
+  const { data: council, status, signedIn } = await getCouncilData(symbol);
 
   if (!council) {
     // Chart + indikator dasar tetap tampil publik (lihat StockChartPanel di atas) -
     // hanya ringkasan 10-agent LensAI Pro yang butuh login/upgrade, jadi teaser-nya
     // spesifik per alasan (belum login vs belum Pro) alih-alih pesan error generik.
-    if (status === 401) {
+    // Ajakan login HANYA untuk yang benar-benar belum punya sesi.
+    if (!signedIn && status === 401) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
@@ -238,7 +248,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
         </div>
       );
     }
-    if (status === 429) {
+    if (!signedIn && status === 429) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
@@ -267,7 +277,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
             </div>
           )}
           <a
-            href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('Halo, saya sudah transfer untuk upgrade ke SahamLens Pro (Rp99.000/bulan). Ini bukti transfernya.')}`}
+            href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(`Halo, saya sudah transfer untuk upgrade ke SahamLens Pro (${formatRupiah(MONTHLY_PRICE)}/bulan). Ini bukti transfernya.`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full bg-tv-gold px-5 py-2.5 text-sm font-bold text-tv-bg hover:opacity-90 transition"
@@ -277,23 +287,30 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
         </div>
       );
     }
+    // Sisa kasus = kegagalan teknis (mis. 503 provider data down). Untuk user yang
+    // sudah login, ini BUKAN soal login - tawarkan muat ulang saja. Halaman ini
+    // Server Component, jadi "coba lagi" = memuat ulang rutenya; tautannya
+    // disediakan eksplisit alih-alih membiarkan pengguna menebak.
     return (
       <div className="bg-tv-card border border-tv-border rounded-xl">
-        {/* Pesan lama satu baris tanpa jalan keluar. Halaman ini Server Component,
-            jadi "coba lagi" = memuat ulang rutenya; tautannya disediakan eksplisit
-            alih-alih membiarkan pengguna menebak. */}
         <EmptyState
           illustration="empty"
-          title="Masuk dulu untuk lihat analisis lengkap"
-          description="Grafik dasarnya tetap bisa kamu pakai. Untuk membuka rangkuman LensAI lengkap, masuk dulu ya. Kalau kamu sudah masuk, coba muat ulang halaman."
+          title={signedIn ? 'Analisis LensAI belum bisa ditampilkan' : 'Masuk dulu untuk lihat analisis lengkap'}
+          description={
+            signedIn
+              ? `Grafik dan indikator dasarnya tetap bisa kamu pakai. Rangkuman LensAI untuk ${symbol} sedang gagal dihitung - biasanya sementara. Coba muat ulang sebentar lagi.`
+              : 'Grafik dasarnya tetap bisa kamu pakai. Untuk membuka rangkuman LensAI lengkap, masuk dulu ya.'
+          }
         />
         <div className="flex flex-wrap justify-center gap-3 pb-8 text-center">
-          <Link
-            href={`/login?next=/technical/${symbol}`}
-            className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
-          >
-            Masuk untuk buka analisis
-          </Link>
+          {!signedIn && (
+            <Link
+              href={`/login?next=/technical/${symbol}`}
+              className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover"
+            >
+              Masuk untuk buka analisis
+            </Link>
+          )}
           <Link
             href={`/technical/${symbol}`}
             className="inline-flex items-center gap-2 rounded-full border border-tv-border bg-tv-hover px-5 py-2 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight"

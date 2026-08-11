@@ -1,14 +1,14 @@
 // Paket harga Pro - satu titik dokumentasi (sebelumnya cuma ada 1 paket bulanan
-// Rp99.000 tanpa pilihan durasi lain, di-hardcode terpisah di teks WhatsApp default
+// tanpa pilihan durasi lain, di-hardcode terpisah di teks WhatsApp default
 // PaywallModal). Permintaan eksplisit: tambah paket 3/6/12 bulan.
 //
 // Harga FINAL tiap paket adalah angka bulat eksplisit (bukan hasil murni harga
-// bulanan x diskon %) - 1 Bulan Rp99.000, 3 Bulan Rp285.000, 6 Bulan Rp525.000,
-// 1 Tahun Rp990.000. `discountPct` DIHITUNG MUNDUR dari harga final ini (bukan
-// sumber kebenaran harga) supaya badge "Hemat X%" yang ditampilkan selalu cocok
-// dengan angka rupiah yang sebenarnya dibayar - tidak ada dua angka yang bisa
-// saling tidak sinkron.
-export const MONTHLY_PRICE = 99_000;
+// bulanan x diskon %) - 1 Bulan Rp149.000, 3 Bulan Rp435.000, 6 Bulan Rp875.000,
+// 1 Tahun Rp1.750.000 (penyesuaian harga 2026-08-11). `discountPct` DIHITUNG
+// MUNDUR dari harga final ini (bukan sumber kebenaran harga) supaya badge
+// "Hemat X%" yang ditampilkan selalu cocok dengan angka rupiah yang sebenarnya
+// dibayar - tidak ada dua angka yang bisa saling tidak sinkron.
+export const MONTHLY_PRICE = 149_000;
 
 export interface PricingPlan {
   id: '1m' | '3m' | '6m' | '12m';
@@ -23,10 +23,9 @@ export interface PricingPlan {
   finalPrice: number;
   /** Setara harga per bulan setelah diskon - buat perbandingan antar paket. */
   pricePerMonth: number;
-  badge?: string;
 }
 
-function buildPlan(id: PricingPlan['id'], label: string, months: number, finalPrice: number, badge?: string): PricingPlan {
+function buildPlan(id: PricingPlan['id'], label: string, months: number, finalPrice: number): PricingPlan {
   const normalPrice = MONTHLY_PRICE * months;
   const discountPct = normalPrice > 0 ? Math.round((1 - finalPrice / normalPrice) * 100) : 0;
   return {
@@ -37,15 +36,19 @@ function buildPlan(id: PricingPlan['id'], label: string, months: number, finalPr
     normalPrice,
     finalPrice,
     pricePerMonth: Math.round(finalPrice / months),
-    badge,
   };
 }
 
+// Tanpa badge sama sekali (keputusan produk 2026-08-11) - dulu ada "Populer" di paket
+// 6 bulan dan "Paling Hemat" di paket 1 tahun. Semua paket sekarang ditampilkan setara,
+// tanpa klaim superlatif. Field `badge` ikut dibuang dari PricingPlan, bukan cuma
+// dikosongkan nilainya: tanpa satu pun paket yang memakainya, field itu beserta seluruh
+// cabang render di PaywallModal/PromoUpgradeModal cuma jadi cabang mati.
 export const PRICING_PLANS: PricingPlan[] = [
   buildPlan('1m', '1 Bulan', 1, MONTHLY_PRICE),
-  buildPlan('3m', '3 Bulan', 3, 285_000),
-  buildPlan('6m', '6 Bulan', 6, 525_000, 'Populer'),
-  buildPlan('12m', '1 Tahun', 12, 990_000, 'Paling Hemat'),
+  buildPlan('3m', '3 Bulan', 3, 435_000),
+  buildPlan('6m', '6 Bulan', 6, 875_000),
+  buildPlan('12m', '1 Tahun', 12, 1_750_000),
 ];
 
 export function formatRupiah(n: number): string {

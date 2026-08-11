@@ -126,19 +126,8 @@ export default function PromoUpgradeModal({
               {PRICING_PLANS.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`rounded-lg p-4 flex flex-col relative ${
-                    plan.badge ? 'border-2 border-tv-blue' : 'border border-tv-border'
-                  }`}
+                  className="relative flex flex-col rounded-lg border border-tv-border p-4"
                 >
-                  {plan.badge && (
-                    <span
-                      className={`absolute -top-3 left-4 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded ${
-                        plan.badge === 'Paling Hemat' ? 'bg-tv-gold text-tv-bg' : 'bg-tv-blue text-white'
-                      }`}
-                    >
-                      {plan.badge}
-                    </span>
-                  )}
                   <h4 className="font-heading text-sm font-bold text-tv-text mb-3 mt-1">{plan.label} Pro</h4>
                   <div className="mb-1">
                     {plan.discountPct > 0 && (

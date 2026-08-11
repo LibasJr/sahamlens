@@ -283,8 +283,7 @@ function BucketBacktestCard({ data }: { data: BucketBacktest }) {
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
 // memindai universe berbeda (15 vs 250 vs 220) sehingga angkanya tidak sebanding, isinya
 // tumpang tindih (80 baris hanya berisi 69 saham unik), dan tab Rekomendasi memindai 220
-// saham lewat ~22 request setiap dibuka. Semuanya dilebur jadi satu daftar berperingkat -
-// lihat docs/superpowers/specs/2026-08-03-ai-pick-satu-tab-design.md.
+// saham lewat ~22 request setiap dibuka. Semuanya dilebur jadi satu daftar berperingkat.
 export default function AiPickPage() {
   const [items, setItems] = useState<AiPickItem[]>([]);
   const [ready, setReady] = useState(true);

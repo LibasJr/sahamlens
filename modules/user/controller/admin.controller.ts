@@ -42,9 +42,8 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 
 // Password admin sekarang ada DUA sumber valid - hash di database (bisa diganti
 // admin sendiri lewat /admin, lihat handleChangeAdminSecret) ATAU ADMIN_SECRET_KEY
-// env var (jalur darurat permanen, bukan cuma bootstrap - lihat spec
-// docs/superpowers/specs/2026-08-02-admin-secret-self-service-design.md). Salah
-// satu cocok sudah cukup.
+// env var (jalur darurat permanen, bukan cuma bootstrap - supaya admin tetap bisa
+// masuk kalau hash di DB hilang/rusak). Salah satu cocok sudah cukup.
 async function verifyAdminSecret(key: string): Promise<boolean> {
   let dbHash: string | null = null;
   try {
