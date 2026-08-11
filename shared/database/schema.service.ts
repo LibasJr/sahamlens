@@ -162,6 +162,30 @@ export function ensureSharedSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_fundamental_history_period_end
         ON fundamental_history (ticker, period_end);
 
+      -- KONTEKS SEKTOR POINT-IN-TIME (audit kuantitatif 2026-08-11, temuan C-02).
+      --
+      -- Kenapa di tabel INI dan bukan tabel sendiri: ketiga nilai ini datang dari
+      -- panggilan quoteSummary yang SAMA, pada hari yang sama, dengan semantik as-of yang
+      -- sama persis seperti kolom fundamental di atasnya. Tabel terpisah hanya akan
+      -- menambah join dan satu lagi kesempatan untuk dua sumber kebenaran berbeda
+      -- pendapat tentang tanggal.
+      --
+      -- Cron fundamental-snapshot SUDAH mengambil assetProfile.sector/industry dan
+      -- summaryDetail.payoutRatio sejak temuan P1-10/P1-11 - nilainya masuk ke cache
+      -- Redis lalu DIBUANG DIAM-DIAM saat pengarsipan karena tidak ada kolomnya. Akibatnya
+      -- scripts/backfill-lens-history.mjs terpaksa mengirim sector berisi null semua
+      -- ke calculateScore(), sementara app/api/stock/[ticker] mengirim sektor asli - dua
+      -- model skor berbeda untuk emiten yang sama. Diuji atas 110.592 kombinasi: selisih
+      -- sampai 10 poin LensScore dan 8,4% berpindah bucket.
+      --
+      -- Nullable: seluruh baris arsip lama tetap valid dan TIDAK di-backfill secara
+      -- spekulatif. Baris tanpa sektor akan dinilai sebagai UNCLASSIFIED, sama seperti
+      -- sebelumnya, dan itu terlihat apa adanya di keluaran scoring.
+      ALTER TABLE fundamental_history
+        ADD COLUMN IF NOT EXISTS yahoo_sector TEXT,
+        ADD COLUMN IF NOT EXISTS yahoo_industry TEXT,
+        ADD COLUMN IF NOT EXISTS payout_ratio NUMERIC;
+
 
       -- modules/lens-radar/service/bucket-backtest.service.ts
       -- Histori LensRadar point-in-time yang menjadi input validasi bucket.
