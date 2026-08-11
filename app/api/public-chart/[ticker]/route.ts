@@ -35,9 +35,10 @@ export async function GET(
   else if (tf === 'ALL') { range = '20y'; interval = '1d'; }
 
   const ticker = normalizedTicker;
+  const isMarketIndex = ticker.startsWith('^');
 
   try {
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`;
     const res = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: getMarketAwareTtlSec() }
@@ -69,6 +70,14 @@ export async function GET(
       const low = quote.low?.[i];
       const close = quote.close?.[i];
       const volume = quote.volume?.[i];
+      // Yahoo dapat mengirim volume null untuk indeks (^JKSE). OHLC indeks tetap sah;
+      // angka 0 di sini berarti volume agregat memang tidak disediakan, bukan volume
+      // transaksi saham nol. Untuk emiten, validasi volume tetap fail-closed.
+      const normalizedVolume = isFiniteNumber(volume) && volume >= 0
+        ? volume
+        : isMarketIndex
+          ? 0
+          : null;
 
       if (
         isFiniteNumber(timestamp) &&
@@ -76,13 +85,13 @@ export async function GET(
         isFiniteNumber(high) &&
         isFiniteNumber(low) &&
         isFiniteNumber(close) &&
-        isFiniteNumber(volume) &&
+        normalizedVolume != null &&
         close > 0 &&
         high >= low &&
-        volume >= 0
+        normalizedVolume >= 0
       ) {
         const iso = new Date(timestamp * 1000).toISOString();
-        history.push({ time: isIntraday ? iso : iso.split('T')[0], open, high, low, close, price: close, volume });
+        history.push({ time: isIntraday ? iso : iso.split('T')[0], open, high, low, close, price: close, volume: normalizedVolume });
       }
     }
 
