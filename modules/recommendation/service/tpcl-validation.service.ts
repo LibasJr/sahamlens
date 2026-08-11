@@ -13,6 +13,7 @@ import {
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
 } from '@/modules/lens-radar/service/bucket-backtest.service';
 import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+import { MIN_VALIDATION_COVERAGE_PCT } from '@/modules/lens-radar/service/validation-population';
 import {
   buildLongTradingSetup,
   DEFAULT_TRADING_SETUP_PARAMETERS,
@@ -42,11 +43,32 @@ const TPCL_OOS_MIN_EXECUTABLE_SAMPLES = 30;
 // Sebelumnya string yang sama muncul sebagai literal di tipe DAN di objek yang
 // dikembalikan - dua tempat yang harus diingat untuk diubah bersamaan, dan itu persis
 // bentuk kegagalan diam-diam yang sudah berkali-kali muncul di basis kode ini.
-const TPCL_OOS_PROTOCOL_VERSION = 'tpcl-oos-v1.1' as const;
-const TPCL_LAB_PROTOCOL_VERSION = 'tpcl-lab-v1.3' as const;
+// FASE 2 (2026-08-12): populasi sinyal yang diukur berubah - kini lewat gerbang
+// kelengkapan data + kelayakan point-in-time yang sama dengan produksi (temuan H-01),
+// dan porsi hasil yang bergantung tie-break TP/SL ikut dilaporkan (temuan H-07).
+//
+// Tanggal freeze TIDAK diulang: protocol v1.1 dibekukan pada 2026-08-12 dan belum ada
+// satu pun sampel forward yang matang di bawahnya, jadi tidak ada yang bisa terlanjur
+// terlihat hasilnya. Yang naik hanya nomor protocolnya, supaya dua populasi berbeda
+// tidak pernah tercatat di bawah nomor yang sama.
+const TPCL_OOS_PROTOCOL_VERSION = 'tpcl-oos-v1.2' as const;
+const TPCL_LAB_PROTOCOL_VERSION = 'tpcl-lab-v1.4' as const;
 
 
 export type TpclOutcome = 'TP1' | 'SL' | 'TIME_EXIT';
+
+/**
+ * Bagaimana bar yang menyentuh TP DAN SL sekaligus diselesaikan.
+ *
+ * Daily OHLC tidak menyimpan urutan intraday, jadi bar yang high-nya mencapai TP dan
+ * low-nya menembus SL punya DUA hasil yang sama-sama mungkin. Produksi memakai
+ * 'SL_FIRST' (konservatif). Yang ditambahkan di sini (temuan H-07 audit kuantitatif
+ * 2026-08-11) adalah kemampuan menjalankan skenario tandingannya: tanpa itu, tidak ada
+ * yang tahu apakah 2% atau 40% hasil lab ditentukan oleh asumsi tie-break, dan sebuah
+ * asumsi yang tidak terukur pengaruhnya bukan asumsi yang terdokumentasi - ia cuma
+ * asumsi yang tertulis.
+ */
+export type TpclAmbiguityRule = 'SL_FIRST' | 'TP_FIRST';
 export type MarketRegime = 'BULL' | 'SIDEWAYS' | 'BEAR' | 'UNKNOWN';
 export type ValidationSplit = 'TRAIN' | 'VALIDATION' | 'HOLDOUT';
 
@@ -76,6 +98,9 @@ export interface TpclTradeObservation {
   riskPct: number;
   riskAtr: number;
   stopSource: 'STRUCTURE_ATR' | 'ATR';
+  /** true kalau trade ini melewati bar yang menyentuh TP1 dan SL pada bar yang SAMA,
+   * sehingga hasilnya ditentukan aturan tie-break, bukan oleh data (temuan H-07). */
+  ambiguousBar: boolean;
 }
 
 export interface TpclMetrics {
@@ -93,6 +118,10 @@ export interface TpclMetrics {
   avgMfePct: number | null;
   avgDaysHeld: number | null;
   medianDaysToTp1: number | null;
+  /** Berapa trade yang hasilnya ditentukan aturan tie-break TP/SL, bukan oleh data
+   * (temuan H-07). Angka ini adalah batas atas ketidakpastian metrik di atasnya. */
+  ambiguousTrades: number;
+  ambiguousSharePct: number | null;
   sufficient: boolean;
 }
 
@@ -154,6 +183,23 @@ export interface TpclEligibilityFunnel {
   executable: number;
 }
 
+/**
+ * Rentang ketidakpastian yang berasal dari asumsi tie-break TP/SL (temuan H-07).
+ *
+ * `slFirst` adalah angka produksi (konservatif). `tpFirst` adalah batas atas: hasil kalau
+ * SETIAP bar ambigu diselesaikan menguntungkan. Selisih keduanya adalah seberapa besar
+ * kesimpulan lab bergantung pada asumsi, bukan pada data.
+ */
+export interface TpclAmbiguityDiagnostic {
+  ambiguousTrades: number;
+  ambiguousSharePct: number | null;
+  slFirst: TpclMetrics;
+  tpFirst: TpclMetrics;
+  expectancySpreadPct: number | null;
+  winRateSpreadPct: number | null;
+  note: string;
+}
+
 export interface BearFilterDiagnostic {
   baselineAll: TpclMetrics;
   excludeBear: TpclMetrics;
@@ -183,6 +229,7 @@ export interface TpclValidationDashboard {
   robustnessStatus: TpclRobustnessStatus;
   robustnessReasons: string[];
   eligibilityFunnel: TpclEligibilityFunnel;
+  ambiguityDiagnostic: TpclAmbiguityDiagnostic;
   bearFilterDiagnostic: BearFilterDiagnostic;
   forwardOos: TpclForwardOos;
   guardrails: string[];
@@ -271,6 +318,8 @@ function metrics(rows: TpclTradeObservation[]): TpclMetrics {
     avgMfePct: round(average(mfes)),
     avgDaysHeld: round(average(days), 1),
     medianDaysToTp1: round(median(tpDays), 1),
+    ambiguousTrades: rows.filter((r) => r.ambiguousBar).length,
+    ambiguousSharePct: rows.length ? round(rows.filter((r) => r.ambiguousBar).length / rows.length * 100) : null,
     sufficient: rows.length >= MIN_METRIC_SAMPLES,
   };
 }
@@ -364,13 +413,16 @@ function classifyBaselineEligibility(
   return 'EXECUTABLE';
 }
 
-function simulateTrade(
+// Diekspor untuk test: aturan tie-break TP/SL adalah cabang di jalur uang yang hasilnya
+// tidak bisa diperiksa lewat dashboard tanpa database + jaringan (temuan H-07).
+export function simulateTrade(
   bars: SelectedPriceBar[],
   signalIndex: number,
   parameters: TpclParameterSet,
   split: ValidationSplit,
   regime: MarketRegime,
   ticker: string,
+  ambiguityRule: TpclAmbiguityRule = 'SL_FIRST',
 ): TpclTradeObservation | null {
   const signal = bars[signalIndex];
   const entryBar = bars[signalIndex + 1];
@@ -400,6 +452,7 @@ function simulateTrade(
   let daysToTp1: number | null = null;
   let daysToSl: number | null = null;
   let tp2Reached = false;
+  let ambiguousBar = false;
 
   for (let d = 1; d <= HOLDING_DAYS; d++) {
     const bar = bars[signalIndex + d];
@@ -413,12 +466,16 @@ function simulateTrade(
 
     const hitSl = bar.low <= setup.stop;
     const hitTp = bar.high >= setup.tp1;
-    // Ambiguitas daily bar: konservatif, SL lebih dulu.
-    if (hitSl) {
+    // Daily OHLC tidak menyimpan urutan intraday. Bar yang menyentuh keduanya punya dua
+    // hasil yang sama-sama mungkin; mana yang dipilih ditentukan `ambiguityRule`, dan
+    // trade-nya DITANDAI supaya porsinya bisa dilaporkan (temuan H-07).
+    if (hitSl && hitTp) ambiguousBar = true;
+
+    if (hitSl && (!hitTp || ambiguityRule === 'SL_FIRST')) {
       outcome = 'SL'; exitPrice = setup.stop; exitDate = bar.date; daysHeld = d; daysToSl = d; break;
     }
     // Hanya catat TP2 sebagai MFE reach bila stop tidak tersentuh pada bar yang sama.
-    if (bar.high >= setup.tp2) tp2Reached = true;
+    if (!hitSl && bar.high >= setup.tp2) tp2Reached = true;
     if (hitTp) {
       outcome = 'TP1'; exitPrice = setup.tp1; exitDate = bar.date; daysHeld = d; daysToTp1 = d; break;
     }
@@ -444,6 +501,7 @@ function simulateTrade(
     riskPct: setup.riskPct,
     riskAtr: setup.riskAtr,
     stopSource: setup.stopSource,
+    ambiguousBar,
   };
 }
 
@@ -554,13 +612,19 @@ function deriveRobustnessStatus(baseline: TpclCandidateResult): {
 async function readSignals(): Promise<SignalRow[]> {
   await ensureSharedSchema();
   const result = await pool.query(
+    // Gerbang yang SAMA dengan produksi (temuan H-01): sinyal yang kelengkapan datanya
+    // di bawah ambang rekomendasi, atau yang kelayakan point-in-time-nya bukan ELIGIBLE,
+    // tidak pernah dikirim ke pengguna - jadi ia juga tidak boleh ikut membentuk metrik
+    // TP/CL yang dipakai membenarkan setup itu.
     `SELECT "date", ticker, lens_score
        FROM lens_radar_history
       WHERE lens_score >= $1
         AND score_version = $2
         AND avg_value_20d >= $3
+        AND coverage_pct >= $4
+        AND eligibility_status = 'ELIGIBLE'
       ORDER BY "date" ASC, ticker ASC`,
-    [SIGNAL_SCORE_THRESHOLD, SCORE_VERSION, LENS_BUCKET_MIN_AVG_VALUE_20D_IDR],
+    [SIGNAL_SCORE_THRESHOLD, SCORE_VERSION, LENS_BUCKET_MIN_AVG_VALUE_20D_IDR, MIN_VALIDATION_COVERAGE_PCT],
   );
   return result.rows.map((row: any) => {
     const date = dateKey(row.date);
@@ -637,6 +701,7 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
 
   const observationsByCandidate = new Map<string, TpclTradeObservation[]>();
   for (const candidate of PARAMETER_SETS) observationsByCandidate.set(candidate.id, []);
+  const tpFirstBaselineRows: TpclTradeObservation[] = [];
 
   // Funnel memakai mutually-exclusive rejection stages sehingga total stage
   // selalu dapat direkonsiliasi kembali ke rawSignals.
@@ -722,6 +787,12 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
       const obs = simulateTrade(series.bars, signalIndex, candidate, split, regime, signal.ticker);
       if (obs) observationsByCandidate.get(candidate.id)!.push(obs);
     }
+
+    // Skenario tandingan HANYA untuk baseline: mengukur seberapa jauh hasil bergeser
+    // kalau setiap bar ambigu diselesaikan ke arah TP (temuan H-07).
+    const baselineSet = PARAMETER_SETS.find((candidate) => candidate.baseline)!;
+    const tpFirst = simulateTrade(series.bars, signalIndex, baselineSet, split, regime, signal.ticker, 'TP_FIRST');
+    if (tpFirst) tpFirstBaselineRows.push(tpFirst);
   }
 
   const results = PARAMETER_SETS.map((p) => candidateResult(p, observationsByCandidate.get(p.id) ?? []));
@@ -781,6 +852,22 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
     },
   };
 
+  const slFirstMetrics = metrics(baselineRows);
+  const tpFirstMetrics = metrics(tpFirstBaselineRows);
+  const ambiguityDiagnostic: TpclAmbiguityDiagnostic = {
+    ambiguousTrades: slFirstMetrics.ambiguousTrades,
+    ambiguousSharePct: slFirstMetrics.ambiguousSharePct,
+    slFirst: slFirstMetrics,
+    tpFirst: tpFirstMetrics,
+    expectancySpreadPct: slFirstMetrics.expectancyPct != null && tpFirstMetrics.expectancyPct != null
+      ? round(tpFirstMetrics.expectancyPct - slFirstMetrics.expectancyPct)
+      : null,
+    winRateSpreadPct: slFirstMetrics.winRatePct != null && tpFirstMetrics.winRatePct != null
+      ? round(tpFirstMetrics.winRatePct - slFirstMetrics.winRatePct)
+      : null,
+    note: 'Daily OHLC tidak menyimpan urutan intraday. slFirst adalah angka produksi (konservatif); tpFirst adalah batas atas kalau setiap bar ambigu diselesaikan menguntungkan. Selisih keduanya adalah ketidakpastian yang berasal dari asumsi, bukan dari data - baca metrik lain di halaman ini dalam rentang itu.',
+  };
+
   const robustness = deriveRobustnessStatus(baseline);
   const nonBearRows = baselineRows.filter((r) => r.regime !== 'BEAR');
   const bearRows = baselineRows.filter((r) => r.regime === 'BEAR');
@@ -813,11 +900,12 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
     robustnessStatus: robustness.status,
     robustnessReasons: robustness.reasons,
     eligibilityFunnel: funnel,
+    ambiguityDiagnostic,
     bearFilterDiagnostic,
     forwardOos,
     guardrails: [
       'Entry memakai open H+1; setup dihitung hanya dari OHLC sampai tanggal sinyal.',
-      'Daily bar yang menyentuh TP dan SL sekaligus diasumsikan SL lebih dulu (konservatif).',
+      'Daily bar yang menyentuh TP dan SL sekaligus diasumsikan SL lebih dulu (konservatif); porsinya dihitung dan skenario tandingannya dilaporkan di ambiguityDiagnostic.',
       'Gap melewati stop dieksekusi pada harga open yang lebih buruk.',
       'Window dengan indikasi corporate action ditolak.',
       'Parameter candidate hanya sensitivity research; tidak ada auto-apply ke production.',
