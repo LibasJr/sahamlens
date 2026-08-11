@@ -22,10 +22,16 @@ import {
   fetchYahooHistory,
 } from '@/modules/technical';
 import { classifyFreshness } from '@/shared/http/freshness';
+import { getMarketNews, getStockNews, type NewsItem } from '@/modules/news';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
 import type { ChatIntent, CompareScope } from './chat-intent';
 import type { ChatDateResolution } from './chat-date';
 import { normalizeIdxTicker } from './extract-ticker';
+import { normalizeChatText } from './chat-normalize';
+
+/** Pertanyaan yang menanyakan SEBAB, bukan cuma angka. Dipakai memutuskan apakah blok
+ * berita perlu ikut diambil untuk pertanyaan pasar. */
+const CAUSAL_QUESTION = /\b(kenapa|knp|mengapa|kok|penyebab|sebab|pemicu|katalis|sentimen|sentiment|berita|news|gara-?gara)\b/;
 
 export interface ChatDataRequest {
   intent: ChatIntent;
@@ -234,6 +240,13 @@ async function stockGeneralBlock(ticker: string, requestedMetrics: string[]): Pr
   return `${fundamental}\n${technical.replace(`### ${ticker}\n`, '')}`;
 }
 
+// BUG FIX (2026-08-11, dari screenshot user): blok ini dulu hanya mengirim level & RSI,
+// TANPA perubahan harga - padahal pertanyaan paling umum tentang IHSG justru "kenapa
+// turun". Model tidak punya angka perubahan di Data Terverifikasi, jadi mengisi sendiri
+// lubang itu: menjawab "turun sekitar 0,25%" sementara header aplikasi menampilkan
+// -1,52% dari /api/live/^JKSE. Angka perubahan sekarang IKUT dikirim, dihitung dari
+// `meta.previousClose` yang SAMA dengan sumber header, jadi dua angka di layar tidak
+// bisa lagi saling bertentangan.
 async function marketBlock(): Promise<string> {
   try {
     const chart = await fetchYahooHistory('^JKSE', '3mo');
@@ -241,16 +254,106 @@ async function marketBlock(): Promise<string> {
     const closes = chart.history.map((h) => h.AdjClose ?? h.Close);
     const rsi = calculateRsi(closes, 14);
     const freshness = classifyFreshness(chart.regularMarketTime);
+
+    const prev = chart.previousClose;
+    const canDiff = prev != null && prev > 0 && finite(chart.currentPrice);
+    const change = canDiff ? chart.currentPrice - prev! : null;
+    const changePct = canDiff ? ((chart.currentPrice - prev!) / prev!) * 100 : null;
+    const signed = (value: number, digits = 2) => `${value >= 0 ? '+' : ''}${value.toFixed(digits)}`;
+
     return [
       '- Simbol pasar: ^JKSE (IHSG)',
       '- Mode: CURRENT MARKET',
       `- Level terakhir: ${safe(chart.currentPrice)}`,
+      prev == null ? '- Penutupan sebelumnya: tidak tersedia' : `- Penutupan sebelumnya: ${safe(prev)}`,
+      change == null || changePct == null
+        ? '- Perubahan: tidak tersedia (JANGAN mengarang persentase naik/turun)'
+        : `- Perubahan: ${signed(change)} poin (${signed(changePct)}%) - INI SATU-SATUNYA angka perubahan yang boleh dipakai`,
+      change == null ? '- Arah: tidak tersedia' : `- Arah: ${change > 0 ? 'NAIK' : change < 0 ? 'TURUN' : 'FLAT'}`,
       rsi == null ? '- RSI 14 IHSG: tidak tersedia' : `- RSI 14 IHSG: ${rsi.toFixed(2)}`,
       `- Kesegaran data: ${freshness.freshness}${freshness.dataTimestamp ? ` (bar ${freshness.dataTimestamp})` : ''}`,
+      '- Catatan: blok ini TIDAK berisi alasan/penyebab pergerakan. Kalau ditanya "kenapa",',
+      '  jawab dari blok Berita & Sentimen kalau ada; kalau tidak ada, katakan penyebabnya belum terverifikasi.',
     ].join('\n');
   } catch (error) {
     console.warn('[LensAI:data-router] market data gagal', error instanceof Error ? error.message : String(error));
     return '- Data IHSG current gagal dibaca dari backend.';
+  }
+}
+
+// BUG FIX (2026-08-11, dari screenshot user): "ada sentimen apa kok skrg turun" dijawab
+// "Maaf, saya tidak bisa menjawab pertanyaan tersebut." Penyebabnya BUKAN model yang
+// bandel - router ini memang tidak pernah punya jalur berita/sentimen sama sekali, jadi
+// pertanyaan itu jatuh ke UNKNOWN tanpa satu pun data terverifikasi, dan aturan #16 di
+// system prompt (dilarang mengisi dari pengetahuan model) benar-benar menutup jawaban.
+// modules/news SUDAH menyediakan getMarketNews()/getStockNews() lengkap dengan klasifikasi
+// sentimen - dipakai halaman /news dan Technical Analyzer - tapi tidak pernah tersambung
+// ke LensAI. Ini penyambungannya.
+const NEWS_ITEM_LIMIT = 6;
+
+function newsLines(items: NewsItem[]): string[] {
+  return items.slice(0, NEWS_ITEM_LIMIT).map((item) => {
+    const date = item.pubDate ? new Date(item.pubDate) : null;
+    const stamp = date && Number.isFinite(date.getTime())
+      ? date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+      : 'tanggal tidak tersedia';
+    return `  - [${item.sentiment}] ${item.title} (${item.source}, ${stamp})`;
+  });
+}
+
+function sentimentTally(items: NewsItem[]): string {
+  const counted = items.slice(0, NEWS_ITEM_LIMIT);
+  const positif = counted.filter((item) => item.sentiment === 'POSITIF').length;
+  const negatif = counted.filter((item) => item.sentiment === 'NEGATIF').length;
+  const netral = counted.length - positif - negatif;
+  return `- Hitungan sentimen judul: ${positif} positif, ${netral} netral, ${negatif} negatif (dari ${counted.length} berita)`;
+}
+
+async function marketNewsBlock(): Promise<string> {
+  try {
+    const news = await getMarketNews();
+    if (!news.items.length) {
+      return '- Berita pasar: tidak ada judul relevan yang lolos filter saat ini. JANGAN mengarang penyebab pergerakan.';
+    }
+    return [
+      '- Cakupan: berita PASAR umum (bukan per emiten)',
+      sentimentTally(news.items),
+      '- Judul terbaru:',
+      ...newsLines(news.items),
+      // Sentimen dihitung dari JUDUL saja (intelligenceBasis: 'headline-only'). Batas ini
+      // harus ikut dikirim, kalau tidak model akan menyimpulkan sebab-akibat yang tidak
+      // pernah diverifikasi siapa pun.
+      '- BATAS: sentimen di atas diklasifikasi dari JUDUL saja, bukan isi artikel, dan BUKAN',
+      '  bukti kausal bahwa berita inilah yang menggerakkan harga. Sampaikan sebagai "sentimen',
+      '  yang sedang beredar", bukan "penyebab IHSG turun".',
+    ].join('\n');
+  } catch (error) {
+    console.warn('[LensAI:data-router] market news gagal', error instanceof Error ? error.message : String(error));
+    return '- Berita pasar: gagal dibaca dari backend.';
+  }
+}
+
+async function stockNewsBlock(ticker: string): Promise<string> {
+  try {
+    const news = await getStockNews(ticker);
+    if (!news.items.length) {
+      return [
+        `### ${ticker}`,
+        `- Berita ${ticker}: tidak ada judul yang cocok dengan emiten ini saat ini.`,
+        '- JANGAN memakai berita pasar umum atau ingatan model sebagai penggantinya.',
+      ].join('\n');
+    }
+    return [
+      `### ${ticker}`,
+      `- symbol: ${ticker}`,
+      sentimentTally(news.items),
+      '- Judul terbaru:',
+      ...newsLines(news.items),
+      '- BATAS: sentimen diklasifikasi dari JUDUL saja, bukan isi artikel, dan bukan bukti kausal.',
+    ].join('\n');
+  } catch (error) {
+    console.warn('[LensAI:data-router] stock news gagal', ticker, error instanceof Error ? error.message : String(error));
+    return [`### ${ticker}`, `- Berita ${ticker}: gagal dibaca dari backend.`].join('\n');
   }
 }
 
@@ -279,6 +382,34 @@ export async function buildChatVerifiedData(request: ChatDataRequest): Promise<C
     return { verifiedBlock: '', directResponse: null, dataError: null };
   }
 
+  // NEWS_SENTIMENT sengaja diperiksa SEBELUM gerbang "wajib ada ticker" di bawah:
+  // "sentimen pasar hari ini apa" adalah pertanyaan sah yang memang tidak punya emiten.
+  if (request.intent === 'NEWS_SENTIMENT') {
+    if (request.date.mode === 'HISTORICAL') {
+      return {
+        verifiedBlock: '',
+        directResponse: `Arsip berita/sentimen point-in-time untuk ${request.date.requestedAsOf ?? 'tanggal tersebut'} belum tersedia di backend SahamLens. Saya tidak akan menggantinya dengan berita terbaru seolah-olah itu berita tanggal tersebut.`,
+        dataError: 'HISTORICAL_NEWS_UNAVAILABLE',
+      };
+    }
+
+    if (request.tickers.length === 0) {
+      const block = await marketNewsBlock();
+      return {
+        verifiedBlock: `\n## Data Terverifikasi Server (OTORITATIF - BERITA & SENTIMEN PASAR):\n${block}`,
+        directResponse: null,
+        dataError: null,
+      };
+    }
+
+    const tickerNews = await Promise.all(request.tickers.map(normalizeIdxTicker).map(stockNewsBlock));
+    return {
+      verifiedBlock: `\n## Data Terverifikasi Server (OTORITATIF - BERITA & SENTIMEN EMITEN):\n${tickerNews.join('\n\n')}`,
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
   if (request.intent === 'MARKET_GENERAL') {
     if (request.date.mode === 'HISTORICAL') {
       return {
@@ -287,9 +418,19 @@ export async function buildChatVerifiedData(request: ChatDataRequest): Promise<C
         dataError: 'HISTORICAL_MARKET_UNAVAILABLE',
       };
     }
-    const block = await marketBlock();
+    // Pertanyaan "kenapa/kok turun" butuh berita, bukan cuma level & RSI - itu persis
+    // pertanyaan yang bikin model mengarang sebelumnya. Berita hanya diambil kalau
+    // pertanyaannya memang menanyakan SEBAB: getMarketNews() menarik ~10 feed RSS plus
+    // satu klasifikasi AI, terlalu mahal untuk dijalankan di setiap pertanyaan pasar.
+    const wantsCause = CAUSAL_QUESTION.test(normalizeChatText(request.prompt));
+    const [block, news] = await Promise.all([
+      marketBlock(),
+      wantsCause ? marketNewsBlock() : Promise.resolve(null),
+    ]);
     return {
-      verifiedBlock: `\n## Data Terverifikasi Server (OTORITATIF):\n${block}`,
+      verifiedBlock: `\n## Data Terverifikasi Server (OTORITATIF):\n${block}${
+        news ? `\n\n### Berita & Sentimen Pasar (untuk pertanyaan "kenapa"):\n${news}` : ''
+      }`,
       directResponse: null,
       dataError: null,
     };

@@ -78,6 +78,13 @@ function parseExplicitDate(prompt: string): ChatDateResolution | null {
   return null;
 }
 
+/** Tanggal "hari ini" menurut zona Jakarta - patokan yang sama dengan kuota harian
+ * (shared/usage/daily-analisa-quota.ts). Dipakai memutuskan apakah tanggal yang disebut
+ * pengguna benar-benar masa lalu. */
+export function todayJakartaKey(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
+
 function shiftDate(value: string, days: number): string {
   const [year, month, day] = value.split('-').map(Number);
   const parsed = new Date(Date.UTC(year, month - 1, day));
@@ -96,6 +103,19 @@ function lastExplicitHistoricalDate(history: ChatHistoryMessage[]): string | nul
 
 export function resolveChatDate(prompt: string, history: ChatHistoryMessage[] = []): ChatDateResolution {
   const explicit = parseExplicitDate(prompt);
+  // BUG FIX (2026-08-11, dari screenshot user): pengguna mengetik "Hari ini 11 Agustus 2026"
+  // - sekadar memberi tahu tanggal hari ini di tengah obrolan soal IHSG - dan dijawab
+  // "belum ada ticker emiten yang bisa di-resolve". Penyebabnya: parseExplicitDate menangkap
+  // "11 Agustus 2026" lalu memaksa mode HISTORICAL, sehingga classifyChatIntent memilih
+  // FUNDAMENTAL_HISTORICAL, dan jalur itu menuntut kode emiten.
+  //
+  // Tanggal yang sama dengan hari ini (atau setelahnya) TIDAK MUNGKIN menjadi permintaan
+  // point-in-time masa lalu - snapshot PIT untuk tanggal itu memang belum ada. Frasa
+  // "hari ini" pun secara harfiah menandakan CURRENT. Jadi tanggal >= hari ini dibaca
+  // sebagai current, bukan historical. Tanggal masa lalu tetap HISTORICAL seperti semula.
+  if (explicit?.requestedAsOf && explicit.requestedAsOf >= todayJakartaKey()) {
+    return { mode: 'CURRENT', requestedAsOf: null, invalidDate: null, incompleteDate: null, source: 'explicit' };
+  }
   if (explicit) return explicit;
 
   const normalized = normalizeChatText(prompt);
