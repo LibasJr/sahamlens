@@ -7,6 +7,10 @@ export type FundamentalPercentInput = 'percent' | 'decimal';
 export interface FundamentalBackfillRow {
   ticker: string;
   observedDate: string;
+  /** Akhir periode laporan (PIT v2). Divalidasi wajib & <= observedDate di normalizeRow.
+   * Sempat hilang dari interface ini sehingga nilainya ikut hilang dari INSERT - lihat
+   * catatan di buildFundamentalBackfillInsert. */
+  periodEnd: string;
   per: number | null;
   pbv: number | null;
   roe: number | null;
@@ -223,6 +227,7 @@ if (periodEnd > observedDate) {
   const result: FundamentalBackfillRow = {
     ticker,
     observedDate,
+    periodEnd,
     per: roundOrNull(per),
     pbv: roundOrNull(pbv),
     roe: roundOrNull(maybePercent(roeRaw, options.percentInput)),
@@ -270,9 +275,24 @@ export function buildFundamentalBackfillInsert(rows: FundamentalBackfillRow[]): 
   const params: unknown[] = [];
   const tuples = rows.map((row) => {
     const base = params.length;
+    // BUG FIX (2026-08-11): dua kesalahan sekaligus di sini membuat tombol Import di
+    // /admin/fundamental-backfill GAGAL 100% saat benar-benar ditekan.
+    //
+    // 1. Placeholder ditulis `${base + 1}` tanpa `$`, jadi SQL yang dihasilkan berbunyi
+    //    VALUES (1, 2::date, 3::date, ...) - bilangan literal, bukan parameter. Postgres
+    //    menolaknya ("cannot cast type integer to date"), dan array params yang ikut
+    //    dikirim jadi tidak punya placeholder sama sekali.
+    // 2. Daftar kolom menyebut 10 kolom (termasuk period_end) tetapi hanya 9 nilai yang
+    //    di-push - periodEnd divalidasi ketat di normalizeRow lalu dibuang, sehingga
+    //    seluruh nilai setelahnya bergeser satu posisi.
+    //
+    // Tidak terdeteksi karena Dry Run tidak pernah menyentuh database dan test lama
+    // mem-mock pool.query, jadi SQL-nya tidak pernah diperiksa siapa pun. Bandingkan
+    // dengan versi yang benar di modules/fundamental/repository/fundamental-history.repository.ts.
     params.push(
       row.ticker,
       row.observedDate,
+      row.periodEnd,
       row.per,
       row.pbv,
       row.roe,
@@ -281,7 +301,7 @@ export function buildFundamentalBackfillInsert(rows: FundamentalBackfillRow[]): 
       row.revenueGrowth,
       row.source
     );
-    return `(${base + 1}, ${base + 2}::date, ${base + 3}::date, ${base + 4}, ${base + 5}, ${base + 6}, ${base + 7}, ${base + 8}, ${base + 9}, ${base + 10})`;
+    return `($${base + 1}, $${base + 2}::date, $${base + 3}::date, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
   });
 
   return {

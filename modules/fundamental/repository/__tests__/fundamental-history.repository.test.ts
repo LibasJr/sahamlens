@@ -36,7 +36,16 @@ const { fakePool, queries, state } = vi.hoisted(() => {
 
       if (sql.startsWith('INSERT INTO fundamental_history')) {
         // Pengganti untuk PRIMARY KEY (ticker, observed_date) + ON CONFLICT DO NOTHING.
-        const columns = ['ticker', 'observed_date', 'per', 'pbv', 'roe', 'der', 'current_ratio', 'revenue_growth'];
+        //
+        // Daftar kolom DIBACA DARI SQL-nya, bukan disalin manual. Versi lama menuliskan
+        // 8 nama kolom secara hardcode; ketika query asli bertambah jadi 10 kolom
+        // (period_end + source), pengganti ini tetap melangkah 8 nilai per baris sehingga
+        // seluruh nilai bergeser dan 8 test gagal dengan pesan yang menyesatkan seolah
+        // repository-nya yang rusak. Membaca dari SQL membuat pengganti ikut menyesuaikan
+        // sendiri setiap kali kolom berubah.
+        const columnList = sql.match(/INSERT INTO fundamental_history\s*\(([^)]+)\)/i)?.[1];
+        if (!columnList) throw new Error(`Daftar kolom INSERT tidak terbaca: ${sql.slice(0, 120)}`);
+        const columns = columnList.split(',').map((c) => c.trim());
         let inserted = 0;
         for (let i = 0; i < values.length; i += columns.length) {
           const row: Record<string, unknown> = {};
@@ -149,8 +158,14 @@ describe('archiveFundamentalSnapshot - penyimpanan & idempotensi', () => {
     expect(normalize(q.text)).toContain('ON CONFLICT (ticker, observed_date) DO NOTHING');
     // Tidak ada UPDATE/DO UPDATE - arsip ini append-only.
     expect(normalize(q.text)).not.toContain('DO UPDATE');
-    // 2 baris x 8 kolom, dan tidak ada nilai yang tertanam di string SQL.
-    expect(q.values).toHaveLength(16);
+    // 2 baris x 10 kolom (ticker, observed_date, period_end, 6 metrik, source), dan tidak
+    // ada nilai yang tertanam di string SQL. Diturunkan dari daftar kolom di SQL-nya
+    // sendiri supaya angka ini tidak perlu diperbarui manual tiap kali kolom bertambah.
+    const jumlahKolom = normalize(q.text).match(/INSERT INTO fundamental_history \(([^)]+)\)/)![1].split(',').length;
+    expect(jumlahKolom).toBe(10);
+    expect(q.values).toHaveLength(2 * jumlahKolom);
+    // Setiap nilai harus lewat placeholder $n - tidak boleh ada yang diinterpolasi.
+    expect(new Set(normalize(q.text).match(/\$\d+/g)).size).toBe(q.values.length);
     expect(q.text).not.toContain('BBCA.JK');
     expect(q.text).not.toContain('2026-08-05');
   });
