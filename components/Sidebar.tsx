@@ -20,6 +20,7 @@ import {
   History,
   LayoutDashboard,
   LineChart,
+  LockKeyhole,
   LogIn,
   LogOut,
   Newspaper,
@@ -39,6 +40,7 @@ import {
 } from 'lucide-react';
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import Toast from '@/components/ui/Toast';
 
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
@@ -126,10 +128,9 @@ const ADMIN_NAV_GROUP: NavGroup = {
 
 function visibleGroupsFor(role: 'guest' | 'trial' | 'admin'): NavGroup[] {
   if (role === 'admin') return [...NAV_GROUPS, ADMIN_NAV_GROUP];
-  if (role === 'trial') return NAV_GROUPS;
-  return NAV_GROUPS
-    .map((group) => ({ ...group, items: group.items.filter((item) => item.guest) }))
-    .filter((group) => group.items.length > 0);
+  // Guest tetap dapat melihat seluruh fitur pengguna agar tahu cakupan produk.
+  // Aksesnya tidak dibuka: item tanpa `guest: true` dikunci saat diklik di bawah.
+  return NAV_GROUPS;
 }
 
 const COLLAPSE_STORAGE_KEY = 'sahamlens_sidebar_collapsed';
@@ -155,6 +156,7 @@ export default function Sidebar() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [loginNoticeId, setLoginNoticeId] = useState<number | null>(null);
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 
   useEffect(() => {
@@ -288,16 +290,27 @@ export default function Sidebar() {
                   {group.items.map((item) => {
                     const href = item.id === 'lensai' ? `/technical/${councilTicker.symbol}.JK` : item.path;
                     const active = isPathActive(pathname, item);
+                    const lockedForGuest = !authLoading && role === 'guest' && !item.guest;
                     const Icon = item.icon;
                     const accentClass = item.accent ? ACCENT_CLASS[item.accent] : 'text-white/45 bg-white/[0.03]';
                     return (
                       <Link
                         key={item.id}
                         href={href}
-                        onClick={() => setIsOpen(false)}
+                        aria-label={lockedForGuest ? `${item.name}, login diperlukan` : undefined}
+                        onClick={(event) => {
+                          if (lockedForGuest) {
+                            event.preventDefault();
+                            setLoginNoticeId(Date.now());
+                            return;
+                          }
+                          setIsOpen(false);
+                        }}
                         className={`group relative flex min-h-14 items-center rounded-xl md:min-h-[46px] transition-all duration-200 ${
                           isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
-                        } ${active ? 'bg-white/[0.075] text-white' : 'text-white/65 hover:bg-white/[0.045] hover:text-white'}`}
+                        } ${active ? 'bg-white/[0.075] text-white' : 'text-white/65 hover:bg-white/[0.045] hover:text-white'} ${
+                          lockedForGuest ? 'cursor-pointer' : ''
+                        }`}
                       >
                         {active && (
                           <motion.span
@@ -316,10 +329,18 @@ export default function Sidebar() {
                           </span>
                           <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/40 md:truncate md:text-[10px] md:leading-normal md:text-white/32">{item.subtitle}</span>
                         </span>
-                        {!isCollapsed && active && <ChevronRight className="h-3.5 w-3.5 text-white/30" />}
+                        {!isCollapsed && lockedForGuest && (
+                          <LockKeyhole className="h-4 w-4 shrink-0 text-tv-muted" aria-hidden="true" />
+                        )}
+                        {!isCollapsed && active && !lockedForGuest && <ChevronRight className="h-3.5 w-3.5 text-white/30" />}
+                        {isCollapsed && lockedForGuest && (
+                          <span className="absolute right-1.5 top-1.5 hidden h-4 w-4 items-center justify-center rounded-full border border-tv-border bg-tv-card text-tv-muted md:flex">
+                            <LockKeyhole className="h-2.5 w-2.5" aria-hidden="true" />
+                          </span>
+                        )}
                         {isCollapsed && (
                           <span className="pointer-events-none absolute left-full z-[80] ml-3 hidden min-w-max items-center rounded-xl border border-white/10 bg-[#111A29] px-3 py-2 text-xs font-semibold text-white shadow-2xl md:group-hover:flex">
-                            {item.name}
+                            {item.name}{lockedForGuest ? ' · Login diperlukan' : ''}
                           </span>
                         )}
                       </Link>
@@ -371,6 +392,12 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+      <Toast
+        key={loginNoticeId ?? 'guest-login-notice'}
+        message={loginNoticeId ? 'Fitur ini memerlukan akun. Silakan masuk untuk melanjutkan.' : null}
+        variant="info"
+        durationMs={6000}
+      />
       <UserProfileModal open={showProfileModal} onClose={closeProfileModal} />
     </>
   );
