@@ -6,6 +6,7 @@ import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit, refreshAdminStatus, FREE_LIMITS } from '@/lib/limits';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { getTickerName } from '@/lib/trendingTickers';
 import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
@@ -89,7 +90,11 @@ export default function WatchlistPage() {
     try {
       const res = await fetch('/api/watchlist', { signal });
       if (res.status === 401) {
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setShowLoginPrompt(true);
+        } else {
+          setWatchlistError(true);
+        }
         return;
       }
       if (res.ok) {

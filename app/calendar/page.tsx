@@ -11,6 +11,7 @@ import {
   Menu
 } from 'lucide-react';
 import PaywallModal from '@/components/PaywallModal';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 
 const TYPE_LABEL: Record<EventType, string> = {
@@ -59,8 +60,12 @@ export default function CalendarPage() {
     setLoading(true);
     setError(null);
     fetch('/api/calendar')
-      .then((res) => {
-        if (res.status === 401) { setShowLoginPrompt(true); return null; }
+      .then(async (res) => {
+        if (res.status === 401) {
+          if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
+          else setError('Sesi masih aktif, tetapi kalender gagal dibaca. Coba muat ulang halaman.');
+          return null;
+        }
         return res.json().then((data) => ({ ok: res.ok, data }));
       })
       .then((result) => {

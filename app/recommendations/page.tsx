@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Target, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownRight, Search, ArrowUpDown, ChevronUp, ChevronDown, Calendar, Bot } from 'lucide-react';
 import { getUsedSymbolsToday, FREE_LIMITS } from '@/lib/limits';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { PageContainer } from '@/components/ui';
@@ -96,7 +97,9 @@ export default function Recommendations() {
         
         const json = await res.json();
         if (res.status === 401) {
-          setShowLoginPrompt(true);
+          if (await shouldShowLoginPromptFor401()) {
+            setShowLoginPrompt(true);
+          }
           return;
         }
         if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import PaywallModal from '@/components/PaywallModal';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import {
   Zap, 
   Target, 
@@ -68,7 +69,9 @@ export default function MultiAgentPage() {
         body: JSON.stringify({ ticker: symbol })
       });
       if (agentRes.status === 401) {
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setShowLoginPrompt(true);
+        }
         return;
       }
       if (agentRes.ok) {

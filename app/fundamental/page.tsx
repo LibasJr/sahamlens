@@ -22,6 +22,7 @@ import ExportImageButton from '@/components/export/ExportImageButton';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
 import { buildExportFileName } from '@/shared/format/export-filename';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -91,7 +92,11 @@ function FundamentalContent() {
       const jsonAlgo = await resAlgo.json();
 
       if (resStock.status === 401) {
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setShowLoginPrompt(true);
+        } else {
+          setFetchError(true);
+        }
         return;
       }
       if (resStock.status === 402 || jsonStock.code === 'SUBSCRIPTION_REQUIRED') {

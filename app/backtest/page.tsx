@@ -6,6 +6,7 @@ import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Zap 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Input, Select, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 // Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
 // disengaja: komponen ini 'use client', barrel modules/backtest re-export service yang
 // pakai fetch/logger server-only (precompute/simulate/live-filter-check), ikut kebawa ke
@@ -141,7 +142,11 @@ export default function BacktestPage() {
         body: JSON.stringify({ filters: selectedFilters, modal, period })
       });
       if (res.status === 401) {
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setShowLoginPrompt(true);
+        } else {
+          setError('Sesi masih aktif, tetapi akses backtest gagal dibaca. Coba muat ulang halaman.');
+        }
         setLoading(false);
         return;
       }
@@ -175,7 +180,11 @@ export default function BacktestPage() {
         body: JSON.stringify({ filters: selectedFilters })
       });
       if (res.status === 401) {
-        setShowLoginPrompt(true);
+        if (await shouldShowLoginPromptFor401()) {
+          setShowLoginPrompt(true);
+        } else {
+          setLiveError('Sesi masih aktif, tetapi akses live check gagal dibaca. Coba muat ulang halaman.');
+        }
         setLiveLoading(false);
         return;
       }
