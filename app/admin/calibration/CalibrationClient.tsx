@@ -110,7 +110,7 @@ interface RetrospectiveWalkForwardResult {
 }
 
 interface GenuineOosResult {
-  protocolVersion: 'oos-v1.0';
+  protocolVersion: string;
   scoreVersion: string;
   freezeDate: string;
   rule: string;

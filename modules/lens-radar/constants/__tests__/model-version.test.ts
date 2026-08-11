@@ -39,12 +39,12 @@ describe('model-version (Fase 1)', () => {
 
   it('dataset satu versi diterima seluruhnya', () => {
     const rows = [
-      { score_version: 'lens-score-v1.3.0', ticker: 'AAAA' },
-      { score_version: 'lens-score-v1.3.0', ticker: 'BBBB' },
+      { score_version: SCORE_VERSION, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, ticker: 'BBBB' },
     ];
     const result = partitionByScoreVersion(rows);
 
-    expect(result.version).toBe('lens-score-v1.3.0');
+    expect(result.version).toBe(SCORE_VERSION);
     expect(result.accepted).toHaveLength(2);
     expect(result.rejected).toHaveLength(0);
     expect(result.mixed).toBe(false);
@@ -52,15 +52,15 @@ describe('model-version (Fase 1)', () => {
 
   it('dataset campuran menolak versi minoritas dan menandai mixed', () => {
     const rows = [
-      { score_version: 'lens-score-v1.3.0', ticker: 'AAAA' },
-      { score_version: 'lens-score-v1.3.0', ticker: 'BBBB' },
-      { score_version: 'lens-score-v1.3.0', ticker: 'CCCC' },
+      { score_version: SCORE_VERSION, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, ticker: 'BBBB' },
+      { score_version: SCORE_VERSION, ticker: 'CCCC' },
       { score_version: 'lens-score-v1.2.0', ticker: 'DDDD' },
     ];
     const result = partitionByScoreVersion(rows);
 
     expect(result.mixed).toBe(true);
-    expect(result.version).toBe('lens-score-v1.3.0');
+    expect(result.version).toBe(SCORE_VERSION);
     expect(result.accepted).toHaveLength(3);
     expect(result.rejected.map((r) => r.ticker)).toEqual(['DDDD']);
     expect(result.rejectedReason).toContain('versi');
@@ -68,7 +68,7 @@ describe('model-version (Fase 1)', () => {
 
   it('FAIL-CLOSED: baris tanpa score_version dikeluarkan, bukan dianggap versi sekarang', () => {
     const rows = [
-      { score_version: 'lens-score-v1.3.0', ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, ticker: 'AAAA' },
       { score_version: null, ticker: 'LEGACY1' },
       { ticker: 'LEGACY2' } as { score_version?: string | null; ticker: string },
       { score_version: '   ', ticker: 'LEGACY3' },
@@ -100,8 +100,8 @@ describe('model-version (Fase 1)', () => {
 
   it('filter versi eksplisit menang atas mayoritas', () => {
     const rows = [
-      { score_version: 'lens-score-v1.3.0', ticker: 'AAAA' },
-      { score_version: 'lens-score-v1.3.0', ticker: 'BBBB' },
+      { score_version: SCORE_VERSION, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, ticker: 'BBBB' },
       { score_version: 'lens-score-v1.2.0', ticker: 'CCCC' },
     ];
     const result = partitionByScoreVersion(rows, 'lens-score-v1.2.0');
