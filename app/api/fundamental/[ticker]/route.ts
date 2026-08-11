@@ -26,6 +26,8 @@ import {
   computeValuationLabel,
 } from '@/modules/fundamental';
 import { scoreFundamentalDataQuality } from '@/modules/validation';
+import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
+import { buildMoatDurability } from '@/modules/fundamental/service/moat-durability.service';
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -244,14 +246,28 @@ export async function GET(
     // (financialData lengkap) - try/catch supaya kegagalannya tidak menjatuhkan seluruh
     // endpoint, cukup melaporkan valuasi sebagai data tidak cukup.
     let consensus = 'DATA TIDAK CUKUP';
+    let costOfEquityPct: number | null = null;
     try {
       const intrinsic = await calculateIntrinsicValue(ticker);
       if (intrinsic) {
         consensus = computeValuationLabel(intrinsic.mos, intrinsic.fair_value);
+        // Biaya ekuitas CAPM per emiten, dipakai sebagai MISTAR pilar ketahanan moat -
+        // bukan angka tetap. Diambil dari panggilan yang sudah ada, tanpa fetch tambahan.
+        costOfEquityPct = typeof intrinsic.assumptions?.cost_of_equity_pct === 'number'
+          ? intrinsic.assumptions.cost_of_equity_pct
+          : null;
       }
     } catch (e) {
       console.warn(`[Fundamental] calculateIntrinsicValue gagal untuk ${ticker} - valuasi dilaporkan sebagai data tidak cukup`, e);
     }
+
+    // KETAHANAN MOAT. Empat pilar moat yang sudah ada dinilai dari rasio TERKINI, dan
+    // moat menurut definisinya adalah soal daya tahan lintas waktu - satu potret mengukur
+    // hal yang berbeda dari yang dijanjikan namanya. Deret 4 tahun buku ini yang
+    // menjawabnya. `null` kalau tahunnya kurang; halaman menyatakannya sebagai
+    // DATA TERBATAS, bukan menilai rendah.
+    const annualEarnings = await fetchNormalizedEarnings(ticker).catch(() => null);
+    const moatDurability = buildMoatDurability(annualEarnings, costOfEquityPct);
 
     let descriptionId = quoteSummary.assetProfile?.longBusinessSummary || 'Tidak ada deskripsi perusahaan.';
     if (quoteSummary.assetProfile?.longBusinessSummary) {
@@ -271,6 +287,8 @@ export async function GET(
 
     return NextResponse.json({
       ticker,
+      moatDurability,
+      annualEarnings,
       price: currentPrice,
       source: {
         provider: 'Yahoo Finance',
