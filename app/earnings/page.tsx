@@ -345,6 +345,40 @@ export default function EarningsPage() {
               </div>
               <Badge variant='neutral'>{data.quarters.length} KUARTAL</Badge>
             </div>
+
+            {/* KEJUJURAN CAKUPAN (2026-08-12). Deret kuartalan Yahoo untuk emiten IDX
+                berlubang - PTBA misalnya melompat dari kuartal September 2025 langsung ke
+                Maret 2026. Menggambar barisnya berurutan menyiratkan kesinambungan yang
+                tidak ada, dan pembaca membaca lompatan itu sebagai perubahan nyata.
+                Sekarang dua sumber Yahoo digabung dulu (menambal sebagian lubang), lalu
+                sisa lubangnya dinyatakan. */}
+            {data.periodCoverage && (data.periodCoverage.missingQuarters.length > 0
+              || data.periodCoverage.addedFromTimeSeries > 0
+              || data.periodCoverage.filledFromTimeSeries > 0) && (
+              <div className='border-b border-white/[0.07] px-4 py-3 md:px-5'>
+                {data.periodCoverage.missingQuarters.length > 0 && (
+                  <p className='text-[11px] leading-relaxed text-tv-yellow'>
+                    <span className='font-semibold'>Ada kuartal yang datanya tidak tersedia:</span>{' '}
+                    {data.periodCoverage.missingQuarters.join(', ')}. Baris di bawah karena itu
+                    TIDAK bersambung - jangan membaca lompatan antar baris sebagai perubahan
+                    kinerja.
+                  </p>
+                )}
+                {(data.periodCoverage.addedFromTimeSeries > 0 || data.periodCoverage.filledFromTimeSeries > 0) && (
+                  <p className='mt-1 text-[11px] leading-relaxed text-tv-muted'>
+                    {data.periodCoverage.addedFromTimeSeries > 0
+                      ? data.periodCoverage.addedFromTimeSeries + ' kuartal ditambahkan '
+                      : ''}
+                    {data.periodCoverage.addedFromTimeSeries > 0 && data.periodCoverage.filledFromTimeSeries > 0 ? 'dan ' : ''}
+                    {data.periodCoverage.filledFromTimeSeries > 0
+                      ? data.periodCoverage.filledFromTimeSeries + ' kuartal dilengkapi angka keuangannya '
+                      : ''}
+                    dari deret laporan keuangan Yahoo. Kolom EPS aktual/estimasi hanya ada di
+                    sumber pertama, jadi kuartal tambahan tampil tanpa EPS - kosong, bukan nol.
+                  </p>
+                )}
+              </div>
+            )}
             {data.quarters.length > 0 ? (
               <div className='overflow-x-auto'>
                 <table className='w-full min-w-[880px] text-left text-xs'>
