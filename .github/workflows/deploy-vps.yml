@@ -1,0 +1,51 @@
+name: Deploy VPS
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: sahamlens-production-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prepare SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/sahamlens_deploy
+          chmod 600 ~/.ssh/sahamlens_deploy
+
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy SahamLens to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          ssh \
+            -i ~/.ssh/sahamlens_deploy \
+            -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            lens@"$VPS_HOST" deploy
