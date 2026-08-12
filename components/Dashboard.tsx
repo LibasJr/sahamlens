@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import SiteFooter from '@/components/SiteFooter';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter, Target, BarChart3, Waves } from 'lucide-react';
@@ -1073,25 +1074,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           </motion.div>
         </motion.div>
 
-        {/* Bottom Meta */}
-        <Card padding="none" className="mt-8 flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-[11px] text-tv-muted shadow-none">
-          <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-tv-muted'}`} />
-            {/* BUG FIX (audit BUILD 002, item disclaimer sumber data): wording lama "real-time
-                dari Bursa Efek Indonesia" memberi kesan feed langsung IDX, padahal sumbernya
-                Yahoo Finance (pihak ketiga, ada delay) - IDX tidak menyediakan feed gratis. */}
-            <span className="font-medium">Data bersumber dari Yahoo Finance (pihak ketiga), dapat mengalami keterlambatan hingga ~15 menit • Informasi &amp; rekomendasi di aplikasi ini bersifat informatif, bukan nasihat investasi</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Tagline filosofi brand (disepakati 2026-08-06) - versi landing dari
-                baris yang sama di footer Sidebar.tsx, karena halaman ini ("/") satu-
-                satunya yang tidak lewat Sidebar. Link ke /about untuk versi lengkap. */}
-            <Link href="/about" className="hidden sm:inline italic text-tv-muted hover:text-tv-text transition-colors">
-              Memperjelas yang tersembunyi. Keputusan tetap milikmu.
-            </Link>
-            <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
-          </div>
-        </Card>
+        <SiteFooter />
       </main>
     </div>
   );

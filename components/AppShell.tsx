@@ -11,6 +11,7 @@ import SmartBackNavigation from '@/components/SmartBackNavigation';
 import ThemeToggle from '@/components/ThemeToggle';
 import PageTransition from '@/components/PageTransition';
 import EnergySaver from '@/components/EnergySaver';
+import SiteFooter from '@/components/SiteFooter';
 
 const AIChat = dynamic(() => import('@/components/AIChat'), { ssr: false, loading: () => null });
 
@@ -43,6 +44,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 lens-ambient-bg" />
           <div className="relative z-[1] min-h-full">
             <PageTransition>{children}</PageTransition>
+            {/* Sebelum ini, SELURUH halaman ber-shell tidak punya penutup sama sekali -
+                termasuk jalan menuju /about. Ditaruh sebelum ruang bebas MobileNav supaya
+                di HP tidak tertutup bilah navigasi bawah. */}
+            <div className="px-4 pb-2 sm:px-6">
+              <SiteFooter />
+            </div>
             <div aria-hidden="true" className="lens-mobile-scroll-clearance pointer-events-none md:hidden" />
           </div>
         </main>
