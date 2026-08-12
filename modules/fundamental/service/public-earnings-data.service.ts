@@ -1,3 +1,4 @@
+import { mergeQuarterlyFinancials, type QuarterlyFinancialRow } from './earnings-period-merge';
 import YahooFinanceClass from 'yahoo-finance2';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -27,6 +28,13 @@ export interface EarningsAnnual {
 
 export interface PublicEarningsData {
   ticker: string;
+  /** Kejujuran cakupan periode (2026-08-12). Deret Yahoo untuk emiten IDX berlubang;
+   * lubang harus tampil SEBAGAI lubang, bukan disambung jadi garis mulus. */
+  periodCoverage?: {
+    missingQuarters: string[];
+    addedFromTimeSeries: number;
+    filledFromTimeSeries: number;
+  };
   stock: {
     name: string;
     price: number | null;
@@ -360,17 +368,98 @@ export function normalizePublicEarningsData(
   };
 }
 
+/**
+ * Deret keuangan kuartalan dari endpoint yang BERBEDA dengan quoteSummary.
+ *
+ * Diukur 2026-08-12: kedua sumber berlubang, dan lubangnya saling melengkapi.
+ * `earningsChart` punya kuartal September yang tidak ada di deret waktu; deret waktu punya
+ * Desember & Maret yang tidak ada di `earningsChart`. Digabung, PTBA naik dari 3 ke 6
+ * kuartal dan BBCA dari 4 ke 6 - tanpa satu pun angka baru dikarang.
+ *
+ * Kegagalan menghasilkan array kosong, bukan lemparan: ini melengkapi halaman earnings,
+ * dan tidak boleh menjatuhkan permintaan yang datanya sudah ada.
+ */
+async function fetchQuarterlyFinancials(ticker: string): Promise<QuarterlyFinancialRow[]> {
+  try {
+    const rows = await yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: '2015-01-01',
+      period2: new Date().toISOString().slice(0, 10),
+      type: 'quarterly',
+      module: 'financials',
+    });
+    return (rows ?? []).flatMap((row: any) => {
+      const periodEnd = new Date(row?.date).toISOString?.().slice(0, 10);
+      if (!periodEnd || !/^\d{4}-\d{2}-\d{2}$/.test(periodEnd)) return [];
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+      return [{
+        periodEnd,
+        revenue: num(row?.totalRevenue) ?? num(row?.operatingRevenue),
+        netIncome: num(row?.netIncomeCommonStockholders) ?? num(row?.netIncome),
+        operatingIncome: num(row?.operatingIncome),
+      }];
+    });
+  } catch (error) {
+    console.warn('[Earnings] deret kuartalan tidak terbaca untuk ' + ticker, error);
+    return [];
+  }
+}
+
 export async function fetchPublicEarningsData(ticker: string): Promise<PublicEarningsData> {
-  const raw = await yahooFinance.quoteSummary(ticker, {
-    modules: [
-      'price',
-      'assetProfile',
-      'calendarEvents',
-      'earnings',
-      'earningsHistory',
-      'earningsTrend',
-      'financialData',
-    ],
-  });
-  return normalizePublicEarningsData(ticker, raw);
+  const [raw, quarterlyFinancials] = await Promise.all([
+    yahooFinance.quoteSummary(ticker, {
+      modules: [
+        'price',
+        'assetProfile',
+        'calendarEvents',
+        'earnings',
+        'earningsHistory',
+        'earningsTrend',
+        'financialData',
+      ],
+    }),
+    fetchQuarterlyFinancials(ticker),
+  ]);
+
+  const data = normalizePublicEarningsData(ticker, raw);
+
+  const merged = mergeQuarterlyFinancials<EarningsQuarter & Record<string, unknown>>(
+    data.quarters as Array<EarningsQuarter & Record<string, unknown>>,
+    quarterlyFinancials,
+    (row) => ({
+      quarter: quarterLabelFromPeriodEnd(row.periodEnd),
+      periodEnd: row.periodEnd,
+      reportedDate: null,
+      // Deret waktu TIDAK punya EPS aktual/estimasi - null, bukan 0. Kuartal ini hadir
+      // dengan angka keuangannya saja, dan itu dinyatakan apa adanya.
+      actualEps: null,
+      estimatedEps: null,
+      epsDifference: null,
+      surprisePct: null,
+      revenue: row.revenue,
+      netIncome: row.netIncome,
+      profitMargin: row.revenue != null && row.revenue > 0 && row.netIncome != null
+        ? row.netIncome / row.revenue
+        : null,
+      // Tidak ada EPS aktual/estimasi di deret waktu, jadi tidak ada yang bisa
+      // dibandingkan - NO_DATA, bukan INLINE yang terbaca seperti 'sesuai perkiraan'.
+      status: 'NO_DATA',
+    }),
+  );
+
+  return {
+    ...data,
+    quarters: merged.periods.slice(-8) as EarningsQuarter[],
+    periodCoverage: {
+      missingQuarters: merged.missingQuarters,
+      addedFromTimeSeries: merged.addedFromTimeSeries,
+      filledFromTimeSeries: merged.filledFromTimeSeries,
+    },
+  };
+}
+
+/** 'Q1 2026' dari '2026-03-31'. */
+function quarterLabelFromPeriodEnd(periodEnd: string): string {
+  const month = Number(periodEnd.slice(5, 7));
+  const quarter = Math.ceil(month / 3);
+  return 'Q' + quarter + ' ' + periodEnd.slice(0, 4);
 }
