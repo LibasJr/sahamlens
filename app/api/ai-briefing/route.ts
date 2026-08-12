@@ -14,7 +14,7 @@ import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 // BUG FIX (2026-08-01): dulu prompt ini merangkai "kondisi akun & pasar" (cash, jumlah
 // posisi) - Beranda sekarang sengaja tidak lagi menampilkan portofolio (SahamLens
 // aplikasi analisis/screener, bukan sekuritas; portofolio cukup di halaman Akun Demo),
-// jadi briefing-nya diselaraskan jadi murni ringkasan PASAR & sinyal AI, tanpa data akun.
+// jadi briefing-nya diselaraskan jadi murni ringkasan PASAR & sinyal skor, tanpa data akun.
 interface BriefingInput {
   topPick: { ticker: string; consensus: string; confidence: number } | null;
   indices: { name: string; changePct: number }[];
@@ -28,7 +28,7 @@ function fallbackBriefing(input: BriefingInput): string {
     parts.push(`IHSG ${ihsg.changePct >= 0 ? 'menguat' : 'melemah'} ${Math.abs(ihsg.changePct)}% hari ini.`);
   }
   if (input.topPick) {
-    parts.push(`Sinyal AI teratas: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}/100).`);
+    parts.push(`Sinyal teratas: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}/100).`);
   }
   // BUG FIX (2026-08-05, permintaan user): SEBELUMNYA menyebut angka persis
   // ("X saham menarik", "Y breakout") - tidak ada halaman manapun di aplikasi yang
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
 Data:
 - Indeks pasar: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'tidak tersedia'}
-- Sinyal AI teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence} dari skala 0-100)` : 'tidak ada sinyal kuat'}
+- Sinyal teratas: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence} dari skala 0-100)` : 'tidak ada sinyal kuat'}
 
 Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;
 

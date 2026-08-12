@@ -24,10 +24,10 @@ const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    default: 'SahamLens - Screener & Analisis Kuantitatif Saham IDX',
     template: '%s | SahamLens',
   },
-  description: 'Pantau skor teknikal, fundamental, dan arus dana saham likuid IDX. Gunakan screener, LensRadar, backtest, dan LensAI untuk membantu riset saham Indonesia.',
+  description: 'Skor teknikal, fundamental, dan arus dana saham likuid IDX dari rumus terbuka - bukan kotak hitam. Screener, LensRadar, backtest, dan penjelasan AI untuk membantu riset saham Indonesia.',
   applicationName: 'SahamLens',
   manifest: '/manifest.json',
   alternates: { canonical: '/' },
@@ -50,13 +50,13 @@ export const metadata = {
     locale: 'id_ID',
     url: SITE_URL,
     siteName: 'SahamLens',
-    title: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    title: 'SahamLens - Screener & Analisis Kuantitatif Saham IDX',
     description: 'Pantau skor teknikal, fundamental, dan arus dana saham likuid IDX untuk membantu riset saham Indonesia.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'SahamLens' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SahamLens - Screener & Analisis Saham IDX Berbasis AI',
+    title: 'SahamLens - Screener & Analisis Kuantitatif Saham IDX',
     description: 'Pantau skor teknikal, fundamental, dan arus dana saham likuid IDX untuk membantu riset saham Indonesia.',
     images: ['/og-image.png'],
   },
