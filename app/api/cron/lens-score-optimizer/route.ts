@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
+import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
 import { runLensScoreOptimizer } from '@/modules/lens-radar/service/lens-score-optimizer.service';
 
 export const maxDuration = 300;
 
-function isAuthorizedCron(req: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-  return timingSafeStringEqual(req.headers.get('authorization') ?? '', `Bearer ${cronSecret}`);
-}
+// PENYERAGAMAN 2026-08-12. Route ini dulu diautentikasi dengan CRON_SECRET lewat
+// `Authorization: Bearer`, karena penjadwalnya adalah cron NATIVE VERCEL - satu-satunya
+// yang memang mengirim header itu. Cron Vercel sudah dihapus (vercel.json tinggal
+// $schema) dan seluruh penjadwalan pindah ke QStash, jadi CRON_SECRET tidak punya
+// pengirim lagi.
+//
+// Membiarkannya berarti menyimpan DUA mekanisme autentikasi untuk SATU penjadwal, dan
+// dua di antara dua belas jadwal harus diingat sebagai pengecualian - persis bentuk
+// percabangan yang menjadi sumber bug di tempat lain (dua ATR, tiga EMA). Sekarang
+// ketiga belasnya seragam: POST + signature QStash.
+export async function POST(req: NextRequest) {
+  const signature = req.headers.get('Upstash-Signature');
+  const rawBody = await req.text();
 
-export async function GET(req: NextRequest) {
-  if (!isAuthorizedCron(req)) {
-    logger.warn('Menolak request /api/cron/lens-score-optimizer - CRON_SECRET tidak valid');
+  const isValid = await verifyQStashSignature(signature, rawBody);
+  if (!isValid) {
+    logger.warn('Menolak request /api/cron/lens-score-optimizer - signature QStash tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
