@@ -555,8 +555,10 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   Lihat Peluang<br className="hidden sm:block" /> Lebih Jelas.
                 </h2>
                 <p className="mt-4 text-sm sm:text-base text-tv-muted max-w-lg leading-relaxed">
-                  Screener &amp; analisis saham IDX berbasis data riil dan AI — mencakup teknikal,
-                  fundamental, backtest, Moat proxy, Earnings Monitor, hingga Dashboard Makroekonomi dalam satu aplikasi.
+                  Screener &amp; analisis saham IDX dari data pasar riil — teknikal, fundamental,
+                  backtest, Moat proxy, Earnings Monitor, hingga Dashboard Makroekonomi dalam satu aplikasi.
+                  Skornya dihitung dengan rumus terbuka yang bisa diperiksa; AI membantu menjelaskan angkanya,
+                  bukan menentukannya.
                 </p>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">

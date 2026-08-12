@@ -295,7 +295,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
       <div className="bg-tv-card border border-tv-border rounded-xl">
         <EmptyState
           illustration="empty"
-          title={signedIn ? 'Analisis LensAI belum bisa ditampilkan' : 'Masuk dulu untuk lihat analisis lengkap'}
+          title={signedIn ? 'Analisis teknikal belum bisa ditampilkan' : 'Masuk dulu untuk lihat analisis lengkap'}
           description={
             signedIn
               ? `Grafik dan indikator dasarnya tetap bisa kamu pakai. Rangkuman LensAI untuk ${symbol} sedang gagal dihitung - biasanya sementara. Coba muat ulang sebentar lagi.`
@@ -341,7 +341,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
     <div className="space-y-6">
       <div className="bg-tv-card border border-tv-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-heading text-white font-bold">Rekomendasi LensAI</h2>
+          <h2 className="font-heading text-white font-bold">Momentum Teknikal · 10 agen</h2>
           <TechnicalExportSection
             symbol={symbol}
             finalSuggestion={council.final_suggestion}
@@ -379,7 +379,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
             {/* Storytelling: batang di atas menunjukkan sebaran suara, tapi tidak
                 pernah menyebut hal yang paling penting - seberapa BULAT kesepakatannya.
                 Sepuluh agen yang sepakat dan sepuluh agen yang terbelah 5-5 menghasilkan
-                satu "Rekomendasi LensAI" yang terlihat sama meyakinkannya. */}
+                satu "Momentum Teknikal" yang terlihat sama meyakinkannya. */}
             {(() => {
               const tallies = [
                 { label: 'BUY', pct: buyPct },

@@ -1063,7 +1063,7 @@ function DashboardContent() {
             )}
 
             <div className="rounded-xl border border-tv-border bg-tv-card p-4 text-sm leading-relaxed text-tv-muted">
-              IHSG adalah indeks pasar, bukan saham emiten. Di menu Teknikal ini SahamLens menampilkan chart, tren, momentum, dan volatilitas IHSG. Analisis LensAI saham, TP/CL, fundamental, broker flow, dan rekomendasi per lot tidak ditampilkan untuk indeks.
+              IHSG adalah indeks pasar, bukan saham emiten. Di menu Teknikal ini SahamLens menampilkan chart, tren, momentum, dan volatilitas IHSG. Analisis teknikal saham, TP/CL, fundamental, broker flow, dan rekomendasi per lot tidak ditampilkan untuk indeks.
             </div>
           </>
         )}
@@ -1162,7 +1162,7 @@ function DashboardContent() {
                   </div>
                )}
               <div className="w-full min-w-0 md:w-auto md:min-w-[250px]">
-                <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus AI</div>
+                <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus Analyzer</div>
                 {(() => {
                   const consensus = splitStatusText(data?.consensus);
                   return (
@@ -1484,7 +1484,7 @@ function DashboardContent() {
                   <Newspaper className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-heading text-sm font-semibold text-white">Sentimen Berita AI</h3>
+                  <h3 className="font-heading text-sm font-semibold text-white">Sentimen Berita</h3>
                   <p className="text-xs text-tv-muted">
                     {loadingStockNews
                       ? 'Menganalisis berita...'

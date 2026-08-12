@@ -76,7 +76,7 @@ export default async function AdminPage() {
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">LensRadar Calibration Lab</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Audit bucket LensScore, t-test edge T+20, simulasi threshold, dan rekomendasi ambang AI.
+              Audit bucket LensScore, t-test edge T+20, simulasi threshold, dan rekomendasi ambang AI (saat ini dibekukan).
             </p>
           </div>
         </Link>

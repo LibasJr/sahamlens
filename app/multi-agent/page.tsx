@@ -110,7 +110,7 @@ export default function MultiAgentPage() {
       <Header
         currentTicker={ticker}
         onTickerChange={setTicker}
-        moduleTitle="LensAI — Multi-Agent Consensus"
+        moduleTitle="Multi-Agent Consensus"
         moduleBank="ENSEMBLE AI"
       />
 
@@ -183,7 +183,7 @@ export default function MultiAgentPage() {
               </div>
               <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
                 <div className="flex-1">
-                  <h2 className="text-xl text-tv-muted mb-2 font-heading uppercase">Master AI Recommendation</h2>
+                  <h2 className="text-xl text-tv-muted mb-2 font-heading uppercase">Konsensus 9 Agen Kuantitatif</h2>
                   <div className="text-5xl font-bold mb-4">
                     {quant.decision || 'WAITING...'}
                   </div>
@@ -285,7 +285,7 @@ export default function MultiAgentPage() {
       <PaywallModal
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat Konsensus AI"
+        title="Daftar Dulu untuk Lihat Konsensus 9 Agen"
         body="LensAI — Multi-Agent Consensus butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"

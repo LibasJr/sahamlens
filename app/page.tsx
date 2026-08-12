@@ -15,7 +15,7 @@ const WEBSITE_STRUCTURED_DATA = {
   alternateName: 'SahamLens.id',
   url: 'https://sahamlens.id',
   inLanguage: 'id-ID',
-  description: 'Screener dan analisis saham IDX berbasis data dan AI untuk membantu riset saham Indonesia.',
+  description: 'Screener dan analisis kuantitatif saham IDX dari rumus terbuka, dengan penjelasan AI, untuk membantu riset saham Indonesia.',
 };
 
 async function getInitialIhsg() {

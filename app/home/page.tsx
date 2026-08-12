@@ -424,12 +424,12 @@ export default function HomePage() {
   const primaryInsight: React.ReactNode | null = aiBriefing ? (
     <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
   ) : picksLoginRequired ? (
-    <p className="text-sm text-tv-muted mt-1.5">Login untuk melihat sinyal AI harian.</p>
+    <p className="text-sm text-tv-muted mt-1.5">Login untuk melihat sinyal harian.</p>
   ) : picksNeedPro ? (
-    <p className="text-sm text-tv-muted mt-1.5">Upgrade ke Pro untuk melihat sinyal AI harian.</p>
+    <p className="text-sm text-tv-muted mt-1.5">Upgrade ke Pro untuk melihat sinyal harian.</p>
   ) : topPick ? (
     <p className="text-sm text-tv-text mt-1.5 leading-relaxed">
-      Sinyal AI hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.symbol.replace('.JK', '')}</span>{' '}
+      Sinyal hari ini: <span className="font-number font-semibold text-tv-blue">{topPick.symbol.replace('.JK', '')}</span>{' '}
       <Badge variant={topPick.flagged ? 'danger' : 'success'} className="mx-1">
         {topPick.flagged ? topPick.flagReason : 'Sinyal Kuat'}
       </Badge>
@@ -439,7 +439,7 @@ export default function HomePage() {
     <p className="text-sm text-tv-muted mt-1.5">Belum ada sinyal kuat hari ini. Cek Stock Recommendations untuk detail lengkap.</p>
   );
 
-  // Slot 0 = sinyal AI/ringkasan pasar (logic di atas, tidak berubah). Slot 1+ =
+  // Slot 0 = sinyal harian/ringkasan pasar (logic di atas, tidak berubah). Slot 1+ =
   // berita pasar terbaru. Kosong sampai loadingRadar selesai - jangan ikut
   // dirotasi selagi masih skeleton.
   const insightSlots: React.ReactNode[] = loadingRadar
@@ -613,7 +613,7 @@ export default function HomePage() {
               <LoadingFact />
             </div>
           ) : picksLoginRequired ? (
-            <EmptyState title="Login untuk melihat Today's Opportunities" description="Sinyal AI harian butuh akun." />
+            <EmptyState title="Login untuk melihat Today's Opportunities" description="Sinyal harian butuh akun." />
           ) : picksNeedPro ? (
             <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat Today's Opportunities." />
           ) : radarError ? (
@@ -707,7 +707,7 @@ export default function HomePage() {
               <LoadingFact className="mt-3" />
             </div>
           ) : picksLoginRequired ? (
-            <EmptyState title="Login untuk melihat LensRadar" description="Sinyal AI harian butuh akun." />
+            <EmptyState title="Login untuk melihat LensRadar" description="Sinyal harian butuh akun." />
           ) : picksNeedPro ? (
             <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensRadar." />
           ) : radarError ? (
@@ -881,7 +881,7 @@ export default function HomePage() {
           LensMarket yang pendek. */}
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         {/* Jadwal Corporate Calendar terdekat - menggantikan "Hari Ini AI Menemukan"
-            yang isinya sama persis dengan widget "Rekomendasi AI Hari Ini" di landing
+            yang isinya sama persis dengan widget "Rekomendasi Hari Ini" di landing
             page "/" (duplikat). Cakupan cuma Dividen & Earnings - Yahoo Finance tidak
             punya data RUPS/Stock Split IDX yang bisa diandalkan (lihat komentar di
             corporate-calendar.service.ts). */}
