@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, SESSION_COOKIE } from '@/shared/constants/cookie-names';
+import { encrypt } from '@/shared/auth/jwt';
 import { isProtectedPage } from '@/shared/constants/access';
 import { decrypt } from '@/shared/auth/jwt';
 import { verifyAdminToken } from '@/shared/auth/admin-token';
@@ -90,6 +91,71 @@ function isPublicGuestPage(pathname: string): boolean {
   );
 }
 
+/**
+ * SESI TIDAK PERNAH DIPERPANJANG - BUG YANG DILAPORKAN BERULANG (2026-08-12).
+ *
+ * `SESSION_COOKIE` hanya pernah ditulis di dua tempat: handleLogin dan handleVerify
+ * (modules/user/controller/auth.controller.ts). Tidak ada satu jalur pun yang
+ * memperbaruinya saat sesi DIPAKAI. Akibatnya masa berlaku sesi bersifat MUTLAK, bukan
+ * bergeser:
+ *
+ *   tanpa "Ingat saya"  -> 24 jam sejak login, dan checkbox-nya default MATI
+ *   dengan "Ingat saya" -> 30 hari sejak login
+ *
+ * Jadi pengguna yang memakai aplikasi setiap hari tanpa mencentang "Ingat saya" akan
+ * dilempar ke /login setiap 24 jam, tepat di tengah pemakaian, tanpa peringatan - dan itu
+ * persis keluhan "sudah pernah login kok diminta login lagi". Bukan bug acak: ia pasti
+ * terjadi, tepat waktu, dan tidak ada kode yang mencegahnya karena kode itu memang tidak
+ * pernah ada.
+ *
+ * Perbaikannya sesi bergeser: setiap kali sesi yang MASIH SAH dipakai dan umurnya sudah
+ * lewat separuh, token diterbitkan ulang dengan masa berlaku yang SAMA. Panjang aslinya
+ * diturunkan dari `exp - iat` token itu sendiri, jadi pilihan "Ingat saya" pengguna
+ * terbawa - tidak dipaksa jadi 24 jam maupun 30 hari.
+ *
+ * BATAS YANG DISENGAJA: perpanjangan hanya berlaku selama sesinya masih sah. Token yang
+ * sudah kedaluwarsa tetap ditolak - ini menggeser jendela, bukan membuatnya abadi. Sesi
+ * yang benar-benar ditinggalkan tetap mati sesuai jadwal aslinya.
+ */
+const SESSION_REFRESH_AFTER_FRACTION = 0.5;
+
+async function refreshSessionCookie(
+  res: NextResponse,
+  payload: Record<string, unknown> | null,
+): Promise<NextResponse> {
+  if (!payload) return res;
+  const exp = typeof payload.exp === 'number' ? payload.exp : null;
+  const iat = typeof payload.iat === 'number' ? payload.iat : null;
+  if (exp == null || iat == null || exp <= iat) return res;
+
+  const lifetimeSec = exp - iat;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const elapsed = nowSec - iat;
+  if (elapsed < lifetimeSec * SESSION_REFRESH_AFTER_FRACTION) return res;
+  // Sudah lewat: jangan terbitkan ulang token mati.
+  if (nowSec >= exp) return res;
+
+  // Klaim waktu dibuang supaya encrypt() memasang iat/exp yang baru; sisa payload
+  // (id, email, role, is_pro, ...) dibawa apa adanya.
+  const { exp: _exp, iat: _iat, nbf: _nbf, ...rest } = payload;
+  try {
+    const token = await encrypt(rest, `${lifetimeSec}s`);
+    res.cookies.set({
+      name: SESSION_COOKIE,
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: lifetimeSec,
+    });
+  } catch {
+    // Gagal menerbitkan ulang tidak boleh menjatuhkan request - pengguna tetap punya
+    // sesi lama yang masih sah sampai jadwal aslinya.
+  }
+  return res;
+}
+
 export async function proxy(req: NextRequest) {
   const sessionCookie = req.cookies.get(SESSION_COOKIE)?.value;
   const decrypted = sessionCookie ? await decrypt(sessionCookie) : null;
@@ -150,7 +216,10 @@ export async function proxy(req: NextRequest) {
     isPublicGuestApi(req.nextUrl.pathname) ||
     hasOwnGuestLimiterApi(req.nextUrl.pathname)
   ) {
-    return NextResponse.next();
+    // Ikut menyegarkan: pengguna yang login lalu hanya membuka halaman publik tetap
+    // sedang MEMAKAI aplikasi, dan sesinya tidak boleh mati hanya karena ia belum
+    // menyentuh halaman terproteksi.
+    return refreshSessionCookie(NextResponse.next(), payload);
   }
 
   let isAdminOrTrial = false;
@@ -179,7 +248,9 @@ export async function proxy(req: NextRequest) {
   }
 
   if (isAdminOrTrial) {
-    return NextResponse.next();
+    // Jalur yang dilalui pengguna Pro/admin/trial. Tanpa penyegaran di sini, justru
+    // mereka yang paling aktif memakai aplikasi yang sesinya tidak pernah diperpanjang.
+    return refreshSessionCookie(NextResponse.next(), payload);
   }
 
   const ip = getClientIp(req);
@@ -201,7 +272,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return refreshSessionCookie(NextResponse.next(), payload);
 }
 
 export const config = {
