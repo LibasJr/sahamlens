@@ -314,7 +314,14 @@ function BucketTooltip({ active, payload, label }: any) {
 // produksi. Baseline pembanding sengaja TETAP 80: seluruh kolom "Δ vs 80" dan
 // calculateThresholdSimulations() mengukur terhadap 80, jadi menggeser baseline berarti
 // membandingkan angka terhadap dirinya sendiri.
-const DEFAULT_SIMULATION_THRESHOLD = 90;
+//
+// DITURUNKAN 90 -> 85 (permintaan pemilik produk, 2026-08-12). Alasan praktisnya terbukti
+// di data: makin tinggi ambangnya makin sedikit sinyal yang lolos, dan pada 90 jumlah
+// sampelnya jatuh sampai win rate di kartu paling kiri tidak lagi bisa dibaca sebagai
+// apa pun. 85 menahan penyusutan itu sambil tetap berjarak dari baseline - dipilih
+// ketimbang 80 justru karena 80 adalah baseline-nya sendiri, dan membuka halaman di situ
+// membuat seluruh kolom "Δ vs 80" membaca 0%.
+const DEFAULT_SIMULATION_THRESHOLD = 85;
 
 export default function CalibrationClient() {
   const [data, setData] = useState<CalibrationDashboardData | null>(null);
