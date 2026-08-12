@@ -25,17 +25,20 @@ jobs:
     steps:
       - name: Prepare SSH
         env:
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/sahamlens_deploy
+          printf '%s' "$VPS_SSH_KEY_B64" | base64 --decode > ~/.ssh/sahamlens_deploy
           chmod 600 ~/.ssh/sahamlens_deploy
 
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+          ssh-keygen -y -f ~/.ssh/sahamlens_deploy >/dev/null
+          echo "SSH private key valid"
 
       - name: Deploy SahamLens to VPS
         env:
