@@ -1,31 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
+import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
 import { runAndSaveLensBucketBacktest } from '@/modules/lens-radar/service/bucket-backtest.service';
 
 export const maxDuration = 300;
 
-// PENYERAGAMAN 2026-08-12. Route ini dulu diautentikasi dengan CRON_SECRET lewat
-// `Authorization: Bearer`, karena penjadwalnya adalah cron NATIVE VERCEL - satu-satunya
-// yang memang mengirim header itu. Cron Vercel sudah dihapus (vercel.json tinggal
-// $schema) dan seluruh penjadwalan pindah ke QStash, jadi CRON_SECRET tidak punya
-// pengirim lagi.
+// DUA PENJADWAL, DUA GERBANG - pola yang sama dengan broker-summary-scan.
 //
-// Membiarkannya berarti menyimpan DUA mekanisme autentikasi untuk SATU penjadwal, dan
-// dua di antara dua belas jadwal harus diingat sebagai pengecualian - persis bentuk
-// percabangan yang menjadi sumber bug di tempat lain (dua ATR, tiga EMA). Sekarang
-// ketiga belasnya seragam: POST + signature QStash.
+// KOREKSI 2026-08-12: sempat saya ubah menjadi POST + signature QStash saja, atas
+// asumsi QStash adalah satu-satunya penjadwal. Itu SALAH - job ini dijalankan
+// systemd timer di VPS, yang memanggil lewat GET + CRON_SECRET dan tidak bisa
+// menghasilkan signature QStash. Penggantian itu mematikan job-nya tanpa jejak:
+// systemd menerima 405, dan tidak ada apa pun di aplikasi yang menunjukkannya.
+//
+// GET  + CRON_SECRET     -> systemd timer (penjadwal saat ini)
+// POST + signature QStash -> kalau suatu saat dipindah ke QStash, tinggal arahkan
+async function isAuthorizedCron(req: NextRequest): Promise<boolean> {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return false;
+  return timingSafeStringEqual(req.headers.get('authorization') ?? '', `Bearer ${cronSecret}`);
+}
+
+export async function GET(req: NextRequest) {
+  if (!(await isAuthorizedCron(req))) {
+    logger.warn('Menolak GET /api/cron/lens-bucket-backtest - CRON_SECRET tidak valid');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return jalankan();
+}
+
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
-  const isValid = await verifyQStashSignature(signature, rawBody);
-  if (!isValid) {
-    logger.warn('Menolak request /api/cron/lens-bucket-backtest - signature QStash tidak valid');
+  if (!(await verifyQStashSignature(signature, rawBody))) {
+    logger.warn('Menolak POST /api/cron/lens-bucket-backtest - signature QStash tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  return jalankan();
+}
 
+async function jalankan() {
   try {
     const result = await withJobRunLog('lens-bucket-backtest', async () => {
       const stats = await runAndSaveLensBucketBacktest();
