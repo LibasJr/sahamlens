@@ -3,7 +3,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import dynamic from 'next/dynamic';
+
+/**
+ * Parser Markdown ditunda sampai benar-benar ada jawaban yang dirender.
+ *
+ * TEMUAN PageSpeed production 2026-08-13: chunk react-markdown (micromark/remark, ~33 KiB
+ * terkirim) ikut terunduh di SETIAP halaman meski panel chat tidak pernah dibuka. AIChat
+ * memang sudah `dynamic()`, tapi itu hanya menunda sampai hidrasi - bukan sampai dipakai,
+ * dan tombol mengambangnya harus tetap ada di layar. Yang bisa ditunda adalah parser-nya.
+ *
+ * `loading` sengaja merender teks apa adanya, bukan kosong: jawaban harus tetap terbaca
+ * selama parser dimuat - terutama sekarang teksnya mengalir bertahap.
+ */
+const ReactMarkdown = dynamic(
+  async () => (await import('react-markdown')).default as React.ComponentType<{ children: string }>,
+  { ssr: false, loading: () => null },
+);
 import { usePathname } from 'next/navigation';
 import { getTickerName } from '@/lib/trendingTickers';
 
@@ -22,6 +38,9 @@ export default function AIChat() {
   // dikirimi pertanyaan, jadi memang belum ada yang bisa dipastikan.
   const [penyediaSiap, setPenyediaSiap] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
+  // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
+  const [markdownReady, setMarkdownReady] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,6 +49,13 @@ export default function AIChat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!isOpen || markdownReady) return;
+    let cancelled = false;
+    import('react-markdown').then(() => { if (!cancelled) setMarkdownReady(true); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen, markdownReady]);
 
   useEffect(() => {
     const handleOpenChat = (e: any) => {
@@ -354,7 +380,11 @@ export default function AIChat() {
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        {markdownReady ? (
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        ) : (
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        )}
                       </div>
                     ) : (
                       msg.content

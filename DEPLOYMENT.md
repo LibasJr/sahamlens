@@ -64,6 +64,55 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - PageSpeed lanjutan: kontras mode terang, cache aset, chunk markdown
+
+Dikerjakan dari laporan PageSpeed production yang sebenarnya (bukan pengukuran lokal).
+
+**1. Kontras GAGAL di mode terang - diperbaiki di level token.** Lencana perubahan IHSG
+di header (`bg-tv-red/15 text-tv-red`) terukur 4,46:1 merah dan 4,09:1 hijau di mode
+terang; ambangnya 4,5:1. Mode gelap justru sudah lulus (5,32 dan 6,58), jadi ini murni
+masalah pasangan terang.
+
+Penyebabnya peran KETIGA yang terlewat waktu palet terang dibuat: warna yang sama dipakai
+sebagai teks **di atas tint-nya sendiri**, dan pola itu ada di **33 berkas**. Karena itu
+yang digelapkan adalah tokennya (`--lens-red` -> `#B02323`, `--lens-green` -> `#12722F`),
+bukan satu `<span>`. Menggelapkan token memperbaiki ketiga peran sekaligus - teks polos,
+teks di atas tint, dan teks putih di atas bidang padat - dan tabel rasio di
+`app/globals.css` sudah diperbarui dengan angka terukur.
+
+**2. Cache aset statis** (`next.config.mjs headers()`). `/sahamlens-scope.png` disajikan
+TTL 4 jam, jadi pengunjung yang kembali esok hari mengunduhnya lagi. Next tidak memasang
+`Cache-Control` untuk berkas `/public`; nilainya datang dari default Cloudflare. Sekarang
+30 hari + `stale-while-revalidate`. **Sengaja BUKAN 1 tahun `immutable`** seperti yang
+diminta Lighthouse: berkas `/public` tidak punya hash isi di namanya, jadi logo yang
+diperbarui akan tersangkut setahun tanpa cara membatalkannya selain mengganti nama.
+
+**3. Chunk react-markdown ditunda** - `unused-javascript` turun dari 157 KiB ke 132 KiB.
+Parser markdown (~33 KiB) ikut terunduh di setiap halaman meski panel chat tidak pernah
+dibuka. AIChat memang sudah `dynamic()`, tapi itu hanya menunda sampai hidrasi, bukan
+sampai dipakai. Sekarang parser dimuat saat panel dibuka.
+
+**Sisa `unused-javascript` (132 KiB) TIDAK dikejar, dan itu keputusan sadar.** Setelah
+diidentifikasi dari isinya, dua chunk terbesar adalah runtime framework: `7149`
+(`FetchStrategy`, `EntryStatus`, `PrefetchKind`, `AppRouter` - App Router Next.js) dan
+`4bd1b696` (`stateNode`, `alternate`, `memoizedProps` - reconciler React). Lighthouse
+menandainya "tidak terpakai" karena belum dipakai saat load pertama, padahal ia dipakai
+saat navigasi dan hidrasi. Sisanya framer-motion, yang memang dipakai untuk animasi masuk
+di banyak halaman.
+
+**Dua temuan yang BUKAN pekerjaan kode - perlu keputusan Anda:**
+
+- **Cloudflare Web Analytics ada di jalur kritis, 920 md.** Rantainya:
+  `sahamlens.id` (198 md) -> `/beacon.min.js` (250 md) -> `/cdn-cgi/rum` (**920 md**).
+  Skrip ini disuntikkan otomatis oleh Cloudflare, bukan oleh kode aplikasi. Mematikannya
+  ada di dashboard Cloudflare (Web Analytics), bukan di repo ini.
+- **JavaScript versi lama, 13 KiB** (`Array.prototype.at`, `Object.hasOwn`,
+  `String.prototype.trimStart`, dst). Bisa dihapus dengan menaikkan target `browserslist`
+  ke peramban modern - **tapi saya sengaja tidak melakukannya**: aplikasi ini punya
+  pembungkus WebView Android (`sahamlens-android/`), dan WebView lama persis yang
+  membutuhkan polyfill itu. Menukar 13 KiB dengan risiko aplikasi Android blank adalah
+  pertukaran yang buruk, dan itu keputusan produk, bukan keputusan teknis.
+
 ### 2026-08-13 - Perbaikan PageSpeed: logo 263 KiB untuk avatar 32 piksel
 
 Diukur dengan Lighthouse 12 (preset desktop) terhadap build production yang dijalankan
