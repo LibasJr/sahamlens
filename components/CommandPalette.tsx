@@ -21,7 +21,7 @@ const MARKET_INDEXES: Emiten[] = [
 
 interface CommandPaletteProps {
   // Kalau diisi, memilih saham (klik/Enter) memanggil ini alih-alih pindah halaman ke
-  // LensAI (/technical/[symbol]) - dipakai halaman depan (components/Dashboard.tsx)
+  // LensConsensus (/technical/[symbol]) - dipakai halaman depan (components/Dashboard.tsx)
   // supaya chart utama di halaman itu sendiri yang berubah, bukan navigasi keluar.
   // Halaman lain yang belum diisi prop ini tetap pakai perilaku lama (navigasi).
   onSelect?: (symbol: string, name: string) => void;
@@ -196,10 +196,18 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Cari IHSG, kode saham, atau perusahaan (mis. IHSG atau BBCA)"
-                className="flex-1 bg-transparent text-[14px] text-white focus:outline-none placeholder:text-tv-muted/70"
+                aria-label="Cari saham atau indeks"
+                className="flex-1 rounded-md bg-transparent text-[14px] text-white placeholder:text-tv-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
               />
-              <button onClick={() => setOpen(false)} className="text-tv-muted hover:text-white transition-colors">
-                <X className="h-4 w-4" />
+              {/* Tombol berisi ikon saja WAJIB punya nama aksesibel - tanpa aria-label
+                  pembaca layar hanya mengumumkan "tombol". Ukurannya juga dinaikkan ke
+                  44x44; sebelumnya hanya sebesar ikonnya. */}
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Tutup pencarian"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-tv-muted transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -261,7 +269,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
 
             <div className="px-4 py-2 border-t border-white/[0.07] flex items-center justify-between text-[10px] text-tv-muted">
               <span>↑↓ navigasi • {onSelect ? 'Enter tampilkan di chart' : 'Enter buka analisis'}</span>
-              {!onSelect && <span>Grafik & indikator gratis • LensAI penuh perlu akun</span>}
+              {!onSelect && <span>Grafik & indikator gratis • LensConsensus penuh perlu akun</span>}
             </div>
           </div>
         </div>

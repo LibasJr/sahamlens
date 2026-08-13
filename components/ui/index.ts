@@ -8,6 +8,7 @@ export { PageContainer } from './PageContainer';
 export { Button } from './Button';
 export { Badge } from './Badge';
 export { Input } from './Input';
+export { PasswordToggle } from './PasswordToggle';
 export { Select } from './Select';
 export { Textarea } from './Textarea';
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './Table';

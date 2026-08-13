@@ -102,7 +102,9 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
       <div className="border-b border-tv-border bg-gradient-to-r from-tv-blue/[0.09] via-transparent to-tv-green/[0.06] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
+            {/* flex-wrap: di 320px (Android kecil / iPhone SE) ikon + judul + lencana
+                tidak muat satu baris dan lencananya terpotong 16px. */}
+            <div className="flex flex-wrap items-center gap-2">
               <Gauge className="h-5 w-5 text-tv-blue" />
               <h3 className="font-heading text-base font-bold text-tv-text">Market Regime / Fear-Greed Quant</h3>
               <span className="rounded-full border border-tv-blue/25 bg-tv-blue/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-tv-blue">

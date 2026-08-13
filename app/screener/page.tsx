@@ -151,7 +151,7 @@ export default function ScreenerPage() {
               {/* font-mono dilepas: aturan tipografi di app/globals.css menyebut
                   font-mono HANYA untuk data tabular/kode, bukan kalimat. */}
               <p className="text-xs text-tv-muted">
-                Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif LensAI.
+                Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif LensScore.
               </p>
             </div>
           </div>

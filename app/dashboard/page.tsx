@@ -907,7 +907,7 @@ function DashboardContent() {
           body={isTrialExpired ? "Masa trial gratis 7 hari Anda telah berakhir. Upgrade ke Pro sekarang untuk terus menggunakan fitur Pro dari SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
           benefits={[
             'Unlimited LensTechnical (10 filter)',
-            'LensRadar LIVE, LensAI & Compare Tool',
+            'LensRadar LIVE, LensConsensus & Compare Tool',
             'Watchlist & Alert unlimited',
           ]}
         />
@@ -1166,16 +1166,27 @@ function DashboardContent() {
                 {(() => {
                   const consensus = splitStatusText(data?.consensus);
                   return (
-                    <div className={`min-h-[62px] w-full rounded-xl border px-3.5 py-2.5 shadow-1 flex items-center gap-2.5 md:min-w-[250px] ${
+                    // Bobot visualnya diturunkan, UKURAN HURUFNYA TIDAK. Kotak ini dulu
+                    // paling menonjol di layar (62px, 18px tebal, latar /15, tepi /60)
+                    // padahal isinya sinyal PALING SEMPIT di halaman: vote teknikal
+                    // murni, buta fundamental, dan menurut decision-presentation.service
+                    // tidak boleh dibaca sebagai arah transaksi. Pembaca sekilas ambil
+                    // yang paling mencolok, jadi "STRONG BUY" mengalahkan putusan
+                    // sebenarnya (WATCH) hanya karena lebih besar.
+                    //
+                    // Yang dikurangi: tinggi, kepekatan latar, ketegasan tepi, lompatan
+                    // ke 18px. Yang DIPERTAHANKAN: 16px tebal - masih nyaman dibaca
+                    // mata yang sudah tidak muda.
+                    <div className={`flex min-h-[52px] w-full items-center gap-2.5 rounded-xl border px-3.5 py-2 md:min-w-[200px] ${
                       data?.consensus?.includes('BUY')
-                        ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
+                        ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
                         : data?.consensus?.includes('SELL')
-                        ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
-                        : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
+                        ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                        : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
                     }`}>
                       {loading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
                       <div className="min-w-0 font-sans">
-                        <div className="text-base font-bold leading-tight sm:text-lg">{loading ? 'Calculating...' : consensus.primary}</div>
+                        <div className="text-base font-bold leading-tight">{loading ? 'Calculating...' : consensus.primary}</div>
                         {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">{consensus.detail}</div>}
                       </div>
                     </div>
@@ -1217,9 +1228,10 @@ function DashboardContent() {
               <h2 className="font-heading text-sm font-semibold text-white">Technical Summary</h2>
             </div>
             <div className="flex flex-col md:flex-row gap-6 relative">
-              {/* Action Buttons - tombol "LensAI" sengaja dihapus dari sini (2026-08-01):
-                  sudah ada menu LensAI tersendiri di Sidebar, duplikasi tautan di dalam
-                  AI Summary cuma bikin bingung ("ini AI Summary atau LensAI?"). */}
+              {/* Action Buttons - tombol menuju rapat 10 agen sengaja dihapus dari sini
+                  (2026-08-01) karena duplikasi tautan di dalam panel ringkasan cuma bikin
+                  bingung. Jalur menuju LensConsensus sekarang lewat kartu di Beranda dan
+                  MobileNav; entri Sidebar-nya sudah dihapus 2026-08-12. */}
               <div className="absolute top-0 right-0 flex gap-2 z-10">
                 <button
                   onClick={downloadTechnicalPDF}
@@ -1587,7 +1599,7 @@ function DashboardContent() {
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensAI & Compare Tool',
+          'LensRadar LIVE, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

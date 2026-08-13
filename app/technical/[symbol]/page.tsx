@@ -110,7 +110,7 @@ async function getCouncilData(symbol: string): Promise<{ data: any; status: numb
     if (!res.ok) return { data: null, status: res.status, signedIn };
     return { data: await res.json(), status: 200, signedIn };
   } catch (error) {
-    console.error('LensAI analysis error:', error);
+    console.error('LensConsensus analysis error:', error);
     return { data: null, status: 500, signedIn };
   }
 }
@@ -228,12 +228,12 @@ async function OrchestratorRecommendation({
     </div>
   );
 }
-async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
+async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
   const { data: council, status, signedIn } = await getCouncilData(symbol);
 
   if (!council) {
     // Chart + indikator dasar tetap tampil publik (lihat StockChartPanel di atas) -
-    // hanya ringkasan 10-agent LensAI Pro yang butuh login/upgrade, jadi teaser-nya
+    // hanya ringkasan 10-agent LensConsensus Pro yang butuh login/upgrade, jadi teaser-nya
     // spesifik per alasan (belum login vs belum Pro) alih-alih pesan error generik.
     // Ajakan login HANYA untuk yang benar-benar belum punya sesi.
     if (!signedIn && status === 401) {
@@ -241,7 +241,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
           <p className="text-white font-semibold mb-1">Masuk dulu, yuk, untuk lihat analisis lengkap</p>
-          <p className="text-tv-muted text-sm mb-4">Grafik dan indikator dasar tetap bisa kamu lihat gratis. Untuk rangkuman LensAI yang lebih lengkap, masuk dulu supaya datanya bisa kami tampilkan.</p>
+          <p className="text-tv-muted text-sm mb-4">Grafik dan indikator dasar tetap bisa kamu lihat gratis. Untuk rangkuman LensConsensus yang lebih lengkap, masuk dulu supaya datanya bisa kami tampilkan.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Masuk sekarang
           </Link>
@@ -252,8 +252,8 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
-          <p className="text-white font-semibold mb-1">Jatah coba LensAI kamu sudah habis</p>
-          <p className="text-tv-muted text-sm mb-4">Masuk dulu untuk lanjut ngobrol dengan LensAI dan membuka analisis lengkap {symbol}.</p>
+          <p className="text-white font-semibold mb-1">Jatah coba LensConsensus kamu sudah habis</p>
+          <p className="text-tv-muted text-sm mb-4">Masuk dulu untuk melanjutkan LensConsensus dan membuka analisis lengkap {symbol}.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Masuk untuk lanjut
           </Link>
@@ -265,8 +265,8 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
       return (
         <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
           <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
-          <p className="text-white font-semibold mb-1">LensAI adalah fitur Pro</p>
-          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap LensAI pada {symbol}.</p>
+          <p className="text-white font-semibold mb-1">LensConsensus adalah fitur Pro</p>
+          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap LensConsensus pada {symbol}.</p>
           {paymentMethods.length > 0 && (
             <div className="text-left max-w-xs mx-auto mb-4 space-y-1">
               {paymentMethods.map((m) => (
@@ -298,8 +298,8 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
           title={signedIn ? 'Analisis teknikal belum bisa ditampilkan' : 'Masuk dulu untuk lihat analisis lengkap'}
           description={
             signedIn
-              ? `Grafik dan indikator dasarnya tetap bisa kamu pakai. Rangkuman LensAI untuk ${symbol} sedang gagal dihitung - biasanya sementara. Coba muat ulang sebentar lagi.`
-              : 'Grafik dasarnya tetap bisa kamu pakai. Untuk membuka rangkuman LensAI lengkap, masuk dulu ya.'
+              ? `Grafik dan indikator dasarnya tetap bisa kamu pakai. Rangkuman LensConsensus untuk ${symbol} sedang gagal dihitung - biasanya sementara. Coba muat ulang sebentar lagi.`
+              : 'Grafik dasarnya tetap bisa kamu pakai. Untuk membuka rangkuman LensConsensus lengkap, masuk dulu ya.'
           }
         />
         <div className="flex flex-wrap justify-center gap-3 pb-8 text-center">
@@ -460,7 +460,7 @@ async function LensAIAnalysisDisplay({ symbol }: { symbol: string }) {
   );
 }
 
-function LensAIAnalysisSkeleton({ symbol }: { symbol: string }) {
+function LensConsensusAnalysisSkeleton({ symbol }: { symbol: string }) {
   return (
     // Kerangka mengikuti bentuk hasil aslinya (batang suara + kartu agen), bukan
     // kotak-kotak kosong berdenyut yang tidak menyerupai apa pun. Tunggu 5-10 detik
@@ -474,7 +474,7 @@ function LensAIAnalysisSkeleton({ symbol }: { symbol: string }) {
         <Skeleton className="h-3 w-full rounded-full" />
         <Skeleton className="h-16 w-full" />
         <p className="text-center text-xs text-tv-muted">
-          LensAI sedang merapatkan {symbol} - biasanya 5-10 detik.
+          LensConsensus sedang merapatkan {symbol} - biasanya 5-10 detik.
         </p>
         <LoadingFact />
       </div>
@@ -506,7 +506,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
           <TickerAvatar symbol={symbol} size="lg" />
           <div>
-            <h1 className="lens-page-title">{isIndex ? 'LensTechnical: IHSG' : `LensAI: ${symbol}`}</h1>
+            <h1 className="lens-page-title">{isIndex ? 'LensTechnical: IHSG' : `LensConsensus: ${symbol}`}</h1>
             <p className="text-sm text-tv-muted">
               {isIndex ? 'Chart dan indikator teknikal Indeks Harga Saham Gabungan' : 'Rapat 10 agen analisis atas satu emiten'}
             </p>
@@ -530,8 +530,8 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
               <OrchestratorRecommendation symbol={symbol} />
             </Suspense>
-            <Suspense fallback={<LensAIAnalysisSkeleton symbol={symbol} />}>
-              <LensAIAnalysisDisplay symbol={symbol} />
+            <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
+              <LensConsensusAnalysisDisplay symbol={symbol} />
             </Suspense>
           </>
         )}

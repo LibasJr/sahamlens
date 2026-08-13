@@ -20,7 +20,7 @@ const PILLARS = [
   {
     icon: Grid3x3,
     title: 'Satu lensa, banyak fokus',
-    body: 'LensTechnical, LensFundamental, LensRadar, LensAI - beda titik fokus, objek yang dilihat sama: satu saham, dari sudut berbeda. Bukan satu alat serba tahu, tapi kumpulan sudut pandang yang saling melengkapi.',
+    body: 'LensTechnical, LensFundamental, LensRadar, LensConsensus - beda titik fokus, objek yang dilihat sama: satu saham, dari sudut berbeda. Bukan satu alat serba tahu, tapi kumpulan sudut pandang yang saling melengkapi.',
   },
   {
     icon: ZoomIn,
@@ -34,7 +34,7 @@ export default function AboutPage() {
     <PageContainer className="p-4 md:p-6 max-w-3xl">
       <Link
         href="/home"
-        className="inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text transition-colors mb-6"
+        className="mb-6 inline-flex min-h-6 items-center gap-1.5 text-sm text-tv-muted transition-colors hover:text-tv-text"
       >
         <ArrowLeft className="w-4 h-4" />
         Kembali ke Beranda

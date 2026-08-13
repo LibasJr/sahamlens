@@ -17,7 +17,7 @@ const NAME_BY_SYMBOL: Record<string, string> = Object.fromEntries(
 // `pickTrendingTicker()` memilih satu simbol dengan `Math.random()` lalu menamainya
 // "trending" - klaim tentang perhatian pasar yang tidak pernah diukur dari apa pun.
 // Pemakaiannya (components/Sidebar.tsx) sebenarnya cuma butuh SATU emiten default untuk
-// tautan menu LensAI saat pengguna belum pernah mencari apa pun. Diganti default yang
+// tautan menu LensConsensus saat pengguna belum pernah mencari apa pun. Diganti default yang
 // tetap & tidak mengklaim apa-apa. Kalau kelak butuh "trending" sungguhan, turunkan dari
 // data nyata (topValue/topVolume di market-summary.service.ts), bukan dari acak.
 

@@ -18,6 +18,7 @@ import {
   Filter,
   GitCompare,
   History,
+  Info,
   LayoutDashboard,
   LineChart,
   LockKeyhole,
@@ -109,6 +110,12 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS & aksi', path: '/calendar', icon: CalendarDays, guest: true },
       { id: 'macro', name: 'Macro', subtitle: 'Konteks makro Indonesia', path: '/macro', icon: Waves },
       { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi & metodologi', path: '/transparency', icon: ShieldCheck, guest: true },
+      // Halaman /about sudah lama ada tapi nyaris tidak bisa dicapai: satu-satunya jalan
+      // dulu hanya tautan di landing yang ditandai `hidden sm:inline`, jadi tidak terlihat
+      // sama sekali di HP. SiteFooter memperbaikinya sebagian; entri ini membuatnya benar-
+      // benar setara dengan halaman lain. `guest: true` - tidak butuh akun untuk membaca
+      // filosofi produk, justru pengunjung baru yang paling perlu.
+      { id: 'about', name: 'Tentang', subtitle: 'Filosofi & prinsip aplikasi', path: '/about', icon: Info, guest: true },
     ],
   },
 ];
@@ -254,7 +261,11 @@ export default function Sidebar() {
         } ${isCollapsed ? 'w-[min(22rem,calc(100vw-1rem))] md:w-[76px]' : 'w-[min(22rem,calc(100vw-1rem))] md:w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
-          <Link href="/home" className="group flex min-w-0 items-center gap-3">
+          {/* Logo menuju "/", bukan "/home". Konvensi web: logo = akar situs. "/home"
+              tetap terjangkau lewat butir nav "Beranda" tepat di bawahnya, jadi tidak
+              ada jalan yang hilang - justru sebaliknya, ini menutup satu-satunya celah
+              di mana pengguna yang sudah masuk tidak punya jalan kembali ke "/". */}
+          <Link href="/" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner">
               <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-cover" />
             </div>

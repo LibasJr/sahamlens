@@ -106,6 +106,44 @@ function resolveChartHeight(width: number, requestedHeight: number, variant: 'co
   return Math.round(clamp(natural, 360, Math.max(540, requestedHeight)));
 }
 
+/**
+ * Palet chart dibaca dari token tema yang sama dengan sisa aplikasi.
+ *
+ * KENAPA HARUS BEGINI. lightweight-charts menggambar ke <canvas>; ia tidak mengenal
+ * kelas Tailwind maupun variabel CSS. Warna harus diberikan sebagai nilai JS saat
+ * chart dibuat. Sebelum ini semuanya hex mati bertema gelap (#131722, #d1d4dc,
+ * #1e222d, #2a2e39), sehingga di mode terang chart tetap kotak hitam.
+ *
+ * Nilai diambil dari variabel --lens-* supaya chart otomatis ikut tema apa pun yang
+ * berlaku - termasuk tema baru nanti - tanpa perlu daftar warna kedua di sini.
+ * Fallback-nya sengaja warna lama, jadi kalau variabelnya belum termuat tampilannya
+ * persis seperti sebelumnya, bukan putih polos.
+ */
+function bacaPaletChart(): { latar: string; teks: string; kisi: string; garis: string; bidik: string } {
+  if (typeof window === 'undefined') {
+    return { latar: '#131722', teks: '#d1d4dc', kisi: '#1e222d', garis: '#2a2e39', bidik: '#787b86' };
+  }
+  const gaya = getComputedStyle(document.documentElement);
+  const token = (nama: string, cadangan: string): string => {
+    // Token disimpan sebagai triplet BERSPASI ("79 96 120") supaya Tailwind bisa
+    // menyisipkan <alpha-value>. Pengurai warna lightweight-charts hanya menerima
+    // sintaks rgb() lama yang berkoma - diberi "rgb(79 96 120)" ia melempar
+    // "Cannot parse color" dan chart gagal digambar sama sekali, bukan sekadar salah
+    // warna. Jadi triplet-nya dijadikan berkoma di sini.
+    const isi = gaya.getPropertyValue(nama).trim();
+    if (!isi) return cadangan;
+    const angka = isi.split(/[\s,]+/).filter(Boolean);
+    return angka.length === 3 ? `rgb(${angka.join(', ')})` : cadangan;
+  };
+  return {
+    latar: token('--lens-card', '#131722'),
+    teks: token('--lens-muted', '#d1d4dc'),
+    kisi: token('--lens-border', '#1e222d'),
+    garis: token('--lens-border-light', '#2a2e39'),
+    bidik: token('--lens-muted', '#787b86'),
+  };
+}
+
 function paneBounds(index: number, count: number): { start: number; end: number } {
   if (count <= 0) return { start: 1, end: 1 };
   const region = Math.min(0.48, 0.15 * count);
@@ -195,12 +233,14 @@ export default function TradingViewChart({
     const initialWidth = Math.max(1, chartHostRef.current.clientWidth);
     const initialHeight = resolveChartHeight(initialWidth, height, variant, document.fullscreenElement === shellRef.current ? shellRef.current?.clientHeight : undefined);
 
+    const palet = bacaPaletChart();
+
     const chart = createChart(chartHostRef.current, {
       width: initialWidth,
       height: initialHeight,
       layout: {
-        background: { type: ColorType.Solid, color: '#131722' },
-        textColor: '#d1d4dc',
+        background: { type: ColorType.Solid, color: palet.latar },
+        textColor: palet.teks,
         fontSize: 11,
         fontFamily: 'JetBrains Mono, monospace',
       },
@@ -210,23 +250,23 @@ export default function TradingViewChart({
           : Math.round(price).toLocaleString('id-ID'),
       },
       grid: {
-        vertLines: { color: '#1e222d' },
-        horzLines: { color: '#1e222d' },
+        vertLines: { color: palet.kisi },
+        horzLines: { color: palet.kisi },
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: '#787b86', width: 1, style: 3, visible: true, labelVisible: true },
-        horzLine: { color: '#787b86', width: 1, style: 3, visible: true, labelVisible: true },
+        vertLine: { color: palet.bidik, width: 1, style: 3, visible: true, labelVisible: true },
+        horzLine: { color: palet.bidik, width: 1, style: 3, visible: true, labelVisible: true },
       },
       rightPriceScale: {
-        borderColor: '#2a2e39',
+        borderColor: palet.garis,
         scaleMargins: {
           top: 0.08,
           bottom: oscillatorRegion > 0 ? oscillatorRegion + 0.04 : 0.1,
         },
       },
       timeScale: {
-        borderColor: '#2a2e39',
+        borderColor: palet.garis,
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 4,
@@ -473,7 +513,27 @@ export default function TradingViewChart({
     });
     resizeObserver.observe(chartHostRef.current);
 
+    // lightweight-charts menggambar ke CANVAS - ia tidak bisa membaca kelas atau
+    // variabel CSS, jadi tidak ikut berubah saat tema diganti. Sebelum ini seluruh
+    // warnanya hex mati bertema gelap, sehingga di mode terang chart tetap kotak hitam
+    // di tengah halaman putih. Pengamat ini membaca ulang token dan menerapkannya.
+    const pengamatTema = new MutationObserver(() => {
+      const baru = bacaPaletChart();
+      chart.applyOptions({
+        layout: { background: { type: ColorType.Solid, color: baru.latar }, textColor: baru.teks },
+        grid: { vertLines: { color: baru.kisi }, horzLines: { color: baru.kisi } },
+        crosshair: {
+          vertLine: { color: baru.bidik },
+          horzLine: { color: baru.bidik },
+        },
+        rightPriceScale: { borderColor: baru.garis },
+        timeScale: { borderColor: baru.garis },
+      });
+    });
+    pengamatTema.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     return () => {
+      pengamatTema.disconnect();
       resizeObserver.disconnect();
       chart.unsubscribeCrosshairMove(handleCrosshairMove);
       chart.remove();
@@ -566,7 +626,10 @@ export default function TradingViewChart({
         </div>
       </div>
 
-      <div className="relative min-w-0 overflow-hidden bg-[#131722]">
+      {/* bg-tv-card, bukan hex mati #131722: pembungkus ini terlihat di sela sebelum
+          kanvas selesai digambar dan di tepi saat resize - kalau ia tetap gelap, mode
+          terang berkedip hitam. */}
+      <div className="relative min-w-0 overflow-hidden bg-tv-card">
         <div ref={chartHostRef} className="min-w-0 w-full" />
 
         {hoverOhlc && (
@@ -589,7 +652,7 @@ export default function TradingViewChart({
 
         {paneLabels.map((pane) => (
           <div key={pane.id} className="pointer-events-none absolute left-0 right-0 z-10 border-t border-tv-border/70" style={{ top: pane.top }}>
-            <span className="absolute left-2 top-1 rounded bg-[#131722]/85 px-1.5 py-0.5 text-[11px] font-mono font-semibold text-tv-muted sm:left-3 sm:text-[10px]">
+            <span className="absolute left-2 top-1 rounded bg-tv-card/85 px-1.5 py-0.5 text-[11px] font-mono font-semibold text-tv-muted sm:left-3 sm:text-[10px]">
               {pane.label}{pane.latest != null ? `  ${pane.latest}` : ''}
             </span>
           </div>

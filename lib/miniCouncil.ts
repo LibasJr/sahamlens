@@ -322,7 +322,7 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
     : finalSignal === 'SELL'
     ? (isIndex ? 'menunjukkan tekanan pelemahan' : 'sebaiknya diwaspadai / dipertimbangkan untuk dijual')
     : (isIndex ? 'masih bergerak sideways (wait-and-see)' : 'masih dalam fase wait-and-see (tahan dulu)');
-  let summary = `LensAI menilai ${subject} ${verdictText}.`;
+  let summary = `LensConsensus menilai ${subject} ${verdictText}.`;
   if (supporting.length) summary += ` ${supporting.join(' ')}`;
   if (opposing) summary += ` Yang perlu diwaspadai: ${opposing.reason}`;
 

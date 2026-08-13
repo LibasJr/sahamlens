@@ -8,7 +8,7 @@ export default function TransparencyPage() {
       <div className="max-w-7xl mx-auto">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text transition-colors mb-4"
+          className="mb-4 inline-flex min-h-6 items-center gap-1.5 text-sm text-tv-muted transition-colors hover:text-tv-text"
         >
           <ArrowLeft className="w-4 h-4" />
           Kembali ke Beranda

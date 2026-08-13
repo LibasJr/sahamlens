@@ -12,6 +12,41 @@
   --lens-border-light: 42 62 93;
   --lens-text: 245 247 251;
   --lens-muted: 142 160 184;
+
+  /* Warna aksen. DULU dikunci sebagai hex mati di tailwind.config.js, jadi mode terang
+   * memakai nilai yang dirancang untuk latar gelap. Terukur di kartu putih:
+   * hijau 2,26:1 - merah 2,99:1 - kuning 1,68:1 - warning 2,15:1 - emas 1,84:1.
+   * Semuanya GAGAL AA, dan hijau/merah itu justru warna untung-rugi: informasi paling
+   * penting di aplikasi ini praktis tidak terbaca bagi pengunjung ber-OS mode terang
+   * (app/layout.tsx memilih tema dari prefers-color-scheme kalau belum ada preferensi).
+   *
+   * Nilai gelap di bawah ini tidak berubah - mode gelap memang sudah lolos (1% gagal).
+   * Pasangan terangnya ada di html.light dan dipilih dengan mengukur, bukan menebak:
+   * semuanya >= 4,5:1 baik di kartu putih maupun di latar abu --lens-bg. */
+  --lens-green: 35 196 131;
+  --lens-green-hover: 27 173 114;
+  --lens-red: 255 93 108;
+  --lens-red-hover: 233 72 88;
+  --lens-yellow: 242 193 78;
+  --lens-warning: 245 158 11;
+  --lens-gold: 231 185 76;
+  --lens-blue: 79 140 255;
+  --lens-blue-hover: 60 118 232;
+  --lens-purple: 139 124 255;
+
+  /* Biru untuk BIDANG PADAT (tombol primer), terpisah dari biru untuk TEKS.
+   * Satu warna tidak bisa melayani keduanya: --lens-blue harus cukup terang agar
+   * terbaca sebagai teks di atas kartu gelap (5,59:1), tapi seterang itu ia terlalu
+   * muda untuk menopang teks putih di atasnya - terukur 3,22:1 pada tombol "Masuk",
+   * gagal AA di ukuran 11px. Nilai yang lebih gelap ini memberi putih 6,7:1. */
+  --lens-blue-solid: 29 78 216;
+  /* Ungu padat, dipakai ujung gradient-accent. Putih di atasnya 7,1:1. */
+  --lens-purple-solid: 109 40 217;
+
+  /* Warna teks di atas bidang aksen padat. Di tema gelap aksennya cerah, jadi
+   * pasangannya teks gelap. Lihat catatan panjang di aturan .bg-tv-green dst. */
+  --lens-on-accent: 7 11 18;
+
   --background: rgb(var(--lens-bg));
   --foreground: rgb(var(--lens-text));
 }
@@ -26,6 +61,85 @@ html.light {
   --lens-border-light: 174 190 210;
   --lens-text: 20 31 48;
   --lens-muted: 79 96 120;
+
+  /* Pasangan terang. Rasio di kartu putih / di --lens-bg abu:
+   *   green        #15803D  5,02 / 4,67      (dulu #23C483  2,26 - gagal)
+   *   red          #C42A2A  5,66 / 5,27      (dulu #FF5D6C  2,99 - gagal)
+   *   yellow       #8A6100  5,54 / 5,16      (dulu #F2C14E  1,68 - gagal)
+   *   warning      #B45309  5,02 / 4,67      (dulu #F59E0B  2,15 - gagal)
+   *   gold         #946A00  4,86 / 4,52      (dulu #E7B94C  1,84 - gagal)
+   *   blue         #2563EB  5,17 / 4,81      (dulu #4F8CFF  3,22 - teks besar saja)
+   *   purple       #7C3AED  5,70 / 5,30      (dulu #8B7CFF  3,27 - teks besar saja)
+   *
+   * Ini juga membereskan lencana: teks putih di atas bg-tv-green dulu 2,26:1, sekarang
+   * 5,02:1 - jadi warna ini benar sebagai teks MAUPUN sebagai latar. */
+  --lens-green: 21 128 61;
+  --lens-green-hover: 17 105 50;
+  --lens-red: 196 42 42;
+  --lens-red-hover: 159 31 31;
+  --lens-yellow: 138 97 0;
+  --lens-warning: 180 83 9;
+  --lens-gold: 148 106 0;
+  --lens-blue: 37 99 235;
+  --lens-blue-hover: 29 78 216;
+  --lens-purple: 124 58 237;
+  --lens-blue-solid: 29 78 216;
+  --lens-purple-solid: 109 40 217;
+  /* Tema terang: aksennya sudah gelap, jadi pasangannya putih. */
+  --lens-on-accent: 255 255 255;
+}
+
+/* Kartu ekspor gambar (components/export/*ExportCard.tsx) DIKUNCI gelap, apa pun tema
+ * pengguna.
+ *
+ * Kartu-kartu itu ditulis saat palet masih selalu gelap: akarnya
+ * `from-tv-bg to-tv-surface text-white`. Begitu token menjadi peka-tema, mode terang
+ * membuat latarnya putih sementara teksnya tetap putih - terukur 1,00:1 pada judul
+ * "SahamLens" 36px. Hasil unduhannya jadi gambar kosong. Ini regresi dari pekerjaan
+ * token, bukan cacat lama.
+ *
+ * Dikunci, bukan dibuat peka-tema, karena keluarannya berkas PNG yang dibagikan ke
+ * luar aplikasi: identitas visualnya tidak boleh bergantung pada setelan tema orang
+ * yang kebetulan menekan tombol unduh.
+ *
+ * Properti kustom diwarisi, jadi deklarasi di elemen yang lebih dalam ini menang atas
+ * html.light tanpa perlu !important maupun menaikkan spesifisitas. */
+.lens-export-dark {
+  --lens-bg: 7 11 18;
+  --lens-surface: 10 17 29;
+  --lens-card: 15 23 36;
+  --lens-card-alt: 19 29 46;
+  --lens-hover: 23 35 56;
+  --lens-border: 26 41 64;
+  --lens-border-light: 42 62 93;
+  --lens-text: 245 247 251;
+  --lens-muted: 142 160 184;
+  --lens-green: 35 196 131;
+  --lens-green-hover: 27 173 114;
+  --lens-red: 255 93 108;
+  --lens-red-hover: 233 72 88;
+  --lens-yellow: 242 193 78;
+  --lens-warning: 245 158 11;
+  --lens-gold: 231 185 76;
+  --lens-blue: 79 140 255;
+  --lens-blue-hover: 60 118 232;
+  --lens-purple: 139 124 255;
+  --lens-blue-solid: 29 78 216;
+  --lens-purple-solid: 109 40 217;
+  --lens-on-accent: 7 11 18;
+}
+
+/* Inisial emiten pada TickerAvatar. Paletnya dirancang untuk latar gelap; di mode
+ * terang yang paling pucat (#FACC15) terukur 3,60:1 bahkan setelah digelapkan 62%.
+ * Campuran 50% dengan hitam membuat KETUJUH warna >= 4,5:1 di atas kartu putih -
+ * yang terburuk (#FACC15) menjadi 5,17:1 - sambil mempertahankan bedanya rona,
+ * karena mengenali emiten dari warna adalah gunanya komponen ini.
+ *
+ * `style` inline pada elemen kalah dari sini hanya kalau kita menang spesifisitas;
+ * karena itu color dideklarasikan ulang di sini dengan !important. Ini satu-satunya
+ * cara tanpa memindahkan seluruh palet ke CSS. */
+html.light .lens-ticker-avatar {
+  color: color-mix(in srgb, var(--lens-avatar-fg) 50%, #000) !important;
 }
 
 body {
@@ -122,16 +236,45 @@ h3 {
 .sahamlens-ticker-track { animation-name: sahamlens-ticker-scroll; }
 .sahamlens-signal-track { animation-name: sahamlens-signal-scroll; }
 
+/* JEDA SAAT DIDEKATI. Item ticker adalah tautan setinggi 19px yang SEDANG BERGERAK -
+   menekan sasaran sekecil itu sambil ia berjalan nyaris mustahil di layar sentuh, dan
+   melanggar WCAG 2.5.8 sekaligus 2.2.2. Hover menutup kasus mouse, focus-within menutup
+   kasus keyboard, dan :active menutup kasus jari yang menyentuh dan menahan. */
+.sahamlens-ticker-wrap:hover .sahamlens-ticker-track,
+.sahamlens-ticker-wrap:focus-within .sahamlens-ticker-track,
+.sahamlens-ticker-wrap:active .sahamlens-ticker-track,
+.sahamlens-signal-wrap:hover .sahamlens-signal-track,
+.sahamlens-signal-wrap:focus-within .sahamlens-signal-track,
+.sahamlens-signal-wrap:active .sahamlens-signal-track {
+  animation-play-state: paused;
+}
+
 /* Hormati preferensi sistem "kurangi gerakan" - satu aturan global, jadi tiap
-   komponen baru tidak perlu mengurus ini sendiri-sendiri. */
+   komponen baru tidak perlu mengurus ini sendiri-sendiri.
+ *
+ * KOREKSI 2026-08-13. Versi lama menuliskan
+ *   *:not(.sahamlens-ticker-track):not(.sahamlens-signal-track)
+ * yaitu MENGECUALIKAN kedua ticker dari aturan ini. Jadi satu-satunya gerakan yang tak
+ * pernah berhenti di seluruh aplikasi justru gerakan yang paling mengganggu, dan tidak
+ * ada tombol jeda di mana pun. Pengecualian itu dihapus. */
 @media (prefers-reduced-motion: reduce) {
 
-  *:not(.sahamlens-ticker-track):not(.sahamlens-signal-track),
+  *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Ticker BERHENTI DI TEMPAT, bukan melompat ke akhir. Tanpa baris ini aturan universal
+     di atas memampatkan durasinya jadi 0,01ms sehingga track langsung tersentak ke -50%
+     dan separuh isinya hilang dari layar. */
+  .sahamlens-ticker-track,
+  .sahamlens-signal-track {
+    animation: none !important;
+    transform: none !important;
+    will-change: auto;
   }
 }
 
@@ -311,6 +454,16 @@ body {
 }
 
 /* Shared visual upgrade untuk panel lama yang masih memakai class raw. */
+/* `bg-tv-blue` sebagai bidang padat memakai biru yang lebih gelap - lihat catatan pada
+ * --lens-blue-solid. Ditulis setelah @tailwind utilities, jadi menang lewat urutan
+ * sumber dengan spesifisitas yang sama; tidak perlu !important.
+ *
+ * `bg-tv-blue/10` dan kawan-kawannya TIDAK terpengaruh: itu kelas yang berbeda, dan
+ * memang seharusnya tetap memakai biru terang sebagai tint. */
+.bg-tv-blue {
+  background-color: rgb(var(--lens-blue-solid));
+}
+
 .bg-tv-card,
 .bg-tv-cardAlt {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));
@@ -323,6 +476,61 @@ body {
 /* Compatibility layer for legacy dark-only utility classes. New UI should use
    tv-* semantic tokens; these rules keep older screens readable in light mode. */
 .light .text-white { color: rgb(var(--lens-text)) !important; }
+
+/* PENGECUALIAN YANG WAJIB ADA. Aturan di atas memaksa SETIAP .text-white jadi gelap di
+ * mode terang. Itu benar untuk teks yang duduk di atas kartu putih, tapi salah total
+ * untuk teks yang duduk di atas LATAR BERWARNA - tombol "Masuk", lencana breadth, chip
+ * sinyal. Terukur sebelum perbaikan ini: teks tombol "Masuk" dirender rgb(20,31,48) di
+ * atas biru rgb(37,99,235) = 3,2:1, dan angka breadth rgb(20,31,48) di atas hijau
+ * rgb(21,128,61) = gagal. Patch aksesibilitas itu sendiri yang merusak kontras.
+ *
+ * `[class~="..."]` (bukan *=) disengaja: ia mencocokkan kata utuh di daftar kelas, jadi
+ * `bg-tv-blue` kena tapi `bg-tv-blue/10` TIDAK. Itu penting - di atas biru 10% yang
+ * nyaris putih, teks putih justru hilang. */
+.light [class~='bg-tv-blue'] .text-white,
+.light [class~='bg-tv-blueHover'] .text-white,
+.light [class~='bg-tv-purple'] .text-white,
+.light [class~='bg-gradient-accent'] .text-white,
+.light .text-white[class~='bg-tv-blue'],
+.light .text-white[class~='bg-tv-blueHover'],
+.light .text-white[class~='bg-tv-purple'],
+.light .text-white[class~='bg-gradient-accent'] {
+  color: #fff !important;
+}
+
+/* ====== Warna teks di atas bidang aksen PADAT ======
+ *
+ * Hijau/merah/kuning dipakai sebagai isi batang dan lencana. Isi itu harus kontras
+ * dengan LATAR HALAMAN, sedangkan teks di dalamnya harus kontras dengan ISI - dua
+ * kebutuhan yang saling bertolak belakang, dan memaksakan satu warna teks selalu
+ * mengorbankan salah satunya:
+ *
+ *   mode gelap : hijau #23C483 harus tetap cerah agar batangnya terlihat di latar
+ *                gelap. Teks putih di atasnya = 2,26:1 (gagal). Teks GELAP = 7,96:1.
+ *   mode terang: hijau #15803D sudah gelap agar terbaca di kartu putih. Teks gelap
+ *                di atasnya akan hilang. Teks PUTIH = 5,02:1.
+ *
+ * Jadi warnanya memang harus berbalik mengikuti tema - itulah yang dilakukan token
+ * ini. Biru padat tidak ikut karena --lens-blue-solid sengaja dibuat gelap di kedua
+ * tema, jadi ia selalu berpasangan dengan putih. */
+[class~='bg-tv-green'] .text-white,
+[class~='bg-tv-greenHover'] .text-white,
+[class~='bg-tv-red'] .text-white,
+[class~='bg-tv-redHover'] .text-white,
+[class~='bg-tv-yellow'] .text-white,
+[class~='bg-tv-gold'] .text-white,
+[class~='bg-tv-warning'] .text-white,
+[class~='bg-tv-muted'] .text-white,
+.text-white[class~='bg-tv-green'],
+.text-white[class~='bg-tv-greenHover'],
+.text-white[class~='bg-tv-red'],
+.text-white[class~='bg-tv-redHover'],
+.text-white[class~='bg-tv-yellow'],
+.text-white[class~='bg-tv-gold'],
+.text-white[class~='bg-tv-warning'],
+.text-white[class~='bg-tv-muted'] {
+  color: rgb(var(--lens-on-accent)) !important;
+}
 .light .text-white\/80 { color: rgb(var(--lens-text) / .8) !important; }
 .light .text-white\/65,
 .light .text-white\/60 { color: rgb(var(--lens-text) / .68) !important; }
@@ -391,8 +599,26 @@ body > div > .lens-theme-toggle {
 .lens-page-hidden .sahamlens-ticker-track,
 .lens-page-hidden .sahamlens-signal-track,
 .lens-save-data .animate-pulse,
-.lens-save-data .animate-ping {
+.lens-save-data .animate-ping,
+.lens-save-data .sahamlens-ticker-track,
+.lens-save-data .sahamlens-signal-track {
   animation-play-state: paused !important;
+}
+
+/* MENJEDA SAJA TIDAK MELEPAS BIAYANYA.
+ *
+ * `will-change: transform` memaksa browser menyiapkan layer kompositor tersendiri, dan
+ * layer itu tetap dialokasikan meski animasinya sedang paused - memakan memori GPU dan,
+ * di HP, tetap menahan jalur kompositing tetap hidup. Untuk elemen yang memang bergerak
+ * terus-menerus, will-change itu benar; begitu ia berhenti, ia jadi beban murni.
+ *
+ * Jadi setiap keadaan berhenti - tab tersembunyi, Data Saver menyala - juga melepaskan
+ * hint-nya, dan browser boleh membuang layernya. */
+.lens-page-hidden .sahamlens-ticker-track,
+.lens-page-hidden .sahamlens-signal-track,
+.lens-save-data .sahamlens-ticker-track,
+.lens-save-data .sahamlens-signal-track {
+  will-change: auto;
 }
 
 @media (max-width: 767px) {
@@ -400,6 +626,14 @@ body > div > .lens-theme-toggle {
      clearer and cheaper on mobile. */
   .lens-energy-mobile .animate-ping {
     animation: none !important;
+  }
+
+  /* Bayangan besar itu mahal di HP: setiap shadow berukuran blur puluhan piksel memaksa
+     jalur raster terpisah, dan aplikasi ini memakainya di hampir setiap kartu. Di layar
+     kecil bayangannya toh nyaris tak terlihat - diperkecil, bukan dihapus, supaya kartu
+     tetap terbaca sebagai lapisan terpisah. */
+  .lens-energy-mobile .shadow-2 {
+    box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -463,7 +697,11 @@ textarea {
     touch-action: manipulation;
   }
 
-  .lens-main :where(.text-\[10px\], .text-\[11px\]) {
+  /* 9px ikut diangkat. Terukur di /news @768: 240 dari 243 elemen di bawah 12px
+   * ternyata `text-[9px]` polos - satu kelas, bukan sebaran. Lantai ini sebelumnya
+   * hanya menyebut 10px dan 11px, jadi ukuran terkecil di aplikasi justru yang lolos
+   * dari lantainya sendiri, di tablet MAUPUN ponsel. */
+  .lens-main :where(.text-\[9px\], .text-\[10px\], .text-\[11px\]) {
     font-size: 0.75rem;
   }
 
@@ -537,14 +775,27 @@ textarea {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Typography roles yang menjadi kontrak halaman baru/refactor berikutnya. */
+/* Typography roles yang menjadi kontrak halaman baru/refactor berikutnya.
+ *
+ * PERBAIKAN 2026-08-13. Ketiga kelas ini dulu mengunci warnanya sebagai hex mati
+ * (#F5F7FB dan #8EA0B8) - nilai tema GELAP. Di mode terang latar kartu jadi
+ * rgb(244,247,251), praktis identik dengan #F5F7FB, sehingga rasio kontrasnya
+ * 1,00:1 dan JUDUL SETIAP HALAMAN hilang sama sekali. Terukur di produksi:
+ * "Market workspace" (/home) dan "LensMarket" (/market-pulse) tidak terlihat.
+ *
+ * Mode terang bukan fitur pinggiran - app/layout.tsx memilih tema dari
+ * prefers-color-scheme kalau pengguna belum pernah memilih, jadi pengunjung
+ * ber-OS mode terang mendarat di sini sejak kunjungan pertama.
+ *
+ * Karena blok ini dimaksudkan sebagai kontrak halaman baru, hex mati di sini akan
+ * menular ke setiap halaman berikutnya. Sekarang ikut token. */
 .lens-page-title {
   font-family: var(--font-inter), 'Inter', sans-serif;
   font-size: 1.25rem;
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #F5F7FB;
+  color: rgb(var(--lens-text));
 }
 
 .lens-section-title {
@@ -553,7 +804,7 @@ textarea {
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #F5F7FB;
+  color: rgb(var(--lens-text));
 }
 
 .lens-eyebrow {
@@ -563,7 +814,7 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #8EA0B8;
+  color: rgb(var(--lens-muted));
 }
 
 @media (min-width: 640px) {
@@ -588,6 +839,47 @@ textarea {
   .lens-main [class*="hover:-translate-y"]:hover {
     transform: none !important;
   }
+}
+
+/* ====== Target sentuh: naikkan lantai `min-h-9` ke 44px di layar sentuh ======
+ *
+ * Chip filter dan tombol aksi memakai `min-h-9` (36px) di banyak halaman - terukur di
+ * /home @360x800: "Peluang hari ini" 137x36, "Scan saham" 119x36, "Top Gainer" 89x36,
+ * "Top Loser" 83x36, "RSI Terendah" 103x36. Lolos minimum WCAG 2.5.8 (24px) tapi di
+ * bawah 44px yang nyaman untuk jempol.
+ *
+ * Dibatasi ke `hover: none` supaya hanya perangkat sentuh yang terpengaruh - di desktop
+ * dengan mouse, 36px sudah presisi dan menaikkannya cuma memboroskan ruang vertikal. */
+@media (hover: none) {
+  .lens-main .min-h-9,
+  .lens-app-shell .min-h-9 {
+    min-height: 44px;
+  }
+}
+
+/* ====== Gerak yang lebih halus ======
+ *
+ * `ease-settle` dipakai lewat variabel supaya satu kurva berlaku untuk CSS dan cocok
+ * dengan EASE_SETTLE di lib/motion.ts - sebelumnya keduanya bisa berbeda diam-diam.
+ * Kurva ini melambat di ujung (bukan linear), yang membuat kartu terasa "mendarat"
+ * alih-alih berhenti mendadak. */
+:root {
+  --lens-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --lens-dur-fast: 140ms;
+  --lens-dur-base: 220ms;
+}
+
+.ease-settle {
+  transition-timing-function: var(--lens-ease-settle);
+}
+
+/* Interaksi yang paling sering disentuh diberi transisi seragam. `transform` dan
+   `opacity` saja - dua properti yang bisa dianimasi kompositor tanpa memicu layout,
+   jadi murah di HP. */
+button,
+a,
+[role='button'] {
+  transition-timing-function: var(--lens-ease-settle);
 }
 
 /* SahamLens — Mobile Accessibility / Senior Friendly
@@ -647,4 +939,99 @@ textarea {
     padding-top: 0.65rem;
     padding-bottom: 0.65rem;
   }
+}
+
+/* ====== Tablet: jangan wariskan kepadatan desktop ke layar sentuh ======
+ *
+ * Aplikasi ini ditulis mobile-first dengan pola `text-sm md:text-[12.5px]` - teks
+ * MENGECIL di breakpoint md. Karena md Tailwind = 768px, iPad portrait (tepat 768px)
+ * langsung mendapat tipografi serapat desktop, padahal ia layar sentuh yang dipegang
+ * lebih jauh dari mata daripada HP.
+ *
+ * Terukur di browser, elemen berteks di bawah 12px:
+ *     /home           390px:   2  (1%)      768px: 144  (61%)
+ *     /market-pulse   390px:  21  (7%)      768px: 182  (65%)
+ *     /about          390px:   2  (3%)      768px:  38  (54%)
+ * Lompatannya persis di 768, bukan gradual - jadi ini murni efek breakpoint.
+ *
+ * ponytail: tambalan berbasis nama kelas, bukan skala tipe sungguhan. Batas atasnya
+ * jelas - ukuran arbitrer BARU (mis. `md:text-[9px]`) tidak akan ikut tercakup dan
+ * harus ditambahkan manual di sini. Obat sebenarnya adalah skala tipe bernama
+ * (lens-body / lens-caption / lens-eyebrow) yang dipakai menggantikan ukuran arbitrer;
+ * itu pekerjaan per-halaman dan sengaja tidak dicampur ke dalam perubahan ini. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Baris pertama ini SAMA PERSIS dengan lantai tipografi yang sudah dipakai di
+   * @media (max-width: 767px) - mekanismenya memang sudah ada di berkas ini, hanya
+   * jangkauannya berhenti tepat sebelum tablet. Inilah yang menutup mayoritas kasus:
+   * ada 271 pemakaian `text-[10px]` dan 196 `text-[11px]` tanpa prefix. */
+  .lens-main :where(.text-\[9px\], .text-\[10px\], .text-\[11px\]) {
+    font-size: 0.75rem;
+  }
+
+  /* Varian responsif butuh perlakuan berbeda. Tailwind memancarkan aturan ber-media-query
+   * di AKHIR lapisan utilities - terukur di bundel: blok ini ada di posisi 73428,
+   * sedangkan `.md\:text-\[10px\]{font-size:10px}` milik Tailwind di 91647. Dengan
+   * spesifisitas sama, yang belakangan menang, jadi menulisnya tanpa `html` tidak
+   * berpengaruh sama sekali - dan memang terukur tidak berpengaruh (768px tetap 10px).
+   * `html .kelas` = (0,1,1) mengalahkan `.kelas` = (0,1,0), lepas dari urutan.
+   *
+   * sm: ikut disertakan karena justru itu yang terbanyak (17 + 14 pemakaian) dan
+   * min-width 640px membuatnya aktif di tablet. */
+  html .sm\:text-\[10px\],
+  html .sm\:text-\[11px\],
+  html .md\:text-\[10px\],
+  html .md\:text-\[11px\] {
+    font-size: 12px;
+  }
+
+  html .md\:text-\[9px\] { font-size: 11px; }
+  html .md\:text-\[12\.5px\] { font-size: 13px; }
+}
+
+/* ====== Lantai keterbacaan menyeluruh (semua lebar layar) ======
+ *
+ * Permintaan eksplisit: aplikasi ini dipakai segala umur, jadi hurufnya harus
+ * terbaca oleh mata yang penglihatan dekatnya sudah berkurang.
+ *
+ * Lantai-lantai sebelumnya di berkas ini hanya berlaku sampai 1023px - desktop
+ * sengaja dibiarkan padat. Itu keputusan yang benar untuk trader yang memelototi
+ * banyak angka sekaligus, tapi salah untuk pengguna yang justru paling sering
+ * memakai layar besar karena hurufnya lebih terbaca di sana. Terukur sebelum ini:
+ * 61% elemen berteks di desktop berada di bawah 12px.
+ *
+ * 13px, bukan 12px: 12px adalah ambang "tidak gagal", 13px adalah ambang "nyaman".
+ * Naik lagi ke 14px akan menggeser tata letak tabel padat secara berarti, dan itu
+ * perubahan desain, bukan perbaikan keterbacaan.
+ *
+ * `html` sebagai awalan = spesifisitas (0,1,1), mengalahkan utility Tailwind (0,1,0)
+ * TANPA bergantung urutan - penting karena Tailwind memancarkan varian ber-media-query
+ * di akhir lapisan utilities (lihat catatan panjang di blok tablet di atas).
+ *
+ * Kartu ekspor DIKECUALIKAN: ukurannya terkunci 1080x1350 dan tata letaknya disetel
+ * pada ukuran huruf tertentu. Menaikkannya akan membuat teks meluber di PNG hasil
+ * unduhan, dan gambar itu tidak pernah dibaca dari layar aplikasi. */
+html .text-\[9px\],
+html .text-\[10px\],
+html .text-\[11px\],
+html .text-\[12px\],
+html .sm\:text-\[10px\],
+html .sm\:text-\[11px\],
+html .sm\:text-\[12px\],
+html .md\:text-\[9px\],
+html .md\:text-\[10px\],
+html .md\:text-\[11px\],
+html .md\:text-\[12\.5px\],
+html .text-xs,
+html .sm\:text-xs,
+html .md\:text-xs {
+  font-size: 0.8125rem;
+}
+
+/* Pengecualian kartu ekspor - dikembalikan ke ukuran aslinya. */
+.lens-export-dark .text-\[9px\],
+.lens-export-dark .text-\[10px\],
+.lens-export-dark .text-\[11px\],
+.lens-export-dark .text-\[12px\],
+.lens-export-dark .text-xs {
+  font-size: 0.75rem;
 }

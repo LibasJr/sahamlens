@@ -50,7 +50,7 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
             <card.Icon className="h-4 w-4" />
           </div>
           <div>
-            <h4 className="font-heading text-[13px] font-bold leading-tight tracking-tight text-tv-text max-w-[180px]">{card.title}</h4>
+            <h3 className="font-heading text-[13px] font-bold leading-tight tracking-tight text-tv-text max-w-[180px]">{card.title}</h3>
             <span className={`mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${accent.bg} ${accent.text}`}>{card.sub}</span>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Update {lastUpdated || '--:--'} • IDX</span>
         <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-tv-blue hover:text-tv-text transition">
-          Lihat Seluruhnya <ChevronRight className="h-3 w-3" />
+          Lihat semua <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
     </motion.div>

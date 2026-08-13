@@ -368,7 +368,11 @@ export default function MarketPulse() {
               <Activity className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="lens-page-title truncate">LensMarket</h2>
+              {/* h1, bukan h2: ini judul halaman, dan sebelumnya /market-pulse adalah
+                  satu-satunya halaman yang sama sekali tidak punya h1 - headingnya
+                  langsung mulai dari h2. Pembaca layar kehilangan judul halamannya
+                  (WCAG 1.3.1 & 2.4.6). */}
+              <h1 className="lens-page-title truncate">Kondisi Pasar</h1>
               <p className="text-xs text-tv-muted truncate">Quant regime, IHSG, sector, dan breadth</p>
             </div>
           </div>
@@ -475,7 +479,8 @@ export default function MarketPulse() {
         <div className="bg-tv-card border border-tv-blue/30 rounded-lg p-5 shadow-1 relative overflow-hidden">
           <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
             <div>
-              <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
+              {/* flex-wrap: lencana "Live" terpotong di 320px tanpa ini. */}
+              <h3 className="font-heading text-base font-bold text-tv-text flex flex-wrap items-center gap-2">
                 <Zap className="w-5 h-5 text-tv-blue" />
                 Top 3 Breakout Hari Ini
                 <Badge variant="danger" dot>Live</Badge>
@@ -669,7 +674,7 @@ export default function MarketPulse() {
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensAI & Compare Tool',
+          'LensRadar LIVE, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

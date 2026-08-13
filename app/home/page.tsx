@@ -5,7 +5,6 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft,
   Sparkles,
   Activity,
   Flame,
@@ -52,8 +51,13 @@ interface DailyPickCounts {
   breakout: { count: number };
   undervalue: { count: number };
   foreignAccumulation: { count: number };
-  goldenCross: { count: number; stale: boolean };
-  deadCross: { count: number; stale: boolean };
+  // `items` sudah lama dikirim /api/daily-picks (maksimal 5 simbol per kategori) tapi
+  // tidak pernah dipakai beranda - hanya `count` yang dirender, sehingga "2 saham"
+  // tidak punya jalan ke saham yang mana. Tidak ada rute daftar golden/dead cross:
+  // tab-nya dihapus dari /breakout-radar pada audit 2026-08-03. Simbolnya dirender
+  // langsung di sini, jadi tidak perlu halaman baru maupun request tambahan.
+  goldenCross: { count: number; stale: boolean; items?: string[] };
+  deadCross: { count: number; stale: boolean; items?: string[] };
 }
 
 interface NewsInsight {
@@ -61,9 +65,9 @@ interface NewsInsight {
   sentiment: 'POSITIF' | 'NEGATIF' | 'NETRAL';
 }
 
-// Jeda antar insight LensAI (permintaan user 2026-08-06: 50 detik SEBELUMNYA
+// Jeda antar insight LensConsensus (permintaan user 2026-08-06: 50 detik SEBELUMNYA
 // dianggap terlalu cepat berpindah untuk sempat dibaca - satu-satunya konten
-// LensAI sebelum ini cuma satu paragraf statis, tidak pernah berganti sama sekali).
+// kartu ini sebelumnya cuma satu paragraf statis, tidak pernah berganti sama sekali).
 const INSIGHT_ROTATE_MS = 12_000;
 
 const SENTIMENT_LABEL: Record<NewsInsight['sentiment'], string> = {
@@ -133,6 +137,40 @@ function MarketBreadthBar({ breadth }: { breadth: { advancing: number; declining
         </span>
       </div>
       <p className={`mt-2 text-[11px] leading-relaxed ${verdict.tone}`}>{verdict.text}</p>
+    </div>
+  );
+}
+
+/**
+ * Saham di balik angka persilangan MA, sebagai chip yang bisa diklik.
+ *
+ * Sebelum ini kartu Golden/Dead Cross hanya menampilkan jumlahnya - "2 saham" tanpa
+ * satu pun cara mengetahui saham mana. Daftar simbolnya sebenarnya sudah ikut di
+ * respons /api/daily-picks sejak awal; beranda membuangnya.
+ *
+ * Tujuannya /technical/[symbol], bukan halaman daftar khusus: rute golden/dead cross
+ * tidak ada lagi sejak tab-tabnya dilebur di audit 2026-08-03.
+ *
+ * min-h-11 (44px) disengaja. Chip ini tautan yang ditekan di layar sentuh, jadi
+ * mengikuti ambang 44px - bukan cuma minimum WCAG 2.5.8 (24px), yang sebenarnya
+ * sudah lolos di tinggi asalnya 29px.
+ */
+function CrossSymbolChips({ symbols, tone }: { symbols?: string[]; tone: 'positive' | 'negative' }) {
+  if (!symbols?.length) return null;
+  const warna = tone === 'positive'
+    ? 'border-tv-green/25 bg-tv-green/10 text-tv-green hover:border-tv-green/50'
+    : 'border-tv-red/25 bg-tv-red/10 text-tv-red hover:border-tv-red/50';
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {symbols.map((s) => (
+        <Link
+          key={s}
+          href={`/technical/${s}.JK`}
+          className={`font-number inline-flex min-h-11 items-center rounded-md border px-2.5 text-[11px] font-bold transition-colors ${warna}`}
+        >
+          {s}
+        </Link>
+      ))}
     </div>
   );
 }
@@ -407,7 +445,7 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingMarket, loadingRadar, loadingDailyPicks]);
 
-  // Sumber insight tambahan untuk kartu LensAI: 4 berita pasar teratas dari
+  // Sumber insight tambahan untuk kartu LensConsensus: 4 berita pasar teratas dari
   // /api/news (judul + sentimen, sudah dihitung getMarketNews() - lihat
   // modules/news/service/news.service.ts). Dicache 15 menit di server, jadi fetch
   // ulang di sini murah.
@@ -472,29 +510,30 @@ export default function HomePage() {
 
   return (
     <PageContainer className="min-h-full flex flex-col space-y-5 p-4 md:p-6 lg:p-7">
-      <div className="flex">
-        <Link
-          href="/"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-tv-blue/25 bg-tv-blue/10 px-3 text-xs font-semibold text-white transition hover:border-tv-blue/45 hover:bg-tv-blue/15"
-          aria-label="Kembali ke halaman utama SahamLens"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 text-tv-blue" />
-          Kembali ke halaman utama
-        </Link>
-      </div>
-
-      {/* Workspace header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-1.5 flex items-center gap-2">
-            <Badge variant="info">Daily workspace</Badge>
-            <span className="text-[10px] font-medium text-tv-muted">Data server + LensAI</span>
-          </div>
-          <h1 className="lens-page-title">Market workspace</h1>
-          <p className="mt-1 text-xs leading-relaxed text-tv-muted">Mulai dari kondisi pasar, temukan kandidat, lalu masuk ke analisis yang lebih dalam.</p>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
-
+      {/* Header ringkas - hasil audit tata letak 2026-08-13.
+       *
+       * TIGA HAL DIBUANG DARI SINI, semuanya karena mengorbankan layar pertama:
+       *
+       * 1. Tombol "Kembali ke halaman utama" yang dulu menjadi elemen PALING ATAS.
+       *    Bagi pengguna yang sudah masuk, halaman INILAH halaman utamanya - tombol
+       *    kembali di puncaknya membingungkan (seolah sedang berada di halaman
+       *    bersarang) sekaligus memakan piksel paling mahal di seluruh aplikasi.
+       *    KOREKSI: versi pertama komentar ini menulis "jalan ke landing tetap ada lewat
+       *    logo di TopMarketBar" - itu SALAH dan sempat mengunci pengguna dari "/".
+       *    Logo Sidebar menunjuk ke /home, TopMarketBar tidak punya tautan ke "/".
+       *    Penggantinya sekarang ada di components/SiteFooter.tsx ("Ringkasan Pasar").
+       * 2. Badge "Daily workspace" + label "Data server + ...". Keduanya metadata,
+       *    bukan informasi yang dicari orang saat membuka beranda.
+       * 3. Kalimat instruksi "Mulai dari kondisi pasar, temukan kandidat...". Urutan
+       *    kartu di bawah sudah menyatakan alurnya; menuliskannya lagi memakan satu
+       *    baris penuh untuk mengulang apa yang sudah terlihat.
+       *
+       * Terukur sebelum perubahan: angka pasar PERTAMA di dalam konten baru muncul
+       * di y=773px, sementara lipatan HP ada di 844px - satu layar penuh habis untuk
+       * pembukaan. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="lens-page-title">Beranda</h1>
+        <div className="flex gap-2 overflow-x-auto">
           <Link href="/breakout-radar" className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 text-[11px] font-semibold text-white/80 transition hover:bg-white/[0.06] hover:text-white">
             <Radar className="h-3.5 w-3.5 text-tv-purple" /> Peluang hari ini
           </Link>
@@ -503,56 +542,6 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-
-      {/* AI Insight - hero */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="glass" padding="lg" className="border-tv-blue/20 bg-gradient-to-br from-tv-blue/[0.07] via-tv-card/90 to-tv-purple/[0.05] shadow-2">
-          <div className="flex items-start gap-3 md:gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-accent shadow-[0_12px_32px_rgba(79,140,255,0.22)]">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="font-heading text-sm font-semibold text-white">LensAI</h2>
-                <Badge variant="info" dot>Live</Badge>
-              </div>
-              {loadingRadar ? (
-                <div className="mt-1.5 space-y-1.5">
-                  <Skeleton variant="text" className="w-full max-w-md" />
-                  <Skeleton variant="text" className="w-2/3 max-w-xs" />
-                </div>
-              ) : (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeInsightIndex}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.35 }}
-                  >
-                    {insightSlots[activeInsightIndex]}
-                  </motion.div>
-                </AnimatePresence>
-              )}
-              {/* Titik penanda - cuma tampil kalau memang ada lebih dari satu insight
-                  untuk dirotasi (mis. berita belum termuat). Bukan tombol - klik pindah
-                  manual tidak diminta, ini murni orientasi "sedang lihat yang mana". */}
-              {!loadingRadar && insightSlots.length > 1 && (
-                <div className="flex items-center gap-1.5 mt-2.5">
-                  {insightSlots.map((_, i) => (
-                    <span
-                      key={i}
-                      className={`h-1 rounded-full transition-all duration-300 ${
-                        i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
-      </motion.div>
 
       {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
           sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat
@@ -563,12 +552,15 @@ export default function HomePage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-tv-purple" />
-              <CardTitle>LensMarket</CardTitle>
+              {/* Judul menyebut FUNGSI, merek jadi keterangan. Sebelumnya kartu ini
+                  menulis "LensMarket" dua kali dalam satu baris - judul di kiri dan
+                  tautan di kanan - sehingga tautannya tidak memberi tahu apa pun. */}
+              <CardTitle>Kondisi Pasar</CardTitle>
             </div>
-            <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">LensMarket</Link>
+            <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
           </CardHeader>
           {marketPulseLoginRequired ? (
-            <EmptyState title="Login untuk melihat LensMarket" description="Sector & breadth butuh akun." />
+            <EmptyState title="Login untuk melihat kondisi pasar" description="Sector & breadth butuh akun." />
           ) : marketPulseNeedPro ? (
             <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat sector strength & market breadth." />
           ) : marketPulseError ? (
@@ -592,14 +584,93 @@ export default function HomePage() {
               </p>
             </div>
           )}
+
+          {/* Persilangan MA20/MA50 - dulu kartu terpisah dengan judul dan tautannya
+              sendiri. Dilebur ke sini (audit tata letak 2026-08-13) karena keduanya
+              menjawab satu pertanyaan yang sama: "pasar hari ini bagaimana". Dua judul
+              sejajar membuat pembaca mengira ini dua topik berbeda.
+
+              Sumber datanya TETAP beda - dailyPicks, bukan marketPulse - jadi gerbang
+              loading/kosongnya berdiri sendiri di dalam blok ini dan tidak ikut gerbang
+              Pro milik breadth/heatmap di atas. */}
+          <div className="mt-4 border-t border-tv-border pt-4">
+            <div className="mb-2.5 flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5 text-tv-blue" />
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-tv-muted">Persilangan Rata-rata Bergerak</h4>
+            </div>
+            {loadingDailyPicks ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+              <LoadingFact />
+            </div>
+          ) : !dailyPicks ? (
+            <EmptyState illustration="empty" title="Data insight sementara tidak tersedia" description="Hitungan Golden/Dead Cross diperbarui tiap sesi perdagangan." />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <MetricCard
+                    label="Golden Cross"
+                    value={dailyPicks.goldenCross.count}
+                    tone="positive"
+                    suffix="saham"
+                    hint={dailyPicks.goldenCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari bawah hari ini'}
+                  />
+                  <CrossSymbolChips symbols={dailyPicks.goldenCross.items} tone="positive" />
+                </div>
+                <div className="space-y-2">
+                  <MetricCard
+                    label="Dead Cross"
+                    value={dailyPicks.deadCross.count}
+                    tone="negative"
+                    suffix="saham"
+                    hint={dailyPicks.deadCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari atas hari ini'}
+                  />
+                  <CrossSymbolChips symbols={dailyPicks.deadCross.items} tone="negative" />
+                </div>
+              </div>
+              {/* Storytelling: dua angka mentah tidak memberi tahu apa pun sampai
+                  dibandingkan satu sama lain. */}
+              <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
+                {(() => {
+                  const g = dailyPicks.goldenCross.count;
+                  const d = dailyPicks.deadCross.count;
+                  if (g === 0 && d === 0) return 'Tidak ada persilangan MA20/MA50 hari ini - tren jangka menengah sedang tidak berubah arah.';
+                  if (g > d * 1.5) return `Persilangan naik ${g} berbanding ${d} turun - momentum jangka menengah condong ke atas, tapi persilangan MA adalah sinyal telat: ia mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
+                  if (d > g * 1.5) return `Persilangan turun ${d} berbanding ${g} naik - lebih banyak saham kehilangan tren jangka menengahnya. Persilangan MA mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
+                  return `Berimbang: ${g} persilangan naik dan ${d} turun. Tidak ada arah jangka menengah yang dominan hari ini.`;
+                })()}
+              </p>
+            </>
+            )}
+          </div>
         </Card>
       </motion.div>
 
-      {/* Hero Opportunity - item #1 dari /api/ai-pick (sama sumber data dengan
-          LensRadar di bawahnya; radarItems[0] di sini vs radarItems.slice(1,6) di
-          LensRadar supaya tidak ada saham yang tampil dobel). */}
+      {/* Peluang Hari Ini - SATU kartu, dulu DUA ("Peluang Teratas" + "Kandidat
+          Berikutnya"). Penggabungan ini bukan sekadar kosmetik: keduanya membaca
+          array `radarItems` YANG SAMA - hero memakai [0], daftar memakai slice(1,6) -
+          jadi kartu terpisah memaksa lima cabang gerbang yang identik ditulis dua kali
+          (loading, belum login, belum Pro, error, kosong). Satu sumber data, satu
+          gerbang. Kalau nanti gerbangnya berubah, tidak ada lagi salinan kedua yang
+          bisa lupa ikut diubah.
+
+          Badge Live/Data-Sesi-Terakhir naik ke CardHeader supaya statusnya terbaca
+          sebelum angkanya, bukan terselip di dalam badan kartu. */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
         <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4 text-tv-gold" />
+              <CardTitle>Peluang Hari Ini</CardTitle>
+              {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
+            </div>
+            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
+          </CardHeader>
+
           {loadingRadar ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -610,12 +681,13 @@ export default function HomePage() {
                 </div>
                 <Skeleton className="h-10 w-16" />
               </div>
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
               <LoadingFact />
             </div>
           ) : picksLoginRequired ? (
-            <EmptyState title="Login untuk melihat Today's Opportunities" description="Sinyal harian butuh akun." />
+            <EmptyState title="Login untuk melihat peluang hari ini" description="Sinyal harian butuh akun." />
           ) : picksNeedPro ? (
-            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat Today's Opportunities." />
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat peluang hari ini." />
           ) : radarError ? (
             <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchRadar }} />
           ) : !radarItems[0] ? (
@@ -627,13 +699,6 @@ export default function HomePage() {
             const hero = radarItems[0];
             return (
               <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-tv-gold" />
-                    <CardTitle>Today&apos;s Opportunities</CardTitle>
-                  </div>
-                  {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
-                </div>
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <TickerAvatar symbol={hero.symbol} size="lg" />
@@ -682,88 +747,61 @@ export default function HomePage() {
                     Ask LensAI
                   </button>
                 </div>
+                {/* Kandidat berikutnya - slice(1,6), sengaja mulai dari indeks 1 supaya
+                    saham hero tidak muncul dua kali. Dulu ini kartu sendiri; sekarang
+                    lanjutan dari daftar yang sama, dipisah garis, bukan judul baru. */}
+                {radarItems.length > 1 && (
+                  <div className="mt-1 border-t border-tv-border pt-3">
+                    <div className="mb-2.5 flex items-center gap-2">
+                      <Radar className="h-3.5 w-3.5 text-tv-purple" />
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-tv-muted">Kandidat Berikutnya</h4>
+                    </div>
+                <div className="space-y-2">
+                  {radarItems.slice(1, 6).map((it) => (
+                    <motion.div key={it.symbol} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.995 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+                      <Link
+                        href={`/technical/${it.symbol}`}
+                        className={`flex items-center gap-3 bg-tv-bg/50 border-y border-r border-tv-border rounded-md px-3 py-2.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}
+                      >
+                        <TickerAvatar symbol={it.symbol} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
+                            <span className={`text-[11px] font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                              {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(2)}%
+                            </span>
+                          </div>
+                          {it.flagged && <span className="text-tv-red text-[10px]">! {it.flagReason}</span>}
+                          {/* Sebelumnya baris ini jatuh ke '-' polos saat topReasons kosong -
+                              user tidak bisa membedakan "tidak ada alasan" dari "alasannya
+                              gagal dimuat". Sekarang kekosongannya dinamai. */}
+                          <div className="text-[10px] text-tv-muted truncate">
+                            {it.topReasons?.[0] ?? (it.signals?.[0] || 'Lolos ambang skor, rincian alasan belum tersedia')}
+                          </div>
+                        </div>
+                        {/* Bar skor: posisi relatif terhadap 100 langsung terbaca tanpa
+                            membandingkan angka satu per satu antar baris. */}
+                        <div className="text-right shrink-0 w-20">
+                          <div className="font-number text-sm font-semibold text-white">
+                            {it.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span>
+                          </div>
+                          <div className="mt-1 h-1 w-full rounded-full bg-tv-hover overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'}`}
+                              style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
+                            />
+                          </div>
+                          <div className="text-[10px] text-tv-muted font-number mt-1">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+                  </div>
+                )}
               </div>
             );
           })()}
-        </Card>
-      </motion.div>
-
-      {/* LensRadar - dulu "Sinyal Teknikal Bullish" generik (MA20>MA50), sekarang
-          LensRadar Live sungguhan (skor komposit + alasan) dari /api/ai-pick, sama
-          sumber data dengan app/breakout-radar/page.tsx. Tidak ada status EARLY/
-          WATCH/BREAKOUT dst - backend tidak menghitung itu, lihat audit spec. */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card hoverable>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Radar className="w-4 h-4 text-tv-purple" />
-              <CardTitle>LensRadar</CardTitle>
-            </div>
-            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
-          </CardHeader>
-          {loadingRadar ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-              <LoadingFact className="mt-3" />
-            </div>
-          ) : picksLoginRequired ? (
-            <EmptyState title="Login untuk melihat LensRadar" description="Sinyal harian butuh akun." />
-          ) : picksNeedPro ? (
-            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat LensRadar." />
-          ) : radarError ? (
-            <EmptyState
-              title="Data pasar sementara tidak tersedia."
-              action={{ label: 'Coba lagi', onClick: fetchRadar }}
-            />
-          ) : radarItems.length <= 1 ? (
-            <EmptyState
-              illustration="search"
-              title="Belum ada sinyal kuat hari ini"
-              description="Saham yang datanya tidak cukup atau tidak lolos gerbang kelayakan sengaja tidak ditampilkan di sini - daftar kosong berarti tidak ada yang lolos, bukan tidak ada yang dipindai."
-            />
-          ) : (
-            <div className="space-y-2">
-              {radarItems.slice(1, 6).map((it) => (
-                <motion.div key={it.symbol} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.995 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
-                  <Link
-                    href={`/technical/${it.symbol}`}
-                    className={`flex items-center gap-3 bg-tv-bg/50 border-y border-r border-tv-border rounded-md px-3 py-2.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}
-                  >
-                    <TickerAvatar symbol={it.symbol} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
-                        <span className={`text-[11px] font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                          {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(2)}%
-                        </span>
-                      </div>
-                      {it.flagged && <span className="text-tv-red text-[10px]">! {it.flagReason}</span>}
-                      {/* Sebelumnya baris ini jatuh ke '-' polos saat topReasons kosong -
-                          user tidak bisa membedakan "tidak ada alasan" dari "alasannya
-                          gagal dimuat". Sekarang kekosongannya dinamai. */}
-                      <div className="text-[10px] text-tv-muted truncate">
-                        {it.topReasons?.[0] ?? (it.signals?.[0] || 'Lolos ambang skor, rincian alasan belum tersedia')}
-                      </div>
-                    </div>
-                    {/* Bar skor: posisi relatif terhadap 100 langsung terbaca tanpa
-                        membandingkan angka satu per satu antar baris. */}
-                    <div className="text-right shrink-0 w-20">
-                      <div className="font-number text-sm font-semibold text-white">
-                        {it.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span>
-                      </div>
-                      <div className="mt-1 h-1 w-full rounded-full bg-tv-hover overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'}`}
-                          style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
-                        />
-                      </div>
-                      <div className="text-[10px] text-tv-muted font-number mt-1">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          )}
         </Card>
       </motion.div>
 
@@ -819,60 +857,56 @@ export default function HomePage() {
         );
       })()}
 
-      {/* Insights - Golden/Dead Cross count dari dailyPicks (sudah di-fetch di atas
-          untuk teks AI briefing, sekarang juga dirender sebagai widget sendiri -
-          zero fetch baru). */}
+      {/* AI Insight - hero */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-tv-blue" />
-              <CardTitle>Market Insights</CardTitle>
+        <Card variant="glass" padding="lg" className="border-tv-blue/20 bg-gradient-to-br from-tv-blue/[0.07] via-tv-card/90 to-tv-purple/[0.05] shadow-2">
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-accent shadow-[0_12px_32px_rgba(79,140,255,0.22)]">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">LensRadar</Link>
-          </CardHeader>
-          {loadingDailyPicks ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                {/* h3, bukan h2: seluruh judul kartu di halaman ini setara. Sebelumnya
+                    kartu ini h2 dan kartu LensScanner h4 - selisih ukuran tanpa arti
+                    hierarki, dan urutannya melompat h3 -> h2 -> h4 di DOM. */}
+                <h3 className="font-heading text-sm font-semibold text-white">LensConsensus</h3>
+                <Badge variant="info" dot>Live</Badge>
               </div>
-              <LoadingFact />
+              {loadingRadar ? (
+                <div className="mt-1.5 space-y-1.5">
+                  <Skeleton variant="text" className="w-full max-w-md" />
+                  <Skeleton variant="text" className="w-2/3 max-w-xs" />
+                </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeInsightIndex}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.35 }}
+                  >
+                    {insightSlots[activeInsightIndex]}
+                  </motion.div>
+                </AnimatePresence>
+              )}
+              {/* Titik penanda - cuma tampil kalau memang ada lebih dari satu insight
+                  untuk dirotasi (mis. berita belum termuat). Bukan tombol - klik pindah
+                  manual tidak diminta, ini murni orientasi "sedang lihat yang mana". */}
+              {!loadingRadar && insightSlots.length > 1 && (
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  {insightSlots.map((_, i) => (
+                    <span
+                      key={i}
+                      className={`h-1 rounded-full transition-all duration-300 ${
+                        i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : !dailyPicks ? (
-            <EmptyState illustration="empty" title="Data insight sementara tidak tersedia" description="Hitungan Golden/Dead Cross diperbarui tiap sesi perdagangan." />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <MetricCard
-                  label="Golden Cross"
-                  value={dailyPicks.goldenCross.count}
-                  tone="positive"
-                  suffix="saham"
-                  hint={dailyPicks.goldenCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari bawah hari ini'}
-                />
-                <MetricCard
-                  label="Dead Cross"
-                  value={dailyPicks.deadCross.count}
-                  tone="negative"
-                  suffix="saham"
-                  hint={dailyPicks.deadCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari atas hari ini'}
-                />
-              </div>
-              {/* Storytelling: dua angka mentah tidak memberi tahu apa pun sampai
-                  dibandingkan satu sama lain. */}
-              <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
-                {(() => {
-                  const g = dailyPicks.goldenCross.count;
-                  const d = dailyPicks.deadCross.count;
-                  if (g === 0 && d === 0) return 'Tidak ada persilangan MA20/MA50 hari ini - tren jangka menengah sedang tidak berubah arah.';
-                  if (g > d * 1.5) return `Persilangan naik ${g} berbanding ${d} turun - momentum jangka menengah condong ke atas, tapi persilangan MA adalah sinyal telat: ia mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
-                  if (d > g * 1.5) return `Persilangan turun ${d} berbanding ${g} naik - lebih banyak saham kehilangan tren jangka menengahnya. Persilangan MA mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
-                  return `Berimbang: ${g} persilangan naik dan ${d} turun. Tidak ada arah jangka menengah yang dominan hari ini.`;
-                })()}
-              </p>
-            </>
-          )}
+          </div>
         </Card>
       </motion.div>
 
@@ -892,7 +926,7 @@ export default function HomePage() {
                 <Flame className="w-4 h-4 text-tv-gold" />
                 <CardTitle>Jadwal Terdekat</CardTitle>
               </div>
-              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat Semua</Link>
+              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
             </CardHeader>
             {calendarEvents === null ? (
               <div className="space-y-2">
@@ -940,9 +974,9 @@ export default function HomePage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-tv-blue" />
-                <CardTitle>LensWatch</CardTitle>
+                <CardTitle>Saham Dipantau</CardTitle>
               </div>
-              <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Kelola</Link>
+              <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
             </CardHeader>
             {watchlistCount === null ? (
               <Skeleton className="h-11 w-full" />
@@ -986,7 +1020,7 @@ export default function HomePage() {
               <Filter className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="font-heading text-sm font-bold text-white">LensScanner</h4>
+              <h3 className="font-heading text-sm font-bold text-white">LensScanner</h3>
               <p className="text-xs text-tv-muted">Filter saham multi-faktor sesuai profil risiko Anda</p>
             </div>
           </div>

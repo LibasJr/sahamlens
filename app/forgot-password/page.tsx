@@ -68,6 +68,8 @@ export default function ForgotPassword() {
       <form onSubmit={handleRequest} className="space-y-4">
         <Input
           type="email"
+          name="email"
+          autoComplete="email"
           label="Alamat Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
