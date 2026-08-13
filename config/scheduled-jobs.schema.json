@@ -11,9 +11,9 @@
         "required": ["path", "provider", "schedule", "scheduleStatus", "source"],
         "properties": {
           "path": { "type": "string", "pattern": "^/api/cron/" },
-          "provider": { "enum": ["vercel", "qstash"] },
+          "provider": { "enum": ["vercel", "qstash", "systemd"] },
           "schedule": { "type": ["string", "null"] },
-          "scheduleStatus": { "enum": ["known", "verify-dashboard"] },
+          "scheduleStatus": { "enum": ["known", "verify-dashboard", "verify-server"] },
           "source": { "type": "string" }
         },
         "additionalProperties": false

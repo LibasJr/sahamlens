@@ -3,9 +3,9 @@ import { Redis } from './redis-local';
 // Konvensi key: sahamlens:cache:{tier}:{domain}:{identifier} (Cache Layer
 // Strategy poin 2) - dipanggil dengan key lengkap oleh caller, helper ini generik.
 //
-// Redis di sini MURNI cache - kalau UPSTASH_REDIS_REST_URL/TOKEN belum diset,
-// atau Redis sedang down, semua fungsi di bawah degrade dengan aman (cache miss
-// / no-op), TIDAK PERNAH melempar error yang menggagalkan request pengguna.
+// Redis di sini MURNI cache - kalau REDIS_URL belum diset, atau Redis sedang down,
+// semua fungsi di bawah degrade dengan aman (cache miss / no-op), TIDAK PERNAH
+// melempar error yang menggagalkan request pengguna.
 
 const g = globalThis as unknown as { __sahamlensRedis?: Redis };
 
