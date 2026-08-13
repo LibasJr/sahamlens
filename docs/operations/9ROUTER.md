@@ -54,19 +54,41 @@ hanya cloudflared di mesin yang sama yang boleh menjangkaunya.
 
 ### A2. Jalankan 9Router
 
-Ambil file deploy (Langkah 3 di bawah), lalu jalankan **tanpa** `--domain`:
+Di jalur tunnel, `nginx-9router.conf` dan bagian certbot di installer TIDAK terpakai -
+yang tersisa cuma "jalankan container dengan flag yang benar". Jadi tidak perlu menyalin
+file deploy sama sekali; satu perintah sudah cukup dan menghilangkan satu sumber
+kesalahan (menempel ratusan baris lewat SSH sering gagal diam-diam).
 
 ```bash
-cd ~/9router
-sudo bash install-9router.sh
+# 1. Buat password dashboard dan SIMPAN keluarannya
+openssl rand -base64 24 | tee ~/9router-dashboard-password.txt
+chmod 600 ~/9router-dashboard-password.txt
+
+# 2. Jalankan 9Router
+sudo docker run -d --name 9router --restart unless-stopped \
+  -p 127.0.0.1:20128:20128 \
+  -e PORT=20128 \
+  -e HOSTNAME=0.0.0.0 \
+  -e REQUIRE_API_KEY=true \
+  -e AUTH_COOKIE_SECURE=true \
+  -e INITIAL_PASSWORD="$(cat ~/9router-dashboard-password.txt)" \
+  -v 9router-data:/root/.9router \
+  --log-opt max-size=10m --log-opt max-file=3 \
+  decocua/9router:latest
 ```
 
-Tanpa `--domain`, installer melewati seluruh bagian Nginx/certbot dan hanya menjalankan
-container. Verifikasi dari VPS:
+`-p 127.0.0.1:20128:20128` itu bagian yang tidak boleh diubah - itu yang membuat port ini
+hanya bisa dijangkau dari mesin itu sendiri (yaitu cloudflared), bukan dari internet.
+`-v 9router-data:...` menyimpan seluruh konfigurasi provider; jangan dihapus saat update.
+
+Verifikasi dari VPS:
 
 ```bash
 curl -fsS http://127.0.0.1:20128/health && echo OK
 ```
+
+Alternatif dengan file deploy (Langkah 3 + `sudo bash install-9router.sh` tanpa
+`--domain`) tetap berlaku dan hasilnya setara - pilih salah satu, bukan dua-duanya.
 
 ### A3. Tambah hostname ke tunnel
 
