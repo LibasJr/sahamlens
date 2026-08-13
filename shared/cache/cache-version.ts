@@ -15,6 +15,8 @@
 // Menambahkan field baru tidak perlu bump; mengubah arti field yang sudah ada perlu.
 //
 // Riwayat:
+//   v2 - lilin sesi berjalan ditambahkan ke chart, dan perubahan harian di
+//        market-summary/teknikal memakai resolvePreviousClose.
 //   v1 - nilai awal saat mekanisme ini dipasang, bersamaan dengan perbaikan
 //        penutupan acuan (lihat shared/market/previous-close.ts).
-export const COMPUTED_CACHE_VERSION = 'v1';
+export const COMPUTED_CACHE_VERSION = 'v2';

@@ -95,6 +95,52 @@ export async function GET(
       }
     }
 
+    // Sesi berjalan sering BELUM punya bar harian utuh di Yahoo - `close`-nya masih null,
+    // sehingga bar itu tersaring habis oleh validasi di atas dan chart berhenti satu sesi
+    // lebih awal daripada harga yang ditampilkan di headernya. Terukur 2026-08-14 pada
+    // DGWG: lilin terakhir 12 Agu (332) sementara header menampilkan 318 dari 13 Agu.
+    // Dua angka tentang saham yang sama, di layar yang sama, berbeda satu hari.
+    //
+    // `meta` di respons YANG SAMA sudah memuat sesi itu, jadi lilinnya disusun dari sana
+    // alih-alih dibiarkan hilang. Hanya untuk chart HARIAN - jalur intraday sudah memuat
+    // sesi berjalan lewat barnya sendiri.
+    if (!isIntraday && history.length > 0) {
+      const meta = result.meta || {};
+      const sesiTs = meta.regularMarketTime;
+      const sesiClose = meta.regularMarketPrice;
+      if (isFiniteNumber(sesiTs) && isFiniteNumber(sesiClose) && sesiClose > 0) {
+        const sesiTanggal = new Date(sesiTs * 1000).toISOString().split('T')[0];
+        const sudahAda = history.some((h) => h.time.slice(0, 10) === sesiTanggal);
+        if (!sudahAda) {
+          const high = isFiniteNumber(meta.regularMarketDayHigh) ? meta.regularMarketDayHigh : sesiClose;
+          const low = isFiniteNumber(meta.regularMarketDayLow) ? meta.regularMarketDayLow : sesiClose;
+          // `regularMarketOpen` sering tidak dikirim. Penutupan sesi sebelumnya dipakai
+          // sebagai pembuka, dijepit ke rentang high/low hari itu supaya lilinnya tetap
+          // sah secara bentuk. Ini APROKSIMASI - satu-satunya angka yang tidak berasal
+          // langsung dari Yahoo, dan hanya menyangkut ujung atas/bawah badan lilin
+          // terakhir; high/low/close/volume semuanya nilai sungguhan.
+          const penutupanSebelumnya = history[history.length - 1].close;
+          const open = isFiniteNumber(meta.regularMarketOpen) && meta.regularMarketOpen > 0
+            ? meta.regularMarketOpen
+            : Math.min(Math.max(penutupanSebelumnya, Math.min(low, sesiClose)), Math.max(high, sesiClose));
+          const volume = isFiniteNumber(meta.regularMarketVolume) && meta.regularMarketVolume >= 0
+            ? meta.regularMarketVolume
+            : isMarketIndex ? 0 : null;
+          if (volume != null && Math.max(high, sesiClose) >= Math.min(low, sesiClose)) {
+            history.push({
+              time: sesiTanggal,
+              open,
+              high: Math.max(high, sesiClose, open),
+              low: Math.min(low, sesiClose, open),
+              close: sesiClose,
+              price: sesiClose,
+              volume,
+            });
+          }
+        }
+      }
+    }
+
     if (sliceLastNDays != null) {
       const uniqueDays = Array.from(new Set(history.map((h) => h.time.slice(0, 10))));
       const keepDays = new Set(uniqueDays.slice(-sliceLastNDays));
