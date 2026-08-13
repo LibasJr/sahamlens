@@ -955,7 +955,8 @@ idempoten (`CREATE TABLE IF NOT EXISTS`) oleh `shared/database/schema.service.ts
 `job_run_log`, dst. Data PERSISTEN antar cold start Vercel (beda total dari arsitektur lama yang
 cuma in-memory/file JSON dan hilang tiap cold start).
 
-Cache Redis (Upstash) terpisah dari database - murni cache hasil hitungan (screener universe,
+Cache Redis (di VPS sendiri lewat `REDIS_URL`, bukan Upstash - lihat tabel env di atas)
+terpisah dari database - murni cache hasil hitungan (screener universe,
 market summary, AI Pick scores, dst), TTL terpusat di `shared/cache/ttl-policy.ts`. Redis gagal/
 belum dikonfigurasi = degrade aman ke cache-miss, tidak pernah menggagalkan request user.
 
