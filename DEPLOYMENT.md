@@ -73,8 +73,14 @@ terjadi diam-diam.
 **Jebakan operasional**:
 - **`localhost:20128` TIDAK akan bisa dipakai dari Vercel.** Route SahamLens jalan di
   serverless Vercel, jadi `NINEROUTER_BASE_URL` harus URL yang bisa dijangkau dari
-  internet. Jalankan 9Router di VPS (bisa VPS yang sama dengan Redis) di belakang
-  Nginx + SSL, dengan `REQUIRE_API_KEY=true`.
+  internet. Jalankan 9Router di VPS (bisa VPS yang sama dengan Redis) dengan
+  `REQUIRE_API_KEY=true`.
+- **VPS SahamLens memakai Cloudflare Tunnel** (`sahamlens-prod` di zona `sahamlens.id`),
+  jadi jalur yang benar adalah menambah public hostname `router.sahamlens.id` ke tunnel
+  itu - BUKAN membuka port 80/443 dan memasang certbot. Potongan ingress-nya ada di
+  `deploy/9router/cloudflared-ingress.yml`. Konsekuensinya: request tunduk pada batas
+  100 detik Cloudflare (lewat itu balas 524), jadi `NINEROUTER_TIMEOUT_MS` harus tetap
+  jauh di bawah itu.
 - 9Router versi Docker bind ke `0.0.0.0`. Jangan buka port `20128` mentah ke internet -
   taruh di belakang reverse proxy HTTPS, dan biarkan dashboard-nya tidak publik
   (`AUTH_COOKIE_SECURE=true` + password kuat kalau memang harus dibuka).

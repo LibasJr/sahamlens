@@ -20,7 +20,101 @@ Dokumen ini urutan kerjanya, dari VPS kosong sampai production.
 
 ---
 
-## Langkah 1 - Arahkan subdomain ke VPS
+## Pilih jalur dulu: Tunnel atau Nginx
+
+| | **Jalur A - Cloudflare Tunnel** | **Jalur B - Nginx + Let's Encrypt** |
+| --- | --- | --- |
+| Kapan dipakai | VPS sudah pakai Cloudflare Tunnel | VPS biasa dengan IP publik terbuka |
+| Port masuk | **tidak ada** (cloudflared connect keluar) | 80 + 443 harus terbuka |
+| Sertifikat | otomatis oleh Cloudflare | certbot / Let's Encrypt |
+| DNS | CNAME ke tunnel | A record ke IP VPS |
+| Batas waktu request | **100 detik** (Cloudflare balas 524 lewat dari itu) | bebas |
+
+**SahamLens memakai Jalur A** - domain `sahamlens.id` sudah di Cloudflare dengan tunnel
+`sahamlens-prod`. Jalur B tetap didokumentasikan untuk VPS lain di masa depan.
+
+---
+
+## Jalur A - Cloudflare Tunnel
+
+### A1. Siapkan VPS
+
+Yang dibutuhkan cuma Docker + Compose. **Tidak perlu** Nginx maupun certbot.
+
+```bash
+docker --version
+docker compose version || docker-compose --version
+```
+
+Kalau Compose belum ada: `sudo apt-get install -y docker-compose-plugin` (atau
+`docker-compose` untuk Ubuntu yang paketnya belum tersedia).
+
+Jangan buka port apa pun di firewall. Container 9Router bind ke `127.0.0.1:20128` dan
+hanya cloudflared di mesin yang sama yang boleh menjangkaunya.
+
+### A2. Jalankan 9Router
+
+Ambil file deploy (Langkah 3 di bawah), lalu jalankan **tanpa** `--domain`:
+
+```bash
+cd ~/9router
+sudo bash install-9router.sh
+```
+
+Tanpa `--domain`, installer melewati seluruh bagian Nginx/certbot dan hanya menjalankan
+container. Verifikasi dari VPS:
+
+```bash
+curl -fsS http://127.0.0.1:20128/health && echo OK
+```
+
+### A3. Tambah hostname ke tunnel
+
+Cek dulu tunnel Anda dikelola dari file lokal atau dari dashboard:
+
+```bash
+sudo cat /etc/cloudflared/config.yml 2>/dev/null \
+  || sudo cat ~/.cloudflared/config.yml 2>/dev/null \
+  || echo "tidak ada config lokal -> tunnel dikelola dari dashboard Zero Trust"
+```
+
+**Kalau ada config lokal**: tambahkan blok ingress dari
+`deploy/9router/cloudflared-ingress.yml` ke daftar `ingress`, **di atas** catch-all
+`service: http_status:404` yang paling bawah. Urutan menentukan - cloudflared memakai
+aturan pertama yang cocok.
+
+```bash
+sudo nano /etc/cloudflared/config.yml
+sudo cloudflared tunnel ingress validate     # wajib lolos sebelum restart
+sudo systemctl restart cloudflared
+```
+
+**Kalau dikelola dashboard**: Cloudflare Zero Trust -> Networks -> Tunnels ->
+`sahamlens-prod` -> Public Hostnames -> Add:
+
+- Subdomain `router`, Domain `sahamlens.id`
+- Service: `HTTP` -> `localhost:20128`
+- Additional settings -> Connect timeout `15s`
+
+Dashboard tidak punya filter path, jadi `/dashboard` ikut terbuka. Tutup dengan
+Cloudflare Access (Zero Trust -> Access -> Applications, `router.sahamlens.id/dashboard`,
+policy Allow hanya email Anda), atau pakai config lokal yang mendukung filter path.
+
+### A4. Verifikasi
+
+```bash
+curl https://router.sahamlens.id/health        # harus OK
+curl -o /dev/null -w '%{http_code}\n' https://router.sahamlens.id/dashboard   # harus 404
+```
+
+DNS record `router.sahamlens.id` dibuat otomatis oleh cloudflared - tidak perlu bikin
+A record manual. Lanjut ke **Langkah 5**.
+
+---
+
+## Jalur B - Nginx + Let's Encrypt
+
+### Langkah 1 - Arahkan subdomain ke VPS
 
 Di panel DNS domain Anda, buat record:
 
@@ -35,7 +129,10 @@ belum menunjuk ke VPS). Cek dari laptop:
 dig +short router.DOMAIN-ANDA.com     # harus mengembalikan IP VPS
 ```
 
-## Langkah 2 - Siapkan VPS
+Kalau domain ada di Cloudflare, **matikan proxy (awan oranye)** untuk record ini saat
+certbot dijalankan - kalau tetap proxied, validasi HTTP-01 tidak sampai ke VPS.
+
+### Langkah 2 - Siapkan VPS
 
 SSH ke VPS, lalu pastikan Docker, Nginx, dan Certbot ada:
 
@@ -58,7 +155,11 @@ sudo ufw allow 443/tcp
 sudo ufw status          # 20128 TIDAK boleh ada di daftar
 ```
 
+---
+
 ## Langkah 3 - Ambil file deploy ke VPS
+
+*(dipakai kedua jalur)*
 
 Repo SahamLens **private**, jadi VPS tidak bisa clone tanpa kredensial. Pilih salah satu:
 
@@ -92,6 +193,14 @@ https://github.com/LibasJr/sahamlens.git`) supaya token tidak tersimpan di `.git
 VPS. Kalau branch ini sudah di-merge ke `main`, langkah `git checkout` tidak diperlukan.
 
 ## Langkah 4 - Jalankan installer
+
+**Jalur A (tunnel)** - tanpa `--domain`, lalu lanjut ke A3 di atas:
+
+```bash
+sudo bash install-9router.sh
+```
+
+**Jalur B (Nginx)**:
 
 ```bash
 sudo bash install-9router.sh --domain router.DOMAIN-ANDA.com --email email@anda.com
@@ -188,7 +297,10 @@ npx vercel --prod
 
 | Gejala | Penyebab paling sering |
 | --- | --- |
-| `certbot` gagal | DNS belum propagasi (langkah 1) atau port 80 tertutup |
+| `certbot` gagal | DNS belum propagasi (langkah 1), port 80 tertutup, atau record masih Proxied di Cloudflare |
+| HTTP 524 dari router | Batas 100 detik Cloudflare terlampaui - turunkan `NINEROUTER_TIMEOUT_MS` atau pilih model lebih cepat |
+| HTTP 502/1033 dari router | `cloudflared` mati atau container 9Router berhenti - cek `systemctl status cloudflared` dan `docker compose ps` |
+| Request dari Vercel diblokir | WAF/Bot Fight Mode Cloudflare - buat WAF skip rule untuk path `/v1/*` |
 | `/health` OK tapi Vercel tetap gagal | `NINEROUTER_BASE_URL` masih `localhost` - harus URL publik |
 | Log penuh `[AI:9router] HTTP 429` | Kuota provider upstream habis; tambah provider di dashboard |
 | Jawaban lambat/timeout | Naikkan `NINEROUTER_TIMEOUT_MS`, atau pilih model lebih cepat |

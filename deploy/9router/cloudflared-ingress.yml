@@ -1,0 +1,49 @@
+# Potongan ingress cloudflared untuk 9Router.
+#
+# Dipakai kalau VPS sudah memakai Cloudflare Tunnel (SahamLens: tunnel `sahamlens-prod`).
+# Dengan tunnel, Nginx dan certbot TIDAK diperlukan: Cloudflare yang terminasi TLS, dan
+# cloudflared connect KELUAR dari VPS - tidak ada port masuk yang perlu dibuka sama sekali.
+#
+# Cara pakai: tambahkan blok ini ke daftar `ingress` di config cloudflared Anda
+# (biasanya /etc/cloudflared/config.yml), DI ATAS baris catch-all `service: http_status:404`.
+# Urutan penting - cloudflared memakai aturan pertama yang cocok.
+#
+#   sudo nano /etc/cloudflared/config.yml
+#   sudo cloudflared tunnel ingress validate
+#   sudo systemctl restart cloudflared
+#
+# Kalau tunnel Anda dikelola dari dashboard Cloudflare Zero Trust (bukan file lokal),
+# file ini tidak dipakai - lihat docs/operations/9ROUTER.md Jalur A langkah 4b.
+
+ingress:
+  # Endpoint API - HANYA ini yang dibuka ke internet. Inilah yang dipanggil SahamLens
+  # lewat NINEROUTER_BASE_URL.
+  - hostname: router.sahamlens.id
+    path: ^/v1(/.*)?$
+    service: http://localhost:20128
+    originRequest:
+      # 9Router melakukan fallback ke upstream-nya sendiri, jadi satu request bisa
+      # berjalan lebih lama dari default. Tetap di bawah batas 100 detik Cloudflare
+      # (lewat dari itu Cloudflare membalas 524, bukan menunggu).
+      connectTimeout: 15s
+      # Tanpa ini respons ditahan sampai selesai - tidak fatal untuk SahamLens (yang
+      # tidak memakai streaming), tapi bikin latensi terasa lebih buruk dari aslinya.
+      noTLSVerify: false
+      disableChunkedEncoding: false
+
+  # Health check - berguna untuk memastikan tunnel + container hidup dari luar.
+  - hostname: router.sahamlens.id
+    path: ^/health$
+    service: http://localhost:20128
+
+  # SEGALA sesuatu yang lain di hostname ini ditutup - termasuk /dashboard, yang berisi
+  # SELURUH API key provider AI Anda. Dashboard diakses lewat SSH tunnel dari laptop:
+  #   ssh -L 20128:127.0.0.1:20128 lens@101.0.6.75
+  #   lalu buka http://127.0.0.1:20128/dashboard
+  - hostname: router.sahamlens.id
+    service: http_status:404
+
+  # PENTING: aturan ingress Anda yang sudah ada (sahamlens.id, vps.sahamlens.id, dst)
+  # harus tetap ada di file yang sama. Blok di atas DITAMBAHKAN, bukan menggantikan.
+  # Catch-all di bawah ini wajib jadi aturan TERAKHIR di seluruh daftar ingress.
+  - service: http_status:404
