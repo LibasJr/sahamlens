@@ -570,7 +570,7 @@ export default function PortfolioPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-white leading-tight font-number">{tickerCode(h.symbol)}</span>
                               {h.scoreLabel && (
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
+                                <span className={`lens-chip font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
                                   {h.scoreLabel}
                                 </span>
                               )}
@@ -646,7 +646,7 @@ export default function PortfolioPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <TickerAvatar symbol={t.symbol} size="sm" />
                             <span className="font-bold text-white text-sm font-number">{tickerCode(t.symbol)}</span>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
+                            <span className={`lens-chip font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
                           </div>
                           <div className="text-[11px] text-tv-muted">
                             {t.lots.toLocaleString('id-ID')} lot @ {t.price.toLocaleString('id-ID')} · {new Date(t.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}

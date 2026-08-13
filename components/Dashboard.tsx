@@ -114,7 +114,7 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
   const renderGroup = (copy: number) => (
     <div className="flex shrink-0 gap-3 pr-3" aria-hidden={copy === 1 ? true : undefined}>
       {items.map((item) => {
-        const label = item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'WATCH';
+        const label = item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'INFORMASI';
         const tone = item.flagged
           ? 'border-tv-red/30 bg-tv-red/10 text-tv-red'
           : advisoryEnabled
@@ -1029,7 +1029,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                               halaman depan dibuang - padahal itu pembeda utamanya dari
                               daftar berita biasa. */}
                           {n.sentiment && (
-                            <span className={`rounded px-1.5 py-px text-[10px] font-bold ${
+                            <span className={`lens-chip rounded px-1.5 py-px font-bold ${
                               n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green'
                                 : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red'
                                 : 'bg-tv-hover text-tv-muted'

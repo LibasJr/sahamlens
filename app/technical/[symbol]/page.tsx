@@ -345,7 +345,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             <div key={idx} className="bg-tv-hover border border-tv-border rounded-lg p-4 transition-colors hover:border-tv-borderLight">
               <div className="flex justify-between items-center gap-2 mb-2">
                 <h3 className="font-heading font-bold text-tv-text text-sm">{a.label}</h3>
-                <span className={`shrink-0 text-xs px-2 py-0.5 rounded font-number font-semibold ${
+                <span className={`lens-chip shrink-0 px-2 py-0.5 rounded font-number font-semibold ${
                   sinyal === 'BUY' ? 'bg-tv-green/20 text-tv-green border border-tv-green/30' :
                   sinyal === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/30' :
                   'bg-tv-border text-tv-muted'
