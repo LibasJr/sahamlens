@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { usePathname } from 'next/navigation';
@@ -185,11 +186,11 @@ export default function AIChat() {
     }
   };
 
-  const setDemoPrompt = () => {
-    const segments = pathname.split('/');
-    const currentSymbol = segments.length > 2 ? segments[segments.length - 1].replace('.JK', '') : 'IHSG';
-    setInput(`Tolong jelaskan secara singkat pandangan teknikal dan prospek pergerakan harga untuk saham ${currentSymbol} hari ini.`);
-  };
+  // Contoh pembuka mengikuti halaman: di halaman emiten diarahkan ke emiten itu, di
+  // halaman lain ke pertanyaan pasar. Daftarnya di components/ai-chat-starters.ts -
+  // setiap contoh wajib punya jalur data yang nyata, lihat catatan di file itu.
+  const activeSymbol = symbolFromPathname(pathname);
+  const starters = activeSymbol ? tickerStarters(activeSymbol) : MARKET_STARTERS;
 
   return (
     <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
@@ -246,18 +247,21 @@ export default function AIChat() {
                 </div>
                 <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
                 <p className="max-w-xs text-base leading-relaxed text-tv-muted sm:text-sm">
-                  Tanya tentang fitur SahamLens, teknikal, fundamental, LensScore, TP/CL, atau konsep pasar modal Indonesia. Saya akan jelaskan dengan bahasa sederhana.
+                  Tanya soal emiten (fundamental, teknikal, valuasi, dividen, arus dana), kondisi pasar
+                  dan sektor, peringkat LensRadar, atau cara kerja fitur SahamLens. Jawaban selalu dari
+                  data aplikasi - kalau datanya belum ada, saya bilang belum ada.
                 </p>
-                <button
-                  onClick={setDemoPrompt}
-                  className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  {(() => {
-                    const segments = pathname.split('/');
-                    const currentSymbol = segments.length > 2 ? segments[segments.length - 1].replace('.JK', '') : 'IHSG';
-                    return `"Tolong analisis teknikal singkat saham ${currentSymbol}?"`;
-                  })()}
-                </button>
+                <div className="mt-4 flex w-full max-w-xs flex-col gap-2">
+                  {starters.map((starter) => (
+                    <button
+                      key={starter.prompt}
+                      onClick={() => setInput(starter.prompt)}
+                      className="rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
+                    >
+                      {starter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               messages.map((msg, idx) => (
