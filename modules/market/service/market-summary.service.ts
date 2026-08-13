@@ -152,7 +152,7 @@ async function fetchQuote(symbol: string) {
       metaPreviousClose: meta?.previousClose,
       metaChartPreviousClose: meta?.chartPreviousClose,
     });
-    const prevClose = resolvedPrevClose ?? closes[closes.length - 2];
+    const prevClose = resolvedPrevClose;
     const currentPrice = isFinitePositive(meta?.regularMarketPrice) ? meta.regularMarketPrice : closes[closes.length - 1];
     const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
     const rawVolume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : volumes[volumes.length - 1];
