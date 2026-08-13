@@ -79,7 +79,12 @@ async function scoreOne(
     ? history.map((h) => h.AdjClose as number)
     : null;
   const currentAdjustedPrice = adjustedCloses ? adjustedCloses[adjustedCloses.length - 1] : null;
-  const prevCloseRaw = history[history.length - 2]?.Close;
+  // BUG FIX (laporan pengguna 2026-08-14): dulu `history[history.length - 2]`, meleset
+  // satu sesi. `currentPrice` di atas adalah harga sesi BERJALAN, sedangkan `history`
+  // sudah dibersihkan dari bar ber-close null - dan bar sesi berjalan memang masih null
+  // di Yahoo, jadi elemen terakhir history sudah sesi kemarin dan `length-2` dua sesi
+  // lalu. fetchYahooHistory sudah menghitung acuan yang benar; tinggal dipakai.
+  const prevCloseRaw = res.previousClose ?? history[history.length - 2]?.Close;
   if (!isFinitePositive(prevCloseRaw)) return null;
   const changePct = ((currentPrice - prevCloseRaw) / prevCloseRaw) * 100;
 
