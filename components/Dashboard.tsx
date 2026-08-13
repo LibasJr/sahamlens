@@ -12,6 +12,7 @@ import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/compone
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 import ThemeToggle from '@/components/ThemeToggle';
+import Image from 'next/image';
 
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
@@ -491,7 +492,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <div className="flex h-[64px] items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5">
-                <img src="/sahamlens-scope.png" alt="SahamLens" className="h-8 w-8 rounded-full object-cover" />
+                <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} className="h-8 w-8 rounded-full object-cover" priority />
                 <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
