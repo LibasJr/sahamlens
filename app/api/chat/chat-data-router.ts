@@ -166,12 +166,42 @@ async function currentValuationBlock(ticker: string, requestedMetrics: string[])
       return `${fundamental}\n- Valuasi intrinsic current: tidak tersedia.`;
     }
 
+    // ASUMSI IKUT DIKIRIM (2026-08-13). Sebelumnya blok ini hanya memuat nilai wajar
+    // dan MoS - dua angka hasil, tanpa satu pun dasar. Akibatnya LensAI menyampaikan
+    // "harga wajarnya sekian" seolah itu pengukuran, dan ketika pengguna bertanya
+    // "dari mana angkanya", tidak ada yang bisa dijawab. Asumsi model SUDAH diekspos
+    // `calculateIntrinsicValue()` justru supaya dasarnya sampai ke pengguna (temuan
+    // H-3 audit 2026-08-05); halaman DCF sudah memakainya, chat belum.
+    const a: any = dcf.assumptions ?? {};
+    const usedMethods = Object.keys(dcf.methods ?? {});
+
     return [
       fundamental,
       `- Nilai wajar model current: ${safe(dcf.fair_value)}`,
       `- Margin of Safety model current: ${safe(dcf.mos, '%')}`,
-      '- Catatan: nilai wajar adalah keluaran model SahamLens, bukan fakta harga masa depan.',
-    ].join('\n');
+      '- ASUMSI DI BALIK ANGKA DI ATAS (wajib disampaikan kalau ditanya dasarnya):',
+      usedMethods.length ? `  - Metode yang benar-benar terpakai: ${usedMethods.join(', ')}` : '  - Metode terpakai: tidak tercatat',
+      `  - Biaya ekuitas (CAPM per emiten): ${safe(a.cost_of_equity_pct, '%')}`,
+      `  - Risk-free rate: ${safe(a.risk_free_rate_pct, '%')} + equity risk premium ${safe(a.equity_risk_premium_pct, '%')}${
+        a.macro_set_on ? ` (asumsi makro ditetapkan ${a.macro_set_on})` : ''
+      }`,
+      `  - Beta yang dipakai: ${safe(a.beta_used)}${a.beta_source ? ` (sumber: ${a.beta_source})` : ''}`,
+      `  - Pertumbuhan yang diasumsikan: ${safe(a.growth_pct, '%')}, pertumbuhan perpetual ${safe(a.perpetual_growth_pct, '%')}`,
+      `  - PER wajar: ${safe(a.fair_per)}x${a.fair_per_basis ? ` (basis: ${a.fair_per_basis})` : ''}, PBV wajar: ${safe(a.fair_pbv)}x`,
+      a.multiples_model ? `  - Model multiple: ${a.multiples_model}` : '',
+      // Dua tingkat diskonto memang berbeda, dan itu HARUS terbaca. Meleburnya jadi satu
+      // angka membuat "harga wajar" tampak berasal dari satu model padahal dari dua.
+      `  - PENTING: PBV*/PER* memakai biaya ekuitas CAPM per emiten di atas, sedangkan DDM dan`,
+      `    perpetuitas FCF masih memakai tingkat diskonto TETAP ${safe(a.discount_rate_pct, '%')} untuk semua emiten.`,
+      '    Jangan menyebutnya satu tingkat diskonto tunggal.',
+      a.sector_weights_status === 'HYPOTHESIS_NOT_VALIDATED'
+        ? '  - Bobot metode per sektor BELUM divalidasi terhadap forward return (status: hipotesis). Sebutkan ini kalau menjelaskan kenapa metode tertentu lebih berat.'
+        : '',
+      '- Catatan: nilai wajar adalah keluaran model SahamLens dengan parameter di atas -',
+      '  bukan pengukuran, bukan konsensus analis, dan bukan target harga.',
+    ]
+      .filter(Boolean)
+      .join('\n');
   } catch (error) {
     console.warn('[LensAI:data-router] current valuation gagal', ticker, error instanceof Error ? error.message : String(error));
     return `${fundamental}\n- Valuasi intrinsic current: gagal dibaca.`;
