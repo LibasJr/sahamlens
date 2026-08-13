@@ -60,8 +60,12 @@ export default function DecisionScoreCard({
             {verdict} <span className="text-tv-muted">—</span> Score {safeTotal ?? 'N/A'}
           </h2>
           <p className="mt-1.5 text-xs leading-relaxed text-tv-muted">
-            {verdict === 'WATCH'
-              ? 'Masuk watchlist untuk diteliti lebih lanjut; belum otomatis menjadi rekomendasi transaksi.'
+            {/* Kalimat lamanya - "Masuk watchlist untuk diteliti lebih lanjut" - membaca
+                seperti instruksi aksi, padahal LensWatch adalah daftar favorit yang diisi
+                pengguna sendiri dan tidak ada kaitannya dengan putusan model. Sekarang
+                kalimatnya menyatakan keadaan, bukan menyuruh. */}
+            {verdict === 'INFORMASI'
+              ? 'Belum ada arah transaksi. Skor ini belum lolos validasi backtest yang dapat diaudit.'
               : verdict === 'DATA TERBATAS'
                 ? 'Data belum cukup untuk menghasilkan kesimpulan yang andal.'
                 : verdict === 'TIDAK LAYAK'
