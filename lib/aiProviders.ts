@@ -297,11 +297,26 @@ export function buildSmartAttemptOrder(combos = buildCombos(), now = Date.now())
     ).slice(0, 1);
   }
 
+  // BUG FIX (2026-08-13, terlihat dari log produksi VPS): rotasi lama memutar SELURUH
+  // combo, termasuk gateway ber-flag tryFirst. Akibatnya niat "9Router dicoba duluan"
+  // yang sudah dipasang di comboRank() dibatalkan lagi di sini - tiap request memulai
+  // dari titik yang berbeda, jadi gateway sering baru kebagian giliran setelah beberapa
+  // provider gratis yang kehabisan kuota menghabiskan 10-15 detik masing-masing.
+  //
+  // Rotasi tetap dipertahankan untuk provider langsung (itu memang gunanya: menyebar
+  // beban antar API key gratis), tapi gateway di-pin di depan. Gateway punya rotasi
+  // multi-akun dan fallback sendiri di dalamnya, jadi merotasinya lagi di sini tidak
+  // menambah apa pun selain latensi.
+  const pinned = healthy.filter((c) => c.kind === 'openai-compatible' && c.provider.tryFirst);
+  const rotatable = healthy.filter((c) => !(c.kind === 'openai-compatible' && c.provider.tryFirst));
+
+  if (!rotatable.length) return pinned;
+
   const cursor = globalForAIRotation.__sahamlensAIRotationCursor ?? 0;
-  const offset = cursor % healthy.length;
+  const offset = cursor % rotatable.length;
   globalForAIRotation.__sahamlensAIRotationCursor = (cursor + 1) % Number.MAX_SAFE_INTEGER;
 
-  return [...healthy.slice(offset), ...healthy.slice(0, offset)];
+  return [...pinned, ...rotatable.slice(offset), ...rotatable.slice(0, offset)];
 }
 
 // Hanya untuk unit test; jangan dipakai oleh route produksi.

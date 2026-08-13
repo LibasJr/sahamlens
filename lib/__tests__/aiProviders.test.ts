@@ -352,6 +352,31 @@ describe('buildSmartAttemptOrder', () => {
     __resetAIRotationForTests();
   });
 
+  it('gateway tryFirst tetap di depan di SETIAP request, tidak ikut dirotasi', () => {
+    clearAllKeys();
+    vi.stubEnv('GEMINI_API_KEY', 'g-test');
+    vi.stubEnv('GROQ_API_KEY', 'gsk-test');
+    vi.stubEnv('KIMI_API_KEY', 'sk-test');
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
+    vi.stubEnv('NINEROUTER_MODELS', 'a/one,b/two');
+
+    __resetAIRotationForTests();
+    const base = buildCombos();
+
+    // Lima request berturut-turut: dua combo 9Router HARUS selalu menempati dua posisi
+    // pertama, sementara provider langsung di belakangnya tetap berputar.
+    const firstDirect: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const order = buildSmartAttemptOrder(base);
+      expect(order.slice(0, 2).map((c) => c.model)).toEqual(['a/one', 'b/two']);
+      expect(order).toHaveLength(base.length);
+      firstDirect.push(order[2].model);
+    }
+    // Buktikan bagian yang dirotasi memang masih berputar.
+    expect(new Set(firstDirect).size).toBeGreaterThan(1);
+  });
+
   it('merotasi combo sehat antar request tanpa mengacak ranking dasar buildCombos()', () => {
     clearAllKeys();
     vi.stubEnv('GEMINI_API_KEY', 'g-test');
