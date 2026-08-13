@@ -30,9 +30,9 @@
   --lens-yellow: 242 193 78;
   --lens-warning: 245 158 11;
   --lens-gold: 231 185 76;
-  --lens-blue: 79 140 255;
+  --lens-blue: 86 145 255;
   --lens-blue-hover: 60 118 232;
-  --lens-purple: 139 124 255;
+  --lens-purple: 145 131 255;
 
   /* Biru untuk BIDANG PADAT (tombol primer), terpisah dari biru untuk TEKS.
    * Satu warna tidak bisa melayani keduanya: --lens-blue harus cukup terang agar
@@ -86,19 +86,34 @@ html.light {
    *
    * Menggelapkan token MEMPERBAIKI ketiga peran sekaligus (teks polos, teks di atas
    * tint, dan putih di atas bidang padat) - jadi tidak perlu token keempat, dan tidak
-   * perlu menyentuh 33 berkas itu satu per satu. Warna hover tetap lebih gelap, jadi
-   * bedanya masih terasa. Mode gelap tidak diubah: di sana lencana yang sama sudah
-   * 5,32:1 (merah) dan 6,58:1 (hijau). */
-  --lens-green: 18 114 47;
+   * perlu menyentuh 33 berkas itu satu per satu.
+   *
+   * PUTARAN KEDUA, hari yang sama: laporan PageSpeed berikutnya menggagalkan lencana
+   * HIJAU, padahal yang pertama menggagalkan yang MERAH - bukan karena ada yang berubah,
+   * tapi karena hari itu IHSG naik. Itu menunjukkan cara kerjanya yang keliru: Lighthouse
+   * hanya memeriksa elemen yang KEBETULAN terlihat. Seluruh matriks karena itu dihitung
+   * sekaligus, dan ternyata 14 kombinasi gagal - warning, gold, dan biru bahkan gagal di
+   * SEMUA tingkat tint, dan tidak pernah tersampling sama sekali.
+   *
+   * Aturannya berlawanan arah di dua tema, dan itu bukan kebetulan: tint selalu menggeser
+   * latar ke arah warna teksnya sendiri, jadi teks harus menjauh. Di tema terang berarti
+   * MENGGELAPKAN, di tema gelap berarti MENCERAHKAN.
+   *
+   * Nilai di bawah dipilih dengan mencari pergeseran TERKECIL yang membuat ketiga peran
+   * lulus pada tint terberat (20%) - bukan warna baru, hanya digeser sedikit. Sekarang
+   * dijaga __tests__/color-contrast.test.ts yang memeriksa seluruh matriks, jadi
+   * pelanggaran berikutnya ketahuan saat mengubah warna, bukan lewat screenshot pengguna
+   * berbulan-bulan kemudian. */
+  --lens-green: 17 111 46;
   --lens-green-hover: 15 94 39;
   --lens-red: 176 35 35;
   --lens-red-hover: 143 28 28;
-  --lens-yellow: 138 97 0;
-  --lens-warning: 180 83 9;
-  --lens-gold: 148 106 0;
-  --lens-blue: 37 99 235;
-  --lens-blue-hover: 29 78 216;
-  --lens-purple: 124 58 237;
+  --lens-yellow: 128 90 0;
+  --lens-warning: 157 72 8;
+  --lens-gold: 127 91 0;
+  --lens-blue: 33 87 207;
+  --lens-blue-hover: 26 70 166;
+  --lens-purple: 115 54 220;
   --lens-blue-solid: 29 78 216;
   --lens-purple-solid: 109 40 217;
   /* Tema terang: aksennya sudah gelap, jadi pasangannya putih. */
@@ -137,9 +152,9 @@ html.light {
   --lens-yellow: 242 193 78;
   --lens-warning: 245 158 11;
   --lens-gold: 231 185 76;
-  --lens-blue: 79 140 255;
+  --lens-blue: 86 145 255;
   --lens-blue-hover: 60 118 232;
-  --lens-purple: 139 124 255;
+  --lens-purple: 145 131 255;
   --lens-blue-solid: 29 78 216;
   --lens-purple-solid: 109 40 217;
   --lens-on-accent: 7 11 18;
