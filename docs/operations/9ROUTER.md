@@ -74,8 +74,12 @@ sudo docker run -d --name 9router --restart unless-stopped \
   -e INITIAL_PASSWORD="$(cat ~/9router-dashboard-password.txt)" \
   -v 9router-data:/root/.9router \
   --log-opt max-size=10m --log-opt max-file=3 \
-  decocua/9router:latest
+  decolua/9router:latest
 ```
+
+Nama image yang benar `decolua/9router` (diverifikasi lewat Docker Hub, sejalan dengan
+repo `github.com/decolua/9router` dan paket npm `9router`). Beberapa panduan pihak ketiga
+menulis `decocua/9router` - itu salah ketik, repositorinya tidak ada.
 
 `-p 127.0.0.1:20128:20128` itu bagian yang tidak boleh diubah - itu yang membuat port ini
 hanya bisa dijangkau dari mesin itu sendiri (yaitu cloudflared), bukan dari internet.

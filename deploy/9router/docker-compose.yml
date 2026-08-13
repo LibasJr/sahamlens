@@ -8,7 +8,11 @@
 
 services:
   9router:
-    image: decocua/9router:latest
+    # Diverifikasi 2026-08-13 lewat Docker Hub API: decolua/9router, tag latest = 0.5.50,
+    # ~201rb pulls, sejalan dengan paket npm `9router` (maintainer decolua) dan repo
+    # github.com/decolua/9router. JANGAN ganti ke "decocua/9router" - itu salah ketik yang
+    # beredar di beberapa panduan pihak ketiga, dan repositorinya memang tidak ada.
+    image: decolua/9router:latest
     container_name: 9router
     restart: unless-stopped
     # "127.0.0.1:" di depan itu bukan hiasan - itu yang bikin port ini tidak pernah
