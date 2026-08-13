@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { fadeUp } from '../../lib/motion';
+import Image from 'next/image';
 
 interface AuthShellProps {
   eyebrow: string;
@@ -31,7 +32,7 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
         className="w-full max-w-md relative z-10"
       >
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <img src="/sahamlens-scope.png" alt="SahamLens" className="h-9 w-9 rounded-full object-cover" />
+          <Image src="/sahamlens-scope.png" alt="SahamLens" width={36} height={36} className="h-9 w-9 rounded-full object-cover" priority />
           <span className="font-heading font-bold text-[18px] tracking-tight text-tv-text">SahamLens</span>
         </Link>
 

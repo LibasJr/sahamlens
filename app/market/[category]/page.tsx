@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, DollarSign, BarChart3, Sparkles, Activity } from 'lucide-react';
 import { Input, Skeleton, EmptyState } from '@/components/ui';
+import Image from 'next/image';
 
 type Row = { symbol: string; price: number; changePct?: number; value?: number; volume?: number; score?: number; rsi?: number };
 
@@ -114,7 +115,7 @@ export default function MarketCategoryPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2.5">
-            <img src="/sahamlens-scope.png" alt="SahamLens" className="h-8 w-8 rounded-full object-cover" />
+            <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} className="h-8 w-8 rounded-full object-cover" priority />
             <span className="font-bold text-[15px] tracking-tight font-heading">SahamLens</span>
           </div>
         </div>

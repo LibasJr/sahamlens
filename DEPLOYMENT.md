@@ -64,6 +64,46 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - Perbaikan PageSpeed: logo 263 KiB untuk avatar 32 piksel
+
+Diukur dengan Lighthouse 12 (preset desktop) terhadap build production yang dijalankan
+lokal. Dua audit gambar gagal dengan total ~500 KiB pemborosan, dan penyebabnya satu
+berkas: `/sahamlens-scope.png` (512x512, 263 KiB) dipakai lewat `<img>` mentah di tiga
+tempat untuk ditampilkan **32-36 piksel**.
+
+Ketiganya diubah ke `next/image` (pola yang sudah dipakai `Sidebar.tsx`). Hasil terukur
+pada berkas yang sama:
+
+| | Byte terkirim |
+| --- | --- |
+| Sebelum (PNG asli) | 269.595 |
+| Sesudah, `w=32` WebP | 462 |
+| Sesudah, `w=64` (retina) | 1.146 |
+
+Kedua audit (`uses-responsive-images`, `modern-image-formats`) kini bernilai 1.
+
+**Yang TIDAK jadi diubah, dan kenapa itu penting dicatat**: dugaan awal saya PNG-nya
+belum dioptimalkan. Sharp memang bisa menghasilkan 105 KiB - tetapi setelah dibandingkan
+piksel per piksel, versi itu **tidak lossless** (417.597 byte berbeda, selisih maksimum
+37); opsi `effort` memicu kuantisasi palet. Re-encode yang benar-benar lossless justru
+menghasilkan **357 KiB, lebih besar dari aslinya**. Jadi berkas sumbernya sudah optimal
+dan sengaja tidak disentuh. **Jangan "mengoptimalkan" aset merek ini tanpa membandingkan
+piksel lebih dulu.**
+
+**Catatan operasional**: optimasi gambar Next berjalan saat runtime dan butuh `sharp`
+(sudah jadi dependency langsung, v0.35.3). Hasilnya di-cache di `.next/cache/images` -
+jadi permintaan PERTAMA per ukuran membayar biaya CPU konversi, sesudahnya gratis. Kalau
+`.next` dibersihkan saat deploy, cache itu ikut hilang dan biaya konversi terjadi lagi
+sekali per ukuran - normal, bukan gejala kerusakan.
+
+**Batas pengukuran ini**: dijalankan terhadap server lokal, jadi angka LCP/TTFB-nya tidak
+mewakili production (tidak ada latensi jaringan, Cloudflare Tunnel, atau Nginx). Yang
+diukur di sini adalah hal-hal level kode - ukuran & format aset, JS tak terpakai,
+aksesibilitas, SEO - dan itu berlaku sama di production. Lingkungan CI/agen tidak bisa
+menjangkau `sahamlens.id` (kebijakan jaringan), dan kuota API PageSpeed anonim sedang
+habis, jadi verifikasi terhadap production harus dijalankan dari mesin yang bisa
+mengaksesnya.
+
 ### 2026-08-13 - Streaming jawaban LensAI, dengan gerbang verifikasi angka
 
 Jawaban LensAI kini mengalir bertahap, TAPI hanya teks yang angkanya sudah lolos
