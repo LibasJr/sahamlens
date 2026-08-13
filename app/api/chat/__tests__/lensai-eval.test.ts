@@ -2,6 +2,7 @@ import { describe, expect, it, afterAll } from 'vitest';
 import { classifyChatIntent } from '../chat-intent';
 import { resolveChatDate } from '../chat-date';
 import { getDeterministicSmallTalkResponse, normalizeChatText } from '../chat-normalize';
+import { resolveConversationTickers } from '../extract-ticker';
 import fixtures from './fixtures/lensai-questions.json';
 
 /**
@@ -45,15 +46,28 @@ function route(fixture: Fixture) {
   // jadi evaluasi harus melewati gerbang yang sama supaya angkanya mencerminkan
   // perilaku sungguhan, bukan perilaku satu fungsi yang diuji terpisah.
   const smallTalk = getDeterministicSmallTalkResponse(normalizeChatText(fixture.q));
-  if (smallTalk) return { intent: 'SMALL_TALK', outOfScopeReason: undefined, needsClarification: undefined } as any;
+  if (smallTalk) {
+    return { intent: 'SMALL_TALK', tickers: [], outOfScopeReason: undefined, needsClarification: undefined } as any;
+  }
 
-  return classifyChatIntent({
-    prompt: fixture.q,
-    date: resolveChatDate(fixture.q, []),
-    tickerCount: fixture.tickers,
-    hasHistory: false,
-    history: [],
-  });
+  // PERBAIKAN 2026-08-13: dulu memakai `fixture.tickers` sebagai MASUKAN, jadi evaluasi
+  // ini secara struktural buta terhadap kesalahan ekstraksi ticker. Buktinya nyata -
+  // "harga emas hari ini berapa?" lolos di sini dengan tickers=0, padahal di server
+  // sungguhan kata "emas" terbaca sebagai emiten EMAS dan pertanyaannya berubah jadi
+  // analisis saham. Sekarang ekstraktor SUNGGUHAN yang dipakai, dan `fixture.tickers`
+  // berubah peran dari masukan menjadi EKSPEKTASI yang ikut diperiksa.
+  const tickers = resolveConversationTickers({ prompt: fixture.q, history: [] });
+
+  return {
+    ...classifyChatIntent({
+      prompt: fixture.q,
+      date: resolveChatDate(fixture.q, []),
+      tickerCount: tickers.length,
+      hasHistory: false,
+      history: [],
+    }),
+    tickers,
+  };
 }
 
 describe('evaluasi routing LensAI', () => {
@@ -63,6 +77,11 @@ describe('evaluasi routing LensAI', () => {
 
     record(fixture.group, passed);
     if (!passed) failures.push({ q: fixture.q, expected: fixture.intent, actual: result.intent });
+
+    expect(
+      result.tickers?.length ?? 0,
+      `"${fixture.q}" seharusnya mengenali ${fixture.tickers} kode emiten, dapat: ${(result.tickers ?? []).join(', ') || '(tidak ada)'}`,
+    ).toBe(fixture.tickers);
 
     expect(result.intent, `"${fixture.q}" seharusnya ${fixture.intent}`).toBe(fixture.intent);
 
