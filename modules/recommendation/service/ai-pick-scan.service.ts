@@ -84,7 +84,7 @@ async function scoreOne(
   // sudah dibersihkan dari bar ber-close null - dan bar sesi berjalan memang masih null
   // di Yahoo, jadi elemen terakhir history sudah sesi kemarin dan `length-2` dua sesi
   // lalu. fetchYahooHistory sudah menghitung acuan yang benar; tinggal dipakai.
-  const prevCloseRaw = res.previousClose ?? history[history.length - 2]?.Close;
+  const prevCloseRaw = res.previousClose;
   if (!isFinitePositive(prevCloseRaw)) return null;
   const changePct = ((currentPrice - prevCloseRaw) / prevCloseRaw) * 100;
 

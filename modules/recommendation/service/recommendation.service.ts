@@ -169,7 +169,7 @@ export async function analyzeStock(ticker: string) {
       metaPreviousClose: result.meta?.previousClose,
       metaChartPreviousClose: result.meta?.chartPreviousClose,
     });
-    const prevClose = resolvedPrevClose ?? history[history.length - 2]?.Close;
+    const prevClose = resolvedPrevClose;
     // Tanpa harga penutupan sebelumnya, perubahan harian tidak terukur. Jangan
     // menyebutnya 0% (flat) karena itu fakta pasar yang tidak kita miliki.
     if (typeof prevClose !== 'number' || !Number.isFinite(prevClose) || prevClose <= 0) return null;
