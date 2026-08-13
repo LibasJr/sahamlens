@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from './redis-local';
 
 // Konvensi key: sahamlens:cache:{tier}:{domain}:{identifier} (Cache Layer
 // Strategy poin 2) - dipanggil dengan key lengkap oleh caller, helper ini generik.
@@ -10,11 +10,10 @@ import { Redis } from '@upstash/redis';
 const g = globalThis as unknown as { __sahamlensRedis?: Redis };
 
 function getClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
   if (!g.__sahamlensRedis) {
-    g.__sahamlensRedis = new Redis({ url, token });
+    g.__sahamlensRedis = new Redis({ url });
   }
   return g.__sahamlensRedis;
 }

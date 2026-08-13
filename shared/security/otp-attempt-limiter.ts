@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from '../cache/redis-local';
 
 const MAX_RESET_ATTEMPTS = 5;
 const WINDOW_SECONDS = 15 * 60;
@@ -13,9 +13,8 @@ function key(email: string) {
 
 function client(): Redis | null {
   if (redis !== undefined) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  redis = url && token ? new Redis({ url, token }) : null;
+  const url = process.env.REDIS_URL;
+  redis = url ? new Redis({ url }) : null;
   return redis;
 }
 
