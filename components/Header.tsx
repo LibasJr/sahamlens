@@ -19,7 +19,7 @@ interface HeaderProps {
 export default function Header({
   currentTicker,
   onTickerChange,
-  moduleTitle = 'LensAI Technical + Bandarmology',
+  moduleTitle = 'LensConsensus Technical + Bandarmology',
   moduleBank = 'LENSAI',
   analisaRemaining,
   analisaTotal = 5,

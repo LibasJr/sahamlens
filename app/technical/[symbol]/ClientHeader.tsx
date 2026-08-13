@@ -22,7 +22,7 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
   const handleTickerChange = (newTicker: string) => {
     const formattedTicker = newTicker.startsWith('^') ? newTicker : newTicker.includes('.JK') ? newTicker : `${newTicker}.JK`;
     // Simpan ke key yang sama dipakai Teknikal/Fundamental/DCF supaya emiten yang
-    // dicari di LensAI juga ikut ke halaman lain (dan sidebar), bukan cuma satu arah.
+    // dicari di LensConsensus juga ikut ke halaman lain (dan sidebar), bukan cuma satu arah.
     if (!formattedTicker.startsWith('^')) {
       window.localStorage.setItem('last_searched_ticker', formattedTicker);
     }

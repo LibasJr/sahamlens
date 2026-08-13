@@ -22,17 +22,20 @@ module.exports = {
           borderLight: 'rgb(var(--lens-border-light) / <alpha-value>)',
           text: 'rgb(var(--lens-text) / <alpha-value>)',
           muted: 'rgb(var(--lens-muted) / <alpha-value>)',
-          green: '#23C483',
-          greenHover: '#1BAD72',
-          red: '#FF5D6C',
-          redHover: '#E94858',
-          yellow: '#F2C14E',
-          warning: '#F59E0B',
-          gold: '#E7B94C',
-          blue: '#4F8CFF',
-          blueHover: '#3C76E8',
-          purple: '#8B7CFF',
-          accent: '#4F8CFF'
+          // Aksen ikut variabel CSS supaya punya pasangan mode terang - lihat
+          // app/globals.css. Hex mati di sini dulu membuat hijau/merah untung-rugi
+          // gagal kontras di mode terang (2,26:1 dan 2,99:1).
+          green: 'rgb(var(--lens-green) / <alpha-value>)',
+          greenHover: 'rgb(var(--lens-green-hover) / <alpha-value>)',
+          red: 'rgb(var(--lens-red) / <alpha-value>)',
+          redHover: 'rgb(var(--lens-red-hover) / <alpha-value>)',
+          yellow: 'rgb(var(--lens-yellow) / <alpha-value>)',
+          warning: 'rgb(var(--lens-warning) / <alpha-value>)',
+          gold: 'rgb(var(--lens-gold) / <alpha-value>)',
+          blue: 'rgb(var(--lens-blue) / <alpha-value>)',
+          blueHover: 'rgb(var(--lens-blue-hover) / <alpha-value>)',
+          purple: 'rgb(var(--lens-purple) / <alpha-value>)',
+          accent: 'rgb(var(--lens-blue) / <alpha-value>)'
         }
       },
       fontFamily: {
@@ -64,7 +67,11 @@ module.exports = {
         // yang sudah ada di tv.* (blue #3A86FF, purple #8B5CF6) tapi belum pernah
         // dikombinasikan. Dipakai untuk CTA utama/indikator aktif/badge "AI", bukan
         // warna baru yang menambah kerumitan palet.
-        'gradient-accent': 'linear-gradient(135deg, #4F8CFF 0%, #8B7CFF 100%)',
+        // Dulu dua hex mati (#4F8CFF -> #8B7CFF). Keduanya terlalu muda untuk menopang
+        // teks putih: label "LensAI" pada tombol melayang terukur ~3,2:1 - gagal AA di
+        // ukuran 12px. Sekarang memakai pasangan padat yang memberi putih 6,7:1 dan
+        // 7,1:1, sekaligus ikut berubah bersama tema.
+        'gradient-accent': 'linear-gradient(135deg, rgb(var(--lens-blue-solid)) 0%, rgb(var(--lens-purple-solid)) 100%)',
         'gradient-accent-soft': 'linear-gradient(135deg, rgba(79,140,255,0.13) 0%, rgba(139,124,255,0.13) 100%)',
       },
       transitionTimingFunction: {

@@ -35,9 +35,15 @@ export function TickerAvatar({ symbol, size = 'md', className }: TickerAvatarPro
   const { bg, fg } = PALETTE[hash % PALETTE.length];
 
   return (
+    // Warna dioper sebagai custom property, bukan langsung ke `color`, supaya mode
+    // terang bisa menggelapkannya lewat SATU aturan di globals.css (lihat
+    // .lens-ticker-avatar). Ketujuh warna palet ini dipilih untuk latar gelap; di atas
+    // kartu putih yang paling pucat terukur 2,53:1 - huruf inisialnya nyaris hilang.
+    // Menuliskan palet kedua di sini akan menggandakan daftar yang harus dijaga
+    // selaras; color-mix menjaga identitas warnanya tetap satu sumber.
     <span
-      className={cn('shrink-0 inline-flex items-center justify-center font-number font-bold tracking-tight select-none', SIZES[size], className)}
-      style={{ background: bg, color: fg, border: `1px solid ${fg}33` }}
+      className={cn('lens-ticker-avatar shrink-0 inline-flex items-center justify-center font-number font-bold tracking-tight select-none', SIZES[size], className)}
+      style={{ background: bg, color: fg, border: `1px solid ${fg}33`, ['--lens-avatar-fg' as string]: fg }}
       aria-hidden="true"
     >
       {code.slice(0, 2)}

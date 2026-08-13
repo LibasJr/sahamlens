@@ -2,10 +2,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
-import { Input, Button, Toast } from '@/components/ui';
+import { Input, Button, Toast, PasswordToggle } from '@/components/ui';
 import { LOGIN_REQUIRED_NOTICE } from '@/shared/constants/access';
 
 function LoginForm() {
@@ -71,8 +70,14 @@ function LoginForm() {
       {error && <AuthAlert variant="error">{error}</AuthAlert>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* `name` + `autoComplete` WAJIB di sini. Tanpa keduanya pengelola password dan
+            autofill browser tidak mengenali formulir ini sama sekali - gesekan nyata di
+            setiap login, paling terasa di HP. Melanggar WCAG 1.3.5 (Identify Input
+            Purpose). `name` juga memberi Input id yang stabil untuk htmlFor. */}
         <Input
           type="email"
+          name="email"
+          autoComplete="email"
           label="Email"
           required
           value={email}
@@ -82,24 +87,22 @@ function LoginForm() {
 
         <div>
           <div className="flex justify-between items-center mb-1.5">
-            <label className="block text-xs font-medium text-tv-muted">Password</label>
-            <Link href="/forgot-password" className="text-[11px] font-semibold text-tv-blue hover:underline">Lupa Password?</Link>
+            {/* htmlFor sengaja diisi: label ini dirender terpisah dari Input (karena ada
+                tautan "Lupa Password?" di baris yang sama), jadi ia tidak ikut mekanisme
+                label bawaan Input. Sebelumnya input password TIDAK punya nama aksesibel
+                sama sekali - tanpa label, tanpa aria-label, bahkan tanpa placeholder. */}
+            <label htmlFor="password" className="block text-xs font-medium text-tv-muted">Password</label>
+            <Link href="/forgot-password" className="min-h-11 inline-flex items-center text-[11px] font-semibold text-tv-blue hover:underline">Lupa Password?</Link>
           </div>
           <Input
+            id="password"
+            name="password"
+            autoComplete="current-password"
             type={showPassword ? 'text' : 'password'}
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            rightIcon={
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="pointer-events-auto text-tv-muted hover:text-tv-text transition-colors"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            }
+            rightIcon={<PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
           />
         </div>
 

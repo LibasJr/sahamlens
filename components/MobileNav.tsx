@@ -12,7 +12,7 @@ const PUBLIC_ITEMS = [
   { label: 'Radar', href: '/breakout-radar', icon: Radar, matches: ['/breakout-radar', '/recommendations'] },
 ];
 
-const GUEST_PRIMARY_ITEM = { label: 'LensAI', href: '/technical/BBCA.JK', icon: Sparkles, matches: ['/technical/'] };
+const GUEST_PRIMARY_ITEM = { label: 'Konsensus', href: '/technical/BBCA.JK', icon: Sparkles, matches: ['/technical/'] };
 const MEMBER_PRIMARY_ITEM = { label: 'Analyze', href: '/dashboard', icon: LineChart, matches: ['/dashboard', '/fundamental', '/technical/', '/dcf', '/compare'] };
 
 export default function MobileNav() {

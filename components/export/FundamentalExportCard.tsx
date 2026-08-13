@@ -101,7 +101,9 @@ export default function FundamentalExportCard({ ticker, stock, fundamentals, pro
   const sectorTheme = getSectorTheme(profile.sector, profile.industry);
 
   return (
-    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col overflow-hidden">
+    // lens-export-dark: palet kartu dikunci gelap apa pun tema pengguna, sama seperti
+    // TechnicalExportCard - lihat catatan di app/globals.css.
+    <div className="lens-export-dark w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col overflow-hidden">
       {/* Banner brand color-block (gaya bar tebal DGWG di atas poster mereka) - warna
           gradient brand konsisten di semua kartu, TIDAK per-sektor (sektor dinyatakan
           lewat CompanyMark di bawah), supaya kartu tetap dikenali sebagai SahamLens

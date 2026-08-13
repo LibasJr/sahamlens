@@ -2,10 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, PasswordToggle } from '@/components/ui';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -122,8 +121,13 @@ export default function Signup() {
 
       {step === 1 ? (
         <form onSubmit={handleSendCode} className="space-y-4">
+          {/* autoComplete di formulir pendaftaran memakai "new-password", bukan
+              "current-password": itu yang memberi tahu pengelola password untuk MENAWARKAN
+              password baru, bukan mengisi yang lama. */}
           <Input
             type="email"
+            name="email"
+            autoComplete="email"
             label="Email"
             required
             value={email}
@@ -132,31 +136,27 @@ export default function Signup() {
           />
           <Input
             type={showPassword ? 'text' : 'password'}
+            name="new-password"
+            autoComplete="new-password"
             label="Password"
             required
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Minimal 8 karakter"
-            rightIcon={
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            }
+            rightIcon={<PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
           />
           <Input
             type={showConfirmPassword ? 'text' : 'password'}
+            name="confirm-password"
+            autoComplete="new-password"
             label="Konfirmasi Password"
             required
             minLength={8}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Ulangi password"
-            rightIcon={
-              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            }
+            rightIcon={<PasswordToggle shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} label="konfirmasi password" />}
           />
           <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
             {loading ? 'Memproses...' : 'Kirim Kode Verifikasi'}

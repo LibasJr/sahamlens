@@ -300,7 +300,7 @@ function FundamentalContent() {
           body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
           benefits={[
             'Unlimited LensTechnical (10 filter)',
-            'LensRadar LIVE, LensAI & Compare Tool',
+            'LensRadar LIVE, LensConsensus & Compare Tool',
             'Watchlist & Alert unlimited',
           ]}
         />
@@ -741,7 +741,7 @@ function FundamentalContent() {
         body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensAI & Compare Tool',
+          'LensRadar LIVE, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

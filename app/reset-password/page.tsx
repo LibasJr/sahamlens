@@ -2,10 +2,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, PasswordToggle } from '@/components/ui';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -128,6 +128,8 @@ function ResetPasswordForm() {
       <form onSubmit={handleReset} className="space-y-4">
         <Input
           type="email"
+          name="email"
+          autoComplete="email"
           label="Alamat Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -136,8 +138,13 @@ function ResetPasswordForm() {
         />
 
         <div>
+          {/* inputMode numeric + autoComplete one-time-code: di HP ini memunculkan papan
+              angka, dan iOS/Android bisa menawarkan kode dari SMS/email secara otomatis. */}
           <Input
             type="text"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
             label="Kode Verifikasi (6 Digit)"
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -160,15 +167,13 @@ function ResetPasswordForm() {
 
         <Input
           type={showPassword ? 'text' : 'password'}
+          name="new-password"
+          autoComplete="new-password"
           label="Password Baru"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           placeholder="Minimal 8 karakter"
-          rightIcon={
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-tv-muted hover:text-tv-text transition-colors" tabIndex={-1}>
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          }
+          rightIcon={<PasswordToggle shown={showPassword} onToggle={() => setShowPassword(!showPassword)} label="password baru" />}
         />
 
         <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">

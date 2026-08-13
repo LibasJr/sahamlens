@@ -2,6 +2,7 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
+import { MotionConfig } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopMarketBar from '@/components/TopMarketBar';
@@ -22,8 +23,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isLandingPage = pathname === '/';
   const isBareAuthPage = BARE_AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
+  // CELAH YANG DITUTUP DI SINI. Aturan @media (prefers-reduced-motion) di globals.css
+  // hanya mengatur animasi CSS. Framer Motion menganimasi lewat JavaScript - ia tidak
+  // melihat aturan itu sama sekali, padahal DIA-lah sumber gerak terbanyak di aplikasi
+  // ini (fadeUp/scaleIn/stagger di hampir semua halaman). Jadi pengguna yang meminta
+  // "kurangi gerakan" tetap mendapat seluruh animasi masuk.
+  //
+  // lib/motion.ts sebenarnya sudah mengecek preferensi itu, tapi hanya SEKALI saat modul
+  // dimuat - kalau pengguna mengubah pengaturan OS-nya, nilainya sudah telanjur beku.
+  // reducedMotion="user" mengurusnya secara reaktif dan menyeluruh, termasuk untuk
+  // komponen yang menulis animasinya sendiri tanpa lewat lib/motion.
+  const bungkus = (isi: React.ReactNode) => (
+    <MotionConfig reducedMotion="user">{isi}</MotionConfig>
+  );
+
   if (isLandingPage) {
-    return (
+    return bungkus(
       <>
         <EnergySaver />
         <PageTransition>{children}</PageTransition>
@@ -32,9 +47,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isBareAuthPage) return <><EnergySaver /><ThemeToggle /><PageTransition>{children}</PageTransition></>;
+  if (isBareAuthPage) return bungkus(<><EnergySaver /><ThemeToggle /><PageTransition>{children}</PageTransition></>);
 
-  return (
+  return bungkus(
     <div className="lens-app-shell flex min-h-screen w-full bg-tv-bg text-tv-text">
       <EnergySaver />
       <Sidebar />
@@ -61,3 +76,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

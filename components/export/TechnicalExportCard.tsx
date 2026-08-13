@@ -49,7 +49,10 @@ export default function TechnicalExportCard({
   }) + ' WIB';
 
   return (
-    <div className="w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col overflow-hidden">
+    // lens-export-dark mengunci palet kartu ke nilai gelap apa pun tema pengguna -
+    // lihat catatan panjang di app/globals.css. Tanpa itu `text-white` di sini jatuh
+    // ke atas latar putih di mode terang (1,00:1) dan PNG-nya kosong.
+    <div className="lens-export-dark w-[1080px] h-[1350px] bg-gradient-to-b from-tv-bg to-tv-surface text-white flex flex-col overflow-hidden">
       <div className="bg-gradient-accent px-16 py-9 flex items-center justify-between">
         <div>
           <div className="text-4xl font-heading font-extrabold text-white">SahamLens</div>
@@ -57,7 +60,7 @@ export default function TechnicalExportCard({
         </div>
         <div className="text-xl font-mono font-bold px-5 py-2 rounded-full bg-white text-tv-accent flex items-center gap-2">
           <Brain className="w-5 h-5" />
-          LensAI
+          LensConsensus
         </div>
       </div>
 
@@ -75,16 +78,18 @@ export default function TechnicalExportCard({
             <div className="text-lg text-tv-muted leading-relaxed mb-8 line-clamp-3">{summaryId}</div>
           )}
 
-          <div className="mb-2 text-sm font-mono text-tv-muted uppercase">Vote 10 Agent LensAI</div>
+          <div className="mb-2 text-sm font-mono text-tv-muted uppercase">Vote 10 Agent LensConsensus</div>
           <div className="flex w-full h-4 rounded-full overflow-hidden mb-3 bg-tv-border">
             {buyPct > 0 && <div style={{ width: `${buyPct}%` }} className="bg-tv-green" />}
-            {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-blue-500" />}
+            {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-tv-blue" />}
             {waitPct > 0 && <div style={{ width: `${waitPct}%` }} className="bg-tv-yellow" />}
             {sellPct > 0 && <div style={{ width: `${sellPct}%` }} className="bg-tv-red" />}
           </div>
           <div className="flex gap-4 text-base font-mono font-bold mb-8">
             {buyPct > 0 && <span className="text-tv-green">{buyPct}% BUY</span>}
-            {holdPct > 0 && <span className="text-blue-500">{holdPct}% HOLD</span>}
+            {/* text-blue-500 mentah (#3B82F6) terukur 3,68:1 - gagal AA. page.tsx sudah
+                diganti ke tv-blue sejak lama, kartu ini terlewat. */}
+            {holdPct > 0 && <span className="text-tv-blue">{holdPct}% HOLD</span>}
             {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% WAIT</span>}
             {sellPct > 0 && <span className="text-tv-red">{sellPct}% SELL</span>}
           </div>

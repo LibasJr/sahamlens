@@ -71,10 +71,18 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
       <div className="max-w-[1600px] mx-auto overflow-hidden px-4 sm:px-6 lg:px-8">
       <div className="sahamlens-ticker-track flex whitespace-nowrap py-2" style={{ animationDuration: `${durationSec}s` }}>
         {loopItems.map((item, i) => (
+          // min-h-6 = 24px, ambang WCAG 2.5.8. Tanpa ini tautan hanya setinggi
+          // barisnya (terukur 19px): py-2 ada di track, bukan di tautannya, jadi area
+          // yang benar-benar bisa disentuh lebih pendek dari yang terlihat.
+          //
+          // Pemisah antar item kini border-r, bukan glyph "|". Sebagai teks ia terukur
+          // 1,29:1 dan dihitung 200 kali sebagai kegagalan kontras - padahal ia murni
+          // dekoratif. Sebagai border ia tidak lagi teks (tidak tunduk 1.4.3, tidak
+          // dibacakan pembaca layar) dan 200 simpul DOM ikut hilang.
           <Link
             key={`${item.symbol}-${i}`}
             href={`/technical/${item.symbol}.JK`}
-            className="flex items-center gap-1.5 px-4 text-[12px] font-number shrink-0 hover:opacity-80 transition-opacity"
+            className="flex min-h-6 shrink-0 items-center gap-1.5 border-r border-tv-border px-4 text-[12px] font-number transition-opacity hover:opacity-80"
           >
             <span className="font-bold text-tv-text">{item.symbol}</span>
             <span className="text-tv-muted">Rp {Math.round(item.price || 0).toLocaleString('id-ID')}</span>
@@ -82,7 +90,6 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
               {item.changePct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
               {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
             </span>
-            <span className="text-tv-border ml-3">|</span>
           </Link>
         ))}
       </div>
@@ -295,7 +302,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
     return computeIndicators(upToChartData[upToChartData.length - 1].time, closes, volumes);
   }, [upToChartData]);
 
-  // LensAI: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
+  // LensConsensus: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
   // ringkasan analisis, supaya insight yang ditampilkan tidak pernah mengarang.
   const council = React.useMemo(() => computeMiniCouncil(upToChartData as any, isIndex), [upToChartData, isIndex]);
 
@@ -524,7 +531,14 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
 
       <TickerTape items={tickerItems} failed={tickerFailed} />
 
-      <main className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      {/* lens-main BUKAN sekadar penamaan. Seluruh aturan mobile/tablet di globals.css
+          bergantung padanya: lantai tipografi 9-11px, line-height, touch-action,
+          overscroll, min-width:0 anti-overflow, lantai target sentuh 44px. Halaman ini
+          - halaman publik yang paling banyak dikunjungi - satu-satunya yang memakai
+          <main> polos, jadi ia luput dari semuanya. Itulah sebabnya ia selalu jadi
+          halaman terburuk di tiap pengukuran (45 teks di bawah 12px @768 setelah
+          halaman lain sudah bersih). */}
+      <main className="lens-main mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Marketing Hero - tagline "Lihat Peluang Lebih Jelas." sudah dipakai di
             metadata (app/layout.tsx) tapi belum pernah dirender di halaman manapun.
             Section aditif, tidak mengubah struktur Title Block/ringkasan pasar di
@@ -710,8 +724,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               },
               {
                 icon: Users,
-                title: 'LensAI',
-                desc: 'Copilot untuk merangkum konteks teknikal, fundamental, risiko, dan pertanyaan seputar SahamLens.',
+                title: 'LensConsensus',
+                desc: 'Rapat 10 agen teknikal rule-based atas data OHLCV asli - tren, momentum, volume, volatilitas - lalu diringkas jadi satu konsensus.',
                 href: '/technical/BBCA.JK',
                 tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
               },
@@ -989,8 +1003,10 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <motion.div variants={fadeUp}>
               <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h4>
-                  <Link href="/news" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
+                  {/* h3, bukan h4: heading di landing melompat h2 -> h4 tepat di sini,
+                      melewati satu tingkat (WCAG 1.3.1). */}
+                  <h3 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h3>
+                  <Link href="/news" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">Lihat semua</Link>
                 </div>
                 <div className="mt-3 divide-y divide-tv-border/60">
                   {loadingNews ? (
@@ -1034,7 +1050,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-heading text-[13px] font-bold text-tv-text">Jadwal Terdekat</h4>
-                  <Link href="/calendar" className="text-[11px] font-bold text-tv-blue hover:text-tv-text transition">Lihat Semua</Link>
+                  <Link href="/calendar" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">Lihat Semua</Link>
                 </div>
                 <div className="mt-3">
                   {calendarEvents === null ? (

@@ -33,7 +33,10 @@ export default function ThemeToggle() {
         applyTheme(nextTheme);
         setTheme(nextTheme);
       }}
-      className="lens-theme-toggle inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-tv-border bg-tv-card text-tv-text shadow-2 transition-all hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-hover focus-visible:outline-none md:h-9 md:w-9"
+      /* `focus-visible:outline-none` tanpa pengganti membuat fokus keyboard tidak terlihat
+         sama sekali (WCAG 2.4.7). Outline bawaan dimatikan karena bentuknya persegi di
+         tombol membulat - jadi diganti ring, bukan dihilangkan begitu saja. */
+      className="lens-theme-toggle inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-tv-border bg-tv-card text-tv-text shadow-2 transition-all hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue focus-visible:ring-offset-2 focus-visible:ring-offset-tv-bg md:h-9 md:w-9"
     >
       {theme === 'dark' ? <Sun className="h-5 w-5" aria-hidden="true" /> : <Moon className="h-5 w-5" aria-hidden="true" />}
     </button>
