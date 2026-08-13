@@ -59,6 +59,13 @@ export async function GET(
         return NextResponse.json({
           price: lastPrice,
           changePercent: changePercent != null ? parseFloat(changePercent.toFixed(2)) : null,
+          // `previousClose` ikut dikirim supaya pemanggil bisa menghitung perubahan POIN
+          // secara eksak. Sebelumnya Dashboard menurunkannya sendiri dengan
+          // `price * changePercent / 100` - itu keliru dua kali: penyebutnya harga
+          // SEKARANG (seharusnya penutupan sebelumnya), dan `changePercent` yang dipakai
+          // sudah dibulatkan ke 2 desimal di sini. Terukur pada IHSG: menampilkan +30,9
+          // padahal selisih sesungguhnya +30,5.
+          previousClose: previousClose,
           volume: volume,
           lastUpdate: fresh.dataTimestamp,
           dataTimestamp: fresh.dataTimestamp,
