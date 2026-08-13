@@ -13,7 +13,8 @@
     "backfill:fundamental-history": "node scripts/backfill-fundamental-history.mjs",
     "audit:ui": "node scripts/audit-ui-consistency.mjs",
     "audit:cron": "node scripts/audit-scheduled-jobs.mjs",
-    "audit:performance": "node scripts/audit-performance.mjs"
+    "audit:performance": "node scripts/audit-performance.mjs",
+    "check:9router": "node scripts/check-9router.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

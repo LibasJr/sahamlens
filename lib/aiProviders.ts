@@ -36,6 +36,126 @@ interface OpenAICompatibleProvider {
   url: string;
   models: string[];
   extraHeaders?: Record<string, string>;
+  /**
+   * Kalau true, seluruh model provider ini ditaruh di depan ranking MODEL_PRIORITY.
+   * Dipakai untuk gateway/router (9Router) yang model-id-nya milik deployment
+   * masing-masing sehingga TIDAK MUNGKIN di-rank di MODEL_PRIORITY yang statis.
+   */
+  tryFirst?: boolean;
+  /**
+   * Lantai timeout khusus provider ini (ms). Router yang melakukan fallback ke
+   * upstream-nya sendiri butuh waktu lebih dari budget default caller (8-12 detik).
+   */
+  minTimeoutMs?: number;
+}
+
+// --- 9Router (proxy AI multi-provider self-hosted) --------------------------
+//
+// 9Router (github.com/decolua/9router) adalah proxy OpenAI-compatible yang DIRINYA
+// SENDIRI merutekan ke banyak provider (Claude/GPT/Gemini/GLM/dst) dengan fallback
+// internal. Dari sisi SahamLens dia cuma "satu provider OpenAI-compatible lagi" -
+// makanya tidak butuh cabang kode baru di generateAIResult(), cukup satu entri
+// provider seperti Groq/Kimi/NVIDIA.
+//
+// Bedanya dari entri statis di atas: base URL dan daftar model 9Router TIDAK bisa
+// di-hardcode - keduanya milik instance masing-masing (VPS/tunnel sendiri, dan model
+// apa saja tergantung akun apa yang dipasang di dashboard 9Router). Jadi entri ini
+// dibangun dari env var saat buildCombos() dipanggil, bukan konstanta modul.
+const NINEROUTER_DEFAULT_MODELS = ['auto'];
+const NINEROUTER_DEFAULT_MIN_TIMEOUT_MS = 15_000;
+
+/**
+ * Menerima tiga bentuk penulisan yang sama-sama wajar dari operator:
+ *   https://router.example.com
+ *   https://router.example.com/v1
+ *   https://router.example.com/v1/chat/completions
+ * dan menormalkan ketiganya ke URL chat completions penuh.
+ */
+let warnedInvalidNineRouterUrl = false;
+let warnedMissingNineRouterKey = false;
+
+export function normalizeNineRouterUrl(raw: string): string | null {
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (!trimmed) return null;
+  if (!/^https?:\/\//i.test(trimmed)) {
+    // Sekali saja per instance - fungsi ini dipanggil ulang tiap request lewat
+    // buildCombos(), dan URL salah tidak akan berubah sendiri di tengah runtime.
+    if (!warnedInvalidNineRouterUrl) {
+      warnedInvalidNineRouterUrl = true;
+      console.warn(
+        '[AI:9router] NINEROUTER_BASE_URL harus diawali http:// atau https:// - nilai sekarang diabaikan.',
+      );
+    }
+    return null;
+  }
+  if (/\/chat\/completions$/i.test(trimmed)) return trimmed;
+  if (/\/v\d+$/i.test(trimmed)) return `${trimmed}/chat/completions`;
+  return `${trimmed}/v1/chat/completions`;
+}
+
+function parseNineRouterModels(raw: string | undefined): string[] {
+  const models = (raw ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  // "auto" = biarkan 9Router yang memilih model (fitur utamanya). Itu default yang
+  // paling aman: tidak ada nama model yang bisa basi di sisi SahamLens.
+  return models.length ? models : NINEROUTER_DEFAULT_MODELS;
+}
+
+/**
+ * null kalau 9Router tidak dikonfigurasi. Sengaja butuh DUA env var:
+ * NINEROUTER_BASE_URL (instance-nya di mana) dan NINEROUTER_API_KEY (bearer token
+ * dari Dashboard 9Router). Base URL tanpa key berarti router-nya terbuka ke publik -
+ * itu bukan sesuatu yang boleh terjadi diam-diam, jadi tidak didukung di sini.
+ */
+export function buildNineRouterProvider(): OpenAICompatibleProvider | null {
+  const rawUrl = process.env.NINEROUTER_BASE_URL;
+  if (!rawUrl) return null;
+
+  if (!process.env.NINEROUTER_API_KEY) {
+    // DIAGNOSTIK (2026-08-13): kasus ini benar-benar terjadi saat pemasangan di VPS -
+    // baris `NINEROUTER_API_KEY=` tertulis ke .env.production dengan nilai KOSONG karena
+    // variabel shell sumbernya sudah hilang. Sebelum ada peringatan ini, gejalanya
+    // menyesatkan total: 9Router tidak pernah masuk cascade, jadi TIDAK ADA log
+    // [AI:9router] sama sekali, dan operator melihat jawaban tetap keluar (dari provider
+    // lama, lambat) tanpa satu pun petunjuk bahwa routernya diabaikan. Base URL terisi
+    // tapi key kosong hampir pasti salah konfigurasi, bukan pilihan sadar - jadi ini
+    // diteriakkan, bukan didiamkan.
+    if (!warnedMissingNineRouterKey) {
+      warnedMissingNineRouterKey = true;
+      console.warn(
+        '[AI:9router] NINEROUTER_BASE_URL terisi tapi NINEROUTER_API_KEY kosong - 9Router ' +
+        'DILEWATI seluruhnya. Periksa nilainya (bukan sekadar ada barisnya): ' +
+        "grep -c '^NINEROUTER_API_KEY=.\\+' <file env> harus 1.",
+      );
+    }
+    return null;
+  }
+
+  const url = normalizeNineRouterUrl(rawUrl);
+  if (!url) return null;
+
+  const parsedTimeout = Number(process.env.NINEROUTER_TIMEOUT_MS);
+  const promptBudget = process.env.NINEROUTER_PROMPT_BUDGET?.trim();
+
+  return {
+    name: '9router',
+    envVar: 'NINEROUTER_API_KEY',
+    url,
+    models: parseNineRouterModels(process.env.NINEROUTER_MODELS),
+    // Header khusus 9Router; diabaikan oleh proxy versi lama, jadi aman dikirim selalu.
+    extraHeaders: {
+      'HTTP-Referer': 'https://sahamlens.vercel.app',
+      'X-Title': 'SahamLens',
+      ...(promptBudget ? { 'X-Prompt-Budget': promptBudget } : {}),
+    },
+    tryFirst: process.env.NINEROUTER_PRIORITY !== 'last',
+    minTimeoutMs:
+      Number.isFinite(parsedTimeout) && parsedTimeout > 0
+        ? parsedTimeout
+        : NINEROUTER_DEFAULT_MIN_TIMEOUT_MS,
+  };
 }
 
 // Tiap entri diverifikasi manual lewat endpoint publik provider (`GET {base}/models`
@@ -177,17 +297,36 @@ export function buildSmartAttemptOrder(combos = buildCombos(), now = Date.now())
     ).slice(0, 1);
   }
 
+  // BUG FIX (2026-08-13, terlihat dari log produksi VPS): rotasi lama memutar SELURUH
+  // combo, termasuk gateway ber-flag tryFirst. Akibatnya niat "9Router dicoba duluan"
+  // yang sudah dipasang di comboRank() dibatalkan lagi di sini - tiap request memulai
+  // dari titik yang berbeda, jadi gateway sering baru kebagian giliran setelah beberapa
+  // provider gratis yang kehabisan kuota menghabiskan 10-15 detik masing-masing.
+  //
+  // Rotasi tetap dipertahankan untuk provider langsung (itu memang gunanya: menyebar
+  // beban antar API key gratis), tapi gateway di-pin di depan. Gateway punya rotasi
+  // multi-akun dan fallback sendiri di dalamnya, jadi merotasinya lagi di sini tidak
+  // menambah apa pun selain latensi.
+  const pinned = healthy.filter((c) => c.kind === 'openai-compatible' && c.provider.tryFirst);
+  const rotatable = healthy.filter((c) => !(c.kind === 'openai-compatible' && c.provider.tryFirst));
+
+  if (!rotatable.length) return pinned;
+
   const cursor = globalForAIRotation.__sahamlensAIRotationCursor ?? 0;
-  const offset = cursor % healthy.length;
+  const offset = cursor % rotatable.length;
   globalForAIRotation.__sahamlensAIRotationCursor = (cursor + 1) % Number.MAX_SAFE_INTEGER;
 
-  return [...healthy.slice(offset), ...healthy.slice(0, offset)];
+  return [...pinned, ...rotatable.slice(offset), ...rotatable.slice(0, offset)];
 }
 
 // Hanya untuk unit test; jangan dipakai oleh route produksi.
+// Ikut mereset flag warn-once: tanpa ini, test yang menguji peringatan konfigurasi
+// bergantung pada urutan eksekusi (test lain sudah "memakai" peringatannya duluan).
 export function __resetAIRotationForTests(): void {
   globalForAIRotation.__sahamlensAIRotationCursor = 0;
   globalForAIRotation.__sahamlensAIHealth = new Map();
+  warnedInvalidNineRouterUrl = false;
+  warnedMissingNineRouterKey = false;
 }
 
 // BUG FIX (2026-08-05, permintaan user - "urutan paling pinter ke paling gak pinter"):
@@ -218,6 +357,16 @@ function priorityRank(model: string): number {
   return idx === -1 ? MODEL_PRIORITY.length : idx;
 }
 
+// Provider dengan tryFirst (9Router) tidak bisa dinilai lewat MODEL_PRIORITY - id
+// model-nya (`cc/claude-opus-4-7`, `glm/glm-5.1`, `auto`, ...) tergantung instance
+// operator. Ditaruh di depan seluruh ranking, dan urutan antar model 9Router sendiri
+// mengikuti urutan penulisan NINEROUTER_MODELS (Array.sort() stabil di V8), sehingga
+// operator yang mau urutan tertentu cukup mengurutkan env var-nya.
+function comboRank(combo: Combo): number {
+  if (combo.kind === 'openai-compatible' && combo.provider.tryFirst) return -1;
+  return priorityRank(combo.model);
+}
+
 const GEMINI_API_KEY_ENV_VARS = [
   'GEMINI_API_KEY',
   'GEMINI_API_KEY_2',
@@ -240,7 +389,12 @@ for (const envVar of GEMINI_API_KEY_ENV_VARS) {
   );
 }
 
-for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
+const nineRouter = buildNineRouterProvider();
+const providers = nineRouter
+  ? [nineRouter, ...OPENAI_COMPATIBLE_PROVIDERS]
+  : OPENAI_COMPATIBLE_PROVIDERS;
+
+for (const provider of providers) {
   if (!process.env[provider.envVar]) continue;
 
   combos.push(
@@ -252,12 +406,14 @@ for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
   );
 }
 
-return combos.sort((a, b) => priorityRank(a.model) - priorityRank(b.model));
+return combos.sort((a, b) => comboRank(a) - comboRank(b));
 }
 export function hasAnyAIProvider(): boolean {
 if (GEMINI_API_KEY_ENV_VARS.some((envVar) => !!process.env[envVar])) {
   return true;
 }
+
+if (buildNineRouterProvider()) return true;
 
 return OPENAI_COMPATIBLE_PROVIDERS.some(
   (p) => !!process.env[p.envVar],
@@ -299,6 +455,71 @@ async function callGemini(apiKey: string, model: string, system: string | undefi
   }
 }
 
+/**
+ * Membaca body chat-completions yang TIDAK selalu JSON murni.
+ *
+ * BUG FIX (2026-08-13, ditemukan saat memasang 9Router di VPS sungguhan): 9Router
+ * membalas objek JSON biasa TAPI menempelkan terminator SSE di belakangnya:
+ *
+ *   {"id":"chatcmpl-...","choices":[...],"usage":{...}}data: [DONE]
+ *
+ * `res.json()` yang lama SELALU gagal untuk body seperti ini - JSON.parse melempar
+ * begitu ada karakter tersisa setelah objek selesai. Efeknya diam-diam fatal: setiap
+ * respons 9Router yang SUKSES (HTTP 200, jawaban benar) dihitung sebagai kegagalan
+ * 'other', combo-nya kena cooldown, lalu cascade lanjut ke provider lain. Dari log
+ * produksi gejalanya cuma "9router gagal" tanpa petunjuk bahwa body-nya sebenarnya
+ * baik-baik saja.
+ *
+ * Urutan percobaan sengaja dari yang paling ketat: JSON murni dulu (jalur normal semua
+ * provider lain, tanpa biaya tambahan), baru toleransi. Return null kalau benar-benar
+ * tidak ada yang bisa dibaca - caller yang memutuskan itu kegagalan.
+ */
+export function parseChatCompletionBody(raw: string): any | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // lanjut ke toleransi di bawah
+  }
+
+  // Kasus 9Router: JSON utuh + terminator SSE menempel di belakang.
+  const withoutTerminator = trimmed.replace(/(?:\r?\n)*data:\s*\[DONE\]\s*$/i, '').trim();
+  if (withoutTerminator && withoutTerminator !== trimmed) {
+    try {
+      return JSON.parse(withoutTerminator);
+    } catch {
+      // lanjut
+    }
+  }
+
+  // Kasus respons SSE penuh (provider yang memaksa streaming walau tidak diminta):
+  // gabungkan delta dari tiap baris `data: {...}`.
+  if (/^data:\s*\{/m.test(trimmed)) {
+    let streamed = '';
+    let lastChunk: any = null;
+    for (const line of trimmed.split(/\r?\n/)) {
+      const match = line.match(/^data:\s*(\{.*\})\s*$/);
+      if (!match) continue;
+      try {
+        const chunk = JSON.parse(match[1]);
+        lastChunk = chunk;
+        const delta = chunk?.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') streamed += delta;
+        const whole = chunk?.choices?.[0]?.message?.content;
+        if (typeof whole === 'string') streamed += whole;
+      } catch {
+        // satu chunk rusak tidak boleh membuang chunk lain yang sudah terkumpul
+      }
+    }
+    if (streamed) return { choices: [{ message: { content: streamed } }] };
+    if (lastChunk) return lastChunk;
+  }
+
+  return null;
+}
+
 async function callOpenAICompatible(
   provider: OpenAICompatibleProvider,
   apiKey: string,
@@ -325,6 +546,10 @@ async function callOpenAICompatible(
       body: JSON.stringify({
         model,
         messages,
+        // Dikirim eksplisit sejak 2026-08-13: tanpa ini sebagian gateway (9Router)
+        // memutuskan sendiri untuk membungkus jawaban dengan protokol streaming.
+        // Parameter standar OpenAI, diterima semua provider di daftar ini.
+        stream: false,
         ...(json ? { response_format: { type: 'json_object' } } : {}),
       }),
       signal: controller.signal,
@@ -349,7 +574,14 @@ async function callOpenAICompatible(
         : 'other';
       return { text: null, failureKind };
     }
-    const data = await res.json();
+    const rawBody = await res.text();
+    const data = parseChatCompletionBody(rawBody);
+    if (!data) {
+      console.warn(
+        `[AI:${provider.name}] "${model}" HTTP 200 tapi body tidak bisa dibaca sebagai JSON - ${rawBody.slice(0, 200)}`,
+      );
+      return { text: null, failureKind: 'other' };
+    }
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== 'string' || !text.trim()) {
       // Sukses HTTP tapi tanpa isi - bentuk respons tidak sesuai dugaan (mis. model
@@ -430,7 +662,11 @@ export async function generateAIResult(opts: { system?: string; prompt: string; 
           system,
           prompt,
           json,
-          timeoutMs,
+          // Router yang punya fallback internal (9Router) butuh lantai timeout sendiri;
+          // budget caller tetap dipakai kalau memang sudah lebih longgar. Seluruh route
+          // pemanggil AI memakai maxDuration >= 60 detik, jadi lantai ini tidak bisa
+          // menghabiskan anggaran eksekusi route.
+          Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
         );
 
     if (result.text) {
