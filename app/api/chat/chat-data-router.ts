@@ -40,6 +40,7 @@ import {
   backtestEvidenceBlock,
 } from './blocks/lens-blocks';
 import { dividendBlock, earningsBlock, calendarBlock, flowBlock, moatBlock, riskBlock } from './blocks/emiten-blocks';
+import { decisionBlock, tradingSetupBlock } from './blocks/decision-blocks';
 import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type ChatUserContext } from './blocks/user-blocks';
 
 /** Pertanyaan yang menanyakan SEBAB, bukan cuma angka. Dipakai memutuskan apakah blok
@@ -53,6 +54,8 @@ export interface ChatDataRequest {
   tickers: string[];
   date: ChatDateResolution;
   prompt: string;
+  /** Topik lain yang ikut disebut di pertanyaan yang sama. */
+  alsoIntents?: ChatIntent[];
   /**
    * Pengguna yang SEDANG LOGIN, dari getSession() di route - bukan dari body request.
    * null untuk pengunjung anonim. Hanya blok portofolio/watchlist yang memakainya.
@@ -375,7 +378,7 @@ function noTickerResponse(): string {
   return 'Saya memahami jenis pertanyaannya, tetapi belum ada ticker emiten yang bisa di-resolve dengan aman dari pertanyaan, riwayat, atau halaman aktif. Sebutkan kode sahamnya, misalnya BBCA atau ADRO.';
 }
 
-export async function buildChatVerifiedData(request: ChatDataRequest): Promise<ChatVerifiedDataResult> {
+async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatVerifiedDataResult> {
   if (request.date.invalidDate) {
     return {
       verifiedBlock: '',
@@ -646,7 +649,22 @@ export async function buildChatVerifiedData(request: ChatDataRequest): Promise<C
     } else {
       blocks = await Promise.all(tickers.map((ticker) => stockGeneralBlock(ticker, request.requestedMetrics)));
     }
-  } else if (request.intent === 'STOCK_GENERAL' || request.intent === 'BUY_SELL_RECOMMENDATION') {
+  } else if (request.intent === 'BUY_SELL_RECOMMENDATION') {
+    // Pertanyaan "bagus gak / layak beli / TP-CL berapa" dijawab dari MESIN yang sama
+    // dengan halaman Recommendations dan LensRadar - bukan dari kesimpulan yang disusun
+    // sendiri oleh model dari blok fundamental + teknikal. Sebelum ini, chat dan halaman
+    // bisa memberi kesimpulan berbeda untuk emiten yang sama pada menit yang sama.
+    blocks = await Promise.all(
+      tickers.map(async (ticker) => {
+        const [general, decision, setup] = await Promise.all([
+          stockGeneralBlock(ticker, request.requestedMetrics),
+          decisionBlock(ticker),
+          tradingSetupBlock(ticker),
+        ]);
+        return [general, decision.replace(`### ${ticker.replace(/\.JK$/i, '')}\n`, ''), setup.replace(`### ${ticker.replace(/\.JK$/i, '')}\n`, '')].join('\n');
+      }),
+    );
+  } else if (request.intent === 'STOCK_GENERAL') {
     blocks = await Promise.all(tickers.map((ticker) => stockGeneralBlock(ticker, request.requestedMetrics)));
   }
 
@@ -657,4 +675,41 @@ export async function buildChatVerifiedData(request: ChatDataRequest): Promise<C
     directResponse: null,
     dataError: null,
   };
+}
+
+/**
+ * Satu pertanyaan bisa menyentuh lebih dari satu topik: "fundamental BBCA gimana, ada
+ * berita apa?" atau "IHSG hari ini gimana, sektor apa yang kuat?".
+ *
+ * Sebelum ini router memilih SATU intent dan topik kedua hilang tanpa jejak - LensAI
+ * lalu menjawab bagian pertama dengan baik dan bilang tidak punya data untuk bagian
+ * kedua, padahal datanya ada dan cuma tidak diminta.
+ *
+ * Blok tambahan dibangun lewat jalur yang sama persis (rekursi dengan alsoIntents
+ * kosong), jadi seluruh aturan fail-closed dan batas metodologi ikut apa adanya.
+ * `directResponse` blok tambahan sengaja DIABAIKAN: penolakan atas topik sampingan
+ * tidak boleh membatalkan jawaban atas pertanyaan utama.
+ */
+export async function buildChatVerifiedData(request: ChatDataRequest): Promise<ChatVerifiedDataResult> {
+  const primary = await buildPrimaryVerifiedData(request);
+  const extras = (request.alsoIntents ?? []).filter((intent) => intent !== request.intent);
+
+  if (primary.directResponse || extras.length === 0) return primary;
+
+  const extraBlocks = await Promise.all(
+    extras.map(async (intent) => {
+      try {
+        const result = await buildPrimaryVerifiedData({ ...request, intent, alsoIntents: [] });
+        return result.verifiedBlock;
+      } catch (error) {
+        console.warn('[LensAI:data-router] blok tambahan gagal', intent, error instanceof Error ? error.message : String(error));
+        return '';
+      }
+    }),
+  );
+
+  const merged = extraBlocks.filter(Boolean).join('\n');
+  return merged
+    ? { ...primary, verifiedBlock: `${primary.verifiedBlock}\n${merged}` }
+    : primary;
 }
