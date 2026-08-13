@@ -72,7 +72,7 @@ sudo docker run -d --name 9router --restart unless-stopped \
   -e REQUIRE_API_KEY=true \
   -e AUTH_COOKIE_SECURE=true \
   -e INITIAL_PASSWORD="$(cat ~/9router-dashboard-password.txt)" \
-  -v 9router-data:/root/.9router \
+  -v 9router-data:/app/data \
   --log-opt max-size=10m --log-opt max-file=3 \
   decolua/9router:latest
 ```
@@ -83,7 +83,12 @@ menulis `decocua/9router` - itu salah ketik, repositorinya tidak ada.
 
 `-p 127.0.0.1:20128:20128` itu bagian yang tidak boleh diubah - itu yang membuat port ini
 hanya bisa dijangkau dari mesin itu sendiri (yaitu cloudflared), bukan dari internet.
-`-v 9router-data:...` menyimpan seluruh konfigurasi provider; jangan dihapus saat update.
+
+`-v 9router-data:/app/data` juga tidak boleh diubah. Path-nya diverifikasi dari log
+container yang berjalan (`[DB] Driver: better-sqlite3 | file: /app/data/db/data.sqlite`).
+Panduan pihak ketiga menyebut `/root/.9router` - itu path versi CLI/npm; kalau dipakai
+untuk image Docker, volume-nya kosong dan SELURUH konfigurasi provider hidup di lapisan
+tulis container, ikut terhapus begitu container di-`rm`.
 
 Verifikasi dari VPS:
 
@@ -436,6 +441,43 @@ docker compose restart              # restart
 Sertifikat Let's Encrypt diperpanjang otomatis oleh timer certbot. Volume
 `9router-data` menyimpan seluruh konfigurasi provider - **jangan** dihapus saat update
 (`docker compose down -v` akan menghapusnya).
+
+## Memindahkan data ke volume yang benar
+
+Kalau container terlanjur berjalan dengan `-v 9router-data:/root/.9router` (path salah),
+konfigurasi provider Anda ada di lapisan tulis container. Pindahkan tanpa kehilangan data:
+
+```bash
+# 1. Salin data keluar SELAGI container masih hidup
+sudo docker cp 9router:/app/data /tmp/9router-data-backup
+ls -la /tmp/9router-data-backup/db     # harus ada data.sqlite
+
+# 2. Hentikan dan hapus container (data sudah aman di /tmp)
+sudo docker stop 9router && sudo docker rm 9router
+
+# 3. Buat volume baru dan isi dari salinan
+sudo docker volume create 9router-data-app
+sudo docker run --rm -v 9router-data-app:/dest -v /tmp/9router-data-backup:/src \
+  alpine sh -c 'cp -a /src/. /dest/'
+
+# 4. Jalankan ulang dengan volume di path yang benar
+sudo docker run -d --name 9router --restart unless-stopped \
+  -p 127.0.0.1:20128:20128 \
+  -e PORT=20128 -e HOSTNAME=0.0.0.0 \
+  -e REQUIRE_API_KEY=true -e AUTH_COOKIE_SECURE=true \
+  -v 9router-data-app:/app/data \
+  --log-opt max-size=10m --log-opt max-file=3 \
+  decolua/9router:latest
+
+# 5. Buktikan konfigurasinya utuh - API key lama harus tetap diterima
+sleep 10
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:20128/v1/models \
+  -H "Authorization: Bearer <API-KEY-ANDA>"
+```
+
+`INITIAL_PASSWORD` sengaja tidak disertakan lagi di langkah 4 - password dashboard sudah
+tersimpan di dalam data yang dipindahkan. Simpan `/tmp/9router-data-backup` sampai Anda
+yakin semuanya normal.
 
 ## Rollback
 
