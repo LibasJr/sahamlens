@@ -63,20 +63,31 @@ export function resolvePreviousClose(input: {
   const timestamps = Array.isArray(input.timestamps) ? input.timestamps : [];
   const closes = Array.isArray(input.closes) ? input.closes : [];
 
-  const bars: { date: string; close: number }[] = [];
+  // Bar dengan close null TETAP dicatat, hanya ditandai. Ini yang membedakan versi ini
+  // dari versi pertama, dan sebabnya ada di baris berikutnya: tanggal sesi berjalan
+  // ditentukan dari TIMESTAMP, bukan dari bar yang punya nilai. Yahoo menerbitkan bar
+  // hari berjalan lebih dulu dan mengisi close-nya belakangan, jadi membuang bar null
+  // sebelum menentukan "hari ini" membuat bar KEMARIN dikira hari ini - dan acuannya
+  // mundur satu sesi terlalu jauh. Terukur 2026-08-14 pada ^JKSE: acuan terbaca 11 Agu
+  // (6267,88) padahal seharusnya 12 Agu (6373,85), sehingga IHSG tampil +0,54%
+  // padahal -1,13%. Arah yang terbalik, persis kesalahan yang file ini dibuat untuk
+  // mencegah.
+  const bars: { date: string; close: number | null }[] = [];
   for (let i = 0; i < timestamps.length; i++) {
     const ts = timestamps[i];
     const close = closes[i];
     if (typeof ts !== 'number' || !Number.isFinite(ts)) continue;
-    if (!isFinitePositive(close)) continue;
-    bars.push({ date: jakartaDate(ts), close });
+    bars.push({ date: jakartaDate(ts), close: isFinitePositive(close) ? close : null });
   }
 
   if (bars.length >= 2) {
     const latestDate = bars[bars.length - 1].date;
     for (let i = bars.length - 2; i >= 0; i--) {
-      if (bars[i].date !== latestDate) {
-        const previousClose = bars[i].close;
+      // Tanggal harus berbeda DAN nilainya harus ada - bar libur yang close-nya null
+      // dilewati, sama seperti sebelumnya.
+      const previousClose = bars[i].close;
+      if (bars[i].date === latestDate || previousClose === null) continue;
+      {
         // Toleransi longgar: Yahoo kadang membulatkan meta berbeda dari riwayat.
         // Yang dicari adalah selisih yang berarti (mis. beda sesi), bukan pembulatan.
         const metaDisagrees =

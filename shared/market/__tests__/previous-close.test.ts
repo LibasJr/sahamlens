@@ -49,6 +49,32 @@ describe('resolvePreviousClose', () => {
     expect(result.previousClose).toBe(6373.85);
   });
 
+  // Laporan pengguna 2026-08-14, bentuk data ^JKSE persis saat itu: bar hari berjalan
+  // SUDAH ADA tapi close-nya masih null (Yahoo belum memfinalkan sesi). Versi pertama
+  // fungsi ini membuang bar null lebih dulu, sehingga bar kemarin dikira "hari ini" dan
+  // acuannya mundur satu sesi terlalu jauh - IHSG tampil +0,54% padahal -1,13%.
+  it('tidak mundur satu sesi saat bar hari berjalan masih berclose null', () => {
+    const result = resolvePreviousClose({
+      timestamps: [
+        wibNoon('2026-08-07'),
+        wibNoon('2026-08-10'),
+        wibNoon('2026-08-11'),
+        wibNoon('2026-08-12'),
+        wibNoon('2026-08-13'), // sesi berjalan, belum difinalkan
+      ],
+      closes: [6409.65, 6365.37, 6267.88, 6373.85, null],
+    });
+
+    // Acuan yang benar adalah penutupan 12 Agu, BUKAN 11 Agu.
+    expect(result.previousClose).toBe(6373.85);
+    expect(result.source).toBe('daily-history');
+
+    // Harga berjalan datang dari meta (6301,765), bukan dari bar yang masih null.
+    const change = ((6301.765 - result.previousClose!) / result.previousClose!) * 100;
+    expect(change).toBeLessThan(0);
+    expect(change).toBeCloseTo(-1.13, 2);
+  });
+
   it('mengabaikan bar dengan close null (hari libur di larik Yahoo)', () => {
     const result = resolvePreviousClose({
       timestamps: [wibNoon('2026-08-11'), wibNoon('2026-08-12'), wibNoon('2026-08-13')],
