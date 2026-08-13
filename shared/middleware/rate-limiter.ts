@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from '../cache/redis-local';
 
 // Rate limiter in-memory per-IP, dipakai dari middleware.ts (Edge Runtime).
 //
@@ -86,11 +86,10 @@ export function checkRateLimit(ip: string, now: number, config: RateLimitConfig)
 const gRedis = globalThis as unknown as { __sahamlensRateLimitRedis?: Redis };
 
 function getRedisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
   if (!gRedis.__sahamlensRateLimitRedis) {
-    gRedis.__sahamlensRateLimitRedis = new Redis({ url, token });
+    gRedis.__sahamlensRateLimitRedis = new Redis({ url });
   }
   return gRedis.__sahamlensRateLimitRedis;
 }

@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from '../cache/redis-local';
 
 export type ComputeTier = 'public' | 'authenticated';
 
@@ -24,10 +24,9 @@ const g = globalThis as unknown as {
 if (!g.__sahamlensComputeBudgetLocal) g.__sahamlensComputeBudgetLocal = new Map();
 
 function redisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  if (!g.__sahamlensComputeBudgetRedis) g.__sahamlensComputeBudgetRedis = new Redis({ url, token });
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  if (!g.__sahamlensComputeBudgetRedis) g.__sahamlensComputeBudgetRedis = new Redis({ url });
   return g.__sahamlensComputeBudgetRedis;
 }
 
