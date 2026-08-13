@@ -3,13 +3,14 @@ import { getSession, checkProAccessLive } from '@/modules/user';
 import { fetchDividendUniverse, buildDividendPlan } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // Menggantikan pemanggilan /api/live/[ticker] di app/dividend/page.tsx (endpoint itu
 // cuma balikin harga+volume, tidak pernah punya field quant.* yang dibutuhkan halaman
 // itu - lihat modules/fundamental/service/dividend-plan.service.ts untuk detail).
 export const maxDuration = 60;
 
-const CACHE_KEY = 'sahamlens:cache:computed:dividend-universe';
+const CACHE_KEY = COMPUTED_CACHE_KEY.DIVIDEND_UNIVERSE;
 
 export async function GET(request: Request) {
   const session = await getSession();

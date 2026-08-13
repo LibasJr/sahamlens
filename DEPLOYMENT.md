@@ -64,6 +64,51 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - LensAI (Ask AI) menjangkau seluruh fitur aplikasi
+
+**Masalah**: LensAI hanya punya jalur data untuk 6 hal (fundamental, teknikal, valuasi,
+banding, IHSG level+RSI, berita). Semua pertanyaan di luar itu jatuh ke intent `UNKNOWN`,
+yang berarti NOL data terverifikasi - dan karena system prompt melarang menjawab dari
+ingatan model (aturan #14/#16, lahir dari rentetan bug halusinasi), LensAI **wajib
+menolak**. Jadi data yang sudah dihitung cron tiap 5 menit - breadth, regime, sektor,
+peringkat pasar, LensRadar - tidak pernah bisa ditanyakan pengguna.
+
+**Yang ditambahkan** (intent + blok data, pola yang sama dengan blok lama):
+peringkat LensRadar, metodologi LensScore, peringkat pasar (gainer/loser/nilai/oversold/
+relative strength), sektor + breadth + regime, makro, screener, bukti backtest per bucket,
+dividen, earnings, kalender korporasi, arus broker + proksi akumulasi, moat, risiko/beta,
+serta portofolio & watchlist milik pengguna.
+
+**Keputusan yang perlu diketahui operator**:
+
+- **Semua blok baru membaca CACHE saja** (`cacheGet`), tidak pernah `getOrCompute` untuk
+  komputasi berat. `getMarketSummary()` memindai 250 saham dan `getMarketPulse()` memindai
+  puluhan saham - menjalankannya dari dalam request chat berarti satu pertanyaan pengguna
+  menanggung scan penuh. **Konsekuensi operasional: kalau cron pemindai mati, LensAI akan
+  menjawab "datanya belum tersedia" alih-alih lambat.** Itu disengaja. Kalau banyak
+  keluhan seperti itu muncul, periksa cron/QStash dan `job_run_log` lebih dulu, bukan
+  kode chat-nya.
+- **Portofolio & watchlist ikut terkirim ke penyedia AI** (Gemini/Groq/9Router) - disetujui
+  pemilik produk 2026-08-13, **khusus untuk pengguna yang sedang login**. userId diambil
+  dari sesi JWT di route, bukan dari body request, supaya tidak ada yang bisa meminta
+  portofolio orang lain dengan menyisipkan id. Pengunjung anonim dijawab "silakan login",
+  tanpa satu pun query ke database.
+- **Pertanyaan di luar ranah dijawab tanpa memanggil AI sama sekali**
+  (`app/api/chat/out-of-scope.ts`). Untuk "harga emas hari ini" atau "prediksi bitcoin",
+  model PUNYA jawaban dari data latihnya; aturan prompt cuma melarang, tidak menghapus.
+  Kalau tidak ada panggilan AI, tidak ada angka yang bisa dikarang. Efek samping yang
+  menyenangkan: pertanyaan seperti ini jadi gratis dan instan.
+- **Cache key hasil komputasi disatukan** di `shared/cache/computed-keys.ts` dan dipakai
+  bersama oleh route publik + chat. Sebelumnya tiap route punya literal sendiri; pembaca
+  kedua yang salah satu huruf akan selalu cache-miss **tanpa error apa pun** - untuk
+  LensAI kegagalannya tak terlihat, cuma jawaban yang lebih miskin.
+- **Perbaikan biaya**: `marketNewsBlock()` di chat dulu memanggil `getMarketNews()`
+  LANGSUNG - menarik ~10 feed RSS + satu klasifikasi AI setiap kali ada pertanyaan
+  "kenapa turun", padahal `/api/news` sudah menyimpan hasil yang sama di Redis. Sekarang
+  keduanya berbagi satu kunci cache.
+
+**Tidak ada env var baru, tidak ada perubahan skema database, tidak ada cron baru.**
+
 ### 2026-08-13 - Dokumen ini ditulis ulang untuk jalur VPS + auto-deploy
 
 Tidak ada perubahan perilaku aplikasi. Yang diperbaiki adalah dokumennya sendiri: sebelumnya

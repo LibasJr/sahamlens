@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getMarketNews } from '@/modules/news';
 import { getOrCompute } from '@/shared/cache/redis-cache';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 
 // Publik (halaman Beranda menampilkan ini ke semua user login). Freshness cache
 // mengikuti policy pasar: 60 detik saat bursa buka, 30 menit saat bursa tutup.
 export const dynamic = 'force-dynamic';
 
-const CACHE_KEY = 'sahamlens:cache:computed:market-news:v2';
+const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_NEWS;
 
 
 export async function GET() {

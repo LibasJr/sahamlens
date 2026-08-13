@@ -24,10 +24,23 @@ import {
 import { classifyFreshness } from '@/shared/http/freshness';
 import { getMarketNews, getStockNews, type NewsItem } from '@/modules/news';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
+import { getOrCompute } from '@/shared/cache/redis-cache';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
+import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import type { ChatIntent, CompareScope } from './chat-intent';
 import type { ChatDateResolution } from './chat-date';
 import { normalizeIdxTicker } from './extract-ticker';
 import { normalizeChatText } from './chat-normalize';
+import { finite, safe, analyzerLine, verifiedHeader } from './blocks/format';
+import { marketMoversBlock, sectorAndBreadthBlock, macroBlock } from './blocks/market-blocks';
+import {
+  lensRadarPicksBlock,
+  scoringMethodologyBlock,
+  screenerBlock,
+  backtestEvidenceBlock,
+} from './blocks/lens-blocks';
+import { dividendBlock, earningsBlock, calendarBlock, flowBlock, moatBlock, riskBlock } from './blocks/emiten-blocks';
+import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type ChatUserContext } from './blocks/user-blocks';
 
 /** Pertanyaan yang menanyakan SEBAB, bukan cuma angka. Dipakai memutuskan apakah blok
  * berita perlu ikut diambil untuk pertanyaan pasar. */
@@ -40,24 +53,17 @@ export interface ChatDataRequest {
   tickers: string[];
   date: ChatDateResolution;
   prompt: string;
+  /**
+   * Pengguna yang SEDANG LOGIN, dari getSession() di route - bukan dari body request.
+   * null untuk pengunjung anonim. Hanya blok portofolio/watchlist yang memakainya.
+   */
+  user?: ChatUserContext | null;
 }
 
 export interface ChatVerifiedDataResult {
   verifiedBlock: string;
   directResponse: string | null;
   dataError: string | null;
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function safe(value: unknown, suffix = ''): string {
-  return finite(value) ? `${Number(value).toFixed(2)}${suffix}` : 'tidak tersedia';
-}
-
-function analyzerLine(result: { label: string; value: string; decision: string }): string {
-  return `- ${result.label}: ${result.value} (${result.decision})`;
 }
 
 async function fetchCurrentFundamentalPayload(ticker: string): Promise<any | null> {
@@ -309,9 +315,17 @@ function sentimentTally(items: NewsItem[]): string {
   return `- Hitungan sentimen judul: ${positif} positif, ${netral} netral, ${negatif} negatif (dari ${counted.length} berita)`;
 }
 
+/**
+ * PERBAIKAN 2026-08-13: dulu memanggil getMarketNews() LANGSUNG, tanpa cache. Fungsi itu
+ * menarik ~10 feed RSS lalu meminta satu klasifikasi sentimen ke AI - jadi setiap
+ * pertanyaan "kenapa turun" menanggung seluruh biaya itu di dalam request chat,
+ * padahal /api/news sudah menyimpan hasil yang sama persis di Redis. Sekarang keduanya
+ * berbagi satu kunci: halaman yang sudah dibuka pengguna menghangatkan cache untuk chat,
+ * dan sebaliknya.
+ */
 async function marketNewsBlock(): Promise<string> {
   try {
-    const news = await getMarketNews();
+    const news = await getOrCompute(COMPUTED_CACHE_KEY.MARKET_NEWS, getMarketAwareTtlSec(), getMarketNews);
     if (!news.items.length) {
       return '- Berita pasar: tidak ada judul relevan yang lolos filter saat ini. JANGAN mengarang penyebab pergerakan.';
     }
@@ -380,6 +394,109 @@ export async function buildChatVerifiedData(request: ChatDataRequest): Promise<C
 
   if (request.intent === 'SAHAMLENS_PRODUCT_HELP' || request.intent === 'SMALL_TALK' || request.intent === 'UNKNOWN' || request.intent === 'FOLLOW_UP') {
     return { verifiedBlock: '', directResponse: null, dataError: null };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Intent yang ditambahkan 2026-08-13. Semua blok di bawah membaca cache hasil cron
+  // dan tidak pernah memicu pemindaian penuh dari dalam request chat.
+  // ---------------------------------------------------------------------------
+
+  if (request.intent === 'SCORING_METHOD') {
+    // Metodologi selalu ikut. Kalau pengguna juga menyebut emiten ("kenapa BBCA cuma
+    // 62"), data emitennya ikut - pertanyaannya butuh keduanya: cara menghitung DAN
+    // angka yang dihitung.
+    const methodology = scoringMethodologyBlock();
+    if (request.tickers.length === 0) {
+      return { verifiedBlock: `${verifiedHeader('METODOLOGI LENSSCORE')}\n${methodology}`, directResponse: null, dataError: null };
+    }
+    const tickers = request.tickers.map(normalizeIdxTicker);
+    const stocks = await Promise.all(tickers.map((ticker) => stockGeneralBlock(ticker, request.requestedMetrics)));
+    return {
+      verifiedBlock: `${verifiedHeader('METODOLOGI LENSSCORE')}\n${methodology}\n${verifiedHeader('DATA EMITEN TERKAIT')}\n${stocks.join('\n\n')}`,
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
+  if (request.intent === 'PORTFOLIO' || request.intent === 'WATCHLIST') {
+    if (!request.user) {
+      return { verifiedBlock: '', directResponse: LOGIN_REQUIRED_FOR_USER_DATA, dataError: 'LOGIN_REQUIRED' };
+    }
+    const block = request.intent === 'PORTFOLIO'
+      ? await portfolioBlock(request.user)
+      : await watchlistBlock(request.user);
+    return {
+      verifiedBlock: `${verifiedHeader(request.intent === 'PORTFOLIO' ? 'PORTOFOLIO PENGGUNA' : 'WATCHLIST PENGGUNA')}\n${block}`,
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
+  if (request.intent === 'LENSRADAR_PICKS') {
+    const [picks, methodology] = await Promise.all([lensRadarPicksBlock(), Promise.resolve(scoringMethodologyBlock())]);
+    return {
+      verifiedBlock: `${verifiedHeader('PERINGKAT LENSRADAR')}\n${picks}\n${verifiedHeader('METODOLOGI SKOR DI BALIK PERINGKAT')}\n${methodology}`,
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
+  if (request.intent === 'MARKET_MOVERS' || request.intent === 'SECTOR_ROTATION') {
+    // Berita ikut kalau pertanyaannya menanyakan SEBAB - pola yang sama dengan
+    // MARKET_GENERAL di bawah, dan alasan yang sama: daftar peringkat tidak pernah
+    // menjelaskan kenapa, dan lubang "kenapa" itulah yang dulu diisi karangan.
+    const wantsCause = CAUSAL_QUESTION.test(normalizeChatText(request.prompt));
+    const [movers, sector, news] = await Promise.all([
+      request.intent === 'MARKET_MOVERS' ? marketMoversBlock() : Promise.resolve(null),
+      sectorAndBreadthBlock(),
+      wantsCause ? marketNewsBlock() : Promise.resolve(null),
+    ]);
+    return {
+      verifiedBlock: [
+        verifiedHeader('KONDISI PASAR'),
+        movers ?? '',
+        movers ? '' : null,
+        sector,
+        news ? `\n### Berita & Sentimen Pasar:\n${news}` : '',
+      ]
+        .filter((part) => part !== null && part !== '')
+        .join('\n'),
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
+  if (request.intent === 'MACRO') {
+    return { verifiedBlock: `${verifiedHeader('INDIKATOR MAKRO')}\n${await macroBlock()}`, directResponse: null, dataError: null };
+  }
+
+  if (request.intent === 'SCREENER') {
+    const profile = /agresif/.test(normalizeChatText(request.prompt))
+      ? 'Agresif'
+      : /konservatif/.test(normalizeChatText(request.prompt))
+        ? 'Konservatif'
+        : 'Moderat';
+    return {
+      verifiedBlock: `${verifiedHeader('HASIL SCREENER')}\n${await screenerBlock(profile as any)}`,
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
+  if (request.intent === 'BACKTEST_EVIDENCE') {
+    const [evidence, methodology] = await Promise.all([backtestEvidenceBlock(), Promise.resolve(scoringMethodologyBlock())]);
+    return {
+      verifiedBlock: `${verifiedHeader('BUKTI BACKTEST LENSSCORE')}\n${evidence}\n${verifiedHeader('METODOLOGI SKOR YANG DIUJI')}\n${methodology}`,
+      directResponse: null,
+      dataError: null,
+    };
+  }
+
+  // CALENDAR boleh tanpa emiten ("ada agenda apa minggu ini"), jadi diperiksa sebelum
+  // gerbang "wajib ada ticker".
+  if (request.intent === 'CALENDAR') {
+    const block = await calendarBlock(request.tickers.map(normalizeIdxTicker));
+    return { verifiedBlock: `${verifiedHeader('KALENDER KORPORASI')}\n${block}`, directResponse: null, dataError: null };
   }
 
   // NEWS_SENTIMENT sengaja diperiksa SEBELUM gerbang "wajib ada ticker" di bawah:
@@ -465,6 +582,50 @@ export async function buildChatVerifiedData(request: ChatDataRequest): Promise<C
     }
 
     return { verifiedBlock, directResponse: null, dataError: available < results.length ? 'PARTIAL_DATA' : null };
+  }
+
+  // --- Fitur per emiten yang ditambahkan 2026-08-13.
+  if (request.intent === 'DIVIDEND') {
+    const blocks = await Promise.all(tickers.map(dividendBlock));
+    return { verifiedBlock: `${verifiedHeader('DIVIDEN')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+  }
+
+  if (request.intent === 'EARNINGS') {
+    const blocks = await Promise.all(tickers.map(earningsBlock));
+    return { verifiedBlock: `${verifiedHeader('EARNINGS')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+  }
+
+  if (request.intent === 'FLOW_BROKER') {
+    const blocks = await Promise.all(tickers.map(flowBlock));
+    return { verifiedBlock: `${verifiedHeader('ARUS DANA & BROKER')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+  }
+
+  if (request.intent === 'RISK_PROFILE') {
+    const blocks = await Promise.all(tickers.map(riskBlock));
+    return { verifiedBlock: `${verifiedHeader('RISIKO & BETA')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+  }
+
+  if (request.intent === 'MOAT') {
+    // Moat dibangun DARI analyzer fundamental yang sama dengan blok fundamental -
+    // bukan sumber kedua. Kalau dihitung terpisah, dua bagian jawaban yang sama bisa
+    // memakai angka PER/ROE yang berbeda umur.
+    const blocks = await Promise.all(
+      tickers.map(async (ticker) => {
+        const payload = await fetchCurrentFundamentalPayload(ticker);
+        const analyzers = payload
+          ? [
+              analyzePe(payload),
+              analyzePbv(payload),
+              analyzeRoe(payload),
+              analyzeDer(payload),
+              analyzeCurrentRatio(payload),
+              analyzeRevenueGrowth(payload),
+            ]
+          : [];
+        return moatBlock(ticker, analyzers);
+      }),
+    );
+    return { verifiedBlock: `${verifiedHeader('MOAT & KETAHANAN USAHA')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
   }
 
   let blocks: string[] = [];

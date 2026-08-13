@@ -4,6 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { getMarketPulse } from '@/modules/market';
 import { cacheGet } from '@/shared/cache/redis-cache';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // BUILD 006/007 - baca cache-first (diisi app/api/cron/market-pulse setiap 5 menit).
 // Cache-miss (schedule belum sempat jalan, atau Redis belum dikonfigurasi) tetap fallback
@@ -11,7 +12,7 @@ import { cacheGet } from '@/shared/cache/redis-cache';
 // /market-pulse adalah menu guest, jadi tidak boleh kosong hanya karena anonymous trial
 // lama sudah kedaluwarsa. Data yang dikembalikan adalah ringkasan pasar/cache publik,
 // bukan data akun atau otorisasi user.
-const CACHE_KEY = 'sahamlens:cache:computed:market-pulse:v2';
+const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_PULSE;
 
 export async function GET() {
   try {
