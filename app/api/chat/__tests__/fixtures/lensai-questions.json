@@ -35,7 +35,8 @@
     { "q": "broker apa yang net buy di BBCA?", "tickers": 1, "intent": "FLOW_BROKER", "group": "fitur-emiten" },
     { "q": "moat BBCA kuat gak?", "tickers": 1, "intent": "MOAT", "group": "fitur-emiten" },
     { "q": "betanya ADRO berapa?", "tickers": 1, "intent": "RISK_PROFILE", "group": "fitur-emiten" },
-    { "q": "volatilitasnya tinggi gak?", "tickers": 1, "intent": "RISK_PROFILE", "group": "fitur-emiten" },
+    { "q": "volatilitasnya tinggi gak?", "tickers": 0, "intent": "RISK_PROFILE", "group": "fitur-emiten",
+      "$note": "Tanpa kode emiten di kalimatnya - di pemakaian nyata emitennya datang dari riwayat percakapan atau halaman yang sedang dibuka. Tanpa keduanya, router menjawab jujur bahwa kode sahamnya perlu disebutkan." },
 
     { "q": "IHSG hari ini gimana?", "tickers": 0, "intent": "MARKET_GENERAL", "group": "pasar" },
     { "q": "kenapa IHSG turun hari ini?", "tickers": 0, "intent": "MARKET_GENERAL", "group": "pasar",
@@ -84,7 +85,7 @@
     { "q": "kasih saya saham apa yg patut di pantau besok dari hasil market hari ini", "tickers": 0, "intent": "LENSRADAR_PICKS", "group": "masa-depan",
       "$note": "Tetap peringkat LensRadar - itu memang jawaban yang benar karena peringkatnya hasil pemindaian hari ini. Router menambahkan bingkai masa depan supaya daftar pantauan tidak berubah nada jadi daftar ramalan." },
 
-    { "q": "saham ini jelek apa bagus?", "tickers": 1, "intent": "BUY_SELL_RECOMMENDATION", "group": "emiten",
+    { "q": "saham ini jelek apa bagus?", "tickers": 0, "intent": "BUY_SELL_RECOMMENDATION", "group": "emiten",
       "$note": "Dulu jatuh ke STOCK_GENERAL: hanya \"bagus gak\" PERSIS yang tertangkap. Padahal justru pertanyaan bagus-atau-jelek yang paling butuh keputusan model + gerbang kelayakan + status validasi." },
     { "q": "menurutmu ADRO gimana, bagus?", "tickers": 1, "intent": "BUY_SELL_RECOMMENDATION", "group": "emiten" },
 

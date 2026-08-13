@@ -14,6 +14,7 @@
     "audit:ui": "node scripts/audit-ui-consistency.mjs",
     "audit:cron": "node scripts/audit-scheduled-jobs.mjs",
     "eval:lensai": "vitest run app/api/chat/__tests__/lensai-eval.test.ts --disable-console-intercept",
+    "eval:answers": "node scripts/eval-lensai-answers.mjs",
     "audit:performance": "node scripts/audit-performance.mjs",
     "check:9router": "node scripts/check-9router.mjs"
   },
