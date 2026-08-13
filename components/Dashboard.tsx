@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import SiteFooter from '@/components/SiteFooter';
 import dynamic from 'next/dynamic';
@@ -491,7 +492,9 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <div className="flex h-[64px] items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5">
-                <img src="/sahamlens-scope.png" alt="SahamLens" className="h-8 w-8 rounded-full object-cover" />
+                {/* Logo header halaman depan - `priority` karena ia di atas lipatan dan
+                    ikut dinilai sebagai kandidat LCP di mobile. */}
+                <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} priority className="h-8 w-8 rounded-full object-cover" />
                 <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
