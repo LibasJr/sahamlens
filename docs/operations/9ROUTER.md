@@ -122,16 +122,28 @@ sudo cloudflared tunnel ingress validate     # wajib lolos sebelum restart
 sudo systemctl restart cloudflared
 ```
 
-**Kalau dikelola dashboard**: Cloudflare Zero Trust -> Networks -> Tunnels ->
-`sahamlens-prod` -> Public Hostnames -> Add:
+**Kalau dikelola dashboard** (kasus SahamLens): Cloudflare Zero Trust -> Networks ->
+Tunnels -> `sahamlens-prod` -> Public Hostnames -> **Add a public hostname**:
 
-- Subdomain `router`, Domain `sahamlens.id`
-- Service: `HTTP` -> `localhost:20128`
-- Additional settings -> Connect timeout `15s`
+| Field | Isi |
+| --- | --- |
+| Subdomain | `router` |
+| Domain | `sahamlens.id` |
+| **Path** | `^/v1(/.*)?$` |
+| Service Type | `HTTP` |
+| URL | `localhost:20128` |
 
-Dashboard tidak punya filter path, jadi `/dashboard` ikut terbuka. Tutup dengan
-Cloudflare Access (Zero Trust -> Access -> Applications, `router.sahamlens.id/dashboard`,
-policy Allow hanya email Anda), atau pakai config lokal yang mendukung filter path.
+Field **Path** menerima regular expression (Go syntax) - sama seperti key `path` di
+config lokal. Dengan regex di atas, HANYA `/v1/...` yang diteruskan; `/dashboard` tidak
+cocok aturan mana pun lalu jatuh ke catch-all tunnel dan dibalas 404. Jadi dashboard
+tetap tertutup dari internet tanpa perlu Cloudflare Access.
+
+DNS record `router.sahamlens.id` dibuat otomatis - jangan bikin A record manual.
+
+Kalau nanti perlu membuka dashboard dari internet (mis. tidak bisa SSH tunnel), tambahkan
+public hostname kedua dengan Path `^/dashboard` DAN lindungi dengan Cloudflare Access
+(Zero Trust -> Access -> Applications, policy Allow hanya email Anda). Jangan dibuka
+tanpa Access - isinya seluruh API key provider AI Anda.
 
 ### A4. Verifikasi
 
@@ -292,6 +304,7 @@ Skrip ini memisahkan penyebab kegagalan yang di produksi gejalanya identik semua
 | `tidak bisa menghubungi .../models` | Router mati, DNS/SSL salah, atau firewall menutup 443 |
 | `HTTP 401` / `403` | API key salah atau sudah di-rotate |
 | `HTTP 404` pada chat completions | Nama model di `NINEROUTER_MODELS` tidak ada di instance ini |
+| `No active credentials for provider: X` | Model `auto` memilih provider yang belum dipasang kredensialnya - isi `NINEROUTER_MODELS` eksplisit, atau tambah provider X di dashboard |
 | `model ... tidak ada di instance ini` | Sama, tapi ketahuan sebelum request dikirim |
 | `Semua pemeriksaan lolos` | Aman dipasang di Vercel |
 
