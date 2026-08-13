@@ -18,6 +18,7 @@ import { resolveChatDate, type ChatHistoryMessage } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
 import { buildChatVerifiedData } from './chat-data-router';
 import { buildSystemPrompt } from './build-system-prompt';
+import { outOfScopeResponse } from './out-of-scope';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -154,6 +155,22 @@ export async function POST(request: Request) {
       history,
     });
 
+    // Pertanyaan di luar ranah dijawab di sini, SEBELUM router data dan sebelum satu pun
+    // panggilan AI. Tidak ada penyedia yang dihubungi, jadi tidak ada angka yang bisa
+    // dikarang - lihat alasan lengkapnya di out-of-scope.ts.
+    if (classification.intent === 'OUT_OF_SCOPE') {
+      return json({
+        role: 'assistant',
+        content: outOfScopeResponse(classification.outOfScopeReason),
+        routing: {
+          intent: 'OUT_OF_SCOPE',
+          reason: classification.outOfScopeReason ?? 'NON_MARKET',
+          providerUsed: false,
+          dataFetches: 0,
+        },
+      });
+    }
+
     const verified = await buildChatVerifiedData({
       intent: classification.dataIntent,
       compareScope: classification.compareScope,
@@ -161,6 +178,9 @@ export async function POST(request: Request) {
       tickers,
       date,
       prompt,
+      // Dari sesi JWT, BUKAN dari body request - satu-satunya cara memastikan pengguna
+      // tidak bisa meminta portofolio orang lain dengan menyisipkan id di payload chat.
+      user: session ? { userId: session.id } : null,
     });
 
     if (verified.directResponse) {

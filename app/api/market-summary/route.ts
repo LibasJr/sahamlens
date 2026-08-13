@@ -3,13 +3,14 @@ import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { describeCacheAge } from '@/shared/http/freshness';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // BUILD 007 (Cache Layer) - sebelumnya endpoint ini (public/no-auth, dipakai landing
 // page) TIDAK PERNAH di-cache sama sekali. getOrCompute (single-flight) dipakai,
 // bukan cacheGet/cacheSet manual, karena endpoint ini yang paling rawan diakses
 // bersamaan oleh banyak pengunjung anonim sekaligus (tanpa gesekan login) - tanpa
 // proteksi stampede, cache-miss bersamaan bisa memicu banyak komputasi ulang paralel.
-const CACHE_KEY = 'sahamlens:cache:computed:market-summary';
+const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_SUMMARY;
 
 // WAJIB - route ini tidak memanggil cookies()/headers(), jadi tanpa penanda ini
 // Next.js men-static-generate-nya SEKALI saat `next build` dan menyajikan hasil
