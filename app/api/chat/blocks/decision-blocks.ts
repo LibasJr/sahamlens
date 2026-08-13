@@ -74,6 +74,43 @@ export async function decisionBlock(ticker: string): Promise<string> {
 }
 
 /**
+ * Bingkai wajib untuk pertanyaan "besok harganya berapa / bakal naik gak".
+ *
+ * Ini pertanyaan paling sering ditanyakan pengguna saham, dan paling berbahaya kalau
+ * dijawab asal. Model punya dorongan kuat untuk membantu: diberi harga, tren, dan RSI,
+ * ia akan dengan senang hati merangkainya jadi angka besok - dan angka itu terbaca
+ * sebagai ramalan aplikasi, bukan tebakan model.
+ *
+ * Yang dilakukan blok ini BUKAN menolak. Pertanyaannya sah, dan ada banyak yang bisa
+ * dikatakan dengan data: arah tren, posisi terhadap level, volatilitas, setup RR, dan -
+ * ini yang paling jujur - base rate historis dari backtest bucket. Yang dilarang hanya
+ * satu: menyebut angka harga besok seolah itu diketahui.
+ */
+export function predictionGuardBlock(): string {
+  return [
+    '- PERTANYAAN INI MENANYAKAN HARGA MASA DEPAN. Tidak ada satu pun data di SahamLens',
+    '  yang memuat harga besok, dan tidak ada model yang bisa mengetahuinya. Katakan itu',
+    '  di kalimat pertama, dengan tenang - tanpa berpanjang-panjang minta maaf.',
+    '- DILARANG: menyebut satu angka harga besok, rentang target jangka pendek yang tidak',
+    '  berasal dari setup TP/CL di data, atau kalimat berbentuk "kemungkinan besar naik ke',
+    '  sekian". Itu terbaca sebagai ramalan aplikasi, bukan tebakan model.',
+    '- YANG HARUS DILAKUKAN sebagai gantinya - jawab dengan data yang memang ada:',
+    '  1. Arah dan kekuatan tren saat ini, serta posisi harga terhadap support/resistance.',
+    '  2. Momentum (RSI/MACD) dan arti praktisnya untuk beberapa hari ke depan.',
+    '  3. Setup TP/CL beserta risk-reward-nya KALAU ada di data - itulah level yang memang',
+    '     dihitung aplikasi ini, dan itu berbeda dari ramalan harga.',
+    '  4. Base rate historis dari blok backtest kalau tersedia: bucket skor seperti ini',
+    '     RATA-RATA menghasilkan berapa dalam 20 hari bursa, dengan win rate berapa.',
+    '     Sampaikan sebagai statistik masa lalu atas banyak sampel, BUKAN janji untuk',
+    '     emiten ini.',
+    '  5. Ukuran risikonya (drawdown historis, volatilitas), supaya pengguna tahu seberapa',
+    '     lebar kemungkinan pergerakannya - bukan ke mana arahnya.',
+    '- Tutup dengan mengingatkan bahwa yang bisa dikendalikan adalah level masuk/keluar dan',
+    '  ukuran posisi, bukan arah harga. Satu kalimat, jangan berceramah.',
+  ].join('\n');
+}
+
+/**
  * Level TP1/TP2/CL1/CL2 + risk-reward, dari cache pemindaian LensRadar.
  *
  * TIDAK dihitung ulang di sini. Setup hanya sah kalau lahir dari engine yang sama
