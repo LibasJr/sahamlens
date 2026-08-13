@@ -37,6 +37,47 @@ commit `2a64988`). `npm run audit:cron` sekarang gagal kalau `vercel.json` beris
 - Mendaftarkan route baru ke QStash harus memakai domain `https://sahamlens.id` - bukan
   `sahamlens.vercel.app`, yang sekarang hanya server standby.
 
+## Bukti empiris dari `job_run_log` (2026-08-13)
+
+Jam sebenarnya memang tidak ada di repo, tapi ada sumber ketiga yang tidak butuh akses dashboard
+maupun SSH: tabel `job_run_log` di Neon, diisi `withJobRunLog()` setiap kali job benar-benar
+jalan. Ini bukan konfigurasi yang diklaim - ini yang betul-betul terjadi.
+
+```sql
+SELECT job_name, count(*), max(started_at) FROM job_run_log
+WHERE started_at > now() - interval '3 days' GROUP BY job_name;
+```
+
+Hasil 2026-08-13: **kedua belas job jalan, tidak ada yang mati diam-diam setelah migrasi.**
+`lens-bucket-backtest` tetap di 10:00 UTC dan `broker-summary-scan` tetap di 12:10 UTC - sama
+persis dengan jadwal Vercel lama, jadi systemd timer memang mewarisi jamnya.
+
+**Kenapa ini tetap tidak cukup untuk menaikkan status jadi `known`:** jumlah run hanya bisa
+membuktikan job jalan LEBIH JARANG dari jadwalnya, tidak pernah lebih sering. `execute()`
+dibungkus `runWithJobConcurrencyGuard()` yang membalas 202 dan **tidak menulis baris log** saat
+run sebelumnya masih berjalan - jadi `breakout-scan` yang terbaca 171 run dari ~252 yang
+diharapkan tidak membuktikan cadence-nya berubah. Ekspresi cron tetap harus diambil dari
+sumbernya.
+
+Arah sebaliknya yang justru konklusif: run yang MUNCUL tidak bisa diciptakan oleh skip.
+
+### Anomali: `macro` naik dari 1x/hari jadi tiap jam
+
+| Waktu (UTC) | Pola |
+| --- | --- |
+| 10, 11, 12 Ags - `03:00` | 1x/hari, cocok dengan `0 3 * * 1-5` yang didokumentasikan |
+| 13 Ags - `02:00` sampai `09:00` | **tiap jam, menit 00, masih berlanjut** |
+
+Perubahannya mulai 2026-08-13 02:00 UTC. Karena skip hanya bisa mengurangi run, run tambahan ini
+nyata - `macro` sekarang jalan ~24x lipat dari yang tertulis. Belum diketahui apakah cadence
+QStash-nya sengaja diubah, atau ada penjadwal kedua yang ikut memanggil endpoint yang sama
+setelah migrasi. **Verifikasi `GET /v2/schedules` di QStash dan `systemctl list-timers` di VPS
+sebelum menambal apa pun** - kalau penyebabnya penjadwal kedua, mengubah cadence QStash tidak
+akan menghentikannya.
+
+Catatan kecil: banyak job punya satu run tunggal di 12 Ags `14:xx` UTC (21:00 WIB) di luar
+polanya. Itu jam kerja migrasi, kemungkinan besar pemicuan manual - bukan bagian dari jadwal.
+
 ## Status manifest saat ini
 
 Kedua belas job bertanda "belum terverifikasi": sembilan cadence QStash tidak tersimpan di source,
