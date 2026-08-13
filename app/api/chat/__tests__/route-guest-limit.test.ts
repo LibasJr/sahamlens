@@ -15,8 +15,11 @@ vi.mock('@/shared/usage/guest-chat-quota', () => ({
   consumeGuestChat: vi.fn(),
   GUEST_CHAT_LIMIT_MESSAGE: 'Jatah 5 pertanyaan LensAI untuk pengunjung sudah habis. Silakan masuk untuk melanjutkan percakapan.',
 }));
+// hasAnyAIProvider ikut di-mock karena guard() di lib/sahamLensGuard.ts memakainya saat
+// modul route dimuat; tanpa ini import route-nya melempar sebelum satu test pun jalan.
 vi.mock('@/lib/aiProviders', () => ({
   generateAIResult: vi.fn(),
+  hasAnyAIProvider: vi.fn(() => true),
 }));
 
 import { POST } from '../route';
