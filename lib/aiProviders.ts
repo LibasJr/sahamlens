@@ -72,6 +72,7 @@ const NINEROUTER_DEFAULT_MIN_TIMEOUT_MS = 15_000;
  * dan menormalkan ketiganya ke URL chat completions penuh.
  */
 let warnedInvalidNineRouterUrl = false;
+let warnedMissingNineRouterKey = false;
 
 export function normalizeNineRouterUrl(raw: string): string | null {
   const trimmed = raw.trim().replace(/\/+$/, '');
@@ -110,7 +111,27 @@ function parseNineRouterModels(raw: string | undefined): string[] {
  */
 export function buildNineRouterProvider(): OpenAICompatibleProvider | null {
   const rawUrl = process.env.NINEROUTER_BASE_URL;
-  if (!rawUrl || !process.env.NINEROUTER_API_KEY) return null;
+  if (!rawUrl) return null;
+
+  if (!process.env.NINEROUTER_API_KEY) {
+    // DIAGNOSTIK (2026-08-13): kasus ini benar-benar terjadi saat pemasangan di VPS -
+    // baris `NINEROUTER_API_KEY=` tertulis ke .env.production dengan nilai KOSONG karena
+    // variabel shell sumbernya sudah hilang. Sebelum ada peringatan ini, gejalanya
+    // menyesatkan total: 9Router tidak pernah masuk cascade, jadi TIDAK ADA log
+    // [AI:9router] sama sekali, dan operator melihat jawaban tetap keluar (dari provider
+    // lama, lambat) tanpa satu pun petunjuk bahwa routernya diabaikan. Base URL terisi
+    // tapi key kosong hampir pasti salah konfigurasi, bukan pilihan sadar - jadi ini
+    // diteriakkan, bukan didiamkan.
+    if (!warnedMissingNineRouterKey) {
+      warnedMissingNineRouterKey = true;
+      console.warn(
+        '[AI:9router] NINEROUTER_BASE_URL terisi tapi NINEROUTER_API_KEY kosong - 9Router ' +
+        'DILEWATI seluruhnya. Periksa nilainya (bukan sekadar ada barisnya): ' +
+        "grep -c '^NINEROUTER_API_KEY=.\\+' <file env> harus 1.",
+      );
+    }
+    return null;
+  }
 
   const url = normalizeNineRouterUrl(rawUrl);
   if (!url) return null;
@@ -284,9 +305,13 @@ export function buildSmartAttemptOrder(combos = buildCombos(), now = Date.now())
 }
 
 // Hanya untuk unit test; jangan dipakai oleh route produksi.
+// Ikut mereset flag warn-once: tanpa ini, test yang menguji peringatan konfigurasi
+// bergantung pada urutan eksekusi (test lain sudah "memakai" peringatannya duluan).
 export function __resetAIRotationForTests(): void {
   globalForAIRotation.__sahamlensAIRotationCursor = 0;
   globalForAIRotation.__sahamlensAIHealth = new Map();
+  warnedInvalidNineRouterUrl = false;
+  warnedMissingNineRouterKey = false;
 }
 
 // BUG FIX (2026-08-05, permintaan user - "urutan paling pinter ke paling gak pinter"):

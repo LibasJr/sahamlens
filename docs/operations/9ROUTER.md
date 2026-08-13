@@ -349,7 +349,9 @@ API key ditulis terpisah supaya tidak masuk `~/.bash_history`:
 read -rsp "Tempel API key 9Router: " K; echo
 printf 'NINEROUTER_API_KEY=%s\n' "$K" | sudo tee -a /opt/sahamlens/app/.env.production >/dev/null
 unset K
-grep -c '^NINEROUTER_' /opt/sahamlens/app/.env.production    # harus 3
+# Memeriksa NILAI-nya, bukan cuma ada barisnya. `.\+` mewajibkan minimal satu karakter
+# setelah tanda "=" - baris kosong `NINEROUTER_API_KEY=` TIDAK dihitung.
+grep -c '^NINEROUTER_API_KEY=.\+' /opt/sahamlens/app/.env.production    # harus 1
 ```
 
 **`BASE_URL` memakai `127.0.0.1`, bukan `router.sahamlens.id`** - aplikasi dan 9Router
@@ -417,6 +419,7 @@ Lalu periksa log:
 | HTTP 502/1033 dari router | `cloudflared` mati atau container 9Router berhenti - cek `systemctl status cloudflared` dan `docker compose ps` |
 | Request dari luar VPS diblokir | WAF/Bot Fight Mode Cloudflare - buat WAF skip rule untuk path `/v1/*`. Tidak berlaku kalau `BASE_URL` memakai `127.0.0.1` (tidak lewat Cloudflare sama sekali) |
 | Env var terisi tapi tidak berpengaruh | Lupa `npm run build` + `systemctl restart sahamlens` setelah kode berubah |
+| Tidak ada log `[AI:9router]` sama sekali, `docker logs 9router` kosong | 9Router tidak masuk cascade. Paling sering: `NINEROUTER_API_KEY=` tertulis dengan nilai KOSONG. Cek `grep -c '^NINEROUTER_API_KEY=.\+' <env>` harus 1, dan cari peringatan "NINEROUTER_API_KEY kosong" di `journalctl -u sahamlens` |
 | Log penuh `[AI:9router] HTTP 429` | Kuota provider upstream habis; tambah provider di dashboard |
 | Jawaban lambat/timeout | Naikkan `NINEROUTER_TIMEOUT_MS`, atau pilih model lebih cepat |
 | Semua AI mati mendadak | Cek `docker compose logs -f` di VPS; container mungkin OOM |
