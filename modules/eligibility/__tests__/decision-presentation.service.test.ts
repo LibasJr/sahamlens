@@ -75,12 +75,12 @@ describe('getDecisionPresentation', () => {
 });
 
 describe('getSimpleDecisionLabel', () => {
-  it('menampilkan WATCH untuk score model tinggi yang belum tervalidasi', () => {
+  it('menampilkan INFORMASI untuk score model tinggi yang belum tervalidasi', () => {
     const presentation = getDecisionPresentation('STRONG BUY', decision({
       reasonCodes: ['MODEL_UNVALIDATED'],
     }));
 
-    expect(getSimpleDecisionLabel(presentation)).toBe('WATCH');
+    expect(getSimpleDecisionLabel(presentation)).toBe('INFORMASI');
   });
 
   it('hanya menampilkan BUY bila advisory actionable', () => {
