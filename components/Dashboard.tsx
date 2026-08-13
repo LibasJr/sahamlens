@@ -575,7 +575,16 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             dan ia tidak melakukan apa-apa. Sekarang ia membawa angka pasar yang hidup
             dan jalan masuk yang jelas - tanpa satu pun permintaan jaringan baru,
             semuanya dari state yang sudah ada. */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show">
+        {/* `initial={false}`, BUKAN "hidden" - blok ini berisi elemen LCP halaman
+            (paragraf di bawah judul hero, dikonfirmasi Lighthouse). Dengan "hidden",
+            server mengirimnya terlihat, lalu hidrasi menyetel opacity 0 dan
+            menganimasikannya kembali muncul - jadi elemen terbesar halaman baru
+            terlukis SETELAH JS diunduh dan dijalankan. Terukur: FCP 1,0 dtk tapi LCP
+            4,3 dtk, dengan "element render delay" 1.250 md dan nol waktu unduh sumber
+            daya - teks yang sudah ada di HTML, ditahan oleh animasinya sendiri.
+            `initial={false}` membuat framer-motion langsung merender keadaan akhir dan
+            melewati animasi masuk. Blok di bawah lipatan tetap dianimasikan. */}
+        <motion.div variants={fadeUp} initial={false} animate="show">
           <Card
             padding="none"
             className="relative overflow-hidden mb-8 bg-gradient-accent-soft border border-tv-border/60 px-6 py-8 sm:px-10 sm:py-12 shadow-none"
