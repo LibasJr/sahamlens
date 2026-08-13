@@ -49,7 +49,23 @@ export interface IntentClassification {
   requestedMetrics: string[];
   /** Terisi hanya untuk OUT_OF_SCOPE - menentukan kalimat jujur mana yang dipakai. */
   outOfScopeReason?: 'NON_MARKET' | 'OUT_OF_COVERAGE';
+  /**
+   * Topik LAIN yang ikut disebut dalam satu pertanyaan, mis. "fundamental BBCA gimana,
+   * ada berita apa?" - fundamental jadi intent utama, berita masuk ke sini. Sebelumnya
+   * pertanyaan seperti ini hanya dijawab separuh: blok kedua tidak pernah dibangun,
+   * dan LensAI terpaksa bilang tidak punya datanya untuk bagian yang tidak diminta router.
+   */
+  alsoIntents: ChatIntent[];
+  /**
+   * Pertanyaannya terlalu pendek/kabur untuk ditebak dengan aman. Router menjawab dengan
+   * pertanyaan balik yang konkret, bukan menebak satu intent lalu menyajikan data yang
+   * tidak diminta.
+   */
+  needsClarification?: boolean;
 }
+
+/** Batas jumlah topik tambahan - menjaga ukuran prompt & waktu tunggu tetap wajar. */
+const MAX_SECONDARY_INTENTS = 2;
 
 const FUNDAMENTAL_TERMS = /\b(fundamental(?:nya)?|roe|roa|der|current ratio|quick ratio|revenue|pendapatan|laba|margin|neraca|cash ?flow|arus kas)\b/;
 const TECHNICAL_TERMS = /\b(teknikal(?:nya)?|technical|rsi|macd|ema|sma|support|resistance|resisten|momentum|volume|trend|uptrend|downtrend|atr)\b/;
@@ -57,6 +73,8 @@ const VALUATION_TERMS = /\b(valuasi|valuation|per|p\/e|pbv|p\/b|murah|mahal|unde
 const RECOMMENDATION_TERMS = /\b(bagus gak|bagus ga|layak|beli|buy|jual|sell|hold|tahan|entry|masuk|cut loss|stop loss|take profit|tp|cl|investasi\s+\d+\s*(bulan|tahun))\b/;
 const COMPARE_TERMS = /\b(banding|bandingin|dibanding|dibandingkan|versus|vs|atau)\b/;
 const MARKET_TERMS = /\b(ihsg|\^jkse|idx30|lq45|pasar|market|sektor|breadth|market pulse|kondisi bursa)\b/;
+/** Penyebutan INDEKS secara eksplisit - lebih sempit dari MARKET_TERMS. */
+const INDEX_TERMS = /\b(ihsg|\^jkse|idx30|lq45|indeks|bursa)\b/;
 // Pertanyaan berita/sentimen tidak punya intent sendiri sebelum 2026-08-11, jadi selalu
 // jatuh ke UNKNOWN dan berakhir sebagai refusal generik walaupun modules/news punya
 // datanya. Lihat catatan lengkap di chat-data-router.ts (marketNewsBlock).
@@ -175,18 +193,60 @@ function previousDataIntent(history: ChatHistoryMessage[]): ChatIntent | null {
   return null;
 }
 
-export function classifyChatIntent(args: {
+/**
+ * Topik tambahan yang ikut disebut dalam satu pertanyaan.
+ *
+ * Sengaja memakai daftar terpisah dari rantai if di classifyChatIntent(): rantai itu
+ * memilih SATU pemenang dan urutannya sudah dijaga banyak test. Daftar ini hanya
+ * menambah, tidak pernah mengubah pemenangnya.
+ */
+function secondaryIntents(text: string, primary: ChatIntent, tickerCount: number): ChatIntent[] {
+  const candidates: Array<[ChatIntent, boolean]> = [
+    ['NEWS_SENTIMENT', NEWS_TERMS.test(text)],
+    ['FUNDAMENTAL_CURRENT', FUNDAMENTAL_TERMS.test(text) && tickerCount > 0],
+    ['TECHNICAL_CURRENT', TECHNICAL_TERMS.test(text) && tickerCount > 0],
+    ['VALUATION', VALUATION_TERMS.test(text) && tickerCount > 0],
+    ['DIVIDEND', DIVIDEND_TERMS.test(text) && tickerCount > 0],
+    ['FLOW_BROKER', FLOW_TERMS.test(text) && tickerCount > 0],
+    ['EARNINGS', EARNINGS_TERMS.test(text) && tickerCount > 0],
+    ['RISK_PROFILE', RISK_TERMS.test(text) && tickerCount > 0],
+    ['SECTOR_ROTATION', SECTOR_TERMS.test(text) && tickerCount === 0],
+    ['MACRO', MACRO_TERMS.test(text) && tickerCount === 0],
+    // Sengaja memakai INDEX_TERMS, bukan MARKET_TERMS: MARKET_TERMS ikut memuat "sektor"
+    // dan "pasar", jadi setiap pertanyaan sektor akan menyeret satu fetch IHSG tambahan
+    // yang tidak diminta siapa pun. Yang benar-benar menandakan "saya juga menanyakan
+    // indeksnya" adalah penyebutan indeksnya secara eksplisit.
+    ['MARKET_GENERAL', INDEX_TERMS.test(text) && tickerCount === 0],
+  ];
+
+  return candidates
+    .filter(([intent, matched]) => matched && intent !== primary)
+    .map(([intent]) => intent)
+    .slice(0, MAX_SECONDARY_INTENTS);
+}
+
+/** Pertanyaan sangat pendek tanpa emiten, tanpa riwayat, dan tanpa kata kerja topik. */
+function isTooVague(text: string): boolean {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.length <= 4;
+}
+
+export interface ClassifyArgs {
   prompt: string;
   date: ChatDateResolution;
   tickerCount: number;
   hasHistory: boolean;
   history?: ChatHistoryMessage[];
-}): IntentClassification {
+}
+
+/** Intent pemenang tunggal. Rantai if di bawah urutannya dijaga banyak test - jangan
+ * menyisipkan pemeriksaan baru tanpa menambah test yang menyatakan urutannya. */
+function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, 'alsoIntents'> {
   const text = normalizeChatText(args.prompt);
   const metrics = metricsFromText(text);
   const isCompare = args.tickerCount >= 2 || COMPARE_TERMS.test(text);
   const marketLevel = args.tickerCount === 0;
-  const of = (intent: ChatIntent): IntentClassification => ({
+  const of = (intent: ChatIntent): Omit<IntentClassification, 'alsoIntents'> => ({
     intent,
     dataIntent: intent,
     compareScope: 'GENERAL',
@@ -221,7 +281,7 @@ export function classifyChatIntent(args: {
   // Pertanyaan DEFINISI fitur dijawab sebagai product help. Yang bukan definisi jatuh ke
   // intent datanya di bawah - "backtest itu apa" beda kebutuhan dengan "win rate backtest
   // berapa".
-  const productHelp: IntentClassification = {
+  const productHelp: Omit<IntentClassification, 'alsoIntents'> = {
     intent: 'SAHAMLENS_PRODUCT_HELP',
     dataIntent: 'SAHAMLENS_PRODUCT_HELP',
     compareScope: 'GENERAL',
@@ -319,4 +379,28 @@ export function classifyChatIntent(args: {
   }
 
   return { intent: 'UNKNOWN', dataIntent: 'UNKNOWN', compareScope: 'GENERAL', requestedMetrics: metrics };
+}
+
+/**
+ * Klasifikasi lengkap: satu intent utama, ditambah topik lain yang ikut disebut dan
+ * penanda kalau pertanyaannya terlalu kabur untuk ditebak.
+ */
+export function classifyChatIntent(args: ClassifyArgs): IntentClassification {
+  const primary = classifyPrimaryIntent(args);
+  const text = normalizeChatText(args.prompt);
+
+  // Topik tambahan hanya relevan untuk pertanyaan yang memang mengambil data. Untuk
+  // small talk, di-luar-ranah, dan pertanyaan produk, menambah blok data cuma
+  // memperbesar prompt tanpa menjawab apa pun.
+  const carriesData = !['SMALL_TALK', 'OUT_OF_SCOPE', 'SAHAMLENS_PRODUCT_HELP', 'FOLLOW_UP'].includes(primary.intent);
+  const alsoIntents = carriesData ? secondaryIntents(text, primary.dataIntent, args.tickerCount) : [];
+
+  const needsClarification =
+    primary.intent === 'UNKNOWN' &&
+    args.tickerCount === 0 &&
+    !args.hasHistory &&
+    !CONCEPT_QUERY.test(text) &&
+    isTooVague(text);
+
+  return { ...primary, alsoIntents, ...(needsClarification ? { needsClarification } : {}) };
 }
