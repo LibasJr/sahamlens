@@ -415,6 +415,71 @@ async function callGemini(apiKey: string, model: string, system: string | undefi
   }
 }
 
+/**
+ * Membaca body chat-completions yang TIDAK selalu JSON murni.
+ *
+ * BUG FIX (2026-08-13, ditemukan saat memasang 9Router di VPS sungguhan): 9Router
+ * membalas objek JSON biasa TAPI menempelkan terminator SSE di belakangnya:
+ *
+ *   {"id":"chatcmpl-...","choices":[...],"usage":{...}}data: [DONE]
+ *
+ * `res.json()` yang lama SELALU gagal untuk body seperti ini - JSON.parse melempar
+ * begitu ada karakter tersisa setelah objek selesai. Efeknya diam-diam fatal: setiap
+ * respons 9Router yang SUKSES (HTTP 200, jawaban benar) dihitung sebagai kegagalan
+ * 'other', combo-nya kena cooldown, lalu cascade lanjut ke provider lain. Dari log
+ * produksi gejalanya cuma "9router gagal" tanpa petunjuk bahwa body-nya sebenarnya
+ * baik-baik saja.
+ *
+ * Urutan percobaan sengaja dari yang paling ketat: JSON murni dulu (jalur normal semua
+ * provider lain, tanpa biaya tambahan), baru toleransi. Return null kalau benar-benar
+ * tidak ada yang bisa dibaca - caller yang memutuskan itu kegagalan.
+ */
+export function parseChatCompletionBody(raw: string): any | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // lanjut ke toleransi di bawah
+  }
+
+  // Kasus 9Router: JSON utuh + terminator SSE menempel di belakang.
+  const withoutTerminator = trimmed.replace(/(?:\r?\n)*data:\s*\[DONE\]\s*$/i, '').trim();
+  if (withoutTerminator && withoutTerminator !== trimmed) {
+    try {
+      return JSON.parse(withoutTerminator);
+    } catch {
+      // lanjut
+    }
+  }
+
+  // Kasus respons SSE penuh (provider yang memaksa streaming walau tidak diminta):
+  // gabungkan delta dari tiap baris `data: {...}`.
+  if (/^data:\s*\{/m.test(trimmed)) {
+    let streamed = '';
+    let lastChunk: any = null;
+    for (const line of trimmed.split(/\r?\n/)) {
+      const match = line.match(/^data:\s*(\{.*\})\s*$/);
+      if (!match) continue;
+      try {
+        const chunk = JSON.parse(match[1]);
+        lastChunk = chunk;
+        const delta = chunk?.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') streamed += delta;
+        const whole = chunk?.choices?.[0]?.message?.content;
+        if (typeof whole === 'string') streamed += whole;
+      } catch {
+        // satu chunk rusak tidak boleh membuang chunk lain yang sudah terkumpul
+      }
+    }
+    if (streamed) return { choices: [{ message: { content: streamed } }] };
+    if (lastChunk) return lastChunk;
+  }
+
+  return null;
+}
+
 async function callOpenAICompatible(
   provider: OpenAICompatibleProvider,
   apiKey: string,
@@ -441,6 +506,10 @@ async function callOpenAICompatible(
       body: JSON.stringify({
         model,
         messages,
+        // Dikirim eksplisit sejak 2026-08-13: tanpa ini sebagian gateway (9Router)
+        // memutuskan sendiri untuk membungkus jawaban dengan protokol streaming.
+        // Parameter standar OpenAI, diterima semua provider di daftar ini.
+        stream: false,
         ...(json ? { response_format: { type: 'json_object' } } : {}),
       }),
       signal: controller.signal,
@@ -465,7 +534,14 @@ async function callOpenAICompatible(
         : 'other';
       return { text: null, failureKind };
     }
-    const data = await res.json();
+    const rawBody = await res.text();
+    const data = parseChatCompletionBody(rawBody);
+    if (!data) {
+      console.warn(
+        `[AI:${provider.name}] "${model}" HTTP 200 tapi body tidak bisa dibaca sebagai JSON - ${rawBody.slice(0, 200)}`,
+      );
+      return { text: null, failureKind: 'other' };
+    }
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== 'string' || !text.trim()) {
       // Sukses HTTP tapi tanpa isi - bentuk respons tidak sesuai dugaan (mis. model
