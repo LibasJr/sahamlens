@@ -64,6 +64,55 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - BUG NYATA: kata umum terbaca sebagai kode emiten
+
+Ditemukan oleh evaluasi jawaban end-to-end yang baru (`npm run eval:answers`), bukan dari
+kode. **Bug ini sudah ada jauh sebelum perubahan LensAI minggu ini.**
+
+`extractMentionedTickers()` meng-uppercase seluruh prompt lalu mencocokkan tiap kata 4
+huruf dengan daftar 1.283 emiten. Kata sehari-hari yang kebetulan sama dengan kode emiten
+karena itu dibaca sebagai kode saham:
+
+| Pertanyaan pengguna | Dulu dibaca sebagai | Akibatnya |
+| --- | --- | --- |
+| "harga **emas** hari ini berapa?" | emiten `EMAS` | analisis emiten kecil, bukan penolakan jujur "emas di luar cakupan" |
+| "saham Tesla lagi **naik** gak?" | emiten `NAIK` | sama |
+| "saya mau **beli** saham apa?" | emiten `BELI` | analisis PT Beli, bukan peringkat LensRadar |
+
+Kata lain yang bentrok: `BAIK`, `AMAN`, `UANG`, `SATU`, `POLA`, `GUNA`, `IKAN`, `AGAR`,
+`ENAK`. Dampaknya lebih dalam daripada salah jawab: begitu router mengira ada emiten,
+seluruh gerbang "pertanyaan tingkat pasar" ikut mati - termasuk penolakan jujur untuk aset
+di luar cakupan SahamLens.
+
+**Perbaikan**: huruf besar-kecil pada teks ASLI dipakai sebagai sinyal (sebelumnya
+dibuang oleh `toUpperCase()`). Ditulis KAPITAL selalu diterima sebagai kode emiten
+(`EMAS` tetap bekerja untuk yang memang memaksudkan emitennya); ditulis huruf kecil DAN
+ada di daftar kata umum (`app/api/chat/indonesian-stopwords.ts`) ditolak; huruf kecil di
+luar daftar tetap diterima (`bbca gimana` harus tetap jalan).
+
+**Evaluasi routing ikut diperbaiki**: dulu jumlah ticker ditulis manual di fixture sebagai
+MASUKAN, jadi ia buta secara struktural terhadap kesalahan ekstraksi. Sekarang ekstraktor
+sungguhan yang dipakai, dan angka itu berubah peran menjadi ekspektasi yang diperiksa.
+
+### 2026-08-13 - Evaluasi kualitas jawaban (`npm run eval:answers`)
+
+Pelengkap `eval:lensai`. Memanggil `/api/chat` yang sungguhan pada server hidup, jadi
+mengukur JAWABAN, bukan cuma routing. Pemeriksaannya tetap deterministik: intent sesuai,
+`routing.numberCheck.ok` (tidak ada angka tak tertelusur), penutup DYOR sesuai kebijakan,
+dan jawaban tidak kosong/bukan error penyedia.
+
+**SENGAJA tidak dijalankan di CI** - butuh kuota AI dan hasilnya tidak identik tiap kali.
+Jalankan manual: `npm run dev` lalu `npm run eval:answers -- --limit=10`.
+
+Karena 9Router dipin di depan cascade (`tryFirst`), seluruh eval lewat satu endpoint itu
+kalau terpasang. **Dari mesin dev, `NINEROUTER_BASE_URL` tidak boleh `127.0.0.1:20128`** -
+alamat itu hanya sah di dalam VPS; pakai hostname publiknya. Tidak ada API key baru:
+key-nya sama dengan yang sudah dipakai aplikasi.
+
+Catatan: pertanyaan yang jalurnya deterministik (nyeleneh, di luar cakupan, sapaan,
+pertanyaan balik) tetap terukur penuh **tanpa API key sama sekali** - berguna untuk
+memverifikasi perubahan routing tanpa membakar kuota.
+
 ### 2026-08-13 - LensAI: evaluasi routing, pertanyaan harga masa depan, DYOR
 
 - **Evaluasi routing (`npm run eval:lensai`).** 65 pertanyaan nyata di
