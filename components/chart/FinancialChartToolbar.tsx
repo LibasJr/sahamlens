@@ -195,10 +195,15 @@ export default function FinancialChartToolbar({
               className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-tv-border bg-tv-bg px-3 text-sm font-semibold text-tv-text hover:border-tv-borderLight hover:bg-tv-hover sm:min-h-10 sm:px-2.5 sm:text-xs"
               aria-haspopup="menu"
               aria-expanded={chartTypeOpen}
+              // Satu-satunya teks tombol ini disembunyikan di layar sempit (`hidden sm:inline`),
+              // menyisakan dua ikon tanpa teks - pembaca layar mengucapkannya cuma "tombol".
+              // Karena itu audit aksesibilitas hanya gagal di mobile, tidak di desktop.
+              // aria-label selalu ada, jadi namanya tidak lagi bergantung lebar layar.
+              aria-label={`Jenis chart: ${currentChartType.label}`}
             >
               <ChartTypeIcon type={chartType} />
               <span className={variant === 'compact' ? 'hidden md:inline' : 'hidden sm:inline'}>{currentChartType.short}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-tv-muted" />
+              <ChevronDown className="h-3.5 w-3.5 text-tv-muted" aria-hidden="true" />
             </button>
 
             {chartTypeOpen && (
