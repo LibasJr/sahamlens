@@ -36,6 +36,105 @@ interface OpenAICompatibleProvider {
   url: string;
   models: string[];
   extraHeaders?: Record<string, string>;
+  /**
+   * Kalau true, seluruh model provider ini ditaruh di depan ranking MODEL_PRIORITY.
+   * Dipakai untuk gateway/router (9Router) yang model-id-nya milik deployment
+   * masing-masing sehingga TIDAK MUNGKIN di-rank di MODEL_PRIORITY yang statis.
+   */
+  tryFirst?: boolean;
+  /**
+   * Lantai timeout khusus provider ini (ms). Router yang melakukan fallback ke
+   * upstream-nya sendiri butuh waktu lebih dari budget default caller (8-12 detik).
+   */
+  minTimeoutMs?: number;
+}
+
+// --- 9Router (proxy AI multi-provider self-hosted) --------------------------
+//
+// 9Router (github.com/decolua/9router) adalah proxy OpenAI-compatible yang DIRINYA
+// SENDIRI merutekan ke banyak provider (Claude/GPT/Gemini/GLM/dst) dengan fallback
+// internal. Dari sisi SahamLens dia cuma "satu provider OpenAI-compatible lagi" -
+// makanya tidak butuh cabang kode baru di generateAIResult(), cukup satu entri
+// provider seperti Groq/Kimi/NVIDIA.
+//
+// Bedanya dari entri statis di atas: base URL dan daftar model 9Router TIDAK bisa
+// di-hardcode - keduanya milik instance masing-masing (VPS/tunnel sendiri, dan model
+// apa saja tergantung akun apa yang dipasang di dashboard 9Router). Jadi entri ini
+// dibangun dari env var saat buildCombos() dipanggil, bukan konstanta modul.
+const NINEROUTER_DEFAULT_MODELS = ['auto'];
+const NINEROUTER_DEFAULT_MIN_TIMEOUT_MS = 15_000;
+
+/**
+ * Menerima tiga bentuk penulisan yang sama-sama wajar dari operator:
+ *   https://router.example.com
+ *   https://router.example.com/v1
+ *   https://router.example.com/v1/chat/completions
+ * dan menormalkan ketiganya ke URL chat completions penuh.
+ */
+let warnedInvalidNineRouterUrl = false;
+
+export function normalizeNineRouterUrl(raw: string): string | null {
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (!trimmed) return null;
+  if (!/^https?:\/\//i.test(trimmed)) {
+    // Sekali saja per instance - fungsi ini dipanggil ulang tiap request lewat
+    // buildCombos(), dan URL salah tidak akan berubah sendiri di tengah runtime.
+    if (!warnedInvalidNineRouterUrl) {
+      warnedInvalidNineRouterUrl = true;
+      console.warn(
+        '[AI:9router] NINEROUTER_BASE_URL harus diawali http:// atau https:// - nilai sekarang diabaikan.',
+      );
+    }
+    return null;
+  }
+  if (/\/chat\/completions$/i.test(trimmed)) return trimmed;
+  if (/\/v\d+$/i.test(trimmed)) return `${trimmed}/chat/completions`;
+  return `${trimmed}/v1/chat/completions`;
+}
+
+function parseNineRouterModels(raw: string | undefined): string[] {
+  const models = (raw ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  // "auto" = biarkan 9Router yang memilih model (fitur utamanya). Itu default yang
+  // paling aman: tidak ada nama model yang bisa basi di sisi SahamLens.
+  return models.length ? models : NINEROUTER_DEFAULT_MODELS;
+}
+
+/**
+ * null kalau 9Router tidak dikonfigurasi. Sengaja butuh DUA env var:
+ * NINEROUTER_BASE_URL (instance-nya di mana) dan NINEROUTER_API_KEY (bearer token
+ * dari Dashboard 9Router). Base URL tanpa key berarti router-nya terbuka ke publik -
+ * itu bukan sesuatu yang boleh terjadi diam-diam, jadi tidak didukung di sini.
+ */
+export function buildNineRouterProvider(): OpenAICompatibleProvider | null {
+  const rawUrl = process.env.NINEROUTER_BASE_URL;
+  if (!rawUrl || !process.env.NINEROUTER_API_KEY) return null;
+
+  const url = normalizeNineRouterUrl(rawUrl);
+  if (!url) return null;
+
+  const parsedTimeout = Number(process.env.NINEROUTER_TIMEOUT_MS);
+  const promptBudget = process.env.NINEROUTER_PROMPT_BUDGET?.trim();
+
+  return {
+    name: '9router',
+    envVar: 'NINEROUTER_API_KEY',
+    url,
+    models: parseNineRouterModels(process.env.NINEROUTER_MODELS),
+    // Header khusus 9Router; diabaikan oleh proxy versi lama, jadi aman dikirim selalu.
+    extraHeaders: {
+      'HTTP-Referer': 'https://sahamlens.vercel.app',
+      'X-Title': 'SahamLens',
+      ...(promptBudget ? { 'X-Prompt-Budget': promptBudget } : {}),
+    },
+    tryFirst: process.env.NINEROUTER_PRIORITY !== 'last',
+    minTimeoutMs:
+      Number.isFinite(parsedTimeout) && parsedTimeout > 0
+        ? parsedTimeout
+        : NINEROUTER_DEFAULT_MIN_TIMEOUT_MS,
+  };
 }
 
 // Tiap entri diverifikasi manual lewat endpoint publik provider (`GET {base}/models`
@@ -218,6 +317,16 @@ function priorityRank(model: string): number {
   return idx === -1 ? MODEL_PRIORITY.length : idx;
 }
 
+// Provider dengan tryFirst (9Router) tidak bisa dinilai lewat MODEL_PRIORITY - id
+// model-nya (`cc/claude-opus-4-7`, `glm/glm-5.1`, `auto`, ...) tergantung instance
+// operator. Ditaruh di depan seluruh ranking, dan urutan antar model 9Router sendiri
+// mengikuti urutan penulisan NINEROUTER_MODELS (Array.sort() stabil di V8), sehingga
+// operator yang mau urutan tertentu cukup mengurutkan env var-nya.
+function comboRank(combo: Combo): number {
+  if (combo.kind === 'openai-compatible' && combo.provider.tryFirst) return -1;
+  return priorityRank(combo.model);
+}
+
 const GEMINI_API_KEY_ENV_VARS = [
   'GEMINI_API_KEY',
   'GEMINI_API_KEY_2',
@@ -240,7 +349,12 @@ for (const envVar of GEMINI_API_KEY_ENV_VARS) {
   );
 }
 
-for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
+const nineRouter = buildNineRouterProvider();
+const providers = nineRouter
+  ? [nineRouter, ...OPENAI_COMPATIBLE_PROVIDERS]
+  : OPENAI_COMPATIBLE_PROVIDERS;
+
+for (const provider of providers) {
   if (!process.env[provider.envVar]) continue;
 
   combos.push(
@@ -252,12 +366,14 @@ for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
   );
 }
 
-return combos.sort((a, b) => priorityRank(a.model) - priorityRank(b.model));
+return combos.sort((a, b) => comboRank(a) - comboRank(b));
 }
 export function hasAnyAIProvider(): boolean {
 if (GEMINI_API_KEY_ENV_VARS.some((envVar) => !!process.env[envVar])) {
   return true;
 }
+
+if (buildNineRouterProvider()) return true;
 
 return OPENAI_COMPATIBLE_PROVIDERS.some(
   (p) => !!process.env[p.envVar],
@@ -430,7 +546,11 @@ export async function generateAIResult(opts: { system?: string; prompt: string; 
           system,
           prompt,
           json,
-          timeoutMs,
+          // Router yang punya fallback internal (9Router) butuh lantai timeout sendiri;
+          // budget caller tetap dipakai kalau memang sudah lebih longgar. Seluruh route
+          // pemanggil AI memakai maxDuration >= 60 detik, jadi lantai ini tidak bisa
+          // menghabiskan anggaran eksekusi route.
+          Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
         );
 
     if (result.text) {
