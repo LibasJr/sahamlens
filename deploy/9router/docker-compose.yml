@@ -35,7 +35,18 @@ services:
       # update - semua akun provider yang sudah dipasang ikut hilang.
       - 9router-data:/root/.9router
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:20128/health || exit 1"]
+      # 9Router TIDAK punya endpoint /health - endpoint resminya cuma /v1/chat/completions,
+      # /v1/models, dan dashboard di "/" (diverifikasi 2026-08-13 dari README upstream;
+      # beberapa panduan pihak ketiga menyebut /health, dan itu memang 404).
+      # Dipakai "/" karena /v1/models butuh API key (REQUIRE_API_KEY=true) - status < 500
+      # sudah cukup membuktikan prosesnya hidup dan melayani HTTP.
+      # `node -e` dipakai, bukan curl/wget, karena image ini berbasis Node dan belum tentu
+      # membawa keduanya.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:20128/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
