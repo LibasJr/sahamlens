@@ -84,6 +84,13 @@ Lanjutan dari perubahan cakupan data di bawah. Tiga lapisan ditambahkan:
   `routing.numberCheck` - **pantau log `[LensAI:verify]` untuk melihat seberapa sering
   ini terjadi.** Konsekuensi biaya: pertanyaan yang gagal verifikasi memakai DUA panggilan
   AI, bukan satu.
+- **Asumsi DCF ikut dikirim ke LensAI.** Blok valuasi dulu hanya memuat nilai wajar dan
+  MoS - dua angka hasil tanpa satu pun dasar, sehingga "harga wajarnya sekian" terbaca
+  seperti pengukuran. Sekarang biaya ekuitas CAPM, risk-free + ERP, beta dan sumbernya,
+  asumsi pertumbuhan, PER*/PBV* wajar, dan metode yang benar-benar terpakai ikut dikirim.
+  Dua hal yang wajib ikut karena mudah menyesatkan: **tingkat diskonto ada DUA** (CAPM per
+  emiten untuk PBV*/PER*, tetap 12% untuk DDM & perpetuitas FCF), dan **bobot metode per
+  sektor berstatus hipotesis** yang belum divalidasi terhadap forward return.
 - **Multi-topik + pertanyaan balik.** Satu pertanyaan bisa memicu sampai 2 blok data
   tambahan ("fundamental BBCA gimana, ada berita apa?"). Pertanyaan yang terlalu pendek
   tanpa emiten dan tanpa riwayat dijawab dengan pertanyaan balik deterministik - tanpa

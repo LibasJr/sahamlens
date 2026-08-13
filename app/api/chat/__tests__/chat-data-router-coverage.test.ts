@@ -129,3 +129,56 @@ describe('blok pasar memakai data cache saat tersedia', () => {
     expect(result.verifiedBlock).toContain('BUKAN indeks');
   });
 });
+
+describe('blok valuasi menyertakan dasar angkanya, bukan cuma hasilnya', () => {
+  it('mengirim asumsi model, dua tingkat diskonto, dan status bobot sektor', async () => {
+    // Nilai wajar tanpa asumsi terbaca seperti pengukuran. Asumsi SUDAH diekspos
+    // calculateIntrinsicValue() justru supaya dasarnya sampai ke pengguna - halaman DCF
+    // memakainya, chat sebelumnya tidak.
+    vi.doMock('@/modules/fundamental', async (importOriginal) => ({
+      ...(await importOriginal<any>()),
+      calculateIntrinsicValue: vi.fn(async () => ({
+        fair_value: 12000,
+        mos: 18.5,
+        methods: { pbv: {}, ddm: {} },
+        assumptions: {
+          cost_of_equity_pct: 13.2,
+          risk_free_rate_pct: 6.7,
+          equity_risk_premium_pct: 5.2,
+          beta_used: 1.15,
+          beta_source: 'YAHOO',
+          growth_pct: 8.4,
+          perpetual_growth_pct: 3,
+          discount_rate_pct: 12,
+          fair_per: 14.2,
+          fair_pbv: 2.1,
+          fair_per_basis: 'GORDON',
+          multiples_model: 'gordon-residual-income',
+          macro_set_on: '2026-01-01',
+          sector_weights_status: 'HYPOTHESIS_NOT_VALIDATED',
+        },
+      })),
+    }));
+
+    vi.resetModules();
+    const { buildChatVerifiedData: build } = await import('../chat-data-router');
+    const result = await build({
+      intent: 'VALUATION',
+      compareScope: 'VALUATION',
+      requestedMetrics: [],
+      tickers: ['BBCA'],
+      date: currentDate,
+      prompt: 'nilai wajar BBCA berapa?',
+    } as any);
+
+    const block = result.verifiedBlock;
+    expect(block).toContain('Biaya ekuitas (CAPM per emiten): 13.20%');
+    expect(block).toContain('Beta yang dipakai: 1.15');
+    expect(block).toContain('sumber: YAHOO');
+    // Dua tingkat diskonto tidak boleh dilebur jadi satu angka.
+    expect(block).toContain('TETAP 12.00%');
+    // Bobot sektor belum divalidasi - itu harus ikut terbaca, bukan berhenti di komentar.
+    expect(block).toContain('BELUM divalidasi');
+    vi.doUnmock('@/modules/fundamental');
+  });
+});
