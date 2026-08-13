@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from '../cache/redis-local';
 
 const g = globalThis as unknown as {
   __sahamlensJobGuardRedis?: Redis;
@@ -7,10 +7,9 @@ const g = globalThis as unknown as {
 if (!g.__sahamlensLocalJobLocks) g.__sahamlensLocalJobLocks = new Set();
 
 function redisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  if (!g.__sahamlensJobGuardRedis) g.__sahamlensJobGuardRedis = new Redis({ url, token });
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  if (!g.__sahamlensJobGuardRedis) g.__sahamlensJobGuardRedis = new Redis({ url });
   return g.__sahamlensJobGuardRedis;
 }
 

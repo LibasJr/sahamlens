@@ -18,7 +18,7 @@ export const FEATURE_ENV_KEYS = {
   admin: ['ADMIN_SECRET_KEY'] as const,
   internalApi: ['INTERNAL_API_SECRET'] as const,
   cron: ['CRON_SECRET'] as const,
-  redis: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'] as const,
+  redis: ['REDIS_URL'] as const,
   qstashReceiver: ['QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY'] as const,
   qstashPublisher: ['QSTASH_TOKEN'] as const,
   brokerData: ['BROKER_DATA_API_KEY'] as const,
