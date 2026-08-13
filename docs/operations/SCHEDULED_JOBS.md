@@ -61,24 +61,55 @@ sumbernya.
 
 Arah sebaliknya yang justru konklusif: run yang MUNCUL tidak bisa diciptakan oleh skip.
 
-### Anomali: `macro` naik dari 1x/hari jadi tiap jam
+### `macro` naik dari 1x/hari jadi tiap jam - disengaja, bukan penjadwal kedua
 
 | Waktu (UTC) | Pola |
 | --- | --- |
-| 10, 11, 12 Ags - `03:00` | 1x/hari, cocok dengan `0 3 * * 1-5` yang didokumentasikan |
-| 13 Ags - `02:00` sampai `09:00` | **tiap jam, menit 00, masih berlanjut** |
+| 10, 11, 12 Ags - `03:00` | 1x/hari, cocok dengan `0 3 * * 1-5` (jadwal UTC lama) |
+| 13 Ags - `02:00` sampai `09:00` | tiap jam, menit 00 |
 
-Perubahannya mulai 2026-08-13 02:00 UTC. Karena skip hanya bisa mengurangi run, run tambahan ini
-nyata - `macro` sekarang jalan ~24x lipat dari yang tertulis. Belum diketahui apakah cadence
-QStash-nya sengaja diubah, atau ada penjadwal kedua yang ikut memanggil endpoint yang sama
-setelah migrasi. **Verifikasi `GET /v2/schedules` di QStash dan `systemctl list-timers` di VPS
-sebelum menambal apa pun** - kalau penyebabnya penjadwal kedua, mengubah cadence QStash tidak
-akan menghentikannya.
+Sempat dicatat di sini sebagai anomali yang belum dijelaskan. Penyebabnya jadwal baru yang
+ditulis saat migrasi: **`0 9-16 * * 1-5` dengan timezone Asia/Jakarta** - 09:00-16:00 WIB, yaitu
+02:00-09:00 UTC. Persis pola yang terbaca. Dikonfirmasi langsung dari layar Edit Schedule QStash:
+destination `https://sahamlens.id/api/cron/macro`, `Upstash-Method: POST`,
+`Upstash-Cron: 0 9-16 * * 1-5` TZ `Asia/Jakarta`.
+
+Dua hal yang ikut terjawab dan sebelumnya cuma bisa diduga:
+
+- **Destination QStash sudah menunjuk `sahamlens.id`**, bukan `sahamlens.vercel.app`. Ini tidak
+  bisa dibuktikan dari `job_run_log` - Vercel standby menulis ke Neon yang sama, jadi barisnya
+  akan terlihat identik. Hanya layar dashboard yang bisa menjawabnya.
+- **Tidak ada penjadwal kedua.** Hitungan 13 Ags pas dengan jadwalnya: `breakout-scan` 84
+  (7 jam x 12), `market-pulse` 84, `recommendation-scan` 28, `watchlist-alert` 28, `macro` 8.
+  Tidak ada yang melebihi jadwalnya, dan kelebihan adalah satu-satunya gejala yang tidak bisa
+  dijelaskan skip.
+
+Pelajaran yang layak disimpan: perbedaan antara "jadwal berubah" dan "ada penjadwal kedua" tidak
+bisa dijawab dari tabel run sama sekali, karena keduanya menghasilkan baris yang sama. Yang
+membedakan cuma arah simpangannya - kurang berarti skip, lebih berarti ada pemanggil lain.
 
 Catatan kecil: banyak job punya satu run tunggal di 12 Ags `14:xx` UTC (21:00 WIB) di luar
 polanya. Itu jam kerja migrasi, kemungkinan besar pemicuan manual - bukan bagian dari jadwal.
 
-## Status manifest saat ini
+## Status manifest saat ini (diperbarui 2026-08-13)
+
+**Kesembilan cadence QStash sudah `known`** - dikonfirmasi satu per satu dari layar Edit Schedule
+dashboard, dan ditulis ulang saat migrasi memakai timezone `Asia/Jakarta`, bukan UTC lagi. Semua
+destination-nya `https://sahamlens.id/api/cron/...` dengan `Upstash-Method: POST`.
+
+Sisa **tiga**, semuanya systemd:
+
+| Job | Kenapa belum |
+| --- | --- |
+| `lens-bucket-backtest` | systemd di VPS. Terbaca konsisten 10:00 UTC = 17:00 WIB. |
+| `lens-score-optimizer` | systemd di VPS. Mingguan, sampel terlalu sedikit untuk disimpulkan. |
+| `broker-summary-scan` | systemd di VPS. Terbaca 12:10 UTC = 19:10 WIB. |
+
+Ketiga job systemd itu masih memakai jam UTC warisan `vercel.json`, sementara sisi QStash sudah
+pindah ke WIB. Bukan bug - tapi kalau jam bursa bergeser, tiga job ini tidak ikut bergerak
+sendiri sementara sembilan lainnya ikut. Isi dengan `systemctl list-timers` di VPS.
+
+## Catatan lama
 
 Kedua belas job bertanda "belum terverifikasi": sembilan cadence QStash tidak tersimpan di source,
 dan tiga jadwal systemd baru berpindah dari `vercel.json` sehingga jam lamanya tidak lagi bisa

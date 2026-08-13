@@ -1056,21 +1056,34 @@ jadwal yang masih menunjuk `sahamlens.vercel.app`, itu memanggil server standby 
 daftarkan ulang, jangan biarkan dua target hidup bersamaan (dua server menulis ke database Neon
 yang sama). Verifikasi target aktual dengan `GET /v2/schedules` (perintah di bawah).
 
-Tabel berikut adalah kondisi yang tercatat pada 2026-08-05 dan **jam-nya belum diverifikasi ulang
-setelah migrasi**; `config/scheduled-jobs.json` sengaja menandai cadence QStash sebagai
-`verify-dashboard` karena tidak bisa dibuktikan dari source repo:
+**Jadwal ditulis ulang saat migrasi (2026-08-13) dan sekarang memakai `CRON_TZ=Asia/Jakarta`,
+bukan lagi ekspresi UTC.** Ini perbaikan nyata, bukan kosmetik: jadwal UTC lama tidak ikut
+bergerak kalau jam bursa digeser, dan pembaca harus mengurangi 7 jam di kepala setiap kali -
+sumber salah baca yang berulang di dokumen ini sendiri.
 
-| Endpoint | Nama job | Cron (UTC) | Setara WIB |
-|---|---|---|---|
-| `/api/cron/recommendation-scan` | `recommendation-scan` | `*/15 2-8 * * 1-5` | tiap 15 menit, 09:00-15:00 hari bursa |
-| `/api/cron/breakout-scan` | `breakout-scan` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
-| `/api/cron/market-pulse` | `market-pulse` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
-| `/api/cron/market-summary` | `market-summary` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
-| `/api/cron/ai-pick-scan` | `ai-pick-scan` | `*/5 2-9 * * 1-5` | tiap 5 menit, 09:00-16:00 hari bursa |
-| `/api/cron/watchlist-alert` | `watchlist-alert` | `*/5 2-8 * * 1-5` | tiap 5 menit, 09:00-15:00 hari bursa |
-| `/api/cron/macro` | `macro` | `0 3 * * 1-5` | 10:00 hari bursa |
-| `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 22 * * 0-4` | 05:00 hari bursa (Senin-Jumat) |
-| `/api/cron/backtest-precompute` | `backtest-precompute` | `30 22 * * 0-4` | 05:30 hari bursa (Senin-Jumat) |
+| Endpoint | Nama job | Cron (`CRON_TZ=Asia/Jakarta`) | Arti | Lama (UTC) |
+|---|---|---|---|---|
+| `/api/cron/breakout-scan` | `breakout-scan` | `*/5 9-15 * * 1-5` | tiap 5 menit, 09:00-15:59 | `*/30 2-8 * * 1-5` |
+| `/api/cron/market-pulse` | `market-pulse` | `*/5 9-15 * * 1-5` | tiap 5 menit, 09:00-15:59 | `*/15 2-8 * * 1-5` |
+| `/api/cron/ai-pick-scan` | `ai-pick-scan` | `*/15 9-16 * * 1-5` | tiap 15 menit, 09:00-16:59 | `*/30 2-8 * * 1-5` |
+| `/api/cron/recommendation-scan` | `recommendation-scan` | `*/15 9-15 * * 1-5` | tiap 15 menit, 09:00-15:59 | `*/30 2-8 * * 1-5` |
+| `/api/cron/watchlist-alert` | `watchlist-alert` | `*/15 9-15 * * 1-5` | tiap 15 menit, 09:00-15:59 | `*/15 2-8 * * 1-5` |
+| `/api/cron/macro` | `macro` | `0 9-16 * * 1-5` | tiap jam, 09:00-16:00 | `0 3 * * 1-5` (1x/hari) |
+| `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 5 * * 1-5` | 05:00 hari bursa | `0 22 * * 0-4` |
+| `/api/cron/backtest-precompute` | `backtest-precompute` | `30 5 * * 1-5` | 05:30 hari bursa | `30 22 * * 0-4` |
+| `/api/cron/market-summary` | `market-summary` | `*/5 9-15 * * 1-5` | tiap 5 menit, 09:00-15:59 | `*/5 2-8 * * 1-5` |
+
+Dua perubahan yang layak diperhatikan, karena keduanya menaikkan beban:
+
+- **`macro` naik dari 1x/hari jadi 8x/hari** (tiap jam selama jam bursa). Sempat terbaca sebagai
+  anomali di `docs/operations/SCHEDULED_JOBS.md` sebelum jadwal ini diketahui - ternyata disengaja.
+- **`breakout-scan` naik 6x lipat** (`*/30` jadi `*/5`) dan `ai-pick-scan` 2x (`*/30` jadi `*/15`).
+
+Diverifikasi terhadap `job_run_log` tanggal 2026-08-13, dan angkanya pas: `breakout-scan` 84 run
+(7 jam x 12), `market-pulse` 84, `recommendation-scan` 28, `watchlist-alert` 28, `macro` 8.
+**Tidak ada job yang jalan lebih sering dari jadwalnya**, jadi tidak ada penjadwal kedua yang ikut
+memanggil endpoint yang sama. `ai-pick-scan` 23 dari ~32 - kurang, bukan lebih, jadi itu
+`runWithJobConcurrencyGuard()` melewati run yang bertabrakan, bukan jadwal yang meleset.
 | ~~`/api/cron/broker-summary-scan`~~ | `broker-summary-scan` | ~~`30 11 * * 1-5`~~ | **PINDAH ke systemd timer di VPS** - jangan didaftarkan lagi di QStash |
 
 **Optimasi loading 2026-08-05**: `market-summary` adalah satu-satunya endpoint publik
