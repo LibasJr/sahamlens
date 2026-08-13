@@ -64,6 +64,31 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - Kontras: seluruh matriks warna, dijaga tes
+
+Laporan PageSpeed berikutnya menggagalkan lencana **hijau**, padahal yang sebelumnya
+menggagalkan yang **merah** - di halaman yang sama, tanpa ada perubahan kode di antaranya.
+Penyebabnya sederhana dan penting: hari itu IHSG naik. Lighthouse hanya memeriksa elemen
+yang **kebetulan terlihat** saat ia menjalankan halaman.
+
+Karena itu seluruh matriks dihitung sekaligus (7 warna aksen x 3 tingkat tint x 2 tema),
+dan hasilnya jauh lebih luas dari yang dilaporkan: **14 kombinasi gagal**. `warning`,
+`gold`, dan `blue` gagal di SEMUA tingkat tint di mode terang (serendah 3,74:1) dan tidak
+pernah tersampling Lighthouse sama sekali.
+
+Arah perbaikannya berlawanan di dua tema, dan itu bukan kebetulan: tint selalu menggeser
+latar ke arah warna teksnya sendiri, jadi teksnya harus menjauh - **menggelapkan di tema
+terang, mencerahkan di tema gelap**. Nilai dipilih sebagai pergeseran TERKECIL yang
+membuat ketiga peran lulus pada tint terberat, jadi warnanya nyaris tidak berubah secara
+visual.
+
+**Sekarang dijaga `__tests__/color-contrast.test.ts`** - 45 pemeriksaan atas nilai token
+langsung dari `globals.css`. Ini yang membuat perbaikannya berhenti berulang: pelanggaran
+berikutnya gagal saat `npm test`, bukan muncul sebagai screenshot pengguna berbulan-bulan
+kemudian. Tes itu **langsung membuktikan diri**: ia menangkap regresi yang muncul dari
+perbaikan ini sendiri - biru mode terang digelapkan sampai warna hover-nya jadi terlalu
+mirip (selisih luminans 0,0097), sehingga umpan balik hover praktis hilang.
+
 ### 2026-08-13 - PageSpeed lanjutan: kontras mode terang, cache aset, chunk markdown
 
 Dikerjakan dari laporan PageSpeed production yang sebenarnya (bukan pengukuran lokal).
