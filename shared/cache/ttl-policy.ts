@@ -29,8 +29,16 @@ export function getMarketAwareTtlMs(now: Date = new Date()): number {
 export function getMarketAwareCacheHeaders(now: Date = new Date()): Record<string, string> {
   const ttl = getMarketAwareTtlSec(now);
   return {
+    // `max-age=0` menahan cache BROWSER supaya harga tidak pernah basi di layar
+    // pengguna; TTL di bawah ditujukan khusus ke CDN.
     'Cache-Control': 'public, max-age=0',
-    'Vercel-CDN-Cache-Control': `public, s-maxage=${ttl}`,
+    // `CDN-Cache-Control` adalah header standar (RFC 9213) yang dibaca Cloudflare.
+    //
+    // Sebelumnya di sini `Vercel-CDN-Cache-Control` - header milik Vercel, dan sejak
+    // production pindah ke VPS di belakang Cloudflare (2026-08-13) ia tidak dibaca
+    // siapa pun. Yang tersisa cuma `max-age=0`, jadi niat caching CDN-nya mati diam-diam:
+    // tidak ada error, tidak ada gejala, cuma setiap request menembus ke origin.
+    'CDN-Cache-Control': `public, s-maxage=${ttl}`,
   };
 }
 
