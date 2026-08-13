@@ -1,11 +1,11 @@
 {
   "$schema": "./scheduled-jobs.schema.json",
   "timezone": "Asia/Jakarta",
-  "notes": "Source-of-truth inventory. Null schedules for QStash mean the exact dashboard cadence was not present in repository source and must be verified/exported from Upstash before being filled in; do not guess.",
+  "notes": "Source-of-truth inventory. Production moved to the VPS on 2026-08-12/13: vercel.json no longer carries a crons block, and it must not get one back (two schedulers would write to the same Neon database). Null schedules mean the exact cadence is not provable from repository source - QStash cadences live in the Upstash dashboard, systemd cadences live in the timer units on the VPS. Do not guess them; verify and then fill in.",
   "jobs": [
-    { "path": "/api/cron/lens-bucket-backtest", "provider": "vercel", "schedule": "0 10 * * 1-5", "scheduleStatus": "known", "source": "vercel.json" },
-    { "path": "/api/cron/lens-score-optimizer", "provider": "vercel", "schedule": "0 11 * * 0", "scheduleStatus": "known", "source": "vercel.json" },
-    { "path": "/api/cron/broker-summary-scan", "provider": "vercel", "schedule": "10 12 * * 1-5", "scheduleStatus": "known", "source": "vercel.json" },
+    { "path": "/api/cron/lens-bucket-backtest", "provider": "systemd", "schedule": null, "scheduleStatus": "verify-server", "source": "systemd timer di VPS - systemctl list-timers" },
+    { "path": "/api/cron/lens-score-optimizer", "provider": "systemd", "schedule": null, "scheduleStatus": "verify-server", "source": "systemd timer di VPS - systemctl list-timers" },
+    { "path": "/api/cron/broker-summary-scan", "provider": "systemd", "schedule": null, "scheduleStatus": "verify-server", "source": "systemd timer di VPS - systemctl list-timers" },
     { "path": "/api/cron/ai-pick-scan", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
     { "path": "/api/cron/backtest-precompute", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },
     { "path": "/api/cron/breakout-scan", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "Upstash QStash dashboard" },

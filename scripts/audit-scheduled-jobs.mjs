@@ -29,18 +29,38 @@ for (const job of jobs) {
 const duplicates = manifestPaths.filter((value, index) => manifestPaths.indexOf(value) !== index);
 if (duplicates.length) fail(`duplicate path: ${[...new Set(duplicates)].join(', ')}`);
 
+// Production pindah ke VPS 2026-08-12/13. Vercel Cron TIDAK dipakai lagi, dan blok
+// `crons` di vercel.json pernah menghidupkan penjadwal kedua yang menulis ke database
+// Neon yang sama - lihat commit 2a64988 dan bagian "Jebakan" di DEPLOYMENT.md.
 const vercel = JSON.parse(fs.readFileSync(vercelPath, 'utf8'));
-for (const cron of vercel.crons ?? []) {
-  const job = jobs.find((candidate) => candidate.path === cron.path);
-  if (!job) {
-    fail(`Vercel cron ${cron.path} tidak ada di manifest`);
-    continue;
-  }
-  if (job.provider !== 'vercel') fail(`${cron.path} provider manifest bukan vercel`);
-  if (job.schedule !== cron.schedule) fail(`${cron.path} schedule manifest berbeda dari vercel.json`);
+const vercelCrons = vercel.crons ?? [];
+
+if (vercelCrons.length) {
+  fail(
+    `vercel.json berisi ${vercelCrons.length} entri crons. Penjadwal production adalah systemd timer di VPS + QStash; ` +
+    'blok crons di vercel.json membuat Vercel ikut menjalankan job yang sama terhadap database yang sama. Hapus bloknya.'
+  );
 }
 
-const unknown = jobs.filter((job) => job.scheduleStatus === 'verify-dashboard');
+// Arah sebaliknya juga harus dijaga: manifest yang masih mengklaim provider "vercel"
+// sementara vercel.json tidak menjadwalkan apa pun adalah dokumentasi yang berbohong,
+// dan itulah yang bikin orang berikutnya salah menebak siapa penjadwalnya.
+for (const job of jobs) {
+  if (job.provider !== 'vercel') continue;
+  const cron = vercelCrons.find((candidate) => candidate.path === job.path);
+  if (!cron) {
+    fail(`${job.path} ditandai provider vercel di manifest, tapi tidak ada di vercel.json - penjadwal sebenarnya harus ditulis (systemd/qstash)`);
+    continue;
+  }
+  if (job.schedule !== cron.schedule) fail(`${job.path} schedule manifest berbeda dari vercel.json`);
+}
+
+const byProvider = (name) => jobs.filter((job) => job.provider === name).length;
+const unverified = jobs.filter((job) => job.scheduleStatus !== 'known');
 if (!process.exitCode) {
-  console.log(`[scheduled-jobs] PASS: ${routes.length} cron route tercatat; ${unknown.length} jadwal QStash masih harus diverifikasi dari dashboard.`);
+  console.log(
+    `[scheduled-jobs] PASS: ${routes.length} cron route tercatat ` +
+    `(${byProvider('systemd')} systemd di VPS, ${byProvider('qstash')} QStash, ${byProvider('vercel')} Vercel); ` +
+    `${unverified.length} jadwal masih harus diverifikasi di sumbernya.`
+  );
 }
