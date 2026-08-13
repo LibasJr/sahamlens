@@ -4,6 +4,7 @@ import {
   buildSmartAttemptOrder,
   buildNineRouterProvider,
   normalizeNineRouterUrl,
+  parseChatCompletionBody,
   __resetAIRotationForTests,
   generateAIResult,
   hasAnyAIProvider,
@@ -142,6 +143,44 @@ describe('buildCombos', () => {
 });
 
 
+describe('parseChatCompletionBody', () => {
+  const OK = JSON.stringify({ choices: [{ message: { content: 'OK' } }] });
+
+  it('membaca JSON murni seperti biasa', () => {
+    expect(parseChatCompletionBody(OK)?.choices[0].message.content).toBe('OK');
+  });
+
+  // Body persis seperti yang dikembalikan 9Router 0.5.50 di VPS produksi.
+  it('menoleransi terminator SSE "data: [DONE]" yang menempel di belakang JSON', () => {
+    expect(parseChatCompletionBody(`${OK}data: [DONE]`)?.choices[0].message.content).toBe('OK');
+    expect(parseChatCompletionBody(`${OK}\n\ndata: [DONE]\n`)?.choices[0].message.content).toBe('OK');
+  });
+
+  it('menggabungkan delta dari respons SSE penuh', () => {
+    const sse = [
+      'data: {"choices":[{"delta":{"content":"Ha"}}]}',
+      'data: {"choices":[{"delta":{"content":"lo"}}]}',
+      'data: [DONE]',
+    ].join('\n');
+    expect(parseChatCompletionBody(sse)?.choices[0].message.content).toBe('Halo');
+  });
+
+  it('satu chunk SSE rusak tidak membuang chunk lain', () => {
+    const sse = [
+      'data: {"choices":[{"delta":{"content":"A"}}]}',
+      'data: {rusak',
+      'data: {"choices":[{"delta":{"content":"B"}}]}',
+    ].join('\n');
+    expect(parseChatCompletionBody(sse)?.choices[0].message.content).toBe('AB');
+  });
+
+  it('null untuk body kosong atau yang benar-benar tidak terbaca', () => {
+    expect(parseChatCompletionBody('')).toBeNull();
+    expect(parseChatCompletionBody('   ')).toBeNull();
+    expect(parseChatCompletionBody('<html>502 Bad Gateway</html>')).toBeNull();
+  });
+});
+
 describe('9Router (proxy AI multi-provider)', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -244,6 +283,24 @@ describe('9Router (proxy AI multi-provider)', () => {
     expect(init.headers.Authorization).toBe('Bearer 9r-secret');
     expect(init.headers['X-Prompt-Budget']).toBe('smart');
     expect(JSON.parse(init.body).model).toBe('auto');
+    expect(JSON.parse(init.body).stream).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  // Regresi untuk bug yang hampir lolos ke produksi: respons 9Router yang SUKSES
+  // ditolak res.json() karena terminator SSE, lalu dihitung sebagai kegagalan.
+  it('respons 9Router dengan terminator SSE tetap terbaca sebagai jawaban', async () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-secret');
+
+    const body = JSON.stringify({ choices: [{ message: { content: 'jawaban router' } }] }) + 'data: [DONE]';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+
+    const result = await generateAIResult({ prompt: 'test', timeoutMs: 50 });
+    expect(result.text).toBe('jawaban router');
+    expect(result.errorCode).toBeNull();
 
     vi.unstubAllGlobals();
   });
