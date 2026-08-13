@@ -20,6 +20,7 @@ import { buildChatVerifiedData } from './chat-data-router';
 import { buildSystemPrompt } from './build-system-prompt';
 import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
+import { withDyor } from './dyor';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -295,6 +296,11 @@ export async function POST(request: Request) {
 
       if (!numberCheck.ok) answer += unverifiedNumbersNotice(numberCheck.unverified);
     }
+
+    // DYOR ditempel PALING AKHIR dan di server - lihat alasannya di dyor.ts. Urutannya
+    // penting: catatan angka tak tertelusur (kalau ada) lebih dulu, baru penafian, supaya
+    // peringatan yang spesifik tidak tenggelam di bawah penafian umum.
+    answer = withDyor(answer, classification.intent);
 
     return json({
       role: 'assistant',
