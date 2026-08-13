@@ -50,7 +50,10 @@ cukup dilakukan di dashboard 9Router tanpa deploy ulang SahamLens.
   langsung seperti sebelumnya, dan kalau semua gagal fallback rule-based tetap jalan.
 
 **Cara pasang di VPS**: langkah demi langkah ada di `docs/operations/9ROUTER.md`, file
-deploy siap pakai (compose + Nginx + installer) di `deploy/9router/`.
+deploy siap pakai (compose + Nginx + installer) di `deploy/9router/`. Repo ini private,
+jadi VPS tidak bisa clone tanpa token - `deploy/9router/bootstrap-9router.sh` menulis
+ketiga file itu di VPS tanpa clone. Bootstrap DIGENERATE dari ketiga file tersebut;
+kalau salah satunya diubah, generate ulang supaya tidak melenceng.
 
 **Env var baru** (Vercel: Settings -> Environment Variables, scope Production + Preview):
 

@@ -58,15 +58,38 @@ sudo ufw allow 443/tcp
 sudo ufw status          # 20128 TIDAK boleh ada di daftar
 ```
 
-## Langkah 3 - Ambil file deploy
+## Langkah 3 - Ambil file deploy ke VPS
+
+Repo SahamLens **private**, jadi VPS tidak bisa clone tanpa kredensial. Pilih salah satu:
+
+### Opsi A (disarankan) - tanpa clone, tanpa token
+
+Di VPS, buat satu file lalu tempel isi `deploy/9router/bootstrap-9router.sh` ke dalamnya:
 
 ```bash
-git clone https://github.com/LibasJr/sahamlens.git ~/sahamlens
-cd ~/sahamlens/deploy/9router
+nano ~/bootstrap-9router.sh     # tempel isinya, Ctrl+O simpan, Ctrl+X keluar
+bash ~/bootstrap-9router.sh     # menulis 3 file deploy ke ~/9router
+cd ~/9router
 ```
 
-Kalau tidak mau clone seluruh repo, cukup salin tiga file di folder itu
-(`docker-compose.yml`, `nginx-9router.conf`, `install-9router.sh`) ke VPS.
+Skrip itu tidak mengunduh apa pun dan tidak butuh sudo - isinya cuma tiga file deploy
+yang ditulis apa adanya, jadi bisa dibaca dulu sebelum dijalankan.
+
+### Opsi B - clone dengan Personal Access Token
+
+Perhatikan urutannya: `deploy/9router/` baru ada **setelah** checkout branch fiturnya,
+jadi `cd` ke folder itu harus dilakukan paling akhir.
+
+```bash
+git clone https://<GITHUB-TOKEN>@github.com/LibasJr/sahamlens.git ~/sahamlens
+cd ~/sahamlens
+git checkout claude/9router-proxy-sahajamlens-api-79iye3
+cd deploy/9router
+```
+
+Token perlu scope `repo`. Setelah selesai, hapus remote-nya (`git remote set-url origin
+https://github.com/LibasJr/sahamlens.git`) supaya token tidak tersimpan di `.git/config`
+VPS. Kalau branch ini sudah di-merge ke `main`, langkah `git checkout` tidak diperlukan.
 
 ## Langkah 4 - Jalankan installer
 
@@ -100,7 +123,8 @@ ssh -L 20128:127.0.0.1:20128 user@<IP-VPS>
 ```
 
 Biarkan terminal itu terbuka, lalu di browser buka `http://127.0.0.1:20128/dashboard`.
-Password ada di `~/sahamlens/deploy/9router/.env` di VPS (`cat .env`).
+Password ada di file `.env` sebelah installer di VPS - `cat ~/9router/.env` (Opsi A) atau
+`cat ~/sahamlens/deploy/9router/.env` (Opsi B).
 
 Di dashboard:
 
@@ -173,7 +197,7 @@ npx vercel --prod
 ## Perawatan
 
 ```bash
-cd ~/sahamlens/deploy/9router
+cd ~/9router                        # atau ~/sahamlens/deploy/9router kalau pakai Opsi B
 docker compose logs -f              # log
 docker compose pull && docker compose up -d   # update
 docker compose restart              # restart
