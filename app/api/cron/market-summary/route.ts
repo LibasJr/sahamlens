@@ -1,3 +1,4 @@
+import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
@@ -19,7 +20,7 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 // simpan ke Redis, GET /api/market-summary tinggal baca cache. TTL MARKET_SUMMARY
 // diperpanjang dari 2 -> 6 menit (shared/cache/ttl-policy.ts) supaya sinkron dengan
 // interval cron 5 menit ini + buffer keterlambatan run, sama seperti pola MARKET.
-const CACHE_KEY = 'sahamlens:cache:computed:market-summary';
+const CACHE_KEY = `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`;
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');

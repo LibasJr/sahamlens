@@ -1,3 +1,4 @@
+import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
@@ -115,12 +116,12 @@ export async function GET(
     const rangeParam = requestUrl.searchParams.get('range');
     const range = rangeParam && ALLOWED_RANGES.has(rangeParam) ? rangeParam : '20y';
 
-    const cacheKey = `sahamlens:cache:computed:technical:${ticker}:${range}`;
+    const cacheKey = `sahamlens:cache:computed:technical:${COMPUTED_CACHE_VERSION}:${ticker}:${range}`;
     // Key kedua, TTL jauh lebih panjang - HANYA dibaca kalau fetch Yahoo gagal
     // (lihat blok catch di bawah). Mempertahankan perilaku lama: lebih baik
     // sajikan data basi (bisa >3 menit) daripada error keras saat Yahoo down,
     // yang hilang kalau cuma mengandalkan TTL pendek cacheKey di atas.
-    const staleFallbackKey = `sahamlens:cache:computed:technical-stale-fallback:${ticker}:${range}`;
+    const staleFallbackKey = `sahamlens:cache:computed:technical-stale-fallback:${COMPUTED_CACHE_VERSION}:${ticker}:${range}`;
 
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
