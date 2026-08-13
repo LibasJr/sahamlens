@@ -122,8 +122,18 @@ sudo cloudflared tunnel ingress validate     # wajib lolos sebelum restart
 sudo systemctl restart cloudflared
 ```
 
-**Kalau dikelola dashboard** (kasus SahamLens): Cloudflare Zero Trust -> Networks ->
-Tunnels -> `sahamlens-prod` -> Public Hostnames -> **Add a public hostname**:
+**Kalau dikelola dashboard** (kasus SahamLens - cloudflared dijalankan dengan token di
+`/etc/cloudflared/token`, jadi seluruh konfigurasi rute ada di Cloudflare, bukan di VPS):
+
+[one.dash.cloudflare.com](https://one.dash.cloudflare.com) -> **Networks** -> **Tunnels**
+-> `sahamlens-prod` -> tab **Published application routes** -> Add.
+
+Cloudflare mengganti nama bagian ini beberapa kali (dulu "Public Hostnames"); per
+2026-08-13 labelnya "Published application routes". Kalau tidak ketemu, cari tab yang
+BUKAN "Hostname routes" - yang itu untuk private network lewat WARP, bukan publikasi ke
+internet.
+
+Isi formnya:
 
 | Field | Isi |
 | --- | --- |
