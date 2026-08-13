@@ -1,47 +1,97 @@
 # SahamLens - Deployment Notes
 
 Catatan ini buat siapa pun/AI apa pun (Gemini, Cursor, Claude, dst) yang lanjutin kerjaan deploy
-atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel (2026-07-29).
+atau pembaruan program di project ini. Dimulai setelah deploy pertama ke Vercel (2026-07-29);
+**production pindah ke VPS sendiri pada 2026-08-12/13 dan sejak itu deploy-nya otomatis dari
+GitHub Actions.**
+
+## Baca ini dulu: 6 kalimat yang menentukan segalanya
+
+1. **Production = VPS sendiri**, bukan Vercel. Domain `sahamlens.id`.
+2. **Deploy = push ke `main`.** GitHub Actions (`.github/workflows/deploy-vps.yml`) jalan
+   setelah CI hijau, SSH ke VPS, dan menjalankan skrip `deploy` di sana. Tidak ada
+   `vercel --prod`, tidak ada langkah manual.
+3. **Env var production ada di `/opt/sahamlens/app/.env.production` di VPS**, bukan di
+   dashboard Vercel. Menambah env var di Vercel tidak berpengaruh apa pun ke pengguna.
+4. **Cron dijalankan dari dua tempat**: 9 job lewat QStash, 3 job lewat systemd timer di VPS.
+   `vercel.json` sengaja **tidak boleh** berisi blok `crons` lagi (alasannya di bawah).
+5. **Vercel masih hidup sebagai standby** dan tetap ikut build tiap push - tapi tidak
+   melayani pengguna dan tidak boleh menjalankan job terjadwal apa pun.
+6. Kalau menemukan instruksi lama bernuansa "set env di Vercel / `npx vercel ls` / `vercel --prod`",
+   itu **catatan historis**, bukan perintah yang berlaku.
 
 ## Aturan wajib saat ada perubahan
 
 - **Setiap perubahan kode/config/dependency/job/deployment harus ikut memperbarui `DEPLOYMENT.md`
-  bila berdampak ke cara build, deploy, env var, cron/QStash, smoke test, cache, gating akses,
-  atau jebakan operasional.**
+  bila berdampak ke cara build, deploy, env var, cron/QStash/systemd, smoke test, cache, gating
+  akses, atau jebakan operasional.**
 - Kalau perubahan murni UI/logic kecil dan tidak mengubah cara deploy, tetap tambahkan catatan
-  singkat di bagian "Log perubahan deployment" kalau commit itu sudah dipush ke production/main.
+  singkat di bagian "Log perubahan deployment" kalau commit itu sudah dipush ke `main`.
+- **Env var baru = dua langkah, dan langkah keduanya tidak otomatis.** Menambahkan nama var ke
+  kode/`.env.example` TIDAK membuatnya ada di production. Var itu harus ditulis manual ke
+  `/opt/sahamlens/app/.env.production` di VPS, lalu `sudo systemctl restart sahamlens`.
+  Auto-deploy tidak pernah menyentuh file itu. Tulis var baru di dokumen ini supaya
+  orang/agen berikutnya tahu apa yang harus dipasang di server.
+- **Jadwal cron baru juga tidak otomatis.** Push kode route `/api/cron/*` hanya membuat
+  endpoint-nya ada. Jadwalnya harus didaftarkan sendiri - ke QStash (curl) atau sebagai
+  systemd timer di VPS - dan dicatat di `config/scheduled-jobs.json` (`npm run audit:cron`
+  akan gagal kalau manifest drift).
+- **Jangan mengembalikan blok `crons` ke `vercel.json`.** Lihat "Jebakan" di bawah.
 - Jangan mengandalkan ingatan percakapan AI. Keputusan operasional yang penting harus tertulis
   di dokumen ini supaya agen berikutnya tidak mengulang jebakan lama.
 
 ## Status live
 
-> **PENTING (diverifikasi 2026-08-13 langsung di server): production SUDAH TIDAK di
-> Vercel.** Aplikasi dilayani dari VPS sendiri. Seluruh bagian di bawah yang menyebut
-> Vercel sebagai target deploy adalah catatan historis - JANGAN diikuti sebagai instruksi
-> tanpa memeriksa ulang. Topologi yang berlaku sekarang:
->
-> | Komponen | Kenyataan di server |
-> | --- | --- |
-> | Domain | `sahamlens.id`, `www.sahamlens.id`, `vps.sahamlens.id` |
-> | Masuknya trafik | Cloudflare Tunnel `sahamlens-prod` (token di `/etc/cloudflared/token`), rute di Zero Trust -> Published application routes -> `http://localhost:80` |
-> | Web server | Nginx, `/etc/nginx/sites-available/sahamlens`, `proxy_pass http://127.0.0.1:3001` |
-> | Aplikasi | systemd `sahamlens.service` ("SahamLens Next.js Production"), `User=lens`, `WorkingDirectory=/opt/sahamlens/app`, `ExecStart=/usr/bin/npm start` (next start -p 3001) |
-> | Env var | `EnvironmentFile=/opt/sahamlens/app/.env.production` (+ 3 baris `Environment=` inline di unit) |
-> | Sumber kode | git checkout di `/opt/sahamlens/app`, branch `main`, remote `github.com/LibasJr/sahamlens` |
-> | Port masuk | tidak ada yang dibuka ke internet - cloudflared connect keluar |
->
-> Deploy = `git pull` di `/opt/sahamlens/app`, lalu `npm ci && npm run build`, lalu
-> `sudo systemctl restart sahamlens`. Env var baru cukup ditambahkan ke `.env.production`
-> lalu restart; `next start` membaca env server-side saat runtime.
+Diverifikasi langsung di server 2026-08-13.
 
-- **Production URL (historis, era Vercel)**: https://sahamlens.vercel.app
-  (2026-08-03: pindah dari `trading-three-liard.vercel.app`. Kalau menemukan URL lama di
-  catatan/skrip lain, itu sudah usang.)
-- **Vercel project**: `libas/trading` (projectId `prj_buCsXaT6sXen6LwAmeMcNLCBkYSO`, orgId `team_L8xvUeG8WKjNY8R0o9h8k8wE` - lihat `.vercel/project.json`)
-- **GitHub**: `github.com/LibasJr/sahamlens`, branch `main`, sudah di-connect ke project Vercel di atas lewat `vercel link`.
-- Vercel CLI di mesin dev sudah login sebagai akun `libasjr`. Kalau sesi expired, perlu `npx vercel login` ulang (device auth flow, buka browser).
+| Komponen | Kenyataan di server |
+| --- | --- |
+| Domain | `sahamlens.id`, `www.sahamlens.id`, `vps.sahamlens.id` |
+| Masuknya trafik | Cloudflare Tunnel `sahamlens-prod` (token di `/etc/cloudflared/token`), rute di Zero Trust -> Published application routes -> `http://localhost:80` |
+| Web server | Nginx, `/etc/nginx/sites-available/sahamlens`, `proxy_pass http://127.0.0.1:3001` |
+| Aplikasi | systemd `sahamlens.service` ("SahamLens Next.js Production"), `User=lens`, `WorkingDirectory=/opt/sahamlens/app`, `ExecStart=/usr/bin/npm start` (next start -p 3001) |
+| Env var | `EnvironmentFile=/opt/sahamlens/app/.env.production` (+ 3 baris `Environment=` inline di unit) |
+| Sumber kode | git checkout di `/opt/sahamlens/app`, branch `main`, remote `github.com/LibasJr/sahamlens` |
+| Cache | Redis lokal di VPS (`REDIS_URL`), bukan Upstash Redis lagi (migrasi 2026-08-13, commit `69b93ce`) |
+| Database | Postgres Neon - tetap eksternal, tidak ikut pindah ke VPS |
+| Port masuk | tidak ada yang dibuka ke internet - cloudflared connect keluar |
+
+**Vercel hari ini**: project `libas/trading` masih terhubung ke repo dan masih ikut build tiap
+push ke `main`, jadi ia selalu berisi kode terbaru sebagai standby. Tapi ia **tidak melayani
+trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan cron**. URL
+lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
+test production.
 
 ## Log perubahan deployment
+
+### 2026-08-13 - Dokumen ini ditulis ulang untuk jalur VPS + auto-deploy
+
+Tidak ada perubahan perilaku aplikasi. Yang diperbaiki adalah dokumennya sendiri: sebelumnya
+seluruh instruksi operasional masih berbentuk "deploy ke Vercel", dengan satu blok peringatan
+di atas yang menyatakan production sudah pindah. Bentuk itu berbahaya - pembaca yang melompat
+ke bagian yang dibutuhkannya (env var, cron, deploy ulang) mendapat instruksi Vercel tanpa
+pernah melihat peringatannya.
+
+- Bagian "Cara deploy" ditulis ulang: **jalur utama = push ke `main`**, rantai
+  CI -> Deploy VPS -> SSH -> skrip `deploy`. Jalur manual di VPS diturunkan statusnya menjadi
+  prosedur darurat, lengkap dengan perintah diagnosa (`journalctl`, `systemctl`) dan rollback.
+- Bagian env var berpindah dari "yang di-set di Vercel" ke `/opt/sahamlens/app/.env.production`,
+  dengan penegasan bahwa **auto-deploy tidak pernah menulis file itu** - env var baru selalu
+  butuh langkah manual di server plus restart.
+- `UPSTASH_REDIS_REST_URL/TOKEN` dipindah ke daftar LEGACY dan diganti `REDIS_URL` (menyusul
+  migrasi cache ke Redis VPS, `69b93ce`). `.env.example` dan komentar di
+  `shared/cache/redis-cache.ts` ikut disesuaikan - keduanya masih menyebut Upstash.
+- Bagian cron dipisah tegas: 3 job systemd timer di VPS, 9 job QStash, 0 Vercel Cron. Jam
+  systemd sengaja TIDAK disalin dari `vercel.json` lama karena jam sebenarnya hidup di server.
+- Dua jebakan baru dinaikkan ke bagian Jebakan: `vercel.json` yang tidak boleh berisi `crons`
+  lagi, dan keharusan memastikan siapa penjadwal sebuah route sebelum mengubah handler-nya.
+- Jebakan lama yang khusus era `vercel --prod` (folder `mobile/`, `.vercelignore`) ditandai
+  HISTORIS alih-alih dihapus.
+- `config/scheduled-jobs.json`: tiga job yang masih mengklaim `provider: "vercel"` dengan
+  `source: "vercel.json"` dikoreksi menjadi `systemd` + `verify-server`. Klaim lama itu sudah
+  salah sejak `2a64988` menghapus blok `crons`, dan `npm run audit:cron` meloloskannya karena
+  hanya memeriksa satu arah (vercel.json -> manifest). Audit sekarang memeriksa dua arah dan
+  **gagal kalau `vercel.json` berisi blok `crons` sama sekali**.
 
 ### 2026-08-13 - 9Router: satu endpoint proxy untuk banyak AI di cascade LensAI
 
@@ -656,55 +706,150 @@ karena sudah masuk `main`/production (commit `91a2c05`, `8726ed7`, `b9b345b`).
   - `/api/daily-picks` harus tetap respons, termasuk kategori `relativeStrength`.
   - `/breakout-radar` harus tetap render walau setup TP/CL null untuk sebagian saham.
 
-## Cara deploy ulang setelah ubah kode
+## Cara deploy (jalur utama: otomatis dari push)
 
-1. Pastikan lolos check dulu sebelum push/deploy:
+**Deploy production TIDAK dilakukan manual.** Satu-satunya jalur normal adalah push ke `main`.
+
+1. Lolos check dulu di lokal - sama persis dengan yang dijalankan CI, jadi kegagalan
+   ketahuan sebelum masuk antrean deploy:
    ```
-   npx tsc --noEmit -p tsconfig.json
+   npm run typecheck
+   npm run lint
+   npm test
    npm run build
    ```
-2. Commit & push ke `main` seperti biasa. **Auto-deploy dari push TERKONFIRMASI jalan
-   sendiri** (diverifikasi 2026-08-03: dua push berturut-turut masing-masing memicu
-   deployment Production baru tanpa perintah manual apa pun). Cukup tunggu dan pantau:
-   ```
-   npx vercel ls
-   ```
-   Deployment baru muncul berstatus `● Building` dalam hitungan detik setelah push, lalu
-   `● Ready` sekitar 2 menit kemudian.
-3. Deploy manual **hanya kalau** setelah beberapa menit tidak ada deployment baru di
-   `npx vercel ls`:
-   ```
-   npx vercel --prod --yes
-   ```
-4. Smoke test setelah deploy (ganti URL kalau domain berubah) - **DIPERBARUI 2026-08-03**:
-   cookie contoh lama (`role=admin`, `sahamlens_demo_session=...` buatan tangan) sudah tidak
-   berlaku - session sekarang JWT bertanda tangan (`shared/auth/session.ts`), tidak bisa
-   dipalsukan lewat `-H "Cookie: ..."` biasa. Smoke test tanpa login (anonymous trial otomatis
-   aktif untuk sebagian besar fitur, lihat bagian "Gating akses" di bawah):
-   ```
-   curl -s -o /dev/null -w "%{http_code}\n" https://sahamlens.vercel.app/
-   curl -s -o /dev/null -w "%{http_code}\n" https://sahamlens.vercel.app/technical/DGWG.JK
-   curl -s "https://sahamlens.vercel.app/api/screener?profile=Moderat" | head -c 300
-   ```
-   Buat smoke test jalur admin: buka `https://sahamlens.vercel.app/admin-login/key?key=<ADMIN_SECRET_KEY>`
-   di browser (bukan curl - butuh redirect + cookie httpOnly tersimpan di browser), baru lanjut
-   ke `/admin` atau menu Pro-gated lainnya.
+2. Commit & push ke `main` (lewat PR atau langsung). Sisanya berjalan sendiri:
 
-   Waktu respons acuan (diukur 2026-08-03, setelah deploy AI Pick satu tab):
+   ```
+   push ke main
+     -> workflow "CI" (.github/workflows/ci.yml): typecheck + lint + test, lalu build
+     -> workflow "Deploy VPS" (.github/workflows/deploy-vps.yml) - dipicu workflow_run
+        HANYA kalau CI conclusion == success DAN head_branch == main
+     -> SSH ke VPS sebagai user `lens`, menjalankan satu perintah: `deploy`
+     -> production hidup dengan kode baru
+   ```
 
-   | Endpoint | Waktu | Catatan |
-   |---|---|---|
-   | `/breakout-radar` | 0,28 s | halaman AI Pick, murni baca cache |
-   | `/` | 0,80 s | |
-   | `/api/ai-pick` | 0,97 s | murni baca cache |
-   | `/api/daily-picks` | 3,77 s | paling lambat - `getMarketSummary()` atas 250 saham, dipakai widget beranda |
+   Yang perlu diketahui tentang rantai ini:
+   - **CI merah = tidak ada deploy.** Itu memang gerbangnya. Jangan akali dengan deploy manual;
+     perbaiki dulu penyebab merahnya.
+   - Job `build` di CI ber-`continue-on-error: true` (butuh secret `JWT_SECRET_KEY`/`DATABASE_URL`),
+     jadi **CI bisa "success" walaupun build gagal** - dan itu tetap memicu Deploy VPS. Build yang
+     menentukan terjadi di server. Ini kenapa langkah 1 tidak boleh dilewat: `npm run build`
+     yang merah di lokal akan merah juga di VPS, tapi baru ketahuan setelah deploy jalan.
+   - **Skrip `deploy` ada di VPS, bukan di repo** - sebuah executable di PATH user `lens`
+     (mis. `/usr/local/bin/deploy`). Isinya tidak ikut ter-review di repo ini; kalau perlu tahu
+     persis apa yang dijalankannya, baca file itu di server. Kalau step SSH keluar dengan kode
+     127 artinya skrip itu hilang/tidak executable - alias di `~/.bashrc` TIDAK berlaku untuk
+     SSH non-interaktif.
+   - Kalau skrip itu gagal di tengah jalan, workflow ikut merah dengan kode exit skripnya
+     (bukan 255) - artinya masalahnya **di server**, bukan di koneksi. Jangan asumsikan
+     production sudah ter-update: cek `journalctl -u sahamlens` dan commit yang aktif di
+     `/opt/sahamlens/app`.
+   - `concurrency: sahamlens-production-vps` dengan `cancel-in-progress: false` - dua push
+     berdekatan dideploy berurutan, tidak saling membunuh.
+3. Pantau di tab **Actions** repo GitHub (`CI` lalu `Deploy VPS`). Langkah SSH sengaja
+   menerjemahkan exit code jadi kalimat (127 / 255 / lainnya), jadi baca pesan errornya -
+   jangan menebak.
+4. Smoke test setelah "Deploy VPS" hijau. Session adalah JWT bertanda tangan
+   (`shared/auth/session.ts`), jadi cookie tidak bisa dipalsukan lewat `-H "Cookie: ..."`;
+   smoke test tanpa login memang cukup karena anonymous trial aktif otomatis (lihat "Gating akses"):
+   ```
+   curl -s -o /dev/null -w "%{http_code}\n" https://sahamlens.id/
+   curl -s -o /dev/null -w "%{http_code}\n" https://sahamlens.id/technical/DGWG.JK
+   curl -s "https://sahamlens.id/api/screener?profile=Moderat" | head -c 300
+   curl -s https://sahamlens.id/api/health
+   ```
+   Jalur admin harus lewat browser (butuh redirect + cookie httpOnly):
+   `https://sahamlens.id/admin-login/key?key=<ADMIN_SECRET_KEY>`, baru buka `/admin`.
 
-   Request pertama setelah deploy selalu lebih lambat karena cold start lambda; ukur yang
-   kedua kalau mau angka yang mewakili.
+### Jalur darurat (manual di VPS) - hanya kalau GitHub Actions tidak bisa dipakai
+
+Pakai ini kalau Actions sedang down, secret SSH rusak, atau perlu rollback cepat. Bukan
+kebiasaan harian - kalau dipakai, catat alasannya di "Log perubahan deployment".
+
+```bash
+ssh lens@<VPS_HOST>
+cd /opt/sahamlens/app
+git pull
+npm ci
+npm run build
+sudo systemctl restart sahamlens
+```
+
+Bisa juga jalankan ulang deploy tanpa commit baru: buka Actions -> **Deploy VPS** ->
+**Run workflow** (`workflow_dispatch`). Ini melewati gerbang CI, jadi pastikan `main` memang sehat.
+
+Perintah diagnosa di server:
+
+```bash
+systemctl status sahamlens
+journalctl -u sahamlens -n 200 --no-pager     # log aplikasi (pengganti Vercel Functions log)
+journalctl -u sahamlens -f                    # ikuti live
+sudo nginx -t && systemctl status nginx
+systemctl list-timers | grep -i sahamlens     # cek cron systemd
+```
+
+Rollback: `git -C /opt/sahamlens/app checkout <commit-lama> && npm ci && npm run build &&
+sudo systemctl restart sahamlens`. Ingat bahwa checkout ke commit lama membuat server berada
+di detached HEAD - deploy otomatis berikutnya (`git pull`) bisa gagal sampai dikembalikan ke
+`main`. Rollback yang lebih bersih: `git revert` di GitHub, biarkan pipeline yang menerbitkannya.
+
+### Secret GitHub yang dipakai pipeline
+
+Di Settings -> Secrets and variables -> Actions. Kalau salah satu hilang, "Deploy VPS" gagal di
+langkah pertama dengan pesan yang menyebut nama secret-nya (langkah itu sengaja hanya mencetak
+ada/tidak, tidak pernah nilainya).
+
+| Secret | Wajib | Isi |
+| --- | --- | --- |
+| `VPS_SSH_KEY_B64` | ya (salah satu) | Private key OpenSSH milik deploy user, di-base64: `base64 -w0 < ~/.ssh/id_ed25519`. **Disarankan** - secret multi-baris gampang rusak akhiran barisnya. |
+| `VPS_SSH_KEY` | ya (salah satu) | Alternatif: isi private key mentah, termasuk baris BEGIN/END. Bukan `.pub`, bukan `.ppk`, dan tidak boleh ber-passphrase (BatchMode tidak bisa mengetiknya). |
+| `VPS_KNOWN_HOSTS` | ya | Keluaran `ssh-keyscan -p <PORT> <HOST>`. **Berubah kalau server dibangun ulang** - kalau tiba-tiba semua deploy gagal exit 255 setelah server diutak-atik, curigai ini dulu. |
+| `VPS_HOST` | ya | Host/IP VPS. |
+| `VPS_PORT` | tidak | Kosong = 22. |
+| `JWT_SECRET_KEY`, `DATABASE_URL`, `ADMIN_SECRET_KEY` | tidak | Hanya untuk job `build` di CI (yang `continue-on-error`). Tidak ada hubungannya dengan env production - itu ada di `.env.production` di VPS. |
+
+Kunci publik pasangan `VPS_SSH_KEY*` harus ada di `~lens/.ssh/authorized_keys` di VPS.
 
 ## ⚠️ Jebakan yang sudah pernah bikin deploy gagal
 
-**Folder `mobile/` (React Native app terpisah, ~469MB) bikin deploy CLI gagal** dengan error
+**Jangan kembalikan blok `crons` ke `vercel.json`** (kejadian 2026-08-12, commit `2a64988`).
+Cron sudah dipindah ke VPS dan dihapus dari dashboard Vercel - tapi muncul lagi sendiri, karena
+Vercel Cron BUKAN state dashboard: ia dibaca ulang dari `vercel.json` **setiap deployment**, dan
+Vercel masih auto-deploy tiap push ke `main`. `CRON_SECRET` juga masih ada di environment Vercel,
+persis header yang dikirim Vercel Cron - jadi dua job (`lens-bucket-backtest`,
+`lens-score-optimizer`) benar-benar lolos otentikasi dan menulis ke database Neon yang sama
+dengan VPS. Yang berbahaya `lens-score-optimizer`: dua run atas data identik menghasilkan dua
+proposal bobot, dan halaman kalibrasi membaca "proposal terbaru". `vercel.json` sekarang hanya
+berisi `$schema`, dan itu memang isinya yang benar.
+
+**Kalau menambah/mengubah cron, tanya dulu penjadwalnya siapa** (kejadian 2026-08-12, commit
+`8dfbe94` lalu diperbaiki `72034df`). Ada yang mengganti handler `GET` jadi `POST`-only + verifikasi
+signature QStash pada `lens-bucket-backtest` dan `lens-score-optimizer`, dengan asumsi QStash sudah
+jadi satu-satunya penjadwal. Kenyataannya 9 job di QStash dan **3 job di systemd timer** - dan dua
+job itu termasuk yang systemd. Akibatnya systemd dapat 405 dan job mati **tanpa jejak di aplikasi**:
+Bucket Backtest cuma berhenti ter-update, proposal bobot cuma berhenti muncul. Pola yang benar
+sudah ada di repo: `GET` + `CRON_SECRET` untuk systemd, `POST` + signature untuk QStash, dua-duanya
+hidup berdampingan di route yang sama.
+
+**`output: 'standalone'` di `next.config.mjs` - guard `process.env.VERCEL` jangan dihapus.**
+Riwayatnya: opsi ini ditambahkan untuk `Dockerfile`, dan sempat membuat 4 deploy Production
+Vercel gagal berturut-turut (~7 jam, 2026-08-05) karena mode standalone melewatkan
+`.next/next-server.js.nft.json` yang dibaca pipeline Vercel setelah `next build` selesai - build
+sukses penuh, lalu `ENOENT` di step terakhir. Fix-nya `output: process.env.VERCEL ? undefined : 'standalone'`.
+**Yang berubah setelah pindah VPS**: di VPS `VERCEL` tidak di-set, jadi build production
+SEKARANG selalu standalone, sementara systemd menjalankan `npm start` (`next start -H 0.0.0.0 -p 3001`).
+Kombinasi itulah yang berjalan di production hari ini. Kalau mengubah `output` atau perintah
+start, verifikasi langsung di server (`systemctl status sahamlens` + `curl localhost:3001`),
+jangan mengandalkan build lokal saja.
+
+---
+
+Dua jebakan berikut berasal dari era deploy Vercel lewat CLI. **Sudah tidak relevan untuk jalur
+deploy sekarang** (VPS build sendiri dari git checkout, tidak ada upload working directory),
+disimpan sebagai riwayat:
+
+**[HISTORIS - era Vercel CLI] Folder `mobile/` (React Native app terpisah, ~469MB) bikin deploy CLI gagal** dengan error
 `File size limit exceeded (100 MB)`. Penyebab: `mobile/android/.gradle/.../executionHistory.bin`
 (141MB) dan `mobile/android/app/build/outputs/apk/release/app-release.apk` (66MB) - keduanya
 sudah di-`.gitignore` (gak ke-push ke GitHub), TAPI `vercel --prod` CLI meng-upload dari working
@@ -714,53 +859,51 @@ Fix-nya sudah ada di `.vercelignore` (root repo) yang exclude `mobile/` + bebera
 **Jangan hapus/skip `.vercelignore` ini**, dan kalau nambah folder besar baru yang gak perlu
 ikut ke-deploy, tambahkan di sana juga.
 
-**`output: 'standalone'` di `next.config.mjs` BIKIN DEPLOY VERCEL GAGAL** (ditemukan 2026-08-05,
-setelah 4 deploy Production berturut-turut gagal ~7 jam). Opsi ini ditambahkan buat `Dockerfile`
-(jalur self-host, BUILD 010) dengan komentar yang KELIRU bilang "tidak memengaruhi Vercel" - untuk
-Next.js 16 + Turbopack, mode standalone melewatkan `.next/next-server.js.nft.json` yang justru
-dibaca pipeline build Vercel sendiri setelah `next build` selesai, jadi build sukses penuh
-(compile+typecheck+prerender lolos semua) lalu tetap gagal `ENOENT` di step terakhir. Fix: gated
-lewat `output: process.env.VERCEL ? undefined : 'standalone'` (Vercel set `VERCEL=1` otomatis,
-Dockerfile tidak) - **kalau mengubah `next.config.mjs` lagi, jangan hapus guard `process.env.VERCEL`
-ini** kecuali sudah verifikasi ulang lewat `npx vercel ls` bahwa deploy tetap Ready.
+---
 
 **`eslint-config-next` versi harus align sama `eslint`** - upgrade Next.js 14→16 (2026-08-04) naikin
 `eslint-config-next` ke `^16.3.0` yang butuh peer `eslint@>=9`, tapi `eslint` devDependency dibiarkan
-`^8.57.0`. Vercel selalu install bersih (tanpa cache `node_modules` lokal), jadi `npm install`
-ERESOLVE-fail keras di sana meskipun mesin dev lokal masih punya install lama yang "kelihatan" jalan.
+`^8.57.0`. **Masih relevan di jalur VPS**: CI (`npm ci`) dan VPS sama-sama install bersih tanpa
+cache `node_modules` lokal, jadi resolusi peer-dep gagal keras di sana meskipun mesin dev lokal
+masih punya install lama yang "kelihatan" jalan.
 Fix sementara: root `.npmrc` isi `legacy-peer-deps=true`. **Perbaikan jangka panjang yang lebih
 benar**: upgrade `eslint` ke `^9` + migrasi `.eslintrc.json` ke flat config `eslint.config.mjs`
 (ESLint 9 default-nya tidak baca `.eslintrc.*` lagi) - belum dikerjakan, `.npmrc` cuma nge-relax
 resolusi peer-dep, bukan benerin akar masalahnya.
 
-## Environment variables yang sudah di-set di Vercel (Production)
+## Environment variables production (di VPS, bukan di Vercel)
 
-**REWRITE TOTAL (audit BUILD 002, 2026-08-03)** - tabel dan seluruh bagian di bawah ini
-sebelumnya menjelaskan arsitektur Telegram-login + fake-Supabase-shim + JSON lokal yang
-**SUDAH DIGANTI TOTAL** oleh restrukturisasi DDD (2026-07-31): auth sekarang email/password
-(JWT session, `shared/auth/session.ts`), storage sekarang Postgres (Neon) beneran lewat `pg`
-(bukan file JSON/shim), cache Redis (Upstash) beneran, cron lewat QStash beneran. Isi
-sebelumnya dibuang total (bukan ditambal) karena hampir semua file yang dirujuk (`lib/auth.ts`,
-`lib/constants.ts`, `lib/dbLocal.ts`, `lib/supabase.ts`, `lib/supabaseClient.ts`, `lib/cache.ts`,
-`components/TelegramLogin.tsx`, `modules/user/service/telegram-auth.service.ts`,
-`app/api/auth/telegram`, `app/api/watchlist/migrate`) **sudah tidak ada di repo sama sekali**
-(diverifikasi lewat `ls`/`grep` sebelum ditulis ulang, bukan asumsi).
+**Sumber kebenaran env production = `/opt/sahamlens/app/.env.production` di VPS**
+(dibaca systemd lewat `EnvironmentFile=`, plus 3 baris `Environment=` inline di unit).
+`next start` membaca env server-side saat runtime, jadi menambah var **tidak perlu build ulang** -
+cukup restart:
 
-Set lewat `printf '%s' "$VALUE" | npx vercel env add NAME production` (ganti `production` jadi
-`preview` buat scope satunya). Cek status: `npx vercel env ls production`.
+```bash
+sudo nano /opt/sahamlens/app/.env.production     # tambah/ubah var
+sudo systemctl restart sahamlens
+journalctl -u sahamlens -n 50 --no-pager         # pastikan naik bersih
+```
 
-Dikelompokkan REQUIRED / OPTIONAL / LEGACY (audit BUILD 002) - diverifikasi lewat `vercel env ls`
-+ grep pemakaian di source tanggal 2026-08-03:
+Auto-deploy **tidak pernah menulis file ini**. Jadi kalau fitur baru butuh env var, deploy-nya
+sukses tapi fiturnya mati sampai ada orang yang menambahkannya di server secara manual.
+
+Env var di dashboard Vercel **tidak berpengaruh ke pengguna** (Vercel cuma standby). Perintah
+`npx vercel env add/ls` di bawah ini hanya relevan kalau ada alasan khusus mengurus standby itu;
+untuk production, edit `.env.production`.
+
+Klasifikasi REQUIRED / OPTIONAL / LEGACY di bawah berasal dari audit BUILD 002 (2026-08-03,
+grep pemakaian di source) dan diperbarui saat migrasi VPS:
 
 **REQUIRED** (app tidak berfungsi penuh tanpa ini):
 | Var | Dipakai untuk |
 |---|---|
-| `DATABASE_URL` (+ alias Neon lain: `POSTGRES_URL`, `PGHOST`, dst - lihat catatan di bawah) | Postgres (Neon) - portfolio, watchlist, alert, macro_indicators, job_run_log, lens_bucket_stats. Kode HANYA baca `DATABASE_URL` (`shared/config/env.ts`) - var Neon lain (`POSTGRES_URL_NON_POOLING`, `PGHOST_UNPOOLED`, dst, ada belasan) di-inject otomatis oleh integrasi Neon-Vercel, tidak dibaca kode manapun, aman dibiarkan (bukan sampah manual, punya integrasi). |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Cache (`shared/cache/redis-cache.ts`) - kalau kosong, semua fungsi cache degrade aman ke cache-miss (tidak crash), tapi performa jauh lebih lambat & Yahoo Finance kena request lebih sering. |
+| `DATABASE_URL` | Postgres (Neon, tetap eksternal) - portfolio, watchlist, alert, macro_indicators, job_run_log, lens_bucket_stats. Kode HANYA baca `DATABASE_URL` (`shared/config/env.ts`). Var alias Neon lain (`POSTGRES_URL_NON_POOLING`, `PGHOST_UNPOOLED`, dst) dulu di-inject otomatis oleh integrasi Neon-Vercel; di VPS tidak ada yang meng-inject apa pun, dan tidak ada kode yang membacanya. |
+| `REDIS_URL` | Cache (`shared/cache/redis-cache.ts` lewat klien `shared/cache/redis-local.ts`). **Sejak 2026-08-13 Redis jalan di VPS**, bukan Upstash REST lagi - `UPSTASH_REDIS_REST_URL`/`TOKEN` sudah tidak dibaca kode manapun. Kalau `REDIS_URL` kosong/Redis mati, semua fungsi cache degrade aman ke cache-miss (tidak crash), tapi jauh lebih lambat & Yahoo Finance kena request lebih sering. Cek cepat: `curl -s localhost:3001/api/health`. |
 | `QSTASH_TOKEN` / `QSTASH_URL` / `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` | Cron scheduler QStash untuk mayoritas job lama, lihat bagian "Jadwal QStash" di bawah. |
-| `CRON_SECRET` | Proteksi endpoint Vercel Cron native, saat ini dipakai `GET /api/cron/lens-bucket-backtest`. Nilai harus sama dengan header `Authorization: Bearer <CRON_SECRET>` yang dikirim Vercel Cron. |
+| `CRON_SECRET` | Proteksi 3 job yang dijadwalkan **systemd timer di VPS** (`lens-bucket-backtest`, `lens-score-optimizer`, `broker-summary-scan`). Timer memanggil `GET` dengan header `Authorization: Bearer <CRON_SECRET>`; tanpa var ini route balas 401 by design. Nilai di `.env.production` harus sama persis dengan yang dipakai skrip timer. **Catatan penting: var ini juga masih ada di environment Vercel** - itulah sebabnya blok `crons` di `vercel.json` berbahaya (lihat Jebakan). |
 | `JWT_SECRET_KEY` | Session login email/password (`shared/auth/session.ts`, `jose`). |
-| `ADMIN_SECRET_KEY` | Jalur darurat login admin (`/admin-login/key?key=...`) - password admin utama disimpan sebagai hash di tabel `admin_secret` (database), bisa diganti sendiri lewat `/admin` tanpa deploy ulang. Nilai TIDAK BISA dibaca ulang dari Vercel setelah tersimpan (Sensitive) - simpan juga di `.env.local` lokal (gitignored). |
+| `ADMIN_SECRET_KEY` | Jalur darurat login admin (`/admin-login/key?key=...`) - password admin utama disimpan sebagai hash di tabel `admin_secret` (database), bisa diganti sendiri lewat `/admin` tanpa deploy ulang. Di VPS nilainya bisa dibaca dari `.env.production` (root/`lens`); simpan juga di `.env.local` lokal (gitignored). |
+| `NINEROUTER_BASE_URL` / `NINEROUTER_API_KEY` | Gateway AI 9Router - lihat log perubahan 2026-08-13 dan `docs/operations/9ROUTER.md`. Opsional secara fungsional (cascade lama tetap jalan), tapi kalau salah satunya diisi tanpa yang lain, provider ini sengaja dilewati. |
 | `GEMINI_API_KEY` | AI cascade (`lib/aiProviders.ts generateAI()`) - tanpa ini fallback ke heuristik rule-based per fitur (Council lokal, sentimen kata kunci, dst), BUKAN error. |
 
 **OPTIONAL** (fitur spesifik degrade dengan aman kalau kosong):
@@ -771,18 +914,22 @@ Dikelompokkan REQUIRED / OPTIONAL / LEGACY (audit BUILD 002) - diverifikasi lewa
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | **BUKAN login Telegram** (itu sudah dihapus total) - dipakai `lib/telegram.ts sendTelegramMessage()`, satu-satunya pemanggil `app/api/payment/notify/route.ts` (notifikasi ke admin saat ada bukti bayar manual masuk). |
 | `NEXT_PUBLIC_PAYMENT_*` (BANK_ACCOUNT_NAME/NUMBER, BANK_NAME, GOPAY_NAME/NUMBER, DANA_NAME/NUMBER) | Metode pembayaran manual di `PaywallModal` (`shared/config/payment.ts`). Baris otomatis disembunyikan kalau salah satu metode belum diisi. |
 
-**LEGACY - SUDAH DIHAPUS dari Vercel (2026-08-03, dikonfirmasi pemilik produk):**
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (sisa
-rencana Supabase yang tidak pernah jadi dipakai), `ADMIN_TELEGRAM_ID`, `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`
-(sisa sistem login Telegram yang sudah dihapus total - beda dari `TELEGRAM_BOT_TOKEN`/
-`TELEGRAM_CHAT_ID` di atas yang MASIH dipakai untuk notifikasi pembayaran). Diverifikasi 0
-pemakaian di kode sebelum dihapus, lalu dihapus lewat `npx vercel env rm <NAME> production`
-(+ `preview` untuk 3 var Supabase yang scope-nya dua-duanya).
+**LEGACY - tidak dibaca kode manapun:**
+
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` - digantikan `REDIS_URL` (migrasi
+  2026-08-13). Kalau masih tercantum di `.env.production`, isinya tidak berpengaruh; hapus saja
+  supaya tidak ada yang mengira cache masih di Upstash. (`.env.example` masih memuat nama lama -
+  jangan dijadikan acuan.)
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+  (sisa rencana Supabase yang tidak pernah dipakai), `ADMIN_TELEGRAM_ID`,
+  `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` (sisa login Telegram yang sudah dihapus total - beda dari
+  `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` di atas yang MASIH dipakai untuk notifikasi
+  pembayaran). Sudah dihapus dari Vercel 2026-08-03 setelah diverifikasi 0 pemakaian di kode.
 
 `INTERNAL_API_SECRET` (`shared/auth/internal-service.ts`, dipakai cron/alert evaluation supaya
-panggilan server-to-server ke `/api/stock`, dst bisa lewati gate session) - **cek ulang statusnya
-di `vercel env ls`**, dokumen sebelumnya bilang belum di-set tapi itu klaim lama, tidak
-diverifikasi ulang di sesi ini.
+panggilan server-to-server ke `/api/stock`, dst bisa lewati gate session) - status di
+`.env.production` **belum pernah diverifikasi ulang setelah pindah VPS**. Kalau menyentuh alur
+cron/alert, cek dulu di server: `sudo grep -c INTERNAL_API_SECRET /opt/sahamlens/app/.env.production`.
 
 ## Arsitektur data (sudah bukan Supabase/JSON lokal lagi)
 
@@ -817,42 +964,84 @@ Widget atau dua-skema-cookie-yang-gak-nyambung seperti versi arsitektur sebelumn
 
 ## File yang jangan diubah tanpa alasan kuat
 
-- `.vercelignore` - exclude `mobile/` wajib ada (lihat bagian jebakan deploy di atas).
+- `vercel.json` - **harus tetap hanya berisi `$schema`**. Menambah blok `crons` menghidupkan
+  penjadwal kedua yang menulis ke database yang sama (lihat Jebakan).
+- `.github/workflows/deploy-vps.yml` - satu-satunya jalur deploy production. Perhatikan
+  indentasi: pernah ada langkah yang menjorok lebih dangkal dari `steps:` sehingga SELURUH file
+  gagal di-parse, dan gejalanya menyesatkan - run muncul bernama `.github/workflows/deploy-vps.yml`
+  (bukan "Deploy VPS") dengan NOL job, tanpa satu pun pesan yang menyebut indentasi.
+- `.github/workflows/ci.yml` - gerbang yang memicu deploy. Kalau nama workflow `CI` diubah,
+  ubah juga `workflows: ["CI"]` di deploy-vps.yml, kalau tidak deploy berhenti dipicu diam-diam.
+- `config/scheduled-jobs.json` - inventori cron; `npm run audit:cron` gagal kalau drift.
+- `.vercelignore` - hanya relevan untuk build standby Vercel (lihat jebakan historis).
 - `shared/database/schema.service.ts` - satu-satunya sumber definisi skema Postgres, idempoten.
   Kalau nambah tabel baru, tambahkan `CREATE TABLE IF NOT EXISTS` di sini, jangan bikin file SQL
   terpisah yang tidak pernah dijalankan (pelajaran dari `supabase/schema.sql`, dihapus 2026-08-03
   karena sudah lama superseded dan tidak direferensikan kode manapun).
 
-## Jadwal Vercel Cron
+## Penjadwal cron: dua tempat, tidak boleh tiga
 
-Vercel Cron didefinisikan di `vercel.json`, otomatis dibuat/diupdate saat deploy Production,
-dan ekspresi cron-nya memakai UTC. Endpoint cron native harus tetap dilindungi `CRON_SECRET`
-supaya tidak bisa dipicu publik.
+Ada **12 route cron** di `app/api/cron/*`, dijalankan oleh **dua** penjadwal. Inventori
+kanoniknya di `config/scheduled-jobs.json`, dijaga `npm run audit:cron`.
 
-| Endpoint | Nama job | Cron (UTC) | Setara WIB | Config | Guard |
-|---|---|---|---|---|---|
-| `/api/cron/lens-bucket-backtest` | `lens-bucket-backtest` | `0 10 * * 1-5` | 17:00 Senin-Jumat | `vercel.json` | `Authorization: Bearer <CRON_SECRET>` |
-| `/api/cron/lens-score-optimizer` | `lens-score-optimizer` | `0 11 * * 0` | 18:00 Minggu | `vercel.json` | `Authorization: Bearer <CRON_SECRET>` |
+| Penjadwal | Jumlah | Cara memanggil | Guard |
+|---|---|---|---|
+| systemd timer di VPS | 3 | `GET` ke `https://sahamlens.id/api/cron/...` | header `Authorization: Bearer <CRON_SECRET>` |
+| QStash (Upstash) | 9 | `POST` dari QStash | `verifyQStashSignature()` |
+| ~~Vercel Cron~~ | 0 | - | **sengaja dikosongkan, jangan dihidupkan lagi** |
 
-Catatan operasional: job ini membaca `lens_radar_history`, mengambil open H+1 dari Yahoo
-OHLC lewat layer teknikal yang sudah ada, lalu menyimpan agregat ke `lens_bucket_stats`.
-Kalau `CRON_SECRET` belum diset di Vercel Production, request cron akan 401 by design.
+### 3 job di systemd timer (VPS)
+
+| Endpoint | Nama job |
+|---|---|
+| `/api/cron/lens-bucket-backtest` | `lens-bucket-backtest` |
+| `/api/cron/lens-score-optimizer` | `lens-score-optimizer` |
+| `/api/cron/broker-summary-scan` | `broker-summary-scan` |
+
+**Jam persisnya hidup di VPS, bukan di repo.** Jangan menyalin jam lama dari `vercel.json`
+(sudah dihapus) sebagai fakta. Cek langsung:
+
+```bash
+systemctl list-timers --all | grep -i sahamlens
+systemctl cat sahamlens-<job>.timer
+```
+
+Ketiga route ini menyediakan **dua handler sekaligus**: `GET` + `CRON_SECRET` untuk systemd, dan
+`POST` + signature untuk QStash kalau suatu saat dipindahkan. Jangan hapus salah satunya "karena
+kelihatan tidak dipakai" - itu persis kesalahan `8dfbe94` yang mematikan dua job tanpa jejak.
+
+Job ini membaca `lens_radar_history`, mengambil open H+1 dari Yahoo OHLC lewat layer teknikal
+yang sudah ada, lalu menyimpan agregat ke `lens_bucket_stats`. Kalau `CRON_SECRET` belum ada di
+`.env.production`, request cron dibalas 401 by design.
+
+Cara memicu manual dari VPS (mis. setelah deploy yang mengubah perhitungan):
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  https://sahamlens.id/api/cron/lens-bucket-backtest
+```
+
+Bukti jalannya ada di tabel `job_run_log` (Postgres) - cek itu, bukan menebak dari UI.
 
 `lens-score-optimizer` hanya membuat proposal bobot di `lens_weight_proposals`, tidak
 mengubah bobot production secara otomatis. Kalau proposal berstatus
 `INSUFFICIENT_COMPONENT_HISTORY`, tunggu beberapa run `ai-pick-scan` karena breakdown
 komponen baru mulai diarsipkan ke `lens_radar_history` sejak perubahan 2026-08-05 ini.
 
-## Jadwal QStash
+## Jadwal QStash (9 job)
 
-Mayoritas cron lama dijalankan lewat QStash dan diverifikasi dengan
-`verifyQStashSignature()` di tiap route. Nama job di kolom kedua sama persis dengan
-argumen `withJobRunLog()`, jadi riwayat jalannya bisa ditelusuri lewat log job.
+Sisa cron dijalankan lewat QStash dan diverifikasi `verifyQStashSignature()` di tiap route.
+Nama job di kolom kedua sama persis dengan argumen `withJobRunLog()`, jadi riwayat jalannya
+bisa ditelusuri lewat tabel `job_run_log`.
 
-10 jadwal (jadwal broker summary baru harus didaftarkan setelah API key dirotasi dan dipasang;
-jadwal lain diverifikasi live lewat `GET /v2/schedules` semua status SUCCESS terakhir
-jalan, `market-summary` ditambahkan 2026-08-05 - lihat catatan optimasi loading di
-bawah tabel):
+**Sejak migrasi VPS, target URL jadwal QStash harus `https://sahamlens.id/...`.** Kalau menemukan
+jadwal yang masih menunjuk `sahamlens.vercel.app`, itu memanggil server standby - hapus dan
+daftarkan ulang, jangan biarkan dua target hidup bersamaan (dua server menulis ke database Neon
+yang sama). Verifikasi target aktual dengan `GET /v2/schedules` (perintah di bawah).
+
+Tabel berikut adalah kondisi yang tercatat pada 2026-08-05 dan **jam-nya belum diverifikasi ulang
+setelah migrasi**; `config/scheduled-jobs.json` sengaja menandai cadence QStash sebagai
+`verify-dashboard` karena tidak bisa dibuktikan dari source repo:
 
 | Endpoint | Nama job | Cron (UTC) | Setara WIB |
 |---|---|---|---|
@@ -865,7 +1054,7 @@ bawah tabel):
 | `/api/cron/macro` | `macro` | `0 3 * * 1-5` | 10:00 hari bursa |
 | `/api/cron/fundamental-snapshot` | `fundamental-snapshot` | `0 22 * * 0-4` | 05:00 hari bursa (Senin-Jumat) |
 | `/api/cron/backtest-precompute` | `backtest-precompute` | `30 22 * * 0-4` | 05:30 hari bursa (Senin-Jumat) |
-| `/api/cron/broker-summary-scan` | `broker-summary-scan` | `30 11 * * 1-5` | 18:30 hari bursa, setelah data EOD tersedia |
+| ~~`/api/cron/broker-summary-scan`~~ | `broker-summary-scan` | ~~`30 11 * * 1-5`~~ | **PINDAH ke systemd timer di VPS** - jangan didaftarkan lagi di QStash |
 
 **Optimasi loading 2026-08-05**: `market-summary` adalah satu-satunya endpoint publik
 berat (scan 250 saham) yang SEBELUMNYA tidak punya cron warmer - murni `getOrCompute()`
@@ -892,27 +1081,23 @@ Dijadwalkan 30 menit setelah `fundamental-snapshot` (murni supaya tidak start di
 sama, keduanya independen satu sama lain) - cache `BACKTEST_INDICATORS` TTL 36 jam
 (`shared/cache/ttl-policy.ts`), cukup untuk gap harian + buffer akhir pekan.
 
-Mendaftarkan jadwal baru - ganti `<DOMAIN>` dengan domain produksi, `QSTASH_TOKEN` diambil
-dari dashboard Upstash:
+Mendaftarkan jadwal baru - domain **wajib** `sahamlens.id`, `QSTASH_TOKEN` diambil dari
+dashboard Upstash. Setelah mendaftar, update juga `config/scheduled-jobs.json`:
 
 ```bash
-curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/ai-pick-scan" \
+curl -XPOST "https://qstash.upstash.io/v2/schedules/https://sahamlens.id/api/cron/ai-pick-scan" \
   -H "Authorization: Bearer $QSTASH_TOKEN" \
   -H "Upstash-Cron: */5 2-9 * * 1-5"
 
-curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/fundamental-snapshot" \
+curl -XPOST "https://qstash.upstash.io/v2/schedules/https://sahamlens.id/api/cron/fundamental-snapshot" \
   -H "Authorization: Bearer $QSTASH_TOKEN" \
   -H "Upstash-Cron: 0 22 * * 0-4"
-
-curl -XPOST "https://qstash.upstash.io/v2/schedules/https://<DOMAIN>/api/cron/broker-summary-scan" \
-  -H "Authorization: Bearer $QSTASH_TOKEN" \
-  -H "Upstash-Cron: 30 11 * * 1-5"
 ```
 
 `broker-summary-scan` memakai endpoint batch Index Alpha (maksimal 50 ticker/request),
 sehingga universe LensRadar 150 ticker selesai dalam 3 request HTTP. Kuota provider tetap
-dihitung per ticker. Secret disimpan hanya sebagai `BROKER_DATA_API_KEY` di Vercel; jangan
-memakai prefix `NEXT_PUBLIC_`. Wajib konfirmasi hak penyimpanan dan redistribusi data secara
+dihitung per ticker. Secret disimpan hanya sebagai `BROKER_DATA_API_KEY` di `.env.production`
+VPS; jangan memakai prefix `NEXT_PUBLIC_`. Wajib konfirmasi hak penyimpanan dan redistribusi data secara
 tertulis dengan provider sebelum hasil ditampilkan kepada pengguna SahamLens.
 
 Memeriksa jadwal yang aktif:
@@ -938,12 +1123,12 @@ sekali saat itu juga - misalnya tepat setelah deploy pertama - pakai `publish`, 
 `schedules`:
 
 ```bash
-curl -XPOST "https://qstash.upstash.io/v2/publish/https://sahamlens.vercel.app/api/cron/fundamental-snapshot" \
+curl -XPOST "https://qstash.upstash.io/v2/publish/https://sahamlens.id/api/cron/fundamental-snapshot" \
   -H "Authorization: Bearer $QSTASH_TOKEN"
 ```
 
-Status per 2026-08-03: **ketujuh jadwal SUDAH terdaftar dan aktif** (lihat tabel di atas,
-semua `lastScheduleStates: SUCCESS` saat terakhir dicek). Kalau menemukan halaman AI Pick
-menampilkan "Data sedang disiapkan" padahal jadwal aktif, curigai cache Redis kosong/expired
-atau job terakhir gagal - cek `job_run_log` (tabel Postgres) atau `GET /v2/schedules`, bukan
-asumsi jadwalnya belum didaftarkan.
+Kalau menemukan halaman AI Pick menampilkan "Data sedang disiapkan" padahal jadwal aktif,
+curigai cache Redis kosong/expired atau job terakhir gagal - cek `job_run_log` (tabel Postgres),
+`GET /v2/schedules`, dan `journalctl -u sahamlens`, bukan asumsi jadwalnya belum didaftarkan.
+Ingat cache pindah ke Redis VPS: `redis-cli` di server sekarang jalur diagnosa yang sah
+(`redis-cli --scan --pattern 'sahamlens:cache:*' | head`).
