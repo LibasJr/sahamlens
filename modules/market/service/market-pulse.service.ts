@@ -1,3 +1,4 @@
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import {
   computeQuantitativeMarketRegime,
@@ -58,7 +59,10 @@ const BREADTH_STOCKS = [
 
 async function fetchYahooQuote(symbol: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=5m`;
+    // range=5d, dulu 1d. Bar 5 menit tetap dibutuhkan untuk sparkline, tapi dengan
+    // rentang satu hari tidak ada satu pun sesi sebelumnya di respons - penutupan acuan
+    // terpaksa diambil dari `meta`, yang terbukti bisa basi berhari-hari.
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=5d&interval=5m`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(url, {
@@ -77,7 +81,33 @@ async function fetchYahooQuote(symbol: string) {
     const validCloses = closes.filter((c: unknown): c is number =>
       typeof c === 'number' && Number.isFinite(c) && c > 0
     );
-    const prevCandidate = meta.chartPreviousClose ?? meta.previousClose ?? validCloses[0];
+    // Bar di sini 5 menit, bukan harian - jadi penutupan harian diturunkan dulu dengan
+    // mengelompokkan per TANGGAL BURSA Jakarta dan mengambil bar terakhir tiap tanggal.
+    // Barulah hasilnya bisa diadu memakai aturan yang sama dengan jalur lain.
+    const dailyByDate = new Map<string, { ts: number; close: number }>();
+    const jakartaFmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const rawTimestamps: unknown[] = Array.isArray(result.timestamp) ? result.timestamp : [];
+    for (let i = 0; i < rawTimestamps.length; i++) {
+      const ts = rawTimestamps[i];
+      const c = closes[i];
+      if (typeof ts !== 'number' || !Number.isFinite(ts)) continue;
+      if (typeof c !== 'number' || !Number.isFinite(c) || c <= 0) continue;
+      // Ditimpa terus, jadi yang tersisa adalah bar TERAKHIR pada tanggal itu.
+      dailyByDate.set(jakartaFmt.format(new Date(ts * 1000)), { ts, close: c });
+    }
+    const dailyBars = Array.from(dailyByDate.values());
+    const resolved = resolvePreviousClose({
+      timestamps: dailyBars.map((b) => b.ts),
+      closes: dailyBars.map((b) => b.close),
+      metaPreviousClose: meta.previousClose,
+      metaChartPreviousClose: meta.chartPreviousClose,
+    });
+    const prevCandidate = resolved.previousClose ?? validCloses[0];
     const priceCandidate = meta.regularMarketPrice ?? validCloses[validCloses.length - 1];
     if (
       typeof prevCandidate !== 'number' || !Number.isFinite(prevCandidate) || prevCandidate <= 0 ||
@@ -106,7 +136,10 @@ async function fetchYahooQuote(symbol: string) {
 
 async function fetchQuoteSimple(symbol: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=1d`;
+    // range=5d, dulu 1d. Dengan 1d riwayatnya cuma SATU bar, jadi tidak ada sesi
+    // sebelumnya untuk dibandingkan dan penutupan acuan terpaksa diambil dari `meta` -
+    // nilai yang terbukti bisa basi berhari-hari (lihat catatan di bawah).
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=5d&interval=1d`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(url, {
@@ -121,7 +154,18 @@ async function fetchQuoteSimple(symbol: string) {
     if (!result) return null;
 
     const meta = result.meta;
-    const prevCandidate = meta.chartPreviousClose ?? meta.previousClose;
+    // Penutupan acuan dari riwayat harian, bukan `meta`. Terukur 2026-08-14: meta
+    // melaporkan penutupan 7 Agustus untuk TLKM/ASII/BMRI - seminggu basi - sehingga
+    // TLKM tampil -4,43% padahal 0,00%, BMRI -2,59% padahal 0,00%, BBCA 0,00% padahal
+    // +0,39%. Tiga dari enam sampel berbalik ARAH. Daftar breadth inilah yang menyusun
+    // "yang naik / yang turun", jadi acuan yang meleset membalik keanggotaan kolomnya.
+    const resolved = resolvePreviousClose({
+      timestamps: result.timestamp,
+      closes: result.indicators?.quote?.[0]?.close,
+      metaPreviousClose: meta.previousClose,
+      metaChartPreviousClose: meta.chartPreviousClose,
+    });
+    const prevCandidate = resolved.previousClose;
     const priceCandidate = meta.regularMarketPrice;
     if (
       typeof prevCandidate !== 'number' || !Number.isFinite(prevCandidate) || prevCandidate <= 0 ||
