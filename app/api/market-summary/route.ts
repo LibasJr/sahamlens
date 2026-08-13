@@ -1,3 +1,4 @@
+import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
@@ -9,7 +10,7 @@ import { describeCacheAge } from '@/shared/http/freshness';
 // bukan cacheGet/cacheSet manual, karena endpoint ini yang paling rawan diakses
 // bersamaan oleh banyak pengunjung anonim sekaligus (tanpa gesekan login) - tanpa
 // proteksi stampede, cache-miss bersamaan bisa memicu banyak komputasi ulang paralel.
-const CACHE_KEY = 'sahamlens:cache:computed:market-summary';
+const CACHE_KEY = `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`;
 
 // WAJIB - route ini tidak memanggil cookies()/headers(), jadi tanpa penanda ini
 // Next.js men-static-generate-nya SEKALI saat `next build` dan menyajikan hasil

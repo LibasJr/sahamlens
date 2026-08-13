@@ -1,3 +1,4 @@
+import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
@@ -12,7 +13,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MARKET_SUMMARY_CACHE_KEY = 'sahamlens:cache:computed:market-summary';
+const MARKET_SUMMARY_CACHE_KEY = `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`;
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 const DETAIL_CAP = 20;
 
