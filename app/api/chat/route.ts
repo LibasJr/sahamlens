@@ -21,6 +21,7 @@ import { buildSystemPrompt } from './build-system-prompt';
 import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
+import { streamChatAnswer } from './stream-answer';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -109,6 +110,9 @@ export async function POST(request: Request) {
     const symbol = typeof body.symbol === 'string' && /^[\^A-Za-z0-9.]{1,12}$/.test(body.symbol.trim())
       ? body.symbol.trim()
       : null;
+    // Streaming hanya kalau klien memintanya - jalur JSON lama tetap default supaya
+    // pemanggil lain (dan klien versi lama) tidak ikut berubah bentuk responsnya.
+    const wantsStream = body.stream === true;
     const rawHistory = Array.isArray(body.history) ? body.history : [];
     const history: ChatHistoryMessage[] = rawHistory
       .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
@@ -230,14 +234,39 @@ export async function POST(request: Request) {
       '- WAJIB: jelaskan data server yang tersedia; jangan mengisi angka yang tidak ada di Data Terverifikasi Server.',
     ].filter(Boolean).join('\n');
 
+    const systemPrompt = buildSystemPrompt(
+      context,
+      history.length > 0,
+      verified.verifiedBlock,
+      mentionedTicker,
+      routingBlock,
+    );
+    const verificationSources = [verified.verifiedBlock, prompt, historyTranscript];
+    const baseRouting = {
+      intent: classification.intent,
+      alsoIntents: classification.alsoIntents,
+      tickers,
+      mode: date.mode,
+      requestedAsOf: date.requestedAsOf,
+      providerUsed: true,
+      dataStatus: verified.dataError,
+    };
+
+    // Jalur streaming - dipakai kalau klien memintanya. Lihat catatan panjang di
+    // streamChatAnswer() untuk alasan gerbang paragrafnya.
+    if (wantsStream) {
+      return await streamChatAnswer({
+        system: systemPrompt,
+        prompt: fullPrompt,
+        sources: verificationSources,
+        intent: classification.intent,
+        routing: baseRouting,
+        anonTrial,
+      });
+    }
+
     const aiResult = await generateAIResult({
-      system: buildSystemPrompt(
-        context,
-        history.length > 0,
-        verified.verifiedBlock,
-        mentionedTicker,
-        routingBlock,
-      ),
+      system: systemPrompt,
       prompt: fullPrompt,
       timeoutMs: 10000,
     });

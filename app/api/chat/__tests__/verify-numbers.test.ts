@@ -85,6 +85,23 @@ describe('tidak boleh salah tuduh', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('menerima angka tanpa tanda minus saat arah dibawa kata', () => {
+    // Blok data menulis "-1.52"; model menjawab "melemah 1,52%". Itu benar - arah
+    // dibawa kata "melemah", dan begitulah bahasa Indonesia yang wajar. Pencocokan
+    // peka tanda dulu menuduhnya mengarang.
+    const result = verifyAnswerNumbers('IHSG melemah 1,52% hari ini.', [DATA_BLOCK]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('BATAS YANG DIAKUI: kesalahan arah tidak terdeteksi lapisan ini', () => {
+    // "menguat" padahal data bilang turun akan lolos - pemeriksa ini melihat digit,
+    // bukan makna kalimat. Arah dijaga blok data ("Arah: TURUN") dan aturan #21 di
+    // system prompt. Ditulis sebagai test supaya batasnya tidak terlupakan dan tidak
+    // ada yang mengira lapisan ini menjamin lebih dari yang bisa dijaminnya.
+    const result = verifyAnswerNumbers('IHSG menguat 1,52% hari ini.', [DATA_BLOCK]);
+    expect(result.ok).toBe(true);
+  });
+
   it('tidak memeriksa apa pun kalau jawabannya memang tanpa angka', () => {
     const result = verifyAnswerNumbers('Datanya belum tersedia, jadi saya belum bisa menyimpulkan.', [DATA_BLOCK]);
     expect(result.ok).toBe(true);

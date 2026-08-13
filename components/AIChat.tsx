@@ -51,6 +51,76 @@ export default function AIChat() {
     };
   }, []);
 
+  /**
+   * Konsumsi aliran NDJSON dari /api/chat.
+   *
+   * Peristiwa `delta` menambah teks, `replace` mengganti SELURUH jawaban (dipakai saat
+   * server menempelkan penutup DYOR atau mengganti jawaban yang angkanya gagal
+   * diverifikasi). Return false kalau tidak ada satu pun peristiwa yang bisa dibaca,
+   * supaya pemanggil bisa jatuh ke jalur JSON biasa.
+   */
+  const consumeStream = async (stream: ReadableStream<Uint8Array>): Promise<boolean> => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let carry = '';
+    let answer = '';
+    let started = false;
+
+    const paint = (text: string) => {
+      setMessages(prev => {
+        const next = [...prev];
+        if (started && next.length && next[next.length - 1].role === 'assistant') {
+          next[next.length - 1] = { role: 'assistant', content: text };
+          return next;
+        }
+        return [...next, { role: 'assistant', content: text }];
+      });
+      started = true;
+    };
+
+    const handleEvent = (event: any) => {
+      if (event?.t === 'delta' && typeof event.v === 'string') {
+        answer += event.v;
+        // Spinner dimatikan begitu teks pertama tampil - dua penanda "sedang bekerja"
+        // sekaligus (spinner + teks yang mengalir) cuma bikin panel gelisah.
+        setIsLoading(false);
+        paint(answer);
+      } else if (event?.t === 'replace' && typeof event.v === 'string') {
+        answer = event.v;
+        setIsLoading(false);
+        paint(answer);
+      } else if (event?.t === 'done') {
+        setPenyediaSiap(true);
+      } else if (event?.t === 'error') {
+        if (event.detailCode === 'NO_PROVIDER_CONFIGURED' || event.detailCode === 'PROVIDER_AUTH_ERROR') {
+          setPenyediaSiap(false);
+        }
+        paint(event.content || 'LensAI belum dapat memproses pertanyaan ini.');
+      }
+    };
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      carry += decoder.decode(value, { stream: true });
+      const lines = carry.split('\n');
+      carry = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          handleEvent(JSON.parse(line));
+        } catch {
+          // Satu baris rusak tidak boleh membatalkan aliran yang lain.
+        }
+      }
+    }
+    if (carry.trim()) {
+      try { handleEvent(JSON.parse(carry)); } catch { /* abaikan sisa yang tidak utuh */ }
+    }
+
+    return started;
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
     
@@ -147,8 +217,19 @@ export default function AIChat() {
           // seperti "lah"/"waduh error" dikirim tanpa konteks sama sekali dan AI menjawab
           // ngasal/generik karena tidak tahu topik yang sedang dibahas.
           history: messages.slice(-8),
+          // Streaming: server mengalirkan teks yang SUDAH lolos verifikasi angka per
+          // paragraf (lihat app/api/chat/stream-answer.ts). Jalur JSON lama tetap ada
+          // sebagai cadangan di bawah kalau server membalas bukan NDJSON.
+          stream: true,
         })
       });
+
+      const isStream = res.ok && (res.headers.get('content-type') || '').includes('ndjson');
+      if (isStream && res.body) {
+        const handled = await consumeStream(res.body);
+        if (handled) return;
+      }
+
       const data = await res.json();
 
       if (!res.ok || !data?.content) {
@@ -287,11 +368,12 @@ export default function AIChat() {
               <div className="flex justify-start">
                 <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-base text-tv-muted sm:text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {/* JANGAN diganti jadi "menulis"/"mengetik" selama /api/chat masih
-                      membalas sekali jadi (NextResponse.json, bukan stream): dua kata itu
-                      menjanjikan teks yang muncul bertahap, padahal pengguna melihat
-                      spinner diam lalu jawaban utuh sekaligus. Boleh dipakai kalau
-                      streaming sudah jalan. */}
+                  {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks, jadi
+                      larangan lama memakai kata "menulis" sudah tidak berlaku. Spinner
+                      ini hanya tampil SEBELUM potongan pertama tiba - begitu teks
+                      mengalir, ia dimatikan (lihat consumeStream). Yang dijanjikan kata
+                      di bawah karena itu sesuai dengan yang dilihat pengguna: server
+                      sedang menyiapkan data & memverifikasi angkanya. */}
                   LensAI sedang menyiapkan jawaban...
                 </div>
               </div>
