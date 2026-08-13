@@ -947,6 +947,50 @@ panggilan server-to-server ke `/api/stock`, dst bisa lewati gate session) - stat
 `.env.production` **belum pernah diverifikasi ulang setelah pindah VPS**. Kalau menyentuh alur
 cron/alert, cek dulu di server: `sudo grep -c INTERNAL_API_SECRET /opt/sahamlens/app/.env.production`.
 
+## Kapasitas VPS dan beban cron terukur (baseline 2026-08-13)
+
+Spesifikasi: AMD Ryzen Threadripper 5965WX (24 core / 48 thread di silikonnya; alokasi VPS
+16 vCPU), RAM 16 GB, SSD 200 GB. Redis ikut di box ini; Postgres (Neon) dan Sentry tetap
+eksternal.
+
+**Seluruh kerja cron sehari: 36 menit dari 1440.** Itu 2,5% dari SATU core. Diukur dari
+`finished_at - started_at` di `job_run_log`, 13 Agustus, bukan taksiran:
+
+| Job | Run/hari | Rata-rata | Terlama | Total/hari |
+|---|---|---|---|---|
+| `ai-pick-scan` | 23 | 44,9 s | 53,6 s | 17,2 mnt |
+| `market-summary` | 84 | 4,2 s | 12,6 s | 5,9 mnt |
+| `breakout-scan` | 84 | 3,0 s | 8,3 s | 4,2 mnt |
+| `lens-bucket-backtest` | 1 | 213,4 s | 213,4 s | 3,6 mnt |
+| enam job sisanya | 150 | < 4 s | 28,6 s | 4,1 mnt |
+
+Kesimpulan sizing: **bottleneck-nya bukan CPU dan bukan RAM.** Job terberat (`ai-pick-scan`)
+memakai 45 detik tiap 15 menit - duty cycle 5% di satu core. Yang terlama
+(`lens-bucket-backtest`, 3,5 menit) jalan sekali sehari. Tidak ada satu pun job yang mendekati
+jendela jadwalnya sendiri.
+
+Ini juga menjelaskan kenapa Vercel jebol sementara box ini santai: yang meledak di sana bukan
+komputasinya, tapi **model tagihan per-invocation**. 352 pemanggilan cron per hari plus setiap
+request yang meleset dari cache dihitung sebagai function execution, dan `getMarketSummary()`
+men-scan 250 saham. Beban komputasi yang sama persis di VPS biayanya rata.
+
+Yang justru perlu diawasi, dan tidak satu pun soal ukuran mesin:
+
+- **Tidak ada redundansi.** Vercel memberikannya gratis. Sekarang satu box mati = situs mati.
+  Ini penurunan nyata yang ditukar dengan biaya rata - sadari, jangan lupakan.
+- **Redis satu box dengan app.** Kalau persistence belum menyala, reboot mengosongkan cache dan
+  request pertama sesudahnya menanggung scan 250 saham penuh. Tidak fatal (`redis-cache.ts`
+  degrade aman ke cache-miss), tapi terasa oleh pengunjung pertama.
+- **Disk lebih mungkin habis oleh log daripada oleh data.** Penyebab kematian VPS paling klasik.
+  Yang menumpuk: journald, log nginx, image Docker 9router, dan build `.next` lama kalau skrip
+  `deploy` tidak membersihkannya. Cek berkala: `df -h /`, `journalctl --disk-usage`,
+  `docker system df`.
+- **Tidak ada autoscale.** Lonjakan trafik menabrak box tetap.
+
+Belum diukur: RSS proses Next.js, memori Redis terpakai, dan waktu respons endpoint di VPS
+(angka lama yang beredar semuanya dari Vercel, sudah tidak relevan). Kalau sudah diukur, tulis
+di sini beserta tanggalnya.
+
 ## Arsitektur data (sudah bukan Supabase/JSON lokal lagi)
 
 Satu layer penyimpanan: **Postgres (Neon)**, diakses lewat `pg` (bukan ORM), tabel dibuat
