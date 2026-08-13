@@ -56,9 +56,13 @@ services:
       # (dibuat otomatis oleh install-9router.sh). Ganti lewat dashboard setelah login.
       INITIAL_PASSWORD: "${NINEROUTER_DASHBOARD_PASSWORD:?NINEROUTER_DASHBOARD_PASSWORD belum diisi di deploy/9router/.env}"
     volumes:
-      # Config, API key, dan jwt-secret 9Router hidup di sini. JANGAN dihapus saat
-      # update - semua akun provider yang sudah dipasang ikut hilang.
-      - 9router-data:/root/.9router
+      # DIVERIFIKASI 2026-08-13 dari log container yang berjalan:
+      #   [DB] Driver: better-sqlite3 | file: /app/data/db/data.sqlite
+      # Seluruh konfigurasi provider, API key, dan riwayat 9Router ada di /app/data.
+      # BUKAN /root/.9router - path itu dipakai versi CLI/npm dan beredar di panduan
+      # pihak ketiga; kalau dipasang di sana, volume-nya kosong dan semua konfigurasi
+      # justru hidup di lapisan tulis container (hilang begitu container dihapus).
+      - 9router-data:/app/data
     healthcheck:
       # 9Router TIDAK punya endpoint /health - endpoint resminya cuma /v1/chat/completions,
       # /v1/models, dan dashboard di "/" (diverifikasi 2026-08-13 dari README upstream;
