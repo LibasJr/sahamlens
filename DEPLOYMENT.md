@@ -993,9 +993,27 @@ Vercel gagal berturut-turut (~7 jam, 2026-08-05) karena mode standalone melewatk
 sukses penuh, lalu `ENOENT` di step terakhir. Fix-nya `output: process.env.VERCEL ? undefined : 'standalone'`.
 **Yang berubah setelah pindah VPS**: di VPS `VERCEL` tidak di-set, jadi build production
 SEKARANG selalu standalone, sementara systemd menjalankan `npm start` (`next start -H 0.0.0.0 -p 3001`).
-Kombinasi itulah yang berjalan di production hari ini. Kalau mengubah `output` atau perintah
-start, verifikasi langsung di server (`systemctl status sahamlens` + `curl localhost:3001`),
-jangan mengandalkan build lokal saja.
+
+**Konsekuensinya ada peringatan yang MUNCUL TIAP START dan bukan tanda kerusakan** (diverifikasi
+langsung 2026-08-13 dengan menjalankan build production apa adanya):
+
+```
+⚠ "next start" does not work with "output: standalone" configuration.
+  Use "node .next/standalone/server.js" instead.
+```
+
+Meskipun begitu, server tetap melayani request dengan benar - diuji lewat `POST /api/chat` yang
+membalas normal. Jadi kalau menemukan baris ini di `journalctl -u sahamlens`, **jangan
+mengubah `ExecStart` hanya karena peringatan itu**: ia sudah ada sejak sebelum masalah apa pun
+yang sedang dicari, dan mengganti perintah start di tengah insiden justru menambah satu variabel
+baru. Kalau memang mau dirapikan (mis. supaya log bersih atau image lebih ramping), itu
+perubahan tersendiri yang harus diuji di luar jam ramai: ganti `ExecStart` ke
+`node .next/standalone/server.js` DAN pastikan `.next/static` + `public/` ikut tersalin ke
+`.next/standalone/` - dua folder itu tidak ikut otomatis, dan tanpanya aplikasi tetap jalan
+tapi seluruh CSS/gambar hilang.
+
+Kalau mengubah `output` atau perintah start, verifikasi langsung di server
+(`systemctl status sahamlens` + `curl localhost:3001`), jangan mengandalkan build lokal saja.
 
 ---
 
