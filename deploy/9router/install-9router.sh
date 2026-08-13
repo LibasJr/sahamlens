@@ -65,11 +65,12 @@ $COMPOSE up -d
 
 log "Menunggu 9Router siap..."
 for i in $(seq 1 30); do
-  if curl -fsS http://127.0.0.1:20128/health >/dev/null 2>&1; then
+  # 9Router tidak menyediakan /health - "/" dipakai sebagai bukti prosesnya melayani HTTP.
+  if curl -fsS -o /dev/null http://127.0.0.1:20128/ 2>/dev/null; then
     log "9Router hidup di http://127.0.0.1:20128"
     break
   fi
-  [[ $i -eq 30 ]] && fail "9Router tidak merespons /health setelah 60 detik. Cek: $COMPOSE logs --tail=50"
+  [[ $i -eq 30 ]] && fail "9Router tidak merespons HTTP setelah 60 detik. Cek: $COMPOSE logs --tail=50"
   sleep 2
 done
 

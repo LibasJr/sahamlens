@@ -88,8 +88,15 @@ hanya bisa dijangkau dari mesin itu sendiri (yaitu cloudflared), bukan dari inte
 Verifikasi dari VPS:
 
 ```bash
-curl -fsS http://127.0.0.1:20128/health && echo OK
+# 9Router tidak punya endpoint /health - "/" (dashboard) dipakai sebagai bukti hidup.
+curl -s -o /dev/null -w 'root: %{http_code}\n'      http://127.0.0.1:20128/
+curl -s -o /dev/null -w 'v1/models: %{http_code}\n' http://127.0.0.1:20128/v1/models
 ```
+
+Yang diharapkan: `root: 200` (atau 30x) dan `v1/models: 401`. **401 itu tandanya benar** -
+artinya `REQUIRE_API_KEY=true` bekerja dan endpoint API menolak pemanggil tanpa key.
+Kalau `v1/models` malah 200 tanpa key, router Anda terbuka - hentikan dan periksa
+environment container sebelum menyambungkannya ke internet.
 
 Alternatif dengan file deploy (Langkah 3 + `sudo bash install-9router.sh` tanpa
 `--domain`) tetap berlaku dan hasilnya setara - pilih salah satu, bukan dua-duanya.
@@ -129,8 +136,8 @@ policy Allow hanya email Anda), atau pakai config lokal yang mendukung filter pa
 ### A4. Verifikasi
 
 ```bash
-curl https://router.sahamlens.id/health        # harus OK
-curl -o /dev/null -w '%{http_code}\n' https://router.sahamlens.id/dashboard   # harus 404
+curl -s -o /dev/null -w 'v1/models: %{http_code}\n' https://router.sahamlens.id/v1/models
+curl -s -o /dev/null -w 'dashboard: %{http_code}\n'  https://router.sahamlens.id/dashboard
 ```
 
 DNS record `router.sahamlens.id` dibuat otomatis oleh cloudflared - tidak perlu bikin
@@ -236,7 +243,7 @@ Yang dilakukan skrip ini:
 
 1. Membuat password dashboard acak di `deploy/9router/.env` (chmod 600).
 2. Menjalankan container 9Router **bind ke 127.0.0.1:20128** - tidak terekspos ke internet.
-3. Menunggu `/health` hijau.
+3. Menunggu 9Router menjawab HTTP di `127.0.0.1:20128`.
 4. Memasang config Nginx + minta sertifikat SSL Let's Encrypt.
 
 Aman dijalankan ulang: password, config Nginx, dan volume data tidak pernah ditimpa.
@@ -244,8 +251,8 @@ Aman dijalankan ulang: password, config Nginx, dan volume data tidak pernah diti
 Setelah selesai, cek dari laptop:
 
 ```bash
-curl https://router.DOMAIN-ANDA.com/health      # harus balas OK
-curl https://router.DOMAIN-ANDA.com/dashboard   # harus 404 - dashboard memang ditutup
+curl -s -o /dev/null -w 'v1/models: %{http_code}\n' https://router.DOMAIN-ANDA.com/v1/models
+curl -s -o /dev/null -w 'dashboard: %{http_code}\n'  https://router.DOMAIN-ANDA.com/dashboard
 ```
 
 ## Langkah 5 - Pasang provider AI di dashboard
@@ -327,7 +334,7 @@ npx vercel --prod
 | HTTP 524 dari router | Batas 100 detik Cloudflare terlampaui - turunkan `NINEROUTER_TIMEOUT_MS` atau pilih model lebih cepat |
 | HTTP 502/1033 dari router | `cloudflared` mati atau container 9Router berhenti - cek `systemctl status cloudflared` dan `docker compose ps` |
 | Request dari Vercel diblokir | WAF/Bot Fight Mode Cloudflare - buat WAF skip rule untuk path `/v1/*` |
-| `/health` OK tapi Vercel tetap gagal | `NINEROUTER_BASE_URL` masih `localhost` - harus URL publik |
+| Router jalan tapi Vercel tetap gagal | `NINEROUTER_BASE_URL` masih `localhost` - harus URL publik |
 | Log penuh `[AI:9router] HTTP 429` | Kuota provider upstream habis; tambah provider di dashboard |
 | Jawaban lambat/timeout | Naikkan `NINEROUTER_TIMEOUT_MS`, atau pilih model lebih cepat |
 | Semua AI mati mendadak | Cek `docker compose logs -f` di VPS; container mungkin OOM |
