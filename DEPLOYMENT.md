@@ -15,9 +15,28 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Status live
 
-- **Production URL**: https://sahamlens.vercel.app
+> **PENTING (diverifikasi 2026-08-13 langsung di server): production SUDAH TIDAK di
+> Vercel.** Aplikasi dilayani dari VPS sendiri. Seluruh bagian di bawah yang menyebut
+> Vercel sebagai target deploy adalah catatan historis - JANGAN diikuti sebagai instruksi
+> tanpa memeriksa ulang. Topologi yang berlaku sekarang:
+>
+> | Komponen | Kenyataan di server |
+> | --- | --- |
+> | Domain | `sahamlens.id`, `www.sahamlens.id`, `vps.sahamlens.id` |
+> | Masuknya trafik | Cloudflare Tunnel `sahamlens-prod` (token di `/etc/cloudflared/token`), rute di Zero Trust -> Published application routes -> `http://localhost:80` |
+> | Web server | Nginx, `/etc/nginx/sites-available/sahamlens`, `proxy_pass http://127.0.0.1:3001` |
+> | Aplikasi | systemd `sahamlens.service` ("SahamLens Next.js Production"), `User=lens`, `WorkingDirectory=/opt/sahamlens/app`, `ExecStart=/usr/bin/npm start` (next start -p 3001) |
+> | Env var | `EnvironmentFile=/opt/sahamlens/app/.env.production` (+ 3 baris `Environment=` inline di unit) |
+> | Sumber kode | git checkout di `/opt/sahamlens/app`, branch `main`, remote `github.com/LibasJr/sahamlens` |
+> | Port masuk | tidak ada yang dibuka ke internet - cloudflared connect keluar |
+>
+> Deploy = `git pull` di `/opt/sahamlens/app`, lalu `npm ci && npm run build`, lalu
+> `sudo systemctl restart sahamlens`. Env var baru cukup ditambahkan ke `.env.production`
+> lalu restart; `next start` membaca env server-side saat runtime.
+
+- **Production URL (historis, era Vercel)**: https://sahamlens.vercel.app
   (2026-08-03: pindah dari `trading-three-liard.vercel.app`. Kalau menemukan URL lama di
-  catatan/skrip lain, itu sudah usang - ganti ke domain ini.)
+  catatan/skrip lain, itu sudah usang.)
 - **Vercel project**: `libas/trading` (projectId `prj_buCsXaT6sXen6LwAmeMcNLCBkYSO`, orgId `team_L8xvUeG8WKjNY8R0o9h8k8wE` - lihat `.vercel/project.json`)
 - **GitHub**: `github.com/LibasJr/sahamlens`, branch `main`, sudah di-connect ke project Vercel di atas lewat `vercel link`.
 - Vercel CLI di mesin dev sudah login sebagai akun `libasjr`. Kalau sesi expired, perlu `npx vercel login` ulang (device auth flow, buka browser).
@@ -55,11 +74,12 @@ jadi VPS tidak bisa clone tanpa token - `deploy/9router/bootstrap-9router.sh` me
 ketiga file itu di VPS tanpa clone. Bootstrap DIGENERATE dari ketiga file tersebut;
 kalau salah satunya diubah, generate ulang supaya tidak melenceng.
 
-**Env var baru** (Vercel: Settings -> Environment Variables, scope Production + Preview):
+**Env var baru** - ditambahkan ke `/opt/sahamlens/app/.env.production` di VPS, lalu
+`sudo systemctl restart sahamlens`:
 
 | Env var | Wajib | Isi |
 | --- | --- | --- |
-| `NINEROUTER_BASE_URL` | ya (untuk aktif) | URL publik instance 9Router, mis. `https://router.domain-anda.com`. Boleh ditulis dengan/tanpa `/v1` - dinormalkan di kode. |
+| `NINEROUTER_BASE_URL` | ya (untuk aktif) | `http://127.0.0.1:20128/v1` - aplikasi dan 9Router satu mesin, jadi panggilannya TIDAK perlu keluar ke internet: lebih cepat dan tidak tunduk batas 100 detik Cloudflare. `https://router.sahamlens.id` juga berfungsi dan berguna untuk uji dari luar. Boleh ditulis dengan/tanpa `/v1` - dinormalkan di kode. |
 | `NINEROUTER_API_KEY` | ya (untuk aktif) | API key dari Dashboard 9Router -> Settings -> API Keys. Sensitive. |
 | `NINEROUTER_MODELS` | tidak | Daftar model dipisah koma, urutan = urutan percobaan. Kosong = `auto`. |
 | `NINEROUTER_PRIORITY` | tidak | `first` (default) atau `last`. |
