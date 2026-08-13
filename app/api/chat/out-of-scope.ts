@@ -29,3 +29,20 @@ const OUT_OF_COVERAGE =
 export function outOfScopeResponse(reason: OutOfScopeReason | undefined): string {
   return reason === 'OUT_OF_COVERAGE' ? OUT_OF_COVERAGE : NON_MARKET;
 }
+
+/**
+ * Pertanyaan balik untuk masukan yang terlalu pendek/kabur ("gimana?", "gimana nih",
+ * "bagus gak").
+ *
+ * Menebak satu topik lalu menyajikan data yang tidak diminta terasa lebih pintar tapi
+ * sebenarnya lebih buruk: pengguna harus membaca satu layar penuh untuk tahu bahwa
+ * pertanyaannya salah tangkap. Satu pertanyaan balik yang konkret lebih cepat sampai ke
+ * jawaban yang benar - dan contoh-contohnya sekaligus memberi tahu apa saja yang bisa
+ * ditanyakan.
+ */
+export const CLARIFICATION_PROMPT =
+  'Boleh diperjelas sedikit? Saya belum menangkap yang kamu maksud. Beberapa contoh yang bisa langsung saya jawab:\n\n' +
+  '- "BBCA fundamentalnya gimana?" - analisis satu emiten\n' +
+  '- "IHSG hari ini gimana?" atau "sektor apa yang lagi kuat?" - kondisi pasar\n' +
+  '- "saham apa yang skornya tinggi hari ini?" - peringkat LensRadar\n' +
+  '- "cara nentuin LensScore gimana?" - cara kerja skornya';

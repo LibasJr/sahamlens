@@ -64,6 +64,33 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - LensAI: satu sumber keputusan, verifikasi angka, multi-topik
+
+Lanjutan dari perubahan cakupan data di bawah. Tiga lapisan ditambahkan:
+
+- **Keputusan & TP/CL dari mesin yang sama dengan halaman aplikasi.** Pertanyaan "bagus
+  gak / layak beli / TP-CL berapa" sekarang memakai `analyzeStock()` (mesin halaman
+  Recommendations) dan `tradeSetup` dari cache LensRadar, bukan kesimpulan yang disusun
+  model sendiri dari blok fundamental + teknikal. **Ini memperbaiki risiko nyata**: dua
+  jalur perhitungan berbeda bisa memberi kesimpulan berbeda untuk emiten yang sama pada
+  menit yang sama, dan pengguna tidak punya cara tahu mana yang benar. Level TP/CL
+  sengaja TIDAK dihitung ulang di chat - angka level harga adalah hal terakhir yang boleh
+  berbeda antara dua layar.
+- **Verifikasi angka (`app/api/chat/verify-numbers.ts`).** Setiap angka berbentuk klaim
+  data di jawaban dicocokkan dengan Data Terverifikasi Server, prompt pengguna, dan
+  riwayat. Kalau ada yang tidak tertelusur: satu kali perbaikan diminta ke model dengan
+  menyebut angka yang bermasalah; kalau masih gagal, jawaban tetap dikirim **dengan
+  catatan jujur di bawahnya**, bukan disunting diam-diam. Hasil pemeriksaan ikut di
+  `routing.numberCheck` - **pantau log `[LensAI:verify]` untuk melihat seberapa sering
+  ini terjadi.** Konsekuensi biaya: pertanyaan yang gagal verifikasi memakai DUA panggilan
+  AI, bukan satu.
+- **Multi-topik + pertanyaan balik.** Satu pertanyaan bisa memicu sampai 2 blok data
+  tambahan ("fundamental BBCA gimana, ada berita apa?"). Pertanyaan yang terlalu pendek
+  tanpa emiten dan tanpa riwayat dijawab dengan pertanyaan balik deterministik - tanpa
+  panggilan AI.
+
+Tidak ada env var, skema database, atau cron baru.
+
 ### 2026-08-13 - LensAI (Ask AI) menjangkau seluruh fitur aplikasi
 
 **Masalah**: LensAI hanya punya jalur data untuk 6 hal (fundamental, teknikal, valuasi,
