@@ -7,6 +7,8 @@
 // sebagai jalur trafik/revenue tertinggi aplikasi ini - risiko refactor lebih besar
 // dari manfaat dedup di titik itu.
 
+import { resolvePreviousClose } from '@/shared/market/previous-close';
+
 export interface OhlcRow {
   Date: string;
   Open: number;
@@ -85,10 +87,21 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
     }
     if (history.length === 0) return null;
     const regularMarketTime = typeof result.meta.regularMarketTime === 'number' ? result.meta.regularMarketTime : null;
-    const rawPrevClose = result.meta.previousClose;
-    const previousClose = typeof rawPrevClose === 'number' && Number.isFinite(rawPrevClose) && rawPrevClose > 0
-      ? rawPrevClose
-      : null;
+    // Diambil dari riwayat harian, BUKAN `meta.previousClose` mentah seperti sebelumnya.
+    // Terukur 2026-08-14: meta melaporkan penutupan 7 Agustus untuk TLKM/ASII/BMRI -
+    // seminggu basi - sehingga TLKM tampil -4,43% padahal sesungguhnya 0,00% dan BBCA
+    // tampil 0,00% padahal +0,39%. Tiga dari enam sampel berbalik ARAH, bukan sekadar
+    // meleset angkanya.
+    //
+    // Bar mentah dipakai, bukan `history` di atas: history sengaja membuang baris
+    // ber-close null, dan justru bar null itulah penanda sesi berjalan yang menentukan
+    // mana "hari ini" (lihat shared/market/previous-close.ts).
+    const { previousClose } = resolvePreviousClose({
+      timestamps,
+      closes: quote.close,
+      metaPreviousClose: result.meta.previousClose,
+      metaChartPreviousClose: result.meta.chartPreviousClose,
+    });
     return { history, currentPrice, regularMarketTime, previousClose };
   } catch (e) {
     clearTimeout(timeoutId);
