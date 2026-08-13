@@ -64,6 +64,27 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - Contoh pembuka LensAI mengikuti halaman
+
+Perubahan UI murni, tidak menyentuh build/env/cron. Dicatat karena menutup celah produk
+yang lahir dari perubahan minggu ini sendiri: cakupan LensAI melonjak (pasar, sektor,
+LensRadar, dividen, earnings, arus dana, metodologi skor, portofolio), tetapi layar
+pembukanya masih menawarkan SATU contoh - analisis teknikal emiten yang sedang dibuka.
+**Kemampuan yang tidak diketahui siapa pun sama saja dengan tidak ada.**
+
+- Di halaman emiten (`/technical/BBCA.JK` dst): contoh diarahkan ke emiten itu -
+  fundamental, teknikal, dividen, arus dana.
+- Di halaman lain: contoh pertanyaan pasar - kondisi pasar & sektor, skor tertinggi hari
+  ini, top gainer, cara skor ditentukan.
+- Aturan isi daftar (`components/ai-chat-starters.ts`): setiap contoh WAJIB punya jalur
+  data nyata dan padanan di fixture `eval:lensai`. Menawarkan contoh yang berujung
+  "datanya belum tersedia" lebih buruk daripada tidak menawarkan apa pun - pengguna
+  mencobanya sekali, gagal, lalu berhenti mencoba yang lain.
+
+Sekalian memperbaiki deteksi halaman emiten: logika lama ("segmen terakhir URL = simbol")
+mengubah `/screener` menjadi simbol `SCREENER` dan menawarkan pertanyaan tentang emiten
+yang tidak ada.
+
 ### 2026-08-13 - BUG NYATA: kata umum terbaca sebagai kode emiten
 
 Ditemukan oleh evaluasi jawaban end-to-end yang baru (`npm run eval:answers`), bukan dari

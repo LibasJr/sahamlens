@@ -12,9 +12,12 @@
     "ketik, singkatan, dan sufiks -nya), lalu isi intent yang seharusnya. Kalau ternyata",
     "gagal, itu temuan - bukan alasan mengubah pertanyaannya supaya lulus.",
     "",
-    "tickers = berapa kode emiten yang ada di pertanyaan itu (router sungguhan mengambilnya",
-    "dari daftar emiten terdaftar; di sini ditulis manual supaya fixture tidak bergantung",
-    "pada isi daftar emiten yang bisa berubah)."
+    "tickers = berapa kode emiten yang SEHARUSNYA dikenali dari pertanyaan itu. Sejak",
+    "2026-08-13 angka ini adalah EKSPEKTASI yang diperiksa, bukan masukan: eval memanggil",
+    "ekstraktor ticker yang sungguhan. Perubahan itu perlu karena versi sebelumnya buta",
+    "secara struktural terhadap kesalahan ekstraksi - \"harga emas hari ini berapa?\" lolos",
+    "dengan tickers=0 tertulis manual, padahal di server kata \"emas\" terbaca sebagai",
+    "emiten EMAS dan pertanyaannya berubah jadi analisis saham."
   ],
   "questions": [
     { "q": "BBCA fundamentalnya gimana?", "tickers": 1, "intent": "FUNDAMENTAL_CURRENT", "group": "emiten" },
