@@ -195,6 +195,22 @@ describe('9Router (proxy AI multi-provider)', () => {
     expect(buildCombos()).toEqual([]);
   });
 
+  // Regresi untuk kegagalan senyap yang terjadi di VPS: baris NINEROUTER_API_KEY=
+  // tertulis dengan nilai kosong, 9Router dilewati diam-diam, dan tidak ada satu pun
+  // log [AI:9router] yang bisa dipakai untuk melacaknya.
+  it('memperingatkan kalau base URL terisi tapi API key kosong', () => {
+    clearAllKeys();
+    __resetAIRotationForTests();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(buildNineRouterProvider()).toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('NINEROUTER_API_KEY kosong'));
+
+    warn.mockRestore();
+  });
+
   it('tidak aktif kalau API key ada tapi base URL kosong', () => {
     clearAllKeys();
     vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
