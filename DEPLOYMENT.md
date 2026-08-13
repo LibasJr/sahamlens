@@ -49,6 +49,9 @@ cukup dilakukan di dashboard 9Router tanpa deploy ulang SahamLens.
 - Cascade lama TIDAK dihapus. Kalau 9Router mati/limit, percobaan lanjut ke provider
   langsung seperti sebelumnya, dan kalau semua gagal fallback rule-based tetap jalan.
 
+**Cara pasang di VPS**: langkah demi langkah ada di `docs/operations/9ROUTER.md`, file
+deploy siap pakai (compose + Nginx + installer) di `deploy/9router/`.
+
 **Env var baru** (Vercel: Settings -> Environment Variables, scope Production + Preview):
 
 | Env var | Wajib | Isi |
