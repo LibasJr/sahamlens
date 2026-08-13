@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, Target } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import CalibrationClient from './CalibrationClient';
 
@@ -35,13 +35,9 @@ export default async function AdminCalibrationPage() {
                 dari histori real `lens_radar_history` dan hasil cron `lens_bucket_stats`.
               </p>
             </div>
-            <Link
-              href="/admin/tpcl-validation"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-tv-border bg-tv-card px-3 py-2 text-sm font-semibold hover:border-tv-accent/50"
-            >
-              <Target className="w-4 h-4 text-tv-green" />
-              TP / CL Validation Lab
-            </Link>
+            {/* Tautan TP/CL DIPINDAH ke daftar menu utama /admin. Berada di sini ia
+                membuat TP/CL terbaca sebagai bagian dari kalibrasi LensScore, padahal
+                keduanya menguji kuantitas berbeda. */}
           </div>
         </div>
 

@@ -1186,7 +1186,12 @@ function DashboardContent() {
                     }`}>
                       {loading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
                       <div className="min-w-0 font-sans">
-                        <div className="text-base font-bold leading-tight">{loading ? 'Calculating...' : consensus.primary}</div>
+                        {/* 14px, bukan 16px. Hirarki di kotak ini bersandar pada TEBAL
+                            dan WARNA, bukan ukuran - selisihnya dengan baris detail di
+                            bawah tinggal 1px karena lantai keterbacaan menahan yang
+                            kecil di 13px. Itu memang disengaja: kotak ini sinyal
+                            sekunder, tidak boleh mengalahkan putusan utama halaman. */}
+                        <div className="text-sm font-bold leading-tight">{loading ? 'Calculating...' : consensus.primary}</div>
                         {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">{consensus.detail}</div>}
                       </div>
                     </div>

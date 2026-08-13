@@ -14,6 +14,12 @@ export default function AIChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeContextData, setActiveContextData] = useState<any>(null);
+  // Keadaan penyedia AI menurut JAWABAN TERAKHIR server, bukan asumsi. Baris status di
+  // header dulu selalu bertuliskan "AI sedang aktif" dengan titik hijau berdenyut tanpa
+  // memeriksa apa pun - jadi saat server menjawab 503 NO_PROVIDER_CONFIGURED, UI tetap
+  // mengklaim aktif sementara isi percakapannya bilang sebaliknya. null = belum pernah
+  // dikirimi pertanyaan, jadi memang belum ada yang bisa dipastikan.
+  const [penyediaSiap, setPenyediaSiap] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -160,10 +166,17 @@ export default function AIChat() {
           || fallbackByCode[data?.errorCode]
           || data?.error
           || 'Maaf, LensAI belum dapat memproses pertanyaan ini.';
+        // Hanya kegagalan PENYEDIA yang mematikan lampu status. Kuota habis, perlu
+        // login, atau data kurang bukan berarti AI-nya mati - menyamakannya akan
+        // membuat lampu itu berbohong ke arah sebaliknya.
+        if (data?.detailCode === 'NO_PROVIDER_CONFIGURED' || data?.detailCode === 'PROVIDER_AUTH_ERROR') {
+          setPenyediaSiap(false);
+        }
         setMessages(prev => [...prev, { role: 'assistant', content: safeMessage }]);
         return;
       }
 
+      setPenyediaSiap(true);
       setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
@@ -200,9 +213,17 @@ export default function AIChat() {
               </div>
               <div>
                 <h3 className="font-heading text-base font-bold text-tv-text sm:text-sm">LensAI Copilot</h3>
-                <p className="flex items-center gap-1 text-xs font-semibold text-tv-green sm:text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-tv-green animate-pulse"></span>
-                  AI sedang aktif
+                <p className={`flex items-center gap-1 text-xs font-semibold sm:text-[10px] ${
+                  penyediaSiap === false ? 'text-tv-red' : penyediaSiap ? 'text-tv-green' : 'text-tv-muted'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    penyediaSiap === false ? 'bg-tv-red' : penyediaSiap ? 'bg-tv-green animate-pulse' : 'bg-tv-muted'
+                  }`}></span>
+                  {penyediaSiap === false
+                    ? 'Penyedia AI belum terpasang'
+                    : penyediaSiap
+                      ? 'AI sedang aktif'
+                      : 'Siap menerima pertanyaan'}
                 </p>
               </div>
             </div>

@@ -21,7 +21,6 @@ export const PROTECTED_PAGES = [
   '/watchlist',
   '/risk-calculator',
   '/recommendations',
-  '/multi-agent',
   '/dcf',
   '/macro',
   '/moat',

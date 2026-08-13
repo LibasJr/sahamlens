@@ -488,16 +488,16 @@ function FundamentalContent() {
               {(() => {
                 const valuation = splitStatusText(data?.consensus);
                 return (
-                  <div className={`min-h-[78px] w-full rounded-xl border px-3 py-2.5 shadow-1 flex flex-col items-center justify-center text-center font-sans ${
+                  <div className={`min-h-[64px] w-full rounded-xl border px-3 py-2 flex flex-col items-center justify-center text-center font-sans ${
                     data?.consensus?.includes('UNDERVALUED')
-                      ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
+                      ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
                       : data?.consensus?.includes('OVERVALUED')
-                      ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
-                      : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
+                      ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                      : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
                   }`}>
                     <div className="flex items-center justify-center gap-1.5">
                       {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
-                      <span className="text-sm font-bold leading-tight sm:text-base">{loading ? 'Calculating...' : valuation.primary}</span>
+                      <span className="text-sm font-bold leading-tight">{loading ? 'Calculating...' : valuation.primary}</span>
                     </div>
                     {!loading && valuation.detail && <div className="mt-1 text-[11px] font-semibold opacity-80 sm:text-xs">{valuation.detail}</div>}
                   </div>
@@ -507,16 +507,16 @@ function FundamentalContent() {
 
             <div className="min-w-0">
               <div className="mb-1.5 text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Kualitas Fundamental</div>
-              <div className={`min-h-[78px] w-full rounded-xl border px-3 py-2.5 shadow-1 flex flex-col items-center justify-center text-center font-sans ${
+              <div className={`min-h-[64px] w-full rounded-xl border px-3 py-2 flex flex-col items-center justify-center text-center font-sans ${
                 data?.fundamentalQuality?.label === 'BAGUS'
-                  ? 'bg-tv-green/15 text-tv-green border-tv-green/60'
+                  ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
                   : data?.fundamentalQuality?.label === 'BURUK'
-                  ? 'bg-tv-red/15 text-tv-red border-tv-red/60'
-                  : 'bg-tv-yellow/15 text-tv-yellow border-tv-yellow/60'
+                  ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                  : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
               }`}>
                 <div className="flex items-center justify-center gap-1.5">
                   {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4 shrink-0" />}
-                  <span className="text-sm font-bold leading-tight sm:text-base">
+                  <span className="text-sm font-bold leading-tight">
                     {loading ? 'Calculating...' : data?.fundamentalQuality?.label || 'AWAITING'}
                   </span>
                 </div>

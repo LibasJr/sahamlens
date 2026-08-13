@@ -34,7 +34,7 @@ function signalIcon(signal: string): LucideIcon {
 }
 
 // Kartu export offscreen untuk /technical/[symbol] (lihat TechnicalExportSection untuk
-// wiring). %BUY/SELL/HOLD/WAIT = vote riil 10 agent (dihitung di CouncilDisplay,
+// wiring). %BUY/SELL/HOLD = arah analyzer deterministik (dihitung di halaman teknikal,
 // app/technical/[symbol]/page.tsx) - BUKAN field "Confidence" yang sudah dihapus dari
 // UI (2026-08-03) karena dulu angka karangan LLM tanpa formula. Banner header
 // color-block (gradient-accent) sama persis dengan FundamentalExportCard - satu sistem
@@ -78,7 +78,7 @@ export default function TechnicalExportCard({
             <div className="text-lg text-tv-muted leading-relaxed mb-8 line-clamp-3">{summaryId}</div>
           )}
 
-          <div className="mb-2 text-sm font-mono text-tv-muted uppercase">Vote 10 Agent LensConsensus</div>
+          <div className="mb-2 text-sm font-mono text-tv-muted uppercase">Arah Analyzer Teknikal</div>
           <div className="flex w-full h-4 rounded-full overflow-hidden mb-3 bg-tv-border">
             {buyPct > 0 && <div style={{ width: `${buyPct}%` }} className="bg-tv-green" />}
             {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-tv-blue" />}

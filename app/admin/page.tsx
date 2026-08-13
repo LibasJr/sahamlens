@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, BarChart3, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { ArrowLeft, BarChart3, FileSpreadsheet, RefreshCw, Target } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { EmptyState } from '@/components/ui';
@@ -107,6 +107,26 @@ export default async function AdminPage() {
             <h2 className="font-heading text-lg font-bold text-tv-text">Broker Summary</h2>
             <p className="text-sm text-tv-muted mt-1">
               Pantau sinkronisasi otomatis, cari ticker, lihat top broker, atau jalankan import manual cadangan.
+            </p>
+          </div>
+        </Link>
+
+        {/* TP/CL Validation Lab berdiri sendiri di sini. Rutenya
+            (/admin/tpcl-validation) memang sudah terpisah sejak awal, tapi satu-satunya
+            tautan menujunya terkubur DI DALAM halaman Calibration Lab - jadi ia terbaca
+            seolah bagian dari kalibrasi LensScore, padahal yang diuji mesin TP/CL
+            (structure + ATR + fraksi harga IDX), kuantitas yang sama sekali berbeda. */}
+        <Link
+          href="/admin/tpcl-validation"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-yellow/10 p-2 text-tv-yellow">
+            <Target className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">TP/CL Validation Lab</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Uji historis engine TP/CL yang sama dengan production: structure + ATR + fraksi harga IDX.
             </p>
           </div>
         </Link>

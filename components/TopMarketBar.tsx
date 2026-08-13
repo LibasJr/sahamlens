@@ -12,7 +12,7 @@ import ThemeToggle from './ThemeToggle';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
-const MODULE_SEARCH_ROUTES = ['/dashboard', '/fundamental', '/macro', '/screener', '/multi-agent'];
+const MODULE_SEARCH_ROUTES = ['/dashboard', '/fundamental', '/macro', '/screener'];
 
 export default function TopMarketBar() {
   const pathname = usePathname();
