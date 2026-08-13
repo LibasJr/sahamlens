@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, DollarSign, BarChart3, Sparkles, Activity } from 'lucide-react';
@@ -114,7 +115,9 @@ export default function MarketCategoryPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2.5">
-            <img src="/sahamlens-scope.png" alt="SahamLens" className="h-8 w-8 rounded-full object-cover" />
+            {/* next/image, bukan <img>: berkasnya 263 KB dan dulu dikirim utuh untuk
+                kotak 32 piksel. Optimizer melayaninya 1,1 KB WebP. */}
+            <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
             <span className="font-bold text-[15px] tracking-tight font-heading">SahamLens</span>
           </div>
         </div>
