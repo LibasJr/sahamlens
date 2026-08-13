@@ -1,3 +1,4 @@
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 import YahooFinanceClass from 'yahoo-finance2';
 import {
   analyzeEma,
@@ -157,7 +158,18 @@ export async function analyzeStock(ticker: string) {
         ? Math.max(consensusVote.bull_pct, consensusVote.bear_pct)
         : consensusVote.bull_pct;
 
-    const prevClose = history[history.length - 2]?.Close;
+    // BUG FIX (laporan pengguna 2026-08-14): dulu `history[history.length - 2]`, meleset
+    // satu sesi. `history` sudah dibersihkan dari bar ber-close null, dan bar sesi
+    // BERJALAN masih null di Yahoo - jadi elemen terakhirnya sesi kemarin, dan `length-2`
+    // dua sesi lalu. Sementara `currentPrice` di atas adalah harga sesi berjalan.
+    // Terukur saat laporan: BBCA tampil +1,19% padahal harian sesungguhnya +0,39%.
+    const { previousClose: resolvedPrevClose } = resolvePreviousClose({
+      timestamps,
+      closes: quote?.close,
+      metaPreviousClose: result.meta?.previousClose,
+      metaChartPreviousClose: result.meta?.chartPreviousClose,
+    });
+    const prevClose = resolvedPrevClose ?? history[history.length - 2]?.Close;
     // Tanpa harga penutupan sebelumnya, perubahan harian tidak terukur. Jangan
     // menyebutnya 0% (flat) karena itu fakta pasar yang tidak kita miliki.
     if (typeof prevClose !== 'number' || !Number.isFinite(prevClose) || prevClose <= 0) return null;

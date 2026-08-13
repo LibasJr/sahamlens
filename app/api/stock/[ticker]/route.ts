@@ -1,3 +1,4 @@
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
@@ -603,10 +604,19 @@ export async function GET(
         // pasar yang tidak pernah kita ukur. `null` = tidak tersedia. Sumbernya juga
         // dipindah ke `history` (sudah dibersihkan dari bar null), bukan array mentah.
         change_pct: (() => {
-          const last = history[history.length - 1]?.Close;
-          const prev = history[history.length - 2]?.Close;
-          return typeof last === 'number' && typeof prev === 'number' && prev !== 0
-            ? parseFloat((((last - prev) / prev) * 100).toFixed(2))
+          // BUG FIX (laporan pengguna 2026-08-14, "menu lens teknikal"): dulu ini
+          // membandingkan dua bar TERAKHIR di `history`. Karena bar sesi berjalan masih
+          // ber-close null di Yahoo dan `history` sudah membuangnya, yang terhitung
+          // sebenarnya perubahan sesi KEMARIN - ditampilkan sebagai perubahan hari ini,
+          // dan tidak cocok dengan harga live yang ditampilkan di sebelahnya.
+          const { previousClose } = resolvePreviousClose({
+            timestamps,
+            closes: quote.close,
+            metaPreviousClose: result.meta?.previousClose,
+            metaChartPreviousClose: result.meta?.chartPreviousClose,
+          });
+          return typeof previousClose === 'number' && previousClose > 0
+            ? parseFloat((((currentPrice - previousClose) / previousClose) * 100).toFixed(2))
             : null;
         })(),
         volume: typeof history[history.length - 1]?.Volume === 'number' ? history[history.length - 1].Volume : null,

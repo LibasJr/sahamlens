@@ -1,3 +1,4 @@
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal } from './foreign-flow-proxy';
 import { calculateRsi } from '@/modules/technical';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
@@ -135,7 +136,23 @@ async function fetchQuote(symbol: string) {
     // NOTE: meta.chartPreviousClose is unreliable for ranges other than 1d — Yahoo
     // returns the close from the *start* of the requested range, not yesterday's close.
     // Always derive prevClose from the actual daily closes we just fetched.
-    const prevClose = closes[closes.length - 2];
+    //
+    // BUG FIX (laporan pengguna 2026-08-14): dulu `closes[closes.length - 2]`, dan itu
+    // meleset SATU SESI penuh. `closes` di atas hanya menampung bar yang lolos filter,
+    // sedangkan bar sesi berjalan masih ber-close null di Yahoo sehingga terbuang - jadi
+    // elemen TERAKHIR-nya sudah sesi kemarin, dan `length-2` menunjuk dua sesi lalu.
+    // Sementara `currentPrice` di bawah diambil dari `meta.regularMarketPrice`, yaitu
+    // harga sesi BERJALAN. Dua sisi perbandingan datang dari sesi yang berbeda.
+    //
+    // Terukur pada hari laporan: CUAN tampil +16,67% padahal harian sesungguhnya -3,45%
+    // (acuannya penutupan 11 Agu, bukan 12 Agu). Arah terbalik, bukan sekadar meleset.
+    const { previousClose: resolvedPrevClose } = resolvePreviousClose({
+      timestamps,
+      closes: quote.close,
+      metaPreviousClose: meta?.previousClose,
+      metaChartPreviousClose: meta?.chartPreviousClose,
+    });
+    const prevClose = resolvedPrevClose ?? closes[closes.length - 2];
     const currentPrice = isFinitePositive(meta?.regularMarketPrice) ? meta.regularMarketPrice : closes[closes.length - 1];
     const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
     const rawVolume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : volumes[volumes.length - 1];
