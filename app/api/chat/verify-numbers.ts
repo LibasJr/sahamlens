@@ -97,11 +97,30 @@ function isClaimLike(raw: string, value: number): boolean {
   return hasDecimal || magnitude >= 1000;
 }
 
+/**
+ * Pencocokan memakai NILAI MUTLAK - tanda plus/minus diabaikan.
+ *
+ * KENAPA (ditemukan test gerbang streaming, 2026-08-13): blok data menulis
+ * "Perubahan: -1.52 poin (-1.52%)", dan model menjawab "IHSG melemah 1,52%". Itu
+ * jawaban yang BENAR - arahnya dibawa oleh kata "melemah", bukan oleh tanda minus,
+ * dan begitulah bahasa Indonesia yang wajar. Pencocokan yang peka tanda menuduhnya
+ * mengarang.
+ *
+ * BATAS YANG DIAKUI: lapisan ini karena itu TIDAK bisa menangkap kesalahan ARAH -
+ * "menguat 1,52%" padahal data bilang turun akan lolos di sini. Itu memang bukan
+ * pekerjaan pemeriksa angka: ia melihat digit, bukan makna kalimat. Arah dijaga di
+ * tempat lain - blok data mengirim baris "Arah: TURUN" eksplisit, dan aturan #21 di
+ * system prompt melarang menyusun angka pergerakan sendiri. Menuduh berdasarkan tanda
+ * hanya akan menghasilkan peringatan palsu pada jawaban yang benar, dan peringatan
+ * palsu membuat pengguna berhenti mempercayai peringatan yang asli.
+ */
 function matchesAny(value: number, sources: number[]): boolean {
+  const target = Math.abs(value);
   return sources.some((source) => {
-    if (source === value) return true;
-    const scale = Math.max(Math.abs(source), Math.abs(value), 1);
-    return Math.abs(source - value) / scale <= RELATIVE_TOLERANCE;
+    const candidate = Math.abs(source);
+    if (candidate === target) return true;
+    const scale = Math.max(candidate, target, 1);
+    return Math.abs(candidate - target) / scale <= RELATIVE_TOLERANCE;
   });
 }
 

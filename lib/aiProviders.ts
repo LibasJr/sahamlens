@@ -694,3 +694,241 @@ export async function generateAI(opts: { system?: string; prompt: string; json?:
 
 
 
+
+// ===========================================================================
+// STREAMING (2026-08-13)
+// ===========================================================================
+//
+// Jalur TERPISAH dari generateAIResult(), bukan penggantinya. Sembilan pemanggil
+// existing hanya butuh teks utuh dan tidak boleh ikut berubah; yang butuh streaming
+// baru satu, yaitu /api/chat.
+//
+// Sengaja tinggal di FILE YANG SAMA supaya memakai pembukuan kesehatan provider yang
+// sama (markSuccess/markFailure/isCoolingDown/buildSmartAttemptOrder). Kalau streaming
+// dipisah ke file lain dengan salinan logikanya sendiri, dua jalur itu akan berbeda
+// pendapat tentang provider mana yang sedang mati - dan yang paling merugikan, provider
+// yang baru saja gagal di jalur streaming tetap dicoba duluan di jalur biasa.
+//
+// ATURAN PINDAH PROVIDER. Kegagalan SEBELUM satu pun teks keluar -> lanjut ke kombinasi
+// berikutnya seperti biasa. Kegagalan SETELAH teks mulai mengalir -> berhenti dengan
+// teks seadanya. Mencoba provider lain di tengah jalan berarti menyambung dua jawaban
+// dari dua model yang berbeda; kalimatnya bisa saja mulus, tapi isinya campuran dua
+// penalaran - itu lebih menyesatkan daripada jawaban yang terpotong dan diakui terpotong.
+
+/** Dipanggil tiap potongan teks tiba. Tidak boleh melempar - pemanggil yang menjaga. */
+export type AIStreamDelta = (chunk: string) => void;
+
+/**
+ * Pecah aliran SSE menjadi baris utuh.
+ *
+ * Chunk jaringan TIDAK sejajar dengan batas baris: satu chunk bisa berisi setengah
+ * baris `data: {...}`, dan JSON.parse atas potongan itu pasti gagal. Sisa yang belum
+ * berakhir newline karena itu disimpan untuk digabung dengan chunk berikutnya.
+ */
+function createSseLineBuffer() {
+  let carry = '';
+  return {
+    push(chunk: string): string[] {
+      const combined = carry + chunk;
+      const parts = combined.split(/\r?\n/);
+      carry = parts.pop() ?? '';
+      return parts;
+    },
+    flush(): string[] {
+      const rest = carry.trim();
+      carry = '';
+      return rest ? [rest] : [];
+    },
+  };
+}
+
+async function streamOpenAICompatible(
+  provider: OpenAICompatibleProvider,
+  apiKey: string,
+  model: string,
+  system: string | undefined,
+  prompt: string,
+  timeoutMs: number,
+  onDelta: AIStreamDelta,
+): Promise<AICallResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let text = '';
+
+  try {
+    const messages: { role: string; content: string }[] = [];
+    if (system) messages.push({ role: 'system', content: system });
+    messages.push({ role: 'user', content: prompt });
+
+    const res = await fetch(provider.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        ...provider.extraHeaders,
+      },
+      body: JSON.stringify({ model, messages, stream: true }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.warn(`[AI:${provider.name}] stream "${model}" HTTP ${res.status} ${res.statusText} - ${body.slice(0, 200)}`);
+      const failureKind: FailureKind =
+        res.status === 429 ? 'rate-limit'
+        : (res.status === 401 || res.status === 403) ? 'auth'
+        : res.status === 404 ? 'not-found'
+        : res.status >= 500 ? 'server'
+        : 'other';
+      return { text: null, failureKind };
+    }
+
+    if (!res.body) {
+      console.warn(`[AI:${provider.name}] stream "${model}" HTTP 200 tanpa body`);
+      return { text: null, failureKind: 'other' };
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    const lines = createSseLineBuffer();
+
+    const handleLine = (line: string) => {
+      const match = line.match(/^data:\s*(.+)$/);
+      if (!match) return;
+      const payload = match[1].trim();
+      if (payload === '[DONE]') return;
+      try {
+        const chunk = JSON.parse(payload);
+        const delta = chunk?.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string' && delta) {
+          text += delta;
+          onDelta(delta);
+        }
+      } catch {
+        // Satu baris rusak tidak boleh membatalkan aliran yang lain - pola yang sama
+        // sudah dipakai parseChatCompletionBody().
+      }
+    };
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of lines.push(decoder.decode(value, { stream: true }))) handleLine(line);
+    }
+    for (const line of lines.flush()) handleLine(line);
+
+    if (!text.trim()) {
+      console.warn(`[AI:${provider.name}] stream "${model}" selesai tanpa teks`);
+      return { text: null, failureKind: 'other' };
+    }
+    return { text };
+  } catch (e: any) {
+    const reason = e?.name === 'AbortError' ? `timeout ${timeoutMs}ms` : (e?.message || String(e));
+    console.warn(`[AI:${provider.name}] stream "${model}" gagal: ${reason}`);
+    // Teks yang SUDAH mengalir tetap dikembalikan: pemanggil sudah terlanjur
+    // menampilkannya ke pengguna, jadi berpura-pura tidak ada justru membuat status
+    // yang dilaporkan tidak cocok dengan yang terlihat di layar.
+    if (text.trim()) return { text };
+    return { text: null, failureKind: e?.name === 'AbortError' ? 'timeout' : classifyErrorMessage(reason) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function streamGemini(
+  apiKey: string,
+  model: string,
+  system: string | undefined,
+  prompt: string,
+  timeoutMs: number,
+  onDelta: AIStreamDelta,
+): Promise<AICallResult> {
+  let text = '';
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const gModel = genAI.getGenerativeModel({ model, systemInstruction: system });
+
+    // Timeout dipasang sebagai perlombaan terhadap PEMBUKAAN stream saja. Setelah
+    // potongan pertama tiba, batas waktu tidak lagi relevan: aliran yang sedang berjalan
+    // memang boleh berlangsung lama, dan memutusnya di tengah hanya menghasilkan
+    // jawaban terpotong tanpa alasan yang bisa dijelaskan ke pengguna.
+    const started = await Promise.race([
+      gModel.generateContentStream(prompt),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+    ]);
+
+    for await (const chunk of (started as Awaited<ReturnType<typeof gModel.generateContentStream>>).stream) {
+      const piece = typeof chunk.text === 'function' ? chunk.text() : '';
+      if (piece) {
+        text += piece;
+        onDelta(piece);
+      }
+    }
+
+    if (!text.trim()) return { text: null, failureKind: 'other' };
+    return { text };
+  } catch (e: any) {
+    const message = e?.message || String(e);
+    console.warn(`[Gemini] stream "${model}" gagal: ${message}`);
+    if (text.trim()) return { text };
+    return { text: null, failureKind: classifyErrorMessage(message) };
+  }
+}
+
+/**
+ * Versi streaming generateAIResult(). `onDelta` dipanggil tiap potongan teks tiba;
+ * nilai kembaliannya tetap teks UTUH supaya pemanggil bisa memverifikasi hasil akhir.
+ */
+export async function generateAIStream(opts: {
+  system?: string;
+  prompt: string;
+  timeoutMs?: number;
+  onDelta: AIStreamDelta;
+}): Promise<GenerateAIResult> {
+  const { system, prompt, timeoutMs = 8000, onDelta } = opts;
+  const baseCombos = buildCombos();
+
+  if (baseCombos.length === 0) {
+    return { text: null, errorCode: 'NO_PROVIDER_CONFIGURED', failureKinds: [] };
+  }
+
+  const combos = buildSmartAttemptOrder(baseCombos);
+  const failures: FailureKind[] = [];
+
+  for (const combo of combos) {
+    let emitted = false;
+    const guardedDelta: AIStreamDelta = (chunk) => {
+      emitted = true;
+      onDelta(chunk);
+    };
+
+    const result = combo.kind === 'gemini'
+      ? await streamGemini(process.env[combo.envVar]!, combo.model, system, prompt, timeoutMs, guardedDelta)
+      : await streamOpenAICompatible(
+          combo.provider,
+          process.env[combo.provider.envVar]!,
+          combo.model,
+          system,
+          prompt,
+          Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
+          guardedDelta,
+        );
+
+    if (result.text) {
+      markSuccess(combo);
+      return { text: result.text, errorCode: null, failureKinds: failures };
+    }
+
+    const failureKind = result.failureKind ?? 'other';
+    failures.push(failureKind);
+    markFailure(combo, failureKind);
+
+    // Teks sudah terlanjur tampil di layar pengguna - lihat "ATURAN PINDAH PROVIDER".
+    if (emitted) {
+      return { text: null, errorCode: aggregateProviderFailure(failures), failureKinds: failures };
+    }
+  }
+
+  return { text: null, errorCode: aggregateProviderFailure(failures), failureKinds: failures };
+}

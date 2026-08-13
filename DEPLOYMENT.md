@@ -64,6 +64,36 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - Streaming jawaban LensAI, dengan gerbang verifikasi angka
+
+Jawaban LensAI kini mengalir bertahap, TAPI hanya teks yang angkanya sudah lolos
+verifikasi yang boleh sampai ke layar. Streaming polos ditolak dengan sengaja: kalau
+token dialirkan apa adanya, angka karangan terbaca pengguna pada detik pertama dan
+koreksi apa pun datang terlambat - itu membuka kembali kelas bug yang melahirkan aturan
+#21, hanya dengan catatan kaki.
+
+Yang memungkinkan jalan tengah: verifikasi angka di repo ini **deterministik dan tidak
+memanggil AI**, jadi biayanya mikrodetik. Teks ditahan sampai satu satuan utuh (paragraf,
+atau kalimat yang sudah cukup panjang), diperiksa, lalu dilepas.
+
+**Yang perlu diketahui operator:**
+
+- **Header `X-Accel-Buffering: no` WAJIB ada.** Nginx di VPS mem-buffer respons proxy
+  secara default; tanpa header itu seluruh "streaming" tertahan di reverse proxy lalu
+  tiba sekaligus, dan pengguna tidak melihat bedanya sama sekali dengan sebelum ada
+  streaming. Kalau ada laporan "streaming-nya tidak jalan di production padahal jalan di
+  lokal", **periksa ini lebih dulu** sebelum menyalahkan kode.
+- **Jalur lama tidak berubah.** Streaming hanya aktif kalau klien mengirim
+  `{"stream": true}`. Sembilan pemanggil `generateAI()` lain dan klien versi lama tetap
+  menerima JSON seperti biasa.
+- **Biaya AI tidak bertambah** untuk jawaban normal (satu panggilan). Jawaban yang gagal
+  verifikasi tetap memakai dua panggilan, sama seperti sebelumnya.
+- **Jawaban deterministik tidak di-stream** (di luar ranah, sapaan, pertanyaan balik) -
+  memang tidak ada yang perlu dialirkan, dan responsnya tetap JSON.
+- Kalau provider gagal SETELAH teks mulai mengalir, aliran berhenti dengan teks seadanya
+  dan tidak pindah provider. Menyambung dua jawaban dari dua model berbeda menghasilkan
+  kalimat mulus dengan isi campuran - lebih menyesatkan daripada jawaban terpotong.
+
 ### 2026-08-13 - Contoh pembuka LensAI mengikuti halaman
 
 Perubahan UI murni, tidak menyentuh build/env/cron. Dicatat karena menutup celah produk
