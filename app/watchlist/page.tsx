@@ -482,7 +482,7 @@ export default function WatchlistPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-tv-text font-number">{code}</span>
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded border"
+                          className="lens-chip font-bold px-1.5 py-0.5 rounded border"
                           style={{ backgroundColor: `${scoreColor}22`, borderColor: scoreColor, color: scoreColor }}
                         >
                           {scoreLabel}
