@@ -64,6 +64,22 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - TP/CL Validation Lab jadi menu sendiri di admin panel
+
+Rute `/admin/tpcl-validation` sudah terpisah sejak awal, tapi satu-satunya tautan menujunya
+terkubur DI DALAM halaman Calibration Lab - jadi terbaca seolah bagian dari kalibrasi
+LensScore, padahal yang diuji mesin TP/CL (structure + ATR + fraksi harga IDX), kuantitas yang
+sama sekali berbeda. Sekarang kartu sendiri di grid `/admin` (`app/admin/page.tsx`), dan
+tautan di dalam Calibration Lab dihapus. Commit `4780478`.
+
+Murni UI: tidak mengubah cara build, deploy, env var, cron, atau gating akses. Dicatat di sini
+karena aturan paling atas dokumen ini mewajibkan setiap commit yang sudah masuk `main` punya
+catatan, sekecil apa pun perubahannya - dan commit ini sempat lolos tanpa catatan.
+
+Diverifikasi lokal sebelum dicatat (dev server + cookie admin, bukan pembacaan kode saja):
+`/admin` merender kartunya, `/admin/calibration` nol referensi `tpcl-validation`, dan
+`/admin/tpcl-validation` balas 200.
+
 ### 2026-08-13 - Dokumen ini ditulis ulang untuk jalur VPS + auto-deploy
 
 Tidak ada perubahan perilaku aplikasi. Yang diperbaiki adalah dokumennya sendiri: sebelumnya
