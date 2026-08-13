@@ -60,7 +60,18 @@ services:
       # update - semua akun provider yang sudah dipasang ikut hilang.
       - 9router-data:/root/.9router
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:20128/health || exit 1"]
+      # 9Router TIDAK punya endpoint /health - endpoint resminya cuma /v1/chat/completions,
+      # /v1/models, dan dashboard di "/" (diverifikasi 2026-08-13 dari README upstream;
+      # beberapa panduan pihak ketiga menyebut /health, dan itu memang 404).
+      # Dipakai "/" karena /v1/models butuh API key (REQUIRE_API_KEY=true) - status < 500
+      # sudah cukup membuktikan prosesnya hidup dan melayani HTTP.
+      # `node -e` dipakai, bukan curl/wget, karena image ini berbasis Node dan belum tentu
+      # membawa keduanya.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:20128/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
@@ -131,10 +142,10 @@ server {
         proxy_cache off;
     }
 
-    location = /health {
-        proxy_pass http://127.0.0.1:20128/health;
-        access_log off;
-    }
+    # CATATAN: tidak ada location /health di sini. 9Router tidak menyediakan endpoint itu
+    # (cek 2026-08-13: cuma /v1/* dan dashboard di "/"). Untuk memantau dari luar, panggil
+    # GET /v1/models dengan API key - itu sekaligus membuktikan router DAN autentikasinya
+    # bekerja, bukan sekadar prosesnya hidup.
 
     # Dashboard TIDAK dibuka ke publik. Isinya seluruh API key provider Anda -
     # satu password bocor = semua akun AI ikut. Akses lewat SSH tunnel dari laptop:
@@ -218,11 +229,12 @@ $COMPOSE up -d
 
 log "Menunggu 9Router siap..."
 for i in $(seq 1 30); do
-  if curl -fsS http://127.0.0.1:20128/health >/dev/null 2>&1; then
+  # 9Router tidak menyediakan /health - "/" dipakai sebagai bukti prosesnya melayani HTTP.
+  if curl -fsS -o /dev/null http://127.0.0.1:20128/ 2>/dev/null; then
     log "9Router hidup di http://127.0.0.1:20128"
     break
   fi
-  [[ $i -eq 30 ]] && fail "9Router tidak merespons /health setelah 60 detik. Cek: $COMPOSE logs --tail=50"
+  [[ $i -eq 30 ]] && fail "9Router tidak merespons HTTP setelah 60 detik. Cek: $COMPOSE logs --tail=50"
   sleep 2
 done
 
