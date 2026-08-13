@@ -1,7 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { buildCombos, buildSmartAttemptOrder, __resetAIRotationForTests, generateAIResult, hasAnyAIProvider } from '../aiProviders';
+import {
+  buildCombos,
+  buildSmartAttemptOrder,
+  buildNineRouterProvider,
+  normalizeNineRouterUrl,
+  __resetAIRotationForTests,
+  generateAIResult,
+  hasAnyAIProvider,
+} from '../aiProviders';
 
-const ALL_KEYS = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY', 'KIMI_API_KEY', 'NVIDIA_API_KEY'];
+const ALL_KEYS = [
+  'GEMINI_API_KEY',
+  'GROQ_API_KEY',
+  'OPENROUTER_API_KEY',
+  'KIMI_API_KEY',
+  'NVIDIA_API_KEY',
+  'NINEROUTER_BASE_URL',
+  'NINEROUTER_API_KEY',
+  'NINEROUTER_MODELS',
+  'NINEROUTER_PRIORITY',
+  'NINEROUTER_TIMEOUT_MS',
+  'NINEROUTER_PROMPT_BUDGET',
+];
 
 function clearAllKeys() {
   for (const k of ALL_KEYS) vi.stubEnv(k, '');
@@ -121,6 +141,137 @@ describe('buildCombos', () => {
   });
 });
 
+
+describe('9Router (proxy AI multi-provider)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetAIRotationForTests();
+  });
+
+  it('tidak aktif kalau base URL ada tapi API key kosong (router terbuka tidak dipakai diam-diam)', () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    expect(buildNineRouterProvider()).toBeNull();
+    expect(hasAnyAIProvider()).toBe(false);
+    expect(buildCombos()).toEqual([]);
+  });
+
+  it('tidak aktif kalau API key ada tapi base URL kosong', () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
+    expect(buildNineRouterProvider()).toBeNull();
+    expect(hasAnyAIProvider()).toBe(false);
+  });
+
+  it('menolak base URL tanpa skema http/https', () => {
+    expect(normalizeNineRouterUrl('router.example.com')).toBeNull();
+    expect(normalizeNineRouterUrl('   ')).toBeNull();
+  });
+
+  it.each([
+    ['https://router.example.com', 'https://router.example.com/v1/chat/completions'],
+    ['https://router.example.com/', 'https://router.example.com/v1/chat/completions'],
+    ['https://router.example.com/v1', 'https://router.example.com/v1/chat/completions'],
+    ['http://127.0.0.1:20128/v1/', 'http://127.0.0.1:20128/v1/chat/completions'],
+    [
+      'https://router.example.com/v1/chat/completions',
+      'https://router.example.com/v1/chat/completions',
+    ],
+  ])('menormalkan %s ke endpoint chat completions penuh', (input, expected) => {
+    expect(normalizeNineRouterUrl(input)).toBe(expected);
+  });
+
+  it('default model "auto" supaya routing diserahkan ke 9Router', () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
+
+    expect(buildNineRouterProvider()?.models).toEqual(['auto']);
+    expect(hasAnyAIProvider()).toBe(true);
+  });
+
+  it('membaca daftar model dari NINEROUTER_MODELS dan mempertahankan urutannya', () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
+    vi.stubEnv('NINEROUTER_MODELS', ' cc/claude-opus-4-7 , glm/glm-5.1 ,, kr/claude-sonnet-4.5 ');
+
+    const models = buildCombos().map((c) => c.model);
+    expect(models).toEqual(['cc/claude-opus-4-7', 'glm/glm-5.1', 'kr/claude-sonnet-4.5']);
+  });
+
+  it('dicoba lebih dulu daripada provider langsung, karena model-id-nya tidak bisa di-rank', () => {
+    clearAllKeys();
+    vi.stubEnv('KIMI_API_KEY', 'sk-test');
+    vi.stubEnv('GROQ_API_KEY', 'gsk-test');
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
+    vi.stubEnv('NINEROUTER_MODELS', 'cc/claude-opus-4-7');
+
+    const combos = buildCombos();
+    expect(combos[0].kind === 'openai-compatible' && combos[0].provider.name).toBe('9router');
+    // Provider langsung tetap ada sebagai cadangan kalau router mati/limit.
+    expect(combos.map((c) => c.model)).toContain('kimi-k2.6');
+  });
+
+  it('NINEROUTER_PRIORITY=last menaruh router di belakang model yang sudah di-rank', () => {
+    clearAllKeys();
+    vi.stubEnv('KIMI_API_KEY', 'sk-test');
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-test');
+    vi.stubEnv('NINEROUTER_PRIORITY', 'last');
+
+    const models = buildCombos().map((c) => c.model);
+    expect(models.indexOf('kimi-k2.6')).toBeLessThan(models.indexOf('auto'));
+  });
+
+  it('memanggil URL 9Router dengan bearer key-nya sendiri, bukan key provider upstream', async () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com/v1');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-secret');
+    vi.stubEnv('NINEROUTER_PROMPT_BUDGET', 'smart');
+
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: 'halo' } }] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const result = await generateAIResult({ prompt: 'test', timeoutMs: 50 });
+    expect(result.text).toBe('halo');
+
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('https://router.example.com/v1/chat/completions');
+    expect(init.headers.Authorization).toBe('Bearer 9r-secret');
+    expect(init.headers['X-Prompt-Budget']).toBe('smart');
+    expect(JSON.parse(init.body).model).toBe('auto');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('gagalnya router tidak mematikan cascade - provider langsung tetap dicoba', async () => {
+    clearAllKeys();
+    vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
+    vi.stubEnv('NINEROUTER_API_KEY', '9r-secret');
+    vi.stubEnv('GROQ_API_KEY', 'gsk-test');
+
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{"error":"down"}', { status: 503 }))
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content: 'dari groq' } }] }), {
+          status: 200,
+        }),
+      );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const result = await generateAIResult({ prompt: 'test', timeoutMs: 50 });
+    expect(result.text).toBe('dari groq');
+    expect(fetchSpy.mock.calls[0][0]).toContain('router.example.com');
+    expect(fetchSpy.mock.calls[1][0]).toContain('api.groq.com');
+
+    vi.unstubAllGlobals();
+  });
+});
 
 describe('buildSmartAttemptOrder', () => {
   afterEach(() => {
