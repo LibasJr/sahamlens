@@ -35,6 +35,8 @@ export type ChatIntent =
   | 'RISK_PROFILE'
   | 'PORTFOLIO'
   | 'WATCHLIST'
+  /** "Besok naik gak?" - dijawab dengan data yang ada, tanpa menyebut angka besok. */
+  | 'PRICE_PREDICTION'
   /** Pertanyaan yang jelas di luar ranah pasar modal (resep, cuaca, jodoh, PR sekolah). */
   | 'OUT_OF_SCOPE'
   | 'UNKNOWN';
@@ -70,7 +72,12 @@ const MAX_SECONDARY_INTENTS = 2;
 const FUNDAMENTAL_TERMS = /\b(fundamental(?:nya)?|roe|roa|der|current ratio|quick ratio|revenue|pendapatan|laba|margin|neraca|cash ?flow|arus kas)\b/;
 const TECHNICAL_TERMS = /\b(teknikal(?:nya)?|technical|rsi|macd|ema|sma|support|resistance|resisten|momentum|volume|trend|uptrend|downtrend|atr)\b/;
 const VALUATION_TERMS = /\b(valuasi|valuation|per|p\/e|pbv|p\/b|murah|mahal|undervalued|overvalued|nilai wajar|fair value|dcf|mos|margin of safety)\b/;
-const RECOMMENDATION_TERMS = /\b(bagus gak|bagus ga|layak|beli|buy|jual|sell|hold|tahan|entry|masuk|cut loss|stop loss|take profit|tp|cl|investasi\s+\d+\s*(bulan|tahun))\b/;
+// DIPERLUAS 2026-08-13 (temuan dari pertanyaan pemilik produk): dulu hanya "bagus gak"
+// PERSIS yang tertangkap. "saham ini jelek apa bagus?" - bentuk yang sama wajarnya -
+// jatuh ke STOCK_GENERAL, yang berarti model menyusun kesimpulannya sendiri dari angka
+// mentah tanpa keputusan model, gerbang kelayakan, dan status validasi. Justru pertanyaan
+// "bagus atau jelek" yang PALING butuh bingkai itu.
+const RECOMMENDATION_TERMS = /\b(bagus|jelek|bagusan|worth it|prospek|layak|beli|buy|jual|sell|hold|tahan|entry|masuk|cut loss|stop loss|take profit|tp|cl|investasi\s+\d+\s*(bulan|tahun))\b|\bmenurut\s*(mu|kamu)\b/;
 const COMPARE_TERMS = /\b(banding|bandingin|dibanding|dibandingkan|versus|vs|atau)\b/;
 const MARKET_TERMS = /\b(ihsg|\^jkse|idx30|lq45|pasar|market|sektor|breadth|market pulse|kondisi bursa)\b/;
 /** Penyebutan INDEKS secara eksplisit - lebih sempit dari MARKET_TERMS. */
@@ -109,6 +116,23 @@ const SCORING_METHOD_TERMS = new RegExp(
   `\\b(cara|gimana|bagaimana|kenapa|mengapa|kok|rumus|formula|metodologi|dihitung|hitungan|nentuin|menentukan|dasar)\\b[\\s\\S]*\\b(skor|score|lensscore|scoring|peringkat|ranking)${S}\\b` +
     `|\\b(skor|score|lensscore|scoring)${S}\\b[\\s\\S]*\\b(cara|gimana|bagaimana|rumus|formula|metodologi|dihitung|nentuin|menentukan|dari mana|darimana)\\b`,
 );
+/**
+ * Pertanyaan harga masa depan. Sengaja menuntut penanda WAKTU DEPAN atau kata ramalan -
+ * bukan sekadar kata "naik/turun", yang juga dipakai untuk menanyakan pergerakan hari ini.
+ */
+const PREDICTION_TERMS = /\b(besok|lusa|minggu depan|bulan depan|tahun depan|ke depan|kedepan|prediksi|prediksikan|ramal|ramalan|forecast|proyeksi|bakal|bakalan|akan naik|akan turun)\b/;
+
+/**
+ * Dipakai juga oleh router untuk pertanyaan TINGKAT PASAR yang berbingkai masa depan,
+ * mis. "saham apa yang patut dipantau besok dari hasil market hari ini". Intent-nya tetap
+ * peringkat LensRadar - itu memang jawaban yang benar, karena peringkat itu hasil
+ * pemindaian hari ini - tetapi bingkainya harus ikut, supaya daftar pantauan tidak
+ * berubah menjadi daftar ramalan.
+ */
+export function asksAboutFuture(normalizedText: string): boolean {
+  return PREDICTION_TERMS.test(normalizedText);
+}
+
 /** "Saham apa yang bagus", "rekomendasi hari ini", "top pick". */
 const PICKS_TERMS = /\b(lensradar|ai pick|aipick|top pick|rekomendasi hari ini|saham apa|saham yg bagus|saham yang bagus|lagi bagus|paling bagus|skor tertinggi|top skor)\b/;
 const MOVERS_TERMS = /\b(top gainer|top loser|gainer|loser|penguat|pelemah|paling naik|paling turun|paling aktif|volume terbesar|transaksi terbesar|teraktif|oversold|overbought|relative strength|kekuatan relatif)\b/;
@@ -342,6 +366,16 @@ function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, '
       return { intent: 'TECHNICAL_HISTORICAL', dataIntent: 'TECHNICAL_HISTORICAL', compareScope: 'TECHNICAL', requestedMetrics: metrics };
     }
     return { intent: 'FUNDAMENTAL_HISTORICAL', dataIntent: 'FUNDAMENTAL_HISTORICAL', compareScope: 'FUNDAMENTAL', requestedMetrics: metrics };
+  }
+
+  // Diperiksa SEBELUM valuasi/rekomendasi: "prediksi harga BBCA besok" menyentuh
+  // keduanya, tapi yang menentukan bentuk jawabannya adalah bahwa ia menanyakan MASA
+  // DEPAN - dan itu butuh bingkai yang berbeda dari pertanyaan lain mana pun.
+  // Tidak perlu memeriksa mode HISTORICAL di sini: cabang historical di atas sudah
+  // return lebih dulu, jadi pada titik ini modenya pasti CURRENT. ("besok" tidak pernah
+  // menghasilkan tanggal historical - resolveChatDate hanya mengenali tanggal eksplisit.)
+  if (PREDICTION_TERMS.test(text) && args.tickerCount > 0) {
+    return of('PRICE_PREDICTION');
   }
 
   if (VALUATION_TERMS.test(text)) {

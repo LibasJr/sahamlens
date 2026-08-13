@@ -27,7 +27,7 @@ import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/cur
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
-import type { ChatIntent, CompareScope } from './chat-intent';
+import { asksAboutFuture, type ChatIntent, type CompareScope } from './chat-intent';
 import type { ChatDateResolution } from './chat-date';
 import { normalizeIdxTicker } from './extract-ticker';
 import { normalizeChatText } from './chat-normalize';
@@ -40,7 +40,7 @@ import {
   backtestEvidenceBlock,
 } from './blocks/lens-blocks';
 import { dividendBlock, earningsBlock, calendarBlock, flowBlock, moatBlock, riskBlock } from './blocks/emiten-blocks';
-import { decisionBlock, tradingSetupBlock } from './blocks/decision-blocks';
+import { decisionBlock, tradingSetupBlock, predictionGuardBlock } from './blocks/decision-blocks';
 import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type ChatUserContext } from './blocks/user-blocks';
 
 /** Pertanyaan yang menanyakan SEBAB, bukan cuma angka. Dipakai memutuskan apakah blok
@@ -467,8 +467,14 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
 
   if (request.intent === 'LENSRADAR_PICKS') {
     const [picks, methodology] = await Promise.all([lensRadarPicksBlock(), Promise.resolve(scoringMethodologyBlock())]);
+    // "Saham apa yang patut dipantau BESOK dari hasil market hari ini" - peringkat
+    // hari ini memang jawaban yang benar, tapi tanpa bingkai ini daftar pantauan
+    // gampang berubah nada menjadi daftar ramalan.
+    const future = asksAboutFuture(normalizeChatText(request.prompt))
+      ? `\n${verifiedHeader('BINGKAI WAJIB - PERTANYAAN BERBINGKAI MASA DEPAN')}\n${predictionGuardBlock()}`
+      : '';
     return {
-      verifiedBlock: `${verifiedHeader('PERINGKAT LENSRADAR')}\n${picks}\n${verifiedHeader('METODOLOGI SKOR DI BALIK PERINGKAT')}\n${methodology}`,
+      verifiedBlock: `${verifiedHeader('PERINGKAT LENSRADAR')}\n${picks}\n${verifiedHeader('METODOLOGI SKOR DI BALIK PERINGKAT')}\n${methodology}${future}`,
       directResponse: null,
       dataError: null,
     };
@@ -694,6 +700,37 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
         return [general, decision.replace(`### ${ticker.replace(/\.JK$/i, '')}\n`, ''), setup.replace(`### ${ticker.replace(/\.JK$/i, '')}\n`, '')].join('\n');
       }),
     );
+  } else if (request.intent === 'PRICE_PREDICTION') {
+    // Pertanyaan "besok naik gak" dijawab dengan SEMUA yang memang diketahui - tren,
+    // level, setup, dan base rate historis - plus bingkai yang melarang menyebut angka
+    // besok. Menolak mentah-mentah lebih mudah, tapi pengguna yang bertanya begini
+    // sebenarnya ingin tahu "apa yang bisa saya simpulkan dari data"; itu pertanyaan
+    // yang layak dijawab.
+    const [stockBlocks, evidence] = await Promise.all([
+      Promise.all(
+        tickers.map(async (ticker) => {
+          const [general, setup] = await Promise.all([
+            stockGeneralBlock(ticker, request.requestedMetrics),
+            tradingSetupBlock(ticker),
+          ]);
+          return `${general}\n${setup.replace(`### ${ticker.replace(/\.JK$/i, '')}\n`, '')}`;
+        }),
+      ),
+      backtestEvidenceBlock(),
+    ]);
+
+    return {
+      verifiedBlock: [
+        verifiedHeader('BINGKAI WAJIB - PERTANYAAN HARGA MASA DEPAN'),
+        predictionGuardBlock(),
+        verifiedHeader('DATA EMITEN (CURRENT)'),
+        stockBlocks.join('\n\n'),
+        verifiedHeader('BASE RATE HISTORIS PER BUCKET SKOR'),
+        evidence,
+      ].join('\n'),
+      directResponse: null,
+      dataError: null,
+    };
   } else if (request.intent === 'STOCK_GENERAL') {
     blocks = await Promise.all(tickers.map((ticker) => stockGeneralBlock(ticker, request.requestedMetrics)));
   }

@@ -64,6 +64,32 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - LensAI: evaluasi routing, pertanyaan harga masa depan, DYOR
+
+- **Evaluasi routing (`npm run eval:lensai`).** 65 pertanyaan nyata di
+  `app/api/chat/__tests__/fixtures/lensai-questions.json`, dicek apakah sampai ke data
+  yang benar. TIDAK memanggil AI, jadi bisa jalan di CI dan gratis. Ini menjawab pola
+  lama repo ini: perbaikan LensAI selalu dimulai dari screenshot, tanpa satu pun angka
+  yang menyatakan keadaan sekarang. **Menambah pertanyaan cukup mengedit JSON-nya.**
+  Kalau sebuah pertanyaan gagal, itu temuan - bukan alasan mengubah pertanyaannya
+  supaya lulus.
+- **Pertanyaan harga masa depan** ("besok naik gak?") kini punya intent sendiri. Bukan
+  ditolak: dijawab dengan tren, level, setup TP/CL, base rate historis per bucket, dan
+  ukuran risiko - dengan larangan tegas menyebut angka harga besok. Pertanyaan pantauan
+  berbingkai besok ("saham apa yang patut dipantau besok dari market hari ini") tetap
+  dijawab peringkat LensRadar hari ini, plus bingkai yang sama.
+- **"Bagus atau jelek?" kini masuk mesin keputusan.** Sebelumnya hanya "bagus gak"
+  PERSIS yang tertangkap; bentuk lain jatuh ke data mentah tanpa keputusan model,
+  gerbang kelayakan, dan status validasi - padahal justru pertanyaan itu yang paling
+  membutuhkannya.
+- **Penutup DYOR ditempel di server** (`app/api/chat/dyor.ts`), bukan diminta lewat
+  aturan prompt. Penafian yang muncul "biasanya" bukan penafian. Tidak ditempel ke
+  sapaan/penolakan/penjelasan fitur - penafian yang muncul di mana-mana melatih pengguna
+  berhenti membacanya.
+- Perbaikan sambil jalan: jawaban kaleng "bisa bantu apa" masih memuat daftar kemampuan
+  lama (empat hal) dan polanya tidak menangkap "kamu bisa bantu apa?" - bentuk yang
+  paling sering diketik. Keduanya diperbaiki.
+
 ### 2026-08-13 - LensAI: satu sumber keputusan, verifikasi angka, multi-topik
 
 Lanjutan dari perubahan cakupan data di bawah. Tiga lapisan ditambahkan:
