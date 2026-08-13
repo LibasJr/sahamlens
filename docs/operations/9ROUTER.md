@@ -379,12 +379,32 @@ env yang berubah, cukup restart tanpa build.
 
 ## Langkah 8 - Verifikasi di production
 
-1. Buka https://sahamlens.id/chat, kirim satu pertanyaan.
-2. Lihat log aplikasi: `sudo journalctl -u sahamlens -f`
-3. Jawaban keluar **tanpa** baris `[AI:9router] ... HTTP xxx` = request sudah lewat 9Router.
-4. Kalau ada `[AI:9router]` gagal tapi jawaban tetap keluar, itu cascade lama yang
+SahamLens TIDAK punya halaman `/chat` - LensAI dihapus dari menu di commit `9d208be`,
+yang tersisa hanya route API `app/api/chat`. Jadi verifikasinya lewat API, bukan UI:
+
+```bash
+curl -sS -w '\n[HTTP %{http_code} | %{time_total}s]\n' \
+  http://127.0.0.1:3001/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Apa itu PBV?"}'
+```
+
+Dipanggil ke `127.0.0.1:3001` (langsung ke next-server) supaya hasilnya murni soal
+aplikasi + 9Router, tanpa dipengaruhi Nginx atau Cloudflare. Route ini mengizinkan tamu
+dengan kuota, jadi tidak perlu login.
+
+Yang menandakan 9Router dipakai: jawaban keluar, DAN `detailCode` TIDAK berisi
+`NO_PROVIDER_CONFIGURED`. Kalau balasannya 503 `NO_PROVIDER_CONFIGURED`, berarti
+`.env.production` belum terbaca - cek ejaan env var lalu restart service.
+
+Lalu periksa log:
+
+1. `sudo journalctl -u sahamlens -n 50`
+2. Tidak ada baris `[AI:9router] ... HTTP xxx` = request sudah lewat 9Router dengan mulus.
+3. Kalau ada `[AI:9router]` gagal tapi jawaban tetap keluar, itu cascade lama yang
    menyelamatkan - routernya bermasalah, balik ke langkah 6.
-5. Log 9Router sendiri: `sudo docker logs -f 9router`
+4. Log 9Router sendiri: `sudo docker logs --tail=50 9router` - di sini terlihat model
+   mana yang benar-benar dipakai dan provider mana yang menjawab.
 
 ---
 
