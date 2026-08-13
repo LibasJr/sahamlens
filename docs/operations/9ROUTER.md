@@ -7,7 +7,7 @@ sebagai satu entri provider di `lib/aiProviders.ts` - lihat `DEPLOYMENT.md` bagi
 
 Dokumen ini urutan kerjanya, dari VPS kosong sampai production.
 
-**Estimasi**: 30-45 menit, sebagian besar menunggu DNS.
+**Estimasi**: 30-45 menit.
 
 ---
 
@@ -16,7 +16,7 @@ Dokumen ini urutan kerjanya, dari VPS kosong sampai production.
 - VPS dengan akses root/sudo (bisa VPS yang sama dengan Redis).
 - Satu subdomain yang bisa diarahkan ke IP VPS, mis. `router.sahamlens.com`.
 - Akun-akun AI yang mau dipakai (Claude/GPT/Gemini/GLM/Kiro/dst).
-- Akses ke Vercel project `libas/trading`.
+- Akses sudo ke VPS tempat `sahamlens.service` berjalan.
 
 ---
 
@@ -296,7 +296,7 @@ Di dashboard:
 2. **Settings -> API Keys**: buat satu key khusus SahamLens, salin.
 3. Ganti password dashboard dari yang digenerate acak.
 
-## Langkah 6 - Uji dari laptop SEBELUM menyentuh Vercel
+## Langkah 6 - Uji SEBELUM menyentuh aplikasi production
 
 Dari checkout SahamLens di laptop:
 
@@ -316,36 +316,75 @@ Skrip ini memisahkan penyebab kegagalan yang di produksi gejalanya identik semua
 | `HTTP 404` pada chat completions | Nama model di `NINEROUTER_MODELS` tidak ada di instance ini |
 | `No active credentials for provider: X` | Model `auto` memilih provider yang belum dipasang kredensialnya - isi `NINEROUTER_MODELS` eksplisit, atau tambah provider X di dashboard |
 | `model ... tidak ada di instance ini` | Sama, tapi ketahuan sebelum request dikirim |
-| `Semua pemeriksaan lolos` | Aman dipasang di Vercel |
+| `Semua pemeriksaan lolos` | Aman dipasang di `.env.production` |
 
 **Jangan lanjut ke langkah 7 sebelum langkah ini lolos.**
 
-## Langkah 7 - Pasang env var di Vercel
+## Langkah 7 - Pasang env var di aplikasi
 
-Vercel -> project `libas/trading` -> Settings -> Environment Variables. Scope
-**Production + Preview**:
+SahamLens dilayani dari VPS ini juga (systemd `sahamlens.service`, next-server di
+`127.0.0.1:3001`, di belakang Nginx). Env var-nya ada di
+`/opt/sahamlens/app/.env.production`.
 
-| Env var | Nilai | Catatan |
-| --- | --- | --- |
-| `NINEROUTER_BASE_URL` | `https://router.DOMAIN-ANDA.com` | |
-| `NINEROUTER_API_KEY` | key dari langkah 5 | tandai **Sensitive** |
-
-Opsional: `NINEROUTER_MODELS`, `NINEROUTER_PRIORITY`, `NINEROUTER_TIMEOUT_MS`,
-`NINEROUTER_PROMPT_BUDGET` (lihat `.env.example`).
-
-Env var tidak berlaku sampai ada deploy baru:
+Cek dulu belum ada isian lama:
 
 ```bash
-npx vercel --prod
+grep -c '^NINEROUTER_' /opt/sahamlens/app/.env.production
 ```
+
+Kalau `0`, tambahkan:
+
+```bash
+sudo tee -a /opt/sahamlens/app/.env.production >/dev/null <<'ENVEOF'
+
+# 9Router - proxy AI multi-provider (lihat docs/operations/9ROUTER.md)
+NINEROUTER_BASE_URL=http://127.0.0.1:20128/v1
+NINEROUTER_MODELS=ds/deepseek-v4-pro,xai/grok-4,gemini/gemini-3.6-flash,groq/llama-3.3-70b-versatile
+ENVEOF
+```
+
+API key ditulis terpisah supaya tidak masuk `~/.bash_history`:
+
+```bash
+read -rsp "Tempel API key 9Router: " K; echo
+printf 'NINEROUTER_API_KEY=%s\n' "$K" | sudo tee -a /opt/sahamlens/app/.env.production >/dev/null
+unset K
+grep -c '^NINEROUTER_' /opt/sahamlens/app/.env.production    # harus 3
+```
+
+**`BASE_URL` memakai `127.0.0.1`, bukan `router.sahamlens.id`** - aplikasi dan 9Router
+satu mesin, jadi panggilannya tidak usah keluar ke internet: lebih cepat, dan bebas dari
+batas 100 detik Cloudflare. Hostname publiknya tetap berguna untuk uji dari luar.
+
+`NINEROUTER_MODELS` sebaiknya JANGAN dikosongkan di instance ini - defaultnya `auto`, dan
+`auto` terbukti memilih provider yang belum dipasang kredensialnya.
+
+Opsional: `NINEROUTER_PRIORITY`, `NINEROUTER_TIMEOUT_MS`, `NINEROUTER_PROMPT_BUDGET`
+(lihat `.env.example`).
+
+Lalu ambil kode terbaru dan restart:
+
+```bash
+cd /opt/sahamlens/app
+git pull origin main
+npm ci
+npm run build
+sudo systemctl restart sahamlens
+sudo systemctl status sahamlens --no-pager | head -5
+```
+
+`npm run build` wajib - perubahan `lib/aiProviders.ts` ikut ke bundle server saat build,
+bukan dibaca ulang saat restart. Env var sendiri dibaca saat runtime, jadi kalau HANYA
+env yang berubah, cukup restart tanpa build.
 
 ## Langkah 8 - Verifikasi di production
 
-1. Buka https://sahamlens.vercel.app/chat, kirim satu pertanyaan.
-2. Vercel -> Deployments -> Functions -> log `/api/chat`.
+1. Buka https://sahamlens.id/chat, kirim satu pertanyaan.
+2. Lihat log aplikasi: `sudo journalctl -u sahamlens -f`
 3. Jawaban keluar **tanpa** baris `[AI:9router] ... HTTP xxx` = request sudah lewat 9Router.
 4. Kalau ada `[AI:9router]` gagal tapi jawaban tetap keluar, itu cascade lama yang
    menyelamatkan - routernya bermasalah, balik ke langkah 6.
+5. Log 9Router sendiri: `sudo docker logs -f 9router`
 
 ---
 
@@ -356,8 +395,8 @@ npx vercel --prod
 | `certbot` gagal | DNS belum propagasi (langkah 1), port 80 tertutup, atau record masih Proxied di Cloudflare |
 | HTTP 524 dari router | Batas 100 detik Cloudflare terlampaui - turunkan `NINEROUTER_TIMEOUT_MS` atau pilih model lebih cepat |
 | HTTP 502/1033 dari router | `cloudflared` mati atau container 9Router berhenti - cek `systemctl status cloudflared` dan `docker compose ps` |
-| Request dari Vercel diblokir | WAF/Bot Fight Mode Cloudflare - buat WAF skip rule untuk path `/v1/*` |
-| Router jalan tapi Vercel tetap gagal | `NINEROUTER_BASE_URL` masih `localhost` - harus URL publik |
+| Request dari luar VPS diblokir | WAF/Bot Fight Mode Cloudflare - buat WAF skip rule untuk path `/v1/*`. Tidak berlaku kalau `BASE_URL` memakai `127.0.0.1` (tidak lewat Cloudflare sama sekali) |
+| Env var terisi tapi tidak berpengaruh | Lupa `npm run build` + `systemctl restart sahamlens` setelah kode berubah |
 | Log penuh `[AI:9router] HTTP 429` | Kuota provider upstream habis; tambah provider di dashboard |
 | Jawaban lambat/timeout | Naikkan `NINEROUTER_TIMEOUT_MS`, atau pilih model lebih cepat |
 | Semua AI mati mendadak | Cek `docker compose logs -f` di VPS; container mungkin OOM |
@@ -378,5 +417,7 @@ Sertifikat Let's Encrypt diperpanjang otomatis oleh timer certbot. Volume
 ## Rollback
 
 9Router tidak menggantikan apa pun - cascade provider lama tetap utuh. Untuk mematikan:
-hapus `NINEROUTER_BASE_URL` dan `NINEROUTER_API_KEY` di Vercel, lalu redeploy. Aplikasi
-kembali memakai Gemini/Groq/OpenRouter/Kimi/NVIDIA seperti sebelumnya.
+hapus (atau beri komentar `#`) baris `NINEROUTER_BASE_URL` dan `NINEROUTER_API_KEY` di
+`/opt/sahamlens/app/.env.production`, lalu `sudo systemctl restart sahamlens`. Aplikasi
+kembali memakai Gemini/Groq/OpenRouter/Kimi/NVIDIA seperti sebelumnya. Tidak perlu build
+ulang - hanya env yang berubah.
