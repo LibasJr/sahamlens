@@ -15,14 +15,108 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 
 ## Status live
 
-- **Production URL**: https://sahamlens.vercel.app
+> **PENTING (diverifikasi 2026-08-13 langsung di server): production SUDAH TIDAK di
+> Vercel.** Aplikasi dilayani dari VPS sendiri. Seluruh bagian di bawah yang menyebut
+> Vercel sebagai target deploy adalah catatan historis - JANGAN diikuti sebagai instruksi
+> tanpa memeriksa ulang. Topologi yang berlaku sekarang:
+>
+> | Komponen | Kenyataan di server |
+> | --- | --- |
+> | Domain | `sahamlens.id`, `www.sahamlens.id`, `vps.sahamlens.id` |
+> | Masuknya trafik | Cloudflare Tunnel `sahamlens-prod` (token di `/etc/cloudflared/token`), rute di Zero Trust -> Published application routes -> `http://localhost:80` |
+> | Web server | Nginx, `/etc/nginx/sites-available/sahamlens`, `proxy_pass http://127.0.0.1:3001` |
+> | Aplikasi | systemd `sahamlens.service` ("SahamLens Next.js Production"), `User=lens`, `WorkingDirectory=/opt/sahamlens/app`, `ExecStart=/usr/bin/npm start` (next start -p 3001) |
+> | Env var | `EnvironmentFile=/opt/sahamlens/app/.env.production` (+ 3 baris `Environment=` inline di unit) |
+> | Sumber kode | git checkout di `/opt/sahamlens/app`, branch `main`, remote `github.com/LibasJr/sahamlens` |
+> | Port masuk | tidak ada yang dibuka ke internet - cloudflared connect keluar |
+>
+> Deploy = `git pull` di `/opt/sahamlens/app`, lalu `npm ci && npm run build`, lalu
+> `sudo systemctl restart sahamlens`. Env var baru cukup ditambahkan ke `.env.production`
+> lalu restart; `next start` membaca env server-side saat runtime.
+
+- **Production URL (historis, era Vercel)**: https://sahamlens.vercel.app
   (2026-08-03: pindah dari `trading-three-liard.vercel.app`. Kalau menemukan URL lama di
-  catatan/skrip lain, itu sudah usang - ganti ke domain ini.)
+  catatan/skrip lain, itu sudah usang.)
 - **Vercel project**: `libas/trading` (projectId `prj_buCsXaT6sXen6LwAmeMcNLCBkYSO`, orgId `team_L8xvUeG8WKjNY8R0o9h8k8wE` - lihat `.vercel/project.json`)
 - **GitHub**: `github.com/LibasJr/sahamlens`, branch `main`, sudah di-connect ke project Vercel di atas lewat `vercel link`.
 - Vercel CLI di mesin dev sudah login sebagai akun `libasjr`. Kalau sesi expired, perlu `npx vercel login` ulang (device auth flow, buka browser).
 
 ## Log perubahan deployment
+
+### 2026-08-13 - 9Router: satu endpoint proxy untuk banyak AI di cascade LensAI
+
+**Kenapa**: provider AI gratis (Gemini/Groq/OpenRouter/Kimi/NVIDIA) masing-masing punya
+kuota harian sendiri dan katalog model yang berubah tanpa peringatan - tiap kali sebuah
+slug model dihapus penyedianya, kodenya harus ikut diubah. 9Router
+(`github.com/decolua/9router`) adalah proxy OpenAI-compatible self-hosted yang merutekan
+satu request ke 40+ provider dengan fallback internal, jadi penambahan/penggantian model
+cukup dilakukan di dashboard 9Router tanpa deploy ulang SahamLens.
+
+**Yang berubah di kode**:
+- `lib/aiProviders.ts`: 9Router masuk sebagai provider OpenAI-compatible seperti Groq/Kimi,
+  TAPI dibangun dari env var saat runtime (`buildNineRouterProvider()`) karena base URL dan
+  daftar model-nya milik instance masing-masing, bukan konstanta yang bisa di-hardcode.
+- Ranking: model 9Router (`auto`, `cc/claude-opus-4-7`, `glm/glm-5.1`, ...) tidak bisa
+  dinilai `MODEL_PRIORITY` yang statis, jadi provider ini punya flag `tryFirst` dan
+  ditempatkan di depan seluruh cascade (bisa dibalik dengan `NINEROUTER_PRIORITY=last`).
+- Timeout: 9Router punya lantai timeout sendiri (default 15 detik) karena melakukan
+  fallback ke upstream-nya sendiri; budget caller tetap dipakai kalau sudah lebih longgar.
+  Semua route pemanggil AI `maxDuration >= 60`, jadi lantai ini aman.
+- `lib/sahamLensGuard.ts`: berhenti menyalin daftar provider secara hardcode (dulu cuma
+  tahu 3 env var, jadi deployment yang hanya memakai Kimi/NVIDIA diperingatkan salah).
+  Sekarang memanggil `hasAnyAIProvider()`.
+- Cascade lama TIDAK dihapus. Kalau 9Router mati/limit, percobaan lanjut ke provider
+  langsung seperti sebelumnya, dan kalau semua gagal fallback rule-based tetap jalan.
+
+**Cara pasang di VPS**: langkah demi langkah ada di `docs/operations/9ROUTER.md`, file
+deploy siap pakai (compose + Nginx + installer) di `deploy/9router/`. Repo ini private,
+jadi VPS tidak bisa clone tanpa token - `deploy/9router/bootstrap-9router.sh` menulis
+ketiga file itu di VPS tanpa clone. Bootstrap DIGENERATE dari ketiga file tersebut;
+kalau salah satunya diubah, generate ulang supaya tidak melenceng.
+
+**Env var baru** - ditambahkan ke `/opt/sahamlens/app/.env.production` di VPS, lalu
+`sudo systemctl restart sahamlens`:
+
+| Env var | Wajib | Isi |
+| --- | --- | --- |
+| `NINEROUTER_BASE_URL` | ya (untuk aktif) | `http://127.0.0.1:20128/v1` - aplikasi dan 9Router satu mesin, jadi panggilannya TIDAK perlu keluar ke internet: lebih cepat dan tidak tunduk batas 100 detik Cloudflare. `https://router.sahamlens.id` juga berfungsi dan berguna untuk uji dari luar. Boleh ditulis dengan/tanpa `/v1` - dinormalkan di kode. |
+| `NINEROUTER_API_KEY` | ya (untuk aktif) | API key dari Dashboard 9Router -> Settings -> API Keys. Sensitive. |
+| `NINEROUTER_MODELS` | tidak | Daftar model dipisah koma, urutan = urutan percobaan. Kosong = `auto`. |
+| `NINEROUTER_PRIORITY` | tidak | `first` (default) atau `last`. |
+| `NINEROUTER_TIMEOUT_MS` | tidak | Default `15000`. |
+| `NINEROUTER_PROMPT_BUDGET` | tidak | `cheap` / `smart` / `mini`, dikirim sebagai header `X-Prompt-Budget`. |
+
+Keduanya (`BASE_URL` + `API_KEY`) harus diisi. Base URL tanpa API key sengaja DIABAIKAN -
+itu berarti router-nya terbuka untuk siapa pun yang tahu URL-nya, dan itu tidak boleh
+terjadi diam-diam.
+
+**Jebakan operasional**:
+- **`localhost:20128` TIDAK akan bisa dipakai dari Vercel.** Route SahamLens jalan di
+  serverless Vercel, jadi `NINEROUTER_BASE_URL` harus URL yang bisa dijangkau dari
+  internet. Jalankan 9Router di VPS (bisa VPS yang sama dengan Redis) dengan
+  `REQUIRE_API_KEY=true`.
+- **VPS SahamLens memakai Cloudflare Tunnel** (`sahamlens-prod` di zona `sahamlens.id`),
+  jadi jalur yang benar adalah menambah public hostname `router.sahamlens.id` ke tunnel
+  itu - BUKAN membuka port 80/443 dan memasang certbot. Potongan ingress-nya ada di
+  `deploy/9router/cloudflared-ingress.yml`. Konsekuensinya: request tunduk pada batas
+  100 detik Cloudflare (lewat itu balas 524), jadi `NINEROUTER_TIMEOUT_MS` harus tetap
+  jauh di bawah itu.
+- 9Router versi Docker bind ke `0.0.0.0`. Jangan buka port `20128` mentah ke internet -
+  taruh di belakang reverse proxy HTTPS, dan biarkan dashboard-nya tidak publik
+  (`AUTH_COOKIE_SECURE=true` + password kuat kalau memang harus dibuka).
+- Kalau log produksi penuh `[AI:9router] ... HTTP 401`, key-nya salah/di-rotate di
+  dashboard. `HTTP 404` biasanya berarti nama model di `NINEROUTER_MODELS` tidak ada di
+  instance itu - cek `GET {base}/v1/models`, jangan menebak nama model (jebakan yang sama
+  sudah pernah terjadi dengan katalog `:free` OpenRouter).
+- Sebagian pemanggil (news intelligence, chat) mengirim `response_format:
+  {"type":"json_object"}`. Model yang tidak mendukung mode JSON akan menolak request itu
+  dan percobaan lanjut ke provider berikutnya - bukan bug, tapi kalau sering terjadi
+  pilih model 9Router yang mendukung JSON mode supaya router-nya benar-benar terpakai.
+- Sebelum memasang env var di Vercel, jalankan `npm run check:9router` di mesin dev
+  (membaca `.env.local`). Skrip itu memeriksa `GET /v1/models`, memvalidasi tiap nama di
+  `NINEROUTER_MODELS` terhadap katalog nyata, lalu mengirim satu request sungguhan.
+- Smoke test setelah deploy: buka `/chat`, kirim satu pertanyaan, lalu cek log fungsi.
+  Kalau jawaban keluar tanpa baris `[AI:9router]` yang gagal, routing sudah lewat 9Router.
 
 ### 2026-08-06 - Gerbang likuiditas ADV20 di backtest bucket + kolom return gross
 

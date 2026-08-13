@@ -1,0 +1,66 @@
+# 9Router - proxy AI multi-provider untuk cascade LensAI (lihat lib/aiProviders.ts).
+#
+# CATATAN KEAMANAN PALING PENTING: port di-bind ke 127.0.0.1, BUKAN 0.0.0.0.
+# Image resmi 9Router default-nya bind ke 0.0.0.0 - kalau dibiarkan begitu, dashboard
+# dan endpoint /v1 bisa diakses siapa pun yang tahu IP VPS, bahkan sebelum firewall
+# sempat salah konfigurasi. Satu-satunya pintu masuk dari internet adalah Nginx
+# (lihat nginx-9router.conf), yang memaksa HTTPS dan menutup /dashboard dari publik.
+
+services:
+  9router:
+    # Diverifikasi 2026-08-13 lewat Docker Hub API: decolua/9router, tag latest = 0.5.50,
+    # ~201rb pulls, sejalan dengan paket npm `9router` (maintainer decolua) dan repo
+    # github.com/decolua/9router. JANGAN ganti ke "decocua/9router" - itu salah ketik yang
+    # beredar di beberapa panduan pihak ketiga, dan repositorinya memang tidak ada.
+    image: decolua/9router:latest
+    container_name: 9router
+    restart: unless-stopped
+    # "127.0.0.1:" di depan itu bukan hiasan - itu yang bikin port ini tidak pernah
+    # terekspos ke internet. Jangan dihapus.
+    ports:
+      - "127.0.0.1:20128:20128"
+    environment:
+      PORT: "20128"
+      HOSTNAME: "0.0.0.0"
+      # Wajib true: tanpa ini siapa pun yang bisa menjangkau port ini boleh memakai
+      # seluruh kuota AI Anda tanpa API key.
+      REQUIRE_API_KEY: "true"
+      # Dashboard di belakang HTTPS - cookie auth-nya harus secure.
+      AUTH_COOKIE_SECURE: "true"
+      # Password login dashboard pertama kali. Diisi dari file .env di folder ini
+      # (dibuat otomatis oleh install-9router.sh). Ganti lewat dashboard setelah login.
+      INITIAL_PASSWORD: "${NINEROUTER_DASHBOARD_PASSWORD:?NINEROUTER_DASHBOARD_PASSWORD belum diisi di deploy/9router/.env}"
+    volumes:
+      # DIVERIFIKASI 2026-08-13 dari log container yang berjalan:
+      #   [DB] Driver: better-sqlite3 | file: /app/data/db/data.sqlite
+      # Seluruh konfigurasi provider, API key, dan riwayat 9Router ada di /app/data.
+      # BUKAN /root/.9router - path itu dipakai versi CLI/npm dan beredar di panduan
+      # pihak ketiga; kalau dipasang di sana, volume-nya kosong dan semua konfigurasi
+      # justru hidup di lapisan tulis container (hilang begitu container dihapus).
+      - 9router-data:/app/data
+    healthcheck:
+      # 9Router TIDAK punya endpoint /health - endpoint resminya cuma /v1/chat/completions,
+      # /v1/models, dan dashboard di "/" (diverifikasi 2026-08-13 dari README upstream;
+      # beberapa panduan pihak ketiga menyebut /health, dan itu memang 404).
+      # Dipakai "/" karena /v1/models butuh API key (REQUIRE_API_KEY=true) - status < 500
+      # sudah cukup membuktikan prosesnya hidup dan melayani HTTP.
+      # `node -e` dipakai, bukan curl/wget, karena image ini berbasis Node dan belum tentu
+      # membawa keduanya.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:20128/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      # Tanpa batas ini, log request AI bisa memenuhi disk VPS kecil dalam hitungan minggu.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  9router-data:
