@@ -41,6 +41,112 @@ atau pembaruan program di project ini. Ditulis setelah deploy pertama ke Vercel 
 - **GitHub**: `github.com/LibasJr/sahamlens`, branch `main`, sudah di-connect ke project Vercel di atas lewat `vercel link`.
 - Vercel CLI di mesin dev sudah login sebagai akun `libasjr`. Kalau sesi expired, perlu `npx vercel login` ulang (device auth flow, buka browser).
 
+## Cara deploy ke VPS (prosedur baku)
+
+Topologi mesinnya ada di blok "Status live" di atas. Bagian ini urutan kerjanya. Ikuti apa
+adanya - tiap langkah di sini ada karena pernah gagal, bukan karena kelengkapan.
+
+### Aturan dasar
+
+- `/opt/sahamlens/app` adalah **cerminan remote**, bukan tempat kerja. Jangan pernah
+  `git commit` di sana. Semua perubahan dibuat lewat PR, lalu ditarik ke VPS.
+- Production selalu berjalan dari branch **`main`**. Branch fitur hanya untuk uji sementara,
+  dan HARUS dikembalikan ke `main` setelah selesai.
+- Service-nya systemd: `sahamlens.service` (`User=lens`, `npm start` -> next-server :3001).
+
+### 1. Deploy normal (kode sudah masuk `main`)
+
+```bash
+cd /opt/sahamlens/app
+git fetch origin main
+git checkout main
+git reset --hard origin/main
+npm ci                      # HANYA bila package-lock.json ikut berubah
+npm run build && sudo systemctl restart sahamlens
+```
+
+**Kenapa `reset --hard`, bukan `git pull`:** `pull` mencoba merge, dan langsung gagal dengan
+`fatal: Need to specify how to reconcile divergent branches` begitu direktori itu pernah
+dipakai checkout branch lain (terjadi 2026-08-13). `reset --hard` menyamakan isi direktori
+dengan remote tanpa menebak strategi. File **untracked** (mis. `compose.yaml`) tidak tersentuh.
+
+**Perhatikan `&&` pada baris terakhir.** Kalau `npm run build` dan `systemctl restart` ditulis
+di baris terpisah, restart tetap jalan walau build gagal - dan yang dilayani jadi build lama
+tanpa ada yang sadar. Ini juga sudah terjadi.
+
+### 2. Menguji branch sebelum di-merge
+
+```bash
+cd /opt/sahamlens/app
+git fetch origin <nama-branch>
+git checkout -B <nama-branch> origin/<nama-branch>
+npm run build && sudo systemctl restart sahamlens
+```
+
+Setelah selesai menguji, **wajib** kembali ke `main` lewat langkah 1. Kalau tidak, deploy
+berikutnya yang menarik `main` akan menghapus kode yang sedang diuji tanpa peringatan, dan
+gejalanya membingungkan: fitur yang tadi jalan tiba-tiba hilang.
+
+### 3. Kapan perlu build, kapan cukup restart
+
+| Yang berubah | `npm ci` | `npm run build` | `systemctl restart` |
+| --- | --- | --- | --- |
+| Kode TS/TSX/komponen | tidak | **ya** | **ya** |
+| `package.json` / `package-lock.json` | **ya** | **ya** | **ya** |
+| Hanya `.env.production` | tidak | tidak | **ya** |
+| Hanya konfigurasi Nginx | tidak | tidak | `systemctl reload nginx` |
+
+`next start` membaca env var saat runtime, jadi perubahan env cukup restart. Tapi perubahan
+KODE ikut ke bundle saat build - restart saja tidak akan memuatnya.
+
+### 4. Verifikasi wajib setelah deploy
+
+```bash
+sudo systemctl status sahamlens --no-pager | head -5
+curl -s -o /dev/null -w 'live  : %{http_code} %{time_total}s\n' http://127.0.0.1:3001/api/live/%5EJKSE
+curl -s -o /dev/null -w 'publik: %{http_code}\n' https://sahamlens.id
+```
+
+Sehat kalau: status `active (running)`, keduanya `200`. Kalau `publik` gagal tapi `live`
+berhasil, masalahnya di Nginx atau Cloudflare Tunnel, bukan di aplikasi.
+
+Untuk fitur AI, tambahkan:
+```bash
+curl -s -o /dev/null -w 'ai: %{http_code} %{time_total}s\n' http://127.0.0.1:3001/api/chat \
+  -H 'Content-Type: application/json' -d '{"prompt":"Apa itu ROE?"}'
+```
+Wajar 1-3 detik. Kalau belasan detik, lihat `docs/operations/9ROUTER.md`.
+
+### 5. Rollback
+
+```bash
+cd /opt/sahamlens/app
+git reset --hard <commit-yang-diketahui-baik>     # atau origin/main~1
+npm run build && sudo systemctl restart sahamlens
+```
+
+Untuk env var, cadangannya dibuat sebelum diubah:
+```bash
+sudo cp /opt/sahamlens/app/.env.production /opt/sahamlens/app/.env.production.bak
+```
+
+### 6. Jebakan yang sudah pernah terjadi
+
+- **`git pull` gagal "divergent branches"** - direktori pernah dipakai checkout branch lain.
+  Pakai `git reset --hard origin/main` seperti langkah 1, jangan `git pull`.
+- **Build sukses tapi perubahan tidak muncul** - restart terlewat, atau `git reset` belum
+  dijalankan sehingga yang di-build memang kode lama. Cek `git log --oneline -1`.
+- **`npm ci` membuang devDependencies lalu build gagal** - `NODE_ENV=production` bocor ke
+  shell. Jalankan `npm ci --include=dev`.
+- **Env var diubah tapi tidak berpengaruh** - `systemctl restart` terlewat. Buktikan env
+  benar-benar terbaca proses:
+  ```bash
+  sudo tr '\0' '\n' < /proc/$(systemctl show -p MainPID --value sahamlens)/environ | grep '^NAMA_VAR='
+  ```
+- **Nilai env kosong lolos pemeriksaan** - `grep -c '^NAMA_VAR'` menghitung BARIS, bukan
+  nilai; baris `NAMA_VAR=` kosong ikut terhitung. Pakai `grep -c '^NAMA_VAR=.\+'`.
+- **Deploy dari branch fitur lalu lupa kembali ke `main`** - lihat peringatan di langkah 2.
+
 ## Log perubahan deployment
 
 ### 2026-08-13 - 9Router: satu endpoint proxy untuk banyak AI di cascade LensAI
@@ -656,7 +762,11 @@ karena sudah masuk `main`/production (commit `91a2c05`, `8726ed7`, `b9b345b`).
   - `/api/daily-picks` harus tetap respons, termasuk kategori `relativeStrength`.
   - `/breakout-radar` harus tetap render walau setup TP/CL null untuk sebagian saham.
 
-## Cara deploy ulang setelah ubah kode
+## Cara deploy ulang setelah ubah kode (HISTORIS - era Vercel)
+
+> Bagian ini menggambarkan alur deploy lewat Vercel yang SUDAH TIDAK dipakai.
+> Prosedur yang berlaku ada di "Cara deploy ke VPS (prosedur baku)" di atas.
+> Disimpan sebagai catatan sejarah, bukan instruksi.
 
 1. Pastikan lolos check dulu sebelum push/deploy:
    ```
