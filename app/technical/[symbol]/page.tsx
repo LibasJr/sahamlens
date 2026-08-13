@@ -14,10 +14,9 @@ import BrokerDistributionPanel from './BrokerDistributionPanel';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
-import { getSession, checkProAccessLive } from '@/modules/user';
-import { runCouncilAnalysis, runMultiAgentOrchestrator } from '@/modules/ai';
-import { getOrCompute } from '@/shared/cache/redis-cache';
-import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { getSession } from '@/modules/user';
+import { cookies } from 'next/headers';
+
 
 
 const SITE_URL = 'https://sahamlens.id';
@@ -79,161 +78,63 @@ export async function generateMetadata({
   };
 }
 
-// `signedIn` dikembalikan terpisah dari `status` karena keduanya menjawab pertanyaan
-// yang berbeda. BUG FIX (2026-08-11): dulu SEMUA kegagalan yang bukan 401/402/429
-// jatuh ke teaser "Masuk dulu untuk lihat analisis lengkap", jadi user yang SUDAH
-// login (termasuk admin) disuruh login lagi setiap kali runCouncilAnalysis gagal -
-// mis. 503 saat data provider sedang down. Status kegagalan teknis tidak boleh
-// diterjemahkan menjadi "kamu belum login".
-async function getCouncilData(symbol: string): Promise<{ data: any; status: number; signedIn: boolean }> {
+// Sumber data halaman ini SEKARANG deterministik sepenuhnya.
+//
+// Sebelumnya halaman ini menampilkan dua narasi LLM berdampingan: Council ("10 agen",
+// sebenarnya satu prompt besar yang berperan sebagai sepuluh) dan Orchestrator. Keduanya
+// dibuang. Penggantinya `calculateConsensus()` di app/api/stock/[ticker] - vote analyzer
+// teknikal yang ditimbang per-dimensi, aritmetika murni yang bisa diaudit baris per baris.
+//
+// KENAPA DIGANTI, BUKAN SEKADAR DIHAPUS: halaman ini pintu utama pengunjung (lihat
+// MobileNav GUEST_PRIMARY_ITEM, berlabel "Konsensus"). Menghapus tanpa mengganti akan
+// menyisakan chart tanpa analisis apa pun.
+//
+// KENAPA LLM-nya DIBUANG: sepuluh "agen" itu menarik dari deret harga & volume yang SAMA
+// dengan analyzer deterministik - jadi ia bukan pendapat kedua yang independen, melainkan
+// bukti yang sama dihitung dua kali lalu disajikan berdampingan seolah dua saksi. Itulah
+// sebab satu emiten bisa tampil "SINYAL BUY" di LensWatch dan "HOLD" di sini pada hari
+// yang sama.
+//
+// `signedIn` dikembalikan terpisah dari `status` karena keduanya menjawab pertanyaan yang
+// berbeda. BUG FIX (2026-08-11) yang tetap berlaku: dulu SEMUA kegagalan yang bukan
+// 401/402/429 jatuh ke teaser "Masuk dulu", jadi user yang SUDAH login disuruh login lagi
+// setiap kali sumber datanya gagal. Status kegagalan teknis tidak boleh diterjemahkan
+// menjadi "kamu belum login".
+async function getKonsensusData(symbol: string): Promise<{ data: any; status: number; signedIn: boolean }> {
   let signedIn = false;
   try {
-    // Authenticated users do not need an HTTP round-trip to our own /api/council.
-    // The Route Handler still owns anonymous-trial cookie issuance, so guests keep
-    // using the HTTP path below. This removes the extra Vercel invocation/cold start
-    // for signed-in Pro users without changing trial semantics.
     const session = await getSession();
     signedIn = Boolean(session);
-    if (session) {
-      const hasPro = await checkProAccessLive(session);
-      if (!hasPro) return { data: null, status: 402, signedIn };
 
-      const result = await runCouncilAnalysis(symbol);
-      if (!result.ok) return { data: null, status: result.status, signedIn };
-      return { data: result.data, status: 200, signedIn };
-    }
-
+    // Cookie diteruskan apa adanya supaya /api/stock menilai sesi & kuota memakai
+    // identitas pengguna yang sebenarnya. JANGAN diganti header internal-service:
+    // itu melewati gerbang kuota, dan pengunjung akan mendapat data Pro cuma-cuma.
+    const jar = await cookies();
     const baseUrl = getTrustedAppOrigin();
-    const res = await fetch(`${baseUrl}/api/council?symbol=${symbol}`, {
+    const res = await fetch(`${baseUrl}/api/stock/${encodeURIComponent(symbol)}`, {
       cache: 'no-store',
+      headers: { cookie: jar.toString() },
     });
     if (!res.ok) return { data: null, status: res.status, signedIn };
     return { data: await res.json(), status: 200, signedIn };
   } catch (error) {
-    console.error('LensConsensus analysis error:', error);
+    console.error('Konsensus teknikal error:', error);
     return { data: null, status: 500, signedIn };
   }
 }
 
-async function getOrchestratorData(symbol: string): Promise<any | null> {
-  try {
-    // Server Component tidak perlu melakukan HTTP round-trip ke function SahamLens
-    // sendiri untuk user yang sudah punya sesi. Jalankan service langsung sehingga
-    // tidak ada invocation/cold-start kedua dan tidak perlu meneruskan cookie manual.
-    // Guest tetap memakai route HTTP existing agar anonymous-trial cookie semantics
-    // tetap ditangani oleh Route Handler response.
-    const session = await getSession();
-    if (session) {
-      const hasPro = await checkProAccessLive(session);
-      if (!hasPro) return null;
-      const cacheKey = `sahamlens:cache:computed:orchestrator:${symbol.toUpperCase()}`;
-      return await getOrCompute(
-        cacheKey,
-        CACHE_TTL_SEC.TECHNICAL,
-        () => runMultiAgentOrchestrator(symbol),
-      );
-    }
-
-    const baseUrl = getTrustedAppOrigin();
-    const res = await fetch(`${baseUrl}/api/agents/orchestrator`, {
-      method: 'POST',
-      cache: 'no-store',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticker: symbol }),
-    });
-
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (error) {
-    console.error('Orchestrator data error:', error);
-    return null;
-  }
-}
-
-async function OrchestratorRecommendation({
-  symbol,
-}: {
-  symbol: string;
-}) {
-  const result = await getOrchestratorData(symbol);
-  const quant = result?.quant;
-
-  if (!quant) return null;
-
-  const decision =
-    typeof quant.decision === 'string'
-      ? quant.decision
-      : 'DATA TIDAK TERSEDIA';
-
-  const score =
-    typeof quant.final_score === 'number'
-      ? quant.final_score
-      : null;
-
-  const coverage =
-    typeof quant.coverage_weight_pct === 'number'
-      ? quant.coverage_weight_pct
-      : null;
-
-  const decisionClass =
-    decision.includes('BUY')
-      ? 'text-tv-green'
-      : decision.includes('SELL')
-        ? 'text-tv-red'
-        : decision === 'DATA TERBATAS' || decision === 'DATA TIDAK TERSEDIA'
-          ? 'text-tv-yellow'
-          : 'text-tv-blue';
-
-  return (
-    <div className="mb-6 rounded-xl border border-tv-border bg-tv-card p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-tv-muted">
-            SahamLens Quant Recommendation
-          </div>
-
-          <div className={`text-3xl font-bold ${decisionClass}`}>
-            {decision}
-          </div>
-
-          {typeof quant.master_agent_summary === 'string' && (
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted">
-              {quant.master_agent_summary}
-            </p>
-          )}
-        </div>
-
-        <div className="flex shrink-0 gap-3">
-          <div className="min-w-24 rounded-lg border border-tv-borderLight bg-tv-bg p-3 text-center">
-            <div className="text-xs uppercase text-tv-muted">Score</div>
-            <div className="text-2xl font-bold text-white">
-              {score == null ? 'N/A' : score}
-            </div>
-            {score != null && (
-              <div className="text-xs text-tv-muted">/100</div>
-            )}
-          </div>
-
-          <div className="min-w-24 rounded-lg border border-tv-borderLight bg-tv-bg p-3 text-center">
-            <div className="text-xs uppercase text-tv-muted">Coverage</div>
-            <div className="text-2xl font-bold text-white">
-              {coverage == null ? 'N/A' : coverage}
-            </div>
-            {coverage != null && (
-              <div className="text-xs text-tv-muted">/82</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+/** Ubah keputusan analyzer menjadi label yang dipakai kartu ekspor & batang suara. */
+function sinyalDariAnalyzer(decision: string): 'BUY' | 'SELL' | 'HOLD' {
+  if (decision === 'BULLISH') return 'BUY';
+  if (decision === 'BEARISH') return 'SELL';
+  return 'HOLD';
 }
 async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
-  const { data: council, status, signedIn } = await getCouncilData(symbol);
+  const { data, status, signedIn } = await getKonsensusData(symbol);
 
-  if (!council) {
+  if (!data) {
     // Chart + indikator dasar tetap tampil publik (lihat StockChartPanel di atas) -
-    // hanya ringkasan 10-agent LensConsensus Pro yang butuh login/upgrade, jadi teaser-nya
+    // hanya konsensus teknikal Pro yang butuh login/upgrade, jadi teaser-nya
     // spesifik per alasan (belum login vs belum Pro) alih-alih pesan error generik.
     // Ajakan login HANYA untuk yang benar-benar belum punya sesi.
     if (!signedIn && status === 401) {
@@ -322,136 +223,140 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     );
   }
 
-  const agents = council.agents || [];
-  const total = agents.length;
-  let buyPct = 0, sellPct = 0, holdPct = 0, waitPct = 0;
-  
-  if (total > 0) {
-    const buyCount = agents.filter((a: any) => a.signal === 'BUY').length;
-    const sellCount = agents.filter((a: any) => a.signal === 'SELL').length;
-    const holdCount = agents.filter((a: any) => a.signal === 'HOLD').length;
-    const waitCount = agents.filter((a: any) => a.signal === 'WAIT').length;
-    buyPct = Math.round((buyCount / total) * 100);
-    sellPct = Math.round((sellCount / total) * 100);
-    holdPct = Math.round((holdCount / total) * 100);
-    waitPct = Math.round((waitCount / total) * 100);
-  }
+  const analyzers: any[] = Array.isArray(data.analyzers) ? data.analyzers : [];
+  const konsensus = data.consensusData || null;
+  const dimensi: any[] = Array.isArray(konsensus?.dimensions) ? konsensus.dimensions : [];
+
+  // Persentase di bawah adalah hitungan KEPALA analyzer - berbeda dari bull_pct/bear_pct
+  // milik konsensus yang menghitung BOBOT DIMENSI. Keduanya sengaja ditampilkan karena
+  // selisihnya itulah informasinya: enam analyzer bullish bisa hanya bernilai 21% bobot
+  // kalau mereka menumpuk di dimensi yang sedang tidak sepakat.
+  const total = analyzers.length;
+  const hitung = (d: string) => analyzers.filter((a) => sinyalDariAnalyzer(a.decision) === d).length;
+  const buyPct = total > 0 ? Math.round((hitung('BUY') / total) * 100) : 0;
+  const sellPct = total > 0 ? Math.round((hitung('SELL') / total) * 100) : 0;
+  const holdPct = total > 0 ? Math.round((hitung('HOLD') / total) * 100) : 0;
+
+  const kategori: string = konsensus?.kategori || 'HOLD';
+  const bullPct: number = konsensus?.bull_pct ?? 0;
+  const bearPct: number = konsensus?.bear_pct ?? 0;
+  const skor: number | null = typeof data.scoring?.total_score === 'number' ? data.scoring.total_score : null;
+
+  // Ringkasan disusun dari angka, bukan dikarang. Sebelumnya kalimat ini datang dari LLM.
+  const ringkasan = konsensus
+    ? `Konsensus ${kategori}: ${bullPct}% bobot dimensi bullish berbanding ${bearPct}% bearish, dari ${konsensus.total_models ?? total} analyzer (${konsensus.vote ?? '0:0'} berarah). ` +
+      `Sisanya ${Math.max(0, 100 - bullPct - bearPct)}% adalah dimensi yang analyzer di dalamnya saling bertentangan, jadi arahnya dinyatakan netral - bukan dipaksa memihak.`
+    : 'Data konsensus belum tersedia.';
+
+  const warnaKategori = kategori.includes('BUY') ? 'text-tv-green'
+    : kategori.includes('SELL') ? 'text-tv-red'
+    : 'text-tv-yellow';
 
   return (
     <div className="space-y-6">
       <div className="bg-tv-card border border-tv-border rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-heading text-white font-bold">Momentum Teknikal · 10 agen</h2>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="font-heading font-bold text-tv-text">
+            Konsensus Teknikal · {total} analyzer
+          </h2>
           <TechnicalExportSection
             symbol={symbol}
-            finalSuggestion={council.final_suggestion}
-            summaryId={council.summary_id}
+            finalSuggestion={kategori}
+            summaryId={ringkasan}
             buyPct={buyPct}
             sellPct={sellPct}
             holdPct={holdPct}
-            waitPct={waitPct}
-            agents={agents}
-            score={typeof council.score === 'number' ? council.score : null}
+            waitPct={0}
+            agents={analyzers.map((a) => ({ name: String(a.label || '-'), signal: sinyalDariAnalyzer(a.decision) }))}
+            score={skor}
           />
         </div>
 
         {total > 0 && (
           <div className="mb-6">
-            {/* blue-500 mentah diganti tv-blue - biru HOLD sebelumnya berbeda dari
-                biru aksen di seluruh aplikasi. */}
             <div
               className="flex w-full h-3 rounded-full overflow-hidden mb-3 bg-tv-border"
               role="img"
-              aria-label={`Suara agen: ${buyPct}% beli, ${holdPct}% tahan, ${waitPct}% tunggu, ${sellPct}% jual`}
+              aria-label={`Arah analyzer: ${buyPct}% bullish, ${holdPct}% netral, ${sellPct}% bearish`}
             >
-              {buyPct > 0 && <div style={{width: `${buyPct}%`}} className="bg-tv-green transition-[width] duration-1000 ease-settle"></div>}
-              {holdPct > 0 && <div style={{width: `${holdPct}%`}} className="bg-tv-blue transition-[width] duration-1000 ease-settle"></div>}
-              {waitPct > 0 && <div style={{width: `${waitPct}%`}} className="bg-tv-yellow transition-[width] duration-1000 ease-settle"></div>}
-              {sellPct > 0 && <div style={{width: `${sellPct}%`}} className="bg-tv-red transition-[width] duration-1000 ease-settle"></div>}
+              {buyPct > 0 && <div style={{ width: `${buyPct}%` }} className="bg-tv-green transition-[width] duration-1000 ease-settle" />}
+              {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-tv-blue transition-[width] duration-1000 ease-settle" />}
+              {sellPct > 0 && <div style={{ width: `${sellPct}%` }} className="bg-tv-red transition-[width] duration-1000 ease-settle" />}
             </div>
             <div className="flex flex-wrap gap-4 text-xs font-number font-bold">
-              {buyPct > 0 && <span className="text-tv-green">{buyPct}% BUY</span>}
-              {holdPct > 0 && <span className="text-tv-blue">{holdPct}% HOLD</span>}
-              {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% WAIT</span>}
-              {sellPct > 0 && <span className="text-tv-red">{sellPct}% SELL</span>}
+              {buyPct > 0 && <span className="text-tv-green">{buyPct}% BULLISH</span>}
+              {holdPct > 0 && <span className="text-tv-blue">{holdPct}% NETRAL</span>}
+              {sellPct > 0 && <span className="text-tv-red">{sellPct}% BEARISH</span>}
             </div>
-
-            {/* Storytelling: batang di atas menunjukkan sebaran suara, tapi tidak
-                pernah menyebut hal yang paling penting - seberapa BULAT kesepakatannya.
-                Sepuluh agen yang sepakat dan sepuluh agen yang terbelah 5-5 menghasilkan
-                satu "Momentum Teknikal" yang terlihat sama meyakinkannya. */}
-            {(() => {
-              const tallies = [
-                { label: 'BUY', pct: buyPct },
-                { label: 'HOLD', pct: holdPct },
-                { label: 'WAIT', pct: waitPct },
-                { label: 'SELL', pct: sellPct },
-              ].sort((a, b) => b.pct - a.pct);
-              const top = tallies[0];
-              const dissent = 100 - top.pct;
-              const agree = Math.round((top.pct / 100) * total);
-
-              const note =
-                top.pct >= 80 ? `Kesepakatan kuat: ${agree} dari ${total} agen memilih ${top.label}.`
-                : top.pct >= 60 ? `Mayoritas memilih ${top.label} (${agree} dari ${total} agen), tapi ${dissent}% suara tidak setuju - baca alasan agen yang berbeda pendapat di bawah.`
-                : `Suara terpecah: tidak ada pilihan yang mencapai 60%. "${council.final_suggestion}" di bawah adalah suara terbanyak, bukan kesepakatan - perlakukan sebagai bahan pertimbangan, bukan kesimpulan.`;
-
-              return <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">{note}</p>;
-            })()}
           </div>
         )}
 
-        <div className="mt-4 p-4 bg-tv-hover rounded-lg border border-tv-borderLight">
-          {/* BUG FIX (audit BUILD 003 2026-08-03): "Confidence: X%" DIHAPUS - angka itu
-              dikarang bebas oleh LLM tanpa formula (lihat council.service.ts), bukan
-              dihitung dari data. Persentase BUY/SELL/HOLD/WAIT di atas TETAP tampil -
-              itu vote riil dari signal 10 agent, bukan angka karangan. */}
-          {/* BUG FIX (2026-08-06): span ini dulu selalu text-tv-green, apa pun isi
-              final_suggestion. Saran SELL / HINDARI / WAIT dirender HIJAU - warna
-              yang membawa arti berlawanan dari kalimatnya sendiri. Warna sekarang
-              mengikuti isi saran, dan jatuh ke netral kalau tidak dikenali. */}
-          <p className="text-lg text-white mb-2">
-            Kesimpulan:{' '}
-            <span className={(() => {
-              const s = String(council.final_suggestion || '').toUpperCase();
-              if (s.includes('SELL') || s.includes('JUAL') || s.includes('HINDARI')) return 'font-semibold text-tv-red';
-              if (s.includes('BUY') || s.includes('BELI')) return 'font-semibold text-tv-green';
-              if (s.includes('WAIT') || s.includes('TUNGGU') || s.includes('HOLD') || s.includes('TAHAN')) return 'font-semibold text-tv-yellow';
-              return 'font-semibold text-tv-text';
-            })()}>
-              {council.final_suggestion}
-            </span>
+        <div className="rounded-lg border border-tv-border bg-tv-hover p-4">
+          <div className={`font-heading text-lg font-bold ${warnaKategori}`}>{kategori}</div>
+          <p className="mt-2 text-sm text-tv-muted leading-relaxed">{ringkasan}</p>
+          <p className="mt-3 text-[11px] text-tv-muted">
+            Seluruh angka di halaman ini dihitung dari harga dan volume penutupan - tanpa
+            model bahasa. Bobot tiap dimensi tertulis di tabel bawah dan dapat diperiksa.
           </p>
-          {/* whitespace-pre-line: summary_id dari Gemini saat ini satu kalimat padat
-              tanpa newline by design, tapi HTML mengciutkan \n jadi spasi tunggal secara
-              default - kalau prompt berubah atau model sesekali mengembalikan newline,
-              ini mencegahnya berubah jadi satu paragraf raksasa tanpa jeda. */}
-          <p className="text-sm text-tv-muted leading-relaxed whitespace-pre-line">{council.summary_id}</p>
         </div>
       </div>
 
+      {dimensi.length > 0 && (
+        <div className="bg-tv-card border border-tv-border rounded-xl p-6">
+          <h3 className="font-heading font-bold text-tv-text mb-1">Rincian bobot per dimensi</h3>
+          <p className="text-sm text-tv-muted mb-4">
+            Vote dihitung per dimensi, bukan per analyzer. Tanpa ini empat analyzer yang
+            sama-sama turunan rata-rata bergerak akan menguasai suara hanya karena
+            jumlahnya, bukan karena bukti yang berbeda.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-tv-border text-left text-tv-muted">
+                  <th className="pb-2 font-semibold">Dimensi</th>
+                  <th className="pb-2 font-semibold text-right">Bobot</th>
+                  <th className="pb-2 font-semibold text-right">Arah</th>
+                  <th className="pb-2 font-semibold text-right">Analyzer berarah</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dimensi.map((d: any) => (
+                  <tr key={d.dimension} className="border-b border-tv-border/50 last:border-0">
+                    <td className="py-2 font-semibold text-tv-text">{d.dimension}</td>
+                    <td className="py-2 text-right font-number text-tv-muted">{d.weight}</td>
+                    <td className={`py-2 text-right font-number font-bold ${
+                      d.direction === 'BULLISH' ? 'text-tv-green'
+                        : d.direction === 'BEARISH' ? 'text-tv-red'
+                        : 'text-tv-muted'
+                    }`}>{d.direction}</td>
+                    <td className="py-2 text-right font-number text-tv-muted">{d.votedAnalyzers}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {agents.map((agent: any, idx: number) => {
-          const isBuy = agent.signal === 'BUY';
-          const isSell = agent.signal === 'SELL';
-          const isWait = agent.signal === 'WAIT';
-          
+        {analyzers.map((a: any, idx: number) => {
+          const sinyal = sinyalDariAnalyzer(a.decision);
           return (
             <div key={idx} className="bg-tv-hover border border-tv-border rounded-lg p-4 transition-colors hover:border-tv-borderLight">
               <div className="flex justify-between items-center gap-2 mb-2">
-                <h3 className="font-heading font-bold text-white text-sm flex items-center gap-2">
-                  {agent.name}
-                </h3>
+                <h3 className="font-heading font-bold text-tv-text text-sm">{a.label}</h3>
                 <span className={`shrink-0 text-xs px-2 py-0.5 rounded font-number font-semibold ${
-                  isBuy ? 'bg-tv-green/20 text-tv-green border border-tv-green/30' :
-                  isSell ? 'bg-tv-red/20 text-tv-red border border-tv-red/30' :
-                  isWait ? 'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow/30' :
+                  sinyal === 'BUY' ? 'bg-tv-green/20 text-tv-green border border-tv-green/30' :
+                  sinyal === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/30' :
                   'bg-tv-border text-tv-muted'
                 }`}>
-                  {agent.signal}
+                  {sinyal}
                 </span>
               </div>
-              <p className="text-sm text-tv-muted whitespace-pre-line">{agent.reason}</p>
+              <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
+              {typeof a.confidence === 'number' && a.confidence > 0 && (
+                <p className="mt-1 text-[11px] text-tv-muted">Keyakinan {a.confidence}%</p>
+              )}
             </div>
           );
         })}
@@ -508,7 +413,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           <div>
             <h1 className="lens-page-title">{isIndex ? 'LensTechnical: IHSG' : `LensConsensus: ${symbol}`}</h1>
             <p className="text-sm text-tv-muted">
-              {isIndex ? 'Chart dan indikator teknikal Indeks Harga Saham Gabungan' : 'Rapat 10 agen analisis atas satu emiten'}
+              {isIndex ? 'Chart dan indikator teknikal Indeks Harga Saham Gabungan' : 'Vote analyzer teknikal, ditimbang per dimensi'}
             </p>
           </div>
         </div>
@@ -526,14 +431,9 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             IHSG adalah indeks pasar, bukan saham emiten. Karena itu halaman ini menampilkan chart, tren, momentum, dan volatilitas indeks tanpa fundamental perusahaan, broker summary, TP/CL saham, atau rekomendasi beli per lot.
           </div>
         ) : (
-          <>
-            <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
-              <OrchestratorRecommendation symbol={symbol} />
-            </Suspense>
-            <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
-              <LensConsensusAnalysisDisplay symbol={symbol} />
-            </Suspense>
-          </>
+          <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
+            <LensConsensusAnalysisDisplay symbol={symbol} />
+          </Suspense>
         )}
       </PageContainer>
     </div>
