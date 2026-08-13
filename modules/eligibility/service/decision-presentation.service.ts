@@ -21,7 +21,14 @@ export interface DecisionPresentation {
   explanation: string | null;
 }
 
-export type SimpleDecisionLabel = 'WATCH' | 'DATA TERBATAS' | 'TIDAK LAYAK' | 'BUY' | 'SELL' | 'HOLD';
+// 'INFORMASI', bukan 'WATCH'. Dua sebab. Pertama, WATCH bertabrakan dengan nama fitur
+// LensWatch - daftar favorit yang diisi pengguna sendiri - sehingga status model terbaca
+// seolah perintah menambahkan emiten ke sana. Kedua, setiap padanan kata kerja (AMATI,
+// PANTAU, TUNGGU) mengulang masalah yang sama: ia menyuruh pengguna melakukan sesuatu,
+// padahal yang dimaksud sekadar menyatakan keadaan. INFORMASI sejajar bentuknya dengan
+// BUY/SELL/HOLD (kata benda) dan sesuai dengan kalimat yang sudah dipakai aplikasi:
+// LensScore adalah skor informasi, bukan rekomendasi.
+export type SimpleDecisionLabel = 'INFORMASI' | 'DATA TERBATAS' | 'TIDAK LAYAK' | 'BUY' | 'SELL' | 'HOLD';
 
 /**
  * Label satu-baris untuk kartu ringkas. Skor model yang belum tervalidasi sengaja
@@ -31,10 +38,10 @@ export type SimpleDecisionLabel = 'WATCH' | 'DATA TERBATAS' | 'TIDAK LAYAK' | 'B
 export function getSimpleDecisionLabel(presentation: DecisionPresentation): SimpleDecisionLabel {
   if (presentation.modelSignal === 'DATA TIDAK CUKUP') return 'DATA TERBATAS';
   if (presentation.kind === 'INELIGIBLE') return 'TIDAK LAYAK';
-  if (presentation.kind !== 'ACTIONABLE' || !presentation.recommendationLabel) return 'WATCH';
+  if (presentation.kind !== 'ACTIONABLE' || !presentation.recommendationLabel) return 'INFORMASI';
 
   const action = presentation.recommendationLabel.replace(/^REKOMENDASI:\s*/, '');
-  return action === 'BUY' || action === 'SELL' || action === 'HOLD' ? action : 'WATCH';
+  return action === 'BUY' || action === 'SELL' || action === 'HOLD' ? action : 'INFORMASI';
 }
 
 function hasActionableModelSignal(kategori: ScoringKategori | null | undefined): kategori is Exclude<ScoringKategori, 'DATA TIDAK CUKUP'> {

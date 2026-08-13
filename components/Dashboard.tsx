@@ -114,7 +114,7 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
   const renderGroup = (copy: number) => (
     <div className="flex shrink-0 gap-3 pr-3" aria-hidden={copy === 1 ? true : undefined}>
       {items.map((item) => {
-        const label = item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'WATCH';
+        const label = item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'INFORMASI';
         const tone = item.flagged
           ? 'border-tv-red/30 bg-tv-red/10 text-tv-red'
           : advisoryEnabled
@@ -194,7 +194,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   const isIndex = ticker.symbol.startsWith('^');
   const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
   const [timeframe, setTimeframe] = useState('1Y');
-  const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number } | null>(initialIhsg);
+  const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number; dataTimestamp?: string | null; ageSeconds?: number | null } | null>(initialIhsg);
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
   const [now, setNow] = useState<Date | null>(() => initialRenderedAt ? new Date(initialRenderedAt) : null);
@@ -227,8 +227,20 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           typeof data.changePercent === 'number' &&
           Number.isFinite(data.changePercent)
         ) {
-          const pointChange = (data.price * data.changePercent / 100);
-          setIhsg({ price: data.price, change: data.changePercent, pointChange });
+          // Poin dihitung dari previousClose kalau tersedia. Rumus lama
+          // `price * changePercent / 100` memakai harga SEKARANG sebagai penyebut dan
+          // mengalikan persentase yang sudah dibulatkan - terukur menampilkan +30,9
+          // untuk IHSG yang sebenarnya bergerak +30,5.
+          const pointChange = typeof data.previousClose === 'number' && data.previousClose > 0
+            ? data.price - data.previousClose
+            : (data.price * data.changePercent / 100);
+          setIhsg({
+            price: data.price,
+            change: data.changePercent,
+            pointChange,
+            dataTimestamp: typeof data.dataTimestamp === 'string' ? data.dataTimestamp : null,
+            ageSeconds: typeof data.ageSeconds === 'number' ? data.ageSeconds : null,
+          });
         } else {
           setIhsgFailed(true);
         }
@@ -623,6 +635,23 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                         {ihsg.change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                         {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                       </div>
+                      {/* Umur data DITAMPILKAN, tidak lagi dibuang. Rute /api/live sudah
+                          menghitung dataTimestamp dan ageSeconds justru untuk ini, tapi
+                          kartu hanya mengambil harga dan persentase - sehingga angka
+                          berumur lebih dari satu jam (mis. potret sebelum jeda siang)
+                          tampil di bawah judul "IHSG hari ini" seolah keadaan saat ini.
+                          Pengguna yang memantau sumber lain melihat arah berbeda dan
+                          menyimpulkan angkanya salah, padahal ia hanya kedaluwarsa. */}
+                      {ihsg.dataTimestamp && (
+                        <div className="mt-1 text-[11px] text-tv-muted">
+                          Per {new Date(ihsg.dataTimestamp).toLocaleTimeString('id-ID', {
+                            hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+                          })} WIB
+                          {typeof ihsg.ageSeconds === 'number' && ihsg.ageSeconds >= 20 * 60
+                            ? ` · ${Math.round(ihsg.ageSeconds / 60)} menit lalu`
+                            : ''}
+                        </div>
+                      )}
                     </>
                   ) : ihsgFailed ? (
                     <p className="mt-2 text-sm text-tv-muted">Angka indeks tidak tersedia saat ini.</p>
@@ -1029,7 +1058,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                               halaman depan dibuang - padahal itu pembeda utamanya dari
                               daftar berita biasa. */}
                           {n.sentiment && (
-                            <span className={`rounded px-1.5 py-px text-[10px] font-bold ${
+                            <span className={`lens-chip rounded px-1.5 py-px font-bold ${
                               n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green'
                                 : n.sentiment === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red'
                                 : 'bg-tv-hover text-tv-muted'

@@ -1027,6 +1027,35 @@ html .md\:text-xs {
   font-size: 0.8125rem;
 }
 
+/* Pengecualian: CHIP STATUS (BUY/SELL/WAIT/NETRAL/UNDERVALUED/BAGUS dst).
+ *
+ * Lantai di atas menaikkan `text-[10px]` menjadi 13px, sementara padding dan tinggi
+ * baris chip masih disetel untuk 10px - terukur kotaknya membengkak jadi 64x22px dan
+ * seluruh lencana status di aplikasi terlihat gemuk.
+ *
+ * 12px, bukan kembali ke 10px: isi chip adalah kata pendek, tebal, huruf besar semua,
+ * dengan kontras tinggi di atas latar berwarna. Itu terbaca pada ukuran yang lebih
+ * kecil daripada teks mengalir, jadi menurunkannya ke sini tidak mengorbankan
+ * keterbacaan yang jadi alasan lantai itu dibuat. Teks bacaan tetap 13px.
+ *
+ * `line-height: 1` mencegah tinggi kotak ikut tumbuh - itu yang sebenarnya membuat
+ * chip terlihat besar, bukan ukuran hurufnya sendiri. */
+html .lens-chip {
+  font-size: 0.75rem;
+  line-height: 1;
+  /* inline-flex + align-items memusatkan isi chip terhadap kotaknya sendiri, dan
+   * vertical-align: middle memusatkan kotak itu terhadap teks di sebelahnya.
+   *
+   * Keduanya perlu. `line-height: 1` di atas memperbaiki tinggi kotak, tetapi sebagai
+   * elemen inline chip tetap didudukkan pada BASELINE teks - jadi ia terlihat naik
+   * sendiri di tengah kalimat, dan gejalanya paling kentara di layar sempit tempat
+   * baris lebih sering terbungkus. Di induk yang sudah `flex items-center` aturan ini
+   * tidak mengubah apa pun, jadi aman dipasang menyeluruh. */
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
 /* Pengecualian kartu ekspor - dikembalikan ke ukuran aslinya. */
 .lens-export-dark .text-\[9px\],
 .lens-export-dark .text-\[10px\],
