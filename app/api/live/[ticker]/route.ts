@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 
 
 function isFinitePositive(value: unknown): value is number {
@@ -26,7 +27,14 @@ export async function GET(
 
   try {
     // Primary Data Source: Yahoo Finance v8
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
+    //
+    // `range=1mo&interval=1d` (2026-08-13) - sebelumnya tanpa parameter, jadi respons
+    // hanya membawa `meta` tanpa riwayat harian. Riwayat itu sekarang DIBUTUHKAN untuk
+    // menentukan penutupan sesi sebelumnya, karena `meta.previousClose` terbukti bisa
+    // melewati satu sesi (lihat shared/market/previous-close.ts). Rentang 1 bulan
+    // dipilih supaya libur bursa panjang - Lebaran bisa lebih dari sepekan - tetap
+    // menyisakan hari bursa sebelumnya di dalam jendela.
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1mo&interval=1d`;
     const yahooRes = await fetch(yahooUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -41,11 +49,28 @@ export async function GET(
       // Data invalid (harga hilang/nol/negatif) - jangan diteruskan sebagai kalau valid,
       // jatuh ke blok "data tidak tersedia" di bawah alih-alih membalas harga 0.
       if (isFinitePositive(lastPrice)) {
-        const previousClose = isFinitePositive(meta?.previousClose)
-          ? meta.previousClose
-          : isFinitePositive(meta?.chartPreviousClose)
-          ? meta.chartPreviousClose
-          : null;
+        // Penutupan sesi sebelumnya diambil dari riwayat harian di respons yang sama,
+        // BUKAN dari meta.previousClose - lihat catatan lengkap di
+        // shared/market/previous-close.ts. Terukur pada ^JKSE 2026-08-13: meta memberi
+        // 6267,88 (penutupan dua sesi lalu) sehingga kartu melaporkan +0,42% padahal
+        // perubahan sesungguhnya -1,23%. Arah yang salah, bukan sekadar angka meleset.
+        const result = data?.chart?.result?.[0];
+        const resolved = resolvePreviousClose({
+          timestamps: result?.timestamp,
+          closes: result?.indicators?.quote?.[0]?.close,
+          metaPreviousClose: meta?.previousClose,
+          metaChartPreviousClose: meta?.chartPreviousClose,
+        });
+        const previousClose = resolved.previousClose;
+
+        if (resolved.metaDisagrees) {
+          // Dicatat, bukan didiamkan: kalau Yahoo mulai sering meleset, ini satu-satunya
+          // jejak yang membedakannya dari pergerakan pasar yang sah.
+          console.warn(
+            `[live:${ticker}] meta.previousClose=${resolved.metaValue} berbeda dari riwayat harian=${previousClose} - memakai riwayat`,
+          );
+        }
+
         const changePercent = previousClose != null ? ((lastPrice - previousClose) / previousClose) * 100 : null;
         const volume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : null;
         // BUG FIX (audit integritas data 2026-08-03, temuan M-07): `lastUpdate`

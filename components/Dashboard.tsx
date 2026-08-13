@@ -171,7 +171,15 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
 }
 
 type DashboardProps = {
-  initialIhsg?: { price: number; change: number; pointChange: number } | null;
+  initialIhsg?: {
+    price: number;
+    change: number;
+    pointChange: number;
+    // Ikut dikirim sejak 2026-08-13 supaya penanda umur data juga muncul pada render
+    // pertama (SSR), bukan hanya setelah fetch klien selesai.
+    dataTimestamp?: string | null;
+    ageSeconds?: number | null;
+  } | null;
   initialRenderedAt?: string;
   initialLensRadar?: {
     items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number; brokerNetValue?: number | null; brokerTradeDate?: string | null }[];
@@ -650,6 +658,18 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                           {typeof ihsg.ageSeconds === 'number' && ihsg.ageSeconds >= 20 * 60
                             ? ` · ${Math.round(ihsg.ageSeconds / 60)} menit lalu`
                             : ''}
+                        </div>
+                      )}
+                      {/* BUG FIX (2026-08-13): cabang `ihsgFailed` di bawah TIDAK PERNAH
+                          tercapai begitu `initialIhsg` terisi dari SSR - `ihsg` sudah
+                          non-null, jadi kondisi ternary berhenti di cabang pertama.
+                          Akibatnya refresh yang gagal sama sekali tidak terlihat: kartu
+                          terus menampilkan angka SSR lama tanpa penanda apa pun, selama
+                          halaman dibuka. Angkanya tetap ditampilkan (lebih berguna
+                          daripada kosong), tapi kegagalannya sekarang dinyatakan. */}
+                      {ihsgFailed && (
+                        <div className="mt-1 text-[11px] font-medium text-tv-red">
+                          Gagal menyegarkan - angka di atas data terakhir yang berhasil diambil.
                         </div>
                       )}
                     </>
