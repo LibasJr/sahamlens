@@ -14,11 +14,18 @@ name: Android APK
 on:
   push:
     branches:
+      - main
       - claude/sahamlens-android-folder-check-lxr9qn
     paths:
       - 'sahamlens-android/**'
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
+
+# gh release create butuh menulis tag+release ke repo - default GITHUB_TOKEN
+# cuma baca (lihat "Contents: read" di log run pertama), jadi WAJIB dinaikkan
+# eksplisit di sini, bukan cukup di level job.
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -50,3 +57,23 @@ jobs:
           path: sahamlens-android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
           if-no-files-found: error
+
+      # BUILD 2026-08-14: artifact Actions di atas selalu terbungkus .zip -
+      # merepotkan didownload+extract dari HP. Release ini publish .apk MENTAH
+      # (bukan di dalam zip) di satu tag tetap "android-debug-latest" yang
+      # ditimpa tiap build baru, supaya user cukup 1 link tetap, sekali tap
+      # download, langsung file .apk siap install - tanpa perlu extract.
+      - name: Publish APK sebagai GitHub Release (link tetap, tanpa zip)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK_PATH=$(find app/build/outputs/apk/debug -name '*.apk' | head -n1)
+          TAG="android-debug-latest"
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "$TAG" "$APK_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "SahamLens Android (debug, build terbaru)" \
+            --notes "Build otomatis dari commit ${GITHUB_SHA::7} di branch ${GITHUB_REF_NAME}. Link ini SELALU menunjuk ke build terbaru (ditimpa tiap push) - download .apk di bawah, install langsung, tanpa perlu extract zip." \
+            --prerelease
