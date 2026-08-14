@@ -62,6 +62,47 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
+### 2026-08-14 - LensAI diperluas: kenal lebih banyak fitur + aturan akses/kesegaran data aplikasi sendiri
+
+Permintaan pengguna: "saya mau ask ai itu serba bisa jawab soal aplikasinya sendiri, dan
+tentang market terutama idx, jadi intelegensinya harus diupgrade".
+
+Diaudit `SAHAMLENS_PRODUCT_HELP` (intent yang menjawab "apa itu fitur X") - intent ini
+TIDAK memanggil data block apa pun (`carriesData=false` di `chat-data-router.ts`), murni
+mengandalkan teks statis `SAHAMLENS_KNOWLEDGE_BASE`. Dua gap konkret ditemukan:
+
+1. **`PRODUCT_TERMS` (chat-intent.ts) tidak mengenali banyak nama fitur** - "DCF di
+   SahamLens itu apa?", "apa itu fitur compare?", "multi-agent itu apa?", "blue chip di
+   SahamLens?", "LensConsensus itu apa?" semuanya jatuh ke `CONCEPT_QUERY` generik
+   (`UNKNOWN`, dijawab dari pengetahuan umum model tanpa konteks fitur SahamLens
+   sebenarnya). Diperluas mencakup: dcf, intrinsic value, multi-agent, council, blue
+   chip/small cap/cap tier, compare, portofolio, watchlist, glosarium, lensai,
+   lensconsensus. Fitur yang SUDAH punya intent data sendiri (dividen/earnings/
+   moat/risiko/dst) SENGAJA tidak disentuh - urutan pengecekan yang sudah teruji
+   dipertahankan. 8 test baru memverifikasi penambahan ini DAN memastikan "portofolio
+   SAYA"/"watchlist SAYA" (kata milik) tetap menang ke intent data pribadi, bukan
+   tersapu jadi product help generik.
+2. **`## Fitur utama` di `modules/ai/knowledge/sahamlens-knowledge.ts` sudah basi** -
+   satu baris generik per fitur, tidak menyebut penambahan sesi ini sama sekali
+   (Backtest Saham Tunggal + animasi Start/Stop, filter Scanner Sektor/Harga/Market
+   Cap/Likuiditas + CSV + template, badge Blue-chip/Small-cap, LensConsensus,
+   breakdown-voting LensRadar, AnalysisGlossary). Ditulis ulang lengkap dengan deskripsi
+   akurat per fitur.
+
+Ditambahkan juga DUA seksi baru yang sebelumnya tidak ada sama sekali, langsung
+menjawab kelas pertanyaan yang sudah dua kali muncul sesi ini (akses tamu, cache
+market-pulse kosong):
+
+- **"Aturan Akses SahamLens"**: tamu akses PENUH semua fitur analisis, hanya Portfolio/
+  Watchlist yang wajib login (data pribadi), menu admin terpisah, kuota chat tamu.
+- **"Kesegaran Data & Cron"**: data pasar dibaca dari cache cron (bukan dihitung ulang
+  tiap request), cron cuma jalan jam bursa, di luar jam bursa data adalah "sesi
+  terakhir" bukan live, dan LensAI WAJIB menyebut penanda umur data eksplisit kalau ada
+  di context (menyambung ke `ageNote()` yang ditambahkan di entri sebelumnya).
+
+Tidak ada perubahan pada intent data yang sudah ada (DIVIDEND/EARNINGS/MOAT/RISK/dst) -
+murni memperluas cakupan `SAHAMLENS_PRODUCT_HELP` dan pengetahuan produk statisnya.
+
 ### 2026-08-14 - REVISI SUSULAN: TTL cron market-pulse/summary/recommendation/macro masih basi di luar jam bursa
 
 Laporan pengguna (screenshot LensAI, jam 19:00 WIB): "Fitur top gainer di beranda...

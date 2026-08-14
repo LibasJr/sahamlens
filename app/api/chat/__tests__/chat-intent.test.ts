@@ -36,6 +36,30 @@ describe('LensAI intent router', () => {
     expect(classify('cara TP/CL dihitung?').intent).toBe('SAHAMLENS_PRODUCT_HELP');
   });
 
+  // BARU (2026-08-14, permintaan pengguna: "Ask AI harus serba bisa jawab soal
+  // aplikasinya sendiri") - PRODUCT_TERMS diperluas mencakup fitur yang sebelumnya
+  // tidak dikenali sama sekali (jatuh ke UNKNOWN/CONCEPT_QUERY generik tanpa konteks
+  // fitur SahamLens yang sebenarnya).
+  it.each([
+    ['DCF di SahamLens itu apa?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['apa itu intrinsic value di aplikasi ini?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['fitur compare itu buat apa?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['multi-agent itu apa?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['apa itu blue chip di SahamLens?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['LensConsensus itu apa?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['portofolio itu fitur apa?', 'SAHAMLENS_PRODUCT_HELP'],
+  ])('%s -> %s', (prompt, expected) => {
+    expect(classify(prompt, 0).intent).toBe(expected);
+  });
+
+  // Kebalikan penting: "portofolio SAYA" (dengan kata milik) tetap harus jatuh ke
+  // intent PORTFOLIO (data pribadi), bukan ikut tersapu penambahan "portofolio" polos
+  // ke PRODUCT_TERMS di atas - PORTFOLIO_TERMS diperiksa lebih dulu di classifier.
+  it('kata milik tetap memenangkan intent data pribadi, bukan product help', () => {
+    expect(classify('portofolio saya gimana?', 0).intent).toBe('PORTFOLIO');
+    expect(classify('watchlist saya kosong ya?', 0).intent).toBe('WATCHLIST');
+  });
+
 
   it('pertanyaan konsep tanpa ticker tidak memaksa data fetch saham', () => {
     expect(classify('apa itu RSI?', 0).intent).toBe('UNKNOWN');
