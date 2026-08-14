@@ -62,6 +62,31 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
+### 2026-08-14 - Fitur admin baru: "Buat Akun Tes"
+
+Permintaan pengguna: "bisa buatkan akun user/user di sistem, ini untuk user tes". Sesi
+agen ini TIDAK PUNYA akses database production atau jaringan ke situs live, jadi tidak
+bisa membuat akun langsung dari sesi - dibangun sebagai gantinya: form admin sekali-pakai
+di `/admin` ("Buat Akun Tes", di bawah "Aktivasi Pro").
+
+Klarifikasi pengguna eksplisit: **"hak akses nya jgn admin, user testing biasa"** - akun
+yang dibuat SELALU `role: 'free'` (di-hardcode di handler, body request TIDAK PERNAH
+dibaca untuk field role - diuji lewat test yang sengaja mengirim `role: 'admin'` di body
+dan memverifikasi hasil akhirnya tetap `'free'`).
+
+- `modules/user/controller/admin.controller.ts` - `handleCreateTestUser()` (guard admin
+  via `isAdminFromRequestCookies`, sama seperti `handleSetProStatus`). Membuat akun
+  LANGSUNG TERVERIFIKASI (skip alur OTP email signup normal) supaya admin tidak perlu
+  akses inbox email test untuk baca kode verifikasi - tapi selain itu PERSIS meniru hasil
+  akhir signup+verify normal: trial 7 hari (`TRIAL_DAYS`), portofolio virtual ikut
+  diprovisioning (`provisionPortfolio`) supaya akun tes tidak "setengah jadi".
+- `app/api/admin/create-test-user/route.ts` (BARU) - pola sama persis dengan
+  `app/api/admin/set-pro/route.ts`.
+- `app/admin/CreateTestUserForm.tsx` (BARU) + dipasang di `app/admin/page.tsx`.
+- 7 test baru (`admin.controller.test.ts`): guard admin, validasi email/password, email
+  duplikat -> `ConflictError`, DAN test eksplisit yang memverifikasi field `role` di body
+  request diabaikan sepenuhnya.
+
 ### 2026-08-14 - `broker-summary-scan` dinonaktifkan (INDEXALPHA_API_KEY belum ada, fitur belum dipakai)
 
 Panel admin menunjukkan job ini FAILED terus-menerus dengan pesan "INDEXALPHA_API_KEY
