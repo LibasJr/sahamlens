@@ -64,6 +64,32 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Audit lanjutan tema terang: toast notice, skeleton chart, badge FAIR, tooltip Recharts
+
+Laporan pengguna (screenshot form login): banner notice "Silakan masuk untuk melanjutkan"
+tampil sebagai kotak GELAP dengan teks nyaris tak terbaca di tema terang. Diminta audit
+menyeluruh, bukan cuma titik yang dilaporkan.
+
+Akar masalah SAMA di semua titik: warna hex dikunci mati (`bg-[#...]`/`style={{backgroundColor:
+'#...'}}`), bukan lewat token `tv-*`/`--lens-*` yang peka tema. Ditemukan lewat pencarian
+`bg-\[#...\]` dan `backgroundColor: '#...'` di seluruh `app/`+`components/` (dikecualikan
+`components/export/*` dan `app/admin/*` yang MEMANG sengaja dikunci gelap - lihat catatan
+"Kartu ekspor gambar DIKUNCI gelap" di atas - dan `app/global-error.tsx` yang tidak bisa
+peka tema sama sekali karena dirender saat root layout SENDIRI gagal):
+
+- `components/ui/Toast.tsx` - `bg-[#101A2A]/95` (dipakai notice login & toast lain di seluruh
+  app) -> `bg-tv-card/95`. Ini penyebab langsung screenshot pengguna.
+- `components/StockChartPanel.tsx` - dua skeleton loading chart `bg-[#131722]` -> `bg-tv-card`.
+- `components/IntrinsicValue.tsx` - badge status "FAIR" (`mosBg/mosBorder/mosText`) memakai
+  `#f59e0b` mati -> token `tv-warning` (sudah lolos audit kontras AA 2026-08-13, lihat
+  `app/globals.css`); tooltip Recharts pada chart intrinsic value (`contentStyle`/`itemStyle`/
+  `cursor`) hex mati -> `rgb(var(--lens-*))` (Recharts butuh style inline literal, bukan class
+  Tailwind, jadi dipakai variabel CSS langsung, bukan token `tv-*`).
+
+`components/TopMarketBar.tsx`, `MobileNav.tsx`, `Sidebar.tsx` juga memakai `bg-[#...]` hex
+mati, TAPI sudah ada patch `.light .bg-\[\#...\] { ... !important }` di `app/globals.css`
+(baris ~585) dari pekerjaan sebelumnya - diverifikasi masih benar, tidak diubah.
+
 ### 2026-08-14 - Tombol Backtest Sekarang/Live Filter Check tidak kelihatan di tema terang
 
 Laporan pengguna (screenshot): tombol biru "Backtest Sekarang" dan hijau "Live Filter Check"
