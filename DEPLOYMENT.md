@@ -64,6 +64,39 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Cron baru: `/api/cron/news` - sebelumnya News TIDAK PERNAH di-pre-warm
+
+Pertanyaan pengguna: "apa ada cron job untuk update news?" - jawabannya sebelumnya
+**tidak ada sama sekali**. `/api/news` murni `getOrCompute()` on-demand dengan TTL 60
+detik saat bursa buka (`getMarketAwareTtlSec()`) - persis pola `MARKET_SUMMARY` sebelum
+diperbaiki: tiap 60 detik pas bursa buka, pengunjung PERTAMA menanggung ~10 fetch RSS
+feed + 1 panggilan AI klasifikasi berita (`getMarketNews()`), bisa terasa lambat.
+
+Ditambahkan `app/api/cron/news/route.ts`, pola SAMA PERSIS dengan
+`app/api/cron/market-summary/route.ts`: hitung ulang di jadwal, simpan ke
+`COMPUTED_CACHE_KEY.MARKET_NEWS` (kunci yang SAMA dibaca `/api/news` - wajib lewat
+`computed-keys.ts`, bukan literal terpisah, supaya tidak drift). TTL baru
+`CACHE_TTL_SEC.MARKET_NEWS` = 6 menit (`shared/cache/ttl-policy.ts`) - interval cron
+rencana 5 menit + buffer 1 run telat, sama seperti pola `MARKET_SUMMARY`.
+
+**BELUM BISA JALAN OTOMATIS** - kode route-nya sudah ada dan lolos build, TAPI QStash
+Schedule-nya BELUM didaftarkan (butuh dashboard QStash, di luar akses sesi agen ini).
+`config/scheduled-jobs.json` mencatat entri ini dengan `scheduleStatus: "verify-dashboard"`
+supaya `npm run audit:cron` tidak diam-diam melewatkannya.
+
+**Langkah pendaftaran di dashboard QStash** (samakan dengan job lain seperti
+`market-summary`/`market-pulse`/`breakout-scan` yang sudah terdaftar):
+1. Buat Schedule baru, destination `https://sahamlens.id/api/cron/news`, method `POST`.
+2. Cron expression `*/5 9-15 * * 1-5`, timezone Asia/Jakarta (header `Upstash-Cron`,
+   ikuti konvensi 9 job QStash lain yang sudah ada).
+3. Setelah terdaftar dan sekali berhasil jalan (cek `Last Run` di dashboard), update
+   `config/scheduled-jobs.json`: `schedule` diisi cron expression di atas,
+   `scheduleStatus` diubah jadi `"known"`.
+
+typecheck, lint, npm test (1198 test - termasuk test baru
+`app/api/cron/news/__tests__/route.test.ts`), `npm run audit:cron`, dan build semua
+lolos.
+
 ### 2026-08-14 - Jadwal 3 job systemd terverifikasi, manifest cron 100% lengkap
 
 Lanjutan audit jadwal cron di bawah. Temuan #3 (jadwal 3 job systemd tidak diketahui

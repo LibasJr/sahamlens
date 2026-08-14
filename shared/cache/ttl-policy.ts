@@ -166,4 +166,17 @@ export const CACHE_TTL_SEC = {
   // dengan LENS_TRANSPARENCY karena sumber datanya sama persis (lens_radar_history,
   // diisi cron harian) - angkanya tidak berubah dalam hitungan menit.
   LENS_BUCKET_BACKTEST: 30 * 60,
+
+  // Berita pasar (app/api/news, dibaca ~10 feed RSS + 1 klasifikasi AI) - BARU
+  // (2026-08-14, pertanyaan pengguna "apa ada cron untuk update news?" - jawabannya
+  // sebelumnya TIDAK ADA). Route ini sebelumnya cuma getOrCompute() on-demand dengan
+  // getMarketAwareTtlSec() (60 detik saat bursa buka) TANPA cron warmer - persis pola
+  // MARKET_SUMMARY sebelum diperbaiki: tiap 60 detik pas bursa buka, pengunjung pertama
+  // menanggung ~10 fetch RSS + 1 panggilan AI klasifikasi. 6 menit = interval cron
+  // pre-warm baru (app/api/cron/news, 5 menit) + buffer 1 run telat, pola sama persis
+  // dengan MARKET_SUMMARY. Dipakai KHUSUS oleh cron untuk menulis cache - route
+  // /api/news sendiri TETAP pakai getMarketAwareTtlSec() untuk fallback live-nya
+  // (jarang kepakai selama cron jalan normal), supaya di luar jam bursa (cron
+  // berhenti) cache tetap bisa refresh cepat kalau memang ada perubahan berita.
+  MARKET_NEWS: 6 * 60,
 } as const;
