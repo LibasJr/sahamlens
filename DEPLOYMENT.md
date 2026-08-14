@@ -64,6 +64,24 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - CATATAN PENTING: QStash sudah penuh, maksimal 10 job
+
+Ditemukan saat mendaftarkan `/api/cron/news` (entri di bawah): **plan QStash yang
+dipakai punya batas maksimal 10 Schedule**, dan sekarang PERSIS terisi 10/10:
+`ai-pick-scan`, `backtest-precompute`, `breakout-scan`, `fundamental-snapshot`,
+`macro`, `market-pulse`, `market-summary`, `news`, `recommendation-scan`,
+`watchlist-alert`.
+
+**Kalau butuh cron baru lagi ke depan, ADA DUA JALAN** (bukan cuma "upgrade plan"):
+1. Lepas salah satu dari 10 Schedule QStash di atas untuk memberi ruang - hanya kalau
+   job lama itu sudah tidak relevan.
+2. **Pakai systemd timer di VPS**, seperti 3 job yang sudah begitu
+   (`lens-bucket-backtest`, `lens-score-optimizer`, `broker-summary-scan`) - TIDAK ikut
+   hitungan limit 10 QStash ini sama sekali, karena jalur penjadwalannya beda (timer OS
+   di server, bukan layanan QStash eksternal). Ini opsi PALING PRAKTIS untuk job
+   berikutnya selama QStash masih penuh.
+   Atau upgrade plan QStash kalau memang perlu tetap di jalur QStash.
+
 ### 2026-08-14 - `/api/cron/news` terdaftar di QStash - manifest cron 100% `known`
 
 Susulan entri di bawah. Pengguna sudah mendaftarkan Schedule QStash untuk
