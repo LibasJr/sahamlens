@@ -64,6 +64,24 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Nav bar mobile turun lebih dekat ke tepi, label "Kualitas" dihapus
+
+**1. Nav bar bawah (Home/Market/Radar/Analyze/Menu) "kurang ke bawah".** Laporan
+pengguna dengan screenshot - ada gap terlihat di antara nav bar dan tepi layar.
+`.lens-mobile-nav` (`app/globals.css`) punya jarak tetap `0.75rem` (12px) DI LUAR
+`env(safe-area-inset-bottom)` perangkat - di HP dengan navigasi 3-tombol Android
+(bukan gesture, safe-area-inset-bottom biasanya 0), itu jadi gap kosong murni tanpa
+fungsi. Dikecilkan ke `0.375rem`. Tombol Ask LensAI (`.lens-ai-floating`) ikut
+disesuaikan supaya jaraknya ke nav bar tetap sama seperti sebelumnya.
+
+**2. Kartu "Valuasi Harga"/"Kualitas Fundamental" masih tidak sejajar di HP** setelah
+perbaikan `min-h-[28px]` sebelumnya - ternyata belum cukup untuk beberapa lebar layar
+(label masih pecah jadi 2 baris). Diperbaiki tuntas dengan memendekkan label jadi
+"Fundamental" saja - selalu 1 baris seperti "Valuasi Harga" di sampingnya, pendekatan
+yang jauh lebih tahan lebar layar mana pun daripada menebak-nebak tinggi 2 baris.
+
+typecheck, lint, npm test (1195 test), dan build semua lolos.
+
 ### 2026-08-14 - Dua bug tampilan HP di LensFundamental: kartu tidak sejajar, ikon search dobel
 
 Laporan pengguna dengan screenshot `/fundamental` di HP:
