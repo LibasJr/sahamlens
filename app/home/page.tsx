@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -497,16 +497,60 @@ export default function HomePage() {
   // Ganti insight tiap 12 detik - cukup cepat untuk terasa hidup, tapi masih memberi
   // waktu membaca ringkasan/berita. Tidak jalan
   // kalau cuma 1 slot (tidak ada apa pun untuk dirotasi).
+  //
+  // BUG FIX (2026-08-14, laporan pengguna - dot penanda "tidak bisa digeser manual,
+  // harus nunggu sendiri"): auto-rotate SEKARANG lewat ref (autoRotateTick di bawah),
+  // bukan langsung setInterval permanen - supaya navigasi manual (klik dot/swipe) bisa
+  // MEMULAI ULANG hitungan 12 detiknya, bukan diam-diam ketimpa auto-rotate sesaat
+  // setelah pengguna baru saja pindah manual.
+  const autoRotateTick = useRef<() => void>(() => {});
+  autoRotateTick.current = () => setInsightIndex((i) => i + 1);
+  const restartAutoRotateRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     if (insightSlots.length <= 1) return;
-    const t = setInterval(() => {
-      if (!document.hidden) setInsightIndex((i) => i + 1);
-    }, INSIGHT_ROTATE_MS);
+    let t: ReturnType<typeof setInterval>;
+    const start = () => {
+      clearInterval(t);
+      t = setInterval(() => {
+        if (!document.hidden) autoRotateTick.current();
+      }, INSIGHT_ROTATE_MS);
+    };
+    restartAutoRotateRef.current = start;
+    start();
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [insightSlots.length]);
 
-  const activeInsightIndex = insightSlots.length ? insightIndex % insightSlots.length : 0;
+  const activeInsightIndex = insightSlots.length
+    ? ((insightIndex % insightSlots.length) + insightSlots.length) % insightSlots.length
+    : 0;
+
+  // Navigasi manual - dot diklik ATAU swipe (lihat handler sentuh di bawah). Timer
+  // auto-rotate direstart supaya tidak langsung ganti lagi tiba-tiba begitu pengguna
+  // baru saja memilih slide-nya sendiri.
+  const goToInsight = useCallback((index: number) => {
+    setInsightIndex(index);
+    restartAutoRotateRef.current();
+  }, []);
+  const stepInsight = useCallback((delta: number) => {
+    setInsightIndex((i) => i + delta);
+    restartAutoRotateRef.current();
+  }, []);
+
+  const touchStartX = useRef<number | null>(null);
+  const SWIPE_THRESHOLD_PX = 40;
+  const handleInsightTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+  };
+  const handleInsightTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current == null || insightSlots.length <= 1) return;
+    const deltaX = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+    // Geser ke kiri (deltaX negatif) = maju ke insight berikutnya, sama seperti pola
+    // carousel umum (konten "ditarik" ke arah gerakan jari).
+    stepInsight(deltaX < 0 ? 1 : -1);
+  };
 
   return (
     <PageContainer className="min-h-full flex flex-col space-y-5 p-4 md:p-6 lg:p-7">
@@ -878,30 +922,45 @@ export default function HomePage() {
                   <Skeleton variant="text" className="w-2/3 max-w-xs" />
                 </div>
               ) : (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeInsightIndex}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.35 }}
-                  >
-                    {insightSlots[activeInsightIndex]}
-                  </motion.div>
-                </AnimatePresence>
+                // BUG FIX (2026-08-14, laporan pengguna): touch handler di sini supaya
+                // swipe kiri/kanan pindah slide manual, tidak cuma nunggu auto-rotate
+                // 12 detik. touch-pan-y (bukan default none) - horizontal swipe ditangani
+                // JS, scroll vertikal halaman tetap jalan normal lewat gesture bawaan.
+                <div onTouchStart={handleInsightTouchStart} onTouchEnd={handleInsightTouchEnd} className="touch-pan-y">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeInsightIndex}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.35 }}
+                    >
+                      {insightSlots[activeInsightIndex]}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
               )}
-              {/* Titik penanda - cuma tampil kalau memang ada lebih dari satu insight
-                  untuk dirotasi (mis. berita belum termuat). Bukan tombol - klik pindah
-                  manual tidak diminta, ini murni orientasi "sedang lihat yang mana". */}
+              {/* Titik penanda - SEKARANG bisa diklik langsung untuk pindah slide
+                  (2026-08-14, laporan pengguna: sebelumnya sengaja dibuat murni
+                  visual/bukan tombol - "klik pindah manual tidak diminta". Diminta
+                  sekarang, ditambah dukungan swipe di kontainer teks di atas). */}
               {!loadingRadar && insightSlots.length > 1 && (
                 <div className="flex items-center gap-1.5 mt-2.5">
                   {insightSlots.map((_, i) => (
-                    <span
+                    <button
                       key={i}
-                      className={`h-1 rounded-full transition-all duration-300 ${
-                        i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
-                      }`}
-                    />
+                      type="button"
+                      onClick={() => goToInsight(i)}
+                      aria-label={`Lihat insight ke-${i + 1} dari ${insightSlots.length}`}
+                      aria-current={i === activeInsightIndex}
+                      className="flex h-4 items-center px-0.5 -my-1.5"
+                    >
+                      <span
+                        className={`h-1 rounded-full transition-all duration-300 ${
+                          i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
+                        }`}
+                      />
+                    </button>
                   ))}
                 </div>
               )}
