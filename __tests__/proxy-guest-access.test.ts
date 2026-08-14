@@ -87,7 +87,7 @@ describe('proxy protected-page authentication', () => {
   });
 
   it('cookie admin yang tidak valid tidak dapat melewati login', async () => {
-    const res = await proxy(request('/dashboard', {
+    const res = await proxy(request('/portfolio', {
       headers: { cookie: 'sahamlens_admin=token-palsu' },
     }));
 
@@ -103,11 +103,50 @@ describe('proxy protected-page authentication', () => {
   ])('%s dengan session user tidak diarahkan kembali ke login', async (_label, session) => {
     vi.mocked(decrypt).mockResolvedValue(session as any);
 
-    const res = await proxy(request('/dashboard', {
+    const res = await proxy(request('/portfolio', {
       headers: { cookie: 'session=session-valid' },
     }));
 
     expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
+  });
+});
+
+describe('halaman fitur analisis terbuka untuk tamu (keputusan produk 2026-08-13)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(decrypt).mockResolvedValue(null);
+    vi.mocked(verifyAdminToken).mockResolvedValue(false);
+  });
+
+  // Halaman ini SEBELUMNYA ada di PROTECTED_PAGES dan menendang tamu ke /login.
+  // Sekarang hanya Portfolio & Watchlist yang wajib akun (data pribadi tersimpan) -
+  // sisanya harus terbuka untuk tamu tanpa redirect. Kalau tes ini gagal karena
+  // PROTECTED_PAGES bertambah lagi, itu sinyal untuk memastikan penambahannya
+  // memang disengaja, bukan regresi ke kebijakan lama.
+  it.each([
+    '/dashboard',
+    '/fundamental',
+    '/screener',
+    '/compare',
+    '/backtest',
+    '/risk-calculator',
+    '/recommendations',
+    '/dcf',
+    '/macro',
+    '/moat',
+    '/pattern',
+    '/risk',
+    '/dividend',
+    '/earnings',
+    '/market',
+  ])('tamu tidak diarahkan ke login dari %s', async (pathname) => {
+    const res = await proxy(request(pathname));
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('Portfolio & Watchlist tetap wajib akun - satu-satunya pengecualian', () => {
+    expect(PROTECTED_PAGES).toEqual(['/portfolio', '/watchlist']);
   });
 });

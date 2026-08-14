@@ -1,4 +1,5 @@
 import { getEmitenSymbolSet } from '@/shared/market/emiten-list';
+import { isCommonWordNotTicker } from './indonesian-stopwords';
 import type { ChatHistoryMessage } from './chat-date';
 
 export const INDEX_ALIASES: Record<string, string> = {
@@ -14,11 +15,17 @@ export const INDEX_ALIASES: Record<string, string> = {
  */
 export function extractMentionedTickers(prompt: string): string[] {
   const symbols = getEmitenSymbolSet();
-  const candidates = prompt.toUpperCase().match(/\b[A-Z]{4}\b/g) || [];
+  // Dicocokkan pada teks ASLI, bukan hasil toUpperCase(). Huruf besar-kecil adalah
+  // satu-satunya sinyal yang memisahkan kode emiten dari kata biasa yang kebetulan
+  // sama - lihat indonesian-stopwords.ts untuk contoh kegagalannya di produksi.
+  const candidates = prompt.match(/\b[A-Za-z]{4}\b/g) || [];
   const result: string[] = [];
 
   for (const candidate of candidates) {
-    if (symbols.has(candidate) && !result.includes(candidate)) result.push(candidate);
+    const symbol = candidate.toUpperCase();
+    if (!symbols.has(symbol)) continue;
+    if (isCommonWordNotTicker(candidate)) continue;
+    if (!result.includes(symbol)) result.push(symbol);
   }
 
   return result;

@@ -1,6 +1,9 @@
 import { incrWithExpiry } from '@/shared/cache/redis-cache';
 
-// Jatah tanya-jawab LensAI untuk pengunjung TANPA akun (keputusan produk 2026-08-11).
+// Jatah tanya-jawab LensAI untuk pengunjung TANPA akun (keputusan produk 2026-08-11,
+// limit dinaikkan 5 -> 25 pada 2026-08-13: fitur analisis lain sudah dibuka penuh untuk
+// tamu tanpa batas, tapi chat LensAI TETAP digerbang kuota - keputusan produk eksplisit,
+// bukan kelalaian).
 //
 // Sebelumnya guest hanya dibatasi compute budget (shared/middleware/compute-budget.ts:
 // tier 'public' 40 unit per jendela 10 MENIT, biaya 3 per pertanyaan = ~13 pertanyaan,
@@ -13,7 +16,7 @@ import { incrWithExpiry } from '@/shared/cache/redis-cache';
 // akan menghabiskan jatah orang lain. Konsekuensinya sama dengan trial anonim itu
 // sendiri: hapus cookie/incognito = jatah baru, diterima sebagai risiko yang wajar
 // (lihat catatan yang sama di shared/auth/anonymous-trial.ts).
-export const GUEST_CHAT_LIMIT = 5;
+export const GUEST_CHAT_LIMIT = 25;
 
 export const GUEST_CHAT_LIMIT_MESSAGE =
   `Jatah ${GUEST_CHAT_LIMIT} pertanyaan LensAI untuk pengunjung sudah habis. Silakan masuk untuk melanjutkan percakapan.`;
