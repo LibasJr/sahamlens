@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccessLive } from '@/modules/user';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { fetchYahooHistory, analyzeRsi } from '@/modules/technical';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { fetchScreenerUniverse } from '@/modules/market/service/screener.service';
@@ -178,12 +178,11 @@ function explainRow(
 }
 
 export async function GET(request: Request) {
+  // Tamu (session null) dapat akses PENUH tanpa perlu login - keputusan produk
+  // 2026-08-13, lihat hasOpenOrProAccess(). Akun terdaftar tetap lewat gerbang
+  // trial/Pro seperti sebelumnya.
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-  }
-  const hasPro = await checkProAccessLive(session);
-  if (!hasPro) {
+  if (!(await hasOpenOrProAccess(session))) {
     return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
 
