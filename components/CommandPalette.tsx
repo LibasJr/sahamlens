@@ -251,7 +251,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                       <>
                         <div className="flex items-baseline gap-2 mb-2">
                           <span className="font-number text-[16px] font-bold text-tv-text">Rp {Math.round(preview.price).toLocaleString('id-ID')}</span>
-                          <span className={`font-number inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <span className={`font-number inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                             {preview.changePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                             {preview.changePct >= 0 ? '+' : ''}{preview.changePct.toFixed(2)}%
                           </span>

@@ -117,18 +117,22 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           </div>
         </div>
 
-        <div className={`flex-1 border rounded-lg p-4 flex flex-col justify-between ${isHighRisk ? 'bg-red-500/10 border-red-500/30' : 'bg-blue-500/10 border-blue-500/30'}`}>
+        {/* BARU (2026-08-14, audit tema terang) - dulu red-500/red-400/blue-500/blue-400 &
+            text-gray-300 mati (bukan token tv-*, sama seperti bug NETRAL di BandarFlowPro.tsx).
+            Diganti tv-red/tv-blue (sudah peka tema & lolos audit kontras AA 2026-08-13) dan
+            tv-muted untuk paragraf. */}
+        <div className={`flex-1 border rounded-lg p-4 flex flex-col justify-between ${isHighRisk ? 'bg-tv-red/10 border-tv-red/30' : 'bg-tv-blue/10 border-tv-blue/30'}`}>
           <div className="flex items-start gap-3">
             {isHighRisk ? (
-              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-tv-red flex-shrink-0 mt-0.5" />
             ) : (
-              <ShieldCheck className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <ShieldCheck className="w-5 h-5 text-tv-blue flex-shrink-0 mt-0.5" />
             )}
             <div>
-              <h3 className={`font-heading font-bold text-sm mb-1 ${isHighRisk ? 'text-red-400' : 'text-blue-400'}`}>
+              <h3 className={`font-heading font-bold text-sm mb-1 ${isHighRisk ? 'text-tv-red' : 'text-tv-blue'}`}>
                 {isHighRisk ? 'High Concentration Risk' : 'Healthy Portfolio Allocation'}
               </h3>
-              <p className="text-xs font-sans text-gray-300 leading-relaxed">
+              <p className="text-xs font-sans text-tv-muted leading-relaxed">
                 {isHighRisk
                   ? `Cukup berisiko, ${maxConcentration.toFixed(0)}% nilai portofolio terkonsentrasi di ${topPosition}. Evaluasi batas eksposur per saham sebelum menambah posisi.`
                   : 'Konsentrasi posisi masih terkendali berdasarkan data lot dan harga yang tersedia.'}
@@ -139,7 +143,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           <button
             onClick={() => router.push('/breakout-radar')}
             className={`mt-4 text-xs font-bold font-sans px-4 py-2 rounded self-start transition-colors ${
-              isHighRisk ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+              isHighRisk ? 'bg-tv-red hover:bg-tv-redHover text-white' : 'bg-tv-blue hover:bg-tv-blueHover text-white'
             }`}
           >
             Buka Breakout Radar &rarr;
