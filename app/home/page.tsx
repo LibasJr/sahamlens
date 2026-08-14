@@ -1042,35 +1042,46 @@ export default function HomePage() {
               </div>
               <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
             </CardHeader>
-            {watchlistCount === null ? (
-              <Skeleton className="h-11 w-full" />
-            ) : watchlistCount === 0 ? (
-              <EmptyState
-                illustration="collecting"
-                title="Belum ada saham di watchlist"
-                description="Tambahkan saham untuk mulai memantau harga & alert."
-                progress={{ current: 0, total: 5, unit: 'saham', label: 'Watchlist terisi' }}
-                action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
-              />
-            ) : (
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex gap-2">
-                  {watchlistPreview.map((w) => (
-                    <Link
-                      key={w.symbol}
-                      href={`/technical/${w.symbol}`}
-                      className="flex items-center gap-2 font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md pl-1.5 pr-2.5 py-1.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors"
-                    >
-                      <TickerAvatar symbol={w.symbol} size="sm" className="!w-5 !h-5 !text-[10px]" />
-                      {w.symbol.replace('.JK', '')}
-                    </Link>
-                  ))}
+            {/* BARU (2026-08-14, temuan Cloudflare Web Analytics - CLS 1.888 pada kartu
+                LensScanner DI BAWAH kartu ini): tiga cabang di sini tinggi kontennya jauh
+                beda - skeleton ~44px, EmptyState (kalau watchlist masih kosong) ~350an px
+                dengan ilustrasi/progress/tombol. Watchlist kosong itu keadaan DEFAULT
+                untuk akun/tamu baru, jadi urutan yang paling sering terjadi justru
+                skeleton -> EmptyState, lompatan tinggi paling besar - mendorong kartu
+                LensScanner di bawahnya turun drastis SETELAH render awal, persis definisi
+                CLS. min-h dikunci di container supaya pergantian kontennya tidak
+                menggeser layout di bawah kartu ini. */}
+            <div className="min-h-[300px] flex flex-col justify-center">
+              {watchlistCount === null ? (
+                <Skeleton className="h-11 w-full" />
+              ) : watchlistCount === 0 ? (
+                <EmptyState
+                  illustration="collecting"
+                  title="Belum ada saham di watchlist"
+                  description="Tambahkan saham untuk mulai memantau harga & alert."
+                  progress={{ current: 0, total: 5, unit: 'saham', label: 'Watchlist terisi' }}
+                  action={{ label: 'Tambah Watchlist', onClick: () => { window.location.href = '/watchlist'; } }}
+                />
+              ) : (
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex gap-2">
+                    {watchlistPreview.map((w) => (
+                      <Link
+                        key={w.symbol}
+                        href={`/technical/${w.symbol}`}
+                        className="flex items-center gap-2 font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md pl-1.5 pr-2.5 py-1.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors"
+                      >
+                        <TickerAvatar symbol={w.symbol} size="sm" className="!w-5 !h-5 !text-[10px]" />
+                        {w.symbol.replace('.JK', '')}
+                      </Link>
+                    ))}
+                  </div>
+                  <span className="text-xs text-tv-muted">
+                    <AnimatedNumber value={watchlistCount} className="font-number font-semibold text-tv-text" /> saham dipantau
+                  </span>
                 </div>
-                <span className="text-xs text-tv-muted">
-                  <AnimatedNumber value={watchlistCount} className="font-number font-semibold text-tv-text" /> saham dipantau
-                </span>
-              </div>
-            )}
+              )}
+            </div>
           </Card>
         </motion.div>
       </motion.div>
