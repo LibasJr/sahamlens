@@ -71,7 +71,14 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     summary.status === 'DISTRIBUSI' ? (isStrong ? 'STRONG DISTRIBUTION' : 'DISTRIBUTION') :
     'NEUTRAL';
 
-  let insightColor = 'bg-gray-800/40 border-gray-600 text-gray-300';
+  // BARU (2026-08-14, laporan pengguna: kotak NETRAL tidak terbaca di tema terang).
+  // Dulu `bg-gray-800/40 border-gray-600 text-gray-300` - abu GELAP mati, bukan token
+  // tv-*. Di tema gelap kebetulan terlihat oke (panel gelap, teks abu terang di
+  // atasnya), tapi di tema terang `gray-800/40` di atas latar putih jadi kotak
+  // abu-medium sementara `text-gray-300` (abu terang, dirancang untuk latar gelap)
+  // nyaris tak terbaca - persis laporan pengguna. `bg-tv-hover`/`text-tv-muted` sudah
+  // peka tema dan dipakai aman di panel netral lain (mis. mini-kartu CMF di bawah).
+  let insightColor = 'bg-tv-hover border-tv-border text-tv-muted';
   let insightBadge = 'bg-gray-500 text-white';
   let insightTitle = 'NETRAL';
   let insightMessage = 'Belum ada tren arus dana yang konsisten dalam 3 hari terakhir.';
@@ -121,7 +128,9 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             </div>
           )}
           {summary.status === 'NETRAL' && (
-            <div className="px-4 py-1.5 rounded-full bg-gray-500/20 border border-gray-500 text-gray-400 font-bold text-sm font-sans">
+            // Sama seperti insightColor di atas: bg-gray-500/20 + text-gray-400 kontrasnya
+            // gagal di tema terang. Diganti token tv-* yang sudah teruji.
+            <div className="px-4 py-1.5 rounded-full bg-tv-border/40 border border-tv-border text-tv-muted font-bold text-sm font-sans">
               {flowTier}
             </div>
           )}

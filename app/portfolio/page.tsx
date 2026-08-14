@@ -325,13 +325,13 @@ export default function PortfolioPage() {
               <div className="flex bg-tv-bg p-1 rounded-lg mb-6 border border-tv-border">
                 <button
                   onClick={() => { setAuthMode('LOGIN'); setLoginError(''); }}
-                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'LOGIN' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-gray-300'}`}
+                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'LOGIN' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-tv-text'}`}
                 >
                   Login
                 </button>
                 <button
                   onClick={() => { setAuthMode('SIGNUP'); setLoginError(''); }}
-                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'SIGNUP' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-gray-300'}`}
+                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'SIGNUP' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-tv-text'}`}
                 >
                   Daftar
                 </button>
@@ -535,7 +535,7 @@ export default function PortfolioPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 text-center py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-tv-green text-tv-green' : 'border-transparent text-tv-muted hover:text-gray-300'}`}
+              className={`flex-1 text-center py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-tv-green text-tv-green' : 'border-transparent text-tv-muted hover:text-tv-text'}`}
             >
               {tab === 'HOLDINGS' ? 'Holdings' : 'Riwayat'}
             </button>
@@ -602,15 +602,15 @@ export default function PortfolioPage() {
 
                       <div className="flex justify-between items-center text-xs mt-3 pt-3 border-t border-tv-border/60">
                         <div className="text-tv-muted">
-                          Avg: <span className="font-semibold text-gray-300 font-number tabular-nums">{h.avgPrice.toLocaleString('id-ID')}</span>
+                          Avg: <span className="font-semibold text-tv-text font-number tabular-nums">{h.avgPrice.toLocaleString('id-ID')}</span>
                         </div>
                         <div className="text-tv-muted">
-                          Last: <span className={`font-semibold font-number tabular-nums ${h.priceStale ? 'text-tv-warning' : 'text-gray-300'}`}>
+                          Last: <span className={`font-semibold font-number tabular-nums ${h.priceStale ? 'text-tv-warning' : 'text-tv-text'}`}>
                             {h.priceStale ? '—' : h.currentPrice.toLocaleString('id-ID')}
                           </span>
                         </div>
                         <div className="text-tv-muted">
-                          Value: <span className="font-semibold text-gray-300 font-number tabular-nums">{formatIDR(h.currentValue)}</span>
+                          Value: <span className="font-semibold text-tv-text font-number tabular-nums">{formatIDR(h.currentValue)}</span>
                         </div>
                       </div>
                     </div>
