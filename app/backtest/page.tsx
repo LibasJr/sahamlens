@@ -113,12 +113,18 @@ export default function BacktestPage() {
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState('');
   const [replayToken, setReplayToken] = useState(0);
+  // BARU (2026-08-14, permintaan pengguna: "tombol bactes, start, stop") - tiga tombol
+  // terpisah dengan urutan jelas: Backtest MENYIAPKAN data (fetch, TIDAK langsung
+  // memutar), Start memulai/melanjutkan animasi, Stop membekukan pada candle yang
+  // sedang tampil. replayPlaying dikontrol di sini, BUKAN state internal chart.
+  const [replayPlaying, setReplayPlaying] = useState(false);
 
   const runReplay = async () => {
     const raw = (replaySymbol || replayInput).trim().toUpperCase();
     if (!raw) { setReplayError('Pilih emiten terlebih dahulu'); return; }
     const code = raw.endsWith('.JK') || raw.startsWith('^') ? raw : `${raw}.JK`;
     setReplayError('');
+    setReplayPlaying(false);
     setReplayLoading(true);
     try {
       // tf=10Y selalu diminta (satu jalur kode untuk semua periode, bukan tf=1Y vs tf=10Y
@@ -135,6 +141,7 @@ export default function BacktestPage() {
       const windowSize = Math.min(history.length, replayPeriod * TRADING_DAYS_PER_MONTH);
       setReplayCandles(history.slice(-windowSize));
       setReplayToken(Date.now());
+      // TIDAK langsung setReplayPlaying(true) - tunggu tombol Start ditekan.
     } catch (e: any) {
       setReplayError(e?.message || 'Gagal memuat data harga');
       setReplayCandles([]);
@@ -338,13 +345,39 @@ export default function BacktestPage() {
                 {!replayLoading && <Play className="w-4 h-4" />}
                 Backtest
               </Button>
+              {/* BARU (2026-08-14, permintaan pengguna: "tombol bactes, start, stop") -
+                  Start/Stop cuma aktif kalau data sudah siap (replayCandles terisi). Start
+                  disabled SELAMA playing (tidak ada gunanya diklik ulang); Stop sebaliknya. */}
+              <Button
+                onClick={() => setReplayPlaying(true)}
+                disabled={replayCandles.length === 0 || replayPlaying}
+                variant="secondary"
+                className="!bg-tv-green !text-white sm:w-auto"
+              >
+                <Play className="w-4 h-4" /> Start
+              </Button>
+              <Button
+                onClick={() => setReplayPlaying(false)}
+                disabled={!replayPlaying}
+                variant="secondary"
+                className="sm:w-auto"
+              >
+                <Square className="w-4 h-4" /> Stop
+              </Button>
             </div>
 
             {replayError && <p className="mt-3 text-xs text-tv-red">{replayError}</p>}
 
             {replayCandles.length > 0 && (
               <div className="mt-4">
-                <CandleReplayChart candles={replayCandles} playToken={replayToken} height={380} />
+                <CandleReplayChart
+                  candles={replayCandles}
+                  symbol={(replaySymbol || replayInput).trim().toUpperCase().replace('.JK', '')}
+                  playToken={replayToken}
+                  playing={replayPlaying}
+                  onComplete={() => setReplayPlaying(false)}
+                  height={420}
+                />
               </div>
             )}
           </div>

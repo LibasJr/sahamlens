@@ -64,6 +64,39 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Backtest Saham Tunggal: revisi susulan (kecepatan, tombol Start/Stop, reuse TradingViewChart)
+
+Tiga laporan/permintaan susulan setelah "Backtest Saham Tunggal" pertama kali dibangun
+(entri di bawah):
+
+1. **"terlalu cepat jalannya, jadi kesulitan membacanya"** - durasi animasi SEBELUMNYA
+   tetap ~2,2 detik untuk BERAPA PUN jumlah candle, jadi periode 12/24 bulan (ratusan
+   candle) tiap candle cuma tampil beberapa milidetik. Diganti: durasi kini SEBANDING
+   dengan jumlah candle (`MS_PER_CANDLE = 22`/candle), dibatasi 3,5-18 detik supaya
+   periode pendek tidak instan dan periode 60 bulan tidak berjalan bermenit-menit.
+2. **"ada tombol stop nya dong"** lalu **"tombol bactes, start, stop"** - diubah dari
+   auto-play begitu data siap, jadi TIGA tombol terpisah dengan urutan jelas: **Backtest**
+   menyiapkan data (fetch histori harga, TIDAK langsung memutar), **Start**
+   memulai/melanjutkan animasi, **Stop** membekukan PADA CANDLE YANG SEDANG TAMPIL (bukan
+   reset ke kosong). Stop lalu Start di tengah animasi melanjutkan dari titik berhenti
+   (waktu jeda tidak ikut terhitung sebagai durasi animasi); Start setelah animasi selesai
+   sendiri otomatis mengulang dari awal.
+3. **"candle buat seperti trading view saja, seperti yang di teknikal dan halaman utama"**
+   + **"kursor kalau ditaruh di layout candle bisa buat ngeblok per bagian"** - komponen
+   kustom minimal (lightweight-charts polos, scroll/zoom dimatikan) yang dibangun pertama
+   kali diganti TOTAL: sekarang **reuse `TradingViewChart.tsx` yang sebenarnya**
+   (`variant="full"`, dynamic import sama seperti `StockChartPanel.tsx`) - toolbar,
+   crosshair, scroll/zoom/pan mouse-drag, semuanya identik dengan LensTechnical & Beranda.
+   `components/backtest/CandleReplayChart.tsx` sekarang HANYA lapisan replay tipis di
+   atasnya: mengontrol berapa banyak candle yang diteruskan ke `TradingViewChart` lewat
+   waktu (hook `useReplayReveal`), bukan menggambar chart sendiri lagi. `ReplayCandle`
+   ditambah field `volume` (wajib di tipe `ChartCandle` milik `TradingViewChart`, meski
+   replay ini tidak menampilkan panel volume secara default).
+
+`app/backtest/page.tsx` - state `replayPlaying` ditambahkan (dikontrol tombol Start/Stop,
+BUKAN dipicu otomatis oleh `runReplay`); prop `symbol` baru diteruskan ke
+`CandleReplayChart` (dibutuhkan `TradingViewChart`, diambil dari ticker yang dipilih).
+
 ### 2026-08-14 - "Backtest Saham Tunggal": animasi candle replay untuk satu emiten
 
 Permintaan pengguna: pilih emiten di search (mis. BBCA), pilih periode 12/24 bulan, klik
