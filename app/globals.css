@@ -587,6 +587,19 @@ body {
 .light .bg-\[\#080D16\]\/88,
 .light .bg-\[\#111A29\] { background-color: rgb(var(--lens-surface) / .98) !important; }
 
+/* BARU (2026-08-14, temuan Cloudflare - tombol tema INP 1.768ms). Dipasang sesaat oleh
+ * ThemeToggle.tsx tepat sebelum menukar class .light/.dark, dilepas lagi di frame
+ * berikutnya. `*, *::before, *::after` disengaja (bukan cuma elemen bertema) supaya
+ * TIDAK ADA transisi/animasi apa pun yang sempat mulai berjalan paralel di ratusan node
+ * sekaligus saat variabel --lens-* berubah nilai. */
+.lens-theme-swap,
+.lens-theme-swap *,
+.lens-theme-swap *::before,
+.lens-theme-swap *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
 /* Landing/auth pages do not render TopMarketBar, so their theme control floats. */
 body > .lens-theme-toggle,
 body > div > .lens-theme-toggle {
