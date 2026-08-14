@@ -49,8 +49,13 @@ interface SahamLensApi {
     @GET("api/v1/portfolio")
     suspend fun getPortfolio(): PortfolioSummaryResponse
 
+    // Response<T> (bukan CreateTransactionResponseDto langsung) SENGAJA - backend menolak
+    // transaksi dengan body {error, code} yang bermakna (cash tidak cukup, lot tidak cukup,
+    // harga transaksi tidak wajar - lihat modules/portfolio/types/portfolio.errors.ts), dan
+    // pesan itu HARUS sampai ke pengguna, bukan diganti "Transaksi gagal. Coba lagi." generik.
+    // Lihat [com.sahamlens.core.network.parseApiError] & PortfolioRepository.buy/sell.
     @POST("api/v1/portfolio/transactions")
-    suspend fun createTransaction(@Body request: CreateTransactionRequestDto): CreateTransactionResponseDto
+    suspend fun createTransaction(@Body request: CreateTransactionRequestDto): Response<CreateTransactionResponseDto>
 
     // --- Market (publik, tanpa login) ---
     @GET("api/live/{ticker}")
@@ -86,7 +91,12 @@ interface SahamLensApi {
     suspend fun chat(@Body request: ChatRequestDto): Response<ChatResponseDto>
 
     // --- Alat Analisis (Screener/Compare/Market Pulse) ---
-    // Screener publik (alat gratis), Compare & Market Pulse butuh login + Pro (402).
+    // Kontrak akses (diverifikasi terhadap backend 2026-08-14): Screener publik penuh (alat
+    // gratis). Compare: tamu (tanpa login) sudah dapat akses PENUH sejak keputusan produk
+    // 2026-08-13 (lihat hasOpenOrProAccess() di app/api/compare/route.ts) - HANYA 402 (bukan
+    // Pro/trial habis) yang masih bisa terjadi, 401 sudah tidak pernah dikirim lagi. Market
+    // Pulse: publik SEPENUHNYA, tidak ada gerbang auth/Pro sama sekali (lihat komentar
+    // "public-read" di app/api/market-pulse/route.ts) - 401/402 tidak akan pernah terjadi.
     @GET("api/screener")
     suspend fun getScreener(@Query("profile") profile: String): ScreenerResponse
 

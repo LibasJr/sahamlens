@@ -42,7 +42,10 @@ import com.sahamlens.core.network.model.CompareRowDto
 
 private fun rupiah(value: Double) = "Rp ${"%,.0f".format(value).replace(',', '.')}"
 
-/** Compare Tool - bandingkan 2 saham berdampingan, GET /api/compare (butuh login + Pro). */
+/** Compare Tool - bandingkan 2 saham berdampingan, GET /api/compare. Tamu tanpa login sudah
+ * dapat akses penuh sejak 2026-08-13 - gerbang di bawah ini praktis hanya menangkap 402
+ * (bukan Pro/trial habis), bukan 401 lagi (dipertahankan sebagai jaga-jaga kalau kontrak
+ * backend berubah lagi, bukan alur aktif). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompareScreen(modifier: Modifier = Modifier, onBack: () -> Unit = {}, onRequireLogin: () -> Unit = {}) {
