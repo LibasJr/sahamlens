@@ -1,0 +1,8 @@
+[Unit]
+Description=SahamLens - watchdog cloudflared (restart otomatis kalau tunnel diam-diam berhenti melayani trafik)
+After=network-online.target cloudflared.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sahamlens/scripts/cloudflared-watchdog.sh
