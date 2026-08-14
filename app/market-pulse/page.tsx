@@ -483,8 +483,16 @@ export default function MarketPulse() {
               <h3 className="font-heading text-base font-bold text-tv-text flex flex-wrap items-center gap-2">
                 <Zap className="w-5 h-5 text-tv-blue" />
                 Top 3 Breakout Hari Ini
-                <Badge variant="danger" dot>Live</Badge>
+                {/* BUG FIX (2026-08-14, masukan review eksternal - "label 'Live' bisa
+                    menyesatkan, sumber datanya delay bukan realtime"): title (tooltip
+                    hover) untuk desktop + caption di bawah (terlihat tanpa hover, untuk
+                    HP) - keduanya jujur soal delay Yahoo Finance ~15 menit. "Live" tetap
+                    dipertahankan sebagai kata (bukan salah - datanya memang terus
+                    di-refresh cron, bukan statis), cuma sekarang tidak berdiri sendiri
+                    tanpa konteks. */}
+                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>
               </h3>
+              <p className="mt-0.5 text-[10px] text-tv-muted">Sumber: Yahoo Finance, delay ±15 menit</p>
             </div>
             <a href="/breakout-radar" className="text-xs text-tv-blue hover:text-tv-text flex items-center gap-1 transition-colors">
               Lihat Semua Radar &rarr;

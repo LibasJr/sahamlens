@@ -484,11 +484,26 @@ function scoreStock(s: RawStock, sectorAvgPer: number | null, profile: RiskProfi
   return available.reduce((sum, [score, wt]) => sum + score * (wt / totalWeight), 0);
 }
 
-export function rankScreener(universe: RawStock[], profile: RiskProfile) {
+// BARU (2026-08-14, masukan review eksternal - "tambahkan filter Sektor, Harga <
+// 5000, dst"): filter opsional dari pengguna. Cuma `sector` dan `maxPrice` untuk
+// sekarang - `marketCap` dan likuiditas (nilai transaksi Rupiah) BELUM ada field-nya
+// di RawStock (Yahoo `price` module SEBENARNYA punya `marketCap` gratis dalam
+// panggilan yang sama, tinggal ditangkap - follow-up terpisah, bukan di scope ini).
+export interface ScreenerFilters {
+  sector?: string;
+  maxPrice?: number;
+}
+
+export function rankScreener(universe: RawStock[], profile: RiskProfile, filters: ScreenerFilters = {}) {
   // Disaring SEBELUM skor dihitung - rata-rata PER sektor pun hanya boleh dihitung dari
   // saham yang layak direkomendasikan, supaya pembandingnya konsisten.
   const curated = filterCurated(universe);
 
+  // PENTING: rata-rata PER sektor (sectorAvgPer di bawah) WAJIB dihitung dari `curated`
+  // PENUH (sebelum filter pengguna), bukan dari subset yang sudah disaring sektor/harga.
+  // Kalau tidak, memfilter harga (mis. "harga < 5000") diam-diam mengubah angka
+  // pembanding "PER vs Sektor" untuk saham yang TERSISA - benchmark yang bergeser
+  // tanpa pengguna minta itu, cuma karena dia menyaring harga.
   const bySector = new Map<string, number[]>();
   curated.forEach((s) => {
     if (s.per && s.per > 0) {
@@ -509,7 +524,23 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile) {
     return list.reduce((a, b) => a + b, 0) / list.length;
   };
 
-  const ranked = curated
+  // Filter pengguna diterapkan DI SINI - setelah benchmark sektor dihitung, sebelum
+  // ranking/seleksi top 10. Sektor dicocokkan case-insensitive (nilai sektor berasal
+  // dari Yahoo assetProfile, kapitalisasinya tidak selalu konsisten).
+  // maxPrice divalidasi DI SINI juga (bukan cuma di route) - fungsi ini bisa dipanggil
+  // dari caller lain di masa depan, dan angka negatif/NaN yang lolos begitu saja akan
+  // membuang SEMUA saham (s.price > NaN selalu false secara JS, tapi s.price > -1
+  // selalu true) - kegagalan senyap yang tidak jelas asalnya.
+  const validMaxPrice = filters.maxPrice != null && Number.isFinite(filters.maxPrice) && filters.maxPrice > 0
+    ? filters.maxPrice
+    : undefined;
+  const filtered = curated.filter((s) => {
+    if (filters.sector && s.sector.toLowerCase() !== filters.sector.toLowerCase()) return false;
+    if (validMaxPrice != null && s.price > validMaxPrice) return false;
+    return true;
+  });
+
+  const ranked = filtered
     .map((s) => ({ s, score: scoreStock(s, sectorAvgPer(s.sector), profile) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 10)
