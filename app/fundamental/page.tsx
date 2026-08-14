@@ -484,7 +484,14 @@ function FundamentalContent() {
                 Cek warna diganti dari 'BULLISH'/'BEARISH' (kata itu sudah tidak pernah
                 muncul lagi di string consensus) jadi 'UNDERVALUED'/'OVERVALUED'. */}
             <div className="min-w-0">
-              <div className="mb-1.5 text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Valuasi Harga</div>
+              {/* BUG FIX (2026-08-14, laporan pengguna - kartu "Bagus" & "Undervalued"
+                  tidak sejajar di HP): label "Kualitas Fundamental" lebih panjang dari
+                  "Valuasi Harga" dan pecah jadi 2 baris di layar sempit, sementara
+                  labelnya sendiri tidak punya tinggi tetap - jadi kartu di bawahnya ikut
+                  turun cuma di satu kolom. min-h di sini menyamakan tinggi kedua label
+                  (cukup untuk 2 baris) supaya kedua kartu selalu mulai di garis yang sama,
+                  baik labelnya 1 baris maupun 2 baris. */}
+              <div className="mb-1.5 flex min-h-[28px] items-center justify-center text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Valuasi Harga</div>
               {(() => {
                 const valuation = splitStatusText(data?.consensus);
                 return (
@@ -506,7 +513,7 @@ function FundamentalContent() {
             </div>
 
             <div className="min-w-0">
-              <div className="mb-1.5 text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Kualitas Fundamental</div>
+              <div className="mb-1.5 flex min-h-[28px] items-center justify-center text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Kualitas Fundamental</div>
               <div className={`min-h-[64px] w-full rounded-xl border px-3 py-2 flex flex-col items-center justify-center text-center font-sans ${
                 data?.fundamentalQuality?.label === 'BAGUS'
                   ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
