@@ -64,6 +64,39 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Perbaikan Core Web Vitals dari laporan Cloudflare Web Analytics (LCP/INP/CLS)
+
+Pengguna membagikan laporan Cloudflare Web Analytics (11-14 Agu 2026): LCP 80% Good/14%
+Needs Improvement/6% Poor (P99 10.864ms, didominasi `sahamlens.id/login`), INP 88% Good
+(elemen terlambat 1.768ms), CLS 88% Good/10% NI/2% Poor (elemen terlambat sampai 1.888).
+Tiga akar masalah konkret ditemukan dan diperbaiki:
+
+1. **LCP terburuk di `/login`** - `AuthShell.tsx` (dipakai 4 halaman auth) membungkus
+   logo+judul (kandidat LCP terbesar di halaman ini) dalam `motion.div` framer-motion
+   `initial="hidden"` (`opacity:0`). Next.js SSR menulis state "hidden" itu APA ADANYA
+   sebagai inline style di HTML awal - kontennya benar-benar tak terlihat sampai React
+   SELESAI HIDRASI dan animation controller-nya jalan, jadi LCP tertunda penuh oleh
+   waktu unduh+parse+eksekusi JS, bukan cuma waktu render server. Persis pola yang bikin
+   ekor P99 meledak di koneksi/perangkat lambat. Diganti CSS keyframe `animate-fadeIn`
+   (sudah ada di `tailwind.config.js`) - dijalankan compositor browser begitu stylesheet
+   diterapkan, tidak menunggu hidrasi React sama sekali.
+2. **INP terlambat 1.768ms pada tombol tema** - `ThemeToggle.tsx` menukar class
+   `.light`/`.dark` di `<html>`, yang mengubah SEMUA variabel `--lens-*` sekaligus.
+   Banyak elemen di app memakai `transition-all`/`transition-colors` (Card, Button,
+   dst), jadi begitu variabelnya berubah, browser menjalankan transisi CSS ANIMASI
+   paralel di ratusan node DOM dalam satu frame - kerja utas utama yang mahal.
+   Ditambahkan class sesaat `.lens-theme-swap` (`* { transition:none!important;
+   animation:none!important }`) yang dipasang tepat sebelum tukar tema, dipaksa reflow,
+   lalu dilepas di frame berikutnya - pergantian warna jadi instan, bukan animasi massal.
+3. **CLS 0.2 x6 di grid indeks `/market-pulse`** - kartu skeleton loading (`space-y-2`,
+   3 baris rata) tingginya beda dari kartu asli (2 baris rata renggang + sparkline),
+   grid melompat begitu data datang. **CLS 1.888 (terbesar) di kartu LensScanner
+   Beranda** - BUKAN kartu itu sendiri yang berubah, tapi kartu "Saham Dipantau" DI
+   ATASNYA: skeleton (~44px) -> `EmptyState` (~350px, watchlist kosong = keadaan
+   DEFAULT untuk akun/tamu baru) mendorong semua di bawahnya turun drastis. Kedua kasus
+   diberi `min-h-[]` yang konsisten di semua cabang render (skeleton/kosong/terisi)
+   supaya penggantian kontennya tidak menggeser layout di sekitarnya.
+
 ### 2026-08-14 - Urutan kartu "Cakupan Analisis" di Beranda: Backtest & LensConsensus tukar posisi
 
 Permintaan pengguna: "posisi backtest ganti dengan posisi LensConsensus, biar selaras sama

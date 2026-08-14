@@ -428,7 +428,12 @@ export default function MarketPulse() {
                 key={idx.name}
                 whileHover={{ scale: 1.01, y: -2 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                className={`bg-tv-card border rounded-lg p-4 shadow-1 transition-colors hover:shadow-2 ${
+                // BARU (2026-08-14, temuan Cloudflare Web Analytics - CLS 0.2 di grid ini,
+                // 6 kali dalam 3 hari): kartu skeleton loading di bawah punya tinggi konten
+                // beda dari kartu asli (3 baris rata tinggi vs 2 baris rata renggang), jadi
+                // grid melompat begitu data datang menggantikan skeleton. min-h-[132px] dikunci
+                // sama di kartu asli & skeleton supaya penggantiannya tidak menggeser layout.
+                className={`bg-tv-card border rounded-lg p-4 shadow-1 transition-colors hover:shadow-2 min-h-[132px] ${
                   !hasData ? 'border-tv-border' : isUp ? 'border-tv-green/30' : 'border-tv-red/30'
                 }`}
               >
@@ -465,7 +470,7 @@ export default function MarketPulse() {
             );
           }) : (
             [1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1 space-y-2">
+              <div key={i} className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1 space-y-2 min-h-[132px]">
                 <Skeleton variant="text" className="w-20" />
                 <Skeleton variant="text" className="w-16 h-5" />
                 <Skeleton className="h-8 w-full" />
