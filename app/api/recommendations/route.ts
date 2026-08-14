@@ -46,13 +46,17 @@ export async function GET(request: Request) {
           const cached = await cacheGet<any>(cacheKeyFor(t));
           if (cached) {
             // Audit BUILD 001 (timestamp/freshness) - hasil dari cron-scan cache bisa
-            // berumur sampai 15 menit (TTL.RECOMMENDATION); ditandai per-simbol supaya
-            // UI bisa bilang jujur "data 12 menit lalu", bukan tersirat baru dihitung.
+            // berumur sampai 18 menit (TTL.RECOMMENDATION_CRON - lihat catatan bug fix
+            // 2026-08-14 di cron/recommendation-scan/route.ts; SEBELUMNYA di sini salah
+            // memakai TTL.RECOMMENDATION yang cuma 60 detik, membuat describeCacheAge
+            // menghitung umur cache dari acuan yang jauh lebih pendek dari TTL sungguhan
+            // yang dipakai penulisnya - freshness bisa salah label). Ditandai per-simbol
+            // supaya UI bisa bilang jujur "data 12 menit lalu", bukan tersirat baru dihitung.
             const ttlRemaining = await getCacheTtlRemaining(cacheKeyFor(t));
-            return { ...cached, _meta: describeCacheAge(ttlRemaining, CACHE_TTL_SEC.RECOMMENDATION) };
+            return { ...cached, _meta: describeCacheAge(ttlRemaining, CACHE_TTL_SEC.RECOMMENDATION_CRON) };
           }
           const fresh = await analyzeStock(t);
-          return fresh ? { ...fresh, _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION } } : fresh;
+          return fresh ? { ...fresh, _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION_CRON } } : fresh;
         })
       );
       results.push(...chunkResults.filter(Boolean));

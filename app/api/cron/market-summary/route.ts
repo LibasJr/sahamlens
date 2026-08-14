@@ -17,9 +17,14 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 // juga paling sering terjadi - salah satu penyebab utama keluhan "semua halaman lemot".
 //
 // Pola sama persis dengan app/api/cron/market-pulse/route.ts: hitung ulang di jadwal,
-// simpan ke Redis, GET /api/market-summary tinggal baca cache. TTL MARKET_SUMMARY
-// diperpanjang dari 2 -> 6 menit (shared/cache/ttl-policy.ts) supaya sinkron dengan
-// interval cron 5 menit ini + buffer keterlambatan run, sama seperti pola MARKET.
+// simpan ke Redis, GET /api/market-summary tinggal baca cache.
+//
+// BUG FIX (2026-08-14): route ini SEBELUMNYA menulis dengan TTL.MARKET_SUMMARY (60 detik
+// saat bursa buka - konstanta yang dimaksudkan untuk PEMBACA live-fallback, bukan
+// penulis cron) walau komentar di atas sudah lama mengklaim "diperpanjang ke 6 menit" -
+// klaimnya benar sebagai NIAT, tapi tidak lagi cocok dengan getter yang sebenarnya
+// dipakai. Sekarang MARKET_SUMMARY_CRON (shared/cache/ttl-policy.ts) - konstanta
+// terpisah yang benar-benar 6 menit, dipakai KHUSUS di sini.
 const CACHE_KEY = `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`;
 
 export async function POST(req: NextRequest) {
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await withJobRunLog('market-summary', async () => {
       const data = await getMarketSummary();
-      await cacheSet(CACHE_KEY, data, TTL.MARKET_SUMMARY);
+      await cacheSet(CACHE_KEY, data, TTL.MARKET_SUMMARY_CRON);
       return { topGainers: data.topGainers?.length ?? 0, topVolume: data.topVolume?.length ?? 0 };
     });
     return NextResponse.json({ success: true, result });

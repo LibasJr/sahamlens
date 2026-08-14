@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     const guarded = await runWithJobConcurrencyGuard('breakout-scan', () => withJobRunLog('breakout-scan', async () => {
       const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
       const payload = { data, crossSignals, lastUpdate: new Date().toISOString() };
-      // TTL.BREAKOUT_RADAR (3 hari), bukan TTL.MARKET (6 menit) - lihat komentar di
+      // TTL.BREAKOUT_RADAR (3 hari), bukan TTL.MARKET (60 detik saat bursa buka - itu
+      // acuan untuk PEMBACA live-fallback, bukan penulis cron) - lihat komentar di
       // shared/cache/ttl-policy.ts untuk kenapa route ini butuh TTL jauh lebih panjang
       // dari cron intervalnya sendiri (tidak ada fallback live-scan di pemanggil).
       await cacheSet(CACHE_KEY, payload, TTL.BREAKOUT_RADAR);

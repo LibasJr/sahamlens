@@ -29,8 +29,16 @@ export async function GET() {
     const data = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.MARKET_SUMMARY, getMarketSummary);
     // Audit BUILD 001 (timestamp/freshness) - _meta ADDITIF, tidak menyentuh field
     // yang sudah ada di `data`.
+    //
+    // BUG FIX (2026-08-14): acuan freshness DIPISAH dari TTL penulisan getOrCompute di
+    // atas (yang SENGAJA tetap pendek untuk fallback live - lihat komentar
+    // MARKET_SUMMARY di ttl-policy.ts). Cache key ini SAMA PERSIS dibaca cron
+    // market-summary yang menulis dengan MARKET_SUMMARY_CRON (6 menit) - kalau acuan
+    // freshness di sini masih pakai MARKET_SUMMARY (60 detik) sementara entri yang
+    // dibaca ditulis cron dengan TTL 6 menit, describeCacheAge menghitung umur dari
+    // acuan yang jauh lebih pendek dari TTL sungguhan dan salah label (selalu "FRESH").
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
-    const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.MARKET_SUMMARY);
+    const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.MARKET_SUMMARY_CRON);
     return NextResponse.json({ ...data, _meta });
   } catch (error: any) {
     console.error('Market summary API error:', error);

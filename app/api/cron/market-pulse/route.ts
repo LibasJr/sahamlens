@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
   try {
     const guarded = await runWithJobConcurrencyGuard('market-pulse', () => withJobRunLog('market-pulse', async () => {
       const data = await getMarketPulse();
-      await cacheSet(CACHE_KEY, data, TTL.MARKET);
+      // BUG FIX (2026-08-14, laporan pengguna via LensAI - lihat catatan panjang di
+      // shared/cache/ttl-policy.ts MARKET_PULSE_CRON): dulu TTL.MARKET (60 detik saat
+      // bursa buka, dimaksudkan untuk PEMBACA live-fallback), bukan TTL yang cocok untuk
+      // PENULIS cron 5 menit ini - cache basi 4 dari tiap 5 menit.
+      await cacheSet(CACHE_KEY, data, TTL.MARKET_PULSE_CRON);
       return { indices: data.indices?.length ?? 0, sectors: data.sectorHeatmap?.length ?? 0 };
     }));
     if (!guarded.executed) {

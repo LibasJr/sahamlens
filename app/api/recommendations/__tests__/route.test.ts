@@ -82,7 +82,12 @@ describe('GET /api/recommendations (akses tamu)', () => {
     expect(res.status).toBe(200);
     expect(json.recommendations).toEqual([{
       ticker: 'BBCA.JK', consensus: 'HOLD',
-      _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION },
+      // BUG FIX (2026-08-14): acuan freshness untuk entri cache (dibaca lewat cacheGet)
+      // sekarang RECOMMENDATION_CRON (18 menit, TTL yang benar-benar dipakai penulis
+      // cron/recommendation-scan) - RECOMMENDATION (60 detik) cuma untuk fallback live,
+      // dan salah kalau dipakai sebagai acuan entri yang ditulis cron. Lihat
+      // shared/cache/ttl-policy.ts.
+      _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION_CRON },
     }]);
   });
 

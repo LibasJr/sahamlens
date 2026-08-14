@@ -23,6 +23,13 @@ function cacheKeyFor(symbol: string): string {
   return `sahamlens:cache:computed:recommendation:${symbol}`;
 }
 
+// BUG FIX (2026-08-14): job ini SEBELUMNYA menulis dengan TTL.RECOMMENDATION (60 detik
+// saat bursa buka - konstanta yang dimaksudkan untuk PEMBACA live-fallback di
+// app/api/recommendations, bukan penulis cron 15-menitan ini) - cache basi 14 dari
+// tiap 15 menit, walau komentar di route pembacanya mengklaim "bisa berumur sampai 15
+// menit". Sekarang RECOMMENDATION_CRON (shared/cache/ttl-policy.ts, 18 menit) - pola
+// sama dengan MARKET_PULSE_CRON/MARKET_SUMMARY_CRON.
+
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
@@ -40,7 +47,7 @@ export async function POST(req: NextRequest) {
         const chunk = SCAN_SYMBOLS.slice(i, i + 5);
         const chunkResults = await Promise.all(chunk.map((symbol) => analyzeStock(symbol)));
         await Promise.all(
-          chunkResults.map((r, idx) => (r ? cacheSet(cacheKeyFor(chunk[idx]), r, TTL.RECOMMENDATION) : Promise.resolve()))
+          chunkResults.map((r, idx) => (r ? cacheSet(cacheKeyFor(chunk[idx]), r, TTL.RECOMMENDATION_CRON) : Promise.resolve()))
         );
         scanned += chunkResults.filter(Boolean).length;
       }
