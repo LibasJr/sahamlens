@@ -64,6 +64,59 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Tindak lanjut review eksternal: glosarium, breakdown voting, label delay, filter Scanner
+
+Pengguna membagikan review eksternal (trader IDX) berisi 9 fitur + roadmap 3 prioritas.
+Setiap poin diverifikasi dulu terhadap kode SEBELUM dikerjakan - beberapa ternyata sudah
+ada (gerbang likuiditas `LOW_LIQUIDITY`, LensRadar sudah tabel sortable dengan kolom
+alasan, bukan running text lagi), satu bertentangan dengan keputusan produk yang sudah
+diaudit sebelumnya (pecah LensRadar jadi 3 tab - konsolidasi 8→1 tab 2026-08-03 justru
+karena tab-tab itu tumpang tindih parah, TETAP 1 tab atas persetujuan eksplisit
+pengguna). Empat gap nyata dikerjakan:
+
+**1. Glosarium istilah diperluas** (`components/AnalysisGlossary.tsx`, dipakai di
+`/dashboard` & `/fundamental`) - dari 6 istilah (Bullish/Bearish/Netral/MA200/CMF/MOS)
+jadi mencakup RSI 14, MACD, SMA/EMA, ATR, Momentum, Support & Resistance, PLUS 3 pilar
+fundamental yang sebelumnya tidak pernah dijelaskan (Quality/Growth/Leverage), ROE, DER.
+Label WAJIB sama persis dengan `label` yang dikembalikan analyzer supaya istilah di
+kartu skor dan penjelasannya tidak pernah berbeda kata.
+
+**2. Breakdown voting 10 analyzer ditampilkan di layar** (`/dashboard`) - `data.analyzers`
+SEBELUMNYA cuma dipakai untuk export PDF (`downloadTechnicalPDF`), tidak pernah dirender
+di halaman. Sekarang ada `<details>` (default tertutup) berisi label/nilai/keputusan/
+confidence tiap analyzer PERSIS yang memberi suara ke "Konsensus Analyzer" di atasnya.
+
+**3. Label sumber data (delay Yahoo ~15 menit) ditambahkan** di 4 tempat yang sebelumnya
+cuma berlabel "Live" tanpa konteks (`/market-pulse`, `/breakout-radar`, `/home` -
+preview LensRadar dan kartu insight LensConsensus): `title` (tooltip hover desktop) di
+Badge + caption teks yang selalu terlihat (untuk HP, di mana hover tidak ada).
+
+**4. LensScanner - filter Sektor & Harga, Export CSV, Simpan Template favorit**
+(`app/screener/page.tsx`, `modules/market/service/screener.service.ts`,
+`app/api/screener/route.ts`). `rankScreener()` menerima parameter `filters` opsional
+(`{sector, maxPrice}`) - diterapkan SETELAH rata-rata PER sektor dihitung dari universe
+PENUH (supaya benchmark "PER vs Sektor" tidak diam-diam bergeser cuma karena difilter
+harga) tapi SEBELUM ranking top-10, sehingga hasil filter benar-benar menyaring
+kandidat, bukan sekadar menyaring 10 yang sudah terpilih. `availableSectors` dikirim
+dari universe PENUH juga (bukan hasil yang sudah difilter) supaya dropdown tidak
+diam-diam menyusut. Export CSV murni client-side dari data yang sudah dimuat (BOM UTF-8
+supaya Excel Windows tidak salah encoding). Simpan Template pakai `localStorage`
+murni (bukan tabel Postgres baru) - preferensi tampilan personal, sama seperti pola
+tema terang/gelap.
+
+**SENGAJA BELUM dikerjakan** (bagian dari review yang sama, tapi butuh field data baru
+atau keputusan produk lebih besar):
+- Filter **Market Cap** & **Likuiditas** di Scanner - universe screener belum menangkap
+  field `marketCap`/nilai transaksi harian Rupiah dari Yahoo (module `price` yang sudah
+  di-fetch SEBENARNYA punya `marketCap` gratis, tinggal ditangkap - follow-up terpisah).
+- Mode Bluechip vs Small Cap di LensConsensus, Point-in-Time backtest validation,
+  Dashboard Makro terhubung ke sektor - keputusan produk lebih besar, bukan quick-fix.
+
+Tes baru: filter sektor/harga (`modules/market/service/__tests__/screener.service.test.ts`,
+`app/api/screener/__tests__/route.test.ts`) - termasuk kasus rata-rata PER sektor tidak
+berubah akibat filter harga, dan `maxPrice` tidak valid diabaikan (bukan membuang semua
+saham). typecheck, lint, npm test (1209 test), dan build semua lolos.
+
 ### 2026-08-14 - Kartu LensConsensus di Beranda bisa digeser manual (swipe + klik dot)
 
 Laporan pengguna: kartu insight "LensConsensus" di `/home` (yang bergilir antara ringkasan

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
-import { Sliders, Award, ArrowUpDown } from 'lucide-react';
+import { Sliders, Award, ArrowUpDown, Download, Bookmark, X } from 'lucide-react';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 
 type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
@@ -70,9 +70,33 @@ function compareValues(a: string | number | null | undefined, b: string | number
   return dir === 'asc' ? result : -result;
 }
 
+// BARU (2026-08-14, masukan review eksternal - "simpan template screener favorit").
+// localStorage murni client-side - tidak ada tabel Postgres baru untuk fitur yang
+// sifatnya preferensi tampilan personal, konsisten dengan pola lain di app ini
+// (mis. tema terang/gelap) yang juga tidak disimpan server-side per akun.
+const TEMPLATES_STORAGE_KEY = 'sahamlens:screener-templates';
+interface ScreenerTemplate {
+  name: string;
+  riskProfile: 'Konservatif' | 'Moderat' | 'Agresif';
+  sector: string;
+  maxPrice: string;
+}
+function loadTemplates(): ScreenerTemplate[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ScreenerPage() {
   const router = useRouter();
   const [riskProfile, setRiskProfile] = useState<'Konservatif' | 'Moderat' | 'Agresif'>('Moderat');
+  const [sectorFilter, setSectorFilter] = useState('');
+  const [maxPriceInput, setMaxPriceInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
@@ -81,6 +105,11 @@ export default function ScreenerPage() {
   // menampilkan "Tidak ada saham yang memenuhi kriteria saat ini" - klaim bahwa
   // pemindaian sudah berjalan dan hasilnya nihil. Dua keadaan berbeda, satu pesan.
   const [loadError, setLoadError] = useState(false);
+  const [templates, setTemplates] = useState<ScreenerTemplate[]>([]);
+  const [templateNameDraft, setTemplateNameDraft] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+
+  useEffect(() => setTemplates(loadTemplates()), []);
 
   const handleSort = (key: ColumnKey) => {
     if (sortKey === key) {
@@ -94,11 +123,18 @@ export default function ScreenerPage() {
     }
   };
 
-  const runScreener = useCallback(async (profile: string) => {
+  const runScreener = useCallback(async (profile: string, sector: string, maxPrice: string) => {
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch('/api/screener?profile=' + encodeURIComponent(profile));
+      const params = new URLSearchParams({ profile });
+      if (sector) params.set('sector', sector);
+      // Cuma dikirim kalau benar-benar angka positif - backend sudah fail-open untuk
+      // nilai tidak valid, tapi tidak perlu mengirim parameter kosong/rusak sama sekali.
+      const parsedPrice = Number(maxPrice);
+      if (maxPrice && Number.isFinite(parsedPrice) && parsedPrice > 0) params.set('maxPrice', String(parsedPrice));
+
+      const res = await fetch('/api/screener?' + params.toString());
       const json = await res.json();
       if (!res.ok || json?.error) {
         setLoadError(true);
@@ -115,9 +151,16 @@ export default function ScreenerPage() {
     }
   }, []);
 
+  // BARU (2026-08-14) - filter sektor & harga MAKS ikut memicu pemindaian ulang,
+  // di-debounce 500ms supaya mengetik angka harga tidak mengirim satu request per
+  // digit (endpoint ini punya compute budget server-side, lihat app/api/screener/
+  // route.ts - debounce ini murni mengurangi request percuma, bukan pengaman utama).
   useEffect(() => {
-    runScreener(riskProfile);
-  }, [riskProfile, runScreener]);
+    const t = setTimeout(() => {
+      runScreener(riskProfile, sectorFilter, maxPriceInput);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [riskProfile, sectorFilter, maxPriceInput, runScreener]);
 
   const top10 = data?.analysis?.top_10_stocks || [];
 
@@ -126,6 +169,63 @@ export default function ScreenerPage() {
     const col = SORTABLE_COLUMNS.find((c) => c.key === sortKey)!;
     return [...top10].sort((a: any, b: any) => compareValues(col.getValue(a), col.getValue(b), sortDir));
   }, [top10, sortKey, sortDir]);
+
+  // BARU (2026-08-14, masukan review eksternal - "tombol Export ke Excel/CSV").
+  // Murni client-side dari data yang SUDAH dimuat (bukan panggilan API baru) - kolom
+  // & urutannya SAMA PERSIS dengan SORTABLE_COLUMNS, jadi CSV yang diunduh cocok satu
+  // per satu dengan yang terlihat di layar, termasuk urutan sortir yang sedang aktif.
+  const exportCsv = useCallback(() => {
+    if (sortedRows.length === 0) return;
+    const escapeCsv = (value: unknown): string => {
+      const s = value == null ? '' : String(value);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = SORTABLE_COLUMNS.map((c) => c.label).join(',');
+    const rows = sortedRows.map((item: any) =>
+      SORTABLE_COLUMNS.map((c) => escapeCsv(c.getValue(item))).join(',')
+    );
+    // ﻿ (UTF-8 BOM) - tanpa ini Excel di Windows salah menebak encoding dan
+    // merender karakter non-ASCII (mis. tanda panah/persen dari data terformat) rusak.
+    const csv = '﻿' + [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sahamlens-screener-${riskProfile.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [sortedRows, riskProfile]);
+
+  const saveCurrentAsTemplate = useCallback(() => {
+    const name = templateNameDraft.trim();
+    if (!name) return;
+    const next: ScreenerTemplate = { name, riskProfile, sector: sectorFilter, maxPrice: maxPriceInput };
+    setTemplates((prev) => {
+      // Nama yang sama menimpa template lama - "simpan ulang" alih-alih menumpuk
+      // duplikat tak berujung tiap kali pengguna klik "Simpan" dengan nama yang sama.
+      const updated = [...prev.filter((t) => t.name !== name), next];
+      window.localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    setTemplateNameDraft('');
+    setShowSaveTemplate(false);
+  }, [templateNameDraft, riskProfile, sectorFilter, maxPriceInput]);
+
+  const applyTemplate = useCallback((t: ScreenerTemplate) => {
+    setRiskProfile(t.riskProfile);
+    setSectorFilter(t.sector);
+    setMaxPriceInput(t.maxPrice);
+  }, []);
+
+  const deleteTemplate = useCallback((name: string) => {
+    setTemplates((prev) => {
+      const updated = prev.filter((t) => t.name !== name);
+      window.localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -183,6 +283,120 @@ export default function ScreenerPage() {
           {riskProfile === 'Agresif' && 'Agresif: pertumbuhan 35%, momentum 30%, ROE 20%, PER 15%. Utang dan dividen berbobot NOL - emiten berutang besar tidak dihukum sedikit pun di profil ini.'}
         </p>
 
+        {/* BARU (2026-08-14, masukan review eksternal - "tambahkan filter Market Cap,
+            Sektor, Harga < 5000, Likuiditas" + "simpan template screener favorit").
+            Market Cap & Likuiditas BELUM ada di sini - universe screener ini (~50
+            saham LQ45/blue-chip tetap) belum menangkap field marketCap/nilai transaksi
+            harian dari Yahoo, jadi keduanya sengaja belum ditambahkan daripada
+            menambahkan filter yang datanya tidak akurat. Sektor & Harga sudah tersedia
+            dari data yang sama yang sudah dipakai screener ini. */}
+        <div className="bg-tv-card border border-tv-border rounded-xl p-4 shadow-1 space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label htmlFor="screener-sector" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Sektor</label>
+              <select
+                id="screener-sector"
+                value={sectorFilter}
+                onChange={(e) => setSectorFilter(e.target.value)}
+                className="h-9 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text focus:border-tv-blue focus:outline-none"
+              >
+                <option value="">Semua Sektor</option>
+                {(data?.availableSectors || []).map((s: string) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="screener-max-price" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Harga Maks (Rp)</label>
+              <input
+                id="screener-max-price"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                placeholder="mis. 5000"
+                value={maxPriceInput}
+                onChange={(e) => setMaxPriceInput(e.target.value)}
+                className="h-9 w-32 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text placeholder:text-tv-muted/60 focus:border-tv-blue focus:outline-none"
+              />
+            </div>
+            {(sectorFilter || maxPriceInput) && (
+              <button
+                type="button"
+                onClick={() => { setSectorFilter(''); setMaxPriceInput(''); }}
+                className="h-9 rounded-lg border border-tv-border px-3 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
+              >
+                Reset filter
+              </button>
+            )}
+
+            <div className="ml-auto flex flex-wrap items-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSaveTemplate((v) => !v)}
+                title="Simpan kombinasi profil + filter saat ini sebagai template"
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-border px-3 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
+              >
+                <Bookmark className="h-3.5 w-3.5" /> Simpan Template
+              </button>
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={sortedRows.length === 0}
+                title="Unduh hasil yang sedang tampil sebagai CSV"
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-blue/30 bg-tv-blue/10 px-3 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Download className="h-3.5 w-3.5" /> Export CSV
+              </button>
+            </div>
+          </div>
+
+          {showSaveTemplate && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-tv-border pt-3">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Nama template, mis. LQ45 Murah"
+                value={templateNameDraft}
+                onChange={(e) => setTemplateNameDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveCurrentAsTemplate()}
+                className="h-9 flex-1 min-w-[180px] rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text placeholder:text-tv-muted/60 focus:border-tv-blue focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={saveCurrentAsTemplate}
+                disabled={!templateNameDraft.trim()}
+                className="h-9 rounded-lg bg-tv-blue px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Simpan
+              </button>
+            </div>
+          )}
+
+          {templates.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-tv-border pt-3">
+              <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">Template</span>
+              {templates.map((t) => (
+                <span
+                  key={t.name}
+                  className="flex items-center gap-1 rounded-full border border-tv-border bg-tv-bg px-2.5 py-1 text-[11px] text-tv-text"
+                >
+                  <button type="button" onClick={() => applyTemplate(t)} className="hover:text-tv-blue transition-colors">
+                    {t.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTemplate(t.name)}
+                    aria-label={`Hapus template ${t.name}`}
+                    className="text-tv-muted hover:text-tv-red transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Screener Results Table */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
           <div className="flex items-center justify-between border-b border-tv-border pb-3">
@@ -225,7 +439,7 @@ export default function ScreenerPage() {
               illustration="empty"
               title="Hasil pemindaian gagal dimuat"
               description="Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria."
-              action={{ label: 'Coba lagi', onClick: () => runScreener(riskProfile) }}
+              action={{ label: 'Coba lagi', onClick: () => runScreener(riskProfile, sectorFilter, maxPriceInput) }}
             />
           )}
 
