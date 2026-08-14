@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccessLive } from '@/modules/user';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { runLensScoreBucketBacktest } from '@/modules/recommendation/service/lens-score-bucket-backtest.service';
@@ -13,16 +13,12 @@ export async function GET(request: Request) {
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
 
+    // Cookie trial anonim tetap diterbitkan (telemetri), tapi tidak lagi menggerbang
+    // akses - lihat hasOpenOrProAccess() untuk alasannya.
     let anonTrial: AnonTrialState | null = null;
-    if (!isInternal && !session) {
-      anonTrial = await readOrIssueAnonymousTrial();
-      if (!anonTrial.active) {
-        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-      }
-    }
+    if (!isInternal && !session) anonTrial = await readOrIssueAnonymousTrial();
 
-    const hasPro = isInternal || anonTrial?.active === true || (await checkProAccessLive(session));
-    if (!hasPro) {
+    if (!isInternal && !(await hasOpenOrProAccess(session))) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
