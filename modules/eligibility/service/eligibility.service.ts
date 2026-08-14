@@ -73,7 +73,11 @@ function countTrailingZeroVolume(bars: EligibilityBar[]): number {
 /** ADV20 dalam rupiah. `null` kalau tidak ada satu pun bar dengan close DAN volume yang
  * keduanya angka - bukan 0, karena 0 akan langsung memicu gerbang likuiditas atas dasar
  * data yang sebenarnya tidak pernah kita punya. */
-function adv20(bars: EligibilityBar[]): number | null {
+// Diekspor (2026-08-14) - dipakai ulang modules/market/service/screener.service.ts
+// untuk filter likuiditas di LensScanner, supaya definisi "likuid" di sana SAMA PERSIS
+// dengan gerbang LOW_LIQUIDITY di sini - bukan salinan kedua yang bisa diam-diam
+// berbeda ambang/rumus dari aslinya.
+export function adv20(bars: EligibilityBar[]): number | null {
   const window = bars.slice(-20);
   const values: number[] = [];
   for (const b of window) {

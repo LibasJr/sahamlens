@@ -12,6 +12,7 @@ import { getBatchStockSentiment, type Sentiment as NewsSentiment } from '@/modul
 import {
   evaluateMinimalEligibility,
   toAdvisoryDecision,
+  adv20,
   type AdvisoryDecision,
   type EligibilityResult,
   type EligibilityStatus,
@@ -72,6 +73,13 @@ type RawStock = {
   fifty_two_week_low: number | null;
   fifty_two_week_high: number | null;
   atr_pct: number | null;
+  // BARU (2026-08-14, filter Market Cap & Likuiditas di LensScanner) - marketCap
+  // dari Yahoo `price` module yang SUDAH di-fetch untuk field lain (tidak ada
+  // panggilan tambahan). adv20_idr pakai fungsi SAMA PERSIS dengan gerbang
+  // LOW_LIQUIDITY di modules/eligibility - definisi "likuid" tidak boleh berbeda
+  // antara gerbang rekomendasi dan filter Scanner.
+  market_cap: number | null;
+  adv20_idr: number | null;
   // Kolom BARU (permintaan eksplisit "signal streaght/netral/negatif" + "buy on weknes
   // apa buy apa sell, tapi bukan dummy, harus pakai data real dan sentimen yg ada") -
   // ketiganya null kalau data yang dibutuhkan tidak cukup (BUKAN ditebak/didefaultkan):
@@ -352,6 +360,10 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
       fifty_two_week_low: q.summaryDetail?.fiftyTwoWeekLow || null,
       fifty_two_week_high: q.summaryDetail?.fiftyTwoWeekHigh || null,
       atr_pct: atr14Pct(dailyHistory),
+      market_cap: isFinitePositive(q.price?.marketCap) ? q.price.marketCap : null,
+      // adv20() dari modules/eligibility - fungsi SAMA yang dipakai gerbang
+      // LOW_LIQUIDITY, dipanggil dengan shape bar yang sama (date/close/volume).
+      adv20_idr: adv20(dailyHistory.map((h) => ({ date: h.date, close: h.close, volume: h.volume }))),
       signal,
       decision,
       // BARU (Phase 0) - aditif. `null` kalau histori tidak cukup untuk mengevaluasinya
@@ -492,6 +504,11 @@ function scoreStock(s: RawStock, sectorAvgPer: number | null, profile: RiskProfi
 export interface ScreenerFilters {
   sector?: string;
   maxPrice?: number;
+  /** Rupiah, bukan miliar/triliun - konsisten dengan market_cap mentah di output. */
+  minMarketCap?: number;
+  /** Rupiah/hari, bukan juta/miliar - konsisten dengan ADV_HARD_FLOOR_IDR di
+   * modules/eligibility (Rp 1 miliar/hari). */
+  minLiquidity?: number;
 }
 
 export function rankScreener(universe: RawStock[], profile: RiskProfile, filters: ScreenerFilters = {}) {
@@ -534,9 +551,20 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile, filters
   const validMaxPrice = filters.maxPrice != null && Number.isFinite(filters.maxPrice) && filters.maxPrice > 0
     ? filters.maxPrice
     : undefined;
+  const validMinMarketCap = filters.minMarketCap != null && Number.isFinite(filters.minMarketCap) && filters.minMarketCap > 0
+    ? filters.minMarketCap
+    : undefined;
+  const validMinLiquidity = filters.minLiquidity != null && Number.isFinite(filters.minLiquidity) && filters.minLiquidity > 0
+    ? filters.minLiquidity
+    : undefined;
   const filtered = curated.filter((s) => {
     if (filters.sector && s.sector.toLowerCase() !== filters.sector.toLowerCase()) return false;
     if (validMaxPrice != null && s.price > validMaxPrice) return false;
+    // market_cap/adv20_idr null = data tidak tersedia dari Yahoo untuk saham ini -
+    // dikeluarkan (fail-closed) kalau filternya aktif, BUKAN diloloskan diam-diam
+    // seolah memenuhi syarat yang sebenarnya tidak pernah diverifikasi.
+    if (validMinMarketCap != null && (s.market_cap == null || s.market_cap < validMinMarketCap)) return false;
+    if (validMinLiquidity != null && (s.adv20_idr == null || s.adv20_idr < validMinLiquidity)) return false;
     return true;
   });
 
@@ -562,6 +590,10 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile, filters
         entry: s.price,
         // Menggantikan stop_loss - lihat alasannya di komentar atr14Pct().
         atr_pct: s.atr_pct != null ? parseFloat(s.atr_pct.toFixed(1)) : null,
+        // BARU (2026-08-14, filter Market Cap & Likuiditas) - mentah (Rupiah), UI yang
+        // memformat ke miliar/triliun supaya konsisten dengan filter (juga Rupiah mentah).
+        market_cap: s.market_cap,
+        adv20_idr: s.adv20_idr,
         // Kolom BARU (permintaan eksplisit) - null/'N/A' kalau data kurang, BUKAN
         // ditebak (lihat komentar RawStock.signal/pattern_tag/sentiment di atas).
         signal: s.signal,

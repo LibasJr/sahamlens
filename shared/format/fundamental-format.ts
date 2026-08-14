@@ -15,3 +15,9 @@ export const fmtPersen = (fraksi: number | null | undefined): string =>
 
 export const fmtTriliun = (v: number | null | undefined): string =>
   typeof v === 'number' ? `Rp ${(v / 1e12).toFixed(2)} T` : 'N/A';
+
+// BARU (2026-08-14, filter Market Cap & Likuiditas di LensScanner) - nilai transaksi
+// harian (ADV20) biasanya di kisaran miliar, bukan triliun; menampilkannya lewat
+// fmtTriliun akan selalu terbaca "Rp 0.01 T" alih-alih angka yang wajar dibaca.
+export const fmtMiliar = (v: number | null | undefined): string =>
+  typeof v === 'number' ? `Rp ${(v / 1e9).toFixed(2)} M` : 'N/A';
