@@ -46,7 +46,13 @@ export default function Toast({
     <div
       role={variant === 'error' ? 'alert' : 'status'}
       aria-live={variant === 'error' ? 'assertive' : 'polite'}
-      className={`fixed left-1/2 top-4 z-[200] flex max-w-[92vw] -translate-x-1/2 items-start gap-2 rounded-2xl border bg-[#101A2A]/95 px-4 py-3 text-[13px] text-tv-text shadow-2 backdrop-blur-xl ${tone.border}`}
+      // BARU (2026-08-14): dulu `bg-[#101A2A]/95` (navy gelap) dikunci mati - `text-tv-text`
+      // di sampingnya IKUT tema (jadi navy gelap juga di tema terang), sehingga toast di tema
+      // terang jadi teks gelap di atas latar gelap = tidak terbaca. Persis laporan pengguna
+      // "form login" (banner notice "Silakan masuk untuk melanjutkan" tidak terbaca).
+      // `bg-tv-card` sudah peka-tema (putih di terang, gelap di gelap) dan dipakai konsisten
+      // di kartu lain - toast sekarang ikut aturan yang sama.
+      className={`fixed left-1/2 top-4 z-[200] flex max-w-[92vw] -translate-x-1/2 items-start gap-2 rounded-2xl border bg-tv-card/95 px-4 py-3 text-[13px] text-tv-text shadow-2 backdrop-blur-xl ${tone.border}`}
     >
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone.icon}`} />
       <span>{message}</span>

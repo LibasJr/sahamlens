@@ -7,7 +7,10 @@ import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators 
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
   ssr: false,
-  loading: () => <div className="min-h-[360px] sm:min-h-[460px] animate-pulse rounded-lg bg-[#131722]" aria-label="Memuat grafik" />,
+  // BARU (2026-08-14): bg-[#131722] hex mati - kotak loading tetap gelap walau tema
+  // terang, sebelum chart-nya sendiri (TradingViewChart, sudah peka-tema) sempat
+  // terpasang. bg-tv-card konsisten dengan bungkus kartu di sekitarnya.
+  loading: () => <div className="min-h-[360px] sm:min-h-[460px] animate-pulse rounded-lg bg-tv-card" aria-label="Memuat grafik" />,
 });
 
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
@@ -86,7 +89,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           }}
         />
       ) : (
-        <div className="min-h-[360px] sm:min-h-[460px] flex items-center justify-center bg-[#131722] text-tv-muted rounded-lg">Memuat grafik...</div>
+        <div className="min-h-[360px] sm:min-h-[460px] flex items-center justify-center bg-tv-card text-tv-muted rounded-lg">Memuat grafik...</div>
       )}
 
       <div className="flex items-start gap-2 rounded-lg bg-tv-hover border border-tv-border p-3">

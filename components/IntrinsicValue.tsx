@@ -96,9 +96,14 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
 
   let mosStatus = 'FAIR';
   let mosColor = 'tv-yellow';
-  let mosBg = 'bg-[#f59e0b]';
-  let mosBorder = 'border-[#f59e0b]';
-  let mosText = 'text-[#f59e0b]';
+  // BARU (2026-08-14): dulu `#f59e0b` dikunci mati - itu nilai tema GELAP dari
+  // --lens-warning (245,158,11); di tema terang seharusnya jadi #9D4808 (kontras
+  // sudah diukur & lolos AA, lihat catatan besar di app/globals.css). Diganti ke
+  // token tv-warning yang sudah peka-tema, konsisten dengan mosBg/mosBorder/mosText
+  // untuk UNDERVALUED/OVERVALUED di bawah yang sudah memakai tv-green/tv-red.
+  let mosBg = 'bg-tv-warning';
+  let mosBorder = 'border-tv-warning';
+  let mosText = 'text-tv-warning';
   let mosLabel = 'Harga sekitar nilai wajar model';
   let Icon = Target;
 
@@ -178,7 +183,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
             </div>
           </div>
 
-          <div className={`border rounded-lg p-4 text-center bg-opacity-10 ${mosBorder}/30 ${mosText}`} style={{ backgroundColor: mosStatus === 'FAIR' ? 'rgba(245, 158, 11, 0.1)' : undefined }}>
+          <div className={`border rounded-lg p-4 text-center bg-opacity-10 ${mosBorder}/30 ${mosText}`} style={{ backgroundColor: mosStatus === 'FAIR' ? 'rgb(var(--lens-warning) / 0.1)' : undefined }}>
             <div className="flex items-center justify-center gap-2 mb-1">
               <Icon className="w-5 h-5" />
               <span className="font-bold">Margin of Safety (MOS)</span>
@@ -202,10 +207,14 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis dataKey="name" stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => Number(v).toLocaleString('id-ID')} />
-                <Tooltip 
-                  cursor={{ fill: '#1F2937', opacity: 0.4 }}
-                  contentStyle={{ backgroundColor: '#131722', borderColor: '#2A2E39', color: '#fff', fontSize: '12px' }}
-                  itemStyle={{ color: '#fff' }}
+                {/* BARU (2026-08-14): tooltip Recharts dulu latar+teks hex mati (dark-only) -
+                    kotak tooltip tetap gelap dengan teks putih walau tema terang, tidak
+                    terbaca di atas kartu putih. rgb(var(--lens-*)) sudah peka-tema (bukan
+                    class Tailwind - Recharts butuh style inline literal). */}
+                <Tooltip
+                  cursor={{ fill: 'rgb(var(--lens-hover))', opacity: 0.4 }}
+                  contentStyle={{ backgroundColor: 'rgb(var(--lens-card))', borderColor: 'rgb(var(--lens-border))', color: 'rgb(var(--lens-text))', fontSize: '12px' }}
+                  itemStyle={{ color: 'rgb(var(--lens-text))' }}
                   formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Value']}
                 />
                 <ReferenceLine y={harga} stroke="#EF4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Harga Sekarang', fill: '#EF4444', fontSize: 10 }} />
