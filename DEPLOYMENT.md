@@ -64,6 +64,15 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - `/api/cron/news` terdaftar di QStash - manifest cron 100% `known`
+
+Susulan entri di bawah. Pengguna sudah mendaftarkan Schedule QStash untuk
+`/api/cron/news` mengikuti instruksi persis (`*/5 9-15 * * 1-5`, sama dengan
+`market-summary`/`market-pulse`/`breakout-scan`) - dikonfirmasi. `config/scheduled-jobs.json`
+diperbarui: `scheduleStatus` naik dari `"verify-dashboard"` jadi `"known"`. `npm run
+audit:cron` sekarang melapor **0 dari 13 job yang masih harus diverifikasi** - manifest
+cron akhirnya lengkap 100%.
+
 ### 2026-08-14 - Cron baru: `/api/cron/news` - sebelumnya News TIDAK PERNAH di-pre-warm
 
 Pertanyaan pengguna: "apa ada cron job untuk update news?" - jawabannya sebelumnya
