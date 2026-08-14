@@ -64,6 +64,28 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Kartu LensConsensus di Beranda bisa digeser manual (swipe + klik dot)
+
+Laporan pengguna: kartu insight "LensConsensus" di `/home` (yang bergilir antara ringkasan
+sinyal harian dan berita pasar) cuma bisa dilihat lewat auto-rotate 12 detik
+(`INSIGHT_ROTATE_MS`) - tidak bisa digeser manual. Titik penanda di bawahnya memang
+SENGAJA dibuat murni visual sebelumnya ("klik pindah manual tidak diminta" - komentar
+lama di `app/home/page.tsx`), sekarang diminta jadi interaktif.
+
+Ditambahkan:
+- **Swipe** (`onTouchStart`/`onTouchEnd`, ambang 40px) di kontainer teks insight - geser
+  kiri maju, geser kanan mundur, `touch-pan-y` supaya scroll vertikal halaman tetap
+  normal (cuma gestur horizontal yang ditangani JS).
+- **Titik penanda jadi tombol** yang bisa diklik langsung ke slide tertentu, dengan
+  `aria-label`/`aria-current` untuk pembaca layar.
+- **Timer auto-rotate direstart** setiap kali ada navigasi manual (swipe atau klik dot) -
+  supaya tidak langsung "ketimpa" auto-rotate sesaat setelah pengguna baru saja pindah
+  sendiri. Implementasi lewat ref (`restartAutoRotateRef`), bukan menambahkan
+  `insightIndex` ke dependency array `useEffect` (yang akan bikin timer restart terus di
+  SETIAP tick auto-rotate juga, bukan cuma saat navigasi manual).
+
+typecheck, lint, npm test (1198 test), dan build semua lolos.
+
 ### 2026-08-14 - `watchlist-alert` dipercepat 15 -> 5 menit (audit delay Yahoo)
 
 Pengguna bertanya: "Yahoo delay 15 menit, apa jadwal job kita sudah sesuai?" Audit
