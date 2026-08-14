@@ -7,6 +7,7 @@ import { getActiveUsers } from '@/shared/auth/presence';
 import { EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
+import CreateTestUserForm from './CreateTestUserForm';
 import ChangeSecretForm from './ChangeSecretForm';
 
 // Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
@@ -61,6 +62,7 @@ export default async function AdminPage() {
           <ExportButton />
         </div>
         <SetProForm />
+        <CreateTestUserForm />
         <ChangeSecretForm />
 
         {/* Dua pintu masuk ini sebelumnya bertumpuk selebar penuh dengan mb-8

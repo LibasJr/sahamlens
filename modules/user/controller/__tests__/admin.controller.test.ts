@@ -4,21 +4,26 @@ import bcrypt from 'bcryptjs';
 vi.mock('../../repository/user.repository', () => ({
   getUserByEmail: vi.fn(),
   updateUser: vi.fn(),
+  createUser: vi.fn(),
 }));
 vi.mock('../../repository/admin-secret.repository', () => ({
   getAdminSecretHash: vi.fn(),
   setAdminSecretHash: vi.fn(),
 }));
+vi.mock('../../../portfolio', () => ({
+  provisionPortfolio: vi.fn(),
+}));
 vi.mock('../../../../shared/database/postgres.client', () => ({
   pool: { query: vi.fn() },
 }));
 
-import { handleSetProStatus, handleGetProStatus, handleAdminLoginByKey, handleChangeAdminSecret } from '../admin.controller';
-import { getUserByEmail, updateUser } from '../../repository/user.repository';
+import { handleSetProStatus, handleGetProStatus, handleAdminLoginByKey, handleChangeAdminSecret, handleCreateTestUser } from '../admin.controller';
+import { getUserByEmail, updateUser, createUser } from '../../repository/user.repository';
+import { provisionPortfolio } from '../../../portfolio';
 import { getAdminSecretHash, setAdminSecretHash } from '../../repository/admin-secret.repository';
 import { ADMIN_COOKIE } from '../../../../shared/constants/cookie-names';
 import { signAdminToken } from '../../../../shared/auth/admin-token';
-import { ForbiddenError, ValidationError, NotFoundError } from '../../../../shared/errors/app-error';
+import { ForbiddenError, ValidationError, NotFoundError, ConflictError } from '../../../../shared/errors/app-error';
 import type { User } from '../../types/user.types';
 
 function makeUser(overrides: Partial<User> = {}): User {
@@ -339,5 +344,86 @@ describe('handleGetProStatus', () => {
     expect(JSON.stringify(res.body)).not.toContain('RAHASIA');
     expect(JSON.stringify(res.body)).not.toContain('123456');
     expect(JSON.stringify(res.body)).not.toContain('654321');
+  });
+});
+
+// BARU (2026-08-14, permintaan pengguna: "bisa buatkan akun user/user di sistem, ini
+// untuk user tes" -> "hak akses nya jgn admin, user testing biasa").
+describe('handleCreateTestUser', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('tanpa cookie admin valid -> ForbiddenError, createUser tidak dipanggil', async () => {
+    await expect(
+      handleCreateTestUser(adminCookieStore(false), { email: 'tes@test.com', password: 'password123' })
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
+  it('email kosong -> ValidationError', async () => {
+    await expect(
+      handleCreateTestUser(adminCookieStore(true), { email: '', password: 'password123' })
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('email tidak valid -> ValidationError', async () => {
+    await expect(
+      handleCreateTestUser(adminCookieStore(true), { email: 'bukan-email', password: 'password123' })
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('password lebih pendek dari minimum -> ValidationError', async () => {
+    await expect(
+      handleCreateTestUser(adminCookieStore(true), { email: 'tes@test.com', password: 'short' })
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('email sudah terdaftar -> ConflictError, createUser tidak dipanggil', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ email: 'tes@test.com' }));
+
+    await expect(
+      handleCreateTestUser(adminCookieStore(true), { email: 'tes@test.com', password: 'password123' })
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
+  it('input valid -> akun dibuat langsung terverifikasi, role SELALU free (bukan admin), portofolio diprovisioning', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(null);
+
+    const res = await handleCreateTestUser(adminCookieStore(true), {
+      email: 'TES@Test.com',
+      password: 'password123',
+    });
+
+    expect(createUser).toHaveBeenCalledTimes(1);
+    const created = vi.mocked(createUser).mock.calls[0][0];
+    expect(created.email).toBe('TES@Test.com');
+    expect(created.role).toBe('free');
+    expect(created.is_verified).toBe(true);
+    expect(created.is_pro).toBe(false);
+    expect(created.pro_expires_at).toBeNull();
+    expect(created.verification_code).toBeNull();
+    expect(created.trial_ends_at).not.toBeNull();
+
+    expect(provisionPortfolio).toHaveBeenCalledWith(created.id);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ email: 'TES@Test.com' });
+  });
+
+  // Permintaan eksplisit pengguna: "hak akses nya jgn admin, user testing biasa" -
+  // memastikan tidak ada jalan bagi pemanggil untuk menyelipkan role lain lewat body,
+  // sekalipun body-nya (secara keliru/sengaja) menyertakan field role.
+  it('field role di body diabaikan sepenuhnya - hasil akhir tetap free', async () => {
+    vi.mocked(getUserByEmail).mockResolvedValue(null);
+
+    await handleCreateTestUser(adminCookieStore(true), {
+      email: 'tes2@test.com',
+      password: 'password123',
+      // @ts-expect-error - sengaja mengirim field yang tidak ada di tipe body untuk
+      // membuktikan handler tidak membacanya sama sekali.
+      role: 'admin',
+    });
+
+    const created = vi.mocked(createUser).mock.calls[0][0];
+    expect(created.role).toBe('free');
   });
 });

@@ -1,12 +1,14 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { ForbiddenError, ValidationError, NotFoundError } from '../../../shared/errors/app-error';
+import { ForbiddenError, ValidationError, NotFoundError, ConflictError } from '../../../shared/errors/app-error';
 import { ADMIN_COOKIE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE } from '../../../shared/constants/cookie-names';
 import { signAdminToken } from '../../../shared/auth/admin-token';
 import { isAdminFromRequestCookies, getAdminStatsToday, getAdminExportData } from '../service/admin.service';
-import { getUserByEmail, updateUser } from '../repository/user.repository';
+import { getUserByEmail, updateUser, createUser } from '../repository/user.repository';
 import { extendProExpiry } from '../service/pro-expiry.service';
 import { getAdminSecretHash, setAdminSecretHash } from '../repository/admin-secret.repository';
+import { provisionPortfolio } from '../../portfolio';
+import { TRIAL_DAYS, MIN_PASSWORD_LENGTH } from '../constants/user.constants';
 import { logger } from '../../../shared/logger/logger';
 import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
 
@@ -129,6 +131,67 @@ export async function handleSetProStatus(
   await updateUser(user.id, { is_pro: body.isPro, pro_expires_at: proExpiresAt });
   logger.info('Admin set-pro', { email: body.email, isPro: body.isPro, proExpiresAt });
   return { status: 200, body: { email: body.email, isPro: body.isPro, proExpiresAt } };
+}
+
+// BARU (2026-08-14, permintaan pengguna: "bisa buatkan akun user/user di sistem, ini
+// untuk user tes"). Sesi agen ini TIDAK PUNYA akses database production atau jaringan
+// ke situs live, jadi tidak bisa membuat akun langsung dari sesi - alat ini yang
+// dibangun sebagai gantinya: form admin sekali-pakai, bukan endpoint publik.
+//
+// Membuat akun LANGSUNG TERVERIFIKASI (skip alur OTP email signup normal - lihat
+// signup()/verifyAccount() di service/auth.service.ts) supaya admin tidak perlu akses
+// inbox email test untuk membaca kode verifikasi. Selain itu PERSIS meniru hasil akhir
+// signup+verify normal: role SELALU 'free' (BUKAN admin - ditegaskan eksplisit sesuai
+// permintaan pengguna "hak akses nya jgn admin, user testing biasa", role tidak pernah
+// dibaca dari body request), trial 7 hari (TRIAL_DAYS, sama seperti verifyAccount), dan
+// portofolio virtual ikut diprovisioning supaya akun tes tidak "setengah jadi" dibanding
+// akun yang lewat alur signup biasa.
+export async function handleCreateTestUser(
+  cookieStore: { get(name: string): { value: string } | undefined },
+  body: { email?: unknown; password?: unknown }
+): Promise<HttpResult> {
+  if (!await isAdminFromRequestCookies(cookieStore)) throw new ForbiddenError();
+  if (typeof body.email !== 'string' || !body.email.trim()) {
+    throw new ValidationError('Email wajib diisi');
+  }
+  const email = body.email.trim();
+  // Regex email sederhana - konsisten dengan signupSchema (zod z.string().email()) tanpa
+  // menyeret dependency zod ke controller ini untuk satu pemeriksaan.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new ValidationError('Email tidak valid');
+  }
+  if (typeof body.password !== 'string' || body.password.length < MIN_PASSWORD_LENGTH) {
+    throw new ValidationError(`Password minimal ${MIN_PASSWORD_LENGTH} karakter`);
+  }
+
+  const existing = await getUserByEmail(email);
+  if (existing) throw new ConflictError('Email sudah terdaftar');
+
+  const hashed = await bcrypt.hash(body.password, 10);
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+  const userId = crypto.randomUUID();
+
+  await createUser({
+    id: userId,
+    email,
+    password_hash: hashed,
+    role: 'free',
+    is_verified: true,
+    is_pro: false,
+    created_at: new Date().toISOString(),
+    trial_ends_at: trialEndsAt.toISOString(),
+    pro_expires_at: null,
+    demo_ends_at: null,
+    verification_code: null,
+    verification_code_expires: null,
+    reset_code: null,
+    reset_code_expires: null,
+  });
+  await provisionPortfolio(userId);
+
+  logger.info('Admin create-test-user', { email, userId });
+  return { status: 200, body: { email, userId, trialEndsAt: trialEndsAt.toISOString() } };
 }
 
 export async function handleGetProStatus(

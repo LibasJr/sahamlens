@@ -28,4 +28,5 @@ export {
   handleSetProStatus,
   handleGetProStatus,
   handleChangeAdminSecret,
+  handleCreateTestUser,
 } from './controller/admin.controller';
