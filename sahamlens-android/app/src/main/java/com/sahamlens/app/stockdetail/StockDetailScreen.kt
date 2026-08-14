@@ -25,6 +25,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Lock
@@ -125,6 +126,24 @@ fun StockDetailScreen(
                 message = "Upgrade ke SahamLens Pro untuk analisis lengkap $ticker.",
                 actionLabel = null,
                 onAction = {},
+                onBack = onBack,
+            )
+            return
+        }
+        // BUG FIX: `when` sebelumnya cuma menangani 401/402 tanpa cabang lain - kode lain
+        // (400 ticker tidak valid, 404 data belum ada, 500/503 sumber harga gagal) lolos ke
+        // BottomSheetScaffold normal dengan state DEFAULT (price=0.0, consensus="HOLD",
+        // totalScore=0) yang terlihat seperti data pasar sungguhan, LENGKAP dengan tombol
+        // Buy/Sell yang masih aktif pada harga Rp 0. errorCode != null di sini (401/402
+        // sudah ditangani di atas) berarti load() betul-betul gagal, bukan sekadar belum
+        // selesai loading (isLoading punya alur skeleton terpisah, lihat StockDetailHero).
+        else -> if (state.errorCode != null) {
+            StockDetailErrorState(
+                icon = Icons.Outlined.ErrorOutline,
+                title = "Gagal memuat $ticker",
+                message = "Data pasar untuk $ticker sedang tidak tersedia. Coba lagi sebentar lagi.",
+                actionLabel = "Coba Lagi",
+                onAction = { viewModel.load() },
                 onBack = onBack,
             )
             return

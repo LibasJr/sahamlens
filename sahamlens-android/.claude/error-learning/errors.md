@@ -1,5 +1,54 @@
 # Error Learning Log — SahamLens Android
 
+## [2026-08-14] - Audit menyeluruh: pola "buang body error informatif" berulang di endpoint lain + data palsu saat gagal
+- Konteks: setelah bug ChatRepository ([2026-08-14] di bawah) diperbaiki, audit menyeluruh
+  73 file .kt (dibanding satu-satu terhadap route backend asli di `app/api/**/route.ts`)
+  menemukan pola YANG SAMA PERSIS terulang di endpoint lain, plus beberapa bug fallback-ke-0
+  terpisah. Semua sudah diperbaiki dalam commit yang sama.
+- **CRITICAL - `PortfolioRepository.buy/sell` (transaksi)**: `SahamLensApi.createTransaction()`
+  mengembalikan DTO langsung (bukan `Response<T>`), jadi pesan tolak transaksi yang bermakna
+  dari server ("Cash tidak cukup", "Jumlah lot yang dipegang tidak cukup", harga tidak wajar)
+  hilang jadi "Transaksi gagal. Coba lagi." generik. Fix: `Response<CreateTransactionResponseDto>`
+  + `ApiErrorDto{error,code}` baru (`core/network/model/ApiErrorDto.kt`) + helper
+  `Response<T>.parseApiError()` (`core/network/ApiError.kt`, `NetworkModule.json` dibuka jadi
+  non-private) - pola generik ini dipakai untuk SEMUA endpoint lain yang butuh baca body error
+  `{error, code}` bawaan backend (beda dari body khusus `/api/chat`).
+- **CRITICAL - `StockDetailScreen`**: `when (state.errorCode) { 401 -> ...; 402 -> ... }` TIDAK
+  PUNYA cabang lain - error selain 401/402 (400/404/500/503, mis. Yahoo Finance down) lolos ke
+  BottomSheetScaffold normal dengan state DEFAULT (price=0.0, consensus="HOLD") yang terlihat
+  seperti data pasar sungguhan, LENGKAP dengan tombol Buy/Sell aktif di harga Rp 0. Fix: tambah
+  cabang `else` yang merender `StockDetailErrorState` untuk errorCode non-null selain 401/402.
+- **MEDIUM - `LoginViewModel.describeError()`**: mencocokkan substring "401"/"400"/"HTTP 5" di
+  `e.message` (rapuh), 403 (`EmailNotVerifiedError` dari backend) tidak match apa pun dan jatuh
+  ke "Gagal masuk. Cek koneksi internet." - menyesatkan untuk password yang sebenarnya benar.
+  Fix: baca `HttpException.code()` asli (pola yang sama dengan StockDetailViewModel), tambah
+  cabang 403 -> "Akun belum diverifikasi. Cek email Anda untuk tautan verifikasi."
+- **MEDIUM - Tab Market, badge "N saham bullish/bearish"**: `bullishCount`/`bearishCount` adalah
+  panjang list `topTechnical`/`topTechnicalBearish` yang backend SUDAH memotong ke `LIST_CAP=50`
+  - bukan hitungan asli dari ~250 saham. Pada hari sangat bullish/bearish, badge diam-diam
+  terpotong ke 50 dan bisa membuat pasar timpang terlihat seimbang. Fix: `signalCountLabel()` di
+  `MarketScreen.kt` menambah "+" saat count menyentuh cap (mis. "50+"), bukan angka pasti palsu.
+- **MEDIUM - Watchlist ringkas di Home**: `WatchlistRow(price ?: 0.0, changePct ?: 0.0)` di
+  `HomeViewModel` mengarang harga Rp 0 (hijau, terlihat valid) saat satu simbol gagal di-fetch
+  live quote - padahal `HomeModels.kt` sendiri sudah punya aturan tertulis "nullable = belum
+  termuat, BUKAN nol yang dikarang" yang dilanggar di sini. Fix: `WatchlistRow.price/changePct`
+  jadi nullable, `HomeScreen` render "-" netral untuk quote yang gagal, bukan angka palsu.
+- **MINOR**: format IHSG beda presisi antar layar (Home 0 desimal vs Market/Market Pulse 2
+  desimal untuk nilai yang SAMA) - disatukan ke 2 desimal. Komentar kode di
+  `SahamLensApi.kt`/`ToolsRepository.kt`/`CompareScreen.kt`/`MarketPulseScreen.kt` yang masih
+  bilang Compare & Market Pulse "butuh login + Pro" sudah usang sejak keputusan produk
+  2026-08-13 (Compare: tamu akses penuh, cuma bisa 402 bukan 401; Market Pulse: publik
+  sepenuhnya, tanpa gerbang apa pun) - diperbarui supaya tidak menyesatkan dev berikutnya.
+  `RiskCalculatorViewModel.fetchLivePrice()` gagal diam-diam tanpa pesan - ditambah
+  `priceError` di state + teks error di layar.
+- Cegah (pola umum, BUKAN cuma soal chat): setiap kali sebuah endpoint Retrofit punya tipe
+  kembalian langsung (bukan `Response<T>`), cek dulu apakah body error backend-nya membawa
+  pesan yang MEMANG dimaksud tampil ke user (`{error, code}` generik, atau bentuk khusus kayak
+  `/api/chat`) - kalau iya, WAJIB `Response<T>` + parse manual, jangan biarkan Retrofit
+  melempar HttpException dan membuang body itu. Dan: setiap fallback `?: 0.0` / `?: ""` pada
+  data dari jaringan HARUS ditanya ulang "ini beneran nol, atau cuma nilai gagal-ambil yang
+  dikarang?" - kalau ragu, bikin nullable dan render state kosong yang jujur.
+
 ## [2026-07-31] - Aplikasi tidak pernah tersambung ke backend (tidak ada layar Login)
 - Stack: Kotlin / Jetpack Compose / Retrofit / OkHttp
 - File baru: `login/LoginScreen.kt`, `login/LoginViewModel.kt`, `data/auth/AuthRepository.kt`,
@@ -74,13 +123,44 @@
 - Cegah: Kalau ada aksi cross-tab dari dalam sebuah tab (bukan lewat Bottom Nav langsung),
   pastikan lewat fungsi navigasi tab yang sama, jangan `navigate()` mentah.
 
+## [2026-08-14] - AI Council: semua error non-2xx dari /api/chat ditampilkan sebagai satu pesan generik palsu
+- Stack: Kotlin / Retrofit / kotlinx.serialization
+- File: `core/network/SahamLensApi.kt`, `core/network/build.gradle.kts`,
+  `app/.../data/chat/ChatRepository.kt`
+- Gejala: Server `/api/chat` SENGAJA membalas body `{role, content, errorCode}` yang valid
+  bahkan di status non-2xx (400 prompt kosong, 429 rate limit / kuota tamu habis, 503 provider
+  AI belum terkonfigurasi, 504 timeout) — `content`-nya adalah pesan aman & spesifik yang
+  MEMANG dimaksud tampil ke pengguna (mis. "Jatah pertanyaan LensAI untuk pengunjung sudah
+  habis. Silakan masuk..."). Client Android memanggil `api.chat()` dengan tipe kembalian
+  `ChatResponseDto` langsung (bukan `Response<T>`), jadi Retrofit melempar `HttpException`
+  untuk status non-2xx dan body itu HILANG — user selalu melihat satu pesan generik
+  ("Maaf, Council AI sedang mengalami gangguan koneksi...") apa pun penyebab errornya,
+  padahal web (`components/AIChat.tsx`) sudah lama membaca `data.content` itu secara eksplisit
+  dengan komentar tegas: "jangan membuang content itu atau menyamakan semua kegagalan menjadi
+  satu pesan palsu".
+- Root Cause: Pola default Retrofit (tipe kembalian bukan `Response<T>`) dipakai tanpa sadar
+  bahwa endpoint ini beda dari endpoint lain di app — endpoint lain (401/402) memang cukup
+  dibedakan lewat kode status saja (pesannya statis di client), tapi `/api/chat` sengaja
+  menaruh pesan dinamis di body meski status-nya gagal.
+- Fix: `SahamLensApi.chat()` → `Response<ChatResponseDto>`. `ChatRepository.send()` baca
+  `response.body()` kalau sukses, atau parse `response.errorBody()?.string()` manual jadi
+  `ChatResponseDto` kalau gagal, lalu pakai `.content`-nya di kedua jalur — fallback generik
+  cuma dipakai kalau body benar-benar kosong/tidak bisa di-parse (IOException/no connectivity,
+  sama seperti `catch(e)` di web). `core/network` deps: `kotlinx.serialization.json` diubah
+  dari `implementation` ke `api` supaya `Json.decodeFromString<T>` terlihat dari `:app`.
+- Cegah: Sebelum menganggap "cukup cek HTTP status code" cukup untuk sebuah endpoint, cek dulu
+  apakah body error-nya membawa pesan dinamis yang dimaksud tampil ke user (bandingkan dengan
+  perilaku client web yang sudah ada) — kalau iya, tipe kembalian Retrofit-nya WAJIB
+  `Response<T>`, bukan `T` langsung.
+
 ## Catatan lain (tidak perlu fix, didokumentasikan sebagai batasan yang disengaja)
 - ~~Watchlist tab akan selalu menampilkan error "Sesi berakhir"~~ — SUDAH DIPERBAIKI (lihat entri
   "Aplikasi tidak pernah tersambung ke backend" di atas). Login sekarang tersedia dan mengisi
   sesi asli.
-- AI Council masih menjawab dengan gema lokal jujur ("belum tersambung ke model AI sungguhan"),
-  bukan jawaban AI beneran — integrasi Gemini/`/api/council` nyata belum masuk cakupan sesi ini,
-  sengaja tidak dipalsukan (sesuai instruksi: dilarang mengarang jawaban).
+- ~~AI Council masih menjawab dengan gema lokal jujur~~ — SUDAH TIDAK BERLAKU: `AiCopilotViewModel`
+  + `ChatRepository` sudah memanggil `POST /api/chat` asli sejak Build 007 (sama seperti web),
+  bukan echo lokal lagi. Yang tersisa dari catatan lama ini cuma bug penanganan error non-2xx,
+  lihat entri di atas ([2026-08-14]).
 - Sesi login masih in-memory (`SessionCookieJar` tidak persisten lintas-restart app) - buka app
   lagi setelah dipaksa berhenti akan kembali ke layar Login. Persistensi (DataStore) adalah
   pekerjaan lanjutan.

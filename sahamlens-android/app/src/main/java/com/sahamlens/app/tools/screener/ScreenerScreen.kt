@@ -1,6 +1,5 @@
 package com.sahamlens.app.tools.screener
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -102,7 +101,7 @@ private fun ErrorBanner(message: String) {
 
 @Composable
 private fun ScreenerStockCard(stock: ScreenerStockDto, onClick: () -> Unit) {
-    SahamCard(variant = SahamCardVariant.Outlined, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    SahamCard(variant = SahamCardVariant.Outlined, modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Column {
