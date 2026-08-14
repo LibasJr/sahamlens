@@ -513,7 +513,12 @@ function FundamentalContent() {
             </div>
 
             <div className="min-w-0">
-              <div className="mb-1.5 flex min-h-[28px] items-center justify-center text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Kualitas Fundamental</div>
+              {/* BUG FIX (2026-08-14, laporan pengguna lanjutan - min-h-[28px] ternyata
+                  belum cukup untuk 2 baris di beberapa lebar layar, kartu masih tidak
+                  sejajar): label dipendekkan jadi "Fundamental" saja supaya SELALU 1
+                  baris seperti "Valuasi Harga" di sampingnya - pendekatan yang lebih
+                  tahan lebar layar mana pun daripada menebak tinggi 2 baris. */}
+              <div className="mb-1.5 flex min-h-[28px] items-center justify-center text-center text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted">Fundamental</div>
               <div className={`min-h-[64px] w-full rounded-xl border px-3 py-2 flex flex-col items-center justify-center text-center font-sans ${
                 data?.fundamentalQuality?.label === 'BAGUS'
                   ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
