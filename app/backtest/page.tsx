@@ -7,6 +7,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Input, Select, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import CandleReplayChart, { type ReplayCandle } from '@/components/backtest/CandleReplayChart';
 // Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
 // disengaja: komponen ini 'use client', barrel modules/backtest re-export service yang
 // pakai fetch/logger server-only (precompute/simulate/live-filter-check), ikut kebawa ke
@@ -14,7 +16,7 @@ import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 // langsung. Sama BACKTEST_PRESETS dipakai modules/market/service/screener.service.ts
 // (server, lewat barrel) supaya preset Backtest & tag pola Screener tidak bercabang.
 import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
-import { BACKTEST_PERIOD_MONTHS } from '@/modules/backtest/constants/backtest-periods';
+import { BACKTEST_PERIOD_MONTHS, TRADING_DAYS_PER_MONTH } from '@/modules/backtest/constants/backtest-periods';
 import { BACKTEST_LIMITATIONS } from '@/modules/backtest/constants/backtest-limitations';
 
 const fmtRupiah = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
@@ -98,6 +100,48 @@ function EquityTooltip({ active, payload, label, initialCapital }: any) {
 export default function BacktestPage() {
   const [modal, setModal] = useState(100000000);
   const [period, setPeriod] = useState(12);
+
+  // BARU (2026-08-14, permintaan pengguna) - "Backtest Saham Tunggal": pilih SATU emiten
+  // lewat search, pilih periode, klik Backtest -> chart candle-nya "terbuka" bertahap kiri
+  // ke kanan (lihat components/backtest/CandleReplayChart.tsx). SENGAJA state terpisah
+  // dari builder filter di atas (modal/period/selectedFilters) - keduanya independen,
+  // fitur ini murni visualisasi harga histori, bukan simulasi strategi multi-saham.
+  const [replayInput, setReplayInput] = useState('');
+  const [replaySymbol, setReplaySymbol] = useState('');
+  const [replayPeriod, setReplayPeriod] = useState(12);
+  const [replayCandles, setReplayCandles] = useState<ReplayCandle[]>([]);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayError, setReplayError] = useState('');
+  const [replayToken, setReplayToken] = useState(0);
+
+  const runReplay = async () => {
+    const raw = (replaySymbol || replayInput).trim().toUpperCase();
+    if (!raw) { setReplayError('Pilih emiten terlebih dahulu'); return; }
+    const code = raw.endsWith('.JK') || raw.startsWith('^') ? raw : `${raw}.JK`;
+    setReplayError('');
+    setReplayLoading(true);
+    try {
+      // tf=10Y selalu diminta (satu jalur kode untuk semua periode, bukan tf=1Y vs tf=10Y
+      // bercabang) - candle yang dipakai TETAP dipotong ke jendela periode di bawah, jadi
+      // permintaan Yahoo-nya sama persis dengan yang dipakai StockChartPanel untuk 10Y.
+      const res = await fetch(`/api/public-chart/${encodeURIComponent(code)}?tf=10Y`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Gagal memuat data harga');
+      const history: ReplayCandle[] = Array.isArray(data?.history) ? data.history : [];
+      if (history.length === 0) { setReplayError('Data harga tidak tersedia untuk emiten ini'); setReplayCandles([]); return; }
+      // Jendela periode dipotong dari BELAKANG (candle terbaru), konsisten dengan
+      // TRADING_DAYS_PER_MONTH yang sudah dipakai builder filter di atas (satu sumber,
+      // bukan aproksimasi baru yang berbeda sendiri).
+      const windowSize = Math.min(history.length, replayPeriod * TRADING_DAYS_PER_MONTH);
+      setReplayCandles(history.slice(-windowSize));
+      setReplayToken(Date.now());
+    } catch (e: any) {
+      setReplayError(e?.message || 'Gagal memuat data harga');
+      setReplayCandles([]);
+    } finally {
+      setReplayLoading(false);
+    }
+  };
 
   const availableFilters = [
     'EMA 20/50 Cross',
@@ -259,6 +303,51 @@ export default function BacktestPage() {
             drawdown, 3-60 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi
             kombinasi filter yang sama SEKARANG (data live, bukan simulasi).
           </p>
+        </PageContainer>
+
+        {/* BARU (2026-08-14, permintaan pengguna): "Backtest Saham Tunggal" - visualisasi
+            histori harga SATU emiten sebagai animasi candle "terbuka" kiri ke kanan.
+            Independen dari builder filter multi-saham di bawah - ini murni pratinjau
+            histori harga, bukan simulasi strategi (tidak ada win rate/drawdown di sini). */}
+        <PageContainer className="px-6 pt-4">
+          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+            <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-1">
+              <Activity className="w-5 h-5 text-tv-blue" /> Backtest Saham Tunggal
+            </h3>
+            <p className="text-[11px] text-tv-muted mb-4">
+              Pilih emiten dan periode, lalu lihat histori harganya sebagai animasi candle - pratinjau visual, bukan simulasi strategi.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1">
+                <SymbolAutocomplete
+                  value={replayInput}
+                  onChange={(val) => { setReplayInput(val); setReplaySymbol(''); }}
+                  onSelect={(val) => { setReplaySymbol(val); setReplayInput(val.replace('.JK', '')); }}
+                  placeholder="Cari emiten (mis. BBCA)"
+                  className="w-full rounded-md border border-tv-border bg-tv-bg/60 px-4 py-2.5 text-sm font-number font-bold text-tv-text focus:border-tv-blue focus:outline-none"
+                />
+              </div>
+              <div className="w-full sm:w-40">
+                <Select value={replayPeriod} onChange={(e) => setReplayPeriod(Number(e.target.value))}>
+                  {BACKTEST_PERIOD_MONTHS.map((bulan) => (
+                    <option key={bulan} value={bulan}>{bulan} Bulan</option>
+                  ))}
+                </Select>
+              </div>
+              <Button onClick={runReplay} disabled={replayLoading} loading={replayLoading} variant="primary" className="sm:w-auto">
+                {!replayLoading && <Play className="w-4 h-4" />}
+                Backtest
+              </Button>
+            </div>
+
+            {replayError && <p className="mt-3 text-xs text-tv-red">{replayError}</p>}
+
+            {replayCandles.length > 0 && (
+              <div className="mt-4">
+                <CandleReplayChart candles={replayCandles} playToken={replayToken} height={380} />
+              </div>
+            )}
+          </div>
         </PageContainer>
 
         <PageContainer className="p-4 md:p-6 lg:p-7 grid grid-cols-1 lg:grid-cols-3 gap-6">

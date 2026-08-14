@@ -574,6 +574,19 @@ body {
 .light .bg-black\/10,
 .light .bg-black\/15,
 .light .bg-black\/20 { background-color: rgb(229 236 245 / .72) !important; }
+
+/* BARU (2026-08-14, laporan pengguna: "pita gelap terlalu berat" saat modal
+ * pencarian/dialog dibuka di tema terang). bg-black/50 s.d. /70 dipakai KONSISTEN sebagai
+ * scrim peredup latar di 10+ modal (CommandPalette, UserProfileModal, PaywallModal,
+ * PromoUpgradeModal, StockNewsModal, Sidebar mobile, FinancialChartToolbar) - efeknya
+ * MEMANG disengaja (fokus ke dialog di atasnya), bukan sisa warna tema gelap. Tapi hitam
+ * pekat di atas latar terang terasa berat/kontras keras, beda dengan hitam di atas latar
+ * gelap yang sudah wajar. Opacity diturunkan supaya tetap meredupkan (bukan dihilangkan),
+ * cuma lebih lembut - sekitar sepertiga dari nilai tema gelap. */
+.light .bg-black\/70 { background-color: rgb(15 23 42 / .25) !important; }
+.light .bg-black\/65 { background-color: rgb(15 23 42 / .22) !important; }
+.light .bg-black\/55 { background-color: rgb(15 23 42 / .18) !important; }
+.light .bg-black\/50 { background-color: rgb(15 23 42 / .15) !important; }
 .light .bg-white\/5,
 .light .bg-white\/10,
 .light .bg-white\/\[0\.025\],
