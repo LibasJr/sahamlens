@@ -130,7 +130,7 @@ private fun GreetingRow(state: HomeUiState) {
 
 @Composable
 private fun AiOpportunityBanner(text: String, onClick: () -> Unit) {
-    SahamCard(variant = SahamCardVariant.Filled, modifier = Modifier.clickable(onClick = onClick)) {
+    SahamCard(variant = SahamCardVariant.Filled, onClick = onClick) {
         Row(verticalAlignment = Alignment.Top) {
             Icon(
                 imageVector = Icons.Outlined.AutoAwesome,
@@ -194,7 +194,10 @@ private fun PortfolioSummaryCard(value: Double?, changePct: Double?) {
 private fun MarketTodayStrip(ihsgPrice: Double, ihsgChangePct: Double) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         SahamBadge(
-            text = "IHSG ${"%,.0f".format(ihsgPrice).replace(',', '.')} (${if (ihsgChangePct >= 0) "+" else ""}${"%.2f".format(ihsgChangePct)}%)",
+            // BUG FIX: dulu 0 desimal ("%,.0f") di sini vs 2 desimal di tab Market &
+            // Market Pulse untuk nilai IHSG yang SAMA - user bisa mengira angkanya beda saat
+            // pindah tab. Disatukan ke 2 desimal (konvensi harga indeks).
+            text = "IHSG ${"%,.2f".format(ihsgPrice).replace(',', '.')} (${if (ihsgChangePct >= 0) "+" else ""}${"%.2f".format(ihsgChangePct)}%)",
             variant = if (ihsgChangePct >= 0) SahamBadgeVariant.Success else SahamBadgeVariant.Danger,
         )
     }
@@ -221,9 +224,7 @@ private fun TopAiPicksCarousel(
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(picks) { pick ->
-                var cardModifier: Modifier = Modifier
-                    .width(140.dp)
-                    .clickable { onStockClick(pick.ticker) }
+                var cardModifier: Modifier = Modifier.width(140.dp)
                 if (sharedTransitionScope != null && animatedContentScope != null) {
                     with(sharedTransitionScope) {
                         cardModifier = cardModifier.sharedBounds(
@@ -235,6 +236,7 @@ private fun TopAiPicksCarousel(
                 SahamCard(
                     variant = SahamCardVariant.Outlined,
                     modifier = cardModifier,
+                    onClick = { onStockClick(pick.ticker) },
                 ) {
                     Column {
                         Text(pick.ticker, style = MaterialTheme.typography.titleSmall)
@@ -301,12 +303,19 @@ private fun WatchlistCompact(
             ) {
                 Text(row.ticker, style = MaterialTheme.typography.bodyMedium)
                 Row {
-                    Text(rupiah(row.price), style = MaterialTheme.typography.bodyMedium)
+                    // BUG FIX: price/changePct null berarti quote simbol ini gagal diambil,
+                    // BUKAN harga Rp 0 sungguhan - tampilkan "-" netral, jangan berpura-pura
+                    // ada data (dulu render sebagai "Rp 0" + "+0,0%" berwarna hijau).
+                    Text(row.price?.let(::rupiah) ?: "-", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "${if (row.changePct >= 0) "+" else ""}${"%.1f".format(row.changePct)}%",
+                        row.changePct?.let { "${if (it >= 0) "+" else ""}${"%.1f".format(it)}%" } ?: "-",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (row.changePct >= 0) extra.success else MaterialTheme.colorScheme.error,
+                        color = when {
+                            row.changePct == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                            row.changePct >= 0 -> extra.success
+                            else -> MaterialTheme.colorScheme.error
+                        },
                     )
                 }
             }

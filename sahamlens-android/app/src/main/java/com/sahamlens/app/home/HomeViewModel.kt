@@ -49,9 +49,12 @@ class HomeViewModel(
                 _uiState.update { state ->
                     state.copy(
                         isLoadingWatchlist = false,
+                        // BUG FIX: dulu `?: 0.0` di sini mengarang harga Rp 0 (hijau, terlihat
+                        // seperti data valid) saat satu simbol gagal di-fetch. null diteruskan
+                        // apa adanya, HomeScreen yang menampilkan "-" untuk quote yang gagal.
                         watchlist = top3.map { row ->
                             val quote = quotes[row.symbol]
-                            WatchlistRow(row.symbol, quote?.price ?: 0.0, quote?.changePercent ?: 0.0)
+                            WatchlistRow(row.symbol, quote?.price, quote?.changePercent)
                         },
                     )
                 }

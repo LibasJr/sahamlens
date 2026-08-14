@@ -112,11 +112,22 @@ private fun IhsgCard(uiState: MarketUiState) {
     }
 }
 
+// BUG FIX: bullishCount/bearishCount adalah PANJANG LIST topTechnical/topTechnicalBearish
+// dari GET /api/market-summary, dan backend sendiri sudah memotongnya ke maksimal 50
+// (LIST_CAP di modules/market/service/market-summary.service.ts) - bukan hitungan asli dari
+// ~250 saham likuid. Selama ini badge menyiratkan "N saham bullish" seolah itu total pasar;
+// pada hari sangat bullish/bearish (>50 di satu sisi) angkanya diam-diam terpotong ke 50 dan
+// bisa membuat pasar yang sebenarnya timpang terlihat seimbang. Label diberi "+" saat count
+// menyentuh batas cap (berarti jumlah asli >= itu, bukan pasti persis segitu).
+private const val MARKET_SUMMARY_LIST_CAP = 50
+
+private fun signalCountLabel(count: Int): String = if (count >= MARKET_SUMMARY_LIST_CAP) "$count+" else "$count"
+
 @Composable
 private fun SignalSummaryRow(bullish: Int, bearish: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SahamBadge("$bullish saham bullish", variant = SahamBadgeVariant.Success)
-        SahamBadge("$bearish saham bearish", variant = SahamBadgeVariant.Danger)
+        SahamBadge("${signalCountLabel(bullish)} saham bullish", variant = SahamBadgeVariant.Success)
+        SahamBadge("${signalCountLabel(bearish)} saham bearish", variant = SahamBadgeVariant.Danger)
     }
 }
 

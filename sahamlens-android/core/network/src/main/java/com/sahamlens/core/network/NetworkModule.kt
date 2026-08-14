@@ -21,7 +21,9 @@ import java.util.concurrent.TimeUnit
 object NetworkModule {
     private const val BASE_URL = "https://sahamlens.id/"
 
-    private val json = Json {
+    // Bukan private - dipakai ulang oleh pemanggil (mis. [parseApiError]) untuk mem-parse
+    // errorBody() manual saat Retrofit melempar HttpException dan membuang body asli.
+    val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }

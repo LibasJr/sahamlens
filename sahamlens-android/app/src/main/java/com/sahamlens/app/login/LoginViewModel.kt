@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 data class LoginUiState(
     val email: String = "",
@@ -53,11 +54,19 @@ class LoginViewModel(private val repository: AuthRepository) : ViewModel() {
         }
     }
 
+    // BUG FIX: sebelumnya mencocokkan substring "401"/"400"/"HTTP 5" di HttpException.message
+    // (rapuh - kebetulan cocok karena format bawaan Retrofit "HTTP 401 Unauthorized" memuat
+    // digit itu). 403 (akun belum diverifikasi email - lihat EmailNotVerifiedError di backend
+    // modules/user/service/auth.service.ts) tidak match satu pun cabang lama dan jatuh ke
+    // "Gagal masuk. Cek koneksi internet." - pesan yang salah total untuk user yang password-nya
+    // sudah benar. Baca kode HTTP asli lewat HttpException.code(), pola yang sama dengan
+    // StockDetailViewModel/CompareViewModel/MarketPulseViewModel.
     private fun describeError(e: Throwable): String {
-        val message = e.message.orEmpty()
+        val code = (e as? HttpException)?.code()
         return when {
-            message.contains("401") || message.contains("400") -> "Email atau password salah."
-            message.contains("HTTP 5") -> "Server sedang bermasalah. Coba lagi sebentar."
+            code == 401 || code == 400 -> "Email atau password salah."
+            code == 403 -> "Akun belum diverifikasi. Cek email Anda untuk tautan verifikasi."
+            code != null && code >= 500 -> "Server sedang bermasalah. Coba lagi sebentar."
             else -> "Gagal masuk. Cek koneksi internet."
         }
     }

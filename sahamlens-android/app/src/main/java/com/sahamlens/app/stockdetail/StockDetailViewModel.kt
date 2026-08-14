@@ -73,11 +73,16 @@ class StockDetailViewModel(
         viewModelScope.launch {
             val price = _uiState.value.price
             val result = action(ticker, price, lots)
-            _uiState.update {
-                it.copy(
-                    tradeMessage = if (result.isSuccess) "Transaksi $lots lot berhasil." else "Transaksi gagal. Coba lagi.",
-                )
+            // Pesan gagal spesifik ("Cash tidak cukup", "Jumlah lot yang dipegang tidak
+            // cukup", dst.) datang dari server lewat PortfolioRepository.trade() - JANGAN
+            // diganti pesan generik di sini, itu satu-satunya cara user tahu harus berbuat
+            // apa (bedanya dari sekadar "coba lagi").
+            val message = if (result.isSuccess) {
+                "Transaksi $lots lot berhasil."
+            } else {
+                result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() } ?: "Transaksi gagal. Coba lagi."
             }
+            _uiState.update { it.copy(tradeMessage = message) }
         }
     }
 

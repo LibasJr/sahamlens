@@ -99,6 +99,13 @@ fun RiskCalculatorScreen(modifier: Modifier = Modifier, onBack: () -> Unit = {})
                                 enabled = !state.isLoadingPrice,
                             )
                         }
+                        if (state.priceError != null) {
+                            Text(
+                                state.priceError!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OutlinedTextField(
                                 value = state.modal,
