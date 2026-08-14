@@ -64,6 +64,35 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Tombol Backtest Sekarang/Live Filter Check tidak kelihatan di tema terang
+
+Laporan pengguna (screenshot): tombol biru "Backtest Sekarang" dan hijau "Live Filter Check"
+di `/backtest` tampil nyaris putih polos tanpa teks terbaca, KHUSUS tema terang.
+
+Akar masalah CSS spesifisitas, bukan warna token yang salah. Kedua tombol `variant="secondary"`
+(basis `bg-white/[0.045]`) ditimpa class `!bg-tv-blue`/`!bg-tv-green !text-white` (modifier
+`!important` Tailwind). Tapi `app/globals.css` punya patch kompatibilitas tema terang:
+`.light .bg-white\/\[0.045\] { background-color: rgb(15 23 42 / .035) !important; }` - selector
+INI py punya DUA class (`.light` + `.bg-white\/\[0.045\]` = spesifisitas 0,2,0), sedangkan
+`.\!bg-tv-blue`/`.\!bg-tv-green` cuma SATU class (0,1,0). Importance-nya sama-sama `!important`,
+jadi penentunya spesifisitas - patch tema terang MENANG, latar tombol jatuh balik ke
+nyaris-transparan, dan teks putih di atasnya jadi tidak terbaca. Bug ini theoretically ada di
+kedua tema, tapi HANYA terlihat parah di tema terang karena kartu terang + latar nyaris
+transparan = putih-di-atas-putih; di tema gelap kombinasi warna yang sama masih cukup kontras
+untuk terbaca sekilas.
+
+Perbaikan MEMAKAI sistem token yang sudah teruji, bukan menambah override baru:
+- Tombol biru -> `variant="primary"` (basis `bg-tv-blue text-white` POLOS, tanpa `!`) - pola ini
+  sudah dipakai luas dan cocok dengan carve-out kontras yang sudah ada di `globals.css`.
+- Tombol hijau -> `variant="ghost"` (basis `bg-transparent`, TIDAK kena patch `bg-white/[0.045]`
+  di atas) + class POLOS `bg-tv-green text-white` (dites lolos build Tailwind: `.bg-tv-green`
+  ditulis setelah `.bg-transparent` di CSS terkompilasi, jadi menang tanpa perlu `!important`).
+  Sengaja TIDAK memakai `!text-white` di sini: warna teks di atas hijau harus BERBEDA per tema
+  (gelap di tema gelap, putih di tema terang - lihat carve-out
+  `[class~='bg-tv-green'] .text-white { color: rgb(var(--lens-on-accent)) }` di `globals.css`).
+  Memaksa putih lewat `!` akan benar di tema terang tapi merusak kontras di tema gelap (2,26:1) -
+  persis pola bug yang sudah pernah diperbaiki untuk lencana lain di masa lalu.
+
 ### 2026-08-14 - Tamu masih kena limiter umum & anggaran komputasi lebih kecil - "menu bisa diklik tapi data kosong"
 
 Laporan pengguna (dengan 3 screenshot): LensTechnical EXCL "Data gagal dimuat", Backtest

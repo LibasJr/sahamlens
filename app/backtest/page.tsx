@@ -315,12 +315,34 @@ export default function BacktestPage() {
                   ))}
                 </Select>
 
+                {/* BARU (2026-08-14) - dua tombol ini SEBELUMNYA variant="secondary"
+                    (basisnya bg-white/[0.045]) ditimpa `!bg-tv-blue`/`!bg-tv-green
+                    !text-white`. Di tema terang, `.light .bg-white\/\[0.045\] {... !important}`
+                    (app/globals.css) punya SPESIFISITAS LEBIH TINGGI (dua class selector)
+                    daripada `.\!bg-tv-blue`/`.\!bg-tv-green` (satu class selector) - importance
+                    keduanya sama, jadi spesifisitas yang menang, dan latar tombol jatuh balik
+                    ke bg-white/[0.045] yang di-patch jadi nyaris transparan (rgb(15 23 42 / .035)).
+                    Hasilnya teks putih di atas latar nyaris putih - persis laporan pengguna
+                    "tulisan Backtest Sekarang dan Live Filter Check tidak kelihatan" di tema
+                    terang.
+                    - Tombol biru: variant="primary" memakai bg-tv-blue+text-white POLOS
+                      (bukan `!`), sudah cocok dengan carve-out kontras di globals.css.
+                    - Tombol hijau: variant="ghost" (basis bg-transparent, bukan
+                      bg-white/[0.045]) + class POLOS `bg-tv-green text-white` (bukan `!`) -
+                      dites lolos build Tailwind: .bg-tv-green ditulis SETELAH .bg-transparent
+                      di CSS terkompilasi jadi menang tanpa !important. Sengaja TIDAK
+                      memakai `!text-white` di sini: warna teks di atas hijau harus BERBEDA
+                      per tema (gelap di tema gelap, putih di tema terang - lihat carve-out
+                      `[class~='bg-tv-green'] .text-white{color:rgb(var(--lens-on-accent))}`)
+                      - memaksa putih lewat `!` akan lolos di tema terang tapi merusak
+                      kontras di tema gelap (2,26:1, persis bug yang sudah pernah diperbaiki
+                      untuk lencana lain). */}
                 <Button
                   onClick={runBacktest}
                   disabled={loading || selectedFilters.length === 0}
                   loading={loading}
-                  variant="secondary"
-                  className="w-full !bg-tv-blue !text-white hover:!bg-tv-blue/90 mt-4"
+                  variant="primary"
+                  className="w-full mt-4"
                 >
                   {!loading && <Play className="w-5 h-5" />}
                   Backtest Sekarang
@@ -330,8 +352,8 @@ export default function BacktestPage() {
                   onClick={runLiveFilterCheck}
                   disabled={liveLoading || selectedFilters.length === 0}
                   loading={liveLoading}
-                  variant="secondary"
-                  className="w-full !bg-tv-green !text-white hover:!bg-tv-green/90"
+                  variant="ghost"
+                  className="w-full bg-tv-green text-white hover:!bg-tv-green/90"
                 >
                   {!liveLoading && <Zap className="w-5 h-5" />}
                   Live Filter Check
