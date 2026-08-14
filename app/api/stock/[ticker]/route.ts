@@ -17,7 +17,7 @@ import {
   calculateScore,
   calculateConsensus,
 } from '@/modules/technical';
-import { getSession, checkProAccessLive } from '@/modules/user';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
@@ -76,16 +76,18 @@ export async function GET(
     if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
-    if (!isInternal && !session) {
-      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-    }
 
-    const hasPro = isInternal ? true : await checkProAccessLive(session);
+    // Tamu (session null, bukan internal) dapat akses PENUH tanpa perlu login dan
+    // TANPA kuota harian - keputusan produk 2026-08-13, lihat hasOpenOrProAccess().
+    // Kuota FREE_LIMITS.analisaPerHari di bawah HANYA berlaku untuk akun terdaftar
+    // yang trialnya sudah habis dan belum Pro - guest tidak pernah masuk cabang itu
+    // karena hasPro sudah true, jadi `session!.id` di bawah tetap aman dipakai (kalau
+    // cabang itu tereksekusi, session pasti bukan null).
+    const hasPro = isInternal || (await hasOpenOrProAccess(session));
     if (!hasPro) {
       // Bukan langsung 402 - user gratis dapat jatah FREE_LIMITS.analisaPerHari/hari
       // dulu (dulu di sini blok total di percobaan PERTAMA, lihat catatan di
-      // shared/usage/daily-analisa-quota.ts). session pasti ada di titik ini (baris
-      // di atas sudah 401 kalau tidak).
+      // shared/usage/daily-analisa-quota.ts).
       const used = await peekDailyAnalisaUsed(session!.id);
       if (used >= FREE_LIMITS.analisaPerHari) {
         // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.

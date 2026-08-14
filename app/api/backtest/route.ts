@@ -2,7 +2,7 @@ import { guard } from '../../../lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccessLive } from '../../../modules/user';
+import { getSession, hasOpenOrProAccess } from '../../../modules/user';
 import { logger } from '../../../shared/logger/logger';
 import { computeActorFromRequest, consumeComputeBudget } from '../../../shared/middleware/compute-budget';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '../../../shared/auth/anonymous-trial';
@@ -56,19 +56,13 @@ async function getCache(existing?: BacktestIndicatorCache | null): Promise<Backt
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+    // Cookie trial anonim TETAP diterbitkan (dipakai identitas kuota chat guest &
+    // telemetri), tapi TIDAK LAGI dipakai untuk gerbang akses fitur ini - keputusan
+    // produk 2026-08-13, lihat hasOpenOrProAccess().
     let anonTrial: AnonTrialState | null = null;
-    if (!session) {
-      anonTrial = await readOrIssueAnonymousTrial();
-      if (!anonTrial.active) {
-        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-      }
-    }
+    if (!session) anonTrial = await readOrIssueAnonymousTrial();
 
-    // Dulu tidak ada gerbang Pro sama sekali di sini - akun gratis terdaftar (bukan
-    // trial) dapat Backtest unlimited selamanya, beda dari Market Pulse/Compare/Council
-    // yang tetap minta Pro setelah trial habis. Disamakan (lihat app/api/market-pulse/route.ts).
-    const hasPro = anonTrial?.active === true || (await checkProAccessLive(session));
-    if (!hasPro) {
+    if (!(await hasOpenOrProAccess(session))) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 

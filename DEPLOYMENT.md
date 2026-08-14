@@ -64,6 +64,46 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-13 - Rule tamu dirombak: fitur analisis dibuka penuh, hanya Portfolio & Watchlist wajib akun
+
+Keputusan produk baru, MENGGANTIKAN aturan 2026-08-11 (trial anonim 7 hari yang
+menggerbang fitur premium untuk tamu tanpa akun): **tamu sekarang bebas pakai fitur
+analisis apa pun, selamanya, tanpa batas waktu** - screener, backtest, fundamental,
+compare, recommendations, risk-calculator, dcf, macro, moat, pattern, risk, dividend,
+earnings, market, dashboard. Yang tetap wajib akun cuma dua, dan alasannya beda: bukan
+soal Pro/gratis, tapi karena datanya milik satu identitas yang harus tersimpan lintas
+kunjungan - **Portfolio** (posisi & transaksi) dan **Watchlist** (daftar pantau & alert).
+Menu admin tetap digerbang terpisah lewat cookie admin, tidak berubah.
+
+Perubahan inti:
+- `shared/constants/access.ts` - `PROTECTED_PAGES` dipangkas dari 17 halaman jadi
+  `['/portfolio', '/watchlist']` saja. Ini satu sumber yang dipakai proxy DAN Sidebar,
+  jadi menu yang tampil dan halaman yang boleh dibuka tidak pernah berbeda.
+- `shared/auth/session.ts` - fungsi baru `hasOpenOrProAccess(session)`: `null` (tamu)
+  selalu `true`; user login tetap lewat `checkProAccessLive()` seperti sebelumnya
+  (perilaku Pro/gratis untuk akun terdaftar TIDAK berubah). Dipakai menggantikan
+  `checkProAccessLive` langsung di 8 route: `/api/backtest`, `/api/backtest/
+  live-filter-check`, `/api/recommendations`, `/api/lens-score-bucket-backtest`,
+  `/api/compare`, `/api/dividend-plan`, `/api/flow/[ticker]`, `/api/stock/[ticker]`.
+  Early-exit 401 untuk tamu tanpa trial aktif dihapus dari semua route ini - sekarang
+  tamu selalu lolos gerbang akses, respons 402 hanya berlaku untuk akun terdaftar yang
+  bukan Pro.
+- Cookie trial anonim TETAP diterbitkan untuk tamu (dipakai sebagai identitas kuota
+  chat LensAI & telemetri), hanya saja tidak lagi dipakai untuk keputusan akses fitur.
+- **Kuota chat LensAI untuk tamu dinaikkan dari 5 ke 25 pertanyaan** per jendela trial
+  anonim (`shared/usage/guest-chat-quota.ts` `GUEST_CHAT_LIMIT`) - satu-satunya batas
+  produk yang sengaja dipertahankan untuk tamu, bukan kelalaian.
+- Limiter IP umum 150 request/hari (`proxy.ts`) TIDAK diubah - itu pengaman anti-abuse
+  terpisah dari gerbang fitur di atas, tetap berlaku untuk halaman di luar allowlist
+  `isPublicGuestPage`/`isPublicGuestApi`, dan cukup longgar untuk pemakaian wajar.
+
+Tes: `__tests__/proxy-guest-access.test.ts` menambahkan blok `it.each` atas 15 halaman
+yang dulu terproteksi, memastikan tamu tidak lagi diarahkan ke `/login`, plus assersi
+`PROTECTED_PAGES` persis `['/portfolio', '/watchlist']`. `app/api/backtest/__tests__/
+route.test.ts` dan `app/api/recommendations/__tests__/route.test.ts` ditulis ulang:
+mock `hasOpenOrProAccess` menggantikan `checkProAccessLive`, tes "401 tanpa
+trial aktif" diganti jadi "tetap 200".
+
 ### 2026-08-13 - Kontras: seluruh matriks warna, dijaga tes
 
 Laporan PageSpeed berikutnya menggagalkan lencana **hijau**, padahal yang sebelumnya

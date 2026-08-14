@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, checkProAccessLive } from '@/modules/user';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -13,8 +13,8 @@ import { getLensScoreValidationStatus } from '@/modules/validation';
 // BUILD 006/007 - simbol yang rutin di-scan app/api/cron/recommendation-scan dibaca
 // cache-first (per simbol); simbol lain di luar daftar itu tetap dihitung live
 // seperti sebelumnya - tidak ada regresi untuk simbol yang belum pernah di-cache.
-// Pengunjung tanpa akun bisa akses selama trial 7 hari (lihat
-// shared/auth/anonymous-trial.ts) - trial aktif melewati gerbang Pro juga.
+// Pengunjung tanpa akun bisa akses PENUH tanpa batas waktu - lihat
+// shared/auth/session.ts hasOpenOrProAccess().
 function cacheKeyFor(symbol: string): string {
   return `sahamlens:cache:computed:recommendation:${symbol}`;
 }
@@ -23,16 +23,12 @@ export async function GET(request: Request) {
   try {
     const session = await getSession();
 
+    // Cookie trial anonim tetap diterbitkan (telemetri), tapi tidak lagi menggerbang
+    // akses - lihat hasOpenOrProAccess() untuk alasannya.
     let anonTrial: AnonTrialState | null = null;
-    if (!session) {
-      anonTrial = await readOrIssueAnonymousTrial();
-      if (!anonTrial.active) {
-        return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-      }
-    }
+    if (!session) anonTrial = await readOrIssueAnonymousTrial();
 
-    const hasPro = anonTrial?.active === true || await checkProAccessLive(session);
-    if (!hasPro) {
+    if (!(await hasOpenOrProAccess(session))) {
       // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }

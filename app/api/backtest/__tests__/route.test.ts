@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../../../modules/user', () => ({
   getSession: vi.fn(),
-  checkProAccessLive: vi.fn(),
+  hasOpenOrProAccess: vi.fn(),
 }));
 vi.mock('../../../../modules/backtest', () => ({
   readBacktestCache: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('../../../../shared/auth/anonymous-trial', () => ({
 }));
 
 import { POST } from '../route';
-import { getSession, checkProAccessLive } from '../../../../modules/user';
+import { getSession, hasOpenOrProAccess } from '../../../../modules/user';
 import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '../../../../modules/backtest';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
 
@@ -36,24 +36,18 @@ const sampleResult = {
   computedAt: '2026-08-01T00:00:00.000Z',
 };
 
+const anonTrial = { firstSeenAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-09T00:00:00.000Z', active: true, isNew: true };
+
 describe('POST /api/backtest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(checkProAccessLive).mockResolvedValue(true);
+    vi.mocked(hasOpenOrProAccess).mockResolvedValue(true);
+    vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(anonTrial);
   });
 
-  it('menolak request tanpa session dengan 401', async () => {
-    vi.mocked(getSession).mockResolvedValue(null);
-    vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue({
-      firstSeenAt: '2026-01-01T00:00:00.000Z', expiresAt: '2026-01-08T00:00:00.000Z', active: false, isNew: false,
-    });
-    const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
-    expect(res.status).toBe(401);
-  });
-
-  it('session ada tapi bukan Pro/trial -> 402 (dulu tidak ada gerbang Pro sama sekali)', async () => {
+  it('session ada tapi bukan Pro/trial -> 402 (hasOpenOrProAccess menolak akun terdaftar)', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
-    vi.mocked(checkProAccessLive).mockResolvedValue(false);
+    vi.mocked(hasOpenOrProAccess).mockResolvedValue(false);
 
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
     const json = await res.json();
@@ -129,34 +123,40 @@ describe('POST /api/backtest', () => {
   });
 });
 
-describe('POST /api/backtest (trial anonim)', () => {
+// KEPUTUSAN PRODUK 2026-08-13: tamu (tanpa akun) dapat akses PENUH tanpa batas waktu -
+// trial 7 hari anonim TIDAK LAGI menggerbang fitur ini. Kelompok tes ini dulu bernama
+// "trial anonim" dan menguji 401 saat trial kadaluarsa; sekarang menguji bahwa tamu
+// SELALU lolos, dan bahwa cookie trial tetap diterbitkan (dipakai identitas kuota chat
+// guest & telemetri) walau tidak lagi dipakai untuk keputusan akses.
+describe('POST /api/backtest (akses tamu)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(checkProAccessLive).mockResolvedValue(true);
+    vi.mocked(hasOpenOrProAccess).mockResolvedValue(true);
   });
 
-  it('tanpa session, trial anonim kadaluarsa -> 401', async () => {
+  it('tanpa session, trial anonim SUDAH kadaluarsa -> tetap 200 (bukan lagi 401)', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue({
       firstSeenAt: '2026-01-01T00:00:00.000Z', expiresAt: '2026-01-08T00:00:00.000Z', active: false, isNew: false,
     });
-
-    const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
-
-    expect(res.status).toBe(401);
-  });
-
-  it('tanpa session, trial anonim aktif -> 200 (mode backtest) dan cookie ditempel', async () => {
-    vi.mocked(getSession).mockResolvedValue(null);
-    const trial = { firstSeenAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-09T00:00:00.000Z', active: true, isNew: true };
-    vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(trial);
     vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
     vi.mocked(simulateBacktest).mockReturnValue(sampleResult as any);
 
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
 
     expect(res.status).toBe(200);
-    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
+  });
+
+  it('tanpa session -> cookie trial anonim tetap ditempel (identitas kuota chat/telemetri)', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(anonTrial);
+    vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
+    vi.mocked(simulateBacktest).mockReturnValue(sampleResult as any);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
+
+    expect(res.status).toBe(200);
+    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), anonTrial);
   });
 
   it('user dengan session valid tidak menyentuh logic trial anonim sama sekali', async () => {

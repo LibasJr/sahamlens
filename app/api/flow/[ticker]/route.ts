@@ -4,7 +4,7 @@ guard();
 import { NextResponse } from 'next/server';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
-import { getSession, checkProAccessLive } from '@/modules/user';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
 
 // REWRITE TOTAL (2026-08-01) - versi sebelumnya (BUILD 003) menghasilkan SEMUA angka
@@ -25,13 +25,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
-  // BUILD 003 (API Standard) - fitur ini Pro-only di UI, endpoint-nya sendiri harus
-  // ikut digerbang supaya paywall tidak gampang dilewati dengan memanggil API langsung.
+  // Tamu (session null) dapat akses PENUH tanpa perlu login - keputusan produk
+  // 2026-08-13, lihat hasOpenOrProAccess(). Akun terdaftar tetap lewat gerbang
+  // trial/Pro seperti sebelumnya.
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-  }
-  if (!(await checkProAccessLive(session))) {
+  if (!(await hasOpenOrProAccess(session))) {
     return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
 
