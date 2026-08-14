@@ -66,11 +66,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
     }
 
+    // BARU (2026-08-14): dulu tamu dipaksa tier 'public' (40/10 menit) sementara user
+    // login dapat 'authenticated' (160/10 menit) - HANYA berdasarkan ada/tidaknya sesi,
+    // bukan status Pro. Itu bertentangan dengan keputusan produk "rule tamu = rule user
+    // yang sudah login": hasOpenOrProAccess() di atas sudah meloloskan tamu, tapi lalu
+    // dijegal lagi di sini oleh anggaran komputasi yang lebih kecil dan actor `ip:xxx`
+    // yang dibagi SEMUA tamu di Wi-Fi/CGNAT yang sama - persis error "Terlalu banyak
+    // request" yang dilaporkan. Guard ini murni anti-abuse (lihat komentar
+    // consumeComputeBudget), bukan gerbang produk, jadi disamakan untuk semua yang lolos
+    // gerbang di atas; actor tamu dibedakan per-identitas trial anonim, bukan per-IP.
     const cachedBacktest = await readBacktestCache();
+    const actor = session?.id
+      ? computeActorFromRequest(request, session.id)
+      : anonTrial
+        ? `guest:${anonTrial.firstSeenAt}`
+        : computeActorFromRequest(request);
     const budget = await consumeComputeBudget(
-      computeActorFromRequest(request, session?.id),
+      actor,
       cachedBacktest ? 2 : 10,
-      session ? 'authenticated' : 'public',
+      'authenticated',
     );
     if (!budget.allowed) {
       return NextResponse.json(
