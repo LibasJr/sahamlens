@@ -4,6 +4,7 @@ import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { describeCacheAge } from '@/shared/http/freshness';
 import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // Publik (alat gratis, konsisten dengan /dcf & /screener page itu sendiri). Universe
 // mentah (fetch fundamental ~50 saham) di-cache 30 menit dan dipakai ulang untuk
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic';
 // Sentimen, bukan cuma 1mo) - hanya kena saat cache 30 menit basi/pertama dihitung.
 export const maxDuration = 60;
 
-const CACHE_KEY = 'sahamlens:cache:computed:screener-universe';
+const CACHE_KEY = COMPUTED_CACHE_KEY.SCREENER_UNIVERSE;
 
 export async function GET(request: Request) {
   try {

@@ -1,34 +1,24 @@
-// Daftar halaman yang WAJIB login (role TRIAL/PRO/ADMIN) - sumber tunggal untuk
-// gerbang navigasi. File ini SENGAJA tidak mengimpor apa pun, sama seperti
-// cookie-names.ts: dipakai dari proxy.ts, jadi tidak boleh menyeret dependency
-// Node/React apa pun ke dalam bundle proxy.
+// Daftar halaman yang WAJIB login - sumber tunggal untuk gerbang navigasi. File ini
+// SENGAJA tidak mengimpor apa pun, sama seperti cookie-names.ts: dipakai dari
+// proxy.ts, jadi tidak boleh menyeret dependency Node/React apa pun ke dalam bundle
+// proxy.
 //
-// ATURAN (keputusan produk 2026-08-11, menggantikan aturan 2026-08-06): SELURUH menu
-// tetap DITAMPILKAN ke pengunjung tanpa login supaya cakupan produk kelihatan, tapi
-// aksesnya digembok. Yang boleh dibuka guest: Beranda, LensMarket, LensRadar, News,
-// Corporate Calendar, Transparansi, dan LensAI/Technical (chart + Ask AI terbatas -
-// ringkasan Pro-nya tetap digerbang di API/server component). LensScanner PINDAH jadi
-// terkunci pada revisi ini. Sisanya redirect ke /login. Gerbang di level API
-// (checkProAccess/checkProAccessLive) TETAP ada dan tidak digantikan oleh file ini -
-// ini lapisan navigasi, bukan pengganti otorisasi data.
+// ATURAN (keputusan produk 2026-08-13, MENGGANTIKAN aturan 2026-08-11 di bawah ini):
+// tamu tanpa akun TIDAK DIKUNCI dari fitur analisis apa pun. Yang tetap wajib akun
+// cuma dua - dan itu bukan soal Pro/gratis, tapi karena datanya milik SATU IDENTITAS
+// yang harus tersimpan lintas kunjungan:
+//   - Portfolio: posisi & transaksi saham milik pengguna
+//   - Watchlist: daftar pantau & alert harga milik pengguna
+// Menu admin digerbang TERPISAH lewat cookie admin (isAdminServer/verifyAdminToken),
+// bukan lewat daftar ini - jadi tidak perlu masuk daftar ini juga.
+//
+// Data premium (fundamental, screener, backtest, dst) TIDAK LAGI dibatasi trial 7 hari
+// untuk tamu - lihat shared/auth/session.ts hasOpenOrProAccess(). Riwayat singkat
+// aturan sebelumnya: 2026-08-06 semua dikunci kecuali beberapa halaman publik;
+// 2026-08-11 semua menu ditampilkan tapi aksesnya digembok lewat redirect di sini.
 export const PROTECTED_PAGES = [
-  '/dashboard',
-  '/fundamental',
-  '/screener',
-  '/compare',
-  '/backtest',
   '/portfolio',
   '/watchlist',
-  '/risk-calculator',
-  '/recommendations',
-  '/dcf',
-  '/macro',
-  '/moat',
-  '/pattern',
-  '/risk',
-  '/dividend',
-  '/earnings',
-  '/market',
 ] as const;
 
 export function isProtectedPage(pathname: string): boolean {

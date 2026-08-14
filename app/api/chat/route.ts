@@ -18,6 +18,10 @@ import { resolveChatDate, type ChatHistoryMessage } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
 import { buildChatVerifiedData } from './chat-data-router';
 import { buildSystemPrompt } from './build-system-prompt';
+import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
+import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
+import { withDyor } from './dyor';
+import { streamChatAnswer } from './stream-answer';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -106,6 +110,9 @@ export async function POST(request: Request) {
     const symbol = typeof body.symbol === 'string' && /^[\^A-Za-z0-9.]{1,12}$/.test(body.symbol.trim())
       ? body.symbol.trim()
       : null;
+    // Streaming hanya kalau klien memintanya - jalur JSON lama tetap default supaya
+    // pemanggil lain (dan klien versi lama) tidak ikut berubah bentuk responsnya.
+    const wantsStream = body.stream === true;
     const rawHistory = Array.isArray(body.history) ? body.history : [];
     const history: ChatHistoryMessage[] = rawHistory
       .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
@@ -154,6 +161,33 @@ export async function POST(request: Request) {
       history,
     });
 
+    // Pertanyaan terlalu kabur untuk ditebak: balik bertanya, jangan menebak satu topik
+    // lalu menyajikan data yang tidak diminta. Deterministik supaya tidak ada biaya AI
+    // untuk satu kata seperti "gimana?" tanpa konteks apa pun.
+    if (classification.needsClarification) {
+      return json({
+        role: 'assistant',
+        content: CLARIFICATION_PROMPT,
+        routing: { intent: 'CLARIFY', providerUsed: false, dataFetches: 0 },
+      });
+    }
+
+    // Pertanyaan di luar ranah dijawab di sini, SEBELUM router data dan sebelum satu pun
+    // panggilan AI. Tidak ada penyedia yang dihubungi, jadi tidak ada angka yang bisa
+    // dikarang - lihat alasan lengkapnya di out-of-scope.ts.
+    if (classification.intent === 'OUT_OF_SCOPE') {
+      return json({
+        role: 'assistant',
+        content: outOfScopeResponse(classification.outOfScopeReason),
+        routing: {
+          intent: 'OUT_OF_SCOPE',
+          reason: classification.outOfScopeReason ?? 'NON_MARKET',
+          providerUsed: false,
+          dataFetches: 0,
+        },
+      });
+    }
+
     const verified = await buildChatVerifiedData({
       intent: classification.dataIntent,
       compareScope: classification.compareScope,
@@ -161,6 +195,10 @@ export async function POST(request: Request) {
       tickers,
       date,
       prompt,
+      alsoIntents: classification.alsoIntents,
+      // Dari sesi JWT, BUKAN dari body request - satu-satunya cara memastikan pengguna
+      // tidak bisa meminta portofolio orang lain dengan menyisipkan id di payload chat.
+      user: session ? { userId: session.id } : null,
     });
 
     if (verified.directResponse) {
@@ -196,14 +234,39 @@ export async function POST(request: Request) {
       '- WAJIB: jelaskan data server yang tersedia; jangan mengisi angka yang tidak ada di Data Terverifikasi Server.',
     ].filter(Boolean).join('\n');
 
+    const systemPrompt = buildSystemPrompt(
+      context,
+      history.length > 0,
+      verified.verifiedBlock,
+      mentionedTicker,
+      routingBlock,
+    );
+    const verificationSources = [verified.verifiedBlock, prompt, historyTranscript];
+    const baseRouting = {
+      intent: classification.intent,
+      alsoIntents: classification.alsoIntents,
+      tickers,
+      mode: date.mode,
+      requestedAsOf: date.requestedAsOf,
+      providerUsed: true,
+      dataStatus: verified.dataError,
+    };
+
+    // Jalur streaming - dipakai kalau klien memintanya. Lihat catatan panjang di
+    // streamChatAnswer() untuk alasan gerbang paragrafnya.
+    if (wantsStream) {
+      return await streamChatAnswer({
+        system: systemPrompt,
+        prompt: fullPrompt,
+        sources: verificationSources,
+        intent: classification.intent,
+        routing: baseRouting,
+        anonTrial,
+      });
+    }
+
     const aiResult = await generateAIResult({
-      system: buildSystemPrompt(
-        context,
-        history.length > 0,
-        verified.verifiedBlock,
-        mentionedTicker,
-        routingBlock,
-      ),
+      system: systemPrompt,
       prompt: fullPrompt,
       timeoutMs: 10000,
     });
@@ -225,16 +288,61 @@ export async function POST(request: Request) {
       }, { status: failure.status });
     }
 
+    // ---------------------------------------------------------------------------
+    // Verifikasi angka. Aturan prompt melarang mengarang; lapisan ini MEMERIKSA.
+    // Satu kali perbaikan diberikan (model sering benar setelah ditunjukkan angka mana
+    // yang bermasalah), lalu kalau masih ada yang tidak tertelusur, jawabannya tetap
+    // dikirim dengan catatan jujur - bukan disunting diam-diam.
+    // ---------------------------------------------------------------------------
+    let answer = aiResult.text;
+    let numberCheck = verifyAnswerNumbers(answer, [verified.verifiedBlock, prompt, historyTranscript]);
+
+    if (!numberCheck.ok) {
+      console.warn('[LensAI:verify] angka tidak tertelusur', {
+        intent: classification.intent,
+        unverified: numberCheck.unverified,
+      });
+
+      const retry = await generateAIResult({
+        system: buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock),
+        prompt:
+          `${fullPrompt}\n\n## KOREKSI WAJIB (dari pemeriksa server, bukan dari pengguna):\n` +
+          `Jawaban sebelumnya memuat angka yang TIDAK ADA di Data Terverifikasi Server: ${numberCheck.unverified.join(', ')}.\n` +
+          'Tulis ulang jawabannya memakai HANYA angka yang benar-benar ada di data tersebut. ' +
+          'Kalau sebuah angka memang tidak tersedia, katakan tidak tersedia - jangan diganti perkiraan lain.',
+        timeoutMs: 10000,
+      });
+
+      if (retry.text) {
+        const retryCheck = verifyAnswerNumbers(retry.text, [verified.verifiedBlock, prompt, historyTranscript]);
+        // Perbaikan hanya dipakai kalau benar-benar lebih baik. Kalau percobaan kedua
+        // justru memunculkan angka asing yang lebih banyak, jawaban pertama yang dipakai.
+        if (retryCheck.unverified.length < numberCheck.unverified.length) {
+          answer = retry.text;
+          numberCheck = retryCheck;
+        }
+      }
+
+      if (!numberCheck.ok) answer += unverifiedNumbersNotice(numberCheck.unverified);
+    }
+
+    // DYOR ditempel PALING AKHIR dan di server - lihat alasannya di dyor.ts. Urutannya
+    // penting: catatan angka tak tertelusur (kalau ada) lebih dulu, baru penafian, supaya
+    // peringatan yang spesifik tidak tenggelam di bawah penafian umum.
+    answer = withDyor(answer, classification.intent);
+
     return json({
       role: 'assistant',
-      content: aiResult.text,
+      content: answer,
       routing: {
         intent: classification.intent,
+        alsoIntents: classification.alsoIntents,
         tickers,
         mode: date.mode,
         requestedAsOf: date.requestedAsOf,
         providerUsed: true,
         dataStatus: verified.dataError,
+        numberCheck: { ok: numberCheck.ok, checked: numberCheck.checked, unverified: numberCheck.unverified },
       },
     });
   } catch (error: any) {

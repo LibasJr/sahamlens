@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { fetchPublicMacroDashboard } from '@/modules/macro/service/public-macro-dashboard.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
-const CACHE_KEY = 'sahamlens:cache:computed:macro-dashboard';
+const CACHE_KEY = COMPUTED_CACHE_KEY.MACRO_DASHBOARD;
 
 export async function GET() {
   try {

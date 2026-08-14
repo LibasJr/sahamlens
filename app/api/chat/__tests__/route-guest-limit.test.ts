@@ -13,7 +13,7 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
 }));
 vi.mock('@/shared/usage/guest-chat-quota', () => ({
   consumeGuestChat: vi.fn(),
-  GUEST_CHAT_LIMIT_MESSAGE: 'Jatah 5 pertanyaan LensAI untuk pengunjung sudah habis. Silakan masuk untuk melanjutkan percakapan.',
+  GUEST_CHAT_LIMIT_MESSAGE: 'Jatah 25 pertanyaan LensAI untuk pengunjung sudah habis. Silakan masuk untuk melanjutkan percakapan.',
 }));
 // hasAnyAIProvider ikut di-mock karena guard() di lib/sahamLensGuard.ts memakainya saat
 // modul route dimuat; tanpa ini import route-nya melempar sebelum satu test pun jalan.
@@ -54,9 +54,9 @@ describe('POST /api/chat batas pertanyaan guest', () => {
     vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(TRIAL);
   });
 
-  it('guest yang jatah 5 pertanyaannya habis diminta masuk untuk melanjutkan', async () => {
+  it('guest yang jatah 25 pertanyaannya habis diminta masuk untuk melanjutkan', async () => {
     budgetAllowed();
-    vi.mocked(consumeGuestChat).mockResolvedValue({ allowed: false, used: 6, remaining: 0, limit: 5 });
+    vi.mocked(consumeGuestChat).mockResolvedValue({ allowed: false, used: 26, remaining: 0, limit: 25 });
 
     const res = await POST(makeRequest());
     const json = await res.json();

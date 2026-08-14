@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import dynamic from 'next/dynamic';
+
+/**
+ * Parser Markdown ditunda sampai benar-benar ada jawaban yang dirender.
+ *
+ * TEMUAN PageSpeed production 2026-08-13: chunk react-markdown (micromark/remark, ~33 KiB
+ * terkirim) ikut terunduh di SETIAP halaman meski panel chat tidak pernah dibuka. AIChat
+ * memang sudah `dynamic()`, tapi itu hanya menunda sampai hidrasi - bukan sampai dipakai,
+ * dan tombol mengambangnya harus tetap ada di layar. Yang bisa ditunda adalah parser-nya.
+ *
+ * `loading` sengaja merender teks apa adanya, bukan kosong: jawaban harus tetap terbaca
+ * selama parser dimuat - terutama sekarang teksnya mengalir bertahap.
+ */
+const ReactMarkdown = dynamic(
+  async () => (await import('react-markdown')).default as React.ComponentType<{ children: string }>,
+  { ssr: false, loading: () => null },
+);
 import { usePathname } from 'next/navigation';
 import { getTickerName } from '@/lib/trendingTickers';
 
@@ -21,6 +38,9 @@ export default function AIChat() {
   // dikirimi pertanyaan, jadi memang belum ada yang bisa dipastikan.
   const [penyediaSiap, setPenyediaSiap] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
+  // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
+  const [markdownReady, setMarkdownReady] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -29,6 +49,13 @@ export default function AIChat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!isOpen || markdownReady) return;
+    let cancelled = false;
+    import('react-markdown').then(() => { if (!cancelled) setMarkdownReady(true); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen, markdownReady]);
 
   useEffect(() => {
     const handleOpenChat = (e: any) => {
@@ -49,6 +76,76 @@ export default function AIChat() {
       window.removeEventListener('update-ai-context', handleContextUpdate);
     };
   }, []);
+
+  /**
+   * Konsumsi aliran NDJSON dari /api/chat.
+   *
+   * Peristiwa `delta` menambah teks, `replace` mengganti SELURUH jawaban (dipakai saat
+   * server menempelkan penutup DYOR atau mengganti jawaban yang angkanya gagal
+   * diverifikasi). Return false kalau tidak ada satu pun peristiwa yang bisa dibaca,
+   * supaya pemanggil bisa jatuh ke jalur JSON biasa.
+   */
+  const consumeStream = async (stream: ReadableStream<Uint8Array>): Promise<boolean> => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let carry = '';
+    let answer = '';
+    let started = false;
+
+    const paint = (text: string) => {
+      setMessages(prev => {
+        const next = [...prev];
+        if (started && next.length && next[next.length - 1].role === 'assistant') {
+          next[next.length - 1] = { role: 'assistant', content: text };
+          return next;
+        }
+        return [...next, { role: 'assistant', content: text }];
+      });
+      started = true;
+    };
+
+    const handleEvent = (event: any) => {
+      if (event?.t === 'delta' && typeof event.v === 'string') {
+        answer += event.v;
+        // Spinner dimatikan begitu teks pertama tampil - dua penanda "sedang bekerja"
+        // sekaligus (spinner + teks yang mengalir) cuma bikin panel gelisah.
+        setIsLoading(false);
+        paint(answer);
+      } else if (event?.t === 'replace' && typeof event.v === 'string') {
+        answer = event.v;
+        setIsLoading(false);
+        paint(answer);
+      } else if (event?.t === 'done') {
+        setPenyediaSiap(true);
+      } else if (event?.t === 'error') {
+        if (event.detailCode === 'NO_PROVIDER_CONFIGURED' || event.detailCode === 'PROVIDER_AUTH_ERROR') {
+          setPenyediaSiap(false);
+        }
+        paint(event.content || 'LensAI belum dapat memproses pertanyaan ini.');
+      }
+    };
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      carry += decoder.decode(value, { stream: true });
+      const lines = carry.split('\n');
+      carry = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          handleEvent(JSON.parse(line));
+        } catch {
+          // Satu baris rusak tidak boleh membatalkan aliran yang lain.
+        }
+      }
+    }
+    if (carry.trim()) {
+      try { handleEvent(JSON.parse(carry)); } catch { /* abaikan sisa yang tidak utuh */ }
+    }
+
+    return started;
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -146,8 +243,19 @@ export default function AIChat() {
           // seperti "lah"/"waduh error" dikirim tanpa konteks sama sekali dan AI menjawab
           // ngasal/generik karena tidak tahu topik yang sedang dibahas.
           history: messages.slice(-8),
+          // Streaming: server mengalirkan teks yang SUDAH lolos verifikasi angka per
+          // paragraf (lihat app/api/chat/stream-answer.ts). Jalur JSON lama tetap ada
+          // sebagai cadangan di bawah kalau server membalas bukan NDJSON.
+          stream: true,
         })
       });
+
+      const isStream = res.ok && (res.headers.get('content-type') || '').includes('ndjson');
+      if (isStream && res.body) {
+        const handled = await consumeStream(res.body);
+        if (handled) return;
+      }
+
       const data = await res.json();
 
       if (!res.ok || !data?.content) {
@@ -185,11 +293,11 @@ export default function AIChat() {
     }
   };
 
-  const setDemoPrompt = () => {
-    const segments = pathname.split('/');
-    const currentSymbol = segments.length > 2 ? segments[segments.length - 1].replace('.JK', '') : 'IHSG';
-    setInput(`Tolong jelaskan secara singkat pandangan teknikal dan prospek pergerakan harga untuk saham ${currentSymbol} hari ini.`);
-  };
+  // Contoh pembuka mengikuti halaman: di halaman emiten diarahkan ke emiten itu, di
+  // halaman lain ke pertanyaan pasar. Daftarnya di components/ai-chat-starters.ts -
+  // setiap contoh wajib punya jalur data yang nyata, lihat catatan di file itu.
+  const activeSymbol = symbolFromPathname(pathname);
+  const starters = activeSymbol ? tickerStarters(activeSymbol) : MARKET_STARTERS;
 
   return (
     <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
@@ -246,18 +354,21 @@ export default function AIChat() {
                 </div>
                 <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
                 <p className="max-w-xs text-base leading-relaxed text-tv-muted sm:text-sm">
-                  Tanya tentang fitur SahamLens, teknikal, fundamental, LensScore, TP/CL, atau konsep pasar modal Indonesia. Saya akan jelaskan dengan bahasa sederhana.
+                  Tanya soal emiten (fundamental, teknikal, valuasi, dividen, arus dana), kondisi pasar
+                  dan sektor, peringkat LensRadar, atau cara kerja fitur SahamLens. Jawaban selalu dari
+                  data aplikasi - kalau datanya belum ada, saya bilang belum ada.
                 </p>
-                <button
-                  onClick={setDemoPrompt}
-                  className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  {(() => {
-                    const segments = pathname.split('/');
-                    const currentSymbol = segments.length > 2 ? segments[segments.length - 1].replace('.JK', '') : 'IHSG';
-                    return `"Tolong analisis teknikal singkat saham ${currentSymbol}?"`;
-                  })()}
-                </button>
+                <div className="mt-4 flex w-full max-w-xs flex-col gap-2">
+                  {starters.map((starter) => (
+                    <button
+                      key={starter.prompt}
+                      onClick={() => setInput(starter.prompt)}
+                      className="rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
+                    >
+                      {starter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               messages.map((msg, idx) => (
@@ -269,7 +380,11 @@ export default function AIChat() {
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        {markdownReady ? (
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        ) : (
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        )}
                       </div>
                     ) : (
                       msg.content
@@ -283,11 +398,12 @@ export default function AIChat() {
               <div className="flex justify-start">
                 <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-base text-tv-muted sm:text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {/* JANGAN diganti jadi "menulis"/"mengetik" selama /api/chat masih
-                      membalas sekali jadi (NextResponse.json, bukan stream): dua kata itu
-                      menjanjikan teks yang muncul bertahap, padahal pengguna melihat
-                      spinner diam lalu jawaban utuh sekaligus. Boleh dipakai kalau
-                      streaming sudah jalan. */}
+                  {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks, jadi
+                      larangan lama memakai kata "menulis" sudah tidak berlaku. Spinner
+                      ini hanya tampil SEBELUM potongan pertama tiba - begitu teks
+                      mengalir, ia dimatikan (lihat consumeStream). Yang dijanjikan kata
+                      di bawah karena itu sesuai dengan yang dilihat pengguna: server
+                      sedang menyiapkan data & memverifikasi angkanya. */}
                   LensAI sedang menyiapkan jawaban...
                 </div>
               </div>

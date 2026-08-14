@@ -28,6 +28,38 @@ const nextConfig = {
       { source: '/citadel', destination: '/', permanent: true },
     ];
   },
+  /**
+   * Cache aset statis di /public.
+   *
+   * TEMUAN PageSpeed production 2026-08-13: `/sahamlens-scope.png` (264 KiB) disajikan
+   * dengan TTL 4 jam, jadi pengunjung yang kembali keesokan harinya mengunduhnya lagi.
+   * Next TIDAK memasang Cache-Control apa pun untuk berkas /public - nilainya datang
+   * dari default Cloudflare, dan Cloudflare menghormati header origin kalau ada.
+   *
+   * KENAPA 30 HARI, BUKAN 1 TAHUN `immutable` seperti yang diminta Lighthouse: berkas
+   * di /public TIDAK punya hash isi di namanya. `immutable` setahun berarti logo atau
+   * ikon yang diperbarui akan tetap tampil versi lama sampai setahun ke depan di
+   * peramban yang sudah menyimpannya, tanpa cara membatalkannya selain mengganti nama
+   * berkas. `stale-while-revalidate` memberi hampir seluruh manfaat kecepatannya -
+   * kunjungan berulang langsung memakai salinan lokal - sambil tetap menyegarkan diri
+   * di latar belakang.
+   *
+   * Aset ber-hash (/_next/static/*) TIDAK diatur di sini; Next sudah memberinya
+   * `immutable` setahun, dan itu memang aman karena namanya berubah tiap isinya berubah.
+   */
+  async headers() {
+    return [
+      {
+        source: '/:file(.*\\.(?:png|jpg|jpeg|svg|webp|avif|ico|woff2))',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=604800',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 // silent:true - jangan berisik di log build kalau SENTRY_AUTH_TOKEN (untuk upload

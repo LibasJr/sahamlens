@@ -30,9 +30,9 @@
   --lens-yellow: 242 193 78;
   --lens-warning: 245 158 11;
   --lens-gold: 231 185 76;
-  --lens-blue: 79 140 255;
+  --lens-blue: 86 145 255;
   --lens-blue-hover: 60 118 232;
-  --lens-purple: 139 124 255;
+  --lens-purple: 145 131 255;
 
   /* Biru untuk BIDANG PADAT (tombol primer), terpisah dari biru untuk TEKS.
    * Satu warna tidak bisa melayani keduanya: --lens-blue harus cukup terang agar
@@ -63,8 +63,8 @@ html.light {
   --lens-muted: 79 96 120;
 
   /* Pasangan terang. Rasio di kartu putih / di --lens-bg abu:
-   *   green        #15803D  5,02 / 4,67      (dulu #23C483  2,26 - gagal)
-   *   red          #C42A2A  5,66 / 5,27      (dulu #FF5D6C  2,99 - gagal)
+   *   green        #12722F  6,05 / 5,63      (dulu #23C483  2,26 - gagal)
+   *   red          #B02323  6,75 / 6,28      (dulu #FF5D6C  2,99 - gagal)
    *   yellow       #8A6100  5,54 / 5,16      (dulu #F2C14E  1,68 - gagal)
    *   warning      #B45309  5,02 / 4,67      (dulu #F59E0B  2,15 - gagal)
    *   gold         #946A00  4,86 / 4,52      (dulu #E7B94C  1,84 - gagal)
@@ -72,17 +72,48 @@ html.light {
    *   purple       #7C3AED  5,70 / 5,30      (dulu #8B7CFF  3,27 - teks besar saja)
    *
    * Ini juga membereskan lencana: teks putih di atas bg-tv-green dulu 2,26:1, sekarang
-   * 5,02:1 - jadi warna ini benar sebagai teks MAUPUN sebagai latar. */
-  --lens-green: 21 128 61;
-  --lens-green-hover: 17 105 50;
-  --lens-red: 196 42 42;
-  --lens-red-hover: 159 31 31;
-  --lens-yellow: 138 97 0;
-  --lens-warning: 180 83 9;
-  --lens-gold: 148 106 0;
-  --lens-blue: 37 99 235;
-  --lens-blue-hover: 29 78 216;
-  --lens-purple: 124 58 237;
+   * 6,05:1 - jadi warna ini benar sebagai teks MAUPUN sebagai latar.
+   *
+   * DIGELAPKAN LAGI 2026-08-13 (temuan PageSpeed di production). Ada peran KETIGA yang
+   * terlewat waktu itu: warna yang sama dipakai sebagai teks DI ATAS tint-nya sendiri -
+   * pola `bg-tv-red/15 text-tv-red`, dipakai di 33 berkas, termasuk lencana perubahan
+   * IHSG di header. Tint 15% mengangkat latar sekitar 12% ke arah warnanya sendiri, dan
+   * itu cukup untuk menjatuhkan rasionya di bawah ambang:
+   *
+   *              teks di atas tint 15%      (putih / abu)
+   *   green      #15803D  4,09 / 3,83  GAGAL   ->  #12722F  4,85 / 4,54  lulus
+   *   red        #C42A2A  4,46 / 4,17  GAGAL   ->  #B02323  5,25 / 4,90  lulus
+   *
+   * Menggelapkan token MEMPERBAIKI ketiga peran sekaligus (teks polos, teks di atas
+   * tint, dan putih di atas bidang padat) - jadi tidak perlu token keempat, dan tidak
+   * perlu menyentuh 33 berkas itu satu per satu.
+   *
+   * PUTARAN KEDUA, hari yang sama: laporan PageSpeed berikutnya menggagalkan lencana
+   * HIJAU, padahal yang pertama menggagalkan yang MERAH - bukan karena ada yang berubah,
+   * tapi karena hari itu IHSG naik. Itu menunjukkan cara kerjanya yang keliru: Lighthouse
+   * hanya memeriksa elemen yang KEBETULAN terlihat. Seluruh matriks karena itu dihitung
+   * sekaligus, dan ternyata 14 kombinasi gagal - warning, gold, dan biru bahkan gagal di
+   * SEMUA tingkat tint, dan tidak pernah tersampling sama sekali.
+   *
+   * Aturannya berlawanan arah di dua tema, dan itu bukan kebetulan: tint selalu menggeser
+   * latar ke arah warna teksnya sendiri, jadi teks harus menjauh. Di tema terang berarti
+   * MENGGELAPKAN, di tema gelap berarti MENCERAHKAN.
+   *
+   * Nilai di bawah dipilih dengan mencari pergeseran TERKECIL yang membuat ketiga peran
+   * lulus pada tint terberat (20%) - bukan warna baru, hanya digeser sedikit. Sekarang
+   * dijaga __tests__/color-contrast.test.ts yang memeriksa seluruh matriks, jadi
+   * pelanggaran berikutnya ketahuan saat mengubah warna, bukan lewat screenshot pengguna
+   * berbulan-bulan kemudian. */
+  --lens-green: 17 111 46;
+  --lens-green-hover: 15 94 39;
+  --lens-red: 176 35 35;
+  --lens-red-hover: 143 28 28;
+  --lens-yellow: 128 90 0;
+  --lens-warning: 157 72 8;
+  --lens-gold: 127 91 0;
+  --lens-blue: 33 87 207;
+  --lens-blue-hover: 26 70 166;
+  --lens-purple: 115 54 220;
   --lens-blue-solid: 29 78 216;
   --lens-purple-solid: 109 40 217;
   /* Tema terang: aksennya sudah gelap, jadi pasangannya putih. */
@@ -121,9 +152,9 @@ html.light {
   --lens-yellow: 242 193 78;
   --lens-warning: 245 158 11;
   --lens-gold: 231 185 76;
-  --lens-blue: 79 140 255;
+  --lens-blue: 86 145 255;
   --lens-blue-hover: 60 118 232;
-  --lens-purple: 139 124 255;
+  --lens-purple: 145 131 255;
   --lens-blue-solid: 29 78 216;
   --lens-purple-solid: 109 40 217;
   --lens-on-accent: 7 11 18;
