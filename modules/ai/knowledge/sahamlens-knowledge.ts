@@ -12,20 +12,36 @@ export const SAHAMLENS_KNOWLEDGE_BASE = `
 SahamLens adalah aplikasi analisis saham Indonesia/IDX yang memisahkan beberapa sudut pandang agar pengguna tidak bergantung pada satu indikator saja.
 
 ### Fitur utama
-- **LensTechnical**: analisis teknikal berbasis harga/OHLCV dan indikator teknikal. Gunakan untuk tren, momentum, support/resistance, RSI, moving average, MACD, ATR, volume, pola, dan konteks teknikal yang memang tersedia.
+- **LensTechnical**: analisis teknikal berbasis harga/OHLCV dan indikator teknikal. Gunakan untuk tren, momentum, support/resistance, RSI, moving average, MACD, ATR, volume, pola, dan konteks teknikal yang memang tersedia. Halaman ini juga menampilkan **LensConsensus** (rapat 10 agen teknikal rule-based - tren, momentum, volume, volatilitas - diringkas jadi satu konsensus BUY/SELL/HOLD) dan badge **Blue-chip/Small-cap** (label informasional dari market cap >= Rp 10T DAN likuiditas ADV20 >= Rp 5M/hari - MURNI label, tidak mengubah cara skor/sinyal dihitung).
 - **LensFundamental**: analisis fundamental emiten. Gunakan untuk profitabilitas, pertumbuhan, kualitas neraca, arus kas, valuasi, efisiensi, dan metrik fundamental yang tersedia. Jangan mengarang angka laporan keuangan.
-- **LensRadar / AI Pick**: pemeringkatan kandidat saham dari universe yang dipindai. LensScore menggabungkan komponen yang tersedia seperti technical, fundamental, flow, coverage/kelengkapan data, dan gerbang kelayakan. Signal/event seperti breakout atau golden cross adalah konteks, bukan alasan untuk mengarang skor.
+- **LensRadar / AI Pick**: pemeringkatan kandidat saham dari universe yang dipindai. LensScore menggabungkan komponen yang tersedia seperti technical, fundamental, flow, coverage/kelengkapan data, dan gerbang kelayakan. Signal/event seperti breakout atau golden cross adalah konteks, bukan alasan untuk mengarang skor. Dashboard menampilkan tabel breakdown-voting per-indikator (label/nilai/keputusan/keyakinan tiap analyzer) supaya keputusan konsensus bisa ditelusuri, bukan kotak hitam.
 - **Trading Setup TP/CL**: TP1, TP2 dan CL berasal dari engine trading setup SahamLens. Setup mempertimbangkan struktur harga, ATR, risk/reward, dan tick size. Jika level tidak dikirim dalam data, jangan menebak.
 - **LensMarket / Market Pulse**: ringkasan kondisi pasar seperti breadth, indeks, dan kekuatan sektor. IHSG adalah indeks, bukan emiten.
-- **LensScanner / Screener**: penyaringan saham berdasarkan kriteria yang tersedia.
-- **Backtest**: pengujian historis strategi/filter. Pisahkan backtest retrospektif dari genuine forward/out-of-sample validation.
+- **LensScanner / Screener**: penyaringan saham multi-faktor per profil risiko (Konservatif/Moderat/Agresif), dengan filter tambahan Sektor, Harga maksimal, Market Cap minimal, dan Likuiditas minimal. Punya ekspor CSV dan template filter tersimpan (localStorage browser pengguna, bukan disimpan di server).
+- **Backtest**: dua mode berbeda di halaman yang sama. (1) Builder filter multi-saham: uji kombinasi indikator ke data historis (return, win rate, drawdown, 3-60 bulan), plus "Live Filter Check" untuk melihat saham mana yang MEMENUHI kombinasi filter itu SEKARANG (data live, bukan simulasi). (2) "Backtest Saham Tunggal": pilih satu emiten + periode (3-60 bulan), tombol Backtest menyiapkan data histori harga, tombol Start memutar animasi candle yang "terbuka" bertahap dari kiri ke kanan, tombol Stop membekukan animasi pada candle yang sedang tampil - ini MURNI visualisasi histori harga (pratinjau candle), BUKAN simulasi strategi - tidak ada win rate/drawdown di mode ini. Pisahkan backtest retrospektif dari genuine forward/out-of-sample validation.
 - **DCF / Intrinsic Value**: estimasi nilai intrinsik berdasarkan asumsi dan data yang tersedia. Fair value bukan angka pasti; jelaskan asumsi/ketidakpastian.
-- **Dividend, Earnings, Calendar**: informasi dividen, jadwal earnings, dan corporate calendar yang tersedia.
-- **Compare**: membandingkan saham berdasarkan metrik yang tersedia.
-- **Portfolio, Watchlist, Risk Calculator, Pattern, News, Macro, Moat**: fitur pendukung pemantauan, manajemen risiko, pola teknikal, berita/sentimen, konteks makro, dan kualitas bisnis.
-- **Transparansi**: halaman publik untuk metodologi/validasi yang memang diekspos aplikasi; bukan menu khusus admin.
+- **Dividend, Earnings, Calendar**: informasi dividen (termasuk simulasi rencana passive income dari modal+target bulanan), jadwal earnings, dan corporate calendar (dividen+earnings, TIDAK mencakup RUPS/stock split) yang tersedia.
+- **Compare**: membandingkan 2+ saham berdasarkan metrik fundamental/teknikal/valuasi yang tersedia.
+- **Portfolio, Watchlist**: pemantauan posisi/transaksi dan daftar pantau+alert harga milik pengguna - DATA PRIBADI PENGGUNA, cuma dua fitur ini yang wajib login (lihat "Aturan Akses" di bawah).
+- **Risk Calculator, Pattern, News, Macro, Moat**: fitur pendukung manajemen risiko (position sizing, risk/reward), pola teknikal, berita/sentimen, konteks makro Indonesia (BI rate/inflasi/kurs + peta transmisi ke sektor IDX), dan kualitas bisnis/keunggulan kompetitif (moat proxy dari data fundamental).
+- **Multi-agent / Council**: analisis AI (Gemini) per emiten yang menggabungkan beberapa sudut pandang sekaligus jadi satu kesimpulan terstruktur.
+- **AnalysisGlossary**: daftar istilah analisis (RSI, MACD, SMA/EMA, ATR, ROE, DER, Margin of Safety, dst.) dengan definisi singkat, ditampilkan di halaman-halaman analisis.
+- **Transparansi**: halaman publik untuk metodologi/validasi yang memang diekspos aplikasi (win rate, akurasi model, status validasi statistik); bukan menu khusus admin.
 - **Universe AI Pick / LensRadar**: scan live memantau hingga 150 kandidat. Kandidat tetap melewati eligibility gate; tidak semua harus menjadi rekomendasi.
-- **LensAI**: asisten SahamLens untuk menjelaskan fitur aplikasi dan pasar modal. LensAI tidak boleh mengklaim melihat data yang tidak tersedia.
+- **LensAI**: asisten SahamLens untuk menjelaskan fitur aplikasi dan pasar modal, DAN menjawab pertanyaan tentang data live aplikasi (top gainer/loser, sektor, makro, dst - dibaca dari cache yang disegarkan cron, BUKAN dihitung ulang saat chat). LensAI tidak boleh mengklaim melihat data yang tidak tersedia, dan WAJIB menyebut kalau data yang dibaca berumur signifikan (mis. "data sesi sebelumnya") kalau context menandainya begitu - lihat "Kesegaran Data" di bawah.
+
+### Aturan Akses SahamLens (WAJIB dikuasai - pertanyaan umum pengguna)
+- **Tamu (belum login) punya akses PENUH ke SEMUA fitur analisis** - LensTechnical, LensFundamental, LensRadar, LensScanner, Backtest, DCF, Compare, Macro, Moat, dst - TIDAK ADA yang dikunci di balik login untuk tamu, dan TIDAK ADA trial harian yang membatasi tamu.
+- **Hanya DUA menu yang wajib login/daftar akun**: **Portfolio** dan **Watchlist** - karena keduanya menyimpan data PRIBADI pengguna (posisi transaksi, daftar pantau+alert) yang harus terikat ke satu identitas lintas kunjungan, bukan soal gratis/berbayar.
+- **Menu admin** digerbang terpisah (cookie admin), tidak relevan untuk pengguna biasa.
+- **Chat/LensAI**: tamu punya kuota tanya-jawab harian (lebih besar dari dulu, sudah dinaikkan); pengguna yang login tidak dibatasi kuota harian yang sama.
+- Kalau pengguna bertanya "kenapa saya diminta login" di luar Portfolio/Watchlist, itu kemungkinan bug - jangan menjelaskan seolah itu memang aturan produk yang disengaja.
+
+### Kesegaran Data & Cron (WAJIB dikuasai - pertanyaan "kenapa datanya kosong/lama")
+- Data pasar level-aplikasi (top gainer/loser, market pulse/sektor, makro, rekomendasi LensRadar) TIDAK dihitung ulang tiap request - server punya cron/scheduler yang memindai pasar secara berkala (tiap 5-15 menit selama jam bursa 09:00-16:00 WIB Senin-Jumat) dan menyimpan hasilnya ke cache. Halaman/LensAI membaca cache itu, bukan menghitung live setiap kali diminta - ini SENGAJA (menghitung ulang 250+ saham per pertanyaan chat akan sangat lambat/mahal).
+- Di luar jam bursa (malam hari, akhir pekan), cron TIDAK berjalan - data yang tersedia adalah **data sesi bursa terakhir**, bukan data hari ini/live. Ini bukan bug, itu memang batas alami pasar yang tutup.
+- Kalau context yang diterima menyertakan penanda umur data (mis. "Umur data: sekitar 3 jam lalu - DATA SESI SEBELUMNYA"), LensAI WAJIB menyampaikan itu ke pengguna secara eksplisit dan jujur - jangan menyajikan data lama seolah kondisi pasar SEKARANG.
+- Kalau data benar-benar belum tersedia (cache kosong), itu bisa berarti cron sedang bermasalah - LensAI cukup bilang jujur "data belum tersedia saat ini", jangan menebak-nebak alasan teknisnya kalau tidak ada di context.
 
 ## Indonesia Capital Market Knowledge — wajib dikuasai LensAI
 

@@ -86,7 +86,15 @@ const INDEX_TERMS = /\b(ihsg|\^jkse|idx30|lq45|indeks|bursa)\b/;
 // jatuh ke UNKNOWN dan berakhir sebagai refusal generik walaupun modules/news punya
 // datanya. Lihat catatan lengkap di chat-data-router.ts (marketNewsBlock).
 const NEWS_TERMS = /\b(sentimen|sentiment|berita|news|kabar|isu|rumor|katalis|penggerak|pemicu|gara-?gara)\b/;
-const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal)\b/;
+// DIPERLUAS (2026-08-14, permintaan pengguna: "Ask AI harus serba bisa jawab soal
+// aplikasinya sendiri"). Nama fitur di bawah ini SEBELUMNYA tidak ada satu pun yang
+// masuk daftar - "apa itu DCF di SahamLens" atau "compare itu fitur apa" jatuh ke
+// CONCEPT_QUERY generik (args.tickerCount===0) alih-alih SAHAMLENS_PRODUCT_HELP, jadi
+// LensAI menjawab dari pengetahuan umum tanpa konteks fitur SahamLens yang sebenarnya.
+// Fitur yang SUDAH punya intent data sendiri (dividen/earnings/kalender/flow/moat/
+// risiko/screener/backtest - lihat daftar *_TERMS di bawah) SENGAJA tidak ditambahkan
+// di sini supaya urutan pengecekan intent data yang sudah teruji tidak berubah.
+const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|lensconsensus|lensai|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal|dcf|intrinsic value|nilai intrinsik|multi-?agent|council|blue.?chip|small.?cap|cap tier|compare|portofolio|portfolio|watchlist|glosarium|glossary)\b/;
 const PRODUCT_CALC_TERMS = /\b(cara|bagaimana|gimana)\b.*\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(hitung|dihitung|perhitungan)\b|\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(cara|bagaimana|gimana)\b.*\b(hitung|dihitung|perhitungan)\b/;
 const FOLLOW_UP_TERMS = /^(kenapa|kok|terus|lalu|gimana|bagaimana|kalau|kalo|jadi|yang tadi|tadi|data yang|periode kapan|yang kamu pakai|nya\b|itu\b|sehari sebelumnya)/;
 const CONCEPT_QUERY = /\b(apa itu|apa artinya|artinya apa|maksudnya|definisi|fungsi|cara kerja)\b/;
