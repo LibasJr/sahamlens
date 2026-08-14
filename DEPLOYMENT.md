@@ -64,6 +64,14 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Urutan kartu "Cakupan Analisis" di Beranda: Backtest & LensConsensus tukar posisi
+
+Permintaan pengguna: "posisi backtest ganti dengan posisi LensConsensus, biar selaras sama
+sebelahnya". Grid 4 kolom x 2 baris di `components/Dashboard.tsx` - Backtest (dulu baris 1
+kolom 4) dan LensConsensus (dulu baris 2 kolom 4) tukar posisi: LensConsensus sekarang baris
+1 kolom 4 (tepat setelah LensScanner), Backtest turun ke baris 2 kolom 4 (posisi terakhir).
+Konten kedelapan kartu tidak berubah, cuma urutan array-nya.
+
 ### 2026-08-14 - Audit lanjutan #2 tema terang: LensFlow NETRAL, Portfolio Health, CommandPalette, Portfolio holdings
 
 Laporan pengguna (screenshot LensFlow — Analisis Money Flow): kotak status "NETRAL" tampil
