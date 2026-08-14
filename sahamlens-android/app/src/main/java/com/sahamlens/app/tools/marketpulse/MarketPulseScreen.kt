@@ -48,7 +48,9 @@ private fun rupiah(value: Double) = "Rp ${"%,.0f".format(value).replace(',', '.'
 private fun pct(value: Double) = "${if (value >= 0) "+" else ""}${"%.2f".format(value)}%"
 
 /** Market Pulse - 4 indeks + heatmap 11 sektor + market breadth (advance/decline), GET
- * /api/market-pulse (butuh login + Pro). */
+ * /api/market-pulse. Endpoint ini PUBLIK SEPENUHNYA di backend (tidak ada gerbang login/Pro
+ * sama sekali) - gerbang 401/402 di bawah ini praktis tidak akan pernah terpicu, dipertahankan
+ * sebagai jaga-jaga kalau kontrak backend berubah, bukan alur aktif. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketPulseScreen(modifier: Modifier = Modifier, onBack: () -> Unit = {}, onRequireLogin: () -> Unit = {}) {

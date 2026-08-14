@@ -1,6 +1,5 @@
 package com.sahamlens.app.watchlist
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -158,7 +157,7 @@ private fun WatchlistList(uiState: WatchlistUiState, onStockClick: (String) -> U
 
 @Composable
 private fun WatchlistRowCard(item: WatchlistCacheEntity, onClick: () -> Unit) {
-    SahamCard(variant = SahamCardVariant.Outlined, modifier = Modifier.clickable(onClick = onClick)) {
+    SahamCard(variant = SahamCardVariant.Outlined, onClick = onClick) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

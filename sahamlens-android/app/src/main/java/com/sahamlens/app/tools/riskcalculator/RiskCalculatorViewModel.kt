@@ -22,17 +22,21 @@ class RiskCalculatorViewModel(private val marketRepository: MarketRepository) : 
     fun onStopLossChange(value: String) = _uiState.update { it.copy(stopLoss = value) }
     fun onTargetChange(value: String) = _uiState.update { it.copy(target = value) }
 
-    /** Prefill Harga Entry dari kutipan live - opsional, boleh ditimpa manual, sama seperti web. */
+    /** Prefill Harga Entry dari kutipan live - opsional, boleh ditimpa manual, sama seperti web.
+     * BUG FIX: dulu kegagalan fetch (simbol tidak dikenal, jaringan gagal) diam-diam - `entry`
+     * tetap nilai lama dan tombol "Live" terlihat seperti tidak melakukan apa-apa. Sekarang
+     * [RiskCalculatorUiState.priceError] diisi supaya layar bisa memberi tahu pengguna. */
     fun fetchLivePrice() {
         val symbol = _uiState.value.symbol.trim()
         if (symbol.isBlank()) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingPrice = true) }
+            _uiState.update { it.copy(isLoadingPrice = true, priceError = null) }
             val price = marketRepository.getLiveQuotes(listOf(symbol))[symbol]?.price
             _uiState.update {
                 it.copy(
                     isLoadingPrice = false,
                     entry = price?.let { p -> "%.0f".format(p) } ?: it.entry,
+                    priceError = if (price == null) "Gagal ambil harga live untuk \"$symbol\". Cek simbolnya atau isi manual." else null,
                 )
             }
         }
