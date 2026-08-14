@@ -118,4 +118,77 @@ describe('rankScreener', () => {
 
     expect(result[0].ticker).toBe('TLKM');
   });
+
+  // BARU (2026-08-14, masukan review eksternal - filter Sektor & Harga di LensScanner).
+  describe('filter sektor & harga', () => {
+    it('sector menyaring hanya saham dari sektor itu', () => {
+      const universe = [
+        rawStock('BBCA', { sector: 'Keuangan' }),
+        rawStock('TLKM', { sector: 'Infrastruktur' }),
+      ];
+
+      const result = rankScreener(universe as any, 'Moderat', { sector: 'Infrastruktur' });
+
+      expect(result.map((r) => r.ticker)).toEqual(['TLKM']);
+    });
+
+    it('sector dicocokkan case-insensitive', () => {
+      const universe = [rawStock('BBCA', { sector: 'Keuangan' })];
+
+      const result = rankScreener(universe as any, 'Moderat', { sector: 'keuangan' });
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('maxPrice membuang saham di atas batas', () => {
+      const universe = [
+        rawStock('BBCA', { price: 9000 }),
+        rawStock('TLKM', { price: 3000 }),
+      ];
+
+      const result = rankScreener(universe as any, 'Moderat', { maxPrice: 5000 });
+
+      expect(result.map((r) => r.ticker)).toEqual(['TLKM']);
+    });
+
+    it('maxPrice tidak valid (negatif/NaN) diabaikan, bukan membuang semua saham', () => {
+      const universe = [rawStock('BBCA', { price: 9000 })];
+
+      expect(rankScreener(universe as any, 'Moderat', { maxPrice: -1 })).toHaveLength(1);
+      expect(rankScreener(universe as any, 'Moderat', { maxPrice: NaN })).toHaveLength(1);
+    });
+
+    it('sector dan maxPrice bisa dipakai bersamaan', () => {
+      const universe = [
+        rawStock('BBCA', { sector: 'Keuangan', price: 9000 }),
+        rawStock('BMRI', { sector: 'Keuangan', price: 3000 }),
+        rawStock('TLKM', { sector: 'Infrastruktur', price: 3000 }),
+      ];
+
+      const result = rankScreener(universe as any, 'Moderat', { sector: 'Keuangan', maxPrice: 5000 });
+
+      expect(result.map((r) => r.ticker)).toEqual(['BMRI']);
+    });
+
+    it('rata-rata PER sektor (per_sector) TIDAK berubah akibat filter harga - benchmark dari universe penuh', () => {
+      const universe = [
+        rawStock('BBCA', { sector: 'Keuangan', price: 9000, per: 20 }),
+        rawStock('BMRI', { sector: 'Keuangan', price: 3000, per: 10 }),
+      ];
+
+      const unfiltered = rankScreener(universe as any, 'Moderat');
+      const filtered = rankScreener(universe as any, 'Moderat', { maxPrice: 5000 });
+
+      const bmriUnfiltered = unfiltered.find((r) => r.ticker === 'BMRI')!;
+      const bmriFiltered = filtered.find((r) => r.ticker === 'BMRI')!;
+      expect(bmriFiltered.per_sector).toBe(bmriUnfiltered.per_sector);
+      expect(bmriFiltered.per_sector).toBe(15); // rata-rata (20+10)/2 dari KEDUA saham
+    });
+
+    it('tanpa filter (default {}) berperilaku identik dengan sebelumnya', () => {
+      const universe = [rawStock('BBCA'), rawStock('TLKM')];
+
+      expect(rankScreener(universe as any, 'Moderat')).toEqual(rankScreener(universe as any, 'Moderat', {}));
+    });
+  });
 });

@@ -710,7 +710,7 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4 text-tv-gold" />
               <CardTitle>Peluang Hari Ini</CardTitle>
-              {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot>Live</Badge>}
+              {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>}
             </div>
             <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
           </CardHeader>
@@ -914,7 +914,11 @@ export default function HomePage() {
                     kartu ini h2 dan kartu LensScanner h4 - selisih ukuran tanpa arti
                     hierarki, dan urutannya melompat h3 -> h2 -> h4 di DOM. */}
                 <h3 className="font-heading text-sm font-semibold text-white">LensConsensus</h3>
-                <Badge variant="info" dot>Live</Badge>
+                {/* BUG FIX (2026-08-14, masukan review eksternal - label "Live" tanpa
+                    konteks bisa dibaca sebagai realtime, padahal sumber datanya (Yahoo
+                    Finance) selalu delay ~15 menit untuk IDX. title = tooltip hover
+                    desktop, caption di bawah kartu = terlihat tanpa hover di HP. */}
+                <Badge variant="info" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>
               </div>
               {loadingRadar ? (
                 <div className="mt-1.5 space-y-1.5">
@@ -964,6 +968,7 @@ export default function HomePage() {
                   ))}
                 </div>
               )}
+              <p className="mt-2 text-[10px] text-tv-muted">Sumber: Yahoo Finance, delay ±15 menit</p>
             </div>
           </div>
         </Card>

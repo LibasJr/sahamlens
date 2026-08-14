@@ -1207,6 +1207,47 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* BUG FIX (2026-08-14, masukan review eksternal - "jangan hanya tampilkan
+              skor akhir 8/10, tampilkan breakdown voting: Tren Bullish, Momentum
+              Bearish, dst"): data per-indikator (data.analyzers) ini SEBELUMNYA cuma
+              dipakai untuk export PDF (downloadTechnicalPDF di bawah) - tidak pernah
+              dirender di layar sama sekali. "Konsensus Analyzer" di atas cuma
+              menampilkan HASIL AKHIR voting; tabel ini menampilkan APA yang divoting -
+              9 analyzer yang SAMA PERSIS memberi suara ke konsensus di atas (lihat
+              calculateConsensus di app/api/stock/[ticker]/route.ts). Default tertutup
+              (<details>) - info tambahan, bukan yang paling dicari saat halaman
+              pertama dibuka. */}
+          {!loading && data?.analyzers && data.analyzers.length > 0 && (
+            <details className="group mt-3 rounded-lg border border-tv-border bg-tv-bg/60">
+              <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-muted transition-colors hover:text-tv-text">
+                Rincian voting {data.analyzers.length} analyzer <span className="font-normal text-tv-muted/80">— lihat alasan di balik konsensus di atas</span>
+              </summary>
+              <div className="border-t border-tv-border">
+                {data.analyzers.map((a: any, i: number) => (
+                  <div
+                    key={`${a.label}-${i}`}
+                    className={`flex items-center justify-between gap-3 px-3 py-2 text-[11px] ${i > 0 ? 'border-t border-tv-border/60' : ''}`}
+                  >
+                    <span className="min-w-0 truncate font-medium text-tv-text">{a.label}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="font-number text-tv-muted">{a.value}</span>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        a.decision === 'BULLISH'
+                          ? 'bg-tv-green/10 text-tv-green'
+                          : a.decision === 'BEARISH'
+                          ? 'bg-tv-red/10 text-tv-red'
+                          : 'bg-tv-yellow/10 text-tv-yellow'
+                      }`}>
+                        {a.decision === 'BULLISH' ? 'Bullish' : a.decision === 'BEARISH' ? 'Bearish' : 'Netral'}
+                      </span>
+                      <span className="w-9 text-right font-number text-tv-muted/70">{a.confidence}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
           </>
         )}
 
