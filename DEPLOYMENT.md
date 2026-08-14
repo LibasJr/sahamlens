@@ -62,7 +62,30 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
-## Log perubahan deployment
+### 2026-08-14 - `broker-summary-scan` dinonaktifkan (INDEXALPHA_API_KEY belum ada, fitur belum dipakai)
+
+Panel admin menunjukkan job ini FAILED terus-menerus dengan pesan "INDEXALPHA_API_KEY
+belum dikonfigurasi" - env var utk endpoint batch Index Alpha (lihat entri broker-summary-
+scan sebelumnya di log ini) memang belum pernah diisi di `.env.production` VPS. Karena
+fiturnya belum dipakai (belum ada kesepakatan tertulis penyimpanan/redistribusi data
+dengan provider - lihat catatan lama), pengguna minta dinonaktifkan dulu daripada gagal
+setiap hari tanpa guna.
+
+**Dinonaktifkan di VPS** (jalankan sebagai user dengan akses sudo):
+
+```bash
+sudo systemctl disable --now sahamlens-broker-summary-scan.timer
+systemctl list-timers --all | grep broker-summary   # pastikan sudah tidak muncul
+```
+
+`config/scheduled-jobs.json`: `schedule` diset `null`, `scheduleStatus` diturunkan ke
+`"verify-server"` - BUKAN dihapus dari manifest (kode route-nya tetap ada, cuma timer-nya
+yang mati) supaya `npm run audit:cron` tidak salah paham route ini "tidak dikenal".
+
+**Cara mengaktifkan lagi nanti** (kalau `INDEXALPHA_API_KEY` sudah didapat & kesepakatan
+data dengan provider sudah tertulis): isi env var itu di `.env.production`, lalu
+`sudo systemctl enable --now sahamlens-broker-summary-scan.timer`, lalu update manifest
+ini balik ke `schedule: "10 19 * * *"` dan `scheduleStatus: "known"`.
 
 ### 2026-08-14 - BUG FIX BESAR: 3 cron (market-pulse/market-summary/recommendation-scan) menulis TTL yang salah, cache kosong sebagian besar waktu
 
