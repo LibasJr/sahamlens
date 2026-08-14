@@ -4,6 +4,26 @@ guard();
 import { NextResponse } from 'next/server';
 import { fetchYahooHistory } from '@/modules/technical';
 import { calculateBeta } from '@/modules/market';
+import { getOrCompute } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+
+// BUG FIX (2026-08-14, audit "semua menu harus ada cache") - histori 1 tahun
+// dipakai untuk menghitung beta. Baris portofolio itu sendiri personal (beda per
+// pengguna, tidak masuk akal di-cache sebagai satu payload), TAPI histori HARGA
+// per ticker-nya BUKAN personal - IHSG, USDIDR=X, dan ticker populer (BBCA, TLKM,
+// dst.) diminta ULANG oleh banyak pengguna berbeda yang portofolionya kebetulan
+// beririsan. Sebelumnya setiap panggilan /api/risk-analysis menembak Yahoo LANGSUNG
+// untuk tiap ticker, tanpa cache sama sekali. Dibungkus per ticker+range di sini
+// (bukan di modules/technical/service/yahoo-history.service.ts - fungsi itu juga
+// dipakai jalur cron/precompute/screener yang sudah punya lapisan cache sendiri di
+// atasnya, menambah cache di dalamnya berisiko dobel-cache tanpa manfaat jelas).
+function cachedYahooHistory(ticker: string, range: string) {
+  return getOrCompute(
+    `sahamlens:cache:computed:yahoo-history:${ticker}:${range}`,
+    CACHE_TTL_SEC.TECHNICAL,
+    () => fetchYahooHistory(ticker, range),
+  );
+}
 
 // Backend REAL untuk Risk Matrix & Stress Testing (/risk) - audit integritas data
 // 2026-08-03, temuan M-09. Halaman itu SEBELUMNYA menampilkan 4 angka stress test tetap
@@ -40,8 +60,8 @@ export async function POST(request: Request) {
     const totalWeight = portfolio.reduce((sum, p) => sum + p.weight, 0);
 
     const [ihsgData, usdIdrData] = await Promise.all([
-      fetchYahooHistory('^JKSE', '1y'),
-      fetchYahooHistory('USDIDR=X', '1y'),
+      cachedYahooHistory('^JKSE', '1y'),
+      cachedYahooHistory('USDIDR=X', '1y'),
     ]);
 
     if (!ihsgData) {
@@ -51,7 +71,7 @@ export async function POST(request: Request) {
     const perStock = await Promise.all(
       portfolio.map(async (pos) => {
         const ticker = pos.ticker.includes('.') ? pos.ticker : `${pos.ticker}.JK`;
-        const history = await fetchYahooHistory(ticker, '1y');
+        const history = await cachedYahooHistory(ticker, '1y');
         if (!history) return { ticker: pos.ticker, weight: pos.weight, betaIhsg: null, betaUsdIdr: null };
 
         const betaIhsg = calculateBeta(history.history, ihsgData.history);
