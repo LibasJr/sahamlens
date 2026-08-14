@@ -73,9 +73,21 @@ export const CACHE_TTL_SEC = {
   // app/api/chat/blocks/market-blocks.ts (sectorAndBreadthBlock, dipakai LensAI) SENGAJA
   // TIDAK punya fallback live (supaya chat tidak memicu scan 50 saham tiap pertanyaan) -
   // jadi LensAI yang paling sering kena jendela kosong itu dan bilang "cache kosong"
-  // ke pengguna, walau sebenarnya cron-nya jalan normal. 6 menit = interval cron (5)
-  // + buffer 1 run yang telat, pola sama persis dengan MARKET_NEWS/MACRO_DASHBOARD.
-  MARKET_PULSE_CRON: 6 * 60,
+  // ke pengguna, walau sebenarnya cron-nya jalan normal.
+  //
+  // REVISI SUSULAN (2026-08-14, hari yang sama, laporan kedua): 6 menit tadinya dipilih
+  // sebagai "interval cron (5) + buffer 1 run" - tapi itu HANYA benar SELAMA jam bursa
+  // (cron `*/5 9-15 * * 1-5`, cuma jalan Senin-Jumat 09:00-15:59 WIB). Begitu bursa
+  // tutup, cron BERHENTI JALAN sampai besok - dan pengguna bertanya ke LensAI jam 19:00
+  // WIB (lihat screenshot: "Fitur top gainer... sambungan data live... sedang kosong di
+  // server"), TTL 6 menit itu sudah lama basi sejak ~jam 16:xx. Sama persis pola yang
+  // sudah diperbaiki utk BREAKOUT_RADAR (lihat di bawah) - TTL SEKARANG 3 hari (lantai
+  // "data sesi terakhir" di luar jam bursa, cukup utk gap akhir pekan Jumat sore ->
+  // Senin pagi), cron tetap menyegarkan tiap 5 menit SELAMA jam bursa seperti biasa.
+  // app/api/chat/blocks/market-blocks.ts sekarang menyertakan umur cache di jawabannya
+  // (lewat getCacheTtlRemaining) supaya LensAI tetap jujur bilang "data sesi terakhir",
+  // bukan diam-diam menyajikan data lama seolah live.
+  MARKET_PULSE_CRON: 3 * 24 * 60 * 60,
 
   // BUG FIX (audit integritas data 2026-08-03, ditemukan setelah user lapor "Live AI
   // Pick" kosong): breakout-scan cron (app/api/cron/breakout-scan) SEBELUMNYA memakai
@@ -107,7 +119,13 @@ export const CACHE_TTL_SEC = {
   // ramai) punya live-fallback jadi tidak terlihat "kosong", tapi cache pre-warm-nya
   // basi ~4 dari tiap 5 menit - pengunjung di jendela itu tetap menanggung scan LIVE 250
   // saham, PERSIS masalah yang cron ini seharusnya sudah menghilangkan sejak 2026-08-05.
-  MARKET_SUMMARY_CRON: 6 * 60,
+  //
+  // REVISI SUSULAN (2026-08-14, hari yang sama) - 6 menit SAMA-SAMA cuma benar selama
+  // jam bursa; cron `*/5 9-15 * * 1-5` berhenti di luar itu, dan app/api/chat/blocks/
+  // market-blocks.ts (marketMoversBlock - sumber "top gainer" LensAI, lihat laporan
+  // pengguna) TIDAK punya fallback live. Diperpanjang ke 3 hari, pola sama dengan
+  // MARKET_PULSE_CRON/BREAKOUT_RADAR di atas.
+  MARKET_SUMMARY_CRON: 3 * 24 * 60 * 60,
 
   // Freshness utk PEMBACA langsung (app/api/recommendations, live-fallback per
   // simbol lewat analyzeStock()) - SENGAJA pendek, sama alasannya dengan MARKET di
@@ -122,9 +140,15 @@ export const CACHE_TTL_SEC = {
   // menit - gap KOSONG-nya 14 dari tiap 15 menit, rasio terburuk dari tiga cron yang
   // kena bug ini. Ada live-fallback per simbol jadi tidak terlihat "kosong" total, tapi
   // hampir setiap request di luar 60 detik pertama menanggung analyzeStock() LIVE per
-  // simbol, defeat tujuan cron sepenuhnya. 18 menit = interval cron (15) + buffer ~20%
-  // 1 run yang telat.
-  RECOMMENDATION_CRON: 18 * 60,
+  // simbol, defeat tujuan cron sepenuhnya.
+  //
+  // REVISI SUSULAN (2026-08-14, hari yang sama) - 18 menit (interval 15 + buffer) SAMA
+  // saja cuma benar selama jam bursa (`*/15 9-15 * * 1-5`); di luar itu cache tetap
+  // kosong sampai besok, defeat tujuan cron di luar jam bursa sepenuhnya (bukan cuma
+  // "wasteful", tapi walau ADA fallback live per simbol di sini, pola yang sama TANPA
+  // fallback baru saja terbukti gagal total di market-pulse/market-summary). Diperpanjang
+  // ke 3 hari, pola sama dengan MARKET_PULSE_CRON/MARKET_SUMMARY_CRON/BREAKOUT_RADAR.
+  RECOMMENDATION_CRON: 3 * 24 * 60 * 60,
 
   // Hasil AI Council (Gemini) - dikunci per simbol+tanggal+kuartal-terakhir-dilaporkan
   // (lihat app/api/council/route.ts), jadi laporan keuangan baru sudah otomatis
@@ -175,12 +199,16 @@ export const CACHE_TTL_SEC = {
   // (`0 9-16 * * 1-5` di config/scheduled-jobs.json) - persis pola yang sama
   // dengan bug MARKET_SUMMARY yang sudah diperbaiki sebelumnya (lihat catatan di
   // situ): TTL lebih pendek dari interval cron berarti ADA jendela ~30 menit tiap
-  // jam di mana cache pasti kosong sebelum cron berikutnya mengisi ulang. 70 menit
-  // = interval cron (60) + buffer 1 run yang telat, sama seperti pola MARKET_SUMMARY
-  // (cron 5 menit + TTL 6 menit) dan BREAKOUT_RADAR (cron 5 menit + TTL jauh lebih
-  // panjang sebagai lantai). Data makro juga tidak berubah cepat, jadi 70 menit tetap
-  // cukup segar untuk konteks pasar.
-  MACRO_DASHBOARD: 70 * 60,
+  // jam di mana cache pasti kosong sebelum cron berikutnya mengisi ulang. Sempat
+  // dinaikkan ke 70 menit (interval 60 + buffer), TAPI itu ternyata cuma benar SELAMA
+  // jam bursa - cron berhenti jalan di luar 09:00-16:00 WIB, dan run terakhir jam 16:00
+  // basi ~17:10, jauh sebelum cron jalan lagi besok jam 09:00 (gap ~16 jam KOSONG tiap
+  // malam). REVISI SUSULAN (2026-08-14, hari yang sama, ditemukan bareng
+  // MARKET_PULSE_CRON/MARKET_SUMMARY_CRON - macroBlock di app/api/chat/blocks/
+  // market-blocks.ts SAMA-SAMA tidak punya fallback live): diperpanjang ke 3 hari,
+  // pola sama dengan BREAKOUT_RADAR. Data makro juga tidak berubah cepat, jadi
+  // menyimpannya sampai 3 hari tidak mengorbankan relevansi.
+  MACRO_DASHBOARD: 3 * 24 * 60 * 60,
 
   // Universe saham dividen (yield/payout/consistency per saham, app/api/dividend-plan)
   // - BARU. Batch quoteSummary+chart(events:dividends) utk ~50 saham, sama mahalnya

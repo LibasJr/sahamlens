@@ -1,5 +1,6 @@
-import { cacheGet } from '@/shared/cache/redis-cache';
+import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { finite, safe, safeSigned, signed, unavailableLine } from './format';
 
 /**
@@ -12,7 +13,29 @@ import { finite, safe, safeSigned, signed, unavailableLine } from './format';
  * ditolak di /api/ai-pick ("Endpoint sengaja TIDAK memindai sendiri saat cache kosong").
  * Cron sudah menyegarkan kedua cache ini tiap 5 menit selama jam bursa; kalau isinya
  * kosong, jawabannya adalah "belum tersedia", bukan menghitung ulang.
+ *
+ * BARU (2026-08-14, laporan pengguna: LensAI bilang "top gainer" kosong jam 19:00 WIB
+ * padahal Beranda menampilkannya dengan jelas). Akar masalahnya TTL cron yang salah
+ * (sudah diperbaiki - lihat shared/cache/ttl-policy.ts MARKET_PULSE_CRON/
+ * MARKET_SUMMARY_CRON/RECOMMENDATION_CRON/MACRO_DASHBOARD, sekarang lantai 3 hari sama
+ * seperti BREAKOUT_RADAR supaya bertahan di luar jam bursa/akhir pekan). Konsekuensinya:
+ * blok di file ini sekarang BISA membaca data yang berumur berjam-jam (sesi bursa
+ * sebelumnya), bukan cuma beberapa menit seperti sebelum diperpanjang. `ageNote()`
+ * di bawah membaca sisa TTL lewat getCacheTtlRemaining dan menambahkan penanda umur data
+ * eksplisit ke jawaban LensAI - supaya tetap jujur bilang "data sesi sebelumnya", bukan
+ * diam-diam menyajikan data lama seolah live SEKARANG.
  */
+async function ageNote(cacheKey: string, cronTtlSec: number): Promise<string> {
+  const remaining = await getCacheTtlRemaining(cacheKey);
+  if (remaining === null) return '';
+  const ageSec = Math.max(0, cronTtlSec - remaining);
+  const ageMin = Math.round(ageSec / 60);
+  if (ageMin < 20) return `- Umur data: ${ageMin} menit lalu (dari pemindaian cron terakhir).`;
+  const ageHours = Math.round(ageMin / 60);
+  return ageHours < 1
+    ? `- Umur data: ${ageMin} menit lalu - KEMUNGKINAN dari sesi bursa sebelumnya, bukan kondisi saat ini. Sebutkan ini kalau pengguna menanyakan kondisi "sekarang".`
+    : `- Umur data: sekitar ${ageHours} jam lalu - INI DATA SESI SEBELUMNYA (bursa mungkin sedang tutup), bukan kondisi saat ini. WAJIB disebut sebagai data sesi terakhir, jangan disajikan seolah live.`;
+}
 
 const TOP_N = 5;
 
@@ -66,6 +89,9 @@ export async function marketMoversBlock(): Promise<string> {
     '- BATAS: daftar ini peringkat dari universe yang dipantau SahamLens, bukan seluruh emiten IDX.',
     '  Jangan menyebutnya "seluruh saham IDX", dan jangan menambah emiten yang tidak ada di daftar.',
   ];
+
+  const age = await ageNote(COMPUTED_CACHE_KEY.MARKET_SUMMARY, CACHE_TTL_SEC.MARKET_SUMMARY_CRON);
+  if (age) lines.push(age);
 
   return lines.join('\n');
 }
@@ -126,6 +152,9 @@ export async function sectorAndBreadthBlock(): Promise<string> {
     lines.push(unavailableLine('Peta sektor'));
   }
 
+  const age = await ageNote(COMPUTED_CACHE_KEY.MARKET_PULSE, CACHE_TTL_SEC.MARKET_PULSE_CRON);
+  if (age) lines.push(age);
+
   return lines.filter(Boolean).join('\n');
 }
 
@@ -163,6 +192,9 @@ export async function macroBlock(): Promise<string> {
     lines.push(`- Indikator yang TIDAK terbaca: ${macro.missing.join(', ')} - jangan mengisinya dari ingatan.`);
   }
   lines.push('- BATAS: angka makro adalah salinan dari sumber publik pada waktu pengambilan, bukan rilis real-time.');
+
+  const age = await ageNote(COMPUTED_CACHE_KEY.MACRO_DASHBOARD, CACHE_TTL_SEC.MACRO_DASHBOARD);
+  if (age) lines.push(age);
 
   return lines.join('\n');
 }
