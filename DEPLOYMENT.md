@@ -478,6 +478,10 @@ agen ini). `config/scheduled-jobs.json`: `scheduleStatus` diturunkan jadi
 `*/15 9-15 * * 1-5` jadi `*/5 9-15 * * 1-5` (timezone tetap Asia/Jakarta). Setelah
 dikonfirmasi, `scheduleStatus` diubah kembali jadi `"known"`.
 
+**SUDAH DIKONFIRMASI 2026-08-14** - pengguna sudah mengubah cron expression di dashboard
+QStash. `scheduleStatus` diupdate ke `"known"`, `npm run audit:cron` sekarang 0 jadwal
+pending (16/16 job terverifikasi).
+
 ### 2026-08-14 - CATATAN PENTING: QStash sudah penuh, maksimal 10 job
 
 Ditemukan saat mendaftarkan `/api/cron/news` (entri di bawah): **plan QStash yang
