@@ -64,6 +64,66 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - BUG FIX BESAR: 3 cron (market-pulse/market-summary/recommendation-scan) menulis TTL yang salah, cache kosong sebagian besar waktu
+
+Laporan pengguna: LensAI (chat) menjawab "data market-pulse belum tersedia karena
+pemindai sesi ini masih kosong" dan "cache peta sektor sedang kosong" - padahal cron
+`market-pulse` sudah terjadwal & terverifikasi jalan tiap 5 menit (`config/
+scheduled-jobs.json` sudah `"known"`). Diaudit, dan ternyata BUKAN masalah jadwal cron -
+melainkan TTL yang salah dipakai saat cron MENULIS cache-nya.
+
+**Akar masalah**: `shared/cache/ttl-policy.ts` punya getter `MARKET`/`MARKET_SUMMARY`/
+`RECOMMENDATION` yang memanggil `getMarketAwareTtlSec()` - mengembalikan **60 DETIK**
+saat bursa buka. Konstanta ini DIMAKSUDKAN untuk halaman yang punya fallback live-scan
+(`/api/market-pulse`, `/api/market-summary`, `/api/recommendations`) supaya kalau cache
+benar-benar kosong, request berikutnya cepat mencoba lagi. Tapi TIGA cron writer
+(`app/api/cron/market-pulse`, `market-summary`, `recommendation-scan`) SALAH memakai
+konstanta yang SAMA untuk MENULIS cache-nya sendiri - padahal cron-nya cuma jalan tiap
+5 menit (market-pulse/market-summary) atau 15 menit (recommendation-scan). Akibatnya:
+
+- `market-pulse`: cache basi **4 dari tiap 5 menit** setelah ditulis cron.
+- `market-summary`: sama, **4 dari tiap 5 menit**.
+- `recommendation-scan`: **14 dari tiap 15 menit** - rasio terburuk.
+
+Komentar lama di kode bahkan SUDAH MENGKLAIM nilai-nilai ini "6 menit"/"15 menit" (niat
+perbaikan 2026-08-05 yang terdokumentasi), tapi klaim itu tidak lagi sinkron dengan
+getter yang sebenarnya dipakai - regresi diam-diam, kemungkinan besar saat getter
+di-refactor ke `getMarketAwareTtlSec()` bersama untuk keperluan halaman pembaca, tanpa
+sadar ikut mengubah nilai yang dipakai penulis cron.
+
+`/api/market-pulse`/`/api/market-summary`/`/api/recommendations` sendiri TIDAK terlihat
+rusak karena semuanya punya fallback live-scan saat cache-miss - tapi itu berarti
+gap-nya justru DIAM-DIAM memicu scan live berulang-ulang (250 saham utk market-summary,
+~50 utk market-pulse, per-simbol utk recommendations) jauh lebih sering dari yang
+diniatkan cron, salah satu kemungkinan penyebab keluhan "lambat" yang berulang session
+ini. `app/api/chat/blocks/market-blocks.ts` (`sectorAndBreadthBlock`,
+`marketMoversBlock` - dipakai LensAI) SENGAJA TIDAK punya fallback live (supaya
+pertanyaan chat tidak memicu scan pasar penuh) - jadi LensAI-lah yang paling sering
+"kena" jendela kosong itu dan melaporkannya jujur ke pengguna sebagai "cache kosong",
+walau cron-nya sendiri berjalan normal sesuai jadwal.
+
+**Perbaikan**: tiga konstanta TTL BARU khusus penulis cron, terpisah dari TTL pembaca
+live-fallback yang TETAP pendek (pola sama dengan `MARKET_NEWS`/`MACRO_DASHBOARD` yang
+sudah lebih dulu benar):
+
+| Konstanta baru | Nilai | Dipakai oleh |
+|---|---|---|
+| `MARKET_PULSE_CRON` | 6 menit | `app/api/cron/market-pulse` |
+| `MARKET_SUMMARY_CRON` | 6 menit | `app/api/cron/market-summary` |
+| `RECOMMENDATION_CRON` | 18 menit | `app/api/cron/recommendation-scan` |
+
+Sekaligus diperbaiki `describeCacheAge()` (label freshness "FRESH"/"CACHED"/"STALE" yang
+ditampilkan ke pengguna) di `app/api/market-summary/route.ts` dan `app/api/
+recommendations/route.ts` - keduanya SEBELUMNYA membandingkan sisa TTL entri cache
+(yang sekarang ditulis dengan TTL panjang oleh cron) terhadap acuan TTL pendek yang
+salah, yang akan membuat label freshness SELALU "FRESH" secara keliru setelah TTL cron
+diperpanjang di atas (kalau tidak ikut diperbaiki).
+
+Tidak ada perubahan pada `/api/market-pulse`, TTL live-fallback (`MARKET`/
+`MARKET_SUMMARY`/`RECOMMENDATION` yang lama tetap 60 detik untuk kegunaan aslinya), atau
+jadwal cron itu sendiri (masih 5/5/15 menit seperti sebelumnya) - murni memperbaiki
+angka TTL penulisan cache.
+
 ### 2026-08-14 - Backtest Saham Tunggal: revisi susulan (kecepatan, tombol Start/Stop, reuse TradingViewChart)
 
 Tiga laporan/permintaan susulan setelah "Backtest Saham Tunggal" pertama kali dibangun
