@@ -7,6 +7,15 @@ import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialSta
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { runLensScoreBucketBacktest } from '@/modules/recommendation/service/lens-score-bucket-backtest.service';
 import { logger } from '@/shared/logger/logger';
+import { getOrCompute } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+
+// Kunci per scoreVersion (default 'default' kalau parameter tidak dikirim) - satu
+// key literal per varian, bukan lewat COMPUTED_CACHE_KEY karena endpoint ini
+// satu-satunya pembaca (lihat aturan di shared/cache/computed-keys.ts).
+function cacheKeyFor(scoreVersion: string | null): string {
+  return `sahamlens:cache:computed:lens-score-bucket-backtest:${scoreVersion ?? 'default'}`;
+}
 
 export async function GET(request: Request) {
   try {
@@ -23,7 +32,16 @@ export async function GET(request: Request) {
     }
 
     const scoreVersion = new URL(request.url).searchParams.get('scoreVersion');
-    const result = await runLensScoreBucketBacktest(undefined, { scoreVersion });
+    // BUG FIX (2026-08-14, laporan pengguna "LensRadar lambat"): sebelumnya endpoint
+    // ini query SELURUH tabel lens_radar_history dan hitung ulang t-test/kalibrasi
+    // LIVE di setiap request - tanpa cache sama sekali. getOrCompute (single-flight)
+    // dipakai supaya cache-miss bersamaan (banyak pengunjung buka LensRadar sekaligus)
+    // tidak memicu banyak query+komputasi paralel ke Postgres.
+    const result = await getOrCompute(
+      cacheKeyFor(scoreVersion),
+      CACHE_TTL_SEC.LENS_BUCKET_BACKTEST,
+      () => runLensScoreBucketBacktest(undefined, { scoreVersion }),
+    );
     const response = NextResponse.json(result);
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
     return response;

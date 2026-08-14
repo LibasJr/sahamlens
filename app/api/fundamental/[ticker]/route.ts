@@ -6,6 +6,8 @@ guard();
 import { NextResponse } from 'next/server';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
+import { getOrCompute } from '@/shared/cache/redis-cache';
+import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 
 import {
   analyzePe,
@@ -168,12 +170,36 @@ export async function GET(
         },
       });
     }
+    // BUG FIX (2026-08-14, laporan pengguna "Fundamental/Moat lambat"): endpoint ini
+    // SEBELUMNYA tanpa cache sama sekali - beberapa panggilan Yahoo (quoteSummary,
+    // intrinsic value, normalized earnings) DITAMBAH satu panggilan Google Translate,
+    // semuanya live di setiap request. getOrCompute (single-flight, TTL sama dengan
+    // data teknikal) dipakai supaya buka-tutup tab/timeframe di halaman yang sama
+    // tidak membayar ulang seluruh rangkaian ini. Mode PIT (`as_of=`) di atas TIDAK
+    // ikut di-cache di sini - satu baca Postgres langsung, sudah murah.
+    const result = await getOrCompute(
+      `sahamlens:cache:computed:fundamental:${ticker}`,
+      CACHE_TTL_SEC.TECHNICAL,
+      () => computeCurrentFundamental(ticker),
+    );
+    if ('notFound' in result) {
+      return NextResponse.json({ error: 'Failed to fetch Fundamental data' }, { status: 404 });
+    }
+    return NextResponse.json(result);
+
+  } catch (error: any) {
+    console.error('Fundamental API error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+async function computeCurrentFundamental(ticker: string): Promise<Record<string, unknown> | { notFound: true }> {
     // Current fundamental memakai service bersama dengan LensAI supaya koreksi currency
     // mismatch dan sumber angka tidak dapat drift antar endpoint.
     const quoteSummary = await fetchCurrentFundamentalSource(ticker);
 
     if (!quoteSummary) {
-      return NextResponse.json({ error: 'Failed to fetch Fundamental data' }, { status: 404 });
+      return { notFound: true };
     }
 
     const currentPrice = isFinitePositive(quoteSummary.price?.regularMarketPrice)
@@ -285,7 +311,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
+    return {
       ticker,
       moatDurability,
       annualEarnings,
@@ -352,10 +378,5 @@ export async function GET(
         // dihapus sejak audit sebelumnya; sekarang null, bukan 0.
         nim: quoteSummary.financialData?.netInterestMargin ?? null
       }
-    });
-
-  } catch (error: any) {
-    console.error('Fundamental API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    };
 }

@@ -64,6 +64,50 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Cache hilang/tidak pernah dihangatkan: LensRadar, Fundamental/Moat, Macro
+
+Laporan pengguna: menu LensRadar, LensScanner, Macro, dan Transparansi "agak lama" saat
+dibuka. Audit setiap route di baliknya menemukan DUA masalah berbeda, bukan satu:
+
+**1. `/api/lens-score-bucket-backtest` (tab Recommendations di LensRadar) - TANPA CACHE
+SAMA SEKALI.** Query SELURUH tabel `lens_radar_history` (semua ticker x semua tanggal,
+tanpa filter/limit) dari Postgres dan hitung ulang t-test/kalibrasi bucket LIVE di setiap
+request - beda dari `/api/transparency` yang menghitung hal serupa dari tabel yang sama
+tapi SUDAH di-cache. Sekarang dibungkus `getOrCompute` (single-flight, TTL 30 menit -
+`CACHE_TTL_SEC.LENS_BUCKET_BACKTEST`, kunci per `scoreVersion`).
+
+**2. `/api/fundamental/[ticker]` (Fundamental & Moat) - TANPA CACHE SAMA SEKALI.** Tiap
+buka halaman menembak quoteSummary Yahoo, `calculateIntrinsicValue()`, 
+`fetchNormalizedEarnings()`, DAN satu panggilan Google Translate untuk deskripsi
+perusahaan - semuanya live, tanpa cache. Sekarang dibungkus `getOrCompute` per ticker
+(TTL `CACHE_TTL_SEC.TECHNICAL` - 1 menit saat bursa buka, 30 menit saat tutup, sama
+dengan pola `/api/stock/[ticker]`). Mode PIT (`?as_of=`) sengaja TIDAK ikut cache ini -
+satu baca Postgres langsung, sudah murah. Hasil "ticker tidak ditemukan" ikut di-cache
+supaya ticker salah/delisted tidak menembak Yahoo berulang.
+
+**3. Macro - cache-nya ADA (`getOrCompute`, TTL 30 menit) tapi TIDAK PERNAH
+dihangatkan.** `/api/cron/macro` (jadwal `0 9-16 * * 1-5`, sudah terdaftar) ternyata cuma
+me-refresh indikator USD_IDR ke Postgres - tidak pernah menyentuh
+`COMPUTED_CACHE_KEY.MACRO_DASHBOARD`, kunci cache yang justru dibaca `/api/macro`. Jadi
+dashboard makro publik selalu bergantung pengunjung pertama tiap 30 menit membayar
+komputasi live. Job cron yang sudah berjalan itu sekarang JUGA pre-warm cache dashboard -
+**tidak perlu registrasi jadwal baru** di QStash/systemd, cuma menambah kerjaan di job
+yang sudah ada. Gagal pre-warm tidak menggagalkan job utama (refresh USD_IDR).
+
+**LensScanner (`/api/screener`) dan Transparansi (`/api/transparency`) sudah benar** -
+keduanya sudah pakai `getOrCompute` (TTL 30 menit) sejak awal, cuma memang tidak ada cron
+yang pre-warm (tidak seperti Macro, tidak ada job terjadwal existing yang bisa
+"ditumpangi" tanpa registrasi baru). Ini BUKAN bug, cache-nya jalan - hanya berarti
+pengunjung pertama tiap 30 menit yang menanggung komputasi live, sama seperti pola lama
+Macro sebelum diperbaiki. Kalau perlu dihilangkan juga, butuh cron/systemd timer baru
+yang didaftarkan manual di VPS (lihat "Aturan wajib saat ada perubahan" di atas) -
+di luar scope perbaikan kode murni.
+
+Tes baru: `app/api/lens-score-bucket-backtest/__tests__/route.test.ts`,
+`app/api/fundamental/[ticker]/__tests__/route.test.ts`,
+`app/api/cron/macro/__tests__/route.test.ts` - mengunci bahwa ketiganya membaca lewat
+`getOrCompute`/`cacheSet`, bukan memanggil komputasi live langsung.
+
 ### 2026-08-13 - TP/CL Validation Lab jadi menu sendiri di admin panel
 
 Rute `/admin/tpcl-validation` sudah terpisah sejak awal, tapi satu-satunya tautan menujunya

@@ -147,4 +147,14 @@ export const CACHE_TTL_SEC = {
   // + menghitung equity curve Top 5 vs IHSG dari histori point-in-time. Cukup di-cache
   // 30 menit karena angka validasi berubah harian/cron, bukan per tick intraday.
   LENS_TRANSPARENCY: 30 * 60,
+
+  // Bucket backtest LensScore (app/api/lens-score-bucket-backtest, dipakai tab
+  // Recommendations di LensRadar) - BARU (2026-08-14, laporan pengguna "LensRadar
+  // lambat"). SEBELUMNYA endpoint ini query SELURUH tabel lens_radar_history (semua
+  // ticker x semua tanggal, tanpa filter) dan hitung ulang t-test/kalibrasi LIVE di
+  // setiap buka halaman - tanpa cache sama sekali, beda dari /api/transparency yang
+  // menghitung hal serupa dari tabel yang sama tapi SUDAH di-cache. 30 menit disamakan
+  // dengan LENS_TRANSPARENCY karena sumber datanya sama persis (lens_radar_history,
+  // diisi cron harian) - angkanya tidak berubah dalam hitungan menit.
+  LENS_BUCKET_BACKTEST: 30 * 60,
 } as const;
