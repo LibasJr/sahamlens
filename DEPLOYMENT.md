@@ -62,6 +62,50 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
+### 2026-08-14 - Export kartu "paper/majalah" untuk LensMoat & Earnings Monitor
+
+Permintaan pengguna: setelah melihat contoh infografis pemerintah (kartu statistik
+bergaya majalah/poster), minta halaman Moat dan Earnings punya tombol export gambar
+seperti yang sudah ada di LensFundamental (`FundamentalExportCard`) dan LensTechnical
+(`TechnicalExportCard`) - "bisa gak aplikasi saya export sperti ini dalam bentuk
+papaer atau majalah... saya maukan kode emiten di moat dan earning".
+
+Dua kartu export baru mengikuti pola yang sudah ada persis (lihat `components/export/`):
+
+- `MoatExportCard.tsx` - banner brand, ticker + sektor, kotak ringkasan skor moat
+  ("X dari Y indikator mendukung"), grid 4 pilar, kotak durability opsional, dan
+  **disclaimer eksplisit** bahwa faktor moat kualitatif (market share, switching cost,
+  brand, network effect, lisensi) TIDAK disertakan karena datanya tidak tersedia -
+  konsisten dengan `QUALITATIVE_GAPS` yang sudah ada di `app/moat/page.tsx`, supaya
+  kartu export tidak menyiratkan analisis lebih lengkap dari yang sebenarnya dihitung.
+- `EarningsExportCard.tsx` - banner brand "Earnings Monitor", chip hasil kuartal
+  terakhir (BEAT/MISS/INLINE), kotak jadwal earnings berikutnya, grid konsensus
+  estimasi analis (EPS/Revenue rata-rata + pertumbuhan), grid hasil kuartal terakhir
+  (aktual vs estimasi + surprise%). Semua angka berasal dari data yang sudah difetch
+  halaman - tidak ada proyeksi/target harga karangan.
+
+Wiring di `app/moat/page.tsx` dan `app/earnings/page.tsx` sama persis dengan pola
+`app/fundamental/page.tsx`: tombol `ExportImageButton` diletakkan di `headerExtra`
+`TickerAnalysisShell`, kartu dirender offscreen (`position:fixed, top:0, left:0,
+opacity:0, pointerEvents:none, zIndex:-1` pada DIV PEMBUNGKUS, bukan pada elemen yang
+di-ref langsung - kalau opacity:0 dipasang di elemen yang di-ref, `html-to-image`
+menangkap kotak 0x0, sudah pernah jadi bug sebelumnya). `lens-export-dark` mengunci
+palet kartu ke gelap terlepas dari tema situs pengguna.
+
+Sempat ada bug Tailwind JIT saat menulis `MoatExportCard.tsx`: draf awal merangkai
+class lewat template string (`` `${statusStyle.chip}/10 ...` ``) - JIT scanner Tailwind
+cuma menangkap literal class string statis di source, jadi class hasil concat runtime
+tidak pernah ter-generate ke CSS akhir dan diam-diam tidak tampil (aturan yang sama
+sudah didokumentasikan di `components/export/sector-theme.tsx`). Diperbaiki dengan
+`STATUS_STYLE`/`RESULT_STYLE` berisi string class lengkap per status, bukan hasil
+concat.
+
+`shared/format/export-filename.ts` - union type `prefix` diperluas dari
+`'Fundamental' | 'Technical'` jadi termasuk `'Moat' | 'Earnings'`, plus 2 test baru
+di `shared/format/__tests__/export-filename.test.ts`.
+
+Typecheck, lint, 1244 test (2 baru) lolos, build production lolos.
+
 ### 2026-08-14 - Watchdog auto-restart `cloudflared` (insiden: situs tidak bisa diakses ~18 menit)
 
 Insiden: sahamlens.id tidak bisa diakses sama sekali selama ~19:27-19:45 WIB, padahal

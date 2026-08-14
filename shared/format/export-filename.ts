@@ -1,7 +1,7 @@
-// Nama file konsisten untuk semua tombol export gambar (fundamental & teknikal) -
-// format: SahamLens_{Prefix}_{TICKER-tanpa-.JK}_{YYYY-MM-DD}.png
+// Nama file konsisten untuk semua tombol export gambar (fundamental, teknikal, moat,
+// earnings) - format: SahamLens_{Prefix}_{TICKER-tanpa-.JK}_{YYYY-MM-DD}.png
 export function buildExportFileName(
-  prefix: 'Fundamental' | 'Technical',
+  prefix: 'Fundamental' | 'Technical' | 'Moat' | 'Earnings',
   ticker: string,
   date: Date = new Date()
 ): string {

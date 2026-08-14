@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -20,6 +20,9 @@ import type {
   EarningsResultStatus,
   PublicEarningsData,
 } from '@/modules/fundamental/service/public-earnings-data.service';
+import EarningsExportCard from '@/components/export/EarningsExportCard';
+import ExportImageButton from '@/components/export/ExportImageButton';
+import { buildExportFileName } from '@/shared/format/export-filename';
 
 function normalizeTicker(value: string) {
   return value.trim().toUpperCase().replace(/\.JK$/, '');
@@ -104,6 +107,7 @@ export default function EarningsPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
+  const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -170,6 +174,12 @@ export default function EarningsPage() {
               CAKUPAN {data.coverage.available}/{data.coverage.expected}
             </Badge>
           )}
+          <ExportImageButton
+            targetRef={exportRef}
+            fileName={buildExportFileName('Earnings', selectedTicker)}
+            label='Export Kartu Earnings'
+            disabled={!data || loading}
+          />
         </div>
       }
     >
@@ -496,6 +506,24 @@ export default function EarningsPage() {
             </a>
           </Card>
         </>
+      )}
+
+      {/* Kartu export offscreen - pola sama persis dengan app/moat/page.tsx dan
+          app/fundamental/page.tsx (lihat catatan panjang di situ soal wrapper
+          penyembunyi dipisah dari elemen yang di-ref). */}
+      {data && (
+        <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
+          <div ref={exportRef}>
+            <EarningsExportCard
+              ticker={selectedTicker}
+              stock={{ name: data.stock.name, price: data.stock.price, sector: data.stock.sector }}
+              upcoming={data.upcoming}
+              expectation={{ eps: data.expectation.eps, revenue: data.expectation.revenue }}
+              latestQuarter={latestQuarter}
+              exportedAt={new Date()}
+            />
+          </div>
+        </div>
       )}
     </TickerAnalysisShell>
   );
