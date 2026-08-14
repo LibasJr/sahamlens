@@ -12,7 +12,8 @@ import AnalysisGlossary from '@/components/AnalysisGlossary';
 import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
+import { classifyCapTier, BLUE_CHIP_MIN_MARKET_CAP_IDR, BLUE_CHIP_MIN_ADV20_IDR } from '@/lib/utils/cap-tier';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
@@ -1111,6 +1112,27 @@ function DashboardContent() {
                   <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
                   <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
                 </div>
+                {/* BUG FIX (2026-08-14, brainstorm lanjutan review eksternal - false
+                    signal di saham kecil/tidak likuid): badge INFORMASIONAL, tidak
+                    mengubah cara skor/sinyal dihitung - lihat classifyCapTier(). Tidak
+                    tampil kalau market cap ATAU likuiditas tidak diketahui (mis. IHSG,
+                    yang bukan saham individual) - diam lebih baik daripada menebak. */}
+                {(() => {
+                  const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
+                  if (!tier) return null;
+                  return (
+                    <div className="mt-1">
+                      <Badge
+                        variant={tier === 'BLUE_CHIP' ? 'info' : 'warning'}
+                        title={tier === 'BLUE_CHIP'
+                          ? `Market cap & likuiditas di atas ambang blue-chip (>= Rp ${(BLUE_CHIP_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(BLUE_CHIP_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
+                          : 'Market cap kecil dan/atau likuiditas tipis - sinyal teknikal lebih rentan pergerakan tidak wajar (mis. "saham gorengan") dibanding saham blue-chip'}
+                      >
+                        {tier === 'BLUE_CHIP' ? 'Blue-chip' : 'Small-cap & Volatile'}
+                      </Badge>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center gap-3 mt-1">
                   {/* `|| '-'` sebelumnya merender "Rp -" saat harga tidak ada: sebuah
                       tanda hubung yang tidak memberi tahu apakah datanya hilang, nol,

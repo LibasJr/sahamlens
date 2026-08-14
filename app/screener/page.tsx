@@ -7,10 +7,11 @@ import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import { Sliders, Award, ArrowUpDown, Download, Bookmark, X } from 'lucide-react';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { fmtTriliun, fmtMiliar } from '@/shared/format/fundamental-format';
 
 type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
   | 'div_yield' | 'bandarmology' | 'moat' | 'signal' | 'pattern_tag' | 'sentiment'
-  | 'week52_high' | 'entry' | 'atr_pct';
+  | 'week52_high' | 'entry' | 'atr_pct' | 'market_cap' | 'adv20_idr';
 
 interface SortableColumn {
   key: ColumnKey;
@@ -58,6 +59,10 @@ const SORTABLE_COLUMNS: SortableColumn[] = [
   { key: 'week52_high', label: '52W High/Low', align: 'right', getValue: (i) => i.week52_high },
   { key: 'entry', label: 'Harga', align: 'right', getValue: (i) => i.entry },
   { key: 'atr_pct', label: 'Volatilitas Harian', align: 'right', getValue: (i) => i.atr_pct },
+  // BARU (2026-08-14) - market_cap/adv20_idr dari backend SUDAH mentah (Rupiah, bukan
+  // string terformat), beda dari per/roe/der di atas - tidak butuh parseFormattedNumber.
+  { key: 'market_cap', label: 'Market Cap', align: 'right', getValue: (i) => i.market_cap },
+  { key: 'adv20_idr', label: 'Likuiditas (ADV20)', align: 'right', getValue: (i) => i.adv20_idr },
 ];
 
 function compareValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
@@ -80,6 +85,10 @@ interface ScreenerTemplate {
   riskProfile: 'Konservatif' | 'Moderat' | 'Agresif';
   sector: string;
   maxPrice: string;
+  // BARU (2026-08-14) - disimpan dalam unit yang sama dengan input-nya (Triliun/
+  // Miliar), BUKAN Rupiah mentah yang dikirim ke API - konversi terjadi di runScreener.
+  minMarketCapTriliun: string;
+  minLiquidityMiliar: string;
 }
 function loadTemplates(): ScreenerTemplate[] {
   if (typeof window === 'undefined') return [];
@@ -97,6 +106,8 @@ export default function ScreenerPage() {
   const [riskProfile, setRiskProfile] = useState<'Konservatif' | 'Moderat' | 'Agresif'>('Moderat');
   const [sectorFilter, setSectorFilter] = useState('');
   const [maxPriceInput, setMaxPriceInput] = useState('');
+  const [minMarketCapInput, setMinMarketCapInput] = useState(''); // unit: Triliun
+  const [minLiquidityInput, setMinLiquidityInput] = useState(''); // unit: Miliar
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
@@ -123,7 +134,9 @@ export default function ScreenerPage() {
     }
   };
 
-  const runScreener = useCallback(async (profile: string, sector: string, maxPrice: string) => {
+  const runScreener = useCallback(async (
+    profile: string, sector: string, maxPrice: string, minMarketCapTriliun: string, minLiquidityMiliar: string,
+  ) => {
     setLoading(true);
     setLoadError(false);
     try {
@@ -133,6 +146,17 @@ export default function ScreenerPage() {
       // nilai tidak valid, tapi tidak perlu mengirim parameter kosong/rusak sama sekali.
       const parsedPrice = Number(maxPrice);
       if (maxPrice && Number.isFinite(parsedPrice) && parsedPrice > 0) params.set('maxPrice', String(parsedPrice));
+      // Input pengguna dalam Triliun/Miliar (angka yang wajar diketik), dikonversi ke
+      // Rupiah mentah di sini - API selalu menerima/mengembalikan Rupiah penuh, tidak
+      // pernah unit yang disingkat, supaya tidak ada dua konvensi unit berbeda.
+      const parsedMarketCap = Number(minMarketCapTriliun);
+      if (minMarketCapTriliun && Number.isFinite(parsedMarketCap) && parsedMarketCap > 0) {
+        params.set('minMarketCap', String(parsedMarketCap * 1e12));
+      }
+      const parsedLiquidity = Number(minLiquidityMiliar);
+      if (minLiquidityMiliar && Number.isFinite(parsedLiquidity) && parsedLiquidity > 0) {
+        params.set('minLiquidity', String(parsedLiquidity * 1e9));
+      }
 
       const res = await fetch('/api/screener?' + params.toString());
       const json = await res.json();
@@ -157,10 +181,10 @@ export default function ScreenerPage() {
   // route.ts - debounce ini murni mengurangi request percuma, bukan pengaman utama).
   useEffect(() => {
     const t = setTimeout(() => {
-      runScreener(riskProfile, sectorFilter, maxPriceInput);
+      runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput);
     }, 500);
     return () => clearTimeout(t);
-  }, [riskProfile, sectorFilter, maxPriceInput, runScreener]);
+  }, [riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput, runScreener]);
 
   const top10 = data?.analysis?.top_10_stocks || [];
 
@@ -201,7 +225,10 @@ export default function ScreenerPage() {
   const saveCurrentAsTemplate = useCallback(() => {
     const name = templateNameDraft.trim();
     if (!name) return;
-    const next: ScreenerTemplate = { name, riskProfile, sector: sectorFilter, maxPrice: maxPriceInput };
+    const next: ScreenerTemplate = {
+      name, riskProfile, sector: sectorFilter, maxPrice: maxPriceInput,
+      minMarketCapTriliun: minMarketCapInput, minLiquidityMiliar: minLiquidityInput,
+    };
     setTemplates((prev) => {
       // Nama yang sama menimpa template lama - "simpan ulang" alih-alih menumpuk
       // duplikat tak berujung tiap kali pengguna klik "Simpan" dengan nama yang sama.
@@ -211,12 +238,17 @@ export default function ScreenerPage() {
     });
     setTemplateNameDraft('');
     setShowSaveTemplate(false);
-  }, [templateNameDraft, riskProfile, sectorFilter, maxPriceInput]);
+  }, [templateNameDraft, riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput]);
 
   const applyTemplate = useCallback((t: ScreenerTemplate) => {
     setRiskProfile(t.riskProfile);
     setSectorFilter(t.sector);
     setMaxPriceInput(t.maxPrice);
+    // ?? '' - template yang disimpan SEBELUM filter Market Cap/Likuiditas ada
+    // (localStorage lama) tidak punya field ini sama sekali; undefined harus jadi
+    // string kosong, bukan merender "undefined" literal di input terkontrol.
+    setMinMarketCapInput(t.minMarketCapTriliun ?? '');
+    setMinLiquidityInput(t.minLiquidityMiliar ?? '');
   }, []);
 
   const deleteTemplate = useCallback((name: string) => {
@@ -285,11 +317,9 @@ export default function ScreenerPage() {
 
         {/* BARU (2026-08-14, masukan review eksternal - "tambahkan filter Market Cap,
             Sektor, Harga < 5000, Likuiditas" + "simpan template screener favorit").
-            Market Cap & Likuiditas BELUM ada di sini - universe screener ini (~50
-            saham LQ45/blue-chip tetap) belum menangkap field marketCap/nilai transaksi
-            harian dari Yahoo, jadi keduanya sengaja belum ditambahkan daripada
-            menambahkan filter yang datanya tidak akurat. Sektor & Harga sudah tersedia
-            dari data yang sama yang sudah dipakai screener ini. */}
+            Market Cap/Likuiditas sekarang pakai field yang sudah ditangkap dari Yahoo
+            `price` module (marketCap) dan adv20() (fungsi SAMA dengan gerbang
+            LOW_LIQUIDITY) - lihat screener.service.ts. */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-4 shadow-1 space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -319,10 +349,38 @@ export default function ScreenerPage() {
                 className="h-9 w-32 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text placeholder:text-tv-muted/60 focus:border-tv-blue focus:outline-none"
               />
             </div>
-            {(sectorFilter || maxPriceInput) && (
+            <div>
+              <label htmlFor="screener-min-mcap" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Market Cap Min (Rp T)</label>
+              <input
+                id="screener-min-mcap"
+                type="number"
+                min={0}
+                step="any"
+                inputMode="decimal"
+                placeholder="mis. 10"
+                value={minMarketCapInput}
+                onChange={(e) => setMinMarketCapInput(e.target.value)}
+                className="h-9 w-28 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text placeholder:text-tv-muted/60 focus:border-tv-blue focus:outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="screener-min-liquidity" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Likuiditas Min (Rp M/hari)</label>
+              <input
+                id="screener-min-liquidity"
+                type="number"
+                min={0}
+                step="any"
+                inputMode="decimal"
+                placeholder="mis. 1"
+                value={minLiquidityInput}
+                onChange={(e) => setMinLiquidityInput(e.target.value)}
+                className="h-9 w-28 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text placeholder:text-tv-muted/60 focus:border-tv-blue focus:outline-none"
+              />
+            </div>
+            {(sectorFilter || maxPriceInput || minMarketCapInput || minLiquidityInput) && (
               <button
                 type="button"
-                onClick={() => { setSectorFilter(''); setMaxPriceInput(''); }}
+                onClick={() => { setSectorFilter(''); setMaxPriceInput(''); setMinMarketCapInput(''); setMinLiquidityInput(''); }}
                 className="h-9 rounded-lg border border-tv-border px-3 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
               >
                 Reset filter
@@ -439,7 +497,7 @@ export default function ScreenerPage() {
               illustration="empty"
               title="Hasil pemindaian gagal dimuat"
               description="Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria."
-              action={{ label: 'Coba lagi', onClick: () => runScreener(riskProfile, sectorFilter, maxPriceInput) }}
+              action={{ label: 'Coba lagi', onClick: () => runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput) }}
             />
           )}
 
@@ -614,6 +672,8 @@ export default function ScreenerPage() {
                     <td className="p-3 text-right text-tv-text font-number">
                       {item.atr_pct != null ? `±${item.atr_pct.toFixed(1)}%/hari` : 'N/A'}
                     </td>
+                    <td className="p-3 text-right text-tv-text font-number">{fmtTriliun(item.market_cap)}</td>
+                    <td className="p-3 text-right text-tv-text font-number">{fmtMiliar(item.adv20_idr)}</td>
                   </tr>
                 ))}
               </tbody>

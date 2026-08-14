@@ -17,6 +17,14 @@ export const maxDuration = 60;
 
 const CACHE_KEY = COMPUTED_CACHE_KEY.SCREENER_UNIVERSE;
 
+/** Angka positif dari query param, atau `undefined` kalau kosong/rusak - fail-open,
+ * satu parameter opsional yang rusak tidak boleh menggagalkan seluruh pemindaian. */
+function parsePositiveParam(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -25,15 +33,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'profile harus Konservatif/Moderat/Agresif' }, { status: 400 });
     }
 
-    // BARU (2026-08-14, masukan review eksternal - filter Sektor & Harga di LensScanner).
-    // sector kosong/'Semua Sektor' = tidak difilter. maxPrice yang bukan angka positif
-    // diabaikan (fail-open, bukan 400 - jangan gagalkan seluruh pemindaian karena satu
-    // parameter opsional rusak).
+    // BARU (2026-08-14, masukan review eksternal - filter Sektor/Harga/Market Cap/
+    // Likuiditas di LensScanner). sector kosong/'Semua Sektor' = tidak difilter.
     const sectorParam = searchParams.get('sector');
     const sector = sectorParam && sectorParam.trim() ? sectorParam.trim() : undefined;
-    const maxPriceParam = searchParams.get('maxPrice');
-    const maxPriceParsed = maxPriceParam ? Number(maxPriceParam) : null;
-    const maxPrice = maxPriceParsed != null && Number.isFinite(maxPriceParsed) && maxPriceParsed > 0 ? maxPriceParsed : undefined;
+    const maxPrice = parsePositiveParam(searchParams.get('maxPrice'));
+    // minMarketCap & minLiquidity dikirim frontend dalam Rupiah PENUH (bukan
+    // miliar/triliun) - konsisten dengan market_cap/adv20_idr mentah di response.
+    const minMarketCap = parsePositiveParam(searchParams.get('minMarketCap'));
+    const minLiquidity = parsePositiveParam(searchParams.get('minLiquidity'));
 
     const ttlBefore = await getCacheTtlRemaining(CACHE_KEY);
     const budget = await consumeComputeBudget(
@@ -49,7 +57,7 @@ export async function GET(request: Request) {
     }
 
     const universe = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.SCREENER_UNIVERSE, fetchScreenerUniverse);
-    const top10 = rankScreener(universe, profile, { sector, maxPrice });
+    const top10 = rankScreener(universe, profile, { sector, maxPrice, minMarketCap, minLiquidity });
 
     // Daftar sektor untuk dropdown filter frontend - SELALU dari universe PENUH
     // (belum difilter), supaya pilihan yang tersedia tidak diam-diam menyusut begitu

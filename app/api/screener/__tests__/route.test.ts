@@ -37,23 +37,29 @@ describe('GET /api/screener', () => {
     vi.mocked(rankScreener).mockReturnValue([] as any);
   });
 
-  it('meneruskan sector & maxPrice dari query string ke rankScreener', async () => {
-    const res = await GET(makeRequest('?profile=Moderat&sector=Keuangan&maxPrice=5000'));
+  it('meneruskan sector, maxPrice, minMarketCap, minLiquidity dari query string ke rankScreener', async () => {
+    const res = await GET(makeRequest('?profile=Moderat&sector=Keuangan&maxPrice=5000&minMarketCap=100000000000000&minLiquidity=1000000000'));
 
     expect(res.status).toBe(200);
-    expect(rankScreener).toHaveBeenCalledWith(universe, 'Moderat', { sector: 'Keuangan', maxPrice: 5000 });
+    expect(rankScreener).toHaveBeenCalledWith(universe, 'Moderat', {
+      sector: 'Keuangan', maxPrice: 5000, minMarketCap: 100_000_000_000_000, minLiquidity: 1_000_000_000,
+    });
   });
 
-  it('tanpa query filter, sector & maxPrice diteruskan undefined', async () => {
+  it('tanpa query filter, semua filter diteruskan undefined', async () => {
     await GET(makeRequest('?profile=Moderat'));
 
-    expect(rankScreener).toHaveBeenCalledWith(universe, 'Moderat', { sector: undefined, maxPrice: undefined });
+    expect(rankScreener).toHaveBeenCalledWith(universe, 'Moderat', {
+      sector: undefined, maxPrice: undefined, minMarketCap: undefined, minLiquidity: undefined,
+    });
   });
 
-  it('maxPrice bukan angka positif diabaikan (diteruskan undefined)', async () => {
-    await GET(makeRequest('?profile=Moderat&maxPrice=-100'));
+  it('maxPrice/minMarketCap/minLiquidity bukan angka positif diabaikan (diteruskan undefined)', async () => {
+    await GET(makeRequest('?profile=Moderat&maxPrice=-100&minMarketCap=abc&minLiquidity=0'));
 
-    expect(rankScreener).toHaveBeenCalledWith(universe, 'Moderat', { sector: undefined, maxPrice: undefined });
+    expect(rankScreener).toHaveBeenCalledWith(universe, 'Moderat', {
+      sector: undefined, maxPrice: undefined, minMarketCap: undefined, minLiquidity: undefined,
+    });
   });
 
   it('availableSectors berasal dari universe PENUH, diurutkan alfabet', async () => {

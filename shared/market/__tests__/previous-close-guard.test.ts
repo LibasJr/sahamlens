@@ -49,7 +49,7 @@ const DIIZINKAN = new Set([
   'modules/technical/service/analyzers/momentum-analyzer.ts:16', // delta 1 hari untuk skor momentum
   'modules/technical/service/analyzers/volume-analyzer.ts:16',   // arah harga untuk klasifikasi volume
   'modules/recommendation/service/breakout.service.ts:178',      // currentPrice-nya juga closes[last]
-  'app/dashboard/page.tsx:53',                                   // candle terakhir vs sebelumnya
+  'app/dashboard/page.tsx:54',                                   // candle terakhir vs sebelumnya
   'lib/miniCouncil.ts:96',                                       // badge indikator, larik closes yang sama
   'components/CommandPalette.tsx:111',                           // pratinjau hover, larik closes yang sama
 ]);

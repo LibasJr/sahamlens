@@ -214,7 +214,12 @@ export async function GET(
     
     // Extract Fundamental Data
     let per = null, pbv = null, roe = null, der = null, currentRatio = null, revenueGrowth = null;
+    // BARU (2026-08-14, brainstorm lanjutan review eksternal - badge Blue-chip/
+    // Small-cap di LensConsensus) - marketCap dari Yahoo `price` module yang SUDAH
+    // di-fetch di sini untuk field lain, tidak ada panggilan tambahan.
+    let marketCap: number | null = null;
     if (quoteSummary) {
+      marketCap = isFinitePositive(quoteSummary.price?.marketCap) ? quoteSummary.price.marketCap : null;
       per = quoteSummary.summaryDetail?.trailingPE ?? quoteSummary.summaryDetail?.forwardPE ?? null;
       pbv = quoteSummary.defaultKeyStatistics?.priceToBook ?? null;
       // BUG FIX (audit integritas data 2026-08-03, temuan C-05): Yahoo mengembalikan
@@ -576,6 +581,10 @@ export async function GET(
     const resultPayload = {
       ticker,
       price: currentPrice,
+      // BARU (2026-08-14) - untuk badge Blue-chip/Small-cap di halaman Technical.
+      // Likuiditas (ADV20) TIDAK diulang di sini - sudah ada di eligibility.details.adv20Idr
+      // di bawah, satu sumber, bukan disalin dua kali dalam satu payload yang sama.
+      market_cap: marketCap,
       priceMeta: {
         raw: currentPrice,
         adjusted: currentAdjustedPrice,

@@ -1,4 +1,4 @@
-export { evaluateMinimalEligibility } from './service/eligibility.service';
+export { evaluateMinimalEligibility, adv20 } from './service/eligibility.service';
 export { toAdvisoryDecision, type AdvisoryAction, type AdvisoryDecision } from './service/advisory.service';
 export {
   getDecisionPresentation,
