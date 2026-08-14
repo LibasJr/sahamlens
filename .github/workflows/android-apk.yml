@@ -1,0 +1,52 @@
+name: Android APK
+
+# Build debug APK untuk client Android SahamLens (folder sahamlens-android/).
+# TERPISAH dari workflow ci.yml/deploy-vps.yml (Next.js web) - proyek Gradle
+# yang beda sepenuhnya, tidak boleh ikut campur ke pipeline deploy produksi.
+#
+# Kenapa lewat GitHub Actions, bukan build lokal: sandbox agent yang mengerjakan
+# perubahan Android tidak punya akses ke dl.google.com (server Android Gradle
+# Plugin/AndroidX diblokir kebijakan jaringan sandbox), jadi ./gradlew tidak
+# pernah bisa selesai di sana. Runner GitHub Actions punya akses internet penuh
+# dan Android SDK sudah terpasang di image ubuntu-latest, jadi build APK
+# sungguhan hanya bisa terjadi di sini.
+
+on:
+  push:
+    branches:
+      - claude/sahamlens-android-folder-check-lxr9qn
+    paths:
+      - 'sahamlens-android/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sahamlens-android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Grant execute permission untuk gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK sebagai artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sahamlens-debug-apk
+          path: sahamlens-android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: error

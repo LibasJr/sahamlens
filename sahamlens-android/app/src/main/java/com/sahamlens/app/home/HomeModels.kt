@@ -24,4 +24,7 @@ data class MarketIndex(val name: String, val changePct: Double)
 
 data class AiPick(val ticker: String, val consensus: String, val confidencePct: Int)
 
-data class WatchlistRow(val ticker: String, val price: Double, val changePct: Double)
+/** price/changePct null = quote simbol ini gagal diambil (timeout, delisted, dst.) - BUKAN
+ * harga Rp 0 sungguhan. Lihat aturan file ini: nullable = "belum termuat/gagal", jangan
+ * dikarang jadi 0.0 di pemanggil (bug historis, sudah diperbaiki di HomeViewModel). */
+data class WatchlistRow(val ticker: String, val price: Double?, val changePct: Double?)
