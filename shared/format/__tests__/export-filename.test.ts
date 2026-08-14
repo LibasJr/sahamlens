@@ -16,4 +16,16 @@ describe('buildExportFileName', () => {
     const date = new Date('2026-01-01T00:00:00Z');
     expect(buildExportFileName('Fundamental', 'gotO.jk'.toUpperCase().replace('.JK', '') + '.JK', date)).toBe('SahamLens_Fundamental_GOTO_2026-01-01.png');
   });
+
+  // BARU (2026-08-14, permintaan pengguna: export kartu Moat/Earnings "seperti
+  // paper/majalah") - dua prefix baru ditambahkan ke union type.
+  it('builds moat filename', () => {
+    const date = new Date('2026-08-14T10:00:00Z');
+    expect(buildExportFileName('Moat', 'BBCA.JK', date)).toBe('SahamLens_Moat_BBCA_2026-08-14.png');
+  });
+
+  it('builds earnings filename', () => {
+    const date = new Date('2026-08-14T10:00:00Z');
+    expect(buildExportFileName('Earnings', 'bbri', date)).toBe('SahamLens_Earnings_BBRI_2026-08-14.png');
+  });
 });

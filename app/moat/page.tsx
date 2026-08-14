@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Award,
@@ -19,6 +19,9 @@ import {
   type FundamentalAnalyzerSnapshot,
   type MoatProxyStatus,
 } from '@/modules/fundamental/service/moat-proxy.service';
+import MoatExportCard from '@/components/export/MoatExportCard';
+import ExportImageButton from '@/components/export/ExportImageButton';
+import { buildExportFileName } from '@/shared/format/export-filename';
 
 interface MoatPayload {
   ticker: string;
@@ -168,6 +171,7 @@ export default function MoatPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
+  const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -224,6 +228,12 @@ export default function MoatPage() {
         <div className='flex flex-wrap items-center gap-2'>
           <Badge variant='info' dot>{payload?.source?.provider || 'Sumber publik'}</Badge>
           {!loading && statusBadge(moat.status)}
+          <ExportImageButton
+            targetRef={exportRef}
+            fileName={buildExportFileName('Moat', selectedTicker)}
+            label='Export Kartu Moat'
+            disabled={!payload || loading}
+          />
         </div>
       }
     >
@@ -461,6 +471,25 @@ export default function MoatPage() {
             </Card>
           </div>
         </>
+      )}
+
+      {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
+          punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
+          halaman. Pola SAMA PERSIS dengan app/fundamental/page.tsx (lihat catatan panjang
+          di situ soal kenapa wrapper penyembunyi dipisah dari elemen yang di-ref). */}
+      {payload && (
+        <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
+          <div ref={exportRef}>
+            <MoatExportCard
+              ticker={selectedTicker}
+              stock={{ name: payload.stock?.name }}
+              profile={{ sector: payload.profile?.sector, industry: payload.profile?.industry }}
+              moat={moat}
+              durability={payload.moatDurability ? { status: payload.moatDurability.status, conclusion: payload.moatDurability.conclusion } : null}
+              exportedAt={new Date()}
+            />
+          </div>
+        </div>
       )}
     </TickerAnalysisShell>
   );
