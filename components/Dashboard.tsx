@@ -13,7 +13,6 @@ import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/compone
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 import ThemeToggle from '@/components/ThemeToggle';
-import Image from 'next/image';
 
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
