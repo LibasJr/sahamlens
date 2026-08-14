@@ -64,6 +64,49 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Lanjutan audit cache: DCF, Intrinsic Value, Risk Matrix
+
+Lanjutan dari audit "semua menu harus ada cache" di bawah - tiga rute lagi ditemukan
+TANPA cache Redis:
+
+- **`/api/dcf/[ticker]`** (Valuation) - sebelumnya HANYA mengandalkan header HTTP
+  `Cache-Control`/`CDN-Cache-Control`. Header itu hanya berguna kalau ada CDN yang
+  membacanya di depan origin - production sudah pindah ke VPS + Cloudflare Tunnel
+  (2026-08-13, BUKAN mode CDN cache Cloudflare), jadi header-nya kemungkinan besar
+  tidak dibaca siapa pun dan tiap buka `/dcf` untuk ticker yang sama tetap hitung
+  ulang model DCF live. Sekarang dibungkus `getOrCompute` (TTL `CACHE_TTL_SEC.TECHNICAL`,
+  sama pola dengan `/api/fundamental/[ticker]`).
+- **`/api/intrinsic/[ticker]`** (dipanggil `components/IntrinsicValue.tsx` di halaman
+  `/fundamental`) - TANPA cache sama sekali, walau `/api/fundamental/[ticker]` untuk
+  ticker yang SAMA sudah di-cache dari perbaikan sebelumnya. Dibungkus `getOrCompute`
+  dengan pola sama.
+- **`/api/risk-analysis`** (Risk Matrix) - body request-nya personal (portofolio per
+  pengguna), tapi histori harga IHSG dan USDIDR=X yang dipakai menghitung beta BUKAN
+  personal - diminta ulang oleh setiap pengguna yang menjalankan Risk Matrix, tanpa
+  cache. Histori per ticker portofolio juga ikut dibungkus (ticker populer sering
+  beririsan antar pengguna). Cache ditaruh DI ROUTE ini (bukan di
+  `modules/technical/service/yahoo-history.service.ts`, fungsi yang sama dipakai
+  jalur cron/precompute/screener yang sudah punya lapisan cache sendiri di atasnya -
+  menambah cache di dalamnya berisiko dobel-cache tanpa manfaat jelas).
+
+Ketiganya pakai pola `null` dibungkus jadi `{ notFound: true }` sebelum di-cache
+(`getOrCompute` memperlakukan `null` sebagai cache-miss permanen - tanpa pembungkus,
+ticker yang datanya memang tidak tersedia akan terus menembak live tiap request).
+`risk-analysis` sengaja TIDAK memakai pola ini - kegagalan fetch Yahoo di situ
+transien (bukan sifat permanen ticker), jadi `null` dibiarkan apa adanya supaya
+tidak ikut ter-cache sebagai kegagalan permanen.
+
+Tes baru: `app/api/dcf/[ticker]/__tests__/route.test.ts`,
+`app/api/intrinsic/[ticker]/__tests__/route.test.ts`,
+`app/api/risk-analysis/__tests__/route.test.ts`.
+
+Sisa menu yang SUDAH diaudit dan dipastikan tidak butuh perbaikan: Risk Calculator &
+live price (`/api/live/[ticker]`, `/api/public-chart/[ticker]` - pakai Next.js fetch
+`revalidate`, cache market-aware bawaan Next.js, bukan Redis, tapi tetap cache
+sungguhan), Backtest "Live Filter Check" (sengaja live-by-design, lihat komentar di
+route-nya), serta semua endpoint data pribadi (portfolio/watchlist/alert/profile) -
+tidak boleh di-share-cache karena isinya milik satu identitas.
+
 ### 2026-08-14 - Cache hilang/tidak pernah dihangatkan: LensRadar, Fundamental/Moat, Macro
 
 Laporan pengguna: menu LensRadar, LensScanner, Macro, dan Transparansi "agak lama" saat
