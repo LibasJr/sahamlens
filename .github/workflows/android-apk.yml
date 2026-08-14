@@ -37,11 +37,6 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Terima lisensi Android SDK & pastikan platform 34 terpasang
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null
-
       - name: Grant execute permission untuk gradlew
         run: chmod +x gradlew
 
