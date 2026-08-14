@@ -90,3 +90,30 @@ export async function checkProAccessLive(session: SessionPayload | null): Promis
     return false;
   }
 }
+
+/**
+ * Gerbang akses SUMBER TUNGGAL untuk seluruh fitur analisis - dipakai di tempat yang
+ * dulu memanggil checkProAccessLive langsung untuk memutuskan 402 SUBSCRIPTION_REQUIRED.
+ *
+ * KEPUTUSAN PRODUK (2026-08-13): pengunjung TANPA akun (`session === null`) diberi akses
+ * PENUH tanpa batas waktu ke seluruh fitur analisis - tidak ada lagi trial 7 hari yang
+ * berakhir untuk tamu. Yang TETAP wajib akun bukan karena Pro, tapi karena datanya
+ * milik satu identitas yang harus tersimpan: Portfolio dan Watchlist (digerbang
+ * terpisah lewat getSession() != null di masing-masing endpoint, TIDAK lewat fungsi
+ * ini - lihat shared/constants/access.ts).
+ *
+ * Untuk user yang SUDAH PUNYA AKUN, perilaku TIDAK berubah - tetap checkProAccessLive
+ * (trial akun 7 hari sejak verifikasi, lalu wajib Pro). Ini sengaja membuat tamu LEBIH
+ * longgar daripada akun gratis yang trialnya sudah habis - akun yang trial-nya berakhir
+ * diarahkan ke upgrade lewat alur yang sudah ada (TrialExpiredGate/PaywallModal), bukan
+ * dibandingkan dengan tamu. Konsekuensi ini disengaja dan diketahui pemilik produk, bukan
+ * celah yang tidak disadari.
+ *
+ * JANGAN pakai fungsi ini untuk fitur yang menyimpan/membaca data milik pengguna
+ * (portfolio, watchlist, alert) - di situ "punya akses" dan "sedang login sebagai siapa"
+ * adalah pertanyaan yang sama, dan fungsi ini sengaja tidak bisa menjawab siapa.
+ */
+export async function hasOpenOrProAccess(session: SessionPayload | null): Promise<boolean> {
+  if (!session) return true;
+  return checkProAccessLive(session);
+}

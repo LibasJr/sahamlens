@@ -47,8 +47,25 @@ export function getDeterministicSmallTalkResponse(normalizedInput: string): stri
     return 'Saya LensAI, asisten di SahamLens. Saya bisa membantu menjelaskan analisis saham, fundamental, teknikal, valuasi, kondisi pasar, dan fitur SahamLens.';
   }
 
-  if (/^bisa bantu apa$/.test(value)) {
-    return 'Saya bisa membantu analisis saham, membaca fundamental dan teknikal, menjelaskan valuasi dan sinyal, serta menjelaskan fitur-fitur SahamLens.';
+  // DIPERLUAS 2026-08-13 (temuan evaluasi routing). Sebelumnya polanya `^bisa bantu apa$`
+  // saja - "kamu bisa bantu apa?", bentuk yang justru paling sering diketik, tidak
+  // tertangkap dan jatuh ke UNKNOWN. Jawabannya juga sudah usang: ia menyebut empat hal
+  // sementara LensAI kini menjangkau pasar, LensRadar, dividen, earnings, arus dana, dan
+  // data pribadi pengguna. Pertanyaan "kamu bisa apa" dijawab dengan daftar yang terlalu
+  // sempit adalah kerugian nyata - pengguna berhenti menanyakan hal yang sebenarnya bisa.
+  if (/^(kamu |lensai )?(bisa bantu apa( aja| saja)?|bisa apa( aja| saja)?|bisa ngapain( aja| saja)?)$/.test(value)) {
+    return [
+      'Saya bisa bantu beberapa hal di SahamLens:',
+      '',
+      '- **Analisis emiten** - fundamental, teknikal, valuasi/nilai wajar, moat, risiko/beta',
+      '- **Kondisi pasar** - IHSG, breadth, sektor, top gainer/loser, saham teraktif',
+      '- **LensRadar** - peringkat skor harian, plus cara skornya ditentukan',
+      '- **Dividen, earnings, dan kalender korporasi**',
+      '- **Arus dana** - broker summary dan indikasi akumulasi/distribusi',
+      '- **Portofolio & watchlist kamu** - kalau kamu sedang login',
+      '',
+      'Sebut saja kode sahamnya (misal "BBCA fundamentalnya gimana?") atau tanya kondisi pasar hari ini.',
+    ].join('\n');
   }
 
   if (/^apa kabar$/.test(value)) {

@@ -80,6 +80,365 @@ Diverifikasi lokal sebelum dicatat (dev server + cookie admin, bukan pembacaan k
 `/admin` merender kartunya, `/admin/calibration` nol referensi `tpcl-validation`, dan
 `/admin/tpcl-validation` balas 200.
 
+### 2026-08-13 - Rule tamu dirombak: fitur analisis dibuka penuh, hanya Portfolio & Watchlist wajib akun
+
+Keputusan produk baru, MENGGANTIKAN aturan 2026-08-11 (trial anonim 7 hari yang
+menggerbang fitur premium untuk tamu tanpa akun): **tamu sekarang bebas pakai fitur
+analisis apa pun, selamanya, tanpa batas waktu** - screener, backtest, fundamental,
+compare, recommendations, risk-calculator, dcf, macro, moat, pattern, risk, dividend,
+earnings, market, dashboard. Yang tetap wajib akun cuma dua, dan alasannya beda: bukan
+soal Pro/gratis, tapi karena datanya milik satu identitas yang harus tersimpan lintas
+kunjungan - **Portfolio** (posisi & transaksi) dan **Watchlist** (daftar pantau & alert).
+Menu admin tetap digerbang terpisah lewat cookie admin, tidak berubah.
+
+Perubahan inti:
+- `shared/constants/access.ts` - `PROTECTED_PAGES` dipangkas dari 17 halaman jadi
+  `['/portfolio', '/watchlist']` saja. Ini satu sumber yang dipakai proxy DAN Sidebar,
+  jadi menu yang tampil dan halaman yang boleh dibuka tidak pernah berbeda.
+- `shared/auth/session.ts` - fungsi baru `hasOpenOrProAccess(session)`: `null` (tamu)
+  selalu `true`; user login tetap lewat `checkProAccessLive()` seperti sebelumnya
+  (perilaku Pro/gratis untuk akun terdaftar TIDAK berubah). Dipakai menggantikan
+  `checkProAccessLive` langsung di 8 route: `/api/backtest`, `/api/backtest/
+  live-filter-check`, `/api/recommendations`, `/api/lens-score-bucket-backtest`,
+  `/api/compare`, `/api/dividend-plan`, `/api/flow/[ticker]`, `/api/stock/[ticker]`.
+  Early-exit 401 untuk tamu tanpa trial aktif dihapus dari semua route ini - sekarang
+  tamu selalu lolos gerbang akses, respons 402 hanya berlaku untuk akun terdaftar yang
+  bukan Pro.
+- Cookie trial anonim TETAP diterbitkan untuk tamu (dipakai sebagai identitas kuota
+  chat LensAI & telemetri), hanya saja tidak lagi dipakai untuk keputusan akses fitur.
+- **Kuota chat LensAI untuk tamu dinaikkan dari 5 ke 25 pertanyaan** per jendela trial
+  anonim (`shared/usage/guest-chat-quota.ts` `GUEST_CHAT_LIMIT`) - satu-satunya batas
+  produk yang sengaja dipertahankan untuk tamu, bukan kelalaian.
+- Limiter IP umum 150 request/hari (`proxy.ts`) TIDAK diubah - itu pengaman anti-abuse
+  terpisah dari gerbang fitur di atas, tetap berlaku untuk halaman di luar allowlist
+  `isPublicGuestPage`/`isPublicGuestApi`, dan cukup longgar untuk pemakaian wajar.
+
+Tes: `__tests__/proxy-guest-access.test.ts` menambahkan blok `it.each` atas 15 halaman
+yang dulu terproteksi, memastikan tamu tidak lagi diarahkan ke `/login`, plus assersi
+`PROTECTED_PAGES` persis `['/portfolio', '/watchlist']`. `app/api/backtest/__tests__/
+route.test.ts` dan `app/api/recommendations/__tests__/route.test.ts` ditulis ulang:
+mock `hasOpenOrProAccess` menggantikan `checkProAccessLive`, tes "401 tanpa
+trial aktif" diganti jadi "tetap 200".
+
+### 2026-08-13 - Kontras: seluruh matriks warna, dijaga tes
+
+Laporan PageSpeed berikutnya menggagalkan lencana **hijau**, padahal yang sebelumnya
+menggagalkan yang **merah** - di halaman yang sama, tanpa ada perubahan kode di antaranya.
+Penyebabnya sederhana dan penting: hari itu IHSG naik. Lighthouse hanya memeriksa elemen
+yang **kebetulan terlihat** saat ia menjalankan halaman.
+
+Karena itu seluruh matriks dihitung sekaligus (7 warna aksen x 3 tingkat tint x 2 tema),
+dan hasilnya jauh lebih luas dari yang dilaporkan: **14 kombinasi gagal**. `warning`,
+`gold`, dan `blue` gagal di SEMUA tingkat tint di mode terang (serendah 3,74:1) dan tidak
+pernah tersampling Lighthouse sama sekali.
+
+Arah perbaikannya berlawanan di dua tema, dan itu bukan kebetulan: tint selalu menggeser
+latar ke arah warna teksnya sendiri, jadi teksnya harus menjauh - **menggelapkan di tema
+terang, mencerahkan di tema gelap**. Nilai dipilih sebagai pergeseran TERKECIL yang
+membuat ketiga peran lulus pada tint terberat, jadi warnanya nyaris tidak berubah secara
+visual.
+
+**Sekarang dijaga `__tests__/color-contrast.test.ts`** - 45 pemeriksaan atas nilai token
+langsung dari `globals.css`. Ini yang membuat perbaikannya berhenti berulang: pelanggaran
+berikutnya gagal saat `npm test`, bukan muncul sebagai screenshot pengguna berbulan-bulan
+kemudian. Tes itu **langsung membuktikan diri**: ia menangkap regresi yang muncul dari
+perbaikan ini sendiri - biru mode terang digelapkan sampai warna hover-nya jadi terlalu
+mirip (selisih luminans 0,0097), sehingga umpan balik hover praktis hilang.
+
+### 2026-08-13 - PageSpeed lanjutan: kontras mode terang, cache aset, chunk markdown
+
+Dikerjakan dari laporan PageSpeed production yang sebenarnya (bukan pengukuran lokal).
+
+**1. Kontras GAGAL di mode terang - diperbaiki di level token.** Lencana perubahan IHSG
+di header (`bg-tv-red/15 text-tv-red`) terukur 4,46:1 merah dan 4,09:1 hijau di mode
+terang; ambangnya 4,5:1. Mode gelap justru sudah lulus (5,32 dan 6,58), jadi ini murni
+masalah pasangan terang.
+
+Penyebabnya peran KETIGA yang terlewat waktu palet terang dibuat: warna yang sama dipakai
+sebagai teks **di atas tint-nya sendiri**, dan pola itu ada di **33 berkas**. Karena itu
+yang digelapkan adalah tokennya (`--lens-red` -> `#B02323`, `--lens-green` -> `#12722F`),
+bukan satu `<span>`. Menggelapkan token memperbaiki ketiga peran sekaligus - teks polos,
+teks di atas tint, dan teks putih di atas bidang padat - dan tabel rasio di
+`app/globals.css` sudah diperbarui dengan angka terukur.
+
+**2. Cache aset statis** (`next.config.mjs headers()`). `/sahamlens-scope.png` disajikan
+TTL 4 jam, jadi pengunjung yang kembali esok hari mengunduhnya lagi. Next tidak memasang
+`Cache-Control` untuk berkas `/public`; nilainya datang dari default Cloudflare. Sekarang
+30 hari + `stale-while-revalidate`. **Sengaja BUKAN 1 tahun `immutable`** seperti yang
+diminta Lighthouse: berkas `/public` tidak punya hash isi di namanya, jadi logo yang
+diperbarui akan tersangkut setahun tanpa cara membatalkannya selain mengganti nama.
+
+**3. Chunk react-markdown ditunda** - `unused-javascript` turun dari 157 KiB ke 132 KiB.
+Parser markdown (~33 KiB) ikut terunduh di setiap halaman meski panel chat tidak pernah
+dibuka. AIChat memang sudah `dynamic()`, tapi itu hanya menunda sampai hidrasi, bukan
+sampai dipakai. Sekarang parser dimuat saat panel dibuka.
+
+**Sisa `unused-javascript` (132 KiB) TIDAK dikejar, dan itu keputusan sadar.** Setelah
+diidentifikasi dari isinya, dua chunk terbesar adalah runtime framework: `7149`
+(`FetchStrategy`, `EntryStatus`, `PrefetchKind`, `AppRouter` - App Router Next.js) dan
+`4bd1b696` (`stateNode`, `alternate`, `memoizedProps` - reconciler React). Lighthouse
+menandainya "tidak terpakai" karena belum dipakai saat load pertama, padahal ia dipakai
+saat navigasi dan hidrasi. Sisanya framer-motion, yang memang dipakai untuk animasi masuk
+di banyak halaman.
+
+**Dua temuan yang BUKAN pekerjaan kode - perlu keputusan Anda:**
+
+- **Cloudflare Web Analytics ada di jalur kritis, 920 md.** Rantainya:
+  `sahamlens.id` (198 md) -> `/beacon.min.js` (250 md) -> `/cdn-cgi/rum` (**920 md**).
+  Skrip ini disuntikkan otomatis oleh Cloudflare, bukan oleh kode aplikasi. Mematikannya
+  ada di dashboard Cloudflare (Web Analytics), bukan di repo ini.
+- **JavaScript versi lama, 13 KiB** (`Array.prototype.at`, `Object.hasOwn`,
+  `String.prototype.trimStart`, dst). Bisa dihapus dengan menaikkan target `browserslist`
+  ke peramban modern - **tapi saya sengaja tidak melakukannya**: aplikasi ini punya
+  pembungkus WebView Android (`sahamlens-android/`), dan WebView lama persis yang
+  membutuhkan polyfill itu. Menukar 13 KiB dengan risiko aplikasi Android blank adalah
+  pertukaran yang buruk, dan itu keputusan produk, bukan keputusan teknis.
+
+### 2026-08-13 - Perbaikan PageSpeed: logo 263 KiB untuk avatar 32 piksel
+
+Diukur dengan Lighthouse 12 (preset desktop) terhadap build production yang dijalankan
+lokal. Dua audit gambar gagal dengan total ~500 KiB pemborosan, dan penyebabnya satu
+berkas: `/sahamlens-scope.png` (512x512, 263 KiB) dipakai lewat `<img>` mentah di tiga
+tempat untuk ditampilkan **32-36 piksel**.
+
+Ketiganya diubah ke `next/image` (pola yang sudah dipakai `Sidebar.tsx`). Hasil terukur
+pada berkas yang sama:
+
+| | Byte terkirim |
+| --- | --- |
+| Sebelum (PNG asli) | 269.595 |
+| Sesudah, `w=32` WebP | 462 |
+| Sesudah, `w=64` (retina) | 1.146 |
+
+Kedua audit (`uses-responsive-images`, `modern-image-formats`) kini bernilai 1.
+
+**Yang TIDAK jadi diubah, dan kenapa itu penting dicatat**: dugaan awal saya PNG-nya
+belum dioptimalkan. Sharp memang bisa menghasilkan 105 KiB - tetapi setelah dibandingkan
+piksel per piksel, versi itu **tidak lossless** (417.597 byte berbeda, selisih maksimum
+37); opsi `effort` memicu kuantisasi palet. Re-encode yang benar-benar lossless justru
+menghasilkan **357 KiB, lebih besar dari aslinya**. Jadi berkas sumbernya sudah optimal
+dan sengaja tidak disentuh. **Jangan "mengoptimalkan" aset merek ini tanpa membandingkan
+piksel lebih dulu.**
+
+**Catatan operasional**: optimasi gambar Next berjalan saat runtime dan butuh `sharp`
+(sudah jadi dependency langsung, v0.35.3). Hasilnya di-cache di `.next/cache/images` -
+jadi permintaan PERTAMA per ukuran membayar biaya CPU konversi, sesudahnya gratis. Kalau
+`.next` dibersihkan saat deploy, cache itu ikut hilang dan biaya konversi terjadi lagi
+sekali per ukuran - normal, bukan gejala kerusakan.
+
+**Batas pengukuran ini**: dijalankan terhadap server lokal, jadi angka LCP/TTFB-nya tidak
+mewakili production (tidak ada latensi jaringan, Cloudflare Tunnel, atau Nginx). Yang
+diukur di sini adalah hal-hal level kode - ukuran & format aset, JS tak terpakai,
+aksesibilitas, SEO - dan itu berlaku sama di production. Lingkungan CI/agen tidak bisa
+menjangkau `sahamlens.id` (kebijakan jaringan), dan kuota API PageSpeed anonim sedang
+habis, jadi verifikasi terhadap production harus dijalankan dari mesin yang bisa
+mengaksesnya.
+
+### 2026-08-13 - Streaming jawaban LensAI, dengan gerbang verifikasi angka
+
+Jawaban LensAI kini mengalir bertahap, TAPI hanya teks yang angkanya sudah lolos
+verifikasi yang boleh sampai ke layar. Streaming polos ditolak dengan sengaja: kalau
+token dialirkan apa adanya, angka karangan terbaca pengguna pada detik pertama dan
+koreksi apa pun datang terlambat - itu membuka kembali kelas bug yang melahirkan aturan
+#21, hanya dengan catatan kaki.
+
+Yang memungkinkan jalan tengah: verifikasi angka di repo ini **deterministik dan tidak
+memanggil AI**, jadi biayanya mikrodetik. Teks ditahan sampai satu satuan utuh (paragraf,
+atau kalimat yang sudah cukup panjang), diperiksa, lalu dilepas.
+
+**Yang perlu diketahui operator:**
+
+- **Header `X-Accel-Buffering: no` WAJIB ada.** Nginx di VPS mem-buffer respons proxy
+  secara default; tanpa header itu seluruh "streaming" tertahan di reverse proxy lalu
+  tiba sekaligus, dan pengguna tidak melihat bedanya sama sekali dengan sebelum ada
+  streaming. Kalau ada laporan "streaming-nya tidak jalan di production padahal jalan di
+  lokal", **periksa ini lebih dulu** sebelum menyalahkan kode.
+- **Jalur lama tidak berubah.** Streaming hanya aktif kalau klien mengirim
+  `{"stream": true}`. Sembilan pemanggil `generateAI()` lain dan klien versi lama tetap
+  menerima JSON seperti biasa.
+- **Biaya AI tidak bertambah** untuk jawaban normal (satu panggilan). Jawaban yang gagal
+  verifikasi tetap memakai dua panggilan, sama seperti sebelumnya.
+- **Jawaban deterministik tidak di-stream** (di luar ranah, sapaan, pertanyaan balik) -
+  memang tidak ada yang perlu dialirkan, dan responsnya tetap JSON.
+- Kalau provider gagal SETELAH teks mulai mengalir, aliran berhenti dengan teks seadanya
+  dan tidak pindah provider. Menyambung dua jawaban dari dua model berbeda menghasilkan
+  kalimat mulus dengan isi campuran - lebih menyesatkan daripada jawaban terpotong.
+
+### 2026-08-13 - Contoh pembuka LensAI mengikuti halaman
+
+Perubahan UI murni, tidak menyentuh build/env/cron. Dicatat karena menutup celah produk
+yang lahir dari perubahan minggu ini sendiri: cakupan LensAI melonjak (pasar, sektor,
+LensRadar, dividen, earnings, arus dana, metodologi skor, portofolio), tetapi layar
+pembukanya masih menawarkan SATU contoh - analisis teknikal emiten yang sedang dibuka.
+**Kemampuan yang tidak diketahui siapa pun sama saja dengan tidak ada.**
+
+- Di halaman emiten (`/technical/BBCA.JK` dst): contoh diarahkan ke emiten itu -
+  fundamental, teknikal, dividen, arus dana.
+- Di halaman lain: contoh pertanyaan pasar - kondisi pasar & sektor, skor tertinggi hari
+  ini, top gainer, cara skor ditentukan.
+- Aturan isi daftar (`components/ai-chat-starters.ts`): setiap contoh WAJIB punya jalur
+  data nyata dan padanan di fixture `eval:lensai`. Menawarkan contoh yang berujung
+  "datanya belum tersedia" lebih buruk daripada tidak menawarkan apa pun - pengguna
+  mencobanya sekali, gagal, lalu berhenti mencoba yang lain.
+
+Sekalian memperbaiki deteksi halaman emiten: logika lama ("segmen terakhir URL = simbol")
+mengubah `/screener` menjadi simbol `SCREENER` dan menawarkan pertanyaan tentang emiten
+yang tidak ada.
+
+### 2026-08-13 - BUG NYATA: kata umum terbaca sebagai kode emiten
+
+Ditemukan oleh evaluasi jawaban end-to-end yang baru (`npm run eval:answers`), bukan dari
+kode. **Bug ini sudah ada jauh sebelum perubahan LensAI minggu ini.**
+
+`extractMentionedTickers()` meng-uppercase seluruh prompt lalu mencocokkan tiap kata 4
+huruf dengan daftar 1.283 emiten. Kata sehari-hari yang kebetulan sama dengan kode emiten
+karena itu dibaca sebagai kode saham:
+
+| Pertanyaan pengguna | Dulu dibaca sebagai | Akibatnya |
+| --- | --- | --- |
+| "harga **emas** hari ini berapa?" | emiten `EMAS` | analisis emiten kecil, bukan penolakan jujur "emas di luar cakupan" |
+| "saham Tesla lagi **naik** gak?" | emiten `NAIK` | sama |
+| "saya mau **beli** saham apa?" | emiten `BELI` | analisis PT Beli, bukan peringkat LensRadar |
+
+Kata lain yang bentrok: `BAIK`, `AMAN`, `UANG`, `SATU`, `POLA`, `GUNA`, `IKAN`, `AGAR`,
+`ENAK`. Dampaknya lebih dalam daripada salah jawab: begitu router mengira ada emiten,
+seluruh gerbang "pertanyaan tingkat pasar" ikut mati - termasuk penolakan jujur untuk aset
+di luar cakupan SahamLens.
+
+**Perbaikan**: huruf besar-kecil pada teks ASLI dipakai sebagai sinyal (sebelumnya
+dibuang oleh `toUpperCase()`). Ditulis KAPITAL selalu diterima sebagai kode emiten
+(`EMAS` tetap bekerja untuk yang memang memaksudkan emitennya); ditulis huruf kecil DAN
+ada di daftar kata umum (`app/api/chat/indonesian-stopwords.ts`) ditolak; huruf kecil di
+luar daftar tetap diterima (`bbca gimana` harus tetap jalan).
+
+**Evaluasi routing ikut diperbaiki**: dulu jumlah ticker ditulis manual di fixture sebagai
+MASUKAN, jadi ia buta secara struktural terhadap kesalahan ekstraksi. Sekarang ekstraktor
+sungguhan yang dipakai, dan angka itu berubah peran menjadi ekspektasi yang diperiksa.
+
+### 2026-08-13 - Evaluasi kualitas jawaban (`npm run eval:answers`)
+
+Pelengkap `eval:lensai`. Memanggil `/api/chat` yang sungguhan pada server hidup, jadi
+mengukur JAWABAN, bukan cuma routing. Pemeriksaannya tetap deterministik: intent sesuai,
+`routing.numberCheck.ok` (tidak ada angka tak tertelusur), penutup DYOR sesuai kebijakan,
+dan jawaban tidak kosong/bukan error penyedia.
+
+**SENGAJA tidak dijalankan di CI** - butuh kuota AI dan hasilnya tidak identik tiap kali.
+Jalankan manual: `npm run dev` lalu `npm run eval:answers -- --limit=10`.
+
+Karena 9Router dipin di depan cascade (`tryFirst`), seluruh eval lewat satu endpoint itu
+kalau terpasang. **Dari mesin dev, `NINEROUTER_BASE_URL` tidak boleh `127.0.0.1:20128`** -
+alamat itu hanya sah di dalam VPS; pakai hostname publiknya. Tidak ada API key baru:
+key-nya sama dengan yang sudah dipakai aplikasi.
+
+Catatan: pertanyaan yang jalurnya deterministik (nyeleneh, di luar cakupan, sapaan,
+pertanyaan balik) tetap terukur penuh **tanpa API key sama sekali** - berguna untuk
+memverifikasi perubahan routing tanpa membakar kuota.
+
+### 2026-08-13 - LensAI: evaluasi routing, pertanyaan harga masa depan, DYOR
+
+- **Evaluasi routing (`npm run eval:lensai`).** 65 pertanyaan nyata di
+  `app/api/chat/__tests__/fixtures/lensai-questions.json`, dicek apakah sampai ke data
+  yang benar. TIDAK memanggil AI, jadi bisa jalan di CI dan gratis. Ini menjawab pola
+  lama repo ini: perbaikan LensAI selalu dimulai dari screenshot, tanpa satu pun angka
+  yang menyatakan keadaan sekarang. **Menambah pertanyaan cukup mengedit JSON-nya.**
+  Kalau sebuah pertanyaan gagal, itu temuan - bukan alasan mengubah pertanyaannya
+  supaya lulus.
+- **Pertanyaan harga masa depan** ("besok naik gak?") kini punya intent sendiri. Bukan
+  ditolak: dijawab dengan tren, level, setup TP/CL, base rate historis per bucket, dan
+  ukuran risiko - dengan larangan tegas menyebut angka harga besok. Pertanyaan pantauan
+  berbingkai besok ("saham apa yang patut dipantau besok dari market hari ini") tetap
+  dijawab peringkat LensRadar hari ini, plus bingkai yang sama.
+- **"Bagus atau jelek?" kini masuk mesin keputusan.** Sebelumnya hanya "bagus gak"
+  PERSIS yang tertangkap; bentuk lain jatuh ke data mentah tanpa keputusan model,
+  gerbang kelayakan, dan status validasi - padahal justru pertanyaan itu yang paling
+  membutuhkannya.
+- **Penutup DYOR ditempel di server** (`app/api/chat/dyor.ts`), bukan diminta lewat
+  aturan prompt. Penafian yang muncul "biasanya" bukan penafian. Tidak ditempel ke
+  sapaan/penolakan/penjelasan fitur - penafian yang muncul di mana-mana melatih pengguna
+  berhenti membacanya.
+- Perbaikan sambil jalan: jawaban kaleng "bisa bantu apa" masih memuat daftar kemampuan
+  lama (empat hal) dan polanya tidak menangkap "kamu bisa bantu apa?" - bentuk yang
+  paling sering diketik. Keduanya diperbaiki.
+
+### 2026-08-13 - LensAI: satu sumber keputusan, verifikasi angka, multi-topik
+
+Lanjutan dari perubahan cakupan data di bawah. Tiga lapisan ditambahkan:
+
+- **Keputusan & TP/CL dari mesin yang sama dengan halaman aplikasi.** Pertanyaan "bagus
+  gak / layak beli / TP-CL berapa" sekarang memakai `analyzeStock()` (mesin halaman
+  Recommendations) dan `tradeSetup` dari cache LensRadar, bukan kesimpulan yang disusun
+  model sendiri dari blok fundamental + teknikal. **Ini memperbaiki risiko nyata**: dua
+  jalur perhitungan berbeda bisa memberi kesimpulan berbeda untuk emiten yang sama pada
+  menit yang sama, dan pengguna tidak punya cara tahu mana yang benar. Level TP/CL
+  sengaja TIDAK dihitung ulang di chat - angka level harga adalah hal terakhir yang boleh
+  berbeda antara dua layar.
+- **Verifikasi angka (`app/api/chat/verify-numbers.ts`).** Setiap angka berbentuk klaim
+  data di jawaban dicocokkan dengan Data Terverifikasi Server, prompt pengguna, dan
+  riwayat. Kalau ada yang tidak tertelusur: satu kali perbaikan diminta ke model dengan
+  menyebut angka yang bermasalah; kalau masih gagal, jawaban tetap dikirim **dengan
+  catatan jujur di bawahnya**, bukan disunting diam-diam. Hasil pemeriksaan ikut di
+  `routing.numberCheck` - **pantau log `[LensAI:verify]` untuk melihat seberapa sering
+  ini terjadi.** Konsekuensi biaya: pertanyaan yang gagal verifikasi memakai DUA panggilan
+  AI, bukan satu.
+- **Asumsi DCF ikut dikirim ke LensAI.** Blok valuasi dulu hanya memuat nilai wajar dan
+  MoS - dua angka hasil tanpa satu pun dasar, sehingga "harga wajarnya sekian" terbaca
+  seperti pengukuran. Sekarang biaya ekuitas CAPM, risk-free + ERP, beta dan sumbernya,
+  asumsi pertumbuhan, PER*/PBV* wajar, dan metode yang benar-benar terpakai ikut dikirim.
+  Dua hal yang wajib ikut karena mudah menyesatkan: **tingkat diskonto ada DUA** (CAPM per
+  emiten untuk PBV*/PER*, tetap 12% untuk DDM & perpetuitas FCF), dan **bobot metode per
+  sektor berstatus hipotesis** yang belum divalidasi terhadap forward return.
+- **Multi-topik + pertanyaan balik.** Satu pertanyaan bisa memicu sampai 2 blok data
+  tambahan ("fundamental BBCA gimana, ada berita apa?"). Pertanyaan yang terlalu pendek
+  tanpa emiten dan tanpa riwayat dijawab dengan pertanyaan balik deterministik - tanpa
+  panggilan AI.
+
+Tidak ada env var, skema database, atau cron baru.
+
+### 2026-08-13 - LensAI (Ask AI) menjangkau seluruh fitur aplikasi
+
+**Masalah**: LensAI hanya punya jalur data untuk 6 hal (fundamental, teknikal, valuasi,
+banding, IHSG level+RSI, berita). Semua pertanyaan di luar itu jatuh ke intent `UNKNOWN`,
+yang berarti NOL data terverifikasi - dan karena system prompt melarang menjawab dari
+ingatan model (aturan #14/#16, lahir dari rentetan bug halusinasi), LensAI **wajib
+menolak**. Jadi data yang sudah dihitung cron tiap 5 menit - breadth, regime, sektor,
+peringkat pasar, LensRadar - tidak pernah bisa ditanyakan pengguna.
+
+**Yang ditambahkan** (intent + blok data, pola yang sama dengan blok lama):
+peringkat LensRadar, metodologi LensScore, peringkat pasar (gainer/loser/nilai/oversold/
+relative strength), sektor + breadth + regime, makro, screener, bukti backtest per bucket,
+dividen, earnings, kalender korporasi, arus broker + proksi akumulasi, moat, risiko/beta,
+serta portofolio & watchlist milik pengguna.
+
+**Keputusan yang perlu diketahui operator**:
+
+- **Semua blok baru membaca CACHE saja** (`cacheGet`), tidak pernah `getOrCompute` untuk
+  komputasi berat. `getMarketSummary()` memindai 250 saham dan `getMarketPulse()` memindai
+  puluhan saham - menjalankannya dari dalam request chat berarti satu pertanyaan pengguna
+  menanggung scan penuh. **Konsekuensi operasional: kalau cron pemindai mati, LensAI akan
+  menjawab "datanya belum tersedia" alih-alih lambat.** Itu disengaja. Kalau banyak
+  keluhan seperti itu muncul, periksa cron/QStash dan `job_run_log` lebih dulu, bukan
+  kode chat-nya.
+- **Portofolio & watchlist ikut terkirim ke penyedia AI** (Gemini/Groq/9Router) - disetujui
+  pemilik produk 2026-08-13, **khusus untuk pengguna yang sedang login**. userId diambil
+  dari sesi JWT di route, bukan dari body request, supaya tidak ada yang bisa meminta
+  portofolio orang lain dengan menyisipkan id. Pengunjung anonim dijawab "silakan login",
+  tanpa satu pun query ke database.
+- **Pertanyaan di luar ranah dijawab tanpa memanggil AI sama sekali**
+  (`app/api/chat/out-of-scope.ts`). Untuk "harga emas hari ini" atau "prediksi bitcoin",
+  model PUNYA jawaban dari data latihnya; aturan prompt cuma melarang, tidak menghapus.
+  Kalau tidak ada panggilan AI, tidak ada angka yang bisa dikarang. Efek samping yang
+  menyenangkan: pertanyaan seperti ini jadi gratis dan instan.
+- **Cache key hasil komputasi disatukan** di `shared/cache/computed-keys.ts` dan dipakai
+  bersama oleh route publik + chat. Sebelumnya tiap route punya literal sendiri; pembaca
+  kedua yang salah satu huruf akan selalu cache-miss **tanpa error apa pun** - untuk
+  LensAI kegagalannya tak terlihat, cuma jawaban yang lebih miskin.
+- **Perbaikan biaya**: `marketNewsBlock()` di chat dulu memanggil `getMarketNews()`
+  LANGSUNG - menarik ~10 feed RSS + satu klasifikasi AI setiap kali ada pertanyaan
+  "kenapa turun", padahal `/api/news` sudah menyimpan hasil yang sama di Redis. Sekarang
+  keduanya berbagi satu kunci cache.
+
+**Tidak ada env var baru, tidak ada perubahan skema database, tidak ada cron baru.**
+
 ### 2026-08-13 - Dokumen ini ditulis ulang untuk jalur VPS + auto-deploy
 
 Tidak ada perubahan perilaku aplikasi. Yang diperbaiki adalah dokumennya sendiri: sebelumnya
@@ -855,9 +1214,27 @@ Vercel gagal berturut-turut (~7 jam, 2026-08-05) karena mode standalone melewatk
 sukses penuh, lalu `ENOENT` di step terakhir. Fix-nya `output: process.env.VERCEL ? undefined : 'standalone'`.
 **Yang berubah setelah pindah VPS**: di VPS `VERCEL` tidak di-set, jadi build production
 SEKARANG selalu standalone, sementara systemd menjalankan `npm start` (`next start -H 0.0.0.0 -p 3001`).
-Kombinasi itulah yang berjalan di production hari ini. Kalau mengubah `output` atau perintah
-start, verifikasi langsung di server (`systemctl status sahamlens` + `curl localhost:3001`),
-jangan mengandalkan build lokal saja.
+
+**Konsekuensinya ada peringatan yang MUNCUL TIAP START dan bukan tanda kerusakan** (diverifikasi
+langsung 2026-08-13 dengan menjalankan build production apa adanya):
+
+```
+⚠ "next start" does not work with "output: standalone" configuration.
+  Use "node .next/standalone/server.js" instead.
+```
+
+Meskipun begitu, server tetap melayani request dengan benar - diuji lewat `POST /api/chat` yang
+membalas normal. Jadi kalau menemukan baris ini di `journalctl -u sahamlens`, **jangan
+mengubah `ExecStart` hanya karena peringatan itu**: ia sudah ada sejak sebelum masalah apa pun
+yang sedang dicari, dan mengganti perintah start di tengah insiden justru menambah satu variabel
+baru. Kalau memang mau dirapikan (mis. supaya log bersih atau image lebih ramping), itu
+perubahan tersendiri yang harus diuji di luar jam ramai: ganti `ExecStart` ke
+`node .next/standalone/server.js` DAN pastikan `.next/static` + `public/` ikut tersalin ke
+`.next/standalone/` - dua folder itu tidak ikut otomatis, dan tanpanya aplikasi tetap jalan
+tapi seluruh CSS/gambar hilang.
+
+Kalau mengubah `output` atau perintah start, verifikasi langsung di server
+(`systemctl status sahamlens` + `curl localhost:3001`), jangan mengandalkan build lokal saja.
 
 ---
 
