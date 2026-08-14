@@ -97,7 +97,7 @@ export default function SymbolAutocomplete({
       />
 
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-white/10 bg-[#101A2A]/98 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
+        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-tv-border bg-tv-surface p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
           <div className="flex items-center gap-2 px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
             <Search className="h-3 w-3" /> Hasil emiten
           </div>
@@ -109,11 +109,11 @@ export default function SymbolAutocomplete({
               key={item.symbol}
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => handleSelect(item.symbol)}
-              className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors ${index === activeIndex ? 'bg-tv-blue/10' : 'hover:bg-white/[0.04]'}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors ${index === activeIndex ? 'bg-tv-blue/10' : 'hover:bg-tv-hover'}`}
             >
               <TickerAvatar symbol={item.symbol} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block font-number text-xs font-bold text-white">{item.symbol}</span>
+                <span className="block font-number text-xs font-bold text-tv-text">{item.symbol}</span>
                 <span className="mt-0.5 block truncate text-[10px] text-tv-muted">{item.name}</span>
               </span>
             </button>

@@ -578,7 +578,10 @@ body {
 .light .bg-white\/10,
 .light .bg-white\/\[0\.025\],
 .light .bg-white\/\[0\.035\],
-.light .bg-white\/\[0\.045\] { background-color: rgb(15 23 42 / .035) !important; }
+.light .bg-white\/\[0\.04\],
+.light .bg-white\/\[0\.045\],
+.light .bg-white\/\[0\.05\],
+.light .bg-white\/\[0\.06\] { background-color: rgb(15 23 42 / .035) !important; }
 .light .bg-\[\#090E18\]\/98,
 .light .bg-\[\#0A101B\]\/95,
 .light .bg-\[\#080D16\]\/88,

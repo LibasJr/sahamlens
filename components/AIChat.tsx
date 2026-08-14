@@ -311,7 +311,7 @@ export default function AIChat() {
           terformat rapi terlihat "berantakan" karena lebar sisa yang tidak menentu.
           calc(100vw-2rem) di layar sempit, kembali ke ukuran tetap mulai breakpoint sm. */}
       {isOpen && (
-        <div className={`overflow-hidden flex flex-col mb-3 origin-bottom-right w-[calc(100vw-1.5rem)] max-h-[80vh] rounded-[24px] border border-white/10 bg-[#0A111D]/98 shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl transition-all duration-300 ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
+        <div className={`overflow-hidden flex flex-col mb-3 origin-bottom-right w-[calc(100vw-1.5rem)] max-h-[80vh] rounded-[24px] border border-tv-border bg-tv-surface shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl transition-all duration-300 ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] p-4">
@@ -376,7 +376,7 @@ export default function AIChat() {
                   <div className={`max-w-[85%] rounded-2xl p-4 text-base leading-relaxed sm:text-sm ${
                     msg.role === 'user'
                       ? 'bg-tv-blue text-white rounded-tr-md shadow-[0_8px_24px_rgba(79,140,255,0.16)]'
-                      : 'border border-white/[0.07] bg-white/[0.04] text-tv-text rounded-tl-md'
+                      : 'border border-white/[0.07] bg-tv-hover text-tv-text rounded-tl-md'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
@@ -396,7 +396,7 @@ export default function AIChat() {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.04] p-4 text-base text-tv-muted sm:text-sm">
+                <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-tv-hover p-4 text-base text-tv-muted sm:text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks, jadi
                       larangan lama memakai kata "menulis" sudah tidak berlaku. Spinner

@@ -64,6 +64,43 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Search & LensAI tampil gelap saat tema terang (dropdown dark-only)
+
+Laporan pengguna dengan screenshot: pakai tema Light, buka pencarian (Ctrl/Cmd+K atau
+ikon cari) - panel hasil pencariannya tetap gelap. Root cause: `CommandPalette.tsx`
+(dropdown pencarian global) memakai warna hex mati `bg-[#0D1522]` untuk latar panel dan
+`text-white` untuk teksnya - keduanya TIDAK ikut aturan tema, beda dari trigger
+button-nya sendiri yang sudah pakai token `tv-*`. Aplikasi ini punya DUA cara membuat
+komponen theme-aware: token `tv-*` (`bg-tv-surface`, `text-tv-text`, dst - nilainya
+didefinisikan ulang otomatis per tema lewat CSS var `--lens-*`), atau daftar patch
+`.light .bg-white\/[...]` dkk di `app/globals.css` yang menimpa utility class hex/putih
+literal yang sudah terlanjur dipakai di banyak file. `bg-[#0D1522]` milik CommandPalette
+TIDAK ada di kedua jalur itu - lolos dari patch list (yang cuma menutupi `#090E18`,
+`#0A101B`, `#080D16`, `#111A29`) DAN tidak pakai token langsung.
+
+Diperbaiki dengan mengganti ke token `tv-*` langsung (lebih tahan lama daripada
+menambah entri patch baru) di 3 file:
+- `components/CommandPalette.tsx` - panel dropdown pencarian global (bug yang
+  dilaporkan), termasuk trigger button, border, teks, dan panel preview mini-chart.
+- `components/SymbolAutocomplete.tsx` - dropdown autocomplete di form (Portfolio,
+  Watchlist, dst) - bug identik (`bg-[#101A2A]/98` + `text-white`), ditemukan saat
+  audit proaktif komponen sejenis.
+- `components/AIChat.tsx` (panel Ask LensAI) - bug LEBIH PARAH: kontainer panel
+  (`bg-[#0A111D]/98`) tidak dipatch, dan teks balasan AI memakai token `text-tv-text`
+  (theme-aware, jadi GELAP di tema terang) di atas panel yang TETAP gelap - kombinasi
+  keduanya membuat isi chat nyaris tidak terbaca di tema terang, bukan cuma soal warna
+  latar. Bubble pesan asisten & indikator loading (`bg-white/[0.04]`) ikut diperbaiki.
+
+Sekalian ditambal di `app/globals.css`: `bg-white/[0.04]`, `bg-white/[0.05]`, dan
+`bg-white/[0.06]` (dipakai 7+ file lain untuk hover state) TERNYATA tidak ada di daftar
+patch - tetangga dekatnya (`0.025`, `0.035`, `0.045`) ada, ini cuma terlewat. Ditambahkan
+ke aturan yang sudah ada supaya perbaikannya berlaku app-wide, bukan cuma di 3 file di
+atas.
+
+typecheck, lint, npm test (1195 test - termasuk `__tests__/color-contrast.test.ts` yang
+tidak terpengaruh karena ini bukan soal kontras warna, tapi latar yang sama sekali tidak
+ikut ganti tema), dan build semua lolos.
+
 ### 2026-08-14 - Lanjutan audit cache: DCF, Intrinsic Value, Risk Matrix
 
 Lanjutan dari audit "semua menu harus ada cache" di bawah - tiga rute lagi ditemukan
