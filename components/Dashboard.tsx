@@ -756,11 +756,16 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
               },
               {
-                icon: History,
-                title: 'Backtest',
-                desc: 'Uji strategi secara historis agar sinyal tidak hanya terlihat bagus di kondisi hari ini.',
-                href: '/backtest',
-                tone: 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20',
+                // BARU (2026-08-14, permintaan pengguna: "posisi backtest ganti dengan
+                // posisi LensConsensus, biar selaras sama sebelahnya") - grid 4 kolom x 2
+                // baris, Backtest & LensConsensus TUKAR POSISI (dulu Backtest di baris 1
+                // kolom 4, LensConsensus di baris 2 kolom 4). Konten kedelapan kartu tidak
+                // berubah, cuma urutan tampilnya.
+                icon: Users,
+                title: 'LensConsensus',
+                desc: 'Rapat 10 agen teknikal rule-based atas data OHLCV asli - tren, momentum, volume, volatilitas - lalu diringkas jadi satu konsensus.',
+                href: '/technical/BBCA.JK',
+                tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
               },
               {
                 icon: Target,
@@ -784,11 +789,11 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
               },
               {
-                icon: Users,
-                title: 'LensConsensus',
-                desc: 'Rapat 10 agen teknikal rule-based atas data OHLCV asli - tren, momentum, volume, volatilitas - lalu diringkas jadi satu konsensus.',
-                href: '/technical/BBCA.JK',
-                tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
+                icon: History,
+                title: 'Backtest',
+                desc: 'Uji strategi secara historis agar sinyal tidak hanya terlihat bagus di kondisi hari ini.',
+                href: '/backtest',
+                tone: 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20',
               },
             ].map(({ icon: Icon, title, desc, href, tone }) => (
               <Link
