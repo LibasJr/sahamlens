@@ -64,6 +64,37 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - `watchlist-alert` dipercepat 15 -> 5 menit (audit delay Yahoo)
+
+Pengguna bertanya: "Yahoo delay 15 menit, apa jadwal job kita sudah sesuai?" Audit
+membandingkan tiap cadence cron dengan `shared/http/freshness.ts`
+(`DELAYED_THRESHOLD_SEC = 20 * 60` - delay Yahoo yang sudah didokumentasikan sejak audit
+2026-08-03) menemukan: job cluster 5 menit (breakout-scan/market-pulse/market-summary/
+news) SUDAH pas - menambah lag minimal di atas 15 menit Yahoo yang memang tidak bisa
+dihindari. Tapi `watchlist-alert` intervalnya **PERSIS 15 menit, sama dengan delay
+Yahoo sendiri** - worst-case totalnya bisa dobel jadi ~30 menit sebelum alert harga
+terkirim ke pengguna, padahal alert harga adalah fitur yang paling wajar diharapkan
+cepat oleh penggunanya.
+
+Diverifikasi dulu bahwa mempercepatnya AMAN (`modules/notification/service/
+alert-evaluation.service.ts`): alert yang sudah terpicu ditandai `triggered = true` di
+Postgres dan otomatis dikeluarkan dari `listPendingAlerts()` (`WHERE triggered =
+false`) - jadi mempercepat cron TIDAK berisiko notifikasi dobel, cuma mempercepat
+deteksi. Job ini juga tidak menembak Yahoo langsung - ia baca `/api/stock`,
+`/api/breakout-radar`, `/api/market-pulse`, yang SEMUANYA sudah punya cache + cron
+5-menitnya sendiri, jadi mempercepat `watchlist-alert` TIDAK menambah beban ke Yahoo
+sama sekali (murni baca cache yang sudah ada, lebih sering).
+
+**BELUM AKTIF** - ini mengubah jadwal QStash yang SUDAH ADA (tidak menambah slot baru
+dari batas 10), tapi tetap butuh diubah manual di dashboard QStash (di luar akses sesi
+agen ini). `config/scheduled-jobs.json`: `scheduleStatus` diturunkan jadi
+`"verify-dashboard"` sampai dikonfirmasi.
+
+**Langkah di dashboard QStash:** buka Schedule `watchlist-alert` (destination
+`https://sahamlens.id/api/cron/watchlist-alert`), ubah cron expression dari
+`*/15 9-15 * * 1-5` jadi `*/5 9-15 * * 1-5` (timezone tetap Asia/Jakarta). Setelah
+dikonfirmasi, `scheduleStatus` diubah kembali jadi `"known"`.
+
 ### 2026-08-14 - CATATAN PENTING: QStash sudah penuh, maksimal 10 job
 
 Ditemukan saat mendaftarkan `/api/cron/news` (entri di bawah): **plan QStash yang
