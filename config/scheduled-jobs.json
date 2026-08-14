@@ -13,6 +13,7 @@
     {"path": "/api/cron/macro", "provider": "qstash", "schedule": "0 9-16 * * 1-5", "scheduleStatus": "known", "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"},
     {"path": "/api/cron/market-pulse", "provider": "qstash", "schedule": "*/5 9-15 * * 1-5", "scheduleStatus": "known", "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"},
     {"path": "/api/cron/market-summary", "provider": "qstash", "schedule": "*/5 9-15 * * 1-5", "scheduleStatus": "known", "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"},
+    {"path": "/api/cron/news", "provider": "qstash", "schedule": null, "scheduleStatus": "verify-dashboard", "source": "BARU 2026-08-14 (pertanyaan pengguna - sebelumnya tidak ada cron untuk /api/news). Route sudah ada di kode, TAPI BELUM didaftarkan sebagai QStash Schedule - lihat DEPLOYMENT.md untuk instruksi pendaftaran. Isi setelah didaftarkan: */5 9-15 * * 1-5 (sama dengan market-summary/market-pulse/breakout-scan)."},
     {"path": "/api/cron/recommendation-scan", "provider": "qstash", "schedule": "*/15 9-15 * * 1-5", "scheduleStatus": "known", "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"},
     {"path": "/api/cron/watchlist-alert", "provider": "qstash", "schedule": "*/15 9-15 * * 1-5", "scheduleStatus": "known", "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"}
   ]
