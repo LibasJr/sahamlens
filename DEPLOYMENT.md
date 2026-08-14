@@ -64,6 +64,27 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Dua bug tampilan HP di LensFundamental: kartu tidak sejajar, ikon search dobel
+
+Laporan pengguna dengan screenshot `/fundamental` di HP:
+
+**1. Kartu "Valuasi Harga" (Undervalued) dan "Kualitas Fundamental" (Bagus) tidak
+sejajar.** Label "Kualitas Fundamental" lebih panjang dari "Valuasi Harga" dan pecah
+jadi 2 baris di layar sempit, tapi label itu sendiri tidak punya tinggi tetap - jadi
+kartu di bawahnya cuma ikut turun di SATU kolom, bukan dua-duanya. Diperbaiki dengan
+`min-h-[28px]` + flex-center di kedua label (`app/fundamental/page.tsx`) - cukup untuk
+2 baris, jadi kedua kartu selalu mulai di garis yang sama baik labelnya 1 baris maupun 2.
+
+**2. Dua ikon kaca pembesar tumpang tindih di kotak pencarian.** `CommandPalette.tsx`
+sudah merender ikon Search-nya sendiri di dalam tombol trigger. `Header.tsx` (dipakai
+`/fundamental`, `/dashboard`, `/dcf`, `/technical/[symbol]`) menambahkan ikon KEDUA di
+atasnya lewat `<span className="absolute left-3">` + `[&_button]:pl-9` - tampaknya sisa
+dari sebelum CommandPalette punya ikon sendiri. Di layar sempit (teks placeholder
+disembunyikan, tersisa cuma ikon) kelihatan sebagai dua ikon search bersisian. Overlay
+& padding hack yang redundan itu dihapus dari `Header.tsx`.
+
+typecheck, lint, npm test (1195 test), dan build semua lolos.
+
 ### 2026-08-14 - Search & LensAI tampil gelap saat tema terang (dropdown dark-only)
 
 Laporan pengguna dengan screenshot: pakai tema Light, buka pencarian (Ctrl/Cmd+K atau
