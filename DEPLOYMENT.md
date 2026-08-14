@@ -64,6 +64,34 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Audit lanjutan #2 tema terang: LensFlow NETRAL, Portfolio Health, CommandPalette, Portfolio holdings
+
+Laporan pengguna (screenshot LensFlow — Analisis Money Flow): kotak status "NETRAL" tampil
+abu-abu gelap dengan teks nyaris tak terbaca di tema terang, padahal status AKUMULASI/
+DISTRIBUSI (hijau/merah) di komponen yang sama sudah benar. Diminta audit lebih lanjut.
+
+Pola yang sama lagi: warna Tailwind raw (`gray-800`, `gray-600`, `gray-300`, `gray-400`,
+`red-400/500/600`, `blue-400/500/600`, `emerald-600`) dipakai langsung, bukan lewat token
+`tv-*` yang peka tema - biasanya di cabang kode "default/netral" yang luput saat cabang
+lain (hijau/merah) sudah dirapikan. Dicari lewat regex
+`(bg|text|border)-(red|blue|green|yellow|gray|slate|zinc|neutral)-(300-900)` di seluruh
+`app/`+`components/`:
+
+- `components/BandarFlowPro.tsx` - kotak insight NETRAL (`bg-gray-800/40 border-gray-600
+  text-gray-300`) dan badge pill "NEUTRAL" (`bg-gray-500/20 border-gray-500 text-gray-400`)
+  -> token `tv-hover`/`tv-border`/`tv-muted`. Ini penyebab langsung screenshot pengguna.
+  (`bg-gray-500 text-white` pada badge "N HARI" TIDAK diubah - itu abu Tailwind statis
+  yang sama di kedua tema, sudah lolos AA baik gelap maupun terang, bukan token `--lens-*`
+  yang bisa "salah tema".)
+- `components/PortfolioHealth.tsx` - panel "Portfolio Health Check" (High Concentration
+  Risk / Healthy Allocation) memakai `red-500/red-400/red-600` & `blue-500/blue-400/
+  blue-600` & `text-gray-300` mati -> `tv-red`/`tv-blue`/`tv-muted`.
+- `app/portfolio/page.tsx` - tab Login/Daftar & Holdings/Riwayat (`hover:text-gray-300`),
+  dan nilai Avg/Last/Value di kartu holdings (`text-gray-300`) -> `tv-text`.
+- `components/CommandPalette.tsx` - badge perubahan harga di panel pratinjau
+  (`text-emerald-600`/`text-red-600`) -> `tv-green`/`tv-red`, konsisten dengan token yang
+  sudah dipakai di tempat lain pada file yang sama.
+
 ### 2026-08-14 - Audit lanjutan tema terang: toast notice, skeleton chart, badge FAIR, tooltip Recharts
 
 Laporan pengguna (screenshot form login): banner notice "Silakan masuk untuk melanjutkan"
