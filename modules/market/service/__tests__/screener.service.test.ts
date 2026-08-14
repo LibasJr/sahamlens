@@ -76,6 +76,8 @@ function rawStock(ticker: string, over: Record<string, unknown> = {}) {
     fifty_two_week_low: 800,
     fifty_two_week_high: 1200,
     atr_pct: 3.5,
+    market_cap: 100_000_000_000_000,
+    adv20_idr: 10_000_000_000,
     ...over,
   };
 }
@@ -189,6 +191,57 @@ describe('rankScreener', () => {
       const universe = [rawStock('BBCA'), rawStock('TLKM')];
 
       expect(rankScreener(universe as any, 'Moderat')).toEqual(rankScreener(universe as any, 'Moderat', {}));
+    });
+  });
+
+  // BARU (2026-08-14) - filter Market Cap & Likuiditas, dari brainstorm lanjutan atas
+  // review eksternal. Ambang & fungsi ADV20 SAMA PERSIS dengan gerbang LOW_LIQUIDITY
+  // (modules/eligibility), diimpor lewat adv20() - bukan salinan rumus kedua.
+  describe('filter market cap & likuiditas', () => {
+    it('minMarketCap membuang saham di bawah batas', () => {
+      const universe = [
+        rawStock('BBCA', { market_cap: 500_000_000_000_000 }),
+        rawStock('TLKM', { market_cap: 50_000_000_000_000 }),
+      ];
+
+      const result = rankScreener(universe as any, 'Moderat', { minMarketCap: 100_000_000_000_000 });
+
+      expect(result.map((r) => r.ticker)).toEqual(['BBCA']);
+    });
+
+    it('minLiquidity membuang saham di bawah ambang ADV20', () => {
+      const universe = [
+        rawStock('BBCA', { adv20_idr: 5_000_000_000 }),
+        rawStock('TLKM', { adv20_idr: 500_000_000 }),
+      ];
+
+      const result = rankScreener(universe as any, 'Moderat', { minLiquidity: 1_000_000_000 });
+
+      expect(result.map((r) => r.ticker)).toEqual(['BBCA']);
+    });
+
+    it('saham tanpa data market_cap/adv20_idr (null) dibuang kalau filternya aktif - fail-closed, bukan diloloskan', () => {
+      const universe = [rawStock('BBCA', { market_cap: null, adv20_idr: null })];
+
+      expect(rankScreener(universe as any, 'Moderat', { minMarketCap: 1 })).toEqual([]);
+      expect(rankScreener(universe as any, 'Moderat', { minLiquidity: 1 })).toEqual([]);
+    });
+
+    it('minMarketCap/minLiquidity tidak valid (negatif/NaN) diabaikan', () => {
+      const universe = [rawStock('BBCA', { market_cap: 1000, adv20_idr: 1000 })];
+
+      expect(rankScreener(universe as any, 'Moderat', { minMarketCap: -1 })).toHaveLength(1);
+      expect(rankScreener(universe as any, 'Moderat', { minLiquidity: NaN })).toHaveLength(1);
+    });
+
+    it('market_cap & adv20_idr mentah diteruskan ke hasil (bukan diformat/dibulatkan)', () => {
+      const result = rankScreener(
+        [rawStock('BBCA', { market_cap: 123_456_789, adv20_idr: 987_654_321 })] as any,
+        'Moderat',
+      );
+
+      expect(result[0].market_cap).toBe(123_456_789);
+      expect(result[0].adv20_idr).toBe(987_654_321);
     });
   });
 });

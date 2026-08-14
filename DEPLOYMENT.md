@@ -64,6 +64,42 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Brainstorm lanjutan: filter Market Cap/Likuiditas, badge Blue-chip/Small-cap
+
+Lanjutan dari 4 item yang sebelumnya SENGAJA belum dikerjakan (entri di bawah). Pengguna
+memilih: kerjakan filter Market Cap/Likuiditas (item 1), Opsi A untuk badge tier saham
+(item 2, BUKAN mengubah parameter teknikal).
+
+**1. Filter Market Cap & Likuiditas di LensScanner.** `market_cap` (dari Yahoo `price`
+module yang SUDAH di-fetch, gratis) dan `adv20_idr` (fungsi `adv20()` yang SAMA PERSIS
+dengan gerbang `LOW_LIQUIDITY` - diekspor dari `modules/eligibility` supaya definisi
+"likuid" tidak pernah berbeda antara gerbang rekomendasi dan filter Scanner) ditangkap
+di `RawStock`. `ScreenerFilters` bertambah `minMarketCap`/`minLiquidity` - saham TANPA
+data (`null`) dibuang kalau filternya aktif (fail-closed, bukan diloloskan diam-diam).
+UI: 2 input baru (Triliun untuk Market Cap, Miliar untuk Likuiditas - dikonversi ke
+Rupiah penuh sebelum dikirim ke API), 2 kolom tabel baru dengan formatter baru
+`fmtMiliar` (`shared/format/fundamental-format.ts`, pasangan `fmtTriliun` yang sudah ada).
+
+**2. Badge "Blue-chip" / "Small-cap & Volatile" di halaman Technical** (opsi A dari 3
+alternatif yang diajukan - TIDAK mengubah parameter MA/RSI/dst, murni label
+informasional dari data yang sudah ada). `/api/stock/[ticker]` menambah field
+`market_cap` di response (likuiditas SUDAH ada sebelumnya di
+`eligibility.details.adv20Idr`, tidak diulang). Ambang klasifikasi
+(`lib/utils/cap-tier.ts`, `BLUE_CHIP_MIN_MARKET_CAP_IDR` = Rp 10T,
+`BLUE_CHIP_MIN_ADV20_IDR` = Rp 5M/hari) dilabeli `[HYPOTHESIS]` eksplisit - belum
+divalidasi backtest, dan TIDAK ADA di file `page.tsx` (Next.js App Router membatasi
+export dari file page - dipindah ke util terpisah supaya tetap testable & tidak
+melanggar batasan itu).
+
+Test guard `previous-close-guard.test.ts` (allowlist berbasis nomor baris) diperbarui
+mengikuti pergeseran baris di `app/dashboard/page.tsx` akibat perubahan di atas.
+
+typecheck, lint, npm test (1220 test - termasuk test baru filter market cap/likuiditas
+di service+route, dan `classifyCapTier`), build semua lolos.
+
+Item 3 (kriteria graduasi validasi Point-in-Time LensScore) dan item 4 (konten
+makro-sektor) dikerjakan terpisah - lihat entri berikutnya.
+
 ### 2026-08-14 - Tindak lanjut review eksternal: glosarium, breakdown voting, label delay, filter Scanner
 
 Pengguna membagikan review eksternal (trader IDX) berisi 9 fitur + roadmap 3 prioritas.
