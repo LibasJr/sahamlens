@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { fadeUp } from '../../lib/motion';
-import Image from 'next/image';
 
 interface AuthShellProps {
   eyebrow: string;
