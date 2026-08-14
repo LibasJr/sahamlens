@@ -165,7 +165,7 @@ private fun OpenWebDialog(title: String, message: String, path: String, onDismis
             SahamButton(
                 "Buka di Browser",
                 onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://sahamlens.vercel.app$path")))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://sahamlens.id$path")))
                     onDismiss()
                 },
             )

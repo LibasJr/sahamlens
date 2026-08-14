@@ -26,7 +26,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * Permukaan Retrofit yang MEMANGGIL BACKEND ASLI SahamLens (sahamlens.vercel.app), bukan API
+ * Permukaan Retrofit yang MEMANGGIL BACKEND ASLI SahamLens (sahamlens.id, VPS produksi), bukan API
  * tiruan. Diperluas (redesign UI/UX native) dari 4 endpoint (auth+watchlist) ke permukaan
  * yang menutupi Home/Market/Portfolio/StockDetail/AI Council - setiap endpoint dicocokkan
  * satu-satu terhadap route Next.js aslinya di direktori app/api/ (Next.js App Router).

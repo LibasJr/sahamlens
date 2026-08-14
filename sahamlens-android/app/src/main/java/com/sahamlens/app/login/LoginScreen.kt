@@ -39,7 +39,7 @@ import com.sahamlens.core.designsystem.component.SahamButtonVariant
 
 /**
  * Build 007 (lanjutan) - satu-satunya jalan agar [com.sahamlens.core.network.SessionCookieJar]
- * benar-benar terisi cookie sesi asli dari backend (sahamlens.vercel.app), bukan cookie
+ * benar-benar terisi cookie sesi asli dari backend (sahamlens.id, VPS produksi), bukan cookie
  * hardcode seperti di APK React Native lama.
  */
 @Composable

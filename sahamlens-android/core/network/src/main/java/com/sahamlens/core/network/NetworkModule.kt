@@ -12,9 +12,14 @@ import java.util.concurrent.TimeUnit
  * Build 007 - titik bangun tunggal untuk klien jaringan, menunjuk ke deployment produksi
  * SahamLens yang sebenarnya. Object singleton manual (bukan Hilt) - DI penuh menyusul di
  * Build 010, supaya modul ini bisa dipakai tanpa harus menunggu graph DI selesai.
+ *
+ * Production pindah dari Vercel ke VPS sendiri pada 2026-08-12/13 (lihat DEPLOYMENT.md di
+ * root repo) - domain produksi sekarang `sahamlens.id`, bukan lagi *.vercel.app. Vercel masih
+ * hidup sebagai standby tapi tidak melayani trafik pengguna, jadi client Android TIDAK boleh
+ * menunjuk ke sana.
  */
 object NetworkModule {
-    private const val BASE_URL = "https://sahamlens.vercel.app/"
+    private const val BASE_URL = "https://sahamlens.id/"
 
     private val json = Json {
         ignoreUnknownKeys = true
