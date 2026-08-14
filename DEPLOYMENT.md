@@ -62,6 +62,30 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
+### 2026-08-14 - Watchdog auto-restart `cloudflared` (insiden: situs tidak bisa diakses ~18 menit)
+
+Insiden: sahamlens.id tidak bisa diakses sama sekali selama ~19:27-19:45 WIB, padahal
+aplikasi Node + Postgres di VPS tetap sehat (dikonfirmasi lewat sesi lain yang mengecek
+Cloudflare API - zone/DNS sehat, tunnel `sahamlens-prod` yang tidak terhubung). Log
+`journalctl -u cloudflared` menunjukkan "stream canceled by remote" berulang untuk
+banyak endpoint (`/`, `/home`, `/api/calendar`, `/api/news`, `_next/static/*`) - tunnel
+diam-diam berhenti melayani trafik TANPA proses `cloudflared` benar-benar crash/exit,
+jadi `Restart=on-failure` bawaan systemd tidak pernah terpicu (`systemctl status` tetap
+terlihat "running"). Pengguna me-restart manual (`systemctl restart cloudflared`) dan itu
+memperbaikinya.
+
+Dibuatkan watchdog supaya insiden serupa ke depan pulih otomatis tanpa perlu restart
+manual - lihat `deploy/cloudflared-watchdog/README.md` untuk instruksi pasang lengkap.
+Ringkasan: timer systemd tiap 2 menit mengecek `https://sahamlens.id/api/health`
+(endpoint publik yang sudah ada, memvalidasi jalur LENGKAP Cloudflare edge -> tunnel ->
+nginx -> Next.js -> Postgres - bukan cuma tunnel-nya sendiri lewat `cloudflared tunnel
+info`, supaya origin yang mati juga tertangkap). 2 kegagalan BERTURUT-TURUT (bukan 1,
+supaya blip jaringan sesaat tidak memicu restart sia-sia) -> `systemctl restart
+cloudflared`.
+
+**BELUM AKTIF sampai dipasang manual di VPS** (perlu akses root, di luar akses sesi agen
+ini) - jalankan langkah di `deploy/cloudflared-watchdog/README.md`.
+
 ### 2026-08-14 - LensAI diperluas: kenal lebih banyak fitur + aturan akses/kesegaran data aplikasi sendiri
 
 Permintaan pengguna: "saya mau ask ai itu serba bisa jawab soal aplikasinya sendiri, dan
