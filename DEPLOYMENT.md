@@ -64,6 +64,42 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Tamu masih kena limiter umum & anggaran komputasi lebih kecil - "menu bisa diklik tapi data kosong"
+
+Laporan pengguna (dengan 3 screenshot): LensTechnical EXCL "Data gagal dimuat", Backtest
+"Terlalu banyak request. Coba lagi nanti", LensFundamental EXCL "Data gagal dimuat" - semuanya
+untuk tamu (belum login). Instruksi eksplisit: "user guest rule nya sama dengan user yg sudah
+login, cuma menu akun demo (Portfolio/Watchlist) yang wajib daftar/login" - dan susulan
+"intinya semua fitur di buka dulu untuk testing ke semua user, kecuali menu admin & akun demo".
+
+`hasOpenOrProAccess()` (2026-08-13) sudah membuka gerbang produk untuk tamu, tapi DUA lapis
+lain masih membedakan tamu dari user login murni berdasarkan ada/tidaknya sesi, bukan status
+Pro - jadi gerbang produk terbuka, tapi datanya tetap gagal dimuat:
+
+1. **`proxy.ts` - `isPublicGuestApi`/`isPublicGuestPage` tidak ikut diperluas saat
+   `PROTECTED_PAGES` menyusut jadi cuma Portfolio/Watchlist (2026-08-13).** Semua endpoint yang
+   sekarang terbuka untuk tamu (`/api/stock/*`, `/api/fundamental/*`, `/api/backtest`,
+   `/api/backtest/live-filter-check`, `/api/recommendations`, `/api/lens-score-bucket-backtest`,
+   `/api/compare`, `/api/dividend-plan`, `/api/flow/*`) beserta halamannya (`/dashboard`,
+   `/screener`, `/fundamental`, `/compare`, `/backtest`, `/risk-calculator`, `/recommendations`,
+   `/multi-agent`, `/dcf`, `/macro`, `/moat`, `/pattern`, `/risk`, `/dividend`, `/earnings`,
+   `/market`) masih kena `RATE_LIMIT_CONFIG` umum (150 request/hari **per IP**) - kuota yang
+   dibagi SEMUA tamu di Wi-Fi/CGNAT yang sama, jadi cepat habis. Ditambahkan ke kedua allowlist.
+2. **`/api/backtest` memberi tamu tier anggaran komputasi `'public'` (40/10 menit, actor
+   `ip:xxx`) sementara user login dapat `'authenticated'` (160/10 menit, actor `user:id`) -
+   HANYA berdasar ada/tidaknya sesi, bukan Pro.** Ini persis cocok dengan error "Terlalu
+   banyak request" di screenshot. `consumeComputeBudget` murni guard anti-abuse (bukan gerbang
+   produk - lihat komentarnya di `shared/middleware/compute-budget.ts`), jadi disamakan jadi
+   `'authenticated'` untuk semua yang lolos gerbang produk di atasnya; actor tamu memakai
+   identitas cookie trial anonim (`guest:${firstSeenAt}`) supaya budgetnya per-tamu, bukan
+   ikut dibagi rata satu IP/jaringan seperti limiter umum di atas.
+
+Endpoint fundamental (`/api/fundamental/[ticker]`) sendiri sama sekali tidak punya gerbang
+sesi/kuota - satu-satunya sebab ia gagal untuk tamu adalah limiter umum proxy di atas.
+
+Tidak ada perubahan pada gerbang Portfolio/Watchlist (`PROTECTED_PAGES`, tetap wajib akun) atau
+pada `checkProAccessLive` untuk user yang sudah login.
+
 ### 2026-08-14 - Brainstorm lanjutan: filter Market Cap/Likuiditas, badge Blue-chip/Small-cap
 
 Lanjutan dari 4 item yang sebelumnya SENGAJA belum dikerjakan (entri di bawah). Pengguna

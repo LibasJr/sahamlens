@@ -62,7 +62,23 @@ function isPublicGuestApi(pathname: string): boolean {
     pathname === '/api/daily-picks' ||
     pathname === '/api/market-summary' ||
     pathname === '/api/emiten' ||
-    pathname.startsWith('/api/public-chart/')
+    pathname.startsWith('/api/public-chart/') ||
+    // BARU (2026-08-14, laporan pengguna: "menu bisa diklik tapi datanya kosong" untuk
+    // tamu). PROTECTED_PAGES cuma Portfolio/Watchlist sejak 2026-08-13, tapi daftar
+    // allowlist di sini TIDAK ikut diperluas saat itu - API di bawah tetap kena limiter
+    // umum 150/hari PER IP (RATE_LIMIT_CONFIG), yang dibagi SEMUA tamu di Wi-Fi/CGNAT
+    // yang sama, jadi cepat habis dan tampil "gagal dimuat"/"terlalu banyak request"
+    // padahal hasOpenOrProAccess() sudah membuka datanya. Endpoint mahal tetap
+    // dilindungi limiter sendiri (compute budget di backtest), jadi aman dibuka di sini.
+    pathname.startsWith('/api/stock/') ||
+    pathname.startsWith('/api/fundamental/') ||
+    pathname === '/api/backtest' ||
+    pathname === '/api/backtest/live-filter-check' ||
+    pathname === '/api/recommendations' ||
+    pathname === '/api/lens-score-bucket-backtest' ||
+    pathname === '/api/compare' ||
+    pathname === '/api/dividend-plan' ||
+    pathname.startsWith('/api/flow/')
   );
 }
 
@@ -87,7 +103,42 @@ function isPublicGuestPage(pathname: string): boolean {
     pathname === '/transparency' ||
     pathname.startsWith('/transparency/') ||
     pathname === '/technical' ||
-    pathname.startsWith('/technical/')
+    pathname.startsWith('/technical/') ||
+    // BARU (2026-08-14) - sama seperti isPublicGuestApi di atas: semua halaman non-
+    // PROTECTED_PAGES sudah dibuka datanya untuk tamu (hasOpenOrProAccess), jadi
+    // shell halamannya juga tidak boleh ikut limiter umum 150/hari/IP.
+    pathname === '/dashboard' ||
+    pathname.startsWith('/dashboard/') ||
+    pathname === '/screener' ||
+    pathname.startsWith('/screener/') ||
+    pathname === '/fundamental' ||
+    pathname.startsWith('/fundamental/') ||
+    pathname === '/compare' ||
+    pathname.startsWith('/compare/') ||
+    pathname === '/backtest' ||
+    pathname.startsWith('/backtest/') ||
+    pathname === '/risk-calculator' ||
+    pathname.startsWith('/risk-calculator/') ||
+    pathname === '/recommendations' ||
+    pathname.startsWith('/recommendations/') ||
+    pathname === '/multi-agent' ||
+    pathname.startsWith('/multi-agent/') ||
+    pathname === '/dcf' ||
+    pathname.startsWith('/dcf/') ||
+    pathname === '/macro' ||
+    pathname.startsWith('/macro/') ||
+    pathname === '/moat' ||
+    pathname.startsWith('/moat/') ||
+    pathname === '/pattern' ||
+    pathname.startsWith('/pattern/') ||
+    pathname === '/risk' ||
+    pathname.startsWith('/risk/') ||
+    pathname === '/dividend' ||
+    pathname.startsWith('/dividend/') ||
+    pathname === '/earnings' ||
+    pathname.startsWith('/earnings/') ||
+    pathname === '/market' ||
+    pathname.startsWith('/market/')
   );
 }
 
