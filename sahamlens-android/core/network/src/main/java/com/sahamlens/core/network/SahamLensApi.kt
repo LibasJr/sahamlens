@@ -19,6 +19,7 @@ import com.sahamlens.core.network.model.RecommendationsResponse
 import com.sahamlens.core.network.model.ScreenerResponse
 import com.sahamlens.core.network.model.StockDetailResponse
 import com.sahamlens.core.network.model.WatchlistResponse
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -76,9 +77,13 @@ interface SahamLensApi {
     @GET("api/fundamental/{ticker}")
     suspend fun getFundamental(@Path("ticker") ticker: String): FundamentalResponse
 
-    // --- AI Council (butuh login) ---
+    // --- AI Council (tersedia untuk tamu dengan kuota terbatas, lihat guest-chat-quota.ts) ---
+    // Response<T> (bukan ChatResponseDto langsung) SENGAJA - server membalas body
+    // {role, content, errorCode} yang valid bahkan di status non-2xx (400/429/503/504), dan
+    // Retrofit tidak mengekspos body itu sama sekali kalau tipe kembaliannya bukan Response<T>
+    // (langsung dilempar sebagai HttpException, body-nya hilang). Lihat ChatRepository.
     @POST("api/chat")
-    suspend fun chat(@Body request: ChatRequestDto): ChatResponseDto
+    suspend fun chat(@Body request: ChatRequestDto): Response<ChatResponseDto>
 
     // --- Alat Analisis (Screener/Compare/Market Pulse) ---
     // Screener publik (alat gratis), Compare & Market Pulse butuh login + Pro (402).
