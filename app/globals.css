@@ -758,12 +758,20 @@ textarea {
     flex: 0 0 auto;
   }
 
+  /* BUG FIX (2026-08-14, laporan pengguna dengan screenshot - nav bar bawah
+     "kurang ke bawah", ada gap terlihat di bawahnya): jarak tetap dari tepi layar
+     dulu 0.75rem (12px) DI LUAR safe-area-inset-bottom perangkat - di HP dengan
+     navigasi 3-tombol Android (bukan gesture, safe-area-inset-bottom biasanya 0),
+     itu jadi gap kosong murni tanpa fungsi. Dikecilkan ke 0.375rem - tetap ada
+     sedikit ruang (bukan menempel rata tepi layar, radius sudut 22px pill masih
+     kelihatan), tapi nav bar duduk jauh lebih dekat ke tepi bawah. lens-ai-floating
+     (tombol Ask LensAI) ikut disesuaikan supaya jaraknya ke nav bar tetap sama. */
   .lens-mobile-nav {
-    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(0.375rem + env(safe-area-inset-bottom, 0px));
   }
 
   .lens-ai-floating {
-    bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(5.875rem + env(safe-area-inset-bottom, 0px));
   }
 
   .lens-main table th,
