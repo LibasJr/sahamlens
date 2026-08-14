@@ -64,6 +64,39 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Audit jadwal cron: TTL Macro dibetulkan, 2 temuan butuh akses manual
+
+Audit atas permintaan pengguna ("job apa saja yang mesti selalu update, apa jadwalnya
+sudah sesuai") menemukan 3 hal. Satu diperbaiki lewat kode, dua lainnya BUTUH akses yang
+tidak tersedia dari sesi agen ini (dashboard QStash, SSH VPS) - dicatat di sini supaya
+jelas kenapa belum ikut diperbaiki, bukan terlewat.
+
+**1. DIPERBAIKI - `MACRO_DASHBOARD` TTL 30 menit vs cron 1 jam sekali.** Sama persis
+polanya dengan bug `MARKET_SUMMARY` yang sudah diperbaiki sebelumnya: `app/api/cron/macro`
+(satu-satunya pe-warm cache-nya) jalan `0 9-16 * * 1-5` (sejam sekali), tapi TTL cache
+cuma 30 menit - ada jendela ~30 menit tiap jam di mana cache pasti kosong sebelum cron
+berikutnya. `CACHE_TTL_SEC.MACRO_DASHBOARD` (`shared/cache/ttl-policy.ts`) dinaikkan ke
+70 menit (interval cron 60 menit + buffer 1 run telat), pola sama dengan `MARKET_SUMMARY`
+(cron 5 menit + TTL 6 menit).
+
+**2. BELUM BISA DIPERBAIKI - jam berhenti tidak konsisten antar job.**
+`breakout-scan`/`market-pulse`/`market-summary`/`recommendation-scan`/`watchlist-alert`
+berhenti 15:00 WIB, tapi `ai-pick-scan`/`macro` jalan sampai 16:00 WIB. Jadwal ASLI-nya
+hidup di dashboard QStash (`config/scheduled-jobs.json` di repo cuma MANIFEST yang
+mencerminkan apa yang sudah dikonfigurasi di sana - bukan sumber kebenaran yang
+mengendalikan jadwal sungguhan). Mengubah angka di file JSON itu TANPA mengubah jadwal
+sungguhan di QStash akan membuat dokumentasi BERBOHONG tentang kenyataan - lebih buruk
+daripada dibiarkan. Perlu login dashboard QStash (atau `curl` API QStash dengan token)
+untuk mengubah jadwal sungguhan, lalu manifest diperbarui supaya cocok kembali.
+
+**3. BELUM BISA DIVERIFIKASI - jadwal 3 job systemd tidak diketahui dari kode.**
+`lens-bucket-backtest`, `lens-score-optimizer`, `broker-summary-scan` berstatus
+`"verify-server"` di manifest sejak awal - jadwalnya cuma ada di unit timer systemd di
+VPS, di luar repo. Perlu `systemctl list-timers` dijalankan LANGSUNG di server untuk
+tahu jadwal sungguhannya.
+
+typecheck, lint, npm test (1195 test), dan build semua lolos untuk perbaikan #1.
+
 ### 2026-08-14 - Nav bar mobile turun lebih dekat ke tepi, label "Kualitas" dihapus
 
 **1. Nav bar bawah (Home/Market/Radar/Analyze/Menu) "kurang ke bawah".** Laporan

@@ -133,8 +133,17 @@ export const CACHE_TTL_SEC = {
   EARNINGS: 60 * 60,
 
   // Dashboard makro menggabungkan harga pasar harian dan rilis resmi tahunan.
-  // 30 menit cukup segar untuk konteks pasar tanpa membebani sumber publik.
-  MACRO_DASHBOARD: 30 * 60,
+  // BUG FIX (2026-08-14, audit jadwal cron): sebelumnya 30 menit, padahal
+  // app/api/cron/macro (satu-satunya pe-warm cache ini) jalan SEJAM sekali
+  // (`0 9-16 * * 1-5` di config/scheduled-jobs.json) - persis pola yang sama
+  // dengan bug MARKET_SUMMARY yang sudah diperbaiki sebelumnya (lihat catatan di
+  // situ): TTL lebih pendek dari interval cron berarti ADA jendela ~30 menit tiap
+  // jam di mana cache pasti kosong sebelum cron berikutnya mengisi ulang. 70 menit
+  // = interval cron (60) + buffer 1 run yang telat, sama seperti pola MARKET_SUMMARY
+  // (cron 5 menit + TTL 6 menit) dan BREAKOUT_RADAR (cron 5 menit + TTL jauh lebih
+  // panjang sebagai lantai). Data makro juga tidak berubah cepat, jadi 70 menit tetap
+  // cukup segar untuk konteks pasar.
+  MACRO_DASHBOARD: 70 * 60,
 
   // Universe saham dividen (yield/payout/consistency per saham, app/api/dividend-plan)
   // - BARU. Batch quoteSummary+chart(events:dividends) utk ~50 saham, sama mahalnya
