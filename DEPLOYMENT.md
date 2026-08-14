@@ -62,6 +62,38 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
+### 2026-08-14 - REVISI SUSULAN: TTL cron market-pulse/summary/recommendation/macro masih basi di luar jam bursa
+
+Laporan pengguna (screenshot LensAI, jam 19:00 WIB): "Fitur top gainer di beranda...
+sambungan data live untuk daftar peringkat harian tersebut sedang kosong di server" -
+padahal Beranda menampilkan top gainer dengan jelas di layar yang sama. Perbaikan TTL
+sebelumnya (entri "BUG FIX BESAR" di bawah, commit `a3059f2`) sudah benar UNTUK SELAMA
+JAM BURSA, tapi ternyata masih kurang: 6 menit (`MARKET_PULSE_CRON`/`MARKET_SUMMARY_CRON`)
+dan 18 menit (`RECOMMENDATION_CRON`) itu "interval cron + buffer" yang HANYA masuk akal
+SELAMA cron masih jalan (`*/5 9-15 * * 1-5` dst). Begitu bursa tutup (>15:59 WIB), cron
+BERHENTI sampai besok - dan pengguna bertanya jam 19:00 WIB, berjam-jam setelah TTL
+6/18 menit itu basi. Persis pola bug yang sama yang sudah lebih dulu ditemukan &
+diperbaiki untuk `BREAKOUT_RADAR` (2026-08-03) - kali ini luput karena perbaikan pertama
+tadi terburu memakai pola "interval + buffer" (cocok untuk MARKET_NEWS, yang memang
+punya fallback live sendiri di luar jam bursa) padahal seharusnya pola "lantai 3 hari"
+(cocok untuk block LensAI yang TIDAK punya fallback live).
+
+**Perbaikan**: `MARKET_PULSE_CRON`, `MARKET_SUMMARY_CRON`, `RECOMMENDATION_CRON` (semua
+6/18 menit) dan `MACRO_DASHBOARD` (70 menit, kena masalah sama - cron `0 9-16 * * 1-5`
+juga berhenti di luar jam bursa) SEMUA dinaikkan ke lantai **3 hari** - pola sama persis
+dengan `BREAKOUT_RADAR`, cukup untuk bertahan dari Jumat sore sampai Senin pagi. Cron
+tetap menyegarkan tiap 5/15/60 menit SELAMA jam bursa seperti biasa - TTL panjang ini
+HANYA jadi lantai "data sesi terakhir" di luar jam bursa.
+
+Konsekuensinya: `app/api/chat/blocks/market-blocks.ts` (`marketMoversBlock`,
+`sectorAndBreadthBlock`, `macroBlock` - dipakai LensAI) sekarang BISA membaca data
+berumur berjam-jam. Ditambahkan `ageNote()` yang membaca sisa TTL lewat
+`getCacheTtlRemaining()` dan menyisipkan penanda umur data eksplisit ke jawaban LensAI:
+< 20 menit tidak ditandai apa-apa, 20 menit - 1 jam ditandai "KEMUNGKINAN dari sesi
+sebelumnya", > 1 jam WAJIB ditandai "DATA SESI SEBELUMNYA, bukan kondisi saat ini" -
+supaya LensAI tetap jujur soal umur data, bukan diam-diam menyajikan data semalam/akhir
+pekan seolah live. 7 test baru (`market-blocks.test.ts`) memverifikasi ambang ini.
+
 ### 2026-08-14 - Fitur admin baru: "Buat Akun Tes"
 
 Permintaan pengguna: "bisa buatkan akun user/user di sistem, ini untuk user tes". Sesi
