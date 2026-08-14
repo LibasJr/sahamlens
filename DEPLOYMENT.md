@@ -64,6 +64,118 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - "Backtest Saham Tunggal": animasi candle replay untuk satu emiten
+
+Permintaan pengguna: pilih emiten di search (mis. BBCA), pilih periode 12/24 bulan, klik
+Backtest, muncul animasi candle yang "terbuka" urut kiri ke kanan (dikonfirmasi via
+pertanyaan klarifikasi - opsi replay singkat, BUKAN animasi terus-menerus, BUKAN marker
+BUY/SELL). Ditambahkan sebagai section BARU "Backtest Saham Tunggal" di `/backtest`,
+independen dari builder filter multi-saham yang sudah ada di bawahnya (fitur ini murni
+pratinjau histori harga, bukan simulasi strategi - tidak ada win rate/drawdown).
+
+- `components/backtest/CandleReplayChart.tsx` (BARU) - komponen kecil & khusus, SENGAJA
+  bukan reuse `TradingViewChart.tsx` (600+ baris, toolbar indikator/timeframe lengkap,
+  dirancang untuk halaman teknikal penuh). Memakai `lightweight-charts` langsung (dependency
+  yang sama, v4.2.1) dengan palet warna disamakan manual. Animasi: `series.setData()`
+  dipanggil berulang lewat `requestAnimationFrame` dengan potongan candle yang makin
+  panjang, dijadwalkan berdasar WAKTU BERLALU (bukan jumlah frame) supaya durasi total
+  ~2,2 detik tetap sama berapa pun jumlah candle-nya. `timeScale().fitContent()` dipanggil
+  tiap frame supaya sumbu waktu ikut melebar seiring candle baru muncul.
+- `app/backtest/page.tsx` - section baru pakai `SymbolAutocomplete` (search emiten, sudah
+  ada, dipakai ulang) + `Select` periode (`BACKTEST_PERIOD_MONTHS`, sudah ada, dipakai
+  ulang) + tombol Backtest. Data candle diambil dari `/api/public-chart/[ticker]?tf=10Y`
+  (endpoint publik yang sudah ada, dipakai StockChartPanel) lalu dipotong ke jendela
+  periode dari belakang memakai `TRADING_DAYS_PER_MONTH` (satu sumber yang sama dipakai
+  builder filter backtest, bukan aproksimasi baru).
+- Tidak ada endpoint API baru, tidak ada perubahan cache/cron, tidak ada perubahan pada
+  simulasi backtest filter yang sudah ada.
+
+### 2026-08-14 - Scrim modal (peredup latar) terlalu gelap di tema terang
+
+Laporan pengguna (screenshot): pita abu-abu gelap muncul saat kotak pencarian (Cmd+K)
+dibuka di LensTechnical. Diklarifikasi via pertanyaan: BUKAN sisa warna tema gelap yang
+lupa diperbaiki - `bg-black/50` s.d. `/70` memang dipakai KONSISTEN sebagai scrim peredup
+latar di 10+ modal aplikasi (CommandPalette, UserProfileModal, PaywallModal,
+PromoUpgradeModal, StockNewsModal, Sidebar mobile, FinancialChartToolbar) untuk fokus ke
+dialog di atasnya - tapi terlalu berat/kontras keras di atas latar terang dibanding di
+atas latar gelap.
+
+`app/globals.css` - ditambahkan patch `.light .bg-black/50` s.d. `/70` yang menurunkan
+opacity jadi sekitar sepertiga nilai tema gelap (mis. `/70` -> `.25`, `/50` -> `.15`),
+konsisten dengan pola `.light .bg-black/10-20` yang sudah ada. Efeknya berlaku otomatis
+ke SEMUA modal yang memakai kelas ini (bukan cuma CommandPalette) karena ini patch CSS
+global, bukan perubahan per-komponen - tetap meredupkan latar (fokus ke dialog
+dipertahankan), cuma lebih lembut di tema terang.
+
+### 2026-08-14 - 3 cron warmer baru: LensScanner, Dividend Plan, Kalender (menu lambat dimuat)
+
+Laporan pengguna: "LensScanner lama sekali muncul nya" + "pastikan menu yg berhubungan
+dengan cron job ada cache biar tidak lama load datanya". Diaudit: `/api/screener`,
+`/api/dividend-plan`, `/api/calendar` SEMUA murni `getOrCompute()` on-demand TANPA cron
+warmer sama sekali - persis pola bug "market-summary lemot" yang sudah diperbaiki
+2026-08-05 (lihat catatan di `app/api/cron/market-summary/route.ts`). Efeknya: pengunjung
+PERTAMA yang membuka menu itu setelah cache kadaluarsa (TTL 30 menit untuk screener &
+dividend, 6 jam untuk kalender) menanggung komputasi LIVE di request-nya sendiri -
+screener bahkan menarik fundamental + histori 1 tahun untuk ~50 saham kurasi, jadi bisa
+beberapa detik.
+
+QStash sudah penuh 10/10 job (lihat entri "CATATAN PENTING" di bawah), jadi 3 job baru ini
+dipasang sebagai **timer systemd di VPS** (pola sama seperti `lens-bucket-backtest`/
+`lens-score-optimizer`/`broker-summary-scan` yang sudah ada) - endpoint `GET` +
+`CRON_SECRET`, TIDAK ada handler QStash karena memang tidak akan didaftarkan ke sana:
+
+| Route baru | Job name (`job_run_log`) | Jadwal | Cache key + TTL |
+|---|---|---|---|
+| `/api/cron/screener-scan` | `screener-scan` | Senin-Jumat, tiap 20 menit jam 09-16 WIB | `COMPUTED_CACHE_KEY.SCREENER_UNIVERSE`, 30 menit |
+| `/api/cron/dividend-scan` | `dividend-scan` | Senin-Jumat, tiap 20 menit jam 09-16 WIB | `COMPUTED_CACHE_KEY.DIVIDEND_UNIVERSE`, 30 menit |
+| `/api/cron/calendar-scan` | `calendar-scan` | Senin-Jumat, 08:00/12:00/16:00 WIB | `COMPUTED_CACHE_KEY.CORPORATE_CALENDAR`, 6 jam |
+
+**BELUM aktif sampai timer-nya dipasang manual di VPS** (`config/scheduled-jobs.json`
+mencatat ketiganya `scheduleStatus: "verify-server"`). Contoh unit file untuk
+`screener-scan` (pola sama untuk `dividend-scan` dan `calendar-scan`, tinggal ganti nama
++ `OnCalendar` sesuai tabel di atas):
+
+```ini
+# /etc/systemd/system/sahamlens-screener-scan.service
+[Unit]
+Description=SahamLens - warm cache LensScanner
+
+[Service]
+Type=oneshot
+User=lens
+ExecStart=/usr/bin/curl -sf -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/screener-scan
+EnvironmentFile=/opt/sahamlens/app/.env.production
+```
+
+```ini
+# /etc/systemd/system/sahamlens-screener-scan.timer
+[Unit]
+Description=Jadwal SahamLens - screener-scan
+
+[Timer]
+OnCalendar=Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now sahamlens-screener-scan.timer
+sudo systemctl enable --now sahamlens-dividend-scan.timer
+sudo systemctl enable --now sahamlens-calendar-scan.timer
+systemctl list-timers --all | grep -i sahamlens   # konfirmasi ketiganya terdaftar
+```
+
+Setelah dipasang & dikonfirmasi jalan (cek `job_run_log` di Postgres, bukan menebak),
+update `scheduleStatus` ketiganya di `config/scheduled-jobs.json` dari `verify-server` ke
+`known`, lalu jalankan `npm run audit:cron` untuk memastikan manifest tetap sinkron.
+
+Tidak ada perubahan pada `/api/screener`, `/api/dividend-plan`, `/api/calendar` sendiri -
+ketiganya sudah `getOrCompute()`, jadi begitu cron mengisi cache, request pengguna otomatis
+jadi cache-hit instan tanpa perubahan kode di sisi baca.
+
 ### 2026-08-14 - Perbaikan Core Web Vitals dari laporan Cloudflare Web Analytics (LCP/INP/CLS)
 
 Pengguna membagikan laporan Cloudflare Web Analytics (11-14 Agu 2026): LCP 80% Good/14%
