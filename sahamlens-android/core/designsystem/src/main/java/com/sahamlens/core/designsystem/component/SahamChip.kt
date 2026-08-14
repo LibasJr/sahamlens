@@ -1,10 +1,12 @@
 package com.sahamlens.core.designsystem.component
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 
 /** Filter chip: sektor, timeframe chart (1H/1D/1M/1Y), kategori sinyal. Selected = Primary Container + centang. */
@@ -15,12 +17,14 @@ fun SahamFilterChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     FilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        modifier = modifier,
+        modifier = modifier.pressScale(interactionSource),
         colors = FilterChipDefaults.filterChipColors(),
+        interactionSource = interactionSource,
     )
 }
 
@@ -31,9 +35,11 @@ fun SahamAssistChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     AssistChip(
         onClick = onClick,
         label = { Text(label) },
-        modifier = modifier,
+        modifier = modifier.pressScale(interactionSource),
+        interactionSource = interactionSource,
     )
 }

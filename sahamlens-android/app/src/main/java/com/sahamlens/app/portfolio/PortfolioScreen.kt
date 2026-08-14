@@ -1,6 +1,5 @@
 package com.sahamlens.app.portfolio
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -146,7 +145,7 @@ private fun EmptyHoldings() {
 @Composable
 private fun HoldingCard(row: HoldingRow, onClick: () -> Unit) {
     val extra = SahamLensTheme.extraColors
-    SahamCard(variant = SahamCardVariant.Outlined, modifier = Modifier.clickable(onClick = onClick)) {
+    SahamCard(variant = SahamCardVariant.Outlined, onClick = onClick) {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(row.symbol, style = MaterialTheme.typography.titleSmall)

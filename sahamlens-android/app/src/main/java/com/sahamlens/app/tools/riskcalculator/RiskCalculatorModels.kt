@@ -5,6 +5,10 @@ import kotlin.math.floor
 data class RiskCalculatorUiState(
     val symbol: String = "BBCA",
     val isLoadingPrice: Boolean = false,
+    /** Diisi saat prefill live gagal (mis. simbol tidak dikenal, jaringan gagal) - sebelumnya
+     * kegagalan ini diam-diam (tombol "Live" terlihat tidak melakukan apa-apa). Null lagi
+     * begitu percobaan baru dimulai atau berhasil. */
+    val priceError: String? = null,
     val modal: String = "10000000",
     val riskPct: String = "1",
     val entry: String = "",
