@@ -64,6 +64,34 @@ test production.
 
 ## Log perubahan deployment
 
+### 2026-08-14 - Jadwal 3 job systemd terverifikasi, manifest cron 100% lengkap
+
+Lanjutan audit jadwal cron di bawah. Temuan #3 (jadwal 3 job systemd tidak diketahui
+dari kode) SEKARANG TERSELESAIKAN - pengguna menjalankan `systemctl list-timers --all`
+langsung di VPS dan membagikan hasilnya:
+
+| Job | Jadwal sungguhan | Bukti |
+| --- | --- | --- |
+| `lens-bucket-backtest` | Harian, 17:00 WIB | LAST Kam 13/8 17:00:02, NEXT Jum 14/8 17:00:00 |
+| `broker-summary-scan` | Harian, 19:10 WIB | LAST Kam 13/8 19:10:07, NEXT Jum 14/8 19:10:10 |
+| `lens-score-optimizer` | Mingguan, Sabtu 18:00 WIB | LAST n/a (belum pernah jalan), NEXT Sab 15/8 18:00:00 |
+
+`config/scheduled-jobs.json` diperbarui: ketiganya `scheduleStatus` naik dari
+`"verify-server"` jadi `"known"`, kolom `schedule` diisi ekuivalen cron-nya, `source`
+mencatat baris LAST/NEXT yang jadi dasarnya (bukan tebakan). `npm run audit:cron`
+sekarang melapor **0 jadwal yang masih harus diverifikasi** dari 12 job total (3
+systemd + 9 QStash) - sebelumnya 3.
+
+Sekaligus terkonfirmasi lewat screenshot dashboard QStash terpisah dari pengguna: jadwal
+`market-summary` (`*/5 9-15 * * 1-5`) dan `backtest-precompute` (`30 5 * * 1-5`) di
+manifest **cocok persis** dengan yang sungguhan dikonfigurasi di QStash - tidak ada
+drift dokumentasi untuk keduanya.
+
+**Temuan #2 (jam berhenti tidak konsisten 15:00 vs 16:00 WIB antar job QStash) MASIH
+BELUM diselesaikan** - screenshot yang dibagikan belum mencakup cron string lengkap
+`ai-pick-scan`/`macro` untuk dikonfirmasi silang, dan keputusan apakah itu sengaja atau
+bukan tetap perlu pengguna/pemilik produk.
+
 ### 2026-08-14 - Audit jadwal cron: TTL Macro dibetulkan, 2 temuan butuh akses manual
 
 Audit atas permintaan pengguna ("job apa saja yang mesti selalu update, apa jadwalnya
