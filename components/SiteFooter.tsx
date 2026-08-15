@@ -1,17 +1,9 @@
 import React from 'react';
-import Link from 'next/link';
 
 /**
  * Footer situs - SATU sumber, dipakai landing dan seluruh halaman ber-shell.
  *
- * KENAPA ADA. Halaman /about (filosofi brand, disepakati 2026-08-06) sudah lama ada
- * tetapi nyaris tidak bisa dicapai: satu-satunya tautan menuju ke sana berada di
- * components/Dashboard.tsx, hanya di landing, dan ditandai `hidden sm:inline` sehingga
- * TIDAK terlihat sama sekali di layar HP. Halaman lain tidak punya footer apa pun -
- * AppShell merender Sidebar, TopMarketBar, MobileNav, tetapi tidak pernah menutup
- * halamannya.
- *
- * Disclaimer sumber data ikut pindah ke sini dan itu disengaja. Sebelumnya ia hanya
+ * Disclaimer sumber data ikut dipusatkan di sini. Sebelumnya ia hanya
  * muncul di landing, padahal justru halaman ANALISIS yang paling perlu menyatakan bahwa
  * datanya pihak ketiga dan bisa terlambat - di situlah orang membaca angka lalu
  * mengambil keputusan.
@@ -34,31 +26,6 @@ export default function SiteFooter({ className = '' }: { className?: string }) {
       </span>
 
       <div className="flex flex-wrap items-center gap-3">
-        {/* Jalan kembali ke "/" (Ringkasan Pasar). WAJIB ADA DI SINI.
-         *
-         * Beranda dulu memasang tombol "Kembali ke halaman utama" sebagai elemen paling
-         * atas. Tombol itu dihapus 2026-08-13 karena memakan layar pertama, dan saat itu
-         * alasannya keliru: disebut "jalan ke landing tetap ada lewat logo di TopMarketBar".
-         * Tidak ada. Logo Sidebar menunjuk ke /home (components/Sidebar.tsx), TopMarketBar
-         * tidak punya tautan ke "/" sama sekali, dan satu-satunya href="/" di seluruh
-         * components/ ada di AuthShell - yang hanya tampil di halaman login.
-         *
-         * Akibatnya pengguna yang sudah masuk terkunci dari "/". Footer adalah tempat yang
-         * benar untuk ini: hadir di setiap halaman, tanpa merebut ruang puncak. */}
-        <Link
-          href="/"
-          className="inline-flex min-h-6 items-center text-tv-muted underline-offset-4 transition-colors hover:text-tv-text hover:underline"
-        >
-          Ringkasan Pasar
-        </Link>
-        {/* Tagline filosofi brand. TIDAK lagi `hidden sm:inline`: justru pengguna HP yang
-            paling butuh jalan menuju halaman yang menjelaskan aplikasi ini apa. */}
-        <Link
-          href="/about"
-          className="inline-flex min-h-6 items-center italic text-tv-muted underline-offset-4 transition-colors hover:text-tv-text hover:underline"
-        >
-          Memperjelas yang tersembunyi. Keputusan tetap milikmu.
-        </Link>
         <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">
           © {new Date().getFullYear()} SahamLens
         </span>
