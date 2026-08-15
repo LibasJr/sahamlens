@@ -180,6 +180,8 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ initialIhsg = null, initialRenderedAt, initialLensRadar = null }: DashboardProps) {
+  const [guideVisible, setGuideVisible] = useState<boolean | null>(null);
+  const [guideOpenRequest, setGuideOpenRequest] = useState(0);
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number; dataTimestamp?: string | null; ageSeconds?: number | null } | null>(initialIhsg);
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
@@ -496,6 +498,15 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   >
                     Lihat LensRadar
                   </Link>
+                  {guideVisible === false && (
+                    <button
+                      type="button"
+                      onClick={() => setGuideOpenRequest((current) => current + 1)}
+                      className="rounded-lg border border-tv-blue/40 bg-tv-blue/10 px-4 py-2.5 text-sm font-semibold text-tv-blue transition-colors hover:bg-tv-blue/20"
+                    >
+                      Mulai dari sini
+                    </button>
+                  )}
                 </div>
 
                 {/* Baris "Gratis untuk mulai · ... bukan nasihat investasi" DIHAPUS
@@ -593,7 +604,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           </Card>
         </motion.div>
 
-        <GettingStartedGuide />
+        <GettingStartedGuide openRequest={guideOpenRequest} onVisibilityChange={setGuideVisible} />
 
         <motion.section
           variants={fadeUp}
