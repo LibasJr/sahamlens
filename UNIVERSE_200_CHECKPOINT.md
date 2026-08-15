@@ -263,7 +263,7 @@ PASS. Build perlu izin jaringan karena `next/font` mengambil Google Fonts.
 - Commit hotfix scanner: `e3d6c9c` (`Fix screener universe fetch target`).
   - CI GitHub Actions: PASS.
   - Deploy VPS GitHub Actions: PASS.
-- Commit checkpoint final: akan dibuat setelah bagian ini ditulis.
+- Checkpoint final diperbarui dalam commit metadata terpisah setelah deploy verification.
 - Production health setelah deploy hotfix:
   - `GET https://sahamlens.id/api/health` -> `status: ok`, database `ok`, redis `ok`.
 - Production cache refresh yang sudah dipicu manual:
