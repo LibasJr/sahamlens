@@ -13,6 +13,7 @@ import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/compone
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 import ThemeToggle from '@/components/ThemeToggle';
+import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
@@ -20,6 +21,7 @@ const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), 
   loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
 });
 const CommandPalette = dynamic(() => import('@/components/CommandPalette'), { ssr: false });
+const ACTIVE_UNIVERSE_COUNT = AI_PICK_UNIVERSE.length;
 
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
 // '1M'/'3M' DIHILANGKAN dari daftar pilihan (bukan cuma default) - backend
@@ -697,8 +699,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
 
                 <div className="mt-4 grid grid-cols-2 gap-3 border-t border-tv-border pt-3">
                   <div>
-                    <div className="font-number text-base font-bold text-tv-text">109</div>
-                    <div className="text-[10px] text-tv-muted leading-tight">universe historis likuid dipindai tiap sesi</div>
+                    <div className="font-number text-base font-bold text-tv-text">{ACTIVE_UNIVERSE_COUNT}</div>
+                    <div className="text-[10px] text-tv-muted leading-tight">universe likuid aktif dipindai tiap sesi</div>
                   </div>
                   <div>
                     <div className="font-number text-base font-bold text-tv-text">
@@ -708,8 +710,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   </div>
                 </div>
                 <p className="mt-2.5 text-[9px] leading-relaxed text-tv-muted">
-                  Universe 109 dibentuk dari emiten IDX yang lolos filter historis harga, likuiditas, dan volatilitas.
-                  LensRadar live dapat memindai cakupan lebih luas, tetapi setiap kandidat tetap melalui gerbang kelayakan data.
+                  Universe aktif {ACTIVE_LIQUID_UNIVERSE_VERSION} berisi {ACTIVE_UNIVERSE_COUNT} emiten IDX likuid. Setiap kandidat tetap melalui
+                  gerbang kelayakan harga, histori, likuiditas, ATR, dan coverage data.
                 </p>
               </div>
               </div>

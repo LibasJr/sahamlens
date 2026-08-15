@@ -1,14 +1,18 @@
 import { cacheGet, cacheSet } from './redis-cache';
 import type { FundamentalInput } from '../../modules/technical';
 import type { ScoredStock } from '../../modules/recommendation/service/ai-pick.service';
+import {
+  ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE,
+  ACTIVE_LIQUID_UNIVERSE_VERSION,
+} from '../../modules/market/constants/ai-pick-universe';
 
 // TTL fundamental 24 jam, terpisah dari skor yang 5 menit: PER/PBV/ROE/DER berubah per
-// kuartal mengikuti laporan keuangan. Menyegarkannya tiap 5 menit hanya membakar ~109
-// request quoteSummary tanpa mengubah angka apa pun.
-const FUNDAMENTAL_KEY = 'sahamlens:cache:computed:fundamental-snapshot';
+// kuartal mengikuti laporan keuangan. Menyegarkannya tiap 5 menit hanya membakar request
+// quoteSummary tanpa mengubah angka apa pun.
+const FUNDAMENTAL_KEY = `sahamlens:cache:computed:fundamental-snapshot:${ACTIVE_LIQUID_UNIVERSE_VERSION}`;
 const FUNDAMENTAL_TTL_SEC = 24 * 60 * 60;
 
-const SCORES_KEY = 'sahamlens:cache:computed:ai-pick-scores';
+const SCORES_KEY = `sahamlens:cache:computed:ai-pick-scores:${ACTIVE_LIQUID_UNIVERSE_VERSION}`;
 // BUG FIX (audit integritas data 2026-08-03): sebelumnya 15 menit (3x interval cron) -
 // cron ai-pick-scan cuma jalan jam bursa (09:00-16:00 WIB), jadi begitu bursa tutup
 // cache ini expired dalam belasan menit dan /api/ai-pick balik "ready: false, items: []"
@@ -22,6 +26,8 @@ export type FundamentalSnapshot = Record<string, FundamentalInput>;
 
 export type AiPickScores = {
   computedAt: string;
+  universeVersion?: string;
+  universeSize?: number;
   scores: ScoredStock[];
   /** Saham dengan tren teknikal BEARISH - dipakai menandai baris merah, bukan menyaring. */
   bearishSymbols: string[];
@@ -40,5 +46,13 @@ export async function readAiPickScores(): Promise<AiPickScores | null> {
 }
 
 export async function writeAiPickScores(data: AiPickScores): Promise<void> {
-  await cacheSet(SCORES_KEY, data, SCORES_TTL_SEC);
+  await cacheSet(
+    SCORES_KEY,
+    {
+      ...data,
+      universeVersion: ACTIVE_LIQUID_UNIVERSE_VERSION,
+      universeSize: ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE,
+    },
+    SCORES_TTL_SEC,
+  );
 }

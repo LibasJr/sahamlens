@@ -93,7 +93,7 @@ export const CACHE_TTL_SEC = {
   // Pick" kosong): breakout-scan cron (app/api/cron/breakout-scan) SEBELUMNYA memakai
   // TTL yang SAMA dengan MARKET di atas (6 menit) - tapi route pembacanya (app/api/
   // ai-pick, app/api/daily-picks) SENGAJA TIDAK punya fallback live-scan (1 request
-  // pengguna bisa menanggung ~109 fetch Yahoo kalau fallback). Cron cuma jalan jam
+  // pengguna bisa menanggung full active-universe fetch Yahoo kalau fallback). Cron cuma jalan jam
   // bursa (09:00-15:00 WIB) - begitu bursa tutup, TTL 6 menit itu expired dalam
   // hitungan menit dan kategori breakout/golden cross/dead cross tampil KOSONG total
   // sampai bursa buka lagi besok (atau Senin kalau Jumat sore). TTL diperpanjang ke 3

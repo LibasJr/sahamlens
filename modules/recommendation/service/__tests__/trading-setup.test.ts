@@ -68,6 +68,14 @@ describe('buildLongTradingSetup', () => {
     expect(buildLongTradingSetup(baseHistory(), 106, null)).toBeNull();
   });
 
+  it('tidak membuat TP/CL kalau histori harga tidak cukup', () => {
+    expect(buildLongTradingSetup(baseHistory().slice(0, 14), 106, 5)).toBeNull();
+  });
+
+  it('tidak membuat TP/CL kalau harga sekarang tidak valid', () => {
+    expect(buildLongTradingSetup(baseHistory(), 0, 5)).toBeNull();
+  });
+
   it('membulatkan level order ke fraksi harga IDX dan menghitung ulang RR dari level executable', () => {
     expect(roundToIdxTick(4237, 'down')).toBe(4230);
     expect(roundToIdxTick(4237, 'up')).toBe(4240);

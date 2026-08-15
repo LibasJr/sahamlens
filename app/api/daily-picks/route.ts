@@ -28,7 +28,7 @@ export async function GET() {
     const cachedBreakout = await cacheGet<any>(BREAKOUT_CACHE_KEY);
     // Tanpa fallback live-scan: kalau cache belum terisi, kategori breakout & cross
     // tampil kosong sampai cron mengisinya. Memindai di sini berarti request pengguna
-    // menanggung ~109 fetch Yahoo.
+    // menanggung full active-universe fetch Yahoo.
     const breakoutList: any[] = cachedBreakout?.data || (Array.isArray(cachedBreakout) ? cachedBreakout : null) || [];
     const crossSignals = cachedBreakout?.crossSignals || { golden: [], dead: [] };
     // BUG FIX (audit integritas data 2026-08-03): TTL cache ini diperpanjang ke 3 hari

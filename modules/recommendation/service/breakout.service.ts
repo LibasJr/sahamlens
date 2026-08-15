@@ -1,6 +1,7 @@
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { calculateRsi, calculateWilderAtr } from '../../technical';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
+import { resolvePreviousClose } from '../../../shared/market/previous-close';
 import { buildLongTradingSetup, type LongTradingSetup } from './trading-setup';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/breakout-radar/route.ts, verbatim.
@@ -9,6 +10,7 @@ import { buildLongTradingSetup, type LongTradingSetup } from './trading-setup';
 // saham itu yang pernah bisa mendapat bonus breakout di peringkat. Sekarang memakai
 // universe bersama, lihat modules/market/constants/ai-pick-universe.ts.
 const WATCHLIST = AI_PICK_UNIVERSE;
+const BATCH_SIZE = 15;
 
 export interface BreakoutEntry {
   symbol: string;
@@ -110,6 +112,13 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const vols = history.map(h => h.volume);
 
     const currentPrice = closes[closes.length - 1];
+    const { previousClose } = resolvePreviousClose({
+      timestamps,
+      closes: quote.close,
+      metaPreviousClose: result.meta?.previousClose,
+      metaChartPreviousClose: result.meta?.chartPreviousClose,
+    });
+    if (previousClose == null) return null;
 
     // Calculate SMA20 and SMA50 as proxy for EMA
     const ma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
@@ -175,7 +184,7 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     return {
       symbol,
       currentPrice,
-      changeStr: (((currentPrice - closes[closes.length - 2]) / closes[closes.length - 2]) * 100).toFixed(2) + '%',
+      changeStr: (((currentPrice - previousClose) / previousClose) * 100).toFixed(2) + '%',
       isCrossUp,
       isDeadCross,
       score,
@@ -190,8 +199,20 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
   }
 }
 
+async function analyzeWatchlistInBatches(): Promise<RawSymbolSignal[]> {
+  const out: RawSymbolSignal[] = [];
+  for (let i = 0; i < WATCHLIST.length; i += BATCH_SIZE) {
+    const batch = WATCHLIST.slice(i, i + BATCH_SIZE);
+    const resolved = await Promise.all(batch.map(analyzeSymbolForBreakout));
+    for (const result of resolved) {
+      if (result) out.push(result);
+    }
+  }
+  return out;
+}
+
 export async function scanBreakouts(): Promise<BreakoutEntry[]> {
-  const resolvedResults = await Promise.all(WATCHLIST.map(analyzeSymbolForBreakout));
+  const resolvedResults = await analyzeWatchlistInBatches();
 
   const results: BreakoutEntry[] = [];
   for (const r of resolvedResults) {
@@ -226,7 +247,7 @@ export async function scanBreakouts(): Promise<BreakoutEntry[]> {
 // sinyal bearish (Dead Cross) juga bisa ditampilkan di halaman AI Pick, bukan cuma
 // dibuang karena tidak menyumbang skor breakout positif.
 export async function scanCrossSignals(): Promise<{ golden: CrossEntry[]; dead: CrossEntry[] }> {
-  const resolvedResults = await Promise.all(WATCHLIST.map(analyzeSymbolForBreakout));
+  const resolvedResults = await analyzeWatchlistInBatches();
 
   const golden: CrossEntry[] = [];
   const dead: CrossEntry[] = [];

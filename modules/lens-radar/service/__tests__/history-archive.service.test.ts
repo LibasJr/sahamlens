@@ -7,6 +7,7 @@ import {
   VALUATION_VERSION,
 } from '../../constants/model-version';
 import { PRICE_ADJUSTMENT_VERSION, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 vi.mock('@/shared/database/schema.service', () => ({
   ensureSharedSchema: async () => {},
@@ -49,6 +50,7 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
     const { sql, params } = db.calls[0];
     for (const column of [
       'score_version',
+      'universe_version',
       'valuation_version',
       'signal_version',
       'data_snapshot_version',
@@ -65,6 +67,7 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
     }
 
     expect(params).toContain(SCORE_VERSION);
+    expect(params).toContain(ACTIVE_LIQUID_UNIVERSE_VERSION);
     expect(params).toContain(VALUATION_VERSION);
     expect(params).toContain(SIGNAL_VERSION);
     expect(params).toContain(DATA_SNAPSHOT_VERSION);

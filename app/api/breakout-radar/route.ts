@@ -18,7 +18,7 @@ export async function GET() {
 
     // Cache belum terisi - jawab kosong, JANGAN memindai. Pemindaian adalah tugas
     // /api/cron/breakout-scan; menjalankannya di request pengguna berarti satu orang
-    // menanggung ~109 fetch Yahoo dan halaman menggantung puluhan detik.
+    // menanggung full active-universe fetch Yahoo dan halaman menggantung puluhan detik.
     return NextResponse.json({ data: [], crossSignals: { golden: [], dead: [] }, lastUpdate: null });
   } catch (error) {
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });

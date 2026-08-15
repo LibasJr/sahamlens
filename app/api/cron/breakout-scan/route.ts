@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const guarded = await runWithJobConcurrencyGuard('breakout-scan', () => withJobRunLog('breakout-scan', async () => {
-      const [data, crossSignals] = await Promise.all([scanBreakouts(), scanCrossSignals()]);
+      const data = await scanBreakouts();
+      const crossSignals = await scanCrossSignals();
       const payload = { data, crossSignals, lastUpdate: new Date().toISOString() };
       // TTL.BREAKOUT_RADAR (3 hari), bukan TTL.MARKET (60 detik saat bursa buka - itu
       // acuan untuk PEMBACA live-fallback, bukan penulis cron) - lihat komentar di

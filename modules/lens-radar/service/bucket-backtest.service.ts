@@ -25,6 +25,7 @@ import {
 import type { TradingCalendarSource } from './history-return-utils';
 
 import { ADV_HARD_FLOOR_IDR } from '@/modules/eligibility';
+import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import {
   countValidationPopulationRejection,
   emptyValidationPopulationCounters,
@@ -60,6 +61,7 @@ export interface LensRadarHistoryEntry {
   close_price: number | string;
   market_cap: number | string | null;
   score_version?: string | null;
+  universe_version?: string | null;
   raw_close_price?: number | string | null;
   adjusted_close_price?: number | string | null;
   price_basis?: PriceBasis | string | null;
@@ -588,15 +590,17 @@ export async function calculateLensBucketStats(
 export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
            avg_value_20d, coverage_pct, eligibility_status
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
+      AND COALESCE(universe_version, $1) = $1
     ORDER BY ticker ASC, "date" ASC
-    `
+    `,
+    [LEGACY_VALIDATED_UNIVERSE_VERSION]
   );
   return rows as LensRadarHistoryEntry[];
 }

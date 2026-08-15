@@ -54,6 +54,7 @@ describe('backfill-lens-history script', () => {
         flowScore: 29,
         coveragePct: 80,
         scoreVersion: SCORE_VERSION,
+        universeVersion: 'idx-liquid-v2-200',
         valuationVersion: 'valuation-v1.2.0',
         signalVersion: SIGNAL_VERSION,
         dataSnapshotVersion: DATA_SNAPSHOT_VERSION,
@@ -76,6 +77,7 @@ describe('backfill-lens-history script', () => {
 
     expect(query).not.toBeNull();
     expect(query!.text).toContain('ON CONFLICT (date, ticker) DO UPDATE SET');
+    expect(query!.text).toContain('universe_version = EXCLUDED.universe_version');
     expect(query!.text).toContain('raw_close_price');
     expect(query!.text).toContain('adjusted_close_price');
     expect(query!.text).toContain('price_basis');
@@ -88,7 +90,45 @@ describe('backfill-lens-history script', () => {
     const jumlahKolom = query!.text.match(/lens_radar_history \(([^)]+)\)/)![1].split(',').length;
     expect(query!.params).toHaveLength(jumlahKolom - 1);
     expect(query!.params).toContain(4_200_000_000);
+    expect(query!.params).toContain('idx-liquid-v2-200');
     expect(query!.params).toContain('TOTAL_RETURN_ADJUSTED');
     expect(query!.params).toContain('price-adjustment-v1');
+  });
+
+  it('parseArgs menerima mode tambahan universe 200 dengan checkpoint dan concurrency bounded', () => {
+    const options = script.parseArgs([
+      '--universe-additions',
+      '--dry-run',
+      '--skip-backtest',
+      '--checkpoint=scripts/.tmp-checkpoint.json',
+      '--ticker-batch-size=24',
+      '--concurrency=4',
+      '--retry-attempts=2',
+    ], new Date('2026-08-06T00:00:00Z'));
+
+    expect(options).toMatchObject({
+      universeAdditions: true,
+      dryRun: true,
+      skipBacktest: true,
+      checkpointFile: 'scripts/.tmp-checkpoint.json',
+      tickerBatchSize: 24,
+      concurrency: 4,
+      retryAttempts: 2,
+    });
+  });
+
+  it('resolveBackfillUniverse memilih hanya ticker tambahan untuk mode universe-additions', () => {
+    const options = script.parseArgs(['--universe-additions'], new Date('2026-08-06T00:00:00Z'));
+    const result = script.resolveBackfillUniverse(options, {
+      BACKTEST_UNIVERSE: ['BBCA.JK'],
+      AI_PICK_UNIVERSE_ADDITIONS: ['CITY.JK', 'DEPO.JK'],
+      ACTIVE_LIQUID_UNIVERSE_VERSION: 'idx-liquid-v2-200',
+      LEGACY_VALIDATED_UNIVERSE_VERSION: 'idx-liquid-v1-109',
+    });
+
+    expect(result).toEqual({
+      tickers: ['CITY.JK', 'DEPO.JK'],
+      universeVersion: 'idx-liquid-v2-200',
+    });
   });
 });

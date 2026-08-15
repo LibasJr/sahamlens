@@ -53,6 +53,7 @@ local_db.json
 /env.local
 /env.local.*
 scripts/.backtest-universe-stats.json
+scripts/.universe-*-backfill-checkpoint.json
 
 # Template env aman untuk onboarding developer; secret nyata tetap di-ignore.
 !/.env.example

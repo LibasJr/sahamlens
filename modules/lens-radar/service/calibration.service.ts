@@ -55,6 +55,7 @@ import {
   type CorporateActionStatus,
   type PriceBasis,
 } from '@/shared/market/price-basis';
+import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
@@ -508,15 +509,17 @@ export async function calculateCalibrationObservations(
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version,
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
            avg_value_20d, coverage_pct, eligibility_status
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
+      AND COALESCE(universe_version, $1) = $1
     ORDER BY ticker ASC, "date" ASC
-    `
+    `,
+    [LEGACY_VALIDATED_UNIVERSE_VERSION]
   );
   return rows as LensRadarHistoryEntry[];
 }

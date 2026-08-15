@@ -3,6 +3,7 @@ import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { currentModelVersionStamp } from '../constants/model-version';
 import { PRICE_ADJUSTMENT_VERSION, TRADING_PRICE_BASIS, type CorporateActionStatus, type PriceBasis } from '@/shared/market/price-basis';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -56,14 +57,14 @@ export async function archiveLensRadarHistory(
       INSERT INTO lens_radar_history (
         date, ticker, lens_score, close_price, market_cap,
         technical_score, fundamental_score, flow_score, coverage_pct,
-        score_version, valuation_version, signal_version, data_snapshot_version,
+        score_version, universe_version, valuation_version, signal_version, data_snapshot_version,
         calculation_timestamp,
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
         avg_value_20d,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,$22, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, now())
       ON CONFLICT (date, ticker) DO UPDATE SET
         lens_score = EXCLUDED.lens_score,
         close_price = EXCLUDED.close_price,
@@ -73,6 +74,7 @@ export async function archiveLensRadarHistory(
         flow_score = EXCLUDED.flow_score,
         coverage_pct = EXCLUDED.coverage_pct,
         score_version = EXCLUDED.score_version,
+        universe_version = EXCLUDED.universe_version,
         valuation_version = EXCLUDED.valuation_version,
         signal_version = EXCLUDED.signal_version,
         data_snapshot_version = EXCLUDED.data_snapshot_version,
@@ -98,6 +100,7 @@ export async function archiveLensRadarHistory(
         finiteNumber(item.breakdown?.flow),
         finiteNumber(item.coverage),
         versionStamp.score_version,
+        ACTIVE_LIQUID_UNIVERSE_VERSION,
         versionStamp.valuation_version,
         versionStamp.signal_version,
         versionStamp.data_snapshot_version,

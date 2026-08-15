@@ -37,7 +37,7 @@ describe('filterCurated', () => {
   it('membuang saham yang tidak lolos standar kualitas', () => {
     const stocks = [
       { ticker: 'BBCA' }, { ticker: 'GOTO' }, { ticker: 'ZZZZ' },
-      { ticker: 'MEGA' }, { ticker: 'BYAN' }, { ticker: 'SILO' },
+      { ticker: 'MEGA' }, { ticker: 'ALTO' }, { ticker: 'SILO' },
     ];
 
     expect(filterCurated(stocks).map((s) => s.ticker)).toEqual(['BBCA']);
