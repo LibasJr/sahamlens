@@ -315,13 +315,30 @@ function BucketTooltip({ active, payload, label }: any) {
 // calculateThresholdSimulations() mengukur terhadap 80, jadi menggeser baseline berarti
 // membandingkan angka terhadap dirinya sendiri.
 //
-// DITURUNKAN 90 -> 85 (permintaan pemilik produk, 2026-08-12). Alasan praktisnya terbukti
-// di data: makin tinggi ambangnya makin sedikit sinyal yang lolos, dan pada 90 jumlah
-// sampelnya jatuh sampai win rate di kartu paling kiri tidak lagi bisa dibaca sebagai
-// apa pun. 85 menahan penyusutan itu sambil tetap berjarak dari baseline - dipilih
-// ketimbang 80 justru karena 80 adalah baseline-nya sendiri, dan membuka halaman di situ
-// membuat seluruh kolom "Δ vs 80" membaca 0%.
-const DEFAULT_SIMULATION_THRESHOLD = 85;
+// Riwayat: 90 -> 85 (2026-08-12), 85 -> 80 (2026-08-15). Keduanya permintaan pemilik
+// produk, dan keduanya HANYA memindahkan posisi awal slider.
+//
+// Alasan 90 ditinggalkan tetap berlaku: makin tinggi ambangnya makin sedikit sinyal yang
+// lolos, dan pada 90 sampelnya jatuh ke 66 - win rate di kartu paling kiri tidak lagi bisa
+// dibaca sebagai apa pun.
+//
+// KONSEKUENSI YANG DISENGAJA dari memilih 80: 80 adalah baseline pembanding di
+// calculateThresholdSimulations(), jadi saat halaman dibuka seluruh kolom "Δ vs 80"
+// membaca 0,00%. Itu BUKAN bug dan bukan data kosong - geser slider ke angka lain dan
+// kolomnya hidup lagi. Dicatat di sini supaya tidak ada yang "memperbaikinya" balik ke 85.
+//
+// Yang TIDAK berubah oleh baris ini: ambang produksi. Label STRONG BUY/BUY tetap diputuskan
+// SCORING_KATEGORI_THRESHOLDS (STRONG_BUY 75, BUY 60) di
+// modules/technical/service/decision-thresholds.ts, dan tidak ada tombol di panel admin
+// mana pun yang bisa mengubahnya saat runtime.
+//
+// Konteks data saat perubahan ini dibuat (dibaca langsung dari produksi 2026-08-15):
+// ambang 80 memberi 517 sinyal, win rate 36,17% (LEBIH RENDAH dari 38,77% di 75),
+// avg T+20 +0,09% net tetapi median -2,81% - ditandai MEAN_POSITIVE_MEDIAN_NEGATIVE,
+// artinya untungnya dari segelintir outlier. Bootstrap CI 95% -4,77%..+7,25% masih
+// melewati nol. Tidak ada ambang di tabel ini yang tervalidasi; angka simulasi tetap
+// untuk riset, bukan dasar mengubah produksi.
+const DEFAULT_SIMULATION_THRESHOLD = 80;
 
 export default function CalibrationClient() {
   const [data, setData] = useState<CalibrationDashboardData | null>(null);
