@@ -243,6 +243,7 @@ export default function HomePage() {
   >([]);
   const [loadingRadar, setLoadingRadar] = useState(true);
   const [radarError, setRadarError] = useState(false);
+  const [radarPreparing, setRadarPreparing] = useState(false);
   const [radarStale, setRadarStale] = useState(false);
   const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold'>('gainer');
   const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
@@ -273,7 +274,7 @@ export default function HomePage() {
       fetch('/api/market-summary', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([liveJkse, summary]) => {
-        if (!liveJkse && !summary) { setMarketError(true); return; }
+        if (!liveJkse || !summary) { setMarketError(true); return; }
         if (
           liveJkse &&
           typeof liveJkse.price === 'number' &&
@@ -365,6 +366,7 @@ export default function HomePage() {
   const fetchRadar = useCallback(() => {
     setLoadingRadar(true);
     setRadarError(false);
+    setRadarPreparing(false);
     fetch('/api/ai-pick', { cache: 'no-store' })
       .then((r) => {
         if (r.status === 401) { setPicksLoginRequired(true); return null; }
@@ -374,7 +376,8 @@ export default function HomePage() {
       })
       .then((d) => {
         if (!d) return;
-        if (d.error || d.ready === false) { setRadarItems([]); setRadarStale(false); return; }
+        if (d.error) { setRadarError(true); return; }
+        if (d.ready === false) { setRadarItems([]); setRadarStale(false); setRadarPreparing(true); return; }
         setRadarItems(d.items || []);
         setRadarStale(!!d.stale);
       })
@@ -388,8 +391,9 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch('/api/watchlist', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : r.status === 401 ? { loginRequired: true } : null))
       .then((d) => {
+        if (d?.loginRequired) { setWatchlistCount(-1); return; }
         const list = d?.data || [];
         setWatchlistCount(list.length);
         setWatchlistPreview(list.slice(0, 3));
@@ -742,6 +746,8 @@ export default function HomePage() {
             <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat peluang hari ini." />
           ) : radarError ? (
             <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchRadar }} />
+          ) : radarPreparing ? (
+            <EmptyState illustration="collecting" title="Pemindaian hari ini sedang disiapkan" description="Snapshot LensRadar belum tersedia. Ini bukan berarti tidak ada saham yang lolos; coba muat ulang beberapa saat lagi." action={{ label: 'Muat ulang', onClick: fetchRadar }} />
           ) : !radarItems[0] ? (
             /* Phase 0 (P0-1/P0-3): daftar bisa kosong karena saham berstatus 'DATA TIDAK
                CUKUP' dan yang tidak lolos gerbang kelayakan DIKELUARKAN, bukan diberi
@@ -1062,6 +1068,8 @@ export default function HomePage() {
             <div className="min-h-[300px] flex flex-col justify-center">
               {watchlistCount === null ? (
                 <Skeleton className="h-11 w-full" />
+              ) : watchlistCount === -1 ? (
+                <EmptyState illustration="locked" title="Masuk untuk melihat watchlist" description="Watchlist tersimpan di akunmu. Masuk untuk melihat saham dan alert yang sedang dipantau." action={{ label: 'Masuk', onClick: () => { window.location.href = '/login?next=%2Fhome'; } }} />
               ) : watchlistCount === 0 ? (
                 <EmptyState
                   illustration="collecting"

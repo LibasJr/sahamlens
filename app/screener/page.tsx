@@ -136,6 +136,7 @@ export default function ScreenerPage() {
   // menampilkan "Tidak ada saham yang memenuhi kriteria saat ini" - klaim bahwa
   // pemindaian sudah berjalan dan hasilnya nihil. Dua keadaan berbeda, satu pesan.
   const [loadError, setLoadError] = useState(false);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ScreenerTemplate[]>([]);
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
@@ -160,6 +161,7 @@ export default function ScreenerPage() {
   ) => {
     setLoading(true);
     setLoadError(false);
+    setLoadErrorMessage(null);
     try {
       const params = new URLSearchParams({ profile });
       if (sector) params.set('sector', sector);
@@ -183,6 +185,7 @@ export default function ScreenerPage() {
       const json = await res.json();
       if (!res.ok || json?.error) {
         setLoadError(true);
+        setLoadErrorMessage(typeof json?.error === 'string' ? json.error : null);
         setData(null);
         return;
       }
@@ -190,6 +193,7 @@ export default function ScreenerPage() {
     } catch (e) {
       console.error(e);
       setLoadError(true);
+      setLoadErrorMessage(null);
       setData(null);
     } finally {
       setLoading(false);
@@ -538,7 +542,7 @@ export default function ScreenerPage() {
             <EmptyState
               illustration="empty"
               title="Hasil pemindaian gagal dimuat"
-              description="Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria."
+              description={loadErrorMessage || 'Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria.'}
               action={{ label: 'Coba lagi', onClick: () => runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput) }}
             />
           )}

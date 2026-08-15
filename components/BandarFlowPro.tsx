@@ -23,19 +23,27 @@ interface BandarFlowProProps {
 export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchFlowData = async () => {
       setLoading(true);
+      setError(null);
+      setData(null);
       try {
         const cleanSymbol = symbol.replace('.JK', '');
         const res = await fetch(`/api/flow/${cleanSymbol}`);
-        if (res.ok) {
-          const json = await res.json();
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(json?.error || (res.status === 402 ? 'LensFlow memerlukan akses akun.' : 'Data arus dana sementara tidak tersedia.'));
+        } else if (!json?.summary || !Array.isArray(json.foreignFlow20D)) {
+          setError('Respons data arus dana tidak lengkap. Coba segarkan halaman.');
+        } else {
           setData(json);
         }
       } catch (err) {
         console.error('Failed to fetch flow data', err);
+        setError('Data arus dana sementara tidak dapat dimuat. Coba lagi beberapa saat lagi.');
       } finally {
         setLoading(false);
       }
@@ -55,7 +63,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     );
   }
 
-  if (!data) return null;
+  if (!data) return <div className="w-full rounded-xl border border-tv-border bg-tv-card p-5 text-sm text-tv-muted">{error || 'Data arus dana belum tersedia.'}</div>;
 
   const { summary } = data;
   const formatFlowValue = (value: number | null | undefined) =>
