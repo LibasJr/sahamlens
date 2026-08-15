@@ -66,6 +66,16 @@ Diverifikasi langsung di server 2026-08-13.
   formula, data, akses, cache, cron, environment variable, maupun prosedur deploy. Push ke `main`
   tetap cukup untuk mengirim rilis ke VPS melalui GitHub Actions.
 
+### 2026-08-16 - Halaman utama fokus produk; ringkasan pasar tetap di Beranda
+
+- Halaman utama `/` tidak lagi memuat blok **Ringkasan Pasar Hari Ini** maupun chart
+  IHSG interaktif. Ringkasan pasar tetap berada di `/home` (Beranda) dan menu Market,
+  sehingga halaman utama tidak mencampur orientasi produk dengan dashboard pasar.
+- Panduan **Mulai dari sini** hanya tampil sekali di `/`, tepat setelah hero. Panduan
+  yang sama dihapus dari `/home` agar pengunjung tidak menerima instruksi duplikat.
+- Penghapusan chart juga menghapus pemuatan data/chart IHSG yang tidak dibutuhkan pada
+  halaman utama. Tidak ada cache, cron, environment variable, atau langkah VPS baru.
+
 ### 2026-08-16 - Cache Compare, Penjelasan Valuasi, dan observabilitas admin
 
 - `/api/compare` kini memakai cache Redis **per emiten** dengan TTL data teknikal yang
