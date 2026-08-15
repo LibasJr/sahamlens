@@ -18,8 +18,11 @@ const MEMBER_PRIMARY_ITEM = { label: 'Analyze', href: '/dashboard', icon: LineCh
 export default function MobileNav() {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
-  const { effectiveRole } = useAuthUser();
-  const items = [...PUBLIC_ITEMS, effectiveRole === 'guest' ? GUEST_PRIMARY_ITEM : MEMBER_PRIMARY_ITEM];
+  const { effectiveRole, loading, resolved } = useAuthUser();
+  // Saat status sesi belum pasti, tampilkan pintu analisis anggota agar user yang
+  // sudah login tidak melihat item tamu lalu berkedip berubah sesaat kemudian.
+  const isConfirmedGuest = !loading && resolved && effectiveRole === 'guest';
+  const items = [...PUBLIC_ITEMS, isConfirmedGuest ? GUEST_PRIMARY_ITEM : MEMBER_PRIMARY_ITEM];
 
   useEffect(() => {
     const nav = navRef.current;

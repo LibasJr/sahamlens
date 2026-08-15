@@ -49,7 +49,11 @@ export default function DividendPage() {
   };
 
   useEffect(() => {
-    fetchDividendPlan();
+    // Ketikan angka tidak perlu mengirim satu request untuk setiap digit. Nilai nol
+    // sementara saat field dikosongkan juga bukan simulasi yang bermakna.
+    if (capital <= 0 || targetMonthly < 0) return;
+    const timeout = window.setTimeout(fetchDividendPlan, 500);
+    return () => window.clearTimeout(timeout);
   }, [capital, targetMonthly]);
 
   const quant = data?.quant || {};
