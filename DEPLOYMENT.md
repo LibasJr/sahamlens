@@ -211,6 +211,10 @@ OOS lama tidak bisa diklaim ulang.
   menyamarkan respons 401 itu sebagai “Penjelasan belum tersedia”: tamu melihat CTA
   **Masuk/Daftar** untuk Penjelasan LensAI dan rincian bobot/cara hitung, sementara
   pengguna login tetap menerima penjelasan dan detail yang sama seperti sebelumnya.
+- Pengguna login juga mendapat tombol **Tanya LensAI tentang valuasi ini**. Tombol
+  membuka panel chat dengan pertanyaan valuasi yang sudah disiapkan untuk ticker aktif;
+  LensAI tetap mengambil dan memverifikasi data pada jalur server, bukan menerima angka
+  valuasi dari browser sebagai sumber kebenaran.
 - Tidak ada perubahan formula valuasi, provider AI, cron, env var, atau data tersimpan.
 
 ### 2026-08-15 - LensScanner: teaser kandidat, hasil lengkap akun

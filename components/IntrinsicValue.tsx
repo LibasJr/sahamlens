@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { Target, TrendingDown, TrendingUp, Lock } from 'lucide-react';
+import { Target, TrendingDown, TrendingUp, Lock, Sparkles } from 'lucide-react';
 
 interface IntrinsicValueProps {
   symbol: string;
@@ -94,6 +94,15 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
   const hasWeightedFormula = weightedParts.length > 0;
   const detailsUnlocked = authResolved && isAuthenticated;
   const nextPath = `/fundamental?symbol=${encodeURIComponent(symbol)}`;
+  const askLensAIAboutValuation = () => {
+    // AIChat akan mengambil angka kembali dari server; prompt ini hanya memberi fokus
+    // percakapan agar pengguna tidak perlu merangkai pertanyaan dari nol.
+    window.dispatchEvent(new CustomEvent('open-ai-chat', {
+      detail: {
+        prompt: `Jelaskan nilai wajar ${symbol.replace('.JK', '')}: faktor apa yang paling memengaruhi hasilnya, apa batasan modelnya, dan bagaimana membaca margin of safety tanpa menganggapnya sebagai rekomendasi beli/jual?`,
+      },
+    }));
+  };
   
   // Format data for chart
   const chartData = Object.keys(methods).map(key => ({
@@ -332,6 +341,15 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
           <p className="text-xs text-tv-muted">Penjelasan LensAI sedang tidak dapat dimuat. Coba segarkan halaman beberapa saat lagi.</p>
         ) : (
           <p className="text-xs text-tv-muted">Penjelasan LensAI belum tersedia untuk data valuasi ini.</p>
+        )}
+        {detailsUnlocked && (
+          <button
+            type="button"
+            onClick={askLensAIAboutValuation}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-tv-blue/40 bg-tv-blue/5 px-3 py-2 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/10"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Tanya LensAI tentang valuasi ini
+          </button>
         )}
       </div>
     </div>
