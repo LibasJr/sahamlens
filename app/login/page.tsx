@@ -6,6 +6,7 @@ import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
 import { Input, Button, Toast, PasswordToggle } from '@/components/ui';
 import { LOGIN_REQUIRED_NOTICE } from '@/shared/constants/access';
+import { safeInternalPath } from '@/shared/navigation/safe-internal-path';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -16,7 +17,9 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') || '/';
+  // `next` datang dari URL browser. Jangan pass mentah ke router.push(): `//host`
+  // adalah URL protocol-relative dan dapat mengarahkan user keluar situs setelah login.
+  const next = safeInternalPath(searchParams.get('next'), '/');
   // Diisi proxy.ts saat guest mencoba membuka halaman terproteksi - tanpa ini user
   // mendarat di /login tanpa tahu kenapa ia dipindahkan dari halaman yang ia klik.
   const notice = searchParams.get('notice') === 'login_required' ? LOGIN_REQUIRED_NOTICE : null;
