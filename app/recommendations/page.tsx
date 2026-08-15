@@ -8,6 +8,7 @@ import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { PageContainer } from '@/components/ui';
+import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -408,12 +409,20 @@ export default function Recommendations() {
                     </td>
                     <td className="p-4 text-center">
                       {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data
-                          tabular/kode (aturan app/globals.css), bukan kata status BUY/SELL. */}
-                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans text-xs ${item.consensus?.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green' :
-                          item.consensus?.includes('SELL') ? 'bg-tv-red/20 text-tv-red border border-tv-red' :
+                          tabular/kode (aturan app/globals.css), bukan kata status BUY/SELL.
+                          BUG FIX (audit label rekomendasi 2026-08-15): `item.consensus`
+                          adalah nilai classifier internal ('STRONG BUY' dst, lihat
+                          consensus.service.ts) - dulu dirender apa adanya, terbaca sebagai
+                          ajakan transaksi ("STRONG BUY" hijau tebal) padahal model BELUM
+                          lolos validasi backtest out-of-sample. Dipetakan ke label sinyal
+                          via getKategoriPresentationLabel(); `item.confidence` sendiri
+                          sudah dilabeli "vote" (bukan "confidence") di teks - itu memang
+                          persentase vote analyzer yang sepakat, bukan probabilitas hasil. */}
+                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans text-xs ${getKategoriTone(item.consensus) === 'positive' ? 'bg-tv-green/20 text-tv-green border border-tv-green' :
+                          getKategoriTone(item.consensus) === 'negative' ? 'bg-tv-red/20 text-tv-red border border-tv-red' :
                             'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow'
                         }`}>
-                        {item.consensus} (vote {item.confidence}%)
+                        {getKategoriPresentationLabel(item.consensus)} (vote {item.confidence}%)
                       </div>
                     </td>
                     <td className="p-4 text-center">
