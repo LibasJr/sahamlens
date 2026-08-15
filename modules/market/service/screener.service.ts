@@ -380,14 +380,10 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
 
 // Universe mentah (fundamental+teknikal per saham) - TIDAK bergantung pada profil
 // risiko, jadi di-cache terpisah dan dipakai ulang untuk skoring 3 profil sekaligus.
-//
-// Mengambil GABUNGAN dua universe dalam satu kali jalan, bukan dua kali:
-// SCREENER_UNIVERSE (51, dipakai Compare Tool sebagai alat pencarian) dan universe
-// aktif tersaring (AI_PICK_UNIVERSE, satu-satunya yang boleh direkomendasikan).
-// Irisannya tidak di-fetch dua kali tiap siklus cache.
-//
-// Penyaringan TIDAK dilakukan di sini, melainkan di rankScreener(), supaya /api/compare
-// tetap bisa melihat seluruh gabungan universe.
+// Untuk cache scanner aktif, jumlah ticker sumber harus persis mengikuti AI_PICK_UNIVERSE
+// versi aktif (idx-liquid-v2-200). SCREENER_UNIVERSE lama tetap diekspor untuk fitur
+// non-rekomendasi yang mengimpornya langsung (Dividend/Calendar), tetapi tidak ikut
+// digabung ke cache scanner agar target 200 tidak bocor menjadi 200+.
 //
 // BATCH_SIZE 15 - konsisten dengan
 // precomputeBacktestData()/scanLiveFilterCheck() yang membatasi hal sama, supaya tidak
@@ -395,8 +391,12 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
 // jauh lebih berat dari 1mo (~21 bar) sebelumnya.
 const FETCH_BATCH_SIZE = 15;
 
+export function getScreenerFetchTickers(): string[] {
+  return Array.from(new Set(AI_PICK_UNIVERSE));
+}
+
 export async function fetchScreenerUniverse(): Promise<RawStock[]> {
-  const tickers = Array.from(new Set([...SCREENER_UNIVERSE, ...AI_PICK_UNIVERSE]));
+  const tickers = getScreenerFetchTickers();
   const raw: RawStock[] = [];
   for (let i = 0; i < tickers.length; i += FETCH_BATCH_SIZE) {
     const batch = tickers.slice(i, i + FETCH_BATCH_SIZE);

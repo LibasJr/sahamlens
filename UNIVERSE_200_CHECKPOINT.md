@@ -100,6 +100,7 @@ Catatan commit: `scripts/.universe-200-additions-backfill-checkpoint.json` adala
 - Scanner:
   - Universe aktif dari `AI_PICK_UNIVERSE`.
   - `fetchScreenerUniverse` bounded batch 15.
+  - Hotfix pasca-deploy: `fetchScreenerUniverse()` sekarang fetch persis `AI_PICK_UNIVERSE` aktif, bukan union dengan `SCREENER_UNIVERSE` lama. Ini menutup temuan production `screener-scan` sempat mengembalikan `count: 203`.
 - ATR/TP/CL:
   - ATR-14 dan formula TP/CL tetap.
   - Data invalid/ATR invalid tetap tidak membuat TP/CL palsu.
@@ -247,6 +248,12 @@ PASS. Build perlu izin jaringan karena `next/font` mengambil Google Fonts.
   - `npm run lint` -> PASS dengan 13 warning lama, 0 error.
   - `npm test` -> PASS: 129 files / 1255 tests.
   - `npm run build` -> PASS.
+  - Post-deploy hotfix scanner count:
+    - Production `GET /api/cron/screener-scan` setelah deploy pertama mengembalikan `count: 203`.
+    - Root cause: `fetchScreenerUniverse()` masih union `SCREENER_UNIVERSE + AI_PICK_UNIVERSE`.
+    - Fix: sumber fetch scanner aktif dikunci ke `AI_PICK_UNIVERSE` lewat `getScreenerFetchTickers()`.
+    - `npm test -- modules/market/service/__tests__/screener.service.test.ts modules/market/constants/__tests__/ai-pick-universe.test.ts shared/cache/__tests__/ai-pick-cache.test.ts` -> PASS: 3 files / 33 tests.
+    - `npm run typecheck` -> PASS.
 
 - Backfill additions dry-run:
 
@@ -281,6 +288,7 @@ PASS: 7 files / 50 tests.
 - Jumlah universe aktif 200.
 - Tidak ada ticker duplikat.
 - Ticker invalid tidak masuk universe.
+- Scanner fetch tickers tepat 200 dan tidak lagi union dengan `SCREENER_UNIVERSE`.
 - 109 legacy tetap berada di prefix universe aktif.
 - Tambahan v2 deterministik dan diekspor sebagai 91 ticker.
 - Cache key/payload membedakan versi universe.
