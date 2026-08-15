@@ -95,6 +95,8 @@ function isPublicGuestPage(pathname: string): boolean {
   return (
     pathname === '/home' ||
     pathname.startsWith('/home/') ||
+    pathname === '/news' ||
+    pathname.startsWith('/news/') ||
     pathname === '/market-pulse' ||
     pathname.startsWith('/market-pulse/') ||
     pathname === '/calendar' ||

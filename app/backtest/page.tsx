@@ -273,7 +273,7 @@ export default function BacktestPage() {
   const chartData = results?.equityCurve?.map((eq: number, idx: number) => ({
     month: `M${idx}`,
     Strategy: eq,
-    IHSG: results.ihsgCurve[idx]
+    IHSG: Array.isArray(results?.ihsgCurve) ? results.ihsgCurve[idx] : null
   })) || [];
 
   const dataAsOfLabel = results?.dataAsOf

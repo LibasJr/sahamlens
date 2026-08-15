@@ -255,6 +255,11 @@ function DashboardContent() {
     analyzerAbortRef.current = controller;
     setLoading(true);
     setFetchError(false);
+    // Jangan biarkan payload ticker sebelumnya tampil di bawah header ticker baru bila
+    // request berikutnya gagal atau masih berjalan.
+    setData(null);
+    setLastUpdate(null);
+    setRadarRank(null);
     try {
       // Abort request lama saat ticker berganti/refresh berikutnya dimulai supaya response
       // BBCA yang lambat tidak bisa menimpa state setelah user sudah pindah ke BBRI.
@@ -338,11 +343,12 @@ function DashboardContent() {
     const storageKey = `trading_tracker_${symbol}`;
     const scoreKey = `trading_scores`;
     
-    // Load global scores
-    let globalScores = JSON.parse(localStorage.getItem(scoreKey) || '{}');
-    
-    // Load last prediction
-    const lastTracker = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    try {
+      // Load global scores
+      let globalScores = JSON.parse(localStorage.getItem(scoreKey) || '{}');
+
+      // Load last prediction
+      const lastTracker = JSON.parse(localStorage.getItem(storageKey) || 'null');
     
     if (lastTracker && lastTracker.price !== currentPrice) {
       const priceMovedUp = currentPrice > lastTracker.price;
@@ -371,7 +377,12 @@ function DashboardContent() {
       analyzers: currentAnalyzers
     }));
     
-    setScores(globalScores);
+      setScores(globalScores);
+    } catch (error) {
+      // Local storage adalah fitur tambahan; data pasar yang berhasil dimuat tidak
+      // boleh berubah menjadi error halaman hanya karena cache browser rusak.
+      console.warn('Ignoring invalid local accuracy cache', error);
+    }
   };
 
   const handleRefresh = () => {
@@ -398,7 +409,7 @@ function DashboardContent() {
       .then(d => {
         const user = d.authenticated && d.user ? d.user : null;
         const { effectiveRole, isTrialExpired } = computeRole(user);
-        setIsAdminUser(effectiveRole !== 'guest');
+        setIsAdminUser(user?.role === 'admin');
         setIsTrialExpired(isTrialExpired);
         setShowPaywall(isTrialExpired);
         setAdminReady(true);

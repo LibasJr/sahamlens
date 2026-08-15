@@ -26,17 +26,23 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const isIndex = code.startsWith('^');
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartData, setChartData] = useState<any[]>([]);
+  const [chartError, setChartError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     setChartData([]);
+    setChartError(null);
     fetch(`/api/public-chart/${encodeURIComponent(code)}?tf=${timeframe}`, { signal: controller.signal })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !Array.isArray(data?.history) || data.history.length === 0) throw new Error(data?.error || 'Data grafik belum tersedia');
+        return data;
+      })
       .then((data) => {
-        if (!controller.signal.aborted && data && data.history && data.history.length > 0) setChartData(data.history);
+        if (!controller.signal.aborted) setChartData(data.history);
       })
       .catch((error) => {
-        if (error?.name !== 'AbortError') console.error(error);
+        if (error?.name !== 'AbortError') { console.error(error); setChartError(error?.message || 'Grafik gagal dimuat'); }
       });
     return () => controller.abort();
   }, [code, timeframe]);
@@ -89,13 +95,13 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           }}
         />
       ) : (
-        <div className="min-h-[360px] sm:min-h-[460px] flex items-center justify-center bg-tv-card text-tv-muted rounded-lg">Memuat grafik...</div>
+        <div className="min-h-[360px] sm:min-h-[460px] flex items-center justify-center bg-tv-card text-tv-muted rounded-lg px-6 text-center">{chartError || 'Memuat grafik...'}</div>
       )}
 
       <div className="flex items-start gap-2 rounded-lg bg-tv-hover border border-tv-border p-3">
         <Sparkles className="w-4 h-4 text-tv-blue shrink-0 mt-0.5" />
         <p className="text-sm leading-relaxed text-tv-muted sm:text-[12px] sm:leading-[1.5]">
-          {council ? council.summary : ind ? 'Menghitung ringkasan LensConsensus...' : 'Memuat data teknikal...'}
+          {chartError ? 'Ringkasan teknikal menunggu data grafik yang valid.' : council ? council.summary : ind ? 'Menghitung ringkasan LensConsensus...' : 'Memuat data teknikal...'}
         </p>
       </div>
     </div>

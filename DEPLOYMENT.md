@@ -248,6 +248,18 @@ OOS lama tidak bisa diklaim ulang.
 - Ini menutup open redirect setelah autentikasi tanpa mengubah proses login, sesi,
   maupun alamat tujuan internal yang sah.
 
+### 2026-08-16 - Perbaikan ketahanan UI dan integritas data
+
+- Audit lanjutan memperbaiki state error/otentikasi yang sebelumnya dapat menampilkan data
+  kosong atau stale sebagai hasil yang sah: portfolio, watchlist, Intrinsic Value, grafik
+  teknikal, LensScanner, LensRadar, dan Market Movers kini membedakan kegagalan dari hasil nol.
+- Dashboard mengosongkan payload lama sebelum memuat ticker baru dan tidak lagi memberi
+  perlakuan admin kepada seluruh pengguna login. Cache akurasi browser yang korup tidak dapat
+  lagi menggagalkan pemuatan analisis.
+- Risk Matrix tidak lagi mengklaim lima ticker contoh sebagai portofolio pengguna; pengguna
+  harus memasukkan komposisi simulasi sebelum beta dihitung. Kalender rekomendasi memakai
+  tanggal Asia/Jakarta dan rute News benar-benar bebas dari limiter guest umum.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML
