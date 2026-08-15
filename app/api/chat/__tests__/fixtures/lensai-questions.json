@@ -24,6 +24,7 @@
     { "q": "RSI BBRI berapa sekarang?", "tickers": 1, "intent": "TECHNICAL_CURRENT", "group": "emiten" },
     { "q": "ADRO murah gak di harga sekarang?", "tickers": 1, "intent": "VALUATION", "group": "emiten" },
     { "q": "nilai wajar TLKM berapa?", "tickers": 1, "intent": "VALUATION", "group": "emiten" },
+    { "q": "nilai intirisih BBCA berapa?", "tickers": 1, "intent": "VALUATION", "group": "emiten" },
     { "q": "ANTM layak dibeli gak?", "tickers": 1, "intent": "BUY_SELL_RECOMMENDATION", "group": "emiten" },
     { "q": "TP sama CL untuk BBNI berapa?", "tickers": 1, "intent": "BUY_SELL_RECOMMENDATION", "group": "emiten" },
     { "q": "BBRI dibanding BMRI bagusan mana?", "tickers": 2, "intent": "COMPARE_STOCKS", "group": "emiten" },
@@ -72,6 +73,9 @@
     { "q": "screener itu apa sih?", "tickers": 0, "intent": "SAHAMLENS_PRODUCT_HELP", "group": "produk" },
     { "q": "cara TP/CL dihitung gimana?", "tickers": 0, "intent": "SAHAMLENS_PRODUCT_HELP", "group": "produk" },
     { "q": "backtest itu buat apa?", "tickers": 0, "intent": "SAHAMLENS_PRODUCT_HELP", "group": "produk" },
+    { "q": "Backtest cara pakainya bagaimana?", "tickers": 0, "intent": "SAHAMLENS_PRODUCT_HELP", "group": "produk" },
+    { "q": "fungsi menu Macro apa?", "tickers": 0, "intent": "SAHAMLENS_PRODUCT_HELP", "group": "produk" },
+    { "q": "Risk Calculator gunanya apa?", "tickers": 0, "intent": "SAHAMLENS_PRODUCT_HELP", "group": "produk" },
 
     { "q": "resep rendang dong", "tickers": 0, "intent": "OUT_OF_SCOPE", "reason": "NON_MARKET", "group": "nyeleneh" },
     { "q": "besok hujan gak?", "tickers": 0, "intent": "OUT_OF_SCOPE", "reason": "NON_MARKET", "group": "nyeleneh" },

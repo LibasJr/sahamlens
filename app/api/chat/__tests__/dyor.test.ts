@@ -3,19 +3,28 @@ import { withDyor, shouldAppendDyor, DYOR_NOTICE } from '../dyor';
 
 describe('penutup DYOR', () => {
   it.each([
-    'FUNDAMENTAL_CURRENT',
+    'VALUATION',
     'BUY_SELL_RECOMMENDATION',
     'PRICE_PREDICTION',
-    'LENSRADAR_PICKS',
-    'MARKET_MOVERS',
-    'PORTFOLIO',
-  ])('%s - jawaban bermuatan data selalu ditutup DYOR', (intent) => {
+  ])('%s - jawaban bernuansa keputusan investasi ditutup DYOR', (intent) => {
     expect(shouldAppendDyor(intent as any)).toBe(true);
     expect(withDyor('Ringkasannya begini.', intent as any)).toContain('DYOR');
   });
 
-  it.each(['SMALL_TALK', 'OUT_OF_SCOPE', 'SAHAMLENS_PRODUCT_HELP', 'UNKNOWN'])(
-    '%s - tidak ditempeli, karena tidak memuat klaim pasar',
+  it.each([
+    'SMALL_TALK',
+    'OUT_OF_SCOPE',
+    'SAHAMLENS_PRODUCT_HELP',
+    'UNKNOWN',
+    'STOCK_GENERAL',
+    'FUNDAMENTAL_CURRENT',
+    'TECHNICAL_CURRENT',
+    'MARKET_GENERAL',
+    'MARKET_MOVERS',
+    'LENSRADAR_PICKS',
+    'PORTFOLIO',
+  ])(
+    '%s - jawaban informatif biasa tidak ditempeli DYOR',
     (intent) => {
       // Penafian yang muncul di mana-mana melatih pengguna berhenti membacanya, dan itu
       // justru melemahkannya di tempat yang benar-benar penting.

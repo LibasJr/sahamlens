@@ -12,7 +12,8 @@
 //   2. `routing.numberCheck.ok` - tidak ada angka di jawaban yang gagal ditelusuri ke
 //      data server. INI sinyal kualitas yang paling berharga di sini: ia menangkap
 //      halusinasi angka pada jawaban yang benar-benar dihasilkan model.
-//   3. Penutup DYOR ada pada jawaban bermuatan data, dan TIDAK ada pada sapaan/penolakan.
+//   3. Penutup DYOR hanya ada pada valuasi, prediksi harga, atau pertanyaan beli/jual;
+//      jawaban informatif biasa tidak dibebani penafian transaksi.
 //   4. Jawaban tidak kosong dan tidak berupa error penyedia.
 //
 // Kuota: satu putaran penuh = 1 panggilan AI per pertanyaan (lebih kalau ada yang kena
@@ -36,8 +37,10 @@ const FIXTURES = path.join(process.cwd(), 'app', 'api', 'chat', '__tests__', 'fi
 const DEFAULT_URL = 'http://localhost:3001';
 
 // Sama dengan daftar di app/api/chat/dyor.ts. Disalin sengaja - skrip ini .mjs polos
-// tanpa transpile TypeScript. Kalau daftar di sana berubah, ubah juga di sini.
-const NO_DYOR_INTENTS = ['SMALL_TALK', 'OUT_OF_SCOPE', 'SAHAMLENS_PRODUCT_HELP', 'UNKNOWN', 'CLARIFY'];
+// tanpa transpile TypeScript. DYOR hanya relevan untuk jawaban bernuansa keputusan
+// investasi, bukan untuk semua jawaban berbasis data.
+const DECISION_DYOR_INTENTS = ['VALUATION', 'BUY_SELL_RECOMMENDATION', 'PRICE_PREDICTION'];
+const MAX_SUBSTANTIVE_ANSWER_WORDS = 450;
 
 function arg(name, fallback = null) {
   const found = process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -89,9 +92,17 @@ function checkOne(fixture, result) {
 
   const intent = routing.intent ?? fixture.intent;
   const hasDyor = /\bdyor\b/i.test(answer);
-  const shouldHaveDyor = !NO_DYOR_INTENTS.includes(intent);
+  const shouldHaveDyor = DECISION_DYOR_INTENTS.includes(intent);
   if (shouldHaveDyor && !hasDyor) problems.push('penutup DYOR hilang');
   if (!shouldHaveDyor && hasDyor) problems.push('penutup DYOR muncul di jawaban yang tidak seharusnya');
+
+  // Bukan penilaian gaya subjektif: pagar sederhana agar regresi prompt tidak membuat
+  // jawaban normal berubah menjadi esai panjang. Tutorial memang boleh lebih panjang,
+  // tetapi fixture LensAI saat ini semuanya pertanyaan satu topik.
+  const wordCount = answer.trim().split(/\s+/).filter(Boolean).length;
+  if (wordCount > MAX_SUBSTANTIVE_ANSWER_WORDS) {
+    problems.push(`jawaban terlalu panjang (${wordCount} kata; maksimum ${MAX_SUBSTANTIVE_ANSWER_WORDS})`);
+  }
 
   return problems;
 }

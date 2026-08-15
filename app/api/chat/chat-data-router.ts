@@ -22,6 +22,7 @@ import {
   fetchYahooHistory,
 } from '@/modules/technical';
 import { classifyFreshness } from '@/shared/http/freshness';
+import { getAiPickScanWindow, getIdxMarketHoliday, type AiPickScanWindow } from '@/shared/calendar/idx-trading-calendar';
 import { getMarketNews, getStockNews, type NewsItem } from '@/modules/news';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -47,6 +48,36 @@ import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type Chat
  * berita perlu ikut diambil untuk pertanyaan pasar. */
 const CAUSAL_QUESTION = /\b(kenapa|knp|mengapa|kok|penyebab|sebab|pemicu|katalis|sentimen|sentiment|berita|news|gara-?gara)\b/;
 
+function idxSessionLines(window: AiPickScanWindow, marketHoliday: string | null): string[] {
+  if (window === 'REGULAR_SESSION') {
+    return [
+      '- Status sesi IDX sekarang: BUKA (REGULAR_SESSION)',
+      '- Wording wajib: tetap sebut timestamp bar harga; data Yahoo/penyedia bisa delay dan bukan tick real-time.',
+    ];
+  }
+
+  if (window === 'FINAL_CLOSE') {
+    return [
+      '- Status sesi IDX sekarang: FINAL_CLOSE (snapshot penutupan, bukan sesi reguler berjalan)',
+      '- Wording wajib: sebut sebagai data penutupan/sesi terakhir; jangan menggambarkan seolah perdagangan reguler masih live.',
+    ];
+  }
+
+  if (marketHoliday) {
+    return [
+      `- Status sesi IDX sekarang: TUTUP (CLOSED: hari libur Bursa IDX — ${marketHoliday})`,
+      '- Wording wajib: Bursa IDX sedang libur; angka IHSG di bawah adalah bar/sesi bursa terakhir yang tersedia, BUKAN pergerakan live hari ini.',
+      '- Kalau pengguna bertanya "hari ini" atau "sekarang", jawab dulu bahwa Bursa IDX libur lalu bacakan data sesi terakhir beserta timestamp.',
+    ];
+  }
+
+  return [
+    '- Status sesi IDX sekarang: TUTUP (CLOSED: di luar sesi reguler/final close, termasuk malam/jeda/akhir pekan)',
+    '- Wording wajib: pasar IDX sedang tutup; angka IHSG di bawah adalah bar/sesi bursa terakhir yang tersedia, BUKAN pergerakan live hari ini.',
+    '- Kalau pengguna bertanya "hari ini" atau "sekarang", jawab dulu bahwa bursa sedang tutup lalu bacakan data sesi terakhir beserta timestamp.',
+  ];
+}
+
 export interface ChatDataRequest {
   intent: ChatIntent;
   compareScope: CompareScope;
@@ -67,6 +98,29 @@ export interface ChatVerifiedDataResult {
   verifiedBlock: string;
   directResponse: string | null;
   dataError: string | null;
+}
+
+/** Metadata ringkas untuk UI chat. Angka tetap hanya berasal dari verifiedBlock; metadata
+ * ini hanya membantu pengguna melihat asal dan umur data tanpa menambah klaim baru. */
+export interface ChatDataProvenance {
+  sourceLabel: string;
+  timestamp: string | null;
+  freshness: string | null;
+}
+
+export function summarizeChatDataProvenance(verifiedBlock: string): ChatDataProvenance | null {
+  if (!verifiedBlock.trim()) return null;
+
+  const timestamp = verifiedBlock.match(/- Timestamp bar terakhir:\s*([^\n]+)/)?.[1]?.trim()
+    ?? verifiedBlock.match(/Kesegaran data:[^\n]*\(bar\s+([^\)]+)\)/)?.[1]?.trim()
+    ?? null;
+  const freshness = verifiedBlock.match(/- Kesegaran data:\s*([^\n]+)/)?.[1]?.trim() ?? null;
+
+  return {
+    sourceLabel: 'Data terverifikasi SahamLens',
+    timestamp: timestamp && timestamp !== 'tidak tersedia' ? timestamp : null,
+    freshness,
+  };
 }
 
 async function fetchCurrentFundamentalPayload(ticker: string): Promise<any | null> {
@@ -293,6 +347,9 @@ async function marketBlock(): Promise<string> {
     const closes = chart.history.map((h) => h.AdjClose ?? h.Close);
     const rsi = calculateRsi(closes, 14);
     const freshness = classifyFreshness(chart.regularMarketTime);
+    const now = new Date();
+    const sessionWindow = getAiPickScanWindow(now);
+    const marketHoliday = getIdxMarketHoliday(now);
 
     const prev = chart.previousClose;
     const canDiff = prev != null && prev > 0 && finite(chart.currentPrice);
@@ -303,6 +360,7 @@ async function marketBlock(): Promise<string> {
     return [
       '- Simbol pasar: ^JKSE (IHSG)',
       '- Mode: CURRENT MARKET',
+      ...idxSessionLines(sessionWindow, marketHoliday),
       `- Level terakhir: ${safe(chart.currentPrice)}`,
       prev == null ? '- Penutupan sebelumnya: tidak tersedia' : `- Penutupan sebelumnya: ${safe(prev)}`,
       change == null || changePct == null
@@ -310,6 +368,7 @@ async function marketBlock(): Promise<string> {
         : `- Perubahan: ${signed(change)} poin (${signed(changePct)}%) - INI SATU-SATUNYA angka perubahan yang boleh dipakai`,
       change == null ? '- Arah: tidak tersedia' : `- Arah: ${change > 0 ? 'NAIK' : change < 0 ? 'TURUN' : 'FLAT'}`,
       rsi == null ? '- RSI 14 IHSG: tidak tersedia' : `- RSI 14 IHSG: ${rsi.toFixed(2)}`,
+      `- Timestamp bar terakhir: ${freshness.dataTimestamp ?? 'tidak tersedia'}`,
       `- Kesegaran data: ${freshness.freshness}${freshness.dataTimestamp ? ` (bar ${freshness.dataTimestamp})` : ''}`,
       '- Catatan: blok ini TIDAK berisi alasan/penyebab pergerakan. Kalau ditanya "kenapa",',
       '  jawab dari blok Berita & Sentimen kalau ada; kalau tidak ada, katakan penyebabnya belum terverifikasi.',

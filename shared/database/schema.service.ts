@@ -77,6 +77,28 @@ export function ensureSharedSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_macro_indicators_indicator_recorded
         ON macro_indicators (indicator, recorded_at DESC);
 
+      -- LensAI feedback: disimpan hanya setelah pengguna secara eksplisit menekan
+      -- "Membantu" atau "Tidak tepat". Tidak ada profiling otomatis; payload dibatasi
+      -- di route dan id pesan klien dibuat acak agar satu jawaban dapat diperbarui
+      -- dari positif ke negatif (atau sebaliknya) tanpa menduplikasi catatan.
+      CREATE TABLE IF NOT EXISTS lensai_feedback (
+        id TEXT PRIMARY KEY,
+        client_message_id TEXT UNIQUE NOT NULL,
+        user_id TEXT,
+        rating TEXT NOT NULL CHECK (rating IN ('up', 'down')),
+        prompt TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        intent TEXT,
+        source_label TEXT,
+        data_timestamp TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_lensai_feedback_created
+        ON lensai_feedback (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_lensai_feedback_rating_created
+        ON lensai_feedback (rating, created_at DESC);
+
       -- modules/watchlist/repository/alert.repository.ts
       CREATE TABLE IF NOT EXISTS alerts (
         id TEXT PRIMARY KEY,
