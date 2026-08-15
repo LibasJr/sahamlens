@@ -1,5 +1,6 @@
 import type { ScoringKategori } from '../../technical/service/scoring.service';
 import type { AdvisoryDecision } from './advisory.service';
+import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 
 export type DecisionPresentationKind =
   | 'ACTIONABLE'
@@ -28,20 +29,35 @@ export interface DecisionPresentation {
 // padahal yang dimaksud sekadar menyatakan keadaan. INFORMASI sejajar bentuknya dengan
 // BUY/SELL/HOLD (kata benda) dan sesuai dengan kalimat yang sudah dipakai aplikasi:
 // LensScore adalah skor informasi, bukan rekomendasi.
-export type SimpleDecisionLabel = 'INFORMASI' | 'DATA TERBATAS' | 'TIDAK LAYAK' | 'BUY' | 'SELL' | 'HOLD';
+//
+// Nilai actionable TIDAK lagi 'BUY'/'SELL'/'HOLD' mentah (audit label rekomendasi
+// 2026-08-15) - kata transaksi Inggris di kartu ringkas terbaca sebagai ajakan beli/jual
+// terlepas dari apakah statusnya benar-benar actionable. 'SINYAL POSITIF'/'SINYAL
+// NEGATIF'/'NETRAL / PANTAU' menyatakan arah tanpa kata kerja transaksi, konsisten
+// dengan getKategoriPresentationLabel().
+export type SimpleDecisionLabel =
+  | 'INFORMASI'
+  | 'DATA TERBATAS'
+  | 'TIDAK LAYAK'
+  | 'SINYAL POSITIF'
+  | 'SINYAL NEGATIF'
+  | 'NETRAL / PANTAU';
 
 /**
  * Label satu-baris untuk kartu ringkas. Skor model yang belum tervalidasi sengaja
- * menjadi WATCH, bukan BUY/SELL. Arah transaksi hanya boleh berasal dari keputusan
- * advisory yang benar-benar actionable.
+ * menjadi INFORMASI, bukan sinyal arah. Arah transaksi hanya boleh berasal dari keputusan
+ * advisory yang benar-benar actionable, dan bahkan saat actionable labelnya tetap kata
+ * sifat arah (SINYAL POSITIF/NEGATIF), bukan kata kerja transaksi.
  */
 export function getSimpleDecisionLabel(presentation: DecisionPresentation): SimpleDecisionLabel {
   if (presentation.modelSignal === 'DATA TIDAK CUKUP') return 'DATA TERBATAS';
   if (presentation.kind === 'INELIGIBLE') return 'TIDAK LAYAK';
-  if (presentation.kind !== 'ACTIONABLE' || !presentation.recommendationLabel) return 'INFORMASI';
+  if (presentation.kind !== 'ACTIONABLE' || !presentation.modelSignal) return 'INFORMASI';
 
-  const action = presentation.recommendationLabel.replace(/^REKOMENDASI:\s*/, '');
-  return action === 'BUY' || action === 'SELL' || action === 'HOLD' ? action : 'INFORMASI';
+  const tone = getKategoriTone(presentation.modelSignal);
+  if (tone === 'positive') return 'SINYAL POSITIF';
+  if (tone === 'negative') return 'SINYAL NEGATIF';
+  return 'NETRAL / PANTAU';
 }
 
 function hasActionableModelSignal(kategori: ScoringKategori | null | undefined): kategori is Exclude<ScoringKategori, 'DATA TIDAK CUKUP'> {
@@ -63,7 +79,7 @@ export function getDecisionPresentation(
   const modelSignalLabel = modelSignal === 'DATA TIDAK CUKUP'
     ? 'STATUS MODEL: DATA TIDAK CUKUP'
     : modelSignal
-      ? `SINYAL MODEL: ${modelSignal}`
+      ? `SINYAL MODEL: ${getKategoriPresentationLabel(modelSignal)}`
       : null;
 
   if (decision?.advisory === true && decision.action) {
@@ -71,7 +87,7 @@ export function getDecisionPresentation(
       kind: 'ACTIONABLE',
       modelSignal,
       modelSignalLabel,
-      recommendationLabel: `REKOMENDASI: ${decision.action}`,
+      recommendationLabel: `REKOMENDASI: ${getKategoriPresentationLabel(decision.action)}`,
       statusLabel: null,
       actionable: true,
       explanation: null,
@@ -82,7 +98,7 @@ export function getDecisionPresentation(
     return {
       kind: 'MODEL_UNVALIDATED',
       modelSignal,
-      modelSignalLabel: hasActionableModelSignal(modelSignal) ? `SINYAL MODEL: ${modelSignal}` : modelSignalLabel,
+      modelSignalLabel: hasActionableModelSignal(modelSignal) ? `SINYAL MODEL: ${getKategoriPresentationLabel(modelSignal)}` : modelSignalLabel,
       recommendationLabel: null,
       statusLabel: 'MODEL BELUM TERVALIDASI',
       actionable: false,
