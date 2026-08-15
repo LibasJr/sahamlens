@@ -15,6 +15,7 @@ import {
   freezeIntradayOosProtocol,
   proposeIntradayThreshold,
   proposeIntradayWeights,
+  resetIntradayResearchData,
   runIntradayCollection,
   runIntradayValidation,
   simulateIntradayThresholds,
@@ -41,6 +42,7 @@ const bodySchema = z.discriminatedUnion('action', [
     toDate: isoDate.optional(),
   }),
   z.object({ action: z.literal('freeze_oos') }),
+  z.object({ action: z.literal('reset_research'), confirmation: z.literal('RESET_INTRADAY_RESEARCH') }),
   z.object({
     action: z.literal('threshold_simulation'),
     horizon: z.enum(['H15', 'H30', 'H60', 'EOD']).optional(),
@@ -100,9 +102,11 @@ export async function POST(req: NextRequest) {
           const result = await runIntradayCollection({
             tickers: body.tickers,
             lookbackDays: body.lookbackDays,
-            // Batas waktu lunak di bawah maxDuration supaya worker berhenti rapi
-            // alih-alih dipotong platform di tengah tulisan database.
-            budgetMs: 240_000,
+            // Request browser melewati Cloudflare yang memiliki batas ~100 detik.
+            // Berhenti rapi di bawahnya; upsert idempoten membuat admin bisa menekan
+            // lagi sampai backfill selesai tanpa data ganda. Timer VPS tidak lewat
+            // Cloudflare dan tetap memakai anggaran 240 detik di route cron sendiri.
+            budgetMs: 70_000,
           });
           return result;
         }
@@ -115,6 +119,8 @@ export async function POST(req: NextRequest) {
           });
         case 'freeze_oos':
           return freezeIntradayOosProtocol({ frozenBy: 'admin' });
+        case 'reset_research':
+          return resetIntradayResearchData();
         case 'threshold_proposal':
           return proposeIntradayThreshold({
             threshold: body.threshold,

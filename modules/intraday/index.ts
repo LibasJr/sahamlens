@@ -47,3 +47,4 @@ export {
   freezeIntradayOosProtocol,
 } from './service/intraday-research.service';
 export { listValidationRuns } from './repository/intraday.repository';
+export { resetIntradayResearchData } from './repository/intraday.repository';
