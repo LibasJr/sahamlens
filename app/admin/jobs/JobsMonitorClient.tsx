@@ -24,6 +24,16 @@ interface HealthPayload {
   timestamp?: string;
 }
 
+interface CacheRow {
+  id: string;
+  label: string;
+  state: 'HIT' | 'MISS';
+  cacheAgeSec: number | null;
+  ttlRemainingSec: number | null;
+  lastCronSuccessAt: string | null;
+  lastCronStatus: string | null;
+}
+
 // Diagnosis ditulis sebagai kalimat, bukan cuma badge status. Perbedaan antara "tidak
 // pernah dipanggil", "dipanggil lalu ditolak", dan "dipanggil lalu dilewati" menentukan
 // tindakan yang sama sekali berbeda - dan itulah persis yang dulu tidak bisa dibedakan.
@@ -60,6 +70,17 @@ function timeAgo(iso: string | null): string {
   return `${Math.floor(jam / 24)} hari lalu`;
 }
 
+function duration(seconds: number | null): string {
+  if (seconds == null || !Number.isFinite(seconds)) return 'tidak tersedia';
+  if (seconds < 60) return `${Math.round(seconds)} dtk`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} menit`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours < 48) return remainingMinutes ? `${hours} jam ${remainingMinutes} menit` : `${hours} jam`;
+  return `${Math.floor(hours / 24)} hari`;
+}
+
 const TONE_CLASS = {
   ok: 'border-tv-green/30 bg-tv-green/[0.05]',
   warn: 'border-tv-yellow/30 bg-tv-yellow/[0.05]',
@@ -77,6 +98,7 @@ export default function JobsMonitorClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
+  const [caches, setCaches] = useState<CacheRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,6 +114,7 @@ export default function JobsMonitorClient() {
         return;
       }
       setJobs(json.jobs ?? []);
+      setCaches(json.caches ?? []);
       if (healthRes.ok) setHealth(await healthRes.json());
     } catch {
       setError('Gagal memuat status job');
@@ -146,6 +169,47 @@ export default function JobsMonitorClient() {
           <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
         </div>
       </div>
+
+      <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="font-heading text-base font-bold text-tv-text">Kesehatan Cache Data</h2>
+            <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+              Cache Redis untuk sumber data besar. Umur dihitung dari TTL penulis cache; waktu cron menunjukkan worker terakhir yang berhasil.
+            </p>
+          </div>
+          <span className="text-[11px] text-tv-muted">Cache akun pribadi tidak ditampilkan atau dibagikan.</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {caches.map((cache) => {
+            const healthy = cache.state === 'HIT';
+            return (
+              <div key={cache.id} className={`rounded-lg border p-3 ${healthy ? 'border-tv-green/25 bg-tv-green/[0.04]' : 'border-tv-red/30 bg-tv-red/[0.04]'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-sm font-bold text-tv-text">{cache.label}</div>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${healthy ? 'border-tv-green/30 bg-tv-green/10 text-tv-green' : 'border-tv-red/30 bg-tv-red/10 text-tv-red'}`}>
+                    {cache.state}
+                  </span>
+                </div>
+                {healthy ? (
+                  <>
+                    <div className="mt-3 text-xs text-tv-muted">Umur cache</div>
+                    <div className="font-number text-sm font-bold text-tv-text">{duration(cache.cacheAgeSec)}</div>
+                    <div className="mt-2 text-[11px] text-tv-muted">TTL tersisa {duration(cache.ttlRemainingSec)}</div>
+                  </>
+                ) : (
+                  <p className="mt-3 text-xs leading-relaxed text-tv-red">Cache belum ada atau Redis tidak dapat dibaca. Periksa status Redis dan worker terkait.</p>
+                )}
+                <div className="mt-3 border-t border-tv-border pt-2 text-[11px] text-tv-muted">
+                  Cron terakhir: <span className="font-semibold text-tv-text">{timeAgo(cache.lastCronSuccessAt)}</span>
+                  {cache.lastCronStatus && <span> · {cache.lastCronStatus}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="space-y-3">
         {jobs.map((job) => {

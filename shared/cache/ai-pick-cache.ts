@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from './redis-cache';
+import { CACHE_TTL_SEC } from './ttl-policy';
 import type { FundamentalInput } from '../../modules/technical';
 import type { ScoredStock } from '../../modules/recommendation/service/ai-pick.service';
 import {
@@ -30,7 +31,7 @@ const LAST_SUCCESSFUL_SCORES_KEY = 'sahamlens:cache:computed:ai-pick-scores:last
 // di luar jam bursa (route menandai stale dari `computedAt`). UI/API
 // menghitung `stale` dari computedAt, sehingga snapshot lama SELALU ditandai "Data sesi
 // terakhir", bukan pernah diklaim live.
-const SCORES_TTL_SEC = 14 * 24 * 60 * 60;
+const SCORES_TTL_SEC = CACHE_TTL_SEC.LENS_RADAR_SCORES;
 
 export type FundamentalSnapshot = Record<string, FundamentalInput>;
 

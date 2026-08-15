@@ -9,8 +9,9 @@ import { fetchScreenerUniverse } from '@/modules/market/service/screener.service
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
-const SCREENER_CACHE_KEY = 'sahamlens:cache:computed:screener-universe';
+const COMPARE_STOCK_CACHE_VERSION = 'v1';
 
 // Sebelumnya symbol2 default hardcode 'BBRI.JK' apa pun symbol1-nya - kalau user
 // baru saja lihat TLKM (telekomunikasi) lalu buka /compare tanpa pilih simbol
@@ -21,7 +22,13 @@ const SCREENER_CACHE_KEY = 'sahamlens:cache:computed:screener-universe';
 async function pickSameSectorPeer(symbol1: string): Promise<string | null> {
   const code1 = symbol1.replace('.JK', '').toUpperCase();
   try {
-    const universe = await getOrCompute(SCREENER_CACHE_KEY, CACHE_TTL_SEC.SCREENER_UNIVERSE, fetchScreenerUniverse);
+    // Satu key bersama dengan /api/screener dan worker screener-scan. Key literal lama
+    // tidak mengikuti versi universe aktif, sehingga Compare punya cache kedua sendiri.
+    const universe = await getOrCompute(
+      COMPUTED_CACHE_KEY.SCREENER_UNIVERSE,
+      CACHE_TTL_SEC.SCREENER_UNIVERSE,
+      fetchScreenerUniverse,
+    );
     let entry1 = universe.find((s) => s.ticker.toUpperCase() === code1);
 
     if (!entry1) {
@@ -145,6 +152,19 @@ async function buildStockData(rawSymbol: string) {
 
 type StockData = NonNullable<Awaited<ReturnType<typeof buildStockData>>>;
 
+/** Cache per emiten, bukan per pasangan, supaya BBCA di banyak perbandingan hanya
+ * dihitung sekali. TTL mengikuti sesi pasar, sedangkan timestamp sumber tetap ada
+ * dalam payload untuk membedakan harga sesi terakhir dari harga live. */
+async function readCachedStockData(rawSymbol: string): Promise<StockData | null> {
+  const symbol = rawSymbol.endsWith('.JK') ? rawSymbol : `${rawSymbol}.JK`;
+  const value = await getOrCompute(
+    `sahamlens:cache:computed:compare-stock:${COMPARE_STOCK_CACHE_VERSION}:${symbol}`,
+    CACHE_TTL_SEC.TECHNICAL,
+    async () => (await buildStockData(symbol)) ?? { notFound: true as const },
+  );
+  return 'notFound' in value ? null : value;
+}
+
 // Council AI menjelaskan setiap baris perbandingan secara deterministik dari angka
 // riil di atas - bukan panggilan model bahasa (supaya selalu tersedia, gratis, dan
 // tidak bergantung kuota Gemini yang gampang habis).
@@ -191,7 +211,7 @@ export async function GET(request: Request) {
   const rawSymbol2 = searchParams.get('symbol2');
   const symbol2 = rawSymbol2 || (await pickSameSectorPeer(symbol1)) || 'BBRI.JK';
 
-  const [data1, data2] = await Promise.all([buildStockData(symbol1), buildStockData(symbol2)]);
+  const [data1, data2] = await Promise.all([readCachedStockData(symbol1), readCachedStockData(symbol2)]);
   if (!data1 || !data2) {
     return NextResponse.json({ error: 'Data tidak tersedia untuk salah satu simbol' }, { status: 404 });
   }
