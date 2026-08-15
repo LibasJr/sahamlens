@@ -1,5 +1,6 @@
 import { pool } from '../../../shared/database/postgres.client';
 import type { User } from '../types/user.types';
+import type { AuthRequestMeta } from '../../../shared/security/auth-request-meta';
 
 let schemaReady: Promise<void> | null = null;
 
@@ -49,6 +50,21 @@ function ensureSchema(): Promise<void> {
       -- kompatibilitas sesi/histori, tetapi nilai lama dibersihkan sekali per instance
       -- agar Neon maupun profil pengguna tidak lagi menunjukkan batas 7 hari semu.
       UPDATE users SET trial_ends_at = NULL WHERE trial_ends_at IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS user_auth_events (
+        id BIGSERIAL PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        email TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN ('signup', 'login', 'verify')),
+        ip_hash TEXT,
+        ip_prefix TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_auth_events_created_at ON user_auth_events (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_user_auth_events_user_id ON user_auth_events (user_id, created_at DESC);
+      -- Retensi singkat: cukup untuk investigasi abuse tanpa menyimpan jejak jaringan
+      -- pengguna lebih lama dari yang dibutuhkan operasional.
+      DELETE FROM user_auth_events WHERE created_at < NOW() - INTERVAL '90 days';
     `
       )
       .then(() => {});
@@ -87,6 +103,54 @@ export interface InactiveUserRow {
   role: string;
   last_login_at: string | null;
   last_active_at: string | null;
+}
+
+export type AuthEventType = 'signup' | 'login' | 'verify';
+
+export interface AuthEventRow {
+  id: number;
+  user_id: string | null;
+  email: string;
+  event_type: AuthEventType;
+  ip_hash: string | null;
+  ip_prefix: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+/** Audit keberhasilan autentikasi. IP mentah sengaja tidak pernah masuk database. */
+export async function recordAuthEvent(input: {
+  userId: string | null;
+  email: string;
+  eventType: AuthEventType;
+  requestMeta: AuthRequestMeta;
+}): Promise<void> {
+  await ensureSchema();
+  await pool.query(
+    `INSERT INTO user_auth_events (user_id, email, event_type, ip_hash, ip_prefix, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      input.userId,
+      input.email.trim().toLowerCase(),
+      input.eventType,
+      input.requestMeta.ipHash,
+      input.requestMeta.ipPrefix,
+      input.requestMeta.userAgent,
+    ],
+  );
+}
+
+export async function getRecentAuthEvents(limit = 100): Promise<AuthEventRow[]> {
+  await ensureSchema();
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+  const { rows } = await pool.query<AuthEventRow>(
+    `SELECT id, user_id, email, event_type, ip_hash, ip_prefix, user_agent, created_at
+     FROM user_auth_events
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [safeLimit],
+  );
+  return rows;
 }
 
 /** Ringkasan berbasis aktivitas tersimpan, bukan presence Redis 5 menit. */
