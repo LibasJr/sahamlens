@@ -79,7 +79,7 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Update {lastUpdated || '--:--'} • IDX</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Data sesi {lastUpdated || 'tidak tersedia'} • IDX</span>
         <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-tv-blue hover:text-tv-text transition">
           Lihat semua <ChevronRight className="h-3 w-3" />
         </Link>
