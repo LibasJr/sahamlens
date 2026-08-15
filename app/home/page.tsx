@@ -33,6 +33,7 @@ import { fadeUp, staggerContainer } from '@/lib/motion';
 
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
+import GettingStartedGuide from '@/components/GettingStartedGuide';
 
 
 const PromoUpgradeModal = dynamic(() => import('@/components/PromoUpgradeModal'), { ssr: false });
@@ -586,6 +587,8 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      <GettingStartedGuide />
 
       {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
           sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat

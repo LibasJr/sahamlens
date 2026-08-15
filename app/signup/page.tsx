@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
 import { Input, Button, PasswordToggle } from '@/components/ui';
+import { trackSignupCompleted } from '@/shared/analytics/product-funnel';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -51,6 +52,9 @@ export default function Signup() {
       if (!res.ok) {
         setError(data.error || 'Terjadi kesalahan');
       } else {
+        // Akun telah dibuat (meski email belum diverifikasi), jadi ini titik yang
+        // tepat untuk metrik "berhasil membuat akun" pada funnel.
+        trackSignupCompleted();
         setSuccessMsg(data.message);
         setStep(2);
         setResendCooldown(RESEND_COOLDOWN_SEC);
