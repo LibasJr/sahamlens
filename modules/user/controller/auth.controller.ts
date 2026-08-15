@@ -6,7 +6,10 @@ import { login, signup, verifyAccount, type AuthSessionResult } from '../service
 import { requestPasswordReset, resetPassword } from '../service/password-reset.service';
 import type { HttpResult } from '../../../shared/types/http-result.types';
 import { getUserById } from '../repository/user.repository';
+import { recordAuthEvent } from '../repository/user.repository';
 import { getActiveUsers } from '../../../shared/auth/presence';
+import type { AuthRequestMeta } from '../../../shared/security/auth-request-meta';
+import { logger } from '../../../shared/logger/logger';
 
 function sessionCookies(result: AuthSessionResult) {
   return [
@@ -18,21 +21,40 @@ function sessionCookies(result: AuthSessionResult) {
   ];
 }
 
-export async function handleLogin(rawBody: unknown): Promise<HttpResult> {
+async function recordAuthEventSafely(input: Parameters<typeof recordAuthEvent>[0]): Promise<void> {
+  try {
+    await recordAuthEvent(input);
+  } catch (error) {
+    // Audit membantu investigasi, tetapi gangguan tabel audit tidak boleh membuat
+    // pengguna gagal daftar atau login.
+    logger.warn('Gagal menyimpan audit autentikasi', { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+export async function handleLogin(rawBody: unknown, requestMeta?: AuthRequestMeta): Promise<HttpResult> {
   const input = parseOrThrow(loginSchema, rawBody);
   const result = await login(input);
+  if (requestMeta) {
+    await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'login', requestMeta });
+  }
   return { status: 200, body: { success: true, role: result.role }, cookiesToSet: sessionCookies(result) };
 }
 
-export async function handleSignup(rawBody: unknown): Promise<HttpResult> {
+export async function handleSignup(rawBody: unknown, requestMeta?: AuthRequestMeta): Promise<HttpResult> {
   const input = parseOrThrow(signupSchema, rawBody);
-  await signup(input);
+  const created = await signup(input);
+  if (requestMeta) {
+    await recordAuthEventSafely({ userId: created.userId, email: created.email, eventType: 'signup', requestMeta });
+  }
   return { status: 200, body: { success: true, message: 'Kode verifikasi telah dikirim ke email Anda.' } };
 }
 
-export async function handleVerify(rawBody: unknown): Promise<HttpResult> {
+export async function handleVerify(rawBody: unknown, requestMeta?: AuthRequestMeta): Promise<HttpResult> {
   const input = parseOrThrow(verifySchema, rawBody);
   const result = await verifyAccount(input);
+  if (requestMeta) {
+    await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'verify', requestMeta });
+  }
   return { status: 200, body: { success: true, message: 'Verifikasi berhasil' }, cookiesToSet: sessionCookies(result) };
 }
 
