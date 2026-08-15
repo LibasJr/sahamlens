@@ -47,14 +47,26 @@ interface TransparencyEquityPoint {
 interface TransparencyData {
   asOfDate: string;
   latestStatsRunDate: string | null;
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  priceBasis: string;
+  priceDataVersion: string;
+  rejectedRows: number;
+  unversionedRows: number;
+  versionMixed: boolean;
+  versionRejectedReason: string | null;
   startDate: string | null;
   validationDays: number;
   totalSamples: number;
+  effectiveHighBucketSamples: number;
+  effectiveLowBucketSamples: number;
   illiquidRowsSkipped: number | null;
   minAvgValue20dIdr: number;
   pValue80VsLt60: number | null;
   significant: boolean;
   disclaimer: string;
+  limitations: readonly string[];
+  limitationsReviewedOn: string;
   banner: {
     status: 'collecting' | 'validated' | 'not_significant';
     color: 'yellow' | 'green' | 'slate';
@@ -106,45 +118,40 @@ function Cell({ value, tone, className = '' }: { value: number | null | undefine
  */
 function CollectingPanel({ data }: { data: TransparencyData }) {
   const days = Math.max(0, data.validationDays);
-  const samples = Math.max(0, data.totalSamples);
-  const daysLeft = Math.max(0, MIN_VALIDATION_DAYS - days);
-
-  const readyDate = data.startDate
-    ? new Date(new Date(data.startDate).getTime() + MIN_VALIDATION_DAYS * 24 * 60 * 60 * 1000)
-    : null;
+  const effectiveHigh = Math.max(0, data.effectiveHighBucketSamples);
+  const effectiveLow = Math.max(0, data.effectiveLowBucketSamples);
 
   return (
     <section className="bg-tv-card border border-tv-border rounded-xl overflow-hidden">
       <EmptyState
         illustration="collecting"
         title="Validasi masih dalam masa pengumpulan data"
-        description={`Halaman ini baru bisa menyimpulkan apa pun setelah dua syarat terpenuhi bersamaan: ${MIN_VALIDATION_DAYS} hari kalender arsip DAN ${MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} sampel efektif. Angka nol di bawah bukan kegagalan - itu jumlah sebenarnya yang sudah terkumpul sejauh ini.`}
-        progress={{ current: days, total: MIN_VALIDATION_DAYS, unit: 'hari', label: 'Syarat 1 - lama arsip' }}
-        countdown={readyDate && daysLeft > 0 ? { targetDate: readyDate, label: 'Syarat hari terpenuhi sekitar' } : undefined}
+        description={`Halaman ini baru bisa menyimpulkan apa pun setelah dua syarat terpenuhi bersamaan: ${MIN_VALIDATION_DAYS} tanggal sinyal hari bursa yang lolos filter DAN ${MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} sampel efektif pada masing-masing bucket edge. Tidak ada perkiraan tanggal selesai karena kelengkapan data dan kematangan T+20 tidak dapat dipastikan.`}
+        progress={{ current: days, total: MIN_VALIDATION_DAYS, unit: 'tanggal sinyal', label: 'Syarat 1 - lama arsip valid' }}
       />
       <div className="px-6 pb-6 -mt-2">
         <div className="mx-auto max-w-xs">
           <div className="flex items-baseline justify-between text-[11px] mb-1.5">
-            <span className="text-tv-muted">Syarat 2 - sampel efektif</span>
+            <span className="text-tv-muted">Syarat 2 - sampel efektif per bucket edge</span>
             <span className="font-number font-semibold text-tv-text tabular-nums">
-              {samples}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION}
+              80-100: {effectiveHigh}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} · &lt;60: {effectiveLow}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION}
             </span>
           </div>
           <div
             className="h-2 w-full rounded-full bg-tv-hover overflow-hidden"
             role="progressbar"
-            aria-valuenow={samples}
+            aria-valuenow={Math.min(effectiveHigh, effectiveLow)}
             aria-valuemin={0}
             aria-valuemax={MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION}
           >
             <div
               className="h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle"
-              style={{ width: `${Math.min(100, (samples / MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION) * 100)}%` }}
+              style={{ width: `${Math.min(100, (Math.min(effectiveHigh, effectiveLow) / MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION) * 100)}%` }}
             />
           </div>
           <p className="mt-2 text-center text-[10px] leading-relaxed text-tv-muted">
             Sampel efektif dihitung per emiten dengan jendela tidak tumpang tindih, jadi ia
-            bertambah jauh lebih lambat daripada jumlah baris mentah.
+            bertambah jauh lebih lambat daripada jumlah baris mentah dan kedua sisi pembanding harus cukup.
           </p>
         </div>
       </div>
@@ -306,15 +313,25 @@ export default function TransparencyClient() {
           <div className="font-number text-xl font-bold mt-1">{data.latestStatsRunDate || 'On-demand'}</div>
         </div>
         <div className="bg-tv-card border border-tv-border rounded-xl p-4">
-          <div className="text-xs text-tv-muted uppercase">Total Sampel</div>
+          <div className="text-xs text-tv-muted uppercase">Sampel T+20 Mentah</div>
           <div className="font-number text-xl font-bold mt-1">{data.totalSamples.toLocaleString('id-ID')}</div>
-          {/* Angka telanjang "0" tidak memberi tahu apakah itu target, batas, atau
-              kegagalan. Denominatornya disebutkan langsung di sebelahnya. */}
           <div className="text-[10px] text-tv-muted mt-0.5">
-            dari {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum
+            bukan penyebut uji signifikansi
           </div>
         </div>
       </div>
+
+      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+        <h2 className="font-heading text-lg font-bold">Jejak audit data</h2>
+        <p className="mt-1 text-xs text-tv-muted">Versi dan baris yang dikeluarkan ditampilkan agar hasil tidak dibaca sebagai campuran model lama.</p>
+        <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+          <div><dt className="text-tv-muted">Versi skor</dt><dd className="mt-1 font-number text-tv-text">{data.scoreVersion || data.requestedScoreVersion}</dd></div>
+          <div><dt className="text-tv-muted">Basis harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceBasis}</dd></div>
+          <div><dt className="text-tv-muted">Versi data harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceDataVersion}</dd></div>
+          <div><dt className="text-tv-muted">Baris versi lain dibuang</dt><dd className="mt-1 font-number text-tv-text">{num(data.rejectedRows)}{data.unversionedRows > 0 ? ` (${num(data.unversionedRows)} tanpa versi)` : ''}</dd></div>
+        </dl>
+        {data.versionRejectedReason && <p className="mt-3 text-xs leading-relaxed text-tv-yellow">{data.versionRejectedReason}</p>}
+      </section>
 
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Performa per Bucket LensScore</h2>
@@ -440,6 +457,19 @@ export default function TransparencyClient() {
             })()}
           </>
         )}
+      </section>
+
+      <section className="bg-tv-card border border-tv-yellow/30 rounded-xl p-5">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-tv-yellow" />
+          <div>
+            <h2 className="font-heading text-lg font-bold">Batasan metodologi</h2>
+            <p className="mt-1 text-xs text-tv-muted">Ditinjau terakhir {data.limitationsReviewedOn}. Angka di atas harus dibaca bersama batasan ini.</p>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-tv-muted">
+              {data.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+            </ol>
+          </div>
+        </div>
       </section>
 
       <section className="bg-tv-card border border-tv-border rounded-xl p-5">

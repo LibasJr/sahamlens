@@ -261,6 +261,20 @@ OOS lama tidak bisa diklaim ulang.
   cron, atau langkah deploy manual baru. Push ke `main` tetap memicu deploy VPS lewat
   GitHub Actions setelah CI hijau.
 
+### 2026-08-16 - Audit transparansi validasi LensRadar
+
+- `/api/transparency` dan halaman publik kini menghitung umur validasi dari tanggal
+  sinyal yang benar-benar lolos versi model, basis harga, likuiditas, cakupan, dan
+  eligibility—bukan seluruh arsip termasuk baris legacy/rejected.
+- Ambang sampel efektif diperiksa per bucket edge (`80-100` dan `<60`), sehingga satu
+  bucket besar tidak dapat membuat status tampak siap sendirian. UI membedakan sampel
+  T+20 mentah dari penyebut uji statistik.
+- Equity curve Top 5 memilih window berikutnya hanya pada/selepas exit terjauh window
+  sebelumnya; ini tetap benar bila tanggal arsip hilang. Halaman kini menampilkan versi
+  model/data, baris yang ditolak, dan seluruh batasan metodologi.
+- Cache transparansi dinaikkan ke `audit-v2`; tidak ada env var, cron, atau migrasi
+  database baru. Push ke `main` tetap memicu deploy VPS otomatis.
+
 ### 2026-08-16 - Perbaikan ketahanan UI dan integritas data
 
 - Audit lanjutan memperbaiki state error/otentikasi yang sebelumnya dapat menampilkan data
