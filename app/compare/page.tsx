@@ -129,8 +129,12 @@ function CompareContent() {
     // Kotak pertama kosong sebelumnya tetap dikirim sebagai `symbol1=` - permintaan
     // yang pasti gagal, dan (sebelum perbaikan di atas) gagal tanpa jejak di layar.
     if (!sym1) return;
+    // setState dengan nilai identik tidak memicu effect. Tombol Bandingkan harus
+    // tetap dapat dipakai sebagai retry setelah request sebelumnya gagal.
+    const unchanged = sym1 === symbol1 && sym2 === symbol2;
     setSymbol1(sym1);
     setSymbol2(sym2);
+    if (unchanged) void fetchCompare();
     if (typeof window !== 'undefined') localStorage.setItem('last_searched_ticker', sym1);
     router.push(`/compare?symbol1=${sym1}&symbol2=${sym2}`);
   };

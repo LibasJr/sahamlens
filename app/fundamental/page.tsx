@@ -69,6 +69,7 @@ function FundamentalContent() {
   const [fetchError, setFetchError] = useState(false);
   const fundamentalExportRef = useRef<HTMLDivElement>(null);
   const lockedViewTrackedForTicker = useRef<string | null>(null);
+  const analyzerAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem('sahamlens.analysis-view.fundamental');
@@ -92,17 +93,21 @@ function FundamentalContent() {
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
+    analyzerAbortRef.current?.abort();
+    const controller = new AbortController();
+    analyzerAbortRef.current = controller;
     setLoading(true);
     setFetchError(false);
     try {
       // Fetch data for chart and fundamental analyzers in parallel!
       const [resStock, resAlgo] = await Promise.all([
-        fetch(`/api/stock/${symbol}`),
-        fetch(`/api/fundamental/${symbol}`)
+        fetch(`/api/stock/${symbol}`, { signal: controller.signal }),
+        fetch(`/api/fundamental/${symbol}`, { signal: controller.signal })
       ]);
 
       const jsonStock = await resStock.json();
       const jsonAlgo = await resAlgo.json();
+      if (controller.signal.aborted) return;
 
       if (resStock.status === 401) {
         if (await shouldShowLoginPromptFor401()) {
@@ -156,10 +161,14 @@ function FundamentalContent() {
         trackAccuracy(symbol, jsonAlgo.price, jsonAlgo.analyzers);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to fetch data', e);
       setFetchError(true);
     } finally {
-      setLoading(false);
+      if (analyzerAbortRef.current === controller) {
+        analyzerAbortRef.current = null;
+        setLoading(false);
+      }
     }
   };
 
@@ -238,7 +247,10 @@ function FundamentalContent() {
       }
     }, 60000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      analyzerAbortRef.current?.abort();
+    };
   }, [ticker, mounted]);
 
   // Pengukuran funnel hanya berjalan setelah status guest benar-benar terselesaikan.
