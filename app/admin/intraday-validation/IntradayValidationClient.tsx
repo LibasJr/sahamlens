@@ -266,6 +266,55 @@ function SampleTag({ status }: { status: string }) {
   return <span className="ml-2 rounded bg-tv-yellow/15 px-1.5 py-0.5 text-[10px] font-bold text-tv-yellow">INSUFFICIENT_SAMPLE</span>;
 }
 
+type RecentSample = Dashboard['recentSamples'][number];
+type SampleSortKey = 'signalTimestamp' | 'ticker' | 'score' | 'entryPriceRaw' | 'exitPriceRaw' | 'netReturn' | 'exitReason' | 'tradable';
+type SampleSort = { key: SampleSortKey; direction: 'asc' | 'desc' };
+
+function SortableSampleTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: SampleSortKey;
+  sort: SampleSort;
+  onSort: (key: SampleSortKey) => void;
+}) {
+  const active = sort.key === sortKey;
+  const direction = active ? sort.direction : undefined;
+  return (
+    <th className="px-3 py-2 text-left whitespace-nowrap font-semibold" aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 rounded text-left hover:text-tv-text focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60"
+        title={`Urutkan berdasarkan ${label}`}
+      >
+        {label}
+        <span aria-hidden="true" className={active ? 'text-tv-blue' : 'text-tv-muted/60'}>{direction === 'asc' ? '↑' : direction === 'desc' ? '↓' : '↕'}</span>
+        <span className="sr-only">{active ? `, urutan ${direction === 'asc' ? 'menaik' : 'menurun'}` : ', klik untuk mengurutkan'}</span>
+      </button>
+    </th>
+  );
+}
+
+function sampleSortValue(sample: RecentSample, key: SampleSortKey): string | number {
+  switch (key) {
+    case 'signalTimestamp': {
+      const timestamp = Date.parse(sample.signalTimestamp);
+      return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+    }
+    case 'ticker': return sample.ticker;
+    case 'score': return sample.score;
+    case 'entryPriceRaw': return sample.entryPriceRaw ?? Number.NEGATIVE_INFINITY;
+    case 'exitPriceRaw': return sample.exitPriceRaw ?? Number.NEGATIVE_INFINITY;
+    case 'netReturn': return sample.netReturn ?? Number.NEGATIVE_INFINITY;
+    case 'exitReason': return sample.exitReason;
+    case 'tradable': return sample.tradable === true ? 1 : sample.tradable === false ? 0 : -1;
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 type ActionName =
@@ -288,6 +337,7 @@ export default function IntradayValidationClient() {
   const [thresholdSim, setThresholdSim] = useState<any>(null);
   const [weightProposal, setWeightProposal] = useState<any>(null);
   const [lookbackDays, setLookbackDays] = useState<number>(5);
+  const [sampleSort, setSampleSort] = useState<SampleSort>({ key: 'signalTimestamp', direction: 'desc' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -335,6 +385,29 @@ export default function IntradayValidationClient() {
 
   const result = dashboard?.latestRun?.result ?? null;
   const horizons = useMemo(() => result?.horizons ?? [], [result]);
+  const sortedRecentSamples = useMemo(() => {
+    const samples = dashboard?.recentSamples ?? [];
+    const direction = sampleSort.direction === 'asc' ? 1 : -1;
+    return [...samples].sort((left, right) => {
+      const a = sampleSortValue(left, sampleSort.key);
+      const b = sampleSortValue(right, sampleSort.key);
+      const comparison = typeof a === 'string' && typeof b === 'string'
+        ? a.localeCompare(b, 'id-ID')
+        : Number(a) - Number(b);
+      if (comparison !== 0) return comparison * direction;
+      return left.ticker.localeCompare(right.ticker, 'id-ID');
+    });
+  }, [dashboard?.recentSamples, sampleSort]);
+
+  const handleSampleSort = useCallback((key: SampleSortKey) => {
+    setSampleSort((current) => {
+      if (current.key === key) {
+        return { key, direction: current.direction === 'desc' ? 'asc' : 'desc' };
+      }
+      const direction = key === 'ticker' || key === 'exitReason' ? 'asc' : 'desc';
+      return { key, direction };
+    });
+  }, []);
 
   if (loading && !dashboard) {
     return (
@@ -586,7 +659,7 @@ export default function IntradayValidationClient() {
 
       <Card
         title="Contoh observasi intraday terbaru"
-        subtitle="Sampel H30 dari data riset tersimpan untuk pemeriksaan admin. Ini bukan rekomendasi, daftar beli, atau sinyal yang ditayangkan ke pengguna."
+        subtitle="Sampel H30 dari data riset tersimpan untuk pemeriksaan admin. Klik judul kolom untuk mengurutkan naik/turun; ini tidak mengubah data, formula, atau hasil validasi."
       >
         {dashboard.recentSamples.length === 0 ? (
           <p className="text-sm text-tv-muted">Belum ada outcome H30 yang terisi untuk versi model dan konfigurasi aktif.</p>
@@ -595,18 +668,18 @@ export default function IntradayValidationClient() {
             <table className="w-full text-xs">
               <thead className="text-tv-muted">
                 <tr>
-                  <Th>Waktu sinyal</Th>
-                  <Th>Emiten</Th>
-                  <Th>Skor</Th>
-                  <Th>Entry</Th>
-                  <Th>Harga exit</Th>
-                  <Th>Net return</Th>
-                  <Th>Alasan exit</Th>
-                  <Th>Layak dieksekusi</Th>
+                  <SortableSampleTh label="Waktu sinyal" sortKey="signalTimestamp" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Emiten" sortKey="ticker" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Skor" sortKey="score" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Entry" sortKey="entryPriceRaw" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Harga exit" sortKey="exitPriceRaw" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Net return" sortKey="netReturn" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Alasan exit" sortKey="exitReason" sort={sampleSort} onSort={handleSampleSort} />
+                  <SortableSampleTh label="Layak dieksekusi" sortKey="tradable" sort={sampleSort} onSort={handleSampleSort} />
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border">
-                {dashboard.recentSamples.map((sample) => (
+                {sortedRecentSamples.map((sample) => (
                   <tr key={`${sample.ticker}-${sample.signalTimestamp}-${sample.horizon}`}>
                     <Td>{wib(sample.signalTimestamp)}</Td>
                     <Td><span className="font-semibold text-tv-text">{sample.ticker.replace('.JK', '')}</span></Td>

@@ -192,6 +192,13 @@ OOS lama tidak bisa diklaim ulang.
   melalui push ke `main`; smoke test akhir pekan harus memastikan data Jumat diberi
   label sesi Jumat, bukan waktu halaman dibuka.
 
+### 2026-08-15 - Pemeriksaan observasi Intraday dapat diurutkan admin
+
+- Tabel “Contoh observasi intraday terbaru” di `/admin/intraday-validation` kini dapat
+  diurutkan naik/turun dari header setiap kolom (termasuk Skor dan Net return). Ini
+  murni sorting di browser untuk inspeksi admin; tidak menulis database, tidak mengubah
+  urutan sumber, dan tidak menyentuh formula, bobot, atau hasil validasi.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML
