@@ -606,10 +606,10 @@ export default function MarketPulse() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3 mb-4">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-tv-green" />
-              Market Breadth (sampel)
+              Market Breadth (100 emiten)
             </h3>
             <span className="text-[10px] text-tv-muted">
-              {data?.breadth?.total || 0} Saham Terpantau
+              {data?.breadth?.total || 0} / {data?.breadth?.expectedTotal || 100} saham terbaca
             </span>
           </div>
 
