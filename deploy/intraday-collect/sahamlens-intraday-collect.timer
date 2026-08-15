@@ -1,0 +1,20 @@
+# /etc/systemd/system/sahamlens-intraday-collect.timer
+#
+# 17:30 WIB Senin-Jumat: setelah sesi reguler dan lelang penutupan benar-benar selesai,
+# jadi bar hari itu sudah final saat ditarik. Sengaja TIDAK intraday berulang - modul ini
+# riset, bukan sinyal live, dan menariknya tiap 5 menit hanya menghabiskan kuota provider
+# untuk bar yang sama.
+#
+# Persistent=true: kalau VPS mati saat jadwal lewat, job dijalankan setelah boot.
+# Window provider 60 hari membuat hari yang terlewat masih bisa dikejar backfill manual.
+
+[Unit]
+Description=Jadwal SahamLens - intraday-collect
+
+[Timer]
+OnCalendar=Mon..Fri 17:30 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
