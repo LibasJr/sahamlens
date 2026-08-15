@@ -71,6 +71,7 @@ import {
   getLatestThresholdProposal,
   getLatestValidationRunResult,
   getLatestWeightProposal,
+  listRecentIntradaySamples,
   listValidationRuns,
   loadIntradayObservations,
   startValidationRun,
@@ -125,9 +126,13 @@ export interface ComponentDiagnosticRow {
 }
 
 export interface SpreadFloorReport {
-  /** Porsi trade yang slippage-nya ditentukan lantai fraksi harga, bukan asumsi konfigurasi. */
+  /** Porsi trade yang minimal satu sisinya ditentukan lantai fraksi harga. */
   bindingShare: number | null;
+  entryBindingShare: number | null;
+  exitBindingShare: number | null;
   medianAppliedSlippageBps: number | null;
+  medianEntrySlippageBps: number | null;
+  medianExitSlippageBps: number | null;
   maxAppliedSlippageBps: number | null;
   note: string;
 }
@@ -327,7 +332,7 @@ export function netReturnUnderCost(
   priceFractions?: IdxPriceFractionBand[]
 ): number {
   const entrySlip = effectiveSlippageBps(entryPriceRaw, cost.slippageEntryBps, priceFractions);
-  const exitSlip = effectiveSlippageBps(entryPriceRaw, cost.slippageExitBps, priceFractions);
+  const exitSlip = effectiveSlippageBps(exitPriceRaw, cost.slippageExitBps, priceFractions);
   const entry = entryPriceRaw * (1 + entrySlip / 10_000) * (1 + cost.buyFeePct / 100);
   const exit = exitPriceRaw * (1 - exitSlip / 10_000) * (1 - cost.sellFeePct / 100);
   return exit / entry - 1;
@@ -407,29 +412,53 @@ function buildComponentDiagnostics(rows: ObservationRow[]): { rows: ComponentDia
 // ---------------------------------------------------------------------------
 
 function buildSpreadFloorReport(rows: ObservationRow[], config: IntradayRunConfig): SpreadFloorReport {
-  const filled = rows.filter((r) => r.fillStatus === 'FILLED' && r.entryPriceRaw != null && r.entryPriceRaw > 0);
+  const filled = rows.filter(
+    (r) => r.fillStatus === 'FILLED' && r.entryPriceRaw != null && r.entryPriceRaw > 0 && r.exitPriceRaw != null && r.exitPriceRaw > 0,
+  );
   if (!filled.length) {
     return {
       bindingShare: null,
+      entryBindingShare: null,
+      exitBindingShare: null,
       medianAppliedSlippageBps: null,
+      medianEntrySlippageBps: null,
+      medianExitSlippageBps: null,
       maxAppliedSlippageBps: null,
       note: SPREAD_FLOOR_NOTE,
     };
   }
   // Dihitung ulang dari harga entry, bukan mengandalkan kolom yang bisa NULL untuk
   // baris lama - jadi laporan tetap benar untuk data yang diarsipkan sebelum kolomnya ada.
-  const applied = filled.map((r) =>
+  const entryApplied = filled.map((r) =>
     effectiveSlippageBps(r.entryPriceRaw as number, config.cost.slippageEntryBps, config.priceFractions)
   );
-  const binding = filled.filter(
+  const exitApplied = filled.map((r) =>
+    effectiveSlippageBps(r.exitPriceRaw as number, config.cost.slippageExitBps, config.priceFractions)
+  );
+  const entryBinding = filled.filter(
     (r) =>
       minHalfSpreadBps(r.entryPriceRaw as number, config.priceFractions) >
-      Math.min(config.cost.slippageEntryBps, config.cost.slippageExitBps)
+      config.cost.slippageEntryBps
+  ).length;
+  const exitBinding = filled.filter(
+    (r) =>
+      minHalfSpreadBps(r.exitPriceRaw as number, config.priceFractions) >
+      config.cost.slippageExitBps
+  ).length;
+  const eitherBinding = filled.filter((r) =>
+    minHalfSpreadBps(r.entryPriceRaw as number, config.priceFractions) > config.cost.slippageEntryBps ||
+    minHalfSpreadBps(r.exitPriceRaw as number, config.priceFractions) > config.cost.slippageExitBps
   ).length;
   return {
-    bindingShare: round(binding / filled.length, 4),
-    medianAppliedSlippageBps: round(median(applied), 2),
-    maxAppliedSlippageBps: round(Math.max(...applied), 2),
+    bindingShare: round(eitherBinding / filled.length, 4),
+    entryBindingShare: round(entryBinding / filled.length, 4),
+    exitBindingShare: round(exitBinding / filled.length, 4),
+    // Field lama dipertahankan sebagai median entry supaya hasil run yang tersimpan
+    // tetap dapat dibaca, sedangkan sisi exit ditampilkan eksplisit di v0.1.1+.
+    medianAppliedSlippageBps: round(median(entryApplied), 2),
+    medianEntrySlippageBps: round(median(entryApplied), 2),
+    medianExitSlippageBps: round(median(exitApplied), 2),
+    maxAppliedSlippageBps: round(Math.max(...entryApplied, ...exitApplied), 2),
     note: SPREAD_FLOOR_NOTE,
   };
 }
@@ -438,7 +467,8 @@ export const SPREAD_FLOOR_NOTE =
   'Provider ini tidak menyediakan bid-ask spread, jadi spread sesungguhnya TIDAK diketahui. ' +
   'Yang dipakai adalah batas bawahnya yang bisa dibuktikan: harga hanya bergerak dalam ' +
   'kelipatan fraksi harga IDX, sehingga menyeberangi spread menelan minimal setengah tick ' +
-  'per sisi. Slippage yang dipakai = maksimum(asumsi konfigurasi, lantai setengah tick). ' +
+  'per sisi. Lantai entry dihitung dari harga entry dan lantai exit dari harga exit; slippage ' +
+  'yang dipakai = maksimum(asumsi konfigurasi, lantai setengah tick sisi tersebut). ' +
   'Angka ini tetap OPTIMISTIS - spread nyata bisa jauh lebih lebar, terutama saat pasar sepi.';
 
 // ---------------------------------------------------------------------------
@@ -830,7 +860,16 @@ async function computeValidation(
       conclusion: 'Belum diuji.',
     },
     componentDiagnostics: { rows: [], note: COMPONENT_DIAGNOSTIC_NOTE },
-    spreadFloor: { bindingShare: null, medianAppliedSlippageBps: null, maxAppliedSlippageBps: null, note: SPREAD_FLOOR_NOTE },
+    spreadFloor: {
+      bindingShare: null,
+      entryBindingShare: null,
+      exitBindingShare: null,
+      medianAppliedSlippageBps: null,
+      medianEntrySlippageBps: null,
+      medianExitSlippageBps: null,
+      maxAppliedSlippageBps: null,
+      note: SPREAD_FLOOR_NOTE,
+    },
     costSensitivity: [],
     walkForward: null,
     multipleTesting: [],
@@ -907,7 +946,7 @@ async function computeValidation(
   }
   if (base.spreadFloor.bindingShare != null && base.spreadFloor.bindingShare > 0.2) {
     warnings.push(
-      `${(base.spreadFloor.bindingShare * 100).toFixed(1)}% trade slippage-nya ditentukan lantai fraksi harga IDX, bukan asumsi konfigurasi - asumsi biaya datar terlalu optimistis untuk populasi ini.`
+      `${(base.spreadFloor.bindingShare * 100).toFixed(1)}% trade memiliki minimal satu sisi slippage yang ditentukan lantai fraksi harga IDX, bukan asumsi konfigurasi - asumsi biaya datar terlalu optimistis untuk populasi ini.`
     );
   }
   if (base.costSensitivity.some((row) => !row.stillPositive)) {
@@ -1040,6 +1079,7 @@ export interface IntradayDashboard {
   dataQuality: Awaited<ReturnType<typeof getIntradayDataQualitySummary>>;
   latestRun: Awaited<ReturnType<typeof getLatestValidationRunResult>>;
   recentRuns: Awaited<ReturnType<typeof listValidationRuns>>;
+  recentSamples: Awaited<ReturnType<typeof listRecentIntradaySamples>>;
   oosProtocol: OosProtocolRow | null;
   /**
    * Progres menuju OOS yang layak diuji. Horizon terpanjang LensIntraday adalah EOD hari
@@ -1064,12 +1104,13 @@ export interface IntradayDashboard {
 
 export async function getIntradayDashboard(config = defaultIntradayRunConfig()): Promise<IntradayDashboard> {
   const configHash = intradayConfigHash(config);
-  const [coverage, dataQuality, latestRun, recentRuns, oosProtocol, weightProposal, thresholdProposal] =
+  const [coverage, dataQuality, latestRun, recentRuns, recentSamples, oosProtocol, weightProposal, thresholdProposal] =
     await Promise.all([
       getIntradayCoverage(config.modelVersion, configHash),
       getIntradayDataQualitySummary(),
       getLatestValidationRunResult(),
       listValidationRuns(10),
+      listRecentIntradaySamples(config.modelVersion, configHash),
       getActiveOosProtocol(),
       getLatestWeightProposal(),
       getLatestThresholdProposal(),
@@ -1118,6 +1159,7 @@ export async function getIntradayDashboard(config = defaultIntradayRunConfig()):
     dataQuality,
     latestRun,
     recentRuns,
+    recentSamples,
     oosProtocol,
     oosProgress,
     latestWeightProposal: weightProposal,

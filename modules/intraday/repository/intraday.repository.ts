@@ -113,9 +113,9 @@ export async function upsertIntradaySignals(
       const oValues: unknown[] = [];
       const oPlaceholders: string[] = [];
       outcomeBatch.forEach(({ signalId, outcome }, i) => {
-        const base = i * 24;
+        const base = i * 28;
         oPlaceholders.push(
-          `(${Array.from({ length: 24 }, (_, k) => `$${base + k + 1}`).join(',')})`
+          `(${Array.from({ length: 28 }, (_, k) => `$${base + k + 1}`).join(',')})`
         );
         oValues.push(
           signalId,
@@ -141,7 +141,11 @@ export async function upsertIntradaySignals(
           context.costVersion,
           outcome.slippageBpsApplied,
           outcome.spreadFloorBinding,
-          outcome.tradable
+          outcome.tradable,
+          outcome.entrySlippageBpsApplied,
+          outcome.exitSlippageBpsApplied,
+          outcome.entrySpreadFloorBinding,
+          outcome.exitSpreadFloorBinding,
         );
       });
 
@@ -150,7 +154,9 @@ export async function upsertIntradaySignals(
            (signal_id, horizon, entry_timestamp, entry_price, entry_price_raw, exit_timestamp, exit_price,
             exit_price_raw, gross_return, net_return, total_cost, mfe, mae, minutes_to_mfe, minutes_to_mae,
             exit_reason, fill_status, hit_take_profit, hit_stop_loss, data_quality_status, cost_version,
-            slippage_bps_applied, spread_floor_binding, tradable)
+            slippage_bps_applied, spread_floor_binding, tradable,
+            entry_slippage_bps_applied, exit_slippage_bps_applied,
+            entry_spread_floor_binding, exit_spread_floor_binding)
          VALUES ${oPlaceholders.join(',')}
          ON CONFLICT (signal_id, horizon)
          DO UPDATE SET
@@ -176,6 +182,10 @@ export async function upsertIntradaySignals(
            slippage_bps_applied = EXCLUDED.slippage_bps_applied,
            spread_floor_binding = EXCLUDED.spread_floor_binding,
            tradable = EXCLUDED.tradable,
+           entry_slippage_bps_applied = EXCLUDED.entry_slippage_bps_applied,
+           exit_slippage_bps_applied = EXCLUDED.exit_slippage_bps_applied,
+           entry_spread_floor_binding = EXCLUDED.entry_spread_floor_binding,
+           exit_spread_floor_binding = EXCLUDED.exit_spread_floor_binding,
            matured_at = COALESCE(intraday_outcomes.matured_at, now()),
            updated_at = now()`,
         oValues
@@ -296,6 +306,66 @@ export interface LoadObservationsFilter {
   /** Hanya sinyal yang dibuat setelah instan ini - dipakai genuine forward OOS. */
   signalAfter?: string;
   limit?: number;
+}
+
+/** Sampel terbaru untuk audit visual admin. Ini bukan feed sinyal dan tidak pernah dipakai menu publik. */
+export interface RecentIntradaySample {
+  ticker: string;
+  tradingDate: string;
+  signalTimestamp: string;
+  signalMinute: number;
+  score: number;
+  horizon: string;
+  entryPriceRaw: number | null;
+  exitPriceRaw: number | null;
+  netReturn: number | null;
+  exitReason: string;
+  tradable: boolean | null;
+}
+
+export async function listRecentIntradaySamples(
+  modelVersion: string,
+  configHash: string,
+  limit = 20,
+): Promise<RecentIntradaySample[]> {
+  await ensureIntradaySchema();
+  const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)));
+  const res = await queryReadWithRetry<{
+    ticker: string;
+    trading_date: string;
+    signal_timestamp: Date;
+    signal_minute_wib: number;
+    signal_score: string;
+    horizon: string;
+    entry_price_raw: string | null;
+    exit_price_raw: string | null;
+    net_return: string | null;
+    exit_reason: string;
+    tradable: boolean | null;
+  }>(
+    `SELECT s.ticker, s.trading_date, s.signal_timestamp, s.signal_minute_wib, s.signal_score,
+            o.horizon, o.entry_price_raw, o.exit_price_raw, o.net_return, o.exit_reason, o.tradable
+     FROM intraday_signals s
+     JOIN intraday_outcomes o ON o.signal_id = s.id
+     WHERE s.model_version = $1 AND s.config_hash = $2
+       AND o.horizon = 'H30' AND o.fill_status = 'FILLED'
+     ORDER BY s.trading_date DESC, s.signal_minute_wib DESC, s.ticker ASC
+     LIMIT $3`,
+    [modelVersion, configHash, safeLimit],
+  );
+  return res.rows.map((row) => ({
+    ticker: row.ticker,
+    tradingDate: row.trading_date,
+    signalTimestamp: row.signal_timestamp instanceof Date ? row.signal_timestamp.toISOString() : String(row.signal_timestamp),
+    signalMinute: row.signal_minute_wib,
+    score: Number(row.signal_score),
+    horizon: row.horizon,
+    entryPriceRaw: row.entry_price_raw == null ? null : Number(row.entry_price_raw),
+    exitPriceRaw: row.exit_price_raw == null ? null : Number(row.exit_price_raw),
+    netReturn: row.net_return == null ? null : Number(row.net_return),
+    exitReason: row.exit_reason,
+    tradable: row.tradable,
+  }));
 }
 
 export async function loadIntradayObservations(filter: LoadObservationsFilter): Promise<{

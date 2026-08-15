@@ -531,7 +531,7 @@ export async function freezeIntradayOosProtocol(input: FreezeOosInput): Promise<
       // Lantai spread mengubah net return, jadi ia bagian dari model biaya - bukan
       // detail implementasi yang boleh berubah setelah freeze.
       priceFractions: config.priceFractions,
-      slippageRule: 'slippage per sisi = maksimum(asumsi konfigurasi, setengah fraksi harga IDX / harga entry)',
+      slippageRule: 'slippage entry = maksimum(asumsi, setengah fraksi/harga entry); slippage exit = maksimum(asumsi, setengah fraksi/harga exit)',
     },
     acceptanceCriteria: input.acceptanceCriteria ?? DEFAULT_ACCEPTANCE_CRITERIA,
     frozenBy: input.frozenBy,
