@@ -92,13 +92,17 @@ export function ensureIntradaySchema(): Promise<void> {
       -- shared/database/schema.service.ts). Baris lama tetap valid; NULL berarti
       -- "diarsipkan sebelum kolom ada", bukan diam-diam dianggap false.
       --
-      -- slippage_bps_applied: slippage per sisi yang BENAR-BENAR dipakai setelah kena
-      -- lantai setengah fraksi harga IDX. Disimpan karena ia bergantung pada harga
-      -- entry, jadi tidak bisa direkonstruksi dari konfigurasi saja.
+      -- Kolom lama slippage_bps_applied/spread_floor_binding merekam sisi entry.
+      -- Mulai model v0.1.1 sisi entry dan exit disimpan terpisah, karena harga keluar
+      -- bisa melintasi pita fraksi IDX dan lantai biayanya tidak selalu sama.
       ALTER TABLE intraday_outcomes
         ADD COLUMN IF NOT EXISTS slippage_bps_applied NUMERIC,
         ADD COLUMN IF NOT EXISTS spread_floor_binding BOOLEAN,
-        ADD COLUMN IF NOT EXISTS tradable BOOLEAN;
+        ADD COLUMN IF NOT EXISTS tradable BOOLEAN,
+        ADD COLUMN IF NOT EXISTS entry_slippage_bps_applied NUMERIC,
+        ADD COLUMN IF NOT EXISTS exit_slippage_bps_applied NUMERIC,
+        ADD COLUMN IF NOT EXISTS entry_spread_floor_binding BOOLEAN,
+        ADD COLUMN IF NOT EXISTS exit_spread_floor_binding BOOLEAN;
       -- Query "hanya sinyal yang benar-benar bisa dieksekusi" dijalankan tiap
       -- validation run, per horizon.
       CREATE INDEX IF NOT EXISTS idx_intraday_outcomes_tradable
