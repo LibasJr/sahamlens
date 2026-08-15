@@ -240,6 +240,14 @@ OOS lama tidak bisa diklaim ulang.
   tidak ada di database aplikasi dan sengaja tidak dipalsukan; verifikasi deploy production tetap
   dari GitHub Actions setelah push `main`.
 
+### 2026-08-16 - Redirect login hanya internal
+
+- Parameter `next` pada `/login` kini divalidasi oleh `safeInternalPath()` bersama
+  halaman `login-required`. URL eksternal, protocol-relative (`//host`), varian
+  backslash, dan slash yang di-encode ditolak lalu diarahkan ke `/home`.
+- Ini menutup open redirect setelah autentikasi tanpa mengubah proses login, sesi,
+  maupun alamat tujuan internal yang sah.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML

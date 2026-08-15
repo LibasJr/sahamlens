@@ -1,17 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LockKeyhole, LogIn, RotateCcw } from 'lucide-react';
+import { safeInternalPath } from '@/shared/navigation/safe-internal-path';
 
 export const metadata: Metadata = {
   title: 'Login diperlukan',
   robots: { index: false, follow: false },
 };
-
-function safeInternalPath(value: string | string[] | undefined): string {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) return '/home';
-  return candidate;
-}
 
 export default async function LoginRequiredPage({
   searchParams,
