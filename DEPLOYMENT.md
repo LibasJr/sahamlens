@@ -286,6 +286,15 @@ OOS lama tidak bisa diklaim ulang.
 - Ini hanya gating UI testing: endpoint/data/formula Compare tidak berubah, tidak ada
   env var, migrasi, cron, atau langkah deploy manual baru.
 
+### 2026-08-16 - Risk Matrix memakai pencarian ticker
+
+- Input ticker pada komposisi simulasi `/risk` memakai `SymbolAutocomplete` yang sama
+  dengan halaman analisis: ketik minimal dua karakter (mis. `BB`) untuk memilih emiten
+  IDX beserta namanya, dengan dukungan keyboard.
+- Ticker pilihan `.JK` dinormalisasi menjadi kode IDX ringkas sebelum disimpan, sehingga
+  `BBCA` dan `BBCA.JK` tidak dapat masuk sebagai dua posisi yang sama. Tidak ada
+  perubahan formula beta/stress test, API, env var, cron, atau migrasi.
+
 ### 2026-08-16 - Perbaikan ketahanan UI dan integritas data
 
 - Audit lanjutan memperbaiki state error/otentikasi yang sebelumnya dapat menampilkan data

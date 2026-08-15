@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button } from '@/components/ui';
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
@@ -67,7 +68,10 @@ export default function RiskPage() {
   }, []);
 
   const addPosition = () => {
-    const tickerToAdd = newTicker.trim().toUpperCase();
+    // SymbolAutocomplete mengembalikan BBCA.JK, sedangkan Risk Matrix menyimpan
+    // kode IDX ringkas (BBCA). Normalisasi di satu titik juga mencegah BBCA dan
+    // BBCA.JK masuk sebagai dua posisi yang sebetulnya sama.
+    const tickerToAdd = newTicker.trim().toUpperCase().replace(/\.JK$/, '');
     if (tickerToAdd && !portfolio.some((item) => item.ticker === tickerToAdd)) {
       setPortfolio([...portfolio, { ticker: tickerToAdd, weight: Number(newWeight) }]);
       setNewTicker('');
@@ -119,12 +123,13 @@ export default function RiskPage() {
           </div>
 
           <div className="pt-2 border-t border-tv-border flex items-end gap-2">
-            <Input
-              size="sm"
+            <SymbolAutocomplete
+              containerClassName="relative flex-1"
               value={newTicker}
-              onChange={(e) => setNewTicker(e.target.value.toUpperCase())}
+              onChange={setNewTicker}
               placeholder="Ticker (cth: BMRI)"
-              className="flex-1"
+              className="h-11 w-full rounded-xl border border-white/[0.08] bg-black/15 px-3 text-base text-tv-text shadow-inner placeholder:text-tv-muted/60 transition-all duration-150 focus:border-tv-blue/65 focus:bg-black/20 focus:outline-none focus:ring-2 focus:ring-tv-blue/10 sm:h-9 sm:text-xs"
+              aria-label="Cari ticker untuk portofolio simulasi"
             />
             <Input
               size="sm"
