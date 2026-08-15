@@ -19,7 +19,9 @@ import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '../../modules/market/constants/a
 // selalu cache-miss karena versinya beda satu karakter.
 export const COMPUTED_CACHE_KEY = {
   MARKET_SUMMARY: `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`,
-  MARKET_PULSE: 'sahamlens:cache:computed:market-pulse:v2',
+  // v3 menambah daftar quote breadth + timestamp sesi sumber. Kunci baru menjaga
+  // respons cache v2 lama (tanpa daftar) tidak terlihat seperti snapshot lengkap.
+  MARKET_PULSE: 'sahamlens:cache:computed:market-pulse:v3',
   SCREENER_UNIVERSE: `sahamlens:cache:computed:screener-universe:${ACTIVE_LIQUID_UNIVERSE_VERSION}`,
   DIVIDEND_UNIVERSE: 'sahamlens:cache:computed:dividend-universe',
   CORPORATE_CALENDAR: 'sahamlens:cache:computed:corporate-calendar',
