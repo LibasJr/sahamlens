@@ -17,7 +17,7 @@ import { classifyCapTier, BLUE_CHIP_MIN_MARKET_CAP_IDR, BLUE_CHIP_MIN_ADV20_IDR 
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
-import { computeRole } from '@/lib/hooks/useAuthUser';
+import { computeRole, useAuthUser } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
@@ -147,6 +147,7 @@ const signalBadgeTone = (signal: string | null | undefined) =>
 
 function DashboardContent() {
   const searchParams = useSearchParams();
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
   const [ticker, setTickerState] = useState('DGWG.JK');
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
@@ -1545,7 +1546,9 @@ function DashboardContent() {
                   sortByConfidence={sortByConfidence}
                   setSortByConfidence={setSortByConfidence}
                   getAccuracyPct={getAccuracyPct}
-                  isAdmin={isAdminUser}
+                  // Jangan membuka detail sebelum status sesi selesai diperiksa. Ini
+                  // mencegah kilatan data lengkap untuk pengunjung saat halaman baru dimuat.
+                  lockForGuest={!authResolved || authLoading || !authUser}
                 />
               </div>
             </>
