@@ -102,6 +102,27 @@ describe('transparency.service', () => {
     expect(curve[0].signals).toBe(5);
   });
 
+  it('tidak memilih window baru hanya karena ada 20 tanggal sinyal bila exit sebelumnya belum lewat', () => {
+    const observations = [
+      obs({ signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: '2026-02-15', returnT20: 5 }),
+      ...Array.from({ length: 20 }, (_, i) => obs({
+        ticker: `GAP${i}.JK`,
+        signalDate: `2026-01-${String(i + 2).padStart(2, '0')}`,
+        entryDate: `2026-01-${String(i + 3).padStart(2, '0')}`,
+        exitDateT20: '2026-02-20',
+        returnT20: 1,
+      })),
+      obs({ ticker: 'NEXT.JK', signalDate: '2026-02-15', entryDate: '2026-02-16', exitDateT20: '2026-03-10', returnT20: 2 }),
+    ];
+
+    const curve = buildTop5EquityCurve(observations, []);
+
+    // Kandidat ke-21 berada pada 21 Jan dan masih tumpang tindih dengan trade yang
+    // exit 15 Feb; hanya sinyal tepat pada tanggal exit yang boleh memulai window baru.
+    expect(curve).toHaveLength(2);
+    expect(curve.map((point) => point.date)).toEqual(['2026-01-01', '2026-02-15']);
+  });
+
   // FASE 0 - banner publik tidak boleh mengklaim validasi selama syaratnya belum dipenuhi.
   it('banner TIDAK PERNAH hijau/tervalidasi untuk status yang bisa dihasilkan sistem hari ini', () => {
     const reachable: ValidationStatus[] = [

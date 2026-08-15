@@ -34,7 +34,10 @@ import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
-export const TRANSPARENCY_CACHE_VERSION = 'liquidity-v1';
+// v2: payload sekarang membedakan observasi mentah, sampel efektif per bucket edge,
+// dan hari sinyal yang benar-benar lolos populasi validasi. Cache lama tidak boleh
+// membuat UI terus menampilkan penyebut yang sudah tidak tepat.
+export const TRANSPARENCY_CACHE_VERSION = 'audit-v2';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
@@ -111,8 +114,12 @@ export interface TransparencyData {
   versionMixed: boolean;
   versionRejectedReason: string | null;
   startDate: string | null;
+  /** Tanggal sinyal unik yang lolos gerbang populasi, bukan seluruh baris arsip. */
   validationDays: number;
   totalSamples: number;
+  /** Sampel T+20 yang sudah didekorelasi untuk uji bucket edge. */
+  effectiveHighBucketSamples: number;
+  effectiveLowBucketSamples: number;
   /** Sinyal yang dibuang gerbang likuiditas ADV20 pada run bucket terakhir. */
   illiquidRowsSkipped: number | null;
   minAvgValue20dIdr: number;
@@ -312,15 +319,29 @@ export function buildTop5EquityCurve(
   const points: TransparencyEquityPoint[] = [];
 
   const signalDates = Array.from(byDate.keys()).sort();
-  for (let i = 0; i < signalDates.length; i += LENS_RADAR_HOLDING_DAYS) {
-    const date = signalDates[i];
-    if (!date) continue;
+  // Jangan lompat berdasarkan *jumlah tanggal sinyal*. Arsip dapat bolong pada hari
+  // tertentu; `i += 20` lalu dapat memilih sinyal baru ketika posisi sebelumnya masih
+  // berjalan. Sinyal berikutnya baru boleh dipakai setelah exit terjauh dari Top 5
+  // sebelumnya (signal pada hari exit sah karena entry-nya baru Open H+1).
+  let earliestNextSignalDate: string | null = null;
+  for (const date of signalDates) {
+    if (!date || (earliestNextSignalDate != null && date < earliestNextSignalDate)) continue;
     const top5 = (byDate.get(date) ?? [])
       .slice()
       .sort((a, b) => b.lensScore - a.lensScore || (b.marketCap ?? 0) - (a.marketCap ?? 0))
       .slice(0, 5);
     const lensReturn = average(top5.map((obs) => obs.returnT20 as number));
     if (lensReturn == null) continue;
+
+    const latestExitDate = top5
+      .map((obs) => obs.exitDateT20)
+      .filter((exitDate): exitDate is string => typeof exitDate === 'string')
+      .sort()
+      .at(-1);
+    // Observation dengan return T+20 harusnya selalu punya tanggal exit. Tetap
+    // fail-closed supaya curve tidak mengklaim window non-tumpang tindih bila data
+    // kontradiktif sampai di sini.
+    if (!latestExitDate) continue;
 
     const ihsgReturns = top5
       .map((obs) => {
@@ -344,6 +365,7 @@ export function buildTop5EquityCurve(
       dailyReturnIHSG: roundPct(ihsgReturn),
       signals: top5.length,
     });
+    earliestNextSignalDate = latestExitDate;
   }
 
   return points;
@@ -402,7 +424,10 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
   } = await calculateCalibrationObservations(historyRows, undefined, { scoreVersion: requestedScoreVersion });
   const ihsgBars = await fetchIhsgBars();
 
-  const dates = Array.from(new Set(historyRows.map((row) => dateKey(row.date)).filter((date): date is string => !!date))).sort();
+  // Hari validasi harus mengikuti sinyal yang benar-benar lolos versi model, basis
+  // harga, likuiditas, cakupan, dan eligibility. Menghitung seluruh histori di sini
+  // membuat arsip legacy/rejected membesarkan umur validasi di layar.
+  const dates = Array.from(new Set(observations.map((observation) => observation.signalDate))).sort();
   const tTest = buildCalibrationTTest(observations);
   const bucketResult = buildBucketRows(statsRows, observations);
   const validationDays = dates.length;
@@ -410,7 +435,10 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
   const pValue = tTest.pValue;
   const validationStatus = resolveValidationStatus({
     validationDays,
-    effectiveSamples: tTest.highBucketSamples + tTest.lowBucketSamples,
+    // t-test memakai minimal 30 sampel PADA MASING-MASING bucket edge. Nilai minimum
+    // dipakai agar satu bucket besar tidak membuat status terlihat siap saat sisi
+    // pembandingnya belum cukup data.
+    effectiveSamples: Math.min(tTest.highBucketSamples, tTest.lowBucketSamples),
     pValue,
     outOfSampleTested: false,
   });
@@ -429,11 +457,13 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     startDate,
     validationDays,
     totalSamples: bucketResult.totalSamples,
+    effectiveHighBucketSamples: tTest.highBucketSamples,
+    effectiveLowBucketSamples: tTest.lowBucketSamples,
     illiquidRowsSkipped: finiteNumber(statsRows[0]?.illiquid_rows_skipped ?? null),
     minAvgValue20dIdr: LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
     pValue80VsLt60: pValue,
     significant: tTest.significant,
-    disclaimer: `Data point-in-time, entry Open H+1, exit T+N berbasis hari bursa, hanya sinyal dengan nilai transaksi rata-rata 20 hari di atas Rp ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR / 1_000_000_000} miliar/hari pada tanggal sinyal, window equity curve Top 5 tidak tumpang tindih 20 hari, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. ${RESEARCH_ONLY_DISCLAIMER}`,
+    disclaimer: `Data point-in-time, entry Open H+1, exit T+N berbasis hari bursa, hanya sinyal dengan nilai transaksi rata-rata 20 hari di atas Rp ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR / 1_000_000_000} miliar/hari pada tanggal sinyal, window equity curve Top 5 berikutnya baru dimulai setelah exit window sebelumnya, setelah fee 0.4% + slippage 0.1%, data sejak ${startDate ?? '-'}. ${RESEARCH_ONLY_DISCLAIMER}`,
     limitations: VALIDATION_LIMITATIONS,
     limitationsReviewedOn: VALIDATION_LIMITATIONS_REVIEWED_ON,
     banner: buildTransparencyBanner(validationStatus),
