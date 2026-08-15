@@ -1,0 +1,22 @@
+# /etc/systemd/system/sahamlens-intraday-collect.service
+#
+# Pengumpul bar intraday LensIntraday (Intraday Validation Lab).
+# Pola sama dengan timer systemd lain di VPS (screener-scan/dividend-scan/calendar-scan):
+# curl ke endpoint cron aplikasi dengan CRON_SECRET, bukan menjalankan node terpisah -
+# supaya job memakai pool database, cache, dan logger yang SAMA dengan aplikasi.
+#
+# CRON_SECRET dibaca dari EnvironmentFile yang sama dengan sahamlens.service.
+
+[Unit]
+Description=SahamLens - kumpulkan bar intraday LensIntraday
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+# --max-time 300 menyamai maxDuration route. Job punya anggaran internal 240 detik dan
+# berhenti rapi sebelum itu, jadi curl tidak pernah memutus tulisan database di tengah.
+# -f supaya HTTP 4xx/5xx menjadi exit code gagal yang terlihat di systemctl status.
+ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/intraday-collect

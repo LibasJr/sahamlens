@@ -62,6 +62,91 @@ trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan 
 lama https://sahamlens.vercel.app hanya berguna untuk membandingkan build, bukan untuk smoke
 test production.
 
+### 2026-08-15 - Menu admin baru: Intraday Validation Lab (model riset `LensIntraday`)
+
+Modul riset BARU dan TERPISAH untuk sinyal yang dibuka dan ditutup pada hari bursa yang
+sama. Ia **tidak menyentuh** Calibration Lab, Robust/Forward Validation T+20, simulasi
+ambang LensScore, TP/CL Lab, `lens_radar_history`, `lens_bucket_stats`,
+`lens_weight_proposals`, maupun bobot produksi 40/30/30 di
+`shared/constants/lens-score-weights.ts`. Dijaga tes regresi
+`modules/intraday/__tests__/separation-regression.test.ts`.
+
+- Rute admin: `/admin/intraday-validation` (kartu baru di `/admin`).
+- API: `GET /api/admin/intraday-validation`, `GET .../runs`,
+  `POST .../actions` (`collect_data` | `run_validation` | `freeze_oos` |
+  `threshold_simulation` | `threshold_proposal` | `weight_proposal`).
+  Semua bergerbang `isAdminFromRequestCookies` di SERVER, plus cek Origin untuk POST,
+  validasi Zod, dan lock terdistribusi (`runWithJobConcurrencyGuard`).
+- Cron baru: `/api/cron/intraday-collect` (GET + `CRON_SECRET`, POST + signature QStash).
+  **Timer BELUM dipasang** - `config/scheduled-jobs.json` menandainya `verify-server`.
+- Skema: `modules/intraday/service/intraday-schema.service.ts` (BUKAN
+  `shared/database/schema.service.ts`, supaya jalur request produksi tidak ikut menanggung
+  DDL modul riset). Tujuh tabel baru, semuanya berawalan `intraday_`, murni aditif &
+  idempoten. Tabel dibuat saat route admin/cron intraday pertama kali dipanggil.
+- Sumber data: endpoint chart v8 Yahoo yang SUDAH dipakai aplikasi ini, interval `5m`.
+  Batas provider terverifikasi 2026-08-15: **maksimum 60 hari** untuk interval 5 menit,
+  87 bar/hari 09:00-16:10 WIB, `exchangeTimezoneName = Asia/Jakarta`. Jeda sesi siang
+  muncul sebagai bar null (bukan bar hilang) - itu dibedakan lewat kalender sesi, bukan
+  dianggap kerusakan data.
+
+**Acuan hari bursa dari IHSG, bukan daftar libur hardcoded.** Daftar libur bursa yang
+ditulis tangan harus diperbarui tiap tahun dan menciptakan kalender yang salah dengan
+percaya diri kalau lupa. Sebagai gantinya, collector menarik `^JKSE` sekali per eksekusi:
+hari yang IHSG-nya punya bar = hari bursa berjalan. Emiten yang nihil bar pada hari itu
+ditandai `MISSING_DAY` - tanpa acuan ini, hari yang datanya hilang TOTAL tidak muncul di
+laporan sama sekali dan kelengkapan terhitung 100% dari hari-hari yang kebetulan ada.
+Kalau IHSG sendiri gagal ditarik, pengumpulan tetap jalan tanpa acuan dan melaporkan
+`referenceTradingDays: null` - bukan diam-diam menganggap semua weekday hari bursa.
+
+Unit systemd sudah ter-commit di **`deploy/intraday-collect/`** (`.service`, `.timer`,
+`README.md` berisi langkah pasang + cara verifikasi lewat `job_run_log`):
+
+```ini
+# /etc/systemd/system/sahamlens-intraday-collect.service
+[Unit]
+Description=SahamLens - kumpulkan bar intraday LensIntraday
+
+[Service]
+Type=oneshot
+User=lens
+ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/intraday-collect
+EnvironmentFile=/opt/sahamlens/app/.env.production
+```
+
+```ini
+# /etc/systemd/system/sahamlens-intraday-collect.timer
+[Unit]
+Description=Jadwal SahamLens - intraday-collect
+
+[Timer]
+OnCalendar=Mon..Fri 17:30 Asia/Jakarta
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now sahamlens-intraday-collect.timer
+systemctl list-timers --all | grep -i intraday
+```
+
+Setelah dikonfirmasi jalan (cek `job_run_log`, jangan menebak), ubah `scheduleStatus` job
+ini di `config/scheduled-jobs.json` dari `verify-server` ke `known` dan isi `schedule`-nya,
+lalu jalankan `npm run audit:cron`.
+
+**Backfill riset 60 hari** dilakukan dari panel admin: naikkan "Lookback (hari)" ke 60 lalu
+tekan "Kumpulkan data intraday". Job punya anggaran waktu 240 detik dan berhenti rapi kalau
+habis - tekan lagi untuk melanjutkan (upsert idempoten, tidak menghasilkan baris kembar).
+
+**Genuine forward OOS**: tekan "Bekukan protokol OOS". Yang dibekukan adalah formula skor,
+bobot, ambang, aturan entry/exit, kalender, biaya, dan acceptance criteria, di-hash jadi
+`config_hash`. Baris protokol hanya di-INSERT, tidak pernah di-UPDATE. Hanya sinyal dengan
+`signal_timestamp` SETELAH freeze yang dihitung sebagai OOS ("Validation run (OOS saja)").
+Mengubah satu bobot/biaya menghasilkan `config_hash` berbeda, jadi protokol baru - histori
+OOS lama tidak bisa diklaim ulang.
+
 ### 2026-08-14 - Export kartu "paper/majalah" untuk LensMoat & Earnings Monitor
 
 Permintaan pengguna: setelah melihat contoh infografis pemerintah (kartu statistik
