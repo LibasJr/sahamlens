@@ -66,6 +66,7 @@ function CompareContent() {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [initialRequestReady, setInitialRequestReady] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   // Sebelumnya tidak ada state apa pun untuk kegagalan. Cabang render berakhir dengan
@@ -90,13 +91,17 @@ function CompareContent() {
         setInput1(saved);
       }
     }
+    // Pulihkan ticker terakhir sebelum request pertama. Sebelumnya BBCA dikirim dulu,
+    // lalu ticker dari localStorage langsung memicu request kedua.
+    setInitialRequestReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!initialRequestReady) return;
     fetchCompare();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol1, symbol2]);
+  }, [symbol1, symbol2, initialRequestReady]);
 
   const fetchCompare = async () => {
     const seq = ++fetchSeqRef.current;
@@ -135,11 +140,10 @@ function CompareContent() {
       {
         setGated(null);
         setData(json);
-        // symbol2 mungkin dipilihkan otomatis oleh server (peer 1 sektor) - sinkronkan
-        // balik ke state/input supaya kotak kedua tidak kosong dan klik "Bandingkan"
-        // berikutnya tidak diam-diam ganti peer lagi.
+        // Peer sektor otomatis hanya diisi ke kotak input. Menulisnya ke state `symbol2`
+        // akan menyalakan effect fetch lagi, sehingga satu halaman menghitung dua kali.
+        // Saat user menekan Bandingkan, nilai di input tetap dikirim secara eksplisit.
         if (!symbol2 && json.data2?.symbol) {
-          setSymbol2(json.data2.symbol);
           setInput2(json.data2.symbol);
         }
       }

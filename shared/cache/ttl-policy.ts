@@ -104,6 +104,10 @@ export const CACHE_TTL_SEC = {
   // bilang "data sesi terakhir", bukan diam-diam menampilkan seolah live.
   BREAKOUT_RADAR: 3 * 24 * 60 * 60,
 
+  // Snapshot skor LensRadar (`ai-pick-scores`) dipertahankan melewati malam dan
+  // akhir pekan. Kesegarannya tetap ditentukan `computedAt`, bukan TTL panjang ini.
+  LENS_RADAR_SCORES: 14 * 24 * 60 * 60,
+
   // Freshness utk PEMBACA langsung (app/api/market-summary, live-fallback lewat
   // getOrCompute) - SENGAJA pendek (1 menit saat bursa buka), sama alasannya dengan
   // MARKET di atas. JANGAN dipakai penulis cron - lihat MARKET_SUMMARY_CRON di bawah.
@@ -165,6 +169,11 @@ export const CACHE_TTL_SEC = {
   // juga dicap `computedAt` (lihat council-cache.service.ts) supaya UI bisa menampilkan
   // umur analisanya, bukan menyajikan yang lama seolah baru.
   AI_COUNCIL: 90 * 60,
+
+  // Narasi LensAI untuk nilai intrinsik memakai input valuasi publik yang sama untuk
+  // semua pengguna. Key cache juga membawa fingerprint snapshot valuasi, sehingga
+  // respons hanya dipakai ulang bila harga/nilai wajar/MOS memang sama.
+  INTRINSIC_EXPLANATION: 15 * 60,
 
   // Fallback basi kalau Yahoo Finance sedang down - lebih baik data lama daripada
   // error keras (app/api/stock/[ticker]).

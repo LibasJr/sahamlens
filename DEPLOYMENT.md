@@ -66,6 +66,22 @@ Diverifikasi langsung di server 2026-08-13.
   formula, data, akses, cache, cron, environment variable, maupun prosedur deploy. Push ke `main`
   tetap cukup untuk mengirim rilis ke VPS melalui GitHub Actions.
 
+### 2026-08-16 - Cache Compare, Penjelasan Valuasi, dan observabilitas admin
+
+- `/api/compare` kini memakai cache Redis **per emiten** dengan TTL data teknikal yang
+  mengikuti sesi bursa. Cache universe peer memakai `COMPUTED_CACHE_KEY.SCREENER_UNIVERSE`
+  yang sama dengan LensScanner/worker, bukan key literal terpisah. Klien tidak lagi memicu
+  request kedua ketika peer sektor otomatis dipilih.
+- `POST /api/intrinsic-explain` tetap menghitung angka valuasi di server, tetapi memakai
+  cache nilai intrinsik yang sama dengan kartu publik dan menyimpan narasi LensAI selama
+  15 menit **hanya** untuk fingerprint snapshot yang identik (ticker, harga, nilai wajar,
+  MOS, sektor). Tidak ada data akun di cache narasi tersebut.
+- `/admin/jobs` sekarang menampilkan kesehatan cache LensScanner, News Intelligence,
+  Ringkasan Pasar, dan LensRadar: HIT/MISS, estimasi umur, sisa TTL, dan sukses cron
+  terakhir. Key Redis dan cache data akun pribadi tidak pernah dikirim ke browser.
+- Tidak ada cron, environment variable, atau langkah VPS baru. Deploy tetap cukup melalui
+  push ke `main`; panel admin hanya membaca Redis dan `job_run_log` yang sudah ada.
+
 **Vercel hari ini**: project `libas/trading` masih terhubung ke repo dan masih ikut build tiap
 push ke `main`, jadi ia selalu berisi kode terbaru sebagai standby. Tapi ia **tidak melayani
 trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan cron**. URL
