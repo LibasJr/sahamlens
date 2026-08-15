@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
-import { getAdminUserActivityReport, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
+import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
 import { EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
@@ -47,10 +47,11 @@ export default async function AdminPage() {
 
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
-  const [activeUsers, activityReport, recentAuthEvents] = await Promise.all([
+  const [activeUsers, activityReport, recentAuthEvents, funnelSummary] = await Promise.all([
     getActiveUsers(),
     getAdminUserActivityReport(),
     getRecentAuthEvents(),
+    getProductFunnelSummary(),
   ]);
   const snapshotAt = new Date().toISOString();
 
@@ -300,6 +301,54 @@ export default async function AdminPage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+          <div className="border-b border-tv-border px-6 py-4">
+            <h2 className="font-heading text-lg font-bold text-tv-text">Funnel pendaftaran</h2>
+            <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+              {funnelSummary.periodDays} hari terakhir. Angka memakai browser unik anonim; bukan IP, email, atau pelacakan lintas perangkat.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-px border-b border-tv-border bg-tv-border sm:grid-cols-3">
+            {[
+              ['Melihat kartu terkunci', funnelSummary.lockedViewVisitors, null],
+              ['Klik daftar', funnelSummary.signupClickVisitors, funnelSummary.clickRatePct],
+              ['Akun berhasil dibuat', funnelSummary.signupCompletedVisitors, funnelSummary.completionRatePct],
+            ].map(([label, count, rate]) => (
+              <div key={String(label)} className="bg-tv-card px-5 py-4">
+                <div className="font-number text-2xl font-bold text-tv-text">{count}</div>
+                <div className="mt-0.5 text-xs text-tv-muted">{label}</div>
+                {typeof rate === 'number' && <div className="mt-1 text-[11px] font-semibold text-tv-blue">{rate.toFixed(1)}% dari tahap sebelumnya</div>}
+              </div>
+            ))}
+          </div>
+          {funnelSummary.topFeatures.length === 0 ? (
+            <p className="px-6 py-5 text-sm text-tv-muted">Belum ada data funnel. Pencatatan dimulai setelah pembaruan ini aktif.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-tv-bg text-tv-muted">
+                  <tr>
+                    <th className="px-6 py-3 whitespace-nowrap">Fitur</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Lihat terkunci</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Klik daftar</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Akun dibuat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-tv-border">
+                  {funnelSummary.topFeatures.map((feature) => (
+                    <tr key={feature.feature} className="hover:bg-tv-hover">
+                      <td className="px-6 py-3 text-tv-text">{feature.feature === 'fundamental_indicators' ? 'Indikator fundamental terkunci' : feature.feature === 'signup_direct' ? 'Pendaftaran langsung' : feature.feature}</td>
+                      <td className="px-6 py-3 font-number text-tv-muted">{feature.lockedViews}</td>
+                      <td className="px-6 py-3 font-number text-tv-muted">{feature.signupClicks}</td>
+                      <td className="px-6 py-3 font-number text-tv-muted">{feature.signupsCompleted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">

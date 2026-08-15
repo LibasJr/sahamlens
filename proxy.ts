@@ -78,6 +78,7 @@ function isPublicGuestApi(pathname: string): boolean {
     pathname === '/api/lens-score-bucket-backtest' ||
     pathname === '/api/compare' ||
     pathname === '/api/dividend-plan' ||
+    pathname.startsWith('/api/analytics/') ||
     pathname.startsWith('/api/flow/')
   );
 }
@@ -340,6 +341,7 @@ export const config = {
     '/api/agents/:path*',
     '/api/council/:path*',
     '/api/payment/:path*',
+    '/api/analytics/:path*',
     '/home/:path*',
     '/market-pulse/:path*',
     '/calendar/:path*',
