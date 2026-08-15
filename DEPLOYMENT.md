@@ -42,6 +42,11 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Footer tanpa shortcut berulang
+
+- Menghapus shortcut global "Ringkasan Pasar" dan tautan tagline About dari footer.
+- Informasi sumber data, disclaimer, dan copyright tetap tampil; navigasi utama tetap ada di menu aplikasi.
+
 Diverifikasi langsung di server 2026-08-13.
 
 | Komponen | Kenyataan di server |
