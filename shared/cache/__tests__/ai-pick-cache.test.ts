@@ -9,13 +9,14 @@ vi.mock('../redis-cache', () => ({
   cacheSet: vi.fn(),
 }));
 
-import { cacheSet } from '../redis-cache';
+import { cacheGet, cacheSet } from '../redis-cache';
 import { COMPUTED_CACHE_KEY } from '../computed-keys';
-import { writeAiPickScores } from '../ai-pick-cache';
+import { readAiPickScores, writeAiPickScores } from '../ai-pick-cache';
 
 describe('ai-pick universe cache', () => {
   beforeEach(() => {
     vi.mocked(cacheSet).mockReset();
+    vi.mocked(cacheGet).mockReset();
   });
 
   it('screener cache key dibedakan oleh versi universe aktif', () => {
@@ -29,12 +30,31 @@ describe('ai-pick universe cache', () => {
       bearishSymbols: [],
     });
 
-    expect(cacheSet).toHaveBeenCalledTimes(1);
+    expect(cacheSet).toHaveBeenCalledTimes(2);
     const [key, payload] = vi.mocked(cacheSet).mock.calls[0];
     expect(String(key)).toContain(ACTIVE_LIQUID_UNIVERSE_VERSION);
     expect(payload).toMatchObject({
       universeVersion: ACTIVE_LIQUID_UNIVERSE_VERSION,
       universeSize: ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE,
+    });
+  });
+
+  it('memakai snapshot legacy sesi terakhir saat cache universe aktif belum ada', async () => {
+    vi.mocked(cacheGet)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        computedAt: '2026-08-14T09:00:00.000Z',
+        scores: [],
+        bearishSymbols: [],
+      });
+
+    const result = await readAiPickScores();
+
+    expect(result).toMatchObject({
+      universeVersion: 'idx-liquid-v1-109',
+      universeSize: 109,
+      computedAt: '2026-08-14T09:00:00.000Z',
     });
   });
 });
