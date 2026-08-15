@@ -163,6 +163,22 @@ OOS lama tidak bisa diklaim ulang.
   pada bagian Intraday Validation Lab di atas, lalu konfirmasi lewat `job_run_log` sebelum
   mengubah status manifest menjadi `known`.
 
+### 2026-08-15 - Market Breadth dapat diaudit dan dibuka per emiten
+
+- Cache `MARKET_PULSE` dinaikkan ke `v3` untuk memisahkan snapshot lama dari payload
+  baru yang memuat 100 quote Breadth individual dan timestamp sesi sumber. Cache `v2`
+  sengaja tidak dihapus; ia akan kedaluwarsa sendiri. Cron dan endpoint publik kini
+  memakai konstanta kunci yang sama.
+- Kartu Naik/Stagnan/Turun di `/market-pulse` dapat diketuk untuk membuka daftar emiten
+  dari snapshot **yang sama**. Klasifikasi konsisten pada server: naik `> +0,10%`,
+  stagnan `-0,10%..+0,10%`, turun `< -0,10%`; tidak ada scan kedua maupun data contoh.
+- Endpoint publik menyimpan hasil komputasi ketika cache miss. Ini penting pada hari
+  libur/akhir pekan saat cron pasar tidak berjalan, supaya refresh banyak pengguna tidak
+  masing-masing mengirim 100 request baru ke Yahoo Finance.
+- Label waktu halaman memakai timestamp quote sesi sumber, bukan waktu server. Dengan
+  demikian Sabtu/Minggu tidak terlihat seolah-olah harga pasar sedang live. Panel Regime
+  menampilkan penjumlahan kontribusi indikator dan menyatakan sumber snapshotnya.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML
