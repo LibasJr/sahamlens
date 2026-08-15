@@ -29,7 +29,7 @@ export default function GettingStartedGuide() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-tv-blue/25 bg-tv-blue/[0.07] p-4 sm:p-5" aria-label="Panduan mulai menggunakan SahamLens">
+    <section className="relative mb-8 overflow-hidden rounded-xl border border-tv-blue/25 bg-tv-blue/[0.07] p-4 sm:p-5" aria-label="Panduan mulai menggunakan SahamLens">
       <button type="button" onClick={dismiss} className="absolute right-3 top-3 rounded p-1 text-tv-muted transition hover:bg-tv-hover hover:text-tv-text" aria-label="Tutup panduan">
         <X className="h-4 w-4" />
       </button>

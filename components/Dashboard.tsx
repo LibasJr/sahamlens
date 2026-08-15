@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import SiteFooter from '@/components/SiteFooter';
@@ -8,7 +8,6 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2, History, Users, Filter, Target, BarChart3, Waves } from 'lucide-react';
 
-import { computeIndicators, generateInsight, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
@@ -17,35 +16,8 @@ import GettingStartedGuide from '@/components/GettingStartedGuide';
 import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 
-const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
-  ssr: false,
-  loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
-});
 const CommandPalette = dynamic(() => import('@/components/CommandPalette'), { ssr: false });
 const ACTIVE_UNIVERSE_COUNT = AI_PICK_UNIVERSE.length;
-
-function formatMarketSnapshot(timestamp: unknown): string | null {
-  if (typeof timestamp !== 'string') return null;
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('id-ID', {
-    timeZone: 'Asia/Jakarta',
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date) + ' WIB';
-}
-
-// BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
-// '1M'/'3M' DIHILANGKAN dari daftar pilihan (bukan cuma default) - backend
-// (app/api/public-chart/[ticker]/route.ts) sebenarnya sudah lama mendukung keduanya
-// (tf=1M -> range 1mo, tf=3M -> range 3mo), yang berubah dulu cuma DEFAULT timeframe
-// (dari '1M' ke '1Y', lihat komentar di route itu) - opsi 1M/3M ikut hilang dari sini
-// sebagai efek samping yang tidak disengaja. Ditambahkan balik sebagai PILIHAN, default
-// tetap '1Y' (tidak mengubah keputusan default yang sudah eksplisit).
-const TIMEFRAMES = ['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL'];
 
 // Running text ticker - saham + harga terkini, scroll otomatis di bawah header. List
 // digandakan 2x supaya loop-nya mulus (translateX 0 -> -50% = tepat 1 putaran list asli).
@@ -208,26 +180,10 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ initialIhsg = null, initialRenderedAt, initialLensRadar = null }: DashboardProps) {
-  // Default chart beranda = IHSG (permintaan eksplisit) - bukan lagi saham trending
-  // acak. User tetap bisa ketik nama emiten di search (CommandPalette onSelect di
-  // bawah) untuk mengganti chart ke saham tertentu; ticker.symbol yang diawali '^'
-  // (mis. '^JKSE') dipakai sebagai penanda "ini indeks, bukan saham" di seluruh
-  // kartu chart di bawah (lihat isIndex).
-  const [ticker, setTicker] = useState<{ symbol: string; name: string }>({
-    symbol: '^JKSE',
-    name: 'Indeks Harga Saham Gabungan',
-  });
-  const isIndex = ticker.symbol.startsWith('^');
-  const displaySymbol = isIndex ? 'IHSG' : `${ticker.symbol}.JK`;
-  const [timeframe, setTimeframe] = useState('1Y');
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number; dataTimestamp?: string | null; ageSeconds?: number | null } | null>(initialIhsg);
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
   const [now, setNow] = useState<Date | null>(() => initialRenderedAt ? new Date(initialRenderedAt) : null);
-  // Jangan gunakan waktu render SSR sebagai "update pasar". Data market-summary
-  // datang setelah hidrasi; sebelum timestamp quote tersedia, lebih jujur tampilkan
-  // loading daripada memberi kesan harga sesi lama baru saja diperbarui.
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   React.useEffect(() => {
     setNow(new Date());
@@ -273,97 +229,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
       });
     return () => controller.abort();
   }, []);
-
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartAbortRef = useRef<AbortController | null>(null);
-
-  const [chartData, setChartData] = useState<any[]>([]);
-
-  const [hoveredTime, setHoveredTime] = useState<string | null>(null);
-
-  // BUG FIX (2026-08-06): ketiga pengambilan data di halaman ini (chart, IHSG header,
-  // dan market-summary untuk ticker berjalan) sebelumnya berakhir di `.catch(console.error)`
-  // tanpa satu pun state kegagalan. Kalau salah satunya gagal, tampilannya berhenti
-  // permanen di teks "Memuat..." - tanpa penjelasan, tanpa tombol, dan tanpa batas waktu.
-  // Ini halaman publik yang terindeks, jadi keadaan itu bisa dilihat siapa saja.
-  const [chartError, setChartError] = useState(false);
-
-  const loadChart = React.useCallback(() => {
-    chartAbortRef.current?.abort();
-    const controller = new AbortController();
-    chartAbortRef.current = controller;
-    setChartError(false);
-    setHoveredTime(null); // stale hover position from the previous series wouldn't line up
-    fetch(`/api/public-chart/${encodeURIComponent(ticker.symbol)}?tf=${timeframe}`, { signal: controller.signal })
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error('chart'))))
-      .then(data => {
-         if (data && data.history && data.history.length > 0) {
-            setChartData(data.history);
-         } else {
-            setChartError(true);
-         }
-      })
-      .catch((e) => {
-        if (!(e instanceof DOMException && e.name === 'AbortError')) { console.error(e); setChartError(true); }
-      });
-  }, [timeframe, ticker.symbol]);
-
-  React.useEffect(() => {
-    loadChart();
-    return () => chartAbortRef.current?.abort();
-  }, [loadChart]);
-
-  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : null;
-  const prevClose = chartData.length > 1 ? chartData[chartData.length - 2].price : null;
-  const change = (currentPrice != null && prevClose != null) ? currentPrice - prevClose : null;
-  const changePct = (change != null && prevClose) ? (change / prevClose) * 100 : null;
-
-  // Real technical indicators for the featured card, recomputed for whichever candle
-  // is currently hovered on the chart (or the latest one, when nothing is hovered).
-  const upToChartData = React.useMemo(() => {
-    if (chartData.length < 2) return chartData;
-    let idx = chartData.length - 1;
-    if (hoveredTime) {
-      const found = chartData.findIndex((c: any) => c.time === hoveredTime);
-      if (found >= 0) idx = found;
-    }
-    return chartData.slice(0, idx + 1);
-  }, [chartData, hoveredTime]);
-
-  const ind: Indicators | null = React.useMemo(() => {
-    if (upToChartData.length < 2) return null;
-    const closes = upToChartData.map((h: any) => h.close);
-    const volumes = upToChartData.map((h: any) => h.volume);
-    return computeIndicators(upToChartData[upToChartData.length - 1].time, closes, volumes);
-  }, [upToChartData]);
-
-  // LensConsensus: 10 agen rule-based, dihitung dari OHLCV asli - dipakai untuk sinyal +
-  // ringkasan analisis, supaya insight yang ditampilkan tidak pernah mengarang.
-  const council = React.useMemo(() => computeMiniCouncil(upToChartData as any, isIndex), [upToChartData, isIndex]);
-
-  const isHovering = hoveredTime != null && ind != null && chartData.length > 0 && ind.time !== chartData[chartData.length - 1].time;
-
-  const insightText = council ? council.summary : (ind ? generateInsight(ind) : 'Memuat analisis teknikal real-time...');
-  const finalSignal = council?.finalSignal ?? ind?.signal ?? 'HOLD';
-
-  // Kirim konteks chart yang sedang tampil ke AI Chat (permintaan eksplisit: LensAI
-  // sebelumnya tidak tahu apa-apa soal chart di Beranda - halaman ini TIDAK PERNAH
-  // dispatch 'update-ai-context' sama sekali, jadi saat user tanya soal IHSG di
-  // Beranda, LensAI menjawab dari pengetahuan umumnya sendiri tanpa tahu index sedang
-  // ditampilkan, dan tanpa penanda "ini index bukan saham" - lihat app/api/chat/route.ts
-  // untuk aturan index vs saham di system prompt).
-  React.useEffect(() => {
-    window.dispatchEvent(new CustomEvent('update-ai-context', {
-      detail: {
-        symbol: ticker.symbol,
-        name: ticker.name,
-        isIndex,
-        price: currentPrice,
-        changePct,
-        consensus: finalSignal,
-      },
-    }));
-  }, [ticker.symbol, ticker.name, isIndex, currentPrice, changePct, finalSignal]);
 
   // Running text ticker (header strip) - saham paling aktif ditransaksikan (topValue,
   // dari /api/market-summary yang SUDAH dipanggil di bawah, tidak ada fetch tambahan).
@@ -482,7 +347,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
         if (uniqueTicker.length) {
           setTickerItems(uniqueTicker.map((s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct })));
         }
-        setLastUpdated(formatMarketSnapshot(data.timestamp));
       } else {
         setTickerFailed(true);
       }
@@ -532,7 +396,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             <div className="flex items-center gap-3">
               <ThemeToggle />
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
-                <CommandPalette onSelect={(symbol, name) => setTicker({ symbol, name })} />
+                <CommandPalette />
               </div>
               <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-2.5 py-1">
                 <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />
@@ -574,7 +438,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           halaman terburuk di tiap pengukuran (45 teks di bawah 12px @768 setelah
           halaman lain sudah bersih). */}
       <main className="lens-main mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        <GettingStartedGuide />
         {/* Marketing Hero - tagline "Lihat Peluang Lebih Jelas." sudah dipakai di
             metadata (app/layout.tsx) tapi belum pernah dirender di halaman manapun.
             Section aditif, tidak mengubah struktur Title Block/ringkasan pasar di
@@ -730,6 +593,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           </Card>
         </motion.div>
 
+        <GettingStartedGuide />
+
         <motion.section
           variants={fadeUp}
           initial="hidden"
@@ -853,74 +718,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           </div>
         </motion.section>
 
-        {/* Title Block. Badge "Powered by SahamLens" DIHAPUS (permintaan user
-            2026-08-06) - ganjil bilang situs SahamLens "powered by" SahamLens sendiri
-            ("Powered by X" wajar kalau X mesin/pihak LAIN di baliknya), dan nama brand
-            sudah ada di header atas halaman ini. */}
-        <div className="mb-6">
-          <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
-          <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">
-            {lastUpdated
-              ? <span className="text-tv-blue font-semibold">Data sesi terakhir {lastUpdated}</span>
-              : tickerFailed
-                ? <span>Waktu pembaruan tidak diketahui</span>
-                : <Skeleton variant="text" className="w-40 h-4 inline-block align-middle" />}
-          </p>
-        </div>
-
-        {/* Ringkasan pasar dari tickerItems yang SUDAH ada di memori (gabungan
-            topGainers + topLosers dari /api/market-summary) - tidak ada permintaan
-            jaringan baru. Sebelumnya judul "Ringkasan Pasar Hari Ini" berdiri langsung
-            di atas sebuah chart tanpa satu pun ringkasan; pengunjung harus menyimpulkan
-            kondisi pasar sendiri dari running text yang lewat di atas. */}
-        {tickerItems.length > 0 && (() => {
-          const naik = tickerItems.filter((t) => t.changePct > 0).length;
-          const turun = tickerItems.filter((t) => t.changePct < 0).length;
-          const sorted = [...tickerItems].sort((a, b) => b.changePct - a.changePct);
-          const teratas = sorted[0];
-          const terbawah = sorted[sorted.length - 1];
-          const stats = [
-            // Daftar lengkap sudah tersedia di /market/[category] dari snapshot
-            // market-summary yang sama. Kartu jumlah tidak lagi sekadar angka mati:
-            // klik mengarah ke seluruh 50 saham penguat/pelemah, bukan ke daftar
-            // buatan di browser. Kartu emiten teratas langsung membuka analisa sahamnya.
-            { label: 'Menguat', value: String(naik), tone: 'text-tv-green', sub: `dari ${tickerItems.length} saham teraktif`, href: '/market/top-gainer', action: 'Lihat daftar penguat' },
-            { label: 'Melemah', value: String(turun), tone: 'text-tv-red', sub: `dari ${tickerItems.length} saham teraktif`, href: '/market/top-loser', action: 'Lihat daftar pelemah' },
-            { label: 'Penguatan tertinggi', value: teratas.symbol, tone: 'text-tv-green', sub: `+${teratas.changePct.toFixed(2)}%`, href: `/technical/${teratas.symbol}.JK`, action: `Buka analisa ${teratas.symbol}` },
-            { label: 'Pelemahan terdalam', value: terbawah.symbol, tone: 'text-tv-red', sub: `${terbawah.changePct.toFixed(2)}%`, href: `/technical/${terbawah.symbol}.JK`, action: `Buka analisa ${terbawah.symbol}` },
-          ];
-          return (
-            <div className="mb-6">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {stats.map((s) => (
-                  <Link
-                    key={s.label}
-                    href={s.href}
-                    aria-label={s.action}
-                    className="group block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60"
-                  >
-                    <Card padding="none" hoverable className="h-full px-4 py-3 group-hover:border-tv-blue/45">
-                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">{s.label}</div>
-                      <div className={`mt-1 font-number text-lg font-bold ${s.tone}`}>{s.value}</div>
-                      <div className="text-[10px] text-tv-muted mt-0.5">{s.sub}</div>
-                      <div className="mt-1.5 text-[9px] font-semibold text-tv-blue opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                        {s.action} →
-                      </div>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-              {/* Batasan cakupan disebut apa adanya: ini daftar saham TERAKTIF, bukan
-                  seluruh emiten IDX, jadi rasionya tidak boleh dibaca sebagai breadth
-                  pasar keseluruhan. */}
-              <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">
-                Dihitung dari daftar saham teraktif hari ini, bukan seluruh emiten IDX -
-                angka ini menggambarkan yang paling banyak ditransaksikan, bukan luas pergerakan pasar.
-              </p>
-            </div>
-          );
-        })()}
-
         {/* Kandidat LensRadar disajikan sebagai running text Signal Saham. */}
         <motion.section
           variants={fadeUp}
@@ -989,121 +786,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             berubah tiap beberapa menit mengikuti harga pasar.
           </p>
         </motion.section>
-
-        {/* CHART - sekarang lebar penuh dan berada DI BAWAH LensRadar. Sebelumnya
-            chart menempati ~60% layar pertama sementara LensRadar - satu-satunya
-            bagian yang menjelaskan apa yang dikerjakan produk ini - terjepit di
-            kolom sempit di sebelahnya. Untuk pengunjung yang belum tahu SahamLens
-            itu apa, candlestick IHSG setahun tidak menjelaskan apa pun. */}
-        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.15 }}>
-        <Card padding="none" className="relative overflow-hidden rounded-xl shadow-2">
-          <div>
-            <div className="p-5 sm:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  {/* Kotak 48x48 ini dulu diisi displaySymbol utuh - untuk saham
-                      nilainya "BBCA.JK" (7 karakter di font 13px), yang meluber keluar
-                      kotaknya. Indeks kebetulan pas karena "IHSG" cuma 4 huruf. */}
-                  {isIndex ? (
-                    <div className="h-12 w-12 shrink-0 rounded-lg bg-tv-blue text-white grid place-items-center font-bold text-[13px] font-number">IHSG</div>
-                  ) : (
-                    <TickerAvatar symbol={ticker.symbol} size="lg" />
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-[18px] font-bold text-tv-text tracking-tight font-heading">{displaySymbol} — {ticker.name}</h2>
-                      {isIndex ? (
-                        <span className="hidden sm:inline-flex rounded-full bg-tv-blue/15 text-tv-blue px-2 py-0.5 text-[10px] font-bold tracking-widest">INDEKS UTAMA</span>
-                      ) : (
-                        <span className="hidden sm:inline-flex rounded-full bg-tv-gold/15 text-tv-gold px-2 py-0.5 text-[10px] font-bold tracking-widest">SAHAM PILIHAN</span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
-                      <span className="font-semibold text-tv-text font-number">{currentPrice != null ? `Rp ${Math.round(currentPrice).toLocaleString('id-ID')}` : '—'}</span>
-                      {change != null && changePct != null && (
-                        <span className={`inline-flex items-center gap-1 font-semibold font-number ${change>=0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                          {change>=0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />} {change>=0?'+':''}{change.toFixed(0)} ({changePct>=0?'+':''}{changePct.toFixed(2)}%)
-                        </span>
-                      )}
-                      {/* BUG FIX (2026-08-06): penjaganya cuma `!= null`, sedangkan
-                          nol LOLOS pemeriksaan itu. Untuk IHSG - tampilan default
-                          halaman depan - sumber data tidak mengirim volume indeks,
-                          jadi baris ini tertulis "Vol: 0.0 Jt • Val: Rp 0.00 T":
-                          angka nol yang terbaca sebagai hasil pengukuran, seolah
-                          hari itu tidak ada transaksi sama sekali di bursa. */}
-                      <span className="text-tv-muted">
-                        {(ind?.volume ?? 0) > 0 && (ind?.value ?? 0) > 0
-                          ? `Vol: ${((ind!.volume as number) / 1e6).toFixed(1)} Jt • Val: Rp ${((ind!.value as number) / 1e12).toFixed(2)} T`
-                          : isIndex
-                            ? 'Volume agregat indeks tidak tersedia dari sumber data'
-                            : 'Volume tidak tersedia'}
-                      </span>
-                      {isHovering && ind && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-tv-blue/10 text-tv-blue px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                          Data per {ind.time}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chart */}
-              <div className="relative mt-6 min-w-0">
-                {chartData.length > 0 ? (
-                  <TradingViewChart
-                    symbol={ticker.symbol}
-                    candles={chartData}
-                    height={410}
-                    timeframe={timeframe}
-                    timeframeOptions={TIMEFRAMES}
-                    onTimeframeChange={setTimeframe}
-                    variant="compact"
-                    onHoverCandle={setHoveredTime}
-                    technical={{
-                      // null (bukan 'NETRAL') kalau MA belum bisa dihitung (temuan C-1),
-                      // dan CMF20 dari OHLCV nyata alih-alih turunan volRatio (temuan C-2).
-                      cross_status: ind?.ma20 != null && ind?.ma50 != null ? (ind.ma20 > ind.ma50 ? 'BULLISH' : 'BEARISH') : null,
-                      money_flow_status: moneyFlowLabel(upToChartData as any),
-                      ma50: ind?.ma50 ?? undefined,
-                      ma200: ind?.ma200 ?? undefined
-                    }}
-                  />
-                ) : chartError ? (
-                  <div className="bg-tv-bg">
-                    <EmptyState
-                      illustration="empty"
-                      title={`Grafik ${displaySymbol} gagal dimuat`}
-                      description="Data harga tidak berhasil diambil untuk rentang waktu ini. Coba rentang lain, atau muat ulang grafiknya."
-                      action={{ label: 'Muat ulang grafik', onClick: loadChart }}
-                    />
-                  </div>
-                ) : (
-                  <div className="min-h-[290px] sm:min-h-[360px] bg-tv-bg p-4 flex flex-col justify-end gap-2">
-                    {/* Kerangka menyerupai bentuk chart batang, bukan teks "Memuat grafik..."
-                        di tengah kotak kosong setinggi 340px. */}
-                    <div className="flex items-end gap-1.5 h-full">
-                      {[38, 55, 47, 68, 60, 78, 71, 85, 66, 74, 90, 62, 80, 95, 72].map((h, i) => (
-                        <Skeleton key={i} className="flex-1 rounded-t" style={{ height: `${h}%` }} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-4 items-center bg-tv-blue/10 p-4 rounded-lg border border-tv-blue/20">
-                <div className="text-tv-blue font-semibold text-[13px] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> {isHovering ? `Insight per ${ind?.time}` : `Insight ${displaySymbol} Terkini`}
-                </div>
-                <p className="text-[12px] text-tv-text/80">
-                  {insightText}
-                </p>
-              </div>
-
-            </div>
-          </div>
-        </Card>
-        </motion.div>
 
         {/* Berita & Jadwal - dikeluarkan dari dalam kartu chart. Keduanya dulu
             ditumpuk vertikal DI DALAM kolom chart, sekadar mengisi ruang kosong yang
