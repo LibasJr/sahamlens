@@ -8,6 +8,10 @@ export interface User {
   is_verified: boolean;
   is_pro: boolean;
   created_at: string;
+  /** Waktu login berhasil terakhir; null untuk akun lama yang belum login sejak fitur ini ada. */
+  last_login_at?: string | null;
+  /** Aktivitas request terautentikasi terakhir, ditulis maksimal sekali per 15 menit. */
+  last_active_at?: string | null;
   trial_ends_at: string | null;
   /** null = tanpa batas waktu. Dipakai akun admin dan akun lama sebelum migrasi
    * 2026-08-03 - bukan jalan pintas memberi akses abadi ke pengguna biasa. */

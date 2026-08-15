@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../repository/user.repository', () => ({
   getUserByEmail: vi.fn(),
   createUser: vi.fn(),
+  recordSuccessfulLogin: vi.fn(),
   updateUser: vi.fn(),
 }));
 vi.mock('../../repository/email.repository', () => ({
@@ -22,7 +23,7 @@ vi.mock('../../../../shared/auth/jwt', () => ({
 
 import bcrypt from 'bcryptjs';
 import { login } from '../auth.service';
-import { getUserByEmail } from '../../repository/user.repository';
+import { getUserByEmail, recordSuccessfulLogin } from '../../repository/user.repository';
 import { InvalidCredentialsError } from '../../types/user.errors';
 import type { User } from '../../types/user.types';
 
@@ -60,6 +61,7 @@ describe('auth.service login()', () => {
 
     expect(result.token).toBe('fake-jwt-token');
     expect(result.role).toBe('free');
+    expect(recordSuccessfulLogin).toHaveBeenCalledWith('user-1');
   });
 
   it('menolak password yang salah dengan InvalidCredentialsError', async () => {
