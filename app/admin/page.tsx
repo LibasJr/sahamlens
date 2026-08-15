@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
-import { getAdminUserActivityReport } from '@/modules/user/repository/user.repository';
+import { getAdminUserActivityReport, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
 import { EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
@@ -36,6 +36,10 @@ function waktuWib(iso: string | null): string {
   }) + ' WIB';
 }
 
+function authEventLabel(eventType: AuthEventType): string {
+  return eventType === 'signup' ? 'Daftar' : eventType === 'verify' ? 'Verifikasi' : 'Login';
+}
+
 export default async function AdminPage() {
   if (!(await isAdminServer())) {
     redirect('/admin-login');
@@ -43,9 +47,10 @@ export default async function AdminPage() {
 
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
-  const [activeUsers, activityReport] = await Promise.all([
+  const [activeUsers, activityReport, recentAuthEvents] = await Promise.all([
     getActiveUsers(),
     getAdminUserActivityReport(),
+    getRecentAuthEvents(),
   ]);
   const snapshotAt = new Date().toISOString();
 
@@ -295,6 +300,45 @@ export default async function AdminPage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+          <div className="border-b border-tv-border px-6 py-4">
+            <h2 className="font-heading text-lg font-bold text-tv-text">Jejak autentikasi terbaru</h2>
+            <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+              Menampilkan maksimal 100 pendaftaran, verifikasi, dan login berhasil. IP mentah tidak disimpan: hanya prefiks jaringan dan ID hash untuk menghubungkan kejadian dari jaringan yang sama. Data dihapus setelah 90 hari.
+            </p>
+          </div>
+          {recentAuthEvents.length === 0 ? (
+            <p className="px-6 py-5 text-sm text-tv-muted">Belum ada jejak autentikasi. Pencatatan mulai aktif setelah pembaruan ini.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-tv-bg text-tv-muted">
+                  <tr>
+                    <th className="px-6 py-3 whitespace-nowrap">Waktu</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Aktivitas</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Email</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Jaringan</th>
+                    <th className="px-6 py-3 whitespace-nowrap">ID jaringan</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Perangkat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-tv-border">
+                  {recentAuthEvents.map((event) => (
+                    <tr key={event.id} className="hover:bg-tv-hover">
+                      <td className="px-6 py-3 whitespace-nowrap font-number text-tv-muted">{waktuWib(event.created_at)}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-tv-text">{authEventLabel(event.event_type)}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-tv-text">{event.email}</td>
+                      <td className="px-6 py-3 whitespace-nowrap font-number text-tv-muted">{event.ip_prefix ?? 'Tidak tersedia'}</td>
+                      <td className="px-6 py-3 whitespace-nowrap font-number text-tv-muted">{event.ip_hash ? event.ip_hash.slice(0, 12) : 'Tidak tersedia'}</td>
+                      <td className="max-w-[260px] truncate px-6 py-3 text-tv-muted" title={event.user_agent ?? undefined}>{event.user_agent ?? 'Tidak tersedia'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

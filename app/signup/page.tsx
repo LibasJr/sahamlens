@@ -15,6 +15,7 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [code, setCode] = useState('');
+  const [website, setWebsite] = useState('');
 
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
@@ -43,7 +44,7 @@ export default function Signup() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, website }),
       });
       const data = await res.json();
 
@@ -69,7 +70,7 @@ export default function Signup() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, website }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -158,6 +159,17 @@ export default function Signup() {
             placeholder="Ulangi password"
             rightIcon={<PasswordToggle shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} label="konfirmasi password" />}
           />
+          <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+            <label htmlFor="signup-website">Website</label>
+            <input
+              id="signup-website"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(event) => setWebsite(event.target.value)}
+            />
+          </div>
           <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
             {loading ? 'Memproses...' : 'Kirim Kode Verifikasi'}
           </Button>

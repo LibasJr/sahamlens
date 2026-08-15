@@ -34,6 +34,14 @@ describe('auth.validator', () => {
       const result = signupSchema.safeParse({ email: 'user@test.com', password: '12345678' });
       expect(result.success).toBe(true);
     });
+
+    it('menolak domain contoh yang tidak dapat menerima verifikasi', () => {
+      expect(signupSchema.safeParse({ email: 'smtp-diagnostic-check@example.com', password: '12345678' }).success).toBe(false);
+    });
+
+    it('menolak honeypot yang terisi', () => {
+      expect(signupSchema.safeParse({ email: 'user@test.com', password: '12345678', website: 'https://bot.invalid' }).success).toBe(false);
+    });
   });
 
   describe('verifySchema', () => {

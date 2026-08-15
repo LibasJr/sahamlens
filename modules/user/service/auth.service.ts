@@ -66,18 +66,19 @@ export async function login(input: LoginInput): Promise<AuthSessionResult> {
   return { token, maxAgeSec, role: user.role, userId: user.id, email: user.email };
 }
 
-export async function signup(input: SignupInput): Promise<void> {
+export async function signup(input: SignupInput): Promise<{ userId: string; email: string }> {
   const existing = await getUserByEmail(input.email);
   const code = generateOtp();
   const codeExpires = new Date(Date.now() + VERIFICATION_CODE_TTL_MIN * 60 * 1000).toISOString();
   const hashed = await bcrypt.hash(input.password, 10);
+  const userId = existing?.id ?? crypto.randomUUID();
 
   if (existing) {
     if (existing.is_verified) throw new EmailAlreadyRegisteredError();
     await updateUser(existing.id, { password_hash: hashed, verification_code: code, verification_code_expires: codeExpires });
   } else {
     await createUser({
-      id: crypto.randomUUID(),
+      id: userId,
       email: input.email.trim(),
       password_hash: hashed,
       role: 'free',
@@ -95,6 +96,7 @@ export async function signup(input: SignupInput): Promise<void> {
   }
 
   await sendVerificationEmail(input.email.trim(), code);
+  return { userId, email: input.email.trim() };
 }
 
 export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResult> {
