@@ -248,12 +248,28 @@ PASS. Build perlu izin jaringan karena `next/font` mengambil Google Fonts.
   - `npm run lint` -> PASS dengan 13 warning lama, 0 error.
   - `npm test` -> PASS: 129 files / 1255 tests.
   - `npm run build` -> PASS.
-  - Post-deploy hotfix scanner count:
+- Post-deploy hotfix scanner count:
     - Production `GET /api/cron/screener-scan` setelah deploy pertama mengembalikan `count: 203`.
     - Root cause: `fetchScreenerUniverse()` masih union `SCREENER_UNIVERSE + AI_PICK_UNIVERSE`.
     - Fix: sumber fetch scanner aktif dikunci ke `AI_PICK_UNIVERSE` lewat `getScreenerFetchTickers()`.
     - `npm test -- modules/market/service/__tests__/screener.service.test.ts modules/market/constants/__tests__/ai-pick-universe.test.ts shared/cache/__tests__/ai-pick-cache.test.ts` -> PASS: 3 files / 33 tests.
     - `npm run typecheck` -> PASS.
+
+## Commit/deploy production
+
+- Commit utama: `9f24dec5888ff417d5dd892a3efeef6dc8335c74` (`Expand SahamLens universe to 200`).
+  - CI GitHub Actions: PASS.
+  - Deploy VPS GitHub Actions: PASS.
+- Commit hotfix scanner: `e3d6c9c` (`Fix screener universe fetch target`).
+  - CI GitHub Actions: PASS.
+  - Deploy VPS GitHub Actions: PASS.
+- Commit checkpoint final: akan dibuat setelah bagian ini ditulis.
+- Production health setelah deploy hotfix:
+  - `GET https://sahamlens.id/api/health` -> `status: ok`, database `ok`, redis `ok`.
+- Production cache refresh yang sudah dipicu manual:
+  - `GET https://sahamlens.id/api/cron/screener-scan` dengan `CRON_SECRET` -> PASS, `count: 200`.
+  - `GET https://sahamlens.id/api/screener?profile=Moderat` -> PASS, endpoint membaca cache dan mengembalikan payload cached.
+- QStash-only jobs (`ai-pick-scan`, `fundamental-snapshot`, `breakout-scan`) tidak dipublish manual dari workstation karena `QSTASH_TOKEN` di `.env.local` kosong. Route production jobs tersebut memang hanya menerima request signed QStash; jangan bypass manual di luar window IDX. Jadwal QStash production tetap akan refresh pada window bursa berikutnya.
 
 - Backfill additions dry-run:
 
@@ -305,8 +321,6 @@ PASS: 7 files / 50 tests.
 
 ## Pekerjaan yang belum selesai
 
-- Belum commit, push, atau deploy sesuai instruksi.
-- Belum menjalankan cron/cache production.
 - Belum membuat protokol validasi v2 baru; validasi/Calibration Lab lama sengaja tetap legacy.
 - Belum menambah index histori khusus `universe_version`; ditunda sampai ada kebutuhan volume/query nyata.
 
