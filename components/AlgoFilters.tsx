@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Info, Layers, RefreshCw, Lock } from 'lucide-react';
 
 // Filter yang tetap terlihat jelas di free tier - cocok dengan comment spek:
@@ -17,7 +18,8 @@ interface AlgoFiltersProps {
   sortByConfidence: boolean;
   setSortByConfidence: (v: boolean) => void;
   getAccuracyPct: (label: string) => string | null;
-  isAdmin?: boolean;
+  /** Hanya guest yang melihat teaser; akun login dan admin mendapat detail penuh. */
+  lockForGuest?: boolean;
 }
 
 export default function AlgoFilters({
@@ -25,10 +27,10 @@ export default function AlgoFilters({
   sortByConfidence,
   setSortByConfidence,
   getAccuracyPct,
-  isAdmin = false,
+  lockForGuest = false,
 }: AlgoFiltersProps) {
-  const lockedAnalyzers = isAdmin ? [] : analyzers.filter((a) => !isVisibleForFree(a.label));
-  const visibleAnalyzers = analyzers.filter((a) => isAdmin || isVisibleForFree(a.label));
+  const lockedAnalyzers = lockForGuest ? analyzers.filter((a) => !isVisibleForFree(a.label)) : [];
+  const visibleAnalyzers = analyzers.filter((a) => !lockForGuest || isVisibleForFree(a.label));
   const lowSampleCount = visibleAnalyzers.filter((a) => getAccuracyPct(a.label) == null).length;
 
   return (
@@ -46,10 +48,11 @@ export default function AlgoFilters({
         </button>
       </div>
 
-      {!isAdmin && lockedAnalyzers.length > 0 && (
+      {lockForGuest && lockedAnalyzers.length > 0 && (
         <div className="mb-4 px-3 py-2 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-sans flex items-center gap-2">
           <Lock className="w-3.5 h-3.5 flex-shrink-0" />
-          {lockedAnalyzers.length} filter terkunci ({lockedAnalyzers.slice(0, 2).map((a) => a.label).join(', ')}, dll) - Masuk atau daftar untuk buka
+          {lockedAnalyzers.length} indikator lanjutan terkunci ({lockedAnalyzers.slice(0, 2).map((a) => a.label).join(', ')}, dll).
+          <Link href="/login?next=%2Fdashboard" className="font-bold underline underline-offset-2 hover:text-white">Masuk untuk membuka</Link>
         </div>
       )}
 
@@ -64,15 +67,15 @@ export default function AlgoFilters({
         {analyzers.length > 0 ? analyzers.map((algo: any, idx: number) => {
           const isTop3 = sortByConfidence && idx < 3;
           const isFreeVisible = isVisibleForFree(algo.label);
-          const locked = !isAdmin && !isFreeVisible;
+          const locked = lockForGuest && !isFreeVisible;
 
           if (locked) {
             return (
               <div key={idx} className="relative p-3 rounded-lg bg-tv-bg border border-tv-border flex flex-col gap-2 overflow-hidden">
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-1 rounded-full">
-                    🔒 Pro
-                  </span>
+                  <Link href="/login?next=%2Fdashboard" className="flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-1 rounded-full hover:text-white">
+                    <Lock className="h-3 w-3" /> Masuk
+                  </Link>
                 </div>
                 <div className="flex justify-between items-center text-sm blur-sm select-none">
                   <span className="text-white font-bold">{algo.label}</span>

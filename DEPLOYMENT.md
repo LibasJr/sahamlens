@@ -248,6 +248,19 @@ OOS lama tidak bisa diklaim ulang.
 - Ini menutup open redirect setelah autentikasi tanpa mengubah proses login, sesi,
   maupun alamat tujuan internal yang sah.
 
+### 2026-08-16 - Teaser indikator teknikal untuk pengunjung
+
+- Pengunjung di `/dashboard` dan `/technical/[symbol]` tetap melihat ringkasan teknikal,
+  EMA, RSI, dan MA Trend. Indikator lanjutan serta rincian bobot dimensi ditampilkan
+  sebagai kartu buram dengan ajakan **Masuk**, bukan label Pro/trial.
+- Status awal dashboard diperlakukan sebagai pengunjung sampai sesi selesai diverifikasi;
+  ini mencegah kilatan detail sebelum pengecekan login selesai. Pengguna yang sudah masuk
+  dan admin tetap melihat seluruh indikator tanpa perubahan rumus, skor, data API, atau
+  batas kuota.
+- Gating ini hanya perubahan presentasi/funnel; tidak ada env var, migrasi database,
+  cron, atau langkah deploy manual baru. Push ke `main` tetap memicu deploy VPS lewat
+  GitHub Actions setelah CI hijau.
+
 ### 2026-08-16 - Perbaikan ketahanan UI dan integritas data
 
 - Audit lanjutan memperbaiki state error/otentikasi yang sebelumnya dapat menampilkan data
