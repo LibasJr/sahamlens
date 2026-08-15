@@ -386,7 +386,7 @@ describe('handleCreateTestUser', () => {
     expect(createUser).not.toHaveBeenCalled();
   });
 
-  it('input valid -> akun dibuat langsung terverifikasi, role SELALU free (bukan admin), portofolio diprovisioning', async () => {
+  it('input valid -> akun dibuat langsung terverifikasi tanpa tanggal akhir akses, role SELALU free (bukan admin), portofolio diprovisioning', async () => {
     vi.mocked(getUserByEmail).mockResolvedValue(null);
 
     const res = await handleCreateTestUser(adminCookieStore(true), {
@@ -402,7 +402,7 @@ describe('handleCreateTestUser', () => {
     expect(created.is_pro).toBe(false);
     expect(created.pro_expires_at).toBeNull();
     expect(created.verification_code).toBeNull();
-    expect(created.trial_ends_at).not.toBeNull();
+    expect(created.trial_ends_at).toBeNull();
 
     expect(provisionPortfolio).toHaveBeenCalledWith(created.id);
     expect(res.status).toBe(200);
