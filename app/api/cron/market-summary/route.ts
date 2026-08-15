@@ -1,4 +1,3 @@
-import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
@@ -6,6 +5,7 @@ import { logger } from '@/shared/logger/logger';
 import { getMarketSummary } from '@/modules/market';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // Optimasi loading 2026-08-05: /api/market-summary (dipakai landing page `/` dan `/home`,
 // halaman paling ramai di aplikasi ini - TANPA login) sebelumnya TIDAK PUNYA cron warmer
@@ -25,7 +25,7 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 // klaimnya benar sebagai NIAT, tapi tidak lagi cocok dengan getter yang sebenarnya
 // dipakai. Sekarang MARKET_SUMMARY_CRON (shared/cache/ttl-policy.ts) - konstanta
 // terpisah yang benar-benar 6 menit, dipakai KHUSUS di sini.
-const CACHE_KEY = `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`;
+const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_SUMMARY;
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
