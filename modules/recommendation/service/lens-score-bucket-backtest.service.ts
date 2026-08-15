@@ -7,6 +7,7 @@ import {
   emptyValidationPopulationCounters,
   rejectFromValidationPopulation,
 } from '../../lens-radar/service/validation-population';
+import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '../../market/constants/ai-pick-universe';
 
 export const LENS_SCORE_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 export const LENS_SCORE_MIN_HISTORY_DAYS = 90;
@@ -23,6 +24,7 @@ export interface LensRadarHistoryRow {
   lens_score: number | string;
   close_price: number | string;
   score_version?: string | null;
+  universe_version?: string | null;
   adjusted_close_price?: number | string | null;
   raw_close_price?: number | string | null;
   price_basis?: PriceBasis | string | null;
@@ -317,14 +319,16 @@ export async function runLensScoreBucketBacktest(
   try {
     const { rows } = await db.query(
       `
-      SELECT "date", ticker, lens_score, close_price, score_version,
+      SELECT "date", ticker, lens_score, close_price, score_version, universe_version,
              raw_close_price, adjusted_close_price, price_basis,
              coverage_pct, eligibility_status
       FROM lens_radar_history
       WHERE lens_score IS NOT NULL
         AND close_price IS NOT NULL
+        AND COALESCE(universe_version, $1) = $1
       ORDER BY ticker ASC, "date" ASC
-      `
+      `,
+      [LEGACY_VALIDATED_UNIVERSE_VERSION]
     );
     return computeLensScoreBucketBacktest(rows, options);
   } catch (error: any) {

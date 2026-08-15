@@ -11,6 +11,7 @@
  * Aturannya: kunci yang dibaca lebih dari satu modul WAJIB dari sini, bukan disalin.
  */
 import { COMPUTED_CACHE_VERSION } from './cache-version';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '../../modules/market/constants/ai-pick-universe';
 
 // MARKET_SUMMARY WAJIB versi yang sama dengan app/api/daily-picks/route.ts dan
 // app/api/cron/market-summary/route.ts (keduanya membaca kunci ini juga) - kalau
@@ -19,7 +20,7 @@ import { COMPUTED_CACHE_VERSION } from './cache-version';
 export const COMPUTED_CACHE_KEY = {
   MARKET_SUMMARY: `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`,
   MARKET_PULSE: 'sahamlens:cache:computed:market-pulse:v2',
-  SCREENER_UNIVERSE: 'sahamlens:cache:computed:screener-universe',
+  SCREENER_UNIVERSE: `sahamlens:cache:computed:screener-universe:${ACTIVE_LIQUID_UNIVERSE_VERSION}`,
   DIVIDEND_UNIVERSE: 'sahamlens:cache:computed:dividend-universe',
   CORPORATE_CALENDAR: 'sahamlens:cache:computed:corporate-calendar',
   MACRO_DASHBOARD: 'sahamlens:cache:computed:macro-dashboard',

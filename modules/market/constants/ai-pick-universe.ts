@@ -1,15 +1,22 @@
-// Universe AI Pick / LensRadar: 150 kandidat saham IDX.
+// Universe aktif AI Pick / LensRadar.
 //
-// 109 ticker pertama adalah universe tervalidasi lama yang dihasilkan oleh
-// scripts/backtest-universe-refresh.mjs dengan filter harga, likuiditas, dan volatilitas.
-// Atas permintaan perluasan cakupan, 41 ticker tambahan diambil berurutan dari
-// MARKET_STOCKS (universe pasar 250 saham yang diranking berdasarkan likuiditas +
-// profitabilitas). Tambahan ini BUKAN otomatis layak direkomendasikan: scan tetap
-// menjalankan evaluateMinimalEligibility() sebelum saham boleh menjadi advisory.
+// Versi baru 2026-08-15: idx-liquid-v2-200. 109 ticker pertama tetap universe
+// tervalidasi lama dari scripts/backtest-universe-refresh.mjs / BACKTEST_UNIVERSE,
+// supaya histori validasi lama tidak hilang. Tambahan sampai 200 diambil berurutan dari
+// MARKET_STOCKS (modules/market/service/market-summary.service.ts), yaitu universe pasar
+// yang sudah diranking dari data Yahoo Finance riil: harga, market cap, nilai transaksi
+// rata-rata, dan profitabilitas. Tidak ada ticker dummy atau sisipan acak.
 //
-// BACKTEST_UNIVERSE sengaja TIDAK ikut dipaksa menjadi 150. Backtest harus mempertahankan
-// universe historis yang sudah tervalidasi agar hasil lama tidak berubah hanya karena
-// permintaan coverage live.
+// Tambahan ini BUKAN otomatis layak direkomendasikan. Scanner live tetap menjalankan:
+// - fetch histori harga riil,
+// - ATR-14 dari data OHLC,
+// - evaluateMinimalEligibility() untuk harga, likuiditas, histori, dan coverage,
+// - buildLongTradingSetup() yang fail-closed kalau ATR/data/RR tidak valid.
+export const ACTIVE_LIQUID_UNIVERSE_VERSION = 'idx-liquid-v2-200';
+export const ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE = 200;
+export const LEGACY_VALIDATED_UNIVERSE_VERSION = 'idx-liquid-v1-109';
+export const LEGACY_VALIDATED_UNIVERSE_SIZE = 109;
+
 export const AI_PICK_UNIVERSE: string[] = [
   'BBCA.JK', 'TPIA.JK', 'BMRI.JK', 'BBRI.JK', 'BRPT.JK', 'DSSA.JK', 'AMMN.JK', 'ANTM.JK', 'TLKM.JK',
   'ASII.JK', 'CUAN.JK', 'DEWA.JK', 'BRMS.JK', 'BREN.JK', 'BBNI.JK', 'MDKA.JK', 'TINS.JK', 'RAJA.JK',
@@ -27,5 +34,13 @@ export const AI_PICK_UNIVERSE: string[] = [
   'RMKE.JK', 'INET.JK', 'DOOH.JK', 'ARCI.JK', 'JELI.JK', 'PANI.JK', 'PACK.JK', 'IRSX.JK', 'TCPI.JK',
   'SMIL.JK', 'CMNT.JK', 'AYAM.JK', 'BUKA.JK', 'BAIK.JK', 'MMIX.JK', 'NSSS.JK', 'HATM.JK', 'MSIN.JK',
   'CYBR.JK', 'MAPA.JK', 'KETR.JK', 'NICL.JK', 'BELL.JK', 'SGER.JK', 'KEEN.JK', 'DATA.JK', 'DMAS.JK',
-  'BSML.JK', 'JECX.JK', 'HUMI.JK', 'OMED.JK', 'INDO.JK', 'APLN.JK',
+  'BSML.JK', 'JECX.JK', 'HUMI.JK', 'OMED.JK', 'INDO.JK', 'APLN.JK', 'MSJA.JK', 'BMTR.JK', 'EURO.JK',
+  'JARR.JK', 'NEST.JK', 'BLES.JK', 'DGWG.JK', 'RISE.JK', 'TRIN.JK', 'APEX.JK', 'TEBE.JK', 'BDKR.JK',
+  'DMMX.JK', 'MSTI.JK', 'ERAL.JK', 'ELPI.JK', 'BACA.JK', 'ALKA.JK', 'DILD.JK', 'GRIA.JK', 'VERN.JK',
+  'BANK.JK', 'ASRI.JK', 'SWID.JK', 'IPCC.JK', 'MOLI.JK', 'BABY.JK', 'SUNI.JK', 'TUGU.JK', 'MAHA.JK',
+  'BBRM.JK', 'ALII.JK', 'MHKI.JK', 'CASS.JK', 'TLDN.JK', 'ZONE.JK', 'AREA.JK', 'BGTG.JK', 'UANG.JK',
+  'BYAN.JK', 'DRMA.JK', 'MDIY.JK', 'SPTO.JK', 'ALDO.JK', 'VICI.JK', 'GOLF.JK', 'PGUN.JK', 'GEMS.JK',
+  'DEPO.JK', 'CITY.JK',
 ];
+
+export const AI_PICK_UNIVERSE_ADDITIONS: string[] = AI_PICK_UNIVERSE.slice(LEGACY_VALIDATED_UNIVERSE_SIZE);

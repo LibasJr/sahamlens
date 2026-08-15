@@ -226,9 +226,9 @@ export function matchesCompany(title: string, ticker: string, name?: string): bo
 }
 
 // Sentimen berita PER-EMITEN untuk SELURUH universe Stock Screener sekaligus (bukan
-// getStockNews() dipanggil satu-satu per ticker - untuk universe 114 saham itu berarti
-// 114x fetch ulang 10 RSS feed yang SAMA + berpotensi 114 panggilan AI terpisah, boros
-// dan lambat untuk data yang sama persis). RSS di-fetch SEKALI, dicocokkan ke tiap saham
+// getStockNews() dipanggil satu-satu per ticker - untuk active universe itu berarti
+// ratusan fetch ulang 10 RSS feed yang SAMA + berpotensi ratusan panggilan AI terpisah,
+// boros dan lambat untuk data yang sama persis). RSS di-fetch SEKALI, dicocokkan ke tiap saham
 // (definisi pencocokan SAMA dengan getStockNews: kode ticker atau kata distingtif nama
 // perusahaan), lalu HANYA judul yang benar-benar cocok ke ticker mana pun yang dikirim ke
 // Council AI untuk diklasifikasi - juga cuma sekali per judul unik (satu judul sektor bisa
