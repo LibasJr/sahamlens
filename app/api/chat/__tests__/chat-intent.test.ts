@@ -28,6 +28,22 @@ describe('LensAI intent router', () => {
     expect(classify(prompt).intent).toBe(expected);
   });
 
+  it.each([
+    'berapa nilai intrinsik BBCA?',
+    'nilai intrinsic BBRI berapa?',
+    'nilai intrisik BMRI dong',
+    'nilai intric TLKM',
+    'nilai intirisih BBCA berapa?',
+    'nilai intrinsih BBRI berapa?',
+    'nilai wajar ASII berapa?',
+    'fair value UNTR berapa?',
+    'DCF ASII gimana?',
+  ])('pertanyaan nilai intrinsik masuk valuasi data, bukan product help: %s', (prompt) => {
+    const result = classify(prompt, 1);
+    expect(result.intent).toBe('VALUATION');
+    expect(result.dataIntent).toBe('VALUATION');
+  });
+
   it('comparison dideteksi tanpa special-case ticker', () => {
     expect(classify('BBRI dibanding BMRI gimana?', 2).intent).toBe('COMPARE_STOCKS');
     expect(classify('BBRI dibanding BMRI fundamentalnya saja?', 2).compareScope).toBe('FUNDAMENTAL');
@@ -48,8 +64,35 @@ describe('LensAI intent router', () => {
     ['apa itu blue chip di SahamLens?', 'SAHAMLENS_PRODUCT_HELP'],
     ['LensConsensus itu apa?', 'SAHAMLENS_PRODUCT_HELP'],
     ['portofolio itu fitur apa?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['menu earnings fungsinya apa?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['jelaskan fitur macro', 'SAHAMLENS_PRODUCT_HELP'],
+    ['moat itu apa di SahamLens?', 'SAHAMLENS_PRODUCT_HELP'],
+    ['risk calculator buat apa?', 'SAHAMLENS_PRODUCT_HELP'],
   ])('%s -> %s', (prompt, expected) => {
     expect(classify(prompt, 0).intent).toBe(expected);
+  });
+
+  it.each([
+    'fungsi menu Beranda apa?',
+    'cara pakai LensMarket gimana?',
+    'fungsi LensRadar apa?',
+    'menu LensTechnical untuk apa?',
+    'cara pakai LensScanner gimana?',
+    'fungsi Compare apa?',
+    'Backtest cara pakainya bagaimana?',
+    'fungsi LensFundamental apa?',
+    'menu Valuation untuk apa?',
+    'cara pakai Dividend gimana?',
+    'LensWatch itu menu apa?',
+    'fungsi Akun Demo apa?',
+    'Risk Matrix gunanya apa?',
+    'menu News & Sentiment apa?',
+    'Corporate Calendar cara pakainya gimana?',
+    'fungsi Transparansi apa?',
+    'Tentang SahamLens itu apa?',
+    'Pattern fungsinya apa?',
+  ])('pertanyaan fungsi/cara pakai menu tidak meminta ticker: %s', (prompt) => {
+    expect(classify(prompt, 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
   });
 
   // Kebalikan penting: "portofolio SAYA" (dengan kata milik) tetap harus jatuh ke

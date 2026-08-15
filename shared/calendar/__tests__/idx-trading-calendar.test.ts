@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAiPickScanWindow } from '../idx-trading-calendar';
+import { getAiPickScanWindow, getIdxMarketHoliday, isTradingDay } from '../idx-trading-calendar';
 
 // Input Date dibuat dalam UTC agar ekspektasi WIB deterministik (WIB = UTC+7).
 describe('getAiPickScanWindow', () => {
@@ -27,5 +27,17 @@ describe('getAiPickScanWindow', () => {
 
   it('tidak scan pada akhir pekan', () => {
     expect(getAiPickScanWindow(new Date('2026-08-08T03:00:00Z'))).toBe('CLOSED'); // Sat 10:00 WIB
+  });
+
+  it('menutup hari kerja yang merupakan libur Bursa IDX', () => {
+    const independenceDay = new Date('2026-08-17T03:00:00Z'); // Senin 10:00 WIB
+    expect(isTradingDay(independenceDay)).toBe(false);
+    expect(getAiPickScanWindow(independenceDay)).toBe('CLOSED');
+    expect(getIdxMarketHoliday(independenceDay)).toBe('Hari Kemerdekaan Republik Indonesia');
+  });
+
+  it('tetap membuka hari kerja di sekitar libur Bursa', () => {
+    expect(isTradingDay(new Date('2026-08-18T03:00:00Z'))).toBe(true); // Selasa 10:00 WIB
+    expect(getAiPickScanWindow(new Date('2026-08-18T03:00:00Z'))).toBe('REGULAR_SESSION');
   });
 });

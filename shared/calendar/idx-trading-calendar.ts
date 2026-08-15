@@ -6,19 +6,48 @@
 // getAiPickScanWindow(), yang mengikuti sesi Pasar Reguler IDX lebih presisi dan
 // menyediakan satu jendela final EOD untuk snapshot penutupan.
 //
-// Catatan: hari libur Bursa belum dikelola di file ini. Pada hari libur weekday,
-// QStash masih bisa memanggil route, tetapi guard hanya berbasis weekday/jam.
+// Hari libur Bursa dikelola eksplisit per tahun, bukan diturunkan dari kalender
+// nasional. Sebagian hari libur nasional bukan hari libur perdagangan, dan BEI dapat
+// menetapkan libur Bursa tambahan. Perbarui daftar ini setiap BEI menerbitkan
+// pengumuman kalender tahunan berikutnya.
 
 const WIB_OFFSET_HOURS = 7;
 const OPEN_HOUR_WIB = 9;
 const CLOSE_HOUR_WIB = 16;
 
-function toWibParts(date: Date): { dayOfWeek: number; hour: number; minute: number; minutes: number } {
+/** Kalender libur Bursa 2026, sumber: Peng-00171/BEI.POP/09-2025. */
+const IDX_MARKET_HOLIDAYS: Record<string, string> = {
+  '2026-01-01': 'Tahun Baru Masehi',
+  '2026-01-16': 'Isra Mikraj Nabi Muhammad SAW',
+  '2026-02-16': 'Cuti bersama Tahun Baru Imlek',
+  '2026-02-17': 'Tahun Baru Imlek',
+  '2026-03-18': 'Cuti bersama Hari Suci Nyepi',
+  '2026-03-19': 'Hari Suci Nyepi',
+  '2026-03-20': 'Cuti bersama Idulfitri',
+  '2026-03-23': 'Idulfitri',
+  '2026-03-24': 'Cuti bersama Idulfitri',
+  '2026-04-03': 'Wafat Yesus Kristus',
+  '2026-05-01': 'Hari Buruh Internasional',
+  '2026-05-14': 'Kenaikan Yesus Kristus',
+  '2026-05-15': 'Cuti bersama Kenaikan Yesus Kristus',
+  '2026-05-27': 'Cuti bersama Iduladha',
+  '2026-05-28': 'Iduladha',
+  '2026-06-01': 'Hari Lahir Pancasila',
+  '2026-06-16': 'Tahun Baru Islam',
+  '2026-08-17': 'Hari Kemerdekaan Republik Indonesia',
+  '2026-08-25': 'Maulid Nabi Muhammad SAW',
+  '2026-12-24': 'Cuti bersama Natal',
+  '2026-12-25': 'Hari Natal',
+  '2026-12-31': 'Libur Bursa akhir tahun',
+};
+
+function toWibParts(date: Date): { dateKey: string; dayOfWeek: number; hour: number; minute: number; minutes: number } {
   const wibMs = date.getTime() + WIB_OFFSET_HOURS * 60 * 60 * 1000;
   const wib = new Date(wibMs);
   const hour = wib.getUTCHours();
   const minute = wib.getUTCMinutes();
   return {
+    dateKey: `${wib.getUTCFullYear()}-${String(wib.getUTCMonth() + 1).padStart(2, '0')}-${String(wib.getUTCDate()).padStart(2, '0')}`,
     dayOfWeek: wib.getUTCDay(),
     hour,
     minute,
@@ -26,9 +55,13 @@ function toWibParts(date: Date): { dayOfWeek: number; hour: number; minute: numb
   };
 }
 
+export function getIdxMarketHoliday(date: Date): string | null {
+  return IDX_MARKET_HOLIDAYS[toWibParts(date).dateKey] ?? null;
+}
+
 export function isTradingDay(date: Date): boolean {
-  const { dayOfWeek } = toWibParts(date);
-  return dayOfWeek >= 1 && dayOfWeek <= 5;
+  const { dayOfWeek, dateKey } = toWibParts(date);
+  return dayOfWeek >= 1 && dayOfWeek <= 5 && !IDX_MARKET_HOLIDAYS[dateKey];
 }
 
 export function isTradingHours(date: Date): boolean {
@@ -59,7 +92,7 @@ export type AiPickScanWindow = 'REGULAR_SESSION' | 'FINAL_CLOSE' | 'CLOSED';
  */
 export function getAiPickScanWindow(date: Date): AiPickScanWindow {
   const { dayOfWeek, minutes } = toWibParts(date);
-  if (dayOfWeek < 1 || dayOfWeek > 5) return 'CLOSED';
+  if (!isTradingDay(date)) return 'CLOSED';
 
   const isFriday = dayOfWeek === 5;
   const session1End = isFriday ? 11 * 60 + 30 : 12 * 60;

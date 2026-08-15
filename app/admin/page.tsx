@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, BarChart3, FileSpreadsheet, RefreshCw, Target } from 'lucide-react';
+import { ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { EmptyState } from '@/components/ui';
@@ -129,6 +129,41 @@ export default async function AdminPage() {
             <h2 className="font-heading text-lg font-bold text-tv-text">TP/CL Validation Lab</h2>
             <p className="text-sm text-tv-muted mt-1">
               Uji historis engine TP/CL yang sama dengan production: structure + ATR + fraksi harga IDX.
+            </p>
+          </div>
+        </Link>
+        <Link
+          href="/admin/lensai-feedback"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-purple/10 p-2 text-tv-purple">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Feedback LensAI</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Tinjau jawaban yang ditandai membantu atau tidak tepat untuk menentukan perbaikan knowledge dan routing berikutnya.
+            </p>
+          </div>
+        </Link>
+
+        {/* Intraday Validation Lab BERDIRI SENDIRI, sengaja TIDAK jadi submenu
+            Calibration Lab: yang diuji di sana edge T+20 LensScore, di sini model
+            LensIntraday yang posisinya dibuka dan ditutup pada hari bursa yang sama.
+            Menjadikannya submenu kalibrasi akan membuat orang membaca hasil T+20
+            sebagai bukti intraday - persis kekeliruan yang modul ini dibangun untuk cegah. */}
+        <Link
+          href="/admin/intraday-validation"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-accent/10 p-2 text-tv-accent">
+            <Timer className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Intraday Validation Lab</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Riset model LensIntraday (buka-tutup hari bursa yang sama): horizon 15/30/60 menit dan EOD,
+              net return setelah biaya, dan protokol forward out-of-sample terpisah dari T+20.
             </p>
           </div>
         </Link>
