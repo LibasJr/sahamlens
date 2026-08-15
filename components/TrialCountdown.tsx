@@ -3,12 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { Clock } from 'lucide-react';
+import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
 
 // Badge hitung mundur trial 7 hari, dipasang di header global (TopMarketBar).
 // Hanya tampil untuk user yang benar-benar sedang trial - user Pro, admin, dan
 // guest tidak punya hitungan mundur, jadi useAuthUser() mengembalikan
 // trialDaysLeft null untuk mereka dan komponen ini tidak merender apa pun.
 export default function TrialCountdown({ daysLeft }: { daysLeft: number | null }) {
+  if (TESTING_OPEN_ACCESS) return null;
   if (daysLeft === null) return null;
 
   // <= 2 hari diberi warna peringatan - satu-satunya perbedaan visual, supaya

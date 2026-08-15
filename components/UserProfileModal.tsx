@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, User, ShieldCheck, Users, Loader2, Crown } from 'lucide-react';
 import PaywallModal from './PaywallModal';
+import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
 
 interface ProfileData {
   email: string;
@@ -192,9 +193,9 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                       aktif - akun Pro punya barisnya sendiri di atas, admin tidak bergantung
                       tanggal sama sekali. Jangan tampilkan seolah akun itu akan "kehabisan"
                       akses pada tanggal trial. */}
-                  {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
+                  {!TESTING_OPEN_ACCESS && data.role !== 'admin' && data.role !== 'pro' && !data.isPro && data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-tv-muted">Trial Berakhir</span>
+                      <span className="text-tv-muted">Akses Berakhir</span>
                       <span className="text-tv-text font-medium">{formatDate(data.trialEndsAt)}</span>
                     </div>
                   )}

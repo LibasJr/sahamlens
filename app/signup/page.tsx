@@ -112,7 +112,7 @@ export default function Signup() {
 
   return (
     <AuthShell
-      eyebrow="Free Trial 7 Hari"
+      eyebrow="Akses Pengujian"
       title={step === 1 ? 'Buat Akun Baru' : 'Verifikasi Email'}
       subtitle={step === 1 ? 'Mulai perjalanan investasimu bersama SahamLens' : `Kode dikirim ke ${email}`}
     >

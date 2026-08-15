@@ -30,23 +30,17 @@ describe('computeRole', () => {
     expect(r.trialDaysLeft).toBeNull();
   });
 
-  it('trial masih berjalan = TRIAL dengan sisa hari dibulatkan ke atas', () => {
+  it('mode testing memberi akses akun tanpa hitung mundur walau tanggal lama masih ada', () => {
     const r = computeRole(makeUser({ trial_ends_at: daysFromNow(6.2) }));
     expect(r.effectiveRole).toBe('trial');
-    expect(r.trialDaysLeft).toBe(7);
+    expect(r.trialDaysLeft).toBeNull();
     expect(r.isTrialExpired).toBe(false);
   });
 
-  it('sisa trial kurang dari sehari tetap ditampilkan 1 hari, bukan 0', () => {
-    expect(computeRole(makeUser({ trial_ends_at: daysFromNow(0.1) })).trialDaysLeft).toBe(1);
-  });
-
-  // Inti spesifikasi: trial habis -> role berubah jadi GUEST secara logic (tanpa
-  // menulis apa pun ke database) dan modal upgrade harus terpicu.
-  it('trial sudah lewat = GUEST + penanda trial habis', () => {
+  it('tanggal akses lama yang sudah lewat tidak dapat mengunci akun testing', () => {
     const r = computeRole(makeUser({ trial_ends_at: daysFromNow(-1) }));
-    expect(r.effectiveRole).toBe('guest');
-    expect(r.isTrialExpired).toBe(true);
+    expect(r.effectiveRole).toBe('trial');
+    expect(r.isTrialExpired).toBe(false);
     expect(r.trialDaysLeft).toBeNull();
   });
 
@@ -61,15 +55,15 @@ describe('computeRole', () => {
     expect(computeRole(makeUser({ is_pro: true, pro_expires_at: null })).effectiveRole).toBe('trial');
   });
 
-  it('Pro yang sudah kedaluwarsa jatuh ke GUEST', () => {
+  it('akun tetap mendapat akses selama testing walau status Pro sudah kedaluwarsa', () => {
     const r = computeRole(makeUser({ is_pro: true, pro_expires_at: daysFromNow(-1), trial_ends_at: daysFromNow(-9) }));
-    expect(r.effectiveRole).toBe('guest');
-    expect(r.isTrialExpired).toBe(true);
+    expect(r.effectiveRole).toBe('trial');
+    expect(r.isTrialExpired).toBe(false);
   });
 
-  it('user lama tanpa trial dan tanpa Pro = GUEST, tapi bukan "trial habis"', () => {
+  it('akun biasa tanpa tanggal akses mendapat akses selama testing', () => {
     const r = computeRole(makeUser());
-    expect(r.effectiveRole).toBe('guest');
+    expect(r.effectiveRole).toBe('trial');
     expect(r.isTrialExpired).toBe(false);
   });
 });
@@ -91,14 +85,14 @@ describe('hasProAccessFor - bentuk akun seperti yang benar-benar ditulis panel a
     }))).toBe(true);
   });
 
-  it('pelanggan Pro yang masa aktifnya habis kehilangan akses', () => {
-    expect(hasProAccessFor(makeUser({ role: 'free', is_pro: true, pro_expires_at: daysFromNow(-1) }))).toBe(false);
+  it('pelanggan Pro yang masa aktifnya habis tetap mendapat akses selama testing', () => {
+    expect(hasProAccessFor(makeUser({ role: 'free', is_pro: true, pro_expires_at: daysFromNow(-1) }))).toBe(true);
   });
 
-  it('admin dan trial aktif tetap punya akses; guest tidak', () => {
+  it('semua akun login mendapat akses; guest tetap tidak memiliki akun', () => {
     expect(hasProAccessFor(makeUser({ role: 'admin' }))).toBe(true);
     expect(hasProAccessFor(makeUser({ trial_ends_at: daysFromNow(2) }))).toBe(true);
-    expect(hasProAccessFor(makeUser())).toBe(false);
+    expect(hasProAccessFor(makeUser())).toBe(true);
     expect(hasProAccessFor(null)).toBe(false);
   });
 });

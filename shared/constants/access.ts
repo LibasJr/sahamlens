@@ -12,14 +12,24 @@
 // Menu admin digerbang TERPISAH lewat cookie admin (isAdminServer/verifyAdminToken),
 // bukan lewat daftar ini - jadi tidak perlu masuk daftar ini juga.
 //
-// Data premium (fundamental, screener, backtest, dst) TIDAK LAGI dibatasi trial 7 hari
-// untuk tamu - lihat shared/auth/session.ts hasOpenOrProAccess(). Riwayat singkat
+// Data premium (fundamental, screener, backtest, dst) TIDAK LAGI dibatasi waktu untuk
+// tamu - lihat shared/auth/session.ts hasOpenOrProAccess(). Riwayat singkat
 // aturan sebelumnya: 2026-08-06 semua dikunci kecuali beberapa halaman publik;
 // 2026-08-11 semua menu ditampilkan tapi aksesnya digembok lewat redirect di sini.
 export const PROTECTED_PAGES = [
   '/portfolio',
   '/watchlist',
 ] as const;
+
+/**
+ * Selama fase pengujian belum memiliki tanggal akhir, akun yang sudah login mendapat
+ * akses penuh tanpa batas waktu. Satu konstanta ini dipakai oleh API, proxy, dan UI
+ * agar tidak ada batas akses yang hanya hilang di salah satu lapisan.
+ *
+ * Saat model berbayar siap diaktifkan, ubah menjadi false; data/kolom lama tetap ada
+ * sehingga aturan entitlement normal dapat dipulihkan tanpa migrasi struktur tabel.
+ */
+export const TESTING_OPEN_ACCESS = true;
 
 export function isProtectedPage(pathname: string): boolean {
   return PROTECTED_PAGES.some((p) => pathname === p || pathname.startsWith(p + '/'));

@@ -8,7 +8,7 @@ import { getUserByEmail, updateUser, createUser } from '../repository/user.repos
 import { extendProExpiry } from '../service/pro-expiry.service';
 import { getAdminSecretHash, setAdminSecretHash } from '../repository/admin-secret.repository';
 import { provisionPortfolio } from '../../portfolio';
-import { TRIAL_DAYS, MIN_PASSWORD_LENGTH } from '../constants/user.constants';
+import { MIN_PASSWORD_LENGTH } from '../constants/user.constants';
 import { logger } from '../../../shared/logger/logger';
 import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
 
@@ -143,7 +143,7 @@ export async function handleSetProStatus(
 // inbox email test untuk membaca kode verifikasi. Selain itu PERSIS meniru hasil akhir
 // signup+verify normal: role SELALU 'free' (BUKAN admin - ditegaskan eksplisit sesuai
 // permintaan pengguna "hak akses nya jgn admin, user testing biasa", role tidak pernah
-// dibaca dari body request), trial 7 hari (TRIAL_DAYS, sama seperti verifyAccount), dan
+// dibaca dari body request), akses pengujian tanpa tanggal akhir, dan
 // portofolio virtual ikut diprovisioning supaya akun tes tidak "setengah jadi" dibanding
 // akun yang lewat alur signup biasa.
 export async function handleCreateTestUser(
@@ -168,8 +168,6 @@ export async function handleCreateTestUser(
   if (existing) throw new ConflictError('Email sudah terdaftar');
 
   const hashed = await bcrypt.hash(body.password, 10);
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
   const userId = crypto.randomUUID();
 
   await createUser({
@@ -180,7 +178,7 @@ export async function handleCreateTestUser(
     is_verified: true,
     is_pro: false,
     created_at: new Date().toISOString(),
-    trial_ends_at: trialEndsAt.toISOString(),
+    trial_ends_at: null,
     pro_expires_at: null,
     demo_ends_at: null,
     verification_code: null,
@@ -191,7 +189,7 @@ export async function handleCreateTestUser(
   await provisionPortfolio(userId);
 
   logger.info('Admin create-test-user', { email, userId });
-  return { status: 200, body: { email, userId, trialEndsAt: trialEndsAt.toISOString() } };
+  return { status: 200, body: { email, userId } };
 }
 
 export async function handleGetProStatus(

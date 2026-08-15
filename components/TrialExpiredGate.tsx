@@ -5,6 +5,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import PromoUpgradeModal from './PromoUpgradeModal';
 import PaywallModal from './PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
+import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
 
 // Modal "Trial habis, upgrade ke premium" - muncul otomatis di halaman mana pun
 // begitu masa trial 7 hari lewat (useAuthUser().isTrialExpired), tanpa perlu tiap
@@ -35,14 +36,18 @@ export default function TrialExpiredGate() {
 
   const selectedPlan = PRICING_PLANS.find((p) => p.id === planId) || PRICING_PLANS[0];
 
+  // Selama pengujian seluruh akun login memiliki akses tanpa batas; jangan pernah
+  // menampilkan modal lama dari sesi yang masih membawa tanggal akses terdahulu.
+  if (TESTING_OPEN_ACCESS) return null;
+
   return (
     <>
       <PromoUpgradeModal
         open={isTrialExpired && !dismissed}
         onClose={() => setDismissed(true)}
         onSelectPlan={handleSelectPlan}
-        title="Trial habis, upgrade ke premium"
-        subtitle="Masa coba 7 hari kamu sudah berakhir. Pilih paket Pro untuk membuka lagi semua menu analisis."
+        title="Akses akun berakhir"
+        subtitle="Pilih paket Pro untuk membuka lagi seluruh menu analisis."
       />
       <PaywallModal
         open={showPaywall}

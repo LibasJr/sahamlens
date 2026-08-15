@@ -708,7 +708,7 @@ export default function WatchlistPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Pakai Watchlist"
-        body="LensWatch butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="LensWatch butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"

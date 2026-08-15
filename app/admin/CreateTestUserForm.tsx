@@ -31,7 +31,7 @@ export default function CreateTestUserForm() {
         setMessage({ text: data.error || 'Gagal membuat akun', isError: true });
         return;
       }
-      setMessage({ text: `Akun tes ${data.email} berhasil dibuat - langsung bisa dipakai login (trial 7 hari, role user biasa).`, isError: false });
+      setMessage({ text: `Akun tes ${data.email} berhasil dibuat dan langsung bisa dipakai login sebagai user biasa.`, isError: false });
       setEmail('');
       setPassword('');
     } catch {

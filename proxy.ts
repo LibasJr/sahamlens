@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, SESSION_COOKIE } from '@/shared/constants/cookie-names';
 import { encrypt } from '@/shared/auth/jwt';
-import { isProtectedPage } from '@/shared/constants/access';
+import { isProtectedPage, TESTING_OPEN_ACCESS } from '@/shared/constants/access';
 import { decrypt } from '@/shared/auth/jwt';
 import { verifyAdminToken } from '@/shared/auth/admin-token';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
@@ -291,7 +291,7 @@ export async function proxy(req: NextRequest) {
     // middleware cuma cek role/trial, jadi user yang di-grant is_pro=true tanpa role
     // diubah ke 'pro' tetap kena rate limit 20/hari di sini walau route lain (mis.
     // /api/council) sudah menganggapnya Pro.
-    if (payload.role === 'admin' || hasLiveProEntitlement(payload)) {
+    if (TESTING_OPEN_ACCESS || payload.role === 'admin' || hasLiveProEntitlement(payload)) {
       isAdminOrTrial = true;
     } else if (payload.trial_ends_at && new Date(payload.trial_ends_at).getTime() > Date.now()) {
       isAdminOrTrial = true;
