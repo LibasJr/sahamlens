@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Database, Loader2, Lock, PlayCircle, RefreshCw, Sliders } from 'lucide-react';
+import { readAdminJsonResponse } from './admin-json-response';
 
 // ---------------------------------------------------------------------------
 // Tipe longgar - halaman ini hanya MENAMPILKAN apa yang dikirim server. Tidak ada
@@ -269,6 +270,7 @@ function SampleTag({ status }: { status: string }) {
 
 type ActionName =
   | 'collect_data'
+  | 'reset_research'
   | 'run_validation'
   | 'freeze_oos'
   | 'threshold_simulation'
@@ -289,10 +291,10 @@ export default function IntradayValidationClient() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+      setError(null);
     try {
       const res = await fetch('/api/admin/intraday-validation', { cache: 'no-store' });
-      const data = await res.json();
+      const data = await readAdminJsonResponse<Dashboard & { error?: string }>(res);
       if (!res.ok) throw new Error(data?.error || 'Gagal memuat dashboard');
       setDashboard(data);
     } catch (err) {
@@ -316,7 +318,7 @@ export default function IntradayValidationClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action, ...payload }),
         });
-        const data = await res.json();
+        const data = await readAdminJsonResponse<any>(res);
         if (!res.ok) throw new Error(data?.error || 'Aksi gagal');
         if (action === 'threshold_simulation') setThresholdSim(data);
         else if (action === 'weight_proposal') setWeightProposal(data);
@@ -481,13 +483,25 @@ export default function IntradayValidationClient() {
             disabled={busy != null}
             onClick={() => void runAction('freeze_oos', {})}
           />
+          <ActionButton
+            icon={<AlertTriangle className="h-4 w-4" />}
+            label="Reset data riset"
+            busy={busy === 'reset_research'}
+            disabled={busy != null}
+            onClick={() => {
+              if (window.confirm('Hapus seluruh data LensIntraday untuk masa testing? Data LensRadar, saham, pengguna, dan data produksi tidak akan disentuh.')) {
+                void runAction('reset_research', { confirmation: 'RESET_INTRADAY_RESEARCH' });
+              }
+            }}
+          />
         </div>
         {actionMessage ? (
           <p className="mt-3 rounded-md border border-tv-border bg-tv-bg p-2.5 text-xs text-tv-text">{actionMessage}</p>
         ) : null}
         <p className="mt-3 text-[11px] text-tv-muted">
           Backfill riset 60 hari: naikkan lookback ke 60 lalu tekan &quot;Kumpulkan data intraday&quot;. Provider hanya
-          menyimpan 60 hari untuk interval 5 menit, jadi data lebih lama dari itu tidak bisa diambil ulang.
+          menyimpan 60 hari untuk interval 5 menit, jadi data lebih lama dari itu tidak bisa diambil ulang. Backfill dari browser
+          berhenti aman sebelum timeout jaringan; tekan lagi bila status menyebut batas waktu tercapai.
         </p>
       </Card>
 
@@ -1449,6 +1463,8 @@ function describeActionResult(action: ActionName, data: any): string {
   switch (action) {
     case 'collect_data':
       return `Pengumpulan selesai: ${data.tickersProcessed}/${data.tickersRequested} ticker, ${data.signalsWritten} sinyal, ${data.outcomesWritten} outcome, ${data.tickersFailed} gagal${data.budgetExhausted ? ' (batas waktu tercapai, jalankan lagi untuk melanjutkan)' : ''}.`;
+    case 'reset_research':
+      return `Data riset intraday dihapus: ${data.signalsDeleted ?? 0} sinyal, ${data.outcomesDeleted ?? 0} outcome, ${data.qualityRowsDeleted ?? 0} catatan kualitas, ${data.validationRunsDeleted ?? 0} validation run, dan seluruh protokol/proposal riset.`;
     case 'run_validation':
       return `Validation run selesai dengan status ${data.status}. Sampel efektif ${data.sample?.effective ?? 0}.`;
     case 'freeze_oos':

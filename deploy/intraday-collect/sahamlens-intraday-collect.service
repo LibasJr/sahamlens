@@ -19,4 +19,6 @@ EnvironmentFile=/opt/sahamlens/app/.env.production
 # --max-time 300 menyamai maxDuration route. Job punya anggaran internal 240 detik dan
 # berhenti rapi sebelum itu, jadi curl tidak pernah memutus tulisan database di tengah.
 # -f supaya HTTP 4xx/5xx menjadi exit code gagal yang terlihat di systemctl status.
-ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/intraday-collect
+# Jalur localhost sengaja: pekerjaan sampai 240 detik tidak boleh melewati Cloudflare
+# yang membatasi request HTTP publik sekitar 100 detik (balasan 524/HTML).
+ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/intraday-collect

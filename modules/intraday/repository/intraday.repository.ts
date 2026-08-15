@@ -33,6 +33,56 @@ export interface UpsertResult {
   outcomesWritten: number;
 }
 
+/** Hapus SELURUH artefak LensIntraday untuk reset masa testing. Tidak menyentuh tabel modul lain. */
+export async function resetIntradayResearchData(): Promise<{
+  signalsDeleted: number;
+  outcomesDeleted: number;
+  qualityRowsDeleted: number;
+  validationRunsDeleted: number;
+}> {
+  await ensureIntradaySchema();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const counts = await client.query<{
+      signals: string;
+      outcomes: string;
+      quality_rows: string;
+      validation_runs: string;
+    }>(`
+      SELECT
+        (SELECT count(*) FROM intraday_signals)::text AS signals,
+        (SELECT count(*) FROM intraday_outcomes)::text AS outcomes,
+        (SELECT count(*) FROM intraday_data_quality)::text AS quality_rows,
+        (SELECT count(*) FROM intraday_validation_runs)::text AS validation_runs
+    `);
+    await client.query(`
+      TRUNCATE TABLE
+        intraday_outcomes,
+        intraday_signals,
+        intraday_data_quality,
+        intraday_validation_runs,
+        intraday_oos_protocols,
+        intraday_weight_proposals,
+        intraday_threshold_proposals
+      RESTART IDENTITY
+    `);
+    await client.query('COMMIT');
+    const row = counts.rows[0]!;
+    return {
+      signalsDeleted: Number(row.signals),
+      outcomesDeleted: Number(row.outcomes),
+      qualityRowsDeleted: Number(row.quality_rows),
+      validationRunsDeleted: Number(row.validation_runs),
+    };
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
