@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
+import { getAdminUserActivityReport } from '@/modules/user/repository/user.repository';
 import { EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
@@ -26,6 +27,15 @@ function jamWib(iso: string): string {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
 }
 
+function waktuWib(iso: string | null): string {
+  if (!iso) return 'Belum tercatat';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'waktu tidak terbaca';
+  return d.toLocaleString('id-ID', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+  }) + ' WIB';
+}
+
 export default async function AdminPage() {
   if (!(await isAdminServer())) {
     redirect('/admin-login');
@@ -33,7 +43,10 @@ export default async function AdminPage() {
 
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
-  const activeUsers = await getActiveUsers();
+  const [activeUsers, activityReport] = await Promise.all([
+    getActiveUsers(),
+    getAdminUserActivityReport(),
+  ]);
   const snapshotAt = new Date().toISOString();
 
   // Rekap peran: 12 baris tabel tidak langsung memberi tahu komposisinya, dan itu
@@ -176,9 +189,9 @@ export default async function AdminPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tv-green opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-tv-green"></span>
               </span>
-              <h2 className="font-heading text-lg font-bold text-tv-text">Aktif Sekarang</h2>
+              <h2 className="font-heading text-lg font-bold text-tv-text">Aktivitas Pengguna</h2>
               <span className="text-xs text-tv-muted">
-                ({activeUsers.length} user, aktivitas 5 menit terakhir{rekapPeran ? ` — ${rekapPeran}` : ''})
+                ({activeUsers.length} user aktif sekarang · presence 5 menit{rekapPeran ? ` — ${rekapPeran}` : ''})
               </span>
             </div>
             {/* Titik hijau berdenyut menyiratkan data ini hidup, padahal ia snapshot
@@ -197,6 +210,22 @@ export default async function AdminPage() {
               </a>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-px border-b border-tv-border bg-tv-border sm:grid-cols-4">
+            {[
+              ['Aktif 24 jam', activityReport.summary.active24h],
+              ['Aktif 7 hari', activityReport.summary.active7d],
+              ['Aktif 30 hari', activityReport.summary.active30d],
+              ['Tidak aktif ≥30 hari', activityReport.summary.inactive30d],
+            ].map(([label, count]) => (
+              <div key={String(label)} className="bg-tv-card px-4 py-3">
+                <div className="font-number text-xl font-bold text-tv-text">{count}</div>
+                <div className="mt-0.5 text-[11px] text-tv-muted">{label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="border-b border-tv-border px-6 py-2 text-[11px] leading-relaxed text-tv-muted">
+            Aktivitas tersimpan dari request akun yang terautentikasi (maksimal satu pembaruan per 15 menit). Riwayat mulai tercatat setelah pembaruan ini; login terakhir dicatat saat login atau verifikasi berhasil.
+          </p>
           {activeUsers.length === 0 ? (
             <EmptyState
               illustration="search"
@@ -210,7 +239,7 @@ export default async function AdminPage() {
                 <tr>
                   <th className="px-6 py-3 whitespace-nowrap">Email</th>
                   <th className="px-6 py-3 whitespace-nowrap">Role</th>
-                  <th className="px-6 py-3 whitespace-nowrap">Terakhir Aktif</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Terakhir terlihat</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border">
@@ -233,6 +262,39 @@ export default async function AdminPage() {
             </table>
             </div>
           )}
+
+          <div className="border-t border-tv-border">
+            <div className="px-6 py-4">
+              <h3 className="font-heading text-base font-bold text-tv-text">Pengguna tidak aktif ≥30 hari</h3>
+              <p className="mt-1 text-xs text-tv-muted">Termasuk akun yang belum mempunyai aktivitas tercatat sejak fitur ini aktif.</p>
+            </div>
+            {activityReport.inactiveUsers.length === 0 ? (
+              <p className="border-t border-tv-border px-6 py-5 text-sm text-tv-muted">Tidak ada pengguna tidak aktif dalam daftar saat ini.</p>
+            ) : (
+              <div className="overflow-x-auto border-t border-tv-border">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-tv-bg text-tv-muted">
+                    <tr>
+                      <th className="px-6 py-3 whitespace-nowrap">Email</th>
+                      <th className="px-6 py-3 whitespace-nowrap">Role</th>
+                      <th className="px-6 py-3 whitespace-nowrap">Login terakhir</th>
+                      <th className="px-6 py-3 whitespace-nowrap">Aktivitas terakhir</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-tv-border">
+                    {activityReport.inactiveUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-tv-hover">
+                        <td className="px-6 py-3 whitespace-nowrap text-tv-text">{user.email}</td>
+                        <td className="px-6 py-3 text-tv-muted">{user.role.toUpperCase()}</td>
+                        <td className="px-6 py-3 whitespace-nowrap font-number text-tv-muted">{waktuWib(user.last_login_at)}</td>
+                        <td className="px-6 py-3 whitespace-nowrap font-number text-tv-muted">{waktuWib(user.last_active_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

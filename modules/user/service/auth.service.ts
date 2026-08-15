@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { encrypt } from '../../../shared/auth/jwt';
 import { provisionPortfolio } from '../../portfolio';
-import { getUserByEmail, createUser, updateUser } from '../repository/user.repository';
+import { getUserByEmail, createUser, recordSuccessfulLogin, updateUser } from '../repository/user.repository';
 import { sendVerificationEmail } from '../repository/email.repository';
 import { generateOtp } from '../utils/otp-generator';
 import { TRIAL_DAYS, VERIFICATION_CODE_TTL_MIN } from '../constants/user.constants';
@@ -40,6 +40,13 @@ export async function login(input: LoginInput): Promise<AuthSessionResult> {
 
   if (!user.is_verified && user.role !== 'admin') {
     throw new EmailNotVerifiedError();
+  }
+
+  // Audit aktivitas tidak boleh membuat login gagal kalau pencatatannya sedang bermasalah.
+  try {
+    await recordSuccessfulLogin(user.id);
+  } catch (error) {
+    console.warn('[auth] gagal mencatat login terakhir', error instanceof Error ? error.message : String(error));
   }
 
   const maxAgeSec = input.remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
@@ -116,6 +123,11 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
   const trialEndsAtIso = trialEndsAt.toISOString();
 
   await updateUser(user.id, { is_verified: true, verification_code: null, verification_code_expires: null, trial_ends_at: trialEndsAtIso });
+  try {
+    await recordSuccessfulLogin(user.id);
+  } catch (error) {
+    console.warn('[auth] gagal mencatat login verifikasi', error instanceof Error ? error.message : String(error));
+  }
   await clearVerifyOtpAttempts(user.email);
 
   // Provisioning portofolio virtual lewat public API modules/portfolio - sebelumnya
