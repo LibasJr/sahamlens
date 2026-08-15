@@ -6,6 +6,12 @@ import { BarChart3, BookmarkPlus, Calculator, Search, X } from 'lucide-react';
 
 const DISMISSED_KEY = 'sahamlens.getting-started.dismissed.v1';
 
+type GettingStartedGuideProps = {
+  /** Bertambah saat tombol pembuka di hero ditekan. */
+  openRequest?: number;
+  onVisibilityChange?: (visible: boolean) => void;
+};
+
 const steps = [
   { href: '/dashboard', icon: Search, title: 'Cari saham', text: 'Masukkan kode emiten yang ingin kamu cek.' },
   { href: '/technical/BBCA.JK', icon: BarChart3, title: 'Baca ringkasan', text: 'Lihat teknikal dan fundamentalnya.' },
@@ -13,19 +19,29 @@ const steps = [
   { href: '/watchlist', icon: BookmarkPlus, title: 'Simpan watchlist', text: 'Pantau saham pilihan dari satu tempat.' },
 ];
 
-/** Panduan sekali lihat; bukan dashboard baru dan dapat ditutup permanen per browser. */
-export default function GettingStartedGuide() {
+/** Panduan sekali lihat; dapat ditutup per browser dan dibuka lagi dari hero. */
+export default function GettingStartedGuide({ openRequest = 0, onVisibilityChange }: GettingStartedGuideProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    setVisible(window.localStorage.getItem(DISMISSED_KEY) !== '1');
-  }, []);
+    const nextVisible = window.localStorage.getItem(DISMISSED_KEY) !== '1';
+    setVisible(nextVisible);
+    onVisibilityChange?.(nextVisible);
+  }, [onVisibilityChange]);
+
+  useEffect(() => {
+    if (openRequest <= 0) return;
+    window.localStorage.removeItem(DISMISSED_KEY);
+    setVisible(true);
+    onVisibilityChange?.(true);
+  }, [openRequest, onVisibilityChange]);
 
   if (!visible) return null;
 
   const dismiss = () => {
     window.localStorage.setItem(DISMISSED_KEY, '1');
     setVisible(false);
+    onVisibilityChange?.(false);
   };
 
   return (
