@@ -147,6 +147,22 @@ bobot, ambang, aturan entry/exit, kalender, biaya, dan acceptance criteria, di-h
 Mengubah satu bobot/biaya menghasilkan `config_hash` berbeda, jadi protokol baru - histori
 OOS lama tidak bisa diklaim ulang.
 
+### 2026-08-15 - LensRadar tetap tersedia saat bursa libur; breadth 100 emiten
+
+- Cache skor LensRadar aktif dan snapshot sukses terakhir kini disimpan hingga 14 hari.
+  Apabila cache versi universe aktif belum ada setelah perubahan versi, pembaca boleh
+  memakai snapshot valid versi sebelumnya sebagai **Data sesi terakhir**. Umur dihitung
+  dari `computedAt`; snapshot lama tidak pernah diberi label live.
+- Market Breadth memakai 100 emiten pertama dari `AI_PICK_UNIVERSE` (`idx-liquid-v2-200`),
+  bukan daftar manual 54 ticker. Cron tetap mengambilnya secara batch 10 ticker sehingga
+  biaya provider tetap bounded; respons menyertakan `expectedTotal` agar UI membedakan
+  100 target dari jumlah quote yang benar-benar terbaca.
+- `intraday-collect` tetap **systemd VPS, bukan QStash** (slot QStash penuh). Unit sudah ada
+  di `deploy/intraday-collect/`, tetapi pemasangan membutuhkan akses root ke VPS dan tidak
+  dapat dilakukan oleh push kode: jalankan prosedur `sudo cp` / `daemon-reload` / `enable`
+  pada bagian Intraday Validation Lab di atas, lalu konfirmasi lewat `job_run_log` sebelum
+  mengubah status manifest menjadi `known`.
+
 ### 2026-08-14 - Export kartu "paper/majalah" untuk LensMoat & Earnings Monitor
 
 Permintaan pengguna: setelah melihat contoh infografis pemerintah (kartu statistik

@@ -4,6 +4,7 @@ import {
   computeQuantitativeMarketRegime,
   type RegimeDailyBar,
 } from './market-regime.service';
+import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-pulse/route.ts, verbatim.
 // IDX Indices
 //
@@ -47,15 +48,12 @@ const IDX_SECTORS = [
   { sector: 'Consumer Cyclical', color: '#a855f7', stocks: ['MAPI.JK', 'ACES.JK', 'AMRT.JK', 'LPPF.JK', 'ERAA.JK', 'RALS.JK'] },
 ];
 
-// Breadth sample stocks (broad IDX)
-const BREADTH_STOCKS = [
-  'BBCA.JK','BBRI.JK','BMRI.JK','BBNI.JK','TLKM.JK','ASII.JK','GOTO.JK','ADRO.JK','UNTR.JK',
-  'ICBP.JK','KLBF.JK','PGAS.JK','PTBA.JK','ANTM.JK','BRPT.JK','INKP.JK','INDF.JK','ITMG.JK',
-  'CPIN.JK','UNVR.JK','AKRA.JK','BRIS.JK','SMGR.JK','INTP.JK','CTRA.JK','BSDE.JK','SMRA.JK',
-  'ISAT.JK','EXCL.JK','BUKA.JK','TOWR.JK','TBIG.JK','SIDO.JK','AMRT.JK','MYOR.JK','HMSP.JK',
-  'GGRM.JK','JPFA.JK','ARTO.JK','BDMN.JK','BNGA.JK','BBTN.JK','MEGA.JK','INDY.JK','BYAN.JK',
-  'HRUM.JK','INCO.JK','TINS.JK','MAPI.JK','SILO.JK','EMTK.JK','WIKA.JK','ADHI.JK','PWON.JK',
-];
+// Breadth memakai 100 emiten pertama dari universe likuid aktif SahamLens, bukan daftar
+// manual 54 saham. Daftar sumbernya sudah dikurasi proyek dari listing/data riil dan
+// diverifikasi tanpa duplikat; 100 adalah cakupan yang lebih representatif tetapi tetap
+// bounded agar cron 5-menit tidak membebani provider.
+export const MARKET_BREADTH_UNIVERSE_TARGET_SIZE = 100;
+export const MARKET_BREADTH_STOCKS = AI_PICK_UNIVERSE.slice(0, MARKET_BREADTH_UNIVERSE_TARGET_SIZE);
 
 async function fetchYahooQuote(symbol: string) {
   try {
@@ -326,8 +324,8 @@ export async function getMarketPulse() {
 
   // 3. Fetch breadth data in batches
   const breadthQuotes: any[] = [];
-  for (let i = 0; i < BREADTH_STOCKS.length; i += 10) {
-    const chunk = BREADTH_STOCKS.slice(i, i + 10);
+  for (let i = 0; i < MARKET_BREADTH_STOCKS.length; i += 10) {
+    const chunk = MARKET_BREADTH_STOCKS.slice(i, i + 10);
     const results = await Promise.all(chunk.map(s => fetchQuoteSimple(s)));
     results.forEach(r => { if (r) breadthQuotes.push(r); });
   }
@@ -341,7 +339,7 @@ export async function getMarketPulse() {
     ihsgHistory,
     breadth: {
       total: breadthQuotes.length,
-      expectedTotal: BREADTH_STOCKS.length,
+      expectedTotal: MARKET_BREADTH_STOCKS.length,
       advancing,
       declining,
       unchanged,
@@ -363,6 +361,7 @@ export async function getMarketPulse() {
     sectorHeatmap: sectorHeatmap.sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0)),
     breadth: {
       total: breadthQuotes.length,
+      expectedTotal: MARKET_BREADTH_STOCKS.length,
       advancing,
       declining,
       unchanged,
