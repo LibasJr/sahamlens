@@ -62,9 +62,24 @@ function ensureSchema(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_user_auth_events_created_at ON user_auth_events (created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_user_auth_events_user_id ON user_auth_events (user_id, created_at DESC);
+      -- Funnel produk memakai ID acak per browser, bukan email atau IP. Satu kejadian
+      -- per jenis/fitur/hari membuat metrik tetap berguna tanpa menjadikan tabel ini
+      -- log klik yang terlalu rinci atau mudah membengkak karena refresh halaman.
+      CREATE TABLE IF NOT EXISTS product_funnel_events (
+        id BIGSERIAL PRIMARY KEY,
+        visitor_id UUID NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN ('locked_view', 'signup_click', 'signup_completed')),
+        feature TEXT NOT NULL,
+        event_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (visitor_id, event_type, feature, event_date)
+      );
+      CREATE INDEX IF NOT EXISTS idx_product_funnel_events_created_at ON product_funnel_events (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_product_funnel_events_event_type ON product_funnel_events (event_type, created_at DESC);
       -- Retensi singkat: cukup untuk investigasi abuse tanpa menyimpan jejak jaringan
       -- pengguna lebih lama dari yang dibutuhkan operasional.
       DELETE FROM user_auth_events WHERE created_at < NOW() - INTERVAL '90 days';
+      DELETE FROM product_funnel_events WHERE created_at < NOW() - INTERVAL '90 days';
     `
       )
       .then(() => {});
@@ -116,6 +131,77 @@ export interface AuthEventRow {
   ip_prefix: string | null;
   user_agent: string | null;
   created_at: string;
+}
+
+export type ProductFunnelEventType = 'locked_view' | 'signup_click' | 'signup_completed';
+
+export interface ProductFunnelSummary {
+  periodDays: number;
+  lockedViewVisitors: number;
+  signupClickVisitors: number;
+  signupCompletedVisitors: number;
+  clickRatePct: number | null;
+  completionRatePct: number | null;
+  topFeatures: { feature: string; lockedViews: number; signupClicks: number; signupsCompleted: number }[];
+}
+
+export async function recordProductFunnelEvent(input: {
+  visitorId: string;
+  eventType: ProductFunnelEventType;
+  feature: string;
+}): Promise<void> {
+  await ensureSchema();
+  await pool.query(
+    `INSERT INTO product_funnel_events (visitor_id, event_type, feature)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (visitor_id, event_type, feature, event_date) DO NOTHING`,
+    [input.visitorId, input.eventType, input.feature],
+  );
+}
+
+/** Ringkasan ringan untuk admin: browser unik, bukan identitas individu. */
+export async function getProductFunnelSummary(periodDays = 30): Promise<ProductFunnelSummary> {
+  await ensureSchema();
+  const safeDays = Math.max(1, Math.min(90, Math.floor(periodDays)));
+  const [summaryResult, featuresResult] = await Promise.all([
+    pool.query<Pick<ProductFunnelSummary, 'lockedViewVisitors' | 'signupClickVisitors' | 'signupCompletedVisitors'>>(
+      `SELECT
+         COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'locked_view')::int AS "lockedViewVisitors",
+         COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'signup_click')::int AS "signupClickVisitors",
+         COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'signup_completed')::int AS "signupCompletedVisitors"
+       FROM product_funnel_events
+       WHERE created_at >= NOW() - ($1 * INTERVAL '1 day')`,
+      [safeDays],
+    ),
+    pool.query<{ feature: string; lockedViews: number; signupClicks: number; signupsCompleted: number }>(
+      `SELECT feature,
+         COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'locked_view')::int AS "lockedViews",
+         COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'signup_click')::int AS "signupClicks",
+         COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'signup_completed')::int AS "signupsCompleted"
+       FROM product_funnel_events
+       WHERE created_at >= NOW() - ($1 * INTERVAL '1 day')
+       GROUP BY feature
+       ORDER BY "signupClicks" DESC, "lockedViews" DESC, feature ASC
+       LIMIT 10`,
+      [safeDays],
+    ),
+  ]);
+  const summary = summaryResult.rows[0] ?? {
+    lockedViewVisitors: 0,
+    signupClickVisitors: 0,
+    signupCompletedVisitors: 0,
+  };
+  return {
+    periodDays: safeDays,
+    ...summary,
+    clickRatePct: summary.lockedViewVisitors > 0
+      ? (summary.signupClickVisitors / summary.lockedViewVisitors) * 100
+      : null,
+    completionRatePct: summary.signupClickVisitors > 0
+      ? (summary.signupCompletedVisitors / summary.signupClickVisitors) * 100
+      : null,
+    topFeatures: featuresResult.rows,
+  };
 }
 
 /** Audit keberhasilan autentikasi. IP mentah sengaja tidak pernah masuk database. */

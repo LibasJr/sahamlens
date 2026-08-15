@@ -25,6 +25,7 @@ import AnalysisGlossary from '@/components/AnalysisGlossary';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -67,6 +68,7 @@ function FundamentalContent() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const fundamentalExportRef = useRef<HTMLDivElement>(null);
+  const lockedViewTrackedForTicker = useRef<string | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem('sahamlens.analysis-view.fundamental');
@@ -237,12 +239,24 @@ function FundamentalContent() {
     return () => clearInterval(interval);
   }, [ticker, mounted]);
 
+  // Pengukuran funnel hanya berjalan setelah status guest benar-benar terselesaikan.
+  // Tidak ada email/IP yang dikirim; helper menyimpan UUID acak per browser.
+  useEffect(() => {
+    const hasLockedCards = Array.isArray(data?.analyzers) && data.analyzers.some(
+      (analyzer: { label?: string }) => !isVisibleForFundamentalGuest(analyzer.label || ''),
+    );
+    if (!authResolved || authLoading || user || !hasLockedCards || lockedViewTrackedForTicker.current === ticker) return;
+    lockedViewTrackedForTicker.current = ticker;
+    trackProductFunnelEvent('locked_view', 'fundamental_indicators');
+  }, [authLoading, authResolved, data?.analyzers, ticker, user]);
+
   const formatTime = (date: Date | null) => {
     if (!date) return '-';
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
   };
 
   const stock = data?.stock || {};
+  const sourceRetrievedAt = data?.source?.retrievedAt ? new Date(data.source.retrievedAt) : null;
   // `tech` dan `candles` dihapus (audit 2026-08-05 / 2026-08-06): keduanya variabel
   // mati - /api/fundamental tidak pernah mengembalikan field `technical`, dan halaman
   // ini tidak merender chart sama sekali, jadi histori candle-nya tidak pernah dipakai.
@@ -400,10 +414,13 @@ function FundamentalContent() {
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
-            {marketClosed ? 'Market Closed' : 'Market Open'}
+            {marketClosed ? 'Bursa sedang tutup' : 'Bursa sedang buka'}
           </div>
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            Update: {formatTime(lastUpdate)} • {marketClosed ? 'No Polling' : '1m refresh'}
+            Sumber: {data?.source?.provider || 'Tidak tersedia'} • snapshot sumber {formatTime(sourceRetrievedAt)}
+          </div>
+          <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
+            Layar diperbarui {formatTime(lastUpdate)} • {marketClosed ? 'menunggu sesi berikutnya' : 'cek ulang tiap 1 menit'}
           </div>
           <button
             onClick={handleRefresh}
@@ -694,7 +711,7 @@ function FundamentalContent() {
                 <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-3 py-2 text-xs text-tv-yellow">
                   <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span>{lockedAnalyzerCount} indikator fundamental terkunci (ROA, rasio likuiditas, margin, pertumbuhan, dll).</span>
-                  <a href="/signup" className="font-bold underline underline-offset-2 hover:text-white">Daftar gratis untuk buka</a>
+                  <a href="/signup" onClick={() => trackSignupClick('fundamental_indicators')} className="font-bold underline underline-offset-2 hover:text-white">Daftar gratis untuk buka</a>
                 </div>
               )}
 
@@ -721,6 +738,7 @@ function FundamentalContent() {
                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
                           <a
                             href="/signup"
+                            onClick={() => trackSignupClick('fundamental_indicators')}
                             className="flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-2 py-1 text-[10px] font-bold text-tv-yellow transition-colors hover:border-tv-yellow hover:text-white"
                             aria-label={`Daftar gratis untuk membuka indikator ${algo.label}`}
                           >
