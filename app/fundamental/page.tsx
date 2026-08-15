@@ -820,7 +820,11 @@ function FundamentalContent() {
           </div>
 
           <div className="w-full">
-            <IntrinsicValue symbol={ticker} />
+            <IntrinsicValue
+              symbol={ticker}
+              isAuthenticated={Boolean(user)}
+              authResolved={authResolved && !authLoading}
+            />
           </div>
         </div>
       </PageContainer>
