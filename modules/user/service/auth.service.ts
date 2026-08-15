@@ -5,7 +5,7 @@ import { provisionPortfolio } from '../../portfolio';
 import { getUserByEmail, createUser, recordSuccessfulLogin, updateUser } from '../repository/user.repository';
 import { sendVerificationEmail } from '../repository/email.repository';
 import { generateOtp } from '../utils/otp-generator';
-import { TRIAL_DAYS, VERIFICATION_CODE_TTL_MIN } from '../constants/user.constants';
+import { VERIFICATION_CODE_TTL_MIN } from '../constants/user.constants';
 import { InvalidCredentialsError, EmailNotVerifiedError, EmailAlreadyRegisteredError, InvalidVerificationCodeError, VerificationCodeExpiredError } from '../types/user.errors';
 import { timingSafeStringEqual } from '../../../shared/security/timing-safe-equal';
 import { NotFoundError, ValidationError } from '../../../shared/errors/app-error';
@@ -118,11 +118,9 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
     throw new VerificationCodeExpiredError();
   }
 
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
-  const trialEndsAtIso = trialEndsAt.toISOString();
-
-  await updateUser(user.id, { is_verified: true, verification_code: null, verification_code_expires: null, trial_ends_at: trialEndsAtIso });
+  // Fase pengujian belum memiliki tanggal akhir akses. Nilai lama juga dibersihkan
+  // oleh migrasi ringan di repository agar sesi lama tidak memunculkan batas semu.
+  await updateUser(user.id, { is_verified: true, verification_code: null, verification_code_expires: null, trial_ends_at: null });
   try {
     await recordSuccessfulLogin(user.id);
   } catch (error) {
@@ -142,7 +140,7 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
     email: user.email,
     role: user.role,
     is_pro: user.is_pro,
-    trial_ends_at: trialEndsAtIso,
+    trial_ends_at: null,
     pro_expires_at: null,
   });
 

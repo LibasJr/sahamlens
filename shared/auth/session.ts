@@ -4,6 +4,7 @@ import { SESSION_COOKIE, ADMIN_COOKIE } from '../constants/cookie-names';
 import { verifyAdminToken } from './admin-token';
 import { touchPresence } from './presence';
 import { fetchLiveProFields } from './pro-status';
+import { TESTING_OPEN_ACCESS } from '../constants/access';
 
 export type { SessionPayload };
 
@@ -59,6 +60,7 @@ function isProExpired(expiresAt: string | null | undefined): boolean {
 // lolos tanpa syarat lewat cabang pertama.
 export function checkProAccess(session: SessionPayload | null): boolean {
   if (!session) return false;
+  if (TESTING_OPEN_ACCESS) return true;
   if (session.role === 'admin') return true;
   if (session.is_pro && !isProExpired(session.pro_expires_at)) return true;
   if (session.trial_ends_at && new Date(session.trial_ends_at) > new Date()) return true;

@@ -825,7 +825,7 @@ export default function BacktestPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="Backtest butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="Backtest butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
@@ -833,8 +833,8 @@ export default function BacktestPage() {
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
-        title="Masa Trial 7 Hari Habis"
-        body="Backtest butuh akun Pro setelah trial 7 hari berakhir."
+        title="Akses Akun Belum Tersedia"
+        body="Silakan masuk kembali untuk melanjutkan penggunaan Backtest."
         benefits={[
           'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensConsensus & Compare Tool',
