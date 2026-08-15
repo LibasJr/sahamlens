@@ -19,6 +19,7 @@ function DcfContent() {
   const [ticker, setTickerState] = useState('TLKM');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -46,13 +47,20 @@ function DcfContent() {
 
   const fetchDcf = async (symbol: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch('/api/dcf/' + symbol);
       const json = await res.json();
-      setData(res.ok ? json : null);
+      if (!res.ok) {
+        setData(null);
+        setLoadError(json?.error || 'Data DCF sementara tidak dapat dimuat.');
+        return;
+      }
+      setData(json);
     } catch (e) {
       console.error(e);
       setData(null);
+      setLoadError('Tidak dapat menghubungi layanan DCF. Coba lagi beberapa saat lagi.');
     } finally {
       setLoading(false);
     }
@@ -104,6 +112,11 @@ function DcfContent() {
         </div>
       }
     >
+      {loadError && (
+        <div className="rounded-lg border border-tv-red/30 bg-tv-red/10 p-4 text-sm text-tv-red">
+          {loadError}
+        </div>
+      )}
       {/* DCF tidak berlaku (bank / data FCF tidak tersedia) */}
       {quant.not_applicable && (
         <div className="bg-tv-card border border-tv-yellow/40 rounded-lg p-6 flex items-start gap-4">
