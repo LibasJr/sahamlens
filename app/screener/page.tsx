@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
-import { Sliders, Award, ArrowUpDown, Download, Bookmark, X } from 'lucide-react';
+import { Sliders, Award, ArrowUpDown, Download, Bookmark, X, Lock } from 'lucide-react';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fmtTriliun, fmtMiliar } from '@/shared/format/fundamental-format';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
 type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
   | 'div_yield' | 'bandarmology' | 'moat' | 'signal' | 'pattern_tag' | 'sentiment'
@@ -101,8 +102,26 @@ function loadTemplates(): ScreenerTemplate[] {
   }
 }
 
+const GUEST_VISIBLE_RESULT_COUNT = 3;
+
+function GuestScannerLock() {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-4 py-3 text-xs">
+      <div className="flex items-start gap-2 text-tv-muted">
+        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-tv-blue" />
+        <span><strong className="text-tv-text">7 kandidat berikutnya terkunci.</strong> Masuk untuk melihat seluruh hasil LensScanner, menyimpan template, dan mengekspor CSV.</span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Link href="/login?next=%2Fscreener" className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
+        <Link href="/signup?next=%2Fscreener" className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
+      </div>
+    </div>
+  );
+}
+
 export default function ScreenerPage() {
   const router = useRouter();
+  const { loading: authLoading, resolved: authResolved, user } = useAuthUser();
   const [riskProfile, setRiskProfile] = useState<'Konservatif' | 'Moderat' | 'Agresif'>('Moderat');
   const [sectorFilter, setSectorFilter] = useState('');
   const [maxPriceInput, setMaxPriceInput] = useState('');
@@ -187,12 +206,15 @@ export default function ScreenerPage() {
   }, [riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput, runScreener]);
 
   const top10 = data?.analysis?.top_10_stocks || [];
+  const isConfirmedGuest = authResolved && !authLoading && !user;
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return top10;
     const col = SORTABLE_COLUMNS.find((c) => c.key === sortKey)!;
     return [...top10].sort((a: any, b: any) => compareValues(col.getValue(a), col.getValue(b), sortDir));
   }, [top10, sortKey, sortDir]);
+  const visibleRows = isConfirmedGuest ? sortedRows.slice(0, GUEST_VISIBLE_RESULT_COUNT) : sortedRows;
+  const hasLockedGuestRows = isConfirmedGuest && sortedRows.length > GUEST_VISIBLE_RESULT_COUNT;
 
   // BARU (2026-08-14, masukan review eksternal - "tombol Export ke Excel/CSV").
   // Murni client-side dari data yang SUDAH dimuat (bukan panggilan API baru) - kolom
@@ -388,23 +410,34 @@ export default function ScreenerPage() {
             )}
 
             <div className="ml-auto flex flex-wrap items-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowSaveTemplate((v) => !v)}
-                title="Simpan kombinasi profil + filter saat ini sebagai template"
-                className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-border px-3 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
-              >
-                <Bookmark className="h-3.5 w-3.5" /> Simpan Template
-              </button>
-              <button
-                type="button"
-                onClick={exportCsv}
-                disabled={sortedRows.length === 0}
-                title="Unduh hasil yang sedang tampil sebagai CSV"
-                className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-blue/30 bg-tv-blue/10 px-3 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Download className="h-3.5 w-3.5" /> Export CSV
-              </button>
+              {isConfirmedGuest ? (
+                <Link
+                  href="/login?next=%2Fscreener"
+                  className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-blue/40 bg-tv-blue/10 px-3 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15"
+                >
+                  <Lock className="h-3.5 w-3.5" /> Masuk untuk simpan & ekspor
+                </Link>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveTemplate((v) => !v)}
+                    title="Simpan kombinasi profil + filter saat ini sebagai template"
+                    className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-border px-3 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
+                  >
+                    <Bookmark className="h-3.5 w-3.5" /> Simpan Template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={exportCsv}
+                    disabled={sortedRows.length === 0}
+                    title="Unduh hasil yang sedang tampil sebagai CSV"
+                    className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-blue/30 bg-tv-blue/10 px-3 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export CSV
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -539,7 +572,7 @@ export default function ScreenerPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
-                {sortedRows.map((item: any, idx: number) => (
+                {visibleRows.map((item: any, idx: number) => (
                   <tr key={item.ticker} className="hover:bg-tv-hover/50 transition-colors">
                     <td className="p-3 text-tv-muted font-bold">{idx + 1}</td>
                     <td className="p-3">
@@ -676,6 +709,13 @@ export default function ScreenerPage() {
                     <td className="p-3 text-right text-tv-text font-number">{fmtMiliar(item.adv20_idr)}</td>
                   </tr>
                 ))}
+                {hasLockedGuestRows && (
+                  <tr>
+                    <td colSpan={SORTABLE_COLUMNS.length + 1} className="p-4">
+                      <GuestScannerLock />
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -706,7 +746,7 @@ export default function ScreenerPage() {
                 ))}
               </div>
 
-              {sortedRows.map((item: any, idx: number) => {
+              {visibleRows.map((item: any, idx: number) => {
                 const growth = parseFormattedNumber(item.rev_growth_ttm);
                 return (
                   <motion.div
@@ -786,6 +826,7 @@ export default function ScreenerPage() {
                   </motion.div>
                 );
               })}
+              {hasLockedGuestRows && <GuestScannerLock />}
             </div>
           )}
 

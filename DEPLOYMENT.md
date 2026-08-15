@@ -202,6 +202,26 @@ OOS lama tidak bisa diklaim ulang.
   murni sorting di browser untuk inspeksi admin; tidak menulis database, tidak mengubah
   urutan sumber, dan tidak menyentuh formula, bobot, atau hasil validasi.
 
+### 2026-08-15 - Nilai intrinsik: angka publik, penjelasan akun
+
+- Kartu Intrinsic Value tetap menampilkan estimasi nilai wajar, harga snapshot, MOS,
+  grafik metode, dan label valuasi kepada pengunjung. Ini sengaja menjadi konteks yang
+  dapat dinilai sebelum pengguna membuat akun.
+- `POST /api/intrinsic-explain` memang membutuhkan sesi login. UI sekarang tidak lagi
+  menyamarkan respons 401 itu sebagai “Penjelasan belum tersedia”: tamu melihat CTA
+  **Masuk/Daftar** untuk Penjelasan LensAI dan rincian bobot/cara hitung, sementara
+  pengguna login tetap menerima penjelasan dan detail yang sama seperti sebelumnya.
+- Tidak ada perubahan formula valuasi, provider AI, cron, env var, atau data tersimpan.
+
+### 2026-08-15 - LensScanner: teaser kandidat, hasil lengkap akun
+
+- Pengunjung LensScanner tetap dapat memilih profil risiko dan filter dasar, lalu
+  melihat tiga kandidat teratas. Tujuh kandidat berikutnya diberi CTA **Masuk/Daftar**;
+  simpan template dan ekspor CSV juga menjadi fitur akun. Pengguna yang sudah login
+  tetap melihat sepuluh kandidat penuh dan semua kontrol seperti sebelumnya.
+- Penguncian ini hanya mengatur presentasi/funnel pada halaman publik; algoritme
+  screener, urutan skor, filter server, dan data kandidat tidak diubah.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML

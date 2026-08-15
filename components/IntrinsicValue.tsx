@@ -1,18 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { Target, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Target, TrendingDown, TrendingUp, Lock } from 'lucide-react';
 
 interface IntrinsicValueProps {
   symbol: string;
+  isAuthenticated: boolean;
+  authResolved: boolean;
 }
 
-export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
+export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }: IntrinsicValueProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
+  const [explanationUnavailable, setExplanationUnavailable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,9 +39,17 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
   // Penjelasan LensAI - dipanggil terpisah setelah angka intrinsic value siap,
   // supaya kartu tetap tampil cepat walau penjelasan AI-nya lebih lambat.
   useEffect(() => {
-    if (!data || data.error) return;
+    // Penjelasan LensAI memang akses akun. Jangan panggil endpoint untuk tamu lalu
+    // menyembunyikan 401 sebagai "belum tersedia" - itu membuat pengguna mengira
+    // model/data valuasinya gagal, padahal yang dibutuhkan hanya login.
+    if (!data || data.error || !authResolved || !isAuthenticated) {
+      setLoadingExplanation(false);
+      return;
+    }
     let cancelled = false;
     setLoadingExplanation(true);
+    setExplanation(null);
+    setExplanationUnavailable(false);
     fetch('/api/intrinsic-explain', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,12 +59,16 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
       body: JSON.stringify({ symbol }),
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d?.explanation) setExplanation(d.explanation); })
-      .catch(() => {})
+      .then((d) => {
+        if (cancelled) return;
+        if (d?.explanation) setExplanation(d.explanation);
+        else setExplanationUnavailable(true);
+      })
+      .catch(() => { if (!cancelled) setExplanationUnavailable(true); })
       .finally(() => { if (!cancelled) setLoadingExplanation(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, authResolved, isAuthenticated]);
 
   if (loading) {
     return (
@@ -76,6 +92,8 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
     })
     .filter(Boolean) as Array<{ key: string; name: string; value: number; weight: number }>;
   const hasWeightedFormula = weightedParts.length > 0;
+  const detailsUnlocked = authResolved && isAuthenticated;
+  const nextPath = `/fundamental?symbol=${encodeURIComponent(symbol)}`;
   
   // Format data for chart
   const chartData = Object.keys(methods).map(key => ({
@@ -249,7 +267,7 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
                   </div>
                 ))}
               </div>
-              {hasWeightedFormula && (
+              {hasWeightedFormula && (detailsUnlocked ? (
                 <details className="mt-3 rounded-lg border border-tv-border bg-tv-bg/70">
                   <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-blue">
                     Lihat cara Rp {formatIDR(fair_value)} dihitung
@@ -270,7 +288,17 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
                     </div>
                   </div>
                 </details>
-              )}
+              ) : authResolved ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-3 py-2.5 text-[11px]">
+                  <div className="flex items-start gap-2 text-tv-muted">
+                    <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-blue" />
+                    <span><strong className="text-tv-text">Rincian perhitungan terkunci.</strong> Masuk untuk melihat bobot metode dan cara nilai wajar dihitung.</span>
+                  </div>
+                  <Link href={`/login?next=${encodeURIComponent(nextPath)}`} className="shrink-0 rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">
+                    Masuk
+                  </Link>
+                </div>
+              ) : null)}
             </div>
           )}
         </div>
@@ -283,12 +311,27 @@ export default function IntrinsicValue({ symbol }: IntrinsicValueProps) {
         <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading mb-2 flex items-center gap-1.5">
           <Target className="w-3 h-3 text-tv-accent" /> Penjelasan LensAI
         </h4>
-        {loadingExplanation ? (
+        {!authResolved ? (
+          <div className="text-xs text-tv-muted animate-pulse">Menyiapkan akses LensAI...</div>
+        ) : !isAuthenticated ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-3 py-2.5 text-xs">
+            <div className="flex items-start gap-2 text-tv-muted">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-tv-blue" />
+              <span><strong className="text-tv-text">Masuk untuk melihat Penjelasan LensAI.</strong> LensAI menjelaskan dasar nilai wajar, metode yang paling memengaruhi, dan batasan model.</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link href={`/login?next=${encodeURIComponent(nextPath)}`} className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
+              <Link href={`/signup?next=${encodeURIComponent(nextPath)}`} className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
+            </div>
+          </div>
+        ) : loadingExplanation ? (
           <div className="text-xs text-tv-muted animate-pulse">LensAI sedang menganalisis...</div>
         ) : explanation ? (
           <p className="text-xs text-tv-text leading-relaxed">{explanation}</p>
+        ) : explanationUnavailable ? (
+          <p className="text-xs text-tv-muted">Penjelasan LensAI sedang tidak dapat dimuat. Coba segarkan halaman beberapa saat lagi.</p>
         ) : (
-          <p className="text-xs text-tv-muted">Penjelasan belum tersedia.</p>
+          <p className="text-xs text-tv-muted">Penjelasan LensAI belum tersedia untuk data valuasi ini.</p>
         )}
       </div>
     </div>
