@@ -574,7 +574,8 @@ export default function HomePage() {
        *    KOREKSI: versi pertama komentar ini menulis "jalan ke landing tetap ada lewat
        *    logo di TopMarketBar" - itu SALAH dan sempat mengunci pengguna dari "/".
        *    Logo Sidebar menunjuk ke /home, TopMarketBar tidak punya tautan ke "/".
-       *    Penggantinya sekarang ada di components/SiteFooter.tsx ("Ringkasan Pasar").
+       *    Navigasi ke halaman lain tetap tersedia dari menu utama; tidak perlu
+       *    menambahkan tombol kembali yang mengganggu fokus Beranda.
        * 2. Badge "Daily workspace" + label "Data server + ...". Keduanya metadata,
        *    bukan informasi yang dicari orang saat membuka beranda.
        * 3. Kalimat instruksi "Mulai dari kondisi pasar, temukan kandidat...". Urutan
