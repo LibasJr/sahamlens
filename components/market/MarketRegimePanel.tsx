@@ -96,6 +96,8 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
         minute: '2-digit',
         timeZone: 'Asia/Jakarta',
       }) + ' WIB';
+  const scoreTerms = data.indicators.filter((indicator) => indicator.score != null);
+  const contributionTotal = scoreTerms.reduce((sum, indicator) => sum + indicator.contribution, 0);
 
   return (
     <section className="overflow-hidden rounded-xl border border-tv-border bg-tv-card shadow-1">
@@ -150,6 +152,10 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
               </span>
             </div>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-tv-text/85">{data.summary}</p>
+            <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-tv-muted">
+              Skor {score ?? 'N/A'} = {scoreTerms.map((indicator) => `${indicator.label} ${formatNumber(indicator.contribution)} poin`).join(' + ')} = {formatNumber(contributionTotal)} poin (dibulatkan).
+              {' '}Dihitung dari snapshot harga Yahoo Finance yang sama, bukan data dummy atau prediksi AI.
+            </p>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">

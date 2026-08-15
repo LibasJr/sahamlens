@@ -6,6 +6,7 @@ import { logger } from '@/shared/logger/logger';
 import { getMarketPulse } from '@/modules/market';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // BUILD 006 (Scheduler) - pola sama persis dengan app/api/cron/macro/route.ts
 // (Cron -> Worker langsung, verifikasi signature QStash, dibungkus job_run_log).
@@ -14,7 +15,7 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 // supaya GET /api/market-pulse pengguna tinggal baca cache (lihat perubahan di
 // route itu) - sebelumnya endpoint itu TIDAK PERNAH di-cache sama sekali, setiap
 // pemuatan halaman = ~50 fetch Yahoo baru.
-const CACHE_KEY = 'sahamlens:cache:computed:market-pulse:v2';
+const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_PULSE;
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');

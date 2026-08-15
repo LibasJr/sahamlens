@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -179,6 +179,71 @@ function SectorDetailModal({ sector, onClose }: { sector: any; onClose: () => vo
   );
 }
 
+type BreadthDirection = 'ADVANCING' | 'UNCHANGED' | 'DECLINING';
+
+const BREADTH_DETAIL: Record<BreadthDirection, { title: string; description: string; tone: string }> = {
+  ADVANCING: {
+    title: 'Emiten naik',
+    description: 'Perubahan lebih dari +0,10% terhadap penutupan sesi sebelumnya.',
+    tone: 'text-tv-green',
+  },
+  UNCHANGED: {
+    title: 'Emiten stagnan',
+    description: 'Perubahan berada di antara -0,10% hingga +0,10%.',
+    tone: 'text-tv-muted',
+  },
+  DECLINING: {
+    title: 'Emiten turun',
+    description: 'Perubahan kurang dari -0,10% terhadap penutupan sesi sebelumnya.',
+    tone: 'text-tv-red',
+  },
+};
+
+// Daftar ini memakai payload breadth yang sama dengan kartu 65/14/21. Tidak ada
+// pemindaian kedua atau data contoh di browser; karena itu jumlah modal harus selalu
+// sama dengan angka headline dari snapshot yang dilihat pengguna.
+function BreadthDetailModal({ direction, stocks, onClose }: { direction: BreadthDirection; stocks: any[]; onClose: () => void }) {
+  const detail = BREADTH_DETAIL[direction];
+  const sortedStocks = [...stocks].sort((a, b) => {
+    if (direction === 'DECLINING') return a.changePct - b.changePct;
+    if (direction === 'UNCHANGED') return Math.abs(a.changePct) - Math.abs(b.changePct);
+    return b.changePct - a.changePct;
+  });
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-sm overflow-hidden rounded-xl border border-tv-border bg-tv-card shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-tv-border px-4 py-3">
+          <div>
+            <h4 className="font-heading text-sm font-bold text-tv-text">{stocks.length} {detail.title}</h4>
+            <p className="mt-0.5 text-[10px] text-tv-muted">Snapshot quote yang sama dengan Market Breadth</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Tutup daftar emiten" className="text-tv-muted transition-colors hover:text-tv-text">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="px-4 pt-3 text-[10px] leading-relaxed text-tv-muted">{detail.description}</p>
+        <div className="max-h-[55vh] space-y-1.5 overflow-y-auto p-4 pt-2">
+          {sortedStocks.map((stock) => (
+            <motion.div key={stock.symbol} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+              <Link href={`/technical/${stock.symbol}.JK`} onClick={onClose} className="flex items-center gap-3 rounded-lg bg-tv-hover px-3 py-2 transition-colors hover:bg-tv-border">
+                <TickerAvatar symbol={stock.symbol} size="sm" />
+                <span className="flex-1 text-sm font-bold text-tv-text">{stock.symbol}</span>
+                <span className="text-right">
+                  <span className={'block text-xs font-number font-semibold ' + detail.tone}>
+                    {stock.changePct > 0 ? '+' : ''}{stock.changePct.toFixed(2)}%
+                  </span>
+                  <span className="block text-[9px] font-number text-tv-muted">Rp {stock.price.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                </span>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Menerjemahkan 11 angka sektor jadi satu kalimat kondisi. Yang penting bagi user
  * bukan angka per sektor (itu sudah ada di tile), tapi apakah pasar bergerak
@@ -261,6 +326,7 @@ export default function MarketPulse() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedSector, setSelectedSector] = useState<any>(null);
+  const [selectedBreadthDirection, setSelectedBreadthDirection] = useState<BreadthDirection | null>(null);
   // BUG FIX (2026-08-06): sebelumnya kegagalan fetch dan penolakan akses tidak
   // pernah tercatat di state - `data` tetap null sementara `loading` sudah false,
   // sehingga KETIGA section (index cards, heatmap, breadth) menampilkan skeleton
@@ -313,7 +379,8 @@ export default function MarketPulse() {
 
       setGated(null);
       setData(json);
-      setLastUpdate(new Date());
+      const snapshotTime = new Date(json.timestamp);
+      setLastUpdate(Number.isNaN(snapshotTime.getTime()) ? new Date() : snapshotTime);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
@@ -357,6 +424,14 @@ export default function MarketPulse() {
   };
 
   const formatTime = (date: Date) => date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  const breadthGroups = useMemo(() => {
+    const stocks = Array.isArray(data?.breadth?.stocks) ? data.breadth.stocks : [];
+    return {
+      ADVANCING: stocks.filter((stock: any) => stock.direction === 'ADVANCING'),
+      UNCHANGED: stocks.filter((stock: any) => stock.direction === 'UNCHANGED'),
+      DECLINING: stocks.filter((stock: any) => stock.direction === 'DECLINING'),
+    } as Record<BreadthDirection, any[]>;
+  }, [data?.breadth?.stocks]);
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -384,7 +459,7 @@ export default function MarketPulse() {
             {/* dihapus - "Yahoo Finance" tidak perlu terekspos ke publik/SEO, freshness
                 data sudah terwakili badge "Update: [jam]" di sebelah kanan. */}
             <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted whitespace-nowrap">
-              Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
+              Data sesi: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
             </div>
             <button
               onClick={fetchData}
@@ -622,18 +697,39 @@ export default function MarketPulse() {
               {/* 2 kolom saja - kartu ini sekarang setengah lebar layar, 4 kolom membuat
                   angkanya terlalu sempit dan terpotong di layar sedang. */}
               <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1 content-start">
-                <div className="bg-tv-bg border border-tv-green/20 rounded-lg p-2 sm:p-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBreadthDirection('ADVANCING')}
+                  disabled={!data.breadth.stocks}
+                  title="Buka daftar emiten naik"
+                  className="rounded-lg border border-tv-green/20 bg-tv-bg p-2 text-center transition-colors hover:bg-tv-green/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60 disabled:cursor-not-allowed disabled:opacity-70 sm:p-4"
+                >
                   <AnimatedNumber value={data.breadth.advancing} className="block text-xl sm:text-3xl font-extrabold text-tv-green font-number" />
                   <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
-                </div>
-                <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center">
+                  <div className="mt-1 text-[9px] text-tv-green/80">Ketuk untuk daftar</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedBreadthDirection('UNCHANGED')}
+                  disabled={!data.breadth.stocks}
+                  title="Buka daftar emiten stagnan"
+                  className="rounded-lg border border-tv-border bg-tv-bg p-2 text-center transition-colors hover:bg-tv-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60 disabled:cursor-not-allowed disabled:opacity-70 sm:p-4"
+                >
                   <AnimatedNumber value={data.breadth.unchanged} className="block text-xl sm:text-3xl font-extrabold text-tv-muted font-number" />
                   <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
-                </div>
-                <div className="bg-tv-bg border border-tv-red/20 rounded-lg p-2 sm:p-4 text-center">
+                  <div className="mt-1 text-[9px] text-tv-muted">Ketuk untuk daftar</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedBreadthDirection('DECLINING')}
+                  disabled={!data.breadth.stocks}
+                  title="Buka daftar emiten turun"
+                  className="rounded-lg border border-tv-red/20 bg-tv-bg p-2 text-center transition-colors hover:bg-tv-red/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60 disabled:cursor-not-allowed disabled:opacity-70 sm:p-4"
+                >
                   <AnimatedNumber value={data.breadth.declining} className="block text-xl sm:text-3xl font-extrabold text-tv-red font-number" />
                   <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
-                </div>
+                  <div className="mt-1 text-[9px] text-tv-red/80">Ketuk untuk daftar</div>
+                </button>
                 <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center flex flex-col items-center justify-center">
                   <AnimatedNumber
                     value={data.breadth.advanceDeclineRatio}
@@ -703,6 +799,13 @@ export default function MarketPulse() {
       />
       {selectedSector && (
         <SectorDetailModal sector={selectedSector} onClose={() => setSelectedSector(null)} />
+      )}
+      {selectedBreadthDirection && (
+        <BreadthDetailModal
+          direction={selectedBreadthDirection}
+          stocks={breadthGroups[selectedBreadthDirection]}
+          onClose={() => setSelectedBreadthDirection(null)}
+        />
       )}
     </div>
   );

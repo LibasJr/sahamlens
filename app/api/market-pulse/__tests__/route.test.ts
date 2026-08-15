@@ -5,11 +5,12 @@ vi.mock('@/modules/market', () => ({
 }));
 vi.mock('@/shared/cache/redis-cache', () => ({
   cacheGet: vi.fn(),
+  cacheSet: vi.fn(),
 }));
 
 import { GET } from '../route';
 import { getMarketPulse } from '@/modules/market';
-import { cacheGet } from '@/shared/cache/redis-cache';
+import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 
 describe('GET /api/market-pulse', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -34,5 +35,6 @@ describe('GET /api/market-pulse', () => {
 
     expect(res.status).toBe(200);
     expect(json.indices).toEqual([{ name: 'IHSG' }]);
+    expect(cacheSet).toHaveBeenCalledTimes(1);
   });
 });
