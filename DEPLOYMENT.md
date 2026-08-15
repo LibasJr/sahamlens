@@ -179,6 +179,19 @@ OOS lama tidak bisa diklaim ulang.
   demikian Sabtu/Minggu tidak terlihat seolah-olah harga pasar sedang live. Panel Regime
   menampilkan penjumlahan kontribusi indikator dan menyatakan sumber snapshotnya.
 
+### 2026-08-15 - Timestamp UI selalu mengikuti snapshot pasar
+
+- `market-summary` kini meneruskan waktu quote Yahoo (`regularMarketTime`, dengan
+  fallback ke bar chart terakhir) sebagai `timestamp`; ia tidak lagi mengisi waktu
+  server saat worker selesai. Ringkasan beranda, movers, dan halaman Top Gainer/Loser
+  memakai timestamp tersebut.
+- Halaman LensTechnical, LensFundamental, LensMarket, LensRadar, rekomendasi, dan
+  live filter Backtest menampilkan tanggal **dan** jam sesi sumber. Timestamp yang
+  tidak tersedia dirender sebagai tidak tersedia/menunggu, bukan diganti jam browser.
+- Tidak ada cron, environment variable, atau prosedur VPS baru. Deploy tetap cukup
+  melalui push ke `main`; smoke test akhir pekan harus memastikan data Jumat diberi
+  label sesi Jumat, bukan waktu halaman dibuka.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML

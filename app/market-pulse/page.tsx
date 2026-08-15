@@ -380,7 +380,7 @@ export default function MarketPulse() {
       setGated(null);
       setData(json);
       const snapshotTime = new Date(json.timestamp);
-      setLastUpdate(Number.isNaN(snapshotTime.getTime()) ? new Date() : snapshotTime);
+      setLastUpdate(Number.isNaN(snapshotTime.getTime()) ? null : snapshotTime);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
@@ -423,7 +423,14 @@ export default function MarketPulse() {
     return null;
   };
 
-  const formatTime = (date: Date) => date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  const formatTime = (date: Date) => new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date) + ' WIB';
   const breadthGroups = useMemo(() => {
     const stocks = Array.isArray(data?.breadth?.stocks) ? data.breadth.stocks : [];
     return {

@@ -126,7 +126,6 @@ export default async function Home() {
       />
       <Dashboard
         initialIhsg={initialIhsg}
-        initialRenderedAt={new Date().toISOString()}
         initialLensRadar={initialLensRadar}
       />
     </>

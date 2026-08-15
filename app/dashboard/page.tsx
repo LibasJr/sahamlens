@@ -68,7 +68,12 @@ function buildIndexPayload(symbol: string, candles: any[]) {
     },
     analyzers: [],
     technical: {},
-    _meta: null,
+    _meta: {
+      dataTimestamp: typeof last?.Date === 'string'
+        ? last.Date
+        : (typeof last?.date === 'string' ? last.date : null),
+      freshness: 'EOD',
+    },
   };
 }
 
@@ -277,7 +282,8 @@ function DashboardContent() {
 
       if (jsonAlgo?.stock) {
         setData(jsonAlgo);
-        setLastUpdate(new Date());
+        const sourceTime = new Date(jsonAlgo?._meta?.dataTimestamp);
+        setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
         // LensRadar rank badge - best-effort, tidak menghalangi render utama kalau gagal
         // atau ticker ini memang tidak ada di daftar ranking hari ini (lihat spec section C).
         fetch('/api/ai-pick', { cache: 'no-store', signal: controller.signal })
@@ -466,8 +472,10 @@ function DashboardContent() {
         if (d?.history?.length > 0) {
           setChartCandles(d.history);
           if (isIndexTicker(ticker)) {
-            setData(buildIndexPayload('^JKSE', d.history));
-            setLastUpdate(new Date());
+            const indexPayload = buildIndexPayload('^JKSE', d.history);
+            setData(indexPayload);
+            const sourceTime = new Date(indexPayload._meta?.dataTimestamp);
+            setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
           }
         } else if (isIndexTicker(ticker)) {
           setFetchError(true);
@@ -572,7 +580,14 @@ function DashboardContent() {
 
   const formatTime = (date: Date | null) => {
     if (!date) return '-';
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    return new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date) + ' WIB';
   };
 
   const stock = data?.stock || {};
@@ -1167,7 +1182,7 @@ function DashboardContent() {
                     pembacaan `_meta` di halaman ini, sehingga data kemarin/minggu lalu
                     dirender identik dengan data hari ini. Sekarang ditampilkan apa adanya. */}
                 <p className="text-[11px] text-tv-muted mt-1">
-                  Diterima: {formatTime(lastUpdate)}
+                  Data sesi: {formatTime(lastUpdate)}
                   {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
                 </p>
               </div>
