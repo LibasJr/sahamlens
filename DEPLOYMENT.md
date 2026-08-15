@@ -226,6 +226,20 @@ OOS lama tidak bisa diklaim ulang.
 - Penguncian ini hanya mengatur presentasi/funnel pada halaman publik; algoritme
   screener, urutan skor, filter server, dan data kandidat tidak diubah.
 
+### 2026-08-16 - Onboarding, funnel, dan monitor operasional
+
+- Panduan **Mulai dari sini** tampil juga di dashboard utama (selain beranda), dapat ditutup
+  per browser, dan hanya mengarahkan ke fitur yang sudah ada: cari saham, ringkasan, valuasi,
+  lalu watchlist. Empty-state watchlist menyediakan tombol menuju analisis saham; tidak ada data
+  portofolio baru yang dibuat otomatis.
+- Funnel pendaftaran yang sudah ada di `/admin` kini mencatat kartu terkunci Intrinsic Value
+  dan LensScanner, termasuk klik Masuk/Daftar. Event tetap memakai UUID anonim per browser dan
+  deduplikasi server; tidak menyimpan IP atau angka valuasi.
+- `/admin/jobs` menjadi **Kesehatan Operasional**: memuat status database/Redis dari endpoint
+  health yang telah ada, serta cron dan pesan error provider dari `job_run_log`. Riwayat deploy
+  tidak ada di database aplikasi dan sengaja tidak dipalsukan; verifikasi deploy production tetap
+  dari GitHub Actions setelah push `main`.
+
 ### 2026-08-15 - Aksi Intraday di browser dan reset testing
 
 - Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML

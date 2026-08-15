@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -38,6 +38,16 @@ function waktuWib(iso: string | null): string {
 
 function authEventLabel(eventType: AuthEventType): string {
   return eventType === 'signup' ? 'Daftar' : eventType === 'verify' ? 'Verifikasi' : 'Login';
+}
+
+function funnelFeatureLabel(feature: string): string {
+  const labels: Record<string, string> = {
+    fundamental_indicators: 'Indikator fundamental terkunci',
+    intrinsic_valuation: 'Rincian valuasi & Penjelasan LensAI',
+    screener_results: 'Hasil lengkap LensScanner',
+    signup_direct: 'Pendaftaran langsung',
+  };
+  return labels[feature] ?? feature;
 }
 
 export default async function AdminPage() {
@@ -183,6 +193,20 @@ export default async function AdminPage() {
             <p className="text-sm text-tv-muted mt-1">
               Riset model LensIntraday (buka-tutup hari bursa yang sama): horizon 15/30/60 menit dan EOD,
               net return setelah biaya, dan protokol forward out-of-sample terpisah dari T+20.
+            </p>
+          </div>
+        </Link>
+        <Link
+          href="/admin/jobs"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Kesehatan Operasional</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Pantau cron, koneksi cache/database, error provider pada job terakhir, dan petunjuk verifikasi deploy.
             </p>
           </div>
         </Link>
@@ -339,7 +363,7 @@ export default async function AdminPage() {
                 <tbody className="divide-y divide-tv-border">
                   {funnelSummary.topFeatures.map((feature) => (
                     <tr key={feature.feature} className="hover:bg-tv-hover">
-                      <td className="px-6 py-3 text-tv-text">{feature.feature === 'fundamental_indicators' ? 'Indikator fundamental terkunci' : feature.feature === 'signup_direct' ? 'Pendaftaran langsung' : feature.feature}</td>
+                      <td className="px-6 py-3 text-tv-text">{funnelFeatureLabel(feature.feature)}</td>
                       <td className="px-6 py-3 font-number text-tv-muted">{feature.lockedViews}</td>
                       <td className="px-6 py-3 font-number text-tv-muted">{feature.signupClicks}</td>
                       <td className="px-6 py-3 font-number text-tv-muted">{feature.signupsCompleted}</td>

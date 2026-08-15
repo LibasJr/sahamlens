@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -9,6 +9,7 @@ import { Sliders, Award, ArrowUpDown, Download, Bookmark, X, Lock } from 'lucide
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { fmtTriliun, fmtMiliar } from '@/shared/format/fundamental-format';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 
 type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
   | 'div_yield' | 'bandarmology' | 'moat' | 'signal' | 'pattern_tag' | 'sentiment'
@@ -112,8 +113,8 @@ function GuestScannerLock() {
         <span><strong className="text-tv-text">7 kandidat berikutnya terkunci.</strong> Masuk untuk melihat seluruh hasil LensScanner, menyimpan template, dan mengekspor CSV.</span>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Link href="/login?next=%2Fscreener" className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
-        <Link href="/signup?next=%2Fscreener" className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
+        <Link onClick={() => trackSignupClick('screener_results')} href="/login?next=%2Fscreener" className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
+        <Link onClick={() => trackSignupClick('screener_results')} href="/signup?next=%2Fscreener" className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
       </div>
     </div>
   );
@@ -138,6 +139,7 @@ export default function ScreenerPage() {
   const [templates, setTemplates] = useState<ScreenerTemplate[]>([]);
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const hasTrackedGuestLock = useRef(false);
 
   useEffect(() => setTemplates(loadTemplates()), []);
 
@@ -215,6 +217,12 @@ export default function ScreenerPage() {
   }, [top10, sortKey, sortDir]);
   const visibleRows = isConfirmedGuest ? sortedRows.slice(0, GUEST_VISIBLE_RESULT_COUNT) : sortedRows;
   const hasLockedGuestRows = isConfirmedGuest && sortedRows.length > GUEST_VISIBLE_RESULT_COUNT;
+
+  useEffect(() => {
+    if (!hasLockedGuestRows || hasTrackedGuestLock.current) return;
+    trackProductFunnelEvent('locked_view', 'screener_results');
+    hasTrackedGuestLock.current = true;
+  }, [hasLockedGuestRows]);
 
   // BARU (2026-08-14, masukan review eksternal - "tombol Export ke Excel/CSV").
   // Murni client-side dari data yang SUDAH dimuat (bukan panggilan API baru) - kolom
@@ -412,6 +420,7 @@ export default function ScreenerPage() {
             <div className="ml-auto flex flex-wrap items-end gap-2">
               {isConfirmedGuest ? (
                 <Link
+                  onClick={() => trackSignupClick('screener_results')}
                   href="/login?next=%2Fscreener"
                   className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-blue/40 bg-tv-blue/10 px-3 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15"
                 >

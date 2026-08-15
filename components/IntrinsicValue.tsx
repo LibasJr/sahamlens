@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Target, TrendingDown, TrendingUp, Lock, Sparkles } from 'lucide-react';
+import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 
 interface IntrinsicValueProps {
   symbol: string;
@@ -17,6 +18,7 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
   const [explanationUnavailable, setExplanationUnavailable] = useState(false);
+  const trackedGuestLockFor = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +37,14 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
     fetchData();
     return () => { cancelled = true; };
   }, [symbol]);
+
+  // Satu event per simbol/browser cukup untuk membaca minat; endpoint juga melakukan
+  // deduplikasi harian. Angka valuasi publik tidak ikut dikirim ke analytics.
+  useEffect(() => {
+    if (!authResolved || isAuthenticated || !data?.fair_value || trackedGuestLockFor.current === symbol) return;
+    trackProductFunnelEvent('locked_view', 'intrinsic_valuation');
+    trackedGuestLockFor.current = symbol;
+  }, [authResolved, isAuthenticated, data?.fair_value, symbol]);
 
   // Penjelasan LensAI - dipanggil terpisah setelah angka intrinsic value siap,
   // supaya kartu tetap tampil cepat walau penjelasan AI-nya lebih lambat.
@@ -303,7 +313,7 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
                     <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-blue" />
                     <span><strong className="text-tv-text">Rincian perhitungan terkunci.</strong> Masuk untuk melihat bobot metode dan cara nilai wajar dihitung.</span>
                   </div>
-                  <Link href={`/login?next=${encodeURIComponent(nextPath)}`} className="shrink-0 rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">
+                  <Link onClick={() => trackSignupClick('intrinsic_valuation')} href={`/login?next=${encodeURIComponent(nextPath)}`} className="shrink-0 rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">
                     Masuk
                   </Link>
                 </div>
@@ -329,8 +339,8 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
               <span><strong className="text-tv-text">Masuk untuk melihat Penjelasan LensAI.</strong> LensAI menjelaskan dasar nilai wajar, metode yang paling memengaruhi, dan batasan model.</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Link href={`/login?next=${encodeURIComponent(nextPath)}`} className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
-              <Link href={`/signup?next=${encodeURIComponent(nextPath)}`} className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
+              <Link onClick={() => trackSignupClick('intrinsic_valuation')} href={`/login?next=${encodeURIComponent(nextPath)}`} className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
+              <Link onClick={() => trackSignupClick('intrinsic_valuation')} href={`/signup?next=${encodeURIComponent(nextPath)}`} className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
             </div>
           </div>
         ) : loadingExplanation ? (

@@ -556,8 +556,9 @@ export default function WatchlistPage() {
                 <EmptyState
                   illustration="collecting"
                   title="Belum ada saham di watchlist"
-                  description="Tambahkan simbol lewat form di atas. Isi juga harga beli dan lot kalau ingin P&L dan nilai posisi ikut terhitung - tanpa keduanya, watchlist hanya memantau harga."
+                  description="Mulai dengan cari emiten, baca ringkasannya, lalu simpan di sini. Harga beli dan lot boleh diisi belakangan bila ingin P&L serta nilai posisi ikut terhitung."
                   progress={{ current: 0, total: FREE_LIMITS.WATCHLIST === Infinity ? 5 : FREE_LIMITS.WATCHLIST, unit: 'saham', label: 'Watchlist terisi' }}
+                  action={{ label: 'Cari saham dulu', onClick: () => { window.location.href = '/dashboard'; } }}
                   className="rounded-lg border border-dashed border-tv-border"
                 />
               )}

@@ -23,13 +23,12 @@ export default async function AdminJobsPage() {
             Scheduler Health
           </p>
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-tv-text">
-            Pemantau Cron
+            Kesehatan Operasional
           </h1>
           <p className="text-sm text-tv-muted mt-2 max-w-4xl">
-            Menjawab satu pertanyaan yang sebelumnya tidak bisa dijawab dari mana pun: setiap job
-            terjadwal terakhir jalan kapan, hasilnya apa, dan kalau tidak jalan - kenapa. Halaman ini
-            membaca tabel <code className="font-mono text-tv-text">job_run_log</code> yang memang sudah
-            ditulis setiap eksekusi; tidak ada data baru yang dikumpulkan di sini.
+            Status aplikasi, cache/database, dan setiap job terjadwal ditampilkan dari pemeriksaan
+            yang sudah ada. Error provider terlihat pada hasil job terakhir. Status deploy harus
+            tetap diverifikasi dari GitHub Actions karena VPS tidak menyimpan riwayat deploy di database.
           </p>
         </div>
 
