@@ -275,6 +275,17 @@ OOS lama tidak bisa diklaim ulang.
 - Cache transparansi dinaikkan ke `audit-v2`; tidak ada env var, cron, atau migrasi
   database baru. Push ke `main` tetap memicu deploy VPS otomatis.
 
+### 2026-08-16 - Compare: metrik dasar publik, analisis akun
+
+- Pengunjung `/compare` tetap dapat memilih dua emiten dan melihat harga, skor
+  teknikal, MA Status, PER, serta PBV. RSI, ruang naik/turun 20 hari, penjelasan
+  metrik, rekap pemenang, dan kesimpulan lengkap dibuka setelah masuk.
+- Keadaan awal sebelum sesi selesai diverifikasi tetap memakai teaser, sehingga tidak
+  terjadi kilatan data detail. Tampilan locked dan klik CTA dicatat pada funnel dengan
+  feature `compare_analysis`.
+- Ini hanya gating UI testing: endpoint/data/formula Compare tidak berubah, tidak ada
+  env var, migrasi, cron, atau langkah deploy manual baru.
+
 ### 2026-08-16 - Perbaikan ketahanan UI dan integritas data
 
 - Audit lanjutan memperbaiki state error/otentikasi yang sebelumnya dapat menampilkan data

@@ -3,20 +3,47 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Target, Search, ArrowRightLeft } from 'lucide-react';
+import { Target, Search, ArrowRightLeft, Lock } from 'lucide-react';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
+// Pengunjung tetap dapat mencoba perbandingan dasar. Detail momentum/range dan
+// narasi "siapa lebih unggul" adalah alasan utama untuk membuat akun, jadi tidak
+// ditampilkan sampai sesi terverifikasi.
+const GUEST_VISIBLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
+
+function CompareGuestTeaser({ nextPath, lockedCount }: { nextPath: string; lockedCount: number }) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-tv-border bg-tv-bg/60 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="flex items-start gap-2 text-tv-yellow">
+        <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <p><strong>{lockedCount} analisis perbandingan lanjutan terkunci.</strong> Masuk untuk melihat indikator, alasan setiap metrik, dan kesimpulan lengkap.</p>
+      </div>
+      <Link
+        href={`/login?next=${encodeURIComponent(nextPath)}`}
+        onClick={() => trackSignupClick('compare_analysis')}
+        className="shrink-0 self-start rounded-md border border-tv-blue/50 bg-tv-blue/10 px-3 py-2 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15 sm:self-auto"
+      >
+        Masuk untuk membuka
+      </Link>
+    </div>
+  );
+}
+
 function CompareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
 
   const urlSym1 = searchParams.get('symbol1');
   const urlSym2 = searchParams.get('symbol2');
@@ -53,6 +80,7 @@ function CompareContent() {
   // memastikan hanya response dari request TERAKHIR yang dipakai, walau response duluan
   // (BBCA) resolve belakangan karena jitter jaringan.
   const fetchSeqRef = useRef(0);
+  const trackedGuestLock = useRef(false);
 
   useEffect(() => {
     if (!urlSym1) {
@@ -138,6 +166,20 @@ function CompareContent() {
     if (typeof window !== 'undefined') localStorage.setItem('last_searched_ticker', sym1);
     router.push(`/compare?symbol1=${sym1}&symbol2=${sym2}`);
   };
+
+  // Sampai sesi selesai diperiksa, tampilkan teaser. Ini mencegah detail sempat
+  // terlihat saat halaman baru dimuat sebelum /api/auth/me menjawab.
+  const lockForGuest = !authResolved || authLoading || !authUser;
+  const publicRows = data?.rows?.filter((row: any) => GUEST_VISIBLE_COMPARE_KEYS.has(row.key)) ?? [];
+  const lockedRows = data?.rows?.filter((row: any) => !GUEST_VISIBLE_COMPARE_KEYS.has(row.key)) ?? [];
+  const visibleRows = lockForGuest ? publicRows : (data?.rows ?? []);
+  const compareNextPath = `/compare?symbol1=${encodeURIComponent(symbol1)}&symbol2=${encodeURIComponent(symbol2)}`;
+
+  useEffect(() => {
+    if (!data || !lockForGuest || !authResolved || authLoading || authUser || trackedGuestLock.current) return;
+    trackedGuestLock.current = true;
+    trackProductFunnelEvent('locked_view', 'compare_analysis');
+  }, [authLoading, authResolved, authUser, data, lockForGuest]);
 
   return (
     // `flex h-screen` + anak `overflow-y-auto` membuat kontainer gulir kedua di dalam
@@ -232,7 +274,7 @@ function CompareContent() {
               {/* Storytelling: tabel di bawah menandai pemenang per baris, tapi tidak
                   pernah menjumlahkannya. Rekapitulasi ini murni menghitung ulang
                   `row.winner` yang sudah ada - tidak menambah penilaian baru. */}
-              {(() => {
+              {!lockForGuest && (() => {
                 const win1 = data.rows.filter((r: any) => r.winner === data.data1.symbol).length;
                 const win2 = data.rows.filter((r: any) => r.winner === data.data2.symbol).length;
                 const seri = data.rows.length - win1 - win2;
@@ -275,7 +317,7 @@ function CompareContent() {
                           {data.data2.symbol}
                         </span>
                       </th>
-                      <th className="py-4 px-6 text-tv-blue text-sm font-bold uppercase tracking-wide text-center border-l border-tv-border w-1/3">Penjelasan Metrik</th>
+                      {!lockForGuest && <th className="py-4 px-6 text-tv-blue text-sm font-bold uppercase tracking-wide text-center border-l border-tv-border w-1/3">Penjelasan Metrik</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-tv-border">
@@ -293,21 +335,25 @@ function CompareContent() {
                       {/* Sel ini dulu berisi "-" polos. Harga tidak dibandingkan karena
                           memang tidak bisa: harga saham antar emiten tidak sebanding
                           tanpa jumlah lembar saham. Itu yang perlu dikatakan. */}
-                      <td className="py-4 px-6 text-tv-muted border-l border-tv-border text-[11px] leading-relaxed">
-                        Tidak dibandingkan - harga per lembar antar emiten tidak sebanding tanpa memperhitungkan jumlah saham beredar.
-                      </td>
+                      {!lockForGuest && (
+                        <td className="py-4 px-6 text-tv-muted border-l border-tv-border text-[11px] leading-relaxed">
+                          Tidak dibandingkan - harga per lembar antar emiten tidak sebanding tanpa memperhitungkan jumlah saham beredar.
+                        </td>
+                      )}
                     </tr>
-                    {data.rows.map((row: any) => (
+                    {visibleRows.map((row: any) => (
                       <tr key={row.key} className="hover:bg-tv-hover/30 transition-colors align-top">
                         <td className="py-4 px-6 text-tv-muted">{row.label}</td>
                         <td className={`py-4 px-6 text-center border-l border-tv-border ${row.winner === data.data1.symbol ? 'text-tv-blue font-bold' : 'text-tv-text'}`}>{row.a}</td>
                         <td className={`py-4 px-6 text-center border-l border-tv-border ${row.winner === data.data2.symbol ? 'text-tv-blue font-bold' : 'text-tv-text'}`}>{row.b}</td>
-                        <td className="py-3 px-6 border-l border-tv-border text-left">
-                          {row.winner !== '-' && (
-                            <span className="inline-block mb-1 text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded text-[10px]">{row.winner} unggul</span>
-                          )}
-                          <p className="font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
-                        </td>
+                        {!lockForGuest && (
+                          <td className="py-3 px-6 border-l border-tv-border text-left">
+                            {row.winner !== '-' && (
+                              <span className="inline-block mb-1 text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded text-[10px]">{row.winner} unggul</span>
+                            )}
+                            <p className="font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -326,7 +372,7 @@ function CompareContent() {
                     </div>
                   ))}
                 </div>
-                {data.rows.map((row: any) => (
+                {visibleRows.map((row: any) => (
                   <motion.div key={row.key} whileTap={{ scale: 0.995 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] uppercase tracking-wide text-tv-muted">{row.label}</span>
@@ -338,12 +384,14 @@ function CompareContent() {
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data1.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.a}</div>
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data2.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.b}</div>
                     </div>
-                    <p className="mt-1.5 font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                    {!lockForGuest && <p className="mt-1.5 font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>}
                   </motion.div>
                 ))}
               </div>
 
-              {data.conclusion && (
+              {lockForGuest && <CompareGuestTeaser nextPath={compareNextPath} lockedCount={lockedRows.length} />}
+
+              {!lockForGuest && data.conclusion && (
                 <div className="p-6 bg-tv-bg border-t border-tv-border font-sans">
                   <h3 className="font-heading text-sm font-bold text-tv-muted mb-2 uppercase tracking-wide">Kesimpulan Perbandingan</h3>
                   <p className="font-sans text-sm font-normal text-tv-text leading-relaxed sm:text-base">
