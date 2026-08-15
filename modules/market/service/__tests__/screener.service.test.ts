@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { atr14Pct, filterCurated, rankScreener } from '../screener.service';
+import { AI_PICK_UNIVERSE } from '../../constants/ai-pick-universe';
+import { atr14Pct, filterCurated, getScreenerFetchTickers, rankScreener, SCREENER_UNIVERSE } from '../screener.service';
 
 /** Bar dengan range harian tetap `range` dan close tetap `close`.
  * True Range tiap hari = max(high-low, |high-prevClose|, |low-prevClose|) = range,
@@ -56,6 +57,17 @@ describe('filterCurated', () => {
 
   it('array kosong menghasilkan array kosong, bukan error', () => {
     expect(filterCurated([])).toEqual([]);
+  });
+});
+
+describe('getScreenerFetchTickers', () => {
+  it('memakai universe aktif 200 persis, bukan union dengan SCREENER_UNIVERSE lama', () => {
+    const tickers = getScreenerFetchTickers();
+
+    expect(tickers).toHaveLength(200);
+    expect(new Set(tickers).size).toBe(200);
+    expect(tickers).toEqual(AI_PICK_UNIVERSE);
+    expect(tickers.length).toBeLessThan(new Set([...SCREENER_UNIVERSE, ...AI_PICK_UNIVERSE]).size);
   });
 });
 
