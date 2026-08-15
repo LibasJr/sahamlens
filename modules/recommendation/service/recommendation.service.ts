@@ -80,6 +80,19 @@ export async function analyzeStock(ticker: string) {
       typeof currentPrice !== 'number' || !Number.isFinite(currentPrice) || currentPrice <= 0 ||
       !Array.isArray(timestamps) || !quote
     ) return null;
+    // Ini adalah waktu quote/sesi dari provider. Jangan biarkan UI menggantinya dengan
+    // jam request sendiri ketika pasar tutup; harga Jumat tetap harus diberi tanggal
+    // Jumat walau rekomendasi dibuka Sabtu malam.
+    const regularMarketTime = result.meta?.regularMarketTime;
+    const latestChartTimestamp = timestamps.reduce<number | null>((latest: number | null, value: unknown) => (
+      typeof value === 'number' && Number.isFinite(value) && (latest == null || value > latest)
+        ? value
+        : latest
+    ), null);
+    const sourceUnixTime = typeof regularMarketTime === 'number' && Number.isFinite(regularMarketTime)
+      ? regularMarketTime
+      : latestChartTimestamp;
+    const dataTimestamp = sourceUnixTime == null ? null : new Date(sourceUnixTime * 1000).toISOString();
     // AdjClose (disesuaikan dividen/split menurut Yahoo chart). FASE 3: tidak boleh
     // fallback ke Close; kalau missing, indikator return-based fail-closed.
     const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
@@ -374,6 +387,7 @@ export async function analyzeStock(ticker: string) {
 
     return {
       ticker: ticker.replace('.JK', ''),
+      dataTimestamp,
       sector: sector,
       price: currentPrice,
       priceMeta: {

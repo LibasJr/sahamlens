@@ -381,7 +381,14 @@ export default function AiPickPage() {
   // label lama memakai new Date() sehingga selalu menampilkan waktu klik seolah-olah
   // itu waktu data dihitung.
   const updateLabel = computedAt
-    ? new Date(computedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
+    ? new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(computedAt)) + ' WIB'
     : null;
 
   return (

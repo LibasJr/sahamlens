@@ -134,7 +134,7 @@ export default function MarketCategoryPage() {
           </div>
         </div>
         <p className="text-[11px] text-tv-muted mb-6">
-          {loading ? 'Memuat data...' : `${displayRows.length} saham • Update ${lastUpdated || '--:--'} • Sumber: Yahoo Finance`}
+          {loading ? 'Memuat data...' : `${displayRows.length} saham • Data sesi ${lastUpdated || 'tidak tersedia'} • Sumber: Yahoo Finance`}
         </p>
 
         <Input

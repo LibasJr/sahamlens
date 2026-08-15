@@ -87,7 +87,7 @@ export default function Recommendations() {
   const fetchRecommendations = async () => {
     setLoading(true);
     setData([]);
-    setLastUpdate(new Date());
+    setLastUpdate(null);
 
     try {
       const chunkSize = 10;
@@ -144,7 +144,8 @@ export default function Recommendations() {
             
             return merged;
           });
-          setLastUpdate(new Date());
+          const snapshotTime = new Date(json.dataTimestamp);
+          setLastUpdate(Number.isNaN(snapshotTime.getTime()) ? null : snapshotTime);
         }
       }
     } catch (e) {
@@ -161,7 +162,9 @@ export default function Recommendations() {
     fetchRecommendations();
   }, []);
 
-  const formatTime = (date: Date) => date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
+  const formatTime = (date: Date) => new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  }).format(date) + ' WIB';
 
   const handleSort = (key: SortKey) => {
     let direction: 'asc' | 'desc' = 'desc';
@@ -262,7 +265,7 @@ export default function Recommendations() {
               {loading ? 'Sedang Memindai...' : 'Refresh Data'}
             </button>
             <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-              Update: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Menunggu...'}
+              Data sesi: {isClient && lastUpdate ? formatTime(lastUpdate) : 'menunggu timestamp sumber'}
               {cacheMeta && (
                 <span className="ml-2 text-tv-muted">
                   · Skor {cacheMeta.cachedAgeSec < 60 ? 'baru dihitung' : `dihitung ${Math.round(cacheMeta.cachedAgeSec / 60)} menit lalu`}

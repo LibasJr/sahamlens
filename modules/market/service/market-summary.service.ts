@@ -73,6 +73,21 @@ function isFiniteNonNegative(value: unknown): value is number {
 // ini vs Detail Saham vs AI Pick).
 const rsi = calculateRsi;
 
+export function sourceTimestampFromChart(result: any): string | null {
+  const regularMarketTime = result?.meta?.regularMarketTime;
+  if (typeof regularMarketTime === 'number' && Number.isFinite(regularMarketTime)) {
+    return new Date(regularMarketTime * 1000).toISOString();
+  }
+
+  const timestamps: unknown[] = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const latest = timestamps.reduce<number | null>((current, value) => (
+    typeof value === 'number' && Number.isFinite(value) && (current == null || value > current)
+      ? value
+      : current
+  ), null);
+  return latest == null ? null : new Date(latest * 1000).toISOString();
+}
+
 async function fetchQuote(symbol: string) {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=3mo&interval=1d`;
@@ -213,6 +228,7 @@ async function fetchQuote(symbol: string) {
       symbol,
       price: currentPrice,
       changePct: parseFloat(changePct.toFixed(2)),
+      sourceTimestamp: sourceTimestampFromChart(result),
       weeklyChangePct: parseFloat(weeklyChangePct.toFixed(2)),
       // Volume & nilai transaksi APA ADANYA (temuan H-7) - kalau bursa masih buka, ini
       // memang baru sebagian sesi, dan itulah faktanya. `volumeIsPartial` memberi tahu UI
@@ -247,6 +263,12 @@ export async function getMarketSummary() {
   const benchmarkWeeklyChangePct = typeof benchmark?.weeklyChangePct === 'number'
     ? benchmark.weeklyChangePct
     : null;
+  // Ini waktu harga/sesi, bukan waktu worker menyelesaikan pemindaian. Saat Sabtu atau
+  // Minggu Yahoo tetap mengembalikan harga Jumat; UI harus menampilkan Jumat tersebut,
+  // bukan jam server yang kebetulan memanggil fungsi ini.
+  const sourceTimestamp = benchmark?.sourceTimestamp
+    ?? quotes.map((quote) => quote.sourceTimestamp).find((timestamp): timestamp is string => typeof timestamp === 'string')
+    ?? null;
 
   // Full list capped at 50 (in practice ~= the whole monitored universe below that size)
   // for the dedicated /market/[category] pages; dashboard cards just show the first 4.
@@ -343,7 +365,7 @@ export async function getMarketSummary() {
     .map(s => ({ symbol: strip(s), streak: s.foreignAccumStreak, changePct: s.changePct, price: s.price }));
 
   return {
-    timestamp: new Date().toISOString(),
+    timestamp: sourceTimestamp,
     marketRegime: benchmark ? {
       benchmark: 'IHSG',
       changePct: benchmark.changePct,

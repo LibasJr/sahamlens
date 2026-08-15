@@ -519,7 +519,7 @@ export default function BacktestPage() {
                                 {liveResults.matches.length} saham cocok kombinasi ini sekarang, dari {liveResults.filters.length} filter dipilih
                                 {liveResults.skippedCount > 0 ? ` (${liveResults.skippedCount} saham gagal diambil, dilewati)` : ''}.
                                 {liveResults.matches[0]?.dataTimestamp && (
-                                  <> Data per {new Date(liveResults.matches[0].dataTimestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB.</>
+                                  <> Data sesi {new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(liveResults.matches[0].dataTimestamp))} WIB.</>
                                 )}
                               </p>
                               <div className="overflow-x-auto">

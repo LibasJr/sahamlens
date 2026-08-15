@@ -23,6 +23,20 @@ const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), 
 const CommandPalette = dynamic(() => import('@/components/CommandPalette'), { ssr: false });
 const ACTIVE_UNIVERSE_COUNT = AI_PICK_UNIVERSE.length;
 
+function formatMarketSnapshot(timestamp: unknown): string | null {
+  if (typeof timestamp !== 'string') return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date) + ' WIB';
+}
+
 // BUG FIX (2026-08-05, laporan user - "chart candle kok gak ada 1M, langsung 1 tahun"):
 // '1M'/'3M' DIHILANGKAN dari daftar pilihan (bukan cuma default) - backend
 // (app/api/public-chart/[ticker]/route.ts) sebenarnya sudah lama mendukung keduanya
@@ -209,13 +223,10 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
   const [now, setNow] = useState<Date | null>(() => initialRenderedAt ? new Date(initialRenderedAt) : null);
-  const initialRenderedLabel = React.useMemo(() => {
-    if (!initialRenderedAt) return null;
-    const date = new Date(initialRenderedAt);
-    if (Number.isNaN(date.getTime())) return null;
-    return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(date) + ' WIB';
-  }, [initialRenderedAt]);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(initialRenderedLabel);
+  // Jangan gunakan waktu render SSR sebagai "update pasar". Data market-summary
+  // datang setelah hidrasi; sebelum timestamp quote tersedia, lebih jujur tampilkan
+  // loading daripada memberi kesan harga sesi lama baru saja diperbarui.
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   React.useEffect(() => {
     setNow(new Date());
@@ -470,9 +481,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
         if (uniqueTicker.length) {
           setTickerItems(uniqueTicker.map((s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct })));
         }
-        if (data.timestamp) {
-          setLastUpdated(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.timestamp)) + ' WIB');
-        }
+        setLastUpdated(formatMarketSnapshot(data.timestamp));
       } else {
         setTickerFailed(true);
       }
@@ -826,7 +835,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <h1 className="text-[24px] sm:text-2xl font-bold tracking-tight text-tv-text font-heading">Ringkasan Pasar Hari Ini</h1>
           <p className="mt-1 text-[13px] sm:text-[14px] text-tv-muted font-medium">
             {lastUpdated
-              ? <span className="text-tv-blue font-semibold">Update terakhir {lastUpdated}</span>
+              ? <span className="text-tv-blue font-semibold">Data sesi terakhir {lastUpdated}</span>
               : tickerFailed
                 ? <span>Waktu pembaruan tidak diketahui</span>
                 : <Skeleton variant="text" className="w-40 h-4 inline-block align-middle" />}
@@ -845,20 +854,34 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           const teratas = sorted[0];
           const terbawah = sorted[sorted.length - 1];
           const stats = [
-            { label: 'Menguat', value: String(naik), tone: 'text-tv-green', sub: `dari ${tickerItems.length} saham teraktif` },
-            { label: 'Melemah', value: String(turun), tone: 'text-tv-red', sub: `dari ${tickerItems.length} saham teraktif` },
-            { label: 'Penguatan tertinggi', value: teratas.symbol, tone: 'text-tv-green', sub: `+${teratas.changePct.toFixed(2)}%` },
-            { label: 'Pelemahan terdalam', value: terbawah.symbol, tone: 'text-tv-red', sub: `${terbawah.changePct.toFixed(2)}%` },
+            // Daftar lengkap sudah tersedia di /market/[category] dari snapshot
+            // market-summary yang sama. Kartu jumlah tidak lagi sekadar angka mati:
+            // klik mengarah ke seluruh 50 saham penguat/pelemah, bukan ke daftar
+            // buatan di browser. Kartu emiten teratas langsung membuka analisa sahamnya.
+            { label: 'Menguat', value: String(naik), tone: 'text-tv-green', sub: `dari ${tickerItems.length} saham teraktif`, href: '/market/top-gainer', action: 'Lihat daftar penguat' },
+            { label: 'Melemah', value: String(turun), tone: 'text-tv-red', sub: `dari ${tickerItems.length} saham teraktif`, href: '/market/top-loser', action: 'Lihat daftar pelemah' },
+            { label: 'Penguatan tertinggi', value: teratas.symbol, tone: 'text-tv-green', sub: `+${teratas.changePct.toFixed(2)}%`, href: `/technical/${teratas.symbol}.JK`, action: `Buka analisa ${teratas.symbol}` },
+            { label: 'Pelemahan terdalam', value: terbawah.symbol, tone: 'text-tv-red', sub: `${terbawah.changePct.toFixed(2)}%`, href: `/technical/${terbawah.symbol}.JK`, action: `Buka analisa ${terbawah.symbol}` },
           ];
           return (
             <div className="mb-6">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {stats.map((s) => (
-                  <Card key={s.label} padding="none" hoverable className="px-4 py-3">
-                    <div className="text-[10px] uppercase tracking-wide text-tv-muted">{s.label}</div>
-                    <div className={`mt-1 font-number text-lg font-bold ${s.tone}`}>{s.value}</div>
-                    <div className="text-[10px] text-tv-muted mt-0.5">{s.sub}</div>
-                  </Card>
+                  <Link
+                    key={s.label}
+                    href={s.href}
+                    aria-label={s.action}
+                    className="group block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60"
+                  >
+                    <Card padding="none" hoverable className="h-full px-4 py-3 group-hover:border-tv-blue/45">
+                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">{s.label}</div>
+                      <div className={`mt-1 font-number text-lg font-bold ${s.tone}`}>{s.value}</div>
+                      <div className="text-[10px] text-tv-muted mt-0.5">{s.sub}</div>
+                      <div className="mt-1.5 text-[9px] font-semibold text-tv-blue opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                        {s.action} →
+                      </div>
+                    </Card>
+                  </Link>
                 ))}
               </div>
               {/* Batasan cakupan disebut apa adanya: ini daftar saham TERAKTIF, bukan

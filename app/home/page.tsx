@@ -292,7 +292,12 @@ export default function HomePage() {
           setTopTechnicalBearish((summary.topTechnicalBearish || []).slice(0, 10));
           setTopRsiOversold((summary.topRsiOversold || []).slice(0, 10));
           setMoversFreshness(summary._meta?.freshness ?? null);
-          setMoversTimeLabel(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB');
+          const snapshotTime = new Date(summary.timestamp);
+          setMoversTimeLabel(Number.isNaN(snapshotTime.getTime())
+            ? null
+            : new Intl.DateTimeFormat('id-ID', {
+                timeZone: 'Asia/Jakarta', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+              }).format(snapshotTime) + ' WIB');
         }
       })
       .finally(() => setLoadingMarket(false));

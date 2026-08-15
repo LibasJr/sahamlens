@@ -131,8 +131,10 @@ function FundamentalContent() {
       {
         // Merge so we get chart history from jsonStock but analyzers from jsonAlgo
         jsonAlgo.stock.history = jsonStock?.stock?.history || [];
+        jsonAlgo._meta = jsonStock?._meta ?? null;
         setData(jsonAlgo);
-        setLastUpdate(new Date());
+        const sourceTime = new Date(jsonAlgo?._meta?.dataTimestamp);
+        setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
         
         // Kirim data ke AI Chat supaya jawaban AI lebih substantif
         window.dispatchEvent(new CustomEvent('update-ai-context', { 
@@ -252,11 +254,18 @@ function FundamentalContent() {
 
   const formatTime = (date: Date | null) => {
     if (!date) return '-';
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+    return new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date) + ' WIB';
   };
 
   const stock = data?.stock || {};
-  const sourceRetrievedAt = data?.source?.retrievedAt ? new Date(data.source.retrievedAt) : null;
+  const marketSnapshotAt = data?._meta?.dataTimestamp ? new Date(data._meta.dataTimestamp) : null;
   // `tech` dan `candles` dihapus (audit 2026-08-05 / 2026-08-06): keduanya variabel
   // mati - /api/fundamental tidak pernah mengembalikan field `technical`, dan halaman
   // ini tidak merender chart sama sekali, jadi histori candle-nya tidak pernah dipakai.
@@ -417,10 +426,10 @@ function FundamentalContent() {
             {marketClosed ? 'Bursa sedang tutup' : 'Bursa sedang buka'}
           </div>
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            Sumber: {data?.source?.provider || 'Tidak tersedia'} • snapshot sumber {formatTime(sourceRetrievedAt)}
+            Sumber harga: {data?._meta?.provider || 'Yahoo Finance'} • sesi {formatTime(marketSnapshotAt)}
           </div>
           <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
-            Layar diperbarui {formatTime(lastUpdate)} • {marketClosed ? 'menunggu sesi berikutnya' : 'cek ulang tiap 1 menit'}
+            Data sesi: {formatTime(lastUpdate)} • {marketClosed ? 'menunggu sesi berikutnya' : 'cek ulang tiap 1 menit'}
           </div>
           <button
             onClick={handleRefresh}

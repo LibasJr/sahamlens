@@ -64,6 +64,13 @@ export async function GET(request: Request) {
 
     const response = NextResponse.json({
       recommendations: results,
+      // Semua hasil menyimpan timestamp quote provider. Snapshot agregat ini dipakai
+      // UI agar tidak memberi label "Update sekarang" pada harga sesi sebelumnya.
+      dataTimestamp: results
+        .map((result: any) => result?.dataTimestamp)
+        .filter((timestamp): timestamp is string => typeof timestamp === 'string')
+        .sort()
+        .at(-1) ?? null,
       modelValidation: getLensScoreValidationStatus(),
     });
     if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
