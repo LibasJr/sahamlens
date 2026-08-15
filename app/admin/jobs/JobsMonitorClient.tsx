@@ -18,6 +18,12 @@ interface JobRow {
   failures24h: number;
 }
 
+interface HealthPayload {
+  status?: 'ok' | 'degraded';
+  checks?: { database?: 'ok' | 'error'; redis?: 'ok' | 'not_configured' | 'error' };
+  timestamp?: string;
+}
+
 // Diagnosis ditulis sebagai kalimat, bukan cuma badge status. Perbedaan antara "tidak
 // pernah dipanggil", "dipanggil lalu ditolak", dan "dipanggil lalu dilewati" menentukan
 // tindakan yang sama sekali berbeda - dan itulah persis yang dulu tidak bisa dibedakan.
@@ -70,18 +76,23 @@ export default function JobsMonitorClient() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [health, setHealth] = useState<HealthPayload | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/jobs', { cache: 'no-store' });
+      const [res, healthRes] = await Promise.all([
+        fetch('/api/admin/jobs', { cache: 'no-store' }),
+        fetch('/api/health', { cache: 'no-store' }),
+      ]);
       const json = await res.json();
       if (!res.ok) {
         setError(json?.error || 'Gagal memuat status job');
         return;
       }
       setJobs(json.jobs ?? []);
+      if (healthRes.ok) setHealth(await healthRes.json());
     } catch {
       setError('Gagal memuat status job');
     } finally {
@@ -118,6 +129,22 @@ export default function JobsMonitorClient() {
           <RefreshCw className="h-4 w-4" />
           Muat ulang
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+          <div className="text-xs text-tv-muted">Database</div>
+          <div className={`mt-1 text-sm font-bold ${health?.checks?.database === 'ok' ? 'text-tv-green' : 'text-tv-red'}`}>{health?.checks?.database === 'ok' ? 'Terhubung' : 'Tidak tersedia'}</div>
+        </div>
+        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+          <div className="text-xs text-tv-muted">Cache Redis</div>
+          <div className={`mt-1 text-sm font-bold ${health?.checks?.redis === 'ok' ? 'text-tv-green' : health?.checks?.redis === 'not_configured' ? 'text-tv-yellow' : 'text-tv-red'}`}>{health?.checks?.redis === 'ok' ? 'Terhubung' : health?.checks?.redis === 'not_configured' ? 'Tidak dikonfigurasi' : 'Tidak tersedia'}</div>
+        </div>
+        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+          <div className="text-xs text-tv-muted">Deploy production</div>
+          <div className="mt-1 text-sm font-bold text-tv-muted">Verifikasi di GitHub Actions</div>
+          <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
+        </div>
       </div>
 
       <div className="space-y-3">

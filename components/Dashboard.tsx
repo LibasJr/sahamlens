@@ -13,6 +13,7 @@ import { Card, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/compone
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 import ThemeToggle from '@/components/ThemeToggle';
+import GettingStartedGuide from '@/components/GettingStartedGuide';
 import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 
@@ -573,6 +574,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           halaman terburuk di tiap pengukuran (45 teks di bawah 12px @768 setelah
           halaman lain sudah bersih). */}
       <main className="lens-main mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <GettingStartedGuide />
         {/* Marketing Hero - tagline "Lihat Peluang Lebih Jelas." sudah dipakai di
             metadata (app/layout.tsx) tapi belum pernah dirender di halaman manapun.
             Section aditif, tidak mengubah struktur Title Block/ringkasan pasar di
