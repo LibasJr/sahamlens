@@ -42,4 +42,20 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('BUKAN rekomendasi transaksi');
   });
 
+  it('memuat panduan fungsi dan cara pakai menu, termasuk Backtest', () => {
+    const prompt = buildSystemPrompt('', false);
+    expect(prompt).toContain('Panduan fungsi dan cara pakai setiap menu pengguna');
+    expect(prompt).toContain('Pilih preset atau indikator, modal dan periode 3–60 bulan, tekan Backtest');
+    expect(prompt).toContain('Live Filter Check');
+    expect(prompt).toContain('LensWatch');
+    expect(prompt).toContain('Corporate Calendar');
+  });
+
+  it('memaksa gaya jawaban langsung, substantif, dan tidak bertele-tele', () => {
+    const prompt = buildSystemPrompt('', false);
+    expect(prompt).toContain('Mulai dengan jawaban inti dalam 1-2 kalimat');
+    expect(prompt).toContain('Jangan mengulang data yang sama');
+    expect(prompt).toContain('maksimal 3 bullet');
+  });
+
 });

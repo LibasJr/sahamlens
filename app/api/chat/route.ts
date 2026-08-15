@@ -16,12 +16,14 @@ import { resolveConversationTickers } from './extract-ticker';
 import { normalizeChatText, getDeterministicSmallTalkResponse } from './chat-normalize';
 import { resolveChatDate, type ChatHistoryMessage } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
-import { buildChatVerifiedData } from './chat-data-router';
+import { buildChatVerifiedData, summarizeChatDataProvenance } from './chat-data-router';
 import { buildSystemPrompt } from './build-system-prompt';
 import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
 import { streamChatAnswer } from './stream-answer';
+import { calculateChatQuestion } from './chat-calculator';
+import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
 
 const MAX_PROMPT_LEN = 2000;
 const MAX_CONTEXT_LEN = 4000;
@@ -151,6 +153,18 @@ export async function POST(request: Request) {
       });
     }
 
+    // Aritmetika yang inputnya sudah diberikan pengguna tidak perlu melewati model
+    // bahasa. Jawaban deterministik ini lebih cepat, bisa ditelusuri, dan tidak dapat
+    // berubah akibat variasi provider/model.
+    const calculation = calculateChatQuestion(prompt);
+    if (calculation) {
+      return json({
+        role: 'assistant',
+        content: calculation.content,
+        routing: { intent: 'CALCULATOR', calculator: calculation.kind, providerUsed: false, dataFetches: 0 },
+      });
+    }
+
     const tickers = resolveConversationTickers({ prompt, history, fallbackSymbol: symbol });
     const date = resolveChatDate(prompt, history);
     const classification = classifyChatIntent({
@@ -200,6 +214,7 @@ export async function POST(request: Request) {
       // tidak bisa meminta portofolio orang lain dengan menyisipkan id di payload chat.
       user: session ? { userId: session.id } : null,
     });
+    const dataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
 
     if (verified.directResponse) {
       return json({
@@ -240,6 +255,7 @@ export async function POST(request: Request) {
       verified.verifiedBlock,
       mentionedTicker,
       routingBlock,
+      getFocusedMenuKnowledge(prompt),
     );
     const verificationSources = [verified.verifiedBlock, prompt, historyTranscript];
     const baseRouting = {
@@ -250,6 +266,7 @@ export async function POST(request: Request) {
       requestedAsOf: date.requestedAsOf,
       providerUsed: true,
       dataStatus: verified.dataError,
+      dataProvenance,
     };
 
     // Jalur streaming - dipakai kalau klien memintanya. Lihat catatan panjang di
@@ -304,7 +321,7 @@ export async function POST(request: Request) {
       });
 
       const retry = await generateAIResult({
-        system: buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock),
+        system: buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock, getFocusedMenuKnowledge(prompt)),
         prompt:
           `${fullPrompt}\n\n## KOREKSI WAJIB (dari pemeriksa server, bukan dari pengguna):\n` +
           `Jawaban sebelumnya memuat angka yang TIDAK ADA di Data Terverifikasi Server: ${numberCheck.unverified.join(', ')}.\n` +

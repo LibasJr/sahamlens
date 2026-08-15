@@ -15,14 +15,14 @@ vi.mock('@/modules/news', () => ({
 
 import { resolveChatDate, todayJakartaKey } from '../chat-date';
 import { classifyChatIntent } from '../chat-intent';
-import { buildChatVerifiedData } from '../chat-data-router';
+import { buildChatVerifiedData, summarizeChatDataProvenance } from '../chat-data-router';
 import { buildSystemPrompt } from '../build-system-prompt';
 import { fetchYahooHistory } from '@/modules/technical';
 import { getMarketNews } from '@/modules/news';
 
 const CURRENT_DATE = { mode: 'CURRENT', requestedAsOf: null, invalidDate: null, incompleteDate: null, source: 'none' } as const;
 
-function makeChart(currentPrice: number, previousClose: number | null) {
+function makeChart(currentPrice: number, previousClose: number | null, regularMarketTime: number | null = null) {
   return {
     // 30 bar datar - cukup untuk calculateRsi tidak melempar, nilainya tidak diuji di sini.
     history: Array.from({ length: 30 }, (_, i) => ({
@@ -30,13 +30,17 @@ function makeChart(currentPrice: number, previousClose: number | null) {
       Open: 6300, High: 6320, Low: 6280, Close: 6300, Volume: 1000,
     })),
     currentPrice,
-    regularMarketTime: null,
+    regularMarketTime,
     previousClose,
   };
 }
 
 describe('akar masalah 1: persentase IHSG dikarang model', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+  afterEach(() => vi.useRealTimers());
 
   it('mengirim perubahan poin & persen dari previousClose, bukan cuma level', async () => {
     // 6268.71 vs previousClose 6365.44 = -1.52%, angka yang dilihat pengguna di header.
@@ -62,6 +66,44 @@ describe('akar masalah 1: persentase IHSG dikarang model', () => {
 
     expect(result.verifiedBlock).toContain('Perubahan: tidak tersedia');
     expect(result.verifiedBlock).toContain('JANGAN mengarang');
+  });
+
+  it('weekend/malam mengunci wording: IHSG adalah data sesi terakhir, bukan live hari ini', async () => {
+    // Sabtu 15 Agustus 2026 10:00 WIB: IDX tutup. Bar terakhir berasal dari Jumat.
+    vi.useFakeTimers().setSystemTime(new Date('2026-08-15T03:00:00.000Z'));
+    const fridayCloseBar = Math.floor(new Date('2026-08-14T09:20:00.000Z').getTime() / 1000);
+    vi.mocked(fetchYahooHistory).mockResolvedValue(makeChart(6401.89, 6301.77, fridayCloseBar) as any);
+
+    const result = await buildChatVerifiedData({
+      intent: 'MARKET_GENERAL', compareScope: 'GENERAL', requestedMetrics: [],
+      tickers: [], date: CURRENT_DATE, prompt: 'IHSG hari ini berapa?',
+    });
+
+    expect(result.verifiedBlock).toContain('Status sesi IDX sekarang: TUTUP');
+    expect(result.verifiedBlock).toContain('pasar IDX sedang tutup');
+    expect(result.verifiedBlock).toContain('bar/sesi bursa terakhir');
+    expect(result.verifiedBlock).toContain('Timestamp bar terakhir: 2026-08-14T09:20:00.000Z');
+    expect(summarizeChatDataProvenance(result.verifiedBlock)).toEqual({
+      sourceLabel: 'Data terverifikasi SahamLens',
+      timestamp: '2026-08-14T09:20:00.000Z',
+      freshness: 'EOD (bar 2026-08-14T09:20:00.000Z)',
+    });
+  });
+
+  it('hari libur Bursa di hari kerja mengunci wording libur, bukan market live', async () => {
+    // Senin 17 Agustus 2026 adalah libur Bursa IDX, meski bukan akhir pekan.
+    vi.useFakeTimers().setSystemTime(new Date('2026-08-17T03:00:00.000Z'));
+    vi.mocked(fetchYahooHistory).mockResolvedValue(makeChart(6401.89, 6301.77) as any);
+
+    const result = await buildChatVerifiedData({
+      intent: 'MARKET_GENERAL', compareScope: 'GENERAL', requestedMetrics: [],
+      tickers: [], date: CURRENT_DATE, prompt: 'IHSG hari ini berapa?',
+    });
+
+    expect(result.verifiedBlock).toContain('hari libur Bursa IDX');
+    expect(result.verifiedBlock).toContain('Hari Kemerdekaan Republik Indonesia');
+    expect(result.verifiedBlock).toContain('Bursa IDX sedang libur');
+    expect(result.verifiedBlock).not.toContain('Status sesi IDX sekarang: BUKA');
   });
 });
 

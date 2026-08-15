@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, Smile, ThumbsDown, ThumbsUp } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 /**
@@ -23,11 +23,36 @@ const ReactMarkdown = dynamic(
 import { usePathname } from 'next/navigation';
 import { getTickerName } from '@/lib/trendingTickers';
 
+type ChatDataProvenance = {
+  sourceLabel: string;
+  timestamp: string | null;
+  freshness: string | null;
+};
+
+type ChatRouting = {
+  intent?: string;
+  dataProvenance?: ChatDataProvenance | null;
+};
+
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  routing?: ChatRouting;
+  feedback?: 'up' | 'down';
+};
+
+const QUICK_EMOJIS = ['😀', '👍', '🙏', '📈', '📉', '🤔', '💡', '✅'];
+
+function makeMessageId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `lensai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function AIChat() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeContextData, setActiveContextData] = useState<any>(null);
@@ -41,6 +66,7 @@ export default function AIChat() {
   // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
   // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
   const [markdownReady, setMarkdownReady] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -91,15 +117,20 @@ export default function AIChat() {
     let carry = '';
     let answer = '';
     let started = false;
+    let assistantMessageId: string | null = null;
 
     const paint = (text: string) => {
       setMessages(prev => {
         const next = [...prev];
-        if (started && next.length && next[next.length - 1].role === 'assistant') {
-          next[next.length - 1] = { role: 'assistant', content: text };
-          return next;
+        if (started && assistantMessageId) {
+          const index = next.findIndex((message) => message.id === assistantMessageId);
+          if (index >= 0) {
+            next[index] = { ...next[index], content: text };
+            return next;
+          }
         }
-        return [...next, { role: 'assistant', content: text }];
+        assistantMessageId = makeMessageId();
+        return [...next, { id: assistantMessageId, role: 'assistant', content: text }];
       });
       started = true;
     };
@@ -117,6 +148,11 @@ export default function AIChat() {
         paint(answer);
       } else if (event?.t === 'done') {
         setPenyediaSiap(true);
+        if (assistantMessageId && event.routing) {
+          setMessages((prev) => prev.map((message) => (
+            message.id === assistantMessageId ? { ...message, routing: event.routing as ChatRouting } : message
+          )));
+        }
       } else if (event?.t === 'error') {
         if (event.detailCode === 'NO_PROVIDER_CONFIGURED' || event.detailCode === 'PROVIDER_AUTH_ERROR') {
           setPenyediaSiap(false);
@@ -152,7 +188,7 @@ export default function AIChat() {
     
     const userPrompt = input;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
+    setMessages(prev => [...prev, { id: makeMessageId(), role: 'user', content: userPrompt }]);
     setIsLoading(true);
 
     const segments = pathname.split('/');
@@ -280,14 +316,14 @@ export default function AIChat() {
         if (data?.detailCode === 'NO_PROVIDER_CONFIGURED' || data?.detailCode === 'PROVIDER_AUTH_ERROR') {
           setPenyediaSiap(false);
         }
-        setMessages(prev => [...prev, { role: 'assistant', content: safeMessage }]);
+        setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: safeMessage }]);
         return;
       }
 
       setPenyediaSiap(true);
-      setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+      setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: data.content, routing: data.routing }]);
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
+      setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
     } finally {
       setIsLoading(false);
     }
@@ -298,6 +334,27 @@ export default function AIChat() {
   // setiap contoh wajib punya jalur data yang nyata, lihat catatan di file itu.
   const activeSymbol = symbolFromPathname(pathname);
   const starters = activeSymbol ? tickerStarters(activeSymbol) : MARKET_STARTERS;
+
+  const sendFeedback = (message: ChatMessage, prompt: string, rating: 'up' | 'down') => {
+    if (message.role !== 'assistant') return;
+    setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, feedback: rating } : item));
+
+    // Best-effort: feedback tidak boleh mengganggu percakapan ketika jaringan/database
+    // sedang bermasalah. Pengguna tetap melihat pilihannya diterima di UI.
+    void fetch('/api/chat/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messageId: message.id,
+        rating,
+        prompt,
+        answer: message.content,
+        intent: message.routing?.intent,
+        sourceLabel: message.routing?.dataProvenance?.sourceLabel,
+        dataTimestamp: message.routing?.dataProvenance?.timestamp,
+      }),
+    }).catch(() => undefined);
+  };
 
   return (
     <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
@@ -385,6 +442,34 @@ export default function AIChat() {
                         ) : (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
                         )}
+                        {msg.routing?.dataProvenance && (
+                          <p className="mt-3 border-t border-white/[0.07] pt-2 text-[10px] leading-relaxed text-tv-muted">
+                            {msg.routing.dataProvenance.sourceLabel}
+                            {msg.routing.dataProvenance.timestamp ? ` · ${msg.routing.dataProvenance.timestamp}` : ''}
+                            {!msg.routing.dataProvenance.timestamp && msg.routing.dataProvenance.freshness ? ` · ${msg.routing.dataProvenance.freshness}` : ''}
+                          </p>
+                        )}
+                        <div className="mt-3 flex items-center gap-1 border-t border-white/[0.07] pt-2 text-[10px] text-tv-muted">
+                          <span className="mr-1">Jawaban ini membantu?</span>
+                          <button
+                            type="button"
+                            aria-label="Jawaban membantu"
+                            title="Membantu"
+                            onClick={() => sendFeedback(msg, [...messages.slice(0, idx)].reverse().find((item) => item.role === 'user')?.content ?? '', 'up')}
+                            className={`rounded p-1 transition-colors hover:text-tv-green ${msg.feedback === 'up' ? 'text-tv-green' : ''}`}
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Jawaban tidak tepat"
+                            title="Tidak tepat"
+                            onClick={() => sendFeedback(msg, [...messages.slice(0, idx)].reverse().find((item) => item.role === 'user')?.content ?? '', 'down')}
+                            className={`rounded p-1 transition-colors hover:text-tv-red ${msg.feedback === 'down' ? 'text-tv-red' : ''}`}
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       msg.content
@@ -404,7 +489,7 @@ export default function AIChat() {
                       mengalir, ia dimatikan (lihat consumeStream). Yang dijanjikan kata
                       di bawah karena itu sesuai dengan yang dilihat pengguna: server
                       sedang menyiapkan data & memverifikasi angkanya. */}
-                  LensAI sedang menyiapkan jawaban...
+                  LensAI sedang berpikir...
                 </div>
               </div>
             )}
@@ -431,6 +516,32 @@ export default function AIChat() {
               >
                 <Send className="w-4 h-4" />
               </button>
+            </div>
+            <div className="mt-2 flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Buka pilihan emoji"
+                aria-expanded={emojiOpen}
+                onClick={() => setEmojiOpen((open) => !open)}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${emojiOpen ? 'bg-tv-blue/15 text-tv-blue' : 'text-tv-muted hover:bg-white/[0.05] hover:text-tv-text'}`}
+              >
+                <Smile className="h-4 w-4" />
+              </button>
+              {emojiOpen && (
+                <div className="flex flex-wrap items-center gap-1" aria-label="Pilihan emoji">
+                  {QUICK_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      aria-label={`Tambahkan emoji ${emoji}`}
+                      onClick={() => setInput((current) => `${current}${emoji}`)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-base transition-colors hover:bg-white/[0.08]"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           

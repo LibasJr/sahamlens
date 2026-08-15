@@ -14,7 +14,7 @@ import { isMarketOpen } from '@/lib/utils/market';
 // /fundamental. Ikon Brain & AlertTriangle juga tidak dipakai di mana pun.
 import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
-  RefreshCw, ShieldCheck, TrendingUp, Info
+  RefreshCw, ShieldCheck, TrendingUp, Info, Lock
 } from 'lucide-react';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
@@ -24,9 +24,19 @@ import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
+
+// Tiga indikator ini tetap terbuka agar pengunjung memahami konteks valuasi dan
+// profitabilitas. Sisanya disamarkan sampai mereka membuat akun gratis - pola yang
+// sama seperti LensTechnical, tetapi CTA-nya sengaja "Daftar Gratis", bukan Pro.
+const FUNDAMENTAL_GUEST_VISIBLE_KEYWORDS = ['P/E', 'PBV', 'ROE'];
+
+function isVisibleForFundamentalGuest(label: string): boolean {
+  return FUNDAMENTAL_GUEST_VISIBLE_KEYWORDS.some((keyword) => label.includes(keyword));
+}
 
 const splitStatusText = (value?: string | null) => {
   const text = (value || '').trim();
@@ -43,6 +53,7 @@ const splitStatusText = (value?: string | null) => {
 // Analyzer (yang sekarang mengirim ?symbol=<ticker aktif>) langsung akurat.
 function FundamentalContent() {
   const searchParams = useSearchParams();
+  const { loading: authLoading, resolved: authResolved, user } = useAuthUser();
   const [ticker, setTickerState] = useState('BBCA');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -367,6 +378,13 @@ function FundamentalContent() {
   })();
   const displayedAnalyzers = viewMode === 'compact' ? compactAnalyzers : filteredAnalyzers;
   const lowSampleCount = displayedAnalyzers.filter((algo: any) => getAccuracyPct(algo.label) == null).length;
+  // Kalau status sesi gagal dibaca, jangan mengunci UI secara keliru. Hanya tamu yang
+  // sudah terkonfirmasi melihat teaser kartu; user yang sudah login tetap melihat
+  // seluruh indikator, terlepas dari status trial/Pro-nya.
+  const isConfirmedGuest = authResolved && !authLoading && !user;
+  const lockedAnalyzerCount = isConfirmedGuest
+    ? filteredAnalyzers.filter((algo: any) => !isVisibleForFundamentalGuest(algo.label)).length
+    : 0;
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -672,6 +690,14 @@ function FundamentalContent() {
                 </button>
               </div>
 
+              {lockedAnalyzerCount > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-3 py-2 text-xs text-tv-yellow">
+                  <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>{lockedAnalyzerCount} indikator fundamental terkunci (ROA, rasio likuiditas, margin, pertumbuhan, dll).</span>
+                  <a href="/signup" className="font-bold underline underline-offset-2 hover:text-white">Daftar gratis untuk buka</a>
+                </div>
+              )}
+
               {lowSampleCount > 0 && (
                 <div className="mb-4 rounded-lg border border-tv-border bg-tv-bg/70 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
                   <span className="font-semibold text-tv-text">Validasi historis indikator masih mengumpulkan sampel.</span>{' '}
@@ -688,6 +714,32 @@ function FundamentalContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
                 {displayedAnalyzers.length > 0 ? displayedAnalyzers.map((algo: any, idx: number) => {
                   const isTop3 = sortByConfidence && idx < 3;
+                  const lockedForGuest = isConfirmedGuest && !isVisibleForFundamentalGuest(algo.label);
+                  if (lockedForGuest) {
+                    return (
+                      <div key={idx} className="relative flex min-h-[104px] flex-col gap-2 overflow-hidden rounded-lg border border-tv-border bg-tv-bg p-3">
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
+                          <a
+                            href="/signup"
+                            className="flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-2 py-1 text-[10px] font-bold text-tv-yellow transition-colors hover:border-tv-yellow hover:text-white"
+                            aria-label={`Daftar gratis untuk membuka indikator ${algo.label}`}
+                          >
+                            <Lock className="h-3 w-3" aria-hidden="true" /> Daftar Gratis
+                          </a>
+                        </div>
+                        <div className="flex justify-between items-center text-sm blur-sm select-none" aria-hidden="true">
+                          <span className="text-white font-bold">{algo.label}</span>
+                          <span className="font-sans text-xs font-bold px-2 py-0.5 rounded bg-tv-yellow/20 text-tv-yellow">
+                            {algo.decision}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs font-mono text-tv-muted blur-sm select-none" aria-hidden="true">
+                          <span>{algo.value}</span>
+                          <span className="text-white">Conf: {algo.confidence}%</span>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     // shadow hex rgba(34,171,148,...) adalah hijau kebiruan dari palet
                     // lama - tidak sama dengan tv-green mana pun yang dipakai sekarang.

@@ -24,6 +24,7 @@ import {
   LockKeyhole,
   LogIn,
   LogOut,
+  MessageSquare,
   Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
@@ -129,6 +130,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
     { id: 'admin-broker-summary', name: 'Broker Summary', subtitle: 'Import broker flow harian', path: '/admin/broker-summary', icon: FileSpreadsheet },
+    { id: 'admin-lensai-feedback', name: 'Feedback LensAI', subtitle: 'Audit jawaban pengguna', path: '/admin/lensai-feedback', icon: MessageSquare },
   ],
 };
 

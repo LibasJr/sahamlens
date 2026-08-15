@@ -71,7 +71,10 @@ const MAX_SECONDARY_INTENTS = 2;
 
 const FUNDAMENTAL_TERMS = /\b(fundamental(?:nya)?|roe|roa|der|current ratio|quick ratio|revenue|pendapatan|laba|margin|neraca|cash ?flow|arus kas)\b/;
 const TECHNICAL_TERMS = /\b(teknikal(?:nya)?|technical|rsi|macd|ema|sma|support|resistance|resisten|momentum|volume|trend|uptrend|downtrend|atr)\b/;
-const VALUATION_TERMS = /\b(valuasi|valuation|per|p\/e|pbv|p\/b|murah|mahal|undervalued|overvalued|nilai wajar|fair value|dcf|mos|margin of safety)\b/;
+// Variasi ejaan "intrinsik" sengaja ditoleransi karena ini pertanyaan bernilai data;
+// salah routing ke product help akan membuat LensAI menjelaskan DCF tanpa membacakan
+// nilai wajar emiten yang sebenarnya tersedia di SahamLens.
+const VALUATION_TERMS = /\b(valuasi|valuation|per|p\/e|pbv|p\/b|murah|mahal|undervalued|overvalued|nilai\s+(?:wajar|intrinsik|intrinsic|intrisik|intric|intrinsih|intirisih)|fair value|intrinsik(?:nya)?|intrinsic(?:nya)?|intrisik(?:nya)?|intric(?:nya)?|intrinsih(?:nya)?|intirisih(?:nya)?|dcf|mos|margin of safety)\b/;
 // DIPERLUAS 2026-08-13 (temuan dari pertanyaan pemilik produk): dulu hanya "bagus gak"
 // PERSIS yang tertangkap. "saham ini jelek apa bagus?" - bentuk yang sama wajarnya -
 // jatuh ke STOCK_GENERAL, yang berarti model menyusun kesimpulannya sendiri dari angka
@@ -94,7 +97,13 @@ const NEWS_TERMS = /\b(sentimen|sentiment|berita|news|kabar|isu|rumor|katalis|pe
 // Fitur yang SUDAH punya intent data sendiri (dividen/earnings/kalender/flow/moat/
 // risiko/screener/backtest - lihat daftar *_TERMS di bawah) SENGAJA tidak ditambahkan
 // di sini supaya urutan pengecekan intent data yang sudah teruji tidak berubah.
-const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|lensconsensus|lensai|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal|dcf|intrinsic value|nilai intrinsik|multi-?agent|council|blue.?chip|small.?cap|cap tier|compare|portofolio|portfolio|watchlist|glosarium|glossary)\b/;
+const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|lensconsensus|lensai|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal|dcf|intrinsic value|nilai intrinsik|nilai intrinsic|nilai intrisik|nilai intric|multi-?agent|council|blue.?chip|small.?cap|cap tier|compare|portofolio|portfolio|watchlist|glosarium|glossary)\b/;
+// Menu-menu ini juga punya intent data masing-masing. Namun tanpa ticker dan dengan
+// framing definisi/fungsi, pengguna jelas menanyakan MENU-nya - jangan balas dengan
+// "sebutkan ticker". Daftar ini mencakup seluruh navigasi pengguna di Sidebar, plus
+// Pattern yang dapat dibuka dari analisis teknikal. Daftar terpisah menjaga pertanyaan
+// datanya tetap ke router asli.
+const PRODUCT_FEATURE_DEFINITION_TERMS = /\b(beranda|home|lensmarket|market pulse|lensradar|lenstechnical|lensscanner|compare|backtest|lensfundamental|valuation|valuasi|dcf|nilai intrinsik|nilai intrinsic|moat|earnings|dividen|dividend|lenswatch|watchlist|akun demo|paper trading|risk matrix|risk calculator|news(?:\s*&\s*sentiment)?|berita|sentimen|corporate calendar|kalender|calendar|macro|makro|transparansi|tentang|about|pattern|pola|laporan keuangan|corporate action|broker flow|broker summary|foreign flow|arus dana|risk profile|manajemen risiko)\b/;
 const PRODUCT_CALC_TERMS = /\b(cara|bagaimana|gimana)\b.*\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(hitung|dihitung|perhitungan)\b|\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(cara|bagaimana|gimana)\b.*\b(hitung|dihitung|perhitungan)\b/;
 const FOLLOW_UP_TERMS = /^(kenapa|kok|terus|lalu|gimana|bagaimana|kalau|kalo|jadi|yang tadi|tadi|data yang|periode kapan|yang kamu pakai|nya\b|itu\b|sehari sebelumnya)/;
 const CONCEPT_QUERY = /\b(apa itu|apa artinya|artinya apa|maksudnya|definisi|fungsi|cara kerja)\b/;
@@ -106,7 +115,7 @@ const CONCEPT_QUERY = /\b(apa itu|apa artinya|artinya apa|maksudnya|definisi|fun
  * menang dan permintaan data berubah jadi ceramah fitur - persis keluhan "ditanya apa,
  * jawabnya penjelasan umum".
  */
-const PRODUCT_DEFINITION_QUERY = /\b(apa itu|itu apa|apa artinya|artinya apa|maksudnya|definisi|fungsi|cara kerja|buat apa|gunanya|bedanya|beda)\b/;
+const PRODUCT_DEFINITION_QUERY = /\b(apa itu|itu apa|apa artinya|artinya apa|maksudnya|definisi|fungsi(?:nya)?|cara kerja|cara pakai(?:nya)?|bagaimana pakai|gimana pakai|tutorial|panduan|buat apa|guna(?:nya)?|bedanya|beda|jelaskan|jelasin|terangkan|uraikan|menu|fitur)\b/;
 
 // ---------------------------------------------------------------------------
 // Istilah untuk intent yang ditambahkan 2026-08-13 (cakupan seluruh fitur aplikasi).
@@ -320,6 +329,7 @@ function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, '
     requestedMetrics: metrics,
   };
   if (PRODUCT_TERMS.test(text) && PRODUCT_DEFINITION_QUERY.test(text)) return productHelp;
+  if (args.tickerCount === 0 && PRODUCT_FEATURE_DEFINITION_TERMS.test(text) && PRODUCT_DEFINITION_QUERY.test(text)) return productHelp;
   if (PRODUCT_CALC_TERMS.test(text) || (/fundamental/.test(text) && /teknikal/.test(text) && /beda/.test(text))) {
     return productHelp;
   }
@@ -359,7 +369,10 @@ function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, '
 
   // Nama fitur yang tersisa (tanpa framing definisi dan tanpa intent data yang cocok) -
   // mis. "LensTechnical gimana sih". Diperlakukan sebagai pertanyaan produk.
-  if (PRODUCT_TERMS.test(text)) return productHelp;
+  // Pengecualian penting: DCF/intrinsic value juga nama fitur, tetapi jika pengguna
+  // bertanya "berapa nilai intrinsik BBCA?" itu minta ANGKA valuasi dari data, bukan
+  // penjelasan fitur. Biarkan jatuh ke VALUATION di bawah.
+  if (PRODUCT_TERMS.test(text) && !VALUATION_TERMS.test(text)) return productHelp;
 
   if (MARKET_TERMS.test(text) && args.tickerCount === 0) {
     return { intent: 'MARKET_GENERAL', dataIntent: 'MARKET_GENERAL', compareScope: 'GENERAL', requestedMetrics: metrics };

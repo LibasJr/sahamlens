@@ -49,7 +49,7 @@ export default function AlgoFilters({
       {!isAdmin && lockedAnalyzers.length > 0 && (
         <div className="mb-4 px-3 py-2 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-sans flex items-center gap-2">
           <Lock className="w-3.5 h-3.5 flex-shrink-0" />
-          {lockedAnalyzers.length} filter terkunci ({lockedAnalyzers.slice(0, 2).map((a) => a.label).join(', ')}, dll) - Buka di Pro
+          {lockedAnalyzers.length} filter terkunci ({lockedAnalyzers.slice(0, 2).map((a) => a.label).join(', ')}, dll) - Masuk atau daftar untuk buka
         </div>
       )}
 
