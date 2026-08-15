@@ -449,7 +449,7 @@ export default function Recommendations() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="Rekomendasi saham butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="Rekomendasi saham butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"

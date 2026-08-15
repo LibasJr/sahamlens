@@ -440,7 +440,7 @@ export default function AiPickPage() {
               <EmptyState
                 illustration="locked"
                 title="Login untuk melihat hasil LensRadar"
-                description="Butuh akun gratis - trial 7 hari akses penuh."
+                description="Butuh akun gratis untuk memakai fitur selama masa pengujian."
                 action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
               />
             )}
@@ -449,7 +449,7 @@ export default function AiPickPage() {
               <EmptyState
                 illustration="locked"
                 title="LensRadar Live butuh akun Pro"
-                description="Masa trial 7 hari sudah berakhir."
+                description="Silakan masuk kembali untuk melanjutkan penggunaan."
                 action={{ label: 'Lihat Paket', onClick: () => setShowPaywall(true) }}
               />
             )}
@@ -802,8 +802,8 @@ export default function AiPickPage() {
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
-        title="Masa Trial Habis"
-        body="LensRadar Live butuh akun Pro setelah trial 7 hari berakhir."
+        title="Akses Akun Belum Tersedia"
+        body="Silakan masuk kembali untuk melanjutkan penggunaan LensRadar Live."
         benefits={[
           'Unlimited LensTechnical (10 filter)',
           'LensRadar LIVE, LensConsensus & Compare Tool',
@@ -815,7 +815,7 @@ export default function AiPickPage() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="LensRadar butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="LensRadar butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"

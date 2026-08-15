@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
 
 // Bentuk minimal payload sesi dari /api/auth/me (lihat shared/auth/jwt.ts
 // SessionPayload) - hanya field yang dipakai untuk keputusan role/trial di sini.
@@ -43,6 +44,7 @@ export interface AuthState {
 export function computeRole(user: AuthUser | null): Omit<AuthState, 'loading' | 'user' | 'resolved'> {
   if (!user) return { effectiveRole: 'guest', trialDaysLeft: null, isTrialExpired: false };
   if (user.role === 'admin') return { effectiveRole: 'admin', trialDaysLeft: null, isTrialExpired: false };
+  if (TESTING_OPEN_ACCESS) return { effectiveRole: 'trial', trialDaysLeft: null, isTrialExpired: false };
 
   const now = Date.now();
   const proActive = user.is_pro && (!user.pro_expires_at || new Date(user.pro_expires_at).getTime() > now);

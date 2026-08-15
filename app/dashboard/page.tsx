@@ -876,16 +876,16 @@ function DashboardContent() {
             <EmptyState
               illustration="locked"
               title="Analisa teknikal butuh akun"
-              description="Daftar gratis - dapat trial 7 hari akses penuh sebelum diminta upgrade."
+              description="Daftar gratis untuk memakai seluruh fitur selama masa pengujian."
               action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
             />
           ) : showPaywall ? (
             <EmptyState
               illustration="locked"
-              title={isTrialExpired ? 'Masa trial 7 hari sudah berakhir' : 'Kuota analisa hari ini sudah habis'}
+              title={isTrialExpired ? 'Akses akun belum tersedia' : 'Kuota analisa hari ini sudah habis'}
               description={
                 isTrialExpired
-                  ? 'Upgrade ke Pro untuk melanjutkan analisa tanpa batas.'
+                  ? 'Silakan masuk kembali untuk melanjutkan analisa.'
                   : `Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai${usedSymbolsToday.length ? ` untuk ${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}` : ''}. Kuota disetel ulang besok.`
               }
               action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
@@ -904,8 +904,8 @@ function DashboardContent() {
         <PaywallModal
           open={showPaywall}
           onClose={() => { if (!isTrialExpired) setShowPaywall(false); }}
-          title={isTrialExpired ? "Masa Trial 7 Hari Habis" : "Limit Gratis Habis"}
-          body={isTrialExpired ? "Masa trial gratis 7 hari Anda telah berakhir. Upgrade ke Pro sekarang untuk terus menggunakan fitur Pro dari SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+          title={isTrialExpired ? "Akses Akun Belum Tersedia" : "Limit Gratis Habis"}
+          body={isTrialExpired ? "Silakan masuk kembali untuk melanjutkan penggunaan SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
           benefits={[
             'Unlimited LensTechnical (10 filter)',
             'LensRadar LIVE, LensConsensus & Compare Tool',
@@ -916,7 +916,7 @@ function DashboardContent() {
           open={showLoginPrompt}
           onClose={() => setShowLoginPrompt(false)}
           title="Daftar Dulu untuk Lihat Hasil"
-          body="Analisa teknikal butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+          body="Analisa teknikal butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
           ctaHref="/signup"
           ctaLabel="Daftar Gratis"
           secondaryLabel="Nanti"
@@ -1676,7 +1676,7 @@ function DashboardContent() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="Analisa teknikal butuh akun (gratis) - daftar sekarang, dapat trial 7 hari akses penuh sebelum diminta upgrade."
+        body="Analisa teknikal butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"

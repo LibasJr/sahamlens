@@ -45,6 +45,10 @@ function ensureSchema(): Promise<void> {
       -- tidak akan tertimpa.
       UPDATE users SET pro_expires_at = NOW() + INTERVAL '1 month'
       WHERE is_pro = true AND pro_expires_at IS NULL AND role <> 'admin';
+      -- Fase pengujian belum memiliki tanggal akhir akses. Kolom dipertahankan demi
+      -- kompatibilitas sesi/histori, tetapi nilai lama dibersihkan sekali per instance
+      -- agar Neon maupun profil pengguna tidak lagi menunjukkan batas 7 hari semu.
+      UPDATE users SET trial_ends_at = NULL WHERE trial_ends_at IS NOT NULL;
     `
       )
       .then(() => {});
