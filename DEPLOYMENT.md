@@ -185,6 +185,9 @@ OOS lama tidak bisa diklaim ulang.
   fallback ke bar chart terakhir) sebagai `timestamp`; ia tidak lagi mengisi waktu
   server saat worker selesai. Ringkasan beranda, movers, dan halaman Top Gainer/Loser
   memakai timestamp tersebut.
+- Cache `MARKET_SUMMARY` dinaikkan ke `v3`. Ini wajib karena cache `v2` dapat hidup
+  sampai tiga hari dan masih menyimpan timestamp server dari rilis lama; entri lama
+  dibiarkan kedaluwarsa, tetapi semua pembaca dan cron kini memakai `v3` yang sama.
 - Halaman LensTechnical, LensFundamental, LensMarket, LensRadar, rekomendasi, dan
   live filter Backtest menampilkan tanggal **dan** jam sesi sumber. Timestamp yang
   tidak tersedia dirender sebagai tidak tersedia/menunggu, bukan diganti jam browser.

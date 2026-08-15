@@ -1,8 +1,8 @@
-import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 // Publik (tanpa login) - dipakai widget "Hari Ini AI Menemukan" di halaman utama (Dashboard.tsx)
 // DAN halaman AI Pick (app/breakout-radar/page.tsx, tab per kategori via ?cat=) untuk
@@ -13,7 +13,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MARKET_SUMMARY_CACHE_KEY = `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`;
+const MARKET_SUMMARY_CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_SUMMARY;
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 const DETAIL_CAP = 20;
 
