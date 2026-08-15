@@ -10,15 +10,14 @@
  *
  * Aturannya: kunci yang dibaca lebih dari satu modul WAJIB dari sini, bukan disalin.
  */
-import { COMPUTED_CACHE_VERSION } from './cache-version';
 import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '../../modules/market/constants/ai-pick-universe';
 
-// MARKET_SUMMARY WAJIB versi yang sama dengan app/api/daily-picks/route.ts dan
-// app/api/cron/market-summary/route.ts (keduanya membaca kunci ini juga) - kalau
-// tidak, sama persis dengan masalah yang dijelaskan di atas: satu pembaca diam-diam
-// selalu cache-miss karena versinya beda satu karakter.
+// MARKET_SUMMARY menggunakan versi khusus karena arti field `timestamp` berubah dari
+// jam worker menjadi waktu quote sumber. Kunci v3 mencegah cache v2 yang masih hidup
+// sampai tiga hari menyamar sebagai snapshot pasar baru. Semua pembaca/penulis wajib
+// memakai konstanta ini agar tidak terjadi cache-miss silang.
 export const COMPUTED_CACHE_KEY = {
-  MARKET_SUMMARY: `sahamlens:cache:computed:market-summary:${COMPUTED_CACHE_VERSION}`,
+  MARKET_SUMMARY: 'sahamlens:cache:computed:market-summary:v3',
   // v3 menambah daftar quote breadth + timestamp sesi sumber. Kunci baru menjaga
   // respons cache v2 lama (tanpa daftar) tidak terlihat seperti snapshot lengkap.
   MARKET_PULSE: 'sahamlens:cache:computed:market-pulse:v3',
