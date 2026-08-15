@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ClientHeader from './ClientHeader';
 import StockChartPanel from '@/components/StockChartPanel';
-import { LogIn, Crown } from 'lucide-react';
+import { LogIn, Crown, Lock } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
@@ -129,6 +129,17 @@ function sinyalDariAnalyzer(decision: string): 'BUY' | 'SELL' | 'HOLD' {
   if (decision === 'BEARISH') return 'SELL';
   return 'HOLD';
 }
+
+// Tiga indikator ini cukup untuk memberi gambaran cara kerja halaman tanpa
+// membocorkan seluruh breakdown analyzer kepada pengunjung yang belum masuk.
+// Gunakan nama indikator, bukan posisi array, karena urutan dari API dapat berubah.
+const GUEST_VISIBLE_ANALYZER_KEYWORDS = ['EMA', 'RSI', 'MA Trend'];
+
+function isGuestVisibleAnalyzer(label: unknown): boolean {
+  const normalizedLabel = typeof label === 'string' ? label : '';
+  return GUEST_VISIBLE_ANALYZER_KEYWORDS.some((keyword) => normalizedLabel.includes(keyword));
+}
+
 async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
   const { data, status, signedIn } = await getKonsensusData(symbol);
 
@@ -226,6 +237,9 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
   const analyzers: any[] = Array.isArray(data.analyzers) ? data.analyzers : [];
   const konsensus = data.consensusData || null;
   const dimensi: any[] = Array.isArray(konsensus?.dimensions) ? konsensus.dimensions : [];
+  const lockedAnalyzerCount = signedIn
+    ? 0
+    : analyzers.filter((analyzer) => !isGuestVisibleAnalyzer(analyzer.label)).length;
 
   // Persentase di bawah adalah hitungan KEPALA analyzer - berbeda dari bull_pct/bear_pct
   // milik konsensus yang menghitung BOBOT DIMENSI. Keduanya sengaja ditampilkan karena
@@ -309,31 +323,57 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             sama-sama turunan rata-rata bergerak akan menguasai suara hanya karena
             jumlahnya, bukan karena bukti yang berbeda.
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-tv-border text-left text-tv-muted">
-                  <th className="pb-2 font-semibold">Dimensi</th>
-                  <th className="pb-2 font-semibold text-right">Bobot</th>
-                  <th className="pb-2 font-semibold text-right">Arah</th>
-                  <th className="pb-2 font-semibold text-right">Analyzer berarah</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dimensi.map((d: any) => (
-                  <tr key={d.dimension} className="border-b border-tv-border/50 last:border-0">
-                    <td className="py-2 font-semibold text-tv-text">{d.dimension}</td>
-                    <td className="py-2 text-right font-number text-tv-muted">{d.weight}</td>
-                    <td className={`py-2 text-right font-number font-bold ${
-                      d.direction === 'BULLISH' ? 'text-tv-green'
-                        : d.direction === 'BEARISH' ? 'text-tv-red'
-                        : 'text-tv-muted'
-                    }`}>{d.direction}</td>
-                    <td className="py-2 text-right font-number text-tv-muted">{d.votedAnalyzers}</td>
+          {signedIn ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-tv-border text-left text-tv-muted">
+                    <th className="pb-2 font-semibold">Dimensi</th>
+                    <th className="pb-2 font-semibold text-right">Bobot</th>
+                    <th className="pb-2 font-semibold text-right">Arah</th>
+                    <th className="pb-2 font-semibold text-right">Analyzer berarah</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {dimensi.map((d: any) => (
+                    <tr key={d.dimension} className="border-b border-tv-border/50 last:border-0">
+                      <td className="py-2 font-semibold text-tv-text">{d.dimension}</td>
+                      <td className="py-2 text-right font-number text-tv-muted">{d.weight}</td>
+                      <td className={`py-2 text-right font-number font-bold ${
+                        d.direction === 'BULLISH' ? 'text-tv-green'
+                          : d.direction === 'BEARISH' ? 'text-tv-red'
+                          : 'text-tv-muted'
+                      }`}>{d.direction}</td>
+                      <td className="py-2 text-right font-number text-tv-muted">{d.votedAnalyzers}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-tv-border bg-tv-bg px-4 py-5 text-center">
+              <Lock className="mx-auto mb-2 h-5 w-5 text-tv-yellow" />
+              <p className="text-sm font-semibold text-tv-text">Rincian bobot tersedia setelah masuk</p>
+              <p className="mt-1 text-xs text-tv-muted">Masuk untuk memeriksa bobot, arah, dan analyzer pada setiap dimensi.</p>
+              <Link
+                href={`/login?next=/technical/${symbol}`}
+                className="mt-3 inline-flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-3 py-1.5 text-xs font-bold text-tv-yellow transition-colors hover:text-white"
+              >
+                <LogIn className="h-3.5 w-3.5" /> Masuk untuk membuka
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {lockedAnalyzerCount > 0 && (
+        <div className="rounded-xl border border-tv-yellow/30 bg-tv-yellow/10 px-4 py-3 text-sm text-tv-yellow">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Lock className="h-4 w-4" />
+            <span><strong>{lockedAnalyzerCount} indikator lanjutan</strong> terkunci untuk pengunjung.</span>
+            <Link href={`/login?next=/technical/${symbol}`} className="font-bold underline underline-offset-2 hover:text-white">
+              Masuk untuk membuka
+            </Link>
           </div>
         </div>
       )}
@@ -341,6 +381,33 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {analyzers.map((a: any, idx: number) => {
           const sinyal = sinyalDariAnalyzer(a.decision);
+          const locked = !signedIn && !isGuestVisibleAnalyzer(a.label);
+
+          if (locked) {
+            return (
+              <div key={idx} className="relative overflow-hidden rounded-lg border border-tv-border bg-tv-hover p-4">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
+                  <Link
+                    href={`/login?next=/technical/${symbol}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-3 py-1.5 text-xs font-bold text-tv-yellow transition-colors hover:text-white"
+                  >
+                    <Lock className="h-3.5 w-3.5" /> Masuk
+                  </Link>
+                </div>
+                <div className="select-none blur-sm" aria-hidden="true">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h3 className="font-heading text-sm font-bold text-tv-text">{a.label}</h3>
+                    <span className="lens-chip shrink-0 rounded border border-tv-yellow/30 bg-tv-yellow/20 px-2 py-0.5 font-number font-semibold text-tv-yellow">
+                      {sinyal}
+                    </span>
+                  </div>
+                  <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
+                  <p className="mt-1 text-[11px] text-tv-muted">Keyakinan {a.confidence ?? '-'}%</p>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={idx} className="bg-tv-hover border border-tv-border rounded-lg p-4 transition-colors hover:border-tv-borderLight">
               <div className="flex justify-between items-center gap-2 mb-2">
