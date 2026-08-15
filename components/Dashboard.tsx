@@ -737,76 +737,102 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           className="mb-8"
         >
           <div className="mb-4 flex flex-col gap-1">
-            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-blue">Cakupan Analisis</span>
-            <h2 className="font-heading text-xl font-bold tracking-tight text-tv-text sm:text-2xl">Cakupan Analisis SahamLens</h2>
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-blue">Mengapa SahamLens</span>
+            <h2 className="font-heading text-xl font-bold tracking-tight text-tv-text sm:text-2xl">Bukan hanya lihat indikator</h2>
             <p className="max-w-3xl text-sm leading-relaxed text-tv-muted">
-              Satu workspace untuk membaca saham dari sisi teknikal, fundamental, validasi historis,
-              daya saing bisnis, event laporan keuangan, sampai konteks makro pasar Indonesia.
+              Tiga alat ini membantu membaca kualitas bisnis, menyatukan pembacaan teknikal, dan memeriksa
+              apakah sebuah pola punya rekam jejak historis—bukan sekadar mengejar harga yang sedang bergerak.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 lg:grid-cols-3">
             {[
               {
-                icon: LineChart,
-                title: 'LensTechnical',
-                desc: 'Chart, tren, momentum, RSI, MA, volatilitas, dan pembacaan timing berbasis data pasar.',
-                href: '/dashboard',
-                tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
-              },
-              {
-                icon: Building2,
-                title: 'LensFundamental',
-                desc: 'Quality, growth, leverage, valuasi dasar, dan kesehatan bisnis emiten dalam satu tampilan.',
-                href: '/fundamental',
-                tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
-              },
-              {
-                icon: Filter,
-                title: 'LensScanner',
-                desc: 'Screener multi-factor untuk menyaring saham IDX berdasarkan kriteria teknikal dan data.',
-                href: '/screener',
-                tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
-              },
-              {
-                // BARU (2026-08-14, permintaan pengguna: "posisi backtest ganti dengan
-                // posisi LensConsensus, biar selaras sama sebelahnya") - grid 4 kolom x 2
-                // baris, Backtest & LensConsensus TUKAR POSISI (dulu Backtest di baris 1
-                // kolom 4, LensConsensus di baris 2 kolom 4). Konten kedelapan kartu tidak
-                // berubah, cuma urutan tampilnya.
                 icon: Users,
                 title: 'LensConsensus',
-                desc: 'Rapat 10 agen teknikal rule-based atas data OHLCV asli - tren, momentum, volume, volatilitas - lalu diringkas jadi satu konsensus.',
+                desc: 'Lihat apakah 10 pembacaan teknikal rule-based dari data OHLCV asli bergerak searah sebelum mengambil kesimpulan sendiri.',
                 href: '/technical/BBCA.JK',
                 tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
               },
               {
                 icon: Target,
                 title: 'Moat Proxy',
-                desc: 'Estimasi keunggulan kompetitif berbasis proxy fundamental dan ketahanan performa bisnis.',
+                desc: 'Baca estimasi keunggulan kompetitif dan ketahanan performa bisnis melalui proxy fundamental yang konsisten.',
                 href: '/moat',
+                tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
+              },
+              {
+                icon: History,
+                title: 'Backtest Transparan',
+                desc: 'Periksa rekam jejak historis, jumlah sampel, dan batasan strategi agar sinyal tidak hanya terlihat menarik hari ini.',
+                href: '/backtest',
+                tone: 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20',
+              },
+            ].map(({ icon: Icon, title, desc, href, tone }) => (
+              <Link
+                key={title}
+                href={href}
+                className="group rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt"
+              >
+                <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-blue">Pembeda SahamLens</div>
+                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl border ${tone}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-heading text-base font-bold text-tv-text">{title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
+                  {desc}
+                </p>
+                <span className="mt-3 inline-flex text-xs font-bold text-tv-blue transition-colors group-hover:text-white">
+                  Buka fitur →
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-7 mb-4 flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-muted">Alat analisis inti</span>
+            <h3 className="font-heading text-lg font-bold tracking-tight text-tv-text">Semua yang dibutuhkan untuk mulai menganalisis</h3>
+            <p className="max-w-3xl text-sm leading-relaxed text-tv-muted">
+              Mulai dari data harga dan laporan keuangan, lalu lanjutkan ke penyaringan, event earnings, dan konteks makro.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              {
+                icon: LineChart,
+                title: 'LensTechnical',
+                desc: 'Chart, tren, momentum, RSI, MA, dan volatilitas.',
+                href: '/dashboard',
                 tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
+              },
+              {
+                icon: Building2,
+                title: 'LensFundamental',
+                desc: 'Quality, growth, leverage, valuasi, dan kesehatan bisnis.',
+                href: '/fundamental',
+                tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
+              },
+              {
+                icon: Filter,
+                title: 'LensScanner',
+                desc: 'Saring saham IDX dengan kriteria teknikal dan data.',
+                href: '/screener',
+                tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
               },
               {
                 icon: BarChart3,
                 title: 'Earnings Monitor',
-                desc: 'Pantau jadwal earnings, rilis laporan, dan event yang berpotensi mengubah ekspektasi pasar.',
+                desc: 'Pantau laporan keuangan dan event penting emiten.',
                 href: '/earnings',
                 tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
               },
               {
                 icon: Waves,
-                title: 'Dashboard Makroekonomi',
-                desc: 'Baca konteks makro Indonesia untuk memahami sentimen pasar dan risiko sistemik.',
+                title: 'Dashboard Makro',
+                desc: 'Baca konteks makro Indonesia dan risiko sistemik.',
                 href: '/macro',
                 tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
-              },
-              {
-                icon: History,
-                title: 'Backtest',
-                desc: 'Uji strategi secara historis agar sinyal tidak hanya terlihat bagus di kondisi hari ini.',
-                href: '/backtest',
-                tone: 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20',
               },
             ].map(({ icon: Icon, title, desc, href, tone }) => (
               <Link
@@ -817,10 +843,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl border ${tone}`}>
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="font-heading text-base font-bold text-tv-text">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
-                  {desc}
-                </p>
+                <h4 className="font-heading text-base font-bold text-tv-text">{title}</h4>
+                <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">{desc}</p>
                 <span className="mt-3 inline-flex text-xs font-bold text-tv-blue transition-colors group-hover:text-white">
                   Buka fitur →
                 </span>
