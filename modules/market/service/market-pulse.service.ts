@@ -55,6 +55,32 @@ const IDX_SECTORS = [
 export const MARKET_BREADTH_UNIVERSE_TARGET_SIZE = 100;
 export const MARKET_BREADTH_STOCKS = AI_PICK_UNIVERSE.slice(0, MARKET_BREADTH_UNIVERSE_TARGET_SIZE);
 
+// Pergerakan kecil di dalam pita ini diperlakukan sebagai stagnan. Konstanta ini
+// dibagi antara perhitungan angka headline dan daftar emiten agar satu emiten tidak
+// mungkin tampil sebagai "naik" pada kartu tetapi "stagnan" di modal detail.
+export const BREADTH_STAGNANT_BAND_PCT = 0.1;
+export type BreadthDirection = 'ADVANCING' | 'UNCHANGED' | 'DECLINING';
+
+export function classifyBreadthDirection(changePct: number): BreadthDirection {
+  if (changePct > BREADTH_STAGNANT_BAND_PCT) return 'ADVANCING';
+  if (changePct < -BREADTH_STAGNANT_BAND_PCT) return 'DECLINING';
+  return 'UNCHANGED';
+}
+
+function sourceTimestamp(result: any): string | null {
+  const timestamps: unknown[] = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const latestBar = timestamps.reduce<number | null>((latest, value) => (
+    typeof value === 'number' && Number.isFinite(value) && (latest == null || value > latest)
+      ? value
+      : latest
+  ), null);
+  const marketTime = result?.meta?.regularMarketTime;
+  const unixTime = typeof marketTime === 'number' && Number.isFinite(marketTime)
+    ? marketTime
+    : latestBar;
+  return unixTime == null ? null : new Date(unixTime * 1000).toISOString();
+}
+
 async function fetchYahooQuote(symbol: string) {
   try {
     // range=5d, dulu 1d. Bar 5 menit tetap dibutuhkan untuk sparkline, tapi dengan
@@ -126,6 +152,7 @@ async function fetchYahooQuote(symbol: string) {
       changePct: parseFloat(changePct.toFixed(2)),
       sparkline: validCloses.slice(-50).map((c: number) => parseFloat(c.toFixed(2))),
       volume,
+      sourceTimestamp: sourceTimestamp(result),
     };
   } catch {
     return null;
@@ -179,6 +206,7 @@ async function fetchQuoteSimple(symbol: string) {
       volume: typeof rawVolume === 'number' && Number.isFinite(rawVolume) && rawVolume >= 0
         ? rawVolume
         : null,
+      sourceTimestamp: sourceTimestamp(result),
     };
   } catch {
     return null;
@@ -270,6 +298,7 @@ export async function getMarketPulse() {
         changePct: quote?.changePct ?? null,
         sparkline: quote?.sparkline || [],
         volume: quote?.volume ?? null,
+        sourceTimestamp: quote?.sourceTimestamp ?? null,
       };
     })
   );
@@ -330,12 +359,30 @@ export async function getMarketPulse() {
     results.forEach(r => { if (r) breadthQuotes.push(r); });
   }
 
-  const advancing = breadthQuotes.filter(s => s.changePct > 0.1).length;
-  const declining = breadthQuotes.filter(s => s.changePct < -0.1).length;
-  const unchanged = breadthQuotes.length - advancing - declining;
+  const breadthStocks = breadthQuotes.map((stock) => ({
+    symbol: stock.symbol.replace('.JK', ''),
+    price: stock.price,
+    changePct: stock.changePct,
+    direction: classifyBreadthDirection(stock.changePct),
+  }));
+  const advancing = breadthStocks.filter((stock) => stock.direction === 'ADVANCING').length;
+  const declining = breadthStocks.filter((stock) => stock.direction === 'DECLINING').length;
+  const unchanged = breadthStocks.length - advancing - declining;
+  // Jangan memakai waktu server sebagai "as of". Pada akhir pekan, server tetap
+  // berjalan tetapi harga Yahoo masih harga sesi terakhir; timestamp quote ini yang
+  // harus ditampilkan agar pengguna tidak mengira angka tersebut live hari libur.
+  const sourceTimes = [
+    ...indicesData.map((index) => index.sourceTimestamp),
+    ...breadthQuotes.map((stock) => stock.sourceTimestamp),
+  ].filter((value): value is string => typeof value === 'string')
+    .map((value) => Date.parse(value))
+    .filter(Number.isFinite);
+  const snapshotAsOf = sourceTimes.length > 0
+    ? new Date(Math.max(...sourceTimes)).toISOString()
+    : new Date().toISOString();
   const ihsgHistory = await ihsgHistoryPromise;
   const marketRegime = computeQuantitativeMarketRegime({
-    asOf: new Date().toISOString(),
+    asOf: snapshotAsOf,
     ihsgHistory,
     breadth: {
       total: breadthQuotes.length,
@@ -355,7 +402,7 @@ export async function getMarketPulse() {
   });
 
   return {
-    timestamp: new Date().toISOString(),
+    timestamp: snapshotAsOf,
     marketRegime,
     indices: indicesData,
     sectorHeatmap: sectorHeatmap.sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0)),
@@ -366,6 +413,10 @@ export async function getMarketPulse() {
       declining,
       unchanged,
       advanceDeclineRatio: declining > 0 ? parseFloat((advancing / declining).toFixed(2)) : advancing,
+      // Daftar ini adalah 100 quote nyata yang sama dengan pembilang Breadth di atas,
+      // bukan hasil screening tambahan ataupun data contoh. UI cukup memfilter menurut
+      // direction sehingga total ketiga modal selalu tie-out ke angka headline.
+      stocks: breadthStocks,
       topGainers: [...breadthQuotes].sort((a, b) => b.changePct - a.changePct).slice(0, 5).map(s => ({
         symbol: s.symbol.replace('.JK', ''),
         changePct: s.changePct,
