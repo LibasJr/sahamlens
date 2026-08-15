@@ -56,6 +56,16 @@ Diverifikasi langsung di server 2026-08-13.
 | Database | Postgres Neon - tetap eksternal, tidak ikut pindah ke VPS |
 | Port masuk | tidak ada yang dibuka ke internet - cloudflared connect keluar |
 
+### 2026-08-16 - Beranda: fitur pembeda SahamLens diprioritaskan
+
+- Bagian cakupan pada `/` kini membedakan tiga fitur yang paling khas untuk pengunjung baru:
+  **LensConsensus**, **Moat Proxy**, dan **Backtest Transparan**. Ketiganya tampil lebih dahulu
+  sebagai alasan eksplorasi; LensTechnical, LensFundamental, LensScanner, Earnings Monitor, dan
+  Dashboard Makro tetap tersedia sebagai alat analisis inti di bawahnya.
+- Perubahan ini murni susunan dan teks UI publik di `components/Dashboard.tsx`; tidak mengubah
+  formula, data, akses, cache, cron, environment variable, maupun prosedur deploy. Push ke `main`
+  tetap cukup untuk mengirim rilis ke VPS melalui GitHub Actions.
+
 **Vercel hari ini**: project `libas/trading` masih terhubung ke repo dan masih ikut build tiap
 push ke `main`, jadi ia selalu berisi kode terbaru sebagai standby. Tapi ia **tidak melayani
 trafik pengguna** (domain tidak menunjuk ke sana) dan **tidak boleh menjalankan cron**. URL
