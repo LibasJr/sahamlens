@@ -33,6 +33,12 @@ function ensureSchema(): Promise<void> {
       -- Masa berlaku Pro (2026-08-03). Sebelumnya is_pro cuma boolean tanpa batas waktu,
       -- sehingga akun yang membayar satu bulan mendapat akses selamanya.
       ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_expires_at TIMESTAMPTZ;
+      -- Audit aktivitas admin: login terakhir dan aktivitas request terautentikasi
+      -- dipisahkan agar "aktif bulan ini" tidak disamakan dengan sekadar pernah daftar.
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
+      CREATE INDEX IF NOT EXISTS idx_users_last_active_at ON users (last_active_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_users_last_login_at ON users (last_login_at DESC);
       -- Akun Pro yang sudah ada diberi masa berlaku 1 bulan sejak migrasi ini jalan.
       -- Admin dilewati supaya tidak mengunci diri sendiri. Kondisi IS NULL membuat
       -- pernyataan ini aman dijalankan berkali-kali - akun yang sudah punya tanggal
@@ -62,6 +68,62 @@ export async function getAllUsers(): Promise<User[]> {
   await ensureSchema();
   const { rows } = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
   return rows;
+}
+
+export interface AdminUserActivitySummary {
+  active24h: number;
+  active7d: number;
+  active30d: number;
+  inactive30d: number;
+}
+
+export interface InactiveUserRow {
+  id: string;
+  email: string;
+  role: string;
+  last_login_at: string | null;
+  last_active_at: string | null;
+}
+
+/** Ringkasan berbasis aktivitas tersimpan, bukan presence Redis 5 menit. */
+export async function getAdminUserActivityReport(inactiveLimit = 100): Promise<{
+  summary: AdminUserActivitySummary;
+  inactiveUsers: InactiveUserRow[];
+}> {
+  await ensureSchema();
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(inactiveLimit)));
+  const [summaryResult, inactiveResult] = await Promise.all([
+    pool.query<AdminUserActivitySummary>(
+      `SELECT
+         COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '24 hours')::int AS "active24h",
+         COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '7 days')::int AS "active7d",
+         COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '30 days')::int AS "active30d",
+         COUNT(*) FILTER (WHERE last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '30 days')::int AS "inactive30d"
+       FROM users`,
+    ),
+    pool.query<InactiveUserRow>(
+      `SELECT id, email, role, last_login_at, last_active_at
+       FROM users
+       WHERE last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '30 days'
+       ORDER BY last_active_at DESC NULLS LAST, last_login_at DESC NULLS LAST, created_at DESC
+       LIMIT $1`,
+      [safeLimit],
+    ),
+  ]);
+
+  return {
+    summary: summaryResult.rows[0] ?? { active24h: 0, active7d: 0, active30d: 0, inactive30d: 0 },
+    inactiveUsers: inactiveResult.rows,
+  };
+}
+
+/** Login berhasil harus selalu memperbarui dua waktu sekaligus. */
+export async function recordSuccessfulLogin(userId: string): Promise<void> {
+  await ensureSchema();
+  await pool.query(
+    'UPDATE users SET last_login_at = NOW(), last_active_at = NOW() WHERE id = $1',
+    [userId],
+  );
 }
 
 export async function createUser(user: User): Promise<void> {
