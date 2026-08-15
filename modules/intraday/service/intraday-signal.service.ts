@@ -270,10 +270,16 @@ export interface IntradayOutcome {
   hitTakeProfit: boolean;
   hitStopLoss: boolean;
   dataQualityStatus: string;
-  /** Slippage per sisi yang BENAR-BENAR dipakai, sudah kena lantai fraksi harga. */
+  /** Kompatibilitas arsip: sama dengan slippage entry. Gunakan dua field eksplisit di bawah untuk model baru. */
   slippageBpsApplied: number | null;
-  /** true = asumsi slippage konfigurasi lebih kecil dari setengah tick, jadi lantai yang menang. */
+  /** Slippage aktual saat beli; lantai tick dihitung dari harga entry. */
+  entrySlippageBpsApplied: number | null;
+  /** Slippage aktual saat jual; lantai tick dihitung dari harga exit. */
+  exitSlippageBpsApplied: number | null;
+  /** Kompatibilitas arsip: sama dengan status lantai pada entry. */
   spreadFloorBinding: boolean;
+  entrySpreadFloorBinding: boolean;
+  exitSpreadFloorBinding: boolean;
   /** Apakah sinyal ini lolos gerbang kelayakan transaksi intraday. Menandai, tidak membuang. */
   tradable: boolean;
 }
@@ -316,7 +322,11 @@ export function simulateIntradayOutcome(
     hitStopLoss: false,
     dataQualityStatus: 'OK',
     slippageBpsApplied: null,
+    entrySlippageBpsApplied: null,
+    exitSlippageBpsApplied: null,
     spreadFloorBinding: false,
+    entrySpreadFloorBinding: false,
+    exitSpreadFloorBinding: false,
     tradable: false,
   };
 
@@ -377,10 +387,9 @@ export function simulateIntradayOutcome(
   // saham murah lantai ini jauh melebihi asumsi datar - dan justru saham murah yang
   // paling sering terlihat menguntungkan di backtest intraday.
   const entrySlippageBps = effectiveSlippageBps(entryPriceRaw, config.cost.slippageEntryBps, config.priceFractions);
-  const exitSlippageBps = effectiveSlippageBps(entryPriceRaw, config.cost.slippageExitBps, config.priceFractions);
-  const spreadFloorBinding =
+  const entrySpreadFloorBinding =
     minHalfSpreadBps(entryPriceRaw, config.priceFractions) >
-    Math.min(config.cost.slippageEntryBps, config.cost.slippageExitBps);
+    config.cost.slippageEntryBps;
 
   const entryPrice = entryPriceRaw * (1 + bps(entrySlippageBps));
 
@@ -425,8 +434,16 @@ export function simulateIntradayOutcome(
   if (exitReason === 'TAKE_PROFIT' && config.takeProfitPct != null) {
     exitPriceRaw = entryPrice * (1 + config.takeProfitPct / 100);
   } else if ((exitReason === 'STOP_LOSS' || exitReason === 'TP_SL_SAME_BAR_CONSERVATIVE') && config.stopLossPct != null) {
-    exitPriceRaw = entryPrice * (1 - config.stopLossPct / 100);
+    // Stop yang tersentuh setelah gap turun tidak dapat diasumsikan terjual pada
+    // batas stop. Untuk posisi long, open yang lebih rendah adalah harga terbaik
+    // yang realistis pada candle 5 menit itu; ini sengaja bias konservatif.
+    exitPriceRaw = Math.min(effectiveExitBar.open, entryPrice * (1 - config.stopLossPct / 100));
   }
+  // Lantai fraksi sisi jual harus memakai HARGA EXIT. Harga dapat melintasi pita
+  // fraksi IDX antara entry dan exit; memakai harga entry di sini membuat biaya
+  // keluar salah persis pada kasus batas pita itu.
+  const exitSlippageBps = effectiveSlippageBps(exitPriceRaw, config.cost.slippageExitBps, config.priceFractions);
+  const exitSpreadFloorBinding = minHalfSpreadBps(exitPriceRaw, config.priceFractions) > config.cost.slippageExitBps;
   const exitPrice = exitPriceRaw * (1 - bps(exitSlippageBps));
 
   const grossReturn = exitPriceRaw / entryPriceRaw - 1;
@@ -472,7 +489,11 @@ export function simulateIntradayOutcome(
     hitStopLoss,
     dataQualityStatus: 'OK',
     slippageBpsApplied: round(entrySlippageBps, 3),
-    spreadFloorBinding,
+    entrySlippageBpsApplied: round(entrySlippageBps, 3),
+    exitSlippageBpsApplied: round(exitSlippageBps, 3),
+    spreadFloorBinding: entrySpreadFloorBinding,
+    entrySpreadFloorBinding,
+    exitSpreadFloorBinding,
     // MENANDAI, tidak membuang: populasi grid tetap utuh supaya bucket skor rendah
     // punya pembanding, tetapi hasilnya bisa dibaca ulang pada irisan yang benar-benar
     // bisa dieksekusi aplikasi sungguhan.

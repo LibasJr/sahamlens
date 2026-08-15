@@ -13,6 +13,7 @@ import {
   INTRADAY_COST_SCENARIOS,
   LENS_INTRADAY_WEIGHTS,
 } from '../../constants/intraday-model';
+import { netReturnUnderCost } from '../intraday-validation.service';
 
 const DATE = '2026-08-10'; // Senin
 
@@ -220,6 +221,24 @@ describe('biaya, slippage, MFE/MAE', () => {
     expect(high).toBeLessThan(low);
   });
 
+  it('lantai slippage sisi jual memakai harga exit saat melintasi pita fraksi IDX', () => {
+    const zeroCostWithTicks = defaultIntradayRunConfig({
+      cost: { version: 'test-zero', label: 'tanpa biaya', buyFeePct: 0, sellFeePct: 0, slippageEntryBps: 0, slippageExitBps: 0 },
+    });
+    // Entry Rp499: setengah tick Rp1 = ~20 bps. Exit Rp500: setengah tick Rp2,5 = 50 bps.
+    // Jika sisi jual salah memakai harga entry, hasilnya sekitar -0,20%, bukan -0,50%.
+    const bars = flatSession(499);
+    const exitIndex = bars.findIndex((b) => b.wibMinute === 10 * 60 + 10);
+    bars[exitIndex] = makeBar(10 * 60 + 10, 500, { open: 500, high: 500, low: 500, close: 500 });
+    const signal = buildIntradaySignals(bars, zeroCostWithTicks).find((s) => s.signalMinute === 10 * 60)!;
+    const outcome = simulateIntradayOutcome(signal, bars, 'H15', zeroCostWithTicks);
+
+    expect(outcome.entrySlippageBpsApplied).toBeCloseTo(20.04, 2);
+    expect(outcome.exitSlippageBpsApplied).toBe(50);
+    expect(outcome.netReturn).toBeCloseTo(-0.005, 6);
+    expect(netReturnUnderCost(499, 500, zeroCostWithTicks.cost, zeroCostWithTicks.priceFractions)).toBeCloseTo(-0.005, 6);
+  });
+
   it('MFE dan MAE diukur terhadap harga entry termasuk waktu tercapainya', () => {
     const bars = flatSession(100);
     const up = bars.findIndex((b) => b.wibMinute === 10 * 60 + 5);
@@ -265,6 +284,18 @@ describe('TP/SL', () => {
     const outcome = simulateIntradayOutcome(signal, bars, 'H60', tpSlConfig);
     expect(outcome.exitReason).toBe('TAKE_PROFIT');
     expect(outcome.netReturn!).toBeCloseTo(0.02, 6);
+  });
+
+  it('gap turun melewati stop-loss keluar pada open yang lebih buruk, bukan harga SL semu', () => {
+    const bars = flatSession(100);
+    const idx = bars.findIndex((b) => b.wibMinute === 10 * 60 + 5);
+    bars[idx] = makeBar(10 * 60 + 5, 95, { open: 95, high: 96, low: 94, close: 95 });
+
+    const signal = buildIntradaySignals(bars, tpSlConfig).find((s) => s.signalMinute === 10 * 60)!;
+    const outcome = simulateIntradayOutcome(signal, bars, 'H60', tpSlConfig);
+    expect(outcome.exitReason).toBe('STOP_LOSS');
+    expect(outcome.exitPriceRaw).toBe(95);
+    expect(outcome.netReturn).toBeCloseTo(-0.05, 6);
   });
 });
 

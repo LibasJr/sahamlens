@@ -46,6 +46,19 @@ interface Dashboard {
   };
   latestRun: Nullable<{ row: RunRow; result: ValidationResult | null }>;
   recentRuns: RunRow[];
+  recentSamples: Array<{
+    ticker: string;
+    tradingDate: string;
+    signalTimestamp: string;
+    signalMinute: number;
+    score: number;
+    horizon: string;
+    entryPriceRaw: Nullable<number>;
+    exitPriceRaw: Nullable<number>;
+    netReturn: Nullable<number>;
+    exitReason: string;
+    tradable: boolean | null;
+  }>;
   oosProtocol: Nullable<{
     protocolVersion: string;
     freezeTimestamp: string;
@@ -101,7 +114,16 @@ interface ValidationResult {
   regime: { definition: string; available: boolean; rows: any[] };
   calibration: any;
   componentDiagnostics: { rows: any[]; note: string };
-  spreadFloor: { bindingShare: Nullable<number>; medianAppliedSlippageBps: Nullable<number>; maxAppliedSlippageBps: Nullable<number>; note: string };
+  spreadFloor: {
+    bindingShare: Nullable<number>;
+    entryBindingShare: Nullable<number>;
+    exitBindingShare: Nullable<number>;
+    medianAppliedSlippageBps: Nullable<number>;
+    medianEntrySlippageBps: Nullable<number>;
+    medianExitSlippageBps: Nullable<number>;
+    maxAppliedSlippageBps: Nullable<number>;
+    note: string;
+  };
   costSensitivity: any[];
   walkForward: any;
   multipleTesting: any[];
@@ -548,6 +570,46 @@ export default function IntradayValidationClient() {
         </div>
       </Card>
 
+      <Card
+        title="Contoh observasi intraday terbaru"
+        subtitle="Sampel H30 dari data riset tersimpan untuk pemeriksaan admin. Ini bukan rekomendasi, daftar beli, atau sinyal yang ditayangkan ke pengguna."
+      >
+        {dashboard.recentSamples.length === 0 ? (
+          <p className="text-sm text-tv-muted">Belum ada outcome H30 yang terisi untuk versi model dan konfigurasi aktif.</p>
+        ) : (
+          <Scroller>
+            <table className="w-full text-xs">
+              <thead className="text-tv-muted">
+                <tr>
+                  <Th>Waktu sinyal</Th>
+                  <Th>Emiten</Th>
+                  <Th>Skor</Th>
+                  <Th>Entry</Th>
+                  <Th>Harga exit</Th>
+                  <Th>Net return</Th>
+                  <Th>Alasan exit</Th>
+                  <Th>Layak dieksekusi</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-tv-border">
+                {dashboard.recentSamples.map((sample) => (
+                  <tr key={`${sample.ticker}-${sample.signalTimestamp}-${sample.horizon}`}>
+                    <Td>{wib(sample.signalTimestamp)}</Td>
+                    <Td><span className="font-semibold text-tv-text">{sample.ticker.replace('.JK', '')}</span></Td>
+                    <Td>{num(sample.score, 2)}</Td>
+                    <Td>{int(sample.entryPriceRaw)}</Td>
+                    <Td>{int(sample.exitPriceRaw)}</Td>
+                    <Td><span className={sample.netReturn != null && sample.netReturn > 0 ? 'text-tv-green' : sample.netReturn != null && sample.netReturn < 0 ? 'text-tv-red' : 'text-tv-muted'}>{pct(sample.netReturn, 3)}</span></Td>
+                    <Td>{sample.exitReason}</Td>
+                    <Td>{sample.tradable === true ? <span className="text-tv-green">ya</span> : sample.tradable === false ? <span className="text-tv-yellow">tidak</span> : NA}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Scroller>
+        )}
+      </Card>
+
       {!result ? (
         <Card title="Hasil Validasi" subtitle="Belum ada validation run yang selesai.">
           <p className="text-sm text-tv-muted">
@@ -882,12 +944,15 @@ export default function IntradayValidationClient() {
           <Card title="Sensitivitas Biaya dan Slippage" subtitle="Dihitung ulang dari harga bar mentah yang tersimpan - tidak perlu mengambil data provider lagi.">
             <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Metric
-                label="Trade kena lantai spread"
+                label="Trade kena lantai (sisi mana pun)"
                 value={pct(result.spreadFloor?.bindingShare)}
                 hint="Slippage ditentukan fraksi harga IDX, bukan asumsi konfigurasi."
               />
-              <Metric label="Median slippage terpakai" value={num(result.spreadFloor?.medianAppliedSlippageBps, 2)} hint="bps per sisi" />
-              <Metric label="Maks slippage terpakai" value={num(result.spreadFloor?.maxAppliedSlippageBps, 2)} hint="bps per sisi" />
+              <Metric label="Lantai aktif saat entry" value={pct(result.spreadFloor?.entryBindingShare)} hint="Berdasarkan harga entry." />
+              <Metric label="Lantai aktif saat exit" value={pct(result.spreadFloor?.exitBindingShare)} hint="Berdasarkan harga exit." />
+              <Metric label="Median slippage entry" value={num(result.spreadFloor?.medianEntrySlippageBps ?? result.spreadFloor?.medianAppliedSlippageBps, 2)} hint="bps sisi beli" />
+              <Metric label="Median slippage exit" value={num(result.spreadFloor?.medianExitSlippageBps, 2)} hint="bps sisi jual" />
+              <Metric label="Maks slippage terpakai" value={num(result.spreadFloor?.maxAppliedSlippageBps, 2)} hint="bps pada satu sisi" />
             </div>
             <p className="mb-4 rounded-md border border-tv-border bg-tv-bg p-2.5 text-[11px] text-tv-muted">
               {result.spreadFloor?.note}

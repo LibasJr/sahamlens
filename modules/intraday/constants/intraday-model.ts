@@ -11,7 +11,9 @@
 
 export const LENS_INTRADAY_MODEL_NAME = 'LensIntraday' as const;
 export const LENS_INTRADAY_MODEL_KEY = 'lens_intraday' as const;
-export const LENS_INTRADAY_MODEL_VERSION = 'lens-intraday-v0.1.0' as const;
+// v0.1.1: slippage sisi jual memakai harga exit (bukan harga entry) dan TP/SL
+// menghormati gap pada open candle. Hasil v0.1.0 tetap tersimpan terpisah di DB.
+export const LENS_INTRADAY_MODEL_VERSION = 'lens-intraday-v0.1.1' as const;
 
 /** Status awal. Sengaja bukan enum bebas - lihat IntradayModelStatus di bawah. */
 export const LENS_INTRADAY_INITIAL_STATUS = 'RESEARCH_ONLY' as const;
