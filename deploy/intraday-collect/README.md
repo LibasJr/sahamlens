@@ -4,6 +4,10 @@ Unit systemd untuk `/api/cron/intraday-collect`. **Belum terpasang di VPS** — 
 `config/scheduled-jobs.json` menandainya `scheduleStatus: "verify-server"` dan pengumpulan
 data intraday hanya jalan kalau ditekan manual dari `/admin/intraday-validation`.
 
+Unit memanggil `127.0.0.1:3001` (bukan `sahamlens.id`) agar job sampai 240 detik tidak
+melewati batas timeout Cloudflare. Setelah deploy yang membawa perubahan unit, salin ulang
+file `.service` sebelum menjalankan `daemon-reload`.
+
 ## Pasang
 
 ```bash

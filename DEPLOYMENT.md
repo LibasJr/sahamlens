@@ -109,7 +109,7 @@ Description=SahamLens - kumpulkan bar intraday LensIntraday
 [Service]
 Type=oneshot
 User=lens
-ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/intraday-collect
+ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/intraday-collect
 EnvironmentFile=/opt/sahamlens/app/.env.production
 ```
 
@@ -162,6 +162,18 @@ OOS lama tidak bisa diklaim ulang.
   dapat dilakukan oleh push kode: jalankan prosedur `sudo cp` / `daemon-reload` / `enable`
   pada bagian Intraday Validation Lab di atas, lalu konfirmasi lewat `job_run_log` sebelum
   mengubah status manifest menjadi `known`.
+
+### 2026-08-15 - Aksi Intraday di browser dan reset testing
+
+- Cloudflare membatasi request publik sekitar 100 detik dan dapat mengembalikan halaman HTML
+  524. Aksi pengumpulan dari panel admin sekarang berhenti rapi setelah 70 detik; data yang
+  sudah ditulis idempoten, sehingga admin cukup menekan lagi sampai backfill selesai.
+- Unit systemd `intraday-collect` memakai `http://127.0.0.1:3001`, bukan domain publik,
+  sehingga job rutin VPS dapat memakai anggaran 240 detik tanpa melewati batas Cloudflare.
+  Setelah deploy, salin ulang file `.service` ke `/etc/systemd/system/`, lalu `daemon-reload`.
+- Tombol admin **Reset data riset** menghapus hanya tujuh tabel `intraday_*` (sinyal,
+  outcome, kualitas, validation run, protokol OOS, dan proposal). Ia tidak menyentuh
+  `lens_radar_history`, harga, pengguna, atau tabel produksi apa pun.
 
 ### 2026-08-14 - Export kartu "paper/majalah" untuk LensMoat & Earnings Monitor
 
