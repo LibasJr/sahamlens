@@ -76,6 +76,13 @@ Diverifikasi langsung di server 2026-08-13.
 - Penghapusan chart juga menghapus pemuatan data/chart IHSG yang tidak dibutuhkan pada
   halaman utama. Tidak ada cache, cron, environment variable, atau langkah VPS baru.
 
+### 2026-08-16 - Panduan halaman utama dapat dibuka kembali
+
+- Panduan **Mulai dari sini** tetap dapat ditutup per browser agar tidak mengganggu
+  pengguna berulang, tetapi hero `/` kini menampilkan tombol pembuka setelah panduan
+  ditutup. Tombol tersebut membuka kembali panduan tanpa refresh dan tanpa menyimpan
+  status apa pun ke akun/database.
+
 ### 2026-08-16 - Cache Compare, Penjelasan Valuasi, dan observabilitas admin
 
 - `/api/compare` kini memakai cache Redis **per emiten** dengan TTL data teknikal yang
