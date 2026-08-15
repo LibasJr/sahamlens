@@ -1257,6 +1257,22 @@ function DashboardContent() {
             </div>
           </div>
 
+          {/* Chart ditempatkan langsung setelah konteks emiten: pengguna bisa membaca
+              harga dan struktur candle sebelum menafsirkan skor, voting, atau kartu
+              indikator. Detail indikator di bawah menjadi penjelas untuk chart ini. */}
+          <div className="mt-4 w-full">
+            <TradingViewChart
+              candles={candles}
+              technical={chartTechnical}
+              symbol={stock.symbol || ticker}
+              timeframe={timeframe}
+              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
+              onTimeframeChange={setTimeframe}
+              variant="full"
+              height={600}
+            />
+          </div>
+
           {/* BUG FIX (2026-08-14, masukan review eksternal - "jangan hanya tampilkan
               skor akhir 8/10, tampilkan breakdown voting: Tren Bullish, Momentum
               Bearish, dst"): data per-indikator (data.analyzers) ini SEBELUMNYA cuma
@@ -1314,8 +1330,8 @@ function DashboardContent() {
           />
         )}
 
-        {/* AI Summary - breakdown skor + top alasan, dipindah tepat di bawah Hero
-            supaya konsensus AI terlihat sebelum user scroll ke chart/teknikal. */}
+        {/* AI Summary - breakdown skor + top alasan setelah chart agar konsensus
+            dibaca dalam konteks struktur harga yang baru saja dilihat pengguna. */}
         {viewMode === 'full' && data?.scoring && (
           <div id="analysis-detail" tabIndex={-1} className="w-full scroll-mt-4 rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 outline-none md:p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -1518,19 +1534,6 @@ function DashboardContent() {
               </>
             );
           })()}
-
-          <div className="w-full space-y-3">
-            <TradingViewChart
-              candles={candles}
-              technical={chartTechnical}
-              symbol={stock.symbol || ticker}
-              timeframe={timeframe}
-              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
-              onTimeframeChange={setTimeframe}
-              variant="full"
-              height={600}
-            />
-          </div>
 
           {viewMode === 'full' ? (
             <>

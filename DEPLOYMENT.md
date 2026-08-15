@@ -42,6 +42,11 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - LensTechnical memprioritaskan chart
+
+- Chart candle emiten dipindahkan tepat setelah konteks ticker, harga, dan waktu data.
+- Skor, voting, dan kartu indikator tetap memakai data yang sama, tetapi sekarang dibaca sebagai penjelas chart, bukan mendahuluinya.
+
 ### 2026-08-16 - Footer tanpa shortcut berulang
 
 - Menghapus shortcut global "Ringkasan Pasar" dan tautan tagline About dari footer.
