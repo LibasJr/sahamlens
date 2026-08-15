@@ -193,19 +193,27 @@ export default function WatchlistPage() {
       });
       if (res.ok) {
         fetchWatchlist();
+        setNewSymbol('');
+        setBuyPrice('');
+        setLotAmount('');
+      } else {
+        const body = await res.json().catch(() => null);
+        showToast(body?.error || body?.message || 'Saham gagal ditambahkan ke watchlist.', 'error');
       }
     } catch (err) {
       console.error('Failed to add to watchlist', err);
+      showToast('Saham gagal ditambahkan ke watchlist. Coba lagi.', 'error');
     }
-
-    setNewSymbol('');
-    setBuyPrice('');
-    setLotAmount('');
   };
 
   const removeWatchlist = async (symbol: string) => {
     try {
-      await fetch(`/api/watchlist?symbol=${symbol}`, { method: 'DELETE' });
+      const res = await fetch(`/api/watchlist?symbol=${symbol}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        showToast(body?.error || body?.message || 'Saham gagal dihapus dari watchlist.', 'error');
+        return;
+      }
       fetchWatchlist();
 
       const newLiveData = { ...liveData };
@@ -213,6 +221,7 @@ export default function WatchlistPage() {
       setLiveData(newLiveData);
     } catch (err) {
       console.error('Failed to remove from watchlist', err);
+      showToast('Saham gagal dihapus dari watchlist. Coba lagi.', 'error');
     }
   };
 
@@ -364,7 +373,7 @@ export default function WatchlistPage() {
           </div>
           <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Activity className="w-3 h-3" /> Saham Dipantau</div>
-            <div className="mt-1 text-[16px] font-bold text-white font-number">{watchlist.length} / {FREE_LIMITS.WATCHLIST === Infinity ? '∞' : FREE_LIMITS.WATCHLIST}</div>
+            <div className="mt-1 text-[16px] font-bold text-white font-number">{watchlist.length} / {hasPro || FREE_LIMITS.WATCHLIST === Infinity ? '∞' : FREE_LIMITS.WATCHLIST}</div>
           </div>
           <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><BellRing className="w-3 h-3" /> Alert Aktif</div>

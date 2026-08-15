@@ -21,19 +21,22 @@ export function formatCardItems(id: string, arr: any[]): CardItem[] {
   return (arr || []).slice(0, 4).map((s: any) => {
     const href = `/technical/${s.symbol}.JK`;
     const priceStr = `Rp ${Math.round(s.price || 0).toLocaleString('id-ID')}`;
+    const changePct = Number.isFinite(Number(s.changePct)) ? Number(s.changePct) : null;
+    const rsi = Number.isFinite(Number(s.rsi)) ? Number(s.rsi) : null;
+    const change = changePct == null ? 'N/A' : `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`;
     switch (id) {
       case 'gainer':
-        return { code: s.symbol, change: `+${s.changePct.toFixed(2)}%`, value: priceStr, dir: 'up', href };
+        return { code: s.symbol, change, value: priceStr, dir: 'up', href };
       case 'loser':
-        return { code: s.symbol, change: `${s.changePct.toFixed(2)}%`, value: priceStr, dir: 'down', href };
+        return { code: s.symbol, change, value: priceStr, dir: 'down', href };
       case 'volume':
         return { code: s.symbol, change: `${Math.round(s.volume / 100).toLocaleString('id-ID')} lot`, value: priceStr, dir: 'neutral', href };
       case 'technical':
-        return { code: s.symbol, change: `Skor ${s.score}%`, value: `${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`, dir: 'up', href };
+        return { code: s.symbol, change: `Skor ${s.score ?? 'N/A'}%`, value: change, dir: 'up', href };
       case 'technicalBearish':
-        return { code: s.symbol, change: `${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`, value: priceStr, dir: 'down', href };
+        return { code: s.symbol, change, value: priceStr, dir: 'down', href };
       case 'rsiOversold':
-        return { code: s.symbol, change: `RSI ${s.rsi.toFixed(1)}`, value: `${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`, dir: s.changePct >= 0 ? 'up' : 'down', href };
+        return { code: s.symbol, change: `RSI ${rsi == null ? 'N/A' : rsi.toFixed(1)}`, value: change, dir: changePct != null && changePct >= 0 ? 'up' : 'down', href };
       default:
         return { code: s.symbol, change: '-', value: '-', dir: 'neutral', href };
     }

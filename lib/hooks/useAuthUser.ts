@@ -95,7 +95,10 @@ export function useAuthUser(): AuthState {
 
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Auth check failed: ${res.status}`);
+        return res.json();
+      })
       .then((d) => { if (d.authenticated && d.user) setUser(d.user); })
       // Jaringan putus/response bukan JSON = kita TIDAK TAHU statusnya, bukan "guest".
       .catch(() => setResolved(false))

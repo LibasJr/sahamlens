@@ -27,13 +27,9 @@ interface RiskAnalysisResult {
 
 export default function RiskPage() {
   const [ticker, setTicker] = useState('BBCA');
-  const [portfolio, setPortfolio] = useState([
-    { ticker: 'BBCA', weight: 30 },
-    { ticker: 'BBRI', weight: 25 },
-    { ticker: 'TLKM', weight: 20 },
-    { ticker: 'ASII', weight: 15 },
-    { ticker: 'GOTO', weight: 10 }
-  ]);
+  // Tidak ada akses ke portofolio transaksi pengguna di halaman ini. Jangan gunakan
+  // contoh hardcoded lalu menyebutnya portofolio user; pengguna mengisi simulasi sendiri.
+  const [portfolio, setPortfolio] = useState<{ ticker: string; weight: number }[]>([]);
   const [newTicker, setNewTicker] = useState('');
   const [newWeight, setNewWeight] = useState(10);
   const [analysis, setAnalysis] = useState<RiskAnalysisResult | null>(null);
@@ -66,13 +62,14 @@ export default function RiskPage() {
   }, [portfolio]);
 
   useEffect(() => {
-    runAnalysis();
+    // Analisis hanya dimulai setelah pengguna mengisi komposisi simulasi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addPosition = () => {
-    if (newTicker.trim()) {
-      setPortfolio([...portfolio, { ticker: newTicker.trim().toUpperCase(), weight: Number(newWeight) }]);
+    const tickerToAdd = newTicker.trim().toUpperCase();
+    if (tickerToAdd && !portfolio.some((item) => item.ticker === tickerToAdd)) {
+      setPortfolio([...portfolio, { ticker: tickerToAdd, weight: Number(newWeight) }]);
       setNewTicker('');
     }
   };
@@ -97,12 +94,14 @@ export default function RiskPage() {
         <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <PieChart className="w-5 h-5 text-tv-red" />
-            Alokasi Portofolio User (%)
+            Komposisi Simulasi (%)
           </h3>
 
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {portfolio.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2.5 rounded-md bg-tv-bg border border-tv-border text-xs">
+            {portfolio.length === 0 ? (
+              <p className="rounded-md border border-dashed border-tv-border px-3 py-4 text-xs leading-relaxed text-tv-muted">Belum ada komposisi. Tambahkan ticker dan bobot untuk menghitung beta simulasi.</p>
+            ) : portfolio.map((item, idx) => (
+              <div key={item.ticker} className="flex items-center justify-between p-2.5 rounded-md bg-tv-bg border border-tv-border text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-tv-text px-2 py-0.5 rounded bg-tv-hover border border-tv-borderLight">
                     {item.ticker}

@@ -34,6 +34,8 @@ export default function PortfolioPage() {
   const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -114,7 +116,12 @@ export default function PortfolioPage() {
         setLoading(false);
       }
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError')) setLoading(false);
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setAuthError(true);
+        setLoading(false);
+      }
+    } finally {
+      if (!signal?.aborted) setAuthResolved(true);
     }
   };
 
@@ -183,6 +190,7 @@ export default function PortfolioPage() {
     try {
       const res = await fetch('/api/portfolio', { signal });
       const data = await res.json();
+      if (!res.ok || !data?.portfolio) throw new Error(data?.error || `Portfolio request failed: ${res.status}`);
 
       setPortfolio(data.portfolio);
       setTransactions(data.transactions || []);
@@ -285,6 +293,14 @@ export default function PortfolioPage() {
     });
     doc.save('SahamLens_Portfolio.pdf');
   };
+
+  if (!authResolved) {
+    return <div className="min-h-screen bg-tv-bg p-4"><Skeleton className="mx-auto mt-24 h-64 max-w-sm" /></div>;
+  }
+
+  if (authError) {
+    return <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4"><div className="w-full max-w-md rounded-xl border border-tv-border bg-tv-card"><EmptyState illustration="empty" title="Status akun belum dapat diperiksa" description="Koneksi ke server sedang bermasalah. Coba lagi agar akun yang sudah masuk tidak terlihat sebagai tamu." action={{ label: 'Coba lagi', onClick: () => window.location.reload() }} /></div></div>;
+  }
 
   if (!isLoggedIn) {
     return (

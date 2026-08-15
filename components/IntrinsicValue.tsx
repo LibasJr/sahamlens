@@ -15,6 +15,7 @@ interface IntrinsicValueProps {
 export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }: IntrinsicValueProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
   const [explanationUnavailable, setExplanationUnavailable] = useState(false);
@@ -24,12 +25,15 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
     let cancelled = false;
     async function fetchData() {
       setLoading(true);
+      setLoadError(false);
       try {
         const res = await fetch(`/api/intrinsic/${symbol}`);
         const json = await res.json();
+        if (!res.ok || json?.error || !json || typeof json !== 'object') throw new Error(json?.error || `Intrinsic request failed: ${res.status}`);
         if (!cancelled) setData(json);
       } catch (e) {
         console.error("Error fetching intrinsic data:", e);
+        if (!cancelled) { setData(null); setLoadError(true); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -89,10 +93,10 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
   }
 
   if (!data || data.error) {
-    return null;
+    return <div className="bg-tv-card border border-tv-border rounded-xl p-5 text-sm text-tv-muted">{loadError ? 'Nilai wajar sementara tidak dapat dimuat. Coba segarkan halaman beberapa saat lagi.' : 'Data nilai wajar belum tersedia untuk emiten ini.'}</div>;
   }
 
-  const { fair_value, harga, mos, methods, sektor, applied_rule = {} } = data;
+  const { fair_value, harga, mos, methods = {}, sektor, applied_rule = {} } = data;
   const weightedParts = Object.entries(applied_rule)
     .map(([key, weight]) => {
       const method = methods?.[key];

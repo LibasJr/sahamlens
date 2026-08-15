@@ -59,6 +59,8 @@ export default function Recommendations() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [cacheMeta, setCacheMeta] = useState<{ cachedAgeSec: number; cacheTtlSec: number } | null>(null);
   const [modelNotice, setModelNotice] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [failedChunks, setFailedChunks] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const fetchRef = React.useRef(false);
 
@@ -77,23 +79,25 @@ export default function Recommendations() {
       .then((res) => (res.ok ? res.json() : null))
       .then((resData) => {
         if (!resData?.events) return;
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
         const todayEvents = resData.events[todayStr] || [];
         setStocksWithEventToday(new Set(todayEvents.map((e: any) => e.symbol)));
       })
       .catch(() => {});
   }, []);
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = async (signal?: AbortSignal) => {
     setLoading(true);
     setData([]);
     setLastUpdate(null);
+    setScanError(null);
+    setFailedChunks(0);
 
     try {
       const chunkSize = 10;
       for (let i = 0; i < LIQUID_STOCKS.length; i += chunkSize) {
         const chunk = LIQUID_STOCKS.slice(i, i + chunkSize);
-        const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store' });
+        const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store', signal });
         
         const json = await res.json();
         if (res.status === 401) {
@@ -106,7 +110,11 @@ export default function Recommendations() {
           setShowPaywall(true);
           return;
         }
-        if (!res.ok) continue;
+        if (!res.ok) {
+          setFailedChunks((count) => count + 1);
+          setScanError(json?.error || `Sebagian pemindaian gagal pada batch ${Math.floor(i / chunkSize) + 1}.`);
+          continue;
+        }
         if (json?.modelValidation?.validated === false && typeof json.modelValidation.message === 'string') {
           setModelNotice(json.modelValidation.message);
         }
@@ -149,9 +157,11 @@ export default function Recommendations() {
         }
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to fetch recommendations', e);
+      setScanError('Pemindaian gagal menghubungi server. Hasil tidak dianggap lengkap.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
@@ -159,7 +169,9 @@ export default function Recommendations() {
     setIsClient(true);
     if (fetchRef.current) return;
     fetchRef.current = true;
-    fetchRecommendations();
+    const controller = new AbortController();
+    fetchRecommendations(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const formatTime = (date: Date) => new Intl.DateTimeFormat('id-ID', {
@@ -254,10 +266,15 @@ export default function Recommendations() {
             {modelNotice}
           </div>
         )}
+        {scanError && (
+          <div className="rounded-lg border border-tv-red/40 bg-tv-red/10 px-4 py-3 text-xs text-tv-red">
+            {scanError}{failedChunks > 0 ? ` ${failedChunks} batch tidak berhasil dimuat; daftar di bawah bukan cakupan penuh universe.` : ''}
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
             <button
-              onClick={fetchRecommendations}
+              onClick={() => fetchRecommendations()}
               disabled={loading}
               className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
             >
@@ -361,7 +378,7 @@ export default function Recommendations() {
                     <td colSpan={8} className="p-10 text-center text-tv-muted">
                       <div className="flex flex-col items-center gap-3">
                         <Search className="w-6 h-6 text-tv-muted opacity-50" />
-                        <span>{loading ? 'Menyaring rekomendasi terbaik...' : `Tidak ada data saham yang cocok dengan kriteria atau pencarian "${searchTerm}"`}</span>
+                        <span>{loading ? 'Menyaring rekomendasi terbaik...' : scanError ? 'Pemindaian gagal sebelum menghasilkan daftar lengkap.' : searchTerm ? `Tidak ada data saham yang cocok dengan pencarian "${searchTerm}"` : 'Belum ada hasil pemindaian yang dapat ditampilkan.'}</span>
                       </div>
                     </td>
                   </tr>
