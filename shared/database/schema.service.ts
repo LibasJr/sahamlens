@@ -202,6 +202,7 @@ export function ensureSharedSchema(): Promise<void> {
         flow_score NUMERIC,
         coverage_pct NUMERIC,
         score_version TEXT,
+        universe_version TEXT,
         valuation_version TEXT,
         signal_version TEXT,
         data_snapshot_version TEXT,
@@ -229,6 +230,8 @@ export function ensureSharedSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS coverage_pct NUMERIC;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS score_version TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS universe_version TEXT;
 
       -- VERDICT PEMBANDING (2026-08-12). Sampai sekarang hanya LensScore yang diarsipkan,
       -- sementara kartu "Konsensus AI" dihitung di browser, ditampilkan, lalu hilang.

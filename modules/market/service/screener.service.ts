@@ -381,15 +381,15 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
 // Universe mentah (fundamental+teknikal per saham) - TIDAK bergantung pada profil
 // risiko, jadi di-cache terpisah dan dipakai ulang untuk skoring 3 profil sekaligus.
 //
-// Mengambil GABUNGAN dua universe (114 saham) dalam satu kali jalan, bukan dua kali:
+// Mengambil GABUNGAN dua universe dalam satu kali jalan, bukan dua kali:
 // SCREENER_UNIVERSE (51, dipakai Compare Tool sebagai alat pencarian) dan universe
-// tersaring (109, satu-satunya yang boleh direkomendasikan). Keduanya beririsan 46
-// saham - mengambilnya terpisah berarti 46 saham di-fetch dua kali tiap 30 menit.
+// aktif tersaring (AI_PICK_UNIVERSE, satu-satunya yang boleh direkomendasikan).
+// Irisannya tidak di-fetch dua kali tiap siklus cache.
 //
 // Penyaringan TIDAK dilakukan di sini, melainkan di rankScreener(), supaya /api/compare
-// tetap bisa melihat seluruh 114.
+// tetap bisa melihat seluruh gabungan universe.
 //
-// BATCH_SIZE 15 (bukan lagi 114 paralel sekaligus) - konsisten dengan
+// BATCH_SIZE 15 - konsisten dengan
 // precomputeBacktestData()/scanLiveFilterCheck() yang membatasi hal sama, supaya tidak
 // rate-limited Yahoo. Perlu sekarang karena tiap saham menarik histori 1y (~245 bar),
 // jauh lebih berat dari 1mo (~21 bar) sebelumnya.

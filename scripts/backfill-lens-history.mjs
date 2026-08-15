@@ -25,7 +25,10 @@ const repoRoot = path.resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 
 const DEFAULT_FETCH_RANGE = '2y'; // 1 tahun insert + warm-up MA200/MACD/RSI.
-const YAHOO_BATCH_SIZE = 6;
+const DEFAULT_TICKER_BATCH_SIZE = 24;
+const DEFAULT_FETCH_CONCURRENCY = 4;
+const DEFAULT_RETRY_ATTEMPTS = 2;
+const YAHOO_TIMEOUT_MS = 15_000;
 const INSERT_BATCH_SIZE = 500;
 
 export function loadEnvFile(filePath = path.join(repoRoot, '.env.local')) {
@@ -96,6 +99,12 @@ export function parseArgs(argv = process.argv.slice(2), now = new Date()) {
     dryRun: false,
     skipBacktest: false,
     scoreVersion: null,
+    universeAdditions: false,
+    universeVersion: null,
+    checkpointFile: null,
+    tickerBatchSize: DEFAULT_TICKER_BATCH_SIZE,
+    concurrency: DEFAULT_FETCH_CONCURRENCY,
+    retryAttempts: DEFAULT_RETRY_ATTEMPTS,
   };
 
   for (const arg of argv) {
@@ -105,6 +114,12 @@ export function parseArgs(argv = process.argv.slice(2), now = new Date()) {
     else if (arg.startsWith('--end=')) options.endDate = arg.slice('--end='.length);
     else if (arg.startsWith('--range=')) options.range = arg.slice('--range='.length);
     else if (arg.startsWith('--score-version=')) options.scoreVersion = arg.slice('--score-version='.length);
+    else if (arg === '--universe-additions') options.universeAdditions = true;
+    else if (arg.startsWith('--universe-version=')) options.universeVersion = arg.slice('--universe-version='.length).trim();
+    else if (arg.startsWith('--checkpoint=')) options.checkpointFile = arg.slice('--checkpoint='.length).trim();
+    else if (arg.startsWith('--ticker-batch-size=')) options.tickerBatchSize = Number(arg.slice('--ticker-batch-size='.length));
+    else if (arg.startsWith('--concurrency=')) options.concurrency = Number(arg.slice('--concurrency='.length));
+    else if (arg.startsWith('--retry-attempts=')) options.retryAttempts = Number(arg.slice('--retry-attempts='.length));
     else if (arg.startsWith('--tickers=')) {
       options.tickers = arg
         .slice('--tickers='.length)
@@ -119,6 +134,15 @@ export function parseArgs(argv = process.argv.slice(2), now = new Date()) {
   assertDateKey(options.startDate, '--start');
   assertDateKey(options.endDate, '--end');
   if (options.endDate < options.startDate) throw new Error('--end harus >= --start');
+  if (!Number.isInteger(options.tickerBatchSize) || options.tickerBatchSize < 1 || options.tickerBatchSize > 100) {
+    throw new Error('--ticker-batch-size harus integer 1..100');
+  }
+  if (!Number.isInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 10) {
+    throw new Error('--concurrency harus integer 1..10');
+  }
+  if (!Number.isInteger(options.retryAttempts) || options.retryAttempts < 0 || options.retryAttempts > 5) {
+    throw new Error('--retry-attempts harus integer 0..5');
+  }
   return options;
 }
 
@@ -207,7 +231,7 @@ function toYahooRows(chartPayload) {
 export async function fetchYahooChartRows(ticker, range = DEFAULT_FETCH_RANGE) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${encodeURIComponent(range)}&interval=1d&events=history%7Cdiv%7Csplit`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const timer = setTimeout(() => controller.abort(), YAHOO_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 SahamLensBackfill/1.0' },
@@ -218,6 +242,24 @@ export async function fetchYahooChartRows(ticker, range = DEFAULT_FETCH_RANGE) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function fetchYahooChartRowsWithRetry(ticker, range = DEFAULT_FETCH_RANGE, attempts = DEFAULT_RETRY_ATTEMPTS) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= attempts; attempt++) {
+    try {
+      return await fetchYahooChartRows(ticker, range);
+    } catch (err) {
+      lastError = err;
+      if (attempt >= attempts) break;
+      await sleep(500 * (2 ** attempt));
+    }
+  }
+  throw lastError;
 }
 
 export function fundamentalAsOf(fundamentals, requestedDate) {
@@ -245,6 +287,7 @@ export function buildLensHistoryUpsert(rows) {
       row.flowScore,
       row.coveragePct,
       row.scoreVersion,
+      row.universeVersion,
       row.valuationVersion,
       row.signalVersion,
       row.dataSnapshotVersion,
@@ -268,7 +311,7 @@ export function buildLensHistoryUpsert(rows) {
       row.councilSellPct ?? null,
       row.councilDivided ?? null
     );
-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}::timestamptz, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}::timestamptz, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, now())`;
+    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, now())`;
   });
 
   return {
@@ -276,7 +319,7 @@ export function buildLensHistoryUpsert(rows) {
       INSERT INTO lens_radar_history (
         date, ticker, lens_score, close_price, market_cap,
         technical_score, fundamental_score, flow_score, coverage_pct,
-        score_version, valuation_version, signal_version, data_snapshot_version,
+        score_version, universe_version, valuation_version, signal_version, data_snapshot_version,
         calculation_timestamp,
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
@@ -296,6 +339,7 @@ export function buildLensHistoryUpsert(rows) {
         flow_score = EXCLUDED.flow_score,
         coverage_pct = EXCLUDED.coverage_pct,
         score_version = EXCLUDED.score_version,
+        universe_version = EXCLUDED.universe_version,
         valuation_version = EXCLUDED.valuation_version,
         signal_version = EXCLUDED.signal_version,
         data_snapshot_version = EXCLUDED.data_snapshot_version,
@@ -409,6 +453,7 @@ export function buildHistoricalLensRows(input) {
     endDate,
     dataTimestamp,
     runTimestamp,
+    universeVersion,
     deps,
   } = input;
 
@@ -556,6 +601,7 @@ export function buildHistoricalLensRows(input) {
       flowScore: score.flow_score,
       coveragePct: score.coverage_pct,
       scoreVersion: deps.SCORE_VERSION,
+      universeVersion,
       valuationVersion: deps.VALUATION_VERSION,
       signalVersion: deps.SIGNAL_VERSION,
       dataSnapshotVersion: deps.DATA_SNAPSHOT_VERSION,
@@ -604,6 +650,11 @@ async function loadProductionDeps() {
   const { ensureSharedSchema } = require('../shared/database/schema.service.ts');
   const { BACKTEST_UNIVERSE } = require('../modules/backtest/constants/backtest-universe.ts');
   const {
+    ACTIVE_LIQUID_UNIVERSE_VERSION,
+    AI_PICK_UNIVERSE_ADDITIONS,
+    LEGACY_VALIDATED_UNIVERSE_VERSION,
+  } = require('../modules/market/constants/ai-pick-universe.ts');
+  const {
     calculateScore,
     analyzeRsi,
     analyzeMacd,
@@ -638,6 +689,9 @@ async function loadProductionDeps() {
     pool,
     ensureSharedSchema,
     BACKTEST_UNIVERSE,
+    ACTIVE_LIQUID_UNIVERSE_VERSION,
+    AI_PICK_UNIVERSE_ADDITIONS,
+    LEGACY_VALIDATED_UNIVERSE_VERSION,
     evaluateMinimalEligibility,
     runAndSaveLensBucketBacktest,
     calculateScore,
@@ -662,6 +716,52 @@ async function loadProductionDeps() {
   };
 }
 
+export function resolveBackfillUniverse(options, deps) {
+  const tickers = options.tickers?.length
+    ? options.tickers
+    : options.universeAdditions
+      ? deps.AI_PICK_UNIVERSE_ADDITIONS
+      : deps.BACKTEST_UNIVERSE;
+
+  const universeVersion = options.universeVersion
+    || (options.universeAdditions ? deps.ACTIVE_LIQUID_UNIVERSE_VERSION : deps.LEGACY_VALIDATED_UNIVERSE_VERSION);
+
+  return { tickers, universeVersion };
+}
+
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+function loadCheckpoint(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return { completed: new Set(), failed: {} };
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return {
+    completed: new Set(Array.isArray(parsed.completedTickers) ? parsed.completedTickers.map((t) => String(t).toUpperCase()) : []),
+    failed: parsed.failedTickers && typeof parsed.failedTickers === 'object' ? parsed.failedTickers : {},
+  };
+}
+
+function saveCheckpoint(filePath, state) {
+  if (!filePath) return;
+  const target = path.resolve(repoRoot, filePath);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, JSON.stringify({
+    updatedAt: new Date().toISOString(),
+    completedTickers: Array.from(state.completed).sort(),
+    failedTickers: state.failed,
+  }, null, 2));
+}
+
 async function main() {
   const options = parseArgs();
   loadEnvFile();
@@ -670,11 +770,14 @@ async function main() {
     await deps.ensureSharedSchema();
   }
 
-  const tickers = options.tickers?.length ? options.tickers : deps.BACKTEST_UNIVERSE;
+  const { tickers, universeVersion } = resolveBackfillUniverse(options, deps);
+  const checkpointFile = options.checkpointFile || (options.universeAdditions ? 'scripts/.universe-200-additions-backfill-checkpoint.json' : null);
+  const checkpoint = loadCheckpoint(checkpointFile);
+  const pendingTickers = tickers.filter((ticker) => !checkpoint.completed.has(ticker.toUpperCase()));
   const runTimestamp = new Date().toISOString();
   let fundamentalsByTicker = new Map();
   try {
-    fundamentalsByTicker = await loadFundamentalHistory(deps.pool, tickers, options.endDate);
+    fundamentalsByTicker = await loadFundamentalHistory(deps.pool, pendingTickers, options.endDate);
   } catch (err) {
     if (!options.dryRun) throw err;
     console.warn(`[WARN] fundamental_history tidak terbaca saat dry-run; fundamental dikosongkan: ${err instanceof Error ? err.message : String(err)}`);
@@ -683,15 +786,18 @@ async function main() {
   let builtRows = 0;
   let savedRows = 0;
   let failedTickers = 0;
+  let skippedByCheckpoint = tickers.length - pendingTickers.length;
+  let skippedNoRows = 0;
 
-  console.log(`Backfill LensRadar ${options.startDate}..${options.endDate} untuk ${tickers.length} ticker`);
-  console.log(`Mode: ${options.dryRun ? 'DRY RUN' : 'UPSERT'}; range Yahoo: ${options.range}`);
+  console.log(`Backfill LensRadar ${options.startDate}..${options.endDate} untuk ${pendingTickers.length}/${tickers.length} ticker`);
+  console.log(`Mode: ${options.dryRun ? 'DRY RUN' : 'UPSERT'}; range Yahoo: ${options.range}; universe: ${universeVersion}`);
+  console.log(`Batch ticker: ${options.tickerBatchSize}; concurrency: ${options.concurrency}; retry: ${options.retryAttempts}; checkpoint: ${checkpointFile || '-'}`);
 
-  for (let i = 0; i < tickers.length; i += YAHOO_BATCH_SIZE) {
-    const batch = tickers.slice(i, i + YAHOO_BATCH_SIZE);
-    const results = await Promise.all(batch.map(async (ticker) => {
+  for (let i = 0; i < pendingTickers.length; i += options.tickerBatchSize) {
+    const batch = pendingTickers.slice(i, i + options.tickerBatchSize);
+    const results = await mapWithConcurrency(batch, options.concurrency, async (ticker) => {
       try {
-        const { rows: yahooRows, dataTimestamp } = await fetchYahooChartRows(ticker, options.range);
+        const { rows: yahooRows, dataTimestamp } = await fetchYahooChartRowsWithRetry(ticker, options.range, options.retryAttempts);
         const rows = buildHistoricalLensRows({
           ticker,
           yahooRows,
@@ -700,22 +806,35 @@ async function main() {
           endDate: options.endDate,
           dataTimestamp,
           runTimestamp,
+          universeVersion,
           deps,
         });
         return { ticker, rows, error: null };
       } catch (err) {
         return { ticker, rows: [], error: err instanceof Error ? err.message : String(err) };
       }
-    }));
+    });
 
     for (const result of results) {
       if (result.error) {
         failedTickers++;
+        checkpoint.failed[result.ticker] = result.error;
         console.warn(`[WARN] ${result.ticker} gagal: ${result.error}`);
+        continue;
+      }
+      if (result.rows.length === 0) {
+        skippedNoRows++;
+        checkpoint.failed[result.ticker] = 'NO_VALID_ROWS';
+        console.warn(`[SKIP] ${result.ticker}: tidak ada baris valid dalam window`);
         continue;
       }
       builtRows += result.rows.length;
       if (!options.dryRun) savedRows += await upsertLensHistoryRows(deps.pool, result.rows);
+      if (!options.dryRun) {
+        checkpoint.completed.add(result.ticker.toUpperCase());
+        delete checkpoint.failed[result.ticker];
+        saveCheckpoint(checkpointFile, checkpoint);
+      }
       console.log(`${result.ticker}: ${result.rows.length} rows`);
     }
   }
@@ -737,11 +856,15 @@ async function main() {
   console.log(JSON.stringify({
     status: failedTickers === tickers.length ? 'FAILED_ALL_TICKERS' : 'OK',
     tickers: tickers.length,
+    pendingTickers: pendingTickers.length,
+    skippedByCheckpoint,
     failedTickers,
+    skippedNoRows,
     builtRows,
     savedRows: options.dryRun ? 0 : savedRows,
     bucketStatsSavedRows: bucketStats?.savedRows ?? 0,
     scoreVersion: deps.SCORE_VERSION,
+    universeVersion,
     priceBasis: deps.RETURN_PRICE_BASIS,
   }, null, 2));
 

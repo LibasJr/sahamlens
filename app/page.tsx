@@ -74,7 +74,7 @@ async function getInitialIhsg() {
 
 async function getInitialLensRadar() {
   try {
-    // Read existing cache only: never trigger a 109/150 ticker scan from a homepage
+    // Read existing cache only: never trigger a full active-universe ticker scan from a homepage
     // render. If cron/cache is not ready, the client route keeps its existing fallback UX.
     const scoreData = await readAiPickScores();
     if (!scoreData) return null;
