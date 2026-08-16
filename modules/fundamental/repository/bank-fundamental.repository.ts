@@ -28,12 +28,17 @@ function date(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v).slice(0, 10);
 }
+function timestamp(v: unknown): string | null {
+  if (v == null) return null;
+  const parsed = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
 function mapRow(row: Record<string, unknown>): BankFundamentalSnapshot {
   return {
     ticker: String(row.ticker),
     observedDate: date(row.observed_date),
     periodEnd: date(row.period_end),
-    publishedAt: row.published_at ? new Date(row.published_at).toISOString() : null,
+    publishedAt: timestamp(row.published_at),
     nimPct: n(row.nim_pct), nplGrossPct: n(row.npl_gross_pct), nplNetPct: n(row.npl_net_pct),
     casaPct: n(row.casa_pct), carPct: n(row.car_pct), ldrPct: n(row.ldr_pct),
     costOfCreditPct: n(row.cost_of_credit_pct), costToIncomePct: n(row.cost_to_income_pct),
