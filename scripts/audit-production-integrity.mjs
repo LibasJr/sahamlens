@@ -34,8 +34,22 @@ if(process.env.DATABASE_URL){
   const o=own.rows[0]??{}; Number(o.snapshots??0)>=2?ok(`Ownership Flow ${o.snapshots} snapshot; latest ${o.latest}`):warn('Ownership Flow belum punya >=2 snapshot KSEI untuk delta');
   const quarantine=await c.query(`SELECT COUNT(*)::int rows,COUNT(DISTINCT observed_date)::int snapshots FROM ownership_flow_quarantine WHERE source='KSEI_HOLDING_COMPOSITION'`).catch(()=>({rows:[{rows:0,snapshots:0}]}));
   const q=quarantine.rows[0]??{}; Number(q.rows??0)>0?warn(`Ownership Flow quarantine ${q.rows} row pada ${q.snapshots} snapshot; ini terisolasi dan tidak ikut delta`):ok('Ownership Flow quarantine kosong');
-  const macro=await c.query(`SELECT effective_date::text,observed_date::text,source FROM macro_assumption_history ORDER BY effective_date DESC LIMIT 1`).catch(()=>({rows:[]}));
-  macro.rows[0]?ok(`Macro audit row terbaru ${macro.rows[0].effective_date} (${macro.rows[0].source})`):warn('macro_assumption_history masih kosong; model tetap memakai frozen assumptions, bukan dummy.');
+  const macro=await c.query(`SELECT input_key,value_pct::float8 AS value_pct,market_date::text,observed_date::text,usable_from_date::text,evidence_type,source_tier,source_name FROM macro_input_evidence ORDER BY usable_from_date DESC,id DESC`).catch(()=>({rows:[]}));
+  const macroByKey=new Map(macro.rows.map(r=>[String(r.input_key),r]));
+  const requiredMacro=['RISK_FREE_RATE_PCT','EQUITY_RISK_PREMIUM_PCT','MAX_PERPETUAL_GROWTH_PCT'];
+  const missingMacro=requiredMacro.filter(k=>!macroByKey.has(k));
+  if(missingMacro.length) warn(`Macro PIT evidence belum lengkap: ${missingMacro.join(', ')}; production model tetap frozen.`);
+  else {
+    const rf=macroByKey.get('RISK_FREE_RATE_PCT'); const erp=macroByKey.get('EQUITY_RISK_PREMIUM_PCT'); const g=macroByKey.get('MAX_PERPETUAL_GROWTH_PCT');
+    ok(`Macro PIT lengkap: Rf ${rf.value_pct}% (${rf.source_name}), ERP ${erp.value_pct}% (${erp.source_name}), growth cap ${g.value_pct}% (${g.evidence_type})`);
+    const ageDays=(d)=>Math.max(0,Math.floor((Date.now()-new Date(`${d}T00:00:00Z`).getTime())/86400000));
+    ageDays(rf.observed_date)<=45?ok(`Risk-free evidence fresh (${ageDays(rf.observed_date)} hari)`):warn(`Risk-free evidence stale ${ageDays(rf.observed_date)} hari; refresh SBN 10Y evidence.`);
+    ageDays(erp.observed_date)<=400?ok(`ERP evidence dalam annual-review window (${ageDays(erp.observed_date)} hari)`):warn(`ERP evidence >400 hari; refresh annual country ERP.`);
+    g.evidence_type==='MODEL_POLICY'?ok('Perpetual-growth cap terklasifikasi MODEL_POLICY, bukan disamarkan sebagai market data'):warn('Perpetual-growth cap bukan MODEL_POLICY; review provenance.');
+  }
+  ['BI_RATE_PCT','INFLATION_TARGET_MID_PCT','INFLATION_TARGET_UPPER_PCT'].every(k=>macroByKey.has(k))
+    ?ok('Macro context BI-Rate + inflation target tersedia sebagai evidence terpisah')
+    :warn('Macro context BI-Rate/inflation target belum lengkap.');
   const bank=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers FROM bank_fundamental_history`).catch(()=>({rows:[{n:0,tickers:0}]}));
   Number(bank.rows[0]?.n??0)>0?ok(`Bank fundamental evidence ${bank.rows[0].n} rows / ${bank.rows[0].tickers} ticker`):warn('Bank-specific fundamental history belum diimpor; bank metrics tetap DATA_ONLY/null.');
  }catch(e){fail(`PostgreSQL audit gagal: ${e instanceof Error?e.message:String(e)}`)}finally{await c.end().catch(()=>{})}
