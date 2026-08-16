@@ -8,6 +8,7 @@ import {
 } from '@/modules/market';
 import { analyzeMacd, analyzeRsi } from '@/modules/technical';
 import { evaluateMinimalEligibility } from '@/modules/eligibility';
+import { evaluatePointInTimeUniverse } from '@/modules/backtest/service/point-in-time-universe';
 import { computeMiniCouncil } from '@/lib/miniCouncil';
 import {
   DATA_SNAPSHOT_VERSION,
@@ -69,6 +70,7 @@ const deps = {
   calculateScore,
   computeMiniCouncil,
   evaluateMinimalEligibility,
+  evaluatePointInTimeUniverse,
   analyzeRsi,
   analyzeMacd,
   computeDailyNetFlow,

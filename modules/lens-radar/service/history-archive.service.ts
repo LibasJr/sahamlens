@@ -24,6 +24,19 @@ export interface LensRadarArchiveItem {
   /** ADV20 rupiah pada tanggal scan. Gerbang likuiditas backtest membaca kolom ini. */
   avgValue20d?: number | null;
   coverage?: number | null;
+  eligibilityStatus?: string | null;
+  eligibilityReasons?: string[] | null;
+  availableMax?: {
+    technical?: number | null;
+    fundamental?: number | null;
+    flow?: number | null;
+  } | null;
+  universeEligible?: boolean | null;
+  universeReasonCodes?: string[] | null;
+  universeAvgClose63d?: number | null;
+  universeAvgValue63d?: number | null;
+  universeAnnualVolPct?: number | null;
+  universeMethodVersion?: string | null;
   breakdown?: {
     technical?: number | null;
     fundamental?: number | null;
@@ -61,10 +74,13 @@ export async function archiveLensRadarHistory(
         calculation_timestamp,
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
-        avg_value_20d,
+        avg_value_20d, eligibility_status, eligibility_reason_codes,
+        technical_available_max, fundamental_available_max, flow_available_max,
+        universe_eligible, universe_reason_codes, universe_avg_close_63d,
+        universe_avg_value_63d, universe_annual_vol_pct, universe_method_version,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, now())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, now())
       ON CONFLICT (date, ticker) DO UPDATE SET
         lens_score = EXCLUDED.lens_score,
         close_price = EXCLUDED.close_price,
@@ -87,6 +103,17 @@ export async function archiveLensRadarHistory(
         price_data_timestamp = EXCLUDED.price_data_timestamp,
         price_data_version = EXCLUDED.price_data_version,
         avg_value_20d = EXCLUDED.avg_value_20d,
+        eligibility_status = EXCLUDED.eligibility_status,
+        eligibility_reason_codes = EXCLUDED.eligibility_reason_codes,
+        technical_available_max = EXCLUDED.technical_available_max,
+        fundamental_available_max = EXCLUDED.fundamental_available_max,
+        flow_available_max = EXCLUDED.flow_available_max,
+        universe_eligible = EXCLUDED.universe_eligible,
+        universe_reason_codes = EXCLUDED.universe_reason_codes,
+        universe_avg_close_63d = EXCLUDED.universe_avg_close_63d,
+        universe_avg_value_63d = EXCLUDED.universe_avg_value_63d,
+        universe_annual_vol_pct = EXCLUDED.universe_annual_vol_pct,
+        universe_method_version = EXCLUDED.universe_method_version,
         updated_at = now()
       `,
       [
@@ -113,6 +140,17 @@ export async function archiveLensRadarHistory(
         item.priceDataTimestamp ?? versionStamp.calculation_timestamp,
         item.priceDataVersion ?? PRICE_ADJUSTMENT_VERSION,
         finiteNumber(item.avgValue20d),
+        typeof item.eligibilityStatus === 'string' ? item.eligibilityStatus : null,
+        Array.isArray(item.eligibilityReasons) && item.eligibilityReasons.length ? item.eligibilityReasons.join(',') : null,
+        finiteNumber(item.availableMax?.technical),
+        finiteNumber(item.availableMax?.fundamental),
+        finiteNumber(item.availableMax?.flow),
+        typeof item.universeEligible === 'boolean' ? item.universeEligible : null,
+        Array.isArray(item.universeReasonCodes) && item.universeReasonCodes.length ? item.universeReasonCodes.join(',') : null,
+        finiteNumber(item.universeAvgClose63d),
+        finiteNumber(item.universeAvgValue63d),
+        finiteNumber(item.universeAnnualVolPct),
+        typeof item.universeMethodVersion === 'string' ? item.universeMethodVersion : null,
       ]
     );
     saved++;

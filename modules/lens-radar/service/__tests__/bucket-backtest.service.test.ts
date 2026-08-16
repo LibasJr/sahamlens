@@ -27,6 +27,7 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     // pengguna. Kasus yang ditolak gerbang ini diuji eksplisit di test tersendiri.
     coverage_pct: 100,
     eligibility_status: 'ELIGIBLE',
+    universe_eligible: true,
   };
 }
 
@@ -42,7 +43,7 @@ function provider(openByTicker: Record<string, Record<string, number>>): DailyOp
     // tanggal baris histori, dan itu yang sedang diuji.
     async getIdxTradingCalendarDates() { return []; },
     async getDailyOpenBars(ticker: string) {
-      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
+      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, close: open, priceBasis: RETURN_PRICE_BASIS }));
     },
   };
 }
@@ -274,14 +275,13 @@ describe('calculateLensBucketStats', () => {
     expect(result.skippedDrawdownTrades).toBeGreaterThan(0);
   });
 
-  it('membuang baris gocap berdasarkan harga raw, bukan harga adjusted', async () => {
-    const gocap = { ...row('2026-01-01', 'GOCA.JK', 85, 49), raw_close_price: 49, adjusted_close_price: 49 };
-    // Adjusted 20 tetapi raw 2000: hasil split, wajib dipertahankan.
+  it('M-07: tidak menerapkan ambang harga absolut historis pada seri split-adjusted', async () => {
+    const nominalBelow50 = { ...row('2026-01-01', 'GOCA.JK', 85, 49), raw_close_price: 49, adjusted_close_price: 49 };
     const split = { ...row('2026-01-02', 'SPLT.JK', 85, 2000), raw_close_price: 2000, adjusted_close_price: 20 };
 
-    const result = await calculateLensBucketStats([gocap, split], provider({}), '2026-01-02');
+    const result = await calculateLensBucketStats([nominalBelow50, split], provider({}), '2026-01-02');
 
-    expect(result.skippedGocapRows).toBe(1);
-    expect(result.sourceRows).toBe(1);
+    expect(result.skippedGocapRows).toBe(0);
+    expect(result.sourceRows).toBe(2);
   });
 });

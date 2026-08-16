@@ -19,6 +19,10 @@ interface CoverageRow {
   broker_count: number | string;
   total_buy_value: number | string | null;
   total_sell_value: number | string | null;
+  total_buy_volume: number | string | null;
+  total_sell_volume: number | string | null;
+  total_buy_frequency: number | string | null;
+  total_sell_frequency: number | string | null;
   last_imported_at: string | null;
 }
 
@@ -26,6 +30,10 @@ interface BrokerAggregateRow {
   broker_code: string;
   buy_value: number | string;
   sell_value: number | string;
+  buy_volume: number | string;
+  sell_volume: number | string;
+  buy_frequency: number | string;
+  sell_frequency: number | string;
   net_value: number | string;
 }
 
@@ -41,6 +49,12 @@ export interface BrokerMonitorRow {
   brokerCode: string;
   buyValue: number;
   sellValue: number;
+  buyVolume: number;
+  sellVolume: number;
+  buyFrequency: number;
+  sellFrequency: number;
+  avgBuyValuePerTrade: number | null;
+  avgSellValuePerTrade: number | null;
   netValue: number;
 }
 
@@ -58,6 +72,10 @@ export interface BrokerSummaryMonitor {
     brokerCount: number;
     totalBuyValue: number;
     totalSellValue: number;
+    totalBuyVolume: number;
+    totalSellVolume: number;
+    totalBuyFrequency: number;
+    totalSellFrequency: number;
     lastImportedAt: string | null;
   };
   brokers: BrokerMonitorRow[];
@@ -89,6 +107,10 @@ function emptyMonitor(job: JobRunLog | null): BrokerSummaryMonitor {
       brokerCount: 0,
       totalBuyValue: 0,
       totalSellValue: 0,
+      totalBuyVolume: 0,
+      totalSellVolume: 0,
+      totalBuyFrequency: 0,
+      totalSellFrequency: 0,
       lastImportedAt: null,
     },
     brokers: [],
@@ -159,6 +181,10 @@ export async function getBrokerSummaryMonitor(input: {
           COUNT(DISTINCT broker_code)::int AS broker_count,
           COALESCE(SUM(buy_value), 0)::text AS total_buy_value,
           COALESCE(SUM(sell_value), 0)::text AS total_sell_value,
+          COALESCE(SUM(buy_volume), 0)::text AS total_buy_volume,
+          COALESCE(SUM(sell_volume), 0)::text AS total_sell_volume,
+          COALESCE(SUM(buy_frequency), 0)::text AS total_buy_frequency,
+          COALESCE(SUM(sell_frequency), 0)::text AS total_sell_frequency,
           MAX(imported_at)::text AS last_imported_at
         FROM broker_summary_daily
         WHERE source = $1
@@ -173,6 +199,10 @@ export async function getBrokerSummaryMonitor(input: {
           broker_code,
           COALESCE(SUM(buy_value), 0)::text AS buy_value,
           COALESCE(SUM(sell_value), 0)::text AS sell_value,
+          COALESCE(SUM(buy_volume), 0)::text AS buy_volume,
+          COALESCE(SUM(sell_volume), 0)::text AS sell_volume,
+          COALESCE(SUM(buy_frequency), 0)::text AS buy_frequency,
+          COALESCE(SUM(sell_frequency), 0)::text AS sell_frequency,
           COALESCE(SUM(buy_value - sell_value), 0)::text AS net_value
         FROM broker_summary_daily
         WHERE source = $1
@@ -201,13 +231,29 @@ export async function getBrokerSummaryMonitor(input: {
       brokerCount: numberValue(coverageRow?.broker_count),
       totalBuyValue: numberValue(coverageRow?.total_buy_value),
       totalSellValue: numberValue(coverageRow?.total_sell_value),
+      totalBuyVolume: numberValue(coverageRow?.total_buy_volume),
+      totalSellVolume: numberValue(coverageRow?.total_sell_volume),
+      totalBuyFrequency: numberValue(coverageRow?.total_buy_frequency),
+      totalSellFrequency: numberValue(coverageRow?.total_sell_frequency),
       lastImportedAt: coverageRow?.last_imported_at ?? null,
     },
-    brokers: brokerResult.rows.map((row) => ({
-      brokerCode: row.broker_code,
-      buyValue: numberValue(row.buy_value),
-      sellValue: numberValue(row.sell_value),
-      netValue: numberValue(row.net_value),
-    })),
+    brokers: brokerResult.rows.map((row) => {
+      const buyValue = numberValue(row.buy_value);
+      const sellValue = numberValue(row.sell_value);
+      const buyFrequency = numberValue(row.buy_frequency);
+      const sellFrequency = numberValue(row.sell_frequency);
+      return {
+        brokerCode: row.broker_code,
+        buyValue,
+        sellValue,
+        buyVolume: numberValue(row.buy_volume),
+        sellVolume: numberValue(row.sell_volume),
+        buyFrequency,
+        sellFrequency,
+        avgBuyValuePerTrade: buyFrequency > 0 ? buyValue / buyFrequency : null,
+        avgSellValuePerTrade: sellFrequency > 0 ? sellValue / sellFrequency : null,
+        netValue: numberValue(row.net_value),
+      };
+    }),
   };
 }

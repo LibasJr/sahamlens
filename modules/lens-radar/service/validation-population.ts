@@ -1,32 +1,20 @@
 import { MIN_COVERAGE_FOR_RECOMMENDATION } from '@/modules/eligibility';
 
-// SIAPA YANG BOLEH MASUK POPULASI VALIDASI - satu definisi, dipakai bucket backtest,
-// calibration lab, dan (lewat calibration) halaman Transparency.
-//
-// BUG FIX (audit kuantitatif 2026-08-11, temuan H-01): sebelumnya tidak ada gerbang ini
-// sama sekali. Produksi menolak memberi rekomendasi kalau `coverage_pct` di bawah 55%
-// (getKategori -> 'DATA TIDAK CUKUP') atau kalau evaluateMinimalEligibility() tidak
-// mengembalikan ELIGIBLE - histori < 200 bar, kemungkinan tidak diperdagangkan, data
-// basi, likuiditas di bawah lantai. Backtest tidak menerapkan satu pun dari itu.
-//
-// Akibatnya tabel bucket, t-test, dan equity curve di halaman Transparency publik
-// menghitung sinyal yang aplikasinya sendiri TIDAK AKAN PERNAH rekomendasikan. Pembaca
-// menafsirkannya sebagai "kalau saya beli saham skor 80+, historisnya begini" - padahal
-// sebagian sinyal di angka itu tidak pernah bisa ia terima.
-//
-// Ambangnya sengaja DI-IMPOR dari gerbang produksi, bukan ditulis ulang. Kalau produksi
-// menaikkan ambang kelengkapan dan angka di sini tertinggal, backtest kembali mengukur
-// populasi yang berbeda - persis kegagalan yang gerbang ini ada untuk mencegahnya.
-
+// Satu definisi populasi validasi. Coverage + eligibility wajib identik dengan produksi,
+// dan membership universe wajib point-in-time (H-01/H-02). Histori lama yang belum punya
+// universe_eligible ditolak fail-closed sampai PIT backfill diulang.
 export type ValidationPopulationRejection =
   | 'LOW_COVERAGE'
   | 'UNKNOWN_COVERAGE'
   | 'NOT_ELIGIBLE'
-  | 'UNKNOWN_ELIGIBILITY';
+  | 'UNKNOWN_ELIGIBILITY'
+  | 'OUTSIDE_PIT_UNIVERSE'
+  | 'UNKNOWN_PIT_UNIVERSE';
 
 export interface ValidationPopulationRow {
   coverage_pct?: number | string | null;
   eligibility_status?: string | null;
+  universe_eligible?: boolean | string | number | null;
 }
 
 export interface ValidationPopulationCounters {
@@ -34,10 +22,19 @@ export interface ValidationPopulationCounters {
   unknownCoverage: number;
   notEligible: number;
   unknownEligibility: number;
+  outsidePitUniverse: number;
+  unknownPitUniverse: number;
 }
 
 export function emptyValidationPopulationCounters(): ValidationPopulationCounters {
-  return { lowCoverage: 0, unknownCoverage: 0, notEligible: 0, unknownEligibility: 0 };
+  return {
+    lowCoverage: 0,
+    unknownCoverage: 0,
+    notEligible: 0,
+    unknownEligibility: 0,
+    outsidePitUniverse: 0,
+    unknownPitUniverse: 0,
+  };
 }
 
 export const MIN_VALIDATION_COVERAGE_PCT = MIN_COVERAGE_FOR_RECOMMENDATION;
@@ -47,18 +44,14 @@ function numberOrNull(value: number | string | null | undefined): number | null 
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : null;
 }
+function booleanOrNull(value: boolean | string | number | null | undefined): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (value === 1 || value === '1' || value === 'true' || value === 'TRUE') return true;
+  if (value === 0 || value === '0' || value === 'false' || value === 'FALSE') return false;
+  return null;
+}
 
-/**
- * `null` = baris boleh masuk populasi validasi. Selain itu, alasan penolakannya.
- *
- * FAIL-CLOSED untuk yang tidak diketahui. Baris yang diarsipkan sebelum kolom
- * `coverage_pct`/`eligibility_status` ada TIDAK diloloskan: "kita tidak tahu apakah
- * sinyal ini layak" bukan sinonim dari "layak". Meloloskannya akan mengembalikan persis
- * masalah yang gerbang ini tutup, hanya lewat pintu yang lebih sunyi.
- */
-export function rejectFromValidationPopulation(
-  row: ValidationPopulationRow
-): ValidationPopulationRejection | null {
+export function rejectFromValidationPopulation(row: ValidationPopulationRow): ValidationPopulationRejection | null {
   const coverage = numberOrNull(row.coverage_pct ?? null);
   if (coverage == null) return 'UNKNOWN_COVERAGE';
   if (coverage < MIN_VALIDATION_COVERAGE_PCT) return 'LOW_COVERAGE';
@@ -67,10 +60,12 @@ export function rejectFromValidationPopulation(
   if (!eligibility) return 'UNKNOWN_ELIGIBILITY';
   if (eligibility !== 'ELIGIBLE') return 'NOT_ELIGIBLE';
 
+  const pitUniverse = booleanOrNull(row.universe_eligible ?? null);
+  if (pitUniverse == null) return 'UNKNOWN_PIT_UNIVERSE';
+  if (!pitUniverse) return 'OUTSIDE_PIT_UNIVERSE';
   return null;
 }
 
-/** Catat penolakan ke penghitung. Mengembalikan `true` kalau baris ditolak. */
 export function countValidationPopulationRejection(
   counters: ValidationPopulationCounters,
   rejection: ValidationPopulationRejection | null
@@ -79,6 +74,8 @@ export function countValidationPopulationRejection(
   if (rejection === 'LOW_COVERAGE') counters.lowCoverage++;
   else if (rejection === 'UNKNOWN_COVERAGE') counters.unknownCoverage++;
   else if (rejection === 'NOT_ELIGIBLE') counters.notEligible++;
-  else counters.unknownEligibility++;
+  else if (rejection === 'UNKNOWN_ELIGIBILITY') counters.unknownEligibility++;
+  else if (rejection === 'OUTSIDE_PIT_UNIVERSE') counters.outsidePitUniverse++;
+  else counters.unknownPitUniverse++;
   return true;
 }

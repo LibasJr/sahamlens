@@ -67,13 +67,17 @@ describe('getBrokerSummaryMonitor', () => {
           broker_count: '20',
           total_buy_value: '1250000000',
           total_sell_value: '1000000000',
+          total_buy_volume: '125000',
+          total_sell_volume: '100000',
+          total_buy_frequency: '250',
+          total_sell_frequency: '200',
           last_imported_at: '2026-08-11T11:31:00.000Z',
         }],
       })
       .mockResolvedValueOnce({
         rows: [
-          { broker_code: 'YP', buy_value: '500000000', sell_value: '100000000', net_value: '400000000' },
-          { broker_code: 'CC', buy_value: '50000000', sell_value: '300000000', net_value: '-250000000' },
+          { broker_code: 'YP', buy_value: '500000000', sell_value: '100000000', buy_volume: '50000', sell_volume: '10000', buy_frequency: '50', sell_frequency: '20', net_value: '400000000' },
+          { broker_code: 'CC', buy_value: '50000000', sell_value: '300000000', buy_volume: '5000', sell_volume: '30000', buy_frequency: '10', sell_frequency: '30', net_value: '-250000000' },
         ],
       });
 
@@ -90,10 +94,14 @@ describe('getBrokerSummaryMonitor', () => {
       brokerCount: 20,
       totalBuyValue: 1_250_000_000,
       totalSellValue: 1_000_000_000,
+      totalBuyVolume: 125_000,
+      totalSellVolume: 100_000,
+      totalBuyFrequency: 250,
+      totalSellFrequency: 200,
     });
     expect(result.brokers).toEqual([
-      { brokerCode: 'YP', buyValue: 500_000_000, sellValue: 100_000_000, netValue: 400_000_000 },
-      { brokerCode: 'CC', buyValue: 50_000_000, sellValue: 300_000_000, netValue: -250_000_000 },
+      { brokerCode: 'YP', buyValue: 500_000_000, sellValue: 100_000_000, buyVolume: 50_000, sellVolume: 10_000, buyFrequency: 50, sellFrequency: 20, avgBuyValuePerTrade: 10_000_000, avgSellValuePerTrade: 5_000_000, netValue: 400_000_000 },
+      { brokerCode: 'CC', buyValue: 50_000_000, sellValue: 300_000_000, buyVolume: 5_000, sellVolume: 30_000, buyFrequency: 10, sellFrequency: 30, avgBuyValuePerTrade: 5_000_000, avgSellValuePerTrade: 10_000_000, netValue: -250_000_000 },
     ]);
     expect(queryReadWithRetry.mock.calls[4]?.[1]).toEqual([
       'INDEX_ALPHA_API',
