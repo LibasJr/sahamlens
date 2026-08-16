@@ -1,47 +1,43 @@
-SahamLens - Bank Evidence Integrity FAIL Fix
-============================================
+SahamLens D-1 Market Data Integrity — Phase 1
+=============================================
 
-Fix yang ditutup sekaligus:
-1. False-positive observed_date masa depan ketika PostgreSQL masih UTC tetapi collector sudah tanggal Asia/Jakarta.
-2. Active conflicting metric groups yang tertinggal dari run collector lama.
-3. Pencegahan conflict baru lintas run/source sebelum INSERT evidence.
+Status audit setelah patch: TERBUKA -> SEBAGIAN.
+Patch ini menutup langkah teknis pertama D-1: comparator close harian, reconciliation,
+circuit breaker, quality status, cron, admin/public transparency. Risiko lisensi dan
+ketergantungan Yahoo untuk fundamental/earnings belum dianggap selesai.
 
-FILE PATCH:
-- scripts/audit-production-integrity.mjs
-- scripts/collect-bank-metric-evidence-auto.mjs
-- scripts/repair-bank-metric-evidence-integrity.mjs
+ENV yang perlu ditambahkan ke .env.production bila belum ada:
+MARKET_RECON_ENABLED=true
+MARKET_RECON_UNIVERSE_LIMIT=200
+MARKET_RECON_YAHOO_CONCURRENCY=4
+IDX_PUBLIC_STOCK_SUMMARY_URL=https://www.idx.co.id/umbraco/Surface/TradingSummary/GetStockSummary
+PROVIDER_CIRCUIT_FAILURE_THRESHOLD=5
+PROVIDER_CIRCUIT_OPEN_SEC=900
 
-SETELAH COPY/OVERWRITE:
+Deployment:
+1) Copy seluruh isi ZIP ke root /opt/sahamlens/app dan overwrite file terkait.
+2) Migration dry-run:
+   node --env-file=.env.production scripts/migrate-database.mjs
+3) Confirm migration:
+   node --env-file=.env.production scripts/migrate-database.mjs --confirm
+4) npm run verify:prod (atau tunggu CI GitHub hijau)
+5) sudo systemctl restart sahamlens
+6) Install timer:
+   bash deploy/market-data-reconcile/install.sh
+7) Test manual:
+   sudo systemctl start sahamlens-market-data-reconcile.service
+   sudo journalctl -u sahamlens-market-data-reconcile.service -n 150 --no-pager
+8) Audit:
+   node --env-file=.env.production scripts/audit-market-data-reconciliation.mjs
 
-1) Dry-run repair:
-   cd /opt/sahamlens/app
-   NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection" \
-   node --env-file=.env.production scripts/repair-bank-metric-evidence-integrity.mjs
+UI:
+- Admin: /admin/data-integrity
+- Public evidence: /transparency
+- Ticker warning: /technical/<ticker>
 
-   Periksa:
-   - Future active rows
-   - Conflicting groups
-   - Rows to supersede
-   - Blocked manual issues
-
-   Kalau Blocked manual issues = 0, lanjut confirm.
-
-2) Confirm repair:
-   NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection" \
-   node --env-file=.env.production scripts/repair-bank-metric-evidence-integrity.mjs --confirm
-
-   Target:
-   VERIFY future_rows=0 conflict_groups=0
-   PASS - active bank metric evidence kembali fail-closed dan conflict-free.
-
-3) Audit ulang:
-   node --env-file=.env.production scripts/audit-production-integrity.mjs
-
-   Target: FAIL = 0.
-
-CATATAN INTEGRITAS:
-- Repair tidak mengedit angka evidence.
-- Row bermasalah hanya diberi superseded_at + reason (audit lineage tetap ada).
-- Jika konflik seluruhnya AUTO_COLLECTED, semua conflicting rows dinonaktifkan (fail closed), bukan memilih angka sembarang.
-- Jika ada curated/manual evidence tunggal, auto evidence yang berbeda dinonaktifkan.
-- Jika curated/manual evidence sendiri konflik, repair BERHENTI dan meminta review manual.
+IMPORTANT:
+- Secondary IDX public endpoint is VERIFY-ONLY. Patch tidak menyajikan ulang harga mentah
+  IDX sebagai fallback publik.
+- Jika IDX membalas 403/429, jangan turunkan quality gate. Gunakan feed IDX EoD/redistributor
+  berlisensi untuk menutup sisi legal dan reliability D-1 secara penuh.
+- MISMATCH, PRIMARY_ONLY, SECONDARY_ONLY, dan NO_DATA tidak pernah dihitung sebagai MATCH.

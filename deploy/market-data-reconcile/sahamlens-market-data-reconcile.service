@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens - reconcile daily close prices across independent sources
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/usr/bin/curl -sfS --max-time 900 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/market-data-reconcile
+TimeoutStartSec=930
