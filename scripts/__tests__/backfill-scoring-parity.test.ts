@@ -271,3 +271,48 @@ describe('arsip verdict pembanding', () => {
     }
   });
 });
+
+
+describe('M-6 - changePct memakai return basis yang sama dengan scoring', () => {
+  it('tidak membaca corporate-action raw drop sebagai penurunan harga ekonomis', () => {
+    const source = yahooRows();
+    const idx = 240;
+    const prev = source[idx - 1]!;
+    const cur = source[idx]!;
+    const targetDate = String(cur.Date).slice(0, 10);
+
+    // Simulasikan raw series yang turun ~50% karena adjustment factor berubah, sementara
+    // AdjClose (basis return LensScore) tetap mengikuti tren ekonomis yang mulus.
+    cur.Close = cur.Close / 2;
+    cur.Open = cur.Open / 2;
+    cur.High = cur.High / 2;
+    cur.Low = cur.Low / 2;
+    // AdjClose sengaja dibiarkan pada nilai sebelum pembagian raw.
+
+    const seen: any[] = [];
+    const rows = script.buildHistoricalLensRows({
+      ticker: 'TEST.JK',
+      yahooRows: source,
+      fundamentals: [bankPitRow],
+      startDate: targetDate,
+      endDate: targetDate,
+      dataTimestamp: `${targetDate}T10:00:00.000Z`,
+      runTimestamp: `${targetDate}T10:00:00.000Z`,
+      deps: {
+        ...deps,
+        calculateScore: (symbol: string, technical: any, fundamental: any, flow: any) => {
+          seen.push(technical);
+          return calculateScore(symbol, technical, fundamental, flow);
+        },
+      },
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(seen).toHaveLength(1);
+    const expectedAdjustedChange = ((cur.AdjClose / prev.AdjClose) - 1) * 100;
+    const falseRawChange = ((cur.Close / prev.Close) - 1) * 100;
+    expect(falseRawChange).toBeLessThan(-40);
+    expect(seen[0].changePct).toBeCloseTo(expectedAdjustedChange, 8);
+    expect(Math.abs(seen[0].changePct)).toBeLessThan(5);
+  });
+});
