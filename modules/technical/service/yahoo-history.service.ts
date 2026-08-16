@@ -9,6 +9,7 @@
 
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
+import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
 
 export interface OhlcRow {
   Date: string;
@@ -51,6 +52,7 @@ export interface YahooHistoryResult {
 }
 
 export async function fetchYahooHistory(ticker: string, range: string = '1y'): Promise<YahooHistoryResult | null> {
+  if (await isProviderCircuitOpen('YAHOO_CHART')) return null;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -61,11 +63,11 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    if (!res.ok) { void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { status: res.status } }); return null; }
+    if (!res.ok) { await recordProviderFailure('YAHOO_CHART', { immediateOpen: res.status === 403 || res.status === 429 }); void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { status: res.status } }); return null; }
 
     const data = await res.json();
     const result = data.chart.result?.[0];
-    if (!result) { void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { reason: 'empty_result' } }); return null; }
+    if (!result) { await recordProviderSuccess('YAHOO_CHART'); void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { reason: 'empty_result' } }); return null; }
 
     const currentPrice = result.meta.regularMarketPrice;
     const timestamps = result.timestamp || [];
@@ -87,7 +89,7 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
         });
       }
     }
-    if (history.length === 0) { void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { reason: 'empty_history' } }); return null; }
+    if (history.length === 0) { await recordProviderSuccess('YAHOO_CHART'); void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { reason: 'empty_history' } }); return null; }
     const regularMarketTime = typeof result.meta.regularMarketTime === 'number' ? result.meta.regularMarketTime : null;
     // Diambil dari riwayat harian, BUKAN `meta.previousClose` mentah seperti sebelumnya.
     // Terukur 2026-08-14: meta melaporkan penutupan 7 Agustus untuk TLKM/ASII/BMRI -
@@ -104,10 +106,12 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
       metaPreviousClose: result.meta.previousClose,
       metaChartPreviousClose: result.meta.chartPreviousClose,
     });
+    await recordProviderSuccess('YAHOO_CHART');
     void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: true, latencyMs: Date.now() - startedAt, dataObservedAt: regularMarketTime ? new Date(regularMarketTime * 1000).toISOString() : null, detail: { tickerSample: ticker, range } });
     return { history, currentPrice, regularMarketTime, previousClose };
   } catch (e) {
     clearTimeout(timeoutId);
+    await recordProviderFailure('YAHOO_CHART');
     void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt, detail: { reason: e instanceof Error ? e.name : 'fetch_error' } });
     return null;
   }

@@ -1,0 +1,11 @@
+[Unit]
+Description=Jadwal SahamLens - daily market close reconciliation
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 18:30:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

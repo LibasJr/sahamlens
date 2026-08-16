@@ -135,6 +135,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
     { id: 'admin-financial-integrity', name: 'Financial Integrity', subtitle: 'Adoption gate & maturity', path: '/admin/financial-integrity', icon: ShieldCheck },
+    { id: 'admin-market-data-integrity', name: 'Market Data Integrity', subtitle: 'Rekonsiliasi harga lintas sumber', path: '/admin/data-integrity', icon: ShieldCheck },
     { id: 'admin-macro-pit', name: 'Macro PIT', subtitle: 'Risk-free, ERP & provenance', path: '/admin/macro-assumptions', icon: Waves },
     { id: 'admin-bank-fundamentals', name: 'Bank Fundamentals', subtitle: 'NIM, NPL, CASA, CAR & provenance', path: '/admin/bank-fundamentals', icon: Building2 },
     { id: 'admin-ownership-flow', name: 'Ownership Flow', subtitle: 'Status ingestion kepemilikan', path: '/admin/ownership-flow', icon: Users },

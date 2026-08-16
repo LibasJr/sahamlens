@@ -6,6 +6,7 @@ import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
+import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
 
 
 function isFinitePositive(value: unknown): value is number {
@@ -25,7 +26,9 @@ export async function GET(
   if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
   const ticker = normalizedTicker;
 
+  const yahooCircuitOpen = await isProviderCircuitOpen('YAHOO_CHART');
   try {
+    if (yahooCircuitOpen) throw new Error('YAHOO_CIRCUIT_OPEN');
     // Primary Data Source: Yahoo Finance v8
     //
     // `range=1mo&interval=1d` (2026-08-13) - sebelumnya tanpa parameter, jadi respons
@@ -43,6 +46,7 @@ export async function GET(
     });
 
     if (yahooRes.ok) {
+      await recordProviderSuccess('YAHOO_CHART');
       const data = await yahooRes.json();
       const meta = data?.chart?.result?.[0]?.meta;
       const lastPrice = meta?.regularMarketPrice;
@@ -102,13 +106,23 @@ export async function GET(
       }
       console.warn(`Yahoo Finance returned no valid price for ${ticker}`);
     } else if (yahooRes.status === 429 || yahooRes.status === 403) {
+      await recordProviderFailure('YAHOO_CHART', { immediateOpen: true });
       console.warn(`Yahoo Finance blocked (Status ${yahooRes.status}) for ${ticker}`);
     } else {
+      await recordProviderFailure('YAHOO_CHART');
       console.warn(`Yahoo Finance error: ${yahooRes.statusText}`);
     }
   } catch (e) {
+    if (!(e instanceof Error && e.message === 'YAHOO_CIRCUIT_OPEN')) {
+      await recordProviderFailure('YAHOO_CHART');
+    }
     console.error('Failed to fetch from Yahoo Finance:', e);
   }
+
+  // D-1: sumber pembanding IDX di fase ini VERIFY-ONLY. SahamLens sengaja
+  // TIDAK menyajikan ulang harga mentah sumber pembanding sebagai fallback karena
+  // hak redistribusinya belum dibuktikan. Jika Yahoo gagal, response tetap fail-closed
+  // (503) alih-alih mengganti provider secara diam-diam.
 
   // Data TIDAK TERSEDIA - sebelumnya di sini ada fallback "mockPrice = 10000" yang
   // dikembalikan sebagai HARGA SUNGGUHAN (HTTP 200, source palsu "api.goapi.io (Mock)")

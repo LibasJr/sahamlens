@@ -10,6 +10,7 @@ import { getPaymentMethods } from '@/shared/config/payment';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
+import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
@@ -496,6 +497,8 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             </p>
           </div>
         </div>
+
+        {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
 
         <StockChartPanel symbol={symbol} />
 

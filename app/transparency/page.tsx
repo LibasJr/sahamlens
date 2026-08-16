@@ -1,8 +1,18 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import TransparencyClient from './TransparencyClient';
+import { getReconciliationSummary } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
 
-export default function TransparencyPage() {
+export default async function TransparencyPage() {
+  const reconciliationRuns = await getReconciliationSummary(1);
+  const latestRecon = reconciliationRuns[0];
+  const compared = Number(latestRecon?.compared_count ?? 0);
+  const matched = Number(latestRecon?.match_count ?? 0);
+  const mismatched = Number(latestRecon?.mismatch_count ?? 0);
+  const universe = Number(latestRecon?.universe_count ?? 0);
+  const gaps = Number(latestRecon?.primary_only_count ?? 0) + Number(latestRecon?.secondary_only_count ?? 0) + Number(latestRecon?.no_data_count ?? 0);
+  const coveragePct = universe > 0 ? (compared / universe) * 100 : null;
+  const matchPct = compared > 0 ? (matched / compared) * 100 : null;
   return (
     <div className="min-h-screen bg-tv-bg text-tv-text p-4 sm:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
@@ -36,6 +46,20 @@ export default function TransparencyPage() {
             <p><span className="font-semibold text-tv-text">Reproducible.</span> Perubahan scoring, asumsi makro, parameter riset, dan schema dipisahkan lewat versi/migration agar hasil lama dapat diaudit.</p>
           </div>
           <p className="mt-3 text-xs text-tv-muted">SahamLens adalah alat riset dan analisis, bukan jaminan hasil investasi. Detail risiko dan batas penggunaan tersedia di halaman Disclaimer.</p>
+        </section>
+
+        <section className="mb-6 rounded-xl border border-tv-border bg-tv-card p-4 sm:p-5">
+          <h2 className="text-base font-semibold text-tv-text">Verifikasi Harga Penutupan Lintas Sumber</h2>
+          {latestRecon && matchPct != null ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-4">
+              <div><p className="text-xs text-tv-muted">Tanggal pembanding</p><p className="font-number text-lg font-bold">{String(latestRecon.trade_date ?? '-')}</p></div>
+              <div><p className="text-xs text-tv-muted">Cocok persis</p><p className="font-number text-lg font-bold text-tv-green">{matchPct.toFixed(2)}%</p></div>
+              <div><p className="text-xs text-tv-muted">Coverage dibandingkan</p><p className="font-number text-lg font-bold">{coveragePct == null ? '-' : `${coveragePct.toFixed(2)}%`}</p></div><div><p className="text-xs text-tv-muted">Mismatch / gap</p><p className="font-number text-lg font-bold text-amber-300">{mismatched} / {gaps}</p></div>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-tv-muted">Rekonsiliasi lintas sumber belum memiliki hasil produksi. SahamLens tidak mengklaim tingkat kecocokan sebelum bukti tersedia.</p>
+          )}
+          <p className="mt-3 text-xs text-tv-muted">Aturan v1 membandingkan close pada tanggal perdagangan yang sama dan menuntut kecocokan persis. Mismatch tidak dikoreksi otomatis.</p>
         </section>
 
         <TransparencyClient />

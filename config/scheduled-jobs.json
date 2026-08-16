@@ -156,6 +156,13 @@
       "schedule": "Daily 20:45 Asia/Jakarta (jeda acak hingga 600 detik)",
       "scheduleStatus": "verify-server",
       "source": "BARU Financial Integrity 2026-08-16. Collector hanya crawl domain resmi issuer BBCA/BBRI/BMRI/BBNI, PDF text-layer via pdftotext, ambiguous/conflict masuk quarantine. Timer repo deploy/bank-fundamental-collector; setelah dipasang verifikasi systemctl list-timers dan ubah status menjadi known."
+    },
+    {
+      "path": "/api/cron/market-data-reconcile",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 18:30 Asia/Jakarta (jeda acak hingga 300 detik)",
+      "scheduleStatus": "verify-server",
+      "source": "BARU D-1 Market Data Integrity 2026-08-17. Rekonsiliasi close harian Yahoo vs sumber pembanding IDX untuk universe aktif. Timer repo deploy/market-data-reconcile; setelah dipasang verifikasi systemctl list-timers lalu ubah scheduleStatus menjadi known."
     }
   ]
 }
