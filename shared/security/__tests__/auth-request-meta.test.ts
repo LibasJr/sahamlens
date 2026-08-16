@@ -2,15 +2,19 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { getAuthRequestMeta } from '../auth-request-meta';
 
 const originalJwtSecret = process.env.JWT_SECRET_KEY;
+const originalProxyMode = process.env.TRUSTED_PROXY_MODE;
 
 afterEach(() => {
   if (originalJwtSecret === undefined) delete process.env.JWT_SECRET_KEY;
   else process.env.JWT_SECRET_KEY = originalJwtSecret;
+  if (originalProxyMode === undefined) delete process.env.TRUSTED_PROXY_MODE;
+  else process.env.TRUSTED_PROXY_MODE = originalProxyMode;
 });
 
 describe('getAuthRequestMeta', () => {
   it('menyimpan prefix IPv4 dan hash HMAC, bukan IP mentah', () => {
     process.env.JWT_SECRET_KEY = 'test-secret';
+    process.env.TRUSTED_PROXY_MODE = 'cloudflare';
     const meta = getAuthRequestMeta(new Request('https://sahamlens.test/api/auth/login', {
       headers: { 'cf-connecting-ip': '203.0.113.42', 'user-agent': 'SahamLens test browser' },
     }));
@@ -23,6 +27,7 @@ describe('getAuthRequestMeta', () => {
 
   it('tidak membuat hash jika server belum memiliki secret', () => {
     delete process.env.JWT_SECRET_KEY;
+    process.env.TRUSTED_PROXY_MODE = 'forwarded';
     const meta = getAuthRequestMeta(new Request('https://sahamlens.test/api/auth/login', {
       headers: { 'x-forwarded-for': '198.51.100.20' },
     }));
