@@ -4,7 +4,19 @@ import { INTRADAY_COMPONENT_KEYS, type IntradayWeights } from '../../constants/i
 
 function equalWeights(): IntradayWeights {
   const weight = 100 / INTRADAY_COMPONENT_KEYS.length;
-  return Object.fromEntries(INTRADAY_COMPONENT_KEYS.map((key) => [key, weight])) as IntradayWeights;
+  const weights: IntradayWeights = {
+    momentum: 0,
+    vwapDeviation: 0,
+    volumeSurge: 0,
+    rangePosition: 0,
+    trendPersistence: 0,
+  };
+
+  for (const key of INTRADAY_COMPONENT_KEYS) {
+    weights[key] = weight;
+  }
+
+  return weights;
 }
 
 describe('scoreWithAvailableComponents', () => {
