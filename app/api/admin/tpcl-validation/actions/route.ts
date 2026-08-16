@@ -12,6 +12,10 @@ import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard
 import { logger } from '@/shared/logger/logger';
 import { isAdminFromRequestCookies } from '@/modules/user';
 import {
+  DEFAULT_TPCL_HISTORY_RANGE,
+  type TpclHistoryRange,
+} from '@/modules/recommendation/service/tpcl-validation.service';
+import {
   clearTpclValidationDashboardCache,
   recomputeTpclValidationDashboard,
 } from '../cache';
@@ -19,9 +23,16 @@ import {
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
+const historyRangeSchema = z.enum(['1y', '3y', '5y', '10y']);
 const bodySchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('run_validation') }),
-  z.object({ action: z.literal('clear_cache') }),
+  z.object({
+    action: z.literal('run_validation'),
+    historyRange: historyRangeSchema.optional().default(DEFAULT_TPCL_HISTORY_RANGE),
+  }),
+  z.object({
+    action: z.literal('clear_cache'),
+    historyRange: historyRangeSchema.optional().default(DEFAULT_TPCL_HISTORY_RANGE),
+  }),
 ]);
 
 function assertSameOrigin(req: NextRequest): void {
@@ -51,29 +62,41 @@ export async function POST(req: NextRequest) {
       throw new ValidationError('Body harus JSON');
     }
     const body = parseOrThrow(bodySchema, raw);
+    const historyRange = body.historyRange as TpclHistoryRange;
 
     if (body.action === 'clear_cache') {
-      await clearTpclValidationDashboardCache();
-      logger.info('TPCL Validation Lab action', { action: body.action, outcome: 'SUCCESS' });
+      await clearTpclValidationDashboardCache(historyRange);
+      logger.info('TPCL Validation Lab action', {
+        action: body.action,
+        historyRange,
+        outcome: 'SUCCESS',
+      });
       return {
         status: 200,
         body: {
           ok: true,
-          reason: 'Cache hasil TP/CL Validation Lab dihapus. Histori LensRadar dan parameter production tidak disentuh.',
+          historyRange,
+          reason: `Cache hasil TP/CL range ${historyRange} dihapus. Histori LensRadar dan parameter production tidak disentuh.`,
         },
       };
     }
 
+    // Satu lock global sengaja dipakai untuk seluruh range agar dua recompute berbeda
+    // tidak mengunduh OHLC Yahoo dalam jumlah besar secara bersamaan.
     const guarded = await runWithJobConcurrencyGuard(
       'tpcl-validation:run_validation',
-      () => recomputeTpclValidationDashboard(),
+      () => recomputeTpclValidationDashboard(historyRange),
       10 * 60,
     );
     if (!guarded.executed) {
       throw new ConflictError('TP/CL validation sedang dihitung oleh proses lain. Tunggu sampai selesai.');
     }
 
-    logger.info('TPCL Validation Lab action', { action: body.action, outcome: 'SUCCESS' });
+    logger.info('TPCL Validation Lab action', {
+      action: body.action,
+      historyRange,
+      outcome: 'SUCCESS',
+    });
     return { status: 200, body: guarded.value };
   }, req);
 }
