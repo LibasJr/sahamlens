@@ -51,6 +51,12 @@ export async function ownershipFlowBlock(ticker: string): Promise<string> {
     lines.push('- Perubahan terhadap SNAPSHOT SEBELUMNYA dari sumber yang sama (percentage point / pp):');
     if (view.previous.basisObservedDate === null) {
       lines.push('  - Belum ada snapshot pembanding. Ini BUKAN berarti kepemilikan stabil.');
+    } else if (view.previous.structuralBreak) {
+      lines.push(
+        `  - Pembanding: ${view.previous.basisObservedDate} (jarak ${view.previous.actualGapDays} hari kalender)`,
+        `  - STRUCTURAL BREAK: jumlah efek berubah dari ${view.previous.basisTotalSecurities ?? 'tidak tersedia'} menjadi ${view.previous.currentTotalSecurities ?? 'tidak tersedia'}.`,
+        '  - Δ asing/lokal sengaja TIDAK dihitung. Dilarang menyebut perubahan ini sebagai akumulasi/distribusi karena bisa dipengaruhi corporate action/perubahan denominator.',
+      );
     } else {
       lines.push(
         `  - Pembanding: ${view.previous.basisObservedDate} (jarak ${view.previous.actualGapDays} hari kalender)`,

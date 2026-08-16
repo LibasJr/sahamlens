@@ -101,6 +101,10 @@ export interface OwnershipDelta {
    * label horizon berbohong tentang data di belakangnya.
    */
   actualGapDays: number | null;
+  /** True bila denominator/total efek berubah antara basis dan current. */
+  structuralBreak?: boolean;
+  /** Alasan machine-readable untuk menahan delta. */
+  structuralBreakReason?: 'TOTAL_SECURITIES_CHANGED' | null;
 }
 
 export interface OwnershipDeltaSet {
@@ -127,6 +131,11 @@ export interface OwnershipPeriodChange {
   localPp: number | null;
   /** Perubahan porsi scripless dalam percentage point. */
   scriplessPp: number | null;
+  /** Delta ditahan bila jumlah efek berubah antar-snapshot. */
+  structuralBreak?: boolean;
+  structuralBreakReason?: 'TOTAL_SECURITIES_CHANGED' | null;
+  basisTotalSecurities?: number | null;
+  currentTotalSecurities?: number | null;
 }
 
 /**

@@ -24,6 +24,7 @@ export interface ObservationPoint {
   foreignPct: number | null;
   localPct?: number | null;
   scriplessPct?: number | null;
+  totalSecurities?: number | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -47,7 +48,19 @@ export function shiftDays(dateKey: string, days: number): string {
   return `${y}-${m}-${d}`;
 }
 
-const EMPTY_DELTA: OwnershipDelta = { pp: null, basisObservedDate: null, actualGapDays: null };
+const EMPTY_DELTA: OwnershipDelta = {
+  pp: null, basisObservedDate: null, actualGapDays: null,
+  structuralBreak: false, structuralBreakReason: null,
+};
+
+
+function hasTotalSecuritiesBreak(a: ObservationPoint, b: ObservationPoint): boolean {
+  const left = a.totalSecurities;
+  const right = b.totalSecurities;
+  if (left == null || right == null) return false;
+  if (!Number.isFinite(left) || !Number.isFinite(right) || left <= 0 || right <= 0) return false;
+  return left !== right;
+}
 
 /**
  * Delta satu horizon terhadap observasi terkini.
@@ -94,10 +107,23 @@ export function computeDelta(
   // terbaca sebagai STABLE, padahal sebenarnya tidak ada pembanding.
   if (basis.observedDate >= current.observedDate) return EMPTY_DELTA;
 
+  const actualGapDays = diffCalendarDays(basis.observedDate, current.observedDate);
+  if (hasTotalSecuritiesBreak(basis, current)) {
+    return {
+      pp: null,
+      basisObservedDate: basis.observedDate,
+      actualGapDays,
+      structuralBreak: true,
+      structuralBreakReason: 'TOTAL_SECURITIES_CHANGED',
+    };
+  }
+
   return {
     pp: roundTo(current.foreignPct - basis.foreignPct, 4),
     basisObservedDate: basis.observedDate,
-    actualGapDays: diffCalendarDays(basis.observedDate, current.observedDate),
+    actualGapDays,
+    structuralBreak: false,
+    structuralBreakReason: null,
   };
 }
 
@@ -119,6 +145,10 @@ const EMPTY_PERIOD_CHANGE: OwnershipPeriodChange = {
   foreignPp: null,
   localPp: null,
   scriplessPp: null,
+  structuralBreak: false,
+  structuralBreakReason: null,
+  basisTotalSecurities: null,
+  currentTotalSecurities: null,
 };
 
 /**
@@ -144,11 +174,16 @@ export function computePreviousPeriodChange(
   const diff = (a: number | null | undefined, b: number | null | undefined) =>
     a == null || b == null ? null : roundTo(a - b, 4);
 
+  const structuralBreak = hasTotalSecuritiesBreak(basis, current);
   return {
     basisObservedDate: basis.observedDate,
     actualGapDays: diffCalendarDays(basis.observedDate, current.observedDate),
-    foreignPp: diff(current.foreignPct, basis.foreignPct),
-    localPp: diff(current.localPct, basis.localPct),
-    scriplessPp: diff(current.scriplessPct, basis.scriplessPct),
+    foreignPp: structuralBreak ? null : diff(current.foreignPct, basis.foreignPct),
+    localPp: structuralBreak ? null : diff(current.localPct, basis.localPct),
+    scriplessPp: structuralBreak ? null : diff(current.scriplessPct, basis.scriplessPct),
+    structuralBreak,
+    structuralBreakReason: structuralBreak ? 'TOTAL_SECURITIES_CHANGED' : null,
+    basisTotalSecurities: basis.totalSecurities ?? null,
+    currentTotalSecurities: current.totalSecurities ?? null,
   };
 }

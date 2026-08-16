@@ -32,6 +32,8 @@ if(process.env.DATABASE_URL){
   }
   const own=await c.query(`SELECT COUNT(DISTINCT observed_date)::int snapshots,MAX(observed_date)::text latest,COUNT(*)::int rows FROM ownership_flow_history WHERE source='KSEI_HOLDING_COMPOSITION'`).catch(()=>({rows:[{}]}));
   const o=own.rows[0]??{}; Number(o.snapshots??0)>=2?ok(`Ownership Flow ${o.snapshots} snapshot; latest ${o.latest}`):warn('Ownership Flow belum punya >=2 snapshot KSEI untuk delta');
+  const quarantine=await c.query(`SELECT COUNT(*)::int rows,COUNT(DISTINCT observed_date)::int snapshots FROM ownership_flow_quarantine WHERE source='KSEI_HOLDING_COMPOSITION'`).catch(()=>({rows:[{rows:0,snapshots:0}]}));
+  const q=quarantine.rows[0]??{}; Number(q.rows??0)>0?warn(`Ownership Flow quarantine ${q.rows} row pada ${q.snapshots} snapshot; ini terisolasi dan tidak ikut delta`):ok('Ownership Flow quarantine kosong');
   const macro=await c.query(`SELECT effective_date::text,observed_date::text,source FROM macro_assumption_history ORDER BY effective_date DESC LIMIT 1`).catch(()=>({rows:[]}));
   macro.rows[0]?ok(`Macro audit row terbaru ${macro.rows[0].effective_date} (${macro.rows[0].source})`):warn('macro_assumption_history masih kosong; model tetap memakai frozen assumptions, bukan dummy.');
   const bank=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers FROM bank_fundamental_history`).catch(()=>({rows:[{n:0,tickers:0}]}));

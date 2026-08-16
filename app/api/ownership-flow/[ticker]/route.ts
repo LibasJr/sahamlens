@@ -77,9 +77,9 @@ export async function GET(
       // "30d" bisa saja dihitung dari observasi 31 hari lalu. Menyembunyikan ini
       // membuat label horizon berbohong.
       deltaBasis: {
-        '1d': { observedDate: view.delta.d1.basisObservedDate, gapDays: view.delta.d1.actualGapDays },
-        '7d': { observedDate: view.delta.d7.basisObservedDate, gapDays: view.delta.d7.actualGapDays },
-        '30d': { observedDate: view.delta.d30.basisObservedDate, gapDays: view.delta.d30.actualGapDays },
+        '1d': { observedDate: view.delta.d1.basisObservedDate, gapDays: view.delta.d1.actualGapDays, structuralBreak: view.delta.d1.structuralBreak },
+        '7d': { observedDate: view.delta.d7.basisObservedDate, gapDays: view.delta.d7.actualGapDays, structuralBreak: view.delta.d7.structuralBreak },
+        '30d': { observedDate: view.delta.d30.basisObservedDate, gapDays: view.delta.d30.actualGapDays, structuralBreak: view.delta.d30.structuralBreak },
       },
       trend: view.trend,
       trendReason: view.trendReason,

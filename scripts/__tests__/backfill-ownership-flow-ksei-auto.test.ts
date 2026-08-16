@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assessDryRunSummary,
   buildMonthlyProbeCandidates,
   discoverArchiveEntries,
   filterArchiveEntries,
@@ -93,6 +94,35 @@ describe('auto backfill Ownership Flow KSEI', () => {
       snapshotDate: '2026-07-31',
       inserted: 0,
       alreadyExisting: 1007,
+      quarantined: null,
     });
   });
+
+  it('menandai reject sebagai PARTIAL tetapi tidak mengubahnya menjadi error tanggal/coverage', () => {
+    const entry = discoverArchiveEntries('BalanceposEfek20250528.zip')[0];
+    const assessment = assessDryRunSummary({
+      validEquity: 990,
+      rejected: 2,
+      snapshotDate: '2025-05-28',
+      inserted: null,
+      alreadyExisting: null,
+      quarantined: null,
+    }, entry, 100);
+    expect(assessment).toEqual({ status: 'PARTIAL', errors: [] });
+  });
+
+  it('tetap ERROR bila tanggal snapshot tidak cocok walaupun row valid banyak', () => {
+    const entry = discoverArchiveEntries('BalanceposEfek20250528.zip')[0];
+    const assessment = assessDryRunSummary({
+      validEquity: 990,
+      rejected: 0,
+      snapshotDate: '2025-05-29',
+      inserted: null,
+      alreadyExisting: null,
+      quarantined: null,
+    }, entry, 100);
+    expect(assessment.status).toBe('ERROR');
+    expect(assessment.errors.join(' ')).toContain('tanggal file');
+  });
+
 });
