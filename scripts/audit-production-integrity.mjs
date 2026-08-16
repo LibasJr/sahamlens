@@ -56,7 +56,7 @@ if(process.env.DATABASE_URL){
       COUNT(DISTINCT ticker) FILTER (WHERE superseded_at IS NULL)::int tickers,
       COUNT(*) FILTER (WHERE superseded_at IS NULL AND evidence_type='DERIVED')::int derived,
       COUNT(*) FILTER (WHERE superseded_at IS NULL AND basis='DISCLOSED_UNSPECIFIED')::int unspecified,
-      COUNT(*) FILTER (WHERE superseded_at IS NULL AND observed_date>CURRENT_DATE)::int future_observed
+      COUNT(*) FILTER (WHERE superseded_at IS NULL AND observed_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date)::int future_observed
     FROM bank_metric_evidence`).catch(()=>({rows:[{n:0,superseded:0,tickers:0,derived:0,unspecified:0,future_observed:0}]}));
   if(Number(bankMetric.rows[0]?.n??0)>0){
     ok(`Bank metric evidence aktif ${bankMetric.rows[0].n} rows / ${bankMetric.rows[0].tickers} ticker`);
