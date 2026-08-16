@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft, Database, Globe, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getOwnershipFlowMonitor } from '@/modules/ownership-flow/service/ownership-flow-monitor.service';
+import { KSEI_HOLDING_COMPOSITION_ARCHIVE } from '@/modules/ownership-flow/source/source-registry';
 
 // PANEL STATUS INGESTION OWNERSHIP FLOW.
 //
@@ -57,6 +58,7 @@ export default async function AdminOwnershipFlowPage() {
   const monitor = await getOwnershipFlowMonitor();
   const freshness = FRESHNESS_TEXT[monitor.freshness] ?? FRESHNESS_TEXT.MISSING;
   const sourceVerified = monitor.source.auditStatus === 'VERIFIED';
+  const archiveVerified = KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus === 'VERIFIED';
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
@@ -142,13 +144,30 @@ export default async function AdminOwnershipFlowPage() {
                   : 'border-tv-warning/20 bg-tv-warning/10 text-tv-warning'
               }`}
             />
+            <Row
+              label="Arsip bulanan"
+              value={`${KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus} · ${KSEI_HOLDING_COMPOSITION_ARCHIVE.format}`}
+              valueClassName={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${
+                archiveVerified
+                  ? 'border-tv-green/20 bg-tv-green/10 text-tv-green'
+                  : 'border-tv-warning/20 bg-tv-warning/10 text-tv-warning'
+              }`}
+            />
           </dl>
           <p className="mt-3 break-words rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5 text-[12px] leading-relaxed text-tv-muted">
             {monitor.source.auditNote}
           </p>
+          {archiveVerified && (
+            <p className="mt-2 rounded-lg border border-tv-green/15 bg-tv-green/[0.035] p-2.5 text-[12px] leading-relaxed text-tv-muted">
+              Arsip bulanan KSEI sudah terverifikasi untuk format <code className="rounded bg-white/[0.06] px-1">Balancepos*.txt</code>
+              {' '}pipe-delimited. Arsip ini boleh dipakai untuk backfill historis dengan
+              {' '}<code className="rounded bg-white/[0.06] px-1">npm run backfill:ownership-flow</code>.
+              Gerbang ingestion live tetap terpisah dan masih tertutup sampai sumber snapshot per-ticker lolos audit.
+            </p>
+          )}
           {!sourceVerified && (
             <p className="mt-2 text-[12px] leading-relaxed text-tv-muted">
-              Jalankan <code className="rounded bg-white/[0.06] px-1">npm run audit:ksei-ownership</code> di VPS,
+              Untuk snapshot live, jalankan <code className="rounded bg-white/[0.06] px-1">npm run audit:ksei-ownership</code> di VPS,
               lalu ikuti checklist di <code className="rounded bg-white/[0.06] px-1">docs/ownership-flow/source-audit.md</code>.
             </p>
           )}
