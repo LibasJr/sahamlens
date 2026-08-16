@@ -252,14 +252,23 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function scoreWith(weights: IntradayWeights, components: Record<string, number>): number {
-  let total = 0;
+export function scoreWithAvailableComponents(
+  weights: IntradayWeights,
+  components: Record<string, number>
+): number | null {
+  let availableWeight = 0;
   let weighted = 0;
   for (const key of INTRADAY_COMPONENT_KEYS) {
-    total += weights[key];
-    weighted += weights[key] * (components[key] ?? 50);
+    const value = components[key];
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) continue;
+    const weight = weights[key];
+    if (!Number.isFinite(weight) || weight <= 0) continue;
+    availableWeight += weight;
+    weighted += weight * value;
   }
-  return total > 0 ? weighted / total : 50;
+  // Missing component adalah missing data, bukan invented neutral 50.
+  // Re-normalize pada komponen yang benar-benar tersedia; jika tidak ada, fail-closed.
+  return availableWeight > 0 ? weighted / availableWeight : null;
 }
 
 /** Kandidat bobot acak di dalam batas, dinormalisasi ke jumlah 100. */
@@ -301,7 +310,10 @@ function splitReport(
   weights: IntradayWeights,
   rows: ComponentObservation[]
 ): WeightSplitReport {
-  const rescored = rows.map((r) => ({ ...r, score: scoreWith(weights, r.componentScores) }));
+  const rescored = rows.flatMap((r) => {
+    const score = scoreWithAvailableComponents(weights, r.componentScores);
+    return score == null ? [] : [{ ...r, score }];
+  });
   const effective = toEffectiveSample(rescored);
   const dates = Array.from(new Set(rows.map((r) => r.tradingDate))).sort();
   const q = quintileSpread(rescored);
@@ -395,8 +407,11 @@ export async function proposeIntradayWeights(input: {
   for (let i = 0; i < WEIGHT_CANDIDATES; i++) candidates.push(randomWeights(rng));
 
   const objective = (weights: IntradayWeights, rowsFor: ComponentObservation[]): number => {
-    const scores = rowsFor.map((r) => scoreWith(weights, r.componentScores));
-    const ic = spearman(scores, rowsFor.map((r) => r.netReturn)) ?? 0;
+    const pairs = rowsFor.flatMap((r) => {
+      const score = scoreWithAvailableComponents(weights, r.componentScores);
+      return score == null ? [] : [{ score, netReturn: r.netReturn }];
+    });
+    const ic = spearman(pairs.map((r) => r.score), pairs.map((r) => r.netReturn)) ?? 0;
     return ic - WEIGHT_REGULARIZATION_LAMBDA * l1Distance(weights, config.weights);
   };
 

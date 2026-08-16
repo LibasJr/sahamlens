@@ -32,7 +32,7 @@ import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@
 import { classifyFreshness } from '@/shared/http/freshness';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
-import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
+import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
 import { resolveSectorProfile } from '@/modules/sector';
 import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
 import YahooFinanceClass from 'yahoo-finance2';
@@ -588,7 +588,7 @@ export async function GET(
         raw: currentPrice,
         adjusted: currentAdjustedPrice,
         basis_used_for_score: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
-        basis_used_for_trading_levels: 'RAW',
+        basis_used_for_trading_levels: TRADING_PRICE_BASIS,
         adjustment_version: PRICE_ADJUSTMENT_VERSION,
         corporate_action_status: 'NONE',
       },

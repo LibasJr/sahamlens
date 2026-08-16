@@ -30,7 +30,9 @@ export type CorporateActionStatus =
 
 export const PRICE_ADJUSTMENT_VERSION = 'price-adjustment-v1';
 export const RETURN_PRICE_BASIS: PriceBasis = 'TOTAL_RETURN_ADJUSTED';
-export const TRADING_PRICE_BASIS: PriceBasis = 'RAW';
+// Yahoo chart `quote.*` is split-adjusted retroactively. Calling it RAW made
+// historical tick/price-floor logic look more exact than the provider can support (M-07).
+export const TRADING_PRICE_BASIS: PriceBasis = 'SPLIT_ADJUSTED';
 
 // [HIPOTESIS PENJAGA] Ambang ini hanya trigger pemeriksaan/penolakan observasi, bukan
 // klaim bahwa semua pergerakan raw >40% pasti corporate action. IDX punya ARA/ARB,
@@ -227,8 +229,11 @@ export function normalizeYahooOhlcRows(
 }
 
 function ohlcForBasis(bar: NormalizedPriceBar, basis: PriceBasis): { ohlc: PriceOhlc; status: PriceBasisErrorCode } {
-  if (basis === 'RAW') return { ohlc: bar.raw, status: bar.basisAvailability.raw ? 'OK' : 'MISSING_RAW_PRICE' };
-  if (basis === 'TOTAL_RETURN_ADJUSTED' || basis === 'SPLIT_ADJUSTED') {
+  if (basis === 'RAW' || basis === 'SPLIT_ADJUSTED') {
+    // Provider quote OHLC is the non-dividend-adjusted series; Yahoo retro-adjusts it for splits.
+    return { ohlc: bar.raw, status: bar.basisAvailability.raw ? 'OK' : 'MISSING_RAW_PRICE' };
+  }
+  if (basis === 'TOTAL_RETURN_ADJUSTED') {
     return { ohlc: bar.adjusted, status: bar.basisAvailability.adjusted ? 'OK' : 'MISSING_ADJUSTED_PRICE' };
   }
   if (basis === 'UNKNOWN') return { ohlc: { open: null, high: null, low: null, close: null }, status: 'LEGACY_UNKNOWN_PRICE_BASIS' };
@@ -245,7 +250,7 @@ export function selectPriceSeries(bars: NormalizedPriceBar[], basis: PriceBasis)
       continue;
     }
     if (![ohlc.open, ohlc.high, ohlc.low, ohlc.close].every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)) {
-      invalidDates.push({ date: bar.date, reason: basis === 'RAW' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' });
+      invalidDates.push({ date: bar.date, reason: basis === 'RAW' || basis === 'SPLIT_ADJUSTED' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' });
       continue;
     }
     selected.push({
@@ -280,7 +285,7 @@ function priceField(bar: NormalizedPriceBar, basis: PriceBasis, field: keyof Pri
   if (status !== 'OK') return { value: null, basis, status };
   const value = ohlc[field];
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    return { value: null, basis, status: basis === 'RAW' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' };
+    return { value: null, basis, status: basis === 'RAW' || basis === 'SPLIT_ADJUSTED' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' };
   }
   return { value, basis, status: 'OK' };
 }

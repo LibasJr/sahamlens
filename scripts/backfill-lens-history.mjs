@@ -309,9 +309,15 @@ export function buildLensHistoryUpsert(rows) {
       row.councilConfidence ?? null,
       row.councilBuyPct ?? null,
       row.councilSellPct ?? null,
-      row.councilDivided ?? null
+      row.councilDivided ?? null,
+      row.universeEligible ?? null,
+      row.universeReasonCodes ?? null,
+      row.universeAvgClose63d ?? null,
+      row.universeAvgValue63d ?? null,
+      row.universeAnnualVolPct ?? null,
+      row.universeMethodVersion ?? null
     );
-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, now())`;
+    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, $${base + 34}, $${base + 35}, $${base + 36}, $${base + 37}, $${base + 38}, $${base + 39}, now())`;
   });
 
   return {
@@ -327,6 +333,8 @@ export function buildLensHistoryUpsert(rows) {
         eligibility_status, eligibility_reason_codes,
         technical_available_max, fundamental_available_max, flow_available_max,
         council_signal, council_confidence, council_buy_pct, council_sell_pct, council_divided,
+        universe_eligible, universe_reason_codes, universe_avg_close_63d, universe_avg_value_63d,
+        universe_annual_vol_pct, universe_method_version,
         updated_at
       )
       VALUES ${tuples.join(', ')}
@@ -362,6 +370,12 @@ export function buildLensHistoryUpsert(rows) {
         technical_available_max = EXCLUDED.technical_available_max,
         fundamental_available_max = EXCLUDED.fundamental_available_max,
         flow_available_max = EXCLUDED.flow_available_max,
+        universe_eligible = EXCLUDED.universe_eligible,
+        universe_reason_codes = EXCLUDED.universe_reason_codes,
+        universe_avg_close_63d = EXCLUDED.universe_avg_close_63d,
+        universe_avg_value_63d = EXCLUDED.universe_avg_value_63d,
+        universe_annual_vol_pct = EXCLUDED.universe_annual_vol_pct,
+        universe_method_version = EXCLUDED.universe_method_version,
         updated_at = now()
     `,
     params,
@@ -372,7 +386,7 @@ export async function loadFundamentalHistory(pool, tickers, endDate) {
   const { rows } = await pool.query(
     `
     SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth,
-           yahoo_sector, yahoo_industry, payout_ratio
+           yahoo_sector, yahoo_industry, payout_ratio, shares_outstanding, market_cap
     FROM fundamental_history
     WHERE ticker = ANY($1)
       AND observed_date <= $2::date
@@ -397,6 +411,8 @@ export async function loadFundamentalHistory(pool, tickers, endDate) {
       yahooSector: typeof row.yahoo_sector === 'string' && row.yahoo_sector.trim() ? row.yahoo_sector.trim() : null,
       yahooIndustry: typeof row.yahoo_industry === 'string' && row.yahoo_industry.trim() ? row.yahoo_industry.trim() : null,
       payoutRatio: numericOrNull(row.payout_ratio),
+      sharesOutstanding: numericOrNull(row.shares_outstanding),
+      marketCap: numericOrNull(row.market_cap),
     });
     byTicker.set(ticker, list);
   }
@@ -489,9 +505,10 @@ export function buildHistoricalLensRows(input) {
     const volAvg20 = historyToDate.length >= 20
       ? historyToDate.slice(-20).reduce((sum, row) => sum + (finiteNumber(row.Volume) ?? 0), 0) / 20
       : null;
-    // ADV20 dalam rupiah, memakai close MENTAH (bukan AdjClose): nilai transaksi adalah
-    // uang yang benar-benar berpindah pada hari itu, bukan angka yang sudah disesuaikan
-    // corporate action belakangan. Jendela berhenti di `bar.date`, jadi tetap point-in-time.
+    // ADV20 proxy dalam rupiah memakai Yahoo quote Close (split-adjusted, belum
+    // dividend-adjusted), bukan AdjClose. Jangan menyebutnya harga transaksi mentah:
+    // audit M-07 membuktikan label itu menyesatkan. Jendela berhenti di `bar.date`,
+    // sehingga seleksi tetap point-in-time; ambang harga rupiah absolut tidak dipakai.
     const avgValue20d = historyToDate.length >= 20
       ? historyToDate.slice(-20).reduce((sum, row) => {
         const close = finiteNumber(row.Close);
@@ -582,23 +599,31 @@ export function buildHistoricalLensRows(input) {
     // tersedia sampai tanggal ini saja, lalu diarsipkan. Menghitungnya belakangan saat
     // backtest berjalan akan menilai kelayakan memakai histori penuh - yaitu menyatakan
     // saham layak diperdagangkan pada 2025 karena hari ini ia likuid.
+    const eligibilityBars = historyToDate.map((row) => ({
+      date: String(row.Date).slice(0, 10),
+      close: finiteNumber(row.Close),
+      volume: finiteNumber(row.Volume),
+    }));
     const eligibility = deps.evaluateMinimalEligibility({
       ticker,
       asOf: bar.date,
-      bars: historyToDate.map((row) => ({
-        date: String(row.Date).slice(0, 10),
-        close: finiteNumber(row.Close),
-        volume: finiteNumber(row.Volume),
-      })),
+      bars: eligibilityBars,
       coveragePct: score.coverage_pct,
     });
+    // H-02: membership universe dihitung hanya dari data sampai tanggal sinyal.
+    const pitUniverse = deps.evaluatePointInTimeUniverse(eligibilityBars);
+    // M-08/M-07: market cap historis hanya dari arsip PIT yang nyata. Jangan
+    // merekonstruksinya dari close provider yang split-adjusted x saham period-end.
+    const marketCap = fundamental?.marketCap != null && fundamental.marketCap > 0
+      ? fundamental.marketCap
+      : null;
 
     rows.push({
       date: bar.date,
       ticker,
       lensScore: score.total_score,
       closePrice: adjustedClose,
-      marketCap: null,
+      marketCap,
       technicalScore: score.technical_score,
       fundamentalScore: score.fundamental_score,
       flowScore: score.flow_score,
@@ -622,6 +647,12 @@ export function buildHistoricalLensRows(input) {
       technicalAvailableMax: score.available_max.technical,
       fundamentalAvailableMax: score.available_max.fundamental,
       flowAvailableMax: score.available_max.flow,
+      universeEligible: pitUniverse.eligible,
+      universeReasonCodes: pitUniverse.reasonCodes.join(',') || null,
+      universeAvgClose63d: pitUniverse.avgClose63d,
+      universeAvgValue63d: pitUniverse.avgValue63d,
+      universeAnnualVolPct: pitUniverse.annualVolPct,
+      universeMethodVersion: pitUniverse.methodVersion,
       // `null` kalau council tidak terhitung (bar kurang) - JANGAN diisi 'HOLD', karena
       // "tidak terhitung" dan "netral" adalah dua hal berbeda dan keduanya akan diukur.
       councilSignal: council?.finalSignal ?? null,
@@ -656,6 +687,7 @@ async function loadProductionDeps() {
     ACTIVE_LIQUID_UNIVERSE_VERSION,
     AI_PICK_UNIVERSE_ADDITIONS,
     LEGACY_VALIDATED_UNIVERSE_VERSION,
+    POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION,
   } = require('../modules/market/constants/ai-pick-universe.ts');
   const {
     calculateScore,
@@ -684,6 +716,7 @@ async function loadProductionDeps() {
     detectCorporateAction,
   } = require('../shared/market/price-basis.ts');
   const { evaluateMinimalEligibility } = require('../modules/eligibility/index.ts');
+  const { evaluatePointInTimeUniverse } = require('../modules/backtest/service/point-in-time-universe.ts');
   const { runAndSaveLensBucketBacktest } = require('../modules/lens-radar/service/bucket-backtest.service.ts');
   const { cacheDel } = require('../shared/cache/redis-cache.ts');
   const { TRANSPARENCY_CACHE_KEY } = require('../modules/lens-radar/service/transparency.service.ts');
@@ -695,7 +728,9 @@ async function loadProductionDeps() {
     ACTIVE_LIQUID_UNIVERSE_VERSION,
     AI_PICK_UNIVERSE_ADDITIONS,
     LEGACY_VALIDATED_UNIVERSE_VERSION,
+    POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION,
     evaluateMinimalEligibility,
+    evaluatePointInTimeUniverse,
     runAndSaveLensBucketBacktest,
     calculateScore,
     analyzeRsi,
@@ -719,17 +754,32 @@ async function loadProductionDeps() {
   };
 }
 
+export function loadIdxCandidateUniverse(csvPath = path.join(repoRoot, 'idx_emiten_900.csv')) {
+  if (!fs.existsSync(csvPath)) return [];
+  const lines = fs.readFileSync(csvPath, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map((h) => h.trim());
+  const idx = headers.findIndex((h) => h === 'Kode_YFinance');
+  if (idx < 0) return [];
+  const tickers = lines.slice(1)
+    .map((line) => line.split(',')[idx]?.trim())
+    .map((ticker) => normalizeTicker(ticker ?? ''))
+    .filter((ticker) => /^[A-Z0-9]{1,12}\.JK$/.test(ticker));
+  return Array.from(new Set(tickers)).sort();
+}
+
 export function resolveBackfillUniverse(options, deps) {
-  const tickers = options.tickers?.length
-    ? options.tickers
-    : options.universeAdditions
-      ? deps.AI_PICK_UNIVERSE_ADDITIONS
-      : deps.BACKTEST_UNIVERSE;
-
-  const universeVersion = options.universeVersion
-    || (options.universeAdditions ? deps.ACTIVE_LIQUID_UNIVERSE_VERSION : deps.LEGACY_VALIDATED_UNIVERSE_VERSION);
-
-  return { tickers, universeVersion };
+  if (options.tickers?.length) {
+    return { tickers: options.tickers, universeVersion: options.universeVersion || deps.POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION };
+  }
+  if (options.universeAdditions) {
+    return { tickers: deps.AI_PICK_UNIVERSE_ADDITIONS, universeVersion: options.universeVersion || deps.ACTIVE_LIQUID_UNIVERSE_VERSION };
+  }
+  // H-02: start from the broad available IDX catalogue, not a list selected with 2026 conditions.
+  const broad = loadIdxCandidateUniverse();
+  const tickers = Array.from(new Set([...broad, ...deps.BACKTEST_UNIVERSE])).sort();
+  if (!tickers.length) throw new Error('FAIL-CLOSED: kandidat universe IDX kosong; idx_emiten_900.csv tidak dapat dibaca.');
+  return { tickers, universeVersion: options.universeVersion || deps.POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION };
 }
 
 async function mapWithConcurrency(items, concurrency, worker) {
@@ -774,7 +824,7 @@ async function main() {
   }
 
   const { tickers, universeVersion } = resolveBackfillUniverse(options, deps);
-  const checkpointFile = options.checkpointFile || (options.universeAdditions ? 'scripts/.universe-200-additions-backfill-checkpoint.json' : null);
+  const checkpointFile = options.checkpointFile || (options.universeAdditions ? 'scripts/.universe-200-additions-backfill-checkpoint.json' : 'scripts/.pit-validation-backfill-checkpoint.json');
   const checkpoint = loadCheckpoint(checkpointFile);
   const pendingTickers = tickers.filter((ticker) => !checkpoint.completed.has(ticker.toUpperCase()));
   const runTimestamp = new Date().toISOString();
@@ -795,6 +845,9 @@ async function main() {
   console.log(`Backfill LensRadar ${options.startDate}..${options.endDate} untuk ${pendingTickers.length}/${tickers.length} ticker`);
   console.log(`Mode: ${options.dryRun ? 'DRY RUN' : 'UPSERT'}; range Yahoo: ${options.range}; universe: ${universeVersion}`);
   console.log(`Batch ticker: ${options.tickerBatchSize}; concurrency: ${options.concurrency}; retry: ${options.retryAttempts}; checkpoint: ${checkpointFile || '-'}`);
+  if (!options.tickers?.length && !options.universeAdditions) {
+    console.warn('[LIMITATION] PIT universe memakai katalog emiten IDX yang tersedia saat ini sebagai candidate superset. Emiten yang sudah delisting dan tidak ada di katalog belum dapat direkonstruksi tanpa historical listing master resmi.');
+  }
 
   for (let i = 0; i < pendingTickers.length; i += options.tickerBatchSize) {
     const batch = pendingTickers.slice(i, i + options.tickerBatchSize);

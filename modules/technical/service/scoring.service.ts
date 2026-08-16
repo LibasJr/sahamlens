@@ -114,6 +114,9 @@ export interface FundamentalInput {
   der: number | null;  // rasio (mis. 0.4)
   currentRatio: number | null;
   revenueGrowth: number | null; // yoy persen
+  /** Metadata PIT; tidak masuk scoring langsung. */
+  sharesOutstanding?: number | null;
+  marketCap?: number | null;
   /** Opsional - lihat SectorContext. Tanpa ini penilaian jatuh ke perlakuan netral. */
   sector?: SectorContext;
   /** Median ROE 4 tahun buku terakhir, persen - "normal" milik emiten itu sendiri

@@ -249,9 +249,11 @@ async function currentValuationBlock(ticker: string, requestedMetrics: string[])
       `  - PENTING: PBV*/PER* memakai biaya ekuitas CAPM per emiten di atas, sedangkan DDM dan`,
       `    perpetuitas FCF masih memakai tingkat diskonto TETAP ${safe(a.discount_rate_pct, '%')} untuk semua emiten.`,
       '    Jangan menyebutnya satu tingkat diskonto tunggal.',
-      a.sector_weights_status === 'HYPOTHESIS_NOT_VALIDATED'
-        ? '  - Bobot metode per sektor BELUM divalidasi terhadap forward return (status: hipotesis). Sebutkan ini kalau menjelaskan kenapa metode tertentu lebih berat.'
-        : '',
+      a.sector_weights_status === 'ARBITRARY_WEIGHTS_REMOVED'
+        ? `  - Bobot numerik sektoral yang belum tervalidasi sudah dihapus; agregasi metode: ${a.sector_aggregation_method ?? 'equal-weight metode applicable yang tersedia'}.`
+        : a.sector_weights_status === 'HYPOTHESIS_NOT_VALIDATED'
+          ? '  - Bobot metode per sektor BELUM divalidasi terhadap forward return (status: hipotesis). Sebutkan ini kalau menjelaskan kenapa metode tertentu lebih berat.'
+          : '',
       '- Catatan: nilai wajar adalah keluaran model SahamLens dengan parameter di atas -',
       '  bukan pengukuran, bukan konsensus analis, dan bukan target harga.',
     ]

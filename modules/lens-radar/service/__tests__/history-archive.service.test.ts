@@ -39,7 +39,14 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
     const db = captureDb();
 
     const saved = await archiveLensRadarHistory(
-      [{ symbol: 'BBCA', price: 10_000, totalScore: 82, coverage: 95, marketCap: 1e15 }],
+      [{
+        symbol: 'BBCA', price: 10_000, totalScore: 82, coverage: 95, marketCap: 1e15,
+        eligibilityStatus: 'ELIGIBLE', eligibilityReasons: [],
+        availableMax: { technical: 40, fundamental: 30, flow: 30 },
+        universeEligible: true, universeReasonCodes: [], universeAvgClose63d: 9_800,
+        universeAvgValue63d: 5_000_000_000, universeAnnualVolPct: 25,
+        universeMethodVersion: 'pit-universe-v1',
+      }],
       '2026-08-05',
       db
     );
@@ -62,6 +69,13 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
       'corporate_action_status',
       'price_data_timestamp',
       'price_data_version',
+      'eligibility_status',
+      'technical_available_max',
+      'fundamental_available_max',
+      'flow_available_max',
+      'universe_eligible',
+      'universe_avg_value_63d',
+      'universe_method_version',
     ]) {
       expect(sql).toContain(column);
     }
@@ -74,6 +88,9 @@ describe('archiveLensRadarHistory (Fase 1)', () => {
 
     expect(params).toContain(TRADING_PRICE_BASIS);
     expect(params).toContain(PRICE_ADJUSTMENT_VERSION);
+    expect(params).toContain('ELIGIBLE');
+    expect(params).toContain(true);
+    expect(params).toContain('pit-universe-v1');
 
     const timestamp = params.find((param) => typeof param === 'string' && Number.isFinite(Date.parse(param as string)));
     expect(typeof timestamp).toBe('string');

@@ -179,6 +179,15 @@ interface ScoreCalibrationResult {
   conclusion: string;
 }
 
+interface FundamentalPitCoverageDiagnostic {
+  totalRows: number;
+  rowsWithFundamental: number;
+  coveragePct: number | null;
+  status: 'NO_HISTORY' | 'NO_FUNDAMENTAL_COVERAGE' | 'MIXED_FUNDAMENTAL_COVERAGE' | 'FULL_FUNDAMENTAL_COVERAGE';
+  byDate: Array<{ date: string; totalRows: number; rowsWithFundamental: number; coveragePct: number }>;
+  note: string;
+}
+
 interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
@@ -193,6 +202,7 @@ interface CalibrationDashboardData {
   retrospectiveWalkForward: RetrospectiveWalkForwardResult;
   genuineOos: GenuineOosResult;
   scoreCalibration: ScoreCalibrationResult;
+  fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
   thresholdSimulations: ThresholdSimulation[];
   latestWeightProposal: LensWeightProposal | null;
 }
@@ -471,6 +481,39 @@ export default function CalibrationClient() {
           <div className="text-[10px] text-tv-muted mt-0.5">dari {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum</div>
         </div>
       </div>
+
+      <section className={`rounded-xl border p-4 ${
+        data.fundamentalPitCoverage.status === 'FULL_FUNDAMENTAL_COVERAGE'
+          ? 'border-tv-green/30 bg-tv-green/5'
+          : 'border-tv-yellow/40 bg-tv-yellow/5'
+      }`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-tv-muted">Coverage Fundamental PIT (H-06)</div>
+            <div className="mt-1 font-number text-xl font-bold">
+              {data.fundamentalPitCoverage.coveragePct == null ? EMPTY : pct(data.fundamentalPitCoverage.coveragePct)}
+            </div>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-tv-muted">{data.fundamentalPitCoverage.note}</p>
+          </div>
+          <div className="text-xs text-tv-muted lg:text-right">
+            <div className="font-semibold text-tv-text">{data.fundamentalPitCoverage.status}</div>
+            <div className="mt-1 font-number">
+              {num(data.fundamentalPitCoverage.rowsWithFundamental)} / {num(data.fundamentalPitCoverage.totalRows)} row
+            </div>
+          </div>
+        </div>
+        {data.fundamentalPitCoverage.byDate.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {data.fundamentalPitCoverage.byDate.slice(-12).map((row) => (
+              <div key={row.date} className="rounded-lg border border-tv-border bg-tv-card/70 px-3 py-2">
+                <div className="text-[10px] text-tv-muted">{row.date}</div>
+                <div className="mt-0.5 font-number text-sm font-semibold">{pct(row.coveragePct)}</div>
+                <div className="text-[10px] text-tv-muted">{num(row.rowsWithFundamental)}/{num(row.totalRows)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Nol observasi bukan kegagalan: tiap sinyal perlu 20 hari bursa berlalu dulu
           sebelum bisa dihitung. Yang selama ini hilang adalah keterangan sudah sampai

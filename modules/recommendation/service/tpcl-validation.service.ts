@@ -14,7 +14,6 @@ import {
 } from '@/modules/lens-radar/service/bucket-backtest.service';
 import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
 import { MIN_VALIDATION_COVERAGE_PCT } from '@/modules/lens-radar/service/validation-population';
-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import {
   buildLongTradingSetup,
   DEFAULT_TRADING_SETUP_PARAMETERS,
@@ -248,7 +247,7 @@ export interface TpclValidationDashboard {
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
-  priceBasis: 'RAW';
+  priceBasis: typeof TRADING_PRICE_BASIS;
   scoreThreshold: number;
   roundTripCostPct: number;
   atrPeriod: number;
@@ -770,15 +769,14 @@ async function readSignals(historyRange: TpclHistoryRange): Promise<SignalRow[]>
         AND avg_value_20d >= $3
         AND coverage_pct >= $4
         AND eligibility_status = 'ELIGIBLE'
-        AND COALESCE(universe_version, $5) = $5
-        AND "date" >= $6
+        AND universe_eligible = TRUE
+        AND "date" >= $5
       ORDER BY "date" ASC, ticker ASC`,
     [
       SIGNAL_SCORE_THRESHOLD,
       SCORE_VERSION,
       LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
       MIN_VALIDATION_COVERAGE_PCT,
-      LEGACY_VALIDATED_UNIVERSE_VERSION,
       cutoffDate,
     ],
   );
@@ -1044,7 +1042,7 @@ export async function getTpclValidationDashboard(
     researchOnly: true,
     genuineOos: false,
     scoreVersion: SCORE_VERSION,
-    priceBasis: 'RAW',
+    priceBasis: TRADING_PRICE_BASIS,
     scoreThreshold: SIGNAL_SCORE_THRESHOLD,
     roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
     atrPeriod: ATR_PERIOD,
