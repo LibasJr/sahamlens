@@ -33,6 +33,47 @@ describe('bank official-source auto collector', () => {
     expect(coc?.extractionMethod).toBe('PERIOD_TAGGED_VALUE');
   });
 
+
+  it('memilih kolom periode dari tabel PDF layout tanpa menebak nilai lain', () => {
+    const text = [
+      'Key ratios             1Q25       1Q26',
+      'Net Interest Margin    5.10%      5.45%',
+      'Gross NPL              2.30%      2.10%',
+    ].join('\n');
+    const rows = extractMetricCandidates(text, {
+      ticker: 'BBCA.JK', periodEnd: '2026-03-31', sourceTitle: '1Q26 Presentation', sourceUrl: 'https://www.bca.co.id/example.pdf',
+    });
+    const nim = rows.find((x: any) => x.metricKey === 'NIM_PCT');
+    expect(nim?.status).toBe('CANDIDATE');
+    expect(nim?.value).toBe(5.45);
+    expect(nim?.extractionMethod).toBe('TABLE_PERIOD_COLUMN_VALUE');
+  });
+
+  it('mendukung header bulan singkat pdftotext seperti Mar-25 dan Mar-26', () => {
+    const text = [
+      '                    Mar-25    Mar-26',
+      'Capital Adequacy Ratio  21.10%    22.90%',
+    ].join('\n');
+    const rows = extractMetricCandidates(text, {
+      ticker: 'BBRI.JK', periodEnd: '2026-03-31', sourceTitle: 'March 2026 Key Metrics', sourceUrl: 'https://bri.co.id/example.pdf',
+    });
+    const car = rows.find((x: any) => x.metricKey === 'CAR_PCT');
+    expect(car?.status).toBe('CANDIDATE');
+    expect(car?.value).toBe(22.9);
+    expect(car?.extractionMethod).toBe('TABLE_PERIOD_COLUMN_VALUE');
+  });
+
+  it('tetap quarantine bila jumlah kolom nilai tidak cocok dengan header periode', () => {
+    const text = [
+      'Key ratios             1Q25       1Q26',
+      'Net Interest Margin    5.10%      5.30%      5.45%',
+    ].join('\n');
+    const rows = extractMetricCandidates(text, { ticker: 'BBCA.JK', periodEnd: '2026-03-31' });
+    const nim = rows.find((x: any) => x.metricKey === 'NIM_PCT');
+    expect(nim?.status).toBe('QUARANTINED');
+    expect(nim?.reason).toContain('multiple_values');
+  });
+
   it('menginfer period end quarter/half-year/month', () => {
     expect(inferPeriodEnd('2026 Q1 Analyst Meeting')).toBe('2026-03-31');
     expect(inferPeriodEnd('1H26 Corporate Presentation')).toBe('2026-06-30');

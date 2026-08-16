@@ -127,6 +127,52 @@ export function inferPeriodEnd(text){
 function parsePctValues(s){
   const vals=[]; for(const m of String(s).matchAll(/(-?\d{1,3}(?:[.,]\d{1,4})?)\s*%/g)){const v=Number(m[1].replace(',','.'));if(Number.isFinite(v)) vals.push(v);} return vals;
 }
+function parsePctSpans(s){
+  const out=[];
+  for(const m of String(s??'').matchAll(/(-?\d{1,3}(?:[.,]\d{1,4})?)\s*%/g)){
+    const value=Number(m[1].replace(',','.'));
+    if(Number.isFinite(value)) out.push({value,start:m.index??0,end:(m.index??0)+m[0].length});
+  }
+  return out;
+}
+function periodEndFromHeaderToken(token){
+  const direct=inferPeriodEnd(token); if(direct) return direct;
+  const m=String(token??'').match(/^([A-Za-z]+)[\s./-]+(\d{2})$/i);
+  if(m&&MONTHS[m[1].toLowerCase()]) return lastDayIso(normalizeYear(m[2]),MONTHS[m[1].toLowerCase()]);
+  return null;
+}
+function extractPeriodHeaderSpans(line){
+  const text=String(line??''); const found=[];
+  const patterns=[
+    /\b(?:[1-4]Q|Q[1-4])\s*[-/]?\s*\d{2,4}\b/gi,
+    /\b(?:1H|9M|FY)\s*[-/]?\s*\d{2,4}\b/gi,
+    /\b(?:jan(?:uary|uari)?|feb(?:ruary|ruari)?|mar(?:ch|et)?|apr(?:il)?|may|mei|jun(?:e|i)?|jul(?:y|i)?|aug(?:ust)?|agustus|sep(?:tember)?|oct(?:ober)?|oktober|nov(?:ember)?|dec(?:ember)?|desember)[\s./-]+\d{2,4}\b/gi,
+  ];
+  for(const re of patterns){
+    for(const m of text.matchAll(re)){
+      const periodEnd=periodEndFromHeaderToken(m[0]); if(!periodEnd) continue;
+      const start=m.index??0; const end=start+m[0].length;
+      if(found.some(x=>x.start===start&&x.end===end)) continue;
+      found.push({periodEnd,label:m[0],start,end});
+    }
+  }
+  return found.sort((a,b)=>a.start-b.start);
+}
+function tablePeriodColumnValue(rawLines,valueLineIndex,periodEnd){
+  if(!periodEnd) return null;
+  const values=parsePctSpans(rawLines[valueLineIndex]??'');
+  if(values.length<2) return null;
+  for(let distance=1;distance<=8;distance++){
+    const headerIndex=valueLineIndex-distance; if(headerIndex<0) break;
+    const periods=extractPeriodHeaderSpans(rawLines[headerIndex]??'');
+    if(periods.length<2||periods.length!==values.length) continue;
+    const matches=periods.map((x,idx)=>x.periodEnd===periodEnd?idx:-1).filter(idx=>idx>=0);
+    if(matches.length!==1) continue;
+    const idx=matches[0];
+    return {value:values[idx].value,header:String(rawLines[headerIndex]??'').trim(),periodLabel:periods[idx].label,distance};
+  }
+  return null;
+}
 function containsAlias(line,aliases){const l=line.toLowerCase(); return aliases.some(a=>{const aa=a.toLowerCase(); if(aa.length<=3) return new RegExp(`(?:^|[^a-z])${aa.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?:[^a-z]|$)`,'i').test(l); return l.includes(aa);});}
 function badContext(s){return /industry|peer|guidance|target|forecast|consensus|estimate|average|avg\.|5y|10y/i.test(s);}
 function inferBasis(s){if(/bank\s*only|bank\s*entity|individual|individu/i.test(s)) return 'BANK_ONLY';if(/consolidated|konsolidas/i.test(s)) return 'CONSOLIDATED';return 'DISCLOSED_UNSPECIFIED';}
@@ -166,7 +212,8 @@ function periodTaggedValue(s,periodEnd){
  */
 export function extractMetricCandidates(text, options={}){
   const {ticker='TEST.JK',sourceTitle='fixture',sourceUrl='https://example.invalid',periodEnd=null,defaultBasis='DISCLOSED_UNSPECIFIED'}=options;
-  const lines=String(text??'').replace(/\r/g,'').split('\n').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const rawLines=String(text??'').replace(/\r/g,'').split('\n').map(x=>x.replace(/\t/g,'    ').replace(/\s+$/g,'')).filter(x=>x.trim().length>0);
+  const lines=rawLines.map(x=>x.replace(/\s+/g,' ').trim());
   const out=[];
   for(const [metricKey,spec] of Object.entries(METRIC_SPECS)){
     for(let i=0;i<lines.length;i++){
@@ -174,7 +221,7 @@ export function extractMetricCandidates(text, options={}){
       const local=[line,lines[i+1]??'',lines[i+2]??''].filter(Boolean);
       const oneLine=parsePctValues(line);
       const next=parsePctValues(lines[i+1]??'');
-      let values=[]; let method=''; let confidence=0; let periodTagged=false;
+      let values=[]; let method=''; let confidence=0; let periodTagged=false; let tableResolved=null;
       if(oneLine.length===1){values=oneLine;method='EXACT_LABEL_SINGLE_VALUE';confidence=0.99;}
       else if(oneLine.length===0&&next.length===1){values=next;method='LABEL_NEXT_LINE_SINGLE_VALUE';confidence=0.97;}
       else {
@@ -184,13 +231,19 @@ export function extractMetricCandidates(text, options={}){
           const tagged=periodTaggedValue(excerpt,periodEnd);
           if(tagged!=null&&!badContext(line)){values=[tagged];method='PERIOD_TAGGED_VALUE';confidence=0.985;periodTagged=true;}
           else {
-            out.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(excerpt)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(excerpt)),confidence:0,extractionMethod:'AMBIGUOUS_MULTIPLE_VALUES',sourceTitle,sourceUrl,rawExcerpt:excerpt,status:'QUARANTINED',reason:`multiple_values:${excerptVals.join(',')}`});
-            break;
+            const valueLineIndex=oneLine.length>1?i:(oneLine.length===0&&next.length>1?i+1:i);
+            tableResolved=tablePeriodColumnValue(rawLines,valueLineIndex,periodEnd);
+            if(tableResolved&&!badContext(line)){
+              values=[tableResolved.value]; method='TABLE_PERIOD_COLUMN_VALUE'; confidence=0.98; periodTagged=true;
+            } else {
+              out.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(excerpt)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(excerpt)),confidence:0,extractionMethod:'AMBIGUOUS_MULTIPLE_VALUES',sourceTitle,sourceUrl,rawExcerpt:excerpt,status:'QUARANTINED',reason:`multiple_values:${excerptVals.join(',')}`});
+              break;
+            }
           }
         } else continue;
       }
       const value=values[0];
-      const context=[lines[i-1]??'',...local].join(' | ');
+      const context=[tableResolved?.header??'',lines[i-1]??'',...local].filter(Boolean).join(' | ');
       if((periodTagged?badContext(line):badContext(context))){
         out.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence:0.2,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:context,status:'QUARANTINED',reason:'forecast_or_peer_context'}); break;
       }
@@ -293,7 +346,7 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
   try{
     await db.query('BEGIN');
     await db.query(`INSERT INTO bank_metric_collection_runs(run_id,mode,status,tickers,source_pages_checked,documents_discovered,documents_parsed,evidence_candidates,detail)
-      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:1})]);
+      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:2, parserPolicy:'period-column deterministic; ambiguous/conflict/forecast/guardrail remain quarantined'})]);
     let inserted=0,existing=0;
     for(const r of accepted){
       const observedDate=TODAY;
