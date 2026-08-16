@@ -79,7 +79,7 @@ describe('backfill Ownership Flow - format Balancepos KSEI', () => {
 // Regression untuk format nyata Balancepos KSEI 31-JUL-2026:
 // dua kolom agregat sama-sama bernama `Total`.
 describe('backfill Ownership Flow - duplicate Total KSEI', () => {
-  it('memetakan Total pertama sebagai local dan Total terakhir sebagai foreign', () => {
+  it('memetakan Total pertama sebagai local dan Total terakhir sebagai foreign dengan Sec. Num sebagai denominator', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'ksei-ownership-real-'));
     tempDirs.push(dir);
     const file = path.join(dir, 'Balancepos20260731.txt');
@@ -88,8 +88,8 @@ describe('backfill Ownership Flow - duplicate Total KSEI', () => {
       file,
       [
         'Date|Code|Type|Sec. Num|Price|Local IS|Local CP|Local PF|Local IB|Local ID|Local MF|Local SC|Local FD|Local OT|Total|Foreign IS|Foreign CP|Foreign PF|Foreign IB|Foreign ID|Foreign MF|Foreign SC|Foreign FD|Foreign OT|Total',
-        // total local=700, total foreign=300, Sec. Num=1000
-        '31-JUL-2026|AALI|EQUITY|1000|6875|10|20|30|40|50|60|70|80|90|700|1|2|3|4|5|6|7|8|9|300',
+        // total local=700, total foreign=300, Sec. Num=2000 => scripless=50%
+        '31-JUL-2026|AALI|EQUITY|2000|6875|10|20|30|40|50|60|70|80|90|700|1|2|3|4|5|6|7|8|9|300',
       ].join('\r\n'),
       'utf8'
     );
@@ -104,11 +104,12 @@ describe('backfill Ownership Flow - duplicate Total KSEI', () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain('Layout agregat     : KSEI_DUPLICATE_TOTALS');
     expect(result.stdout).toContain('Baris EQUITY valid : 1');
-    expect(result.stdout).toContain('local=70.0000%');
-    expect(result.stdout).toContain('foreign=30.0000%');
+    expect(result.stdout).toContain('local=35.0000%');
+    expect(result.stdout).toContain('foreign=15.0000%');
+    expect(result.stdout).toContain('scripless=50.0000%');
   });
 
-  it('menolak format duplicate Total bila jumlahnya tidak sama dengan Sec. Num', () => {
+  it('menolak format duplicate Total hanya bila custody melebihi Sec. Num', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'ksei-ownership-real-'));
     tempDirs.push(dir);
     const file = path.join(dir, 'Balancepos20260731.txt');
@@ -129,7 +130,7 @@ describe('backfill Ownership Flow - duplicate Total KSEI', () => {
     );
 
     expect(result.status).toBe(1);
-    expect(result.stdout).toContain('Total Local + Total Foreign (1000) != Sec. Num (999)');
+    expect(result.stdout).toContain('Total Local + Total Foreign (1000) melebihi Sec. Num (999)');
     expect(result.stderr).toContain('Tidak ada baris EQUITY sah');
   });
 });

@@ -8,7 +8,9 @@
  *   Date: DD-MMM-YYYY, contoh 31-JUL-2026
  *   format observed KSEI: ... Local OT | Total | Foreign IS ... Foreign OT | Total
  *   yaitu dua kolom bernama sama-sama `Total`: pertama = Total Local, terakhir = Total Foreign.
- *   Sec. Num dipakai sebagai cross-check jumlah efek dan disimpan sebagai totalSecurities.
+ *   Sec. Num = jumlah efek tercatat/issued securities dan menjadi penyebut persentase.
+ *   Total Local + Total Foreign = jumlah efek scripless yang tercatat di KSEI;
+ *   karena itu jumlah keduanya BOLEH lebih kecil dari Sec. Num.
  *
  * Aturan keras:
  * - hanya Type=EQUITY;
@@ -368,9 +370,8 @@ async function main() {
     }
 
     const computedHoldings = localRaw + foreignRaw;
-    const denominator = computedHoldings;
-    if (!denominator || denominator <= 0) {
-      rejected.push({ line: r + 1, reason: `${ticker}: total custody tidak sah (${denominator})` });
+    if (!computedHoldings || computedHoldings <= 0) {
+      rejected.push({ line: r + 1, reason: `${ticker}: total custody tidak sah (${computedHoldings})` });
       continue;
     }
 
@@ -386,39 +387,62 @@ async function main() {
       }
     }
 
-    // Pada format KSEI observed dengan dua kolom `Total`, Sec. Num adalah
-    // cross-check total efek: Total Local + Total Foreign harus sama dengan Sec. Num.
-    if (aggregate.layout === 'KSEI_DUPLICATE_TOTALS' && secNum !== null) {
+    let localPct;
+    let foreignPct;
+    let scriplessPct = null;
+    let totalSecurities = secNum ?? totalHoldings ?? computedHoldings;
+
+    if (aggregate.layout === 'KSEI_DUPLICATE_TOTALS') {
+      // Semantik file Balancepos KSEI:
+      //   Sec. Num = seluruh efek tercatat/issued securities
+      //   Total Local + Total Foreign = efek scripless yang tersimpan di KSEI
+      // Maka local_pct/foreign_pct dihitung terhadap Sec. Num, BUKAN dinormalisasi
+      // agar jumlahnya 100. Identitas yang benar adalah:
+      //   local_pct + foreign_pct ~= scripless_pct <= 100.
+      if (secNum === null || secNum <= 0) {
+        rejected.push({ line: r + 1, reason: `${ticker}: Sec. Num tidak sah (${secNum})` });
+        continue;
+      }
       const tolerance = Math.max(Number.EPSILON * Math.max(Math.abs(computedHoldings), Math.abs(secNum)) * 8, 1e-6);
-      if (Math.abs(computedHoldings - secNum) > tolerance) {
+      if (computedHoldings - secNum > tolerance) {
         rejected.push({
           line: r + 1,
-          reason: `${ticker}: Total Local + Total Foreign (${computedHoldings}) != Sec. Num (${secNum})`,
+          reason: `${ticker}: Total Local + Total Foreign (${computedHoldings}) melebihi Sec. Num (${secNum})`,
         });
         continue;
       }
-    }
 
-    let localPct;
-    let foreignPct;
-
-    // Tetap menerima fixture/generic file yang sudah berupa persentase.
-    if (Math.abs(localRaw + foreignRaw - 100) <= 0.05) {
+      totalSecurities = secNum;
+      localPct = (localRaw / secNum) * 100;
+      foreignPct = (foreignRaw / secNum) * 100;
+      scriplessPct = (computedHoldings / secNum) * 100;
+    } else if (Math.abs(localRaw + foreignRaw - 100) <= 0.05) {
+      // Fixture/generic file yang sudah berupa persentase.
       localPct = localRaw;
       foreignPct = foreignRaw;
+      scriplessPct = Math.min(100, localPct + foreignPct);
     } else {
+      // Format eksplisit lama: grand Total adalah denominator bila tersedia;
+      // kalau tidak, fallback ke total custody sehingga perilaku lama tetap kompatibel.
+      const denominator = totalHoldings ?? computedHoldings;
+      if (!denominator || denominator <= 0) {
+        rejected.push({ line: r + 1, reason: `${ticker}: penyebut tidak sah (${denominator})` });
+        continue;
+      }
       localPct = (localRaw / denominator) * 100;
       foreignPct = (foreignRaw / denominator) * 100;
+      scriplessPct = Math.min(100, localPct + foreignPct);
     }
 
     if (
       !Number.isFinite(localPct) || !Number.isFinite(foreignPct) ||
       localPct < 0 || localPct > 100 || foreignPct < 0 || foreignPct > 100 ||
-      Math.abs(localPct + foreignPct - 100) > 0.05
+      scriplessPct === null || !Number.isFinite(scriplessPct) || scriplessPct < 0 || scriplessPct > 100.000001 ||
+      Math.abs(localPct + foreignPct - scriplessPct) > 0.05
     ) {
       rejected.push({
         line: r + 1,
-        reason: `${ticker}: komposisi tidak konsisten (local=${localPct}, foreign=${foreignPct})`,
+        reason: `${ticker}: komposisi tidak konsisten (local=${localPct}, foreign=${foreignPct}, scripless=${scriplessPct})`,
       });
       continue;
     }
@@ -428,8 +452,8 @@ async function main() {
       observedDate,
       localPct: Number(localPct.toFixed(4)),
       foreignPct: Number(foreignPct.toFixed(4)),
-      // Sec. Num adalah jumlah efek emiten; fallback ke Total custody bila tidak tersedia.
-      totalSecurities: secNum ?? totalHoldings ?? computedHoldings,
+      scriplessPct: Number(scriplessPct.toFixed(4)),
+      totalSecurities,
       localShares: localRaw,
       foreignShares: foreignRaw,
       sourceUrl: archiveDownloadUrl(observedDate),
@@ -454,7 +478,7 @@ async function main() {
     console.log('\n  Preview (maks 5):');
     for (const row of accepted.slice(0, 5)) {
       console.log(
-        `    ${row.ticker.padEnd(10)} ${row.observedDate}  local=${row.localPct.toFixed(4)}%  foreign=${row.foreignPct.toFixed(4)}%`
+        `    ${row.ticker.padEnd(10)} ${row.observedDate}  local=${row.localPct.toFixed(4)}%  foreign=${row.foreignPct.toFixed(4)}%  scripless=${row.scriplessPct.toFixed(4)}%`
       );
     }
   }
@@ -490,7 +514,7 @@ async function main() {
     const tuples = chunk.map((row) => {
       const b = params.length;
       params.push(
-        row.ticker, row.observedDate, row.localPct, row.foreignPct, null,
+        row.ticker, row.observedDate, row.localPct, row.foreignPct, row.scriplessPct,
         row.totalSecurities, row.localShares, row.foreignShares,
         SOURCE_ID, row.sourceUrl, fetchedAt
       );
