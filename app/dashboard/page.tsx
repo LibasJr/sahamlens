@@ -22,6 +22,7 @@ import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
 import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
+import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
@@ -1214,6 +1215,8 @@ function DashboardContent() {
                 <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus Analyzer</div>
                 {(() => {
                   const consensus = splitStatusText(data?.consensus);
+                  const consensusLabel = getKategoriPresentationLabel(consensus.primary);
+                  const consensusTone = getKategoriTone(consensus.primary);
                   return (
                     // Bobot visualnya diturunkan, UKURAN HURUFNYA TIDAK. Kotak ini dulu
                     // paling menonjol di layar (62px, 18px tebal, latar /15, tepi /60)
@@ -1227,11 +1230,11 @@ function DashboardContent() {
                     // ke 18px. Yang DIPERTAHANKAN: 16px tebal - masih nyaman dibaca
                     // mata yang sudah tidak muda.
                     <div className={`flex min-h-[52px] w-full items-center gap-2.5 rounded-xl border px-3.5 py-2 md:min-w-[200px] ${
-                      data?.consensus?.includes('BUY')
+                      consensusTone === 'positive'
                         ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
-                        : data?.consensus?.includes('SELL')
-                        ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
-                        : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
+                        : consensusTone === 'negative'
+                          ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                          : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
                     }`}>
                       {loading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
                       <div className="min-w-0 font-sans">
@@ -1240,8 +1243,8 @@ function DashboardContent() {
                             bawah tinggal 1px karena lantai keterbacaan menahan yang
                             kecil di 13px. Itu memang disengaja: kotak ini sinyal
                             sekunder, tidak boleh mengalahkan putusan utama halaman. */}
-                        <div className="text-sm font-bold leading-tight">{loading ? 'Calculating...' : consensus.primary}</div>
-                        {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">{consensus.detail}</div>}
+                        <div className="text-sm font-bold leading-tight">{loading ? 'Calculating...' : consensusLabel}</div>
+                        {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">Keselarasan analyzer: {consensus.detail}</div>}
                       </div>
                     </div>
                   );
