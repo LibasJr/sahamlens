@@ -39,6 +39,10 @@ interface OwnershipFlowDetail {
     foreignPp: number | null;
     localPp: number | null;
     scriplessPp: number | null;
+    structuralBreak: boolean;
+    structuralBreakReason: 'TOTAL_SECURITIES_CHANGED' | null;
+    basisTotalSecurities: number | null;
+    currentTotalSecurities: number | null;
   };
   trend: OwnershipTrendKey;
   trendReason: string;
@@ -128,10 +132,20 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
             )}
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <ChangeBox label="Δ asing vs snapshot sebelumnya" value={data.previous.foreignPp} />
-            <ChangeBox label="Δ lokal vs snapshot sebelumnya" value={data.previous.localPp} />
-          </div>
+          {data.previous.structuralBreak ? (
+            <div className="mt-3 rounded-lg border border-tv-warning/25 bg-tv-warning/[0.05] px-3 py-2">
+              <p className="text-[11px] font-semibold text-tv-warning">Structural break — delta ditahan</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-tv-muted">
+                Jumlah efek berubah dari {formatShares(data.previous.basisTotalSecurities)} menjadi {formatShares(data.previous.currentTotalSecurities)}.
+                Perubahan asing/lokal tidak diperlakukan sebagai Ownership Flow normal karena dapat dipengaruhi corporate action atau perubahan denominator.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <ChangeBox label="Δ asing vs snapshot sebelumnya" value={data.previous.foreignPp} />
+              <ChangeBox label="Δ lokal vs snapshot sebelumnya" value={data.previous.localPp} />
+            </div>
+          )}
           {data.previous.basisObservedDate && (
             <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">
               Pembanding {formatObservedDate(data.previous.basisObservedDate)} · jarak aktual {data.previous.actualGapDays} hari.
@@ -178,6 +192,12 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
       </p>
     </Card>
   );
+}
+
+
+function formatShares(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return Math.trunc(value).toLocaleString('id-ID');
 }
 
 function ChangeBox({ label, value }: { label: string; value: number | null }) {

@@ -18,6 +18,7 @@ export interface OwnershipFlowValidationDashboard {
   positiveChanges: number;
   negativeChanges: number;
   unchangedChanges: number;
+  structuralBreakChanges: number;
   thresholdResearchStatus: 'INSUFFICIENT_HISTORY' | 'DISTRIBUTION_READY_RESEARCH_ONLY';
   predictiveValidationStatus: 'NOT_PIT_ELIGIBLE' | 'PIT_ELIGIBLE_BUT_NOT_RUN';
   pitEligibleRows: number;
@@ -59,6 +60,7 @@ export async function getOwnershipFlowValidationDashboard(): Promise<OwnershipFl
   let positive = 0;
   let negative = 0;
   let unchanged = 0;
+  let structuralBreakChanges = 0;
   let pitEligibleRows = 0;
   let backfilledRows = 0;
   const pitEligibleDates = new Set<string>();
@@ -79,6 +81,15 @@ export async function getOwnershipFlowValidationDashboard(): Promise<OwnershipFl
       if (i === 0) continue;
       const previous = tickerRows[i - 1];
       if (current.foreignPct == null || previous.foreignPct == null) continue;
+      if (
+        current.totalSecurities != null && previous.totalSecurities != null &&
+        Number.isFinite(current.totalSecurities) && Number.isFinite(previous.totalSecurities) &&
+        current.totalSecurities > 0 && previous.totalSecurities > 0 &&
+        current.totalSecurities !== previous.totalSecurities
+      ) {
+        structuralBreakChanges += 1;
+        continue;
+      }
       const delta = Math.round((current.foreignPct - previous.foreignPct) * 10_000) / 10_000;
       deltas.push(delta);
       if (delta > 0) positive += 1;
@@ -111,6 +122,7 @@ export async function getOwnershipFlowValidationDashboard(): Promise<OwnershipFl
     positiveChanges: positive,
     negativeChanges: negative,
     unchangedChanges: unchanged,
+    structuralBreakChanges,
     thresholdResearchStatus: enoughSnapshots ? 'DISTRIBUTION_READY_RESEARCH_ONLY' : 'INSUFFICIENT_HISTORY',
     predictiveValidationStatus: pitEligible ? 'PIT_ELIGIBLE_BUT_NOT_RUN' : 'NOT_PIT_ELIGIBLE',
     pitEligibleRows,
@@ -121,6 +133,7 @@ export async function getOwnershipFlowValidationDashboard(): Promise<OwnershipFl
     guardrails: [
       `Minimum ${MIN_SNAPSHOTS_FOR_THRESHOLD_RESEARCH} snapshot berbeda sebelum persentil boleh dipertimbangkan sebagai kandidat ambang.`,
       'Persentil perubahan hanya DESKRIPTIF; tidak otomatis mengaktifkan FOREIGN_ACCUMULATION/DISTRIBUTION.',
+      'Perubahan antar-snapshot dengan total_securities berbeda dikeluarkan dari distribusi delta sebagai structural break/corporate-action guard.',
       'Backfill arsip yang diunduh jauh setelah observed_date tidak boleh dipakai seolah sinyal telah tersedia pada tanggal historis tersebut (look-ahead).',
       `Validasi prediktif baru boleh dimulai setelah minimal ${MIN_PIT_SNAPSHOTS_FOR_PREDICTIVE_STUDY} snapshot PIT berbeda; row backfill lama wajib dikeluarkan dari sample prediktif, bukan dicampur.`,
       'Return forward untuk snapshot PIT harus dihitung dari waktu informasi benar-benar tersedia (fetched/published), bukan dari observed_date yang lebih awal.',

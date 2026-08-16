@@ -249,7 +249,7 @@ export default function OwnershipFlowPage() {
                         <PeriodDeltaCell value={row.previous.foreignPp} />
                         <PeriodDeltaCell value={row.previous.localPp} />
                         <td className="px-3.5 py-2.5 text-right tabular-nums text-tv-muted">
-                          {row.previous.actualGapDays === null ? '—' : `${row.previous.actualGapDays}h`}
+                          {row.previous.structuralBreak ? 'Break' : row.previous.actualGapDays === null ? '—' : `${row.previous.actualGapDays}h`}
                         </td>
                         <td className="px-3.5 py-2.5"><TrendBadge trend={row.trend} /></td>
                         <td className="px-3.5 py-2.5 whitespace-nowrap">
@@ -292,6 +292,11 @@ export default function OwnershipFlowPage() {
                         </p>
                       </div>
                     </div>
+                    {row.previous.structuralBreak && (
+                      <div className="mt-2 rounded-lg border border-tv-warning/20 bg-tv-warning/[0.04] px-2 py-1.5 text-[11px] leading-relaxed text-tv-muted">
+                        Structural break: jumlah efek berubah; delta asing/lokal ditahan agar corporate action tidak dibaca sebagai flow.
+                      </div>
+                    )}
                     {row.previous.basisObservedDate && (
                       <p className="mt-2 text-[11px] text-tv-muted">
                         Dibanding {formatObservedDate(row.previous.basisObservedDate)} · jarak {row.previous.actualGapDays} hari
@@ -311,7 +316,7 @@ export default function OwnershipFlowPage() {
           Δ dinyatakan dalam <strong className="text-tv-text">percentage point (pp)</strong>, bukan persen relatif.
           Perubahan kepemilikan asing dari 40,00% ke 41,00% adalah +1,00 pp (setara +2,5% relatif).
           Perubahan utama dibandingkan dengan <strong className="text-tv-text">snapshot sebelumnya dari sumber yang sama</strong> dan selalu menampilkan jarak hari sebenarnya.
-          Ownership Flow bersifat eksperimental dan tidak ikut menghitung LensScore.
+          Jika jumlah efek berubah antar-snapshot, delta ditahan sebagai structural break agar corporate action tidak salah dibaca sebagai flow. Ownership Flow bersifat eksperimental dan tidak ikut menghitung LensScore.
         </p>
       </PageContainer>
     </>

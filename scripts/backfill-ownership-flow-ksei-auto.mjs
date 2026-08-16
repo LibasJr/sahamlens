@@ -26,6 +26,7 @@
  *   --list              hanya tampilkan arsip yang ditemukan
  *   --keep-files        jangan hapus ZIP/TXT sementara
  *   --min-equity <n>    guard minimum EQUITY per snapshot (default 100)
+ *   --allow-quarantine  pada --confirm, simpan row valid dan isolasi row reject
  *   --probe-days <n>     probe akhir bulan mundur n hari (default 10, max 14)
  *   --no-probe           matikan fallback endpoint probe
  *
@@ -34,7 +35,9 @@
  * - bila halaman arsip gagal, fallback hanya boleh pada range --from/--to eksplisit;
  * - fallback hanya menerima ZIP resmi yang benar-benar tersedia dan signature-nya valid;
  * - bila ZIP/TXT tidak sesuai pola -> berhenti;
- * - bila dry-run parser menolak satu baris pun -> periode itu TIDAK ditulis;
+ * - dry-run SELALU mengaudit seluruh range, tidak berhenti pada periode partial;
+ * - --confirm default tetap memblokir seluruh write bila ada reject;
+ * - --confirm --allow-quarantine hanya menulis row valid dan menyimpan reject ke quarantine;
  * - bila tanggal di dalam file tidak sama dengan tanggal archive -> TIDAK ditulis.
  */
 
@@ -78,6 +81,7 @@ const MAX_FETCH_ATTEMPTS = 5;
  * @property {string | null} snapshotDate
  * @property {number | null} inserted
  * @property {number | null} alreadyExisting
+ * @property {number | null} quarantined
  */
 
 function parseArgs(argv) {
@@ -85,6 +89,7 @@ function parseArgs(argv) {
     from: null,
     to: null,
     confirm: false,
+    allowQuarantine: false,
     list: false,
     keepFiles: false,
     minEquity: DEFAULT_MIN_EQUITY,
@@ -97,6 +102,7 @@ function parseArgs(argv) {
     if (arg === '--from') args.from = argv[++i] ?? null;
     else if (arg === '--to') args.to = argv[++i] ?? null;
     else if (arg === '--confirm') args.confirm = true;
+    else if (arg === '--allow-quarantine') args.allowQuarantine = true;
     else if (arg === '--list') args.list = true;
     else if (arg === '--keep-files') args.keepFiles = true;
     else if (arg === '--no-probe') args.probeMissing = false;
@@ -268,6 +274,7 @@ export function parseBackfillSummary(output) {
   const rejected = text.match(/Baris ditolak\s*:\s*(\d+)/i);
   const snapshot = text.match(/Tanggal snapshot\s*:\s*([^\r\n]+)/i);
   const inserted = text.match(/Baris BARU:\s*(\d+)\.\s*Sudah ada sebelumnya:\s*(\d+)/i);
+  const quarantined = text.match(/Quarantine:\s*(\d+)/i);
 
   return {
     validEquity: valid ? Number(valid[1]) : null,
@@ -275,6 +282,7 @@ export function parseBackfillSummary(output) {
     snapshotDate: snapshot ? snapshot[1].trim() : null,
     inserted: inserted ? Number(inserted[1]) : null,
     alreadyExisting: inserted ? Number(inserted[2]) : null,
+    quarantined: quarantined ? Number(quarantined[1]) : null,
   };
 }
 
@@ -521,31 +529,30 @@ async function extractTxt(zipPath, extractDir, expectedYmd) {
   return txtPath;
 }
 
-function validateDryRun(summary, entry, minEquity) {
-  if (!Number.isInteger(summary.validEquity)) {
-    throw new Error('output dry-run tidak memuat "Baris EQUITY valid"');
-  }
-  if (!Number.isInteger(summary.rejected)) {
-    throw new Error('output dry-run tidak memuat "Baris ditolak"');
-  }
-  if (summary.validEquity < minEquity) {
-    throw new Error(`EQUITY valid hanya ${summary.validEquity}, di bawah guard ${minEquity}`);
-  }
-  if (summary.rejected !== 0) {
-    throw new Error(`dry-run menolak ${summary.rejected} baris; confirm diblokir`);
+export function assessDryRunSummary(summary, entry, minEquity) {
+  const errors = [];
+  if (!Number.isInteger(summary.validEquity)) errors.push('output dry-run tidak memuat "Baris EQUITY valid"');
+  if (!Number.isInteger(summary.rejected)) errors.push('output dry-run tidak memuat "Baris ditolak"');
+  if (Number.isInteger(summary.validEquity) && summary.validEquity < minEquity) {
+    errors.push(`EQUITY valid hanya ${summary.validEquity}, di bawah guard ${minEquity}`);
   }
   if (summary.snapshotDate !== entry.observedDate) {
-    throw new Error(`tanggal file ${summary.snapshotDate ?? '(tidak ada)'} != tanggal arsip ${entry.observedDate}`);
+    errors.push(`tanggal file ${summary.snapshotDate ?? '(tidak ada)'} != tanggal arsip ${entry.observedDate}`);
   }
+  return {
+    status: errors.length ? 'ERROR' : (summary.rejected ?? 0) > 0 ? 'PARTIAL' : 'CLEAN',
+    errors,
+  };
 }
 
-async function runBackfill(backfillScript, txtPath, confirm, cwd) {
+async function runBackfill(backfillScript, txtPath, confirm, cwd, allowQuarantine = false) {
   const env = {
     ...process.env,
     NODE_OPTIONS: mergeNodeOptions(process.env.NODE_OPTIONS),
   };
   const args = [backfillScript, '--file', txtPath];
   if (confirm) args.push('--confirm');
+  if (confirm && allowQuarantine) args.push('--allow-quarantine');
   return runCommand(process.execPath, args, { cwd, env });
 }
 
@@ -557,6 +564,9 @@ async function main() {
   if (!Number.isInteger(args.minEquity) || args.minEquity <= 0) throw new Error('--min-equity harus integer > 0');
   if (!Number.isInteger(args.probeDays) || args.probeDays <= 0 || args.probeDays > MAX_PROBE_DAYS) {
     throw new Error(`--probe-days harus integer 1-${MAX_PROBE_DAYS}`);
+  }
+  if (args.allowQuarantine && !args.confirm) {
+    throw new Error('--allow-quarantine hanya boleh dipakai bersama --confirm. Dry-run selalu hanya mengaudit.');
   }
   if (args.confirm && !process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL tidak ada. Untuk --confirm jalankan dengan --env-file=.env.production.');
@@ -574,7 +584,7 @@ async function main() {
   console.log(`  Archive page : ${ARCHIVE_PAGE}`);
   console.log(`  Mode         : ${args.confirm ? 'CONFIRM (DB)' : args.list ? 'LIST ONLY' : 'DRY RUN'}`);
   console.log(`  Range        : ${args.from ?? '(awal tersedia)'} s/d ${args.to ?? '(terbaru tersedia)'}`);
-  console.log(`  Guard reject : HARUS 0`);
+  console.log(`  Guard reject : ${args.confirm && args.allowQuarantine ? 'QUARANTINE (explicit opt-in)' : 'HARUS 0 untuk confirm'}`);
   console.log(`  Guard EQUITY : minimum ${args.minEquity}`);
   console.log(`  Probe fallback: ${args.probeMissing ? `ON (akhir bulan mundur ${args.probeDays} hari)` : 'OFF'}`);
 
@@ -597,27 +607,23 @@ async function main() {
     discovered = mergeArchiveEntries(pageEntries, probed);
   }
 
-  if (!discovered.length) {
-    throw new Error('tidak menemukan arsip resmi KSEI dari archive page maupun endpoint probe');
-  }
-
+  if (!discovered.length) throw new Error('tidak menemukan arsip resmi KSEI dari archive page maupun endpoint probe');
   const selected = filterArchiveEntries(discovered, args);
-  if (!selected.length) {
-    throw new Error('tidak ada arsip KSEI dalam range yang diminta setelah fallback probe');
-  }
+  if (!selected.length) throw new Error('tidak ada arsip KSEI dalam range yang diminta setelah fallback probe');
 
   console.log(`\nArsip tersedia: ${discovered.length}; dipilih: ${selected.length}`);
   for (const entry of selected) {
     const via = entry.discovery === 'endpoint-probe' ? 'PROBE' : 'PAGE';
     console.log(`  - ${entry.observedDate}  ${entry.fileName}  via=${via}`);
   }
-
   if (args.list) return;
 
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sahamlens-ksei-ownership-'));
-  const results = [];
+  const audited = [];
+  const confirmed = [];
 
   try {
+    // PHASE 1: audit SELURUH periode. Tidak ada DB write di fase ini.
     for (const [index, entry] of selected.entries()) {
       console.log(`\n[${index + 1}/${selected.length}] ${entry.observedDate}`);
       const periodDir = path.join(root, entry.ymd);
@@ -625,57 +631,104 @@ async function main() {
       const extractDir = path.join(periodDir, 'extract');
       await fs.mkdir(periodDir, { recursive: true });
 
-      console.log(`  download: ${entry.url}`);
-      await downloadZip(entry, zipPath);
-      const txtPath = await extractTxt(zipPath, extractDir, entry.ymd);
-      console.log(`  extract : ${path.basename(txtPath)}`);
+      try {
+        console.log(`  download: ${entry.url}`);
+        await downloadZip(entry, zipPath);
+        const txtPath = await extractTxt(zipPath, extractDir, entry.ymd);
+        console.log(`  extract : ${path.basename(txtPath)}`);
 
-      // Dry-run WAJIB selalu terjadi, termasuk dalam mode --confirm.
-      const dry = await runBackfill(backfillScript, txtPath, false, cwd);
-      process.stdout.write(dry.stdout);
-      if (dry.stderr) process.stderr.write(dry.stderr);
-      if (dry.code !== 0) throw new Error(`dry-run parser gagal exit ${dry.code} untuk ${entry.observedDate}`);
-
-      const drySummary = parseBackfillSummary(`${dry.stdout}\n${dry.stderr}`);
-      validateDryRun(drySummary, entry, args.minEquity);
-      console.log(`  GATE OK: ${drySummary.validEquity} EQUITY, reject=0, tanggal cocok.`);
-
-      let confirmSummary = null;
-      if (args.confirm) {
-        const write = await runBackfill(backfillScript, txtPath, true, cwd);
-        process.stdout.write(write.stdout);
-        if (write.stderr) process.stderr.write(write.stderr);
-        if (write.code !== 0) throw new Error(`confirm DB gagal exit ${write.code} untuk ${entry.observedDate}`);
-        confirmSummary = parseBackfillSummary(`${write.stdout}\n${write.stderr}`);
-        if (!Number.isInteger(confirmSummary.inserted) || !Number.isInteger(confirmSummary.alreadyExisting)) {
-          throw new Error(`output confirm tidak memuat ringkasan insert untuk ${entry.observedDate}`);
+        const dry = await runBackfill(backfillScript, txtPath, false, cwd);
+        process.stdout.write(dry.stdout);
+        if (dry.stderr) process.stderr.write(dry.stderr);
+        const drySummary = parseBackfillSummary(`${dry.stdout}\n${dry.stderr}`);
+        const assessment = assessDryRunSummary(drySummary, entry, args.minEquity);
+        if (dry.code !== 0 && assessment.status !== 'PARTIAL') {
+          assessment.status = 'ERROR';
+          assessment.errors.push(`dry-run parser exit ${dry.code}`);
         }
-      }
 
-      results.push({
-        date: entry.observedDate,
-        valid: drySummary.validEquity,
-        inserted: confirmSummary?.inserted ?? null,
-        existing: confirmSummary?.alreadyExisting ?? null,
+        if (assessment.status === 'CLEAN') {
+          console.log(`  GATE OK: ${drySummary.validEquity} EQUITY, reject=0, tanggal cocok.`);
+        } else if (assessment.status === 'PARTIAL') {
+          console.warn(`  GATE PARTIAL: ${drySummary.validEquity} EQUITY valid, reject=${drySummary.rejected}. Row reject akan di-quarantine hanya bila --confirm --allow-quarantine dipilih.`);
+        } else {
+          console.error(`  GATE ERROR: ${assessment.errors.join('; ')}`);
+        }
+
+        audited.push({ entry, txtPath, summary: drySummary, assessment });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`  GATE ERROR: ${message}`);
+        audited.push({
+          entry,
+          txtPath: null,
+          summary: { validEquity: null, rejected: null, snapshotDate: null, inserted: null, alreadyExisting: null, quarantined: null },
+          assessment: { status: 'ERROR', errors: [message] },
+        });
+      }
+    }
+
+    console.log('\n=== RINGKASAN AUDIT AUTO-BACKFILL ===');
+    for (const item of audited) {
+      const q = item.summary.rejected ?? '?';
+      const v = item.summary.validEquity ?? '?';
+      console.log(`${item.entry.observedDate}  valid=${v}  reject=${q}  ${item.assessment.status}`);
+    }
+
+    const errors = audited.filter((x) => x.assessment.status === 'ERROR');
+    const partials = audited.filter((x) => x.assessment.status === 'PARTIAL');
+    if (errors.length > 0) {
+      console.error(`\nCONFIRM DIBLOKIR: ${errors.length} periode gagal quality gate keras.`);
+      process.exitCode = 2;
+      return;
+    }
+    if (!args.confirm) {
+      if (partials.length > 0) {
+        console.warn(`\nDRY-RUN SELESAI: ${partials.length} periode PARTIAL / ${selected.length}. Tidak ada DB write. Audit quarantine sebelum confirm.`);
+        process.exitCode = 2;
+      } else {
+        console.log(`\nDRY-RUN SELESAI: ${selected.length}/${selected.length} periode CLEAN.`);
+      }
+      return;
+    }
+    if (partials.length > 0 && !args.allowQuarantine) {
+      console.error(`\nCONFIRM DIBLOKIR SEBELUM DB WRITE: ${partials.length} periode memiliki row reject. Jalankan ulang dengan --allow-quarantine hanya setelah anomaly report diperiksa.`);
+      process.exitCode = 2;
+      return;
+    }
+
+    // PHASE 2: baru menulis setelah SELURUH range selesai diaudit.
+    for (const [index, item] of audited.entries()) {
+      if (!item.txtPath) throw new Error(`internal: txtPath kosong untuk ${item.entry.observedDate}`);
+      console.log(`\n[WRITE ${index + 1}/${audited.length}] ${item.entry.observedDate}`);
+      const allowForPeriod = item.assessment.status === 'PARTIAL' && args.allowQuarantine;
+      const write = await runBackfill(backfillScript, item.txtPath, true, cwd, allowForPeriod);
+      process.stdout.write(write.stdout);
+      if (write.stderr) process.stderr.write(write.stderr);
+      if (write.code !== 0) throw new Error(`confirm DB gagal exit ${write.code} untuk ${item.entry.observedDate}`);
+      const summary = parseBackfillSummary(`${write.stdout}\n${write.stderr}`);
+      if (!Number.isInteger(summary.inserted) || !Number.isInteger(summary.alreadyExisting)) {
+        throw new Error(`output confirm tidak memuat ringkasan insert untuk ${item.entry.observedDate}`);
+      }
+      confirmed.push({
+        date: item.entry.observedDate,
+        valid: item.summary.validEquity,
+        rejected: item.summary.rejected,
+        inserted: summary.inserted,
+        existing: summary.alreadyExisting,
+        quarantined: summary.quarantined ?? 0,
       });
     }
-  } finally {
-    if (args.keepFiles) {
-      console.log(`\nFile sementara dipertahankan: ${root}`);
-    } else {
-      await fs.rm(root, { recursive: true, force: true });
-    }
-  }
 
-  console.log('\n=== RINGKASAN AUTO-BACKFILL ===');
-  for (const item of results) {
-    if (args.confirm) {
-      console.log(`${item.date}  valid=${item.valid}  baru=${item.inserted}  sudah_ada=${item.existing}`);
-    } else {
-      console.log(`${item.date}  valid=${item.valid}  DRY-RUN OK`);
+    console.log('\n=== RINGKASAN AUTO-BACKFILL DB ===');
+    for (const item of confirmed) {
+      console.log(`${item.date}  valid=${item.valid}  reject=${item.rejected}  baru=${item.inserted}  sudah_ada=${item.existing}  quarantine=${item.quarantined}`);
     }
+    console.log(`\nSelesai ${confirmed.length}/${selected.length} periode.`);
+  } finally {
+    if (args.keepFiles) console.log(`\nFile sementara dipertahankan: ${root}`);
+    else await fs.rm(root, { recursive: true, force: true });
   }
-  console.log(`\nSelesai ${results.length}/${selected.length} periode.`);
 }
 
 const invokedDirectly = process.argv[1]

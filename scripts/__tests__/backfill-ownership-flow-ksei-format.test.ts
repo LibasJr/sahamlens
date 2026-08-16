@@ -133,4 +133,27 @@ describe('backfill Ownership Flow - duplicate Total KSEI', () => {
     expect(result.stdout).toContain('Total Local + Total Foreign (1000) melebihi Sec. Num (999)');
     expect(result.stderr).toContain('Tidak ada baris EQUITY sah');
   });
+
+  it('tetap mengaudit row valid saat satu ticker harus di-quarantine', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'ksei-ownership-partial-'));
+    tempDirs.push(dir);
+    const file = path.join(dir, 'Balancepos20250528.txt');
+    writeFileSync(
+      file,
+      [
+        'Date|Code|Type|Sec. Num|Price|Local OT|Total|Foreign IS|Foreign OT|Total',
+        '28-MAY-2025|AALI|EQUITY|1000|1|0|700|0|0|300',
+        '28-MAY-2025|MFIN|EQUITY|1000|1|0|900|0|0|200',
+      ].join('\n'),
+      'utf8',
+    );
+    const result = spawnSync(process.execPath, ['scripts/backfill-ownership-flow.mjs', '--file', file], {
+      cwd: process.cwd(), encoding: 'utf8',
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Baris EQUITY valid : 1');
+    expect(result.stdout).toContain('Baris ditolak      : 1');
+    expect(result.stdout).toContain('MFIN.JK: Total Local + Total Foreign (1100) melebihi Sec. Num (1000)');
+  });
+
 });
