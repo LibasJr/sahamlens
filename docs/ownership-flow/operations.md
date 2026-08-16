@@ -1,142 +1,210 @@
 # Ownership Flow — panduan operator
 
-Ringkas: apa yang harus dilakukan, dalam urutan apa, dan apa yang **tidak** boleh
-dilakukan.
+Ringkas: jalur produksi yang dipakai sekarang, cara memasang sync KSEI di VPS,
+dan batas yang tetap fail-closed.
 
 ---
 
-## Keadaan saat ini
+## Keadaan produksi saat ini
 
-```
-OWNERSHIP_FLOW_ENABLED           = true    → menu, API, panel admin terlihat
-OWNERSHIP_FLOW_CRON_ENABLED      = false   → cron belum dijadwalkan
-OWNERSHIP_FLOW_INGESTION_ENABLED = false   → penulisan database tertutup
-KSEI_REGISTERED_SECURITY         = UNVERIFIED
-```
+Ownership Flow punya **dua jalur sumber yang berbeda** dan tidak boleh dicampur:
 
-UI menampilkan panel "Verifikasi sumber belum selesai" dan tabel kosong. Itu
-**keadaan sebenarnya**, bukan kerusakan — tidak ada angka contoh yang dibuat
-untuk mengisinya.
+1. `KSEI_HOLDING_COMPOSITION` — arsip snapshot periodik/bulanan KSEI.
+   - sudah dipakai sebagai sumber histori produksi;
+   - parser membaca file `BalanceposYYYYMMDD.txt` dari ZIP resmi;
+   - `observed_date` berasal dari tanggal snapshot di sumber;
+   - aman di-sync otomatis setelah bootstrap historis selesai.
+2. `KSEI_REGISTERED_SECURITY` — halaman live per-ticker.
+   - tetap `UNVERIFIED`;
+   - pernah menghasilkan placeholder 0/0/0;
+   - route `/api/cron/ownership-flow-scan` tetap **tidak dijadwalkan**.
 
----
-
-## Alur data
-
-```
-cron → fetch (bounded) → parse → validate → PostgreSQL → Redis → API → frontend
-```
-
-Server **tidak pernah** menembak KSEI pada request pengguna. Membuka halaman
-BBRI membaca database, bukan sumber.
+Jangan menyalakan route live hanya karena arsip periodik sudah terverifikasi.
 
 ---
 
-## Langkah 1 — audit sumber (di VPS)
+## Alur data produksi
+
+```text
+systemd timer (1x/hari)
+        ↓
+/api/cron/ownership-flow-ksei-sync (localhost + CRON_SECRET)
+        ↓
+scripts/sync-ownership-flow-ksei.mjs
+        ↓
+cek MAX(observed_date) KSEI di PostgreSQL
+        ↓
+cek arsip resmi KSEI
+        ↓
+kalau tidak ada snapshot baru → UP_TO_DATE, selesai
+        ↓
+kalau ada snapshot baru → auto-backfill
+        ↓
+download ZIP → extract → DRY RUN wajib → guard reject=0 → INSERT idempotent
+        ↓
+PostgreSQL
+        ↓
+hapus cache Ownership Flow Redis
+        ↓
+API / frontend membaca DB (bukan KSEI langsung)
+```
+
+Request user **tidak pernah** menembak KSEI.
+
+---
+
+## Bootstrap historis manual
+
+Cron sengaja fail-closed bila database belum punya satu pun snapshot arsip KSEI.
+Bootstrap pertama harus dilakukan manual supaya operator melihat format dan hasil
+parser sebelum automation mengambil alih.
+
+Contoh auto-backfill range historis:
 
 ```bash
-npm run audit:ksei-ownership
+NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection" \
+node --env-file=.env.production \
+scripts/backfill-ownership-flow-ksei-auto.mjs \
+--from 2026-01-01 \
+--to 2026-07-31 \
+--confirm
 ```
 
-Menghasilkan `reports/ksei-ownership-source-audit.json` dan fixture tersanitasi
-di `data/source-fixtures/ksei/`. Exit code 1 bila ada yang gagal.
-
-**Ulangi beberapa hari berturut-turut** dan bandingkan nilai `As of` — itu
-satu-satunya cara menentukan cadence. Jangan menebak.
-
-Checklist lengkap: [`source-audit.md`](./source-audit.md).
-
-## Langkah 2 — parser terhadap fixture nyata
-
-Kirimkan laporan + fixture. Parser diimplementasikan/dikoreksi terhadap fixture
-itu, dengan test yang membacanya, lalu:
-
-- `cadence` diubah dari `UNKNOWN` ke nilai terbukti
-- `auditStatus` → `VERIFIED`, dalam commit yang sama dengan fixture + test
-- `source-registry.test.ts` diperbarui (saat ini ia menegaskan `UNVERIFIED`)
-
-## Langkah 3 — aktifkan ingestion
-
-```bash
-OWNERSHIP_FLOW_INGESTION_ENABLED=true
-OWNERSHIP_FLOW_CRON_ENABLED=true
-```
-
-Uji manual dulu dengan universe kecil:
-
-```bash
-OWNERSHIP_FLOW_UNIVERSE_LIMIT=5 \
-  curl -H "Authorization: Bearer $CRON_SECRET" \
-       https://sahamlens.id/api/cron/ownership-flow-scan
-```
-
-Periksa `/admin/ownership-flow`: tanggal observasi harus tanggal **sumber**,
-bukan hari ini.
-
-## Langkah 4 — jadwalkan cron
-
-**1× sehari.** Jam diambil dari hasil langkah 1, bukan tebakan. Pola timer
-systemd sama dengan `screener-scan`/`calendar-scan`. Setelah terpasang,
-perbarui `config/scheduled-jobs.json` (`schedule` masih `null` sekarang) dan
-jalankan `npm run audit:cron`.
+Script selalu menjalankan dry-run untuk setiap periode sebelum INSERT.
 
 ---
 
-## Backfill arsip bulanan (opsional)
+## Sync manual setelah bootstrap
 
-Arsip Holding Composition KSEI adalah snapshot **bulanan**. Ia boleh dipakai
-sebagai seed historis dan cross-check — **tidak pernah** sebagai observasi
-harian.
+Untuk mengetes logic yang sama dengan timer tanpa HTTP route:
 
 ```bash
-# 1. Unduh & periksa manual dari web.ksei.co.id/archive_download/holding_composition
-# 2. Dry run (default, tidak menulis apa pun):
-npm run backfill:ownership-flow -- --file arsip.csv --observed-date 2026-06-30
-
-# 3. Kalau ringkasannya benar:
-npm run backfill:ownership-flow -- --file arsip.csv --observed-date 2026-06-30 --confirm
+cd /opt/sahamlens/app
+NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection" \
+node --env-file=.env.production scripts/sync-ownership-flow-ksei.mjs
 ```
 
-Script **menolak berjalan** bila berkas tidak punya kolom tanggal dan
-`--observed-date` tidak diisi — memakai tanggal hari ini sebagai tanggal
-historis berarti mengarang sejarah.
-
-Baris arsip masuk dengan `source = KSEI_HOLDING_COMPOSITION`, berbeda dari
-snapshot harian, sehingga keduanya bisa berdampingan pada tanggal yang sama dan
-justru bisa dipakai saling cek.
+Kalau belum ada arsip baru, hasil normal adalah `UP_TO_DATE` dan exit code 0.
+Kalau ada satu atau beberapa snapshot setelah tanggal DB terakhir, semuanya diproses
+berurutan oleh auto-backfill dengan guard yang sama.
 
 ---
 
-## Membaca panel admin
+## Pasang timer VPS
 
-| Kolom | Artinya |
-|---|---|
-| Sinkron terakhir | kapan cron berjalan |
-| **Tanggal observasi** | tanggal menurut **sumber** — sengaja terpisah dari baris di atas |
-| Universe / tercakup | berapa emiten punya observasi pada tanggal terbaru |
-| **Belum tercakup** | selisihnya — angka yang tidak boleh disembunyikan |
-| Status audit | `UNVERIFIED` → ingestion tertutup |
+Unit repo:
 
-Status job `PARTIAL_SUCCESS` berarti sebagian ticker gagal tetapi sisanya masuk.
-Itu **bukan** kegagalan total, dan **bukan** sukses penuh.
+```text
+deploy/ownership-flow-ksei-sync/sahamlens-ownership-flow-ksei-sync.service
+deploy/ownership-flow-ksei-sync/sahamlens-ownership-flow-ksei-sync.timer
+```
+
+Cara cepat:
+
+```bash
+cd /opt/sahamlens/app
+bash deploy/ownership-flow-ksei-sync/install.sh
+```
+
+Timer polling SahamLens:
+
+```text
+setiap hari 19:15 Asia/Jakarta
+RandomizedDelaySec=300
+Persistent=true
+```
+
+**19:15 WIB adalah jadwal polling SahamLens, bukan klaim waktu publikasi KSEI.**
+Karena source berupa snapshot bulanan, polling sekali sehari cukup. Bila KSEI baru
+menerbitkan setelah polling hari itu, data diambil pada polling hari berikutnya.
+
+Verifikasi:
+
+```bash
+systemctl list-timers --all | grep ownership-flow-ksei
+sudo systemctl status sahamlens-ownership-flow-ksei-sync.timer --no-pager
+```
+
+Tes service sekarang juga:
+
+```bash
+sudo systemctl start sahamlens-ownership-flow-ksei-sync.service
+sudo journalctl -u sahamlens-ownership-flow-ksei-sync.service -n 100 --no-pager
+```
+
+Endpoint route juga dapat dites langsung dari VPS:
+
+```bash
+curl -sfS \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  http://127.0.0.1:3001/api/cron/ownership-flow-ksei-sync
+```
+
+---
+
+## Apa yang dilakukan sync saat ada data baru
+
+Guard minimum sebelum DB ditulis:
+
+- ZIP harus berasal dari nama arsip KSEI yang dikenali;
+- file TXT harus berhasil diekstrak;
+- tanggal file harus cocok dengan tanggal arsip;
+- baris EQUITY valid harus melewati minimum guard;
+- `Baris ditolak` harus **0**;
+- INSERT memakai `ON CONFLICT DO NOTHING`;
+- setelah child backfill selesai, `MAX(observed_date)` DB harus benar-benar maju ke
+  snapshot terbaru yang diproses.
+
+Setelah INSERT sukses, key Redis `sahamlens:cache:ownership-flow:*` dihapus agar
+halaman publik tidak menampilkan snapshot lama sampai TTL habis. Bila Redis sedang
+mati, ingestion tetap dianggap sukses karena PostgreSQL adalah source of truth.
+
+---
+
+## Monitoring
+
+Route timer dibungkus `withJobRunLog('ownership-flow-ksei-sync', ...)`, sehingga
+hasilnya muncul di `job_run_log` bersama scheduler lain.
+
+Status normal harian tanpa snapshot baru:
+
+```json
+{
+  "status": "UP_TO_DATE",
+  "newPeriods": 0,
+  "inserted": 0
+}
+```
+
+Saat snapshot baru masuk:
+
+```json
+{
+  "status": "UPDATED",
+  "newPeriods": 1,
+  "inserted": 1000
+}
+```
+
+Jumlah `inserted` mengikuti isi snapshot aktual; jangan hardcode 1000/1007.
 
 ---
 
 ## Yang tidak boleh dilakukan
 
-- ❌ Menaikkan `auditStatus` tanpa fixture nyata dari VPS
-- ❌ Mengisi `cadence` dengan tebakan
-- ❌ Menjadwalkan cron lebih sering dari 1× sehari — data kepemilikan bukan intraday
-- ❌ Menaikkan `OWNERSHIP_FLOW_MAX_CONCURRENCY` tanpa alasan; ini server publik lembaga
-- ❌ Forward-fill arsip bulanan menjadi observasi harian
-- ❌ Memakai tanggal cron sebagai `observed_date`
-- ❌ Menghapus/menonaktifkan apa pun milik Broker Summary — lihat
-  [`broker-summary-status.md`](./broker-summary-status.md)
+- ❌ menjadwalkan `/api/cron/ownership-flow-scan` live per-ticker selama source itu masih `UNVERIFIED`;
+- ❌ memakai tanggal cron sebagai `observed_date`;
+- ❌ forward-fill snapshot bulanan menjadi data harian;
+- ❌ menganggap polling 19:15 sebagai bukti KSEI selalu publish pukul 19:15;
+- ❌ menulis DB bila dry-run mempunyai satu saja baris reject;
+- ❌ menghapus histori lama untuk memasukkan snapshot baru;
+- ❌ menganggap Redis sebagai source of truth.
 
 ---
 
 ## Rujukan
 
-- [`source-audit.md`](./source-audit.md) — checklist verifikasi sumber
-- [`broker-vs-ownership.md`](./broker-vs-ownership.md) — pembeda konseptual + batas bahasa
-- [`broker-summary-status.md`](./broker-summary-status.md) — status fitur lama
-- [`validation-plan.md`](./validation-plan.md) — syarat sebelum masuk LensScore
+- [`source-audit.md`](./source-audit.md)
+- [`broker-vs-ownership.md`](./broker-vs-ownership.md)
+- [`broker-summary-status.md`](./broker-summary-status.md)
+- [`validation-plan.md`](./validation-plan.md)

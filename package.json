@@ -14,6 +14,7 @@
     "audit:ui": "node scripts/audit-ui-consistency.mjs",
     "audit:ksei-ownership": "node scripts/audit-ksei-ownership-source.mjs",
     "backfill:ownership-flow": "node scripts/backfill-ownership-flow.mjs",
+    "sync:ownership-flow-ksei": "node scripts/sync-ownership-flow-ksei.mjs",
     "audit:cron": "node scripts/audit-scheduled-jobs.mjs",
     "eval:lensai": "vitest run app/api/chat/__tests__/lensai-eval.test.ts --disable-console-intercept",
     "eval:answers": "node scripts/eval-lensai-answers.mjs",

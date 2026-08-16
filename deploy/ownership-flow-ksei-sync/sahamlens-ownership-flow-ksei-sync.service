@@ -1,0 +1,19 @@
+# /etc/systemd/system/sahamlens-ownership-flow-ksei-sync.service
+#
+# Sinkron arsip bulanan KSEI Holding Composition untuk Ownership Flow.
+# Service memanggil endpoint localhost aplikasi agar job tercatat di job_run_log,
+# memakai concurrency guard yang sama dengan cron SahamLens lain, dan tidak
+# melewati Cloudflare untuk pekerjaan yang bisa berlangsung beberapa menit.
+
+[Unit]
+Description=SahamLens - sync Ownership Flow KSEI archive
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+# Endpoint localhost. CRON_SECRET tetap wajib; request tanpa secret ditolak.
+ExecStart=/usr/bin/curl -sfS --max-time 900 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/ownership-flow-ksei-sync
+TimeoutStartSec=930
