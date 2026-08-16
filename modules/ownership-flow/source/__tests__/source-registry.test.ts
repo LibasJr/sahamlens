@@ -23,12 +23,13 @@ const ENABLED_CONFIG: OwnershipFlowConfig = {
 };
 
 describe('registry sumber', () => {
-  it('sumber KSEI masih UNVERIFIED', () => {
-    // Status ini hanya boleh berubah dalam commit yang JUGA memuat fixture nyata
-    // hasil audit di VPS beserta test parser-nya. Test ini memaksa perubahan
-    // status menjadi keputusan sadar, bukan efek samping.
+  it('snapshot live tetap UNVERIFIED, arsip bulanan sudah VERIFIED', () => {
+    // Audit 2026-08-16 membuktikan format arsip Balancepos resmi: TXT pipe-delimited
+    // dengan tanggal DD-MMM-YYYY dan kolom Total Local/Foreign. Ini TIDAK memberi
+    // izin kepada sumber snapshot live per-ticker yang masih punya kasus placeholder.
     expect(KSEI_REGISTERED_SECURITY.auditStatus).toBe('UNVERIFIED');
-    expect(KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus).toBe('UNVERIFIED');
+    expect(KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus).toBe('VERIFIED');
+    expect(KSEI_HOLDING_COMPOSITION_ARCHIVE.format).toBe('TXT');
   });
 
   it('semua sumber memakai HTTPS dan tanpa kredensial di URL', () => {

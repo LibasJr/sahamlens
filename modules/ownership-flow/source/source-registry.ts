@@ -117,13 +117,24 @@ export const KSEI_HOLDING_COMPOSITION_ARCHIVE: OwnershipSourceDescriptor = {
   name: 'KSEI - Holding Composition Archive (Local/Foreign)',
   baseUrl: 'https://web.ksei.co.id/archive_download/holding_composition',
   usage: 'HISTORICAL_SEED',
-  format: 'UNKNOWN',
+  format: 'TXT',
   cadence: 'MONTHLY',
-  auditStatus: 'UNVERIFIED',
+  auditStatus: 'VERIFIED',
   auditNote:
-    'Arsip periodik. Hanya untuk seed historis / cross-check bulanan, TIDAK PERNAH sebagai observasi harian. ' +
-    'Tanggal snapshot asli wajib dipertahankan. Format file belum diverifikasi.',
-  expectedFields: ['Code', 'Local', 'Foreign', 'Total', 'Date'],
+    'Format arsip resmi telah diverifikasi pada BalanceposEfek20260731.zip (snapshot 31 Jul 2026): ' +
+    'ZIP berisi BalanceposYYYYMMDD.txt, delimiter pipe (|), tanggal DD-MMM-YYYY, dan kolom agregat ' +
+    'Total Local / Total Foreign / Total. Sumber ini TETAP hanya untuk seed/cross-check bulanan; ' +
+    'status VERIFIED di sini TIDAK membuka ingestion snapshot harian KSEI_REGISTERED_SECURITY.',
+  expectedFields: [
+    'Date',
+    'Code',
+    'Type',
+    'Sec. Num',
+    'Price',
+    'Total Local',
+    'Total Foreign',
+    'Total',
+  ],
 };
 
 export const OWNERSHIP_SOURCES: readonly OwnershipSourceDescriptor[] = [

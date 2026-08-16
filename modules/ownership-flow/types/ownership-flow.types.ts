@@ -15,7 +15,7 @@ export type SourceAuditStatus = 'UNVERIFIED' | 'VERIFIED' | 'PROHIBITED';
  * "3 hari" untuk sumber yang terbit bulanan. */
 export type SourceCadence = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'UNKNOWN';
 
-export type SourceFormat = 'HTML' | 'CSV' | 'XLS' | 'XLSX' | 'JSON' | 'UNKNOWN';
+export type SourceFormat = 'HTML' | 'CSV' | 'TXT' | 'XLS' | 'XLSX' | 'JSON' | 'UNKNOWN';
 
 /**
  * Satu observasi kepemilikan untuk satu ticker pada satu tanggal.
