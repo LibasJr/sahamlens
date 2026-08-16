@@ -1,0 +1,18 @@
+# /etc/systemd/system/sahamlens-ownership-flow-ksei-sync.timer
+#
+# Ini adalah JADWAL POLLING SahamLens, bukan klaim jam publikasi KSEI.
+# Satu kali sehari cukup karena Holding Composition adalah snapshot bulanan.
+# Kalau KSEI menerbitkan setelah polling hari ini, sync akan mengambilnya pada
+# polling berikutnya (maksimal ~24 jam kemudian).
+
+[Unit]
+Description=Jadwal SahamLens - Ownership Flow KSEI archive sync
+
+[Timer]
+OnCalendar=*-*-* 19:15:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target
