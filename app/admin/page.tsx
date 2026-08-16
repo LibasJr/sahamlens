@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -168,6 +168,21 @@ export default async function AdminPage() {
             <h2 className="font-heading text-lg font-bold text-tv-text">Macro PIT & Valuation Inputs</h2>
             <p className="text-sm text-tv-muted mt-1">
               Audit risk-free SBN 10Y, Indonesia ERP, BI-Rate, inflation target, tanggal observasi, dan provenance tanpa mengubah model diam-diam.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/bank-fundamentals"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-blue/10 p-2 text-tv-blue">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Bank Fundamentals Evidence</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Audit NIM, NPL, CASA, CAR, LDR, credit cost dan PPOP per metrik dengan source/basis PIT. Tetap DATA_ONLY sampai model bank tervalidasi.
             </p>
           </div>
         </Link>
