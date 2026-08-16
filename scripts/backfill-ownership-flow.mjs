@@ -17,9 +17,12 @@
  * - tidak ada data sintetis / forward-fill;
  * - observed_date selalu tanggal yang dinyatakan file;
  * - dry-run adalah default, --confirm wajib untuk menulis;
+ * - bila ada row ditolak, --confirm fail-closed kecuali operator menambahkan
+ *   --allow-quarantine; baris invalid masuk tabel quarantine dan TIDAK masuk history;
  * - append-only + idempotent (ON CONFLICT DO NOTHING).
  */
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -33,12 +36,13 @@ const MONTHS = new Map([
 ]);
 
 function parseArgs(argv) {
-  const args = { file: null, observedDate: null, confirm: false, limit: 0 };
+  const args = { file: null, observedDate: null, confirm: false, allowQuarantine: false, limit: 0 };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--file') args.file = argv[++i];
     else if (arg === '--observed-date') args.observedDate = argv[++i];
     else if (arg === '--confirm') args.confirm = true;
+    else if (arg === '--allow-quarantine') args.allowQuarantine = true;
     else if (arg === '--limit') args.limit = Number(argv[++i]) || 0;
   }
   return args;
@@ -262,6 +266,44 @@ function normalizeTicker(raw) {
   const bare = value.endsWith('.JK') ? value.slice(0, -3) : value;
   if (!/^[A-Z0-9]{1,10}$/.test(bare)) return null;
   return `${bare}.JK`;
+}
+
+
+function rejectionCode(reason) {
+  const text = String(reason ?? '');
+  if (text.includes('melebihi Sec. Num')) return 'HOLDINGS_EXCEED_SECNUM';
+  if (text.includes('!= Total')) return 'HOLDINGS_TOTAL_MISMATCH';
+  if (text.includes('tanggal')) return 'INVALID_OBSERVED_DATE';
+  if (text.includes('Total Local/Total Foreign')) return 'MISSING_AGGREGATE';
+  if (text.includes('negatif')) return 'NEGATIVE_HOLDINGS';
+  if (text.includes('komposisi tidak konsisten')) return 'INCONSISTENT_COMPOSITION';
+  return 'ROW_VALIDATION_REJECTED';
+}
+
+function quarantineRows(rejected, rows, header, idx, delimiter, forcedDate) {
+  return rejected.map((item) => {
+    const row = rows[item.line - 1] ?? [];
+    const ticker = idx.ticker >= 0 ? normalizeTicker(row[idx.ticker]) : null;
+    const fileDate = idx.date >= 0 ? normalizeObservedDate(row[idx.date]) : null;
+    const observedDate = fileDate ?? forcedDate;
+    const localShares = idx.local >= 0 ? parseNumericToken(row[idx.local]) : null;
+    const foreignShares = idx.foreign >= 0 ? parseNumericToken(row[idx.foreign]) : null;
+    const totalSecurities = idx.secNum >= 0 ? parseNumericToken(row[idx.secNum]) : null;
+    const rawLine = row.join(delimiter);
+    const rawFingerprint = createHash('sha256').update(rawLine).digest('hex');
+    return {
+      ticker,
+      observedDate,
+      lineNumber: item.line,
+      reasonCode: rejectionCode(item.reason),
+      reason: item.reason,
+      rawFingerprint,
+      rawRow: { header, values: row },
+      totalSecurities,
+      localShares,
+      foreignShares,
+    };
+  });
 }
 
 async function main() {
@@ -494,6 +536,12 @@ async function main() {
     return;
   }
 
+  if (args.confirm && rejected.length > 0 && !args.allowQuarantine) {
+    console.error(`\nCONFIRM DIBLOKIR: ${rejected.length} baris ditolak. Audit dulu anomali, lalu gunakan --allow-quarantine hanya bila memang ingin menyimpan baris valid dan mengisolasi baris bermasalah.`);
+    process.exitCode = 2;
+    return;
+  }
+
   if (!args.confirm) {
     console.log('\nDRY RUN - tidak ada yang ditulis ke database.');
     console.log('Jalankan ulang dengan --confirm HANYA bila preview dan jumlah baris sudah masuk akal.');
@@ -527,35 +575,21 @@ async function main() {
     connectionTimeoutMillis: 15_000,
   });
 
+  const client = await pool.connect();
   try {
-    // Sama dengan bagian ownership_flow_history pada ensureSharedSchema().
-    // CREATE IF NOT EXISTS membuat script aman dijalankan pada server baru tanpa
-    // menggandakan/mengubah tabel yang sudah ada.
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS ownership_flow_history (
-        id BIGSERIAL PRIMARY KEY,
-        ticker TEXT NOT NULL,
-        observed_date DATE NOT NULL,
-        local_pct NUMERIC(7,4),
-        foreign_pct NUMERIC(7,4),
-        scripless_pct NUMERIC(7,4),
-        total_securities NUMERIC(24,0),
-        local_shares NUMERIC(24,0),
-        foreign_shares NUMERIC(24,0),
-        source TEXT NOT NULL,
-        source_url TEXT,
-        fetched_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
-      CREATE UNIQUE INDEX IF NOT EXISTS uq_ownership_flow_history_ticker_date_source
-        ON ownership_flow_history (ticker, observed_date, source);
-      CREATE INDEX IF NOT EXISTS idx_ownership_flow_history_ticker_date
-        ON ownership_flow_history (ticker, observed_date DESC);
-      CREATE INDEX IF NOT EXISTS idx_ownership_flow_history_observed_date
-        ON ownership_flow_history (observed_date DESC);
+    const { rows: schemaRows } = await client.query(`
+      SELECT
+        to_regclass('public.ownership_flow_history')::text AS history_table,
+        to_regclass('public.ownership_flow_quarantine')::text AS quarantine_table
     `);
+    if (!schemaRows[0]?.history_table) {
+      throw new Error('ownership_flow_history belum tersedia. Jalankan scripts/migrate-database.mjs --confirm lebih dulu.');
+    }
+    if (rejected.length > 0 && args.allowQuarantine && !schemaRows[0]?.quarantine_table) {
+      throw new Error('ownership_flow_quarantine belum tersedia. Terapkan migration 002_ownership_flow_quality_quarantine.sql lebih dulu.');
+    }
 
+    await client.query('BEGIN');
     const fetchedAt = new Date().toISOString();
     const CHUNK = 500;
     let inserted = 0;
@@ -573,7 +607,7 @@ async function main() {
         return `($${b + 1}, $${b + 2}::date, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}, $${b + 9}, $${b + 10}, $${b + 11}::timestamptz)`;
       });
 
-      const { rowCount } = await pool.query(
+      const { rowCount } = await client.query(
         `INSERT INTO ownership_flow_history
            (ticker, observed_date, local_pct, foreign_pct, scripless_pct,
             total_securities, local_shares, foreign_shares, source, source_url, fetched_at)
@@ -584,9 +618,44 @@ async function main() {
       inserted += rowCount ?? 0;
     }
 
-    console.log(`\nSelesai. Baris BARU: ${inserted}. Sudah ada sebelumnya: ${accepted.length - inserted}.`);
+    let quarantined = 0;
+    if (rejected.length > 0 && args.allowQuarantine) {
+      const quarantine = quarantineRows(rejected, rows, header, idx, delimiter, forcedDate);
+      const fetchedAtQuarantine = fetchedAt;
+      const CHUNK_Q = 250;
+      for (let i = 0; i < quarantine.length; i += CHUNK_Q) {
+        const chunk = quarantine.slice(i, i + CHUNK_Q);
+        const params = [];
+        const tuples = chunk.map((row) => {
+          const b = params.length;
+          params.push(
+            row.ticker, row.observedDate, SOURCE_ID,
+            row.observedDate ? archiveDownloadUrl(row.observedDate) : SOURCE_ARCHIVE_PAGE,
+            row.lineNumber, row.reasonCode, row.reason, row.rawFingerprint, JSON.stringify(row.rawRow),
+            row.totalSecurities, row.localShares, row.foreignShares, fetchedAtQuarantine,
+          );
+          return `($${b + 1}, $${b + 2}::date, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}, $${b + 9}::jsonb, $${b + 10}, $${b + 11}, $${b + 12}, $${b + 13}::timestamptz)`;
+        });
+        const { rowCount } = await client.query(
+          `INSERT INTO ownership_flow_quarantine
+             (ticker, observed_date, source, source_url, line_number, reason_code, reason,
+              raw_fingerprint, raw_row, total_securities, local_shares, foreign_shares, fetched_at)
+           VALUES ${tuples.join(', ')}
+           ON CONFLICT DO NOTHING`,
+          params,
+        );
+        quarantined += rowCount ?? 0;
+      }
+    }
+
+    await client.query('COMMIT');
+    console.log(`\nSelesai. Baris BARU: ${inserted}. Sudah ada sebelumnya: ${accepted.length - inserted}. Quarantine: ${quarantined}.`);
     console.log('Source arsip tetap KSEI_HOLDING_COMPOSITION dan tidak menimpa snapshot live.');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
+    client.release();
     await pool.end();
   }
 }

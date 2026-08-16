@@ -29,7 +29,7 @@ export default async function OwnershipFlowValidationPage() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card label="Snapshot" value={String(d.snapshots)} sub={`${date(d.firstObservedDate)} → ${date(d.lastObservedDate)}`}/>
-        <Card label="Rows" value={d.rows.toLocaleString('id-ID')} sub={`${d.comparableChanges.toLocaleString('id-ID')} perubahan comparable`}/>
+        <Card label="Rows" value={d.rows.toLocaleString('id-ID')} sub={`${d.comparableChanges.toLocaleString('id-ID')} comparable · ${d.structuralBreakChanges.toLocaleString('id-ID')} structural break`}/>
         <Card label="PIT eligible" value={`${d.pitEligibleSnapshots}/${d.minPitSnapshotsForPredictiveStudy} snapshot`} sub={`${d.pitEligibleRows.toLocaleString('id-ID')} row · lag ≤ ${d.maxPublicationLagDaysAllowed} hari`}/>
         <Card label="Threshold research" value={d.thresholdResearchStatus} sub="tidak mengaktifkan label otomatis"/>
       </div>

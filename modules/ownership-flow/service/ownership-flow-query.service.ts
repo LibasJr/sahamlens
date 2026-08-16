@@ -30,7 +30,7 @@ import { computeDeltaSet, computePreviousPeriodChange, type ObservationPoint } f
 // baca (§29).
 
 /** Versi kunci cache. Bump kalau BENTUK payload atau cara delta dihitung berubah. */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v4';
 
 function cacheKey(ticker: string): string {
   return `sahamlens:cache:ownership-flow:${CACHE_VERSION}:ticker:${ticker}`;
@@ -61,9 +61,9 @@ interface CachedOwnershipCore {
 }
 
 const EMPTY_DELTA_SET: OwnershipDeltaSet = {
-  d1: { pp: null, basisObservedDate: null, actualGapDays: null },
-  d7: { pp: null, basisObservedDate: null, actualGapDays: null },
-  d30: { pp: null, basisObservedDate: null, actualGapDays: null },
+  d1: { pp: null, basisObservedDate: null, actualGapDays: null, structuralBreak: false, structuralBreakReason: null },
+  d7: { pp: null, basisObservedDate: null, actualGapDays: null, structuralBreak: false, structuralBreakReason: null },
+  d30: { pp: null, basisObservedDate: null, actualGapDays: null, structuralBreak: false, structuralBreakReason: null },
 };
 
 const EMPTY_PREVIOUS: OwnershipPeriodChange = {
@@ -72,6 +72,10 @@ const EMPTY_PREVIOUS: OwnershipPeriodChange = {
   foreignPp: null,
   localPp: null,
   scriplessPp: null,
+  structuralBreak: false,
+  structuralBreakReason: null,
+  basisTotalSecurities: null,
+  currentTotalSecurities: null,
 };
 
 function toPoints(rows: OwnershipHistoryRow[]): ObservationPoint[] {
@@ -80,6 +84,7 @@ function toPoints(rows: OwnershipHistoryRow[]): ObservationPoint[] {
     foreignPct: row.foreignPct,
     localPct: row.localPct,
     scriplessPct: row.scriplessPct,
+    totalSecurities: row.totalSecurities,
   }));
 }
 
@@ -167,6 +172,7 @@ function decorate(core: CachedOwnershipCore, now?: Date): OwnershipFlowView {
   const source = (core.source ? getSourceById(core.source) : null) ?? getPrimarySource();
   const { freshness, ageDays } = assessFreshness(core.observedDate, source.cadence, now ?? new Date());
   const classification = classifyOwnershipTrend(core.delta);
+  const structuralBreak = core.previous.structuralBreak;
 
   return {
     ticker: core.ticker,
@@ -180,11 +186,13 @@ function decorate(core: CachedOwnershipCore, now?: Date): OwnershipFlowView {
     totalSecurities: core.totalSecurities,
     delta: core.delta,
     previous: core.previous,
-    trend: core.observedDate === null ? 'INSUFFICIENT_DATA' : classification.trend,
+    trend: core.observedDate === null || structuralBreak ? 'INSUFFICIENT_DATA' : classification.trend,
     trendReason:
       core.observedDate === null
         ? 'Belum ada observasi kepemilikan yang tersimpan untuk emiten ini.'
-        : classification.reason,
+        : structuralBreak
+          ? 'Perubahan antar-snapshot tidak dihitung karena jumlah efek (Sec. Num) berubah. Ini diperlakukan sebagai structural break/corporate-action guard, bukan foreign flow.'
+          : classification.reason,
     freshness,
     ageDays,
     cadence: source.cadence,
@@ -223,7 +231,7 @@ function listCacheKey(tickers: string[]): string {
   // Universe SahamLens bisa berubah walaupun jumlah emitennya sama. Hash isi
   // ticker mencegah payload universe lama dipakai untuk universe baru.
   const signature = createHash('sha1').update(tickers.join(',')).digest('hex').slice(0, 16);
-  return `sahamlens:cache:ownership-flow:v3:list:${signature}`;
+  return `sahamlens:cache:ownership-flow:v4:list:${signature}`;
 }
 
 function emptyListCore(ticker: string): CachedOwnershipListRow {
@@ -260,6 +268,7 @@ async function buildOwnershipFlowListCore(
     const comparableHistory = history.filter((row) => row.source === latest.source);
     const points = toPoints(comparableHistory);
     const delta = computeDeltaSet(points);
+    const previous = computePreviousPeriodChange(points);
 
     return {
       ticker,
@@ -268,8 +277,8 @@ async function buildOwnershipFlowListCore(
       localPct: latest.localPct,
       source: latest.source,
       delta,
-      previous: computePreviousPeriodChange(points),
-      trend: classifyOwnershipTrend(delta).trend,
+      previous,
+      trend: previous.structuralBreak ? 'INSUFFICIENT_DATA' : classifyOwnershipTrend(delta).trend,
     };
   });
 }

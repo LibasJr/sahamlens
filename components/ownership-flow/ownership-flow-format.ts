@@ -34,6 +34,10 @@ export interface OwnershipFlowApiRow {
     foreignPp: number | null;
     localPp: number | null;
     scriplessPp: number | null;
+    structuralBreak: boolean;
+    structuralBreakReason: 'TOTAL_SECURITIES_CHANGED' | null;
+    basisTotalSecurities: number | null;
+    currentTotalSecurities: number | null;
   };
   trend: OwnershipTrendKey;
   freshness: FreshnessKey;

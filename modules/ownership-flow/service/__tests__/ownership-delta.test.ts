@@ -159,4 +159,18 @@ describe('computePreviousPeriodChange', () => {
     expect(result.foreignPp).toBeNull();
     expect(result.localPp).toBeNull();
   });
+
+  it('menahan delta bila total securities berubah antar-snapshot', () => {
+    const result = computePreviousPeriodChange([
+      { observedDate: '2025-04-30', foreignPct: 20, localPct: 80, scriplessPct: 100, totalSecurities: 2_676_887_872 },
+      { observedDate: '2025-06-30', foreignPct: 21, localPct: 79, scriplessPct: 100, totalSecurities: 5_000_000_000 },
+    ]);
+    expect(result.structuralBreak).toBe(true);
+    expect(result.structuralBreakReason).toBe('TOTAL_SECURITIES_CHANGED');
+    expect(result.foreignPp).toBeNull();
+    expect(result.localPp).toBeNull();
+    expect(result.basisTotalSecurities).toBe(2_676_887_872);
+    expect(result.currentTotalSecurities).toBe(5_000_000_000);
+  });
+
 });
