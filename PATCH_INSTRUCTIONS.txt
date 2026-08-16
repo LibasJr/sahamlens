@@ -1,43 +1,15 @@
-SahamLens D-1 Market Data Integrity — Phase 1
-=============================================
+SahamLens Transparency Production Build Fix
 
-Status audit setelah patch: TERBUKA -> SEBAGIAN.
-Patch ini menutup langkah teknis pertama D-1: comparator close harian, reconciliation,
-circuit breaker, quality status, cron, admin/public transparency. Risiko lisensi dan
-ketergantungan Yahoo untuk fundamental/earnings belum dianggap selesai.
+Masalah:
+- /transparency diprerender saat next build.
+- import repository market-data langsung menarik postgres.client.
+- CI build tidak memiliki DATABASE_URL, sehingga prerender gagal.
 
-ENV yang perlu ditambahkan ke .env.production bila belum ada:
-MARKET_RECON_ENABLED=true
-MARKET_RECON_UNIVERSE_LIMIT=200
-MARKET_RECON_YAHOO_CONCURRENCY=4
-IDX_PUBLIC_STOCK_SUMMARY_URL=https://www.idx.co.id/umbraco/Surface/TradingSummary/GetStockSummary
-PROVIDER_CIRCUIT_FAILURE_THRESHOLD=5
-PROVIDER_CIRCUIT_OPEN_SEC=900
+Fix:
+- force dynamic rendering untuk /transparency.
+- lazy import repository hanya saat request runtime.
+- reconciliation section fail-soft jika DB sementara unavailable.
+- TIDAK menambahkan DATABASE_URL ke GitHub Actions.
 
-Deployment:
-1) Copy seluruh isi ZIP ke root /opt/sahamlens/app dan overwrite file terkait.
-2) Migration dry-run:
-   node --env-file=.env.production scripts/migrate-database.mjs
-3) Confirm migration:
-   node --env-file=.env.production scripts/migrate-database.mjs --confirm
-4) npm run verify:prod (atau tunggu CI GitHub hijau)
-5) sudo systemctl restart sahamlens
-6) Install timer:
-   bash deploy/market-data-reconcile/install.sh
-7) Test manual:
-   sudo systemctl start sahamlens-market-data-reconcile.service
-   sudo journalctl -u sahamlens-market-data-reconcile.service -n 150 --no-pager
-8) Audit:
-   node --env-file=.env.production scripts/audit-market-data-reconciliation.mjs
-
-UI:
-- Admin: /admin/data-integrity
-- Public evidence: /transparency
-- Ticker warning: /technical/<ticker>
-
-IMPORTANT:
-- Secondary IDX public endpoint is VERIFY-ONLY. Patch tidak menyajikan ulang harga mentah
-  IDX sebagai fallback publik.
-- Jika IDX membalas 403/429, jangan turunkan quality gate. Gunakan feed IDX EoD/redistributor
-  berlisensi untuk menutup sisi legal dan reliability D-1 secara penuh.
-- MISMATCH, PRIMARY_ONLY, SECONDARY_ONLY, dan NO_DATA tidak pernah dihitung sebagai MATCH.
+File:
+app/transparency/page.tsx
