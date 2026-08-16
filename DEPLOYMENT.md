@@ -42,6 +42,11 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Konsensus LensTechnical memakai label sinyal aman
+
+- Kartu Konsensus Analyzer di `/dashboard` sekarang menerjemahkan classifier internal `STRONG BUY`/`BUY`/`SELL` menjadi label presentasi sinyal yang sama dengan halaman teknikal lain.
+- Persentase tetap ditampilkan sebagai `Keselarasan analyzer`, bukan confidence atau ajakan transaksi; rumus vote dan scoring tidak berubah.
+
 ### 2026-08-16 - Timer intraday-collect terpasang di VPS
 
 - Diverifikasi dari `systemctl list-timers --all`: `sahamlens-intraday-collect.timer` aktif dan eksekusi otomatis pertama dijadwalkan Senin 2026-08-17 sekitar 17:30 WIB.
