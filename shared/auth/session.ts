@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { decrypt, type SessionPayload } from './jwt';
 import { SESSION_COOKIE, ADMIN_COOKIE } from '../constants/cookie-names';
-import { verifyAdminToken } from './admin-token';
+import { verifyAdminTokenLive } from './admin-token-live';
 import { touchPresence } from './presence';
 import { fetchLiveProFields } from './pro-status';
 import { TESTING_OPEN_ACCESS } from '../constants/access';
@@ -35,7 +35,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   // LensTechnical/Analyzer) memanggil getSession() dan menganggap admin belum login.
   // Fallback ini menyatukan kedua jalur otorisasi tanpa mempercayai badge cookie
   // client-side: hanya ADMIN_COOKIE HttpOnly yang JWT-nya lolos verifyAdminToken().
-  if (await verifyAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) {
+  if (await verifyAdminTokenLive(cookieStore.get(ADMIN_COOKIE)?.value)) {
     return {
       id: '__sahamlens_admin__',
       email: 'admin@sahamlens.local',
@@ -49,10 +49,14 @@ export async function getSession(): Promise<SessionPayload | null> {
   return null;
 }
 
-function isProExpired(expiresAt: string | null | undefined): boolean {
-  if (!expiresAt) return false; // null/undefined = tanpa batas
-  return new Date(expiresAt) <= new Date();
+function hasActiveProExpiry(expiresAt: string | null | undefined): boolean {
+  // Non-admin paid access must always have an explicit expiry. Null used to mean
+  // unlimited access; production hardening makes missing entitlement metadata fail closed.
+  if (!expiresAt) return false;
+  const time = new Date(expiresAt).getTime();
+  return Number.isFinite(time) && time > Date.now();
 }
+
 
 // role === 'pro' SENGAJA tidak lagi memberi akses sendiri: tidak ada satu baris kode pun
 // yang menulis nilai itu (hanya is_pro yang pernah ditulis), sementara membiarkannya
@@ -62,23 +66,24 @@ export function checkProAccess(session: SessionPayload | null): boolean {
   if (!session) return false;
   if (TESTING_OPEN_ACCESS) return true;
   if (session.role === 'admin') return true;
-  if (session.is_pro && !isProExpired(session.pro_expires_at)) return true;
+  if (session.is_pro && hasActiveProExpiry(session.pro_expires_at)) return true;
   if (session.trial_ends_at && new Date(session.trial_ends_at) > new Date()) return true;
   return false;
 }
 
-// checkProAccess() sinkron cuma baca snapshot JWT - basi sampai TTL sesi (s/d
-// 30 hari dengan "ingat saya") kalau admin baru saja mengaktifkan Pro lewat
-// /admin (lihat modules/user/controller/admin.controller.ts
-// handleSetProStatus). Versi ini re-check sekali ke DB HANYA kalau JWT bilang
-// "tidak" - kalau JWT sudah bilang "ya", tidak ada query DB tambahan sama
-// sekali (jalur cepat untuk mayoritas request Pro user yang sesinya masih
-// segar). Gagal-aman: DB error -> tetap tolak (fail-closed), bukan meloloskan
-// user yang mestinya tidak akses.
+// checkProAccess() sinkron hanya membaca snapshot JWT dan dipakai untuk presentasi ringan.
+// Saat monetisasi benar-benar aktif (TESTING_OPEN_ACCESS=false), keputusan entitlement
+// server-side HARUS memanggil checkProAccessLive(): DB menjadi source of truth agar revoke/
+// perubahan expiry tidak menunggu remembered JWT kedaluwarsa sampai 30 hari. Gagal baca DB
+// => fail-closed. Selama fase testing-open, query live sengaja dilewati.
 export async function checkProAccessLive(session: SessionPayload | null): Promise<boolean> {
-  if (checkProAccess(session)) return true;
   if (!session) return false;
+  if (TESTING_OPEN_ACCESS) return true;
+  if (session.role === 'admin') return true;
   try {
+    // When paid enforcement is active, DB is the entitlement source of truth on every
+    // protected decision. A 30-day remembered JWT must not keep access after an admin
+    // revokes Pro or after the database expiry changes.
     const live = await fetchLiveProFields(session.id);
     if (!live) return false;
     return checkProAccess({
@@ -94,28 +99,15 @@ export async function checkProAccessLive(session: SessionPayload | null): Promis
 }
 
 /**
- * Gerbang akses SUMBER TUNGGAL untuk seluruh fitur analisis - dipakai di tempat yang
- * dulu memanggil checkProAccessLive langsung untuk memutuskan 402 SUBSCRIPTION_REQUIRED.
+ * Gerbang akses analisis yang konsisten untuk guest maupun akun.
  *
- * KEPUTUSAN PRODUK (2026-08-13): pengunjung TANPA akun (`session === null`) diberi akses
- * PENUH tanpa batas waktu ke seluruh fitur analisis - tidak ada lagi trial 7 hari yang
- * berakhir untuk tamu. Yang TETAP wajib akun bukan karena Pro, tapi karena datanya
- * milik satu identitas yang harus tersimpan: Portfolio dan Watchlist (digerbang
- * terpisah lewat getSession() != null di masing-masing endpoint, TIDAK lewat fungsi
- * ini - lihat shared/constants/access.ts).
- *
- * Untuk user yang SUDAH PUNYA AKUN, perilaku TIDAK berubah - tetap checkProAccessLive
- * (trial akun 7 hari sejak verifikasi, lalu wajib Pro). Ini sengaja membuat tamu LEBIH
- * longgar daripada akun gratis yang trialnya sudah habis - akun yang trial-nya berakhir
- * diarahkan ke upgrade lewat alur yang sudah ada (TrialExpiredGate/PaywallModal), bukan
- * dibandingkan dengan tamu. Konsekuensi ini disengaja dan diketahui pemilik produk, bukan
- * celah yang tidak disadari.
- *
- * JANGAN pakai fungsi ini untuk fitur yang menyimpan/membaca data milik pengguna
- * (portfolio, watchlist, alert) - di situ "punya akses" dan "sedang login sebagai siapa"
- * adalah pertanyaan yang sama, dan fungsi ini sengaja tidak bisa menjawab siapa.
+ * Selama TESTING_OPEN_ACCESS=true seluruh pengguna (termasuk guest) memang dibuka.
+ * Saat monetisasi diaktifkan dengan mengubah flag itu ke false, guest TIDAK boleh tetap
+ * mendapat akses penuh sementara akun gratis ditolak; guest harus login lebih dulu lalu
+ * melewati entitlement normal. Ini menutup bypass sederhana "logout untuk jadi lebih bebas".
  */
 export async function hasOpenOrProAccess(session: SessionPayload | null): Promise<boolean> {
-  if (!session) return true;
+  if (TESTING_OPEN_ACCESS) return true;
+  if (!session) return false;
   return checkProAccessLive(session);
 }

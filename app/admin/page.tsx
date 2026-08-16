@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer, Users } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer, TrendingUp, Users } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -10,6 +10,8 @@ import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
 import CreateTestUserForm from './CreateTestUserForm';
 import ChangeSecretForm from './ChangeSecretForm';
+import { listRecentPaymentOrders } from '@/modules/payment/repository/payment-order.repository';
+import { formatRupiah } from '@/shared/config/pricing';
 
 // Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
 // mewarisinya - meski pengunjung non-admin dialihkan, tidak ada alasan rute ini
@@ -57,11 +59,12 @@ export default async function AdminPage() {
 
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
-  const [activeUsers, activityReport, recentAuthEvents, funnelSummary] = await Promise.all([
+  const [activeUsers, activityReport, recentAuthEvents, funnelSummary, recentPayments] = await Promise.all([
     getActiveUsers(),
     getAdminUserActivityReport(),
     getRecentAuthEvents(),
     getProductFunnelSummary(),
+    listRecentPaymentOrders(20),
   ]);
   const snapshotAt = new Date().toISOString();
 
@@ -91,6 +94,33 @@ export default async function AdminPage() {
           <ExportButton />
         </div>
         <SetProForm />
+        <div className="mb-8 overflow-hidden rounded-lg border border-tv-border bg-tv-card">
+          <div className="border-b border-tv-border px-5 py-4">
+            <h2 className="font-heading text-lg font-bold text-tv-text">Payment Order Terbaru</h2>
+            <p className="mt-1 text-xs text-tv-muted">Audit klaim transfer sebelum aktivasi Pro. Status PAID hanya muncul setelah rekonsiliasi admin berhasil satu transaksi dengan entitlement.</p>
+          </div>
+          {recentPayments.length === 0 ? (
+            <p className="px-5 py-5 text-sm text-tv-muted">Belum ada payment order.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="bg-tv-bg text-tv-muted"><tr><th className="px-4 py-3">Waktu</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Paket</th><th className="px-4 py-3">Nominal</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Referensi</th></tr></thead>
+                <tbody>
+                  {recentPayments.map((order) => (
+                    <tr key={order.id} className="border-t border-tv-border">
+                      <td className="whitespace-nowrap px-4 py-3 text-tv-muted">{waktuWib(order.createdAt)}</td>
+                      <td className="px-4 py-3 text-tv-text">{order.email ?? '—'}</td>
+                      <td className="px-4 py-3 font-number text-tv-text">{order.planCode}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-number text-tv-text">{order.amountIdr == null ? '—' : formatRupiah(order.amountIdr)}</td>
+                      <td className="px-4 py-3 font-bold text-tv-text">{order.status}</td>
+                      <td className="max-w-[260px] truncate px-4 py-3 font-number text-tv-muted" title={order.externalReference ?? ''}>{order.externalReference ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         <CreateTestUserForm />
         <ChangeSecretForm />
 
@@ -151,6 +181,21 @@ export default async function AdminPage() {
             Ownership Flow BUKAN penggantinya: keduanya mengukur besaran berbeda
             (transaksi per broker vs komposisi kepemilikan) - lihat
             docs/ownership-flow/broker-vs-ownership.md. */}
+        <Link
+          href="/admin/ownership-flow-validation"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Ownership Flow Validation Lab</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Audit distribusi delta foreign/local dan gate point-in-time sebelum label akumulasi/distribusi boleh divalidasi.
+            </p>
+          </div>
+        </Link>
+
         <Link
           href="/admin/broker-summary"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 opacity-60 hover:border-tv-borderLight hover:bg-tv-hover hover:opacity-100 transition-all"

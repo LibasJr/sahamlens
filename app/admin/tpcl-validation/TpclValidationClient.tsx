@@ -212,8 +212,22 @@ export default function TpclValidationClient() {
       if (!res.ok) throw new Error(json?.error || 'Aksi TP/CL gagal');
 
       if (action === 'run_validation') {
-        setData(json as Dashboard);
-        setActionMessage(`Validasi TP/CL ${historyRangeLabel(historyRange)} selesai dihitung ulang dari histori dan OHLC terbaru. Cache range ini diperbarui selama 30 menit.`);
+        const runId = String(json?.runId ?? '');
+        if (!runId) throw new Error('Server tidak mengembalikan research run id.');
+        setActionMessage(`Research run ${historyRangeLabel(historyRange)} masuk antrean. Worker VPS akan memprosesnya; Anda boleh meninggalkan halaman karena status/hasil tersimpan persisten.`);
+        for (let attempt = 0; attempt < 600; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const statusRes = await fetch(`/api/admin/tpcl-validation/runs?id=${encodeURIComponent(runId)}`, { cache: 'no-store' });
+          const run = await statusRes.json();
+          if (!statusRes.ok) throw new Error(run?.error || 'Gagal membaca status research run');
+          setActionMessage(`Research run ${historyRangeLabel(historyRange)}: ${run.status} · ${run.progressPct ?? 0}%`);
+          if (run.status === 'SUCCEEDED') {
+            if (run.result) setData(run.result as Dashboard);
+            setActionMessage(`Validasi TP/CL ${historyRangeLabel(historyRange)} selesai. Run ${runId.slice(0, 8)} tersimpan di database dan cache dashboard diperbarui.`);
+            break;
+          }
+          if (run.status === 'FAILED') throw new Error(run.errorMessage || 'Research run TP/CL gagal');
+        }
       } else {
         setActionMessage(json?.reason || 'Cache hasil TP/CL Validation Lab dihapus.');
       }
@@ -261,8 +275,8 @@ export default function TpclValidationClient() {
         <div className="border-b border-tv-border px-5 py-4">
           <h2 className="font-heading text-lg font-bold">Aksi Riset TP / CL</h2>
           <p className="mt-1 text-xs text-tv-muted max-w-4xl">
-            Validasi ulang mengambil OHLC harian terbaru dan menghitung protocol TP/CL dari awal. Aksi di sini tidak mengubah
-            parameter production, LensScore, ataupun histori LensRadar. Hasil dashboard di-cache 30 menit agar membuka menu berulang tidak lambat.
+            Validasi ulang membuat research run persisten, lalu mengambil OHLC harian terbaru dan menghitung protocol TP/CL dari awal. Aksi di sini tidak mengubah
+            parameter production, LensScore, ataupun histori LensRadar. Hasil run disimpan di database dan dashboard di-cache 30 menit agar membuka menu berulang tidak lambat.
           </p>
         </div>
         <div className="p-5">

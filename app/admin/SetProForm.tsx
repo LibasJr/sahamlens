@@ -16,6 +16,8 @@ export default function SetProForm() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [customDate, setCustomDate] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [reconciliationNote, setReconciliationNote] = useState('');
   const [status, setStatus] = useState<Status | null>(null);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -53,7 +55,11 @@ export default function SetProForm() {
       const res = await fetch('/api/admin/set-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), ...payload }),
+        body: JSON.stringify({
+          email: email.trim(),
+          ...payload,
+          ...(payload.isPro && paymentReference.trim() ? { paymentReference: paymentReference.trim(), reconciliationNote: reconciliationNote.trim() || undefined } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -109,40 +115,80 @@ export default function SetProForm() {
         </p>
       )}
 
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-tv-muted">Referensi pembayaran (opsional)</label>
+          <input
+            type="text"
+            value={paymentReference}
+            onChange={(e) => setPaymentReference(e.target.value)}
+            placeholder="UUID dari klaim pembayaran user"
+            className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-tv-muted">Catatan rekonsiliasi (opsional)</label>
+          <input
+            type="text"
+            value={reconciliationNote}
+            onChange={(e) => setReconciliationNote(e.target.value)}
+            placeholder="Contoh: transfer BCA sudah cocok"
+            maxLength={500}
+            className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          />
+        </div>
+        <p className="md:col-span-2 text-[11px] leading-relaxed text-tv-muted">
+          Jika referensi diisi, aktivasi Pro juga menandai Payment Order sebagai PAID. Email dan referensi harus cocok; satu referensi tidak dapat dipakai dua kali.
+        </p>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        {paymentReference.trim() ? (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => simpan({ isPro: true })}
+            className={`bg-tv-green ${tombol}`}
+          >
+            Aktifkan Sesuai Payment Order
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => simpan({ isPro: true, months: 1 })}
+              className={`bg-tv-green ${tombol}`}
+            >
+              +1 Bulan
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => simpan({ isPro: true, months: 12 })}
+              className={`bg-tv-green ${tombol}`}
+            >
+              +1 Tahun
+            </button>
+            <input
+              type="date"
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              className="bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text focus:outline-none focus:border-tv-blue"
+            />
+            <button
+              type="button"
+              disabled={loading || !customDate}
+              onClick={() => simpan({ isPro: true, expiresAt: new Date(customDate).toISOString() })}
+              className={`bg-tv-blue ${tombol}`}
+            >
+              Set Tanggal
+            </button>
+          </>
+        )}
         <button
           type="button"
-          disabled={loading}
-          onClick={() => simpan({ isPro: true, months: 1 })}
-          className={`bg-tv-green ${tombol}`}
-        >
-          +1 Bulan
-        </button>
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => simpan({ isPro: true, months: 12 })}
-          className={`bg-tv-green ${tombol}`}
-        >
-          +1 Tahun
-        </button>
-        <input
-          type="date"
-          value={customDate}
-          onChange={(e) => setCustomDate(e.target.value)}
-          className="bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text focus:outline-none focus:border-tv-blue"
-        />
-        <button
-          type="button"
-          disabled={loading || !customDate}
-          onClick={() => simpan({ isPro: true, expiresAt: new Date(customDate).toISOString() })}
-          className={`bg-tv-blue ${tombol}`}
-        >
-          Set Tanggal
-        </button>
-        <button
-          type="button"
-          disabled={loading}
+          disabled={loading || Boolean(paymentReference.trim())}
           onClick={() => simpan({ isPro: false })}
           className={`bg-tv-red ${tombol}`}
         >
@@ -151,8 +197,9 @@ export default function SetProForm() {
       </div>
 
       <p className="text-[11px] text-tv-muted mt-3">
-        Tombol durasi menumpuk dari tanggal berakhir kalau masa berlakunya belum habis, jadi
-        sisa hari yang sudah dibayar tidak hangus.
+        {paymentReference.trim()
+          ? 'Jika Payment Order dipakai, durasi Pro selalu diambil dari paket yang tercatat pada order; admin tidak dapat mengganti durasinya manual.'
+          : 'Tombol durasi menumpuk dari tanggal berakhir kalau masa berlakunya belum habis, jadi sisa hari yang sudah dibayar tidak hangus.'}
       </p>
 
       {message && (

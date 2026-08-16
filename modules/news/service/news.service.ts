@@ -1,5 +1,6 @@
 import Parser from 'rss-parser';
 import { generateAI } from '@/lib/aiProviders';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import {
   classifyEventByRules,
   type StructuredEventIntelligence,
@@ -52,8 +53,17 @@ export type NewsItem = {
 };
 
 async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
+  const startedAt = Date.now();
+  const sourceId = `RSS_${new URL(feed.url).hostname.replace(/^www\./, '').replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`;
   try {
     const parsed = await parser.parseURL(feed.url);
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({
+      sourceId,
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      dataObservedAt: new Date().toISOString(),
+      detail: { feed: feed.name, items: parsed.items?.length ?? 0 },
+    });
     return (parsed.items || []).slice(0, limit).map((item) => ({
       title: (item.title || '').trim(),
       link: item.link || '',
@@ -62,6 +72,7 @@ async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
     }));
   } catch (e) {
     console.warn(`[news] Gagal fetch RSS ${feed.name}:`, e);
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId, ok: false, latencyMs: Date.now() - startedAt, detail: { feed: feed.name, error: e instanceof Error ? e.message : String(e) } });
     return [];
   }
 }

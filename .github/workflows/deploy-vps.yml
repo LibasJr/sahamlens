@@ -23,6 +23,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # workflow_run sudah hanya terpanggil setelah CI sukses. workflow_dispatch tetap
+      # berguna untuk redeploy manual, tetapi TIDAK boleh menjadi pintu belakang yang
+      # melewati typecheck/lint/test/build. Karena itu manual dispatch memverifikasi
+      # commit main lagi sebelum SSH.
+      - name: Checkout untuk verifikasi manual
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+
+      - name: Setup Node untuk verifikasi manual
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependency untuk verifikasi manual
+        if: github.event_name == 'workflow_dispatch'
+        run: npm ci
+
+      - name: Production gate untuk deploy manual
+        if: github.event_name == 'workflow_dispatch'
+        run: npm run verify:prod
+        env:
+          NODE_ENV: production
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY }}
+          APP_URL: https://sahamlens.id
+          NEXT_PUBLIC_APP_URL: https://sahamlens.id
+          NEXT_PUBLIC_TESTING_OPEN_ACCESS: ${{ vars.NEXT_PUBLIC_TESTING_OPEN_ACCESS || 'true' }}
+
       # PERBAIKAN 2026-08-12. Sebelumnya `env:` dan `run:` langkah ini menjorok 2 spasi -
       # lebih dangkal daripada `steps:` sendiri - sehingga SELURUH file gagal di-parse.
       # Gejalanya menyesatkan: run muncul bernama ".github/workflows/deploy-vps.yml"

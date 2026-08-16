@@ -4,7 +4,8 @@ guard();
 import { NextRequest } from 'next/server';
 import { runController } from '@/shared/http/next-response.adapter';
 import { handleSell } from '@/modules/portfolio';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 
 export async function POST(req: NextRequest) {
-  return runController(async () => handleSell(await req.json()), req);
+  return runController(async () => { assertTrustedSameOrigin(req); return handleSell(await req.json()); }, req);
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/shared/database/postgres.client', () => ({ pool: { query: vi.fn() } }));
+vi.mock('@/shared/database/migration-guard', () => ({ assertDatabaseMigrated: vi.fn(async () => {}) }));
 
 import { pool } from '@/shared/database/postgres.client';
 import { getRecentAuthEvents, recordAuthEvent } from '../user.repository';
@@ -8,7 +9,6 @@ import { getRecentAuthEvents, recordAuthEvent } from '../user.repository';
 describe('user auth events repository', () => {
   it('menyimpan audit tanpa IP mentah dan membatasi daftar terbaru', async () => {
     vi.mocked(pool.query)
-      .mockResolvedValueOnce({ rows: [] } as any) // ensureSchema
       .mockResolvedValueOnce({ rows: [] } as any) // insert event
       .mockResolvedValueOnce({ rows: [{
         id: 1, user_id: 'u-1', email: 'user@test.com', event_type: 'login',

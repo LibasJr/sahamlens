@@ -7,7 +7,7 @@ import { type NextRequest } from 'next/server';
 import { runController } from '@/shared/http/next-response.adapter';
 import { ForbiddenError, ConflictError, ValidationError } from '@/shared/errors/app-error';
 import { parseOrThrow } from '@/shared/validation/parse-or-throw';
-import { getTrustedAppOrigin } from '@/shared/http/server-origin';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { isAdminFromRequestCookies } from '@/modules/user';
@@ -65,21 +65,10 @@ const bodySchema = z.discriminatedUnion('action', [
  * Request tanpa header Origin (mis. curl admin dari server) tetap diizinkan - yang
  * ditolak hanyalah Origin yang JELAS berbeda dari origin aplikasi.
  */
-function assertSameOrigin(req: NextRequest): void {
-  const origin = req.headers.get('origin');
-  if (!origin) return;
-  const trusted = getTrustedAppOrigin();
-  const host = req.headers.get('host');
-  const allowed = new Set([trusted, host ? `https://${host}` : '', host ? `http://${host}` : ''].filter(Boolean));
-  if (!allowed.has(origin.replace(/\/$/, ''))) {
-    throw new ForbiddenError('Origin tidak dikenali');
-  }
-}
-
 export async function POST(req: NextRequest) {
   return runController(async () => {
     if (!(await isAdminFromRequestCookies(await cookies()))) throw new ForbiddenError();
-    assertSameOrigin(req);
+    assertTrustedSameOrigin(req);
 
     let raw: unknown;
     try {

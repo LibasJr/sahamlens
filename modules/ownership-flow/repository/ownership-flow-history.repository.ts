@@ -344,3 +344,20 @@ export async function getOwnershipHistoryStats(sourceId?: string): Promise<Owner
     latestSource,
   };
 }
+
+/** Seluruh histori satu source untuk audit distribusi/validation lab. Admin-only. */
+export async function listOwnershipHistoryBySource(
+  source: string,
+  limit = 100_000,
+): Promise<OwnershipHistoryRow[]> {
+  await ensureSharedSchema();
+  const { rows } = await pool.query(
+    `SELECT ${COLUMNS}
+       FROM ownership_flow_history
+      WHERE source = $1
+      ORDER BY ticker ASC, observed_date ASC
+      LIMIT $2`,
+    [source, Math.max(1, Math.min(limit, 500_000))],
+  );
+  return rows.map(mapRow);
+}

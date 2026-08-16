@@ -25,6 +25,17 @@ interface HealthPayload {
   timestamp?: string;
 }
 
+interface SourceHealthRow {
+  sourceId: string;
+  status: 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN';
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastLatencyMs: number | null;
+  consecutiveFailures: number;
+  dataObservedAt: string | null;
+  detail: Record<string, unknown>;
+}
+
 interface CacheRow {
   id: string;
   label: string;
@@ -112,6 +123,7 @@ export default function JobsMonitorClient() {
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [caches, setCaches] = useState<CacheRow[]>([]);
+  const [sourceHealth, setSourceHealth] = useState<SourceHealthRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,6 +140,7 @@ export default function JobsMonitorClient() {
       }
       setJobs(json.jobs ?? []);
       setCaches(json.caches ?? []);
+      setSourceHealth(json.sourceHealth ?? []);
       if (healthRes.ok) setHealth(await healthRes.json());
     } catch {
       setError('Gagal memuat status job');
@@ -182,6 +195,23 @@ export default function JobsMonitorClient() {
           <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
         </div>
       </div>
+
+      {sourceHealth.length > 0 && (
+        <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+          <h2 className="font-heading text-base font-bold text-tv-text">Data Source Health</h2>
+          <p className="mt-1 text-xs text-tv-muted">Status provider dicatat dari request nyata; kegagalan health logging tidak pernah mengubah data finansial.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {sourceHealth.map((source) => (
+              <div key={source.sourceId} className="rounded-lg border border-tv-border p-3">
+                <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold text-tv-text">{source.sourceId}</span><span className={`text-xs font-bold ${source.status === 'HEALTHY' ? 'text-tv-green' : 'text-tv-red'}`}>{source.status}</span></div>
+                <div className="mt-2 text-[11px] text-tv-muted">Sukses: {timeAgo(source.lastSuccessAt)} · gagal: {timeAgo(source.lastFailureAt)}</div>
+                <div className="mt-1 text-[11px] text-tv-muted">Latency terakhir: {source.lastLatencyMs == null ? '—' : `${source.lastLatencyMs} ms`} · kegagalan beruntun: {source.consecutiveFailures}</div>
+                {source.dataObservedAt && <div className="mt-1 text-[11px] text-tv-muted">Data observed: {timeAgo(source.dataObservedAt)}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-xl border border-tv-border bg-tv-card p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

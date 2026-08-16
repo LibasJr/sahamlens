@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { recordProductFunnelEvent, type ProductFunnelEventType } from '@/modules/user/repository/user.repository';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
+import { toErrorResponse } from '@/shared/errors/app-error';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +11,7 @@ const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}
 
 export async function POST(request: Request) {
   try {
+    assertTrustedSameOrigin(request);
     const body: unknown = await request.json();
     const value = body as { visitorId?: unknown; eventType?: unknown; feature?: unknown };
     if (
@@ -24,7 +27,9 @@ export async function POST(request: Request) {
       feature: value.feature,
     });
     return new NextResponse(null, { status: 204 });
-  } catch {
+  } catch (error) {
+    const mapped = toErrorResponse(error);
+    if (mapped.status < 500) return NextResponse.json(mapped.body, { status: mapped.status, headers: mapped.headers });
     return NextResponse.json({ error: 'Event funnel tidak dapat disimpan' }, { status: 500 });
   }
 }

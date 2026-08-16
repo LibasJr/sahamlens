@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 
 // Council AI multi-provider - sebelumnya SELURUH app cuma bisa pakai Gemini, dan kuota
 // gratis Gemini dibatasi PER MODEL PER HARI (20/hari/model - lihat lib/gemini.ts versi
@@ -635,10 +636,12 @@ function aggregateProviderFailure(failures: FailureKind[]): AIProviderErrorCode 
  * Tidak pernah membawa API key, URL rahasia, atau body error mentah ke consumer.
  */
 export async function generateAIResult(opts: { system?: string; prompt: string; json?: boolean; timeoutMs?: number }): Promise<GenerateAIResult> {
+  const startedAt = Date.now();
   const { system, prompt, json = false, timeoutMs = 8000 } = opts;
   const baseCombos = buildCombos();
 
   if (baseCombos.length === 0) {
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: false, latencyMs: Date.now() - startedAt, detail: { errorCode: 'NO_PROVIDER_CONFIGURED' } });
     return { text: null, errorCode: 'NO_PROVIDER_CONFIGURED', failureKinds: [] };
   }
 
@@ -671,6 +674,7 @@ export async function generateAIResult(opts: { system?: string; prompt: string; 
 
     if (result.text) {
       markSuccess(combo);
+      if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.kind === 'gemini' ? 'gemini' : combo.provider.name, model: combo.model } });
       return { text: result.text, errorCode: null, failureKinds: failures };
     }
 
@@ -684,7 +688,9 @@ export async function generateAIResult(opts: { system?: string; prompt: string; 
     `[AI] Semua ${combos.length} attempt smart-rotation gagal; ${cooling}/${baseCombos.length} combo sedang cooldown - error=${aggregateProviderFailure(failures)}`,
   );
 
-  return { text: null, errorCode: aggregateProviderFailure(failures), failureKinds: failures };
+  const errorCode = aggregateProviderFailure(failures);
+  if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: false, latencyMs: Date.now() - startedAt, detail: { errorCode, attempts: combos.length } });
+  return { text: null, errorCode, failureKinds: failures };
 }
 
 // Backward-compatible untuk seluruh caller existing yang hanya membutuhkan text/null.
@@ -886,10 +892,12 @@ export async function generateAIStream(opts: {
   timeoutMs?: number;
   onDelta: AIStreamDelta;
 }): Promise<GenerateAIResult> {
+  const startedAt = Date.now();
   const { system, prompt, timeoutMs = 8000, onDelta } = opts;
   const baseCombos = buildCombos();
 
   if (baseCombos.length === 0) {
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: false, latencyMs: Date.now() - startedAt, detail: { errorCode: 'NO_PROVIDER_CONFIGURED' } });
     return { text: null, errorCode: 'NO_PROVIDER_CONFIGURED', failureKinds: [] };
   }
 
@@ -917,6 +925,7 @@ export async function generateAIStream(opts: {
 
     if (result.text) {
       markSuccess(combo);
+      if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.kind === 'gemini' ? 'gemini' : combo.provider.name, model: combo.model } });
       return { text: result.text, errorCode: null, failureKinds: failures };
     }
 
@@ -930,5 +939,7 @@ export async function generateAIStream(opts: {
     }
   }
 
-  return { text: null, errorCode: aggregateProviderFailure(failures), failureKinds: failures };
+  const errorCode = aggregateProviderFailure(failures);
+  if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: false, latencyMs: Date.now() - startedAt, detail: { errorCode, attempts: combos.length, mode: 'stream' } });
+  return { text: null, errorCode, failureKinds: failures };
 }

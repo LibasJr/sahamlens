@@ -5,6 +5,7 @@ import { isProtectedPage, TESTING_OPEN_ACCESS } from '@/shared/constants/access'
 import { decrypt } from '@/shared/auth/jwt';
 import { verifyAdminToken } from '@/shared/auth/admin-token';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
+import { getTrustedClientIp } from '@/shared/http/client-ip';
 
 // Next.js 16 mengganti file convention "middleware" jadi "proxy" (nama fungsi
 // & file berubah, perilaku/matcher sama - lihat node_modules/next/dist/docs/
@@ -29,10 +30,10 @@ const RATE_LIMIT_CONFIG = {
 // Auth endpoints need a much tighter pre-auth limit. This branch runs BEFORE
 // Pro/admin bypass logic, so a stale/forged entitlement cannot disable brute-force protection.
 const AUTH_RATE_LIMIT_CONFIG = { windowMs: 60_000, maxPerWindow: 10, blockMs: 15 * 60_000 };
+const ADMIN_AUTH_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 5, blockMs: 60 * 60_000 };
 
-function hasLiveProEntitlement(payload: any): boolean {
-  if (!payload?.is_pro) return false;
-  if (!payload.pro_expires_at) return true;
+function hasLiveProEntitlement(payload: Record<string, unknown> | null): boolean {
+  if (payload?.is_pro !== true || typeof payload.pro_expires_at !== 'string') return false;
   const expires = new Date(payload.pro_expires_at).getTime();
   return Number.isFinite(expires) && expires > Date.now();
 }
@@ -42,13 +43,7 @@ function hasLiveProEntitlement(payload: any): boolean {
 // boleh dibuka tidak pernah berbeda). Guest tetap MELIHAT semua menu di Sidebar, tapi
 // item terproteksi ditandai gembok dan diarahkan ke /login-required saat diklik.
 function getClientIp(req: NextRequest): string {
-  // NextRequest.ip dihapus di Next.js 15+ (Vercel Edge tidak lagi mengisinya di objek
-  // request) - x-forwarded-for sekarang satu-satunya sumber, diisi platform Vercel dari
-  // koneksi TCP asli di production dan tidak bisa dipalsukan klien selama request lewat
-  // proxy Vercel (selalu begitu untuk deployment ini).
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0].trim();
-  return req.headers.get('x-real-ip') || 'unknown';
+  return getTrustedClientIp(req.headers);
 }
 
 function isPublicGuestApi(pathname: string): boolean {
@@ -225,10 +220,12 @@ export async function proxy(req: NextRequest) {
     '/api/auth/verify',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
+    '/admin-login/key',
   ]);
   if (req.method === 'POST' && sensitiveAuthPaths.has(req.nextUrl.pathname)) {
     const ip = getClientIp(req);
-    const authRate = await checkRateLimitShared(`auth:${req.nextUrl.pathname}:${ip}`, Date.now(), AUTH_RATE_LIMIT_CONFIG);
+    const authConfig = req.nextUrl.pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : AUTH_RATE_LIMIT_CONFIG;
+    const authRate = await checkRateLimitShared(`auth:${req.nextUrl.pathname}:${ip}`, Date.now(), authConfig);
     if (!authRate.allowed) {
       return NextResponse.json(
         { error: 'Terlalu banyak percobaan autentikasi. Coba lagi nanti.' },
@@ -332,6 +329,7 @@ export async function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     '/api/auth/:path*',
+    '/admin-login/:path*',
     '/api/stock/:path*',
     '/api/fundamental/:path*',
     '/api/chat/:path*',
