@@ -84,12 +84,65 @@ export function htmlToText(html){
 function safeUrl(raw, base){try{return new URL(decodeHtml(raw),base).toString();}catch{return null;}}
 function hostAllowed(url, domains){try{const h=new URL(url).hostname.toLowerCase();return domains.some(d=>h===d||h.endsWith(`.${d}`));}catch{return false;}}
 
+function isGenericDocumentLinkTitle(title){
+  const t=String(title??'').replace(/\s+/g,' ').trim();
+  return !t || /^(?:view|download|open|lihat|unduh|pdf|document|file|detail|read more|selengkapnya)$/i.test(t);
+}
+
+function cleanContextDocumentTitle(value){
+  let t=String(value??'').replace(/\s+/g,' ').trim();
+  if(!t) return '';
+  t=t.replace(/\s*[|•·-]\s*\d+(?:[.,]\d+)?\s*(?:KB|MB|GB)\b.*$/i,'').trim();
+  t=t.replace(/\s*[|•·-]\s*(?:select|view|download|open|lihat|unduh)\s*$/i,'').trim();
+  return t.slice(0,300);
+}
+
+function contextualDocumentTitle(html, anchorStart, anchorAttrs, anchorInner, url){
+  const inner=cleanContextDocumentTitle(htmlToText(anchorInner));
+  if(!isGenericDocumentLinkTitle(inner)) return inner;
+
+  const attrs=String(anchorAttrs??'');
+  const attrCandidates=[];
+  for(const name of ['aria-label','title','data-title','data-name','data-file-name','download']){
+    const re=new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`,'i');
+    const m=attrs.match(re);
+    if(m?.[1]) attrCandidates.push(cleanContextDocumentTitle(decodeHtml(m[1])));
+  }
+  for(const candidate of attrCandidates){
+    if(!isGenericDocumentLinkTitle(candidate) && candidate.length>=4) return candidate;
+  }
+
+  // BCA and several issuer IR pages use a generic button text (for example
+  // "View") while the actual report name lives in the surrounding card/row.
+  // Inspect only the local DOM text before the anchor and require document or
+  // period cues; this avoids inheriting unrelated page headings/navigation.
+  const start=Math.max(0,Number(anchorStart??0)-2200);
+  const localHtml=String(html??'').slice(start,Number(anchorStart??0));
+  const lines=htmlToText(localHtml).split('\n').map(cleanContextDocumentTitle).filter(Boolean);
+  const positive=/(?:corporate\s+presentation|financial\s+(?:report|statement)|capital\s+and\s+risk\s+exposure|risk\s+exposure|analyst\s+meeting|quarterly|unaudited|audited|published\s+financial|\b(?:[1-4]q|q[1-4]|1h|9m|fy)\s*[-/]?\s*\d{2,4}\b|\b20\d{2}\b)/i;
+  const reject=/^(?:file name|file size|select|filter|year|apply|reset filter|download clear|total file(?: size)?)$/i;
+  for(let i=lines.length-1;i>=0;i--){
+    const candidate=lines[i];
+    if(candidate.length<4||candidate.length>300||reject.test(candidate)||isGenericDocumentLinkTitle(candidate)) continue;
+    if(positive.test(candidate)) return candidate;
+  }
+
+  try{
+    const u=new URL(url);
+    const fromUrl=cleanContextDocumentTitle(decodeURIComponent(path.basename(u.pathname)));
+    if(fromUrl&&!isGenericDocumentLinkTitle(fromUrl)) return fromUrl;
+  }catch{}
+  return inner||'Official document';
+}
+
 export function extractLinks(html, baseUrl){
   const out=[]; const seen=new Set(); const text=String(html??'');
-  const re=/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const re=/<a\b([^>]*)href\s*=\s*["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi;
   for(const m of text.matchAll(re)){
-    const url=safeUrl(m[1],baseUrl); if(!url||seen.has(url)) continue;
-    seen.add(url); out.push({url,title:htmlToText(m[2]).slice(0,300)});
+    const url=safeUrl(m[2],baseUrl); if(!url||seen.has(url)) continue;
+    const attrs=`${m[1]??''} ${m[3]??''}`;
+    const title=contextualDocumentTitle(text,m.index??0,attrs,m[4],url);
+    seen.add(url); out.push({url,title});
   }
   const bare=/(https?:\/\/[^\s"'<>]+(?:\.pdf(?:\?[^\s"'<>]*)?|\/api\/files\/\?[^\s"'<>]+))/gi;
   for(const m of text.matchAll(bare)){
@@ -179,7 +232,73 @@ function excludedMetricContext(metricKey, text){
   const s=String(text??'').toLowerCase();
   // Net NPL Formation is a flow / formation metric, not the Net NPL ratio.
   if(metricKey==='NPL_NET_PCT' && /(?:net\s+npl|npl\s+net)\s+formation/.test(s)) return true;
+  // "CASA growth" is deposit growth, not the CASA-to-funding ratio.
+  if(metricKey==='CASA_PCT' && /(?:strong\s+)?casa\s+growth|growth\s+(?:of\s+)?casa/.test(s)) return true;
   return false;
+}
+
+const SEGMENT_BOUNDARIES = [
+  'casa to total funding','casa ratio','casa','loan to deposit ratio','loan-to-deposit ratio','ldr',
+  'capital adequacy ratio','car','cost to income','cost-to-income','cir','npl coverage','coverage ratio',
+  'lar coverage','lar','roa','roe','loan yield','net npl formation','gross npl','npl gross','npl net','net npl',
+  'cost of credit','credit cost','coc (after recovery)','coc (gross)','nim','net interest margin',
+];
+
+function aliasIndex(text, alias, from=0){
+  const hay=String(text??'').toLowerCase(); const needle=String(alias??'').toLowerCase();
+  if(!needle) return -1;
+  if(needle.length<=3){
+    const re=new RegExp(`(?:^|[^a-z])(${escapeRegex(needle)})(?=[^a-z]|$)`,'ig');
+    re.lastIndex=from; const m=re.exec(hay); return m?m.index+m[0].toLowerCase().indexOf(needle):-1;
+  }
+  return hay.indexOf(needle,from);
+}
+
+function metricSegment(text, metricKey){
+  const line=String(text??''); const spec=METRIC_SPECS[metricKey]; if(!spec) return line;
+  const starts=spec.aliases.map(a=>({a,idx:aliasIndex(line,a)})).filter(x=>x.idx>=0).sort((a,b)=>a.idx-b.idx);
+  if(!starts.length) return line;
+  const start=starts[0].idx;
+  let end=line.length;
+  for(const boundary of SEGMENT_BOUNDARIES){
+    // For CoC, a second sub-definition (after recovery) is a real boundary.
+    let searchFrom=start+1;
+    let idx=aliasIndex(line,boundary,searchFrom);
+    if(idx<0) continue;
+    if(idx===start) continue;
+    if(idx<end) end=idx;
+  }
+  return line.slice(start,end).trim();
+}
+
+function approxDelta(current, previous, delta, tolerance=0.16){
+  return Number.isFinite(current)&&Number.isFinite(previous)&&Number.isFinite(delta)&&Math.abs((current-previous)-delta)<=tolerance;
+}
+
+function bbcaComparisonRowValue(metricKey, text, {ticker,periodEnd}={}){
+  if(String(ticker??'').toUpperCase()!=='BBCA.JK') return null;
+  const segment=metricSegment(text,metricKey);
+  const values=parsePctValues(segment);
+  if(values.length===5){
+    // BCA 1Q comparison rows: prior-year, prior-quarter/year-end, current, YoY delta, QoQ delta.
+    // Example CAR: 26.6 29.8 27.0 +0.4 -2.8 => current 27.0.
+    if(approxDelta(values[2],values[0],values[3])&&approxDelta(values[2],values[1],values[4])){
+      return {value:values[2],method:'BBCA_3_PERIOD_COMPARISON_WITH_DELTAS',segment};
+    }
+  }
+  if(values.length===6){
+    // BCA half-year/period rows are often two comparison triples:
+    // prior/current/delta + prior/current/delta. The first triple is the
+    // period-to-date/current-report comparison and therefore the auditable
+    // value for the report period. We only resolve when that arithmetic holds.
+    if(approxDelta(values[1],values[0],values[2])){
+      const month=Number(String(periodEnd??'').slice(5,7));
+      if([6,9,12].includes(month) || approxDelta(values[4],values[3],values[5])){
+        return {value:values[1],method:'BBCA_DUAL_COMPARISON_TRIPLE',segment};
+      }
+    }
+  }
+  return null;
 }
 
 function flattenedTrendSeriesValue(metricKey, text){
@@ -197,7 +316,7 @@ function flattenedTrendSeriesValue(metricKey, text){
   if(!Number.isFinite(value)) return null;
   return {value, method:'FLATTENED_TREND_LDR_FIRST_SERIES'};
 }
-function badContext(s){return /industry|peer|guidance|target|forecast|consensus|estimate|average|avg\.|5y|10y/i.test(s);}
+function badContext(s){return /industry|banking\s+sector|sector\s+saw|peer|guidance|target|forecast|consensus|estimate|average|avg\.|5y|10y/i.test(s);}
 function inferBasis(s){if(/bank[-\s]*only|bank[-\s]*entity|individual|individu/i.test(s)) return 'BANK_ONLY';if(/consolidated|konsolidas/i.test(s)) return 'CONSOLIDATED';return 'DISCLOSED_UNSPECIFIED';}
 function escapeRegex(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 function periodTokens(periodEnd){
@@ -239,14 +358,23 @@ export function extractMetricCandidates(text, options={}){
   const lines=rawLines.map(x=>x.replace(/\s+/g,' ').trim());
   const out=[];
   for(const [metricKey,spec] of Object.entries(METRIC_SPECS)){
+    const metricCandidates=[]; const fallbacks=[];
     for(let i=0;i<lines.length;i++){
       const line=lines[i]; if(!containsAlias(line,spec.aliases)) continue;
       if(excludedMetricContext(metricKey,line)) continue;
+      if(badContext(line)){
+        fallbacks.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(line)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(line)),confidence:0,extractionMethod:'SEMANTIC_CONTEXT_GUARD',sourceTitle,sourceUrl,rawExcerpt:line,status:'QUARANTINED',reason:'forecast_or_peer_context'});
+        continue;
+      }
       const local=[line,lines[i+1]??'',lines[i+2]??''].filter(Boolean);
       const oneLine=parsePctValues(line);
       const next=parsePctValues(lines[i+1]??'');
-      let values=[]; let method=''; let confidence=0; let periodTagged=false; let tableResolved=null;
-      if(oneLine.length===1){values=oneLine;method='EXACT_LABEL_SINGLE_VALUE';confidence=0.99;}
+      let values=[]; let method=''; let confidence=0; let periodTagged=false; let tableResolved=null; let resolvedExcerpt=null;
+
+      const bcaResolved=bbcaComparisonRowValue(metricKey,line,{ticker,periodEnd});
+      if(bcaResolved&&!badContext(line)){
+        values=[bcaResolved.value]; method=bcaResolved.method; confidence=0.992; resolvedExcerpt=bcaResolved.segment;
+      } else if(oneLine.length===1){values=oneLine;method='EXACT_LABEL_SINGLE_VALUE';confidence=0.99;}
       else if(oneLine.length===0&&next.length===1){values=next;method='LABEL_NEXT_LINE_SINGLE_VALUE';confidence=0.97;}
       else {
         const excerpt=local.join(' '); const excerptVals=parsePctValues(excerpt);
@@ -264,22 +392,31 @@ export function extractMetricCandidates(text, options={}){
               if(trendResolved&&!badContext(line)){
                 values=[trendResolved.value]; method=trendResolved.method; confidence=0.975;
               } else {
-                out.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(excerpt)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(excerpt)),confidence:0,extractionMethod:'AMBIGUOUS_MULTIPLE_VALUES',sourceTitle,sourceUrl,rawExcerpt:excerpt,status:'QUARANTINED',reason:`multiple_values:${excerptVals.join(',')}`});
-                break;
+                fallbacks.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(excerpt)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(excerpt)),confidence:0,extractionMethod:'AMBIGUOUS_MULTIPLE_VALUES',sourceTitle,sourceUrl,rawExcerpt:excerpt,status:'QUARANTINED',reason:`multiple_values:${excerptVals.join(',')}`});
+                continue;
               }
             }
           }
         } else continue;
       }
       const value=values[0];
-      const context=[tableResolved?.header??'',lines[i-1]??'',...local].filter(Boolean).join(' | ');
+      const context=[tableResolved?.header??'',lines[i-1]??'',resolvedExcerpt??'',...local].filter(Boolean).join(' | ');
       if((periodTagged?badContext(line):badContext(context))){
-        out.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence:0.2,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:context,status:'QUARANTINED',reason:'forecast_or_peer_context'}); break;
+        fallbacks.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence:0.2,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:context,status:'QUARANTINED',reason:'forecast_or_peer_context'}); continue;
       }
       if(value<spec.lo||value>spec.hi){
-        out.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence:0,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:context,status:'QUARANTINED',reason:`outside_guardrail:${spec.lo}..${spec.hi}`}); break;
+        fallbacks.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence:0,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:context,status:'QUARANTINED',reason:`outside_guardrail:${spec.lo}..${spec.hi}`}); continue;
       }
-      out.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:context,status:'CANDIDATE',reason:null}); break;
+      metricCandidates.push({ticker,periodEnd,metricKey,value,unit:'PCT',basis:(inferBasis(context)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(context)),confidence,extractionMethod:method,sourceTitle,sourceUrl,rawExcerpt:resolvedExcerpt??context,status:'CANDIDATE',reason:null});
+    }
+    // Do not let an early ambiguous chart suppress a later deterministic table
+    // in the same official document. Emit deterministic candidates when any
+    // exist; otherwise retain one representative quarantine row for audit.
+    if(metricCandidates.length) out.push(...metricCandidates);
+    else if(fallbacks.length){
+      const priority={forecast_or_peer_context:4,period_end_unresolved:3,conflicting_metric_definition:3};
+      fallbacks.sort((a,b)=>(priority[b.reason]??0)-(priority[a.reason]??0));
+      out.push(fallbacks[0]);
     }
   }
   return out;
@@ -375,7 +512,7 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
   try{
     await db.query('BEGIN');
     await db.query(`INSERT INTO bank_metric_collection_runs(run_id,mode,status,tickers,source_pages_checked,documents_discovered,documents_parsed,evidence_candidates,detail)
-      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:2, parserPolicy:'period-column deterministic; ambiguous/conflict/forecast/guardrail remain quarantined'})]);
+      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:3, parserPolicy:'period-column + BBCA arithmetic comparison rows; semantic guards; ambiguous/conflict/forecast/guardrail remain quarantined'})]);
     let inserted=0,existing=0;
     for(const r of accepted){
       const observedDate=TODAY;
