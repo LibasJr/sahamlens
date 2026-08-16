@@ -48,6 +48,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ARCHIVE_NAME_RE = /^BalanceposEfek(\d{8})\.zip$/i;
 const TXT_NAME_RE = /^Balancepos(\d{8})\.txt$/i;
 const DEFAULT_MIN_EQUITY = 100;
+const RETRYABLE_HTTP = new Set([408, 425, 429, 500, 502, 503, 504]);
+const MAX_FETCH_ATTEMPTS = 5;
 
 /**
  * @typedef {Object} ArchiveEntry
@@ -194,24 +196,58 @@ function mergeNodeOptions(existing = '') {
   return tokens.join(' ');
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch dengan retry terbatas untuk gangguan temporer KSEI.
+ * 4xx permanen selain 408/425/429 tetap fail-fast.
+ */
+async function fetchWithRetry(url, init, label, timeoutMs) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      if (response.ok) return response;
+
+      const error = new Error(`${label} HTTP ${response.status}`);
+      if (!RETRYABLE_HTTP.has(response.status) || attempt === MAX_FETCH_ATTEMPTS) {
+        throw error;
+      }
+      lastError = error;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt === MAX_FETCH_ATTEMPTS) throw lastError;
+    }
+
+    const delayMs = Math.min(2_000 * (2 ** (attempt - 1)), 12_000);
+    console.warn(`  retry ${label}: percobaan ${attempt}/${MAX_FETCH_ATTEMPTS} gagal; tunggu ${delayMs / 1000}s...`);
+    await sleep(delayMs);
+  }
+
+  throw lastError ?? new Error(`${label} gagal tanpa detail`);
+}
+
 async function fetchText(url) {
   const parsed = new URL(url);
   if (parsed.protocol !== 'https:' || parsed.hostname !== 'web.ksei.co.id') {
     throw new Error(`Host sumber ditolak: ${url}`);
   }
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     redirect: 'follow',
-    signal: AbortSignal.timeout(25_000),
     headers: {
       'user-agent': 'SahamLens-OwnershipFlow/1.0 (+operator backfill KSEI)',
       accept: 'text/html,application/xhtml+xml',
     },
-  });
+  }, 'KSEI archive page', 25_000);
 
-  if (!response.ok) {
-    throw new Error(`KSEI archive page HTTP ${response.status}`);
-  }
   return response.text();
 }
 
@@ -225,15 +261,13 @@ async function downloadZip(entry, destination) {
     throw new Error(`URL ZIP tidak lolos allowlist: ${entry.url}`);
   }
 
-  const response = await fetch(entry.url, {
+  const response = await fetchWithRetry(entry.url, {
     redirect: 'follow',
-    signal: AbortSignal.timeout(45_000),
     headers: {
       'user-agent': 'SahamLens-OwnershipFlow/1.0 (+operator backfill KSEI)',
       accept: 'application/zip,application/octet-stream,*/*',
     },
-  });
-  if (!response.ok) throw new Error(`download ${entry.fileName}: HTTP ${response.status}`);
+  }, `download ${entry.fileName}`, 45_000);
 
   const finalUrl = new URL(response.url);
   if (finalUrl.protocol !== 'https:' || finalUrl.hostname !== 'web.ksei.co.id') {
