@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { classifyChatIntent } from '../chat-intent';
+import { resolveChatDate } from '../chat-date';
 import { getFocusedMenuKnowledge } from '../menu-focus-knowledge';
 
-const classify = (prompt: string) => classifyChatIntent({ prompt, tickerCount: 0, history: [] });
+const classify = (prompt: string) => classifyChatIntent({
+  prompt,
+  date: resolveChatDate(prompt, []),
+  tickerCount: 0,
+  hasHistory: false,
+  history: [],
+});
 
 describe('LensAI product help - fitur baru SahamLens', () => {
   const productQuestions = [
