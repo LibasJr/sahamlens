@@ -49,8 +49,27 @@ const RETRYABLE: ReadonlySet<FetchErrorCode> = new Set<FetchErrorCode>([
   'NETWORK',
 ]);
 
-/** Status HTTP yang dihitung sebagai transien. */
-const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+/**
+ * Terjemahkan status HTTP menjadi sandi error kita.
+ *
+ * SELURUH 5xx transien (429, 500, 502, 503, 504, dst). Ini KOREKSI 2026-08-16
+ * dari temuan VPS: sebelumnya hanya {429, 502, 503, 504} yang terdaftar, jadi
+ * HTTP 500 jatuh ke cabang `CLIENT_ERROR` - salah dua kali sekaligus. 500 adalah
+ * kegagalan SERVER, bukan permintaan kita yang keliru, dan ia sering sesaat;
+ * akibatnya ia tidak pernah diulang padahal justru seharusnya diulang.
+ *
+ * Dipakai pengecekan RENTANG, bukan daftar status satu per satu - daftar hanya
+ * menunda masalah yang sama untuk 507/508 dan seterusnya.
+ *
+ * 429 tetap dipisahkan dari 5xx karena artinya berbeda bagi operator: yang satu
+ * "kita terlalu cepat" (turunkan konkurensi), yang satu "server sumber sedang
+ * bermasalah" (tunggu saja).
+ */
+function classifyHttpStatus(status: number): FetchErrorCode {
+  if (status === 429) return 'RATE_LIMITED';
+  if (status >= 500 && status <= 599) return 'SERVER_ERROR';
+  return 'CLIENT_ERROR';
+}
 
 /** Batas ukuran respons (byte). Halaman informasi emiten jauh di bawah ini;
  * apa pun yang lebih besar patut dicurigai dan tidak perlu kita tampung. */
@@ -120,11 +139,7 @@ export async function fetchOwnershipPage(
       });
 
       if (!response.ok) {
-        const code: FetchErrorCode = RETRYABLE_STATUS.has(response.status)
-          ? response.status === 429
-            ? 'RATE_LIMITED'
-            : 'SERVER_ERROR'
-          : 'CLIENT_ERROR';
+        const code = classifyHttpStatus(response.status);
         last = { code, message: `HTTP ${response.status}`, status: response.status };
         if (!RETRYABLE.has(code) || attempt === maxAttempts) {
           return outcome(false, last, startedAt, attempt, response);

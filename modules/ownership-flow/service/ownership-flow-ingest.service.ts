@@ -263,12 +263,18 @@ async function ingestOneTicker(
   logFetchOutcome('ownership-flow-scan', ticker, source.id, fetched);
 
   if (!fetched.ok || !fetched.body) {
+    // Retry terbatas sudah habis di dalam fetchOwnershipPage. Di titik ini
+    // ticker-nya ditandai SOURCE_ERROR dan cron LANJUT ke ticker berikutnya -
+    // satu emiten yang servernya bermasalah tidak boleh menghentikan 199 lainnya
+    // (§27). Sandi HTTP aslinya ikut dibawa supaya operator bisa membedakan
+    // "kita terlalu cepat" (RATE_LIMITED) dari "server sumber sakit"
+    // (SERVER_ERROR) dari "URL-nya memang salah" (CLIENT_ERROR).
     return {
       observation: null,
       failure: {
         ticker,
-        code: fetched.errorCode ?? 'FETCH_FAILED',
-        reason: fetched.error ?? 'Gagal mengambil halaman sumber',
+        code: 'SOURCE_ERROR',
+        reason: `${fetched.errorCode ?? 'FETCH_FAILED'}: ${fetched.error ?? 'Gagal mengambil halaman sumber'} (setelah ${fetched.attempts} percobaan)`,
       },
     };
   }

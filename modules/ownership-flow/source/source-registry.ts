@@ -83,8 +83,12 @@ export const KSEI_REGISTERED_SECURITY: OwnershipSourceDescriptor = {
   cadence: 'UNKNOWN',
   auditStatus: 'UNVERIFIED',
   auditNote:
-    'Struktur HTML belum diverifikasi. Sandbox pengembangan tidak punya outbound access ke web.ksei.co.id ' +
-    '(CONNECT 403 dari proxy environment) - itu keterbatasan sandbox, BUKAN bukti bahwa sumbernya tidak ada. ' +
+    'Struktur HTML belum diverifikasi penuh. Audit VPS 2026-08-16 menemukan struktur halaman terbaca, ' +
+    'TETAPI sebagian emiten (mis. TLKM) mengembalikan halaman ASLI dengan isi PLACEHOLDER: ' +
+    'Scripless/Local/Foreign semuanya 0,00% dan tanggal "As of" tidak terparse. ' +
+    'Karena itu "struktur terbukti" TIDAK cukup untuk menaikkan status ini - parser harus lolos test ' +
+    'terhadap fixture nyata (termasuk kasus placeholder yang WAJIB ditolak) lebih dulu. ' +
+    'Setiap ticker tetap divalidasi independen saat ingestion. ' +
     'Jalankan npm run audit:ksei-ownership di VPS, lampirkan fixture, baru naikkan status ini.',
   expectedFields: [
     'Security Name',

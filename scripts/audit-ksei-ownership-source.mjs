@@ -38,22 +38,112 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const BASE_URL = 'https://web.ksei.co.id/services/registered-securities/shares/lc';
+const DEFAULT_BASE_URL = 'https://web.ksei.co.id/services/registered-securities/shares/lc';
 
 /** Sampel default: bank besar, telko, konglomerasi, plus emiten kecil/likuiditas
  * rendah (GTSI/ERAL) - justru emiten kecil yang paling mungkin punya halaman
  * berbeda bentuk atau data tidak lengkap. */
 const DEFAULT_TICKERS = ['BBRI', 'BBCA', 'TLKM', 'ASII', 'GTSI', 'ERAL', 'SMRA'];
 
-/** Label yang HARUS ditemukan agar parser punya dasar. */
+/**
+ * Label yang HARUS ditemukan agar parser punya dasar.
+ *
+ * PENTING (koreksi 2026-08-16 dari temuan VPS): keberadaan LABEL tidak sama
+ * dengan keberadaan NILAI. Fixture TLKM nyata memuat label "As of" dengan
+ * lengkap, tetapi tanggal di sebelahnya tidak dapat diparse dan ketiga
+ * persentasenya 0,00%. Kalau audit hanya mencari labelnya, halaman kosong
+ * seperti itu akan dilaporkan LULUS - dan itu justru kesimpulan paling
+ * berbahaya yang bisa dihasilkan script ini.
+ *
+ * Karena itu setiap label di bawah punya `extract`: audit baru menandai `true`
+ * kalau NILAI di sebelah labelnya benar-benar terbaca.
+ */
 const REQUIRED_LABELS = [
-  { key: 'hasShortCode', patterns: [/short\s*code/i, /kode\s*efek/i] },
-  { key: 'hasNumberOfSecurities', patterns: [/number\s*of\s*securities/i, /jumlah\s*efek/i] },
-  { key: 'hasObservedDate', patterns: [/as\s*of/i, /per\s*tanggal/i, /posisi\s*per/i] },
-  { key: 'hasScriplessPercentage', patterns: [/scripless/i] },
-  { key: 'hasLocalPercentage', patterns: [/local\s*percentage/i, /persentase\s*lokal/i] },
-  { key: 'hasForeignPercentage', patterns: [/foreign\s*percentage/i, /persentase\s*asing/i] },
+  { key: 'hasShortCode', patterns: [/short\s*code/i, /kode\s*efek/i], kind: 'text' },
+  { key: 'hasNumberOfSecurities', patterns: [/number\s*of\s*securities/i, /jumlah\s*efek/i], kind: 'number' },
+  { key: 'hasObservedDate', patterns: [/as\s*of/i, /per\s*tanggal/i, /posisi\s*per/i], kind: 'date' },
+  { key: 'hasScriplessPercentage', patterns: [/scripless\s*percentage/i, /persentase\s*scripless/i, /scripless/i], kind: 'percent' },
+  { key: 'hasLocalPercentage', patterns: [/local\s*percentage/i, /persentase\s*lokal/i], kind: 'percent' },
+  { key: 'hasForeignPercentage', patterns: [/foreign\s*percentage/i, /persentase\s*asing/i], kind: 'percent' },
 ];
+
+/** Teks datar dari HTML - label dan nilainya jadi bertetangga. */
+function flatten(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' | ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/[ \t]+/g, ' ');
+}
+
+/**
+ * Ambil nilai yang mengikuti sebuah label, lalu buktikan ia benar-benar terbaca
+ * sesuai jenisnya. Mengembalikan { found, value } - `found` false kalau labelnya
+ * ada tapi nilainya kosong/tidak terparse.
+ */
+function extractLabeledValue(flat, patterns, kind) {
+  for (const re of patterns) {
+    const m = re.exec(flat);
+    if (!m) continue;
+    // Ambil potongan setelah label; batasi supaya tidak menyeret separuh halaman.
+    const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 160);
+    const cleaned = after.replace(/^[\s|:：]+/, '');
+    const token = cleaned.split('|')[0].trim();
+    if (!token) continue;
+
+    if (kind === 'percent') {
+      const num = parsePercentLike(token);
+      if (num !== null) return { found: true, value: num };
+      continue;
+    }
+    if (kind === 'number') {
+      const num = Number(token.replace(/[.,\s]/g, ''));
+      if (Number.isFinite(num) && token.replace(/[^\d]/g, '').length > 0) return { found: true, value: num };
+      continue;
+    }
+    if (kind === 'date') {
+      const parsed = parseDateLike(token);
+      if (parsed) return { found: true, value: parsed };
+      continue;
+    }
+    return { found: true, value: token };
+  }
+  return { found: false, value: null };
+}
+
+function parsePercentLike(token) {
+  const m = token.match(/-?[\d.,]+/);
+  if (!m) return null;
+  let t = m[0];
+  const hasDot = t.includes('.');
+  const hasComma = t.includes(',');
+  if (hasDot && hasComma) {
+    const dec = t.lastIndexOf(',') > t.lastIndexOf('.') ? ',' : '.';
+    const thou = dec === ',' ? '.' : ',';
+    t = t.split(thou).join('').replace(dec, '.');
+  } else if (hasComma) {
+    t = t.replace(',', '.');
+  }
+  const n = Number(t);
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return n;
+}
+
+const MONTHS = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',mei:'05',jun:'06',jul:'07',
+  aug:'08',agu:'08',ags:'08',sep:'09',oct:'10',okt:'10',nov:'11',dec:'12',des:'12' };
+
+/** Hanya bentuk TIDAK AMBIGU yang diterima - sama seperti parser produksi. */
+function parseDateLike(token) {
+  const iso = token.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const named = token.match(/(\d{1,2})[\s\-/]+([A-Za-z]+)[\s\-/]+(\d{4})/);
+  if (named) {
+    const mm = MONTHS[named[2].toLowerCase().slice(0, 3)];
+    if (mm) return `${named[3]}-${mm}-${named[1].padStart(2, '0')}`;
+  }
+  return null;
+}
 
 const ANTI_BOT_MARKERS = [
   /captcha/i,
@@ -70,7 +160,7 @@ const USER_AGENT =
   'SahamLens-OwnershipFlow-Audit/1.0 (+https://sahamlens.id; kontak: admin@sahamlens.id)';
 
 function parseArgs(argv) {
-  const args = { tickers: DEFAULT_TICKERS, out: 'reports', fixtures: 'data/source-fixtures/ksei', saveFixtures: true, delayMs: 1500, timeoutMs: 20000 };
+  const args = { tickers: DEFAULT_TICKERS, out: 'reports', fixtures: 'data/source-fixtures/ksei', saveFixtures: true, delayMs: 1500, timeoutMs: 20000, baseUrl: DEFAULT_BASE_URL };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--tickers') args.tickers = String(argv[++i] || '').split(',').map((t) => t.trim().toUpperCase()).filter(Boolean);
@@ -78,6 +168,10 @@ function parseArgs(argv) {
     else if (arg === '--fixtures') args.fixtures = String(argv[++i] || args.fixtures);
     else if (arg === '--no-fixtures') args.saveFixtures = false;
     else if (arg === '--delay') args.delayMs = Number(argv[++i]) || args.delayMs;
+    // --base-url: untuk memverifikasi script ini sendiri terhadap server tiruan
+    // sebelum diarahkan ke server sungguhan. Default-nya tetap URL resmi KSEI;
+    // flag ini tidak pernah mengubah tujuan kecuali diketik operator.
+    else if (arg === '--base-url') args.baseUrl = String(argv[++i] || args.baseUrl);
   }
   return args;
 }
@@ -104,7 +198,7 @@ function sanitizeHtml(html) {
 }
 
 async function auditTicker(ticker, args) {
-  const url = `${BASE_URL}/${encodeURIComponent(ticker)}?setLocale=id-ID`;
+  const url = `${args.baseUrl}/${encodeURIComponent(ticker)}?setLocale=id-ID`;
   const startedAt = Date.now();
 
   const controller = new AbortController();
@@ -127,6 +221,11 @@ async function auditTicker(ticker, args) {
     hasScriplessPercentage: false,
     hasLocalPercentage: false,
     hasForeignPercentage: false,
+    // Nilai yang BENAR-BENAR terparse per label - inti pembeda "label ada" vs
+    // "data ada". Ikut ditulis ke laporan supaya operator bisa melihat sendiri.
+    values: {},
+    labelsPresentButUnparsed: [],
+    placeholderData: false,
     tickerMentioned: false,
     fixtureSaved: null,
     verdict: 'SOURCE_UNVERIFIED',
@@ -155,32 +254,57 @@ async function auditTicker(ticker, args) {
     result.loginDetected = LOGIN_MARKERS.some((re) => re.test(body));
     result.tickerMentioned = new RegExp(`\\b${ticker}\\b`).test(body);
 
-    for (const { key, patterns } of REQUIRED_LABELS) {
-      result[key] = patterns.some((re) => re.test(body));
+    // Label ADA vs NILAI TERBACA - dibedakan tegas. Lihat catatan di
+    // REQUIRED_LABELS: fixture TLKM nyata punya seluruh labelnya tapi nol nilai.
+    const flat = flatten(body);
+    const labelsPresent = [];
+    for (const { key, patterns, kind } of REQUIRED_LABELS) {
+      const labelSeen = patterns.some((re) => re.test(body));
+      if (labelSeen) labelsPresent.push(key);
+      const { found, value } = extractLabeledValue(flat, patterns, kind);
+      result[key] = found;                 // true HANYA kalau nilainya terparse
+      result.values[key] = value;
     }
+    result.labelsPresentButUnparsed = labelsPresent.filter((k) => !result[k]);
 
-    const allLabels = REQUIRED_LABELS.every(({ key }) => result[key]);
-    if (
-      response.ok &&
-      !result.antiBotDetected &&
-      !result.loginDetected &&
-      result.tickerMentioned &&
-      allLabels
-    ) {
-      result.verdict = 'LABELS_PRESENT';
-    } else if (!response.ok) {
+    // PLACEHOLDER 0/0/0: halaman emitennya asli, tapi ketiga persentasenya nol.
+    // Ini keadaan yang berbeda dari "label hilang" dan dari "fetch gagal", dan
+    // ia TIDAK membaik dengan retry - jadi ia punya verdict sendiri.
+    const pcts = [result.values.hasLocalPercentage, result.values.hasForeignPercentage, result.values.hasScriplessPercentage];
+    const anyPrinted = pcts.some((v) => v !== null && v !== undefined);
+    const nonePositive = pcts.every((v) => v === null || v === undefined || Math.abs(v) < 0.005);
+    result.placeholderData = anyPrinted && nonePositive;
+
+    const allValues = REQUIRED_LABELS.every(({ key }) => result[key]);
+
+    if (!response.ok) {
       result.verdict = `HTTP_${response.status}`;
     } else if (result.antiBotDetected) {
       result.verdict = 'ANTI_BOT';
     } else if (result.loginDetected) {
       result.verdict = 'LOGIN_REQUIRED';
+    } else if (!result.tickerMentioned) {
+      result.verdict = 'TICKER_NOT_FOUND';
+    } else if (result.placeholderData) {
+      result.verdict = 'PLACEHOLDER_DATA';
+    } else if (!result.hasObservedDate) {
+      // Dipisahkan dari LABELS_MISSING: tanpa tanggal observasi yang terparse,
+      // tidak ada point-in-time sama sekali - dan itu satu-satunya field yang
+      // ketiadaannya membuat seluruh baris tak berguna walaupun angkanya ada.
+      result.verdict = 'OBSERVED_DATE_UNPARSED';
+    } else if (!allValues) {
+      result.verdict = 'VALUES_UNPARSED';
     } else {
-      result.verdict = 'LABELS_MISSING';
+      result.verdict = 'VALUES_PARSED';
     }
 
     // Fixture hanya disimpan untuk halaman yang MASUK AKAL. Menyimpan halaman
     // captcha/login sebagai "fixture" tidak ada gunanya dan berisiko membawa
     // data yang tidak seharusnya masuk repository.
+    // Halaman placeholder TETAP disimpan sebagai fixture - justru ia berharga:
+    // ia jadi kasus uji regresi bahwa parser MENOLAK 0/0/0. Yang tidak disimpan
+    // hanya halaman captcha/login (tidak ada nilainya sebagai fixture, dan
+    // berisiko membawa hal yang tidak seharusnya masuk repository).
     if (args.saveFixtures && response.ok && !result.antiBotDetected && !result.loginDetected) {
       await fs.mkdir(args.fixtures, { recursive: true });
       const fixturePath = path.join(args.fixtures, `${ticker}.html`);
@@ -209,7 +333,7 @@ async function main() {
 
   console.log('Audit sumber kepemilikan KSEI');
   console.log(`  Ticker : ${args.tickers.join(', ')}`);
-  console.log(`  Base   : ${BASE_URL}`);
+  console.log(`  Base   : ${args.baseUrl}`);
   console.log(`  Jeda   : ${args.delayMs} ms antar permintaan (berurutan, tidak paralel)\n`);
 
   const results = [];
@@ -218,7 +342,7 @@ async function main() {
     // bukan uji beban. Tujuh permintaan bertahap tidak akan mengganggu siapa pun.
     const result = await auditTicker(ticker, args);
     results.push(result);
-    const flag = result.verdict === 'LABELS_PRESENT' ? 'OK ' : '!! ';
+    const flag = result.verdict === 'VALUES_PARSED' ? 'OK ' : '!! ';
     console.log(
       `${flag}${ticker.padEnd(6)} status=${String(result.httpStatus ?? '-').padEnd(4)} ` +
         `len=${String(result.responseLength ?? '-').padEnd(7)} verdict=${result.verdict}` +
@@ -227,11 +351,22 @@ async function main() {
     if (ticker !== args.tickers[args.tickers.length - 1]) await sleep(args.delayMs);
   }
 
-  const allOk = results.length > 0 && results.every((r) => r.verdict === 'LABELS_PRESENT');
+  // "Struktur HTML terbukti" dan "data setiap ticker sah" adalah DUA hal berbeda.
+  //
+  // Satu fixture yang nilainya terparse penuh sudah membuktikan bahwa tata letak
+  // halamannya kita pahami. Tetapi itu TIDAK membuat setiap ticker otomatis sah -
+  // TLKM membuktikannya: struktur sama, isi placeholder. Karena itu ingestion
+  // tetap memvalidasi SETIAP baris secara independen di parseOwnershipRow(),
+  // dan laporan ini memisahkan kedua angka di bawah.
+  const parsed = results.filter((r) => r.verdict === 'VALUES_PARSED');
+  const placeholders = results.filter((r) => r.verdict === 'PLACEHOLDER_DATA');
+  const blocked = results.filter((r) => ['ANTI_BOT', 'LOGIN_REQUIRED', 'FETCH_FAILED'].includes(r.verdict) || r.verdict.startsWith('HTTP_'));
+  const structureProven = parsed.length > 0 && blocked.length === 0;
+  const allOk = results.length > 0 && parsed.length === results.length;
   const report = {
     source: 'KSEI',
     sourceId: 'KSEI_REGISTERED_SECURITY',
-    baseUrl: BASE_URL,
+    baseUrl: args.baseUrl,
     auditedAt: new Date().toISOString(),
     auditedBy: 'scripts/audit-ksei-ownership-source.mjs',
     userAgent: USER_AGENT,
@@ -239,10 +374,20 @@ async function main() {
     // BELUM berarti parser sudah benar - ia baru berarti label yang dibutuhkan
     // ADA di halaman. Verifikasi penuh menuntut parser dijalankan atas fixture
     // dan angkanya dicocokkan manusia.
-    verdict: allOk ? 'LABELS_PRESENT_ON_ALL_SAMPLES' : 'SOURCE_UNVERIFIED',
-    nextStep: allOk
-      ? 'Jalankan parser terhadap fixture, cocokkan angkanya secara manual, tambahkan test, baru ubah auditStatus ke VERIFIED.'
-      : 'Sumber TIDAK lolos audit. Jangan aktifkan ingestion. Periksa verdict per ticker di bawah.',
+    // Dipisahkan dengan sengaja - lihat catatan di atas.
+    structureVerdict: structureProven ? 'HTML_STRUCTURE_PROVEN' : 'HTML_STRUCTURE_UNPROVEN',
+    verdict: allOk ? 'ALL_SAMPLES_PARSED' : 'SOURCE_UNVERIFIED',
+    counts: {
+      total: results.length,
+      valuesParsed: parsed.length,
+      placeholderData: placeholders.length,
+      blockedOrFailed: blocked.length,
+    },
+    nextStep: structureProven
+      ? 'Struktur HTML terbukti dari fixture yang nilainya terparse. Implementasikan/koreksi parser TERHADAP FIXTURE ITU, tambahkan test (termasuk kasus PLACEHOLDER_DATA), cocokkan angkanya manual, baru ubah auditStatus ke VERIFIED. Ticker berstatus PLACEHOLDER_DATA BUKAN kegagalan struktur - ia wajib ditolak parser, bukan disimpan.'
+      : 'Struktur belum terbukti (tidak ada satu pun fixture yang nilainya terparse penuh, atau ada yang diblokir). Jangan aktifkan ingestion.',
+    perTickerNote:
+      'Struktur terbukti TIDAK berarti setiap ticker sah. Setiap baris tetap divalidasi independen saat ingestion: placeholder 0/0/0 ditolak, dan local+foreign harus mendekati scripless (BUKAN 100).',
     // Cadence TIDAK dapat dijawab satu kali jalan - ia butuh pengamatan beberapa
     // hari berturut-turut atas pergerakan "As of". Sengaja dibiarkan null supaya
     // tidak ada yang mengisinya dengan tebakan.
@@ -257,7 +402,12 @@ async function main() {
   await fs.writeFile(reportPath, JSON.stringify(report, null, 2), 'utf8');
 
   console.log(`\nLaporan: ${reportPath}`);
-  console.log(`Kesimpulan: ${report.verdict}`);
+  console.log(`Struktur HTML: ${report.structureVerdict}`);
+  console.log(`Kesimpulan   : ${report.verdict}`);
+  console.log(`Rincian      : ${parsed.length} terparse, ${placeholders.length} placeholder, ${blocked.length} diblokir/gagal, dari ${results.length} ticker`);
+  if (placeholders.length) {
+    console.log(`Placeholder  : ${placeholders.map((r) => r.ticker).join(', ')} - halaman asli tapi nilainya 0/0/0. WAJIB ditolak parser, jangan disimpan.`);
+  }
   console.log(`Langkah berikutnya: ${report.nextStep}`);
 
   if (!allOk) {
