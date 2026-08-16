@@ -322,7 +322,10 @@ async function main() {
     }
 
     if (totalHoldings !== null) {
-      const tolerance = Math.max(1, Math.abs(totalHoldings) * 1e-9);
+      // Balancepos KSEI berisi jumlah efek integer. Total harus benar-benar
+      // konsisten dengan Total Local + Total Foreign; toleransi < 1 saham hanya
+      // untuk noise floating-point, bukan untuk memaafkan selisih satu saham.
+      const tolerance = Math.max(Number.EPSILON * Math.max(Math.abs(computedHoldings), Math.abs(totalHoldings)) * 8, 1e-6);
       if (Math.abs(computedHoldings - totalHoldings) > tolerance) {
         rejected.push({
           line: r + 1,
