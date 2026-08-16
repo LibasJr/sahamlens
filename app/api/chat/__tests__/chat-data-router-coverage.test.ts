@@ -178,8 +178,11 @@ describe('blok valuasi menyertakan dasar angkanya, bukan cuma hasilnya', () => {
     expect(block).toContain('sumber: YAHOO');
     // Dua tingkat diskonto tidak boleh dilebur jadi satu angka.
     expect(block).toContain('TETAP 12.00%');
-    // Bobot sektor belum divalidasi - itu harus ikut terbaca, bukan berhenti di komentar.
-    expect(block).toContain('BELUM divalidasi');
+    // Bobot numerik sektoral yang tidak tervalidasi sudah dihapus. Chat harus
+    // menjelaskan penghapusan itu dan metode agregasi penggantinya, bukan mengklaim
+    // bobot hipotesis masih aktif.
+    expect(block).toContain('belum tervalidasi sudah dihapus');
+    expect(block).toContain('EQUAL_WEIGHT_AVAILABLE_APPLICABLE_METHODS');
     vi.doUnmock('@/modules/fundamental');
   });
 });

@@ -19,15 +19,15 @@ function valueLabel(value: unknown, unit: unknown) {
 export default async function BankFundamentalsAdminPage() {
   if (!(await isAdminServer())) redirect('/admin-login');
   const [data, collector]=await Promise.all([getBankMetricEvidenceAdminSummary(), getBankMetricCollectorAdminSummary()]);
-  const totals=data.totals as {evidence_rows?:number;superseded_rows?:number;tickers?:number;periods?:number;latest_observed?:string|null};
+  const totals=data.totals as {evidence_rows?:number;tickers?:number;periods?:number;latest_observed?:string|null};
   return <div className="min-h-screen bg-tv-bg p-4 text-tv-text sm:p-8"><div className="mx-auto max-w-7xl">
     <Link href="/admin" className="mb-5 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text"><ArrowLeft className="h-4 w-4"/>Kembali ke Admin</Link>
     <div className="mb-7 flex items-start gap-3"><div className="rounded-xl bg-tv-blue/10 p-2.5 text-tv-blue"><Building2 className="h-6 w-6"/></div><div><h1 className="font-heading text-2xl font-bold sm:text-3xl">Bank Fundamentals Evidence</h1><p className="mt-1 max-w-3xl text-sm text-tv-muted">NIM, NPL, CASA, CAR, LDR, Cost of Credit, CIR, coverage, dan PPOP disimpan per metrik dengan provenance PIT. Belum menjadi input LensScore.</p></div></div>
 
-    <div className="mb-6 rounded-xl border border-tv-green/25 bg-tv-green/5 p-4 text-sm"><div className="flex gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-tv-green"/><div><p className="font-semibold">Evidence per metrik, append-only + correction lineage</p><p className="mt-1 text-tv-muted">Setiap angka membawa period_end, observed_date, basis BANK_ONLY/CONSOLIDATED, tier sumber, URL, dan fingerprint. Koreksi lama tetap tersimpan sebagai superseded dan tidak ikut snapshot aktif.</p></div></div></div>
+    <div className="mb-6 rounded-xl border border-tv-green/25 bg-tv-green/5 p-4 text-sm"><div className="flex gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-tv-green"/><div><p className="font-semibold">Evidence per metrik, append-only</p><p className="mt-1 text-tv-muted">Setiap angka membawa period_end, observed_date, basis BANK_ONLY/CONSOLIDATED, tier sumber, URL, dan fingerprint. Koreksi tidak menimpa bukti lama.</p></div></div></div>
 
     <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Evidence aktif</p><p className="mt-1 font-number text-2xl font-bold">{Number(totals.evidence_rows??0)}</p><p className="mt-1 text-[11px] text-tv-muted">{Number(totals.superseded_rows??0)} koreksi lama disupersede</p></div>
+      <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Evidence rows</p><p className="mt-1 font-number text-2xl font-bold">{Number(totals.evidence_rows??0)}</p></div>
       <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Ticker</p><p className="mt-1 font-number text-2xl font-bold">{Number(totals.tickers??0)}</p></div>
       <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Period</p><p className="mt-1 font-number text-2xl font-bold">{Number(totals.periods??0)}</p></div>
       <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Observed terbaru</p><p className="mt-1 font-number text-base font-bold">{totals.latest_observed ? String(totals.latest_observed).slice(0,10) : '—'}</p></div>
@@ -41,7 +41,7 @@ export default async function BankFundamentalsAdminPage() {
         <div><p className="text-xs text-tv-muted">Run terakhir</p><p className="mt-1 font-number font-semibold">{collector.latestRun.startedAt ? collector.latestRun.startedAt.slice(0,19).replace('T',' ') : '—'}</p></div>
         <div><p className="text-xs text-tv-muted">Status</p><p className="mt-1 font-semibold">{collector.latestRun.status}</p></div>
         <div><p className="text-xs text-tv-muted">Dokumen</p><p className="mt-1 font-number font-semibold">{collector.latestRun.documentsParsed}/{collector.latestRun.documentsDiscovered} parsed</p></div>
-        <div><p className="text-xs text-tv-muted">Evidence</p><p className="mt-1 font-number font-semibold">+{collector.latestRun.evidenceInserted} baru · {collector.latestRun.evidenceExisting} existing · {collector.latestRun.evidenceSuperseded} superseded · {collector.latestRun.quarantined} quarantine</p></div>
+        <div><p className="text-xs text-tv-muted">Evidence</p><p className="mt-1 font-number font-semibold">+{collector.latestRun.evidenceInserted} baru · {collector.latestRun.quarantined} quarantine</p></div>
       </div> : <p className="text-tv-muted">Belum ada collector run. Setelah migration 005, jalankan dry-run lalu pasang timer <code>deploy/bank-fundamental-collector</code>.</p>}
       <p className="mt-3 text-xs text-tv-muted">Collector hanya mengunjungi domain resmi issuer. PDF tanpa text-layer, angka ambigu, forecast/peer comparison, atau konflik antar dokumen tidak akan di-ingest; semuanya ditahan atau dilewati.</p>
     </div>
