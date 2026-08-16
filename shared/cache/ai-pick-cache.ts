@@ -44,6 +44,15 @@ export type AiPickScores = {
   bearishSymbols: string[];
 };
 
+/** Sumber snapshot dipertahankan agar panel admin bisa membedakan cache aktif dari
+ * cadangan sesi terakhir. Endpoint publik tetap menerima bentuk AiPickScores biasa. */
+export type AiPickScoresCacheSource = 'active' | 'last-successful' | 'legacy' | null;
+
+export type AiPickScoresCacheRead = {
+  data: AiPickScores | null;
+  source: AiPickScoresCacheSource;
+};
+
 function normalizeCachedScores(
   data: AiPickScores | null,
   fallbackUniverse: { version: string; size: number },
@@ -66,12 +75,12 @@ export async function writeFundamentalSnapshot(snap: FundamentalSnapshot): Promi
   await cacheSet(FUNDAMENTAL_KEY, snap, FUNDAMENTAL_TTL_SEC);
 }
 
-export async function readAiPickScores(): Promise<AiPickScores | null> {
+export async function inspectAiPickScoresCache(): Promise<AiPickScoresCacheRead> {
   const active = normalizeCachedScores(
     await cacheGet<AiPickScores>(SCORES_KEY),
     { version: ACTIVE_LIQUID_UNIVERSE_VERSION, size: ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE },
   );
-  if (active) return active;
+  if (active) return { data: active, source: 'active' };
 
   // Prioritaskan snapshot terakhir versi apa pun. Fallback legacy ada untuk transisi
   // pertama ke v2: snapshot lintas-versi belum ditulis oleh kode lama, tetapi Redis
@@ -80,12 +89,17 @@ export async function readAiPickScores(): Promise<AiPickScores | null> {
     await cacheGet<AiPickScores>(LAST_SUCCESSFUL_SCORES_KEY),
     { version: ACTIVE_LIQUID_UNIVERSE_VERSION, size: ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE },
   );
-  if (lastSuccessful) return lastSuccessful;
+  if (lastSuccessful) return { data: lastSuccessful, source: 'last-successful' };
 
-  return normalizeCachedScores(
+  const legacy = normalizeCachedScores(
     await cacheGet<AiPickScores>(LEGACY_SCORES_KEY),
     { version: LEGACY_VALIDATED_UNIVERSE_VERSION, size: LEGACY_VALIDATED_UNIVERSE_SIZE },
   );
+  return { data: legacy, source: legacy ? 'legacy' : null };
+}
+
+export async function readAiPickScores(): Promise<AiPickScores | null> {
+  return (await inspectAiPickScoresCache()).data;
 }
 
 export async function writeAiPickScores(data: AiPickScores): Promise<void> {

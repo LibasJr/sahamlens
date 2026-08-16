@@ -16,6 +16,7 @@ interface JobRow {
   lastSuccessAt: string | null;
   runs24h: number;
   failures24h: number;
+  source: string;
 }
 
 interface HealthPayload {
@@ -27,11 +28,15 @@ interface HealthPayload {
 interface CacheRow {
   id: string;
   label: string;
-  state: 'HIT' | 'MISS';
+  state: 'HIT' | 'SNAPSHOT' | 'WAITING' | 'MISS' | 'UNAVAILABLE';
+  detail: string | null;
   cacheAgeSec: number | null;
   ttlRemainingSec: number | null;
   lastCronSuccessAt: string | null;
   lastCronStatus: string | null;
+  snapshotAt: string | null;
+  universeVersion: string | null;
+  snapshotSource: 'active' | 'last-successful' | 'legacy' | null;
 }
 
 // Diagnosis ditulis sebagai kalimat, bukan cuma badge status. Perbedaan antara "tidak
@@ -91,6 +96,14 @@ const BADGE_CLASS = {
   ok: 'bg-tv-green/10 text-tv-green border-tv-green/30',
   warn: 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30',
   bad: 'bg-tv-red/10 text-tv-red border-tv-red/30',
+} as const;
+
+const CACHE_STATE_STYLE = {
+  HIT: { card: 'border-tv-green/25 bg-tv-green/[0.04]', badge: 'border-tv-green/30 bg-tv-green/10 text-tv-green' },
+  SNAPSHOT: { card: 'border-tv-yellow/30 bg-tv-yellow/[0.04]', badge: 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow' },
+  WAITING: { card: 'border-tv-blue/30 bg-tv-blue/[0.04]', badge: 'border-tv-blue/30 bg-tv-blue/10 text-tv-blue' },
+  MISS: { card: 'border-tv-red/30 bg-tv-red/[0.04]', badge: 'border-tv-red/30 bg-tv-red/10 text-tv-red' },
+  UNAVAILABLE: { card: 'border-tv-red/30 bg-tv-red/[0.04]', badge: 'border-tv-red/30 bg-tv-red/10 text-tv-red' },
 } as const;
 
 export default function JobsMonitorClient() {
@@ -183,24 +196,26 @@ export default function JobsMonitorClient() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {caches.map((cache) => {
-            const healthy = cache.state === 'HIT';
+            const style = CACHE_STATE_STYLE[cache.state];
             return (
-              <div key={cache.id} className={`rounded-lg border p-3 ${healthy ? 'border-tv-green/25 bg-tv-green/[0.04]' : 'border-tv-red/30 bg-tv-red/[0.04]'}`}>
+              <div key={cache.id} className={`rounded-lg border p-3 ${style.card}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-sm font-bold text-tv-text">{cache.label}</div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${healthy ? 'border-tv-green/30 bg-tv-green/10 text-tv-green' : 'border-tv-red/30 bg-tv-red/10 text-tv-red'}`}>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${style.badge}`}>
                     {cache.state}
                   </span>
                 </div>
-                {healthy ? (
+                {cache.state === 'HIT' || cache.state === 'SNAPSHOT' ? (
                   <>
-                    <div className="mt-3 text-xs text-tv-muted">Umur cache</div>
+                    <div className="mt-3 text-xs text-tv-muted">{cache.state === 'SNAPSHOT' ? 'Umur snapshot' : 'Umur cache'}</div>
                     <div className="font-number text-sm font-bold text-tv-text">{duration(cache.cacheAgeSec)}</div>
-                    <div className="mt-2 text-[11px] text-tv-muted">TTL tersisa {duration(cache.ttlRemainingSec)}</div>
+                    {cache.ttlRemainingSec != null && <div className="mt-2 text-[11px] text-tv-muted">TTL tersisa {duration(cache.ttlRemainingSec)}</div>}
+                    {cache.universeVersion && <div className="mt-1 text-[11px] text-tv-muted">Universe {cache.universeVersion}</div>}
                   </>
                 ) : (
-                  <p className="mt-3 text-xs leading-relaxed text-tv-red">Cache belum ada atau Redis tidak dapat dibaca. Periksa status Redis dan worker terkait.</p>
+                  <p className={`mt-3 text-xs leading-relaxed ${cache.state === 'WAITING' ? 'text-tv-blue' : 'text-tv-red'}`}>{cache.detail}</p>
                 )}
+                {cache.state === 'SNAPSHOT' && cache.detail && <p className="mt-2 text-[11px] leading-relaxed text-tv-yellow">{cache.detail}</p>}
                 <div className="mt-3 border-t border-tv-border pt-2 text-[11px] text-tv-muted">
                   Cron terakhir: <span className="font-semibold text-tv-text">{timeAgo(cache.lastCronSuccessAt)}</span>
                   {cache.lastCronStatus && <span> · {cache.lastCronStatus}</span>}
@@ -250,7 +265,9 @@ export default function JobsMonitorClient() {
               <div className="mt-3 text-xs text-tv-muted">
                 Jadwal: {job.schedule
                   ? <code className="font-mono text-tv-text">{job.schedule}</code>
-                  : <span className="text-tv-yellow">belum terverifikasi ({job.provider})</span>}
+                  : job.provider === 'systemd' && job.source.includes('BELUM dipasang')
+                    ? <span className="text-tv-yellow">belum terpasang otomatis di VPS — pengumpulan manual tetap dapat berjalan</span>
+                    : <span className="text-tv-yellow">belum terverifikasi ({job.provider})</span>}
               </div>
 
               {job.lastErrorMessage && (
