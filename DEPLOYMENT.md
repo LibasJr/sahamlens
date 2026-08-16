@@ -42,6 +42,51 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Badge "Blue-chip" salah nempel di saham gorengan (kasus PACK.JK) - diganti ke daftar konstituen LQ45
+
+Bug report pengguna via screenshot: PACK.JK ("PT Abadi Nusantara Hijau Investama Tbk.",
+harga Rp 296, +8,03% hari itu, data BASI >1 hari bursa) tampil berlabel **"Blue-chip"**
+di halaman LensTechnical (`/dashboard`).
+
+Root cause: badge ditambahkan 2026-08-14 (lihat entri di bawah) dengan definisi murni
+`market_cap >= Rp 10T DAN ADV20 >= Rp 5M/hari`, dihitung **live dari harga & volume 20
+hari terakhir** (`lib/utils/cap-tier.ts`, komentar aslinya sudah menandai
+`[HYPOTHESIS] - belum divalidasi backtest`). Masalahnya: kedua angka itu justru yang
+PALING gampang digelembungkan sesaat oleh pump/gorengan - `market_cap` = harga sekarang
+x saham beredar, jadi begitu harga di-pump, market cap ikut melambung instan; ADV20 =
+rata-rata (harga x volume) 20 hari, jadi lonjakan volume+harga beberapa hari terakhir
+(pola khas gorengan) ikut mendongkrak rata-ratanya. Akibatnya badge yang seharusnya
+menyiratkan "aman/stabil" malah paling rawan salah nempel justru SAAT sedang terjadi
+gorengan - kebalikan dari tujuannya. Dicek juga apakah ada daftar LQ45/IDX30 terkurasi
+yang bisa jadi pembanding - `lib/tickers.ts` komentarnya menyebut "daftar saham likuid
+LQ45/blue-chip" tapi isinya ternyata seluruh ~800+ emiten IDX (bukan daftar terkurasi,
+komentarnya sendiri sudah basi/menyesatkan).
+
+Perbaikan (dipilih pengguna dari beberapa opsi - daftar terkurasi vs perpanjang jendela
+ADV vs guard volatilitas vs matikan badge): **"Blue-chip" sekarang berarti "konstituen
+indeks LQ45 IDX saat ini"**, bukan lagi ambang market cap/ADV20 real-time.
+`lib/utils/blue-chip-index.ts` (BARU) berisi daftar tetap ~45 ticker konstituen LQ45 +
+`isBlueChipConstituent()`. Keanggotaan indeks ditetapkan lewat evaluasi resmi IDX 2x
+setahun (efektif akhir Januari/awal Februari dan akhir Juli/awal Agustus) - tidak bisa
+berubah karena pergerakan harga/volume satu-dua minggu, jadi menutup celah pump/gorengan
+sepenuhnya. `classifyCapTier()` (`cap-tier.ts`) sekarang menerima parameter `ticker` dan
+mendelegasikan penentuan BLUE_CHIP ke `isBlueChipConstituent()`; parameter market
+cap/ADV20 tetap dipertahankan HANYA sebagai gerbang "data belum cukup -> jangan
+menebak" (mis. IHSG, bukan saham individual), bukan lagi kriteria penentu tier.
+
+**>>> DAFTAR LQ45 DI `blue-chip-index.ts` BUKAN FEED LIVE - WAJIB DIVERIFIKASI MANUAL
+<<<**. Disusun dari pengetahuan pelatihan model (cutoff Januari 2026), belum dicocokkan
+ke pengumuman resmi IDX untuk periode berjalan. Hari perbaikan ini dicatat (2026-08-16)
+sudah lewat jadwal evaluasi akhir Juli/awal Agustus, jadi ADA KEMUNGKINAN daftar ini
+sudah satu periode basi - cek ke idx.co.id (Data Pasar -> Indeks -> LQ45 -> Konstituen)
+dan perbarui array `LQ45_CONSTITUENTS` kalau perlu. Risiko keterlambatan SEPIHAK dan
+kecil: emiten yang baru keluar dari LQ45 mungkin masih tampil Blue-chip beberapa waktu
+(kosmetik ringan) - TIDAK ADA jalan bagi saham gorengan untuk lolos hanya karena
+harga/volume hari ini melonjak, itu celah yang justru sudah ditutup.
+
+Typecheck, lint, 1646 test (7 baru: `blue-chip-index.test.ts` + revisi
+`cap-tier.test.ts`) lolos, build production lolos.
+
 ### 2026-08-16 - Koreksi validator Ownership Flow (temuan audit VPS)
 
 **Tidak ada perubahan env var, cron, maupun database. Ingestion tetap tertutup.**
