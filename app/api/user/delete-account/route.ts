@@ -1,3 +1,4 @@
+import type { NextRequest } from 'next/server';
 import { guard } from '@/lib/sahamLensGuard'; guard();
 import { z } from 'zod';
 import { getSession } from '@/modules/user';
@@ -8,7 +9,7 @@ import { ForbiddenError, UnauthorizedError, ValidationError } from '@/shared/err
 import { SESSION_COOKIE } from '@/shared/constants/cookie-names';
 
 const schema=z.object({ confirmation:z.literal('HAPUS AKUN') });
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   return runController(async()=>{
     assertTrustedSameOrigin(req);
     const session=await getSession();
