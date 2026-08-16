@@ -12,6 +12,7 @@ import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { getTickerName } from '@/lib/trendingTickers';
 import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
+import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 
 interface WatchlistItem {
@@ -475,9 +476,9 @@ export default function WatchlistPage() {
                 const scoreLabel = scoreVal == null
                   ? (loading ? 'memuat' : 'skor N/A')
                   : scorePresentation?.actionable && data?.decision?.action
-                    ? data.decision.action
+                    ? getKategoriPresentationLabel(data.decision.action)
                     : scorePresentation?.modelSignal
-                      ? `SINYAL ${scorePresentation.modelSignal}`
+                      ? getKategoriPresentationLabel(scorePresentation.modelSignal)
                       : 'sinyal N/A';
 
                 return (
@@ -639,7 +640,7 @@ export default function WatchlistPage() {
               <Select value={alertCondition} onChange={(e) => setAlertCondition(e.target.value)}>
                 <option value="PRICE_BELOW">Harga Turun Di Bawah</option>
                 <option value="PRICE_ABOVE">Harga Naik Di Atas</option>
-                <option value="CONSENSUS_STRONG_BUY">Konsensus STRONG BUY</option>
+                <option value="CONSENSUS_STRONG_BUY">Konsensus Sangat Positif</option>
                 <option value="RSI_OVERSOLD">RSI Oversold (&lt; 30)</option>
               </Select>
               {(alertCondition === 'PRICE_BELOW' || alertCondition === 'PRICE_ABOVE') && (
@@ -684,7 +685,7 @@ export default function WatchlistPage() {
                       <AlertIcon className="w-3.5 h-3.5 shrink-0" />
                       {alert.conditionType === 'PRICE_BELOW' && `Harga < ${alert.targetValue}`}
                       {alert.conditionType === 'PRICE_ABOVE' && `Harga > ${alert.targetValue}`}
-                      {alert.conditionType === 'CONSENSUS_STRONG_BUY' && `Konsensus STRONG BUY`}
+                      {alert.conditionType === 'CONSENSUS_STRONG_BUY' && `Konsensus Sangat Positif`}
                       {alert.conditionType === 'RSI_OVERSOLD' && `RSI Oversold`}
                     </div>
                   </div>
