@@ -26,10 +26,13 @@
  *   --list              hanya tampilkan arsip yang ditemukan
  *   --keep-files        jangan hapus ZIP/TXT sementara
  *   --min-equity <n>    guard minimum EQUITY per snapshot (default 100)
+ *   --probe-days <n>     probe akhir bulan mundur n hari (default 10, max 14)
+ *   --no-probe           matikan fallback endpoint probe
  *
  * Fail-closed:
  * - sumber selain web.ksei.co.id ditolak;
- * - bila halaman arsip gagal diambil / format link berubah -> berhenti;
+ * - bila halaman arsip gagal, fallback hanya boleh pada range --from/--to eksplisit;
+ * - fallback hanya menerima ZIP resmi yang benar-benar tersedia dan signature-nya valid;
  * - bila ZIP/TXT tidak sesuai pola -> berhenti;
  * - bila dry-run parser menolak satu baris pun -> periode itu TIDAK ditulis;
  * - bila tanggal di dalam file tidak sama dengan tanggal archive -> TIDAK ditulis.
@@ -48,6 +51,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ARCHIVE_NAME_RE = /^BalanceposEfek(\d{8})\.zip$/i;
 const TXT_NAME_RE = /^Balancepos(\d{8})\.txt$/i;
 const DEFAULT_MIN_EQUITY = 100;
+const DEFAULT_PROBE_DAYS = 10;
+const MAX_PROBE_DAYS = 14;
 const RETRYABLE_HTTP = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MAX_FETCH_ATTEMPTS = 5;
 
@@ -57,6 +62,7 @@ const MAX_FETCH_ATTEMPTS = 5;
  * @property {string} ymd Tanggal snapshot YYYYMMDD.
  * @property {string} fileName Nama ZIP resmi KSEI.
  * @property {string} url URL download resmi KSEI.
+ * @property {'archive-page' | 'endpoint-probe'} [discovery] Asal penemuan arsip.
  */
 
 /**
@@ -82,6 +88,8 @@ function parseArgs(argv) {
     list: false,
     keepFiles: false,
     minEquity: DEFAULT_MIN_EQUITY,
+    probeMissing: true,
+    probeDays: DEFAULT_PROBE_DAYS,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -91,6 +99,11 @@ function parseArgs(argv) {
     else if (arg === '--confirm') args.confirm = true;
     else if (arg === '--list') args.list = true;
     else if (arg === '--keep-files') args.keepFiles = true;
+    else if (arg === '--no-probe') args.probeMissing = false;
+    else if (arg === '--probe-days') {
+      const value = Number(argv[++i]);
+      args.probeDays = Number.isInteger(value) && value > 0 ? value : NaN;
+    }
     else if (arg === '--min-equity') {
       const value = Number(argv[++i]);
       args.minEquity = Number.isInteger(value) && value > 0 ? value : NaN;
@@ -145,6 +158,7 @@ export function discoverArchiveEntries(html) {
       ymd,
       fileName: `BalanceposEfek${ymd}.zip`,
       url: `${DOWNLOAD_ORIGIN}/Download/BalanceposEfek${ymd}.zip`,
+      discovery: 'archive-page',
     }))
     .filter((entry) => entry.observedDate)
     .sort((a, b) => a.observedDate.localeCompare(b.observedDate));
@@ -161,6 +175,86 @@ export function filterArchiveEntries(entries, { from = null, to = null } = {}) {
     if (to && entry.observedDate > to) return false;
     return true;
   });
+}
+
+
+function monthKey(iso) {
+  return String(iso).slice(0, 7);
+}
+
+function addMonthsUtc(year, monthIndex, delta) {
+  const d = new Date(Date.UTC(year, monthIndex + delta, 1));
+  return { year: d.getUTCFullYear(), monthIndex: d.getUTCMonth() };
+}
+
+function isoFromUtcDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Bangun kandidat endpoint resmi per bulan dari tanggal akhir bulan mundur.
+ * Ini BUKAN menebak data. Kandidat hanya dipakai untuk mengecek apakah ZIP
+ * resmi KSEI benar-benar tersedia. Kandidat yang tidak ada di server diabaikan.
+ *
+ * @param {{from: string, to: string}} range
+ * @param {number} probeDays
+ * @returns {{month: string, candidates: ArchiveEntry[]}[]}
+ */
+export function buildMonthlyProbeCandidates({ from, to }, probeDays = DEFAULT_PROBE_DAYS) {
+  if (!isRealDate(from) || !isRealDate(to) || from > to) return [];
+  if (!Number.isInteger(probeDays) || probeDays <= 0 || probeDays > MAX_PROBE_DAYS) return [];
+
+  const [fromY, fromM] = from.split('-').map(Number);
+  const [toY, toM] = to.split('-').map(Number);
+  /** @type {{month: string, candidates: ArchiveEntry[]}[]} */
+  const groups = [];
+
+  let cursorY = fromY;
+  let cursorM0 = fromM - 1;
+  while (cursorY < toY || (cursorY === toY && cursorM0 <= toM - 1)) {
+    const month = `${cursorY}-${String(cursorM0 + 1).padStart(2, '0')}`;
+    const monthEnd = new Date(Date.UTC(cursorY, cursorM0 + 1, 0));
+    /** @type {ArchiveEntry[]} */
+    const candidates = [];
+
+    for (let offset = 0; offset < probeDays; offset++) {
+      const candidateDate = new Date(monthEnd.getTime() - offset * 86_400_000);
+      if (candidateDate.getUTCMonth() !== cursorM0) break;
+      const observedDate = isoFromUtcDate(candidateDate);
+      if (observedDate < from || observedDate > to) continue;
+      const ymd = isoToYmd(observedDate);
+      candidates.push({
+        observedDate,
+        ymd,
+        fileName: `BalanceposEfek${ymd}.zip`,
+        url: `${DOWNLOAD_ORIGIN}/Download/BalanceposEfek${ymd}.zip`,
+        discovery: 'endpoint-probe',
+      });
+    }
+
+    groups.push({ month, candidates });
+    const next = addMonthsUtc(cursorY, cursorM0, 1);
+    cursorY = next.year;
+    cursorM0 = next.monthIndex;
+  }
+
+  return groups;
+}
+
+/**
+ * Gabungkan hasil halaman archive + probe tanpa duplikat tanggal.
+ * Archive page diprioritaskan karena merupakan indeks resmi eksplisit.
+ *
+ * @param {ArchiveEntry[]} pageEntries
+ * @param {ArchiveEntry[]} probeEntries
+ * @returns {ArchiveEntry[]}
+ */
+export function mergeArchiveEntries(pageEntries, probeEntries) {
+  /** @type {Map<string, ArchiveEntry>} */
+  const byDate = new Map();
+  for (const entry of probeEntries) byDate.set(entry.observedDate, entry);
+  for (const entry of pageEntries) byDate.set(entry.observedDate, entry);
+  return [...byDate.values()].sort((a, b) => a.observedDate.localeCompare(b.observedDate));
 }
 
 /** Parse ringkasan stdout dari backfill-ownership-flow.mjs. */
@@ -249,6 +343,112 @@ async function fetchText(url) {
   }, 'KSEI archive page', 25_000);
 
   return response.text();
+}
+
+
+/**
+ * Probe ringan endpoint ZIP resmi. 404/410 = arsip tidak ada. Status temporer
+ * diretry. Respons hanya diterima bila redirect tetap di web.ksei.co.id dan
+ * payload diawali signature ZIP "PK".
+ *
+ * @param {ArchiveEntry} entry
+ * @returns {Promise<boolean>}
+ */
+async function probeZipExists(entry) {
+  const parsed = new URL(entry.url);
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.hostname !== 'web.ksei.co.id' ||
+    !ARCHIVE_NAME_RE.test(path.basename(parsed.pathname))
+  ) {
+    throw new Error(`URL probe tidak lolos allowlist: ${entry.url}`);
+  }
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(entry.url, {
+        method: 'GET',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15_000),
+        headers: {
+          'user-agent': 'SahamLens-OwnershipFlow/1.0 (+operator archive probe KSEI)',
+          accept: 'application/zip,application/octet-stream,*/*',
+          range: 'bytes=0-7',
+        },
+      });
+
+      if (response.status === 404 || response.status === 410) {
+        await response.body?.cancel().catch(() => {});
+        return false;
+      }
+
+      if (!response.ok && response.status !== 206) {
+        const error = new Error(`probe ${entry.fileName} HTTP ${response.status}`);
+        if (!RETRYABLE_HTTP.has(response.status) || attempt === MAX_FETCH_ATTEMPTS) throw error;
+        lastError = error;
+      } else {
+        const finalUrl = new URL(response.url);
+        if (finalUrl.protocol !== 'https:' || finalUrl.hostname !== 'web.ksei.co.id') {
+          throw new Error(`redirect probe keluar domain KSEI: ${response.url}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error(`${entry.fileName}: probe tidak memiliki body`);
+        const first = await reader.read();
+        await reader.cancel().catch(() => {});
+        const bytes = first.value ?? new Uint8Array();
+        if (bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b) return true;
+        throw new Error(`${entry.fileName}: endpoint ada tetapi payload bukan ZIP (signature PK tidak ada)`);
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt === MAX_FETCH_ATTEMPTS) throw lastError;
+    }
+
+    const delayMs = Math.min(1_500 * (2 ** (attempt - 1)), 8_000);
+    console.warn(`    retry probe ${entry.fileName}: ${attempt}/${MAX_FETCH_ATTEMPTS}; tunggu ${delayMs / 1000}s...`);
+    await sleep(delayMs);
+  }
+
+  throw lastError ?? new Error(`probe ${entry.fileName} gagal tanpa detail`);
+}
+
+/**
+ * Cari bulan yang tidak tercantum di archive page dengan mengecek endpoint
+ * BalanceposEfekYYYYMMDD.zip resmi dari akhir bulan mundur beberapa hari.
+ * Satu bulan berhenti pada ZIP valid pertama.
+ *
+ * @param {ArchiveEntry[]} pageEntries
+ * @param {{from: string, to: string}} range
+ * @param {number} probeDays
+ * @returns {Promise<ArchiveEntry[]>}
+ */
+async function probeMissingArchiveEntries(pageEntries, range, probeDays) {
+  const existingMonths = new Set(pageEntries.map((entry) => monthKey(entry.observedDate)));
+  const groups = buildMonthlyProbeCandidates(range, probeDays);
+  /** @type {ArchiveEntry[]} */
+  const found = [];
+
+  for (const group of groups) {
+    if (existingMonths.has(group.month)) continue;
+    if (!group.candidates.length) continue;
+
+    console.log(`  probe ${group.month}: maksimum ${group.candidates.length} kandidat resmi...`);
+    /** @type {ArchiveEntry | null} */
+    let monthFound = null;
+    for (const candidate of group.candidates) {
+      const exists = await probeZipExists(candidate);
+      if (!exists) continue;
+      monthFound = candidate;
+      found.push(candidate);
+      console.log(`    FOUND ${candidate.observedDate}  ${candidate.fileName}`);
+      break;
+    }
+    if (!monthFound) console.log(`    tidak ditemukan ZIP resmi untuk ${group.month}`);
+  }
+
+  return found;
 }
 
 async function downloadZip(entry, destination) {
@@ -355,6 +555,9 @@ async function main() {
   if (args.to && !isRealDate(args.to)) throw new Error(`--to tidak sah: ${args.to}`);
   if (args.from && args.to && args.from > args.to) throw new Error('--from lebih besar dari --to');
   if (!Number.isInteger(args.minEquity) || args.minEquity <= 0) throw new Error('--min-equity harus integer > 0');
+  if (!Number.isInteger(args.probeDays) || args.probeDays <= 0 || args.probeDays > MAX_PROBE_DAYS) {
+    throw new Error(`--probe-days harus integer 1-${MAX_PROBE_DAYS}`);
+  }
   if (args.confirm && !process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL tidak ada. Untuk --confirm jalankan dengan --env-file=.env.production.');
   }
@@ -373,20 +576,41 @@ async function main() {
   console.log(`  Range        : ${args.from ?? '(awal tersedia)'} s/d ${args.to ?? '(terbaru tersedia)'}`);
   console.log(`  Guard reject : HARUS 0`);
   console.log(`  Guard EQUITY : minimum ${args.minEquity}`);
+  console.log(`  Probe fallback: ${args.probeMissing ? `ON (akhir bulan mundur ${args.probeDays} hari)` : 'OFF'}`);
 
-  const html = await fetchText(ARCHIVE_PAGE);
-  const discovered = discoverArchiveEntries(html);
+  /** @type {ArchiveEntry[]} */
+  let pageEntries = [];
+  try {
+    const html = await fetchText(ARCHIVE_PAGE);
+    pageEntries = discoverArchiveEntries(html);
+  } catch (error) {
+    if (!(args.probeMissing && args.from && args.to)) throw error;
+    console.warn(`\nWARN archive page gagal: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn('Lanjut fail-closed dengan endpoint probe resmi karena --from dan --to eksplisit.');
+  }
+
+  let discovered = pageEntries;
+  if (args.probeMissing && args.from && args.to) {
+    const pageInRange = filterArchiveEntries(pageEntries, args);
+    console.log(`\nFallback probe: cek bulan yang belum ada di archive page untuk ${args.from} s/d ${args.to}.`);
+    const probed = await probeMissingArchiveEntries(pageInRange, { from: args.from, to: args.to }, args.probeDays);
+    discovered = mergeArchiveEntries(pageEntries, probed);
+  }
+
   if (!discovered.length) {
-    throw new Error('tidak menemukan link BalanceposEfekYYYYMMDD.zip pada halaman resmi KSEI');
+    throw new Error('tidak menemukan arsip resmi KSEI dari archive page maupun endpoint probe');
   }
 
   const selected = filterArchiveEntries(discovered, args);
   if (!selected.length) {
-    throw new Error('tidak ada arsip KSEI dalam range yang diminta');
+    throw new Error('tidak ada arsip KSEI dalam range yang diminta setelah fallback probe');
   }
 
-  console.log(`\nArsip ditemukan: ${discovered.length}; dipilih: ${selected.length}`);
-  for (const entry of selected) console.log(`  - ${entry.observedDate}  ${entry.fileName}`);
+  console.log(`\nArsip tersedia: ${discovered.length}; dipilih: ${selected.length}`);
+  for (const entry of selected) {
+    const via = entry.discovery === 'endpoint-probe' ? 'PROBE' : 'PAGE';
+    console.log(`  - ${entry.observedDate}  ${entry.fileName}  via=${via}`);
+  }
 
   if (args.list) return;
 
