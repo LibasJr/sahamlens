@@ -35,6 +35,7 @@ import {
   Target,
   TrendingUp,
   User,
+  Users,
   Wallet,
   Waves,
   Zap,
@@ -107,6 +108,10 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'research',
     label: 'Research & Lainnya',
     items: [
+      // Ownership Flow - menu BARU (2026-08-16), BUKAN Broker Summary yang diganti
+      // nama. Broker Summary tetap berada di grup Admin dan tetap nonaktif; keduanya
+      // mengukur hal berbeda (lihat docs/ownership-flow/broker-vs-ownership.md).
+      { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal & asing', path: '/ownership-flow', icon: Users, guest: true },
       { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar terbaru', path: '/news', icon: Newspaper, guest: true },
       { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS & aksi', path: '/calendar', icon: CalendarDays, guest: true },
       { id: 'macro', name: 'Macro', subtitle: 'Konteks makro Indonesia', path: '/macro', icon: Waves },
@@ -129,7 +134,11 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-jobs', name: 'Pemantau Cron', subtitle: 'Job terjadwal & kesehatannya', path: '/admin/jobs', icon: Activity },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
-    { id: 'admin-broker-summary', name: 'Broker Summary', subtitle: 'Import broker flow harian', path: '/admin/broker-summary', icon: FileSpreadsheet },
+    { id: 'admin-ownership-flow', name: 'Ownership Flow', subtitle: 'Status ingestion kepemilikan', path: '/admin/ownership-flow', icon: Users },
+    // NONAKTIF (2026-08-14) - ingestion masih menuntut upload manual per emiten.
+    // Entri sengaja DIPERTAHANKAN, bukan dihapus: data historis dan kodenya masih
+    // ada, dan fitur ini menunggu sumber otomatis yang legal & stabil.
+    { id: 'admin-broker-summary', name: 'Broker Summary (nonaktif)', subtitle: 'Menunggu sumber otomatis', path: '/admin/broker-summary', icon: FileSpreadsheet },
     { id: 'admin-lensai-feedback', name: 'Feedback LensAI', subtitle: 'Audit jawaban pengguna', path: '/admin/lensai-feedback', icon: MessageSquare },
   ],
 };

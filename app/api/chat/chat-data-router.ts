@@ -41,6 +41,7 @@ import {
   backtestEvidenceBlock,
 } from './blocks/lens-blocks';
 import { dividendBlock, earningsBlock, calendarBlock, flowBlock, moatBlock, riskBlock } from './blocks/emiten-blocks';
+import { ownershipFlowBlock } from './blocks/ownership-flow-blocks';
 import { decisionBlock, tradingSetupBlock, predictionGuardBlock } from './blocks/decision-blocks';
 import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type ChatUserContext } from './blocks/user-blocks';
 
@@ -696,6 +697,15 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   if (request.intent === 'FLOW_BROKER') {
     const blocks = await Promise.all(tickers.map(flowBlock));
     return { verifiedBlock: `${verifiedHeader('ARUS DANA & BROKER')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+  }
+
+  // Blok TERPISAH dari ARUS DANA & BROKER di atas, dan itu disengaja. Menyatukan
+  // keduanya dalam satu header akan mengundang model menarik kesimpulan silang
+  // ("porsi asing naik, berarti broker asing net buy") - kesimpulan yang tidak
+  // punya dasar tanpa data broker-level.
+  if (request.intent === 'OWNERSHIP_FLOW') {
+    const blocks = await Promise.all(tickers.map(ownershipFlowBlock));
+    return { verifiedBlock: `${verifiedHeader('OWNERSHIP FLOW - KOMPOSISI KEPEMILIKAN (BUKAN TRANSAKSI BROKER)')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
   }
 
   if (request.intent === 'RISK_PROFILE') {

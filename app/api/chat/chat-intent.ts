@@ -31,6 +31,14 @@ export type ChatIntent =
   | 'EARNINGS'
   | 'CALENDAR'
   | 'FLOW_BROKER'
+  /**
+   * Ditambahkan 2026-08-16 bersama modul Ownership Flow. SENGAJA terpisah dari
+   * FLOW_BROKER: yang satu tentang transaksi per kode broker, yang satu tentang
+   * komposisi kepemilikan. Menggabungkannya akan membuat LensAI menjawab
+   * "kepemilikan asing BBRI berapa?" dengan proksi arus dana dari OHLCV - angka
+   * yang sama sekali bukan yang ditanyakan.
+   */
+  | 'OWNERSHIP_FLOW'
   | 'MOAT'
   | 'RISK_PROFILE'
   | 'PORTFOLIO'
@@ -161,6 +169,15 @@ const DIVIDEND_TERMS = new RegExp(`\\b(dividen|dividend|dps|payout|bagi hasil|cu
 const EARNINGS_TERMS = new RegExp(`\\b(earnings|laporan keuangan|lapkeu|kuartal|kuartalan|q1|q2|q3|q4|rilis laba|beat|miss|konsensus analis)${S}\\b`);
 const CALENDAR_TERMS = new RegExp(`\\b(kalender|jadwal|agenda|rups|corporate action|aksi korporasi|stock split|right issue)${S}\\b`);
 const FLOW_TERMS = new RegExp(`\\b(bandar|bandarmologi|akumulasi|distribusi|net buy|net sell|broker|asing|foreign|arus dana|money flow|cmf)${S}\\b`);
+// OWNERSHIP_TERMS WAJIB diperiksa SEBELUM FLOW_TERMS di setiap tempat ia dipakai.
+// FLOW_TERMS memuat "asing" dan "foreign", jadi "kepemilikan asing BBRI berapa?"
+// akan tertangkap FLOW_BROKER lebih dulu kalau urutannya terbalik - dan LensAI
+// menjawabnya dengan proksi arus dana dari OHLCV, angka yang sama sekali bukan
+// yang ditanyakan. Istilah di bawah menuntut kata kepemilikan secara eksplisit,
+// jadi ia tidak menyerobot pertanyaan bandarmologi biasa.
+const OWNERSHIP_TERMS = new RegExp(
+  `\\b(ownership|ownership flow|kepemilikan|komposisi kepemilikan|porsi (?:asing|lokal)|persentase (?:asing|lokal)|pemegang saham asing|foreign ownership|local ownership|scripless|ksei)${S}\\b`
+);
 const MOAT_TERMS = new RegExp(`\\b(moat|keunggulan|competitive advantage|durabilitas|ketahanan bisnis|kualitas bisnis)${S}\\b`);
 const RISK_TERMS = new RegExp(`\\b(beta|risiko|resiko|volatilitas|volatility|drawdown|position size|money management|manajemen risiko|stop loss maksimal)${S}\\b`);
 // Keduanya sengaja MENUNTUT kata milik ("saya/ku/aku"). Tanpa itu, "watchlist" saja
@@ -215,6 +232,8 @@ function previousDataIntent(history: ChatHistoryMessage[]): ChatIntent | null {
     if (DIVIDEND_TERMS.test(text)) return 'DIVIDEND';
     if (EARNINGS_TERMS.test(text)) return 'EARNINGS';
     if (CALENDAR_TERMS.test(text)) return 'CALENDAR';
+    // Sebelum FLOW_TERMS - lihat catatan di definisi OWNERSHIP_TERMS.
+    if (OWNERSHIP_TERMS.test(text)) return 'OWNERSHIP_FLOW';
     if (FLOW_TERMS.test(text)) return 'FLOW_BROKER';
     if (MOAT_TERMS.test(text)) return 'MOAT';
     if (RISK_TERMS.test(text)) return 'RISK_PROFILE';
@@ -248,6 +267,7 @@ function secondaryIntents(text: string, primary: ChatIntent, tickerCount: number
     ['TECHNICAL_CURRENT', TECHNICAL_TERMS.test(text) && tickerCount > 0],
     ['VALUATION', VALUATION_TERMS.test(text) && tickerCount > 0],
     ['DIVIDEND', DIVIDEND_TERMS.test(text) && tickerCount > 0],
+    ['OWNERSHIP_FLOW', OWNERSHIP_TERMS.test(text) && tickerCount > 0],
     ['FLOW_BROKER', FLOW_TERMS.test(text) && tickerCount > 0],
     ['EARNINGS', EARNINGS_TERMS.test(text) && tickerCount > 0],
     ['RISK_PROFILE', RISK_TERMS.test(text) && tickerCount > 0],
@@ -353,6 +373,8 @@ function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, '
   if (DIVIDEND_TERMS.test(text)) return of('DIVIDEND');
   if (EARNINGS_TERMS.test(text)) return of('EARNINGS');
   if (CALENDAR_TERMS.test(text)) return of('CALENDAR');
+  // Sebelum FLOW_TERMS - lihat catatan di definisi OWNERSHIP_TERMS.
+  if (OWNERSHIP_TERMS.test(text)) return of('OWNERSHIP_FLOW');
   if (FLOW_TERMS.test(text)) return of('FLOW_BROKER');
   if (MOAT_TERMS.test(text)) return of('MOAT');
   if (RISK_TERMS.test(text)) return of('RISK_PROFILE');
