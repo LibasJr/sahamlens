@@ -16,6 +16,7 @@ import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list'
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getSession } from '@/modules/user';
 import { cookies } from 'next/headers';
+import { getAnalyzerDirectionLabel, getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 
 
 
@@ -251,19 +252,29 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
   const sellPct = total > 0 ? Math.round((hitung('SELL') / total) * 100) : 0;
   const holdPct = total > 0 ? Math.round((hitung('HOLD') / total) * 100) : 0;
 
+  // `kategori` (mis. 'STRONG BUY') adalah nilai classifier INTERNAL - dipakai untuk
+  // logika (tone warna, threshold) dan tetap dikirim apa adanya di API/CSV export untuk
+  // kompatibilitas. Yang dirender ke pengguna SELALU `kategoriLabel` (lihat
+  // shared/presentation/signal-labels.ts) supaya "STRONG BUY"/"BUY"/"SELL" tidak
+  // terbaca sebagai ajakan transaksi - model ini belum lolos validasi backtest
+  // out-of-sample (lihat status validasi di modules/validation).
   const kategori: string = konsensus?.kategori || 'HOLD';
+  const kategoriLabel = getKategoriPresentationLabel(kategori);
   const bullPct: number = konsensus?.bull_pct ?? 0;
   const bearPct: number = konsensus?.bear_pct ?? 0;
   const skor: number | null = typeof data.scoring?.total_score === 'number' ? data.scoring.total_score : null;
 
   // Ringkasan disusun dari angka, bukan dikarang. Sebelumnya kalimat ini datang dari LLM.
+  // "Keselarasan" dipakai secara eksplisit, BUKAN "confidence" atau "probabilitas" -
+  // bullPct/bearPct adalah bobot dimensi yang sepakat, bukan peluang harga naik/turun.
   const ringkasan = konsensus
-    ? `Konsensus ${kategori}: ${bullPct}% bobot dimensi bullish berbanding ${bearPct}% bearish, dari ${konsensus.total_models ?? total} analyzer (${konsensus.vote ?? '0:0'} berarah). ` +
-      `Sisanya ${Math.max(0, 100 - bullPct - bearPct)}% adalah dimensi yang analyzer di dalamnya saling bertentangan, jadi arahnya dinyatakan netral - bukan dipaksa memihak.`
+    ? `Konsensus ${kategoriLabel}: keselarasan arah antar dimensi ${bullPct}% condong positif berbanding ${bearPct}% condong negatif, dari ${konsensus.total_models ?? total} analyzer (${konsensus.vote ?? '0:0'} berarah). ` +
+      `Sisanya ${Math.max(0, 100 - bullPct - bearPct)}% adalah dimensi yang analyzer di dalamnya saling bertentangan, jadi arahnya dinyatakan netral - bukan dipaksa memihak. Angka ini keselarasan antar analyzer, bukan probabilitas harga akan naik atau turun.`
     : 'Data konsensus belum tersedia.';
 
-  const warnaKategori = kategori.includes('BUY') ? 'text-tv-green'
-    : kategori.includes('SELL') ? 'text-tv-red'
+  const kategoriTone = getKategoriTone(kategori);
+  const warnaKategori = kategoriTone === 'positive' ? 'text-tv-green'
+    : kategoriTone === 'negative' ? 'text-tv-red'
     : 'text-tv-yellow';
 
   return (
@@ -275,7 +286,8 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           </h2>
           <TechnicalExportSection
             symbol={symbol}
-            finalSuggestion={kategori}
+            finalSuggestion={kategoriLabel}
+            finalSuggestionTone={kategoriTone}
             summaryId={ringkasan}
             buyPct={buyPct}
             sellPct={sellPct}
@@ -306,7 +318,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
         )}
 
         <div className="rounded-lg border border-tv-border bg-tv-hover p-4">
-          <div className={`font-heading text-lg font-bold ${warnaKategori}`}>{kategori}</div>
+          <div className={`font-heading text-lg font-bold ${warnaKategori}`}>{kategoriLabel}</div>
           <p className="mt-2 text-sm text-tv-muted leading-relaxed">{ringkasan}</p>
           <p className="mt-3 text-[11px] text-tv-muted">
             Seluruh angka di halaman ini dihitung dari harga dan volume penutupan - tanpa
@@ -398,7 +410,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <h3 className="font-heading text-sm font-bold text-tv-text">{a.label}</h3>
                     <span className="lens-chip shrink-0 rounded border border-tv-yellow/30 bg-tv-yellow/20 px-2 py-0.5 font-number font-semibold text-tv-yellow">
-                      {sinyal}
+                      {getAnalyzerDirectionLabel(sinyal)}
                     </span>
                   </div>
                   <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
@@ -417,7 +429,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                   sinyal === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/30' :
                   'bg-tv-border text-tv-muted'
                 }`}>
-                  {sinyal}
+                  {getAnalyzerDirectionLabel(sinyal)}
                 </span>
               </div>
               <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>

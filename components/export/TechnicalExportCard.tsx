@@ -1,5 +1,6 @@
 import React from 'react';
 import { Brain, TrendingUp, TrendingDown, Minus, Circle, type LucideIcon } from 'lucide-react';
+import { getAnalyzerDirectionLabel } from '@/shared/presentation/signal-labels';
 
 interface Agent {
   name: string;
@@ -9,6 +10,7 @@ interface Agent {
 interface TechnicalExportCardProps {
   symbol: string;
   finalSuggestion: string;
+  finalSuggestionTone?: 'positive' | 'negative' | 'neutral';
   summaryId?: string;
   buyPct: number;
   sellPct: number;
@@ -41,12 +43,19 @@ function signalIcon(signal: string): LucideIcon {
 // visual brand. Kartu ini TIDAK dapat tema per-sektor (beda dari kartu fundamental)
 // karena CouncilDisplay tidak fetch company profile, cuma data teknikal/AI agent.
 export default function TechnicalExportCard({
-  symbol, finalSuggestion, summaryId, buyPct, sellPct, holdPct, waitPct, agents, score, exportedAt,
+  symbol, finalSuggestion, finalSuggestionTone, summaryId, buyPct, sellPct, holdPct, waitPct, agents, score, exportedAt,
 }: TechnicalExportCardProps) {
   const displaySymbol = symbol.replace('.JK', '');
   const timeLabel = exportedAt.toLocaleString('id-ID', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }) + ' WIB';
+  // BUG FIX (audit label rekomendasi 2026-08-15): kelas ini dulu SELALU `text-tv-green`
+  // apa pun isi finalSuggestion - kartu "SINYAL SANGAT NEGATIF" tetap tampil hijau di
+  // gambar yang diekspor/dibagikan pengguna. Warna sekarang mengikuti tone kategori yang
+  // sebenarnya, konsisten dengan halaman sumbernya (app/technical/[symbol]/page.tsx).
+  const finalSuggestionColorClass = finalSuggestionTone === 'negative' ? 'text-tv-red'
+    : finalSuggestionTone === 'neutral' ? 'text-tv-yellow'
+    : 'text-tv-green';
 
   return (
     // lens-export-dark mengunci palet kartu ke nilai gelap apa pun tema pengguna -
@@ -68,7 +77,7 @@ export default function TechnicalExportCard({
         <div>
           <div className="mb-6">
             <div className="text-6xl font-heading font-extrabold">{displaySymbol}.JK</div>
-            <div className="text-2xl text-tv-green mt-2 font-mono font-bold">{finalSuggestion}</div>
+            <div className={`text-2xl mt-2 font-mono font-bold ${finalSuggestionColorClass}`}>{finalSuggestion}</div>
             {typeof score === 'number' && (
               <div className="text-lg text-tv-muted mt-1 font-mono">Skor Komposit: {score}/100</div>
             )}
@@ -86,12 +95,12 @@ export default function TechnicalExportCard({
             {sellPct > 0 && <div style={{ width: `${sellPct}%` }} className="bg-tv-red" />}
           </div>
           <div className="flex gap-4 text-base font-mono font-bold mb-8">
-            {buyPct > 0 && <span className="text-tv-green">{buyPct}% BUY</span>}
+            {buyPct > 0 && <span className="text-tv-green">{buyPct}% BULLISH</span>}
             {/* text-blue-500 mentah (#3B82F6) terukur 3,68:1 - gagal AA. page.tsx sudah
                 diganti ke tv-blue sejak lama, kartu ini terlewat. */}
-            {holdPct > 0 && <span className="text-tv-blue">{holdPct}% HOLD</span>}
-            {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% WAIT</span>}
-            {sellPct > 0 && <span className="text-tv-red">{sellPct}% SELL</span>}
+            {holdPct > 0 && <span className="text-tv-blue">{holdPct}% NETRAL</span>}
+            {waitPct > 0 && <span className="text-tv-yellow">{waitPct}% NETRAL</span>}
+            {sellPct > 0 && <span className="text-tv-red">{sellPct}% BEARISH</span>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -102,7 +111,7 @@ export default function TechnicalExportCard({
                   <span className="text-sm font-bold truncate pr-2">{agent.name}</span>
                   <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border shrink-0 flex items-center gap-1 ${signalColorClass(agent.signal)}`}>
                     <SignalIcon className="w-3 h-3" />
-                    {agent.signal}
+                    {getAnalyzerDirectionLabel(agent.signal)}
                   </span>
                 </div>
               );

@@ -22,7 +22,8 @@ describe('getDecisionPresentation', () => {
 
     expect(p.kind).toBe('MODEL_UNVALIDATED');
     expect(p.modelSignal).toBe('BUY');
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: BUY');
+    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL POSITIF');
+    expect(p.modelSignalLabel).not.toContain('BUY');
     expect(p.statusLabel).toBe('MODEL BELUM TERVALIDASI');
     expect(p.recommendationLabel).toBeNull();
     expect(p.actionable).toBe(false);
@@ -30,7 +31,7 @@ describe('getDecisionPresentation', () => {
 
   it('SELL + ELIGIBLE + MODEL_UNVALIDATED tetap informational', () => {
     const p = getDecisionPresentation('SELL', decision({ reasonCodes: ['MODEL_UNVALIDATED'] }));
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SELL');
+    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL NEGATIF');
     expect(p.actionable).toBe(false);
   });
 
@@ -42,7 +43,7 @@ describe('getDecisionPresentation', () => {
     }));
 
     expect(p.kind).toBe('INELIGIBLE');
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: BUY');
+    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL POSITIF');
     expect(p.statusLabel).toBe('TIDAK LAYAK DIREKOMENDASIKAN');
     expect(p.explanation).toContain(status);
     expect(p.actionable).toBe(false);
@@ -62,13 +63,14 @@ describe('getDecisionPresentation', () => {
   it('future state ELIGIBLE + validated + BUY memakai decision.action sebagai recommendation', () => {
     const p = getDecisionPresentation('BUY', decision({ action: 'BUY', advisory: true }));
     expect(p.kind).toBe('ACTIONABLE');
-    expect(p.recommendationLabel).toBe('REKOMENDASI: BUY');
+    expect(p.recommendationLabel).toBe('REKOMENDASI: SINYAL POSITIF');
+    expect(p.recommendationLabel).not.toContain('BUY');
     expect(p.actionable).toBe(true);
   });
 
   it('payload legacy tanpa decision tetap fail-closed', () => {
     const p = getDecisionPresentation('BUY', undefined);
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: BUY');
+    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL POSITIF');
     expect(p.statusLabel).toBe('REKOMENDASI TIDAK TERSEDIA');
     expect(p.actionable).toBe(false);
   });
@@ -83,9 +85,9 @@ describe('getSimpleDecisionLabel', () => {
     expect(getSimpleDecisionLabel(presentation)).toBe('INFORMASI');
   });
 
-  it('hanya menampilkan BUY bila advisory actionable', () => {
+  it('hanya menampilkan SINYAL POSITIF (bukan kata "BUY") bila advisory actionable', () => {
     const presentation = getDecisionPresentation('BUY', decision({ action: 'BUY', advisory: true }));
-    expect(getSimpleDecisionLabel(presentation)).toBe('BUY');
+    expect(getSimpleDecisionLabel(presentation)).toBe('SINYAL POSITIF');
   });
 
   it('membedakan data terbatas dan saham yang tidak lolos eligibility', () => {
