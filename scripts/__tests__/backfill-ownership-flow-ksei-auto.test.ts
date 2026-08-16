@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildMonthlyProbeCandidates,
   discoverArchiveEntries,
   filterArchiveEntries,
+  mergeArchiveEntries,
   parseBackfillSummary,
 } from '../backfill-ownership-flow-ksei-auto.mjs';
 
@@ -35,6 +37,46 @@ describe('auto backfill Ownership Flow KSEI', () => {
       filterArchiveEntries(entries, { from: '2026-02-01', to: '2026-04-30' })
         .map((x) => x.observedDate),
     ).toEqual(['2026-02-27', '2026-03-31', '2026-04-30']);
+  });
+
+
+
+  it('membangun kandidat probe dari akhir bulan mundur tanpa keluar range', () => {
+    const groups = buildMonthlyProbeCandidates(
+      { from: '2025-01-01', to: '2025-02-28' },
+      3,
+    );
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ month: '2025-01' });
+    expect(groups[0].candidates.map((x) => x.observedDate)).toEqual([
+      '2025-01-31',
+      '2025-01-30',
+      '2025-01-29',
+    ]);
+    expect(groups[1].candidates.map((x) => x.observedDate)).toEqual([
+      '2025-02-28',
+      '2025-02-27',
+      '2025-02-26',
+    ]);
+    expect(groups[0].candidates[0]).toMatchObject({
+      fileName: 'BalanceposEfek20250131.zip',
+      discovery: 'endpoint-probe',
+    });
+  });
+
+  it('menggabungkan hasil archive page dan probe tanpa menduplikasi tanggal', () => {
+    const page = discoverArchiveEntries('BalanceposEfek20250131.zip');
+    const probe = buildMonthlyProbeCandidates(
+      { from: '2025-01-01', to: '2025-02-28' },
+      1,
+    ).flatMap((group) => group.candidates);
+
+    const merged = mergeArchiveEntries(page, probe);
+    expect(merged.map((x) => [x.observedDate, x.discovery])).toEqual([
+      ['2025-01-31', 'archive-page'],
+      ['2025-02-28', 'endpoint-probe'],
+    ]);
   });
 
   it('membaca gate dry-run dan hasil idempotent dari output parser utama', () => {
