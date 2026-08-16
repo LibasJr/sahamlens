@@ -13,7 +13,7 @@ GitHub Actions.**
    `vercel --prod`, tidak ada langkah manual.
 3. **Env var production ada di `/opt/sahamlens/app/.env.production` di VPS**, bukan di
    dashboard Vercel. Menambah env var di Vercel tidak berpengaruh apa pun ke pengguna.
-4. **Cron dijalankan dari dua tempat**: manifest saat ini mencatat 10 job lewat QStash dan 11 job lewat systemd timer di VPS; beberapa timer baru tetap berstatus `verify-server` sampai diverifikasi langsung dengan `systemctl list-timers`.
+4. **Cron dijalankan dari dua tempat**: 9 job lewat QStash, 3 job lewat systemd timer di VPS.
    `vercel.json` sengaja **tidak boleh** berisi blok `crons` lagi (alasannya di bawah).
 5. **Vercel masih hidup sebagai standby** dan tetap ikut build tiap push - tapi tidak
    melayani pengguna dan tidak boleh menjalankan job terjadwal apa pun.
@@ -42,80 +42,50 @@ GitHub Actions.**
 
 ## Status live
 
-### 2026-08-16 - Production Hardening + Financial Integrity (MIGRATION-FIRST)
+### 2026-08-16 - Badge "Blue-chip" salah nempel di saham gorengan (kasus PACK.JK) - diganti ke daftar konstituen LQ45
 
-Rilis ini mengubah kontrak deployment: **database migration wajib dijalankan SEBELUM aplikasi baru direstart**.
-Runtime tidak lagi memiliki hak/logic `CREATE TABLE`/`ALTER TABLE`; `database/migrations/*.sql` menjadi satu-satunya source of truth schema. Aplikasi baru akan fail-closed dengan pesan migration missing bila schema belum berada pada versi yang diwajibkan.
+Bug report pengguna via screenshot: PACK.JK ("PT Abadi Nusantara Hijau Investama Tbk.",
+harga Rp 296, +8,03% hari itu, data BASI >1 hari bursa) tampil berlabel **"Blue-chip"**
+di halaman LensTechnical (`/dashboard`).
 
-**Urutan deploy manual/SSH untuk rilis ini:**
+Root cause: badge ditambahkan 2026-08-14 (lihat entri di bawah) dengan definisi murni
+`market_cap >= Rp 10T DAN ADV20 >= Rp 5M/hari`, dihitung **live dari harga & volume 20
+hari terakhir** (`lib/utils/cap-tier.ts`, komentar aslinya sudah menandai
+`[HYPOTHESIS] - belum divalidasi backtest`). Masalahnya: kedua angka itu justru yang
+PALING gampang digelembungkan sesaat oleh pump/gorengan - `market_cap` = harga sekarang
+x saham beredar, jadi begitu harga di-pump, market cap ikut melambung instan; ADV20 =
+rata-rata (harga x volume) 20 hari, jadi lonjakan volume+harga beberapa hari terakhir
+(pola khas gorengan) ikut mendongkrak rata-ratanya. Akibatnya badge yang seharusnya
+menyiratkan "aman/stabil" malah paling rawan salah nempel justru SAAT sedang terjadi
+gorengan - kebalikan dari tujuannya. Dicek juga apakah ada daftar LQ45/IDX30 terkurasi
+yang bisa jadi pembanding - `lib/tickers.ts` komentarnya menyebut "daftar saham likuid
+LQ45/blue-chip" tapi isinya ternyata seluruh ~800+ emiten IDX (bukan daftar terkurasi,
+komentarnya sendiri sudah basi/menyesatkan).
 
-```bash
-cd /opt/sahamlens/app
+Perbaikan (dipilih pengguna dari beberapa opsi - daftar terkurasi vs perpanjang jendela
+ADV vs guard volatilitas vs matikan badge): **"Blue-chip" sekarang berarti "konstituen
+indeks LQ45 IDX saat ini"**, bukan lagi ambang market cap/ADV20 real-time.
+`lib/utils/blue-chip-index.ts` (BARU) berisi daftar tetap ~45 ticker konstituen LQ45 +
+`isBlueChipConstituent()`. Keanggotaan indeks ditetapkan lewat evaluasi resmi IDX 2x
+setahun (efektif akhir Januari/awal Februari dan akhir Juli/awal Agustus) - tidak bisa
+berubah karena pergerakan harga/volume satu-dua minggu, jadi menutup celah pump/gorengan
+sepenuhnya. `classifyCapTier()` (`cap-tier.ts`) sekarang menerima parameter `ticker` dan
+mendelegasikan penentuan BLUE_CHIP ke `isBlueChipConstituent()`; parameter market
+cap/ADV20 tetap dipertahankan HANYA sebagai gerbang "data belum cukup -> jangan
+menebak" (mis. IHSG, bukan saham individual), bukan lagi kriteria penentu tier.
 
-# 1. setelah source baru sudah tersedia, lihat rencana migration tanpa menulis
-node --env-file=.env.production scripts/migrate-database.mjs
+**>>> DAFTAR LQ45 DI `blue-chip-index.ts` BUKAN FEED LIVE - WAJIB DIVERIFIKASI MANUAL
+<<<**. Disusun dari pengetahuan pelatihan model (cutoff Januari 2026), belum dicocokkan
+ke pengumuman resmi IDX untuk periode berjalan. Hari perbaikan ini dicatat (2026-08-16)
+sudah lewat jadwal evaluasi akhir Juli/awal Agustus, jadi ADA KEMUNGKINAN daftar ini
+sudah satu periode basi - cek ke idx.co.id (Data Pasar -> Indeks -> LQ45 -> Konstituen)
+dan perbarui array `LQ45_CONSTITUENTS` kalau perlu. Risiko keterlambatan SEPIHAK dan
+kecil: emiten yang baru keluar dari LQ45 mungkin masih tampil Blue-chip beberapa waktu
+(kosmetik ringan) - TIDAK ADA jalan bagi saham gorengan untuk lolos hanya karena
+harga/volume hari ini melonjak, itu celah yang justru sudah ditutup.
 
-# 2. apply migration bernomor; checksum migration lama tidak boleh berubah
-node --env-file=.env.production scripts/migrate-database.mjs --confirm
-
-# 3. gate production wajib lulus sebelum restart
-npm run verify:prod
-
-# 4. baru restart aplikasi
-sudo systemctl restart sahamlens
-sudo systemctl --no-pager --full status sahamlens
-
-# 5. audit keadaan production setelah restart
-node --env-file=.env.production scripts/audit-production-integrity.mjs
-```
-
-**Env production baru/yang harus diperiksa di `/opt/sahamlens/app/.env.production`:**
-
-```dotenv
-# Secret admin HARUS berbeda dari JWT_SECRET. Generate random >=32 byte.
-ADMIN_JWT_SECRET=<random-secret-terpisah>
-ADMIN_BREAK_GLASS_ENABLED=false
-
-# Production berada di belakang Cloudflare Tunnel/Nginx.
-TRUSTED_PROXY_MODE=cloudflare
-TRUSTED_APP_ORIGINS=https://sahamlens.id,https://www.sahamlens.id
-AUTH_AUDIT_HASH_SECRET=<random-secret-terpisah>
-
-# Tetap true selama fase testing/open-access. Ubah false hanya saat entitlement paid siap diberlakukan.
-NEXT_PUBLIC_TESTING_OPEN_ACCESS=true
-```
-
-`ADMIN_JWT_SECRET` wajib tersedia sebelum aplikasi production baru direstart; tidak ada fallback production ke `JWT_SECRET_KEY`. `ADMIN_SECRET_KEY` tetap dapat dipakai untuk bootstrap secret admin pertama, tetapi setelah hash admin sudah tersimpan di DB ia **bukan** fallback permanen. Break-glass setelah bootstrap hanya bekerja bila `ADMIN_BREAK_GLASS_ENABLED=true`, dan harus dikembalikan ke `false` segera setelah insiden selesai. Cookie admin sekarang `Secure`, `HttpOnly`, `SameSite=Strict`, sesi default 8 jam, mempunyai session version/JTI, dan pergantian secret mencabut sesi lama.
-
-**Trusted client IP:** rate limit/audit production tidak lagi mempercayai `x-forwarded-for` secara buta. Dengan `TRUSTED_PROXY_MODE=cloudflare`, aplikasi memakai `CF-Connecting-IP`. Jangan mengubah ke mode `forwarded` kecuali reverse proxy benar-benar menghapus header client dan menulis ulang chain tepercaya.
-
-**CI/deploy:** Node production/CI dipatok major 22 (`.nvmrc`, `engines`), TypeScript target ES2022, dan build Next.js sekarang mandatory gate. Workflow manual deploy juga menjalankan `verify:prod`; tidak lagi menjadi jalur bypass CI.
-
-**Schema baru/aditif:** migration hardening menambahkan session version/audit admin, evidence bank fundamental PIT, macro valuation assumptions history, TP/CL validation runs, payment orders, dan data-source health. Migration baseline sengaja tidak berisi `UPDATE`, `DELETE`, `DROP`, atau `TRUNCATE`; tidak ada data produksi yang dimodifikasi diam-diam.
-
-**Integritas finansial:**
-
-- LensScore tetap `RESEARCH_ONLY`; hardening ini TIDAK mengubah model menjadi tervalidasi.
-- Bank fundamentals baru adalah evidence pipeline `DATA_ONLY`/PIT. Jika data resmi belum di-import, UI menampilkan N/A - tidak ada angka dummy/fallback buatan.
-- Macro assumptions memiliki lineage/versioning; production fair-value constants tidak otomatis berubah hanya karena evidence baru di-import.
-- Ownership Flow Validation membedakan data backfill historis dari data yang benar-benar PIT. Snapshot KSEI lama yang baru kita download sekarang tidak boleh dipakai seolah-olah sudah diketahui pada tanggal observasinya untuk membuktikan prediksi historis (anti look-ahead bias).
-- TP/CL research run sekarang durable queue di DB. Browser hanya enqueue; worker VPS yang melakukan pekerjaan berat dan menyimpan hasil/run status.
-
-**Timer systemd BARU yang harus dipasang setelah migration + build lulus:**
-
-```bash
-cd /opt/sahamlens/app
-sudo bash deploy/privacy-cleanup/install.sh
-sudo bash deploy/tpcl-validation-worker/install.sh
-
-systemctl list-timers --all | grep -E 'privacy-cleanup|tpcl-validation-worker'
-```
-
-Privacy cleanup berjalan mingguan dan TP/CL worker mengecek antrean tiap menit. Kedua entry tetap `verify-server` di `config/scheduled-jobs.json` sampai benar-benar terlihat di `systemctl list-timers`; setelah terpasang, update manifest agar status deployment tidak mengklaim hal yang belum diverifikasi.
-
-**Restore:** jalankan restore drill ke database TERISOLASI, bukan production. Prosedur dan RTO dicatat di `docs/production/RESTORE_DRILL.md`.
-
-**Catatan upgrade dependency:** runtime/toolchain sudah disejajarkan ke Node 22 + ES2022. Major dependency `next`/`eslint-config-next` tidak dinaikkan secara spekulatif di patch hardening ini; lakukan sebagai PR upgrade terpisah dengan `npm ci`, typecheck, test, build, dan browser smoke test lengkap.
+Typecheck, lint, 1646 test (7 baru: `blue-chip-index.test.ts` + revisi
+`cap-tier.test.ts`) lolos, build production lolos.
 
 ### 2026-08-16 - Koreksi validator Ownership Flow (temuan audit VPS)
 
