@@ -13,6 +13,10 @@ interface Agent {
 interface TechnicalExportSectionProps {
   symbol: string;
   finalSuggestion: string;
+  /** Arah kategori (positive/negative/neutral) - dipakai kartu export untuk memilih
+   * warna finalSuggestion. Tanpa ini kartu selalu mewarnai hijau walau sinyalnya negatif
+   * (lihat catatan di TechnicalExportCard.tsx). */
+  finalSuggestionTone?: 'positive' | 'negative' | 'neutral';
   summaryId?: string;
   buyPct: number;
   sellPct: number;
@@ -27,7 +31,7 @@ interface TechnicalExportSectionProps {
 // bisa jalan di browser. Komponen ini menerima data council sebagai prop biasa (sudah
 // serializable JSON) dari server lalu me-render tombol + kartu offscreen di client.
 export default function TechnicalExportSection({
-  symbol, finalSuggestion, summaryId, buyPct, sellPct, holdPct, waitPct, agents, score,
+  symbol, finalSuggestion, finalSuggestionTone, summaryId, buyPct, sellPct, holdPct, waitPct, agents, score,
 }: TechnicalExportSectionProps) {
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +55,7 @@ export default function TechnicalExportSection({
           <TechnicalExportCard
             symbol={symbol}
             finalSuggestion={finalSuggestion}
+            finalSuggestionTone={finalSuggestionTone}
             summaryId={summaryId}
             buyPct={buyPct}
             sellPct={sellPct}

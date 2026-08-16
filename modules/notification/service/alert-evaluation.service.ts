@@ -1,5 +1,6 @@
 import { listPendingAlerts, markTriggered } from '@/modules/watchlist';
 import { internalServiceHeaders } from '@/shared/auth/internal-service';
+import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/alerts/check/route.ts, verbatim.
 // modules/notification bergantung SATU ARAH ke modules/watchlist (baca daftar alert +
@@ -80,7 +81,7 @@ export function isTriggered(alert: any, ctx: { stock?: any; breakoutEntry?: any;
   }
 }
 
-function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadth?: any }): string {
+export function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadth?: any }): string {
   switch (alert.condition_type) {
     case 'PRICE_BELOW':
     case 'PRICE_ABOVE':
@@ -89,14 +90,15 @@ function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; brea
       const price = getPrice(ctx.stock);
       const label = alert.condition_type === 'PRICE_BELOW' ? `Harga turun ke bawah ${alert.condition_value}`
         : alert.condition_type === 'PRICE_ABOVE' ? `Harga naik ke atas ${alert.condition_value}`
-        : alert.condition_type === 'CONSENSUS_STRONG_BUY' ? 'Konsensus STRONG BUY'
+        : alert.condition_type === 'CONSENSUS_STRONG_BUY' ? 'Konsensus Sangat Positif'
         : 'RSI Oversold (< 30)';
       const score = ctx.stock?.scoring?.total_score;
       const kategori = ctx.stock?.scoring?.kategori;
+      const kategoriLabel = kategori ? getKategoriPresentationLabel(kategori) : '';
       return [
         '🚨 <b>SahamLens LensAlert</b>',
         `${alert.symbol} ${label}!`,
-        `Price: ${price != null ? price.toLocaleString('id-ID') : 'N/A'}${score != null ? ` | Score: ${score} ${kategori || ''}` : ''}`,
+        `Price: ${price != null ? price.toLocaleString('id-ID') : 'N/A'}${score != null ? ` | Score: ${score} ${kategoriLabel}` : ''}`,
         `Cek: /dashboard?symbol=${alert.symbol}`,
       ].join('\n');
     }

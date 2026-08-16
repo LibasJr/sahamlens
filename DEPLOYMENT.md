@@ -42,6 +42,26 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Label rekomendasi transaksi diganti sinyal presentasi aman
+
+- Classifier internal (`STRONG BUY`/`BUY`/`HOLD`/`SELL`/`STRONG SELL` dari
+  `consensus.service.ts` & `scoring.service.ts`) sebelumnya dirender apa adanya ke
+  pengguna di beberapa tempat (Konsensus Teknikal, kartu export yang dibagikan, tabel
+  Rekomendasi, chip watchlist, notifikasi alert, copy marketing paywall) - terbaca
+  seperti ajakan transaksi padahal status model tetap `NOT VALIDATED`.
+- `shared/presentation/signal-labels.ts` (baru) memetakan kategori internal ke label
+  aman (SINYAL SANGAT POSITIF/POSITIF/NETRAL-PANTAU/NEGATIF/SANGAT NEGATIF) dan arah
+  analyzer ke BULLISH/BEARISH/NETRAL. Dipakai di `app/technical/[symbol]/page.tsx`,
+  `app/recommendations/page.tsx`, `app/watchlist/page.tsx`,
+  `modules/eligibility/service/decision-presentation.service.ts`,
+  `modules/notification/service/alert-evaluation.service.ts`, dan
+  `shared/config/pricing.ts`. Sekaligus perbaiki bug warna kartu export teknikal yang
+  sebelumnya selalu hijau apa pun arah sinyalnya.
+- Murni presentation-layer: formula, threshold, scoring, eligibility, dan status
+  validasi model tidak berubah. Tidak ada env var, migrasi database, cron, atau
+  langkah VPS baru. Push ke `main` tetap cukup untuk mengirim rilis lewat GitHub
+  Actions.
+
 ### 2026-08-16 - LensTechnical memprioritaskan chart
 
 - Chart candle emiten dipindahkan tepat setelah konteks ticker, harga, dan waktu data.

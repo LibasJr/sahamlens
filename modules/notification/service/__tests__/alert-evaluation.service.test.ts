@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isTriggered } from '../alert-evaluation.service';
+import { formatMessage, isTriggered } from '../alert-evaluation.service';
 
 const alert = { condition_type: 'CONSENSUS_STRONG_BUY', condition_value: null };
 
@@ -28,5 +28,20 @@ describe('CONSENSUS_STRONG_BUY alert respects actionable decision', () => {
     expect(isTriggered(alert, {
       stock: stock({ advisory: true, action: 'BUY', reasonCodes: [] }),
     })).toBe(true);
+  });
+});
+
+describe('formatMessage untuk notifikasi push/telegram', () => {
+  it('teks notifikasi CONSENSUS_STRONG_BUY tidak mengandung kata transaksi "STRONG BUY"/"BUY" mentah', () => {
+    const message = formatMessage(alert, {
+      stock: {
+        price: 5000,
+        scoring: { total_score: 82, kategori: 'STRONG BUY' },
+      },
+    });
+
+    expect(message).not.toContain('STRONG BUY');
+    expect(message).toContain('Konsensus Sangat Positif');
+    expect(message).toContain('SINYAL SANGAT POSITIF');
   });
 });
