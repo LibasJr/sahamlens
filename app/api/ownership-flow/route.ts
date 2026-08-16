@@ -1,0 +1,84 @@
+import { guard } from '@/lib/sahamLensGuard';
+guard();
+
+import { NextResponse } from 'next/server';
+import { getOwnershipFlowConfig } from '@/modules/ownership-flow/config/ownership-flow.config';
+import { getOwnershipFlowList } from '@/modules/ownership-flow/service/ownership-flow-query.service';
+import { getOwnershipUniverse } from '@/modules/ownership-flow/service/ownership-flow-ingest.service';
+import { getPrimarySource } from '@/modules/ownership-flow/source/source-registry';
+import { getOwnershipHistoryStats } from '@/modules/ownership-flow/repository/ownership-flow-history.repository';
+import { logger } from '@/shared/logger/logger';
+
+// DAFTAR OWNERSHIP FLOW seluruh universe - sumber data halaman /ownership-flow.
+//
+// Mengembalikan SELURUH ticker universe, termasuk yang BELUM punya observasi
+// (freshness MISSING). Itu disengaja: menyaring emiten tanpa data akan membuat
+// tabel terlihat lengkap padahal cakupannya belum penuh, dan operator kehilangan
+// satu-satunya petunjuk visual bahwa ingestion belum menjangkau semuanya.
+
+export const maxDuration = 60;
+
+export async function GET() {
+  const config = getOwnershipFlowConfig();
+  if (!config.enabled) {
+    return NextResponse.json(
+      { error: 'Ownership Flow belum diaktifkan', code: 'FEATURE_DISABLED' },
+      { status: 404 }
+    );
+  }
+
+  try {
+    const source = getPrimarySource();
+    const universe = getOwnershipUniverse(config.universeLimit);
+    const [rows, stats] = await Promise.all([
+      getOwnershipFlowList(universe),
+      getOwnershipHistoryStats(),
+    ]);
+
+    return NextResponse.json({
+      source: {
+        id: source.id,
+        name: source.name,
+        baseUrl: source.baseUrl,
+        cadence: source.cadence,
+        // Status audit ikut dikirim supaya UI bisa menjelaskan dengan jujur
+        // KENAPA tabelnya masih kosong, alih-alih menampilkan "tidak ada data"
+        // yang tidak memberi tahu apa-apa.
+        auditStatus: source.auditStatus,
+      },
+      universeSize: universe.length,
+      latestObservedDate: stats.latestObservedDate,
+      coverage: {
+        tickersWithData: stats.distinctTickers,
+        tickersOnLatestDate: stats.tickersOnLatestDate,
+        totalObservations: stats.totalRows,
+        firstObservedDate: stats.earliestObservedDate,
+      },
+      deltaUnit: 'percentage_point',
+      experimental: true,
+      inFinalScore: false,
+      rows: rows.map((row) => ({
+        ticker: row.ticker.replace('.JK', ''),
+        observedDate: row.observedDate,
+        foreignPct: row.foreignPct,
+        localPct: row.localPct,
+        delta: {
+          '1d': row.delta.d1.pp,
+          '7d': row.delta.d7.pp,
+          '30d': row.delta.d30.pp,
+        },
+        deltaGapDays: {
+          '1d': row.delta.d1.actualGapDays,
+          '7d': row.delta.d7.actualGapDays,
+          '30d': row.delta.d30.actualGapDays,
+        },
+        trend: row.trend,
+        freshness: row.freshness,
+        ageDays: row.ageDays,
+      })),
+    });
+  } catch (error) {
+    logger.error('API ownership-flow (daftar) gagal', { module: 'ownership-flow', error });
+    return NextResponse.json({ error: 'Gagal memuat Ownership Flow' }, { status: 500 });
+  }
+}
