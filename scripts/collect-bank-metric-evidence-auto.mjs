@@ -468,7 +468,34 @@ async function discoverForBank(ticker,cfg,{year,maxDocs}){
   return {docs:unique,pagesChecked};
 }
 
-function resolvePeriod(docTitle,text,kind='PDF'){
+function inferReportingPeriodEndFromBody(text){
+  const s=String(text??'');
+  const candidates=[];
+  const push=(value)=>{if(value) candidates.push(value);};
+
+  // Financial reporting tokens have priority over publication/news months in
+  // the PDF body. A 1H26 deck published in July still belongs to 2026-06-30.
+  for(const m of s.matchAll(/\b(?:q([1-4])\s*[-/]?\s*(20\d{2})|([1-4])q\s*[-/]?\s*(\d{2,4})|(20\d{2})\s*[-/]?\s*q([1-4]))\b/gi)){
+    const quarter=Number(m[1]??m[3]??m[6]);
+    const year=normalizeYear(m[2]??m[4]??m[5]);
+    push(lastDayIso(year,quarter*3));
+  }
+  for(const m of s.matchAll(/\b1h\s*[-/]?\s*(\d{2,4})\b/gi)) push(lastDayIso(normalizeYear(m[1]),6));
+  for(const m of s.matchAll(/\b9m\s*[-/]?\s*(\d{2,4})\b/gi)) push(lastDayIso(normalizeYear(m[1]),9));
+  for(const m of s.matchAll(/\bfy\s*[-/]?\s*(\d{2,4})\b/gi)) push(lastDayIso(normalizeYear(m[1]),12));
+  if(candidates.length) return [...new Set(candidates)].sort().at(-1)??null;
+
+  // If no quarter/half-year token exists, only accept a month/year when the
+  // body explicitly labels it as the reporting snapshot. Do NOT accept a bare
+  // publication month such as "July 2026" from press-release text.
+  const explicit=[];
+  const monthPattern=Object.keys(MONTHS).join('|');
+  const re=new RegExp(`(?:as\s+of|as\s+at|per|period(?:\s+ending)?|for\s+the\s+period\s+ended)\s+(${monthPattern})[\s,.-]+(20\d{2})`,'gi');
+  for(const m of s.matchAll(re)) explicit.push(lastDayIso(Number(m[2]),MONTHS[m[1].toLowerCase()]));
+  return explicit.length?[...new Set(explicit)].sort().at(-1)??null:null;
+}
+
+export function resolvePeriod(docTitle,text,kind='PDF'){
   const fromTitle=inferPeriodEnd(docTitle); if(fromTitle) return fromTitle;
   if(kind==='HTML'){
     // Live investor pages contain many historical/news dates. Only accept an
@@ -478,7 +505,7 @@ function resolvePeriod(docTitle,text,kind='PDF'){
     if(explicit) return inferPeriodEnd(`As of ${explicit[1]} ${explicit[2]}`);
     return null;
   }
-  return inferPeriodEnd(String(text));
+  return inferReportingPeriodEndFromBody(text);
 }
 
 function inferDocumentBasis(text){
@@ -488,11 +515,12 @@ function inferDocumentBasis(text){
   return 'DISCLOSED_UNSPECIFIED';
 }
 
-function reconcileCandidates(candidates){
+export function reconcileCandidates(candidates){
   const grouped=new Map();
-  // One automated evidence value per ticker/period/metric. If BANK_ONLY and
-  // CONSOLIDATED disagree, the collector must not silently choose one.
-  for(const c of candidates){if(c.status!=='CANDIDATE'||c.value==null||!c.periodEnd) continue; const key=[c.ticker,c.periodEnd,c.metricKey].join('|'); const arr=grouped.get(key)??[];arr.push(c);grouped.set(key,arr);}
+  // One automated evidence value per ticker/period/basis/metric. BANK_ONLY,
+  // CONSOLIDATED and DISCLOSED_UNSPECIFIED are distinct evidence populations;
+  // a legitimate basis difference must never be mislabeled as a conflict.
+  for(const c of candidates){if(c.status!=='CANDIDATE'||c.value==null||!c.periodEnd) continue; const key=[c.ticker,c.periodEnd,c.basis,c.metricKey].join('|'); const arr=grouped.get(key)??[];arr.push(c);grouped.set(key,arr);}
   const accepted=[]; const quarantine=candidates.filter(c=>c.status==='QUARANTINED'||!c.periodEnd).map(c=>({...c,status:'QUARANTINED',reason:c.reason??(!c.periodEnd?'period_end_unresolved':'quarantined')}));
   const basisPriority={BANK_ONLY:3,CONSOLIDATED:3,DISCLOSED_UNSPECIFIED:1};
   for(const arr of grouped.values()){
@@ -512,7 +540,7 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
   try{
     await db.query('BEGIN');
     await db.query(`INSERT INTO bank_metric_collection_runs(run_id,mode,status,tickers,source_pages_checked,documents_discovered,documents_parsed,evidence_candidates,detail)
-      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:3, parserPolicy:'period-column + BBCA arithmetic comparison rows; semantic guards; ambiguous/conflict/forecast/guardrail remain quarantined'})]);
+      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:4, parserPolicy:'reporting-period-first + basis-aware reconciliation + period-column + BBCA arithmetic comparison rows; ambiguous/conflict/forecast/guardrail remain quarantined'})]);
     let inserted=0,existing=0;
     for(const r of accepted){
       const observedDate=TODAY;

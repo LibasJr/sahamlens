@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractLinks, extractMetricCandidates, htmlToText, inferPeriodEnd } from '../collect-bank-metric-evidence-auto.mjs';
+import { extractLinks, extractMetricCandidates, htmlToText, inferPeriodEnd, reconcileCandidates, resolvePeriod } from '../collect-bank-metric-evidence-auto.mjs';
 
 describe('bank official-source auto collector', () => {
   it('menemukan link dokumen dari HTML tanpa search engine', () => {
@@ -155,4 +155,24 @@ it('later deterministic BBCA row can supersede earlier ambiguous same-metric cha
   const casaRows = rows.filter((x: any) => x.metricKey === 'CASA_PCT');
   expect(casaRows.some((x: any) => x.status === 'CANDIDATE' && x.value === 85.2)).toBe(true);
   expect(casaRows.some((x: any) => x.status === 'QUARANTINED')).toBe(false);
+});
+
+
+it('memprioritaskan reporting period di body daripada bulan publikasi', () => {
+  expect(resolvePeriod('View', 'BCA Corporate Presentation July 2026 - 1H26 Performance', 'PDF')).toBe('2026-06-30');
+  expect(resolvePeriod('View', 'Published April 2026 - 1Q26 Financial Highlights', 'PDF')).toBe('2026-03-31');
+});
+
+it('tidak menganggap BANK_ONLY dan CONSOLIDATED sebagai conflicting official values', () => {
+  const base = {
+    ticker: 'BBCA.JK', periodEnd: '2026-06-30', metricKey: 'CAR_PCT', unit: 'PCT',
+    confidence: 0.99, extractionMethod: 'fixture', sourceTitle: '1H26', sourceUrl: 'https://www.bca.co.id/1h26.pdf',
+    rawExcerpt: 'fixture', status: 'CANDIDATE', reason: null,
+  };
+  const { accepted, quarantine } = reconcileCandidates([
+    { ...base, value: 26.8, basis: 'BANK_ONLY' },
+    { ...base, value: 28.1, basis: 'CONSOLIDATED' },
+  ] as any[]);
+  expect(accepted).toHaveLength(2);
+  expect(quarantine.filter((x: any) => String(x.reason ?? '').startsWith('conflicting_official_values'))).toHaveLength(0);
 });
