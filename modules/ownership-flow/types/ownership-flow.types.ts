@@ -50,14 +50,28 @@ export interface OwnershipObservation {
 }
 
 /**
- * Flag kualitas data. `INCONSISTENT` dipakai ketika angkanya ADA tetapi tidak
- * lolos pemeriksaan silang (mis. local + foreign jauh dari 100). Baris seperti
- * itu DITOLAK, bukan di-clamp diam-diam.
+ * Flag kualitas data.
+ *
+ * Pembedaan ini bukan kosmetik - masing-masing menuntut tindakan berbeda dari
+ * operator:
+ *
+ * - `MISSING`          : sumber tidak menyediakan kolomnya sama sekali.
+ * - `INCONSISTENT`     : angkanya ADA tapi gagal pemeriksaan silang
+ *                        (local + foreign menyimpang dari scripless).
+ * - `PLACEHOLDER_DATA` : halaman emitennya ASLI tapi nilainya 0/0/0 - halaman
+ *                        belum memuat data. Ditemukan pada fixture TLKM nyata
+ *                        (2026-08-16). Ini BUKAN kegagalan jaringan dan BUKAN
+ *                        kesalahan parser; menaikkan retry tidak menolongnya.
+ * - `SOURCE_ERROR`     : gagal mengambil halaman (jaringan/HTTP) setelah retry.
+ * - `STALE`            : ada, tapi lebih tua dari cadence sumber.
+ *
+ * Hanya `VALID` yang boleh masuk database.
  */
 export type DataQualityFlag =
   | 'VALID'
   | 'MISSING'
   | 'INCONSISTENT'
+  | 'PLACEHOLDER_DATA'
   | 'STALE'
   | 'SOURCE_ERROR';
 
