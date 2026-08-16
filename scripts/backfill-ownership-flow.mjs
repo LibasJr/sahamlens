@@ -500,41 +500,95 @@ async function main() {
     return;
   }
 
-  const { pool } = await import('../shared/database/postgres.client.ts');
-  const { ensureSharedSchema } = await import('../shared/database/schema.service.ts');
-  await ensureSharedSchema();
-
-  const fetchedAt = new Date().toISOString();
-  const CHUNK = 500;
-  let inserted = 0;
-
-  for (let i = 0; i < accepted.length; i += CHUNK) {
-    const chunk = accepted.slice(i, i + CHUNK);
-    const params = [];
-    const tuples = chunk.map((row) => {
-      const b = params.length;
-      params.push(
-        row.ticker, row.observedDate, row.localPct, row.foreignPct, row.scriplessPct,
-        row.totalSecurities, row.localShares, row.foreignShares,
-        SOURCE_ID, row.sourceUrl, fetchedAt
-      );
-      return `($${b + 1}, $${b + 2}::date, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}, $${b + 9}, $${b + 10}, $${b + 11}::timestamptz)`;
-    });
-
-    const { rowCount } = await pool.query(
-      `INSERT INTO ownership_flow_history
-         (ticker, observed_date, local_pct, foreign_pct, scripless_pct,
-          total_securities, local_shares, foreign_shares, source, source_url, fetched_at)
-       VALUES ${tuples.join(', ')}
-       ON CONFLICT (ticker, observed_date, source) DO NOTHING`,
-      params
-    );
-    inserted += rowCount ?? 0;
+  // Script ini dieksekusi langsung dengan `node`, sedangkan database client
+  // aplikasi ditulis dalam TypeScript dan memakai import extensionless. Node ESM
+  // tidak boleh dipaksa mengimpor graph TS aplikasi dari script .mjs karena akan
+  // gagal resolve (contoh: ../config/env). Untuk jalur operator/backfill ini kita
+  // pakai driver `pg` langsung, dengan konfigurasi TLS yang sama seperti client
+  // produksi. Tidak ada perubahan pada client database aplikasi.
+  if (!process.env.DATABASE_URL) {
+    console.error('\nERROR: DATABASE_URL tidak ada di environment proses.');
+    console.error('Jalankan dengan Node --env-file, contoh:');
+    console.error('  node --env-file=.env.production scripts/backfill-ownership-flow.mjs --file <berkas> --confirm');
+    process.exitCode = 1;
+    return;
   }
 
-  console.log(`\nSelesai. Baris BARU: ${inserted}. Sudah ada sebelumnya: ${accepted.length - inserted}.`);
-  console.log('Source arsip tetap KSEI_HOLDING_COMPOSITION dan tidak menimpa snapshot live.');
-  await pool.end?.();
+  const { Pool } = await import('pg');
+  const databaseUrl = process.env.DATABASE_URL.replace(
+    /([?&])sslmode=(?:prefer|require|verify-ca)(?=(&|$))/i,
+    '$1sslmode=verify-full'
+  );
+  const pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: true },
+    max: 3,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 15_000,
+  });
+
+  try {
+    // Sama dengan bagian ownership_flow_history pada ensureSharedSchema().
+    // CREATE IF NOT EXISTS membuat script aman dijalankan pada server baru tanpa
+    // menggandakan/mengubah tabel yang sudah ada.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ownership_flow_history (
+        id BIGSERIAL PRIMARY KEY,
+        ticker TEXT NOT NULL,
+        observed_date DATE NOT NULL,
+        local_pct NUMERIC(7,4),
+        foreign_pct NUMERIC(7,4),
+        scripless_pct NUMERIC(7,4),
+        total_securities NUMERIC(24,0),
+        local_shares NUMERIC(24,0),
+        foreign_shares NUMERIC(24,0),
+        source TEXT NOT NULL,
+        source_url TEXT,
+        fetched_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_ownership_flow_history_ticker_date_source
+        ON ownership_flow_history (ticker, observed_date, source);
+      CREATE INDEX IF NOT EXISTS idx_ownership_flow_history_ticker_date
+        ON ownership_flow_history (ticker, observed_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_ownership_flow_history_observed_date
+        ON ownership_flow_history (observed_date DESC);
+    `);
+
+    const fetchedAt = new Date().toISOString();
+    const CHUNK = 500;
+    let inserted = 0;
+
+    for (let i = 0; i < accepted.length; i += CHUNK) {
+      const chunk = accepted.slice(i, i + CHUNK);
+      const params = [];
+      const tuples = chunk.map((row) => {
+        const b = params.length;
+        params.push(
+          row.ticker, row.observedDate, row.localPct, row.foreignPct, row.scriplessPct,
+          row.totalSecurities, row.localShares, row.foreignShares,
+          SOURCE_ID, row.sourceUrl, fetchedAt
+        );
+        return `($${b + 1}, $${b + 2}::date, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}, $${b + 9}, $${b + 10}, $${b + 11}::timestamptz)`;
+      });
+
+      const { rowCount } = await pool.query(
+        `INSERT INTO ownership_flow_history
+           (ticker, observed_date, local_pct, foreign_pct, scripless_pct,
+            total_securities, local_shares, foreign_shares, source, source_url, fetched_at)
+         VALUES ${tuples.join(', ')}
+         ON CONFLICT (ticker, observed_date, source) DO NOTHING`,
+        params
+      );
+      inserted += rowCount ?? 0;
+    }
+
+    console.log(`\nSelesai. Baris BARU: ${inserted}. Sudah ada sebelumnya: ${accepted.length - inserted}.`);
+    console.log('Source arsip tetap KSEI_HOLDING_COMPOSITION dan tidak menimpa snapshot live.');
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch((err) => {
