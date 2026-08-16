@@ -8,7 +8,7 @@ import {
   getOwnershipFlowView,
   getOwnershipSeries,
 } from '@/modules/ownership-flow/service/ownership-flow-query.service';
-import { getPrimarySource } from '@/modules/ownership-flow/source/source-registry';
+import { getPrimarySource, getSourceById } from '@/modules/ownership-flow/source/source-registry';
 import { logger } from '@/shared/logger/logger';
 
 // API OWNERSHIP FLOW PER EMITEN.
@@ -51,7 +51,7 @@ export async function GET(
       return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     }
 
-    const source = getPrimarySource();
+    const source = (view.source ? getSourceById(view.source) : null) ?? getPrimarySource();
     const series = withSeries ? await getOwnershipSeries(ticker) : undefined;
 
     return NextResponse.json({
@@ -72,6 +72,7 @@ export async function GET(
         '30d': view.delta.d30.pp,
       },
       deltaUnit: 'percentage_point',
+      previous: view.previous,
       // Basis tiap delta ikut dikirim: kalau sumber ternyata bercadence bulanan,
       // "30d" bisa saja dihitung dari observasi 31 hari lalu. Menyembunyikan ini
       // membuat label horizon berbohong.
