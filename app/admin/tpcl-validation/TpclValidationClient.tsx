@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, RefreshCw, Shield, Target } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, Lock, PlayCircle, RefreshCw, RotateCcw, Shield, Target } from 'lucide-react';
 
 type MarketRegime = 'BULL' | 'SIDEWAYS' | 'BEAR' | 'UNKNOWN';
 
@@ -133,15 +133,45 @@ function MetricsGrid({ metrics }: { metrics: Metrics }) {
   );
 }
 
+type ResearchAction = 'run_validation' | 'clear_cache';
+
+function ActionButton({
+  label,
+  onClick,
+  busy,
+  disabled,
+  icon,
+}: {
+  label: string;
+  onClick: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-2 rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-xs font-semibold text-tv-text transition-colors hover:bg-tv-hover disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+      {label}
+    </button>
+  );
+}
+
 export default function TpclValidationClient() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<ResearchAction | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setError(null);
     try {
-      const res = await fetch('/api/admin/tpcl-validation');
+      const res = await fetch('/api/admin/tpcl-validation', { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Gagal memuat TP/CL Validation Lab');
       setData(json);
@@ -154,9 +184,38 @@ export default function TpclValidationClient() {
   }
   useEffect(() => { load(); }, []);
 
+  async function runAction(action: ResearchAction) {
+    setBusy(action);
+    setActionMessage(null);
+    try {
+      const res = await fetch('/api/admin/tpcl-validation/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Aksi TP/CL gagal');
+
+      if (action === 'run_validation') {
+        setData(json as Dashboard);
+        setActionMessage('Validasi TP/CL selesai dihitung ulang dari histori dan OHLC terbaru. Cache hasil diperbarui selama 30 menit.');
+      } else {
+        setActionMessage(json?.reason || 'Cache hasil TP/CL Validation Lab dihapus.');
+      }
+    } catch (e: unknown) {
+      setActionMessage(e instanceof Error ? e.message : 'Aksi TP/CL gagal');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function focusForwardOos() {
+    document.getElementById('tpcl-forward-oos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   if (loading) return (
     <div className="rounded-xl border border-tv-border bg-tv-card p-6 text-sm text-tv-muted">
-      Menghitung setup historis dan mengambil OHLC... proses pertama bisa agak lama.
+      Memuat TP/CL Validation Lab... cache kosong pertama kali dapat membutuhkan waktu karena OHLC dihitung ulang.
     </div>
   );
   if (error || !data) return (
@@ -182,6 +241,67 @@ export default function TpclValidationClient() {
         </p>
       </section>
 
+
+      <section className="rounded-xl border border-tv-border bg-tv-card overflow-hidden">
+        <div className="border-b border-tv-border px-5 py-4">
+          <h2 className="font-heading text-lg font-bold">Aksi Riset TP / CL</h2>
+          <p className="mt-1 text-xs text-tv-muted max-w-4xl">
+            Validasi ulang mengambil OHLC harian terbaru dan menghitung protocol TP/CL dari awal. Aksi di sini tidak mengubah
+            parameter production, LensScore, ataupun histori LensRadar. Hasil dashboard di-cache 30 menit agar membuka menu berulang tidak lambat.
+          </p>
+        </div>
+        <div className="p-5">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-xs text-tv-muted">
+              History range
+              <input
+                value="5y"
+                readOnly
+                aria-label="History range TP/CL"
+                title="Protocol TP/CL saat ini memakai OHLC harian 5 tahun dan sengaja dikunci agar hasil antar-run dapat dibandingkan."
+                className="ml-2 w-20 rounded border border-tv-border bg-tv-bg px-2 py-1 text-tv-text font-number"
+              />
+            </label>
+            <ActionButton
+              icon={<PlayCircle className="h-4 w-4" />}
+              label="Jalankan validasi ulang"
+              busy={busy === 'run_validation'}
+              disabled={busy != null}
+              onClick={() => void runAction('run_validation')}
+            />
+            <ActionButton
+              icon={<Target className="h-4 w-4" />}
+              label="Lihat Forward OOS"
+              disabled={busy != null}
+              onClick={focusForwardOos}
+            />
+            <ActionButton
+              icon={<Lock className="h-4 w-4" />}
+              label={`OOS terkunci · ${data.forwardOos.freezeDate}`}
+              disabled
+              onClick={() => undefined}
+            />
+            <ActionButton
+              icon={<RotateCcw className="h-4 w-4" />}
+              label="Reset cache hasil"
+              busy={busy === 'clear_cache'}
+              disabled={busy != null}
+              onClick={() => {
+                if (window.confirm('Hapus cache hasil TP/CL Validation Lab? Histori LensRadar, hasil scoring, dan parameter production tidak akan dihapus.')) {
+                  void runAction('clear_cache');
+                }
+              }}
+            />
+          </div>
+          {actionMessage ? (
+            <p className="mt-3 rounded-md border border-tv-border bg-tv-bg p-2.5 text-xs text-tv-text">{actionMessage}</p>
+          ) : null}
+          <p className="mt-3 text-[11px] text-tv-muted">
+            TP/CL berbeda dari Intraday Validation Lab: candle riset tidak disimpan sebagai dataset terpisah. Tombol validasi ulang mengambil
+            data harga terbaru, menjalankan simulasi historis, lalu menyimpan hasil ringkas ke cache. Freeze OOS adalah bagian protocol versi dan tidak dapat diubah dari browser.
+          </p>
+        </div>
+      </section>
 
       <section className={`rounded-xl border p-4 ${
         data.robustnessStatus === 'ROBUST'
@@ -224,7 +344,7 @@ export default function TpclValidationClient() {
       </div>
 
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <section id="tpcl-forward-oos" className="scroll-mt-6 rounded-xl border border-tv-border bg-tv-card p-5">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
           <div>
             <div className="text-xs uppercase tracking-wide text-tv-accent">Genuine Forward Validation</div>
