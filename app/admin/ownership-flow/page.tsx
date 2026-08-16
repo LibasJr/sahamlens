@@ -72,6 +72,31 @@ export default async function AdminOwnershipFlowPage() {
         Komposisi kepemilikan lokal/asing dari sumber kustodian resmi. Modul terpisah dari Broker Summary.
       </p>
 
+      <div
+        className={`mt-5 rounded-xl border p-4 ${
+          monitor.historical.ready
+            ? 'border-tv-green/20 bg-tv-green/[0.04]'
+            : 'border-tv-warning/20 bg-tv-warning/[0.04]'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          {monitor.historical.ready ? (
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-tv-green" />
+          ) : (
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-tv-warning" />
+          )}
+          <div className="min-w-0">
+            <p className="font-semibold text-tv-text">
+              Arsip bulanan KSEI: {monitor.historical.ready ? 'SIAP DIPAKAI' : 'BELUM SIAP'}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-tv-muted">
+              {monitor.historical.auditStatus} · {monitor.historical.snapshots} snapshot · {monitor.historical.totalRows} baris histori · snapshot terbaru {tanggalObservasi(monitor.historical.latestObservedDate)} ({monitor.historical.latestTickers} emiten).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Gerbang berikut hanya untuk sumber LIVE per-ticker. */}
       {/* GERBANG - kotak paling atas karena inilah yang menentukan apakah data
           bertambah sama sekali. */}
       <div
@@ -89,7 +114,7 @@ export default async function AdminOwnershipFlowPage() {
           )}
           <div className="min-w-0">
             <p className="font-semibold text-tv-text">
-              Ingestion produksi: {monitor.gate.allowed ? 'DIIZINKAN' : `TERTUTUP (${monitor.gate.reason})`}
+              Snapshot live per-ticker: {monitor.gate.allowed ? 'DIIZINKAN' : `TERTUTUP (${monitor.gate.reason})`}
             </p>
             <p className="mt-1 text-[13px] leading-relaxed text-tv-muted">{monitor.gate.message}</p>
           </div>
@@ -97,7 +122,7 @@ export default async function AdminOwnershipFlowPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Sinkron terakhir" value={waktuWib(monitor.lastRun.startedAt)} sub={monitor.lastRun.status ?? 'belum pernah jalan'} />
+        <Stat label="Cron live terakhir" value={waktuWib(monitor.lastRun.startedAt)} sub={monitor.lastRun.status ?? 'belum pernah jalan'} />
         {/* Tanggal observasi SENGAJA dipisahkan dari waktu sinkron - keduanya
             berbeda, dan menyamakannya adalah kesalahan yang seluruh modul ini
             dibangun untuk menghindarinya (§6). */}
@@ -115,7 +140,7 @@ export default async function AdminOwnershipFlowPage() {
           <dl className="mt-3 space-y-2 text-[13px]">
             <Row label="Total baris" value={String(monitor.history.totalRows)} />
             <Row label="Emiten punya data" value={String(monitor.history.distinctTickers)} />
-            <Row label="Tanggal observasi berbeda" value={String(monitor.history.distinctObservedDates)} />
+            <Row label="Snapshot historis" value={String(monitor.history.distinctObservedDates)} />
             <Row label="Observasi pertama" value={tanggalObservasi(monitor.history.earliestObservedDate)} />
             <Row label="Pengambilan terakhir" value={waktuWib(monitor.history.lastFetchedAt)} />
             <Row

@@ -239,11 +239,15 @@ export interface OwnershipHistoryStats {
   lastFetchedAt: string | null;
   /** Ticker yang punya observasi pada latestObservedDate. */
   tickersOnLatestDate: number;
+  /** Sumber pada observasi terbaru. */
+  latestSource: string | null;
 }
 
 /** Ringkasan untuk panel admin. Satu query - dipanggil dari halaman admin saja. */
-export async function getOwnershipHistoryStats(): Promise<OwnershipHistoryStats> {
+export async function getOwnershipHistoryStats(sourceId?: string): Promise<OwnershipHistoryStats> {
   await ensureSharedSchema();
+  const where = sourceId ? 'WHERE source = $1' : '';
+  const params = sourceId ? [sourceId] : [];
   const { rows } = await pool.query(
     `SELECT
        COUNT(*)::int                          AS total_rows,
@@ -252,18 +256,38 @@ export async function getOwnershipHistoryStats(): Promise<OwnershipHistoryStats>
        MAX(observed_date)                     AS latest_observed_date,
        MIN(observed_date)                     AS earliest_observed_date,
        MAX(fetched_at)                        AS last_fetched_at
-     FROM ownership_flow_history`
+     FROM ownership_flow_history
+     ${where}`,
+    params
   );
   const summary = rows[0] ?? {};
   const latest = summary.latest_observed_date == null ? null : toDateKey(summary.latest_observed_date);
 
   let tickersOnLatestDate = 0;
+  let latestSource: string | null = sourceId ?? null;
   if (latest) {
+    const countWhere = sourceId
+      ? 'WHERE observed_date = $1::date AND source = $2'
+      : 'WHERE observed_date = $1::date';
+    const countParams = sourceId ? [latest, sourceId] : [latest];
     const { rows: countRows } = await pool.query(
-      `SELECT COUNT(DISTINCT ticker)::int AS n FROM ownership_flow_history WHERE observed_date = $1::date`,
-      [latest]
+      `SELECT COUNT(DISTINCT ticker)::int AS n FROM ownership_flow_history ${countWhere}`,
+      countParams
     );
     tickersOnLatestDate = Number(countRows[0]?.n ?? 0);
+
+    if (!sourceId) {
+      const { rows: sourceRows } = await pool.query(
+        `SELECT source, COUNT(*)::int AS n
+           FROM ownership_flow_history
+          WHERE observed_date = $1::date
+          GROUP BY source
+          ORDER BY n DESC, source ASC
+          LIMIT 1`,
+        [latest]
+      );
+      latestSource = sourceRows[0]?.source == null ? null : String(sourceRows[0].source);
+    }
   }
 
   return {
@@ -279,5 +303,6 @@ export async function getOwnershipHistoryStats(): Promise<OwnershipHistoryStats>
           ? null
           : String(summary.last_fetched_at),
     tickersOnLatestDate,
+    latestSource,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeDelta, computeDeltaSet, diffCalendarDays, shiftDays } from '../ownership-delta';
+import { computeDelta, computeDeltaSet, computePreviousPeriodChange, diffCalendarDays, shiftDays } from '../ownership-delta';
 import type { ObservationPoint } from '../ownership-delta';
 
 // Delta adalah tempat paling mudah menyelinapkan angka palsu: "tidak ada
@@ -124,5 +124,39 @@ describe('computeDeltaSet - sumber bercadence bulanan', () => {
     const set = computeDeltaSet(monthly);
     expect(set.d7.actualGapDays).toBe(31);
     expect(set.d30.actualGapDays).toBe(31);
+  });
+});
+
+
+describe('computePreviousPeriodChange', () => {
+  it('membandingkan snapshot terbaru dengan snapshot sebelumnya dan menghitung asing + lokal', () => {
+    const result = computePreviousPeriodChange([
+      { observedDate: '2026-06-30', foreignPct: 41.2, localPct: 58.8, scriplessPct: 100 },
+      { observedDate: '2026-07-31', foreignPct: 41.65, localPct: 58.35, scriplessPct: 100 },
+    ]);
+    expect(result.basisObservedDate).toBe('2026-06-30');
+    expect(result.actualGapDays).toBe(31);
+    expect(result.foreignPp).toBeCloseTo(0.45, 10);
+    expect(result.localPp).toBeCloseTo(-0.45, 10);
+    expect(result.scriplessPp).toBe(0);
+  });
+
+  it('melewati duplikat tanggal terbaru dan tidak membuat delta 0 palsu', () => {
+    const result = computePreviousPeriodChange([
+      { observedDate: '2026-06-30', foreignPct: 40, localPct: 60 },
+      { observedDate: '2026-07-31', foreignPct: 41, localPct: 59 },
+      { observedDate: '2026-07-31', foreignPct: 41, localPct: 59 },
+    ]);
+    expect(result.basisObservedDate).toBe('2026-06-30');
+    expect(result.foreignPp).toBe(1);
+  });
+
+  it('mengembalikan null ketika belum ada snapshot pembanding', () => {
+    const result = computePreviousPeriodChange([
+      { observedDate: '2026-07-31', foreignPct: 41, localPct: 59 },
+    ]);
+    expect(result.basisObservedDate).toBeNull();
+    expect(result.foreignPp).toBeNull();
+    expect(result.localPp).toBeNull();
   });
 });

@@ -14,6 +14,7 @@ export type {
   FreshnessStatus,
   OwnershipDelta,
   OwnershipDeltaSet,
+  OwnershipPeriodChange,
   OwnershipFlowView,
   OwnershipObservation,
   OwnershipTrend,
@@ -46,6 +47,7 @@ export {
 export {
   computeDelta,
   computeDeltaSet,
+  computePreviousPeriodChange,
   diffCalendarDays,
   shiftDays,
   DELTA_HORIZON_DAYS,

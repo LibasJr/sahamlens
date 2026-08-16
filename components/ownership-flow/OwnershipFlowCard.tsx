@@ -33,6 +33,13 @@ interface OwnershipFlowDetail {
   localPct: number | null;
   delta: { '1d': number | null; '7d': number | null; '30d': number | null };
   deltaBasis: Record<'1d' | '7d' | '30d', { observedDate: string | null; gapDays: number | null }>;
+  previous: {
+    basisObservedDate: string | null;
+    actualGapDays: number | null;
+    foreignPp: number | null;
+    localPp: number | null;
+    scriplessPp: number | null;
+  };
   trend: OwnershipTrendKey;
   trendReason: string;
   freshness: FreshnessKey;
@@ -121,34 +128,15 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
             )}
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {(['1d', '7d', '30d'] as const).map((key) => {
-              const value = data.delta[key];
-              const gap = data.deltaBasis[key]?.gapDays ?? null;
-              return (
-                <div
-                  key={key}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5"
-                  title={
-                    value === null
-                      ? 'Belum ada observasi pembanding pada horizon ini'
-                      : `Dibanding observasi ${gap} hari sebelumnya`
-                  }
-                >
-                  <p className="text-[10px] uppercase tracking-wide text-tv-muted">
-                    {key === '1d' ? '1 hari' : key === '7d' ? '7 hari' : '30 hari'}
-                  </p>
-                  <p
-                    className={`text-[12.5px] font-bold tabular-nums ${
-                      value === null ? 'text-tv-muted' : value > 0 ? 'text-tv-green' : value < 0 ? 'text-tv-red' : 'text-tv-text'
-                    }`}
-                  >
-                    {formatPpWithUnit(value)}
-                  </p>
-                </div>
-              );
-            })}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <ChangeBox label="Δ asing vs snapshot sebelumnya" value={data.previous.foreignPp} />
+            <ChangeBox label="Δ lokal vs snapshot sebelumnya" value={data.previous.localPp} />
           </div>
+          {data.previous.basisObservedDate && (
+            <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">
+              Pembanding {formatObservedDate(data.previous.basisObservedDate)} · jarak aktual {data.previous.actualGapDays} hari.
+            </p>
+          )}
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <Badge variant={trend.variant}>{trend.label}</Badge>
@@ -189,6 +177,21 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
         Tidak ikut menghitung LensScore.
       </p>
     </Card>
+  );
+}
+
+function ChangeBox({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+      <p className="text-[10px] uppercase tracking-wide text-tv-muted">{label}</p>
+      <p
+        className={`text-[12.5px] font-bold tabular-nums ${
+          value === null ? 'text-tv-muted' : value > 0 ? 'text-tv-green' : value < 0 ? 'text-tv-red' : 'text-tv-text'
+        }`}
+      >
+        {formatPpWithUnit(value)}
+      </p>
+    </div>
   );
 }
 

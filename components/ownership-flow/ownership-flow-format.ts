@@ -28,6 +28,13 @@ export interface OwnershipFlowApiRow {
   localPct: number | null;
   delta: { '1d': number | null; '7d': number | null; '30d': number | null };
   deltaGapDays: { '1d': number | null; '7d': number | null; '30d': number | null };
+  previous: {
+    basisObservedDate: string | null;
+    actualGapDays: number | null;
+    foreignPp: number | null;
+    localPp: number | null;
+    scriplessPp: number | null;
+  };
   trend: OwnershipTrendKey;
   freshness: FreshnessKey;
   ageDays: number | null;

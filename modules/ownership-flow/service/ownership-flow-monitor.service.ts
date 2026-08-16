@@ -1,11 +1,17 @@
 import { getLastRun } from '../../../shared/scheduler/job-run-log.repository';
 import { getOwnershipFlowConfig } from '../config/ownership-flow.config';
 import {
+  getLatestObservationsFor,
   getOwnershipHistoryStats,
   type OwnershipHistoryStats,
 } from '../repository/ownership-flow-history.repository';
 import { assessFreshness } from '../scoring/ownership-flow-classification';
-import { canIngest, getPrimarySource } from '../source/source-registry';
+import {
+  canIngest,
+  getPrimarySource,
+  getSourceById,
+  KSEI_HOLDING_COMPOSITION_ARCHIVE,
+} from '../source/source-registry';
 import type { FreshnessStatus, SourceAuditStatus } from '../types/ownership-flow.types';
 import { getOwnershipUniverse } from './ownership-flow-ingest.service';
 
@@ -52,6 +58,16 @@ export interface OwnershipFlowMonitor {
   };
   freshness: FreshnessStatus;
   ageDays: number | null;
+  historical: {
+    ready: boolean;
+    sourceId: string;
+    auditStatus: SourceAuditStatus;
+    cadence: string;
+    snapshots: number;
+    totalRows: number;
+    latestObservedDate: string | null;
+    latestTickers: number;
+  };
 }
 
 /**
@@ -65,14 +81,24 @@ export async function getOwnershipFlowMonitor(): Promise<OwnershipFlowMonitor> {
   const source = getPrimarySource();
   const gate = canIngest(source, config);
 
-  const [stats, lastRun] = await Promise.all([
+  const [stats, archiveStats, lastRun] = await Promise.all([
     getOwnershipHistoryStats(),
+    getOwnershipHistoryStats(KSEI_HOLDING_COMPOSITION_ARCHIVE.id),
     getLastRun(OWNERSHIP_FLOW_JOB_NAME),
   ]);
 
-  const universeSize = getOwnershipUniverse(config.universeLimit).length;
-  const covered = stats.tickersOnLatestDate;
-  const { freshness, ageDays } = assessFreshness(stats.latestObservedDate, source.cadence);
+  const universe = getOwnershipUniverse(config.universeLimit);
+  const universeSize = universe.length;
+  const latestByUniverse = await getLatestObservationsFor(universe);
+  const covered = stats.latestObservedDate
+    ? Array.from(latestByUniverse.values()).filter((row) => row.observedDate === stats.latestObservedDate).length
+    : 0;
+  const latestSource = (stats.latestSource ? getSourceById(stats.latestSource) : null) ?? source;
+  const { freshness, ageDays } = assessFreshness(stats.latestObservedDate, latestSource.cadence);
+  const historicalReady =
+    KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus === 'VERIFIED' &&
+    archiveStats.distinctObservedDates >= 2 &&
+    archiveStats.totalRows > 0;
 
   const startedAt = toIso(lastRun?.started_at);
   const finishedAt = toIso(lastRun?.finished_at);
@@ -110,6 +136,16 @@ export async function getOwnershipFlowMonitor(): Promise<OwnershipFlowMonitor> {
     },
     freshness,
     ageDays,
+    historical: {
+      ready: historicalReady,
+      sourceId: KSEI_HOLDING_COMPOSITION_ARCHIVE.id,
+      auditStatus: KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus,
+      cadence: KSEI_HOLDING_COMPOSITION_ARCHIVE.cadence,
+      snapshots: archiveStats.distinctObservedDates,
+      totalRows: archiveStats.totalRows,
+      latestObservedDate: archiveStats.latestObservedDate,
+      latestTickers: archiveStats.tickersOnLatestDate,
+    },
   };
 }
 

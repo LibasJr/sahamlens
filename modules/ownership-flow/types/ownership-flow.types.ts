@@ -110,6 +110,26 @@ export interface OwnershipDeltaSet {
 }
 
 /**
+ * Perubahan komposisi terhadap SNAPSHOT SEBELUMNYA dari sumber yang sama.
+ *
+ * Ini adalah metrik utama untuk sumber periodik/bulanan. Berbeda dari delta
+ * horizon 1/7/30 hari yang tetap dipertahankan untuk kompatibilitas API,
+ * `previous` tidak berpura-pura bahwa sumber memiliki observasi harian.
+ */
+export interface OwnershipPeriodChange {
+  /** Snapshot pembanding yang benar-benar dipakai. */
+  basisObservedDate: string | null;
+  /** Jarak kalender nyata antara snapshot terbaru dan sebelumnya. */
+  actualGapDays: number | null;
+  /** Perubahan kepemilikan asing dalam percentage point. */
+  foreignPp: number | null;
+  /** Perubahan kepemilikan lokal dalam percentage point. */
+  localPp: number | null;
+  /** Perubahan porsi scripless dalam percentage point. */
+  scriplessPp: number | null;
+}
+
+/**
  * Klasifikasi DESKRIPTIF - menggambarkan apa yang terjadi pada angka, bukan
  * memprediksi harga. Tidak ada BUY/SELL di sini, dan tidak akan pernah ada:
  * Ownership Flow adalah supplemental evidence, bukan sinyal transaksi.
@@ -138,6 +158,8 @@ export interface OwnershipFlowView {
   scriplessPct: number | null;
   totalSecurities: number | null;
   delta: OwnershipDeltaSet;
+  /** Perubahan terhadap snapshot sebelumnya dari sumber yang sama. */
+  previous: OwnershipPeriodChange;
   trend: OwnershipTrend;
   /** Kalimat yang menjelaskan KENAPA trend-nya begitu - dipakai UI & LensAI. */
   trendReason: string;

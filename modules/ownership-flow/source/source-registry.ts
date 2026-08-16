@@ -122,8 +122,9 @@ export const KSEI_HOLDING_COMPOSITION_ARCHIVE: OwnershipSourceDescriptor = {
   auditStatus: 'VERIFIED',
   auditNote:
     'Format arsip resmi telah diverifikasi pada BalanceposEfek20260731.zip (snapshot 31 Jul 2026): ' +
-    'ZIP berisi BalanceposYYYYMMDD.txt, delimiter pipe (|), tanggal DD-MMM-YYYY, dan kolom agregat ' +
-    'Total Local / Total Foreign / Total. Sumber ini TETAP hanya untuk seed/cross-check bulanan; ' +
+    'ZIP berisi BalanceposYYYYMMDD.txt, delimiter pipe (|), tanggal DD-MMM-YYYY. Format nyata memakai ' +
+    'dua header bernama Total: Total pertama setelah blok Local = total lokal, Total kedua setelah blok Foreign = total asing; ' +
+    'Sec. Num adalah jumlah efek total dan menjadi denominator persentase scripless. Sumber ini TETAP hanya untuk seed/cross-check bulanan; ' +
     'status VERIFIED di sini TIDAK membuka ingestion snapshot harian KSEI_REGISTERED_SECURITY.',
   expectedFields: [
     'Date',
@@ -131,9 +132,8 @@ export const KSEI_HOLDING_COMPOSITION_ARCHIVE: OwnershipSourceDescriptor = {
     'Type',
     'Sec. Num',
     'Price',
-    'Total Local',
-    'Total Foreign',
-    'Total',
+    'Total (setelah Local OT)',
+    'Total (setelah Foreign OT)',
   ],
 };
 

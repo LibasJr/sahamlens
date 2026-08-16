@@ -2,6 +2,7 @@ import { roundTo } from '../parser/number-normalize';
 import type {
   OwnershipDelta,
   OwnershipDeltaSet,
+  OwnershipPeriodChange,
 } from '../types/ownership-flow.types';
 
 // MESIN DELTA KEPEMILIKAN - fungsi murni, tanpa I/O, supaya bisa diuji penuh.
@@ -21,6 +22,8 @@ import type {
 export interface ObservationPoint {
   observedDate: string;
   foreignPct: number | null;
+  localPct?: number | null;
+  scriplessPct?: number | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -106,5 +109,46 @@ export function computeDeltaSet(history: ObservationPoint[]): OwnershipDeltaSet 
     d1: computeDelta(history, DELTA_HORIZON_DAYS.d1),
     d7: computeDelta(history, DELTA_HORIZON_DAYS.d7),
     d30: computeDelta(history, DELTA_HORIZON_DAYS.d30),
+  };
+}
+
+
+const EMPTY_PERIOD_CHANGE: OwnershipPeriodChange = {
+  basisObservedDate: null,
+  actualGapDays: null,
+  foreignPp: null,
+  localPp: null,
+  scriplessPp: null,
+};
+
+/**
+ * Bandingkan snapshot terbaru dengan snapshot sebelumnya (tanggal berbeda).
+ * Untuk sumber bulanan inilah definisi "flow" yang paling jujur.
+ * Pemanggil WAJIB memberikan histori dari sumber yang sama.
+ */
+export function computePreviousPeriodChange(
+  history: ObservationPoint[]
+): OwnershipPeriodChange {
+  if (history.length < 2) return EMPTY_PERIOD_CHANGE;
+
+  const current = history[history.length - 1];
+  let basis: ObservationPoint | null = null;
+  for (let i = history.length - 2; i >= 0; i--) {
+    if (history[i].observedDate < current.observedDate) {
+      basis = history[i];
+      break;
+    }
+  }
+  if (!basis) return EMPTY_PERIOD_CHANGE;
+
+  const diff = (a: number | null | undefined, b: number | null | undefined) =>
+    a == null || b == null ? null : roundTo(a - b, 4);
+
+  return {
+    basisObservedDate: basis.observedDate,
+    actualGapDays: diffCalendarDays(basis.observedDate, current.observedDate),
+    foreignPp: diff(current.foreignPct, basis.foreignPct),
+    localPp: diff(current.localPct, basis.localPct),
+    scriplessPp: diff(current.scriplessPct, basis.scriplessPct),
   };
 }

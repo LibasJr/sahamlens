@@ -28,7 +28,7 @@ import {
 // peringkat "saham terbaik". Ownership Flow adalah bukti pendukung - ia
 // menjelaskan komposisi kepemilikan, bukan menyarankan transaksi.
 
-type SortKey = 'ticker' | 'foreignPct' | 'd1' | 'd7' | 'd30';
+type SortKey = 'ticker' | 'foreignPct' | 'prevForeign' | 'prevLocal';
 type FilterKey = 'ALL' | 'WITH_DATA' | 'MISSING' | 'STALE';
 
 export default function OwnershipFlowPage() {
@@ -83,7 +83,11 @@ export default function OwnershipFlowPage() {
     return [...filtered].sort((a, b) => {
       if (sortKey === 'ticker') return a.ticker.localeCompare(b.ticker) * direction;
       const pick = (row: OwnershipFlowApiRow) =>
-        sortKey === 'foreignPct' ? row.foreignPct : row.delta[sortKey === 'd1' ? '1d' : sortKey === 'd7' ? '7d' : '30d'];
+        sortKey === 'foreignPct'
+          ? row.foreignPct
+          : sortKey === 'prevForeign'
+            ? row.previous.foreignPp
+            : row.previous.localPp;
       const av = pick(a);
       const bv = pick(b);
       // null SELALU di bawah, apa pun arah urutannya: "belum ada data" bukan
@@ -103,7 +107,7 @@ export default function OwnershipFlowPage() {
     }
   };
 
-  const sourcePending = data?.source.auditStatus !== 'VERIFIED';
+  const sourcePending = Boolean(data && data.source.auditStatus !== 'VERIFIED');
 
   return (
     <>
@@ -223,15 +227,15 @@ export default function OwnershipFlowPage() {
                   terbaca di layar 360px, dan menggulirnya menyamping membuat
                   kode sahamnya sendiri hilang dari pandangan. */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[820px] text-left text-[13px]">
+                <table className="w-full min-w-[900px] text-left text-[13px]">
                   <thead className="border-b border-white/[0.06] text-[11px] uppercase tracking-wide text-tv-muted">
                     <tr>
                       <Th onClick={() => toggleSort('ticker')} active={sortKey === 'ticker'} asc={sortAsc}>Kode</Th>
                       <Th onClick={() => toggleSort('foreignPct')} active={sortKey === 'foreignPct'} asc={sortAsc} align="right">Asing %</Th>
                       <Th align="right">Lokal %</Th>
-                      <Th onClick={() => toggleSort('d1')} active={sortKey === 'd1'} asc={sortAsc} align="right">Δ 1H (pp)</Th>
-                      <Th onClick={() => toggleSort('d7')} active={sortKey === 'd7'} asc={sortAsc} align="right">Δ 7H (pp)</Th>
-                      <Th onClick={() => toggleSort('d30')} active={sortKey === 'd30'} asc={sortAsc} align="right">Δ 30H (pp)</Th>
+                      <Th onClick={() => toggleSort('prevForeign')} active={sortKey === 'prevForeign'} asc={sortAsc} align="right">Δ Asing vs prev (pp)</Th>
+                      <Th onClick={() => toggleSort('prevLocal')} active={sortKey === 'prevLocal'} asc={sortAsc} align="right">Δ Lokal vs prev (pp)</Th>
+                      <Th align="right">Jarak</Th>
                       <Th>Tren</Th>
                       <Th>Data per</Th>
                     </tr>
@@ -242,9 +246,11 @@ export default function OwnershipFlowPage() {
                         <td className="px-3.5 py-2.5 font-semibold text-tv-text">{row.ticker}</td>
                         <td className="px-3.5 py-2.5 text-right tabular-nums text-tv-text">{formatPercent(row.foreignPct)}</td>
                         <td className="px-3.5 py-2.5 text-right tabular-nums text-tv-muted">{formatPercent(row.localPct)}</td>
-                        <DeltaCell value={row.delta['1d']} gapDays={row.deltaGapDays['1d']} horizon={1} />
-                        <DeltaCell value={row.delta['7d']} gapDays={row.deltaGapDays['7d']} horizon={7} />
-                        <DeltaCell value={row.delta['30d']} gapDays={row.deltaGapDays['30d']} horizon={30} />
+                        <PeriodDeltaCell value={row.previous.foreignPp} />
+                        <PeriodDeltaCell value={row.previous.localPp} />
+                        <td className="px-3.5 py-2.5 text-right tabular-nums text-tv-muted">
+                          {row.previous.actualGapDays === null ? '—' : `${row.previous.actualGapDays}h`}
+                        </td>
                         <td className="px-3.5 py-2.5"><TrendBadge trend={row.trend} /></td>
                         <td className="px-3.5 py-2.5 whitespace-nowrap">
                           <FreshnessCell observedDate={row.observedDate} freshness={row.freshness} />
@@ -272,16 +278,25 @@ export default function OwnershipFlowPage() {
                         <p className="text-lg font-bold tabular-nums text-tv-muted">{formatPercent(row.localPct)}</p>
                       </div>
                     </div>
-                    <div className="mt-2.5 grid grid-cols-3 gap-2">
-                      {([['1d', 1], ['7d', 7], ['30d', 30]] as const).map(([key, horizon]) => (
-                        <div key={key} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
-                          <p className="text-[10px] uppercase tracking-wide text-tv-muted">Δ {horizon}H</p>
-                          <p className={`text-[13px] font-bold tabular-nums ${deltaColor(row.delta[key])}`}>
-                            {formatPpCell(row.delta[key])}
-                          </p>
-                        </div>
-                      ))}
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+                        <p className="text-[10px] uppercase tracking-wide text-tv-muted">Δ asing vs prev</p>
+                        <p className={`text-[13px] font-bold tabular-nums ${deltaColor(row.previous.foreignPp)}`}>
+                          {formatPpCell(row.previous.foreignPp)}{row.previous.foreignPp === null ? '' : ' pp'}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+                        <p className="text-[10px] uppercase tracking-wide text-tv-muted">Δ lokal vs prev</p>
+                        <p className={`text-[13px] font-bold tabular-nums ${deltaColor(row.previous.localPp)}`}>
+                          {formatPpCell(row.previous.localPp)}{row.previous.localPp === null ? '' : ' pp'}
+                        </p>
+                      </div>
                     </div>
+                    {row.previous.basisObservedDate && (
+                      <p className="mt-2 text-[11px] text-tv-muted">
+                        Dibanding {formatObservedDate(row.previous.basisObservedDate)} · jarak {row.previous.actualGapDays} hari
+                      </p>
+                    )}
                     <div className="mt-2.5">
                       <FreshnessCell observedDate={row.observedDate} freshness={row.freshness} />
                     </div>
@@ -295,8 +310,8 @@ export default function OwnershipFlowPage() {
         <p className="mt-4 text-[11.5px] leading-relaxed text-tv-muted">
           Δ dinyatakan dalam <strong className="text-tv-text">percentage point (pp)</strong>, bukan persen relatif.
           Perubahan kepemilikan asing dari 40,00% ke 41,00% adalah +1,00 pp (setara +2,5% relatif).
-          Label horizon memakai observasi terdekat sebelum batas &mdash; arahkan kursor ke nilai Δ untuk
-          melihat jarak hari sebenarnya. Ownership Flow bersifat eksperimental dan tidak ikut menghitung LensScore.
+          Perubahan utama dibandingkan dengan <strong className="text-tv-text">snapshot sebelumnya dari sumber yang sama</strong> dan selalu menampilkan jarak hari sebenarnya.
+          Ownership Flow bersifat eksperimental dan tidak ikut menghitung LensScore.
         </p>
       </PageContainer>
     </>
@@ -360,20 +375,10 @@ function deltaColor(value: number | null): string {
   return 'text-tv-text';
 }
 
-function DeltaCell({ value, gapDays, horizon }: { value: number | null; gapDays: number | null; horizon: number }) {
-  // Jarak sebenarnya diungkap lewat title: kalau sumber bercadence bulanan,
-  // "Δ 7H" bisa saja dihitung dari observasi 31 hari lalu. Angka itu tidak
-  // disembunyikan, hanya tidak memenuhi tabel.
-  const title =
-    value === null
-      ? `Belum ada observasi pembanding pada horizon ${horizon} hari`
-      : `Dibanding observasi ${gapDays} hari sebelumnya`;
+function PeriodDeltaCell({ value }: { value: number | null }) {
   return (
-    <td className={`px-3.5 py-2.5 text-right tabular-nums ${deltaColor(value)}`} title={title}>
-      {formatPpCell(value)}
-      {value !== null && gapDays !== null && gapDays !== horizon && (
-        <span className="ml-1 text-[10px] text-tv-muted">({gapDays}h)</span>
-      )}
+    <td className={`px-3.5 py-2.5 text-right tabular-nums ${deltaColor(value)}`}>
+      {formatPpCell(value)}{value === null ? '' : ' pp'}
     </td>
   );
 }

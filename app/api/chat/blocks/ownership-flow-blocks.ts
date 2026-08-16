@@ -48,22 +48,15 @@ export async function ownershipFlowBlock(ticker: string): Promise<string> {
     );
     if (view.scriplessPct !== null) lines.push(`- Scripless: ${fmtPct(view.scriplessPct)}`);
 
-    lines.push('- Perubahan kepemilikan asing dalam PERCENTAGE POINT (pp):');
-    for (const [label, delta] of [
-      ['1 hari', view.delta.d1],
-      ['7 hari', view.delta.d7],
-      ['30 hari', view.delta.d30],
-    ] as const) {
-      if (delta.pp === null) {
-        // "belum ada pembanding" WAJIB dibedakan dari "tidak berubah". Kalau
-        // model menyamakannya, ia akan mengatakan "kepemilikan stabil" untuk
-        // emiten yang sebenarnya belum pernah punya observasi kedua.
-        lines.push(`  - ${label}: BELUM ADA observasi pembanding (bukan berarti tidak berubah - jangan katakan "stabil")`);
-      } else {
-        lines.push(
-          `  - ${label}: ${fmtPp(delta.pp)} pp, dibanding observasi ${delta.basisObservedDate} (jarak sebenarnya ${delta.actualGapDays} hari kalender)`
-        );
-      }
+    lines.push('- Perubahan terhadap SNAPSHOT SEBELUMNYA dari sumber yang sama (percentage point / pp):');
+    if (view.previous.basisObservedDate === null) {
+      lines.push('  - Belum ada snapshot pembanding. Ini BUKAN berarti kepemilikan stabil.');
+    } else {
+      lines.push(
+        `  - Pembanding: ${view.previous.basisObservedDate} (jarak ${view.previous.actualGapDays} hari kalender)`,
+        `  - Δ asing: ${view.previous.foreignPp === null ? 'tidak tersedia' : `${fmtPp(view.previous.foreignPp)} pp`}`,
+        `  - Δ lokal: ${view.previous.localPp === null ? 'tidak tersedia' : `${fmtPp(view.previous.localPp)} pp`}`,
+      );
     }
 
     lines.push(
@@ -77,7 +70,7 @@ export async function ownershipFlowBlock(ticker: string): Promise<string> {
       '  - Ini data KOMPOSISI KEPEMILIKAN, BUKAN data transaksi broker.',
       '  - DILARANG menyimpulkan "asing sedang beli/jual", "broker asing X membeli", atau menyebut nama broker mana pun dari angka ini.',
       '  - Kenaikan porsi asing bisa terjadi tanpa pembelian baru (mis. pemegang lokal menjual ke sesama asing, aksi korporasi, atau reklasifikasi kustodian).',
-      '  - Gunakan rumusan seperti "kepemilikan asing naik X pp dibanding snapshot sekitar N hari sebelumnya" atau "konsisten dengan akumulasi".',
+      '  - Gunakan rumusan seperti "kepemilikan asing naik X pp dibanding snapshot sebelumnya". Jangan menyebut akumulasi/distribusi sebagai sinyal sebelum ambangnya tervalidasi.',
       '  - SELALU sebut satuan pp (percentage point), bukan %. Naik dari 40% ke 41% = +1 pp, bukan +1%.',
       '  - SELALU sebut tanggal observasi dan sumbernya.',
       '  - DILARANG menurunkan rekomendasi beli/jual dari data ini.',
