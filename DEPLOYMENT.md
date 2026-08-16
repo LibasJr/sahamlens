@@ -42,6 +42,39 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Koreksi validator Ownership Flow (temuan audit VPS)
+
+**Tidak ada perubahan env var, cron, maupun database. Ingestion tetap tertutup.**
+Perubahan murni pada logika validasi + script audit.
+
+Audit pertama di VPS menemukan dua hal; yang kedua adalah BUG NYATA di kode yang
+sudah ter-deploy pada `488b9f1`.
+
+- **Aturan sanity sebelumnya SALAH.** Validator menuntut `local + foreign ~ 100`.
+  Struktur resmi KSEI: hanya efek **scripless** yang punya atribusi pemilik
+  lokal/asing, jadi identitas yang benar adalah
+  `local_pct + foreign_pct ~ scripless_pct` (toleransi 0,05 pp). Keduanya sama
+  hanya ketika scripless = 100%. Emiten dengan scripless 75% dan komposisi 45/30 -
+  bentuk yang normal - akan **ditolak** aturan lama. Dampak produksi nol karena
+  ingestion belum pernah menulis satu baris pun, tapi aturannya wajib benar
+  sebelum ingestion dibuka.
+- **Placeholder 0/0/0.** Fixture TLKM adalah halaman emiten ASLI (HTTP 200, bukan
+  captcha/login, kode cocok, label lengkap) tetapi Scripless/Local/Foreign
+  semuanya 0,00% dan `As of` tidak terparse. Baris seperti itu kini ditolak
+  sebagai `PLACEHOLDER_DATA`, tidak pernah disimpan.
+- **Keberadaan label != keberadaan nilai.** Script audit tidak lagi menandai
+  `hasObservedDate: true` hanya karena label `"As of"` ditemukan; ia `true` hanya
+  jika nilai tanggalnya berhasil diparse. Laporan audit kini memisahkan
+  `structureVerdict` (tata letak dipahami) dari `verdict` (seluruh sampel sah).
+- **HTTP 500 tidak pernah diulang.** Daftar status transien lama
+  `{429,502,503,504}` tidak memuat 500, jadi ia jatuh ke cabang `CLIENT_ERROR`.
+  Klasifikasi kini berbasis **rentang 5xx** sehingga 507/508 dst ikut tertangani.
+  Setelah retry habis: ticker ditandai `SOURCE_ERROR`, cron LANJUT ke berikutnya.
+
+Sumber KSEI tetap `UNVERIFIED` - "struktur terbukti" tidak cukup, parser harus
+lolos test terhadap fixture nyata (termasuk kasus placeholder) lebih dulu.
+Prosedur lengkap: `docs/ownership-flow/source-audit.md` bagian 2b/2c.
+
 ### 2026-08-16 - Ownership Flow (modul baru, ingestion MASIH TERTUTUP)
 
 **Ringkas: deploy ini AMAN dan tidak mengubah perilaku apa pun yang sudah ada.
