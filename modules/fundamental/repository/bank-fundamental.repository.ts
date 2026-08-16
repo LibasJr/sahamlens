@@ -189,3 +189,25 @@ export async function getBankMetricEvidenceAdminSummary() {
     throw error;
   }
 }
+
+/**
+ * Read-only evidence feed for maturity/validation research. This intentionally
+ * returns raw per-metric rows rather than a synthesized latest snapshot so that
+ * period coverage, basis consistency, and PIT violations remain auditable.
+ */
+export async function listBankMetricEvidenceForMaturity(limit = 10000): Promise<Array<BankMetricEvidence & { ticker: string }>> {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ticker,metric_key,value,unit,basis,evidence_type,observed_date,period_end,published_at,
+              source_document_date,source_tier,source_title,source_url,notes,evidence_fingerprint,created_at
+         FROM bank_metric_evidence
+        ORDER BY ticker ASC, period_end ASC, observed_date ASC, metric_key ASC, created_at ASC
+        LIMIT $1`,
+      [Math.max(1, Math.min(limit, 100000))],
+    );
+    return rows.map((row) => ({ ticker: String(row.ticker).toUpperCase(), ...mapEvidenceRow(row) }));
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === '42P01') return [];
+    throw error;
+  }
+}
