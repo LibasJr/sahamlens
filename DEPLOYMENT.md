@@ -42,6 +42,11 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Timer intraday-collect terpasang di VPS
+
+- Diverifikasi dari `systemctl list-timers --all`: `sahamlens-intraday-collect.timer` aktif dan eksekusi otomatis pertama dijadwalkan Senin 2026-08-17 sekitar 17:30 WIB.
+- Manifest cron diperbarui menjadi jadwal systemd terverifikasi; `n/a` pada LAST sebelum Senin adalah normal karena timer belum pernah mencapai jadwal otomatis pertamanya.
+
 ### 2026-08-16 - Label rekomendasi transaksi diganti sinyal presentasi aman
 
 - Classifier internal (`STRONG BUY`/`BUY`/`HOLD`/`SELL`/`STRONG SELL` dari
