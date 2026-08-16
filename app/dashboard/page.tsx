@@ -23,6 +23,7 @@ import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
 import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 import {
   Zap, ArrowUpRight, ArrowDownRight,
   RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
@@ -52,11 +53,19 @@ const displayTicker = (s: string) => isIndexTicker(s) ? 'IHSG' : s.replace('.JK'
 
 function buildIndexPayload(symbol: string, candles: any[]) {
   const last = candles[candles.length - 1];
-  const prev = candles[candles.length - 2];
   const close = typeof last?.close === 'number' ? last.close : null;
-  const prevClose = typeof prev?.close === 'number' ? prev.close : null;
-  const changePct = close != null && prevClose != null && prevClose > 0
-    ? Number((((close - prevClose) / prevClose) * 100).toFixed(2))
+  // Jangan mengambil candles[length - 2] sebagai penutupan sebelumnya. Pada sesi
+  // berjalan Yahoo dapat mengirim/menyaring bar berbeda sehingga posisi larik bukan
+  // jaminan sesi bursa sebelumnya. Helper membandingkan tanggal bursa yang sebenarnya.
+  const timestamps = candles.map((candle) => {
+    const rawTime = candle?.time ?? candle?.Date ?? candle?.date;
+    const millis = typeof rawTime === 'number' ? rawTime * 1000 : Date.parse(rawTime);
+    return Number.isFinite(millis) ? Math.floor(millis / 1000) : null;
+  });
+  const closes = candles.map((candle) => candle?.close);
+  const { previousClose } = resolvePreviousClose({ timestamps, closes });
+  const changePct = close != null && previousClose != null && previousClose > 0
+    ? Number((((close - previousClose) / previousClose) * 100).toFixed(2))
     : null;
 
   return {

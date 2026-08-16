@@ -42,6 +42,11 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Perbaikan CI acuan penutupan IHSG Dashboard
+
+- `buildIndexPayload` di LensTechnical tidak lagi memakai posisi `candles[length - 2]` sebagai penutupan sesi sebelumnya.
+- Perubahan IHSG kini memakai `resolvePreviousClose()`, yang membandingkan tanggal bursa; ini mencegah arah perubahan mundur satu sesi saat Yahoo mengirim bar sesi berjalan tidak lengkap.
+
 ### 2026-08-16 - Konsensus LensTechnical memakai label sinyal aman
 
 - Kartu Konsensus Analyzer di `/dashboard` sekarang menerjemahkan classifier internal `STRONG BUY`/`BUY`/`SELL` menjadi label presentasi sinyal yang sama dengan halaman teknikal lain.
