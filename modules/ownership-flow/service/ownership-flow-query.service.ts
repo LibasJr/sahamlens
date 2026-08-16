@@ -10,12 +10,13 @@ import {
   assessFreshness,
   classifyOwnershipTrend,
 } from '../scoring/ownership-flow-classification';
-import { getPrimarySource } from '../source/source-registry';
+import { getPrimarySource, getSourceById } from '../source/source-registry';
 import type {
   OwnershipDeltaSet,
   OwnershipFlowView,
+  OwnershipPeriodChange,
 } from '../types/ownership-flow.types';
-import { computeDeltaSet, type ObservationPoint } from './ownership-delta';
+import { computeDeltaSet, computePreviousPeriodChange, type ObservationPoint } from './ownership-delta';
 
 // SISI BACA OWNERSHIP FLOW.
 //
@@ -28,7 +29,7 @@ import { computeDeltaSet, type ObservationPoint } from './ownership-delta';
 // baca (§29).
 
 /** Versi kunci cache. Bump kalau BENTUK payload atau cara delta dihitung berubah. */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 function cacheKey(ticker: string): string {
   return `sahamlens:cache:ownership-flow:${CACHE_VERSION}:ticker:${ticker}`;
@@ -54,6 +55,7 @@ interface CachedOwnershipCore {
   scriplessPct: number | null;
   totalSecurities: number | null;
   delta: OwnershipDeltaSet;
+  previous: OwnershipPeriodChange;
   historyCount: number;
 }
 
@@ -63,8 +65,27 @@ const EMPTY_DELTA_SET: OwnershipDeltaSet = {
   d30: { pp: null, basisObservedDate: null, actualGapDays: null },
 };
 
+const EMPTY_PREVIOUS: OwnershipPeriodChange = {
+  basisObservedDate: null,
+  actualGapDays: null,
+  foreignPp: null,
+  localPp: null,
+  scriplessPp: null,
+};
+
 function toPoints(rows: OwnershipHistoryRow[]): ObservationPoint[] {
-  return rows.map((row) => ({ observedDate: row.observedDate, foreignPct: row.foreignPct }));
+  return rows.map((row) => ({
+    observedDate: row.observedDate,
+    foreignPct: row.foreignPct,
+    localPct: row.localPct,
+    scriplessPct: row.scriplessPct,
+  }));
+}
+
+function sameSourceHistory(rows: OwnershipHistoryRow[]): OwnershipHistoryRow[] {
+  if (rows.length === 0) return rows;
+  const latestSource = rows[rows.length - 1].source;
+  return rows.filter((row) => row.source === latestSource);
 }
 
 async function buildCore(ticker: string): Promise<CachedOwnershipCore> {
@@ -84,11 +105,14 @@ async function buildCore(ticker: string): Promise<CachedOwnershipCore> {
       scriplessPct: null,
       totalSecurities: null,
       delta: EMPTY_DELTA_SET,
+      previous: EMPTY_PREVIOUS,
       historyCount: 0,
     };
   }
 
   const latest = history[history.length - 1];
+  const comparableHistory = sameSourceHistory(history);
+  const points = toPoints(comparableHistory);
   return {
     ticker,
     observedDate: latest.observedDate,
@@ -99,8 +123,9 @@ async function buildCore(ticker: string): Promise<CachedOwnershipCore> {
     localPct: latest.localPct,
     scriplessPct: latest.scriplessPct,
     totalSecurities: latest.totalSecurities,
-    delta: computeDeltaSet(toPoints(history)),
-    historyCount: history.length,
+    delta: computeDeltaSet(points),
+    previous: computePreviousPeriodChange(points),
+    historyCount: comparableHistory.length,
   };
 }
 
@@ -138,7 +163,7 @@ export async function getOwnershipFlowView(
 
 /** Tambahkan bagian yang bergantung waktu-sekarang. Selalu di luar cache. */
 function decorate(core: CachedOwnershipCore, now?: Date): OwnershipFlowView {
-  const source = getPrimarySource();
+  const source = (core.source ? getSourceById(core.source) : null) ?? getPrimarySource();
   const { freshness, ageDays } = assessFreshness(core.observedDate, source.cadence, now ?? new Date());
   const classification = classifyOwnershipTrend(core.delta);
 
@@ -153,6 +178,7 @@ function decorate(core: CachedOwnershipCore, now?: Date): OwnershipFlowView {
     scriplessPct: core.scriplessPct,
     totalSecurities: core.totalSecurities,
     delta: core.delta,
+    previous: core.previous,
     trend: core.observedDate === null ? 'INSUFFICIENT_DATA' : classification.trend,
     trendReason:
       core.observedDate === null
@@ -175,7 +201,9 @@ export interface OwnershipFlowListRow {
   observedDate: string | null;
   foreignPct: number | null;
   localPct: number | null;
+  source: string | null;
   delta: OwnershipDeltaSet;
+  previous: OwnershipPeriodChange;
   trend: OwnershipFlowView['trend'];
   freshness: OwnershipFlowView['freshness'];
   ageDays: number | null;
@@ -195,7 +223,6 @@ export async function getOwnershipFlowList(tickers: string[]): Promise<Ownership
   if (normalized.length === 0) return [];
 
   const latest = await getLatestObservationsFor(normalized);
-  const source = getPrimarySource();
   const now = new Date();
 
   const rows = await Promise.all(
@@ -207,21 +234,29 @@ export async function getOwnershipFlowList(tickers: string[]): Promise<Ownership
           observedDate: null,
           foreignPct: null,
           localPct: null,
+          source: null,
           delta: EMPTY_DELTA_SET,
+          previous: EMPTY_PREVIOUS,
           trend: 'INSUFFICIENT_DATA',
           freshness: 'MISSING',
           ageDays: null,
         };
       }
       const history = await listOwnershipHistory(ticker, 400);
-      const delta = computeDeltaSet(toPoints(history));
+      const comparableHistory = history.filter((row) => row.source === observation.source);
+      const points = toPoints(comparableHistory);
+      const delta = computeDeltaSet(points);
+      const previous = computePreviousPeriodChange(points);
+      const source = getSourceById(observation.source) ?? getPrimarySource();
       const { freshness, ageDays } = assessFreshness(observation.observedDate, source.cadence, now);
       return {
         ticker,
         observedDate: observation.observedDate,
         foreignPct: observation.foreignPct,
         localPct: observation.localPct,
+        source: observation.source,
         delta,
+        previous,
         trend: classifyOwnershipTrend(delta).trend,
         freshness,
         ageDays,
@@ -253,9 +288,13 @@ export async function getOwnershipSeries(
   const ticker = normalizeOwnershipTicker(rawTicker);
   if (!ticker) return [];
   const history = await listOwnershipHistory(ticker, limit);
-  return history.map((row) => ({
-    observedDate: row.observedDate,
-    foreignPct: row.foreignPct,
-    localPct: row.localPct,
-  }));
+  if (history.length === 0) return [];
+  const latestSource = history[history.length - 1].source;
+  return history
+    .filter((row) => row.source === latestSource)
+    .map((row) => ({
+      observedDate: row.observedDate,
+      foreignPct: row.foreignPct,
+      localPct: row.localPct,
+    }));
 }

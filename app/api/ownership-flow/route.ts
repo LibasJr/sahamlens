@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { getOwnershipFlowConfig } from '@/modules/ownership-flow/config/ownership-flow.config';
 import { getOwnershipFlowList } from '@/modules/ownership-flow/service/ownership-flow-query.service';
 import { getOwnershipUniverse } from '@/modules/ownership-flow/service/ownership-flow-ingest.service';
-import { getPrimarySource } from '@/modules/ownership-flow/source/source-registry';
+import { getPrimarySource, getSourceById } from '@/modules/ownership-flow/source/source-registry';
 import { getOwnershipHistoryStats } from '@/modules/ownership-flow/repository/ownership-flow-history.repository';
 import { logger } from '@/shared/logger/logger';
 
@@ -28,12 +28,17 @@ export async function GET() {
   }
 
   try {
-    const source = getPrimarySource();
     const universe = getOwnershipUniverse(config.universeLimit);
     const [rows, stats] = await Promise.all([
       getOwnershipFlowList(universe),
       getOwnershipHistoryStats(),
     ]);
+
+    const source = (stats.latestSource ? getSourceById(stats.latestSource) : null) ?? getPrimarySource();
+    const tickersWithData = rows.filter((row) => row.observedDate !== null).length;
+    const tickersOnLatestDate = stats.latestObservedDate
+      ? rows.filter((row) => row.observedDate === stats.latestObservedDate).length
+      : 0;
 
     return NextResponse.json({
       source: {
@@ -49,8 +54,8 @@ export async function GET() {
       universeSize: universe.length,
       latestObservedDate: stats.latestObservedDate,
       coverage: {
-        tickersWithData: stats.distinctTickers,
-        tickersOnLatestDate: stats.tickersOnLatestDate,
+        tickersWithData,
+        tickersOnLatestDate,
         totalObservations: stats.totalRows,
         firstObservedDate: stats.earliestObservedDate,
       },
@@ -72,6 +77,7 @@ export async function GET() {
           '7d': row.delta.d7.actualGapDays,
           '30d': row.delta.d30.actualGapDays,
         },
+        previous: row.previous,
         trend: row.trend,
         freshness: row.freshness,
         ageDays: row.ageDays,
