@@ -73,6 +73,34 @@ export type TpclOutcome = 'TP1' | 'SL' | 'TIME_EXIT';
 export type TpclAmbiguityRule = 'SL_FIRST' | 'TP_FIRST';
 export type MarketRegime = 'BULL' | 'SIDEWAYS' | 'BEAR' | 'UNKNOWN';
 export type ValidationSplit = 'TRAIN' | 'VALIDATION' | 'HOLDOUT';
+export type TpclHistoryRange = '1y' | '3y' | '5y' | '10y';
+
+export const DEFAULT_TPCL_HISTORY_RANGE: TpclHistoryRange = '5y';
+export const TPCL_HISTORY_RANGES: readonly TpclHistoryRange[] = ['1y', '3y', '5y', '10y'] as const;
+
+const TPCL_HISTORY_RANGE_YEARS: Record<TpclHistoryRange, number> = {
+  '1y': 1,
+  '3y': 3,
+  '5y': 5,
+  '10y': 10,
+};
+
+type TpclYahooFetchRange = '2y' | '5y' | '10y';
+
+/**
+ * Jendela observasi tetap 1/3/5/10 tahun (difilter di readSignals). Untuk 1y dan 3y
+ * kita mengambil OHLC sedikit lebih panjang sebagai warm-up ATR/structure. Ini juga
+ * menghindari mengirim `3y` ke Yahoo Chart karena range itu bukan range native Yahoo.
+ */
+function yahooFetchRangeFor(historyRange: TpclHistoryRange): TpclYahooFetchRange {
+  if (historyRange === '1y') return '2y';
+  if (historyRange === '3y') return '5y';
+  return historyRange;
+}
+
+export function isTpclHistoryRange(value: unknown): value is TpclHistoryRange {
+  return typeof value === 'string' && (TPCL_HISTORY_RANGES as readonly string[]).includes(value);
+}
 
 export interface TpclParameterSet extends TradingSetupParameters {
   id: string;
@@ -216,6 +244,7 @@ export interface BearFilterDiagnostic {
 
 export interface TpclValidationDashboard {
   protocolVersion: typeof TPCL_LAB_PROTOCOL_VERSION;
+  historyRange: TpclHistoryRange;
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -719,8 +748,16 @@ function deriveRobustnessStatus(baseline: TpclCandidateResult): {
   return { status: 'ROBUST', reasons };
 }
 
-async function readSignals(): Promise<SignalRow[]> {
+function historyCutoffDate(historyRange: TpclHistoryRange): string {
+  const cutoff = new Date();
+  cutoff.setUTCHours(0, 0, 0, 0);
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - TPCL_HISTORY_RANGE_YEARS[historyRange]);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+async function readSignals(historyRange: TpclHistoryRange): Promise<SignalRow[]> {
   await ensureSharedSchema();
+  const cutoffDate = historyCutoffDate(historyRange);
   const result = await pool.query(
     // Gerbang yang SAMA dengan produksi (temuan H-01): sinyal yang kelengkapan datanya
     // di bawah ambang rekomendasi, atau yang kelayakan point-in-time-nya bukan ELIGIBLE,
@@ -734,8 +771,16 @@ async function readSignals(): Promise<SignalRow[]> {
         AND coverage_pct >= $4
         AND eligibility_status = 'ELIGIBLE'
         AND COALESCE(universe_version, $5) = $5
+        AND "date" >= $6
       ORDER BY "date" ASC, ticker ASC`,
-    [SIGNAL_SCORE_THRESHOLD, SCORE_VERSION, LENS_BUCKET_MIN_AVG_VALUE_20D_IDR, MIN_VALIDATION_COVERAGE_PCT, LEGACY_VALIDATED_UNIVERSE_VERSION],
+    [
+      SIGNAL_SCORE_THRESHOLD,
+      SCORE_VERSION,
+      LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
+      MIN_VALIDATION_COVERAGE_PCT,
+      LEGACY_VALIDATED_UNIVERSE_VERSION,
+      cutoffDate,
+    ],
   );
   return result.rows.map((row: any) => {
     const date = dateKey(row.date);
@@ -745,7 +790,7 @@ async function readSignals(): Promise<SignalRow[]> {
   }).filter((row: SignalRow | null): row is SignalRow => row !== null);
 }
 
-async function loadTickerSeries(tickers: string[]): Promise<Map<string, {
+async function loadTickerSeries(tickers: string[], yahooFetchRange: TpclYahooFetchRange): Promise<Map<string, {
   normalized: ReturnType<typeof normalizeYahooOhlcRows>;
   bars: SelectedPriceBar[];
 }>> {
@@ -754,7 +799,7 @@ async function loadTickerSeries(tickers: string[]): Promise<Map<string, {
     const batch = tickers.slice(i, i + FETCH_BATCH);
     const rows = await Promise.all(batch.map(async (ticker) => {
       try {
-        const response = await fetchYahooHistory(ticker, '5y');
+        const response = await fetchYahooHistory(ticker, yahooFetchRange);
         const normalized = normalizeYahooOhlcRows(
           response?.history ?? [], ticker,
           response?.regularMarketTime ? new Date(response.regularMarketTime * 1000).toISOString() : null,
@@ -784,13 +829,16 @@ function candidateResult(parameters: TpclParameterSet, observations: TpclTradeOb
   };
 }
 
-export async function getTpclValidationDashboard(): Promise<TpclValidationDashboard> {
-  const signals = await readSignals();
+export async function getTpclValidationDashboard(
+  historyRange: TpclHistoryRange = DEFAULT_TPCL_HISTORY_RANGE,
+): Promise<TpclValidationDashboard> {
+  const signals = await readSignals(historyRange);
   const tickers = Array.from(new Set(signals.map((r) => r.ticker))).sort();
+  const yahooFetchRange = yahooFetchRangeFor(historyRange);
 
   const [seriesMap, ihsgResponse] = await Promise.all([
-    loadTickerSeries(tickers),
-    fetchYahooHistory('^JKSE', '5y').catch(() => null),
+    loadTickerSeries(tickers, yahooFetchRange),
+    fetchYahooHistory('^JKSE', yahooFetchRange).catch(() => null),
   ]);
 
   const ihsgNormalized = normalizeYahooOhlcRows(
@@ -992,6 +1040,7 @@ export async function getTpclValidationDashboard(): Promise<TpclValidationDashbo
 
   return {
     protocolVersion: TPCL_LAB_PROTOCOL_VERSION,
+    historyRange,
     researchOnly: true,
     genuineOos: false,
     scoreVersion: SCORE_VERSION,
