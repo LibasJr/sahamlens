@@ -96,9 +96,14 @@ async function auditAdmin(
   detail?: Record<string, unknown>,
 ): Promise<void> {
   const tokenJti = cookieStore ? await currentAdminTokenJti(cookieStore) : null;
-  await recordAdminAudit({ action, target, detail, tokenJti }).catch((err) => {
+  try {
+    // Audit logging must never break the admin action itself. `await` also handles
+    // test doubles that return void instead of a Promise, unlike chaining `.catch()`
+    // directly on the repository call.
+    await recordAdminAudit({ action, target, detail, tokenJti });
+  } catch (err) {
     logger.warn('Gagal tulis admin audit event', { action, err });
-  });
+  }
 }
 
 // Key salah -> 404 (tidak membocorkan bahwa route ini ada).
