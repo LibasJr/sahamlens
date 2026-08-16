@@ -13,14 +13,41 @@ import type {
 // terlihat di panel admin, bukan hilang diam-diam.
 
 /**
- * Toleransi penjumlahan local + foreign terhadap 100.
+ * Toleransi penjumlahan `local + foreign` terhadap `scripless`.
  *
- * Sumber menerbitkan persentase yang sudah dibulatkan (2 desimal), jadi galat
- * pembulatan maksimum yang WAJAR adalah 0.005 + 0.005 = 0.01 pp. Ambang 0.05 pp
+ * BUKAN terhadap 100 - lihat penjelasan panjang di parseOwnershipRow(). Sumber
+ * menerbitkan persentase yang sudah dibulatkan (2 desimal), jadi galat
+ * pembulatan maksimum yang WAJAR adalah 0.005 x 3 = 0.015 pp. Ambang 0.05 pp
  * memberi margin untuk sumber yang membulatkan lebih kasar, tanpa cukup longgar
- * untuk meloloskan baris yang benar-benar tidak konsisten (mis. 60/60).
+ * untuk meloloskan baris yang benar-benar tidak konsisten.
  */
 export const PERCENT_SUM_TOLERANCE_PP = 0.05;
+
+/**
+ * Nol yang dianggap "nol" setelah pembulatan sumber. Sumber menulis 2 desimal,
+ * jadi apa pun di bawah setengah satuan terkecil itu tidak dapat dibedakan dari
+ * nol yang dicetak.
+ */
+const ZERO_EPSILON = 0.005;
+
+/**
+ * Deteksi tripel placeholder 0/0/0.
+ *
+ * Nilai `null` (kolom tidak ada) ikut dihitung sebagai "tidak positif": halaman
+ * yang hanya memuat `Foreign 0,00%` tanpa kolom lain sama tidak bermaknanya
+ * dengan yang memuat ketiganya bernilai nol. Yang membedakannya dari baris
+ * MISSING murni: di sini ada ANGKA yang tercetak, dan angkanya nol.
+ */
+function isPlaceholderTriplet(
+  localPct: number | null,
+  foreignPct: number | null,
+  scriplessPct: number | null
+): boolean {
+  const values = [localPct, foreignPct, scriplessPct];
+  const anyPrinted = values.some((v) => v !== null);
+  const nonePositive = values.every((v) => v === null || Math.abs(v) < ZERO_EPSILON);
+  return anyPrinted && nonePositive;
+}
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -184,14 +211,48 @@ export function parseOwnershipRow(
     return reject(ticker, 'MISSING', 'Sumber tidak menyediakan local maupun foreign percentage');
   }
 
-  // Pemeriksaan silang: kalau KEDUANYA ada, jumlahnya harus mendekati 100.
-  if (localPct !== null && foreignPct !== null) {
+  // PLACEHOLDER 0/0/0 - ditemukan pada fixture TLKM nyata dari VPS (2026-08-16):
+  // halaman emitennya ASLI, tetapi ketiga nilai kepemilikan terisi 0,00% dan
+  // tanggalnya tidak terbaca. Itu halaman yang belum/tidak memuat data, bukan
+  // emiten yang benar-benar 0% dimiliki siapa pun.
+  //
+  // Baris seperti ini DITOLAK, bukan disimpan. Alasannya asimetri risiko:
+  // menyimpan 0,00% berarti menampilkan klaim kuantitatif ("kepemilikan asing
+  // nihil") yang tidak pernah diukur sumbernya, dan setelah tersimpan ia tidak
+  // bisa dibedakan lagi dari pengukuran asli. Emiten yang benar-benar 0%
+  // scripless pun tidak punya komposisi kepemilikan untuk dilaporkan, jadi
+  // menolaknya tidak menghilangkan informasi apa pun yang bermakna.
+  if (isPlaceholderTriplet(localPct, foreignPct, scriplessPct)) {
+    return reject(
+      ticker,
+      'PLACEHOLDER_DATA',
+      `Seluruh persentase bernilai nol (local=${localPct}, foreign=${foreignPct}, scripless=${scriplessPct}) - halaman placeholder, bukan pengukuran`
+    );
+  }
+
+  // PEMERIKSAAN SILANG YANG BENAR (dikoreksi 2026-08-16 dari temuan VPS).
+  //
+  // SEBELUMNYA SALAH: kode ini menuntut local + foreign ~ 100, dan itu akan
+  // MENOLAK baris yang sebenarnya sah.
+  //
+  // Struktur resmi KSEI: hanya efek berbentuk SCRIPLESS (tercatat di depositori)
+  // yang punya atribusi pemilik lokal/asing. Efek yang masih berbentuk warkat
+  // tidak teratribusi sama sekali. Jadi identitas yang berlaku adalah
+  //
+  //     local_pct + foreign_pct ~ scripless_pct
+  //
+  // dan ia hanya sama dengan 100 pada kasus khusus scripless_pct = 100%.
+  //
+  // Kalau scripless tidak tersedia, TIDAK ADA pemeriksaan silang yang bisa
+  // dilakukan - dan itu bukan alasan menolak baris. Yang dilarang adalah
+  // kembali diam-diam ke pembanding 100.
+  if (localPct !== null && foreignPct !== null && scriplessPct !== null) {
     const sum = localPct + foreignPct;
-    if (Math.abs(sum - 100) > PERCENT_SUM_TOLERANCE_PP) {
+    if (Math.abs(sum - scriplessPct) > PERCENT_SUM_TOLERANCE_PP) {
       return reject(
         ticker,
         'INCONSISTENT',
-        `local (${localPct}) + foreign (${foreignPct}) = ${sum.toFixed(4)}, menyimpang lebih dari ${PERCENT_SUM_TOLERANCE_PP} pp dari 100`
+        `local (${localPct}) + foreign (${foreignPct}) = ${sum.toFixed(4)}, menyimpang lebih dari ${PERCENT_SUM_TOLERANCE_PP} pp dari scripless (${scriplessPct})`
       );
     }
   }

@@ -24,7 +24,7 @@ describe('fetchOwnershipPage - retry', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it.each([429, 502, 503, 504])('mengulang error transien %i', async (status) => {
+  it.each([429, 500, 502, 503, 504, 507])('mengulang error transien %i', async (status) => {
     const fetchImpl = vi.fn(async () => jsonResponse(status));
     const result = await fetchOwnershipPage('https://example.test/a', {
       timeoutMs: 1000,
@@ -35,6 +35,41 @@ describe('fetchOwnershipPage - retry', () => {
     expect(result.ok).toBe(false);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(result.errorCode).toBe(status === 429 ? 'RATE_LIMITED' : 'SERVER_ERROR');
+  });
+
+  it('HTTP 500 diulang dan diberi sandi SERVER_ERROR, bukan CLIENT_ERROR', async () => {
+    // REGRESI (dikoreksi 2026-08-16): daftar status transien lama
+    // {429,502,503,504} tidak memuat 500, jadi ia jatuh ke cabang CLIENT_ERROR -
+    // salah dua kali sekaligus. 500 adalah kegagalan SERVER, bukan permintaan
+    // kita yang keliru, dan ia sering sesaat; akibatnya ia TIDAK PERNAH diulang
+    // padahal justru seharusnya diulang. Kalau test ini gagal, bug itu kembali.
+    const fetchImpl = vi.fn(async () => jsonResponse(500));
+    const result = await fetchOwnershipPage('https://example.test/a', {
+      timeoutMs: 1000,
+      maxAttempts: 3,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.errorCode).toBe('SERVER_ERROR');
+    expect(result.errorCode).not.toBe('CLIENT_ERROR');
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('membedakan 429 (kita terlalu cepat) dari 5xx (server sumber bermasalah)', async () => {
+    // Dua keadaan ini menuntut tindakan operator yang berbeda: turunkan
+    // konkurensi vs tunggu saja. Menyamakan sandinya menghilangkan petunjuk itu.
+    const make = async (status: number) => {
+      const fetchImpl = vi.fn(async () => jsonResponse(status));
+      return fetchOwnershipPage('https://example.test/a', {
+        timeoutMs: 1000,
+        maxAttempts: 1,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        sleepImpl: noSleep,
+      });
+    };
+    expect((await make(429)).errorCode).toBe('RATE_LIMITED');
+    expect((await make(503)).errorCode).toBe('SERVER_ERROR');
+    expect((await make(404)).errorCode).toBe('CLIENT_ERROR');
   });
 
   it('TIDAK mengulang 404 - permintaan kita memang salah', async () => {
