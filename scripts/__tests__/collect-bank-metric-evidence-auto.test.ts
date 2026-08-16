@@ -79,4 +79,19 @@ describe('bank official-source auto collector', () => {
     expect(inferPeriodEnd('1H26 Corporate Presentation')).toBe('2026-06-30');
     expect(inferPeriodEnd('As of May 2026 (Bank Only)')).toBe('2026-05-31');
   });
+
+  it('memisahkan LDR dari flattened multi-chart dan tidak salah membaca Net NPL Formation sebagai NPL Net ratio', () => {
+    const text = 'Bank-Only Loan-to-Deposit Ratio(a) Trend Bank-Only Net NPL Formation(b) and Loan-at-Risk Ratio Trend LDR (Bank-Only) Net NPL Formation (Bank-Only) LaR Ratio (Bank-Only) 98,0% 7,37%';
+    const rows = extractMetricCandidates(text, {
+      ticker: 'BMRI.JK', periodEnd: '2026-06-30', sourceTitle: 'Official presentation', sourceUrl: 'https://www.bankmandiri.co.id/example.pdf',
+    });
+    const ldr = rows.find((x: any) => x.metricKey === 'LDR_PCT');
+    const nplNet = rows.find((x: any) => x.metricKey === 'NPL_NET_PCT');
+    expect(ldr?.status).toBe('CANDIDATE');
+    expect(ldr?.value).toBe(98);
+    expect(ldr?.basis).toBe('BANK_ONLY');
+    expect(ldr?.extractionMethod).toBe('FLATTENED_TREND_LDR_FIRST_SERIES');
+    expect(nplNet).toBeUndefined();
+  });
+
 });
