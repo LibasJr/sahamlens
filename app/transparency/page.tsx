@@ -1,10 +1,27 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import TransparencyClient from './TransparencyClient';
-import { getReconciliationSummary } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
+
+// This page reads production-only reconciliation data. Keep it out of static
+// prerendering so CI/build does not require DATABASE_URL. The repository is
+// imported lazily at request time for the same reason.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+async function loadReconciliationSummary(): Promise<Array<Record<string, unknown>>> {
+  try {
+    const { getReconciliationSummary } = await import(
+      '@/modules/market-data-integrity/repository/market-data-reconciliation.repository'
+    );
+    return await getReconciliationSummary(1);
+  } catch (error) {
+    console.error('[transparency] reconciliation summary unavailable', error);
+    return [];
+  }
+}
 
 export default async function TransparencyPage() {
-  const reconciliationRuns = await getReconciliationSummary(1);
+  const reconciliationRuns = await loadReconciliationSummary();
   const latestRecon = reconciliationRuns[0];
   const compared = Number(latestRecon?.compared_count ?? 0);
   const matched = Number(latestRecon?.match_count ?? 0);
