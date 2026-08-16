@@ -14,7 +14,7 @@ import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
-import { classifyCapTier, BLUE_CHIP_MIN_MARKET_CAP_IDR, BLUE_CHIP_MIN_ADV20_IDR } from '@/lib/utils/cap-tier';
+import { classifyCapTier } from '@/lib/utils/cap-tier';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
@@ -1154,17 +1154,22 @@ function DashboardContent() {
                     signal di saham kecil/tidak likuid): badge INFORMASIONAL, tidak
                     mengubah cara skor/sinyal dihitung - lihat classifyCapTier(). Tidak
                     tampil kalau market cap ATAU likuiditas tidak diketahui (mis. IHSG,
-                    yang bukan saham individual) - diam lebih baik daripada menebak. */}
+                    yang bukan saham individual) - diam lebih baik daripada menebak.
+                    REVISI (2026-08-16, bug report PACK.JK berlabel Blue-chip padahal
+                    saham kecil sedang naik +8%/hari): "Blue-chip" sekarang berarti
+                    konstituen LQ45 IDX (daftar tetap, lihat blue-chip-index.ts), BUKAN
+                    lagi ambang market cap/ADV20 real-time yang gampang digelembungkan
+                    pump/gorengan. */}
                 {(() => {
-                  const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
+                  const tier = classifyCapTier(stock.symbol || ticker, data?.market_cap, data?.eligibility?.details?.adv20Idr);
                   if (!tier) return null;
                   return (
                     <div className="mt-1">
                       <Badge
                         variant={tier === 'BLUE_CHIP' ? 'info' : 'warning'}
                         title={tier === 'BLUE_CHIP'
-                          ? `Market cap & likuiditas di atas ambang blue-chip (>= Rp ${(BLUE_CHIP_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(BLUE_CHIP_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
-                          : 'Market cap kecil dan/atau likuiditas tipis - sinyal teknikal lebih rentan pergerakan tidak wajar (mis. "saham gorengan") dibanding saham blue-chip'}
+                          ? 'Konstituen indeks LQ45 IDX - keanggotaan indeks ditetapkan lewat evaluasi resmi berkala, tidak bisa berubah karena pergerakan harga/volume harian'
+                          : 'Bukan konstituen LQ45 - market cap kecil dan/atau likuiditas tipis, sinyal teknikal lebih rentan pergerakan tidak wajar (mis. "saham gorengan") dibanding saham blue-chip'}
                       >
                         {tier === 'BLUE_CHIP' ? 'Blue-chip' : 'Small-cap & Volatile'}
                       </Badge>
