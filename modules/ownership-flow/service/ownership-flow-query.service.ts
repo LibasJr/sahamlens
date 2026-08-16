@@ -1,7 +1,8 @@
-import { cacheGet, cacheSet } from '../../../shared/cache/redis-cache';
+import { createHash } from 'node:crypto';
+import { cacheGet, cacheSet, getOrCompute } from '../../../shared/cache/redis-cache';
 import { getOwnershipFlowConfig } from '../config/ownership-flow.config';
 import {
-  getLatestObservationsFor,
+  getOwnershipHistoryForTickers,
   listOwnershipHistory,
   type OwnershipHistoryRow,
 } from '../repository/ownership-flow-history.repository';
@@ -210,11 +211,104 @@ export interface OwnershipFlowListRow {
 }
 
 /**
+ * Bentuk daftar yang aman di-cache.
+ *
+ * freshness/ageDays sengaja TIDAK ikut cache karena keduanya bergantung pada
+ * waktu sekarang. Dengan begitu cache 30 menit tidak pernah membuat snapshot
+ * basi terlihat masih fresh.
+ */
+type CachedOwnershipListRow = Omit<OwnershipFlowListRow, 'freshness' | 'ageDays'>;
+
+function listCacheKey(tickers: string[]): string {
+  // Universe SahamLens bisa berubah walaupun jumlah emitennya sama. Hash isi
+  // ticker mencegah payload universe lama dipakai untuk universe baru.
+  const signature = createHash('sha1').update(tickers.join(',')).digest('hex').slice(0, 16);
+  return `sahamlens:cache:ownership-flow:v3:list:${signature}`;
+}
+
+function emptyListCore(ticker: string): CachedOwnershipListRow {
+  return {
+    ticker,
+    observedDate: null,
+    foreignPct: null,
+    localPct: null,
+    source: null,
+    delta: EMPTY_DELTA_SET,
+    previous: EMPTY_PREVIOUS,
+    trend: 'INSUFFICIENT_DATA',
+  };
+}
+
+/**
+ * Bangun seluruh tabel Ownership Flow dari SATU bulk query.
+ *
+ * Implementasi lama melakukan satu query latest + satu query histori PER ticker.
+ * Dengan ~1000 ticker itu bisa menjadi ~1001 round-trip PostgreSQL/Neon pada
+ * cache dingin. Di sini seluruh histori terbatas per ticker diambil sekaligus,
+ * lalu dikelompokkan di memory Node.
+ */
+async function buildOwnershipFlowListCore(
+  normalized: string[]
+): Promise<CachedOwnershipListRow[]> {
+  const historyByTicker = await getOwnershipHistoryForTickers(normalized, 400);
+
+  return normalized.map((ticker): CachedOwnershipListRow => {
+    const history = historyByTicker.get(ticker) ?? [];
+    if (history.length === 0) return emptyListCore(ticker);
+
+    const latest = history[history.length - 1];
+    const comparableHistory = history.filter((row) => row.source === latest.source);
+    const points = toPoints(comparableHistory);
+    const delta = computeDeltaSet(points);
+
+    return {
+      ticker,
+      observedDate: latest.observedDate,
+      foreignPct: latest.foreignPct,
+      localPct: latest.localPct,
+      source: latest.source,
+      delta,
+      previous: computePreviousPeriodChange(points),
+      trend: classifyOwnershipTrend(delta).trend,
+    };
+  });
+}
+
+function decorateOwnershipFlowList(
+  rows: CachedOwnershipListRow[],
+  now: Date
+): OwnershipFlowListRow[] {
+  return rows.map((row): OwnershipFlowListRow => {
+    if (row.observedDate === null) {
+      return {
+        ...row,
+        freshness: 'MISSING',
+        ageDays: null,
+      };
+    }
+
+    const source = (row.source ? getSourceById(row.source) : null) ?? getPrimarySource();
+    const { freshness, ageDays } = assessFreshness(row.observedDate, source.cadence, now);
+    return {
+      ...row,
+      freshness,
+      ageDays,
+    };
+  });
+}
+
+/**
  * Daftar untuk halaman utama Ownership Flow.
  *
- * Observasi TERBARU seluruh ticker diambil satu query (DISTINCT ON), lalu
- * histori per ticker hanya diambil untuk yang benar-benar punya data - emiten
- * tanpa observasi tidak perlu round-trip kedua.
+ * Jalur cache dingin:
+ *   1 bulk query PostgreSQL -> hitung delta di memory -> Redis.
+ *
+ * Jalur cache hangat:
+ *   Redis -> hitung freshness dari observedDate -> API.
+ *
+ * Jadi pembukaan pertama tidak lagi memicu query histori satu-per-satu untuk
+ * seluruh universe. getOrCompute juga memberi single-flight agar beberapa user
+ * yang membuka halaman bersamaan tidak menyebabkan cache stampede.
  */
 export async function getOwnershipFlowList(tickers: string[]): Promise<OwnershipFlowListRow[]> {
   const normalized = Array.from(
@@ -222,49 +316,15 @@ export async function getOwnershipFlowList(tickers: string[]): Promise<Ownership
   );
   if (normalized.length === 0) return [];
 
-  const latest = await getLatestObservationsFor(normalized);
-  const now = new Date();
-
-  const rows = await Promise.all(
-    normalized.map(async (ticker): Promise<OwnershipFlowListRow> => {
-      const observation = latest.get(ticker);
-      if (!observation) {
-        return {
-          ticker,
-          observedDate: null,
-          foreignPct: null,
-          localPct: null,
-          source: null,
-          delta: EMPTY_DELTA_SET,
-          previous: EMPTY_PREVIOUS,
-          trend: 'INSUFFICIENT_DATA',
-          freshness: 'MISSING',
-          ageDays: null,
-        };
-      }
-      const history = await listOwnershipHistory(ticker, 400);
-      const comparableHistory = history.filter((row) => row.source === observation.source);
-      const points = toPoints(comparableHistory);
-      const delta = computeDeltaSet(points);
-      const previous = computePreviousPeriodChange(points);
-      const source = getSourceById(observation.source) ?? getPrimarySource();
-      const { freshness, ageDays } = assessFreshness(observation.observedDate, source.cadence, now);
-      return {
-        ticker,
-        observedDate: observation.observedDate,
-        foreignPct: observation.foreignPct,
-        localPct: observation.localPct,
-        source: observation.source,
-        delta,
-        previous,
-        trend: classifyOwnershipTrend(delta).trend,
-        freshness,
-        ageDays,
-      };
-    })
+  const config = getOwnershipFlowConfig();
+  const key = listCacheKey(normalized);
+  const core = await getOrCompute<CachedOwnershipListRow[]>(
+    key,
+    config.cacheTtlSec,
+    () => buildOwnershipFlowListCore(normalized)
   );
 
-  return rows;
+  return decorateOwnershipFlowList(core, new Date());
 }
 
 export interface OwnershipSeriesPoint {
