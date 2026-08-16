@@ -174,8 +174,31 @@ function tablePeriodColumnValue(rawLines,valueLineIndex,periodEnd){
   return null;
 }
 function containsAlias(line,aliases){const l=line.toLowerCase(); return aliases.some(a=>{const aa=a.toLowerCase(); if(aa.length<=3) return new RegExp(`(?:^|[^a-z])${aa.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?:[^a-z]|$)`,'i').test(l); return l.includes(aa);});}
+
+function excludedMetricContext(metricKey, text){
+  const s=String(text??'').toLowerCase();
+  // Net NPL Formation is a flow / formation metric, not the Net NPL ratio.
+  if(metricKey==='NPL_NET_PCT' && /(?:net\s+npl|npl\s+net)\s+formation/.test(s)) return true;
+  return false;
+}
+
+function flattenedTrendSeriesValue(metricKey, text){
+  const s=String(text??'').replace(/\s+/g,' ').trim();
+  if(metricKey!=='LDR_PCT') return null;
+  // Some issuer PDFs contain two charts side by side. pdftotext flattens the
+  // chart titles/series labels first and their headline values afterwards.
+  // Resolve only the narrowly identifiable LDR-first layout; never generalize
+  // this ordering heuristic to other metrics.
+  const structure=/loan[-\s]to[-\s]deposit ratio[^%]{0,180}?trend[^%]{0,240}?net npl formation[^%]{0,180}?loan[-\s]at[-\s]risk ratio trend[^%]{0,220}?ldr\s*\(bank[-\s]only\)[^%]{0,180}?net npl formation\s*\(bank[-\s]only\)[^%]{0,180}?lar ratio\s*\(bank[-\s]only\)/i;
+  if(!structure.test(s)) return null;
+  const values=parsePctValues(s);
+  if(values.length<2) return null;
+  const value=values[0];
+  if(!Number.isFinite(value)) return null;
+  return {value, method:'FLATTENED_TREND_LDR_FIRST_SERIES'};
+}
 function badContext(s){return /industry|peer|guidance|target|forecast|consensus|estimate|average|avg\.|5y|10y/i.test(s);}
-function inferBasis(s){if(/bank\s*only|bank\s*entity|individual|individu/i.test(s)) return 'BANK_ONLY';if(/consolidated|konsolidas/i.test(s)) return 'CONSOLIDATED';return 'DISCLOSED_UNSPECIFIED';}
+function inferBasis(s){if(/bank[-\s]*only|bank[-\s]*entity|individual|individu/i.test(s)) return 'BANK_ONLY';if(/consolidated|konsolidas/i.test(s)) return 'CONSOLIDATED';return 'DISCLOSED_UNSPECIFIED';}
 function escapeRegex(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 function periodTokens(periodEnd){
   const m=String(periodEnd??'').match(/^(20\d{2})-(0[1-9]|1[0-2])-([0-3]\d)$/); if(!m) return [];
@@ -218,6 +241,7 @@ export function extractMetricCandidates(text, options={}){
   for(const [metricKey,spec] of Object.entries(METRIC_SPECS)){
     for(let i=0;i<lines.length;i++){
       const line=lines[i]; if(!containsAlias(line,spec.aliases)) continue;
+      if(excludedMetricContext(metricKey,line)) continue;
       const local=[line,lines[i+1]??'',lines[i+2]??''].filter(Boolean);
       const oneLine=parsePctValues(line);
       const next=parsePctValues(lines[i+1]??'');
@@ -236,8 +260,13 @@ export function extractMetricCandidates(text, options={}){
             if(tableResolved&&!badContext(line)){
               values=[tableResolved.value]; method='TABLE_PERIOD_COLUMN_VALUE'; confidence=0.98; periodTagged=true;
             } else {
-              out.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(excerpt)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(excerpt)),confidence:0,extractionMethod:'AMBIGUOUS_MULTIPLE_VALUES',sourceTitle,sourceUrl,rawExcerpt:excerpt,status:'QUARANTINED',reason:`multiple_values:${excerptVals.join(',')}`});
-              break;
+              const trendResolved=flattenedTrendSeriesValue(metricKey,excerpt);
+              if(trendResolved&&!badContext(line)){
+                values=[trendResolved.value]; method=trendResolved.method; confidence=0.975;
+              } else {
+                out.push({ticker,periodEnd,metricKey,value:null,unit:'PCT',basis:(inferBasis(excerpt)==='DISCLOSED_UNSPECIFIED'?defaultBasis:inferBasis(excerpt)),confidence:0,extractionMethod:'AMBIGUOUS_MULTIPLE_VALUES',sourceTitle,sourceUrl,rawExcerpt:excerpt,status:'QUARANTINED',reason:`multiple_values:${excerptVals.join(',')}`});
+                break;
+              }
             }
           }
         } else continue;
