@@ -155,7 +155,8 @@ describe('blok valuasi menyertakan dasar angkanya, bukan cuma hasilnya', () => {
           fair_per_basis: 'GORDON',
           multiples_model: 'gordon-residual-income',
           macro_set_on: '2026-01-01',
-          sector_weights_status: 'HYPOTHESIS_NOT_VALIDATED',
+          sector_weights_status: 'ARBITRARY_WEIGHTS_REMOVED',
+          sector_aggregation_method: 'EQUAL_WEIGHT_AVAILABLE_APPLICABLE_METHODS',
         },
       })),
     }));

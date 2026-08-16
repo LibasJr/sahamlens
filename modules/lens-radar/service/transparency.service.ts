@@ -30,14 +30,13 @@ import {
   VALIDATION_LIMITATIONS,
   VALIDATION_LIMITATIONS_REVIEWED_ON,
 } from '../constants/validation-limitations';
-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 // v2: payload sekarang membedakan observasi mentah, sampel efektif per bucket edge,
 // dan hari sinyal yang benar-benar lolos populasi validasi. Cache lama tidak boleh
 // membuat UI terus menampilkan penyebut yang sudah tidak tepat.
-export const TRANSPARENCY_CACHE_VERSION = 'audit-v2';
+export const TRANSPARENCY_CACHE_VERSION = 'audit-v3-pit-universe';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
@@ -278,14 +277,12 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
-           avg_value_20d, coverage_pct, eligibility_status
+           avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
-      AND COALESCE(universe_version, $1) = $1
     ORDER BY ticker ASC, "date" ASC
-    `,
-    [LEGACY_VALIDATED_UNIVERSE_VERSION]
+    `
   );
   return rows as LensRadarHistoryEntry[];
 }

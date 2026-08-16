@@ -125,10 +125,9 @@ async function main() {
   for (const e of wl.entries) { if (!byTicker.has(e.ticker)) byTicker.set(e.ticker, []); byTicker.get(e.ticker).push(e); }
 
   for (const [ticker, entries] of byTicker) {
-    const qs = await yf.quoteSummary(ticker, { modules: ['price', 'financialData', 'defaultKeyStatistics'] }).catch(() => null);
+    const qs = await yf.quoteSummary(ticker, { modules: ['price', 'financialData'] }).catch(() => null);
     const priceCcy = qs?.price?.currency ?? null;
     const finCcy = qs?.financialData?.financialCurrency ?? priceCcy;
-    const sharesOut = qs?.defaultKeyStatistics?.sharesOutstanding ?? null;
     const fund = await fetchFundamentals(ticker, period2);
 
     for (const e of entries) {
@@ -143,7 +142,9 @@ async function main() {
       const liab = bs?.totalLiabilitiesNetMinorityInterest ?? null;
       const ca = bs?.currentAssets ?? null;
       const cl = bs?.currentLiabilities ?? null;
-      const shares = bs?.ordinarySharesNumber ?? bs?.shareIssued ?? sharesOut ?? null;
+      // M-08: historical shares MUST come from the period-end statement itself.
+      // Never backfill old dates with quoteSummary sharesOutstanding from today.
+      const shares = bs?.ordinarySharesNumber ?? bs?.shareIssued ?? null;
 
       // income YTD
       let inc;
@@ -196,15 +197,20 @@ async function main() {
       rows.push({
         ticker, observed_date: od, period_end: pe,
         per: round(per), pbv: round(pbv), roe: round(roe), der: round(der),
-        current_ratio: round(cr), revenue_growth: round(revGrowth), source: srcFull,
+        current_ratio: round(cr), revenue_growth: round(revGrowth),
+        shares_outstanding: shares ?? null,
+        // Do not synthesize historical market cap from retroactively split-adjusted
+        // provider close x period-end shares. If no genuine PIT market-cap source exists, null is honest.
+        market_cap: null,
+        source: srcFull,
       });
     }
   }
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.mkdirSync(path.dirname(PROV), { recursive: true });
-  const header = 'ticker,observed_date,period_end,per,pbv,roe,der,current_ratio,revenue_growth,source';
-  const csv = [header, ...rows.map((r) => [r.ticker, r.observed_date, r.period_end, r.per ?? '', r.pbv ?? '', r.roe ?? '', r.der ?? '', r.current_ratio ?? '', r.revenue_growth ?? '', `"${r.source.replace(/"/g, '""')}"`].join(','))].join('\n') + '\n';
+  const header = 'ticker,observed_date,period_end,per,pbv,roe,der,current_ratio,revenue_growth,shares_outstanding,market_cap,source';
+  const csv = [header, ...rows.map((r) => [r.ticker, r.observed_date, r.period_end, r.per ?? '', r.pbv ?? '', r.roe ?? '', r.der ?? '', r.current_ratio ?? '', r.revenue_growth ?? '', r.shares_outstanding ?? '', r.market_cap ?? '', `"${r.source.replace(/"/g, '""')}"`].join(','))].join('\n') + '\n';
   const outCsv = path.join(OUT_DIR, 'pit-batch51.csv');
   fs.writeFileSync(outCsv, csv, 'utf8');
   fs.writeFileSync(PROV, JSON.stringify(provenance, null, 2), 'utf8');

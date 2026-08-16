@@ -120,6 +120,16 @@ describe('archiveFundamentalSnapshot - penyimpanan & idempotensi', () => {
     expect(rows[0].currentRatio).toBeNull();
   });
 
+  it('M-08: menyimpan shares outstanding dan market cap bila memang tersedia pada tanggal observasi', async () => {
+    await archiveFundamentalSnapshot([{
+      ticker: 'BBCA.JK', observedDate: '2026-08-05', ...KOSONG,
+      sharesOutstanding: 123_000_000_000, marketCap: 1_050_000_000_000_000,
+    }]);
+    const [saved] = await listHistory('BBCA.JK');
+    expect(saved.sharesOutstanding).toBe(123_000_000_000);
+    expect(saved.marketCap).toBe(1_050_000_000_000_000);
+  });
+
   it('cron dieksekusi dua kali pada tanggal sama => tetap satu baris (TEST 6)', async () => {
     const batch = [{ ticker: 'BBCA.JK', observedDate: '2026-08-05', ...KOSONG, per: 22.1 }];
 
@@ -158,12 +168,12 @@ describe('archiveFundamentalSnapshot - penyimpanan & idempotensi', () => {
     expect(normalize(q.text)).toContain('ON CONFLICT (ticker, observed_date) DO NOTHING');
     // Tidak ada UPDATE/DO UPDATE - arsip ini append-only.
     expect(normalize(q.text)).not.toContain('DO UPDATE');
-    // 2 baris x 13 kolom (ticker, observed_date, period_end, 6 metrik, source, dan 3
-    // kolom konteks sektor point-in-time - temuan C-02), dan tidak
+    // 2 baris x 15 kolom (ticker, observed_date, period_end, 6 metrik, source, 3
+    // kolom konteks sektor point-in-time, shares_outstanding, market_cap), dan tidak
     // ada nilai yang tertanam di string SQL. Diturunkan dari daftar kolom di SQL-nya
     // sendiri supaya angka ini tidak perlu diperbarui manual tiap kali kolom bertambah.
     const jumlahKolom = normalize(q.text).match(/INSERT INTO fundamental_history \(([^)]+)\)/)![1].split(',').length;
-    expect(jumlahKolom).toBe(13);
+    expect(jumlahKolom).toBe(15);
     expect(q.values).toHaveLength(2 * jumlahKolom);
     // Setiap nilai harus lewat placeholder $n - tidak boleh ada yang diinterpolasi.
     expect(new Set(normalize(q.text).match(/\$\d+/g)).size).toBe(q.values.length);

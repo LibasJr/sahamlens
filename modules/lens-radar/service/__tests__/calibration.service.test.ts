@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateCalibrationObservations,
   calculateThresholdSimulations,
+  buildFundamentalPitCoverage,
   decorrelateCalibrationObservations,
   recommendCalibrationThreshold,
   welchOneTailedGreater,
@@ -28,6 +29,7 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     // pengguna. Kasus yang ditolak gerbang ini diuji eksplisit di test tersendiri.
     coverage_pct: 100,
     eligibility_status: 'ELIGIBLE',
+    universe_eligible: true,
   };
 }
 
@@ -38,7 +40,7 @@ function provider(openByTicker: Record<string, Record<string, number>>): DailyOp
     // tanggal baris histori, dan itu yang sedang diuji.
     async getIdxTradingCalendarDates() { return []; },
     async getDailyOpenBars(ticker: string) {
-      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
+      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, close: open, priceBasis: RETURN_PRICE_BASIS }));
     },
   };
 }
@@ -97,11 +99,25 @@ describe('calibration.service', () => {
       row('2026-01-21', 'AAAA.JK', 85, 110),
     );
     const result = await calculateCalibrationObservations(rows, provider({
-      'AAAA.JK': { '2026-01-02': 505 },
+      'AAAA.JK': { '2026-01-02': 505, '2026-01-03': 100, '2026-01-21': 110 },
     }));
 
     expect(result.observations[0]?.returnT20).toBeNull();
     expect(result.observations[0]?.exitDateT20).toBeNull();
+  });
+
+  it('H-06: melaporkan coverage fundamental PIT tanpa mengisi missing sebagai skor netral', () => {
+    const rows = [
+      { ...row('2026-01-01', 'AAAA.JK', 85, 100), fundamental_available_max: 30 },
+      { ...row('2026-01-01', 'BBBB.JK', 75, 100), fundamental_available_max: 0 },
+      { ...row('2026-01-02', 'AAAA.JK', 85, 101), fundamental_available_max: null },
+    ];
+    const coverage = buildFundamentalPitCoverage(rows);
+    expect(coverage.status).toBe('MIXED_FUNDAMENTAL_COVERAGE');
+    expect(coverage.totalRows).toBe(3);
+    expect(coverage.rowsWithFundamental).toBe(1);
+    expect(coverage.coveragePct).toBe(33.33);
+    expect(coverage.byDate[0]).toMatchObject({ date: '2026-01-01', totalRows: 2, rowsWithFundamental: 1, coveragePct: 50 });
   });
 
   it('menghitung simulasi threshold win rate dan perubahan jumlah sinyal vs ambang 80', () => {

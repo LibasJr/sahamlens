@@ -52,6 +52,10 @@ interface BrokerSummaryRow {
   brokerCode: string;
   buyValue: number;
   sellValue: number;
+  buyVolume: number | null;
+  sellVolume: number | null;
+  buyFrequency: number | null;
+  sellFrequency: number | null;
   buyLot: number | null;
   sellLot: number | null;
   buyAvg: number | null;
@@ -72,6 +76,10 @@ const DATE_ALIASES = ['trade_date', 'tradedate', 'date', 'tanggal', 'trading_dat
 const BROKER_ALIASES = ['broker_code', 'brokercode', 'broker', 'kode_broker', 'kodebroker'];
 const BUY_VALUE_ALIASES = ['buy_value', 'buyvalue', 'buy_val', 'buyval', 'buy'];
 const SELL_VALUE_ALIASES = ['sell_value', 'sellvalue', 'sell_val', 'sellval', 'sell'];
+const BUY_VOLUME_ALIASES = ['buy_volume', 'buyvolume', 'buy_vol', 'buyvol'];
+const SELL_VOLUME_ALIASES = ['sell_volume', 'sellvolume', 'sell_vol', 'sellvol'];
+const BUY_FREQUENCY_ALIASES = ['buy_frequency', 'buy_freq', 'buyfrequency', 'buyfreq'];
+const SELL_FREQUENCY_ALIASES = ['sell_frequency', 'sell_freq', 'sellfrequency', 'sellfreq'];
 const BUY_LOT_ALIASES = ['buy_lot', 'buylot', 'buy_lots', 'buylots'];
 const SELL_LOT_ALIASES = ['sell_lot', 'selllot', 'sell_lots', 'selllots'];
 const BUY_AVG_ALIASES = ['buy_avg', 'buyavg', 'avg_buy', 'avgbuy', 'buy_average'];
@@ -262,15 +270,37 @@ function rowFromCsv(
 
   const buyValue = parseLocalizedNumber(pick(row, BUY_VALUE_ALIASES), `Baris ${line} buy_value`) ?? 0;
   const sellValue = parseLocalizedNumber(pick(row, SELL_VALUE_ALIASES), `Baris ${line} sell_value`) ?? 0;
+  const buyVolume = parseLocalizedNumber(pick(row, BUY_VOLUME_ALIASES), `Baris ${line} buy_volume`, true);
+  const sellVolume = parseLocalizedNumber(pick(row, SELL_VOLUME_ALIASES), `Baris ${line} sell_volume`, true);
+  const buyFrequency = parseLocalizedNumber(pick(row, BUY_FREQUENCY_ALIASES), `Baris ${line} buy_frequency`, true);
+  const sellFrequency = parseLocalizedNumber(pick(row, SELL_FREQUENCY_ALIASES), `Baris ${line} sell_frequency`, true);
   const buyLot = parseLocalizedNumber(pick(row, BUY_LOT_ALIASES), `Baris ${line} buy_lot`, true);
   const sellLot = parseLocalizedNumber(pick(row, SELL_LOT_ALIASES), `Baris ${line} sell_lot`, true);
   const buyAvg = parseLocalizedNumber(pick(row, BUY_AVG_ALIASES), `Baris ${line} buy_avg`, true);
   const sellAvg = parseLocalizedNumber(pick(row, SELL_AVG_ALIASES), `Baris ${line} sell_avg`, true);
 
-  if (buyValue === 0 && sellValue === 0 && buyLot == null && sellLot == null) {
+  if (
+    buyValue === 0 && sellValue === 0 &&
+    (buyVolume ?? 0) === 0 && (sellVolume ?? 0) === 0 &&
+    (buyFrequency ?? 0) === 0 && (sellFrequency ?? 0) === 0 &&
+    buyLot == null && sellLot == null
+  ) {
     throw new BrokerSummaryValidationError(
-      `Baris ${line}: tidak ada aktivitas broker yang dapat disimpan (buy/sell value dan lot kosong/0).`
+      `Baris ${line}: tidak ada aktivitas broker yang dapat disimpan (value/volume/frequency/lot kosong atau 0).`
     );
+  }
+
+  if (buyVolume != null && !Number.isInteger(buyVolume)) {
+    throw new BrokerSummaryValidationError(`Baris ${line}: buy_volume harus bilangan bulat.`);
+  }
+  if (sellVolume != null && !Number.isInteger(sellVolume)) {
+    throw new BrokerSummaryValidationError(`Baris ${line}: sell_volume harus bilangan bulat.`);
+  }
+  if (buyFrequency != null && !Number.isInteger(buyFrequency)) {
+    throw new BrokerSummaryValidationError(`Baris ${line}: buy_frequency harus bilangan bulat.`);
+  }
+  if (sellFrequency != null && !Number.isInteger(sellFrequency)) {
+    throw new BrokerSummaryValidationError(`Baris ${line}: sell_frequency harus bilangan bulat.`);
   }
 
   if (buyLot != null && !Number.isInteger(buyLot)) {
@@ -286,6 +316,10 @@ function rowFromCsv(
     brokerCode,
     buyValue,
     sellValue,
+    buyVolume,
+    sellVolume,
+    buyFrequency,
+    sellFrequency,
     buyLot,
     sellLot,
     buyAvg,
@@ -378,17 +412,17 @@ export async function importBrokerSummaryCsv(
         `
           INSERT INTO broker_summary_daily (
             trade_date, ticker, broker_code,
-            buy_value, sell_value, buy_lot, sell_lot,
-            buy_avg, sell_avg, source, source_file
+            buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
+            buy_lot, sell_lot, buy_avg, sell_avg, source, source_file
           )
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
           ON CONFLICT (trade_date, ticker, broker_code, source) DO NOTHING
           RETURNING id
         `,
         [
           row.tradeDate, row.ticker, row.brokerCode,
-          row.buyValue, row.sellValue, row.buyLot, row.sellLot,
-          row.buyAvg, row.sellAvg, row.source, row.sourceFile,
+          row.buyValue, row.sellValue, row.buyVolume, row.sellVolume, row.buyFrequency, row.sellFrequency,
+          row.buyLot, row.sellLot, row.buyAvg, row.sellAvg, row.source, row.sourceFile,
         ],
       );
       insertedRows += result.rowCount ?? 0;

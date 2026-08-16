@@ -75,6 +75,10 @@ export type ScoredStock = {
   price: number;
   changePct: number;
   totalScore: number;
+  rawPrice?: number | null;
+  adjustedPrice?: number | null;
+  priceBasis?: 'RAW' | 'SPLIT_ADJUSTED' | 'TOTAL_RETURN_ADJUSTED' | 'UNKNOWN' | null;
+  availableMax?: { technical?: number | null; fundamental?: number | null; flow?: number | null } | null;
   /** null kalau RSI tidak bisa dihitung (histori kurang) - BUKAN dianggap 50
    * (audit 2026-08-05, temuan C-7). */
   rsi: number | null;
@@ -108,6 +112,12 @@ export type ScoredStock = {
   /** ADV20 rupiah (`adv20Idr` dari gerbang kelayakan). Diarsipkan ke lens_radar_history
    * supaya backtest bisa membuang sinyal yang pada hari itu terlalu sepi. */
   avgValue20d?: number | null;
+  universeEligible?: boolean | null;
+  universeReasonCodes?: string[] | null;
+  universeAvgClose63d?: number | null;
+  universeAvgValue63d?: number | null;
+  universeAnnualVolPct?: number | null;
+  universeMethodVersion?: string | null;
   /** Setup trading long berbasis ATR + struktur harga. Null kalau RR < 1.5 atau data
    * struktur tidak cukup. Ranking tidak boleh menciptakan TP/CL sendiri dari ATR saja. */
   tradeSetup?: {

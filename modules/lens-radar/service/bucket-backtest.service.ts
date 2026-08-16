@@ -7,7 +7,6 @@ import {
   barAtTradingOffset,
   buildIdxTradingCalendar,
   hasCorporateActionGap,
-  MIN_TRADABLE_PRICE_IDR,
   drawdownPercentile95Pct,
   worstTradeDrawdownPct,
 } from './history-return-utils';
@@ -25,7 +24,6 @@ import {
 import type { TradingCalendarSource } from './history-return-utils';
 
 import { ADV_HARD_FLOOR_IDR } from '@/modules/eligibility';
-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import {
   countValidationPopulationRejection,
   emptyValidationPopulationCounters,
@@ -72,6 +70,8 @@ export interface LensRadarHistoryEntry {
   avg_value_20d?: number | string | null;
   coverage_pct?: number | string | null;
   eligibility_status?: string | null;
+  fundamental_available_max?: number | string | null;
+  universe_eligible?: boolean | string | number | null;
 }
 
 export interface DailyOpenBar {
@@ -115,7 +115,7 @@ export interface LensBucketBacktestResult {
   sourceRows: number;
   uniqueTickers: number;
   roundTripCostPct: number;
-  /** Baris dibuang karena harga raw di bawah tick minimum IDX. */
+  /** Kompatibilitas API lama. Selalu 0 sejak M-07 karena filter harga absolut historis dinonaktifkan. */
   skippedGocapRows: number;
   /** Baris dibuang karena ADV20 pada tanggal sinyal di bawah lantai likuiditas. */
   skippedIlliquidRows: number;
@@ -254,12 +254,11 @@ function winRate(values: number[]): number | null {
 }
 
 /**
- * Ambang gocap hanya diuji pada harga RAW. Harga adjusted bisa turun di bawah 50
- * karena faktor split, dan membuangnya akan menghapus histori yang sah.
+ * M-07: filter harga absolut historis dinonaktifkan. Provider quote OHLC bersifat
+ * split-adjusted lintas corporate action, sehingga ambang nominal Rp50 masa lalu
+ * tidak bisa diaudit tanpa seri harga transaksi asli. Counter dipertahankan untuk
+ * kompatibilitas response lama dan akan tetap 0.
  */
-function isGocapRawPrice(rawClosePrice: number | null): boolean {
-  return rawClosePrice != null && rawClosePrice < MIN_TRADABLE_PRICE_IDR;
-}
 
 interface NormalizeOutcome {
   entries: NormalizedEntry[];
@@ -292,10 +291,8 @@ function normalizeHistory(rows: LensRadarHistoryEntry[]): NormalizeOutcome {
         !isFinitePositive(adjustedClosePrice) ||
         !isValidCorporateActionStatus(row.corporate_action_status)
       ) return null;
-      if (isGocapRawPrice(rawClosePrice)) {
-        skippedGocap++;
-        return null;
-      }
+      // M-07: no historical absolute-price/gocap filter. Yahoo quote OHLC is
+      // split-adjusted retroactively, so a historical Rp50 threshold is not auditable.
       // Baris tanpa ADV20 dihitung terpisah lalu DIBUANG. Meloloskannya berarti angka
       // performa bucket kembali memuat sinyal yang likuiditasnya tidak pernah diuji -
       // persis klaim yang gerbang ini ada untuk mencegahnya.
@@ -353,11 +350,16 @@ interface IntradayBar {
   low: number | null;
 }
 
+interface LoadedMarketBars {
+  byDate: Map<string, IntradayBar>;
+  fullCloseSeries: Array<{ date: string; closePrice: number }>;
+}
+
 async function loadBarMaps(
   tickers: string[],
   provider: DailyOpenProvider
-): Promise<Map<string, Map<string, IntradayBar>>> {
-  const result = new Map<string, Map<string, IntradayBar>>();
+): Promise<Map<string, LoadedMarketBars>> {
+  const result = new Map<string, LoadedMarketBars>();
   for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
     const batch = tickers.slice(i, i + BATCH_SIZE);
     const barsList = await Promise.all(batch.map(async (ticker) => ({
@@ -365,11 +367,18 @@ async function loadBarMaps(
       bars: await provider.getDailyOpenBars(ticker).catch(() => []),
     })));
     for (const { ticker, bars } of barsList) {
-      result.set(ticker, new Map(
-        bars
-          .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
-          .map((bar) => [bar.date, { open: bar.open, low: isFinitePositive(bar.low) ? bar.low : null }])
-      ));
+      const usable = bars.filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS);
+      result.set(ticker, {
+        byDate: new Map(
+          usable.filter((bar) => isFinitePositive(bar.open))
+            .map((bar) => [bar.date, { open: bar.open, low: isFinitePositive(bar.low) ? bar.low : null }])
+        ),
+        // M-13: corporate-action detection must see every provider bar, not only
+        // LensRadar rows that survived liquidity/coverage filters.
+        fullCloseSeries: usable
+          .filter((bar) => isFinitePositive(bar.close))
+          .map((bar) => ({ date: bar.date, closePrice: bar.close as number })),
+      });
     }
   }
   return result;
@@ -437,7 +446,8 @@ export async function calculateLensBucketStats(
   let skippedNoForwardEntry = 0;
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
-    const barsByDate = barMaps.get(ticker) ?? new Map<string, IntradayBar>();
+    const loadedBars = barMaps.get(ticker) ?? { byDate: new Map<string, IntradayBar>(), fullCloseSeries: [] };
+    const barsByDate = loadedBars.byDate;
     const byDate = new Map(series.map((row) => [row.date, row]));
     for (let i = 0; i < series.length; i++) {
       const signal = series[i];
@@ -468,7 +478,7 @@ export async function calculateLensBucketStats(
         // horizon lain yang dijaga ketat.
         if (exit.date < entry.date) return;
         if (horizon !== 'T1' && exit.date === entry.date) return;
-        if (hasCorporateActionGap(series, entry.date, exit.date)) return;
+        if (hasCorporateActionGap(loadedBars.fullCloseSeries, entry.date, exit.date)) return;
         const ret = calculateForwardReturnPct({
           ticker,
           entryBar: {
@@ -549,13 +559,16 @@ export async function calculateLensBucketStats(
     };
   });
 
+  const productionGateRejected =
+    productionGate.lowCoverage + productionGate.notEligible +
+    productionGate.unknownCoverage + productionGate.unknownEligibility +
+    productionGate.outsidePitUniverse + productionGate.unknownPitUniverse;
   logger.info(
-    `lens-bucket-backtest: filtered ${skippedGocap + skippedIlliquid + unknownLiquidity + skippedNoForwardEntry + skippedNoLow + productionGate.lowCoverage + productionGate.notEligible + productionGate.unknownCoverage + productionGate.unknownEligibility} dirty rows out of ${partition.accepted.length} ` +
-    `(gocap raw < ${MIN_TRADABLE_PRICE_IDR}: ${skippedGocap}, ` +
+    `lens-bucket-backtest: filtered ${skippedIlliquid + unknownLiquidity + skippedNoForwardEntry + skippedNoLow + productionGateRejected} dirty rows out of ${partition.accepted.length} ` +
+    `(historical absolute-price filter disabled M-07, ` +
     `ADV20 < ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR}: ${skippedIlliquid}, ` +
     `ADV20 tidak diketahui: ${unknownLiquidity}, ` +
-    `gerbang produksi (coverage<${MIN_VALIDATION_COVERAGE_PCT}/tidak layak/tidak diketahui): ` +
-    `${productionGate.lowCoverage}/${productionGate.notEligible}/${productionGate.unknownCoverage + productionGate.unknownEligibility}, ` +
+    `gerbang produksi/PIT-universe rejected: ${productionGateRejected}, ` +
     `tanpa bar entry maju: ${skippedNoForwardEntry}, ` +
     `T+20 tanpa low valid: ${skippedNoLow} dari ${t20Trades} trade T+20)`
   );
@@ -593,14 +606,12 @@ export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRa
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
-           avg_value_20d, coverage_pct, eligibility_status
+           avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
-      AND COALESCE(universe_version, $1) = $1
     ORDER BY ticker ASC, "date" ASC
-    `,
-    [LEGACY_VALIDATED_UNIVERSE_VERSION]
+    `
   );
   return rows as LensRadarHistoryEntry[];
 }

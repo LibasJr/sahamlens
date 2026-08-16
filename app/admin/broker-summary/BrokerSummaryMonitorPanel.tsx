@@ -66,7 +66,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
             <h2 className='font-heading text-xl font-bold text-white'>Monitor Sinkronisasi Otomatis</h2>
           </div>
           <p className='mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted'>
-            Data server-only dari Index Alpha. Panel ini hanya tersedia untuk admin dan membaca tabel broker_summary_daily.
+            Data server-only dari Index Alpha. Value, volume, dan frequency disimpan terpisah agar evidence broker tidak hilang. Data ini belum dicampur ke LensScore sampai tersedia histori PIT yang cukup untuk validasi.
           </p>
         </div>
         <a
@@ -209,12 +209,18 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                   </div>
 
                   <div className='mt-5 overflow-x-auto rounded-lg border border-tv-border'>
-                    <table className='w-full min-w-[640px] text-sm'>
+                    <table className='w-full min-w-[1040px] text-sm'>
                       <thead className='bg-tv-bg text-left text-[10px] uppercase tracking-wider text-tv-muted'>
                         <tr>
                           <th className='px-4 py-3'>Broker</th>
                           <th className='px-4 py-3 text-right'>Buy</th>
                           <th className='px-4 py-3 text-right'>Sell</th>
+                          <th className='px-4 py-3 text-right'>Buy Freq</th>
+                          <th className='px-4 py-3 text-right'>Sell Freq</th>
+                          <th className='px-4 py-3 text-right'>Buy Vol</th>
+                          <th className='px-4 py-3 text-right'>Sell Vol</th>
+                          <th className='px-4 py-3 text-right'>Avg Buy/Tx</th>
+                          <th className='px-4 py-3 text-right'>Avg Sell/Tx</th>
                           <th className='px-4 py-3 text-right'>Net</th>
                         </tr>
                       </thead>
@@ -224,6 +230,12 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                             <td className='px-4 py-3 font-mono font-bold text-white'>{row.brokerCode}</td>
                             <td className='px-4 py-3 text-right font-number text-tv-text'>{compactIdr(row.buyValue)}</td>
                             <td className='px-4 py-3 text-right font-number text-tv-text'>{compactIdr(row.sellValue)}</td>
+                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.buyFrequency)}</td>
+                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.sellFrequency)}</td>
+                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.buyVolume)}</td>
+                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.sellVolume)}</td>
+                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{row.avgBuyValuePerTrade == null ? '—' : compactIdr(row.avgBuyValuePerTrade)}</td>
+                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{row.avgSellValuePerTrade == null ? '—' : compactIdr(row.avgSellValuePerTrade)}</td>
                             <td className={'px-4 py-3 text-right font-number font-bold ' + (row.netValue >= 0 ? 'text-tv-green' : 'text-tv-red')}>
                               {row.netValue >= 0 ? '+' : ''}{compactIdr(row.netValue)}
                             </td>

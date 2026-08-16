@@ -54,7 +54,7 @@ interface Dashboard {
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
-  priceBasis: 'RAW';
+  priceBasis: 'RAW' | 'SPLIT_ADJUSTED' | 'TOTAL_RETURN_ADJUSTED' | 'UNKNOWN';
   scoreThreshold: number;
   roundTripCostPct: number;
   atrPeriod: number;

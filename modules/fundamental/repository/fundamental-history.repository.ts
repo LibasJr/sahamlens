@@ -37,6 +37,8 @@ export interface FundamentalHistoryRow {
   yahooSector: string | null;
   yahooIndustry: string | null;
   payoutRatio: number | null;
+  sharesOutstanding: number | null;
+  marketCap: number | null;
 }
 
 export interface FundamentalHistoryInput extends FundamentalInput {
@@ -99,13 +101,16 @@ function mapRow(row: Record<string, unknown>): FundamentalHistoryRow {
     yahooSector: toText(row.yahoo_sector),
     yahooIndustry: toText(row.yahoo_industry),
     payoutRatio: toNum(row.payout_ratio),
+    sharesOutstanding: toNum(row.shares_outstanding),
+    marketCap: toNum(row.market_cap),
   };
 }
 
 /** Kolom yang dibaca as-of. Satu daftar, dipakai asOf() DAN listHistory() - kalau
  * ditulis dua kali, satu di antaranya pasti tertinggal saat kolom bertambah. */
 const AS_OF_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
-       current_ratio, revenue_growth, yahoo_sector, yahoo_industry, payout_ratio`;
+       current_ratio, revenue_growth, yahoo_sector, yahoo_industry, payout_ratio,
+       shares_outstanding, market_cap`;
 
 /** Kolom yang DITULIS arsip. Satu daftar untuk kedua penulis (snapshot cron & PIT
  * backfill v2) - kelas bug "daftar kolom dan daftar nilai bergeser satu posisi" pernah
@@ -113,7 +118,8 @@ const AS_OF_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
  * modules/fundamental/service/fundamental-backfill-import.service.ts), jadi di sini
  * keduanya dihasilkan dari satu fungsi. */
 const ARCHIVE_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
-        current_ratio, revenue_growth, source, yahoo_sector, yahoo_industry, payout_ratio`;
+        current_ratio, revenue_growth, source, yahoo_sector, yahoo_industry, payout_ratio,
+        shares_outstanding, market_cap`;
 
 /** Dorong satu baris ke `params` dan kembalikan placeholder-nya. Urutan nilai di sini
  * WAJIB sama dengan ARCHIVE_COLUMNS di atas. */
@@ -140,13 +146,16 @@ function pushArchiveRow(
     // sumber kedua yang bisa berbeda.
     row.sector?.yahooSector ?? null,
     row.sector?.yahooIndustry ?? null,
-    row.sector?.payoutRatio ?? null
+    row.sector?.payoutRatio ?? null,
+    row.sharesOutstanding ?? null,
+    row.marketCap ?? null
   );
   return [
     `$${base + 1}`, `$${base + 2}::date`, `$${base + 3}::date`,
     `$${base + 4}`, `$${base + 5}`, `$${base + 6}`, `$${base + 7}`,
     `$${base + 8}`, `$${base + 9}`, `$${base + 10}`,
     `$${base + 11}`, `$${base + 12}`, `$${base + 13}`,
+    `$${base + 14}`, `$${base + 15}`,
   ].join(', ');
 }
 

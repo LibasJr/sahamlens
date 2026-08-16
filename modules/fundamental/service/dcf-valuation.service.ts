@@ -56,30 +56,27 @@ export const VALUATION_ASSUMPTIONS = {
 } as const;
 
 /**
- * Bobot metode valuasi per sektor.
+ * Router METODE valuasi per sektor.
  *
- * STATUS: HIPOTESIS, BELUM DIVALIDASI (temuan M-03). Tidak satu pun angka di bawah pernah
- * diuji terhadap forward return; keduanya berasal dari kebiasaan analis, bukan pengukuran.
- * Yang bisa dipertanggungjawabkan dari daftar ini hanyalah arahnya - bank dinilai dari
- * neraca (PBV) dan dividen, bukan dari arus kas bebas yang bagi bank memang tidak bermakna;
- * emiten konsumsi dinilai dari laba. Besaran angkanya tidak punya dasar empiris.
- *
- * Dinyatakan di payload lewat `assumptions.sector_weights_status` supaya pernyataan ini
- * sampai ke pengguna, bukan berhenti di komentar yang tidak pernah dibaca.
+ * Audit M-03: angka bobot sektoral lama (45/30/25 dst.) tidak pernah divalidasi
+ * terhadap forward return. Angka itu dihapus. Sektor kini hanya menentukan metode
+ * mana yang secara ekonomi relevan; metode yang benar-benar tersedia digabung
+ * equal-weight. Dengan demikian tidak ada presisi palsu dari bobot hipotesis.
  */
-const SECTOR_RULES: Record<string, any> = {
-  "Banks - Regional": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
-  "Banks": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
-  "Financial Services": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
-  "Consumer Defensive": { per: 0.40, dcf: 0.30, ddm: 0.15, graham: 0.15, pbv: 0 },
-  "Consumer Cyclical": { per: 0.40, dcf: 0.30, ddm: 0.15, graham: 0.15, pbv: 0 },
-  "Energy": { pbv: 0.40, ddm: 0.35, per: 0.25, dcf: 0, graham: 0 },
-  "Basic Materials": { pbv: 0.40, ddm: 0.35, per: 0.25, dcf: 0, graham: 0 },
-  "Real Estate": { pbv: 0.50, per: 0.30, ddm: 0.20, dcf: 0, graham: 0 },
-  "Communication Services": { dcf: 0.40, per: 0.30, ddm: 0.30, pbv: 0, graham: 0 },
-  "Industrials": { per: 0.35, dcf: 0.35, pbv: 0.15, ddm: 0.15, graham: 0 },
-  "Healthcare": { per: 0.40, dcf: 0.30, pbv: 0.20, ddm: 0.10, graham: 0 },
-  "DEFAULT": { per: 0.35, dcf: 0.25, pbv: 0.20, ddm: 0.10, graham: 0.10 }
+type ValuationMethodKey = 'pbv' | 'ddm' | 'per' | 'dcf' | 'graham';
+const SECTOR_METHODS: Record<string, readonly ValuationMethodKey[]> = {
+  'Banks - Regional': ['pbv', 'ddm', 'per'],
+  Banks: ['pbv', 'ddm', 'per'],
+  'Financial Services': ['pbv', 'ddm', 'per'],
+  'Consumer Defensive': ['per', 'dcf', 'ddm', 'graham'],
+  'Consumer Cyclical': ['per', 'dcf', 'ddm', 'graham'],
+  Energy: ['pbv', 'ddm', 'per'],
+  'Basic Materials': ['pbv', 'ddm', 'per'],
+  'Real Estate': ['pbv', 'per', 'ddm'],
+  'Communication Services': ['dcf', 'per', 'ddm'],
+  Industrials: ['per', 'dcf', 'pbv', 'ddm'],
+  Healthcare: ['per', 'dcf', 'pbv', 'ddm'],
+  DEFAULT: ['per', 'dcf', 'pbv', 'ddm', 'graham'],
 };
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
@@ -289,52 +286,41 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     validFairValues.push(intrinsic_dcf);
   }
 
-  // Calculate Fair Value with Sector Router
-  let rule = SECTOR_RULES[sector] || SECTOR_RULES["DEFAULT"];
-
-  // Check if sector matches any key dynamically
-  for (const key in SECTOR_RULES) {
-    if (sector.toLowerCase().includes(key.toLowerCase())) {
-      rule = SECTOR_RULES[key];
+  // Sector router menentukan *applicability*, bukan bobot numerik. Semua metode
+  // applicable yang datanya valid diberi bobot sama (audit M-03).
+  let applicableMethods = SECTOR_METHODS[sector] ?? SECTOR_METHODS.DEFAULT;
+  for (const [key, methodsForSector] of Object.entries(SECTOR_METHODS)) {
+    if (key !== 'DEFAULT' && sector.toLowerCase().includes(key.toLowerCase())) {
+      applicableMethods = methodsForSector;
       break;
     }
   }
 
-  let activeWeights: any = {};
-  let totalWeightUsed = 0;
-
-  // Collect active methods based on what successfully computed > 0
-  if (intrinsic_pbv > 0 && rule.pbv > 0) { activeWeights.pbv = rule.pbv; totalWeightUsed += rule.pbv; }
-  if (intrinsic_ddm > 0 && rule.ddm > 0) { activeWeights.ddm = rule.ddm; totalWeightUsed += rule.ddm; }
-  if (intrinsic_per > 0 && rule.per > 0) { activeWeights.per = rule.per; totalWeightUsed += rule.per; }
-  if (intrinsic_dcf > 0 && rule.dcf > 0) { activeWeights.dcf = rule.dcf; totalWeightUsed += rule.dcf; }
-  if (intrinsic_graham > 0 && rule.graham > 0) { activeWeights.graham = rule.graham; totalWeightUsed += rule.graham; }
-
-  // Redistribute weights if total < 1 (e.g. DDM was 0 because no dividend)
-  if (totalWeightUsed > 0 && totalWeightUsed < 1) {
-    const multiplier = 1 / totalWeightUsed;
-    for (const k in activeWeights) {
-      activeWeights[k] = activeWeights[k] * multiplier;
-    }
-  }
-
+  const methodValues: Record<ValuationMethodKey, number> = {
+    pbv: intrinsic_pbv,
+    ddm: intrinsic_ddm,
+    per: intrinsic_per,
+    dcf: intrinsic_dcf,
+    graham: intrinsic_graham,
+  };
+  const activeMethods = applicableMethods.filter((key) => methodValues[key] > 0);
+  const activeWeights: Partial<Record<ValuationMethodKey, number>> = {};
   let fair_value = 0;
-  if (totalWeightUsed > 0) {
-    fair_value =
-      (intrinsic_pbv * (activeWeights.pbv ?? 0)) +
-      (intrinsic_ddm * (activeWeights.ddm ?? 0)) +
-      (intrinsic_per * (activeWeights.per ?? 0)) +
-      (intrinsic_dcf * (activeWeights.dcf ?? 0)) +
-      (intrinsic_graham * (activeWeights.graham ?? 0));
-  } else {
-    // Fallback to median if nothing matched weights (rare fallback)
-    if (validFairValues.length > 0) {
-      validFairValues.sort((a, b) => a - b);
-      const mid = Math.floor(validFairValues.length / 2);
-      fair_value = validFairValues.length % 2 !== 0
-        ? validFairValues[mid]
-        : (validFairValues[mid - 1] + validFairValues[mid]) / 2;
+
+  if (activeMethods.length > 0) {
+    const equalWeight = 1 / activeMethods.length;
+    for (const key of activeMethods) {
+      activeWeights[key] = equalWeight;
+      fair_value += methodValues[key] * equalWeight;
     }
+  } else if (validFairValues.length > 0) {
+    // Fallback deterministik: median metode valid jika sector-applicability tidak
+    // menemukan metode aktif. Tidak ada bobot hipotesis yang diciptakan di sini.
+    const sortedFairValues = [...validFairValues].sort((a, b) => a - b);
+    const mid = Math.floor(sortedFairValues.length / 2);
+    fair_value = sortedFairValues.length % 2 !== 0
+      ? sortedFairValues[mid]
+      : (sortedFairValues[mid - 1] + sortedFairValues[mid]) / 2;
   }
 
   if (fair_value <= 0) return null;
@@ -385,10 +371,11 @@ export async function calculateIntrinsicValue(rawTicker: string) {
       risk_free_rate_pct: MACRO_ASSUMPTIONS.RISK_FREE_RATE_PCT,
       equity_risk_premium_pct: MACRO_ASSUMPTIONS.EQUITY_RISK_PREMIUM_PCT,
       macro_set_on: MACRO_ASSUMPTIONS.SET_ON,
-      // Temuan M-03: bobot per sektor di SECTOR_RULES belum pernah divalidasi terhadap
-      // forward return. Dinyatakan sebagai hipotesis di payload, bukan hanya di komentar.
-      sector_weights_status: 'HYPOTHESIS_NOT_VALIDATED',
-      note: 'PBV & PER wajar memakai model Gordon dengan biaya ekuitas CAPM per emiten - sama dengan komponen Valuasi LensScore. DDM dan perpetuitas FCF masih memakai tingkat diskonto tetap 12% untuk semua emiten. Nilai wajar adalah keluaran model, bukan target harga analis.',
+      // M-03: bobot numerik hipotesis sudah DIHAPUS. Sektor hanya menentukan metode
+      // applicable, lalu metode yang tersedia digabung equal-weight.
+      sector_weights_status: 'ARBITRARY_WEIGHTS_REMOVED',
+      sector_aggregation_method: 'EQUAL_WEIGHT_AVAILABLE_APPLICABLE_METHODS',
+      note: 'PBV & PER wajar memakai model Gordon dengan biaya ekuitas CAPM per emiten - sama dengan komponen Valuasi LensScore. DDM dan perpetuitas FCF masih memakai tingkat diskonto tetap 12% untuk semua emiten. Nilai wajar adalah keluaran model, bukan target harga analis. Router sektor hanya menentukan metode yang relevan; metode aktif digabung equal-weight.',
     },
   };
 }

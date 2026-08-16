@@ -19,6 +19,7 @@ function row(date: string, ticker: string, score: number, close: number): LensRa
     score_version: SCORE_VERSION,
     coverage_pct: 100,
     eligibility_status: 'ELIGIBLE',
+    universe_eligible: true,
   };
 }
 

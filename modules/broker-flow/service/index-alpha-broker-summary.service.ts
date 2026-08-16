@@ -51,6 +51,18 @@ function nonNegativeNumber(value: unknown, label: string): number {
   return number;
 }
 
+function optionalNonNegativeNumber(value: unknown, label: string): number | null {
+  if (value == null || value === '') return null;
+  return nonNegativeNumber(value, label);
+}
+
+function optionalNonNegativeInteger(value: unknown, label: string): number | null {
+  const number = optionalNonNegativeNumber(value, label);
+  if (number == null) return null;
+  if (!Number.isInteger(number)) throw new Error(`Respons Index Alpha tidak valid: ${label} harus integer`);
+  return number;
+}
+
 function assertDateKey(value: string): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
     throw new Error(`Tanggal broker summary tidak valid: ${value}`);
@@ -62,7 +74,7 @@ export function indexAlphaBatchToCsv(
   tradeDate: string,
 ): { csvText: string; tickersWithData: string[]; rows: number } {
   assertDateKey(tradeDate);
-  const lines = ['trade_date,ticker,broker_code,buy_value,sell_value,buy_avg,sell_avg'];
+  const lines = ['trade_date,ticker,broker_code,buy_value,sell_value,buy_volume,sell_volume,buy_frequency,sell_frequency,buy_avg,sell_avg'];
   const tickersWithData = new Set<string>();
 
   for (const [rawTicker, brokerRows] of Object.entries(data)) {
@@ -74,10 +86,18 @@ export function indexAlphaBatchToCsv(
       if (!/^[A-Z0-9]{1,8}$/.test(brokerCode)) throw new Error(`Kode broker ${ticker}[${index}] tidak valid.`);
       const buyValue = nonNegativeNumber(row.buy_value, `${ticker}.${brokerCode}.buy_value`);
       const sellValue = nonNegativeNumber(row.sell_value, `${ticker}.${brokerCode}.sell_value`);
-      if (buyValue === 0 && sellValue === 0) continue;
-      const buyAvg = nonNegativeNumber(row.buy_avg, `${ticker}.${brokerCode}.buy_avg`);
-      const sellAvg = nonNegativeNumber(row.sell_avg, `${ticker}.${brokerCode}.sell_avg`);
-      lines.push([tradeDate, ticker, brokerCode, buyValue, sellValue, buyAvg, sellAvg].join(','));
+      const buyVolume = optionalNonNegativeInteger(row.buy_volume, `${ticker}.${brokerCode}.buy_volume`);
+      const sellVolume = optionalNonNegativeInteger(row.sell_volume, `${ticker}.${brokerCode}.sell_volume`);
+      const buyFrequency = optionalNonNegativeInteger(row.buy_freq, `${ticker}.${brokerCode}.buy_freq`);
+      const sellFrequency = optionalNonNegativeInteger(row.sell_freq, `${ticker}.${brokerCode}.sell_freq`);
+      const buyAvg = optionalNonNegativeNumber(row.buy_avg, `${ticker}.${brokerCode}.buy_avg`);
+      const sellAvg = optionalNonNegativeNumber(row.sell_avg, `${ticker}.${brokerCode}.sell_avg`);
+      if (buyValue === 0 && sellValue === 0 && (buyVolume ?? 0) === 0 && (sellVolume ?? 0) === 0 && (buyFrequency ?? 0) === 0 && (sellFrequency ?? 0) === 0) continue;
+      lines.push([
+        tradeDate, ticker, brokerCode, buyValue, sellValue,
+        buyVolume ?? '', sellVolume ?? '', buyFrequency ?? '', sellFrequency ?? '',
+        buyAvg ?? '', sellAvg ?? '',
+      ].join(','));
       tickersWithData.add(ticker);
     }
   }

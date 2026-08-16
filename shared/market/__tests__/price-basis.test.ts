@@ -11,6 +11,9 @@ import {
 } from '../price-basis';
 
 describe('price-basis policy and normalization (Fase 3)', () => {
+  it('M-07: trading levels memakai basis SPLIT_ADJUSTED, bukan label RAW yang menyesatkan', () => {
+    expect(TRADING_PRICE_BASIS).toBe('SPLIT_ADJUSTED');
+  });
   it('stock split 1:5 tidak menghasilkan return ekonomi -80% pada basis adjusted', () => {
     const bars = normalizeYahooOhlcRows([
       { Date: '2026-01-01T00:00:00.000Z', Open: 5000, High: 5000, Low: 5000, Close: 5000, AdjClose: 1000, Volume: 1_000_000 },
@@ -113,7 +116,7 @@ describe('price-basis policy and normalization (Fase 3)', () => {
     expect(bar.adjusted.close).toBeNull();
   });
 
-  it('dividend adjustment memakai adjusted untuk return tetapi raw tetap untuk level trading', () => {
+  it('dividend adjustment memakai adjusted untuk return tetapi split-adjusted quote untuk level trading', () => {
     const bars = normalizeYahooOhlcRows([
       { Date: '2026-01-01T00:00:00.000Z', Open: 100, High: 100, Low: 100, Close: 100, AdjClose: 100, Volume: 1 },
       { Date: '2026-01-02T00:00:00.000Z', Open: 95, High: 95, Low: 95, Close: 95, AdjClose: 100, Volume: 1 },

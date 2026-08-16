@@ -28,7 +28,7 @@ async function fetchOne(ticker: string) {
       // `assetProfile` ditambahkan (P1-10/P1-11): tanpa sektor, AI Pick menilai valuasi
       // & kesehatan neraca setiap emiten dengan perlakuan netral - bank tetap dinilai
       // lewat DER, emiten komoditas tetap kebal penjaga puncak siklus.
-      modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData'],
+      modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData', 'price'],
     });
     return {
       per: qs?.summaryDetail?.trailingPE || qs?.summaryDetail?.forwardPE || null,
@@ -37,6 +37,8 @@ async function fetchOne(ticker: string) {
       der: qs?.financialData?.debtToEquity != null ? qs.financialData.debtToEquity / 100 : null,
       currentRatio: qs?.financialData?.currentRatio || null,
       revenueGrowth: qs?.financialData?.revenueGrowth != null ? qs.financialData.revenueGrowth * 100 : null,
+      sharesOutstanding: typeof qs?.defaultKeyStatistics?.sharesOutstanding === 'number' ? qs.defaultKeyStatistics.sharesOutstanding : null,
+      marketCap: typeof qs?.price?.marketCap === 'number' ? qs.price.marketCap : null,
       sector: {
         yahooSector: qs?.assetProfile?.sector ?? null,
         yahooIndustry: qs?.assetProfile?.industry ?? null,
@@ -46,7 +48,7 @@ async function fetchOne(ticker: string) {
     };
   } catch {
     logger.warn('Snapshot fundamental: gagal fetch', { ticker });
-    return { per: null, pbv: null, roe: null, der: null, currentRatio: null, revenueGrowth: null };
+    return { per: null, pbv: null, roe: null, der: null, currentRatio: null, revenueGrowth: null, sharesOutstanding: null, marketCap: null };
   }
 }
 

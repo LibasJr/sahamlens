@@ -1,0 +1,2538 @@
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/admin/broker-summary/BrokerSummaryMonitorPanel.tsx sahamlens_work/sahamlens-main/app/admin/broker-summary/BrokerSummaryMonitorPanel.tsx
+--- sahamlens_orig/sahamlens-main/app/admin/broker-summary/BrokerSummaryMonitorPanel.tsx	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/admin/broker-summary/BrokerSummaryMonitorPanel.tsx	2026-08-16 18:14:29.518685011 +0000
+@@ -66,7 +66,7 @@
+             <h2 className='font-heading text-xl font-bold text-white'>Monitor Sinkronisasi Otomatis</h2>
+           </div>
+           <p className='mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted'>
+-            Data server-only dari Index Alpha. Panel ini hanya tersedia untuk admin dan membaca tabel broker_summary_daily.
++            Data server-only dari Index Alpha. Value, volume, dan frequency disimpan terpisah agar evidence broker tidak hilang. Data ini belum dicampur ke LensScore sampai tersedia histori PIT yang cukup untuk validasi.
+           </p>
+         </div>
+         <a
+@@ -209,12 +209,18 @@
+                   </div>
+ 
+                   <div className='mt-5 overflow-x-auto rounded-lg border border-tv-border'>
+-                    <table className='w-full min-w-[640px] text-sm'>
++                    <table className='w-full min-w-[1040px] text-sm'>
+                       <thead className='bg-tv-bg text-left text-[10px] uppercase tracking-wider text-tv-muted'>
+                         <tr>
+                           <th className='px-4 py-3'>Broker</th>
+                           <th className='px-4 py-3 text-right'>Buy</th>
+                           <th className='px-4 py-3 text-right'>Sell</th>
++                          <th className='px-4 py-3 text-right'>Buy Freq</th>
++                          <th className='px-4 py-3 text-right'>Sell Freq</th>
++                          <th className='px-4 py-3 text-right'>Buy Vol</th>
++                          <th className='px-4 py-3 text-right'>Sell Vol</th>
++                          <th className='px-4 py-3 text-right'>Avg Buy/Tx</th>
++                          <th className='px-4 py-3 text-right'>Avg Sell/Tx</th>
+                           <th className='px-4 py-3 text-right'>Net</th>
+                         </tr>
+                       </thead>
+@@ -224,6 +230,12 @@
+                             <td className='px-4 py-3 font-mono font-bold text-white'>{row.brokerCode}</td>
+                             <td className='px-4 py-3 text-right font-number text-tv-text'>{compactIdr(row.buyValue)}</td>
+                             <td className='px-4 py-3 text-right font-number text-tv-text'>{compactIdr(row.sellValue)}</td>
++                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.buyFrequency)}</td>
++                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.sellFrequency)}</td>
++                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.buyVolume)}</td>
++                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.sellVolume)}</td>
++                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{row.avgBuyValuePerTrade == null ? '—' : compactIdr(row.avgBuyValuePerTrade)}</td>
++                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{row.avgSellValuePerTrade == null ? '—' : compactIdr(row.avgSellValuePerTrade)}</td>
+                             <td className={'px-4 py-3 text-right font-number font-bold ' + (row.netValue >= 0 ? 'text-tv-green' : 'text-tv-red')}>
+                               {row.netValue >= 0 ? '+' : ''}{compactIdr(row.netValue)}
+                             </td>
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/admin/calibration/CalibrationClient.tsx sahamlens_work/sahamlens-main/app/admin/calibration/CalibrationClient.tsx
+--- sahamlens_orig/sahamlens-main/app/admin/calibration/CalibrationClient.tsx	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/admin/calibration/CalibrationClient.tsx	2026-08-16 18:12:47.390853364 +0000
+@@ -179,6 +179,15 @@
+   conclusion: string;
+ }
+ 
++interface FundamentalPitCoverageDiagnostic {
++  totalRows: number;
++  rowsWithFundamental: number;
++  coveragePct: number | null;
++  status: 'NO_HISTORY' | 'NO_FUNDAMENTAL_COVERAGE' | 'MIXED_FUNDAMENTAL_COVERAGE' | 'FULL_FUNDAMENTAL_COVERAGE';
++  byDate: Array<{ date: string; totalRows: number; rowsWithFundamental: number; coveragePct: number }>;
++  note: string;
++}
++
+ interface CalibrationDashboardData {
+   asOfDate: string;
+   latestStatsRunDate: string | null;
+@@ -193,6 +202,7 @@
+   retrospectiveWalkForward: RetrospectiveWalkForwardResult;
+   genuineOos: GenuineOosResult;
+   scoreCalibration: ScoreCalibrationResult;
++  fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
+   thresholdSimulations: ThresholdSimulation[];
+   latestWeightProposal: LensWeightProposal | null;
+ }
+@@ -472,6 +482,39 @@
+         </div>
+       </div>
+ 
++      <section className={`rounded-xl border p-4 ${
++        data.fundamentalPitCoverage.status === 'FULL_FUNDAMENTAL_COVERAGE'
++          ? 'border-tv-green/30 bg-tv-green/5'
++          : 'border-tv-yellow/40 bg-tv-yellow/5'
++      }`}>
++        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
++          <div>
++            <div className="text-xs uppercase tracking-wide text-tv-muted">Coverage Fundamental PIT (H-06)</div>
++            <div className="mt-1 font-number text-xl font-bold">
++              {data.fundamentalPitCoverage.coveragePct == null ? EMPTY : pct(data.fundamentalPitCoverage.coveragePct)}
++            </div>
++            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-tv-muted">{data.fundamentalPitCoverage.note}</p>
++          </div>
++          <div className="text-xs text-tv-muted lg:text-right">
++            <div className="font-semibold text-tv-text">{data.fundamentalPitCoverage.status}</div>
++            <div className="mt-1 font-number">
++              {num(data.fundamentalPitCoverage.rowsWithFundamental)} / {num(data.fundamentalPitCoverage.totalRows)} row
++            </div>
++          </div>
++        </div>
++        {data.fundamentalPitCoverage.byDate.length > 0 && (
++          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
++            {data.fundamentalPitCoverage.byDate.slice(-12).map((row) => (
++              <div key={row.date} className="rounded-lg border border-tv-border bg-tv-card/70 px-3 py-2">
++                <div className="text-[10px] text-tv-muted">{row.date}</div>
++                <div className="mt-0.5 font-number text-sm font-semibold">{pct(row.coveragePct)}</div>
++                <div className="text-[10px] text-tv-muted">{num(row.rowsWithFundamental)}/{num(row.totalRows)}</div>
++              </div>
++            ))}
++          </div>
++        )}
++      </section>
++
+       {/* Nol observasi bukan kegagalan: tiap sinyal perlu 20 hari bursa berlalu dulu
+           sebelum bisa dihitung. Yang selama ini hilang adalah keterangan sudah sampai
+           mana - satu paragraf kuning tidak menunjukkan progres apa pun. */}
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/admin/tpcl-validation/TpclValidationClient.tsx sahamlens_work/sahamlens-main/app/admin/tpcl-validation/TpclValidationClient.tsx
+--- sahamlens_orig/sahamlens-main/app/admin/tpcl-validation/TpclValidationClient.tsx	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/admin/tpcl-validation/TpclValidationClient.tsx	2026-08-16 18:06:35.003495041 +0000
+@@ -54,7 +54,7 @@
+   researchOnly: true;
+   genuineOos: false;
+   scoreVersion: string;
+-  priceBasis: 'RAW';
++  priceBasis: 'RAW' | 'SPLIT_ADJUSTED' | 'TOTAL_RETURN_ADJUSTED' | 'UNKNOWN';
+   scoreThreshold: number;
+   roundTripCostPct: number;
+   atrPeriod: number;
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/api/chat/__tests__/chat-data-router-coverage.test.ts sahamlens_work/sahamlens-main/app/api/chat/__tests__/chat-data-router-coverage.test.ts
+--- sahamlens_orig/sahamlens-main/app/api/chat/__tests__/chat-data-router-coverage.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/api/chat/__tests__/chat-data-router-coverage.test.ts	2026-08-16 18:16:59.006550298 +0000
+@@ -155,7 +155,8 @@
+           fair_per_basis: 'GORDON',
+           multiples_model: 'gordon-residual-income',
+           macro_set_on: '2026-01-01',
+-          sector_weights_status: 'HYPOTHESIS_NOT_VALIDATED',
++          sector_weights_status: 'ARBITRARY_WEIGHTS_REMOVED',
++          sector_aggregation_method: 'EQUAL_WEIGHT_AVAILABLE_APPLICABLE_METHODS',
+         },
+       })),
+     }));
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/api/chat/chat-data-router.ts sahamlens_work/sahamlens-main/app/api/chat/chat-data-router.ts
+--- sahamlens_orig/sahamlens-main/app/api/chat/chat-data-router.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/api/chat/chat-data-router.ts	2026-08-16 18:16:59.006399172 +0000
+@@ -249,9 +249,11 @@
+       `  - PENTING: PBV*/PER* memakai biaya ekuitas CAPM per emiten di atas, sedangkan DDM dan`,
+       `    perpetuitas FCF masih memakai tingkat diskonto TETAP ${safe(a.discount_rate_pct, '%')} untuk semua emiten.`,
+       '    Jangan menyebutnya satu tingkat diskonto tunggal.',
+-      a.sector_weights_status === 'HYPOTHESIS_NOT_VALIDATED'
+-        ? '  - Bobot metode per sektor BELUM divalidasi terhadap forward return (status: hipotesis). Sebutkan ini kalau menjelaskan kenapa metode tertentu lebih berat.'
+-        : '',
++      a.sector_weights_status === 'ARBITRARY_WEIGHTS_REMOVED'
++        ? `  - Bobot numerik sektoral yang belum tervalidasi sudah dihapus; agregasi metode: ${a.sector_aggregation_method ?? 'equal-weight metode applicable yang tersedia'}.`
++        : a.sector_weights_status === 'HYPOTHESIS_NOT_VALIDATED'
++          ? '  - Bobot metode per sektor BELUM divalidasi terhadap forward return (status: hipotesis). Sebutkan ini kalau menjelaskan kenapa metode tertentu lebih berat.'
++          : '',
+       '- Catatan: nilai wajar adalah keluaran model SahamLens dengan parameter di atas -',
+       '  bukan pengukuran, bukan konsensus analis, dan bukan target harga.',
+     ]
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/api/cron/fundamental-snapshot/route.ts sahamlens_work/sahamlens-main/app/api/cron/fundamental-snapshot/route.ts
+--- sahamlens_orig/sahamlens-main/app/api/cron/fundamental-snapshot/route.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/api/cron/fundamental-snapshot/route.ts	2026-08-16 18:08:17.881004240 +0000
+@@ -28,7 +28,7 @@
+       // `assetProfile` ditambahkan (P1-10/P1-11): tanpa sektor, AI Pick menilai valuasi
+       // & kesehatan neraca setiap emiten dengan perlakuan netral - bank tetap dinilai
+       // lewat DER, emiten komoditas tetap kebal penjaga puncak siklus.
+-      modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData'],
++      modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics', 'financialData', 'price'],
+     });
+     return {
+       per: qs?.summaryDetail?.trailingPE || qs?.summaryDetail?.forwardPE || null,
+@@ -37,6 +37,8 @@
+       der: qs?.financialData?.debtToEquity != null ? qs.financialData.debtToEquity / 100 : null,
+       currentRatio: qs?.financialData?.currentRatio || null,
+       revenueGrowth: qs?.financialData?.revenueGrowth != null ? qs.financialData.revenueGrowth * 100 : null,
++      sharesOutstanding: typeof qs?.defaultKeyStatistics?.sharesOutstanding === 'number' ? qs.defaultKeyStatistics.sharesOutstanding : null,
++      marketCap: typeof qs?.price?.marketCap === 'number' ? qs.price.marketCap : null,
+       sector: {
+         yahooSector: qs?.assetProfile?.sector ?? null,
+         yahooIndustry: qs?.assetProfile?.industry ?? null,
+@@ -46,7 +48,7 @@
+     };
+   } catch {
+     logger.warn('Snapshot fundamental: gagal fetch', { ticker });
+-    return { per: null, pbv: null, roe: null, der: null, currentRatio: null, revenueGrowth: null };
++    return { per: null, pbv: null, roe: null, der: null, currentRatio: null, revenueGrowth: null, sharesOutstanding: null, marketCap: null };
+   }
+ }
+ 
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/app/api/stock/[ticker]/route.ts sahamlens_work/sahamlens-main/app/api/stock/[ticker]/route.ts
+--- sahamlens_orig/sahamlens-main/app/api/stock/[ticker]/route.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/app/api/stock/[ticker]/route.ts	2026-08-16 18:06:35.002583688 +0000
+@@ -32,7 +32,7 @@
+ import { classifyFreshness } from '@/shared/http/freshness';
+ import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
+ import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+-import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
++import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
+ import { resolveSectorProfile } from '@/modules/sector';
+ import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
+ import YahooFinanceClass from 'yahoo-finance2';
+@@ -588,7 +588,7 @@
+         raw: currentPrice,
+         adjusted: currentAdjustedPrice,
+         basis_used_for_score: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+-        basis_used_for_trading_levels: 'RAW',
++        basis_used_for_trading_levels: TRADING_PRICE_BASIS,
+         adjustment_version: PRICE_ADJUSTMENT_VERSION,
+         corporate_action_status: 'NONE',
+       },
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/database/migrations/006_audit_risk_closure.sql sahamlens_work/sahamlens-main/database/migrations/006_audit_risk_closure.sql
+--- sahamlens_orig/sahamlens-main/database/migrations/006_audit_risk_closure.sql	1970-01-01 00:00:00.000000000 +0000
++++ sahamlens_work/sahamlens-main/database/migrations/006_audit_risk_closure.sql	2026-08-16 18:08:01.984956327 +0000
+@@ -0,0 +1,34 @@
++-- SahamLens audit risk closure (2026-08-17)
++-- IMPORTANT: schema additions are isolated in a NEW migration so checksums of already
++-- applied migrations stay unchanged on existing VPS databases.
++
++ALTER TABLE fundamental_history
++  ADD COLUMN IF NOT EXISTS shares_outstanding NUMERIC,
++  ADD COLUMN IF NOT EXISTS market_cap NUMERIC;
++
++ALTER TABLE lens_radar_history
++  ADD COLUMN IF NOT EXISTS eligibility_status TEXT,
++  ADD COLUMN IF NOT EXISTS eligibility_reason_codes TEXT,
++  ADD COLUMN IF NOT EXISTS technical_available_max NUMERIC,
++  ADD COLUMN IF NOT EXISTS fundamental_available_max NUMERIC,
++  ADD COLUMN IF NOT EXISTS flow_available_max NUMERIC,
++  ADD COLUMN IF NOT EXISTS universe_eligible BOOLEAN,
++  ADD COLUMN IF NOT EXISTS universe_reason_codes TEXT,
++  ADD COLUMN IF NOT EXISTS universe_avg_close_63d NUMERIC,
++  ADD COLUMN IF NOT EXISTS universe_avg_value_63d NUMERIC,
++  ADD COLUMN IF NOT EXISTS universe_annual_vol_pct NUMERIC,
++  ADD COLUMN IF NOT EXISTS universe_method_version TEXT;
++
++ALTER TABLE broker_summary_daily
++  ADD COLUMN IF NOT EXISTS buy_volume BIGINT,
++  ADD COLUMN IF NOT EXISTS sell_volume BIGINT,
++  ADD COLUMN IF NOT EXISTS buy_frequency BIGINT,
++  ADD COLUMN IF NOT EXISTS sell_frequency BIGINT;
++
++CREATE INDEX IF NOT EXISTS idx_lens_radar_history_pit_validation
++  ON lens_radar_history (score_version, date, ticker)
++  WHERE universe_eligible = TRUE AND eligibility_status = 'ELIGIBLE';
++
++CREATE INDEX IF NOT EXISTS idx_fundamental_history_pit_market_cap
++  ON fundamental_history (ticker, observed_date DESC)
++  WHERE shares_outstanding IS NOT NULL OR market_cap IS NOT NULL;
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/backtest/service/__tests__/point-in-time-universe.test.ts sahamlens_work/sahamlens-main/modules/backtest/service/__tests__/point-in-time-universe.test.ts
+--- sahamlens_orig/sahamlens-main/modules/backtest/service/__tests__/point-in-time-universe.test.ts	1970-01-01 00:00:00.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/backtest/service/__tests__/point-in-time-universe.test.ts	2026-08-16 18:06:55.933320705 +0000
+@@ -0,0 +1,30 @@
++import { describe, expect, it } from 'vitest';
++import { evaluatePointInTimeUniverse } from '../point-in-time-universe';
++
++function bars(n: number, close = 1000, volume = 2_000_000) {
++  return Array.from({ length: n }, (_, i) => ({
++    date: new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10),
++    close: close * (1 + i * 0.0005),
++    volume,
++  }));
++}
++
++describe('evaluatePointInTimeUniverse', () => {
++  it('passes liquid, sufficiently long, moderate-volatility history', () => {
++    expect(evaluatePointInTimeUniverse(bars(100)).eligible).toBe(true);
++  });
++  it('fails closed on insufficient volatility history', () => {
++    expect(evaluatePointInTimeUniverse(bars(40)).reasonCodes).toContain('INSUFFICIENT_VOL_HISTORY');
++  });
++  it('rejects low historical liquidity', () => {
++    expect(evaluatePointInTimeUniverse(bars(100, 100, 1_000)).reasonCodes).toContain('AVG_VALUE_BELOW_FLOOR');
++  });
++  it('does not apply a historical gocap/absolute price floor to split-adjusted provider quote', () => {
++    expect(evaluatePointInTimeUniverse(bars(100, 40, 30_000_000)).reasonCodes).not.toContain('AVG_VALUE_BELOW_FLOOR');
++    expect(evaluatePointInTimeUniverse(bars(100, 40, 30_000_000)).eligible).toBe(true);
++  });
++  it('accepts zero-volume days as observed zero turnover rather than corrupt data', () => {
++    const xs = bars(100); xs[70]!.volume = 0;
++    expect(evaluatePointInTimeUniverse(xs).reasonCodes).not.toContain('INVALID_BAR_DATA');
++  });
++});
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/backtest/service/point-in-time-universe.ts sahamlens_work/sahamlens-main/modules/backtest/service/point-in-time-universe.ts
+--- sahamlens_orig/sahamlens-main/modules/backtest/service/point-in-time-universe.ts	1970-01-01 00:00:00.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/backtest/service/point-in-time-universe.ts	2026-08-16 18:06:55.929872384 +0000
+@@ -0,0 +1,101 @@
++/**
++ * Point-in-time validation universe.
++ *
++ * H-02: universe statis yang dipilih memakai likuiditas/volatilitas masa kini tidak
++ * boleh diproyeksikan ke masa lalu. Fungsi murni ini menilai satu ticker hanya dari
++ * bar yang sudah tersedia sampai tanggal keputusan.
++ *
++ * Residual survivorship tetap mungkin bila katalog kandidat tidak menyertakan emiten
++ * yang sudah delisting. Backfill karena itu memakai katalog IDX seluas yang tersedia
++ * dan menyatakan limitation tersebut secara eksplisit.
++ */
++export const PIT_UNIVERSE_METHOD_VERSION = 'pit-universe-v1';
++export const PIT_UNIVERSE_MIN_AVG_VALUE_63D_IDR = 1_000_000_000;
++export const PIT_UNIVERSE_MAX_ANNUAL_VOL_PCT = 120;
++export const PIT_UNIVERSE_RECENT_BARS = 63;
++export const PIT_UNIVERSE_VOL_LOOKBACK_BARS = 252;
++export const PIT_UNIVERSE_MIN_RECENT_OBSERVATIONS = 30;
++export const PIT_UNIVERSE_MIN_VOL_RETURNS = 60;
++
++export type PointInTimeUniverseReason =
++  | 'INSUFFICIENT_RECENT_HISTORY'
++  | 'AVG_VALUE_BELOW_FLOOR'
++  | 'INSUFFICIENT_VOL_HISTORY'
++  | 'VOLATILITY_ABOVE_CAP'
++  | 'INVALID_BAR_DATA';
++
++export interface PointInTimeUniverseBar {
++  date: string;
++  close: number | null;
++  volume: number | null;
++}
++
++export interface PointInTimeUniverseResult {
++  eligible: boolean;
++  methodVersion: string;
++  reasonCodes: PointInTimeUniverseReason[];
++  observationsRecent: number;
++  volatilityReturns: number;
++  avgClose63d: number | null;
++  avgValue63d: number | null;
++  annualVolPct: number | null;
++}
++
++function finitePositive(value: unknown): number | null {
++  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
++}
++function finiteNonNegative(value: unknown): number | null {
++  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
++}
++function mean(values: number[]): number | null {
++  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
++}
++
++export function evaluatePointInTimeUniverse(bars: PointInTimeUniverseBar[]): PointInTimeUniverseResult {
++  const ordered = [...bars]
++    .filter((bar) => /^\d{4}-\d{2}-\d{2}$/.test(bar.date))
++    .sort((a, b) => a.date.localeCompare(b.date));
++
++  const recent = ordered.slice(-PIT_UNIVERSE_RECENT_BARS);
++  const recentValid = recent
++    .map((bar) => ({ close: finitePositive(bar.close), volume: finiteNonNegative(bar.volume) }))
++    .filter((bar): bar is { close: number; volume: number } => bar.close != null && bar.volume != null);
++  const avgClose63d = mean(recentValid.map((bar) => bar.close));
++  const avgValue63d = mean(recentValid.map((bar) => bar.close * bar.volume));
++
++  const volWindow = ordered.slice(-PIT_UNIVERSE_VOL_LOOKBACK_BARS);
++  const returns: number[] = [];
++  for (let i = 1; i < volWindow.length; i++) {
++    const previous = finitePositive(volWindow[i - 1]?.close);
++    const current = finitePositive(volWindow[i]?.close);
++    if (previous == null || current == null) continue;
++    returns.push(current / previous - 1);
++  }
++  let annualVolPct: number | null = null;
++  if (returns.length >= PIT_UNIVERSE_MIN_VOL_RETURNS) {
++    const avg = mean(returns)!;
++    const variance = returns.reduce((sum, value) => sum + (value - avg) ** 2, 0) / returns.length;
++    annualVolPct = Math.sqrt(variance) * Math.sqrt(252) * 100;
++  }
++
++  const reasonCodes: PointInTimeUniverseReason[] = [];
++  if (recentValid.length < PIT_UNIVERSE_MIN_RECENT_OBSERVATIONS) reasonCodes.push('INSUFFICIENT_RECENT_HISTORY');
++  if (recent.length && recentValid.length !== recent.length) reasonCodes.push('INVALID_BAR_DATA');
++  if (avgValue63d != null && avgValue63d < PIT_UNIVERSE_MIN_AVG_VALUE_63D_IDR) reasonCodes.push('AVG_VALUE_BELOW_FLOOR');
++  if (returns.length < PIT_UNIVERSE_MIN_VOL_RETURNS || annualVolPct == null) reasonCodes.push('INSUFFICIENT_VOL_HISTORY');
++  else if (annualVolPct > PIT_UNIVERSE_MAX_ANNUAL_VOL_PCT) reasonCodes.push('VOLATILITY_ABOVE_CAP');
++  if (avgValue63d == null && !reasonCodes.includes('INVALID_BAR_DATA')) reasonCodes.push('INVALID_BAR_DATA');
++
++  // M-07: avgClose tetap diagnostic, bukan price floor historis. Yahoo quote OHLC
++  // split-adjusted retroaktif, sehingga ambang rupiah absolut historis dapat salah.
++  return {
++    eligible: reasonCodes.length === 0,
++    methodVersion: PIT_UNIVERSE_METHOD_VERSION,
++    reasonCodes,
++    observationsRecent: recentValid.length,
++    volatilityReturns: returns.length,
++    avgClose63d,
++    avgValue63d,
++    annualVolPct,
++  };
++}
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/broker-flow/service/__tests__/broker-summary-monitor.service.test.ts sahamlens_work/sahamlens-main/modules/broker-flow/service/__tests__/broker-summary-monitor.service.test.ts
+--- sahamlens_orig/sahamlens-main/modules/broker-flow/service/__tests__/broker-summary-monitor.service.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/broker-flow/service/__tests__/broker-summary-monitor.service.test.ts	2026-08-16 18:15:27.111291850 +0000
+@@ -67,13 +67,17 @@
+           broker_count: '20',
+           total_buy_value: '1250000000',
+           total_sell_value: '1000000000',
++          total_buy_volume: '125000',
++          total_sell_volume: '100000',
++          total_buy_frequency: '250',
++          total_sell_frequency: '200',
+           last_imported_at: '2026-08-11T11:31:00.000Z',
+         }],
+       })
+       .mockResolvedValueOnce({
+         rows: [
+-          { broker_code: 'YP', buy_value: '500000000', sell_value: '100000000', net_value: '400000000' },
+-          { broker_code: 'CC', buy_value: '50000000', sell_value: '300000000', net_value: '-250000000' },
++          { broker_code: 'YP', buy_value: '500000000', sell_value: '100000000', buy_volume: '50000', sell_volume: '10000', buy_frequency: '50', sell_frequency: '20', net_value: '400000000' },
++          { broker_code: 'CC', buy_value: '50000000', sell_value: '300000000', buy_volume: '5000', sell_volume: '30000', buy_frequency: '10', sell_frequency: '30', net_value: '-250000000' },
+         ],
+       });
+ 
+@@ -90,10 +94,14 @@
+       brokerCount: 20,
+       totalBuyValue: 1_250_000_000,
+       totalSellValue: 1_000_000_000,
++      totalBuyVolume: 125_000,
++      totalSellVolume: 100_000,
++      totalBuyFrequency: 250,
++      totalSellFrequency: 200,
+     });
+     expect(result.brokers).toEqual([
+-      { brokerCode: 'YP', buyValue: 500_000_000, sellValue: 100_000_000, netValue: 400_000_000 },
+-      { brokerCode: 'CC', buyValue: 50_000_000, sellValue: 300_000_000, netValue: -250_000_000 },
++      { brokerCode: 'YP', buyValue: 500_000_000, sellValue: 100_000_000, buyVolume: 50_000, sellVolume: 10_000, buyFrequency: 50, sellFrequency: 20, avgBuyValuePerTrade: 10_000_000, avgSellValuePerTrade: 5_000_000, netValue: 400_000_000 },
++      { brokerCode: 'CC', buyValue: 50_000_000, sellValue: 300_000_000, buyVolume: 5_000, sellVolume: 30_000, buyFrequency: 10, sellFrequency: 30, avgBuyValuePerTrade: 5_000_000, avgSellValuePerTrade: 10_000_000, netValue: -250_000_000 },
+     ]);
+     expect(queryReadWithRetry.mock.calls[4]?.[1]).toEqual([
+       'INDEX_ALPHA_API',
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/broker-flow/service/__tests__/index-alpha-broker-summary.service.test.ts sahamlens_work/sahamlens-main/modules/broker-flow/service/__tests__/index-alpha-broker-summary.service.test.ts
+--- sahamlens_orig/sahamlens-main/modules/broker-flow/service/__tests__/index-alpha-broker-summary.service.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/broker-flow/service/__tests__/index-alpha-broker-summary.service.test.ts	2026-08-16 18:15:27.111143995 +0000
+@@ -11,13 +11,14 @@
+ describe('indexAlphaBatchToCsv', () => {
+   it('mengubah respons provider menjadi CSV harian yang dikenali importer', () => {
+     const result = indexAlphaBatchToCsv({
+-      BBCA: [{ code: 'YP', buy_value: 10_000, sell_value: 2_000, buy_avg: 9_500, sell_avg: 9_450 }],
++      BBCA: [{ code: 'YP', buy_value: 10_000, sell_value: 2_000, buy_volume: 100, sell_volume: 20, buy_freq: 4, sell_freq: 2, buy_avg: 9_500, sell_avg: 9_450 }],
+       BBRI: [{ code: 'AK', buy_value: 0, sell_value: 0, buy_avg: 0, sell_avg: 0 }],
+     }, '2026-08-11');
+ 
+     expect(result.rows).toBe(1);
+     expect(result.tickersWithData).toEqual(['BBCA']);
+-    expect(result.csvText).toContain('2026-08-11,BBCA,YP,10000,2000,9500,9450');
++    expect(result.csvText).toContain('buy_volume,sell_volume,buy_frequency,sell_frequency');
++    expect(result.csvText).toContain('2026-08-11,BBCA,YP,10000,2000,100,20,4,2,9500,9450');
+   });
+ 
+   it('menolak nilai negatif agar data rusak tidak masuk database', () => {
+@@ -41,7 +42,7 @@
+     const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+       const body = JSON.parse(String(init?.body)) as { tickers: string[] };
+       const data = Object.fromEntries(body.tickers.map((ticker) => [ticker, [
+-        { code: 'YP', buy_value: 1_000, sell_value: 500, buy_avg: 100, sell_avg: 99 },
++        { code: 'YP', buy_value: 1_000, sell_value: 500, buy_volume: 10, sell_volume: 5, buy_freq: 2, sell_freq: 1, buy_avg: 100, sell_avg: 99 },
+       ]]));
+       return new Response(JSON.stringify({ success: true, data }), { status: 200 });
+     });
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/broker-flow/service/broker-summary-import.service.ts sahamlens_work/sahamlens-main/modules/broker-flow/service/broker-summary-import.service.ts
+--- sahamlens_orig/sahamlens-main/modules/broker-flow/service/broker-summary-import.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/broker-flow/service/broker-summary-import.service.ts	2026-08-16 18:13:58.803919254 +0000
+@@ -52,6 +52,10 @@
+   brokerCode: string;
+   buyValue: number;
+   sellValue: number;
++  buyVolume: number | null;
++  sellVolume: number | null;
++  buyFrequency: number | null;
++  sellFrequency: number | null;
+   buyLot: number | null;
+   sellLot: number | null;
+   buyAvg: number | null;
+@@ -72,6 +76,10 @@
+ const BROKER_ALIASES = ['broker_code', 'brokercode', 'broker', 'kode_broker', 'kodebroker'];
+ const BUY_VALUE_ALIASES = ['buy_value', 'buyvalue', 'buy_val', 'buyval', 'buy'];
+ const SELL_VALUE_ALIASES = ['sell_value', 'sellvalue', 'sell_val', 'sellval', 'sell'];
++const BUY_VOLUME_ALIASES = ['buy_volume', 'buyvolume', 'buy_vol', 'buyvol'];
++const SELL_VOLUME_ALIASES = ['sell_volume', 'sellvolume', 'sell_vol', 'sellvol'];
++const BUY_FREQUENCY_ALIASES = ['buy_frequency', 'buy_freq', 'buyfrequency', 'buyfreq'];
++const SELL_FREQUENCY_ALIASES = ['sell_frequency', 'sell_freq', 'sellfrequency', 'sellfreq'];
+ const BUY_LOT_ALIASES = ['buy_lot', 'buylot', 'buy_lots', 'buylots'];
+ const SELL_LOT_ALIASES = ['sell_lot', 'selllot', 'sell_lots', 'selllots'];
+ const BUY_AVG_ALIASES = ['buy_avg', 'buyavg', 'avg_buy', 'avgbuy', 'buy_average'];
+@@ -262,17 +270,39 @@
+ 
+   const buyValue = parseLocalizedNumber(pick(row, BUY_VALUE_ALIASES), `Baris ${line} buy_value`) ?? 0;
+   const sellValue = parseLocalizedNumber(pick(row, SELL_VALUE_ALIASES), `Baris ${line} sell_value`) ?? 0;
++  const buyVolume = parseLocalizedNumber(pick(row, BUY_VOLUME_ALIASES), `Baris ${line} buy_volume`, true);
++  const sellVolume = parseLocalizedNumber(pick(row, SELL_VOLUME_ALIASES), `Baris ${line} sell_volume`, true);
++  const buyFrequency = parseLocalizedNumber(pick(row, BUY_FREQUENCY_ALIASES), `Baris ${line} buy_frequency`, true);
++  const sellFrequency = parseLocalizedNumber(pick(row, SELL_FREQUENCY_ALIASES), `Baris ${line} sell_frequency`, true);
+   const buyLot = parseLocalizedNumber(pick(row, BUY_LOT_ALIASES), `Baris ${line} buy_lot`, true);
+   const sellLot = parseLocalizedNumber(pick(row, SELL_LOT_ALIASES), `Baris ${line} sell_lot`, true);
+   const buyAvg = parseLocalizedNumber(pick(row, BUY_AVG_ALIASES), `Baris ${line} buy_avg`, true);
+   const sellAvg = parseLocalizedNumber(pick(row, SELL_AVG_ALIASES), `Baris ${line} sell_avg`, true);
+ 
+-  if (buyValue === 0 && sellValue === 0 && buyLot == null && sellLot == null) {
++  if (
++    buyValue === 0 && sellValue === 0 &&
++    (buyVolume ?? 0) === 0 && (sellVolume ?? 0) === 0 &&
++    (buyFrequency ?? 0) === 0 && (sellFrequency ?? 0) === 0 &&
++    buyLot == null && sellLot == null
++  ) {
+     throw new BrokerSummaryValidationError(
+-      `Baris ${line}: tidak ada aktivitas broker yang dapat disimpan (buy/sell value dan lot kosong/0).`
++      `Baris ${line}: tidak ada aktivitas broker yang dapat disimpan (value/volume/frequency/lot kosong atau 0).`
+     );
+   }
+ 
++  if (buyVolume != null && !Number.isInteger(buyVolume)) {
++    throw new BrokerSummaryValidationError(`Baris ${line}: buy_volume harus bilangan bulat.`);
++  }
++  if (sellVolume != null && !Number.isInteger(sellVolume)) {
++    throw new BrokerSummaryValidationError(`Baris ${line}: sell_volume harus bilangan bulat.`);
++  }
++  if (buyFrequency != null && !Number.isInteger(buyFrequency)) {
++    throw new BrokerSummaryValidationError(`Baris ${line}: buy_frequency harus bilangan bulat.`);
++  }
++  if (sellFrequency != null && !Number.isInteger(sellFrequency)) {
++    throw new BrokerSummaryValidationError(`Baris ${line}: sell_frequency harus bilangan bulat.`);
++  }
++
+   if (buyLot != null && !Number.isInteger(buyLot)) {
+     throw new BrokerSummaryValidationError(`Baris ${line}: buy_lot harus bilangan bulat.`);
+   }
+@@ -286,6 +316,10 @@
+     brokerCode,
+     buyValue,
+     sellValue,
++    buyVolume,
++    sellVolume,
++    buyFrequency,
++    sellFrequency,
+     buyLot,
+     sellLot,
+     buyAvg,
+@@ -378,17 +412,17 @@
+         `
+           INSERT INTO broker_summary_daily (
+             trade_date, ticker, broker_code,
+-            buy_value, sell_value, buy_lot, sell_lot,
+-            buy_avg, sell_avg, source, source_file
++            buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
++            buy_lot, sell_lot, buy_avg, sell_avg, source, source_file
+           )
+-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
++          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+           ON CONFLICT (trade_date, ticker, broker_code, source) DO NOTHING
+           RETURNING id
+         `,
+         [
+           row.tradeDate, row.ticker, row.brokerCode,
+-          row.buyValue, row.sellValue, row.buyLot, row.sellLot,
+-          row.buyAvg, row.sellAvg, row.source, row.sourceFile,
++          row.buyValue, row.sellValue, row.buyVolume, row.sellVolume, row.buyFrequency, row.sellFrequency,
++          row.buyLot, row.sellLot, row.buyAvg, row.sellAvg, row.source, row.sourceFile,
+         ],
+       );
+       insertedRows += result.rowCount ?? 0;
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/broker-flow/service/broker-summary-monitor.service.ts sahamlens_work/sahamlens-main/modules/broker-flow/service/broker-summary-monitor.service.ts
+--- sahamlens_orig/sahamlens-main/modules/broker-flow/service/broker-summary-monitor.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/broker-flow/service/broker-summary-monitor.service.ts	2026-08-16 18:14:15.321493051 +0000
+@@ -19,6 +19,10 @@
+   broker_count: number | string;
+   total_buy_value: number | string | null;
+   total_sell_value: number | string | null;
++  total_buy_volume: number | string | null;
++  total_sell_volume: number | string | null;
++  total_buy_frequency: number | string | null;
++  total_sell_frequency: number | string | null;
+   last_imported_at: string | null;
+ }
+ 
+@@ -26,6 +30,10 @@
+   broker_code: string;
+   buy_value: number | string;
+   sell_value: number | string;
++  buy_volume: number | string;
++  sell_volume: number | string;
++  buy_frequency: number | string;
++  sell_frequency: number | string;
+   net_value: number | string;
+ }
+ 
+@@ -41,6 +49,12 @@
+   brokerCode: string;
+   buyValue: number;
+   sellValue: number;
++  buyVolume: number;
++  sellVolume: number;
++  buyFrequency: number;
++  sellFrequency: number;
++  avgBuyValuePerTrade: number | null;
++  avgSellValuePerTrade: number | null;
+   netValue: number;
+ }
+ 
+@@ -58,6 +72,10 @@
+     brokerCount: number;
+     totalBuyValue: number;
+     totalSellValue: number;
++    totalBuyVolume: number;
++    totalSellVolume: number;
++    totalBuyFrequency: number;
++    totalSellFrequency: number;
+     lastImportedAt: string | null;
+   };
+   brokers: BrokerMonitorRow[];
+@@ -89,6 +107,10 @@
+       brokerCount: 0,
+       totalBuyValue: 0,
+       totalSellValue: 0,
++      totalBuyVolume: 0,
++      totalSellVolume: 0,
++      totalBuyFrequency: 0,
++      totalSellFrequency: 0,
+       lastImportedAt: null,
+     },
+     brokers: [],
+@@ -159,6 +181,10 @@
+           COUNT(DISTINCT broker_code)::int AS broker_count,
+           COALESCE(SUM(buy_value), 0)::text AS total_buy_value,
+           COALESCE(SUM(sell_value), 0)::text AS total_sell_value,
++          COALESCE(SUM(buy_volume), 0)::text AS total_buy_volume,
++          COALESCE(SUM(sell_volume), 0)::text AS total_sell_volume,
++          COALESCE(SUM(buy_frequency), 0)::text AS total_buy_frequency,
++          COALESCE(SUM(sell_frequency), 0)::text AS total_sell_frequency,
+           MAX(imported_at)::text AS last_imported_at
+         FROM broker_summary_daily
+         WHERE source = $1
+@@ -173,6 +199,10 @@
+           broker_code,
+           COALESCE(SUM(buy_value), 0)::text AS buy_value,
+           COALESCE(SUM(sell_value), 0)::text AS sell_value,
++          COALESCE(SUM(buy_volume), 0)::text AS buy_volume,
++          COALESCE(SUM(sell_volume), 0)::text AS sell_volume,
++          COALESCE(SUM(buy_frequency), 0)::text AS buy_frequency,
++          COALESCE(SUM(sell_frequency), 0)::text AS sell_frequency,
+           COALESCE(SUM(buy_value - sell_value), 0)::text AS net_value
+         FROM broker_summary_daily
+         WHERE source = $1
+@@ -201,13 +231,29 @@
+       brokerCount: numberValue(coverageRow?.broker_count),
+       totalBuyValue: numberValue(coverageRow?.total_buy_value),
+       totalSellValue: numberValue(coverageRow?.total_sell_value),
++      totalBuyVolume: numberValue(coverageRow?.total_buy_volume),
++      totalSellVolume: numberValue(coverageRow?.total_sell_volume),
++      totalBuyFrequency: numberValue(coverageRow?.total_buy_frequency),
++      totalSellFrequency: numberValue(coverageRow?.total_sell_frequency),
+       lastImportedAt: coverageRow?.last_imported_at ?? null,
+     },
+-    brokers: brokerResult.rows.map((row) => ({
+-      brokerCode: row.broker_code,
+-      buyValue: numberValue(row.buy_value),
+-      sellValue: numberValue(row.sell_value),
+-      netValue: numberValue(row.net_value),
+-    })),
++    brokers: brokerResult.rows.map((row) => {
++      const buyValue = numberValue(row.buy_value);
++      const sellValue = numberValue(row.sell_value);
++      const buyFrequency = numberValue(row.buy_frequency);
++      const sellFrequency = numberValue(row.sell_frequency);
++      return {
++        brokerCode: row.broker_code,
++        buyValue,
++        sellValue,
++        buyVolume: numberValue(row.buy_volume),
++        sellVolume: numberValue(row.sell_volume),
++        buyFrequency,
++        sellFrequency,
++        avgBuyValuePerTrade: buyFrequency > 0 ? buyValue / buyFrequency : null,
++        avgSellValuePerTrade: sellFrequency > 0 ? sellValue / sellFrequency : null,
++        netValue: numberValue(row.net_value),
++      };
++    }),
+   };
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/broker-flow/service/index-alpha-broker-summary.service.ts sahamlens_work/sahamlens-main/modules/broker-flow/service/index-alpha-broker-summary.service.ts
+--- sahamlens_orig/sahamlens-main/modules/broker-flow/service/index-alpha-broker-summary.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/broker-flow/service/index-alpha-broker-summary.service.ts	2026-08-16 18:13:58.803641761 +0000
+@@ -51,6 +51,18 @@
+   return number;
+ }
+ 
++function optionalNonNegativeNumber(value: unknown, label: string): number | null {
++  if (value == null || value === '') return null;
++  return nonNegativeNumber(value, label);
++}
++
++function optionalNonNegativeInteger(value: unknown, label: string): number | null {
++  const number = optionalNonNegativeNumber(value, label);
++  if (number == null) return null;
++  if (!Number.isInteger(number)) throw new Error(`Respons Index Alpha tidak valid: ${label} harus integer`);
++  return number;
++}
++
+ function assertDateKey(value: string): void {
+   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+     throw new Error(`Tanggal broker summary tidak valid: ${value}`);
+@@ -62,7 +74,7 @@
+   tradeDate: string,
+ ): { csvText: string; tickersWithData: string[]; rows: number } {
+   assertDateKey(tradeDate);
+-  const lines = ['trade_date,ticker,broker_code,buy_value,sell_value,buy_avg,sell_avg'];
++  const lines = ['trade_date,ticker,broker_code,buy_value,sell_value,buy_volume,sell_volume,buy_frequency,sell_frequency,buy_avg,sell_avg'];
+   const tickersWithData = new Set<string>();
+ 
+   for (const [rawTicker, brokerRows] of Object.entries(data)) {
+@@ -74,10 +86,18 @@
+       if (!/^[A-Z0-9]{1,8}$/.test(brokerCode)) throw new Error(`Kode broker ${ticker}[${index}] tidak valid.`);
+       const buyValue = nonNegativeNumber(row.buy_value, `${ticker}.${brokerCode}.buy_value`);
+       const sellValue = nonNegativeNumber(row.sell_value, `${ticker}.${brokerCode}.sell_value`);
+-      if (buyValue === 0 && sellValue === 0) continue;
+-      const buyAvg = nonNegativeNumber(row.buy_avg, `${ticker}.${brokerCode}.buy_avg`);
+-      const sellAvg = nonNegativeNumber(row.sell_avg, `${ticker}.${brokerCode}.sell_avg`);
+-      lines.push([tradeDate, ticker, brokerCode, buyValue, sellValue, buyAvg, sellAvg].join(','));
++      const buyVolume = optionalNonNegativeInteger(row.buy_volume, `${ticker}.${brokerCode}.buy_volume`);
++      const sellVolume = optionalNonNegativeInteger(row.sell_volume, `${ticker}.${brokerCode}.sell_volume`);
++      const buyFrequency = optionalNonNegativeInteger(row.buy_freq, `${ticker}.${brokerCode}.buy_freq`);
++      const sellFrequency = optionalNonNegativeInteger(row.sell_freq, `${ticker}.${brokerCode}.sell_freq`);
++      const buyAvg = optionalNonNegativeNumber(row.buy_avg, `${ticker}.${brokerCode}.buy_avg`);
++      const sellAvg = optionalNonNegativeNumber(row.sell_avg, `${ticker}.${brokerCode}.sell_avg`);
++      if (buyValue === 0 && sellValue === 0 && (buyVolume ?? 0) === 0 && (sellVolume ?? 0) === 0 && (buyFrequency ?? 0) === 0 && (sellFrequency ?? 0) === 0) continue;
++      lines.push([
++        tradeDate, ticker, brokerCode, buyValue, sellValue,
++        buyVolume ?? '', sellVolume ?? '', buyFrequency ?? '', sellFrequency ?? '',
++        buyAvg ?? '', sellAvg ?? '',
++      ].join(','));
+       tickersWithData.add(ticker);
+     }
+   }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/fundamental/repository/__tests__/fundamental-history.repository.test.ts sahamlens_work/sahamlens-main/modules/fundamental/repository/__tests__/fundamental-history.repository.test.ts
+--- sahamlens_orig/sahamlens-main/modules/fundamental/repository/__tests__/fundamental-history.repository.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/fundamental/repository/__tests__/fundamental-history.repository.test.ts	2026-08-16 18:15:55.479128900 +0000
+@@ -120,6 +120,16 @@
+     expect(rows[0].currentRatio).toBeNull();
+   });
+ 
++  it('M-08: menyimpan shares outstanding dan market cap bila memang tersedia pada tanggal observasi', async () => {
++    await archiveFundamentalSnapshot([{
++      ticker: 'BBCA.JK', observedDate: '2026-08-05', ...KOSONG,
++      sharesOutstanding: 123_000_000_000, marketCap: 1_050_000_000_000_000,
++    }]);
++    const [saved] = await listHistory('BBCA.JK');
++    expect(saved.sharesOutstanding).toBe(123_000_000_000);
++    expect(saved.marketCap).toBe(1_050_000_000_000_000);
++  });
++
+   it('cron dieksekusi dua kali pada tanggal sama => tetap satu baris (TEST 6)', async () => {
+     const batch = [{ ticker: 'BBCA.JK', observedDate: '2026-08-05', ...KOSONG, per: 22.1 }];
+ 
+@@ -158,12 +168,12 @@
+     expect(normalize(q.text)).toContain('ON CONFLICT (ticker, observed_date) DO NOTHING');
+     // Tidak ada UPDATE/DO UPDATE - arsip ini append-only.
+     expect(normalize(q.text)).not.toContain('DO UPDATE');
+-    // 2 baris x 13 kolom (ticker, observed_date, period_end, 6 metrik, source, dan 3
+-    // kolom konteks sektor point-in-time - temuan C-02), dan tidak
++    // 2 baris x 15 kolom (ticker, observed_date, period_end, 6 metrik, source, 3
++    // kolom konteks sektor point-in-time, shares_outstanding, market_cap), dan tidak
+     // ada nilai yang tertanam di string SQL. Diturunkan dari daftar kolom di SQL-nya
+     // sendiri supaya angka ini tidak perlu diperbarui manual tiap kali kolom bertambah.
+     const jumlahKolom = normalize(q.text).match(/INSERT INTO fundamental_history \(([^)]+)\)/)![1].split(',').length;
+-    expect(jumlahKolom).toBe(13);
++    expect(jumlahKolom).toBe(15);
+     expect(q.values).toHaveLength(2 * jumlahKolom);
+     // Setiap nilai harus lewat placeholder $n - tidak boleh ada yang diinterpolasi.
+     expect(new Set(normalize(q.text).match(/\$\d+/g)).size).toBe(q.values.length);
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/fundamental/repository/fundamental-history.repository.ts sahamlens_work/sahamlens-main/modules/fundamental/repository/fundamental-history.repository.ts
+--- sahamlens_orig/sahamlens-main/modules/fundamental/repository/fundamental-history.repository.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/fundamental/repository/fundamental-history.repository.ts	2026-08-16 18:08:12.378418021 +0000
+@@ -37,6 +37,8 @@
+   yahooSector: string | null;
+   yahooIndustry: string | null;
+   payoutRatio: number | null;
++  sharesOutstanding: number | null;
++  marketCap: number | null;
+ }
+ 
+ export interface FundamentalHistoryInput extends FundamentalInput {
+@@ -99,13 +101,16 @@
+     yahooSector: toText(row.yahoo_sector),
+     yahooIndustry: toText(row.yahoo_industry),
+     payoutRatio: toNum(row.payout_ratio),
++    sharesOutstanding: toNum(row.shares_outstanding),
++    marketCap: toNum(row.market_cap),
+   };
+ }
+ 
+ /** Kolom yang dibaca as-of. Satu daftar, dipakai asOf() DAN listHistory() - kalau
+  * ditulis dua kali, satu di antaranya pasti tertinggal saat kolom bertambah. */
+ const AS_OF_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
+-       current_ratio, revenue_growth, yahoo_sector, yahoo_industry, payout_ratio`;
++       current_ratio, revenue_growth, yahoo_sector, yahoo_industry, payout_ratio,
++       shares_outstanding, market_cap`;
+ 
+ /** Kolom yang DITULIS arsip. Satu daftar untuk kedua penulis (snapshot cron & PIT
+  * backfill v2) - kelas bug "daftar kolom dan daftar nilai bergeser satu posisi" pernah
+@@ -113,7 +118,8 @@
+  * modules/fundamental/service/fundamental-backfill-import.service.ts), jadi di sini
+  * keduanya dihasilkan dari satu fungsi. */
+ const ARCHIVE_COLUMNS = `ticker, observed_date, period_end, per, pbv, roe, der,
+-        current_ratio, revenue_growth, source, yahoo_sector, yahoo_industry, payout_ratio`;
++        current_ratio, revenue_growth, source, yahoo_sector, yahoo_industry, payout_ratio,
++        shares_outstanding, market_cap`;
+ 
+ /** Dorong satu baris ke `params` dan kembalikan placeholder-nya. Urutan nilai di sini
+  * WAJIB sama dengan ARCHIVE_COLUMNS di atas. */
+@@ -140,13 +146,16 @@
+     // sumber kedua yang bisa berbeda.
+     row.sector?.yahooSector ?? null,
+     row.sector?.yahooIndustry ?? null,
+-    row.sector?.payoutRatio ?? null
++    row.sector?.payoutRatio ?? null,
++    row.sharesOutstanding ?? null,
++    row.marketCap ?? null
+   );
+   return [
+     `$${base + 1}`, `$${base + 2}::date`, `$${base + 3}::date`,
+     `$${base + 4}`, `$${base + 5}`, `$${base + 6}`, `$${base + 7}`,
+     `$${base + 8}`, `$${base + 9}`, `$${base + 10}`,
+     `$${base + 11}`, `$${base + 12}`, `$${base + 13}`,
++    `$${base + 14}`, `$${base + 15}`,
+   ].join(', ');
+ }
+ 
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/fundamental/service/dcf-valuation.service.ts sahamlens_work/sahamlens-main/modules/fundamental/service/dcf-valuation.service.ts
+--- sahamlens_orig/sahamlens-main/modules/fundamental/service/dcf-valuation.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/fundamental/service/dcf-valuation.service.ts	2026-08-16 18:06:01.202463518 +0000
+@@ -56,30 +56,27 @@
+ } as const;
+ 
+ /**
+- * Bobot metode valuasi per sektor.
++ * Router METODE valuasi per sektor.
+  *
+- * STATUS: HIPOTESIS, BELUM DIVALIDASI (temuan M-03). Tidak satu pun angka di bawah pernah
+- * diuji terhadap forward return; keduanya berasal dari kebiasaan analis, bukan pengukuran.
+- * Yang bisa dipertanggungjawabkan dari daftar ini hanyalah arahnya - bank dinilai dari
+- * neraca (PBV) dan dividen, bukan dari arus kas bebas yang bagi bank memang tidak bermakna;
+- * emiten konsumsi dinilai dari laba. Besaran angkanya tidak punya dasar empiris.
+- *
+- * Dinyatakan di payload lewat `assumptions.sector_weights_status` supaya pernyataan ini
+- * sampai ke pengguna, bukan berhenti di komentar yang tidak pernah dibaca.
++ * Audit M-03: angka bobot sektoral lama (45/30/25 dst.) tidak pernah divalidasi
++ * terhadap forward return. Angka itu dihapus. Sektor kini hanya menentukan metode
++ * mana yang secara ekonomi relevan; metode yang benar-benar tersedia digabung
++ * equal-weight. Dengan demikian tidak ada presisi palsu dari bobot hipotesis.
+  */
+-const SECTOR_RULES: Record<string, any> = {
+-  "Banks - Regional": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
+-  "Banks": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
+-  "Financial Services": { pbv: 0.45, ddm: 0.30, per: 0.25, dcf: 0, graham: 0 },
+-  "Consumer Defensive": { per: 0.40, dcf: 0.30, ddm: 0.15, graham: 0.15, pbv: 0 },
+-  "Consumer Cyclical": { per: 0.40, dcf: 0.30, ddm: 0.15, graham: 0.15, pbv: 0 },
+-  "Energy": { pbv: 0.40, ddm: 0.35, per: 0.25, dcf: 0, graham: 0 },
+-  "Basic Materials": { pbv: 0.40, ddm: 0.35, per: 0.25, dcf: 0, graham: 0 },
+-  "Real Estate": { pbv: 0.50, per: 0.30, ddm: 0.20, dcf: 0, graham: 0 },
+-  "Communication Services": { dcf: 0.40, per: 0.30, ddm: 0.30, pbv: 0, graham: 0 },
+-  "Industrials": { per: 0.35, dcf: 0.35, pbv: 0.15, ddm: 0.15, graham: 0 },
+-  "Healthcare": { per: 0.40, dcf: 0.30, pbv: 0.20, ddm: 0.10, graham: 0 },
+-  "DEFAULT": { per: 0.35, dcf: 0.25, pbv: 0.20, ddm: 0.10, graham: 0.10 }
++type ValuationMethodKey = 'pbv' | 'ddm' | 'per' | 'dcf' | 'graham';
++const SECTOR_METHODS: Record<string, readonly ValuationMethodKey[]> = {
++  'Banks - Regional': ['pbv', 'ddm', 'per'],
++  Banks: ['pbv', 'ddm', 'per'],
++  'Financial Services': ['pbv', 'ddm', 'per'],
++  'Consumer Defensive': ['per', 'dcf', 'ddm', 'graham'],
++  'Consumer Cyclical': ['per', 'dcf', 'ddm', 'graham'],
++  Energy: ['pbv', 'ddm', 'per'],
++  'Basic Materials': ['pbv', 'ddm', 'per'],
++  'Real Estate': ['pbv', 'per', 'ddm'],
++  'Communication Services': ['dcf', 'per', 'ddm'],
++  Industrials: ['per', 'dcf', 'pbv', 'ddm'],
++  Healthcare: ['per', 'dcf', 'pbv', 'ddm'],
++  DEFAULT: ['per', 'dcf', 'pbv', 'ddm', 'graham'],
+ };
+ 
+ const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
+@@ -289,52 +286,41 @@
+     validFairValues.push(intrinsic_dcf);
+   }
+ 
+-  // Calculate Fair Value with Sector Router
+-  let rule = SECTOR_RULES[sector] || SECTOR_RULES["DEFAULT"];
+-
+-  // Check if sector matches any key dynamically
+-  for (const key in SECTOR_RULES) {
+-    if (sector.toLowerCase().includes(key.toLowerCase())) {
+-      rule = SECTOR_RULES[key];
++  // Sector router menentukan *applicability*, bukan bobot numerik. Semua metode
++  // applicable yang datanya valid diberi bobot sama (audit M-03).
++  let applicableMethods = SECTOR_METHODS[sector] ?? SECTOR_METHODS.DEFAULT;
++  for (const [key, methodsForSector] of Object.entries(SECTOR_METHODS)) {
++    if (key !== 'DEFAULT' && sector.toLowerCase().includes(key.toLowerCase())) {
++      applicableMethods = methodsForSector;
+       break;
+     }
+   }
+ 
+-  let activeWeights: any = {};
+-  let totalWeightUsed = 0;
+-
+-  // Collect active methods based on what successfully computed > 0
+-  if (intrinsic_pbv > 0 && rule.pbv > 0) { activeWeights.pbv = rule.pbv; totalWeightUsed += rule.pbv; }
+-  if (intrinsic_ddm > 0 && rule.ddm > 0) { activeWeights.ddm = rule.ddm; totalWeightUsed += rule.ddm; }
+-  if (intrinsic_per > 0 && rule.per > 0) { activeWeights.per = rule.per; totalWeightUsed += rule.per; }
+-  if (intrinsic_dcf > 0 && rule.dcf > 0) { activeWeights.dcf = rule.dcf; totalWeightUsed += rule.dcf; }
+-  if (intrinsic_graham > 0 && rule.graham > 0) { activeWeights.graham = rule.graham; totalWeightUsed += rule.graham; }
+-
+-  // Redistribute weights if total < 1 (e.g. DDM was 0 because no dividend)
+-  if (totalWeightUsed > 0 && totalWeightUsed < 1) {
+-    const multiplier = 1 / totalWeightUsed;
+-    for (const k in activeWeights) {
+-      activeWeights[k] = activeWeights[k] * multiplier;
+-    }
+-  }
+-
++  const methodValues: Record<ValuationMethodKey, number> = {
++    pbv: intrinsic_pbv,
++    ddm: intrinsic_ddm,
++    per: intrinsic_per,
++    dcf: intrinsic_dcf,
++    graham: intrinsic_graham,
++  };
++  const activeMethods = applicableMethods.filter((key) => methodValues[key] > 0);
++  const activeWeights: Partial<Record<ValuationMethodKey, number>> = {};
+   let fair_value = 0;
+-  if (totalWeightUsed > 0) {
+-    fair_value =
+-      (intrinsic_pbv * (activeWeights.pbv ?? 0)) +
+-      (intrinsic_ddm * (activeWeights.ddm ?? 0)) +
+-      (intrinsic_per * (activeWeights.per ?? 0)) +
+-      (intrinsic_dcf * (activeWeights.dcf ?? 0)) +
+-      (intrinsic_graham * (activeWeights.graham ?? 0));
+-  } else {
+-    // Fallback to median if nothing matched weights (rare fallback)
+-    if (validFairValues.length > 0) {
+-      validFairValues.sort((a, b) => a - b);
+-      const mid = Math.floor(validFairValues.length / 2);
+-      fair_value = validFairValues.length % 2 !== 0
+-        ? validFairValues[mid]
+-        : (validFairValues[mid - 1] + validFairValues[mid]) / 2;
++
++  if (activeMethods.length > 0) {
++    const equalWeight = 1 / activeMethods.length;
++    for (const key of activeMethods) {
++      activeWeights[key] = equalWeight;
++      fair_value += methodValues[key] * equalWeight;
+     }
++  } else if (validFairValues.length > 0) {
++    // Fallback deterministik: median metode valid jika sector-applicability tidak
++    // menemukan metode aktif. Tidak ada bobot hipotesis yang diciptakan di sini.
++    const sortedFairValues = [...validFairValues].sort((a, b) => a - b);
++    const mid = Math.floor(sortedFairValues.length / 2);
++    fair_value = sortedFairValues.length % 2 !== 0
++      ? sortedFairValues[mid]
++      : (sortedFairValues[mid - 1] + sortedFairValues[mid]) / 2;
+   }
+ 
+   if (fair_value <= 0) return null;
+@@ -385,10 +371,11 @@
+       risk_free_rate_pct: MACRO_ASSUMPTIONS.RISK_FREE_RATE_PCT,
+       equity_risk_premium_pct: MACRO_ASSUMPTIONS.EQUITY_RISK_PREMIUM_PCT,
+       macro_set_on: MACRO_ASSUMPTIONS.SET_ON,
+-      // Temuan M-03: bobot per sektor di SECTOR_RULES belum pernah divalidasi terhadap
+-      // forward return. Dinyatakan sebagai hipotesis di payload, bukan hanya di komentar.
+-      sector_weights_status: 'HYPOTHESIS_NOT_VALIDATED',
+-      note: 'PBV & PER wajar memakai model Gordon dengan biaya ekuitas CAPM per emiten - sama dengan komponen Valuasi LensScore. DDM dan perpetuitas FCF masih memakai tingkat diskonto tetap 12% untuk semua emiten. Nilai wajar adalah keluaran model, bukan target harga analis.',
++      // M-03: bobot numerik hipotesis sudah DIHAPUS. Sektor hanya menentukan metode
++      // applicable, lalu metode yang tersedia digabung equal-weight.
++      sector_weights_status: 'ARBITRARY_WEIGHTS_REMOVED',
++      sector_aggregation_method: 'EQUAL_WEIGHT_AVAILABLE_APPLICABLE_METHODS',
++      note: 'PBV & PER wajar memakai model Gordon dengan biaya ekuitas CAPM per emiten - sama dengan komponen Valuasi LensScore. DDM dan perpetuitas FCF masih memakai tingkat diskonto tetap 12% untuk semua emiten. Nilai wajar adalah keluaran model, bukan target harga analis. Router sektor hanya menentukan metode yang relevan; metode aktif digabung equal-weight.',
+     },
+   };
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/intraday/service/__tests__/intraday-research-scoring.test.ts sahamlens_work/sahamlens-main/modules/intraday/service/__tests__/intraday-research-scoring.test.ts
+--- sahamlens_orig/sahamlens-main/modules/intraday/service/__tests__/intraday-research-scoring.test.ts	1970-01-01 00:00:00.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/intraday/service/__tests__/intraday-research-scoring.test.ts	2026-08-16 18:23:49.315319848 +0000
+@@ -0,0 +1,26 @@
++import { describe, expect, it } from 'vitest';
++import { scoreWithAvailableComponents } from '../intraday-research.service';
++import { INTRADAY_COMPONENT_KEYS, type IntradayWeights } from '../../constants/intraday-model';
++
++function equalWeights(): IntradayWeights {
++  const weight = 100 / INTRADAY_COMPONENT_KEYS.length;
++  return Object.fromEntries(INTRADAY_COMPONENT_KEYS.map((key) => [key, weight])) as IntradayWeights;
++}
++
++describe('scoreWithAvailableComponents', () => {
++  it('renormalizes observed components instead of inventing neutral 50', () => {
++    const [a, b] = INTRADAY_COMPONENT_KEYS;
++    expect(scoreWithAvailableComponents(equalWeights(), { [a]: 80, [b]: 40 })).toBeCloseTo(60, 8);
++  });
++
++  it('fails closed when there are no valid components', () => {
++    expect(scoreWithAvailableComponents(equalWeights(), {})).toBeNull();
++    const [a] = INTRADAY_COMPONENT_KEYS;
++    expect(scoreWithAvailableComponents(equalWeights(), { [a]: Number.NaN })).toBeNull();
++  });
++
++  it('ignores scores outside the valid 0..100 domain', () => {
++    const [a, b] = INTRADAY_COMPONENT_KEYS;
++    expect(scoreWithAvailableComponents(equalWeights(), { [a]: 120, [b]: 70 })).toBeCloseTo(70, 8);
++  });
++});
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/intraday/service/intraday-research.service.ts sahamlens_work/sahamlens-main/modules/intraday/service/intraday-research.service.ts
+--- sahamlens_orig/sahamlens-main/modules/intraday/service/intraday-research.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/intraday/service/intraday-research.service.ts	2026-08-16 18:06:12.797890786 +0000
+@@ -252,14 +252,23 @@
+   };
+ }
+ 
+-function scoreWith(weights: IntradayWeights, components: Record<string, number>): number {
+-  let total = 0;
++export function scoreWithAvailableComponents(
++  weights: IntradayWeights,
++  components: Record<string, number>
++): number | null {
++  let availableWeight = 0;
+   let weighted = 0;
+   for (const key of INTRADAY_COMPONENT_KEYS) {
+-    total += weights[key];
+-    weighted += weights[key] * (components[key] ?? 50);
++    const value = components[key];
++    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) continue;
++    const weight = weights[key];
++    if (!Number.isFinite(weight) || weight <= 0) continue;
++    availableWeight += weight;
++    weighted += weight * value;
+   }
+-  return total > 0 ? weighted / total : 50;
++  // Missing component adalah missing data, bukan invented neutral 50.
++  // Re-normalize pada komponen yang benar-benar tersedia; jika tidak ada, fail-closed.
++  return availableWeight > 0 ? weighted / availableWeight : null;
+ }
+ 
+ /** Kandidat bobot acak di dalam batas, dinormalisasi ke jumlah 100. */
+@@ -301,7 +310,10 @@
+   weights: IntradayWeights,
+   rows: ComponentObservation[]
+ ): WeightSplitReport {
+-  const rescored = rows.map((r) => ({ ...r, score: scoreWith(weights, r.componentScores) }));
++  const rescored = rows.flatMap((r) => {
++    const score = scoreWithAvailableComponents(weights, r.componentScores);
++    return score == null ? [] : [{ ...r, score }];
++  });
+   const effective = toEffectiveSample(rescored);
+   const dates = Array.from(new Set(rows.map((r) => r.tradingDate))).sort();
+   const q = quintileSpread(rescored);
+@@ -395,8 +407,11 @@
+   for (let i = 0; i < WEIGHT_CANDIDATES; i++) candidates.push(randomWeights(rng));
+ 
+   const objective = (weights: IntradayWeights, rowsFor: ComponentObservation[]): number => {
+-    const scores = rowsFor.map((r) => scoreWith(weights, r.componentScores));
+-    const ic = spearman(scores, rowsFor.map((r) => r.netReturn)) ?? 0;
++    const pairs = rowsFor.flatMap((r) => {
++      const score = scoreWithAvailableComponents(weights, r.componentScores);
++      return score == null ? [] : [{ score, netReturn: r.netReturn }];
++    });
++    const ic = spearman(pairs.map((r) => r.score), pairs.map((r) => r.netReturn)) ?? 0;
+     return ic - WEIGHT_REGULARIZATION_LAMBDA * l1Distance(weights, config.weights);
+   };
+ 
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/constants/validation-limitations.ts sahamlens_work/sahamlens-main/modules/lens-radar/constants/validation-limitations.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/constants/validation-limitations.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/constants/validation-limitations.ts	2026-08-16 18:17:21.321817403 +0000
+@@ -5,17 +5,17 @@
+ // Calibration Lab dan halaman Transparency PUBLIK - dua tempat yang paling sering dibaca
+ // sebagai bukti kualitas model - tidak menyatakan apa pun tentang bias universe-nya.
+ //
+-// Ini bukan daftar basa-basi hukum. Dua item pertama adalah bias yang membuat angka di
+-// halaman itu SISTEMATIS lebih baik daripada yang bisa dicapai di dunia nyata, dan
+-// keduanya tidak bisa dihilangkan dengan data yang tersedia sekarang - jadi dinyatakan,
+-// bukan didiamkan.
++// Ini bukan daftar basa-basi hukum. H-02 selection bias karena filter universe masa kini
++// sudah ditutup dengan membership point-in-time; residual survivorship dari emiten yang
++// telah delisting tetap tidak bisa direkonstruksi tanpa historical listing master resmi.
++// Keterbatasan yang tersisa tetap dinyatakan bersama hasil, bukan didiamkan.
+ 
+ /** Kapan daftar ini terakhir ditinjau manusia terhadap kondisi universe & engine. */
+-export const VALIDATION_LIMITATIONS_REVIEWED_ON = '2026-08-12';
++export const VALIDATION_LIMITATIONS_REVIEWED_ON = '2026-08-17';
+ 
+ export const VALIDATION_LIMITATIONS = [
+-  'Universe hanya emiten yang masih tercatat & likuid hari ini (survivorship bias) - saham yang delisting atau mengering likuiditasnya selama periode uji tidak pernah ikut dihitung.',
+-  'Universe dipilih memakai filter harga, nilai transaksi, dan volatilitas 12 bulan yang dihitung PADA saat daftar dibuat, lalu diterapkan mundur ke seluruh histori (selection bias). Emiten yang lolos hari ini belum tentu lolos pada tanggal sinyalnya.',
++  'Candidate universe historis memakai katalog IDX luas yang tersedia sekarang. Membership likuiditas/volatilitas dihitung point-in-time per tanggal, tetapi emiten yang sudah delisting dan tidak lagi ada di katalog sumber masih dapat hilang (residual survivorship bias).',
++  'Selection bias dari filter likuiditas/volatilitas masa kini sudah dihapus: setiap baris validasi wajib universe_eligible=true berdasarkan data sampai tanggal sinyal. Histori lama tanpa metadata PIT ditolak fail-closed sampai dibackfill ulang.',
+   'Indikator memakai AdjClose Yahoo yang dapat direstatement mundur oleh aksi korporasi. Ini bukan arsip point-in-time murni, jadi sinyal historis bisa sedikit berbeda dari yang benar-benar terlihat pada tanggal itu.',
+   'Horizon T+5/T+20 memakai toleransi dua hari bursa pada bar exit, sehingga panjang trade sesungguhnya berkisar 18-22 hari bursa.',
+   'Biaya round-trip dikurangkan sebagai konstanta 0,5% (fee 0,4% + slippage 0,1%), bukan biaya nyata per broker dan per ukuran order.',
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/bucket-backtest.service.test.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/bucket-backtest.service.test.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/bucket-backtest.service.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/bucket-backtest.service.test.ts	2026-08-16 18:15:09.014347416 +0000
+@@ -27,6 +27,7 @@
+     // pengguna. Kasus yang ditolak gerbang ini diuji eksplisit di test tersendiri.
+     coverage_pct: 100,
+     eligibility_status: 'ELIGIBLE',
++    universe_eligible: true,
+   };
+ }
+ 
+@@ -42,7 +43,7 @@
+     // tanggal baris histori, dan itu yang sedang diuji.
+     async getIdxTradingCalendarDates() { return []; },
+     async getDailyOpenBars(ticker: string) {
+-      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
++      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, close: open, priceBasis: RETURN_PRICE_BASIS }));
+     },
+   };
+ }
+@@ -274,14 +275,13 @@
+     expect(result.skippedDrawdownTrades).toBeGreaterThan(0);
+   });
+ 
+-  it('membuang baris gocap berdasarkan harga raw, bukan harga adjusted', async () => {
+-    const gocap = { ...row('2026-01-01', 'GOCA.JK', 85, 49), raw_close_price: 49, adjusted_close_price: 49 };
+-    // Adjusted 20 tetapi raw 2000: hasil split, wajib dipertahankan.
++  it('M-07: tidak menerapkan ambang harga absolut historis pada seri split-adjusted', async () => {
++    const nominalBelow50 = { ...row('2026-01-01', 'GOCA.JK', 85, 49), raw_close_price: 49, adjusted_close_price: 49 };
+     const split = { ...row('2026-01-02', 'SPLT.JK', 85, 2000), raw_close_price: 2000, adjusted_close_price: 20 };
+ 
+-    const result = await calculateLensBucketStats([gocap, split], provider({}), '2026-01-02');
++    const result = await calculateLensBucketStats([nominalBelow50, split], provider({}), '2026-01-02');
+ 
+-    expect(result.skippedGocapRows).toBe(1);
+-    expect(result.sourceRows).toBe(1);
++    expect(result.skippedGocapRows).toBe(0);
++    expect(result.sourceRows).toBe(2);
+   });
+ });
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/calibration.service.test.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/calibration.service.test.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/calibration.service.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/calibration.service.test.ts	2026-08-16 18:15:09.014787084 +0000
+@@ -2,6 +2,7 @@
+ import {
+   calculateCalibrationObservations,
+   calculateThresholdSimulations,
++  buildFundamentalPitCoverage,
+   decorrelateCalibrationObservations,
+   recommendCalibrationThreshold,
+   welchOneTailedGreater,
+@@ -28,6 +29,7 @@
+     // pengguna. Kasus yang ditolak gerbang ini diuji eksplisit di test tersendiri.
+     coverage_pct: 100,
+     eligibility_status: 'ELIGIBLE',
++    universe_eligible: true,
+   };
+ }
+ 
+@@ -38,7 +40,7 @@
+     // tanggal baris histori, dan itu yang sedang diuji.
+     async getIdxTradingCalendarDates() { return []; },
+     async getDailyOpenBars(ticker: string) {
+-      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, priceBasis: RETURN_PRICE_BASIS }));
++      return Object.entries(openByTicker[ticker] ?? {}).map(([date, open]) => ({ date, open, close: open, priceBasis: RETURN_PRICE_BASIS }));
+     },
+   };
+ }
+@@ -97,13 +99,27 @@
+       row('2026-01-21', 'AAAA.JK', 85, 110),
+     );
+     const result = await calculateCalibrationObservations(rows, provider({
+-      'AAAA.JK': { '2026-01-02': 505 },
++      'AAAA.JK': { '2026-01-02': 505, '2026-01-03': 100, '2026-01-21': 110 },
+     }));
+ 
+     expect(result.observations[0]?.returnT20).toBeNull();
+     expect(result.observations[0]?.exitDateT20).toBeNull();
+   });
+ 
++  it('H-06: melaporkan coverage fundamental PIT tanpa mengisi missing sebagai skor netral', () => {
++    const rows = [
++      { ...row('2026-01-01', 'AAAA.JK', 85, 100), fundamental_available_max: 30 },
++      { ...row('2026-01-01', 'BBBB.JK', 75, 100), fundamental_available_max: 0 },
++      { ...row('2026-01-02', 'AAAA.JK', 85, 101), fundamental_available_max: null },
++    ];
++    const coverage = buildFundamentalPitCoverage(rows);
++    expect(coverage.status).toBe('MIXED_FUNDAMENTAL_COVERAGE');
++    expect(coverage.totalRows).toBe(3);
++    expect(coverage.rowsWithFundamental).toBe(1);
++    expect(coverage.coveragePct).toBe(33.33);
++    expect(coverage.byDate[0]).toMatchObject({ date: '2026-01-01', totalRows: 2, rowsWithFundamental: 1, coveragePct: 50 });
++  });
++
+   it('menghitung simulasi threshold win rate dan perubahan jumlah sinyal vs ambang 80', () => {
+     const observations: CalibrationObservation[] = [
+       { ticker: 'A', signalDate: '2026-01-01', entryDate: '2026-01-02', exitDateT20: '2026-01-21', lensScore: 85, bucket: '80-100', marketCap: null, returnT5: 1, returnT20: 5 },
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/history-archive.service.test.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/history-archive.service.test.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/history-archive.service.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/history-archive.service.test.ts	2026-08-16 18:22:43.722254939 +0000
+@@ -39,7 +39,14 @@
+     const db = captureDb();
+ 
+     const saved = await archiveLensRadarHistory(
+-      [{ symbol: 'BBCA', price: 10_000, totalScore: 82, coverage: 95, marketCap: 1e15 }],
++      [{
++        symbol: 'BBCA', price: 10_000, totalScore: 82, coverage: 95, marketCap: 1e15,
++        eligibilityStatus: 'ELIGIBLE', eligibilityReasons: [],
++        availableMax: { technical: 40, fundamental: 30, flow: 30 },
++        universeEligible: true, universeReasonCodes: [], universeAvgClose63d: 9_800,
++        universeAvgValue63d: 5_000_000_000, universeAnnualVolPct: 25,
++        universeMethodVersion: 'pit-universe-v1',
++      }],
+       '2026-08-05',
+       db
+     );
+@@ -62,6 +69,13 @@
+       'corporate_action_status',
+       'price_data_timestamp',
+       'price_data_version',
++      'eligibility_status',
++      'technical_available_max',
++      'fundamental_available_max',
++      'flow_available_max',
++      'universe_eligible',
++      'universe_avg_value_63d',
++      'universe_method_version',
+     ]) {
+       expect(sql).toContain(column);
+     }
+@@ -74,6 +88,9 @@
+ 
+     expect(params).toContain(TRADING_PRICE_BASIS);
+     expect(params).toContain(PRICE_ADJUSTMENT_VERSION);
++    expect(params).toContain('ELIGIBLE');
++    expect(params).toContain(true);
++    expect(params).toContain('pit-universe-v1');
+ 
+     const timestamp = params.find((param) => typeof param === 'string' && Number.isFinite(Date.parse(param as string)));
+     expect(typeof timestamp).toBe('string');
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/validation-population.test.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/validation-population.test.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/__tests__/validation-population.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/__tests__/validation-population.test.ts	2026-08-16 18:07:09.624525571 +0000
+@@ -1,64 +1,40 @@
+ import { describe, expect, it } from 'vitest';
+ import {
+-  countValidationPopulationRejection,
+   emptyValidationPopulationCounters,
+   MIN_VALIDATION_COVERAGE_PCT,
++  countValidationPopulationRejection,
+   rejectFromValidationPopulation,
+ } from '../validation-population';
+-import { MIN_COVERAGE_FOR_RECOMMENDATION } from '@/modules/eligibility';
+ 
+-// REGRESI H-01 (audit kuantitatif 2026-08-11): populasi backtest harus sama dengan
+-// populasi yang benar-benar bisa direkomendasikan produksi.
++const eligible = { coverage_pct: 100, eligibility_status: 'ELIGIBLE', universe_eligible: true };
+ 
+ describe('rejectFromValidationPopulation', () => {
+-  const eligible = { coverage_pct: 100, eligibility_status: 'ELIGIBLE' };
+-
+-  it('meloloskan baris yang lengkap dan layak', () => {
+-    expect(rejectFromValidationPopulation(eligible)).toBeNull();
+-  });
+-
+-  it('menolak kelengkapan data di bawah ambang rekomendasi produksi', () => {
+-    expect(rejectFromValidationPopulation({ ...eligible, coverage_pct: MIN_VALIDATION_COVERAGE_PCT - 1 }))
+-      .toBe('LOW_COVERAGE');
+-    expect(rejectFromValidationPopulation({ ...eligible, coverage_pct: MIN_VALIDATION_COVERAGE_PCT }))
+-      .toBeNull();
+-  });
+-
+-  it('memakai ambang yang SAMA dengan gerbang produksi, bukan salinannya', () => {
+-    // Kalau assertion ini gagal, ambang backtest dan ambang rekomendasi sudah berpisah -
+-    // yaitu keadaan yang temuan H-01 laporkan.
+-    expect(MIN_VALIDATION_COVERAGE_PCT).toBe(MIN_COVERAGE_FOR_RECOMMENDATION);
++  it('accepts only production-eligible PIT rows', () => expect(rejectFromValidationPopulation(eligible)).toBeNull());
++  it('rejects low coverage', () => {
++    expect(rejectFromValidationPopulation({ ...eligible, coverage_pct: MIN_VALIDATION_COVERAGE_PCT - 1 })).toBe('LOW_COVERAGE');
++    expect(rejectFromValidationPopulation({ ...eligible, coverage_pct: MIN_VALIDATION_COVERAGE_PCT })).toBeNull();
+   });
+-
+-  it('menolak status kelayakan apa pun selain ELIGIBLE', () => {
+-    for (const status of ['LOW_LIQUIDITY', 'INSUFFICIENT_HISTORY', 'STALE_DATA', 'POSSIBLY_NOT_TRADED', 'INSUFFICIENT_DATA']) {
++  it('rejects non-eligible statuses', () => {
++    for (const status of ['LOW_LIQUIDITY', 'STALE_DATA', 'INSUFFICIENT_DATA']) {
+       expect(rejectFromValidationPopulation({ ...eligible, eligibility_status: status })).toBe('NOT_ELIGIBLE');
+     }
+   });
+-
+-  it('FAIL-CLOSED: baris lama tanpa kolom gerbang ditolak, bukan diloloskan', () => {
++  it('fails closed on unknown audit fields', () => {
+     expect(rejectFromValidationPopulation({})).toBe('UNKNOWN_COVERAGE');
+-    expect(rejectFromValidationPopulation({ coverage_pct: null, eligibility_status: 'ELIGIBLE' })).toBe('UNKNOWN_COVERAGE');
+     expect(rejectFromValidationPopulation({ coverage_pct: 100 })).toBe('UNKNOWN_ELIGIBILITY');
+-    expect(rejectFromValidationPopulation({ coverage_pct: 100, eligibility_status: '  ' })).toBe('UNKNOWN_ELIGIBILITY');
++    expect(rejectFromValidationPopulation({ coverage_pct: 100, eligibility_status: 'ELIGIBLE' })).toBe('UNKNOWN_PIT_UNIVERSE');
+   });
+-
+-  it('menerima NUMERIC Postgres yang kembali sebagai string', () => {
+-    expect(rejectFromValidationPopulation({ coverage_pct: '100', eligibility_status: 'ELIGIBLE' })).toBeNull();
+-    expect(rejectFromValidationPopulation({ coverage_pct: '40', eligibility_status: 'ELIGIBLE' })).toBe('LOW_COVERAGE');
+-    expect(rejectFromValidationPopulation({ coverage_pct: 'entah', eligibility_status: 'ELIGIBLE' })).toBe('UNKNOWN_COVERAGE');
++  it('rejects rows outside the PIT universe', () => {
++    expect(rejectFromValidationPopulation({ ...eligible, universe_eligible: false })).toBe('OUTSIDE_PIT_UNIVERSE');
+   });
+-});
+-
+-describe('countValidationPopulationRejection', () => {
+-  it('mencatat tiap alasan terpisah dan melaporkan apakah baris ditolak', () => {
++  it('parses postgres-like string/number booleans', () => {
++    expect(rejectFromValidationPopulation({ coverage_pct: '100', eligibility_status: 'ELIGIBLE', universe_eligible: 'true' })).toBeNull();
++  });
++  it('counts new PIT rejection reasons', () => {
+     const counters = emptyValidationPopulationCounters();
+-    expect(countValidationPopulationRejection(counters, null)).toBe(false);
+-    expect(countValidationPopulationRejection(counters, 'LOW_COVERAGE')).toBe(true);
+-    countValidationPopulationRejection(counters, 'LOW_COVERAGE');
+-    countValidationPopulationRejection(counters, 'NOT_ELIGIBLE');
+-    countValidationPopulationRejection(counters, 'UNKNOWN_COVERAGE');
+-    countValidationPopulationRejection(counters, 'UNKNOWN_ELIGIBILITY');
+-    expect(counters).toEqual({ lowCoverage: 2, unknownCoverage: 1, notEligible: 1, unknownEligibility: 1 });
++    expect(countValidationPopulationRejection(counters, 'OUTSIDE_PIT_UNIVERSE')).toBe(true);
++    expect(countValidationPopulationRejection(counters, 'UNKNOWN_PIT_UNIVERSE')).toBe(true);
++    expect(counters.outsidePitUniverse).toBe(1);
++    expect(counters.unknownPitUniverse).toBe(1);
+   });
+ });
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/bucket-backtest.service.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/bucket-backtest.service.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/bucket-backtest.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/bucket-backtest.service.ts	2026-08-16 18:11:53.966830226 +0000
+@@ -7,7 +7,6 @@
+   barAtTradingOffset,
+   buildIdxTradingCalendar,
+   hasCorporateActionGap,
+-  MIN_TRADABLE_PRICE_IDR,
+   drawdownPercentile95Pct,
+   worstTradeDrawdownPct,
+ } from './history-return-utils';
+@@ -25,7 +24,6 @@
+ import type { TradingCalendarSource } from './history-return-utils';
+ 
+ import { ADV_HARD_FLOOR_IDR } from '@/modules/eligibility';
+-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
+ import {
+   countValidationPopulationRejection,
+   emptyValidationPopulationCounters,
+@@ -72,6 +70,8 @@
+   avg_value_20d?: number | string | null;
+   coverage_pct?: number | string | null;
+   eligibility_status?: string | null;
++  fundamental_available_max?: number | string | null;
++  universe_eligible?: boolean | string | number | null;
+ }
+ 
+ export interface DailyOpenBar {
+@@ -115,7 +115,7 @@
+   sourceRows: number;
+   uniqueTickers: number;
+   roundTripCostPct: number;
+-  /** Baris dibuang karena harga raw di bawah tick minimum IDX. */
++  /** Kompatibilitas API lama. Selalu 0 sejak M-07 karena filter harga absolut historis dinonaktifkan. */
+   skippedGocapRows: number;
+   /** Baris dibuang karena ADV20 pada tanggal sinyal di bawah lantai likuiditas. */
+   skippedIlliquidRows: number;
+@@ -254,12 +254,11 @@
+ }
+ 
+ /**
+- * Ambang gocap hanya diuji pada harga RAW. Harga adjusted bisa turun di bawah 50
+- * karena faktor split, dan membuangnya akan menghapus histori yang sah.
++ * M-07: filter harga absolut historis dinonaktifkan. Provider quote OHLC bersifat
++ * split-adjusted lintas corporate action, sehingga ambang nominal Rp50 masa lalu
++ * tidak bisa diaudit tanpa seri harga transaksi asli. Counter dipertahankan untuk
++ * kompatibilitas response lama dan akan tetap 0.
+  */
+-function isGocapRawPrice(rawClosePrice: number | null): boolean {
+-  return rawClosePrice != null && rawClosePrice < MIN_TRADABLE_PRICE_IDR;
+-}
+ 
+ interface NormalizeOutcome {
+   entries: NormalizedEntry[];
+@@ -292,10 +291,8 @@
+         !isFinitePositive(adjustedClosePrice) ||
+         !isValidCorporateActionStatus(row.corporate_action_status)
+       ) return null;
+-      if (isGocapRawPrice(rawClosePrice)) {
+-        skippedGocap++;
+-        return null;
+-      }
++      // M-07: no historical absolute-price/gocap filter. Yahoo quote OHLC is
++      // split-adjusted retroactively, so a historical Rp50 threshold is not auditable.
+       // Baris tanpa ADV20 dihitung terpisah lalu DIBUANG. Meloloskannya berarti angka
+       // performa bucket kembali memuat sinyal yang likuiditasnya tidak pernah diuji -
+       // persis klaim yang gerbang ini ada untuk mencegahnya.
+@@ -353,11 +350,16 @@
+   low: number | null;
+ }
+ 
++interface LoadedMarketBars {
++  byDate: Map<string, IntradayBar>;
++  fullCloseSeries: Array<{ date: string; closePrice: number }>;
++}
++
+ async function loadBarMaps(
+   tickers: string[],
+   provider: DailyOpenProvider
+-): Promise<Map<string, Map<string, IntradayBar>>> {
+-  const result = new Map<string, Map<string, IntradayBar>>();
++): Promise<Map<string, LoadedMarketBars>> {
++  const result = new Map<string, LoadedMarketBars>();
+   for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
+     const batch = tickers.slice(i, i + BATCH_SIZE);
+     const barsList = await Promise.all(batch.map(async (ticker) => ({
+@@ -365,11 +367,18 @@
+       bars: await provider.getDailyOpenBars(ticker).catch(() => []),
+     })));
+     for (const { ticker, bars } of barsList) {
+-      result.set(ticker, new Map(
+-        bars
+-          .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
+-          .map((bar) => [bar.date, { open: bar.open, low: isFinitePositive(bar.low) ? bar.low : null }])
+-      ));
++      const usable = bars.filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS);
++      result.set(ticker, {
++        byDate: new Map(
++          usable.filter((bar) => isFinitePositive(bar.open))
++            .map((bar) => [bar.date, { open: bar.open, low: isFinitePositive(bar.low) ? bar.low : null }])
++        ),
++        // M-13: corporate-action detection must see every provider bar, not only
++        // LensRadar rows that survived liquidity/coverage filters.
++        fullCloseSeries: usable
++          .filter((bar) => isFinitePositive(bar.close))
++          .map((bar) => ({ date: bar.date, closePrice: bar.close as number })),
++      });
+     }
+   }
+   return result;
+@@ -437,7 +446,8 @@
+   let skippedNoForwardEntry = 0;
+ 
+   for (const [ticker, series] of Array.from(byTicker.entries())) {
+-    const barsByDate = barMaps.get(ticker) ?? new Map<string, IntradayBar>();
++    const loadedBars = barMaps.get(ticker) ?? { byDate: new Map<string, IntradayBar>(), fullCloseSeries: [] };
++    const barsByDate = loadedBars.byDate;
+     const byDate = new Map(series.map((row) => [row.date, row]));
+     for (let i = 0; i < series.length; i++) {
+       const signal = series[i];
+@@ -468,7 +478,7 @@
+         // horizon lain yang dijaga ketat.
+         if (exit.date < entry.date) return;
+         if (horizon !== 'T1' && exit.date === entry.date) return;
+-        if (hasCorporateActionGap(series, entry.date, exit.date)) return;
++        if (hasCorporateActionGap(loadedBars.fullCloseSeries, entry.date, exit.date)) return;
+         const ret = calculateForwardReturnPct({
+           ticker,
+           entryBar: {
+@@ -549,13 +559,16 @@
+     };
+   });
+ 
++  const productionGateRejected =
++    productionGate.lowCoverage + productionGate.notEligible +
++    productionGate.unknownCoverage + productionGate.unknownEligibility +
++    productionGate.outsidePitUniverse + productionGate.unknownPitUniverse;
+   logger.info(
+-    `lens-bucket-backtest: filtered ${skippedGocap + skippedIlliquid + unknownLiquidity + skippedNoForwardEntry + skippedNoLow + productionGate.lowCoverage + productionGate.notEligible + productionGate.unknownCoverage + productionGate.unknownEligibility} dirty rows out of ${partition.accepted.length} ` +
+-    `(gocap raw < ${MIN_TRADABLE_PRICE_IDR}: ${skippedGocap}, ` +
++    `lens-bucket-backtest: filtered ${skippedIlliquid + unknownLiquidity + skippedNoForwardEntry + skippedNoLow + productionGateRejected} dirty rows out of ${partition.accepted.length} ` +
++    `(historical absolute-price filter disabled M-07, ` +
+     `ADV20 < ${LENS_BUCKET_MIN_AVG_VALUE_20D_IDR}: ${skippedIlliquid}, ` +
+     `ADV20 tidak diketahui: ${unknownLiquidity}, ` +
+-    `gerbang produksi (coverage<${MIN_VALIDATION_COVERAGE_PCT}/tidak layak/tidak diketahui): ` +
+-    `${productionGate.lowCoverage}/${productionGate.notEligible}/${productionGate.unknownCoverage + productionGate.unknownEligibility}, ` +
++    `gerbang produksi/PIT-universe rejected: ${productionGateRejected}, ` +
+     `tanpa bar entry maju: ${skippedNoForwardEntry}, ` +
+     `T+20 tanpa low valid: ${skippedNoLow} dari ${t20Trades} trade T+20)`
+   );
+@@ -593,14 +606,12 @@
+     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
+            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+            corporate_action_status, price_data_timestamp, price_data_version,
+-           avg_value_20d, coverage_pct, eligibility_status
++           avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
+     FROM lens_radar_history
+     WHERE lens_score IS NOT NULL
+       AND close_price IS NOT NULL
+-      AND COALESCE(universe_version, $1) = $1
+     ORDER BY ticker ASC, "date" ASC
+-    `,
+-    [LEGACY_VALIDATED_UNIVERSE_VERSION]
++    `
+   );
+   return rows as LensRadarHistoryEntry[];
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/calibration.service.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/calibration.service.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/calibration.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/calibration.service.ts	2026-08-16 18:25:50.108445441 +0000
+@@ -55,7 +55,6 @@
+   type CorporateActionStatus,
+   type PriceBasis,
+ } from '@/shared/market/price-basis';
+-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
+ 
+ const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
+ const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
+@@ -139,6 +138,26 @@
+   note: string;
+ }
+ 
++export interface FundamentalCoverageByDateRow {
++  date: string;
++  totalRows: number;
++  rowsWithFundamental: number;
++  coveragePct: number;
++}
++
++export interface FundamentalPitCoverageDiagnostic {
++  totalRows: number;
++  rowsWithFundamental: number;
++  coveragePct: number | null;
++  status:
++    | 'NO_HISTORY'
++    | 'NO_FUNDAMENTAL_COVERAGE'
++    | 'MIXED_FUNDAMENTAL_COVERAGE'
++    | 'FULL_FUNDAMENTAL_COVERAGE';
++  byDate: FundamentalCoverageByDateRow[];
++  note: string;
++}
++
+ export interface CalibrationDashboardData {
+   asOfDate: string;
+   latestStatsRunDate: string | null;
+@@ -179,6 +198,8 @@
+   /** Kalibrasi sungguhan - reliability bin, Wilson CI, Brier, ECE, isotonic (temuan C-04).
+    * Sebelum ini, modul bernama "Calibration Lab" hanya mengukur discrimination. */
+   scoreCalibration: ScoreCalibrationResult;
++  /** Diagnostic H-06: apakah baris historis score-version ini benar-benar membawa fundamental PIT. */
++  fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
+   thresholdSimulations: ThresholdSimulation[];
+ }
+ 
+@@ -345,11 +366,67 @@
+     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
+ }
+ 
++export function buildFundamentalPitCoverage(
++  rows: LensRadarHistoryEntry[]
++): FundamentalPitCoverageDiagnostic {
++  const byDate = new Map<string, { totalRows: number; rowsWithFundamental: number }>();
++  let totalRows = 0;
++  let rowsWithFundamental = 0;
++
++  for (const row of rows) {
++    const date = dateKey(row.date);
++    if (!date) continue;
++    const hasFundamental = (finiteNumber(row.fundamental_available_max ?? null) ?? 0) > 0;
++    totalRows++;
++    if (hasFundamental) rowsWithFundamental++;
++    const current = byDate.get(date) ?? { totalRows: 0, rowsWithFundamental: 0 };
++    current.totalRows++;
++    if (hasFundamental) current.rowsWithFundamental++;
++    byDate.set(date, current);
++  }
++
++  const coveragePct = totalRows > 0 ? Math.round((rowsWithFundamental / totalRows) * 10000) / 100 : null;
++  const status: FundamentalPitCoverageDiagnostic['status'] =
++    totalRows === 0 ? 'NO_HISTORY'
++      : rowsWithFundamental === 0 ? 'NO_FUNDAMENTAL_COVERAGE'
++        : rowsWithFundamental === totalRows ? 'FULL_FUNDAMENTAL_COVERAGE'
++          : 'MIXED_FUNDAMENTAL_COVERAGE';
++
++  const note = status === 'NO_FUNDAMENTAL_COVERAGE'
++    ? 'Tidak ada fundamental PIT pada row histori ini. Hasil bucket/calibration tidak boleh ditafsirkan sebagai LensScore dengan fundamental lengkap; row yang lolos gerbang produksi dapat berasal dari technical+flow yang dinormalisasi pada komponen tersedia.'
++    : status === 'MIXED_FUNDAMENTAL_COVERAGE'
++      ? 'Cakupan fundamental PIT campuran. Hasil bucket/calibration mencampur row dengan dan tanpa komponen fundamental; gunakan coverage per tanggal sebelum menarik kesimpulan model.'
++      : status === 'FULL_FUNDAMENTAL_COVERAGE'
++        ? 'Semua row histori pada score-version yang diminta memiliki komponen fundamental PIT. Nilai fundamental tidak pernah diisi dengan skor netral buatan.'
++        : 'Belum ada row histori untuk score-version yang diminta.';
++
++  return {
++    totalRows,
++    rowsWithFundamental,
++    coveragePct,
++    status,
++    byDate: Array.from(byDate.entries())
++      .sort(([a], [b]) => a.localeCompare(b))
++      .map(([date, value]) => ({
++        date,
++        totalRows: value.totalRows,
++        rowsWithFundamental: value.rowsWithFundamental,
++        coveragePct: Math.round((value.rowsWithFundamental / value.totalRows) * 10000) / 100,
++      })),
++    note,
++  };
++}
++
++interface LoadedCalibrationBars {
++  openByDate: Map<string, number>;
++  fullCloseSeries: Array<{ date: string; closePrice: number }>;
++}
++
+ async function loadOpenMaps(
+   tickers: string[],
+   provider: DailyOpenProvider
+-): Promise<Map<string, Map<string, number>>> {
+-  const result = new Map<string, Map<string, number>>();
++): Promise<Map<string, LoadedCalibrationBars>> {
++  const result = new Map<string, LoadedCalibrationBars>();
+   for (let i = 0; i < tickers.length; i += OPEN_FETCH_BATCH_SIZE) {
+     const batch = tickers.slice(i, i + OPEN_FETCH_BATCH_SIZE);
+     const barsList = await Promise.all(batch.map(async (ticker) => ({
+@@ -357,11 +434,17 @@
+       bars: await provider.getDailyOpenBars(ticker).catch(() => []),
+     })));
+     for (const { ticker, bars } of barsList) {
+-      result.set(ticker, new Map(
+-        bars
+-          .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
+-          .map((bar) => [bar.date, bar.open])
+-      ));
++      const usable = bars.filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS);
++      result.set(ticker, {
++        openByDate: new Map(
++          usable.filter((bar) => isFinitePositive(bar.open)).map((bar) => [bar.date, bar.open])
++        ),
++        // M-13: corporate-action gap memakai semua bar provider, bukan hanya bar
++        // LensRadar yang lolos filter likuiditas/coverage.
++        fullCloseSeries: usable
++          .filter((bar) => isFinitePositive(bar.close))
++          .map((bar) => ({ date: bar.date, closePrice: bar.close as number })),
++      });
+     }
+   }
+   return result;
+@@ -387,9 +470,11 @@
+   unversionedRows: number;
+   versionMixed: boolean;
+   versionRejectedReason: string | null;
++  fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
+ }> {
+   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+   const partition = partitionByScoreVersion(rows, requestedScoreVersion);
++  const fundamentalPitCoverage = buildFundamentalPitCoverage(partition.accepted);
+   const productionGate = emptyValidationPopulationCounters();
+   const normalized = normalizeHistory(partition.accepted, productionGate);
+   const calendar = buildIdxTradingCalendar(
+@@ -411,7 +496,11 @@
+   let skippedNoForwardEntry = 0;
+ 
+   for (const [ticker, series] of Array.from(byTicker.entries())) {
+-    const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
++    const marketBars = openMaps.get(ticker) ?? {
++      openByDate: new Map<string, number>(),
++      fullCloseSeries: [],
++    };
++    const openByDate = marketBars.openByDate;
+     const byDate = new Map(series.map((row) => [row.date, row]));
+     for (let i = 0; i < series.length; i++) {
+       const signal = series[i];
+@@ -437,7 +526,7 @@
+         // menariknya sampai bertemu bar entry, dan return nol-hari itu bukan pengukuran
+         // horizon T+5 maupun T+20 (temuan C-03, kasus turunan).
+         if (exit.date <= entry.date) return null;
+-        if (hasCorporateActionGap(series, entry.date, exit.date)) return null;
++        if (hasCorporateActionGap(marketBars.fullCloseSeries, entry.date, exit.date)) return null;
+         const ret = calculateForwardReturnPct({
+           ticker,
+           entryBar: {
+@@ -503,6 +592,7 @@
+     unversionedRows: partition.unversionedCount,
+     versionMixed: partition.mixed,
+     versionRejectedReason: partition.rejectedReason,
++    fundamentalPitCoverage,
+   };
+ }
+ 
+@@ -512,14 +602,12 @@
+     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
+            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+            corporate_action_status, price_data_timestamp, price_data_version,
+-           avg_value_20d, coverage_pct, eligibility_status
++           avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
+     FROM lens_radar_history
+     WHERE lens_score IS NOT NULL
+       AND close_price IS NOT NULL
+-      AND COALESCE(universe_version, $1) = $1
+     ORDER BY ticker ASC, "date" ASC
+-    `,
+-    [LEGACY_VALIDATED_UNIVERSE_VERSION]
++    `
+   );
+   return rows as LensRadarHistoryEntry[];
+ }
+@@ -844,6 +932,7 @@
+     unversionedRows,
+     versionMixed,
+     versionRejectedReason,
++    fundamentalPitCoverage,
+   } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
+   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
+   // Calibration Lab harus membandingkan angka dari population yang sama. Sebelumnya
+@@ -904,6 +993,7 @@
+     // interval Wilson mengasumsikan pengamatan independen, dan satu ticker yang menyumbang
+     // beberapa jendela T+20 yang tumpang tindih akan mempersempit CI itu secara palsu.
+     scoreCalibration: buildScoreCalibration(effectiveT20),
++    fundamentalPitCoverage,
+     thresholdSimulations: calculateThresholdSimulations(observations),
+   };
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/history-archive.service.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/history-archive.service.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/history-archive.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/history-archive.service.ts	2026-08-16 18:07:24.873766567 +0000
+@@ -24,6 +24,19 @@
+   /** ADV20 rupiah pada tanggal scan. Gerbang likuiditas backtest membaca kolom ini. */
+   avgValue20d?: number | null;
+   coverage?: number | null;
++  eligibilityStatus?: string | null;
++  eligibilityReasons?: string[] | null;
++  availableMax?: {
++    technical?: number | null;
++    fundamental?: number | null;
++    flow?: number | null;
++  } | null;
++  universeEligible?: boolean | null;
++  universeReasonCodes?: string[] | null;
++  universeAvgClose63d?: number | null;
++  universeAvgValue63d?: number | null;
++  universeAnnualVolPct?: number | null;
++  universeMethodVersion?: string | null;
+   breakdown?: {
+     technical?: number | null;
+     fundamental?: number | null;
+@@ -61,10 +74,13 @@
+         calculation_timestamp,
+         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+         corporate_action_status, price_data_timestamp, price_data_version,
+-        avg_value_20d,
++        avg_value_20d, eligibility_status, eligibility_reason_codes,
++        technical_available_max, fundamental_available_max, flow_available_max,
++        universe_eligible, universe_reason_codes, universe_avg_close_63d,
++        universe_avg_value_63d, universe_annual_vol_pct, universe_method_version,
+         updated_at
+       )
+-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, now())
++      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, now())
+       ON CONFLICT (date, ticker) DO UPDATE SET
+         lens_score = EXCLUDED.lens_score,
+         close_price = EXCLUDED.close_price,
+@@ -87,6 +103,17 @@
+         price_data_timestamp = EXCLUDED.price_data_timestamp,
+         price_data_version = EXCLUDED.price_data_version,
+         avg_value_20d = EXCLUDED.avg_value_20d,
++        eligibility_status = EXCLUDED.eligibility_status,
++        eligibility_reason_codes = EXCLUDED.eligibility_reason_codes,
++        technical_available_max = EXCLUDED.technical_available_max,
++        fundamental_available_max = EXCLUDED.fundamental_available_max,
++        flow_available_max = EXCLUDED.flow_available_max,
++        universe_eligible = EXCLUDED.universe_eligible,
++        universe_reason_codes = EXCLUDED.universe_reason_codes,
++        universe_avg_close_63d = EXCLUDED.universe_avg_close_63d,
++        universe_avg_value_63d = EXCLUDED.universe_avg_value_63d,
++        universe_annual_vol_pct = EXCLUDED.universe_annual_vol_pct,
++        universe_method_version = EXCLUDED.universe_method_version,
+         updated_at = now()
+       `,
+       [
+@@ -113,6 +140,17 @@
+         item.priceDataTimestamp ?? versionStamp.calculation_timestamp,
+         item.priceDataVersion ?? PRICE_ADJUSTMENT_VERSION,
+         finiteNumber(item.avgValue20d),
++        typeof item.eligibilityStatus === 'string' ? item.eligibilityStatus : null,
++        Array.isArray(item.eligibilityReasons) && item.eligibilityReasons.length ? item.eligibilityReasons.join(',') : null,
++        finiteNumber(item.availableMax?.technical),
++        finiteNumber(item.availableMax?.fundamental),
++        finiteNumber(item.availableMax?.flow),
++        typeof item.universeEligible === 'boolean' ? item.universeEligible : null,
++        Array.isArray(item.universeReasonCodes) && item.universeReasonCodes.length ? item.universeReasonCodes.join(',') : null,
++        finiteNumber(item.universeAvgClose63d),
++        finiteNumber(item.universeAvgValue63d),
++        finiteNumber(item.universeAnnualVolPct),
++        typeof item.universeMethodVersion === 'string' ? item.universeMethodVersion : null,
+       ]
+     );
+     saved++;
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/lens-score-optimizer.service.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/lens-score-optimizer.service.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/lens-score-optimizer.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/lens-score-optimizer.service.ts	2026-08-16 18:13:24.659753987 +0000
+@@ -1,6 +1,5 @@
+ import { pool } from '@/shared/database/postgres.client';
+ import { ensureSharedSchema } from '@/shared/database/schema.service';
+-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
+ import { todayDateKeyWIB } from '@/shared/market/trading-session';
+ import {
+   calculateCalibrationObservations,
+@@ -343,15 +342,16 @@
+       eligibility_status,
+       technical_available_max,
+       fundamental_available_max,
+-      flow_available_max
++      flow_available_max,
++      universe_eligible
+     FROM lens_radar_history
+     WHERE lens_score IS NOT NULL
+       AND close_price IS NOT NULL
+       AND ($1::date IS NULL OR "date" >= $1::date)
+-      AND COALESCE(universe_version, $2) = $2
++      AND universe_eligible = TRUE
+     ORDER BY ticker ASC, "date" ASC
+     `,
+-    [startDate, LEGACY_VALIDATED_UNIVERSE_VERSION]
++    [startDate]
+   );
+   return rows as LensRadarHistoryWithComponents[];
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/transparency.service.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/transparency.service.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/transparency.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/transparency.service.ts	2026-08-16 18:17:42.523936866 +0000
+@@ -30,14 +30,13 @@
+   VALIDATION_LIMITATIONS,
+   VALIDATION_LIMITATIONS_REVIEWED_ON,
+ } from '../constants/validation-limitations';
+-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
+ import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
+ 
+ const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
+ // v2: payload sekarang membedakan observasi mentah, sampel efektif per bucket edge,
+ // dan hari sinyal yang benar-benar lolos populasi validasi. Cache lama tidak boleh
+ // membuat UI terus menampilkan penyebut yang sudah tidak tepat.
+-export const TRANSPARENCY_CACHE_VERSION = 'audit-v2';
++export const TRANSPARENCY_CACHE_VERSION = 'audit-v3-pit-universe';
+ // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
+ // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
+ // tampak sehat tetapi audit trail versi tidak terbawa.
+@@ -278,14 +277,12 @@
+     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
+            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
+            corporate_action_status, price_data_timestamp, price_data_version,
+-           avg_value_20d, coverage_pct, eligibility_status
++           avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
+     FROM lens_radar_history
+     WHERE lens_score IS NOT NULL
+       AND close_price IS NOT NULL
+-      AND COALESCE(universe_version, $1) = $1
+     ORDER BY ticker ASC, "date" ASC
+-    `,
+-    [LEGACY_VALIDATED_UNIVERSE_VERSION]
++    `
+   );
+   return rows as LensRadarHistoryEntry[];
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/lens-radar/service/validation-population.ts sahamlens_work/sahamlens-main/modules/lens-radar/service/validation-population.ts
+--- sahamlens_orig/sahamlens-main/modules/lens-radar/service/validation-population.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/lens-radar/service/validation-population.ts	2026-08-16 18:07:09.623432605 +0000
+@@ -1,32 +1,20 @@
+ import { MIN_COVERAGE_FOR_RECOMMENDATION } from '@/modules/eligibility';
+ 
+-// SIAPA YANG BOLEH MASUK POPULASI VALIDASI - satu definisi, dipakai bucket backtest,
+-// calibration lab, dan (lewat calibration) halaman Transparency.
+-//
+-// BUG FIX (audit kuantitatif 2026-08-11, temuan H-01): sebelumnya tidak ada gerbang ini
+-// sama sekali. Produksi menolak memberi rekomendasi kalau `coverage_pct` di bawah 55%
+-// (getKategori -> 'DATA TIDAK CUKUP') atau kalau evaluateMinimalEligibility() tidak
+-// mengembalikan ELIGIBLE - histori < 200 bar, kemungkinan tidak diperdagangkan, data
+-// basi, likuiditas di bawah lantai. Backtest tidak menerapkan satu pun dari itu.
+-//
+-// Akibatnya tabel bucket, t-test, dan equity curve di halaman Transparency publik
+-// menghitung sinyal yang aplikasinya sendiri TIDAK AKAN PERNAH rekomendasikan. Pembaca
+-// menafsirkannya sebagai "kalau saya beli saham skor 80+, historisnya begini" - padahal
+-// sebagian sinyal di angka itu tidak pernah bisa ia terima.
+-//
+-// Ambangnya sengaja DI-IMPOR dari gerbang produksi, bukan ditulis ulang. Kalau produksi
+-// menaikkan ambang kelengkapan dan angka di sini tertinggal, backtest kembali mengukur
+-// populasi yang berbeda - persis kegagalan yang gerbang ini ada untuk mencegahnya.
+-
++// Satu definisi populasi validasi. Coverage + eligibility wajib identik dengan produksi,
++// dan membership universe wajib point-in-time (H-01/H-02). Histori lama yang belum punya
++// universe_eligible ditolak fail-closed sampai PIT backfill diulang.
+ export type ValidationPopulationRejection =
+   | 'LOW_COVERAGE'
+   | 'UNKNOWN_COVERAGE'
+   | 'NOT_ELIGIBLE'
+-  | 'UNKNOWN_ELIGIBILITY';
++  | 'UNKNOWN_ELIGIBILITY'
++  | 'OUTSIDE_PIT_UNIVERSE'
++  | 'UNKNOWN_PIT_UNIVERSE';
+ 
+ export interface ValidationPopulationRow {
+   coverage_pct?: number | string | null;
+   eligibility_status?: string | null;
++  universe_eligible?: boolean | string | number | null;
+ }
+ 
+ export interface ValidationPopulationCounters {
+@@ -34,10 +22,19 @@
+   unknownCoverage: number;
+   notEligible: number;
+   unknownEligibility: number;
++  outsidePitUniverse: number;
++  unknownPitUniverse: number;
+ }
+ 
+ export function emptyValidationPopulationCounters(): ValidationPopulationCounters {
+-  return { lowCoverage: 0, unknownCoverage: 0, notEligible: 0, unknownEligibility: 0 };
++  return {
++    lowCoverage: 0,
++    unknownCoverage: 0,
++    notEligible: 0,
++    unknownEligibility: 0,
++    outsidePitUniverse: 0,
++    unknownPitUniverse: 0,
++  };
+ }
+ 
+ export const MIN_VALIDATION_COVERAGE_PCT = MIN_COVERAGE_FOR_RECOMMENDATION;
+@@ -47,18 +44,14 @@
+   const n = typeof value === 'number' ? value : Number(value);
+   return Number.isFinite(n) ? n : null;
+ }
++function booleanOrNull(value: boolean | string | number | null | undefined): boolean | null {
++  if (typeof value === 'boolean') return value;
++  if (value === 1 || value === '1' || value === 'true' || value === 'TRUE') return true;
++  if (value === 0 || value === '0' || value === 'false' || value === 'FALSE') return false;
++  return null;
++}
+ 
+-/**
+- * `null` = baris boleh masuk populasi validasi. Selain itu, alasan penolakannya.
+- *
+- * FAIL-CLOSED untuk yang tidak diketahui. Baris yang diarsipkan sebelum kolom
+- * `coverage_pct`/`eligibility_status` ada TIDAK diloloskan: "kita tidak tahu apakah
+- * sinyal ini layak" bukan sinonim dari "layak". Meloloskannya akan mengembalikan persis
+- * masalah yang gerbang ini tutup, hanya lewat pintu yang lebih sunyi.
+- */
+-export function rejectFromValidationPopulation(
+-  row: ValidationPopulationRow
+-): ValidationPopulationRejection | null {
++export function rejectFromValidationPopulation(row: ValidationPopulationRow): ValidationPopulationRejection | null {
+   const coverage = numberOrNull(row.coverage_pct ?? null);
+   if (coverage == null) return 'UNKNOWN_COVERAGE';
+   if (coverage < MIN_VALIDATION_COVERAGE_PCT) return 'LOW_COVERAGE';
+@@ -67,10 +60,12 @@
+   if (!eligibility) return 'UNKNOWN_ELIGIBILITY';
+   if (eligibility !== 'ELIGIBLE') return 'NOT_ELIGIBLE';
+ 
++  const pitUniverse = booleanOrNull(row.universe_eligible ?? null);
++  if (pitUniverse == null) return 'UNKNOWN_PIT_UNIVERSE';
++  if (!pitUniverse) return 'OUTSIDE_PIT_UNIVERSE';
+   return null;
+ }
+ 
+-/** Catat penolakan ke penghitung. Mengembalikan `true` kalau baris ditolak. */
+ export function countValidationPopulationRejection(
+   counters: ValidationPopulationCounters,
+   rejection: ValidationPopulationRejection | null
+@@ -79,6 +74,8 @@
+   if (rejection === 'LOW_COVERAGE') counters.lowCoverage++;
+   else if (rejection === 'UNKNOWN_COVERAGE') counters.unknownCoverage++;
+   else if (rejection === 'NOT_ELIGIBLE') counters.notEligible++;
+-  else counters.unknownEligibility++;
++  else if (rejection === 'UNKNOWN_ELIGIBILITY') counters.unknownEligibility++;
++  else if (rejection === 'OUTSIDE_PIT_UNIVERSE') counters.outsidePitUniverse++;
++  else counters.unknownPitUniverse++;
+   return true;
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/market/constants/ai-pick-universe.ts sahamlens_work/sahamlens-main/modules/market/constants/ai-pick-universe.ts
+--- sahamlens_orig/sahamlens-main/modules/market/constants/ai-pick-universe.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/market/constants/ai-pick-universe.ts	2026-08-16 18:07:54.357322656 +0000
+@@ -17,6 +17,10 @@
+ export const LEGACY_VALIDATED_UNIVERSE_VERSION = 'idx-liquid-v1-109';
+ export const LEGACY_VALIDATED_UNIVERSE_SIZE = 109;
+ 
++// Universe khusus validasi historis: candidate superset luas, membership per tanggal
++// diputuskan hanya dari data yang tersedia sampai tanggal itu (H-02).
++export const POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION = 'idx-pit-v1-current-listing-superset';
++
+ export const AI_PICK_UNIVERSE: string[] = [
+   'BBCA.JK', 'TPIA.JK', 'BMRI.JK', 'BBRI.JK', 'BRPT.JK', 'DSSA.JK', 'AMMN.JK', 'ANTM.JK', 'TLKM.JK',
+   'ASII.JK', 'CUAN.JK', 'DEWA.JK', 'BRMS.JK', 'BREN.JK', 'BBNI.JK', 'MDKA.JK', 'TINS.JK', 'RAJA.JK',
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/recommendation/service/__tests__/lens-score-bucket-backtest.service.test.ts sahamlens_work/sahamlens-main/modules/recommendation/service/__tests__/lens-score-bucket-backtest.service.test.ts
+--- sahamlens_orig/sahamlens-main/modules/recommendation/service/__tests__/lens-score-bucket-backtest.service.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/recommendation/service/__tests__/lens-score-bucket-backtest.service.test.ts	2026-08-16 18:15:09.014993830 +0000
+@@ -19,6 +19,7 @@
+     score_version: SCORE_VERSION,
+     coverage_pct: 100,
+     eligibility_status: 'ELIGIBLE',
++    universe_eligible: true,
+   };
+ }
+ 
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/recommendation/service/ai-pick-scan.service.ts sahamlens_work/sahamlens-main/modules/recommendation/service/ai-pick-scan.service.ts
+--- sahamlens_orig/sahamlens-main/modules/recommendation/service/ai-pick-scan.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/recommendation/service/ai-pick-scan.service.ts	2026-08-16 18:07:49.308450963 +0000
+@@ -4,6 +4,7 @@
+ import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
+ import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
+ import { evaluateMinimalEligibility } from '../../eligibility';
++import { evaluatePointInTimeUniverse } from '../../backtest/service/point-in-time-universe';
+ import { logger } from '../../../shared/logger/logger';
+ import type { ScoredStock } from './ai-pick.service';
+ import { buildLongTradingSetup } from './trading-setup';
+@@ -196,16 +197,20 @@
+   // gerbang ini menanyakan hal berbeda - "apakah ada transaksi tercatat" dan "berapa
+   // nilai transaksi rata-ratanya". Memakai angka hasil estimasi untuk menjawab itu
+   // berarti menilai kelayakan atas angka yang kita karang sendiri.
++  const eligibilityBars = history.map((h) => ({
++    date: h.Date.split('T')[0],
++    close: typeof h.Close === 'number' ? h.Close : null,
++    volume: typeof h.Volume === 'number' ? h.Volume : null,
++  }));
+   const eligibility = evaluateMinimalEligibility({
+     ticker,
+     asOf: todayDateKeyWIB(),
+-    bars: history.map((h) => ({
+-      date: h.Date.split('T')[0],
+-      close: typeof h.Close === 'number' ? h.Close : null,
+-      volume: typeof h.Volume === 'number' ? h.Volume : null,
+-    })),
++    bars: eligibilityBars,
+     coveragePct: scoring.coverage_pct,
+   });
++  // H-02: archive membership yang dihitung dari data yang tersedia pada scan ini,
++  // sehingga validation tidak lagi memproyeksikan universe statis masa kini ke masa lalu.
++  const pitUniverse = evaluatePointInTimeUniverse(eligibilityBars);
+ 
+   return {
+     scored: {
+@@ -213,6 +218,10 @@
+       price: currentPrice,
+       changePct: parseFloat(changePct.toFixed(2)),
+       totalScore: scoring.total_score,
++      rawPrice: currentPrice,
++      adjustedPrice: currentAdjustedPrice,
++      priceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
++      availableMax: scoring.available_max,
+       // null kalau RSI tidak bisa dihitung - bonus "oversold" di rankAiPicks() melewati
+       // saham ini alih-alih memakai angka pengganti (temuan C-7).
+       rsi: rsi != null ? parseFloat(rsi.toFixed(1)) : null,
+@@ -233,6 +242,12 @@
+       avgValue20d: eligibility.details.adv20Idr,
+       eligibilityStatus: eligibility.status,
+       eligibilityReasons: eligibility.reasonCodes,
++      universeEligible: pitUniverse.eligible,
++      universeReasonCodes: pitUniverse.reasonCodes,
++      universeAvgClose63d: pitUniverse.avgClose63d,
++      universeAvgValue63d: pitUniverse.avgValue63d,
++      universeAnnualVolPct: pitUniverse.annualVolPct,
++      universeMethodVersion: pitUniverse.methodVersion,
+       tradeSetup: tradeSetup
+         ? {
+           tp1: tradeSetup.tp1,
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/recommendation/service/ai-pick.service.ts sahamlens_work/sahamlens-main/modules/recommendation/service/ai-pick.service.ts
+--- sahamlens_orig/sahamlens-main/modules/recommendation/service/ai-pick.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/recommendation/service/ai-pick.service.ts	2026-08-16 18:07:49.308947114 +0000
+@@ -75,6 +75,10 @@
+   price: number;
+   changePct: number;
+   totalScore: number;
++  rawPrice?: number | null;
++  adjustedPrice?: number | null;
++  priceBasis?: 'RAW' | 'SPLIT_ADJUSTED' | 'TOTAL_RETURN_ADJUSTED' | 'UNKNOWN' | null;
++  availableMax?: { technical?: number | null; fundamental?: number | null; flow?: number | null } | null;
+   /** null kalau RSI tidak bisa dihitung (histori kurang) - BUKAN dianggap 50
+    * (audit 2026-08-05, temuan C-7). */
+   rsi: number | null;
+@@ -108,6 +112,12 @@
+   /** ADV20 rupiah (`adv20Idr` dari gerbang kelayakan). Diarsipkan ke lens_radar_history
+    * supaya backtest bisa membuang sinyal yang pada hari itu terlalu sepi. */
+   avgValue20d?: number | null;
++  universeEligible?: boolean | null;
++  universeReasonCodes?: string[] | null;
++  universeAvgClose63d?: number | null;
++  universeAvgValue63d?: number | null;
++  universeAnnualVolPct?: number | null;
++  universeMethodVersion?: string | null;
+   /** Setup trading long berbasis ATR + struktur harga. Null kalau RR < 1.5 atau data
+    * struktur tidak cukup. Ranking tidak boleh menciptakan TP/CL sendiri dari ATR saja. */
+   tradeSetup?: {
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/recommendation/service/lens-score-bucket-backtest.service.ts sahamlens_work/sahamlens-main/modules/recommendation/service/lens-score-bucket-backtest.service.ts
+--- sahamlens_orig/sahamlens-main/modules/recommendation/service/lens-score-bucket-backtest.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/recommendation/service/lens-score-bucket-backtest.service.ts	2026-08-16 18:13:05.707491507 +0000
+@@ -7,7 +7,6 @@
+   emptyValidationPopulationCounters,
+   rejectFromValidationPopulation,
+ } from '../../lens-radar/service/validation-population';
+-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '../../market/constants/ai-pick-universe';
+ 
+ export const LENS_SCORE_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
+ export const LENS_SCORE_MIN_HISTORY_DAYS = 90;
+@@ -30,6 +29,7 @@
+   price_basis?: PriceBasis | string | null;
+   coverage_pct?: number | string | null;
+   eligibility_status?: string | null;
++  universe_eligible?: boolean | string | number | null;
+ }
+ 
+ export interface BucketHorizonStats {
+@@ -321,14 +321,12 @@
+       `
+       SELECT "date", ticker, lens_score, close_price, score_version, universe_version,
+              raw_close_price, adjusted_close_price, price_basis,
+-             coverage_pct, eligibility_status
++             coverage_pct, eligibility_status, universe_eligible
+       FROM lens_radar_history
+       WHERE lens_score IS NOT NULL
+         AND close_price IS NOT NULL
+-        AND COALESCE(universe_version, $1) = $1
+       ORDER BY ticker ASC, "date" ASC
+-      `,
+-      [LEGACY_VALIDATED_UNIVERSE_VERSION]
++      `
+     );
+     return computeLensScoreBucketBacktest(rows, options);
+   } catch (error: any) {
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/recommendation/service/tpcl-validation.service.ts sahamlens_work/sahamlens-main/modules/recommendation/service/tpcl-validation.service.ts
+--- sahamlens_orig/sahamlens-main/modules/recommendation/service/tpcl-validation.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/recommendation/service/tpcl-validation.service.ts	2026-08-16 18:13:24.660015412 +0000
+@@ -14,7 +14,6 @@
+ } from '@/modules/lens-radar/service/bucket-backtest.service';
+ import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+ import { MIN_VALIDATION_COVERAGE_PCT } from '@/modules/lens-radar/service/validation-population';
+-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
+ import {
+   buildLongTradingSetup,
+   DEFAULT_TRADING_SETUP_PARAMETERS,
+@@ -248,7 +247,7 @@
+   researchOnly: true;
+   genuineOos: false;
+   scoreVersion: string;
+-  priceBasis: 'RAW';
++  priceBasis: typeof TRADING_PRICE_BASIS;
+   scoreThreshold: number;
+   roundTripCostPct: number;
+   atrPeriod: number;
+@@ -770,15 +769,14 @@
+         AND avg_value_20d >= $3
+         AND coverage_pct >= $4
+         AND eligibility_status = 'ELIGIBLE'
+-        AND COALESCE(universe_version, $5) = $5
+-        AND "date" >= $6
++        AND universe_eligible = TRUE
++        AND "date" >= $5
+       ORDER BY "date" ASC, ticker ASC`,
+     [
+       SIGNAL_SCORE_THRESHOLD,
+       SCORE_VERSION,
+       LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
+       MIN_VALIDATION_COVERAGE_PCT,
+-      LEGACY_VALIDATED_UNIVERSE_VERSION,
+       cutoffDate,
+     ],
+   );
+@@ -1044,7 +1042,7 @@
+     researchOnly: true,
+     genuineOos: false,
+     scoreVersion: SCORE_VERSION,
+-    priceBasis: 'RAW',
++    priceBasis: TRADING_PRICE_BASIS,
+     scoreThreshold: SIGNAL_SCORE_THRESHOLD,
+     roundTripCostPct: LENS_BUCKET_ROUND_TRIP_COST_PCT,
+     atrPeriod: ATR_PERIOD,
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/modules/technical/service/scoring.service.ts sahamlens_work/sahamlens-main/modules/technical/service/scoring.service.ts
+--- sahamlens_orig/sahamlens-main/modules/technical/service/scoring.service.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/modules/technical/service/scoring.service.ts	2026-08-16 18:08:12.378039380 +0000
+@@ -114,6 +114,9 @@
+   der: number | null;  // rasio (mis. 0.4)
+   currentRatio: number | null;
+   revenueGrowth: number | null; // yoy persen
++  /** Metadata PIT; tidak masuk scoring langsung. */
++  sharesOutstanding?: number | null;
++  marketCap?: number | null;
+   /** Opsional - lihat SectorContext. Tanpa ini penilaian jatuh ke perlakuan netral. */
+   sector?: SectorContext;
+   /** Median ROE 4 tahun buku terakhir, persen - "normal" milik emiten itu sendiri
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/scripts/__tests__/backfill-scoring-parity.test.ts sahamlens_work/sahamlens-main/scripts/__tests__/backfill-scoring-parity.test.ts
+--- sahamlens_orig/sahamlens-main/scripts/__tests__/backfill-scoring-parity.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/scripts/__tests__/backfill-scoring-parity.test.ts	2026-08-16 18:19:56.390797258 +0000
+@@ -8,6 +8,7 @@
+ } from '@/modules/market';
+ import { analyzeMacd, analyzeRsi } from '@/modules/technical';
+ import { evaluateMinimalEligibility } from '@/modules/eligibility';
++import { evaluatePointInTimeUniverse } from '@/modules/backtest/service/point-in-time-universe';
+ import { computeMiniCouncil } from '@/lib/miniCouncil';
+ import {
+   DATA_SNAPSHOT_VERSION,
+@@ -69,6 +70,7 @@
+   calculateScore,
+   computeMiniCouncil,
+   evaluateMinimalEligibility,
++  evaluatePointInTimeUniverse,
+   analyzeRsi,
+   analyzeMacd,
+   computeDailyNetFlow,
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/scripts/backfill-fundamental-pit-v2.mjs sahamlens_work/sahamlens-main/scripts/backfill-fundamental-pit-v2.mjs
+--- sahamlens_orig/sahamlens-main/scripts/backfill-fundamental-pit-v2.mjs	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/scripts/backfill-fundamental-pit-v2.mjs	2026-08-16 18:08:52.101162900 +0000
+@@ -1,4 +1,4 @@
+-﻿#!/usr/bin/env node
++#!/usr/bin/env node
+ 
+ /**
+  * Fundamental PIT Backfill v2
+@@ -16,7 +16,7 @@
+  * Default source directory: data/financials/
+  * Supported: CSV / JSON. Minimal columns:
+  * ticker, observed_date (atau publication_date), period_end,
+- * per,pbv,roe,der,current_ratio,revenue_growth,source
++ * per,pbv,roe,der,current_ratio,revenue_growth,shares_outstanding,market_cap,source
+  *
+  * Append-only: repository memakai ON CONFLICT DO NOTHING.
+  */
+@@ -220,6 +220,8 @@
+     der: num(pick(row, ['der','debt_to_equity','debtToEquity']), `${ticker} der`),
+     currentRatio: num(pick(row, ['current_ratio','currentRatio','cr']), `${ticker} current_ratio`),
+     revenueGrowth: num(pick(row, ['revenue_growth','revenueGrowth','sales_growth','salesGrowth']), `${ticker} revenue_growth`),
++    sharesOutstanding: num(pick(row, ['shares_outstanding','sharesOutstanding']), `${ticker} shares_outstanding`),
++    marketCap: num(pick(row, ['market_cap','marketCap']), `${ticker} market_cap`),
+     source: String(pick(row, ['source','sumber']) ?? `pit-file:${row.__file}`).trim(),
+   };
+ }
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/scripts/backfill-lens-history.mjs sahamlens_work/sahamlens-main/scripts/backfill-lens-history.mjs
+--- sahamlens_orig/sahamlens-main/scripts/backfill-lens-history.mjs	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/scripts/backfill-lens-history.mjs	2026-08-16 18:24:53.329714903 +0000
+@@ -309,9 +309,15 @@
+       row.councilConfidence ?? null,
+       row.councilBuyPct ?? null,
+       row.councilSellPct ?? null,
+-      row.councilDivided ?? null
++      row.councilDivided ?? null,
++      row.universeEligible ?? null,
++      row.universeReasonCodes ?? null,
++      row.universeAvgClose63d ?? null,
++      row.universeAvgValue63d ?? null,
++      row.universeAnnualVolPct ?? null,
++      row.universeMethodVersion ?? null
+     );
+-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, now())`;
++    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, $${base + 34}, $${base + 35}, $${base + 36}, $${base + 37}, $${base + 38}, $${base + 39}, now())`;
+   });
+ 
+   return {
+@@ -327,6 +333,8 @@
+         eligibility_status, eligibility_reason_codes,
+         technical_available_max, fundamental_available_max, flow_available_max,
+         council_signal, council_confidence, council_buy_pct, council_sell_pct, council_divided,
++        universe_eligible, universe_reason_codes, universe_avg_close_63d, universe_avg_value_63d,
++        universe_annual_vol_pct, universe_method_version,
+         updated_at
+       )
+       VALUES ${tuples.join(', ')}
+@@ -362,6 +370,12 @@
+         technical_available_max = EXCLUDED.technical_available_max,
+         fundamental_available_max = EXCLUDED.fundamental_available_max,
+         flow_available_max = EXCLUDED.flow_available_max,
++        universe_eligible = EXCLUDED.universe_eligible,
++        universe_reason_codes = EXCLUDED.universe_reason_codes,
++        universe_avg_close_63d = EXCLUDED.universe_avg_close_63d,
++        universe_avg_value_63d = EXCLUDED.universe_avg_value_63d,
++        universe_annual_vol_pct = EXCLUDED.universe_annual_vol_pct,
++        universe_method_version = EXCLUDED.universe_method_version,
+         updated_at = now()
+     `,
+     params,
+@@ -372,7 +386,7 @@
+   const { rows } = await pool.query(
+     `
+     SELECT ticker, observed_date, per, pbv, roe, der, current_ratio, revenue_growth,
+-           yahoo_sector, yahoo_industry, payout_ratio
++           yahoo_sector, yahoo_industry, payout_ratio, shares_outstanding, market_cap
+     FROM fundamental_history
+     WHERE ticker = ANY($1)
+       AND observed_date <= $2::date
+@@ -397,6 +411,8 @@
+       yahooSector: typeof row.yahoo_sector === 'string' && row.yahoo_sector.trim() ? row.yahoo_sector.trim() : null,
+       yahooIndustry: typeof row.yahoo_industry === 'string' && row.yahoo_industry.trim() ? row.yahoo_industry.trim() : null,
+       payoutRatio: numericOrNull(row.payout_ratio),
++      sharesOutstanding: numericOrNull(row.shares_outstanding),
++      marketCap: numericOrNull(row.market_cap),
+     });
+     byTicker.set(ticker, list);
+   }
+@@ -489,9 +505,10 @@
+     const volAvg20 = historyToDate.length >= 20
+       ? historyToDate.slice(-20).reduce((sum, row) => sum + (finiteNumber(row.Volume) ?? 0), 0) / 20
+       : null;
+-    // ADV20 dalam rupiah, memakai close MENTAH (bukan AdjClose): nilai transaksi adalah
+-    // uang yang benar-benar berpindah pada hari itu, bukan angka yang sudah disesuaikan
+-    // corporate action belakangan. Jendela berhenti di `bar.date`, jadi tetap point-in-time.
++    // ADV20 proxy dalam rupiah memakai Yahoo quote Close (split-adjusted, belum
++    // dividend-adjusted), bukan AdjClose. Jangan menyebutnya harga transaksi mentah:
++    // audit M-07 membuktikan label itu menyesatkan. Jendela berhenti di `bar.date`,
++    // sehingga seleksi tetap point-in-time; ambang harga rupiah absolut tidak dipakai.
+     const avgValue20d = historyToDate.length >= 20
+       ? historyToDate.slice(-20).reduce((sum, row) => {
+         const close = finiteNumber(row.Close);
+@@ -582,23 +599,31 @@
+     // tersedia sampai tanggal ini saja, lalu diarsipkan. Menghitungnya belakangan saat
+     // backtest berjalan akan menilai kelayakan memakai histori penuh - yaitu menyatakan
+     // saham layak diperdagangkan pada 2025 karena hari ini ia likuid.
++    const eligibilityBars = historyToDate.map((row) => ({
++      date: String(row.Date).slice(0, 10),
++      close: finiteNumber(row.Close),
++      volume: finiteNumber(row.Volume),
++    }));
+     const eligibility = deps.evaluateMinimalEligibility({
+       ticker,
+       asOf: bar.date,
+-      bars: historyToDate.map((row) => ({
+-        date: String(row.Date).slice(0, 10),
+-        close: finiteNumber(row.Close),
+-        volume: finiteNumber(row.Volume),
+-      })),
++      bars: eligibilityBars,
+       coveragePct: score.coverage_pct,
+     });
++    // H-02: membership universe dihitung hanya dari data sampai tanggal sinyal.
++    const pitUniverse = deps.evaluatePointInTimeUniverse(eligibilityBars);
++    // M-08/M-07: market cap historis hanya dari arsip PIT yang nyata. Jangan
++    // merekonstruksinya dari close provider yang split-adjusted x saham period-end.
++    const marketCap = fundamental?.marketCap != null && fundamental.marketCap > 0
++      ? fundamental.marketCap
++      : null;
+ 
+     rows.push({
+       date: bar.date,
+       ticker,
+       lensScore: score.total_score,
+       closePrice: adjustedClose,
+-      marketCap: null,
++      marketCap,
+       technicalScore: score.technical_score,
+       fundamentalScore: score.fundamental_score,
+       flowScore: score.flow_score,
+@@ -622,6 +647,12 @@
+       technicalAvailableMax: score.available_max.technical,
+       fundamentalAvailableMax: score.available_max.fundamental,
+       flowAvailableMax: score.available_max.flow,
++      universeEligible: pitUniverse.eligible,
++      universeReasonCodes: pitUniverse.reasonCodes.join(',') || null,
++      universeAvgClose63d: pitUniverse.avgClose63d,
++      universeAvgValue63d: pitUniverse.avgValue63d,
++      universeAnnualVolPct: pitUniverse.annualVolPct,
++      universeMethodVersion: pitUniverse.methodVersion,
+       // `null` kalau council tidak terhitung (bar kurang) - JANGAN diisi 'HOLD', karena
+       // "tidak terhitung" dan "netral" adalah dua hal berbeda dan keduanya akan diukur.
+       councilSignal: council?.finalSignal ?? null,
+@@ -656,6 +687,7 @@
+     ACTIVE_LIQUID_UNIVERSE_VERSION,
+     AI_PICK_UNIVERSE_ADDITIONS,
+     LEGACY_VALIDATED_UNIVERSE_VERSION,
++    POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION,
+   } = require('../modules/market/constants/ai-pick-universe.ts');
+   const {
+     calculateScore,
+@@ -684,6 +716,7 @@
+     detectCorporateAction,
+   } = require('../shared/market/price-basis.ts');
+   const { evaluateMinimalEligibility } = require('../modules/eligibility/index.ts');
++  const { evaluatePointInTimeUniverse } = require('../modules/backtest/service/point-in-time-universe.ts');
+   const { runAndSaveLensBucketBacktest } = require('../modules/lens-radar/service/bucket-backtest.service.ts');
+   const { cacheDel } = require('../shared/cache/redis-cache.ts');
+   const { TRANSPARENCY_CACHE_KEY } = require('../modules/lens-radar/service/transparency.service.ts');
+@@ -695,7 +728,9 @@
+     ACTIVE_LIQUID_UNIVERSE_VERSION,
+     AI_PICK_UNIVERSE_ADDITIONS,
+     LEGACY_VALIDATED_UNIVERSE_VERSION,
++    POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION,
+     evaluateMinimalEligibility,
++    evaluatePointInTimeUniverse,
+     runAndSaveLensBucketBacktest,
+     calculateScore,
+     analyzeRsi,
+@@ -719,17 +754,32 @@
+   };
+ }
+ 
+-export function resolveBackfillUniverse(options, deps) {
+-  const tickers = options.tickers?.length
+-    ? options.tickers
+-    : options.universeAdditions
+-      ? deps.AI_PICK_UNIVERSE_ADDITIONS
+-      : deps.BACKTEST_UNIVERSE;
+-
+-  const universeVersion = options.universeVersion
+-    || (options.universeAdditions ? deps.ACTIVE_LIQUID_UNIVERSE_VERSION : deps.LEGACY_VALIDATED_UNIVERSE_VERSION);
++export function loadIdxCandidateUniverse(csvPath = path.join(repoRoot, 'idx_emiten_900.csv')) {
++  if (!fs.existsSync(csvPath)) return [];
++  const lines = fs.readFileSync(csvPath, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
++  if (lines.length < 2) return [];
++  const headers = lines[0].split(',').map((h) => h.trim());
++  const idx = headers.findIndex((h) => h === 'Kode_YFinance');
++  if (idx < 0) return [];
++  const tickers = lines.slice(1)
++    .map((line) => line.split(',')[idx]?.trim())
++    .map((ticker) => normalizeTicker(ticker ?? ''))
++    .filter((ticker) => /^[A-Z0-9]{1,12}\.JK$/.test(ticker));
++  return Array.from(new Set(tickers)).sort();
++}
+ 
+-  return { tickers, universeVersion };
++export function resolveBackfillUniverse(options, deps) {
++  if (options.tickers?.length) {
++    return { tickers: options.tickers, universeVersion: options.universeVersion || deps.POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION };
++  }
++  if (options.universeAdditions) {
++    return { tickers: deps.AI_PICK_UNIVERSE_ADDITIONS, universeVersion: options.universeVersion || deps.ACTIVE_LIQUID_UNIVERSE_VERSION };
++  }
++  // H-02: start from the broad available IDX catalogue, not a list selected with 2026 conditions.
++  const broad = loadIdxCandidateUniverse();
++  const tickers = Array.from(new Set([...broad, ...deps.BACKTEST_UNIVERSE])).sort();
++  if (!tickers.length) throw new Error('FAIL-CLOSED: kandidat universe IDX kosong; idx_emiten_900.csv tidak dapat dibaca.');
++  return { tickers, universeVersion: options.universeVersion || deps.POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION };
+ }
+ 
+ async function mapWithConcurrency(items, concurrency, worker) {
+@@ -774,7 +824,7 @@
+   }
+ 
+   const { tickers, universeVersion } = resolveBackfillUniverse(options, deps);
+-  const checkpointFile = options.checkpointFile || (options.universeAdditions ? 'scripts/.universe-200-additions-backfill-checkpoint.json' : null);
++  const checkpointFile = options.checkpointFile || (options.universeAdditions ? 'scripts/.universe-200-additions-backfill-checkpoint.json' : 'scripts/.pit-validation-backfill-checkpoint.json');
+   const checkpoint = loadCheckpoint(checkpointFile);
+   const pendingTickers = tickers.filter((ticker) => !checkpoint.completed.has(ticker.toUpperCase()));
+   const runTimestamp = new Date().toISOString();
+@@ -795,6 +845,9 @@
+   console.log(`Backfill LensRadar ${options.startDate}..${options.endDate} untuk ${pendingTickers.length}/${tickers.length} ticker`);
+   console.log(`Mode: ${options.dryRun ? 'DRY RUN' : 'UPSERT'}; range Yahoo: ${options.range}; universe: ${universeVersion}`);
+   console.log(`Batch ticker: ${options.tickerBatchSize}; concurrency: ${options.concurrency}; retry: ${options.retryAttempts}; checkpoint: ${checkpointFile || '-'}`);
++  if (!options.tickers?.length && !options.universeAdditions) {
++    console.warn('[LIMITATION] PIT universe memakai katalog emiten IDX yang tersedia saat ini sebagai candidate superset. Emiten yang sudah delisting dan tidak ada di katalog belum dapat direkonstruksi tanpa historical listing master resmi.');
++  }
+ 
+   for (let i = 0; i < pendingTickers.length; i += options.tickerBatchSize) {
+     const batch = pendingTickers.slice(i, i + options.tickerBatchSize);
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/scripts/generate-pit-from-yahoo.mjs sahamlens_work/sahamlens-main/scripts/generate-pit-from-yahoo.mjs
+--- sahamlens_orig/sahamlens-main/scripts/generate-pit-from-yahoo.mjs	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/scripts/generate-pit-from-yahoo.mjs	2026-08-16 18:08:40.568881756 +0000
+@@ -125,10 +125,9 @@
+   for (const e of wl.entries) { if (!byTicker.has(e.ticker)) byTicker.set(e.ticker, []); byTicker.get(e.ticker).push(e); }
+ 
+   for (const [ticker, entries] of byTicker) {
+-    const qs = await yf.quoteSummary(ticker, { modules: ['price', 'financialData', 'defaultKeyStatistics'] }).catch(() => null);
++    const qs = await yf.quoteSummary(ticker, { modules: ['price', 'financialData'] }).catch(() => null);
+     const priceCcy = qs?.price?.currency ?? null;
+     const finCcy = qs?.financialData?.financialCurrency ?? priceCcy;
+-    const sharesOut = qs?.defaultKeyStatistics?.sharesOutstanding ?? null;
+     const fund = await fetchFundamentals(ticker, period2);
+ 
+     for (const e of entries) {
+@@ -143,7 +142,9 @@
+       const liab = bs?.totalLiabilitiesNetMinorityInterest ?? null;
+       const ca = bs?.currentAssets ?? null;
+       const cl = bs?.currentLiabilities ?? null;
+-      const shares = bs?.ordinarySharesNumber ?? bs?.shareIssued ?? sharesOut ?? null;
++      // M-08: historical shares MUST come from the period-end statement itself.
++      // Never backfill old dates with quoteSummary sharesOutstanding from today.
++      const shares = bs?.ordinarySharesNumber ?? bs?.shareIssued ?? null;
+ 
+       // income YTD
+       let inc;
+@@ -196,15 +197,20 @@
+       rows.push({
+         ticker, observed_date: od, period_end: pe,
+         per: round(per), pbv: round(pbv), roe: round(roe), der: round(der),
+-        current_ratio: round(cr), revenue_growth: round(revGrowth), source: srcFull,
++        current_ratio: round(cr), revenue_growth: round(revGrowth),
++        shares_outstanding: shares ?? null,
++        // Do not synthesize historical market cap from retroactively split-adjusted
++        // provider close x period-end shares. If no genuine PIT market-cap source exists, null is honest.
++        market_cap: null,
++        source: srcFull,
+       });
+     }
+   }
+ 
+   fs.mkdirSync(OUT_DIR, { recursive: true });
+   fs.mkdirSync(path.dirname(PROV), { recursive: true });
+-  const header = 'ticker,observed_date,period_end,per,pbv,roe,der,current_ratio,revenue_growth,source';
+-  const csv = [header, ...rows.map((r) => [r.ticker, r.observed_date, r.period_end, r.per ?? '', r.pbv ?? '', r.roe ?? '', r.der ?? '', r.current_ratio ?? '', r.revenue_growth ?? '', `"${r.source.replace(/"/g, '""')}"`].join(','))].join('\n') + '\n';
++  const header = 'ticker,observed_date,period_end,per,pbv,roe,der,current_ratio,revenue_growth,shares_outstanding,market_cap,source';
++  const csv = [header, ...rows.map((r) => [r.ticker, r.observed_date, r.period_end, r.per ?? '', r.pbv ?? '', r.roe ?? '', r.der ?? '', r.current_ratio ?? '', r.revenue_growth ?? '', r.shares_outstanding ?? '', r.market_cap ?? '', `"${r.source.replace(/"/g, '""')}"`].join(','))].join('\n') + '\n';
+   const outCsv = path.join(OUT_DIR, 'pit-batch51.csv');
+   fs.writeFileSync(outCsv, csv, 'utf8');
+   fs.writeFileSync(PROV, JSON.stringify(provenance, null, 2), 'utf8');
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/shared/market/__tests__/price-basis.test.ts sahamlens_work/sahamlens-main/shared/market/__tests__/price-basis.test.ts
+--- sahamlens_orig/sahamlens-main/shared/market/__tests__/price-basis.test.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/shared/market/__tests__/price-basis.test.ts	2026-08-16 18:16:05.593308647 +0000
+@@ -11,6 +11,9 @@
+ } from '../price-basis';
+ 
+ describe('price-basis policy and normalization (Fase 3)', () => {
++  it('M-07: trading levels memakai basis SPLIT_ADJUSTED, bukan label RAW yang menyesatkan', () => {
++    expect(TRADING_PRICE_BASIS).toBe('SPLIT_ADJUSTED');
++  });
+   it('stock split 1:5 tidak menghasilkan return ekonomi -80% pada basis adjusted', () => {
+     const bars = normalizeYahooOhlcRows([
+       { Date: '2026-01-01T00:00:00.000Z', Open: 5000, High: 5000, Low: 5000, Close: 5000, AdjClose: 1000, Volume: 1_000_000 },
+@@ -113,7 +116,7 @@
+     expect(bar.adjusted.close).toBeNull();
+   });
+ 
+-  it('dividend adjustment memakai adjusted untuk return tetapi raw tetap untuk level trading', () => {
++  it('dividend adjustment memakai adjusted untuk return tetapi split-adjusted quote untuk level trading', () => {
+     const bars = normalizeYahooOhlcRows([
+       { Date: '2026-01-01T00:00:00.000Z', Open: 100, High: 100, Low: 100, Close: 100, AdjClose: 100, Volume: 1 },
+       { Date: '2026-01-02T00:00:00.000Z', Open: 95, High: 95, Low: 95, Close: 95, AdjClose: 100, Volume: 1 },
+diff -ruN '--exclude=tsconfig.tsbuildinfo' sahamlens_orig/sahamlens-main/shared/market/price-basis.ts sahamlens_work/sahamlens-main/shared/market/price-basis.ts
+--- sahamlens_orig/sahamlens-main/shared/market/price-basis.ts	2026-08-16 16:56:35.000000000 +0000
++++ sahamlens_work/sahamlens-main/shared/market/price-basis.ts	2026-08-16 18:16:05.593138266 +0000
+@@ -30,7 +30,9 @@
+ 
+ export const PRICE_ADJUSTMENT_VERSION = 'price-adjustment-v1';
+ export const RETURN_PRICE_BASIS: PriceBasis = 'TOTAL_RETURN_ADJUSTED';
+-export const TRADING_PRICE_BASIS: PriceBasis = 'RAW';
++// Yahoo chart `quote.*` is split-adjusted retroactively. Calling it RAW made
++// historical tick/price-floor logic look more exact than the provider can support (M-07).
++export const TRADING_PRICE_BASIS: PriceBasis = 'SPLIT_ADJUSTED';
+ 
+ // [HIPOTESIS PENJAGA] Ambang ini hanya trigger pemeriksaan/penolakan observasi, bukan
+ // klaim bahwa semua pergerakan raw >40% pasti corporate action. IDX punya ARA/ARB,
+@@ -227,8 +229,11 @@
+ }
+ 
+ function ohlcForBasis(bar: NormalizedPriceBar, basis: PriceBasis): { ohlc: PriceOhlc; status: PriceBasisErrorCode } {
+-  if (basis === 'RAW') return { ohlc: bar.raw, status: bar.basisAvailability.raw ? 'OK' : 'MISSING_RAW_PRICE' };
+-  if (basis === 'TOTAL_RETURN_ADJUSTED' || basis === 'SPLIT_ADJUSTED') {
++  if (basis === 'RAW' || basis === 'SPLIT_ADJUSTED') {
++    // Provider quote OHLC is the non-dividend-adjusted series; Yahoo retro-adjusts it for splits.
++    return { ohlc: bar.raw, status: bar.basisAvailability.raw ? 'OK' : 'MISSING_RAW_PRICE' };
++  }
++  if (basis === 'TOTAL_RETURN_ADJUSTED') {
+     return { ohlc: bar.adjusted, status: bar.basisAvailability.adjusted ? 'OK' : 'MISSING_ADJUSTED_PRICE' };
+   }
+   if (basis === 'UNKNOWN') return { ohlc: { open: null, high: null, low: null, close: null }, status: 'LEGACY_UNKNOWN_PRICE_BASIS' };
+@@ -245,7 +250,7 @@
+       continue;
+     }
+     if (![ohlc.open, ohlc.high, ohlc.low, ohlc.close].every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)) {
+-      invalidDates.push({ date: bar.date, reason: basis === 'RAW' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' });
++      invalidDates.push({ date: bar.date, reason: basis === 'RAW' || basis === 'SPLIT_ADJUSTED' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' });
+       continue;
+     }
+     selected.push({
+@@ -280,7 +285,7 @@
+   if (status !== 'OK') return { value: null, basis, status };
+   const value = ohlc[field];
+   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+-    return { value: null, basis, status: basis === 'RAW' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' };
++    return { value: null, basis, status: basis === 'RAW' || basis === 'SPLIT_ADJUSTED' ? 'MISSING_RAW_PRICE' : 'MISSING_ADJUSTED_PRICE' };
+   }
+   return { value, basis, status: 'OK' };
+ }

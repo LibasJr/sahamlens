@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * Fundamental PIT Backfill v2
@@ -16,7 +16,7 @@
  * Default source directory: data/financials/
  * Supported: CSV / JSON. Minimal columns:
  * ticker, observed_date (atau publication_date), period_end,
- * per,pbv,roe,der,current_ratio,revenue_growth,source
+ * per,pbv,roe,der,current_ratio,revenue_growth,shares_outstanding,market_cap,source
  *
  * Append-only: repository memakai ON CONFLICT DO NOTHING.
  */
@@ -220,6 +220,8 @@ function normalize(row) {
     der: num(pick(row, ['der','debt_to_equity','debtToEquity']), `${ticker} der`),
     currentRatio: num(pick(row, ['current_ratio','currentRatio','cr']), `${ticker} current_ratio`),
     revenueGrowth: num(pick(row, ['revenue_growth','revenueGrowth','sales_growth','salesGrowth']), `${ticker} revenue_growth`),
+    sharesOutstanding: num(pick(row, ['shares_outstanding','sharesOutstanding']), `${ticker} shares_outstanding`),
+    marketCap: num(pick(row, ['market_cap','marketCap']), `${ticker} market_cap`),
     source: String(pick(row, ['source','sumber']) ?? `pit-file:${row.__file}`).trim(),
   };
 }

@@ -1,6 +1,5 @@
 import { pool } from '@/shared/database/postgres.client';
 import { ensureSharedSchema } from '@/shared/database/schema.service';
-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import {
   calculateCalibrationObservations,
@@ -343,15 +342,16 @@ async function readHistoryRowsForWindow(db: Queryable = pool, startDate: string 
       eligibility_status,
       technical_available_max,
       fundamental_available_max,
-      flow_available_max
+      flow_available_max,
+      universe_eligible
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
       AND ($1::date IS NULL OR "date" >= $1::date)
-      AND COALESCE(universe_version, $2) = $2
+      AND universe_eligible = TRUE
     ORDER BY ticker ASC, "date" ASC
     `,
-    [startDate, LEGACY_VALIDATED_UNIVERSE_VERSION]
+    [startDate]
   );
   return rows as LensRadarHistoryWithComponents[];
 }

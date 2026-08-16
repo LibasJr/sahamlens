@@ -4,6 +4,7 @@ import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { evaluateMinimalEligibility } from '../../eligibility';
+import { evaluatePointInTimeUniverse } from '../../backtest/service/point-in-time-universe';
 import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
 import { buildLongTradingSetup } from './trading-setup';
@@ -196,16 +197,20 @@ async function scoreOne(
   // gerbang ini menanyakan hal berbeda - "apakah ada transaksi tercatat" dan "berapa
   // nilai transaksi rata-ratanya". Memakai angka hasil estimasi untuk menjawab itu
   // berarti menilai kelayakan atas angka yang kita karang sendiri.
+  const eligibilityBars = history.map((h) => ({
+    date: h.Date.split('T')[0],
+    close: typeof h.Close === 'number' ? h.Close : null,
+    volume: typeof h.Volume === 'number' ? h.Volume : null,
+  }));
   const eligibility = evaluateMinimalEligibility({
     ticker,
     asOf: todayDateKeyWIB(),
-    bars: history.map((h) => ({
-      date: h.Date.split('T')[0],
-      close: typeof h.Close === 'number' ? h.Close : null,
-      volume: typeof h.Volume === 'number' ? h.Volume : null,
-    })),
+    bars: eligibilityBars,
     coveragePct: scoring.coverage_pct,
   });
+  // H-02: archive membership yang dihitung dari data yang tersedia pada scan ini,
+  // sehingga validation tidak lagi memproyeksikan universe statis masa kini ke masa lalu.
+  const pitUniverse = evaluatePointInTimeUniverse(eligibilityBars);
 
   return {
     scored: {
@@ -213,6 +218,10 @@ async function scoreOne(
       price: currentPrice,
       changePct: parseFloat(changePct.toFixed(2)),
       totalScore: scoring.total_score,
+      rawPrice: currentPrice,
+      adjustedPrice: currentAdjustedPrice,
+      priceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
+      availableMax: scoring.available_max,
       // null kalau RSI tidak bisa dihitung - bonus "oversold" di rankAiPicks() melewati
       // saham ini alih-alih memakai angka pengganti (temuan C-7).
       rsi: rsi != null ? parseFloat(rsi.toFixed(1)) : null,
@@ -233,6 +242,12 @@ async function scoreOne(
       avgValue20d: eligibility.details.adv20Idr,
       eligibilityStatus: eligibility.status,
       eligibilityReasons: eligibility.reasonCodes,
+      universeEligible: pitUniverse.eligible,
+      universeReasonCodes: pitUniverse.reasonCodes,
+      universeAvgClose63d: pitUniverse.avgClose63d,
+      universeAvgValue63d: pitUniverse.avgValue63d,
+      universeAnnualVolPct: pitUniverse.annualVolPct,
+      universeMethodVersion: pitUniverse.methodVersion,
       tradeSetup: tradeSetup
         ? {
           tp1: tradeSetup.tp1,

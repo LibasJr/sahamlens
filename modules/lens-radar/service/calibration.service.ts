@@ -55,7 +55,6 @@ import {
   type CorporateActionStatus,
   type PriceBasis,
 } from '@/shared/market/price-basis';
-import { LEGACY_VALIDATED_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
@@ -139,6 +138,26 @@ export interface CalibrationCronComparison {
   note: string;
 }
 
+export interface FundamentalCoverageByDateRow {
+  date: string;
+  totalRows: number;
+  rowsWithFundamental: number;
+  coveragePct: number;
+}
+
+export interface FundamentalPitCoverageDiagnostic {
+  totalRows: number;
+  rowsWithFundamental: number;
+  coveragePct: number | null;
+  status:
+    | 'NO_HISTORY'
+    | 'NO_FUNDAMENTAL_COVERAGE'
+    | 'MIXED_FUNDAMENTAL_COVERAGE'
+    | 'FULL_FUNDAMENTAL_COVERAGE';
+  byDate: FundamentalCoverageByDateRow[];
+  note: string;
+}
+
 export interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
@@ -179,6 +198,8 @@ export interface CalibrationDashboardData {
   /** Kalibrasi sungguhan - reliability bin, Wilson CI, Brier, ECE, isotonic (temuan C-04).
    * Sebelum ini, modul bernama "Calibration Lab" hanya mengukur discrimination. */
   scoreCalibration: ScoreCalibrationResult;
+  /** Diagnostic H-06: apakah baris historis score-version ini benar-benar membawa fundamental PIT. */
+  fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
   thresholdSimulations: ThresholdSimulation[];
 }
 
@@ -345,11 +366,67 @@ function normalizeHistory(
     .sort((a, b) => a.ticker.localeCompare(b.ticker) || a.date.localeCompare(b.date));
 }
 
+export function buildFundamentalPitCoverage(
+  rows: LensRadarHistoryEntry[]
+): FundamentalPitCoverageDiagnostic {
+  const byDate = new Map<string, { totalRows: number; rowsWithFundamental: number }>();
+  let totalRows = 0;
+  let rowsWithFundamental = 0;
+
+  for (const row of rows) {
+    const date = dateKey(row.date);
+    if (!date) continue;
+    const hasFundamental = (finiteNumber(row.fundamental_available_max ?? null) ?? 0) > 0;
+    totalRows++;
+    if (hasFundamental) rowsWithFundamental++;
+    const current = byDate.get(date) ?? { totalRows: 0, rowsWithFundamental: 0 };
+    current.totalRows++;
+    if (hasFundamental) current.rowsWithFundamental++;
+    byDate.set(date, current);
+  }
+
+  const coveragePct = totalRows > 0 ? Math.round((rowsWithFundamental / totalRows) * 10000) / 100 : null;
+  const status: FundamentalPitCoverageDiagnostic['status'] =
+    totalRows === 0 ? 'NO_HISTORY'
+      : rowsWithFundamental === 0 ? 'NO_FUNDAMENTAL_COVERAGE'
+        : rowsWithFundamental === totalRows ? 'FULL_FUNDAMENTAL_COVERAGE'
+          : 'MIXED_FUNDAMENTAL_COVERAGE';
+
+  const note = status === 'NO_FUNDAMENTAL_COVERAGE'
+    ? 'Tidak ada fundamental PIT pada row histori ini. Hasil bucket/calibration tidak boleh ditafsirkan sebagai LensScore dengan fundamental lengkap; row yang lolos gerbang produksi dapat berasal dari technical+flow yang dinormalisasi pada komponen tersedia.'
+    : status === 'MIXED_FUNDAMENTAL_COVERAGE'
+      ? 'Cakupan fundamental PIT campuran. Hasil bucket/calibration mencampur row dengan dan tanpa komponen fundamental; gunakan coverage per tanggal sebelum menarik kesimpulan model.'
+      : status === 'FULL_FUNDAMENTAL_COVERAGE'
+        ? 'Semua row histori pada score-version yang diminta memiliki komponen fundamental PIT. Nilai fundamental tidak pernah diisi dengan skor netral buatan.'
+        : 'Belum ada row histori untuk score-version yang diminta.';
+
+  return {
+    totalRows,
+    rowsWithFundamental,
+    coveragePct,
+    status,
+    byDate: Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({
+        date,
+        totalRows: value.totalRows,
+        rowsWithFundamental: value.rowsWithFundamental,
+        coveragePct: Math.round((value.rowsWithFundamental / value.totalRows) * 10000) / 100,
+      })),
+    note,
+  };
+}
+
+interface LoadedCalibrationBars {
+  openByDate: Map<string, number>;
+  fullCloseSeries: Array<{ date: string; closePrice: number }>;
+}
+
 async function loadOpenMaps(
   tickers: string[],
   provider: DailyOpenProvider
-): Promise<Map<string, Map<string, number>>> {
-  const result = new Map<string, Map<string, number>>();
+): Promise<Map<string, LoadedCalibrationBars>> {
+  const result = new Map<string, LoadedCalibrationBars>();
   for (let i = 0; i < tickers.length; i += OPEN_FETCH_BATCH_SIZE) {
     const batch = tickers.slice(i, i + OPEN_FETCH_BATCH_SIZE);
     const barsList = await Promise.all(batch.map(async (ticker) => ({
@@ -357,11 +434,17 @@ async function loadOpenMaps(
       bars: await provider.getDailyOpenBars(ticker).catch(() => []),
     })));
     for (const { ticker, bars } of barsList) {
-      result.set(ticker, new Map(
-        bars
-          .filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS && isFinitePositive(bar.open))
-          .map((bar) => [bar.date, bar.open])
-      ));
+      const usable = bars.filter((bar) => bar.priceBasis === RETURN_PRICE_BASIS);
+      result.set(ticker, {
+        openByDate: new Map(
+          usable.filter((bar) => isFinitePositive(bar.open)).map((bar) => [bar.date, bar.open])
+        ),
+        // M-13: corporate-action gap memakai semua bar provider, bukan hanya bar
+        // LensRadar yang lolos filter likuiditas/coverage.
+        fullCloseSeries: usable
+          .filter((bar) => isFinitePositive(bar.close))
+          .map((bar) => ({ date: bar.date, closePrice: bar.close as number })),
+      });
     }
   }
   return result;
@@ -387,9 +470,11 @@ export async function calculateCalibrationObservations(
   unversionedRows: number;
   versionMixed: boolean;
   versionRejectedReason: string | null;
+  fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
 }> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const partition = partitionByScoreVersion(rows, requestedScoreVersion);
+  const fundamentalPitCoverage = buildFundamentalPitCoverage(partition.accepted);
   const productionGate = emptyValidationPopulationCounters();
   const normalized = normalizeHistory(partition.accepted, productionGate);
   const calendar = buildIdxTradingCalendar(
@@ -411,7 +496,11 @@ export async function calculateCalibrationObservations(
   let skippedNoForwardEntry = 0;
 
   for (const [ticker, series] of Array.from(byTicker.entries())) {
-    const openByDate = openMaps.get(ticker) ?? new Map<string, number>();
+    const marketBars = openMaps.get(ticker) ?? {
+      openByDate: new Map<string, number>(),
+      fullCloseSeries: [],
+    };
+    const openByDate = marketBars.openByDate;
     const byDate = new Map(series.map((row) => [row.date, row]));
     for (let i = 0; i < series.length; i++) {
       const signal = series[i];
@@ -437,7 +526,7 @@ export async function calculateCalibrationObservations(
         // menariknya sampai bertemu bar entry, dan return nol-hari itu bukan pengukuran
         // horizon T+5 maupun T+20 (temuan C-03, kasus turunan).
         if (exit.date <= entry.date) return null;
-        if (hasCorporateActionGap(series, entry.date, exit.date)) return null;
+        if (hasCorporateActionGap(marketBars.fullCloseSeries, entry.date, exit.date)) return null;
         const ret = calculateForwardReturnPct({
           ticker,
           entryBar: {
@@ -503,6 +592,7 @@ export async function calculateCalibrationObservations(
     unversionedRows: partition.unversionedCount,
     versionMixed: partition.mixed,
     versionRejectedReason: partition.rejectedReason,
+    fundamentalPitCoverage,
   };
 }
 
@@ -512,14 +602,12 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
-           avg_value_20d, coverage_pct, eligibility_status
+           avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
-      AND COALESCE(universe_version, $1) = $1
     ORDER BY ticker ASC, "date" ASC
-    `,
-    [LEGACY_VALIDATED_UNIVERSE_VERSION]
+    `
   );
   return rows as LensRadarHistoryEntry[];
 }
@@ -844,6 +932,7 @@ export async function getCalibrationDashboardData(
     unversionedRows,
     versionMixed,
     versionRejectedReason,
+    fundamentalPitCoverage,
   } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
   // Calibration Lab harus membandingkan angka dari population yang sama. Sebelumnya
@@ -904,6 +993,7 @@ export async function getCalibrationDashboardData(
     // interval Wilson mengasumsikan pengamatan independen, dan satu ticker yang menyumbang
     // beberapa jendela T+20 yang tumpang tindih akan mempersempit CI itu secara palsu.
     scoreCalibration: buildScoreCalibration(effectiveT20),
+    fundamentalPitCoverage,
     thresholdSimulations: calculateThresholdSimulations(observations),
   };
 }
