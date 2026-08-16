@@ -134,6 +134,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-jobs', name: 'Pemantau Cron', subtitle: 'Job terjadwal & kesehatannya', path: '/admin/jobs', icon: Activity },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
+    { id: 'admin-macro-pit', name: 'Macro PIT', subtitle: 'Risk-free, ERP & provenance', path: '/admin/macro-assumptions', icon: Waves },
     { id: 'admin-ownership-flow', name: 'Ownership Flow', subtitle: 'Status ingestion kepemilikan', path: '/admin/ownership-flow', icon: Users },
     // NONAKTIF (2026-08-14) - ingestion masih menuntut upload manual per emiten.
     // Entri sengaja DIPERTAHANKAN, bukan dihapus: data historis dan kodenya masih
