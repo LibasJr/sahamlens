@@ -50,8 +50,17 @@ if(process.env.DATABASE_URL){
   ['BI_RATE_PCT','INFLATION_TARGET_MID_PCT','INFLATION_TARGET_UPPER_PCT'].every(k=>macroByKey.has(k))
     ?ok('Macro context BI-Rate + inflation target tersedia sebagai evidence terpisah')
     :warn('Macro context BI-Rate/inflation target belum lengkap.');
-  const bank=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers FROM bank_fundamental_history`).catch(()=>({rows:[{n:0,tickers:0}]}));
-  Number(bank.rows[0]?.n??0)>0?ok(`Bank fundamental evidence ${bank.rows[0].n} rows / ${bank.rows[0].tickers} ticker`):warn('Bank-specific fundamental history belum diimpor; bank metrics tetap DATA_ONLY/null.');
+  const bankMetric=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers,COUNT(*) FILTER (WHERE evidence_type='DERIVED')::int derived,COUNT(*) FILTER (WHERE basis='DISCLOSED_UNSPECIFIED')::int unspecified FROM bank_metric_evidence`).catch(()=>({rows:[{n:0,tickers:0,derived:0,unspecified:0}]}));
+  if(Number(bankMetric.rows[0]?.n??0)>0){
+    ok(`Bank metric evidence ${bankMetric.rows[0].n} rows / ${bankMetric.rows[0].tickers} ticker`);
+    Number(bankMetric.rows[0]?.derived??0)>0?warn(`Bank evidence memiliki ${bankMetric.rows[0].derived} DERIVED rows; jangan samakan dengan REPORTED.`):ok('Bank evidence pilot seluruhnya REPORTED');
+    Number(bankMetric.rows[0]?.unspecified??0)>0?warn(`Bank evidence memiliki ${bankMetric.rows[0].unspecified} row dengan basis DISCLOSED_UNSPECIFIED; tetap DATA_ONLY.`):ok('Bank evidence basis eksplisit');
+    const inconsistent=await c.query(`SELECT COUNT(*)::int n FROM bank_metric_evidence n JOIN bank_metric_evidence g ON g.ticker=n.ticker AND g.period_end=n.period_end AND g.basis=n.basis WHERE n.metric_key='NPL_NET_PCT' AND g.metric_key='NPL_GROSS_PCT' AND n.value>g.value`);
+    Number(inconsistent.rows[0]?.n??0)===0?ok('Bank evidence NPL net <= gross integrity check'):fail(`Bank evidence inconsistency: ${inconsistent.rows[0].n} NPL net > gross`);
+  } else {
+    const bankLegacy=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers FROM bank_fundamental_history`).catch(()=>({rows:[{n:0,tickers:0}]}));
+    Number(bankLegacy.rows[0]?.n??0)>0?warn(`Hanya legacy bank_fundamental_history tersedia (${bankLegacy.rows[0].n} rows); migrasikan ke metric evidence.`):warn('Bank-specific fundamental evidence belum diimpor; bank metrics tetap DATA_ONLY/null.');
+  }
  }catch(e){fail(`PostgreSQL audit gagal: ${e instanceof Error?e.message:String(e)}`)}finally{await c.end().catch(()=>{})}
 }
 

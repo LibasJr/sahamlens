@@ -27,7 +27,8 @@
     "privacy:cleanup": "node scripts/cleanup-privacy-retention.mjs",
     "import:macro-assumptions": "node scripts/import-macro-assumptions.mjs",
     "import:bank-fundamentals": "node scripts/import-bank-fundamentals.mjs",
-    "audit:schema": "node scripts/audit-schema-ownership.mjs"
+    "audit:schema": "node scripts/audit-schema-ownership.mjs",
+    "import:bank-metric-evidence": "node scripts/import-bank-metric-evidence.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
