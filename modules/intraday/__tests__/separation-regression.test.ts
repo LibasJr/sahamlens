@@ -74,25 +74,23 @@ describe('pemisahan modul', () => {
     expect(offenders.map((f) => f.file)).toEqual([]);
   });
 
-  it('skema intraday TIDAK ditambahkan ke shared/database/schema.service.ts', () => {
+  it('runtime schema facade tidak lagi menjalankan DDL; schema dimiliki numbered migration', () => {
     const shared = fs.readFileSync(path.join(ROOT, 'shared/database/schema.service.ts'), 'utf8');
-    expect(shared).not.toMatch(/intraday_/);
-    // Tabel T+20 lama tetap didefinisikan di sana, tidak dipindahkan/dihapus.
-    expect(shared).toMatch(/CREATE TABLE IF NOT EXISTS lens_radar_history/);
-    expect(shared).toMatch(/CREATE TABLE IF NOT EXISTS lens_bucket_stats/);
-    expect(shared).toMatch(/CREATE TABLE IF NOT EXISTS lens_weight_proposals/);
+    const intraday = fs.readFileSync(path.join(ROOT, 'modules/intraday/service/intraday-schema.service.ts'), 'utf8');
+    expect(shared).not.toMatch(/CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE/i);
+    expect(intraday).not.toMatch(/CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE/i);
+    expect(shared).toMatch(/assertDatabaseMigrated/);
+    expect(intraday).toMatch(/assertDatabaseMigrated/);
   });
 
-  it('DDL intraday hanya aditif - tidak ada DROP TABLE/COLUMN atau DELETE', () => {
-    const ddl = fs.readFileSync(path.join(ROOT, 'modules/intraday/service/intraday-schema.service.ts'), 'utf8');
-    expect(ddl).not.toMatch(/DROP\s+TABLE/i);
-    expect(ddl).not.toMatch(/DROP\s+COLUMN/i);
-    expect(ddl).not.toMatch(/\bDELETE\s+FROM\b/i);
-    expect(ddl).not.toMatch(/\bTRUNCATE\b/i);
-    // Setiap tabel yang dibuat berawalan intraday_ - tidak menyentuh nama tabel lain.
-    const created = Array.from(ddl.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g)).map((m) => m[1]!);
-    expect(created.length).toBeGreaterThan(0);
-    for (const table of created) expect(table.startsWith('intraday_')).toBe(true);
+  it('baseline migration tetap memuat tabel T+20 dan tabel Intraday secara eksplisit', () => {
+    const migration = fs.readFileSync(path.join(ROOT, 'database/migrations/000_runtime_schema_baseline.sql'), 'utf8');
+    expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS lens_radar_history/);
+    expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS lens_bucket_stats/);
+    expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS lens_weight_proposals/);
+    const createdIntraday = Array.from(migration.matchAll(/CREATE TABLE IF NOT EXISTS (intraday_\w+)/g)).map((m) => m[1]!);
+    expect(createdIntraday.length).toBeGreaterThan(0);
+    for (const table of createdIntraday) expect(table.startsWith('intraday_')).toBe(true);
   });
 
   it('repository intraday hanya MEMBACA tabel milik modul lain', () => {

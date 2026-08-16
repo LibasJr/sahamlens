@@ -13,7 +13,7 @@ GitHub Actions.**
    `vercel --prod`, tidak ada langkah manual.
 3. **Env var production ada di `/opt/sahamlens/app/.env.production` di VPS**, bukan di
    dashboard Vercel. Menambah env var di Vercel tidak berpengaruh apa pun ke pengguna.
-4. **Cron dijalankan dari dua tempat**: 9 job lewat QStash, 3 job lewat systemd timer di VPS.
+4. **Cron dijalankan dari dua tempat**: manifest saat ini mencatat 10 job lewat QStash dan 11 job lewat systemd timer di VPS; beberapa timer baru tetap berstatus `verify-server` sampai diverifikasi langsung dengan `systemctl list-timers`.
    `vercel.json` sengaja **tidak boleh** berisi blok `crons` lagi (alasannya di bawah).
 5. **Vercel masih hidup sebagai standby** dan tetap ikut build tiap push - tapi tidak
    melayani pengguna dan tidak boleh menjalankan job terjadwal apa pun.
@@ -41,6 +41,81 @@ GitHub Actions.**
   di dokumen ini supaya agen berikutnya tidak mengulang jebakan lama.
 
 ## Status live
+
+### 2026-08-16 - Production Hardening + Financial Integrity (MIGRATION-FIRST)
+
+Rilis ini mengubah kontrak deployment: **database migration wajib dijalankan SEBELUM aplikasi baru direstart**.
+Runtime tidak lagi memiliki hak/logic `CREATE TABLE`/`ALTER TABLE`; `database/migrations/*.sql` menjadi satu-satunya source of truth schema. Aplikasi baru akan fail-closed dengan pesan migration missing bila schema belum berada pada versi yang diwajibkan.
+
+**Urutan deploy manual/SSH untuk rilis ini:**
+
+```bash
+cd /opt/sahamlens/app
+
+# 1. setelah source baru sudah tersedia, lihat rencana migration tanpa menulis
+node --env-file=.env.production scripts/migrate-database.mjs
+
+# 2. apply migration bernomor; checksum migration lama tidak boleh berubah
+node --env-file=.env.production scripts/migrate-database.mjs --confirm
+
+# 3. gate production wajib lulus sebelum restart
+npm run verify:prod
+
+# 4. baru restart aplikasi
+sudo systemctl restart sahamlens
+sudo systemctl --no-pager --full status sahamlens
+
+# 5. audit keadaan production setelah restart
+node --env-file=.env.production scripts/audit-production-integrity.mjs
+```
+
+**Env production baru/yang harus diperiksa di `/opt/sahamlens/app/.env.production`:**
+
+```dotenv
+# Secret admin HARUS berbeda dari JWT_SECRET. Generate random >=32 byte.
+ADMIN_JWT_SECRET=<random-secret-terpisah>
+ADMIN_BREAK_GLASS_ENABLED=false
+
+# Production berada di belakang Cloudflare Tunnel/Nginx.
+TRUSTED_PROXY_MODE=cloudflare
+TRUSTED_APP_ORIGINS=https://sahamlens.id,https://www.sahamlens.id
+AUTH_AUDIT_HASH_SECRET=<random-secret-terpisah>
+
+# Tetap true selama fase testing/open-access. Ubah false hanya saat entitlement paid siap diberlakukan.
+NEXT_PUBLIC_TESTING_OPEN_ACCESS=true
+```
+
+`ADMIN_JWT_SECRET` wajib tersedia sebelum aplikasi production baru direstart; tidak ada fallback production ke `JWT_SECRET_KEY`. `ADMIN_SECRET_KEY` tetap dapat dipakai untuk bootstrap secret admin pertama, tetapi setelah hash admin sudah tersimpan di DB ia **bukan** fallback permanen. Break-glass setelah bootstrap hanya bekerja bila `ADMIN_BREAK_GLASS_ENABLED=true`, dan harus dikembalikan ke `false` segera setelah insiden selesai. Cookie admin sekarang `Secure`, `HttpOnly`, `SameSite=Strict`, sesi default 8 jam, mempunyai session version/JTI, dan pergantian secret mencabut sesi lama.
+
+**Trusted client IP:** rate limit/audit production tidak lagi mempercayai `x-forwarded-for` secara buta. Dengan `TRUSTED_PROXY_MODE=cloudflare`, aplikasi memakai `CF-Connecting-IP`. Jangan mengubah ke mode `forwarded` kecuali reverse proxy benar-benar menghapus header client dan menulis ulang chain tepercaya.
+
+**CI/deploy:** Node production/CI dipatok major 22 (`.nvmrc`, `engines`), TypeScript target ES2022, dan build Next.js sekarang mandatory gate. Workflow manual deploy juga menjalankan `verify:prod`; tidak lagi menjadi jalur bypass CI.
+
+**Schema baru/aditif:** migration hardening menambahkan session version/audit admin, evidence bank fundamental PIT, macro valuation assumptions history, TP/CL validation runs, payment orders, dan data-source health. Migration baseline sengaja tidak berisi `UPDATE`, `DELETE`, `DROP`, atau `TRUNCATE`; tidak ada data produksi yang dimodifikasi diam-diam.
+
+**Integritas finansial:**
+
+- LensScore tetap `RESEARCH_ONLY`; hardening ini TIDAK mengubah model menjadi tervalidasi.
+- Bank fundamentals baru adalah evidence pipeline `DATA_ONLY`/PIT. Jika data resmi belum di-import, UI menampilkan N/A - tidak ada angka dummy/fallback buatan.
+- Macro assumptions memiliki lineage/versioning; production fair-value constants tidak otomatis berubah hanya karena evidence baru di-import.
+- Ownership Flow Validation membedakan data backfill historis dari data yang benar-benar PIT. Snapshot KSEI lama yang baru kita download sekarang tidak boleh dipakai seolah-olah sudah diketahui pada tanggal observasinya untuk membuktikan prediksi historis (anti look-ahead bias).
+- TP/CL research run sekarang durable queue di DB. Browser hanya enqueue; worker VPS yang melakukan pekerjaan berat dan menyimpan hasil/run status.
+
+**Timer systemd BARU yang harus dipasang setelah migration + build lulus:**
+
+```bash
+cd /opt/sahamlens/app
+sudo bash deploy/privacy-cleanup/install.sh
+sudo bash deploy/tpcl-validation-worker/install.sh
+
+systemctl list-timers --all | grep -E 'privacy-cleanup|tpcl-validation-worker'
+```
+
+Privacy cleanup berjalan mingguan dan TP/CL worker mengecek antrean tiap menit. Kedua entry tetap `verify-server` di `config/scheduled-jobs.json` sampai benar-benar terlihat di `systemctl list-timers`; setelah terpasang, update manifest agar status deployment tidak mengklaim hal yang belum diverifikasi.
+
+**Restore:** jalankan restore drill ke database TERISOLASI, bukan production. Prosedur dan RTO dicatat di `docs/production/RESTORE_DRILL.md`.
+
+**Catatan upgrade dependency:** runtime/toolchain sudah disejajarkan ke Node 22 + ES2022. Major dependency `next`/`eslint-config-next` tidak dinaikkan secara spekulatif di patch hardening ini; lakukan sebagai PR upgrade terpisah dengan `npm ci`, typecheck, test, build, dan browser smoke test lengkap.
 
 ### 2026-08-16 - Koreksi validator Ownership Flow (temuan audit VPS)
 

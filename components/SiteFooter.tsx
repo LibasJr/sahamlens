@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 /**
  * Footer situs - SATU sumber, dipakai landing dan seluruh halaman ber-shell.
@@ -26,9 +27,10 @@ export default function SiteFooter({ className = '' }: { className?: string }) {
       </span>
 
       <div className="flex flex-wrap items-center gap-3">
-        <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">
-          © {new Date().getFullYear()} SahamLens
-        </span>
+        <Link href="/privacy" className="hover:text-tv-text">Privasi</Link>
+        <Link href="/terms" className="hover:text-tv-text">Ketentuan</Link>
+        <Link href="/disclaimer" className="hover:text-tv-text">Disclaimer</Link>
+        <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
       </div>
     </footer>
   );

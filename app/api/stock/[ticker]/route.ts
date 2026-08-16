@@ -1,3 +1,4 @@
+import { getTrustedClientIp } from '@/shared/http/client-ip';
 import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { guard } from '@/lib/sahamLensGuard';
@@ -103,9 +104,7 @@ export async function GET(
     const ticker = normalizedTicker;
 
     if (!isInternal) {
-      const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
-        || request.headers.get('x-real-ip')
-        || 'unknown';
+      const ip = getTrustedClientIp(request.headers);
       recordAnalisaHit(ip, ticker);
     }
 

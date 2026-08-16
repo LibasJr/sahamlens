@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens - privacy retention cleanup
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/usr/bin/curl -sfS --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/privacy-cleanup
+TimeoutStartSec=330

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
 import { pool } from '@/shared/database/postgres.client';
 import { ensureSharedSchema } from '@/shared/database/schema.service';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
+import { toErrorResponse } from '@/shared/errors/app-error';
 
 const MAX_MESSAGE_ID = 100;
 const MAX_PROMPT = 1_500;
@@ -20,6 +22,7 @@ function cleanText(value: unknown, max: number): string {
  */
 export async function POST(request: Request) {
   try {
+    assertTrustedSameOrigin(request);
     const body = await request.json();
     const clientMessageId = cleanText(body?.messageId, MAX_MESSAGE_ID);
     const rating = body?.rating === 'up' || body?.rating === 'down' ? body.rating : null;
@@ -59,6 +62,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    const mapped = toErrorResponse(error);
+    if (mapped.status < 500) return NextResponse.json(mapped.body, { status: mapped.status, headers: mapped.headers });
     console.error('[LensAI:feedback] gagal menyimpan feedback', error instanceof Error ? error.message : String(error));
     return NextResponse.json({ error: 'Feedback belum dapat disimpan.' }, { status: 503 });
   }

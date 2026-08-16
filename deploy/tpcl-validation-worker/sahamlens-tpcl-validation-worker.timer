@@ -1,0 +1,12 @@
+[Unit]
+Description=Jadwal SahamLens - TPCL validation research queue worker
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Persistent=true
+RandomizedDelaySec=5
+AccuracySec=5
+
+[Install]
+WantedBy=timers.target

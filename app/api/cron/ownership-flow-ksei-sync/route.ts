@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/shared/logger/logger';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
@@ -97,9 +98,22 @@ export async function GET(req: NextRequest) {
       return guarded.value;
     });
 
+    const latestObservedDate = 'latestDbDateAfter' in result && typeof result.latestDbDateAfter === 'string'
+      ? result.latestDbDateAfter
+      : 'latestDbDate' in result && typeof result.latestDbDate === 'string'
+        ? result.latestDbDate
+        : null;
+    await recordDataSourceHealth({
+      sourceId: 'KSEI_HOLDING_COMPOSITION',
+      ok: true,
+      force: true,
+      dataObservedAt: latestObservedDate ? `${latestObservedDate}T00:00:00Z` : null,
+      detail: { status: result.status },
+    });
     return NextResponse.json({ success: true, result });
   } catch (error) {
     logger.error('Job ownership-flow-ksei-sync gagal', { error });
+    await recordDataSourceHealth({ sourceId: 'KSEI_HOLDING_COMPOSITION', ok: false, force: true, detail: { error: error instanceof Error ? error.message : String(error) } });
     return NextResponse.json(
       {
         error: 'Job ownership-flow-ksei-sync gagal',

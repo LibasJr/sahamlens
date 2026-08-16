@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { ADMIN_COOKIE } from '../../../shared/constants/cookie-names';
-import { verifyAdminToken } from '../../../shared/auth/admin-token';
+import { verifyAdminTokenLive } from '../../../shared/auth/admin-token-live';
 import { getStatsToday } from '../../../lib/serverStats';
 import { listAllWatchlistsPaginated } from '../../watchlist';
 
@@ -12,7 +12,7 @@ import { listAllWatchlistsPaginated } from '../../watchlist';
 export async function isAdminFromRequestCookies(
   cookieStore: { get(name: string): { value: string } | undefined }
 ): Promise<boolean> {
-  return verifyAdminToken(cookieStore.get(ADMIN_COOKIE)?.value);
+  return verifyAdminTokenLive(cookieStore.get(ADMIN_COOKIE)?.value);
 }
 
 /** Shortcut untuk dipakai di Server Component / Route Handler App Router. */

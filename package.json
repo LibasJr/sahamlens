@@ -19,7 +19,15 @@
     "eval:lensai": "vitest run app/api/chat/__tests__/lensai-eval.test.ts --disable-console-intercept",
     "eval:answers": "node scripts/eval-lensai-answers.mjs",
     "audit:performance": "node scripts/audit-performance.mjs",
-    "check:9router": "node scripts/check-9router.mjs"
+    "check:9router": "node scripts/check-9router.mjs",
+    "verify:prod": "npm run audit:schema && npm run audit:cron && npm run audit:ui && npm run audit:performance && npm run typecheck && npm run lint && npm test && npm run build",
+    "db:migrate": "node scripts/migrate-database.mjs --confirm",
+    "db:migrate:check": "node scripts/migrate-database.mjs",
+    "audit:integrity": "node scripts/audit-production-integrity.mjs",
+    "privacy:cleanup": "node scripts/cleanup-privacy-retention.mjs",
+    "import:macro-assumptions": "node scripts/import-macro-assumptions.mjs",
+    "import:bank-fundamentals": "node scripts/import-bank-fundamentals.mjs",
+    "audit:schema": "node scripts/audit-schema-ownership.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -64,5 +72,8 @@
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=22 <23"
   }
 }

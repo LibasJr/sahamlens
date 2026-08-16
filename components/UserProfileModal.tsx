@@ -44,11 +44,32 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const handleUpgradeClick = () => {
     onClose();
     setShowPaywall(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!data || data.role === 'admin') return;
+    const confirmation = window.prompt('Penghapusan akun bersifat permanen. Ketik HAPUS AKUN untuk melanjutkan.');
+    if (confirmation !== 'HAPUS AKUN') return;
+    setDeletingAccount(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/user/delete-account', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Gagal menghapus akun');
+      window.location.href = '/';
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menghapus akun');
+      setDeletingAccount(false);
+    }
   };
 
   useEffect(() => {
@@ -213,6 +234,21 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                     <Crown className="w-4 h-4" />
                     Upgrade ke Pro
                   </button>
+                )}
+
+                {data.role !== 'admin' && (
+                  <div className="mb-5 border-t border-tv-border pt-4">
+                    <p className="mb-2 text-xs text-tv-muted">Privasi & akun</p>
+                    <button
+                      type="button"
+                      disabled={deletingAccount}
+                      onClick={() => void handleDeleteAccount()}
+                      className="w-full rounded-md border border-tv-red/30 bg-tv-red/[0.05] px-3 py-2 text-sm font-bold text-tv-red hover:bg-tv-red/10 disabled:opacity-50"
+                    >
+                      {deletingAccount ? 'Menghapus akun…' : 'Hapus akun & data pribadi'}
+                    </button>
+                    <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">Watchlist, alert, portofolio virtual, histori autentikasi, dan feedback LensAI milik akun akan dihapus. Catatan pembayaran yang wajib untuk rekonsiliasi dipertahankan tanpa identitas akun.</p>
+                  </div>
                 )}
 
                 {data.activeUsers && (

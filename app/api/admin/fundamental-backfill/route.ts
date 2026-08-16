@@ -3,6 +3,7 @@ guard();
 
 import { cookies } from 'next/headers';
 import { runController } from '@/shared/http/next-response.adapter';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 import { ForbiddenError, ValidationError } from '@/shared/errors/app-error';
 import { isAdminFromRequestCookies } from '@/modules/user';
 import { runFundamentalBackfillImport } from '@/modules/fundamental/service/fundamental-backfill-import.service';
@@ -10,8 +11,9 @@ import { runFundamentalBackfillImport } from '@/modules/fundamental/service/fund
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
   return runController(async () => {
+    assertTrustedSameOrigin(request);
+    const body = await request.json().catch(() => ({}));
     if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
     if (typeof body.csvText !== 'string') throw new ValidationError('csvText wajib string');
     const result = await runFundamentalBackfillImport({

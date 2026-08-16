@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../../../shared/logger/logger';
+import { recordDataSourceHealth } from '../../observability/service/data-source-health.service';
 
 function getTransporter() {
   if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) return null;
@@ -34,9 +35,13 @@ interface OtpEmailTemplate {
 async function sendOtpEmail(email: string, code: string, template: OtpEmailTemplate): Promise<void> {
   const transporter = getTransporter();
   if (!transporter) {
+    if (process.env.NODE_ENV === 'production') {
+      void recordDataSourceHealth({ sourceId: 'SMTP_GMAIL', ok: false, detail: { reason: 'not_configured' } });
+    }
     devOnlyLog(template.label, email, code);
     return;
   }
+  const startedAt = Date.now();
   try {
     await transporter.sendMail({
       from: `"SahamLens Admin" <${process.env.SMTP_EMAIL}>`,
@@ -54,8 +59,10 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
       `,
     });
     logger.info(`[AUTH] Email ${template.label.toLowerCase()} berhasil dikirim`, { email });
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'SMTP_GMAIL', ok: true, latencyMs: Date.now() - startedAt });
   } catch (err) {
     logger.error(`[AUTH] Gagal mengirim email ${template.label.toLowerCase()}`, { email, err });
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'SMTP_GMAIL', ok: false, latencyMs: Date.now() - startedAt, detail: { error: err instanceof Error ? err.message : String(err) } });
     devOnlyLog(template.label, email, code);
   }
 }

@@ -7,8 +7,20 @@ vi.mock('../../repository/user.repository', () => ({
   createUser: vi.fn(),
 }));
 vi.mock('../../repository/admin-secret.repository', () => ({
+  getAdminSecretState: vi.fn(),
   getAdminSecretHash: vi.fn(),
+  getAdminSessionVersion: vi.fn(),
   setAdminSecretHash: vi.fn(),
+}));
+vi.mock('../../repository/admin-audit.repository', () => ({ recordAdminAudit: vi.fn() }));
+vi.mock('../../../payment/repository/payment-order.repository', () => ({
+  getPaymentOrderByReference: vi.fn(),
+  activateProAndReconcilePayment: vi.fn(),
+}));
+vi.mock('../../service/admin.service', () => ({
+  isAdminFromRequestCookies: vi.fn(async (store: any) => Boolean(store.get('sahamlens_admin')?.value)),
+  getAdminStatsToday: vi.fn(),
+  getAdminExportData: vi.fn(),
 }));
 vi.mock('../../../portfolio', () => ({
   provisionPortfolio: vi.fn(),
@@ -20,7 +32,8 @@ vi.mock('../../../../shared/database/postgres.client', () => ({
 import { handleSetProStatus, handleGetProStatus, handleAdminLoginByKey, handleChangeAdminSecret, handleCreateTestUser } from '../admin.controller';
 import { getUserByEmail, updateUser, createUser } from '../../repository/user.repository';
 import { provisionPortfolio } from '../../../portfolio';
-import { getAdminSecretHash, setAdminSecretHash } from '../../repository/admin-secret.repository';
+import { getAdminSecretState, setAdminSecretHash } from '../../repository/admin-secret.repository';
+import { getPaymentOrderByReference, activateProAndReconcilePayment } from '../../../payment/repository/payment-order.repository';
 import { ADMIN_COOKIE } from '../../../../shared/constants/cookie-names';
 import { signAdminToken } from '../../../../shared/auth/admin-token';
 import { ForbiddenError, ValidationError, NotFoundError, ConflictError } from '../../../../shared/errors/app-error';
@@ -64,7 +77,7 @@ function adminCookieStore(isAdmin: boolean) {
 }
 
 describe('handleSetProStatus', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(setAdminSecretHash).mockResolvedValue(2); });
 
   it('tanpa cookie admin valid -> melempar ForbiddenError, updateUser tidak dipanggil', async () => {
     await expect(
@@ -109,6 +122,54 @@ describe('handleSetProStatus', () => {
     expect(result.body).toMatchObject({ email: 'user@test.com', isPro: true });
   });
 
+  it('aktivasi dengan paymentReference merekonsiliasi entitlement + order secara atomik', async () => {
+    const reference = '550e8400-e29b-41d4-a716-446655440000';
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', email: 'user@test.com' }));
+    vi.mocked(getPaymentOrderByReference).mockResolvedValue({
+      id: 'order-1', userId: 'user-42', email: 'user@test.com', planCode: '1m',
+      amountIdr: 49000, status: 'CLAIMED', externalReference: reference,
+    });
+    vi.mocked(activateProAndReconcilePayment).mockResolvedValue(undefined);
+
+    const result = await handleSetProStatus(adminCookieStore(true), {
+      email: 'user@test.com', isPro: true, months: 1, paymentReference: reference,
+      reconciliationNote: 'transfer terverifikasi',
+    });
+
+    expect(activateProAndReconcilePayment).toHaveBeenCalledTimes(1);
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ paymentReference: reference, isPro: true });
+  });
+
+  it('paymentReference mengunci durasi sesuai paket yang diklaim', async () => {
+    const reference = '550e8400-e29b-41d4-a716-446655440001';
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', email: 'user@test.com' }));
+    vi.mocked(getPaymentOrderByReference).mockResolvedValue({
+      id: 'order-2', userId: 'user-42', email: 'user@test.com', planCode: '3m',
+      amountIdr: 435000, status: 'CLAIMED', externalReference: reference,
+    });
+
+    await expect(handleSetProStatus(adminCookieStore(true), {
+      email: 'user@test.com', isPro: true, months: 12, paymentReference: reference,
+    })).rejects.toThrow(ValidationError);
+    expect(activateProAndReconcilePayment).not.toHaveBeenCalled();
+  });
+
+  it('paymentReference tidak boleh memakai expiresAt manual', async () => {
+    const reference = '550e8400-e29b-41d4-a716-446655440002';
+    vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', email: 'user@test.com' }));
+    vi.mocked(getPaymentOrderByReference).mockResolvedValue({
+      id: 'order-3', userId: 'user-42', email: 'user@test.com', planCode: '1m',
+      amountIdr: 149000, status: 'CLAIMED', externalReference: reference,
+    });
+
+    await expect(handleSetProStatus(adminCookieStore(true), {
+      email: 'user@test.com', isPro: true, expiresAt: '2030-01-01', paymentReference: reference,
+    })).rejects.toThrow(ValidationError);
+    expect(activateProAndReconcilePayment).not.toHaveBeenCalled();
+  });
+
   it('expiresAt yang tidak bisa dibaca ditolak sebagai ValidationError, bukan 500', async () => {
     vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', email: 'user@test.com' }));
 
@@ -133,14 +194,17 @@ describe('handleSetProStatus', () => {
 
 describe('handleAdminLoginByKey', () => {
   const ORIGINAL_ENV = process.env.ADMIN_SECRET_KEY;
+  const ORIGINAL_BREAK_GLASS = process.env.ADMIN_BREAK_GLASS_ENABLED;
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(setAdminSecretHash).mockResolvedValue(2); });
   afterEach(() => {
     if (ORIGINAL_ENV === undefined) {
       delete process.env.ADMIN_SECRET_KEY;
     } else {
       process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
     }
+    if (ORIGINAL_BREAK_GLASS === undefined) delete process.env.ADMIN_BREAK_GLASS_ENABLED;
+    else process.env.ADMIN_BREAK_GLASS_ENABLED = ORIGINAL_BREAK_GLASS;
   });
 
   it('key null -> 404', async () => {
@@ -150,7 +214,7 @@ describe('handleAdminLoginByKey', () => {
 
   it('hash di DB ada dan cocok -> berhasil, env var tidak perlu dicek', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-tidak-dipakai';
-    vi.mocked(getAdminSecretHash).mockResolvedValue(bcrypt.hashSync('password-db-benar', 10));
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: bcrypt.hashSync('password-db-benar', 10), sessionVersion: 1 });
 
     const result = await handleAdminLoginByKey('password-db-benar');
 
@@ -158,18 +222,19 @@ describe('handleAdminLoginByKey', () => {
     expect(result.redirectTo).toBe('/dashboard');
   });
 
-  it('hash di DB ada tapi tidak cocok, env var cocok -> tetap berhasil (jalur darurat)', async () => {
+  it('hash di DB ada tapi tidak cocok, env var cocok -> ditolak bila break-glass tidak aktif', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockResolvedValue(bcrypt.hashSync('password-db-lain', 10));
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: bcrypt.hashSync('password-db-lain', 10), sessionVersion: 1 });
 
+    delete process.env.ADMIN_BREAK_GLASS_ENABLED;
     const result = await handleAdminLoginByKey('env-secret-darurat');
 
-    expect(result.status).toBe(302);
+    expect(result.status).toBe(404);
   });
 
   it('hash di DB null (belum pernah ganti) -> jatuh ke env var', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockResolvedValue(null);
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: null, sessionVersion: 1 });
 
     const result = await handleAdminLoginByKey('env-secret-darurat');
 
@@ -178,20 +243,20 @@ describe('handleAdminLoginByKey', () => {
 
   it('tidak cocok keduanya -> 404', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockResolvedValue(bcrypt.hashSync('password-db-lain', 10));
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: bcrypt.hashSync('password-db-lain', 10), sessionVersion: 1 });
 
     const result = await handleAdminLoginByKey('salah-semua');
 
     expect(result.status).toBe(404);
   });
 
-  it('getAdminSecretHash gagal (DB down) -> tetap jatuh ke env var, tidak melempar error', async () => {
+  it('DB down -> env ditolak bila break-glass tidak aktif', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockRejectedValue(new Error('DB down'));
+    vi.mocked(getAdminSecretState).mockRejectedValue(new Error('DB down'));
 
     const result = await handleAdminLoginByKey('env-secret-darurat');
 
-    expect(result.status).toBe(302);
+    expect(result.status).toBe(404);
   });
 
   it('hash di DB rusak (bcrypt.compare gagal) -> tetap jatuh ke env var, tidak melempar error', async () => {
@@ -199,24 +264,47 @@ describe('handleAdminLoginByKey', () => {
     // bcryptjs cuma melempar kalau string-nya persis 60 karakter tapi isinya bukan
     // hash valid (mis. salt version salah) - string pendek biasa cuma resolve false
     // lewat length guard, tidak pernah memicu jalur throw yang mau diuji di sini.
-    vi.mocked(getAdminSecretHash).mockResolvedValue('x'.repeat(60));
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: 'x'.repeat(60), sessionVersion: 1 });
 
     const result = await handleAdminLoginByKey('env-secret-darurat');
 
+    expect(result.status).toBe(404);
+  });
+});
+
+describe('admin break-glass eksplisit', () => {
+  const ORIGINAL_ENV = process.env.ADMIN_SECRET_KEY;
+  const ORIGINAL_BREAK_GLASS = process.env.ADMIN_BREAK_GLASS_ENABLED;
+
+  afterEach(() => {
+    if (ORIGINAL_ENV === undefined) delete process.env.ADMIN_SECRET_KEY;
+    else process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_BREAK_GLASS === undefined) delete process.env.ADMIN_BREAK_GLASS_ENABLED;
+    else process.env.ADMIN_BREAK_GLASS_ENABLED = ORIGINAL_BREAK_GLASS;
+  });
+
+  it('env darurat hanya aktif ketika ADMIN_BREAK_GLASS_ENABLED=true', async () => {
+    process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
+    process.env.ADMIN_BREAK_GLASS_ENABLED = 'true';
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: bcrypt.hashSync('db-lain', 10), sessionVersion: 7 });
+    const result = await handleAdminLoginByKey('env-secret-darurat');
     expect(result.status).toBe(302);
   });
 });
 
 describe('handleChangeAdminSecret', () => {
   const ORIGINAL_ENV = process.env.ADMIN_SECRET_KEY;
+  const ORIGINAL_BREAK_GLASS = process.env.ADMIN_BREAK_GLASS_ENABLED;
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(setAdminSecretHash).mockResolvedValue(2); });
   afterEach(() => {
     if (ORIGINAL_ENV === undefined) {
       delete process.env.ADMIN_SECRET_KEY;
     } else {
       process.env.ADMIN_SECRET_KEY = ORIGINAL_ENV;
     }
+    if (ORIGINAL_BREAK_GLASS === undefined) delete process.env.ADMIN_BREAK_GLASS_ENABLED;
+    else process.env.ADMIN_BREAK_GLASS_ENABLED = ORIGINAL_BREAK_GLASS;
   });
 
   it('tanpa cookie admin valid -> ForbiddenError, setAdminSecretHash tidak dipanggil', async () => {
@@ -242,7 +330,7 @@ describe('handleChangeAdminSecret', () => {
 
   it('currentKey salah (tidak cocok DB maupun env var) -> ValidationError, setAdminSecretHash tidak dipanggil', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockResolvedValue(null);
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: null, sessionVersion: 1 });
 
     await expect(
       handleChangeAdminSecret(adminCookieStore(true), { currentKey: 'salah-total', newKey: 'password-baru-yang-panjang' })
@@ -252,8 +340,8 @@ describe('handleChangeAdminSecret', () => {
 
   it('path sukses lewat env var -> setAdminSecretHash dipanggil dengan hash (bukan plaintext), balas 200', async () => {
     process.env.ADMIN_SECRET_KEY = 'env-secret-darurat';
-    vi.mocked(getAdminSecretHash).mockResolvedValue(null);
-    vi.mocked(setAdminSecretHash).mockResolvedValue(undefined);
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: null, sessionVersion: 1 });
+    vi.mocked(setAdminSecretHash).mockResolvedValue(2);
 
     const result = await handleChangeAdminSecret(adminCookieStore(true), {
       currentKey: 'env-secret-darurat',
@@ -269,8 +357,8 @@ describe('handleChangeAdminSecret', () => {
   });
 
   it('path sukses lewat password DB lama -> berhasil', async () => {
-    vi.mocked(getAdminSecretHash).mockResolvedValue(bcrypt.hashSync('password-db-lama', 10));
-    vi.mocked(setAdminSecretHash).mockResolvedValue(undefined);
+    vi.mocked(getAdminSecretState).mockResolvedValue({ secretHash: bcrypt.hashSync('password-db-lama', 10), sessionVersion: 1 });
+    vi.mocked(setAdminSecretHash).mockResolvedValue(2);
 
     const result = await handleChangeAdminSecret(adminCookieStore(true), {
       currentKey: 'password-db-lama',
@@ -282,7 +370,7 @@ describe('handleChangeAdminSecret', () => {
 });
 
 describe('handleSetProStatus - durasi', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(setAdminSecretHash).mockResolvedValue(2); });
 
   it('months: 1 menulis is_pro true beserta tanggal berakhir', async () => {
     vi.mocked(getUserByEmail).mockResolvedValue(makeUser({ id: 'user-42', pro_expires_at: null }));
@@ -317,7 +405,7 @@ describe('handleSetProStatus - durasi', () => {
 });
 
 describe('handleGetProStatus', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(setAdminSecretHash).mockResolvedValue(2); });
 
   it('tanpa cookie admin -> ForbiddenError', async () => {
     await expect(
@@ -350,7 +438,7 @@ describe('handleGetProStatus', () => {
 // BARU (2026-08-14, permintaan pengguna: "bisa buatkan akun user/user di sistem, ini
 // untuk user tes" -> "hak akses nya jgn admin, user testing biasa").
 describe('handleCreateTestUser', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(setAdminSecretHash).mockResolvedValue(2); });
 
   it('tanpa cookie admin valid -> ForbiddenError, createUser tidak dipanggil', async () => {
     await expect(

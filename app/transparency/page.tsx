@@ -27,6 +27,17 @@ export default function TransparencyPage() {
           </p>
         </div>
 
+        <section className="mb-6 rounded-xl border border-tv-border bg-tv-card p-4 sm:p-5">
+          <h2 className="text-base font-semibold text-tv-text">Komitmen Integritas Data</h2>
+          <div className="mt-3 grid gap-3 text-sm text-tv-muted md:grid-cols-2">
+            <p><span className="font-semibold text-tv-text">Fail-closed.</span> Data yang tidak tersedia ditampilkan sebagai N/A/null, bukan diganti angka netral atau estimasi tanpa sumber.</p>
+            <p><span className="font-semibold text-tv-text">Point-in-time.</span> Backfill yang baru diketahui setelah tanggal historis tidak diperlakukan sebagai sinyal yang tersedia pada masa lalu.</p>
+            <p><span className="font-semibold text-tv-text">Research-only sampai tervalidasi.</span> Status model tidak dinaikkan hanya karena backtest terlihat baik; forward OOS dan gate sampel tetap wajib.</p>
+            <p><span className="font-semibold text-tv-text">Reproducible.</span> Perubahan scoring, asumsi makro, parameter riset, dan schema dipisahkan lewat versi/migration agar hasil lama dapat diaudit.</p>
+          </div>
+          <p className="mt-3 text-xs text-tv-muted">SahamLens adalah alat riset dan analisis, bukan jaminan hasil investasi. Detail risiko dan batas penggunaan tersedia di halaman Disclaimer.</p>
+        </section>
+
         <TransparencyClient />
       </div>
     </div>

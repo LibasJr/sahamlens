@@ -420,6 +420,9 @@ function FundamentalContent() {
   const lockedAnalyzerCount = isConfirmedGuest
     ? filteredAnalyzers.filter((algo: any) => !isVisibleForFundamentalGuest(algo.label)).length
     : 0;
+  const isBankProfile = Boolean(data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank'));
+  const bank = data?.bankFundamentals ?? null;
+  const fmtBankPct = (value: number | null | undefined) => typeof value === 'number' ? `${value.toFixed(2)}%` : 'N/A';
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -685,7 +688,7 @@ function FundamentalContent() {
                   }`}>{fmtPersen(data?.fundamentals?.returnOnEquity)}</span>
                 </div>
                 {/* BUG 2 FIX: Sembunyikan DER & CR untuk bank, tampilkan rasio bank */}
-                {!(data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) ? (
+                {!isBankProfile ? (
                   <>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">Gross Margin</span>
@@ -700,7 +703,7 @@ function FundamentalContent() {
                   <>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">NIM (Net Interest Margin)</span>
-                      <span className="font-number text-lg font-bold text-tv-green">{fmtPersen(data?.fundamentals?.nim)}</span>
+                      <span className={`font-number text-lg font-bold ${bank?.nimPct == null ? 'text-tv-muted' : 'text-tv-green'}`}>{fmtBankPct(bank?.nimPct)}</span>
                     </div>
                     <div className="bg-tv-bg border border-tv-border p-3 rounded-lg flex flex-col justify-between">
                       <span className="text-[10px] text-tv-muted uppercase">Pendapatan (Revenue)</span>
@@ -709,6 +712,41 @@ function FundamentalContent() {
                   </>
                 )}
               </div>
+
+              {isBankProfile && (
+                <div className="lg:col-span-3 mt-4 rounded-xl border border-tv-border bg-tv-bg/60 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wide text-tv-text">Rasio Khusus Bank — Evidence DATA_ONLY</div>
+                      <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-tv-muted">
+                        Rasio ini berasal dari pipeline laporan bank yang memiliki observed date dan sumber audit. Belum masuk LensScore sampai histori PIT dan validasinya cukup; nilai yang tidak tersedia tetap N/A, bukan diisi nol.
+                      </p>
+                    </div>
+                    <div className="text-right text-[10px] text-tv-muted">
+                      <div>{bank ? `Observed ${bank.observedDate}` : 'Belum ada snapshot bank terverifikasi'}</div>
+                      {bank?.source && <div className="mt-0.5">Sumber: {bank.source}</div>}
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                    {[
+                      ['NIM', bank?.nimPct],
+                      ['NPL Gross', bank?.nplGrossPct],
+                      ['NPL Net', bank?.nplNetPct],
+                      ['CASA', bank?.casaPct],
+                      ['CAR', bank?.carPct],
+                      ['LDR', bank?.ldrPct],
+                      ['Cost of Credit', bank?.costOfCreditPct],
+                      ['Cost / Income', bank?.costToIncomePct],
+                      ['Coverage', bank?.coverageRatioPct],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} className="rounded-lg border border-tv-border bg-tv-card p-3">
+                        <div className="text-[10px] uppercase tracking-wide text-tv-muted">{String(label)}</div>
+                        <div className={`mt-1 font-number text-base font-bold ${typeof value === 'number' ? 'text-tv-text' : 'text-tv-muted'}`}>{fmtBankPct(typeof value === 'number' ? value : null)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

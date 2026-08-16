@@ -1,3 +1,4 @@
+import { assertDatabaseMigrated } from '@/shared/database/migration-guard';
 import { pool } from '@/shared/database/postgres.client';
 
 export const MAX_BROKER_CSV_BYTES = 2 * 1024 * 1024;
@@ -295,32 +296,7 @@ function rowFromCsv(
 }
 
 async function ensureSchema(): Promise<void> {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS broker_summary_daily (
-      id BIGSERIAL PRIMARY KEY,
-      trade_date DATE NOT NULL,
-      ticker TEXT NOT NULL,
-      broker_code VARCHAR(8) NOT NULL,
-      buy_value NUMERIC(24,2) NOT NULL DEFAULT 0,
-      sell_value NUMERIC(24,2) NOT NULL DEFAULT 0,
-      buy_lot BIGINT,
-      sell_lot BIGINT,
-      buy_avg NUMERIC(18,4),
-      sell_avg NUMERIC(18,4),
-      source TEXT NOT NULL,
-      source_file TEXT,
-      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT broker_summary_daily_unique UNIQUE (trade_date, ticker, broker_code, source)
-    )
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS broker_summary_daily_ticker_date_idx
-    ON broker_summary_daily (ticker, trade_date DESC)
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS broker_summary_daily_broker_date_idx
-    ON broker_summary_daily (broker_code, trade_date DESC)
-  `);
+  await assertDatabaseMigrated();
 }
 
 function sanitizeSource(value?: string): string {
@@ -538,32 +514,7 @@ function parseStockbitBrokerDistribution(
 }
 
 async function ensurePeriodSchema(): Promise<void> {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS broker_summary_period (
-      id BIGSERIAL PRIMARY KEY,
-      start_date DATE NOT NULL,
-      end_date DATE NOT NULL,
-      as_of_date DATE NOT NULL,
-      ticker TEXT NOT NULL,
-      broker_code VARCHAR(8) NOT NULL,
-      broker_type VARCHAR(32),
-      buy_value NUMERIC(24,2) NOT NULL DEFAULT 0,
-      sell_value NUMERIC(24,2) NOT NULL DEFAULT 0,
-      net_value NUMERIC(24,2) NOT NULL DEFAULT 0,
-      source TEXT NOT NULL,
-      source_file TEXT,
-      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT broker_summary_period_unique UNIQUE (start_date, end_date, ticker, broker_code, source)
-    )
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS broker_summary_period_ticker_date_idx
-    ON broker_summary_period (ticker, end_date DESC, start_date DESC)
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS broker_summary_period_broker_date_idx
-    ON broker_summary_period (broker_code, end_date DESC)
-  `);
+  await assertDatabaseMigrated();
 }
 
 export async function importBrokerDistributionJson(
