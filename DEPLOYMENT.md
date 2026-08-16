@@ -42,6 +42,67 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-16 - Ownership Flow (modul baru, ingestion MASIH TERTUTUP)
+
+**Ringkas: deploy ini AMAN dan tidak mengubah perilaku apa pun yang sudah ada.
+Modul barunya sengaja belum menyala.**
+
+- Modul BARU `modules/ownership-flow/` - komposisi kepemilikan lokal/asing dari
+  kustodian resmi. **BUKAN** penggantian nama Broker Summary; keduanya mengukur
+  besaran berbeda (transaksi per kode broker vs komposisi kepemilikan). Lihat
+  `docs/ownership-flow/broker-vs-ownership.md`.
+- **Broker Summary tetap NONAKTIF dan UTUH.** Tidak ada kode, skema, atau data
+  historis yang dihapus, dan tidak ada migrasi destruktif. Statusnya kini
+  terdokumentasi eksplisit - lihat `docs/ownership-flow/broker-summary-status.md`.
+
+**Tabel database baru: `ownership_flow_history`.** Dibuat otomatis oleh
+`ensureSharedSchema()` (CREATE TABLE/INDEX IF NOT EXISTS - aditif murni, tidak
+menyentuh tabel lain). **Tidak ada langkah migrasi manual.** Seluruh blok skema
+sudah diuji terhadap PostgreSQL 16 sungguhan sebelum push: dijalankan dua kali
+tanpa error (idempoten), `ON CONFLICT (ticker, observed_date, source)` terbukti
+membuat insert kedua jadi no-op, `observed_date` tidak bergeser melewati
+round-trip, dan as-of query memakai Index Only Scan.
+
+**DUA LANGKAH MANUAL DI SERVER - deploy TIDAK melakukan keduanya:**
+
+1. **Env var** (wajib, kalau ingin modulnya terlihat). Tambahkan ke
+   `/opt/sahamlens/app/.env.production` lalu `sudo systemctl restart sahamlens`:
+   ```
+   OWNERSHIP_FLOW_ENABLED=true
+   OWNERSHIP_FLOW_CRON_ENABLED=false
+   OWNERSHIP_FLOW_INGESTION_ENABLED=false
+   ```
+   **Sampai ini dilakukan**, menu "Ownership Flow" di sidebar tetap terlihat tapi
+   halamannya menampilkan "belum diaktifkan pada deployment ini", API balas 404,
+   dan kartu di `/dashboard` menghilang sendiri (render null). Tidak ada yang
+   rusak - hanya belum menyala. Semua default-nya `false` di kode (fail-closed),
+   jadi deploy tanpa langkah ini tetap aman.
+
+2. **Audit sumber** (sebelum ingestion boleh menyala). Jalankan di VPS:
+   ```
+   npm run audit:ksei-ownership
+   ```
+   Sumber KSEI masih berstatus `UNVERIFIED` di
+   `modules/ownership-flow/source/source-registry.ts`, dan `canIngest()` MENOLAK
+   menulis ke database selama itu - **walaupun kedua env flag di atas dinyalakan**.
+   Cron berhenti di gerbang tanpa satu pun request keluar ke KSEI. Prosedur
+   lengkap menaikkan status: `docs/ownership-flow/source-audit.md`.
+
+**Cron `ownership-flow-scan` SENGAJA BELUM DIJADWALKAN.** Endpoint-nya ada, tapi
+`config/scheduled-jobs.json` mencatatnya dengan `schedule: null`. Menjadwalkannya
+sekarang hanya menghasilkan baris SKIPPED tiap hari. Rencananya 1x sehari, dan
+JAM-nya belum ditentukan karena kita belum punya bukti pukul berapa KSEI
+memperbarui datanya - jalankan script audit beberapa hari berturut-turut untuk
+menentukan cadence dan jam sebenarnya, baru pasang timer systemd.
+
+Ownership Flow bersifat **eksperimental** dan **tidak ikut menghitung LensScore**
+(`experimental: true`, `inFinalScore: false`). Syarat sebelum boleh masuk skor:
+`docs/ownership-flow/validation-plan.md`.
+
+Rute baru: `/ownership-flow`, `/admin/ownership-flow`, `/api/ownership-flow`,
+`/api/ownership-flow/[ticker]`, `/api/admin/ownership-flow`,
+`/api/cron/ownership-flow-scan`.
+
 ### 2026-08-16 - Perbaikan CI acuan penutupan IHSG Dashboard
 
 - `buildIndexPayload` di LensTechnical tidak lagi memakai posisi `candles[length - 2]` sebagai penutupan sesi sebelumnya.
@@ -2641,6 +2702,11 @@ grep pemakaian di source) dan diperbarui saat migrasi VPS:
 | `SMTP_EMAIL` / `SMTP_PASSWORD` | Kirim email (reset password, dst - `nodemailer`). |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | **BUKAN login Telegram** (itu sudah dihapus total) - dipakai `lib/telegram.ts sendTelegramMessage()`, satu-satunya pemanggil `app/api/payment/notify/route.ts` (notifikasi ke admin saat ada bukti bayar manual masuk). |
 | `NEXT_PUBLIC_PAYMENT_*` (BANK_ACCOUNT_NAME/NUMBER, BANK_NAME, GOPAY_NAME/NUMBER, DANA_NAME/NUMBER) | Metode pembayaran manual di `PaywallModal` (`shared/config/payment.ts`). Baris otomatis disembunyikan kalau salah satu metode belum diisi. |
+| `OWNERSHIP_FLOW_ENABLED` | Menampilkan modul Ownership Flow (menu, API, panel admin). **Default `false` di kode** - tanpa var ini menu terlihat tapi halamannya bilang "belum diaktifkan" dan API balas 404. Set `true` untuk menyalakannya. |
+| `OWNERSHIP_FLOW_CRON_ENABLED` | Mengizinkan cron `ownership-flow-scan` dieksekusi. Default `false`; pemanggilan dicatat sebagai `SKIPPED` di `job_run_log` (bukan diam) saat mati. |
+| `OWNERSHIP_FLOW_INGESTION_ENABLED` | Mengizinkan cron MENULIS observasi ke database. Default `false`. **Ini saja TIDAK cukup**: `canIngest()` juga menuntut sumbernya berstatus `VERIFIED` di source registry - selama `UNVERIFIED`, ingestion ditolak walaupun var ini `true`. Ini disengaja (fail-closed). |
+| `OWNERSHIP_FLOW_MAX_CONCURRENCY` | Batas request paralel ke sumber, default 3 (dibatasi 1-8). **Jangan dinaikkan sembarangan** - sumbernya server publik milik lembaga, bukan API berbayar berkuota. |
+| `OWNERSHIP_FLOW_TIMEOUT_MS` / `OWNERSHIP_FLOW_MIN_DELAY_MS` / `OWNERSHIP_FLOW_UNIVERSE_LIMIT` / `OWNERSHIP_FLOW_CACHE_TTL_SEC` | Penyetelan fetcher & cache. Default 15000 / 250 / 0 (seluruh universe) / 1800. Freshness dihitung dari `observed_date`, bukan umur cache - jadi TTL tidak pernah membuat data basi terlihat segar. |
 
 **LEGACY - tidak dibaca kode manapun:**
 
