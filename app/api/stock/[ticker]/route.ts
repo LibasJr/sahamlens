@@ -32,10 +32,12 @@ import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@
 import { classifyFreshness } from '@/shared/http/freshness';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
-import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
+import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import { resolveSectorProfile } from '@/modules/sector';
 import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
 import YahooFinanceClass from 'yahoo-finance2';
+import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
+import { getLatestMarketIntegrity } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -135,21 +137,28 @@ export async function GET(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const chartPromise = fetch(url, {
+    const yahooCircuitOpen = await isProviderCircuitOpen('YAHOO_CHART');
+    if (yahooCircuitOpen) clearTimeout(timeoutId);
+    const chartPromise = yahooCircuitOpen ? Promise.reject(new Error('YAHOO_CIRCUIT_OPEN')) : fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
       },
       signal: controller.signal
-    }).then(res => {
+    }).then(async res => {
       clearTimeout(timeoutId);
-      if (!res.ok) throw new Error('Failed to fetch Yahoo data');
+      if (!res.ok) {
+        await recordProviderFailure('YAHOO_CHART', { immediateOpen: res.status === 403 || res.status === 429 });
+        throw new Error(`Failed to fetch Yahoo data: ${res.status}`);
+      }
+      await recordProviderSuccess('YAHOO_CHART');
       return res.json();
-    }).catch((e: any) => {
+    }).catch(async (e: any) => {
       clearTimeout(timeoutId);
+      if (!(e instanceof Error && e.message === 'YAHOO_CIRCUIT_OPEN')) await recordProviderFailure('YAHOO_CHART');
       throw e;
     });
 
-    const quotePromise = Promise.race([
+    const quotePromise = yahooCircuitOpen ? Promise.resolve(null) : Promise.race([
       yahooFinance.quoteSummary(ticker, {
         // BUG FIX (Fase 4, ditemukan saat menyambungkan normalized earnings): 'assetProfile'
         // TIDAK pernah ada di daftar ini, sementara baris ~490 di bawah membaca
@@ -577,6 +586,8 @@ export async function GET(
     // `meta.regularMarketTime`), bukan `Date.now()` di server - lihat shared/http/freshness.ts.
     const freshness = classifyFreshness(result.meta?.regularMarketTime);
 
+    const dataIntegrity = await getLatestMarketIntegrity(ticker);
+
     const resultPayload = {
       ticker,
       price: currentPrice,
@@ -588,7 +599,7 @@ export async function GET(
         raw: currentPrice,
         adjusted: currentAdjustedPrice,
         basis_used_for_score: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
-        basis_used_for_trading_levels: TRADING_PRICE_BASIS,
+        basis_used_for_trading_levels: 'RAW',
         adjustment_version: PRICE_ADJUSTMENT_VERSION,
         corporate_action_status: 'NONE',
       },
@@ -650,6 +661,7 @@ export async function GET(
         computedAt: new Date().toISOString(),
         dataTimestamp: freshness.dataTimestamp,
         freshness: freshness.freshness,
+        dataIntegrity,
       },
     };
 
