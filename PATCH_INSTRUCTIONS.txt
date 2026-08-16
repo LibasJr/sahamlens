@@ -1,41 +1,47 @@
-SAHAMLENS - BANK COLLECTOR CONSOLIDATED FIX
-Date: 2026-08-17
+SahamLens - Bank Evidence Integrity FAIL Fix
+============================================
 
-Tujuan: menggantikan patch bank collector parsial sebelumnya dengan satu patch gabungan.
+Fix yang ditutup sekaligus:
+1. False-positive observed_date masa depan ketika PostgreSQL masih UTC tetapi collector sudah tanggal Asia/Jakarta.
+2. Active conflicting metric groups yang tertinggal dari run collector lama.
+3. Pencegahan conflict baru lintas run/source sebelum INSERT evidence.
 
-Fix utama:
-- reporting period: 1Q/1H/9M/FY diprioritaskan atas bulan publikasi;
-- --year benar-benar memfilter body dokumen dan overscan candidate;
-- source title generik "View" diturunkan dari card/front matter PDF;
-- canonical URL dedupe untuk dokumen yang sama;
-- BANK_ONLY vs CONSOLIDATED dipisahkan end-to-end;
-- repository tidak mencampur basis dalam satu snapshot;
-- conflicting active values fail-closed per metric;
-- BBCA comparison-row parser + leading-dot percent;
-- Net NPL Formation bukan NPL Net ratio;
-- CASA growth bukan CASA ratio;
-- LAR Coverage bukan NPL Coverage;
-- CoC after-recovery tidak menggantikan gross CoC;
-- cross-document conflict tetap quarantine;
-- correction lineage: evidence lama ditandai superseded, tidak dihapus;
-- semantic invalidation dibuat period-safe untuk stable HTML pages;
-- observed_date menggunakan Asia/Jakarta;
-- admin summary hanya menampilkan active evidence + latest-run quarantine;
-- production integrity audit mengabaikan superseded rows dan mengecek active conflicts.
+FILE PATCH:
+- scripts/audit-production-integrity.mjs
+- scripts/collect-bank-metric-evidence-auto.mjs
+- scripts/repair-bank-metric-evidence-integrity.mjs
 
-DEPLOYMENT:
-1) Copy semua file ke root project dan overwrite.
-2) Dry-run migration:
-   node --env-file=.env.production scripts/migrate-database.mjs
-3) Confirm migration:
-   node --env-file=.env.production scripts/migrate-database.mjs --confirm
-   Pastikan 006_bank_metric_collector_integrity.sql applied.
-4) Jalankan collector manual:
+SETELAH COPY/OVERWRITE:
+
+1) Dry-run repair:
+   cd /opt/sahamlens/app
    NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection" \
-   node --env-file=.env.production scripts/collect-bank-metric-evidence-auto.mjs --confirm
-5) Audit:
-   node --env-file=.env.production scripts/audit-production-integrity.mjs
-6) Push dan tunggu CI hijau sebelum restart production.
+   node --env-file=.env.production scripts/repair-bank-metric-evidence-integrity.mjs
 
-Catatan: full typecheck container tidak dapat dijalankan karena instalasi @types di workspace container tidak lengkap.
-Regression smoke collector dan syntax check file JS/TS terkait sudah PASS.
+   Periksa:
+   - Future active rows
+   - Conflicting groups
+   - Rows to supersede
+   - Blocked manual issues
+
+   Kalau Blocked manual issues = 0, lanjut confirm.
+
+2) Confirm repair:
+   NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection" \
+   node --env-file=.env.production scripts/repair-bank-metric-evidence-integrity.mjs --confirm
+
+   Target:
+   VERIFY future_rows=0 conflict_groups=0
+   PASS - active bank metric evidence kembali fail-closed dan conflict-free.
+
+3) Audit ulang:
+   node --env-file=.env.production scripts/audit-production-integrity.mjs
+
+   Target: FAIL = 0.
+
+CATATAN INTEGRITAS:
+- Repair tidak mengedit angka evidence.
+- Row bermasalah hanya diberi superseded_at + reason (audit lineage tetap ada).
+- Jika konflik seluruhnya AUTO_COLLECTED, semua conflicting rows dinonaktifkan (fail closed), bukan memilih angka sembarang.
+- Jika ada curated/manual evidence tunggal, auto evidence yang berbeda dinonaktifkan.
+- Jika curated/manual evidence sendiri konflik, repair BERHENTI dan meminta review manual.

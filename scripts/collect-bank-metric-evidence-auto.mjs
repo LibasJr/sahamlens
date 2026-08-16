@@ -702,7 +702,7 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
   try{
     await db.query('BEGIN');
     await db.query(`INSERT INTO bank_metric_collection_runs(run_id,mode,status,tickers,source_pages_checked,documents_discovered,documents_parsed,evidence_candidates,detail)
-      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:10, parserPolicy:'front-matter reporting period + strict year overscan + canonical-source dedupe + local-basis + same-document reconciliation + correction lineage + period-safe stale-auto invalidation; ambiguous/cross-source-conflict/guardrail remain fail-closed',...summary})]);
+      VALUES($1,$2,'RUNNING',$3,$4,$5,$6,$7,$8::jsonb)`,[id,confirm?'CONFIRM':'DRY_RUN',tickers,summary.pagesChecked,summary.docsDiscovered,summary.docsParsed,accepted.length+quarantine.length,JSON.stringify({collectorVersion:11, parserPolicy:'front-matter reporting period + strict year overscan + canonical-source dedupe + local-basis + same-document reconciliation + correction lineage + cross-run comparable-group conflict guard + period-safe stale-auto invalidation; ambiguous/cross-source-conflict/guardrail remain fail-closed',...summary})]);
     let inserted=0,existing=0,superseded=0,dbQuarantined=0;
     for(const r of accepted){
       const observedDate=OBSERVED_DATE;
@@ -749,6 +749,31 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
         dbQuarantined++;
         await db.query(`INSERT INTO bank_metric_collection_candidates(run_id,ticker,period_end,observed_date,metric_key,value,unit,basis,confidence,extraction_method,status,reason,source_title,source_url,source_tier,raw_excerpt)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'QUARANTINED','basis_regression_to_unspecified',$11,$12,'ISSUER_IR',$13)`,[id,r.ticker,r.periodEnd,observedDate,r.metricKey,r.value,r.unit,r.basis,r.confidence,r.extractionMethod,r.sourceTitle,r.sourceUrl,r.rawExcerpt]);
+        continue;
+      }
+
+      // Cross-run guard: reconciliation above only sees documents from the current
+      // run. Before writing, compare against every ACTIVE evidence row already in
+      // PostgreSQL for the same ticker/reporting-period/basis/metric. A different
+      // value from another official document or a curated/manual row is never
+      // silently overwritten. The new candidate is quarantined instead.
+      const comparable=await db.query(`SELECT id,value::float8 value,source_url,source_title,notes,evidence_fingerprint
+        FROM bank_metric_evidence
+        WHERE ticker=$1 AND period_end=$2::date AND basis=$3 AND metric_key=$4 AND superseded_at IS NULL
+        ORDER BY observed_date DESC, created_at DESC`,[r.ticker,r.periodEnd,r.basis,r.metricKey]);
+      const divergent=comparable.rows.filter((x)=>!sameNumber(x.value,r.value));
+      if(divergent.length){
+        dbQuarantined++;
+        const values=[...new Set(divergent.map((x)=>Number(x.value).toFixed(4)).concat(Number(r.value).toFixed(4)))].sort();
+        await db.query(`INSERT INTO bank_metric_collection_candidates(run_id,ticker,period_end,observed_date,metric_key,value,unit,basis,confidence,extraction_method,status,reason,source_title,source_url,source_tier,raw_excerpt)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'QUARANTINED',$11,$12,$13,'ISSUER_IR',$14)`,[id,r.ticker,r.periodEnd,observedDate,r.metricKey,r.value,r.unit,r.basis,r.confidence,r.extractionMethod,`conflict_with_active_comparable_evidence:${values.join('/')}`,r.sourceTitle,r.sourceUrl,r.rawExcerpt]);
+        continue;
+      }
+      if(comparable.rows.length){
+        existing++;
+        const equivalent=comparable.rows[0];
+        await db.query(`INSERT INTO bank_metric_collection_candidates(run_id,ticker,period_end,observed_date,metric_key,value,unit,basis,confidence,extraction_method,status,reason,source_title,source_url,source_tier,raw_excerpt,evidence_fingerprint)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'EXISTING','equivalent_active_evidence',$11,$12,'ISSUER_IR',$13,$14)`,[id,r.ticker,r.periodEnd,observedDate,r.metricKey,r.value,r.unit,r.basis,r.confidence,r.extractionMethod,r.sourceTitle,r.sourceUrl,r.rawExcerpt,String(equivalent.evidence_fingerprint??'')||null]);
         continue;
       }
 
