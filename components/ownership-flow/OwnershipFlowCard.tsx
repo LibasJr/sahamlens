@@ -5,6 +5,7 @@ import { Globe, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import OwnershipFlowChart, { type OwnershipSeriesPoint } from './OwnershipFlowChart';
 import {
   formatObservedDate,
   formatPercent,
@@ -38,6 +39,7 @@ interface OwnershipFlowDetail {
   historyCount: number;
   experimental: boolean;
   inFinalScore: boolean;
+  series?: OwnershipSeriesPoint[];
 }
 
 export function OwnershipFlowCard({ ticker }: { ticker: string }) {
@@ -50,7 +52,10 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
 
     (async () => {
       try {
-        const res = await fetch(`/api/ownership-flow/${encodeURIComponent(ticker)}`);
+        // series=1 dibawa sekalian: satu round-trip untuk angka DAN grafik.
+        // Deretnya dibaca dari tabel histori yang sama, jadi tidak ada risiko
+        // kartu dan grafiknya menampilkan observasi yang berbeda umur.
+        const res = await fetch(`/api/ownership-flow/${encodeURIComponent(ticker)}?series=1`);
         if (cancelled) return;
         if (!res.ok) {
           // 404 = fitur belum aktif pada deployment ini. Itu bukan error yang
@@ -151,6 +156,19 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
           </div>
 
           <p className="mt-2 text-[11.5px] leading-relaxed text-tv-muted">{data.trendReason}</p>
+
+          {/* Grafik hanya muncul kalau ada histori yang cukup. Komponennya
+              sendiri sudah menolak menggambar di bawah 2 observasi, tapi
+              menyembunyikan seluruh blok di sini menjaga kartu tetap ringkas
+              pada hari-hari awal ketika histori memang baru mulai terkumpul. */}
+          {(data.series?.length ?? 0) >= 2 && (
+            <div className="mt-3 border-t border-white/[0.06] pt-3">
+              <p className="mb-1.5 text-[10.5px] uppercase tracking-wide text-tv-muted">
+                Kepemilikan asing &mdash; {data.series!.length} observasi
+              </p>
+              <OwnershipFlowChart series={data.series!} height={180} />
+            </div>
+          )}
         </>
       )}
 
