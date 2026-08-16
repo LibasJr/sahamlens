@@ -151,7 +151,21 @@ function periodTaggedValue(s,periodEnd){
   const uniq=[...new Set(found.map(v=>Number(v.toFixed(6))))]; return uniq.length===1?uniq[0]:null;
 }
 
-export function extractMetricCandidates(text,{ticker='TEST.JK',sourceTitle='fixture',sourceUrl='https://example.invalid',periodEnd=null,defaultBasis='DISCLOSED_UNSPECIFIED'}={}){
+/**
+ * @typedef {Object} MetricExtractionOptions
+ * @property {string} [ticker]
+ * @property {string} [sourceTitle]
+ * @property {string} [sourceUrl]
+ * @property {string|null} [periodEnd]
+ * @property {string} [defaultBasis]
+ */
+
+/**
+ * @param {string} text
+ * @param {MetricExtractionOptions} [options]
+ */
+export function extractMetricCandidates(text, options={}){
+  const {ticker='TEST.JK',sourceTitle='fixture',sourceUrl='https://example.invalid',periodEnd=null,defaultBasis='DISCLOSED_UNSPECIFIED'}=options;
   const lines=String(text??'').replace(/\r/g,'').split('\n').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
   const out=[];
   for(const [metricKey,spec] of Object.entries(METRIC_SPECS)){
