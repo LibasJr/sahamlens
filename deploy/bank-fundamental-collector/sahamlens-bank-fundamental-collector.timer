@@ -1,0 +1,11 @@
+[Unit]
+Description=Check official bank IR sources daily for new bank metrics
+
+[Timer]
+OnCalendar=*-*-* 20:45:00 Asia/Jakarta
+RandomizedDelaySec=600
+Persistent=true
+Unit=sahamlens-bank-fundamental-collector.service
+
+[Install]
+WantedBy=timers.target

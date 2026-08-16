@@ -1,0 +1,9 @@
+[Unit]
+Description=SahamLens Bank Fundamental Official-Source Collector
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/usr/bin/curl --fail --silent --show-error --max-time 1200 -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/bank-fundamental-collect
