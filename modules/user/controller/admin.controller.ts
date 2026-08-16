@@ -52,7 +52,10 @@ type AdminSecretVerification = { ok: true; sessionVersion: number; source: 'DB' 
  * when ADMIN_BREAK_GLASS_ENABLED=true. This prevents a forgotten environment secret from
  * remaining a permanent second password forever.
  */
-async function verifyAdminSecret(key: string): Promise<AdminSecretVerification> {
+async function verifyAdminSecret(
+  key: string,
+  options: { bootstrapEnv?: boolean } = {},
+): Promise<AdminSecretVerification> {
   const envSecret = getAdminSecret();
   try {
     const state = await getAdminSecretState();
@@ -70,6 +73,13 @@ async function verifyAdminSecret(key: string): Promise<AdminSecretVerification> 
     // bcrypt hash immediately. Subsequent logins no longer accept env unless break-glass
     // is explicitly enabled.
     if (envSecret && timingSafeStringEqual(key, envSecret)) {
+      // Login bootstrap persists the env secret once, but secret rotation must not
+      // write the old env credential immediately before replacing it with the new
+      // secret. This keeps rotation atomic and avoids an unnecessary session-version
+      // bump while preserving the one-time bootstrap behavior for admin login.
+      if (options.bootstrapEnv === false) {
+        return { ok: true, sessionVersion: state.sessionVersion, source: 'BOOTSTRAP_ENV' };
+      }
       const hash = await bcrypt.hash(key, 12);
       const sessionVersion = await setAdminSecretHash(hash);
       return { ok: true, sessionVersion, source: 'BOOTSTRAP_ENV' };
@@ -330,7 +340,7 @@ export async function handleChangeAdminSecret(
   if (body.newKey.length > MAX_ADMIN_SECRET_LENGTH) {
     throw new ValidationError(`Password baru maksimal ${MAX_ADMIN_SECRET_LENGTH} karakter`);
   }
-  const current = await verifyAdminSecret(body.currentKey);
+  const current = await verifyAdminSecret(body.currentKey, { bootstrapEnv: false });
   if (!current.ok) throw new ValidationError('Password saat ini salah');
   const newHash = await bcrypt.hash(body.newKey, 12);
   const newVersion = await setAdminSecretHash(newHash);
