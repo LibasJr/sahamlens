@@ -211,3 +211,65 @@ export async function listBankMetricEvidenceForMaturity(limit = 10000): Promise<
     throw error;
   }
 }
+
+export interface BankMetricCollectorAdminSummary {
+  latestRun: {
+    runId: string;
+    mode: string;
+    status: string;
+    tickers: string[];
+    sourcePagesChecked: number;
+    documentsDiscovered: number;
+    documentsParsed: number;
+    evidenceCandidates: number;
+    evidenceInserted: number;
+    evidenceExisting: number;
+    quarantined: number;
+    startedAt: string;
+    finishedAt: string | null;
+  } | null;
+  recentQuarantine: Array<{
+    ticker: string;
+    periodEnd: string | null;
+    metricKey: string;
+    reason: string | null;
+    sourceTitle: string;
+    sourceUrl: string;
+    rawExcerpt: string | null;
+    createdAt: string;
+  }>;
+}
+
+export async function getBankMetricCollectorAdminSummary(): Promise<BankMetricCollectorAdminSummary> {
+  try {
+    const [runResult, quarantineResult] = await Promise.all([
+      pool.query(`SELECT run_id,mode,status,tickers,source_pages_checked,documents_discovered,documents_parsed,
+                         evidence_candidates,evidence_inserted,evidence_existing,quarantined,started_at,finished_at
+                    FROM bank_metric_collection_runs
+                   ORDER BY started_at DESC LIMIT 1`),
+      pool.query(`SELECT ticker,period_end::text,metric_key,reason,source_title,source_url,raw_excerpt,created_at
+                    FROM bank_metric_collection_candidates
+                   WHERE status='QUARANTINED'
+                   ORDER BY created_at DESC LIMIT 25`),
+    ]);
+    const r = runResult.rows[0] as Record<string, unknown> | undefined;
+    return {
+      latestRun: r ? {
+        runId: String(r.run_id), mode: String(r.mode), status: String(r.status),
+        tickers: Array.isArray(r.tickers) ? r.tickers.map(String) : [],
+        sourcePagesChecked: Number(r.source_pages_checked ?? 0), documentsDiscovered: Number(r.documents_discovered ?? 0),
+        documentsParsed: Number(r.documents_parsed ?? 0), evidenceCandidates: Number(r.evidence_candidates ?? 0),
+        evidenceInserted: Number(r.evidence_inserted ?? 0), evidenceExisting: Number(r.evidence_existing ?? 0),
+        quarantined: Number(r.quarantined ?? 0), startedAt: timestamp(r.started_at) ?? '', finishedAt: timestamp(r.finished_at),
+      } : null,
+      recentQuarantine: quarantineResult.rows.map((row: Record<string, unknown>) => ({
+        ticker: String(row.ticker), periodEnd: row.period_end == null ? null : date(row.period_end), metricKey: String(row.metric_key),
+        reason: row.reason == null ? null : String(row.reason), sourceTitle: String(row.source_title), sourceUrl: String(row.source_url),
+        rawExcerpt: row.raw_excerpt == null ? null : String(row.raw_excerpt), createdAt: timestamp(row.created_at) ?? '',
+      })),
+    };
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === '42P01') return { latestRun: null, recentQuarantine: [] };
+    throw error;
+  }
+}

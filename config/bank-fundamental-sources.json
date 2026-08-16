@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "policy": {
+    "officialOnly": true,
+    "maxCrawlDepth": 1,
+    "defaultMaxDocumentsPerTicker": 12,
+    "notes": "Discovery hanya boleh pada domain issuer resmi. Search engine/aggregator tidak digunakan oleh collector production. observed_date selalu tanggal collector melihat evidence, bukan period_end dokumen."
+  },
+  "banks": {
+    "BBRI.JK": {
+      "issuer": "PT Bank Rakyat Indonesia (Persero) Tbk",
+      "domains": [
+        "bri.co.id",
+        "www.bri.co.id"
+      ],
+      "seedPages": [
+        {
+          "url": "https://bri.co.id/web/guest/report-publication",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://bri.co.id/web/guest/report-risk-exposure-and-capital",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://bri.co.id/web/guest/report-detail",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://bri.co.id/web/guest/report",
+          "kind": "DOCUMENT_LIST"
+        }
+      ],
+      "documentKeywords": [
+        "quarterly publication",
+        "key metrics",
+        "risk exposure",
+        "capital",
+        "financial report",
+        "laporan keuangan",
+        "presentation",
+        "quarter"
+      ]
+    },
+    "BBCA.JK": {
+      "issuer": "PT Bank Central Asia Tbk",
+      "domains": [
+        "bca.co.id",
+        "www.bca.co.id"
+      ],
+      "seedPages": [
+        {
+          "url": "https://www.bca.co.id/en/tentang-bca/Hubungan-Investor/laporan-presentasi/Presentasi-Perusahaan",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://www.bca.co.id/en/tentang-bca/Hubungan-Investor/laporan-presentasi/Laporan-Keuangan",
+          "kind": "DOCUMENT_LIST"
+        }
+      ],
+      "documentKeywords": [
+        "corporate presentation",
+        "financial report",
+        "capital and risk exposure",
+        "quarterly",
+        "1q",
+        "1h",
+        "9m",
+        "fy"
+      ]
+    },
+    "BMRI.JK": {
+      "issuer": "PT Bank Mandiri (Persero) Tbk",
+      "domains": [
+        "bankmandiri.co.id",
+        "www.bankmandiri.co.id"
+      ],
+      "seedPages": [
+        {
+          "url": "https://www.bankmandiri.co.id/web/ir",
+          "kind": "HTML_METRICS"
+        },
+        {
+          "url": "https://www.bankmandiri.co.id/in/web/ir/corporate-presentations",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://www.bankmandiri.co.id/en/web/ir/quarterly-financials",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://www.bankmandiri.co.id/en/web/ir/capital-risk-exposure",
+          "kind": "DOCUMENT_LIST"
+        }
+      ],
+      "documentKeywords": [
+        "analyst meeting",
+        "corporate presentation",
+        "quarterly",
+        "capital",
+        "risk exposure",
+        "financial",
+        "q1",
+        "q2",
+        "q3",
+        "q4"
+      ]
+    },
+    "BBNI.JK": {
+      "issuer": "PT Bank Negara Indonesia (Persero) Tbk",
+      "domains": [
+        "bni.co.id",
+        "www.bni.co.id"
+      ],
+      "seedPages": [
+        {
+          "url": "https://www.bni.co.id/en-us/investors",
+          "kind": "HTML_METRICS"
+        },
+        {
+          "url": "https://www.bni.co.id/id-id/investor",
+          "kind": "HTML_METRICS"
+        },
+        {
+          "url": "https://www.bni.co.id/en-us/investors/financial-reports",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://www.bni.co.id/en-us/investors/events-presentation",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://www.bni.co.id/id-id/investor/laporan-keuangan",
+          "kind": "DOCUMENT_LIST"
+        },
+        {
+          "url": "https://www.bni.co.id/id-id/investor/kegiatan-presentasi",
+          "kind": "DOCUMENT_LIST"
+        }
+      ],
+      "documentKeywords": [
+        "corporate presentation",
+        "quarterly financial report",
+        "long form financial report",
+        "earnings call",
+        "presentation",
+        "quarterly",
+        "triwulan",
+        "risk",
+        "capital",
+        "permodalan"
+      ]
+    }
+  }
+}
