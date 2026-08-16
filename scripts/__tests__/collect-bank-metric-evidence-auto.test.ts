@@ -140,7 +140,9 @@ it('does not treat CASA growth as CASA ratio and does not treat banking-sector L
     'Banking sector saw weaker NIM 9.05% 8.94% 8.71% 8.53% 8.63% Loan Yield',
   ].join('\n');
   const rows = extractMetricCandidates(text, { ticker: 'BBCA.JK', periodEnd: '2026-06-30', sourceTitle: '1H26 Corporate Presentation' });
-  expect(rows.find((x: any) => x.metricKey === 'CASA_PCT')).toBeUndefined();
+  const casa = rows.find((x: any) => x.metricKey === 'CASA_PCT');
+  expect(casa?.status).toBe('QUARANTINED');
+  expect(casa?.reason).toBe('metric_definition_mismatch:casa_growth');
   const nim = rows.find((x: any) => x.metricKey === 'NIM_PCT');
   expect(nim?.status).toBe('QUARANTINED');
   expect(nim?.reason).toBe('forecast_or_peer_context');
@@ -163,6 +165,10 @@ it('memprioritaskan reporting period di body daripada bulan publikasi', () => {
   expect(resolvePeriod('View', 'Published April 2026 - 1Q26 Financial Highlights', 'PDF')).toBe('2026-03-31');
 });
 
+it('front matter reporting period tidak dikalahkan comparison period yang berulang di tabel', () => {
+  expect(resolvePeriod('View', '1H26 Corporate Presentation\nComparison 1H25 1H25 1H25 1H25 1H25 1H25', 'PDF')).toBe('2026-06-30');
+});
+
 it('tidak menganggap BANK_ONLY dan CONSOLIDATED sebagai conflicting official values', () => {
   const base = {
     ticker: 'BBCA.JK', periodEnd: '2026-06-30', metricKey: 'CAR_PCT', unit: 'PCT',
@@ -175,4 +181,34 @@ it('tidak menganggap BANK_ONLY dan CONSOLIDATED sebagai conflicting official val
   ] as any[]);
   expect(accepted).toHaveLength(2);
   expect(quarantine.filter((x: any) => String(x.reason ?? '').startsWith('conflicting_official_values'))).toHaveLength(0);
+});
+
+it('membaca persen leading-dot dari pdftotext tanpa menggeser comparison arithmetic', () => {
+  const rows = extractMetricCandidates('Cost to Income 29.1% 29.3% .2% 27.3% 31.7% 4.4%', {
+    ticker: 'BBCA.JK', periodEnd: '2026-06-30', sourceTitle: '1H26 Corporate Presentation',
+  });
+  expect(rows.find((x: any) => x.metricKey === 'COST_TO_INCOME_PCT')?.value).toBe(29.3);
+});
+
+it('tidak memetakan LAR coverage sebagai NPL coverage', () => {
+  const rows = extractMetricCandidates('LAR Coverage Ratio 68.7%', {
+    ticker: 'BBCA.JK', periodEnd: '2026-06-30', sourceTitle: '1H26 Corporate Presentation',
+  });
+  const coverage = rows.find((x: any) => x.metricKey === 'COVERAGE_RATIO_PCT');
+  expect(coverage?.status).toBe('QUARANTINED');
+  expect(coverage?.reason).toBe('metric_definition_mismatch:lar_coverage');
+});
+
+it('cross-document conflict tetap fail-closed pada period+basis+metric yang sama', () => {
+  const base = {
+    ticker: 'BBCA.JK', periodEnd: '2026-06-30', metricKey: 'CAR_PCT', unit: 'PCT', basis: 'BANK_ONLY',
+    confidence: 0.99, extractionMethod: 'TABLE_PERIOD_COLUMN_VALUE', sourceTitle: '1H26', rawExcerpt: 'fixture', status: 'CANDIDATE', reason: null,
+  };
+  const { accepted, quarantine } = reconcileCandidates([
+    { ...base, value: 26.8, sourceUrl: 'https://www.bca.co.id/a.pdf' },
+    { ...base, value: 27.1, sourceUrl: 'https://www.bca.co.id/b.pdf' },
+  ] as any[]);
+  expect(accepted).toHaveLength(0);
+  expect(quarantine).toHaveLength(2);
+  expect(quarantine.every((x: any) => String(x.reason).startsWith('conflicting_official_values:'))).toBe(true);
 });
