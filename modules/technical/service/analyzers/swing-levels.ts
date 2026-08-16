@@ -87,20 +87,24 @@ export function findSwingPoints(history: SwingBar[]): SwingPoint[] {
  */
 export function clusterLevels(points: SwingPoint[], tolerancePct = 1.5): StructuralLevel[] {
   const sorted = points.map((p) => p.price).filter((p) => Number.isFinite(p) && p > 0).sort((a, b) => a - b);
-  const levels: StructuralLevel[] = [];
+  type WorkingLevel = StructuralLevel & { minPrice: number; maxPrice: number };
+  const levels: WorkingLevel[] = [];
 
   for (const price of sorted) {
     const last = levels[levels.length - 1];
-    if (last && Math.abs(price - last.price) / last.price * 100 <= tolerancePct) {
-      // Level yang sudah ada digeser ke rata-rata berbobot sentuhannya - level yang
-      // sering disentuh tidak boleh tergeser jauh oleh satu sentuhan baru di pinggir.
+    // Audit M-12: comparing only with a moving weighted centroid permits chain-merging
+    // (100 -> 101.4 -> 102.1) into a cluster whose total span is >1.5%. Bound the
+    // entire min..max span instead. Because prices are sorted, `price` is new max.
+    const spanPct = last ? ((price / last.minPrice) - 1) * 100 : Number.POSITIVE_INFINITY;
+    if (last && spanPct <= tolerancePct) {
       last.price = (last.price * last.touches + price) / (last.touches + 1);
       last.touches += 1;
+      last.maxPrice = price;
     } else {
-      levels.push({ price, touches: 1 });
+      levels.push({ price, touches: 1, minPrice: price, maxPrice: price });
     }
   }
-  return levels;
+  return levels.map(({ price, touches }) => ({ price, touches }));
 }
 
 export interface StructuralZones {

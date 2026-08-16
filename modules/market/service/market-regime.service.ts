@@ -206,30 +206,32 @@ function classifyRegime(
     return { code: 'DATA_LIMITED', label: 'Data belum memadai', posture: 'WAIT_FOR_DATA' };
   }
 
-  const trend = indicatorMap.trend ?? 50;
-  const breadth = indicatorMap.breadth ?? 50;
-  const volatility = indicatorMap.volatility ?? 50;
-  const participation = indicatorMap.participation ?? 50;
+  // Missing indicator is UNKNOWN, never fabricated as a neutral score of 50.
+  // A regime branch may only use an indicator when that measurement actually exists.
+  const trend = indicatorMap.trend;
+  const breadth = indicatorMap.breadth;
+  const volatility = indicatorMap.volatility;
+  const participation = indicatorMap.participation;
 
-  if (score <= 25 && volatility <= 30) {
+  if (score <= 25 && volatility != null && volatility <= 30) {
     return { code: 'BEAR_STRESS', label: 'Bear Stress', posture: 'RISK_OFF' };
   }
   if (score < 40) {
     return { code: 'RISK_OFF', label: 'Risk-Off', posture: 'RISK_OFF' };
   }
-  if (score >= 75 && trend >= 65 && breadth >= 60 && participation >= 55) {
+  if (score >= 75 && trend != null && breadth != null && participation != null && trend >= 65 && breadth >= 60 && participation >= 55) {
     return { code: 'BULL_EXPANSION', label: 'Bull Expansion', posture: 'RISK_ON' };
   }
-  if (score >= 60 && trend >= 60 && breadth < 50) {
+  if (score >= 60 && trend != null && breadth != null && trend >= 60 && breadth < 50) {
     return { code: 'BULL_NARROW', label: 'Bull Narrow / Rapuh', posture: 'NEUTRAL' };
   }
   if (score >= 60) {
     return { code: 'RISK_ON', label: 'Risk-On', posture: 'RISK_ON' };
   }
-  if (volatility < 35) {
+  if (volatility != null && volatility < 35) {
     return { code: 'HIGH_VOL_TRANSITION', label: 'High-Vol Transition', posture: 'RISK_OFF' };
   }
-  if ((trend >= 60 && breadth <= 40) || (trend <= 40 && breadth >= 60)) {
+  if (trend != null && breadth != null && ((trend >= 60 && breadth <= 40) || (trend <= 40 && breadth >= 60))) {
     return { code: 'DIVERGENCE', label: 'Divergence', posture: 'NEUTRAL' };
   }
   return { code: 'NEUTRAL', label: 'Neutral / Sideways', posture: 'NEUTRAL' };

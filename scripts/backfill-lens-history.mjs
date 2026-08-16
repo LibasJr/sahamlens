@@ -480,8 +480,11 @@ export function buildHistoricalLensRows(input) {
     const adjustedClose = finitePositive(rawBar.adjusted.close);
     if (rawClose == null || adjustedClose == null || currentAdjustedPrice == null) continue;
 
-    const previousRawClose = finitePositive(historyToDate[historyToDate.length - 2]?.Close);
-    const changePct = previousRawClose != null ? ((rawClose / previousRawClose) - 1) * 100 : null;
+    // changePct feeds scoreVolume(), so it MUST use the same return basis as the
+    // technical scoring series. Raw close can show a false crash on ex-dividend/split
+    // dates while TOTAL_RETURN_ADJUSTED is economically flat (audit M-6).
+    const previousAdjustedClose = i > 0 ? finitePositive(adjustedBars[i - 1]?.close) : null;
+    const changePct = previousAdjustedClose != null ? ((adjustedClose / previousAdjustedClose) - 1) * 100 : null;
     const volumeToday = finiteNumber(historyToDate[historyToDate.length - 1]?.Volume);
     const volAvg20 = historyToDate.length >= 20
       ? historyToDate.slice(-20).reduce((sum, row) => sum + (finiteNumber(row.Volume) ?? 0), 0) / 20

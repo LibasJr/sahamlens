@@ -349,7 +349,7 @@ export function buildTop5EquityCurve(
         const entry = ihsgByDate.get(obs.entryDate);
         const exit = ihsgByDate.get(obs.exitDateT20);
         if (!entry || !exit || entry.open <= 0 || exit.close <= 0) return null;
-        return ((exit.close / entry.open) - 1) * 100 - LENS_BUCKET_ROUND_TRIP_COST_PCT;
+        return ((exit.close / entry.open) - 1) * 100;
       })
       .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
     const ihsgReturn = average(ihsgReturns);

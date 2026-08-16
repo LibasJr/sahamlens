@@ -31,6 +31,7 @@ const STRUCTURE_LOOKBACK = STRUCTURE_LOOKBACK_BARS;
 const HOLDING_DAYS = 20;
 const FETCH_BATCH = 10;
 const MIN_METRIC_SAMPLES = 30;
+const TPCL_BOOTSTRAP_ITERATIONS = 1000;
 
 // PEMBEKUAN ULANG 2026-08-12 (temuan C-01). Freeze sebelumnya 2026-08-07 mengukur setup
 // yang dibangun dari ATR Wilder dan jendela struktur 60 bar, sementara produksi mengirim
@@ -113,6 +114,10 @@ export interface TpclMetrics {
   tp2ReachRatePct: number | null;
   slHitRatePct: number | null;
   expectancyPct: number | null;
+  /** Deterministic calendar-week block bootstrap CI for mean net return. */
+  expectancyCi95LowPct: number | null;
+  expectancyCi95HighPct: number | null;
+  expectancyBootstrapIterations: number;
   profitFactor: number | null;
   avgMaePct: number | null;
   p95MaePct: number | null;
@@ -138,7 +143,7 @@ export interface TpclCandidateResult {
 
 export type TpclRobustnessStatus =
   | 'ROBUST'
-  | 'UNSTABLE'
+  | 'INCONCLUSIVE_VALIDATION'
   | 'NEGATIVE_VALIDATION'
   | 'INSUFFICIENT_DATA';
 
@@ -298,8 +303,106 @@ function profitFactor(values: number[]): number | null {
   return grossWin / grossLoss;
 }
 
+function calendarWeekKey(dateKeyValue: string): string {
+  const match = dateKeyValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return dateKeyValue;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashTpclRows(rows: TpclTradeObservation[]): number {
+  let h = 2166136261 >>> 0;
+  const canonical = [...rows].sort((a, b) =>
+    a.signalDate.localeCompare(b.signalDate) || a.ticker.localeCompare(b.ticker) || a.netReturnPct - b.netReturnPct,
+  );
+  for (const row of canonical) {
+    const text = `${row.signalDate}|${row.ticker}|${row.netReturnPct.toFixed(8)}`;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+  }
+  return h >>> 0;
+}
+
+function percentileInterpolated(sorted: number[], p: number): number | null {
+  if (!sorted.length) return null;
+  const index = (sorted.length - 1) * p;
+  const lo = Math.floor(index);
+  const hi = Math.ceil(index);
+  if (lo === hi) return sorted[lo] ?? null;
+  const w = index - lo;
+  return (sorted[lo] ?? 0) * (1 - w) + (sorted[hi] ?? 0) * w;
+}
+
+/**
+ * Deterministic calendar-week block bootstrap for TP/CL expectancy.
+ *
+ * We resample time blocks instead of individual trades because trades generated in the
+ * same market week are not independent observations. This replaces audit M-5's fixed
+ * ">2 percentage-point spread" heuristic with an uncertainty interval tied to the
+ * observed sample. The helper is exported solely so the statistical gate has a direct
+ * regression test independent of DB/network state.
+ */
+export function bootstrapTpclExpectancyCi95(
+  rows: TpclTradeObservation[],
+  iterations = TPCL_BOOTSTRAP_ITERATIONS,
+): { lowPct: number | null; highPct: number | null; iterations: number } {
+  const validRows = rows.filter((row) => Number.isFinite(row.netReturnPct));
+  if (validRows.length < MIN_METRIC_SAMPLES || iterations <= 0) {
+    return { lowPct: null, highPct: null, iterations: 0 };
+  }
+
+  const grouped = new Map<string, number[]>();
+  for (const row of validRows) {
+    const key = calendarWeekKey(row.signalDate);
+    const block = grouped.get(key) ?? [];
+    block.push(row.netReturnPct);
+    grouped.set(key, block);
+  }
+  const blocks = Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([, values]) => values);
+  if (blocks.length < 2) return { lowPct: null, highPct: null, iterations: 0 };
+
+  const rng = mulberry32((hashTpclRows(validRows) ^ 0x5450434c) >>> 0);
+  const draws: number[] = [];
+  for (let i = 0; i < iterations; i++) {
+    let sum = 0;
+    let count = 0;
+    for (let j = 0; j < blocks.length; j++) {
+      const block = blocks[Math.floor(rng() * blocks.length)] ?? [];
+      for (const value of block) {
+        sum += value;
+        count++;
+      }
+    }
+    if (count > 0) draws.push(sum / count);
+  }
+  draws.sort((a, b) => a - b);
+  return {
+    lowPct: round(percentileInterpolated(draws, 0.025)),
+    highPct: round(percentileInterpolated(draws, 0.975)),
+    iterations: draws.length,
+  };
+}
+
 function metrics(rows: TpclTradeObservation[]): TpclMetrics {
   const returns = rows.map((r) => r.netReturnPct);
+  const expectancyCi = bootstrapTpclExpectancyCi95(rows);
   const maes = rows.map((r) => r.maePct);
   const mfes = rows.map((r) => r.mfePct);
   const days = rows.map((r) => r.daysHeld);
@@ -313,6 +416,9 @@ function metrics(rows: TpclTradeObservation[]): TpclMetrics {
     tp2ReachRatePct: rows.length ? round(rows.filter((r) => r.tp2Reached).length / rows.length * 100) : null,
     slHitRatePct: rows.length ? round(rows.filter((r) => r.slHit).length / rows.length * 100) : null,
     expectancyPct: round(average(returns)),
+    expectancyCi95LowPct: expectancyCi.lowPct,
+    expectancyCi95HighPct: expectancyCi.highPct,
+    expectancyBootstrapIterations: expectancyCi.iterations,
     profitFactor: round(profitFactor(returns), 3),
     avgMaePct: round(average(maes)),
     p95MaePct: round(percentile(maes, 0.05)),
@@ -564,15 +670,16 @@ function oosStatus(
   }
 
   const m = metrics(executableRows);
-  const positive = (m.expectancyPct ?? 0) > 0 && (m.profitFactor ?? 0) > 1;
+  const statisticallyPositive = m.expectancyCi95LowPct != null && m.expectancyCi95LowPct > 0;
+  const positive = statisticallyPositive && (m.profitFactor ?? 0) > 1;
   return positive
     ? {
         status: 'POSITIVE',
-        explanation: 'Forward sample memenuhi minimum N dan menunjukkan expectancy > 0 serta PF > 1. Status ini tidak mempromosikan production secara otomatis.',
+        explanation: 'Forward sample memenuhi minimum N, batas bawah bootstrap CI 95% expectancy > 0, dan PF > 1. Status ini tidak mempromosikan production secara otomatis.',
       }
     : {
         status: 'NEGATIVE',
-        explanation: 'Forward sample memenuhi minimum N tetapi expectancy/PF belum positif.',
+        explanation: 'Forward sample memenuhi minimum N tetapi bukti belum lolos gate bootstrap CI 95% expectancy > 0 dan PF > 1.',
       };
 }
 
@@ -590,23 +697,25 @@ function deriveRobustnessStatus(baseline: TpclCandidateResult): {
   const holdExp = baseline.holdout.expectancyPct;
   const valPf = baseline.validation.profitFactor;
   const holdPf = baseline.holdout.profitFactor;
+  const valCiLow = baseline.validation.expectancyCi95LowPct;
+  const holdCiLow = baseline.holdout.expectancyCi95LowPct;
+
+  if (valCiLow == null || holdCiLow == null) {
+    reasons.push('Bootstrap CI 95% belum tersedia; butuh sampel yang tersebar di sedikitnya dua minggu kalender.');
+    return { status: 'INSUFFICIENT_DATA', reasons };
+  }
 
   if ((valExp ?? 0) <= 0 || (holdExp ?? 0) <= 0 || (valPf ?? 0) < 1 || (holdPf ?? 0) < 1) {
     reasons.push('Expectancy atau Profit Factor negatif/lemah pada Validation/Holdout.');
     return { status: 'NEGATIVE_VALIDATION', reasons };
   }
 
-  const trainExp = baseline.train.expectancyPct ?? 0;
-  const spread = Math.max(
-    Math.abs(trainExp - (valExp ?? 0)),
-    Math.abs(trainExp - (holdExp ?? 0)),
-  );
-  if (spread > 2) {
-    reasons.push('Performa berubah tajam antar temporal split (>2 poin persentase expectancy).');
-    return { status: 'UNSTABLE', reasons };
+  if (valCiLow <= 0 || holdCiLow <= 0) {
+    reasons.push('Point estimate positif, tetapi bootstrap CI 95% expectancy Validation/Holdout masih menyentuh nol.');
+    return { status: 'INCONCLUSIVE_VALIDATION', reasons };
   }
 
-  reasons.push('Validation dan Holdout sama-sama positif dengan PF >= 1 dan sample gate terpenuhi.');
+  reasons.push('Validation dan Holdout sama-sama punya bootstrap CI 95% expectancy di atas nol, PF >= 1, dan sample gate terpenuhi.');
   return { status: 'ROBUST', reasons };
 }
 

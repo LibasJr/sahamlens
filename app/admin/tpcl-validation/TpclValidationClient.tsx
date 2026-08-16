@@ -14,6 +14,9 @@ interface Metrics {
   tp2ReachRatePct: number | null;
   slHitRatePct: number | null;
   expectancyPct: number | null;
+  expectancyCi95LowPct: number | null;
+  expectancyCi95HighPct: number | null;
+  expectancyBootstrapIterations: number;
   profitFactor: number | null;
   avgMaePct: number | null;
   p95MaePct: number | null;
@@ -51,7 +54,7 @@ interface Dashboard {
   splitDates: { trainEnd: string | null; validationEnd: string | null };
   baseline: Candidate;
   candidates: Candidate[];
-  robustnessStatus: 'ROBUST' | 'UNSTABLE' | 'NEGATIVE_VALIDATION' | 'INSUFFICIENT_DATA';
+  robustnessStatus: 'ROBUST' | 'INCONCLUSIVE_VALIDATION' | 'NEGATIVE_VALIDATION' | 'INSUFFICIENT_DATA';
   robustnessReasons: string[];
   eligibilityFunnel: {
     rawSignals: number; immatureT20: number; missingPriceSeries: number; insufficientLookback: number;
@@ -115,6 +118,7 @@ function MetricsGrid({ metrics }: { metrics: Metrics }) {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <MetricCard label="Samples" value={metrics.samples.toLocaleString('id-ID')} sub={metrics.sufficient ? 'sample gate terpenuhi' : 'sample masih tipis'} />
       <MetricCard label="Expectancy" value={pct(metrics.expectancyPct)} />
+      <MetricCard label="Expectancy CI 95%" value={`${pct(metrics.expectancyCi95LowPct)} – ${pct(metrics.expectancyCi95HighPct)}`} sub={metrics.expectancyBootstrapIterations ? `${metrics.expectancyBootstrapIterations.toLocaleString('id-ID')} block-bootstrap` : 'belum tersedia'} />
       <MetricCard label="Profit Factor" value={n(metrics.profitFactor, 3)} />
       <MetricCard label="TP1 hit" value={pct(metrics.tp1HitRatePct)} />
       <MetricCard label="SL hit" value={pct(metrics.slHitRatePct)} />

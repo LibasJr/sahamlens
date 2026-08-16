@@ -97,8 +97,8 @@ describe('transparency.service', () => {
     expect(curve).toHaveLength(2);
     // Hari pertama hanya 5 skor teratas dipakai: avg (10+0+5-5+15)/5 = 5%.
     expect(curve[0].lensTop5).toBe(105);
-    // IHSG return hari pertama: (110/100-1)*100 - 0.5 = 9.5%.
-    expect(curve[0].ihsg).toBe(109.5);
+    // IHSG adalah benchmark pasif, bukan trade strategi: return 10% TANPA biaya round-trip strategi.
+    expect(curve[0].ihsg).toBe(110);
     expect(curve[0].signals).toBe(5);
   });
 
