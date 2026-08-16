@@ -267,12 +267,15 @@ describe('Fase 3 - MA dan current price wajib satu basis', () => {
     expect(result.price?.basis_used_for_trading_levels).toBe(TRADING_PRICE_BASIS);
   });
 
-  it('MA raw dibandingkan current raw saat basis trading-level dipakai eksplisit', () => {
-    const result = calculateScore('RAW', {
+  it('MA split-adjusted dibandingkan current split-adjusted saat basis trading-level dipakai eksplisit', () => {
+    const result = calculateScore('SPLIT', {
       ...fullTechnical,
-      currentPrice: 1000,
-      currentRawPrice: 1000,
-      currentAdjustedPrice: 200,
+      currentPrice: 1200,
+      currentRawPrice: 1200,
+      // Untuk basis SPLIT_ADJUSTED, scoring memakai field adjusted yang basisnya
+      // dinyatakan eksplisit oleh currentPriceBasis/maPriceBasis. Raw live quote tidak
+      // boleh dipakai hanya karena nilainya tersedia.
+      currentAdjustedPrice: 1000,
       currentPriceBasis: TRADING_PRICE_BASIS,
       maPriceBasis: TRADING_PRICE_BASIS,
       ma20: 950,

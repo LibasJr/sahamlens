@@ -48,8 +48,6 @@ export interface BankFundamentalSnapshot {
   sourceUrl: string;
   evidence: BankMetricEvidence[];
   evidenceMode: 'METRIC_EVIDENCE' | 'LEGACY_WIDE_ROW';
-  basisSelection?: BankMetricEvidence['basis'] | 'LEGACY_WIDE_ROW';
-  conflictedMetricKeys?: BankMetricKey[];
 }
 
 function n(v: unknown): number | null {
@@ -76,7 +74,7 @@ function mapLegacyRow(row: Record<string, unknown>): BankFundamentalSnapshot {
     casaPct: n(row.casa_pct), carPct: n(row.car_pct), ldrPct: n(row.ldr_pct),
     costOfCreditPct: n(row.cost_of_credit_pct), costToIncomePct: n(row.cost_to_income_pct),
     coverageRatioPct: n(row.coverage_ratio_pct), ppopIdr: n(row.ppop_idr),
-    source: String(row.source), sourceUrl: String(row.source_url), evidence: [], evidenceMode: 'LEGACY_WIDE_ROW', basisSelection: 'LEGACY_WIDE_ROW',
+    source: String(row.source), sourceUrl: String(row.source_url), evidence: [], evidenceMode: 'LEGACY_WIDE_ROW',
   };
 }
 function mapEvidenceRow(row: Record<string, unknown>): BankMetricEvidence {
@@ -112,7 +110,7 @@ async function getMetricEvidenceSnapshot(ticker: string, asOf?: string | null): 
   const periodResult = await pool.query(
     `SELECT period_end::text AS period_end
      FROM bank_metric_evidence
-     WHERE ticker = $1 AND superseded_at IS NULL ${asOfClause}
+     WHERE ticker = $1 ${asOfClause}
      ORDER BY period_end DESC, observed_date DESC, created_at DESC
      LIMIT 1`,
     params,
@@ -124,65 +122,22 @@ async function getMetricEvidenceSnapshot(ticker: string, asOf?: string | null): 
   let evidenceAsOf = '';
   if (asOf) { evidenceParams.push(asOf); evidenceAsOf = 'AND observed_date <= $3::date'; }
   const { rows } = await pool.query(
-    `SELECT metric_key,value,unit,basis,evidence_type,observed_date,period_end,published_at,source_document_date,
-            source_tier,source_title,source_url,notes,evidence_fingerprint,created_at
-       FROM bank_metric_evidence
-      WHERE ticker = $1 AND period_end = $2::date AND superseded_at IS NULL ${evidenceAsOf}
-      ORDER BY observed_date DESC, created_at DESC`,
+    `SELECT DISTINCT ON (metric_key)
+       metric_key,value,unit,basis,evidence_type,observed_date,period_end,published_at,source_document_date,
+       source_tier,source_title,source_url,notes,evidence_fingerprint,created_at
+     FROM bank_metric_evidence
+     WHERE ticker = $1 AND period_end = $2::date ${evidenceAsOf}
+     ORDER BY metric_key, observed_date DESC, created_at DESC`,
     evidenceParams,
   );
   if (!rows.length) return null;
-
-  // Never synthesize one bank snapshot by silently mixing BANK_ONLY and
-  // CONSOLIDATED evidence. Select a single explicit basis by metric coverage;
-  // on an exact tie, CONSOLIDATED is used as the listed-entity reporting view.
-  // DISCLOSED_UNSPECIFIED is used only when there is no explicit-basis evidence.
-  const explicitBasis = ['CONSOLIDATED', 'BANK_ONLY'] as const;
-  const basisMetrics = new Map<string, Map<string, Set<string>>>();
-  for (const row of rows) {
-    const basis = String(row.basis);
-    if (!explicitBasis.includes(basis as (typeof explicitBasis)[number])) continue;
-    const metrics = basisMetrics.get(basis) ?? new Map<string, Set<string>>();
-    const metric = String(row.metric_key);
-    const values = metrics.get(metric) ?? new Set<string>();
-    values.add(Number(row.value).toFixed(8));
-    metrics.set(metric, values);
-    basisMetrics.set(basis, metrics);
-  }
-  const validCoverage = (basis: string) => [...(basisMetrics.get(basis)?.values() ?? [])].filter((values) => values.size === 1).length;
-  const selectedBasis: BankMetricEvidence['basis'] = basisMetrics.size
-    ? [...basisMetrics.keys()]
-        .sort((a, b) => validCoverage(b) - validCoverage(a) || (a === 'CONSOLIDATED' ? -1 : 1))[0] as BankMetricEvidence['basis']
-    : 'DISCLOSED_UNSPECIFIED';
-
-  const selectedRows = rows.filter((row: Record<string, unknown>) => String(row.basis) === selectedBasis);
-  const rowsByMetric = new Map<string, Record<string, unknown>[]>();
-  for (const row of selectedRows) {
-    const key = String(row.metric_key);
-    const metricRows = rowsByMetric.get(key) ?? [];
-    metricRows.push(row as Record<string, unknown>);
-    rowsByMetric.set(key, metricRows);
-  }
-  const latestByMetric = new Map<string, Record<string, unknown>>();
-  const conflictedMetricKeys: BankMetricKey[] = [];
-  for (const [key, metricRows] of rowsByMetric) {
-    const values = new Set(metricRows.map((row) => Number(row.value).toFixed(8)));
-    if (values.size > 1) {
-      conflictedMetricKeys.push(key as BankMetricKey);
-      continue;
-    }
-    latestByMetric.set(key, metricRows[0]);
-  }
-  const evidence = [...latestByMetric.values()].map((r) => mapEvidenceRow(r));
-  const selectedEvidenceRows = selectedRows.map((r: Record<string, unknown>) => mapEvidenceRow(r));
-
+  const evidence = rows.map((r) => mapEvidenceRow(r));
   const base: BankFundamentalSnapshot = {
-    ticker: ticker.toUpperCase(), observedDate: selectedEvidenceRows.map(x=>x.observedDate).sort().at(-1) ?? periodEnd, periodEnd,
-    publishedAt: selectedEvidenceRows.map(x=>x.publishedAt).filter((x): x is string=>Boolean(x)).sort().at(-1) ?? null,
+    ticker: ticker.toUpperCase(), observedDate: evidence.map(x=>x.observedDate).sort().at(-1) ?? periodEnd, periodEnd,
+    publishedAt: evidence.map(x=>x.publishedAt).filter((x): x is string=>Boolean(x)).sort().at(-1) ?? null,
     nimPct:null,nplGrossPct:null,nplNetPct:null,casaPct:null,carPct:null,ldrPct:null,costOfCreditPct:null,costToIncomePct:null,coverageRatioPct:null,ppopIdr:null,
-    source: conflictedMetricKeys.length ? 'BANK_EVIDENCE_CONFLICT_FAIL_CLOSED' : (evidence.length === 1 ? evidence[0].sourceTitle : 'MULTI_SOURCE_BANK_EVIDENCE'),
-    sourceUrl: evidence[0]?.sourceUrl ?? selectedEvidenceRows[0]?.sourceUrl ?? '', evidence, evidenceMode:'METRIC_EVIDENCE', basisSelection: selectedBasis,
-    conflictedMetricKeys,
+    source: evidence.length === 1 ? evidence[0].sourceTitle : 'MULTI_SOURCE_BANK_EVIDENCE',
+    sourceUrl: evidence[0]?.sourceUrl ?? '', evidence, evidenceMode:'METRIC_EVIDENCE',
   };
   for (const item of evidence) {
     const field = METRIC_TO_FIELD[item.metricKey];
@@ -216,24 +171,21 @@ export async function getBankFundamentalAsOf(ticker: string, asOf?: string | nul
 export async function getBankMetricEvidenceAdminSummary() {
   try {
     const [totals, byTicker, recent] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FILTER (WHERE superseded_at IS NULL)::int evidence_rows,
-                         COUNT(*) FILTER (WHERE superseded_at IS NOT NULL)::int superseded_rows,
-                         COUNT(DISTINCT ticker) FILTER (WHERE superseded_at IS NULL)::int tickers,
-                         COUNT(DISTINCT period_end) FILTER (WHERE superseded_at IS NULL)::int periods,
-                         MAX(observed_date) FILTER (WHERE superseded_at IS NULL)::text latest_observed
+      pool.query(`SELECT COUNT(*)::int evidence_rows, COUNT(DISTINCT ticker)::int tickers, COUNT(DISTINCT period_end)::int periods,
+                         MAX(observed_date)::text latest_observed
                   FROM bank_metric_evidence`),
       pool.query(`SELECT ticker, COUNT(*)::int evidence_rows, COUNT(DISTINCT metric_key)::int metrics,
                          MAX(period_end)::text latest_period, MAX(observed_date)::text latest_observed,
                          COUNT(*) FILTER (WHERE evidence_type='DERIVED')::int derived_rows,
                          COUNT(*) FILTER (WHERE basis='DISCLOSED_UNSPECIFIED')::int unspecified_basis_rows
-                  FROM bank_metric_evidence WHERE superseded_at IS NULL GROUP BY ticker ORDER BY latest_period DESC, ticker ASC`),
+                  FROM bank_metric_evidence GROUP BY ticker ORDER BY latest_period DESC, ticker ASC`),
       pool.query(`SELECT ticker,metric_key,value::float8 value,unit,basis,evidence_type,period_end::text,observed_date::text,
                          source_tier,source_title,source_url,notes
-                  FROM bank_metric_evidence WHERE superseded_at IS NULL ORDER BY created_at DESC LIMIT 50`),
+                  FROM bank_metric_evidence ORDER BY created_at DESC LIMIT 50`),
     ]);
-    return { totals: totals.rows[0] ?? { evidence_rows:0,superseded_rows:0,tickers:0,periods:0,latest_observed:null }, byTicker: byTicker.rows, recent: recent.rows };
+    return { totals: totals.rows[0] ?? { evidence_rows:0,tickers:0,periods:0,latest_observed:null }, byTicker: byTicker.rows, recent: recent.rows };
   } catch (error) {
-    if ((error as { code?: string } | null)?.code === '42P01') return { totals:{evidence_rows:0,superseded_rows:0,tickers:0,periods:0,latest_observed:null},byTicker:[],recent:[] };
+    if ((error as { code?: string } | null)?.code === '42P01') return { totals:{evidence_rows:0,tickers:0,periods:0,latest_observed:null},byTicker:[],recent:[] };
     throw error;
   }
 }
@@ -249,12 +201,11 @@ export async function listBankMetricEvidenceForMaturity(limit = 10000): Promise<
       `SELECT ticker,metric_key,value,unit,basis,evidence_type,observed_date,period_end,published_at,
               source_document_date,source_tier,source_title,source_url,notes,evidence_fingerprint,created_at
          FROM bank_metric_evidence
-        WHERE superseded_at IS NULL
         ORDER BY ticker ASC, period_end ASC, observed_date ASC, metric_key ASC, created_at ASC
         LIMIT $1`,
       [Math.max(1, Math.min(limit, 100000))],
     );
-    return rows.map((row: Record<string, unknown>) => ({ ticker: String(row.ticker).toUpperCase(), ...mapEvidenceRow(row) }));
+    return rows.map((row) => ({ ticker: String(row.ticker).toUpperCase(), ...mapEvidenceRow(row) }));
   } catch (error) {
     if ((error as { code?: string } | null)?.code === '42P01') return [];
     throw error;
@@ -273,7 +224,6 @@ export interface BankMetricCollectorAdminSummary {
     evidenceCandidates: number;
     evidenceInserted: number;
     evidenceExisting: number;
-    evidenceSuperseded: number;
     quarantined: number;
     startedAt: string;
     finishedAt: string | null;
@@ -294,13 +244,12 @@ export async function getBankMetricCollectorAdminSummary(): Promise<BankMetricCo
   try {
     const [runResult, quarantineResult] = await Promise.all([
       pool.query(`SELECT run_id,mode,status,tickers,source_pages_checked,documents_discovered,documents_parsed,
-                         evidence_candidates,evidence_inserted,evidence_existing,evidence_superseded,quarantined,started_at,finished_at
+                         evidence_candidates,evidence_inserted,evidence_existing,quarantined,started_at,finished_at
                     FROM bank_metric_collection_runs
                    ORDER BY started_at DESC LIMIT 1`),
-      pool.query(`WITH latest AS (SELECT run_id FROM bank_metric_collection_runs ORDER BY started_at DESC LIMIT 1)
-                  SELECT ticker,period_end::text,metric_key,reason,source_title,source_url,raw_excerpt,created_at
+      pool.query(`SELECT ticker,period_end::text,metric_key,reason,source_title,source_url,raw_excerpt,created_at
                     FROM bank_metric_collection_candidates
-                   WHERE status='QUARANTINED' AND run_id=(SELECT run_id FROM latest)
+                   WHERE status='QUARANTINED'
                    ORDER BY created_at DESC LIMIT 25`),
     ]);
     const r = runResult.rows[0] as Record<string, unknown> | undefined;
@@ -311,7 +260,7 @@ export async function getBankMetricCollectorAdminSummary(): Promise<BankMetricCo
         sourcePagesChecked: Number(r.source_pages_checked ?? 0), documentsDiscovered: Number(r.documents_discovered ?? 0),
         documentsParsed: Number(r.documents_parsed ?? 0), evidenceCandidates: Number(r.evidence_candidates ?? 0),
         evidenceInserted: Number(r.evidence_inserted ?? 0), evidenceExisting: Number(r.evidence_existing ?? 0),
-        evidenceSuperseded: Number(r.evidence_superseded ?? 0), quarantined: Number(r.quarantined ?? 0), startedAt: timestamp(r.started_at) ?? '', finishedAt: timestamp(r.finished_at),
+        quarantined: Number(r.quarantined ?? 0), startedAt: timestamp(r.started_at) ?? '', finishedAt: timestamp(r.finished_at),
       } : null,
       recentQuarantine: quarantineResult.rows.map((row: Record<string, unknown>) => ({
         ticker: String(row.ticker), periodEnd: row.period_end == null ? null : date(row.period_end), metricKey: String(row.metric_key),
