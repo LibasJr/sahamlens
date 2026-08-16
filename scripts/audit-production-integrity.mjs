@@ -50,13 +50,30 @@ if(process.env.DATABASE_URL){
   ['BI_RATE_PCT','INFLATION_TARGET_MID_PCT','INFLATION_TARGET_UPPER_PCT'].every(k=>macroByKey.has(k))
     ?ok('Macro context BI-Rate + inflation target tersedia sebagai evidence terpisah')
     :warn('Macro context BI-Rate/inflation target belum lengkap.');
-  const bankMetric=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers,COUNT(*) FILTER (WHERE evidence_type='DERIVED')::int derived,COUNT(*) FILTER (WHERE basis='DISCLOSED_UNSPECIFIED')::int unspecified FROM bank_metric_evidence`).catch(()=>({rows:[{n:0,tickers:0,derived:0,unspecified:0}]}));
+  const bankMetric=await c.query(`SELECT
+      COUNT(*) FILTER (WHERE superseded_at IS NULL)::int n,
+      COUNT(*) FILTER (WHERE superseded_at IS NOT NULL)::int superseded,
+      COUNT(DISTINCT ticker) FILTER (WHERE superseded_at IS NULL)::int tickers,
+      COUNT(*) FILTER (WHERE superseded_at IS NULL AND evidence_type='DERIVED')::int derived,
+      COUNT(*) FILTER (WHERE superseded_at IS NULL AND basis='DISCLOSED_UNSPECIFIED')::int unspecified,
+      COUNT(*) FILTER (WHERE superseded_at IS NULL AND observed_date>CURRENT_DATE)::int future_observed
+    FROM bank_metric_evidence`).catch(()=>({rows:[{n:0,superseded:0,tickers:0,derived:0,unspecified:0,future_observed:0}]}));
   if(Number(bankMetric.rows[0]?.n??0)>0){
-    ok(`Bank metric evidence ${bankMetric.rows[0].n} rows / ${bankMetric.rows[0].tickers} ticker`);
-    Number(bankMetric.rows[0]?.derived??0)>0?warn(`Bank evidence memiliki ${bankMetric.rows[0].derived} DERIVED rows; jangan samakan dengan REPORTED.`):ok('Bank evidence pilot seluruhnya REPORTED');
-    Number(bankMetric.rows[0]?.unspecified??0)>0?warn(`Bank evidence memiliki ${bankMetric.rows[0].unspecified} row dengan basis DISCLOSED_UNSPECIFIED; tetap DATA_ONLY.`):ok('Bank evidence basis eksplisit');
-    const inconsistent=await c.query(`SELECT COUNT(*)::int n FROM bank_metric_evidence n JOIN bank_metric_evidence g ON g.ticker=n.ticker AND g.period_end=n.period_end AND g.basis=n.basis WHERE n.metric_key='NPL_NET_PCT' AND g.metric_key='NPL_GROSS_PCT' AND n.value>g.value`);
-    Number(inconsistent.rows[0]?.n??0)===0?ok('Bank evidence NPL net <= gross integrity check'):fail(`Bank evidence inconsistency: ${inconsistent.rows[0].n} NPL net > gross`);
+    ok(`Bank metric evidence aktif ${bankMetric.rows[0].n} rows / ${bankMetric.rows[0].tickers} ticker`);
+    Number(bankMetric.rows[0]?.superseded??0)>0?ok(`Bank collector correction lineage: ${bankMetric.rows[0].superseded} row superseded dan tidak ikut snapshot aktif`):ok('Bank collector belum memiliki evidence superseded');
+    Number(bankMetric.rows[0]?.future_observed??0)===0?ok('Bank evidence observed_date tidak berada di masa depan'):fail(`Bank evidence memiliki ${bankMetric.rows[0].future_observed} observed_date di masa depan`);
+    Number(bankMetric.rows[0]?.derived??0)>0?warn(`Bank evidence memiliki ${bankMetric.rows[0].derived} DERIVED rows aktif; jangan samakan dengan REPORTED.`):ok('Bank evidence aktif seluruhnya REPORTED');
+    Number(bankMetric.rows[0]?.unspecified??0)>0?warn(`Bank evidence aktif memiliki ${bankMetric.rows[0].unspecified} row dengan basis DISCLOSED_UNSPECIFIED; tetap DATA_ONLY.`):ok('Bank evidence aktif basis eksplisit');
+    const inconsistent=await c.query(`SELECT COUNT(*)::int n FROM bank_metric_evidence n JOIN bank_metric_evidence g ON g.ticker=n.ticker AND g.period_end=n.period_end AND g.basis=n.basis WHERE n.superseded_at IS NULL AND g.superseded_at IS NULL AND n.metric_key='NPL_NET_PCT' AND g.metric_key='NPL_GROSS_PCT' AND n.value>g.value`);
+    Number(inconsistent.rows[0]?.n??0)===0?ok('Bank evidence aktif NPL net <= gross integrity check'):fail(`Bank evidence aktif inconsistency: ${inconsistent.rows[0].n} NPL net > gross`);
+    const activeConflicts=await c.query(`SELECT COUNT(*)::int n FROM (
+      SELECT ticker,period_end,basis,metric_key
+        FROM bank_metric_evidence
+       WHERE superseded_at IS NULL
+       GROUP BY ticker,period_end,basis,metric_key
+      HAVING COUNT(DISTINCT value)>1
+    ) x`);
+    Number(activeConflicts.rows[0]?.n??0)===0?ok('Bank evidence aktif tidak memiliki conflicting values dalam ticker/period/basis/metric'):fail(`Bank evidence aktif memiliki ${activeConflicts.rows[0].n} conflicting metric groups`);
   } else {
     const bankLegacy=await c.query(`SELECT COUNT(*)::int n,COUNT(DISTINCT ticker)::int tickers FROM bank_fundamental_history`).catch(()=>({rows:[{n:0,tickers:0}]}));
     Number(bankLegacy.rows[0]?.n??0)>0?warn(`Hanya legacy bank_fundamental_history tersedia (${bankLegacy.rows[0].n} rows); migrasikan ke metric evidence.`):warn('Bank-specific fundamental evidence belum diimpor; bank metrics tetap DATA_ONLY/null.');
