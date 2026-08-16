@@ -207,6 +207,44 @@ export async function listOwnershipHistory(
   return rows.map(mapRow);
 }
 
+/**
+ * Histori banyak ticker dalam SATU query, dibatasi per ticker dari sisi terbaru.
+ *
+ * Dipakai halaman /ownership-flow agar cache dingin tidak berubah menjadi pola
+ * N+1 (satu query histori untuk setiap emiten). ROW_NUMBER membatasi histori
+ * masing-masing ticker di PostgreSQL sebelum data dikirim ke Node.
+ */
+export async function getOwnershipHistoryForTickers(
+  tickers: string[],
+  perTickerLimit = 400
+): Promise<Map<string, OwnershipHistoryRow[]>> {
+  if (tickers.length === 0) return new Map();
+  await ensureSharedSchema();
+
+  const safeLimit = Math.max(1, Math.min(perTickerLimit, 5_000));
+  const { rows } = await pool.query(
+    `SELECT ${COLUMNS}
+       FROM (
+         SELECT ${COLUMNS},
+                ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY observed_date DESC) AS rn
+           FROM ownership_flow_history
+          WHERE ticker = ANY($1::text[])
+       ) ranked
+      WHERE rn <= $2
+      ORDER BY ticker ASC, observed_date ASC`,
+    [tickers, safeLimit]
+  );
+
+  const grouped = new Map<string, OwnershipHistoryRow[]>();
+  for (const row of rows) {
+    const mapped = mapRow(row);
+    const existing = grouped.get(mapped.ticker);
+    if (existing) existing.push(mapped);
+    else grouped.set(mapped.ticker, [mapped]);
+  }
+  return grouped;
+}
+
 /** Observasi terbaru untuk BANYAK ticker sekaligus - halaman daftar. */
 export async function getLatestObservationsFor(
   tickers: string[]
