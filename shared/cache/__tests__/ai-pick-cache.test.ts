@@ -11,7 +11,7 @@ vi.mock('../redis-cache', () => ({
 
 import { cacheGet, cacheSet } from '../redis-cache';
 import { COMPUTED_CACHE_KEY } from '../computed-keys';
-import { readAiPickScores, writeAiPickScores } from '../ai-pick-cache';
+import { inspectAiPickScoresCache, readAiPickScores, writeAiPickScores } from '../ai-pick-cache';
 
 describe('ai-pick universe cache', () => {
   beforeEach(() => {
@@ -55,6 +55,21 @@ describe('ai-pick universe cache', () => {
       universeVersion: 'idx-liquid-v1-109',
       universeSize: 109,
       computedAt: '2026-08-14T09:00:00.000Z',
+    });
+  });
+
+  it('melaporkan sumber snapshot cadangan untuk monitor admin', async () => {
+    vi.mocked(cacheGet)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        computedAt: '2026-08-14T09:00:00.000Z',
+        scores: [],
+        bearishSymbols: [],
+      });
+
+    await expect(inspectAiPickScoresCache()).resolves.toMatchObject({
+      source: 'last-successful',
+      data: { computedAt: '2026-08-14T09:00:00.000Z' },
     });
   });
 });

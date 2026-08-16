@@ -62,6 +62,12 @@ GitHub Actions.**
   langkah VPS baru. Push ke `main` tetap cukup untuk mengirim rilis lewat GitHub
   Actions.
 
+### 2026-08-16 - Monitor cache membedakan snapshot dan gangguan
+
+- Panel admin sekarang membedakan cache aktif, snapshot sesi terakhir, cache cepat yang habis di luar jam bursa, cache belum ditulis, dan Redis tidak tersedia.
+- Kesehatan LensRadar memeriksa snapshot cadangan lintas-versi, bukan hanya key universe aktif; status merah tidak lagi muncul saat fallback valid sedang dipakai.
+- `intraday-collect` tetap menampilkan bahwa eksekusi manual sukses tidak sama dengan timer otomatis terpasang. Unit systemd sudah ada di `deploy/intraday-collect/`, tetapi pemasangan root di VPS tetap langkah terpisah.
+
 ### 2026-08-16 - LensTechnical memprioritaskan chart
 
 - Chart candle emiten dipindahkan tepat setelah konteks ticker, harga, dan waktu data.
