@@ -422,6 +422,7 @@ function FundamentalContent() {
     : 0;
   const isBankProfile = Boolean(data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank'));
   const bank = data?.bankFundamentals ?? null;
+  const bankQuality = bank?.quality ?? null;
   const fmtBankPct = (value: number | null | undefined) => typeof value === 'number' ? `${value.toFixed(2)}%` : 'N/A';
 
   return (
@@ -724,6 +725,7 @@ function FundamentalContent() {
                     </div>
                     <div className="text-right text-[10px] text-tv-muted">
                       <div>{bank ? `Observed ${bank.observedDate}` : 'Belum ada snapshot bank terverifikasi'}</div>
+                      {bankQuality && <div className="mt-0.5">Coverage {bankQuality.coveragePct}% · PIT {bankQuality.pitSafe ? 'OK' : 'BELUM'} · Score: OFF</div>}
                       {bank?.source && <div className="mt-0.5">Sumber: {bank.source}</div>}
                     </div>
                   </div>
@@ -744,7 +746,23 @@ function FundamentalContent() {
                         <div className={`mt-1 font-number text-base font-bold ${typeof value === 'number' ? 'text-tv-text' : 'text-tv-muted'}`}>{fmtBankPct(typeof value === 'number' ? value : null)}</div>
                       </div>
                     ))}
+                    <div className="rounded-lg border border-tv-border bg-tv-card p-3">
+                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">PPOP</div>
+                      <div className={`mt-1 font-number text-base font-bold ${typeof bank?.ppopIdr === 'number' ? 'text-tv-text' : 'text-tv-muted'}`}>{typeof bank?.ppopIdr === 'number' ? fmtTriliun(bank.ppopIdr) : 'N/A'}</div>
+                    </div>
                   </div>
+                  {bankQuality?.warnings?.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-tv-yellow/20 bg-tv-yellow/5 p-3 text-[10px] leading-relaxed text-tv-muted">
+                      {bankQuality.warnings.join(' ')}
+                    </div>
+                  )}
+                  {Array.isArray(bank?.evidence) && bank.evidence.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {Array.from(new Map(bank.evidence.map((e: any) => [e.sourceUrl, e.sourceTitle])).entries()).slice(0, 4).map(([url, title]) => (
+                        <a key={String(url)} href={String(url)} target="_blank" rel="noreferrer" className="rounded-full border border-tv-border px-2.5 py-1 text-[10px] text-tv-blue hover:border-tv-blue/40">{String(title)}</a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
