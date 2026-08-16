@@ -158,6 +158,21 @@ export default async function AdminPage() {
         </Link>
 
         <Link
+          href="/admin/financial-integrity"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-purple/10 p-2 text-tv-purple">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Financial Integrity & Adoption Gate</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Uji dampak candidate macro dan kematangan bank evidence tanpa auto-adoption ke valuation/LensScore.
+            </p>
+          </div>
+        </Link>
+
+        <Link
           href="/admin/macro-assumptions"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
         >
