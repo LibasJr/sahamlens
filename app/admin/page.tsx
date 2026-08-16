@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer, Users } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -128,16 +128,42 @@ export default async function AdminPage() {
         </Link>
 
         <Link
-          href="/admin/broker-summary"
+          href="/admin/ownership-flow"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
         >
-          <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green">
+          <div className="rounded-lg bg-tv-blue/10 p-2 text-tv-blue">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Ownership Flow</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Status ingestion kepemilikan lokal/asing: tanggal observasi, cakupan universe, kegagalan, dan status audit sumber.
+            </p>
+          </div>
+        </Link>
+
+        {/* BROKER SUMMARY - NONAKTIF, SENGAJA DIPERTAHANKAN.
+            Ingestion-nya menuntut upload berkas manual per emiten, yang tidak
+            scalable untuk ratusan ticker; timer systemd-nya sudah dinonaktifkan
+            2026-08-14 (lihat config/scheduled-jobs.json). Kode, skema, dan seluruh
+            data historisnya TIDAK dihapus - fitur ini menunggu sumber broker
+            summary yang legal, stabil, dan dapat diotomasi.
+            Ownership Flow BUKAN penggantinya: keduanya mengukur besaran berbeda
+            (transaksi per broker vs komposisi kepemilikan) - lihat
+            docs/ownership-flow/broker-vs-ownership.md. */}
+        <Link
+          href="/admin/broker-summary"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 opacity-60 hover:border-tv-borderLight hover:bg-tv-hover hover:opacity-100 transition-all"
+        >
+          <div className="rounded-lg bg-white/[0.05] p-2 text-tv-muted">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Broker Summary</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">
+              Broker Summary <span className="ml-1 rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-muted align-middle">Nonaktif</span>
+            </h2>
             <p className="text-sm text-tv-muted mt-1">
-              Pantau sinkronisasi otomatis, cari ticker, lihat top broker, atau jalankan import manual cadangan.
+              Dinonaktifkan karena ingestion masih menuntut upload sumber manual. Data historis, skema, dan kode tetap dipertahankan untuk sumber otomatis di masa depan.
             </p>
           </div>
         </Link>

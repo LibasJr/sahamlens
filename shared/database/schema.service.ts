@@ -458,6 +458,64 @@ export function ensureSharedSchema(): Promise<void> {
       -- Index baru: getLastRun() selalu WHERE job_name = $1 ORDER BY started_at DESC LIMIT 1.
       CREATE INDEX IF NOT EXISTS idx_job_run_log_name_started
         ON job_run_log (job_name, started_at DESC);
+
+      -- modules/ownership-flow/repository/ownership-flow-history.repository.ts
+      --
+      -- ARSIP KOMPOSISI KEPEMILIKAN POINT-IN-TIME. Tabel BARU dan TERPISAH dari
+      -- seluruh tabel broker summary - Ownership Flow mengukur komposisi
+      -- kepemilikan, bukan transaksi per kode broker (lihat
+      -- docs/ownership-flow/broker-vs-ownership.md). Menggabungkan keduanya ke
+      -- satu tabel akan mengundang kesimpulan yang tidak punya dasar data.
+      --
+      -- observed_date DATE, BUKAN TIMESTAMPTZ: yang bermakna adalah harinya, dan
+      -- ia berasal dari pernyataan "As of ..." milik SUMBER - bukan dari jam
+      -- cron berjalan. fetched_at TIMESTAMPTZ menyimpan kapan server kita
+      -- mengambilnya. Keduanya sengaja kolom berbeda; menyamakannya menghapus
+      -- kemampuan backtest point-in-time (§6).
+      --
+      -- NUMERIC(7,4) untuk persentase: cukup untuk 0.0000-100.0000 dengan 4
+      -- desimal, dan TIDAK menyimpan angka sebagai TEXT. NUMERIC(24,0) untuk
+      -- jumlah efek - emiten IDX bisa punya ratusan miliar lembar, jauh melewati
+      -- BIGINT yang aman di JS, jadi presisinya dijaga di sisi database dan
+      -- pembacanya mengubah ke number lewat toNum().
+      --
+      -- Kolom nilai NULLABLE: null berarti "sumber tidak menyediakan angka ini",
+      -- sebuah FAKTA yang wajib ikut terarsip. Ia tidak boleh diubah jadi 0 -
+      -- nol adalah klaim kuantitatif yang tidak pernah diukur.
+      CREATE TABLE IF NOT EXISTS ownership_flow_history (
+        id BIGSERIAL PRIMARY KEY,
+        ticker TEXT NOT NULL,
+        observed_date DATE NOT NULL,
+        local_pct NUMERIC(7,4),
+        foreign_pct NUMERIC(7,4),
+        scripless_pct NUMERIC(7,4),
+        total_securities NUMERIC(24,0),
+        local_shares NUMERIC(24,0),
+        foreign_shares NUMERIC(24,0),
+        source TEXT NOT NULL,
+        source_url TEXT,
+        fetched_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      -- UNIQUE (ticker, observed_date, source) membuat cron IDEMPOTEN: eksekusi
+      -- ulang pada hari yang sama jadi no-op lewat ON CONFLICT DO NOTHING, dan
+      -- baris PERTAMA yang menang - yaitu keadaan sebagaimana pertama kali kita
+      -- ketahui. Kolom source ikut menjadi kunci supaya snapshot harian per emiten
+      -- dan arsip bulanan bisa hidup berdampingan untuk tanggal yang sama tanpa
+      -- saling menimpa, sekaligus bisa dipakai saling cek.
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_ownership_flow_history_ticker_date_source
+        ON ownership_flow_history (ticker, observed_date, source);
+      -- As-of lookup: WHERE ticker = $1 AND observed_date <= $2 ORDER BY
+      -- observed_date DESC LIMIT 1 - btree multikolom dipakai mundur pada kolom
+      -- kedua begitu ticker terikat.
+      CREATE INDEX IF NOT EXISTS idx_ownership_flow_history_ticker_date
+        ON ownership_flow_history (ticker, observed_date DESC);
+      -- Query lintas-ticker per tanggal (panel admin: "berapa emiten yang punya
+      -- observasi pada tanggal terbaru"), yang tidak bisa memakai index di atas
+      -- karena ticker tidak difilter.
+      CREATE INDEX IF NOT EXISTS idx_ownership_flow_history_observed_date
+        ON ownership_flow_history (observed_date DESC);
     `
       )
       .then(() => {});
