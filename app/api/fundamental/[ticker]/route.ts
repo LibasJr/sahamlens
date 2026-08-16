@@ -1,4 +1,5 @@
 import { asOf } from '@/modules/fundamental/repository/fundamental-history.repository';
+import { getBankFundamentalAsOf } from '@/modules/fundamental/repository/bank-fundamental.repository';
 import { fundamentalPitToAnalyzerPayload } from '@/modules/fundamental/service/fundamental-pit-adapter';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
@@ -85,7 +86,10 @@ export async function GET(
         );
       }
 
-      const pitPayload = fundamentalPitToAnalyzerPayload(pit);
+      const [pitPayload, bankFundamentals] = await Promise.all([
+        Promise.resolve(fundamentalPitToAnalyzerPayload(pit)),
+        getBankFundamentalAsOf(ticker, asOfDate),
+      ]);
 
       const analyzersResult = await Promise.all([
         Promise.resolve(analyzePe(pitPayload)),
@@ -137,6 +141,8 @@ export async function GET(
 
         consensus:
           'DATA PIT HISTORIS - valuasi current tidak digunakan',
+
+        bankFundamentals: bankFundamentals ? { ...bankFundamentals, status: 'DATA_ONLY' as const } : null,
 
         fundamentals: {
           marketCap: null,
@@ -294,6 +300,7 @@ async function computeCurrentFundamental(ticker: string): Promise<Record<string,
     // DATA TERBATAS, bukan menilai rendah.
     const annualEarnings = await fetchNormalizedEarnings(ticker).catch(() => null);
     const moatDurability = buildMoatDurability(annualEarnings, costOfEquityPct);
+    const bankFundamentals = await getBankFundamentalAsOf(ticker).catch(() => null);
 
     let descriptionId = quoteSummary.assetProfile?.longBusinessSummary || 'Tidak ada deskripsi perusahaan.';
     if (quoteSummary.assetProfile?.longBusinessSummary) {
@@ -346,6 +353,7 @@ async function computeCurrentFundamental(ticker: string): Promise<Record<string,
         description: descriptionId,
         website: quoteSummary.assetProfile?.website || ''
       },
+      bankFundamentals: bankFundamentals ? { ...bankFundamentals, status: 'DATA_ONLY' as const } : null,
       // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-13): ke-13 field di bawah
       // SEBELUMNYA pakai `|| 0`. Untuk data finansial, 0 BUKAN "tidak tersedia" - "PER 0"
       // dan "ROE 0%" adalah pernyataan tentang perusahaan yang bisa keliru dipercaya

@@ -8,6 +8,24 @@ import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 
+
+function createPaymentReference(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto?.getRandomValues?.(bytes);
+  // RFC 4122 v4 bits. If getRandomValues is unavailable, mix timestamp only as a
+  // last-resort format-preserving identifier; server reconciliation still requires
+  // an exact UUID and never treats this identifier as proof of payment.
+  if (!bytes.some(Boolean)) {
+    const seed = Date.now();
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = (seed >> ((i % 6) * 8)) & 0xff;
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
 interface PaywallModalProps {
   open: boolean;
   onClose: () => void;
@@ -77,20 +95,53 @@ export default function PaywallModal({
   // pemanggil - bukan mengulang array 3-item yang sama di setiap halaman.
   const [selectedPlanId, setSelectedPlanId] = useState<PricingPlan['id']>('1m');
   const [showAllFeatures, setShowAllFeatures] = useState(false);
+  const [paymentReference, setPaymentReference] = useState<string>('');
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const selectedPlan = PRICING_PLANS.find((p) => p.id === selectedPlanId) || PRICING_PLANS[0];
   const isUpgradeFlow = !ctaHref; // ctaHref dipakai untuk modal ajakan DAFTAR (bukan bayar) - tidak relevan pilih paket/harga di sana.
   const resolvedWaText = waText || (isUpgradeFlow
-    ? `Halo, saya sudah transfer untuk upgrade ke SahamLens Pro paket ${selectedPlan.label} (${formatRupiah(selectedPlan.finalPrice)}). Ini bukti transfernya.`
+    ? `Halo, saya sudah transfer untuk upgrade ke SahamLens Pro paket ${selectedPlan.label} (${formatRupiah(selectedPlan.finalPrice)}). Referensi SahamLens: ${paymentReference || 'belum dibuat'}. Ini bukti transfernya.`
     : 'Halo, saya sudah transfer untuk upgrade ke SahamLens Pro. Ini bukti transfernya.');
   const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(resolvedWaText)}`;
   const modalRef = useRef<HTMLDivElement>(null);
   const paymentMethods = ctaHref ? [] : getPaymentMethods();
 
-  const handleSendProof = () => {
-    // Fire-and-forget - notifikasi Telegram cuma nilai tambah, kegagalan/lambatnya
-    // tidak boleh menghalangi user membuka WhatsApp untuk kirim bukti transfer.
-    fetch('/api/payment/notify', { method: 'POST' }).catch(() => {});
+  const handleSendProof = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (!isUpgradeFlow || !paymentReference || paymentSubmitting) return;
+    setPaymentSubmitting(true);
+    setPaymentError(null);
+    try {
+      // Order audit HARUS tersimpan sebelum pengguna diarahkan ke WhatsApp. Guest tidak
+      // boleh membuat klaim anonim karena entitlement akhirnya selalu melekat ke akun.
+      const res = await fetch('/api/payment/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planCode: selectedPlan.id, reference: paymentReference }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
+      if (!res.ok && res.status !== 202) {
+        setPaymentError(typeof data.error === 'string' ? data.error : 'Klaim pembayaran belum dapat dicatat. Coba lagi.');
+        return;
+      }
+      window.location.assign(waLink);
+    } catch {
+      setPaymentError('Klaim pembayaran belum dapat dicatat. Periksa koneksi lalu coba lagi.');
+    } finally {
+      setPaymentSubmitting(false);
+    }
   };
+
+  useEffect(() => {
+    if (!open || !isUpgradeFlow) return;
+    setPaymentReference(createPaymentReference());
+    setPaymentError(null);
+  }, [open, isUpgradeFlow, selectedPlanId]);
 
   // Escape untuk tutup + focus trap - sebelumnya tidak ada satu pun, Tab bisa
   // memindahkan fokus keyboard ke elemen halaman di belakang overlay yang secara
@@ -235,6 +286,18 @@ export default function PaywallModal({
           </div>
         )}
 
+        {isUpgradeFlow && paymentReference && (
+          <p className="mb-3 rounded-md border border-tv-border bg-tv-card px-3 py-2 text-[11px] text-tv-muted">
+            Referensi pembayaran: <span className="font-number text-tv-text">{paymentReference}</span>. Kode ini ikut terkirim ke WhatsApp untuk rekonsiliasi.
+          </p>
+        )}
+
+        {paymentError && (
+          <p className="mb-3 rounded-md border border-tv-red/40 bg-tv-red/10 px-3 py-2 text-xs text-tv-red">
+            {paymentError}
+          </p>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           {ctaHref ? (
             <Link
@@ -249,9 +312,10 @@ export default function PaywallModal({
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleSendProof}
-              className="flex-1 text-center bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-3 rounded-md transition-all"
+              aria-disabled={paymentSubmitting}
+              className={`flex-1 text-center bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-3 rounded-md transition-all ${paymentSubmitting ? 'pointer-events-none opacity-60' : ''}`}
             >
-              {ctaLabel}
+              {paymentSubmitting ? 'Mencatat klaim…' : ctaLabel}
             </a>
           )}
           <button

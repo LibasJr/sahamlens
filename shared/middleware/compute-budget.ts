@@ -1,4 +1,5 @@
 import { Redis } from '../cache/redis-local';
+import { getTrustedClientIp } from '../http/client-ip';
 
 export type ComputeTier = 'public' | 'authenticated';
 
@@ -32,9 +33,7 @@ function redisClient(): Redis | null {
 
 export function computeActorFromRequest(request: Request, userId?: string | null): string {
   if (userId) return `user:${userId}`;
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const ip = forwarded || request.headers.get('x-real-ip') || 'unknown';
-  return `ip:${ip}`;
+  return `ip:${getTrustedClientIp(request.headers)}`;
 }
 
 function localConsume(actor: string, cost: number, tier: ComputeTier, now: number): ComputeBudgetResult {

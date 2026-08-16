@@ -1,3 +1,4 @@
+import { getTrustedClientIp } from '@/shared/http/client-ip';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
@@ -29,9 +30,7 @@ export const dynamic = 'force-dynamic';
 const RATE_LIMIT_CONFIG = { windowMs: 60_000, maxPerWindow: 2, blockMs: 5 * 60_000 };
 
 function getClientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0].trim();
-  return req.headers.get('x-real-ip') || 'unknown';
+  return getTrustedClientIp(req.headers);
 }
 
 export async function GET(req: Request) {

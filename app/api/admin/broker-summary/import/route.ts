@@ -3,6 +3,8 @@ guard();
 
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
+import { toErrorResponse } from '@/shared/errors/app-error';
 import { isAdminFromRequestCookies } from '@/modules/user';
 import {
   BrokerSummaryValidationError,
@@ -13,6 +15,12 @@ import {
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  try {
+    assertTrustedSameOrigin(request);
+  } catch (error) {
+    const mapped = toErrorResponse(error);
+    return NextResponse.json(mapped.body, { status: mapped.status, headers: mapped.headers });
+  }
   if (!(await isAdminFromRequestCookies(await cookies()))) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
