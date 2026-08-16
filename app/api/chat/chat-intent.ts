@@ -1,5 +1,5 @@
 import { normalizeChatText } from './chat-normalize';
-import type { ChatDateResolution, ChatHistoryMessage } from './chat-date';
+import { resolveChatDate, type ChatDateResolution, type ChatHistoryMessage } from './chat-date';
 
 export type ChatIntent =
   | 'SMALL_TALK'
@@ -105,13 +105,13 @@ const NEWS_TERMS = /\b(sentimen|sentiment|berita|news|kabar|isu|rumor|katalis|pe
 // Fitur yang SUDAH punya intent data sendiri (dividen/earnings/kalender/flow/moat/
 // risiko/screener/backtest - lihat daftar *_TERMS di bawah) SENGAJA tidak ditambahkan
 // di sini supaya urutan pengecekan intent data yang sudah teruji tidak berubah.
-const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|lensconsensus|lensai|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal|dcf|intrinsic value|nilai intrinsik|nilai intrinsic|nilai intrisik|nilai intric|multi-?agent|council|blue.?chip|small.?cap|cap tier|compare|portofolio|portfolio|watchlist|glosarium|glossary|intraday validation(?: lab)?|lensintraday|tp\/?cl validation(?: lab)?|tpcl validation(?: lab)?|calibration lab|lensradar calibration|fundamental backfill|financial integrity|adoption gate|macro pit|valuation inputs|bank fundamentals evidence|ownership flow(?: validation)?|broker summary|broker distribution|kesehatan operasional|operational health|feedback lensai|breakout radar|opportunity scanner)\b/;
+const PRODUCT_TERMS = /\b(lensscore|lensradar|lenstechnical|lensfundamental|lensmarket|lensconsensus|lensai|sahamlens|screener|backtest|scoring|skor fundamental|skor teknikal|dcf|intrinsic value|nilai intrinsik|nilai intrinsic|nilai intrisik|nilai intric|multi-?agent|council|blue.?chip|small.?cap|cap tier|compare|portofolio|portfolio|watchlist|glosarium|glossary)\b/;
 // Menu-menu ini juga punya intent data masing-masing. Namun tanpa ticker dan dengan
 // framing definisi/fungsi, pengguna jelas menanyakan MENU-nya - jangan balas dengan
 // "sebutkan ticker". Daftar ini mencakup seluruh navigasi pengguna di Sidebar, plus
 // Pattern yang dapat dibuka dari analisis teknikal. Daftar terpisah menjaga pertanyaan
 // datanya tetap ke router asli.
-const PRODUCT_FEATURE_DEFINITION_TERMS = /\b(beranda|home|lensmarket|market pulse|lensradar|lenstechnical|lensscanner|compare|backtest|lensfundamental|valuation|valuasi|dcf|nilai intrinsik|nilai intrinsic|moat|earnings|dividen|dividend|lenswatch|watchlist|akun demo|paper trading|risk matrix|risk calculator|news(?:\s*&\s*sentiment)?|berita|sentimen|corporate calendar|kalender|calendar|macro|makro|transparansi|tentang|about|pattern|pola|laporan keuangan|corporate action|broker flow|broker summary|broker distribution|foreign flow|arus dana|risk profile|manajemen risiko|intraday validation(?: lab)?|lensintraday|tp\/?cl validation(?: lab)?|tpcl validation(?: lab)?|calibration lab|lensradar calibration|fundamental backfill|fundamental pit|financial integrity|adoption gate|macro pit|valuation inputs|bank fundamentals evidence|ownership flow(?: validation)?|kesehatan operasional|operational health|feedback lensai|breakout radar|opportunity scanner)\b/;
+const PRODUCT_FEATURE_DEFINITION_TERMS = /\b(beranda|home|lensmarket|market pulse|lensradar|lenstechnical|lensscanner|compare|backtest|lensfundamental|valuation|valuasi|dcf|nilai intrinsik|nilai intrinsic|moat|earnings|dividen|dividend|lenswatch|watchlist|akun demo|paper trading|risk matrix|risk calculator|news(?:\s*&\s*sentiment)?|berita|sentimen|corporate calendar|kalender|calendar|macro|makro|transparansi|tentang|about|pattern|pola|laporan keuangan|corporate action|broker flow|broker summary|foreign flow|arus dana|risk profile|manajemen risiko)\b/;
 const PRODUCT_CALC_TERMS = /\b(cara|bagaimana|gimana)\b.*\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(hitung|dihitung|perhitungan)\b|\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(cara|bagaimana|gimana)\b.*\b(hitung|dihitung|perhitungan)\b/;
 const FOLLOW_UP_TERMS = /^(kenapa|kok|terus|lalu|gimana|bagaimana|kalau|kalo|jadi|yang tadi|tadi|data yang|periode kapan|yang kamu pakai|nya\b|itu\b|sehari sebelumnya)/;
 const CONCEPT_QUERY = /\b(apa itu|apa artinya|artinya apa|maksudnya|definisi|fungsi|cara kerja)\b/;
@@ -294,15 +294,22 @@ function isTooVague(text: string): boolean {
 
 export interface ClassifyArgs {
   prompt: string;
-  date: ChatDateResolution;
+  /** Optional for lightweight callers/tests; when omitted it is derived from prompt + history. */
+  date?: ChatDateResolution;
   tickerCount: number;
-  hasHistory: boolean;
+  /** Optional for lightweight callers/tests; when omitted it is derived from history length. */
+  hasHistory?: boolean;
   history?: ChatHistoryMessage[];
 }
 
+type NormalizedClassifyArgs = Omit<ClassifyArgs, 'date' | 'hasHistory'> & {
+  date: ChatDateResolution;
+  hasHistory: boolean;
+};
+
 /** Intent pemenang tunggal. Rantai if di bawah urutannya dijaga banyak test - jangan
  * menyisipkan pemeriksaan baru tanpa menambah test yang menyatakan urutannya. */
-function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, 'alsoIntents'> {
+function classifyPrimaryIntent(args: NormalizedClassifyArgs): Omit<IntentClassification, 'alsoIntents'> {
   const text = normalizeChatText(args.prompt);
   const metrics = metricsFromText(text);
   const isCompare = args.tickerCount >= 2 || COMPARE_TERMS.test(text);
@@ -463,19 +470,27 @@ function classifyPrimaryIntent(args: ClassifyArgs): Omit<IntentClassification, '
  * penanda kalau pertanyaannya terlalu kabur untuk ditebak.
  */
 export function classifyChatIntent(args: ClassifyArgs): IntentClassification {
-  const primary = classifyPrimaryIntent(args);
-  const text = normalizeChatText(args.prompt);
+  const history = args.history ?? [];
+  const normalizedArgs: NormalizedClassifyArgs = {
+    ...args,
+    history,
+    date: args.date ?? resolveChatDate(args.prompt, history),
+    hasHistory: args.hasHistory ?? history.length > 0,
+  };
+
+  const primary = classifyPrimaryIntent(normalizedArgs);
+  const text = normalizeChatText(normalizedArgs.prompt);
 
   // Topik tambahan hanya relevan untuk pertanyaan yang memang mengambil data. Untuk
   // small talk, di-luar-ranah, dan pertanyaan produk, menambah blok data cuma
   // memperbesar prompt tanpa menjawab apa pun.
   const carriesData = !['SMALL_TALK', 'OUT_OF_SCOPE', 'SAHAMLENS_PRODUCT_HELP', 'FOLLOW_UP'].includes(primary.intent);
-  const alsoIntents = carriesData ? secondaryIntents(text, primary.dataIntent, args.tickerCount) : [];
+  const alsoIntents = carriesData ? secondaryIntents(text, primary.dataIntent, normalizedArgs.tickerCount) : [];
 
   const needsClarification =
     primary.intent === 'UNKNOWN' &&
-    args.tickerCount === 0 &&
-    !args.hasHistory &&
+    normalizedArgs.tickerCount === 0 &&
+    !normalizedArgs.hasHistory &&
     !CONCEPT_QUERY.test(text) &&
     isTooVague(text);
 
