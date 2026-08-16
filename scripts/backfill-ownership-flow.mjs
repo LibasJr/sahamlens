@@ -6,8 +6,9 @@
  *   ZIP -> BalanceposYYYYMMDD.txt
  *   delimiter: pipe (|)
  *   Date: DD-MMM-YYYY, contoh 31-JUL-2026
- *   agregat yang dipakai: Total Local, Total Foreign, Total
- *   Sec. Num disimpan sebagai totalSecurities bila tersedia.
+ *   format observed KSEI: ... Local OT | Total | Foreign IS ... Foreign OT | Total
+ *   yaitu dua kolom bernama sama-sama `Total`: pertama = Total Local, terakhir = Total Foreign.
+ *   Sec. Num dipakai sebagai cross-check jumlah efek dan disimpan sebagai totalSecurities.
  *
  * Aturan keras:
  * - hanya Type=EQUITY;
@@ -202,6 +203,57 @@ function findColumn(header, exactCandidates, prefixCandidates = []) {
   return -1;
 }
 
+function findAllColumns(header, exactCandidates) {
+  const normalized = header.map(normalizeHeader);
+  const wanted = new Set(exactCandidates.map(normalizeHeader));
+  const indices = [];
+  for (let i = 0; i < normalized.length; i++) {
+    if (wanted.has(normalized[i])) indices.push(i);
+  }
+  return indices;
+}
+
+/**
+ * Arsip Balancepos KSEI yang diamati (31-JUL-2026) memakai DUA header bernama
+ * persis `Total`: yang pertama menutup blok Local, yang kedua menutup blok Foreign.
+ * Kita tetap dukung fixture/konversi lama dengan header eksplisit Total Local/Foreign.
+ */
+function resolveOwnershipAggregateColumns(header) {
+  let local = findColumn(header, ['total local', 'local total']);
+  let foreign = findColumn(header, ['total foreign', 'foreign total']);
+  let overall = findColumn(header, ['grand total', 'overall total', 'total holdings']);
+
+  const bareTotals = findAllColumns(header, ['total']);
+  let layout = 'EXPLICIT_TOTALS';
+
+  if (local < 0 || foreign < 0) {
+    const foreignStart = findColumn(header, ['foreign is']);
+    const localEnd = findColumn(header, ['local ot']);
+    const foreignEnd = findColumn(header, ['foreign ot']);
+
+    // Format resmi observed: ... Local OT | Total | Foreign IS ... Foreign OT | Total
+    const localCandidate = bareTotals.find((i) =>
+      i > (localEnd >= 0 ? localEnd : -1) && (foreignStart < 0 || i < foreignStart)
+    );
+    const foreignCandidate = [...bareTotals].reverse().find((i) =>
+      i > (foreignEnd >= 0 ? foreignEnd : (foreignStart >= 0 ? foreignStart : -1))
+    );
+
+    if (local < 0 && localCandidate !== undefined) local = localCandidate;
+    if (foreign < 0 && foreignCandidate !== undefined && foreignCandidate !== local) foreign = foreignCandidate;
+
+    if (local >= 0 && foreign >= 0) layout = 'KSEI_DUPLICATE_TOTALS';
+  }
+
+  // Untuk format fixture lama: satu bare `Total` adalah grand total. Pada format
+  // KSEI asli dua bare Total sudah dipakai sebagai local/foreign dan BUKAN grand total.
+  if (overall < 0 && layout !== 'KSEI_DUPLICATE_TOTALS' && bareTotals.length === 1) {
+    overall = bareTotals[0];
+  }
+
+  return { local, foreign, overall, layout, bareTotals };
+}
+
 function normalizeTicker(raw) {
   const value = String(raw ?? '').trim().toUpperCase().replace(/\s+/g, '');
   if (!value) return null;
@@ -236,22 +288,25 @@ async function main() {
   }
 
   const header = rows[0];
+  // Hapus BOM bila file diekspor dengan UTF-8 BOM.
+  if (header.length) header[0] = String(header[0] ?? '').replace(/^\uFEFF/, '');
+
+  const aggregate = resolveOwnershipAggregateColumns(header);
   const idx = {
     ticker: findColumn(header, ['code', 'kode', 'security code', 'short code']),
     type: findColumn(header, ['type', 'security type']),
     secNum: findColumn(header, ['sec. num', 'sec num', 'security number', 'number of securities']),
-    // PENTING: pakai agregat Total Local / Total Foreign, BUKAN Local IS / Foreign IS.
-    local: findColumn(header, ['total local', 'local total', 'local', 'lokal']),
-    foreign: findColumn(header, ['total foreign', 'foreign total', 'foreign', 'asing']),
-    // Exact "total" agar tidak salah mengambil "Total Local".
-    total: findColumn(header, ['total']),
+    local: aggregate.local,
+    foreign: aggregate.foreign,
+    total: aggregate.overall,
     date: findColumn(header, ['date', 'tanggal', 'as of']),
   };
 
   if (idx.ticker < 0 || idx.local < 0 || idx.foreign < 0) {
     console.error('ERROR: kolom wajib arsip KSEI tidak ditemukan.');
     console.error(`  Header terbaca: ${header.join(' | ')}`);
-    console.error('  Dibutuhkan minimal: Code, Total Local, Total Foreign.');
+    console.error('  Format resmi yang didukung: ... Local OT | Total | Foreign IS ... Foreign OT | Total.');
+    console.error('  Format eksplisit Total Local / Total Foreign juga tetap didukung.');
     process.exitCode = 1;
     return;
   }
@@ -312,24 +367,33 @@ async function main() {
       continue;
     }
 
-    // Untuk Balancepos resmi, "Total" adalah saldo custody = Total Local + Total Foreign.
-    // Persentase komposisi dihitung terhadap saldo custody ini, bukan terhadap Sec. Num.
     const computedHoldings = localRaw + foreignRaw;
-    const denominator = totalHoldings ?? computedHoldings;
+    const denominator = computedHoldings;
     if (!denominator || denominator <= 0) {
       rejected.push({ line: r + 1, reason: `${ticker}: total custody tidak sah (${denominator})` });
       continue;
     }
 
+    // Format eksplisit lama mempunyai grand Total tersendiri.
     if (totalHoldings !== null) {
-      // Balancepos KSEI berisi jumlah efek integer. Total harus benar-benar
-      // konsisten dengan Total Local + Total Foreign; toleransi < 1 saham hanya
-      // untuk noise floating-point, bukan untuk memaafkan selisih satu saham.
       const tolerance = Math.max(Number.EPSILON * Math.max(Math.abs(computedHoldings), Math.abs(totalHoldings)) * 8, 1e-6);
       if (Math.abs(computedHoldings - totalHoldings) > tolerance) {
         rejected.push({
           line: r + 1,
           reason: `${ticker}: Total Local + Total Foreign (${computedHoldings}) != Total (${totalHoldings})`,
+        });
+        continue;
+      }
+    }
+
+    // Pada format KSEI observed dengan dua kolom `Total`, Sec. Num adalah
+    // cross-check total efek: Total Local + Total Foreign harus sama dengan Sec. Num.
+    if (aggregate.layout === 'KSEI_DUPLICATE_TOTALS' && secNum !== null) {
+      const tolerance = Math.max(Number.EPSILON * Math.max(Math.abs(computedHoldings), Math.abs(secNum)) * 8, 1e-6);
+      if (Math.abs(computedHoldings - secNum) > tolerance) {
+        rejected.push({
+          line: r + 1,
+          reason: `${ticker}: Total Local + Total Foreign (${computedHoldings}) != Sec. Num (${secNum})`,
         });
         continue;
       }
@@ -380,6 +444,7 @@ async function main() {
   console.log(`  Berkas             : ${args.file}`);
   console.log(`  Source             : ${SOURCE_ID}`);
   console.log(`  Delimiter          : ${delimiter === '\t' ? 'TAB' : delimiter}`);
+  console.log(`  Layout agregat     : ${aggregate.layout}`);
   console.log(`  Baris EQUITY valid : ${accepted.length}`);
   console.log(`  Non-EQUITY dilewati: ${skippedNonEquity}`);
   console.log(`  Baris ditolak      : ${rejected.length}`);
