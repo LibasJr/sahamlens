@@ -4,6 +4,18 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Lock, PlayCircle, RefreshCw, RotateCcw, Shield, Target } from 'lucide-react';
 
 type MarketRegime = 'BULL' | 'SIDEWAYS' | 'BEAR' | 'UNKNOWN';
+type TpclHistoryRange = '1y' | '3y' | '5y' | '10y';
+
+const HISTORY_RANGE_OPTIONS: Array<{ value: TpclHistoryRange; label: string }> = [
+  { value: '1y', label: '1 tahun' },
+  { value: '3y', label: '3 tahun' },
+  { value: '5y', label: '5 tahun' },
+  { value: '10y', label: '10 tahun' },
+];
+
+function historyRangeLabel(range: TpclHistoryRange): string {
+  return HISTORY_RANGE_OPTIONS.find((item) => item.value === range)?.label ?? range;
+}
 
 interface Metrics {
   samples: number;
@@ -38,6 +50,7 @@ interface Candidate {
 }
 interface Dashboard {
   protocolVersion: string;
+  historyRange: TpclHistoryRange;
   researchOnly: true;
   genuineOos: false;
   scoreVersion: string;
@@ -167,14 +180,16 @@ export default function TpclValidationClient() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<ResearchAction | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [historyRange, setHistoryRange] = useState<TpclHistoryRange>('5y');
 
-  async function load() {
+  async function load(range: TpclHistoryRange = '5y') {
     setLoading(true); setError(null);
     try {
-      const res = await fetch('/api/admin/tpcl-validation', { cache: 'no-store' });
+      const res = await fetch(`/api/admin/tpcl-validation?range=${encodeURIComponent(range)}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Gagal memuat TP/CL Validation Lab');
       setData(json);
+      if (json?.historyRange) setHistoryRange(json.historyRange as TpclHistoryRange);
     } catch (e: any) {
       setError(e?.message || 'Gagal memuat TP/CL Validation Lab');
       setData(null);
@@ -182,7 +197,7 @@ export default function TpclValidationClient() {
       setLoading(false);
     }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load('5y'); }, []);
 
   async function runAction(action: ResearchAction) {
     setBusy(action);
@@ -191,14 +206,14 @@ export default function TpclValidationClient() {
       const res = await fetch('/api/admin/tpcl-validation/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, historyRange }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Aksi TP/CL gagal');
 
       if (action === 'run_validation') {
         setData(json as Dashboard);
-        setActionMessage('Validasi TP/CL selesai dihitung ulang dari histori dan OHLC terbaru. Cache hasil diperbarui selama 30 menit.');
+        setActionMessage(`Validasi TP/CL ${historyRangeLabel(historyRange)} selesai dihitung ulang dari histori dan OHLC terbaru. Cache range ini diperbarui selama 30 menit.`);
       } else {
         setActionMessage(json?.reason || 'Cache hasil TP/CL Validation Lab dihapus.');
       }
@@ -222,7 +237,7 @@ export default function TpclValidationClient() {
     <div className="rounded-xl border border-tv-red/30 bg-tv-red/10 p-5">
       <div className="font-bold text-tv-red">Validation gagal dimuat</div>
       <div className="text-sm text-tv-muted mt-1">{error}</div>
-      <button onClick={load} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-tv-border px-3 py-2 text-sm">
+      <button onClick={() => void load(historyRange)} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-tv-border px-3 py-2 text-sm">
         <RefreshCw className="w-4 h-4" /> Coba lagi
       </button>
     </div>
@@ -254,13 +269,21 @@ export default function TpclValidationClient() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-xs text-tv-muted">
               History range
-              <input
-                value="5y"
-                readOnly
+              <select
+                value={historyRange}
+                onChange={(event) => {
+                  setHistoryRange(event.target.value as TpclHistoryRange);
+                  setActionMessage(null);
+                }}
+                disabled={busy != null}
                 aria-label="History range TP/CL"
-                title="Protocol TP/CL saat ini memakai OHLC harian 5 tahun dan sengaja dikunci agar hasil antar-run dapat dibandingkan."
-                className="ml-2 w-20 rounded border border-tv-border bg-tv-bg px-2 py-1 text-tv-text font-number"
-              />
+                title="Pilih jendela observasi validasi. Default 5 tahun. Untuk 1y/3y, backend mengambil warm-up OHLC tambahan agar ATR/structure awal range tetap dapat dihitung."
+                className="ml-2 rounded border border-tv-border bg-tv-bg px-2 py-1 text-tv-text font-number disabled:opacity-50"
+              >
+                {HISTORY_RANGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </label>
             <ActionButton
               icon={<PlayCircle className="h-4 w-4" />}
@@ -287,18 +310,26 @@ export default function TpclValidationClient() {
               busy={busy === 'clear_cache'}
               disabled={busy != null}
               onClick={() => {
-                if (window.confirm('Hapus cache hasil TP/CL Validation Lab? Histori LensRadar, hasil scoring, dan parameter production tidak akan dihapus.')) {
+                if (window.confirm(`Hapus cache hasil TP/CL ${historyRangeLabel(historyRange)}? Histori LensRadar, hasil scoring, dan parameter production tidak akan dihapus.`)) {
                   void runAction('clear_cache');
                 }
               }}
             />
           </div>
+          {data.historyRange !== historyRange ? (
+            <p className="mt-3 rounded-md border border-tv-yellow/30 bg-tv-yellow/10 p-2.5 text-xs text-tv-yellow">
+              Range dipilih {historyRangeLabel(historyRange)}, tetapi hasil yang sedang tampil masih {historyRangeLabel(data.historyRange)}.
+              Tekan “Jalankan validasi ulang” untuk menghitung range baru.
+            </p>
+          ) : (
+            <p className="mt-3 text-[11px] text-tv-muted">Hasil aktif: {historyRangeLabel(data.historyRange)}.</p>
+          )}
           {actionMessage ? (
             <p className="mt-3 rounded-md border border-tv-border bg-tv-bg p-2.5 text-xs text-tv-text">{actionMessage}</p>
           ) : null}
           <p className="mt-3 text-[11px] text-tv-muted">
-            TP/CL berbeda dari Intraday Validation Lab: candle riset tidak disimpan sebagai dataset terpisah. Tombol validasi ulang mengambil
-            data harga terbaru, menjalankan simulasi historis, lalu menyimpan hasil ringkas ke cache. Freeze OOS adalah bagian protocol versi dan tidak dapat diubah dari browser.
+            TP/CL berbeda dari Intraday Validation Lab: candle riset tidak disimpan sebagai dataset terpisah. Range 1/3/5/10 tahun menentukan
+            jendela observasi sinyal dan cache hasil. Backend boleh mengambil OHLC warm-up tambahan untuk ATR/structure; default tetap 5 tahun. Freeze OOS tidak dapat diubah dari browser.
           </p>
         </div>
       </section>
@@ -333,6 +364,7 @@ export default function TpclValidationClient() {
       </section>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard label="History range" value={historyRangeLabel(data.historyRange)} />
         <MetricCard label="Protocol" value={data.protocolVersion} />
         <MetricCard label="Score version" value={data.scoreVersion} />
         <MetricCard label="Raw signals ≥80" value={data.rawSignalRows.toLocaleString('id-ID')} />
