@@ -53,7 +53,7 @@ export function buildBankEvidenceMaturity(rows: MaturityInput[]): BankEvidenceMa
     byTicker.set(ticker, list);
   }
 
-  const tickers: BankTickerMaturity[] = [...byTicker.entries()].map(([ticker, items]) => {
+  const tickers: BankTickerMaturity[] = [...byTicker.entries()].map(([ticker, items]): BankTickerMaturity => {
     const periods = [...new Set(items.map((row) => row.periodEnd))].sort();
     const metricKeys = [...new Set(items.map((row) => row.metricKey))];
     const researchMetrics = BANK_RESEARCH_METRICS.filter((key) => metricKeys.includes(key));
