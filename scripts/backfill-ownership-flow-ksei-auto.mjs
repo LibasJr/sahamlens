@@ -49,6 +49,29 @@ const ARCHIVE_NAME_RE = /^BalanceposEfek(\d{8})\.zip$/i;
 const TXT_NAME_RE = /^Balancepos(\d{8})\.txt$/i;
 const DEFAULT_MIN_EQUITY = 100;
 
+/**
+ * @typedef {Object} ArchiveEntry
+ * @property {string} observedDate Tanggal snapshot ISO YYYY-MM-DD.
+ * @property {string} ymd Tanggal snapshot YYYYMMDD.
+ * @property {string} fileName Nama ZIP resmi KSEI.
+ * @property {string} url URL download resmi KSEI.
+ */
+
+/**
+ * @typedef {Object} ArchiveFilter
+ * @property {string | null | undefined} [from] Batas bawah inklusif YYYY-MM-DD.
+ * @property {string | null | undefined} [to] Batas atas inklusif YYYY-MM-DD.
+ */
+
+/**
+ * @typedef {Object} BackfillSummary
+ * @property {number | null} validEquity
+ * @property {number | null} rejected
+ * @property {string | null} snapshotDate
+ * @property {number | null} inserted
+ * @property {number | null} alreadyExisting
+ */
+
 function parseArgs(argv) {
   const args = {
     from: null,
@@ -98,6 +121,10 @@ function isoToYmd(iso) {
  * Ambil link BalanceposEfekYYYYMMDD.zip dari HTML resmi.
  * Regex sengaja hanya menerima host web.ksei.co.id + nama file ketat.
  */
+/**
+ * @param {unknown} html
+ * @returns {ArchiveEntry[]}
+ */
 export function discoverArchiveEntries(html) {
   const text = String(html ?? '');
   const ymds = new Set();
@@ -121,6 +148,11 @@ export function discoverArchiveEntries(html) {
     .sort((a, b) => a.observedDate.localeCompare(b.observedDate));
 }
 
+/**
+ * @param {ArchiveEntry[]} entries
+ * @param {ArchiveFilter} [range]
+ * @returns {ArchiveEntry[]}
+ */
 export function filterArchiveEntries(entries, { from = null, to = null } = {}) {
   return entries.filter((entry) => {
     if (from && entry.observedDate < from) return false;
@@ -130,6 +162,10 @@ export function filterArchiveEntries(entries, { from = null, to = null } = {}) {
 }
 
 /** Parse ringkasan stdout dari backfill-ownership-flow.mjs. */
+/**
+ * @param {unknown} output
+ * @returns {BackfillSummary}
+ */
 export function parseBackfillSummary(output) {
   const text = String(output ?? '');
   const valid = text.match(/Baris EQUITY valid\s*:\s*(\d+)/i);
