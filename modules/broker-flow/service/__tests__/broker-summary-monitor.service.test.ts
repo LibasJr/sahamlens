@@ -104,7 +104,6 @@ describe('getBrokerSummaryMonitor', () => {
       { brokerCode: 'CC', buyValue: 50_000_000, sellValue: 300_000_000, buyVolume: 5_000, sellVolume: 30_000, buyFrequency: 10, sellFrequency: 30, avgBuyValuePerTrade: 5_000_000, avgSellValuePerTrade: 10_000_000, netValue: -250_000_000 },
     ]);
     expect(queryReadWithRetry.mock.calls[4]?.[1]).toEqual([
-      'INDEX_ALPHA_API',
       '2026-08-11',
       'BBCA',
       50,
