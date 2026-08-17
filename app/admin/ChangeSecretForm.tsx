@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import { PasswordToggle } from '@/components/ui/PasswordToggle';
 
 export default function ChangeSecretForm() {
   const [currentKey, setCurrentKey] = useState('');
   const [newKey, setNewKey] = useState('');
   const [confirmKey, setConfirmKey] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -59,36 +63,69 @@ export default function ChangeSecretForm() {
       <h2 className="font-heading text-lg font-bold text-tv-text mb-1">Ganti Password Admin</h2>
       <p className="text-xs text-tv-muted mb-4">Berlaku langsung, tanpa perlu deploy ulang. Minimal 12 karakter.</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-sm">
-        <input
-          type="password"
-          value={currentKey}
-          onChange={(e) => setCurrentKey(e.target.value)}
-          placeholder="Password saat ini"
-          autoComplete="off"
-          className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
-        />
-        <input
-          type="password"
-          value={newKey}
-          onChange={(e) => setNewKey(e.target.value)}
-          placeholder="Password baru (min. 12 karakter)"
-          autoComplete="off"
-          className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
-        />
-        <input
-          type="password"
-          value={confirmKey}
-          onChange={(e) => setConfirmKey(e.target.value)}
-          placeholder="Konfirmasi password baru"
-          autoComplete="off"
-          className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
-        />
+        {/* Password Saat Ini */}
+        <div className="relative flex items-center">
+          <input
+            type={showCurrent ? 'text' : 'password'}
+            value={currentKey}
+            onChange={(e) => setCurrentKey(e.target.value)}
+            placeholder="Password saat ini"
+            autoComplete="off"
+            className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 pr-11 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          />
+          <div className="absolute right-0 top-0 h-full flex items-center pr-1">
+            <PasswordToggle
+              shown={showCurrent}
+              onToggle={() => setShowCurrent((v) => !v)}
+              label="password saat ini"
+            />
+          </div>
+        </div>
+
+        {/* Password Baru */}
+        <div className="relative flex items-center">
+          <input
+            type={showNew ? 'text' : 'password'}
+            value={newKey}
+            onChange={(e) => setNewKey(e.target.value)}
+            placeholder="Password baru (min. 12 karakter)"
+            autoComplete="off"
+            className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 pr-11 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          />
+          <div className="absolute right-0 top-0 h-full flex items-center pr-1">
+            <PasswordToggle
+              shown={showNew}
+              onToggle={() => setShowNew((v) => !v)}
+              label="password baru"
+            />
+          </div>
+        </div>
+
+        {/* Konfirmasi Password Baru */}
+        <div className="relative flex items-center">
+          <input
+            type={showConfirm ? 'text' : 'password'}
+            value={confirmKey}
+            onChange={(e) => setConfirmKey(e.target.value)}
+            placeholder="Konfirmasi password baru"
+            autoComplete="off"
+            className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 pr-11 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
+          />
+          <div className="absolute right-0 top-0 h-full flex items-center pr-1">
+            <PasswordToggle
+              shown={showConfirm}
+              onToggle={() => setShowConfirm((v) => !v)}
+              label="konfirmasi password baru"
+            />
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={loading}
-          className="bg-tv-blue hover:bg-tv-blueHover text-white font-bold px-4 py-2 rounded-md text-sm transition-colors disabled:opacity-50"
+          className="bg-tv-blue hover:bg-tv-blueHover text-white font-bold px-4 py-2.5 rounded-md text-sm transition-colors disabled:opacity-50 mt-1 cursor-pointer"
         >
-          Ganti Password
+          {loading ? 'Memproses...' : 'Ganti Password'}
         </button>
       </form>
       {message && (

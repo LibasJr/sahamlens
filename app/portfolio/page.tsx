@@ -10,6 +10,7 @@ import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, ArrowUpRi
 // kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { PasswordToggle } from '@/components/ui/PasswordToggle';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { fadeUp } from '@/lib/motion';
 import { getDecisionPresentation } from '@/modules/eligibility';
@@ -40,6 +41,8 @@ export default function PortfolioPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ email: string; role: string } | null>(null);
@@ -363,18 +366,32 @@ export default function PortfolioPage() {
                 />
                 <Input
                   label="Password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Password"
+                  rightIcon={
+                    <PasswordToggle
+                      shown={showPassword}
+                      onToggle={() => setShowPassword(v => !v)}
+                      label="password"
+                    />
+                  }
                 />
                 {authMode === 'SIGNUP' && (
                   <Input
                     label="Konfirmasi Password"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     placeholder="Ulangi password"
+                    rightIcon={
+                      <PasswordToggle
+                        shown={showConfirmPassword}
+                        onToggle={() => setShowConfirmPassword(v => !v)}
+                        label="konfirmasi password"
+                      />
+                    }
                   />
                 )}
                 {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
