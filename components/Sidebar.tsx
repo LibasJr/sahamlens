@@ -142,10 +142,6 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-macro-pit', name: 'Macro PIT', subtitle: 'Risk-free, ERP & provenance', path: '/admin/macro-assumptions', icon: Waves },
     { id: 'admin-bank-fundamentals', name: 'Bank Fundamentals', subtitle: 'NIM, NPL, CASA, CAR & provenance', path: '/admin/bank-fundamentals', icon: Building2 },
     { id: 'admin-ownership-flow', name: 'Ownership Flow', subtitle: 'Status ingestion kepemilikan', path: '/admin/ownership-flow', icon: Users },
-    // NONAKTIF (2026-08-14) - ingestion masih menuntut upload manual per emiten.
-    // Entri sengaja DIPERTAHANKAN, bukan dihapus: data historis dan kodenya masih
-    // ada, dan fitur ini menunggu sumber otomatis yang legal & stabil.
-    { id: 'admin-broker-summary', name: 'Broker Summary (nonaktif)', subtitle: 'Menunggu sumber otomatis', path: '/admin/broker-summary', icon: FileSpreadsheet },
     { id: 'admin-lensai-feedback', name: 'Feedback LensAI', subtitle: 'Audit jawaban pengguna', path: '/admin/lensai-feedback', icon: MessageSquare },
   ],
 };
