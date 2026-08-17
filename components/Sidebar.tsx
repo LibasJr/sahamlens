@@ -347,7 +347,7 @@ export default function Sidebar() {
           <div className="space-y-5">
             {visibleGroups.map((group) => (
               <section key={group.id}>
-                <div className={`mb-1.5 px-2 text-xs font-bold uppercase tracking-[0.14em] text-white/35 md:text-[10px] md:tracking-[0.18em] ${isCollapsed ? 'md:hidden' : ''}`}>
+                <div className={`mb-2 px-2.5 text-xs font-bold uppercase tracking-[0.14em] text-white/55 md:text-[11px] md:tracking-[0.16em] ${isCollapsed ? 'md:hidden' : ''}`}>
                   {getLocalizedGroupName(group.id, group.label)}
                 </div>
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
@@ -391,7 +391,7 @@ export default function Sidebar() {
                         onBlur={() => setHoveredNav(null)}
                         className={`group relative flex min-h-14 items-center rounded-xl md:min-h-[46px] transition-all duration-200 ${
                           isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
-                        } ${active ? 'bg-white/[0.075] text-white' : 'text-white/65 hover:bg-white/[0.045] hover:text-white'} ${
+                        } ${active ? 'bg-white/[0.075] text-white' : 'text-white/70 hover:bg-white/[0.045] hover:text-white'} ${
                           lockedForGuest ? 'cursor-pointer' : ''
                         }`}
                       >
@@ -407,10 +407,10 @@ export default function Sidebar() {
                         </span>
                         <span className={`ml-2.5 min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-semibold md:text-[12.5px]">{localized.name}</span>
+                            <span className="truncate text-sm font-semibold md:text-[13px] text-white/95">{localized.name}</span>
                             {item.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.9)]" />}
                           </span>
-                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/40 md:truncate md:text-[10px] md:leading-normal md:text-white/32">{localized.subtitle}</span>
+                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/60 md:truncate md:text-[11.5px] md:leading-normal md:text-white/50">{localized.subtitle}</span>
                         </span>
                         {!isCollapsed && lockedForGuest && (
                           <LockKeyhole className="h-4 w-4 shrink-0 text-tv-muted" aria-hidden="true" />
