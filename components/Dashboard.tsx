@@ -19,6 +19,7 @@ import { isMarketOpen } from '@/lib/utils/market';
 import ThemeToggle from '@/components/ThemeToggle';
 import GettingStartedGuide from '@/components/GettingStartedGuide';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import NotificationCenter from '@/components/ui/NotificationCenter';
 import { useLanguage } from '@/lib/i18n';
 import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
@@ -419,6 +420,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               <LanguageSwitcher variant="pill" className="hidden sm:inline-flex" />
               <LanguageSwitcher variant="compact" className="sm:hidden" />
               <ThemeToggle />
+              <NotificationCenter />
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
                 <CommandPalette />
               </div>
