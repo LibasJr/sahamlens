@@ -136,46 +136,61 @@ jobs:
           esac
           exit "$code"
 
-      - name: Smoke test publik setelah deploy
+      - name: Smoke test internal VPS setelah deploy
         shell: bash
         run: |
           set -euo pipefail
 
-          URL="https://sahamlens.id/"
-          USER_AGENT="SahamLens-GitHub-Deploy-SmokeTest/2.0"
+          proxy=()
+          if [ "$DEPLOY_VIA_TUNNEL" = "true" ]; then
+            proxy=(-o "ProxyCommand=$HOME/bin/cloudflared access ssh --hostname %h")
+          fi
 
-          echo "Smoke test publik: $URL"
+          echo "Menjalankan health check dari dalam VPS..."
+          ssh \
+            -i "$HOME/.ssh/sahamlens_deploy" \
+            -p "$DEPLOY_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            "${proxy[@]}" \
+            lens@"$DEPLOY_HOST" '
+              set -euo pipefail
 
-          for attempt in 1 2 3 4 5; do
-            status="$(
-              curl \
-                --location \
-                --silent \
-                --show-error \
-                --output /tmp/sahamlens-smoke-response.html \
-                --write-out '%{http_code}' \
-                --connect-timeout 10 \
-                --max-time 20 \
-                --user-agent "$USER_AGENT" \
-                "$URL" \
-              || true
-            )"
+              HEALTH_URL="http://127.0.0.1:3001/api/health"
 
-            echo "Attempt $attempt/5 -> HTTP ${status:-000}"
+              for attempt in 1 2 3 4 5 6 7 8 9 10; do
+                status="$(
+                  curl \
+                    --silent \
+                    --show-error \
+                    --output /tmp/sahamlens-health.json \
+                    --write-out "%{http_code}" \
+                    --connect-timeout 5 \
+                    --max-time 15 \
+                    "$HEALTH_URL" \
+                  || true
+                )"
 
-            case "$status" in
-              2??|3??)
-                echo "Public smoke test PASS"
-                exit 0
-                ;;
-            esac
+                echo "Health attempt $attempt/10 -> HTTP ${status:-000}"
 
-            if [ "$attempt" -lt 5 ]; then
-              echo "Belum sehat dari jalur publik; retry 5 detik..."
-              sleep 5
-            fi
-          done
+                if [ "$status" = "200" ]; then
+                  echo "Health response:"
+                  cat /tmp/sahamlens-health.json || true
+                  echo
+                  echo "Smoke test internal VPS PASS"
+                  exit 0
+                fi
 
-          echo "::error::Public smoke test gagal setelah 5 percobaan."
-          echo "::error::Status HTTP terakhir: ${status:-000}"
-          exit 1
+                if [ "$attempt" -lt 10 ]; then
+                  sleep 6
+                fi
+              done
+
+              echo "Health response terakhir:"
+              cat /tmp/sahamlens-health.json 2>/dev/null || true
+              echo
+              echo "ERROR: health check internal VPS gagal. HTTP ${status:-000}"
+              exit 1
+            '
