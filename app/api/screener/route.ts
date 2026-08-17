@@ -5,6 +5,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { describeCacheAge } from '@/shared/http/freshness';
 import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
+import { getSession } from '@/modules/user';
 
 // Publik (alat gratis, konsisten dengan /dcf & /screener page itu sendiri). Universe
 // mentah (fetch fundamental ~50 saham) di-cache 30 menit dan dipakai ulang untuk
@@ -59,6 +60,11 @@ export async function GET(request: Request) {
     const universe = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.SCREENER_UNIVERSE, fetchScreenerUniverse);
     const top10 = rankScreener(universe, profile, { sector, maxPrice, minMarketCap, minLiquidity });
 
+    const session = await getSession().catch(() => null);
+    const isGuest = !session || typeof session.id !== 'string';
+    const visibleStocks = isGuest ? top10.slice(0, 3) : top10;
+    const lockedCount = isGuest ? Math.max(0, top10.length - 3) : 0;
+
     // Daftar sektor untuk dropdown filter frontend - SELALU dari universe PENUH
     // (belum difilter), supaya pilihan yang tersedia tidak diam-diam menyusut begitu
     // pengguna memilih sektor tertentu. Diurutkan alfabet id-ID.
@@ -69,7 +75,17 @@ export async function GET(request: Request) {
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
     const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.SCREENER_UNIVERSE);
 
-    return NextResponse.json({ profile, analysis: { top_10_stocks: top10 }, availableSectors, _meta });
+    return NextResponse.json({
+      profile,
+      analysis: {
+        top_10_stocks: visibleStocks,
+        total_count: top10.length,
+        locked_count: lockedCount,
+        is_guest_limited: isGuest,
+      },
+      availableSectors,
+      _meta,
+    });
   } catch (error: any) {
     console.error('Screener API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

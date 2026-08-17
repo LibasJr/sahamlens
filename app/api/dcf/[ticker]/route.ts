@@ -7,13 +7,14 @@ import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateDcfModel } from '@/modules/fundamental';
 import { getMarketAwareCacheHeaders, CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { getOrCompute } from '@/shared/cache/redis-cache';
+import { getSession } from '@/modules/user';
 
 // /dcf sengaja publik (alat gratis, konsisten dengan /api/intrinsic/[ticker]) - lihat
 // catatan di app/api/intrinsic/[ticker]/route.ts. Sebelumnya app/dcf/page.tsx memanggil
 // /api/live/[ticker] (cuma quote harga) yang tidak pernah punya field quant/analysis,
 // jadi WACC/FCF projections/sensitivity table selalu tampil "-". Endpoint ini mengisi
 // data itu dari model DCF nyata di modules/fundamental/service/dcf-valuation.service.ts.
-
+//
 // BUG FIX (2026-08-14, audit "semua menu harus ada cache") - `getMarketAwareCacheHeaders`
 // di bawah cuma header HTTP (Cache-Control/CDN-Cache-Control) yang HANYA berguna kalau
 // ada CDN yang membacanya di depan origin. Production pindah ke VPS + Cloudflare Tunnel
@@ -46,7 +47,36 @@ export async function GET(
     if ('notFound' in wrapped) {
       return NextResponse.json({ error: 'Data DCF tidak tersedia untuk simbol ini' }, { status: 404 });
     }
-    return NextResponse.json(wrapped, { headers: getMarketAwareCacheHeaders() });
+
+    const session = await getSession().catch(() => null);
+    const isGuest = !session || typeof session.id !== 'string';
+
+    if (isGuest) {
+      const rawQuant = wrapped.quant || {};
+      const rawProjections = rawQuant.fcf_projections || [];
+      return NextResponse.json(
+        {
+          ...wrapped,
+          quant: {
+            ...rawQuant,
+            fcf_projections: rawProjections.slice(0, 2),
+            fcf_locked_count: Math.max(0, rawProjections.length - 2),
+            sensitivity_table: [],
+            is_guest_limited: true,
+          },
+          is_guest_limited: true,
+        },
+        { headers: getMarketAwareCacheHeaders() }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ...wrapped,
+        is_guest_limited: false,
+      },
+      { headers: getMarketAwareCacheHeaders() }
+    );
   } catch (error: any) {
     console.error(error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
