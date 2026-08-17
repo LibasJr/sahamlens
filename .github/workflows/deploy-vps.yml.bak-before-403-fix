@@ -1,4 +1,4 @@
-﻿name: Deploy VPS
+name: Deploy VPS
 
 on:
   workflow_run:
@@ -137,57 +137,28 @@ jobs:
           exit "$code"
 
       - name: Smoke test publik setelah deploy
-        shell: bash
+        env:
+          BASE_URL: https://sahamlens.id
         run: |
-          set -euo pipefail
-          
           node --input-type=module <<'NODE'
-          const base = 'https://sahamlens.id';
-          const url = ${base}/;
-          
-          async function smokeTest() {
-            let lastError;
-          
-            for (let attempt = 1; attempt <= 5; attempt++) {
+          const base = process.env.BASE_URL;
+          const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+          async function get(path, attempts = 8) {
+            let last;
+            for (let i = 1; i <= attempts; i++) {
               try {
-                const res = await fetch(url, {
-                  redirect: 'follow',
-                  headers: {
-                    'user-agent': 'SahamLens-GitHub-Deploy-SmokeTest/1.0',
-                    'accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
-                  },
-                  signal: AbortSignal.timeout(20000),
-                });
-          
-                console.log(Public smoke test attempt : / -> HTTP );
-          
-                if (res.status === 403) {
-                  throw new Error(/ HTTP 403);
-                }
-          
-                if (res.status === 404) {
-                  throw new Error(/ HTTP 404);
-                }
-          
-                if (res.status >= 500) {
-                  throw new Error(/ HTTP );
-                }
-          
-                console.log('Public smoke test PASS');
-                return;
-              } catch (err) {
-                lastError = err;
-                console.error(Attempt  gagal:, err?.message ?? err);
-          
-                if (attempt < 5) {
-                  await new Promise(resolve => setTimeout(resolve, 5000));
-                }
-              }
+                const res = await fetch(base + path, { redirect: 'follow', signal: AbortSignal.timeout(12000) });
+                const body = await res.text();
+                if (res.ok) return { res, body };
+                last = new Error(`${path} HTTP ${res.status}`);
+              } catch (e) { last = e; }
+              await sleep(i * 3000);
             }
-          
-            throw lastError ?? new Error('Public smoke test gagal');
+            throw last;
           }
-          
-          await smokeTest();
+          const health = await get('/api/health');
+          const parsed = JSON.parse(health.body);
+          if (parsed?.checks?.database !== 'ok') throw new Error('Smoke: database health bukan ok');
+          await get('/home');
+          console.log('SMOKE PASS: /api/health + /home dapat dilayani dari luar VPS.');
           NODE
-
