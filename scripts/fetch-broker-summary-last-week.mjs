@@ -160,6 +160,61 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
   return transactions;
 }
 
+async function insertBatch(client, batch) {
+  if (!batch.length) return;
+  const valueClauses = [];
+  const params = [];
+  let pIdx = 1;
+
+  for (const tx of batch) {
+    valueClauses.push(`(
+      $${pIdx}::date, $${pIdx + 1}, $${pIdx + 2},
+      $${pIdx + 3}, $${pIdx + 4}, $${pIdx + 5}, $${pIdx + 6}, $${pIdx + 7}, $${pIdx + 8},
+      $${pIdx + 9}, $${pIdx + 10}, $${pIdx + 11}, $${pIdx + 12}, $${pIdx + 13}, NOW()
+    )`);
+    params.push(
+      tx.tradeDate,
+      tx.ticker,
+      tx.brokerCode,
+      tx.buyValue,
+      tx.sellValue,
+      tx.buyVolume,
+      tx.sellVolume,
+      tx.buyFrequency,
+      tx.sellFrequency,
+      tx.buyLot,
+      tx.sellLot,
+      tx.buyAvgPrice,
+      tx.sellAvgPrice,
+      tx.source
+    );
+    pIdx += 14;
+  }
+
+  const query = `
+    INSERT INTO broker_summary_daily (
+      trade_date, ticker, broker_code,
+      buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
+      buy_lot, sell_lot, buy_avg, sell_avg, source, imported_at
+    ) VALUES ${valueClauses.join(', ')}
+    ON CONFLICT (trade_date, ticker, broker_code, source)
+    DO UPDATE SET
+      buy_value = EXCLUDED.buy_value,
+      sell_value = EXCLUDED.sell_value,
+      buy_volume = EXCLUDED.buy_volume,
+      sell_volume = EXCLUDED.sell_volume,
+      buy_frequency = EXCLUDED.buy_frequency,
+      sell_frequency = EXCLUDED.sell_frequency,
+      buy_lot = EXCLUDED.buy_lot,
+      sell_lot = EXCLUDED.sell_lot,
+      buy_avg = EXCLUDED.buy_avg,
+      sell_avg = EXCLUDED.sell_avg,
+      imported_at = NOW()
+  `;
+
+  await client.query(query, params);
+}
+
 async function main() {
   const rawDbUrl = process.env.DATABASE_URL;
   if (!rawDbUrl) {
@@ -180,9 +235,23 @@ async function main() {
     });
   }
 
-  console.log('=== IDX BROKER SUMMARY INGESTION (LAST WEEK) ===');
+  // Parse CLI args for chunking (misal: --chunk=1 atau --size=20)
+  const args = process.argv.slice(2);
+  const chunkSizeArg = args.find((a) => a.startsWith('--size='));
+  const chunkIndexArg = args.find((a) => a.startsWith('--chunk='));
+  
+  const CHUNK_SIZE = chunkSizeArg ? parseInt(chunkSizeArg.split('=')[1], 10) : 20;
+  const targetChunk = chunkIndexArg ? parseInt(chunkIndexArg.split('=')[1], 10) : null;
+
+  // Split tickers into chunks of 20
+  const chunks = [];
+  for (let i = 0; i < TOP_200_LIQUID_TICKERS.length; i += CHUNK_SIZE) {
+    chunks.push(TOP_200_LIQUID_TICKERS.slice(i, i + CHUNK_SIZE));
+  }
+
+  console.log('=== IDX BROKER SUMMARY INGESTION (CHUNKS OF 20 TICKERS) ===');
   console.log(`Rentang Tanggal: ${LAST_WEEK_TRADING_DATES[0]} s/d ${LAST_WEEK_TRADING_DATES.at(-1)}`);
-  console.log(`Emiten Target: ${TOP_200_LIQUID_TICKERS.length} emiten lengkap lintas sektor\n`);
+  console.log(`Total Emiten: ${TOP_200_LIQUID_TICKERS.length} (dibagi jadi ${chunks.length} batch @ ${CHUNK_SIZE} emiten)\n`);
 
   let client = null;
   if (pool) {
@@ -221,71 +290,46 @@ async function main() {
     }
   }
 
-  let totalRows = 0;
+  let totalProcessed = 0;
 
-  for (const tradeDate of LAST_WEEK_TRADING_DATES) {
-    console.log(`📅 Memproses Tanggal: ${tradeDate}`);
-    for (const ticker of TOP_200_LIQUID_TICKERS) {
-      const rows = generateRealisticBrokerTransactions(ticker, tradeDate);
-      totalRows += rows.length;
+  for (let cIdx = 0; cIdx < chunks.length; cIdx++) {
+    const chunkNum = cIdx + 1;
+    if (targetChunk !== null && targetChunk !== chunkNum) {
+      continue;
+    }
 
-      if (client) {
-        try {
-          for (const tx of rows) {
-            await client.query(
-              `INSERT INTO broker_summary_daily (
-                trade_date, ticker, broker_code,
-                buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
-                buy_lot, sell_lot, buy_avg, sell_avg, source, imported_at
-              ) VALUES (
-                $1::date, $2, $3,
-                $4, $5, $6, $7, $8, $9,
-                $10, $11, $12, $13, $14, NOW()
-              )
-              ON CONFLICT (trade_date, ticker, broker_code, source)
-              DO UPDATE SET
-                buy_value = EXCLUDED.buy_value,
-                sell_value = EXCLUDED.sell_value,
-                buy_volume = EXCLUDED.buy_volume,
-                sell_volume = EXCLUDED.sell_volume,
-                buy_frequency = EXCLUDED.buy_frequency,
-                sell_frequency = EXCLUDED.sell_frequency,
-                buy_lot = EXCLUDED.buy_lot,
-                sell_lot = EXCLUDED.sell_lot,
-                buy_avg = EXCLUDED.buy_avg,
-                sell_avg = EXCLUDED.sell_avg,
-                imported_at = NOW()`,
-              [
-                tx.tradeDate,
-                tx.ticker,
-                tx.brokerCode,
-                tx.buyValue,
-                tx.sellValue,
-                tx.buyVolume,
-                tx.sellVolume,
-                tx.buyFrequency,
-                tx.sellFrequency,
-                tx.buyLot,
-                tx.sellLot,
-                tx.buyAvgPrice,
-                tx.sellAvgPrice,
-                tx.source
-              ]
-            );
-          }
-        } catch (e) {
-          console.error(`  ✗ ${ticker} gagal:`, e?.message || e);
-        }
+    const currentTickers = chunks[cIdx];
+    console.log(`📦 Memproses Batch ${chunkNum}/${chunks.length} (${currentTickers.length} emiten: ${currentTickers.slice(0, 5).join(', ')}...)`);
+
+    const chunkTransactions = [];
+    for (const tradeDate of LAST_WEEK_TRADING_DATES) {
+      for (const ticker of currentTickers) {
+        chunkTransactions.push(...generateRealisticBrokerTransactions(ticker, tradeDate));
       }
     }
-    console.log(`  ✓ ${TOP_200_LIQUID_TICKERS.length} emiten selesai diproses untuk tanggal ${tradeDate}`);
+
+    if (client) {
+      try {
+        await client.query('BEGIN');
+        await insertBatch(client, chunkTransactions);
+        await client.query('COMMIT');
+        totalProcessed += currentTickers.length;
+        console.log(`   ✓ Batch ${chunkNum} (${chunkTransactions.length} baris transaksi) sukses tersimpan!`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(`   ✗ Batch ${chunkNum} gagal:`, err?.message || err);
+      }
+    } else {
+      totalProcessed += currentTickers.length;
+      console.log(`   ✓ Batch ${chunkNum} (${chunkTransactions.length} baris) diproses (dry-run).`);
+    }
   }
 
   if (client) client.release();
   if (pool) await pool.end();
 
   console.log(`\n======================================================`);
-  console.log(`✅ SELESAI! Total ${totalRows} baris transaksi broker (${TOP_200_LIQUID_TICKERS.length} emiten) berhasil diolah.`);
+  console.log(`✅ SELESAI! ${totalProcessed} emiten berhasil diolah.`);
 }
 
 main().catch(console.error);
