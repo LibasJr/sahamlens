@@ -62,8 +62,8 @@ export async function GET(request: Request) {
 
     const session = await getSession().catch(() => null);
     const isGuest = !session || typeof session.id !== 'string';
-    const visibleStocks = isGuest ? top10.slice(0, 3) : top10;
-    const lockedCount = isGuest ? Math.max(0, top10.length - 3) : 0;
+    const visibleStocks = isGuest ? top10.slice(0, 2) : top10;
+    const lockedCount = isGuest ? Math.max(0, top10.length - 2) : 0;
 
     // Daftar sektor untuk dropdown filter frontend - SELALU dari universe PENUH
     // (belum difilter), supaya pilihan yang tersedia tidak diam-diam menyusut begitu
