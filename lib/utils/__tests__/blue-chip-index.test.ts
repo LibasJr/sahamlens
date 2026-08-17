@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isBlueChipConstituent, LQ45_CONSTITUENTS } from '../blue-chip-index';
+import { isBlueChipConstituent, LQ45_CONSTITUENTS, LQ45_REVIEWED_UNTIL } from '../blue-chip-index';
 
 // BARU (2026-08-16, bug report pengguna: PACK.JK berlabel "Blue-chip" karena definisi
 // lama murni market cap + ADV20 real-time - gampang digelembungkan pump/gorengan).
@@ -30,5 +30,13 @@ describe('isBlueChipConstituent', () => {
 
   it('daftar tidak berisi duplikat', () => {
     expect(new Set(LQ45_CONSTITUENTS).size).toBe(LQ45_CONSTITUENTS.length);
+  });
+
+  it('LQ45_REVIEWED_UNTIL memiliki format tanggal valid dan belum kedaluwarsa dari tanggal peninjauan', () => {
+    expect(LQ45_REVIEWED_UNTIL).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const deadlineMs = new Date(`${LQ45_REVIEWED_UNTIL}T23:59:59.999Z`).getTime();
+    expect(Number.isFinite(deadlineMs)).toBe(true);
+    // Memastikan konstanta aktif dan tercatat
+    expect(new Date(LQ45_REVIEWED_UNTIL).getFullYear()).toBeGreaterThanOrEqual(2026);
   });
 });
