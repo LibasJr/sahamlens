@@ -32,6 +32,7 @@ import {
   Radar,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Target,
   TrendingUp,
   User,
@@ -443,6 +444,21 @@ export default function Sidebar() {
 
         <div className="border-t border-white/[0.06] p-3">
           <LanguageSwitcher variant="sidebar" className={`mb-2.5 ${isCollapsed ? 'md:hidden' : ''}`} />
+          {hasAdminAccess && (
+            <Link
+              href="/admin/infographic-studio"
+              className={`mb-2.5 flex items-center gap-2 rounded-xl border border-tv-blue/30 bg-tv-blue/10 p-2 text-xs font-bold text-tv-blue hover:bg-tv-blue/20 transition-all ${
+                isCollapsed ? 'md:justify-center md:p-1.5' : 'justify-between'
+              }`}
+              title="Infographic Studio (Admin)"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-tv-gold shrink-0" />
+                <span className={isCollapsed ? 'md:hidden' : ''}>Infographic Studio</span>
+              </span>
+              <span className={`rounded bg-tv-blue/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${isCollapsed ? 'md:hidden' : ''}`}>Admin</span>
+            </Link>
+          )}
           {!authLoading && user ? (
             <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2 ${isCollapsed ? 'md:border-transparent md:bg-transparent md:p-0' : ''}`}>
               <div className={`flex items-center gap-2 ${isCollapsed ? 'md:justify-center' : ''}`}>
