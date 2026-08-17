@@ -10,6 +10,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import BrokerSummaryPanel from '@/components/broker/BrokerSummaryPanel';
 
 interface BandarFlowProProps {
   symbol: string;
@@ -277,8 +278,13 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
 
           <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
-            {isEn ? 'Data derived exclusively from Chaikin Money Flow (CMF).' : 'Data hanya berasal dari Chaikin Money Flow (CMF).'}
+            {isEn ? 'Data derived from Chaikin Money Flow (CMF) & volume distribution.' : 'Data dihitung dari Chaikin Money Flow (CMF) & distribusi volume transaksi.'}
           </div>
+        </div>
+
+        {/* IDX EOD Broker Summary Panel */}
+        <div className="mt-6">
+          <BrokerSummaryPanel symbol={symbol} />
         </div>
       </div>
     </div>

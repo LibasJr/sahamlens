@@ -351,6 +351,7 @@ export const config = {
     '/api/earnings/:path*',
     '/api/compare/:path*',
     '/api/flow/:path*',
+    '/api/broker-summary/:path*',
     '/api/live/:path*',
     '/api/news/stock/:path*',
     '/api/ai-briefing/:path*',
