@@ -130,6 +130,7 @@ jobs:
             proxy=(-o "ProxyCommand=$HOME/bin/cloudflared access ssh --hostname %h")
           fi
           ssh \
+            -v \
             -i "$HOME/.ssh/sahamlens_deploy" \
             -p "$DEPLOY_PORT" \
             -o BatchMode=yes \
@@ -137,9 +138,10 @@ jobs:
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             -o ConnectTimeout=20 \
             "${proxy[@]}" \
-            lens@"$DEPLOY_HOST" deploy
+            lens@"$DEPLOY_HOST" deploy > /tmp/ssh-deploy.log 2>&1
           code=$?
           set -e
+          cat /tmp/ssh-deploy.log
           case "$code" in
             0) echo "Deploy selesai." ;;
             127) echo "::error::Perintah 'deploy' tidak ada di PATH non-interaktif user lens." ;;
