@@ -103,9 +103,9 @@ function loadTemplates(): ScreenerTemplate[] {
   }
 }
 
-const GUEST_VISIBLE_RESULT_COUNT = 3;
+const GUEST_VISIBLE_RESULT_COUNT = 2;
 
-function GuestScannerLock({ lockedCount = 7 }: { lockedCount?: number }) {
+function GuestScannerLock({ lockedCount = 8 }: { lockedCount?: number }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-4 py-3 text-xs">
       <div className="flex items-start gap-2 text-tv-muted">
@@ -214,7 +214,7 @@ export default function ScreenerPage() {
   const top10 = data?.analysis?.top_10_stocks || [];
   const isConfirmedGuest = authResolved && !authLoading && !user;
   const isGuestLimited = Boolean(data?.analysis?.is_guest_limited ?? isConfirmedGuest);
-  const lockedCount = isGuestLimited ? (data?.analysis?.locked_count ?? 7) : 0;
+  const lockedCount = isGuestLimited ? (data?.analysis?.locked_count ?? 8) : 0;
   const hasLockedGuestRows = isGuestLimited && lockedCount > 0;
 
   const sortedRows = useMemo(() => {
