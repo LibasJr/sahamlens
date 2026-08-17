@@ -33,15 +33,20 @@ export function computeVolumeProfile(
 ): VolumeProfileResult | null {
   if (!candles || candles.length === 0) return null;
 
-  const validCandles = candles.filter(
-    (c) =>
-      typeof c.high === 'number' &&
-      typeof c.low === 'number' &&
-      c.high >= c.low &&
-      Number(c.volume || 0) > 0 &&
-      !isNaN(c.high) &&
-      !isNaN(c.low)
-  );
+  const validCandles = candles
+    .filter(
+      (c) =>
+        typeof c.high === 'number' &&
+        typeof c.low === 'number' &&
+        c.high >= c.low &&
+        Number(c.volume || 0) > 0 &&
+        !isNaN(c.high) &&
+        !isNaN(c.low)
+    )
+    .map((c) => ({
+      ...c,
+      volume: Number(c.volume) || 0,
+    }));
 
   if (validCandles.length === 0) return null;
 
