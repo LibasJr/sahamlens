@@ -1,29 +1,45 @@
-SAHAMLENS - FIX DEPLOY VPS SMOKE TEST
+SAHAMLENS - FIX DEPLOY VPS 403 FINAL
 Tanggal: 2026-08-17
 
-Masalah:
-GitHub Actions gagal pada step "Smoke test publik setelah deploy" karena JavaScript di workflow rusak:
-  SyntaxError: Unexpected token '{'
-  const url = ${base}/;
+AKAR MASALAH
+------------
+Deploy ke VPS berhasil, tetapi GitHub-hosted runner mendapat HTTP 403
+saat mencoba smoke test melalui jalur publik sahamLens.id.
 
-Perbaikan:
-- Hanya .github/workflows/deploy-vps.yml yang diubah.
-- Step SSH dan deploy VPS tidak diubah.
-- Smoke test tidak lagi memakai Node.js.
-- Smoke test memakai curl ke https://sahamlens.id/
-- Retry 5 kali dengan jeda 5 detik.
-- HTTP 2xx/3xx = PASS.
-- 4xx/5xx/network error = FAIL setelah retry.
-- /api/health tetap tidak dibuka ke publik.
+Karena aplikasi dapat diakses pengguna tetapi runner GitHub ditolak,
+smoke test publik tidak cocok dijadikan deployment gate.
 
-Cara pakai:
-1. Extract ZIP patch.
-2. Copy folder .github ke ROOT repository SahamLens lokal.
+PERBAIKAN
+---------
+- HANYA .github/workflows/deploy-vps.yml yang diubah.
+- Step deploy VPS yang sudah berhasil tidak diubah.
+- Smoke test setelah deploy sekarang dilakukan lewat SSH ke VPS.
+- Dari dalam VPS, health check memanggil:
+    http://127.0.0.1:3001/api/health
+- Retry 10x, jeda 6 detik.
+- Hanya HTTP 200 yang dianggap PASS.
+- Jika database/app benar-benar bermasalah dan health route memberi 503,
+  deploy tetap ditandai gagal sebagaimana mestinya.
+- Tidak membuka /api/health ke internet.
+- Tidak melemahkan proteksi Cloudflare.
+
+VALIDASI SEBELUM ZIP DIBUAT
+---------------------------
+PASS - YAML berhasil diparse.
+PASS - Bash smoke-test lulus `bash -n`.
+PASS - Tidak ada lagi public smoke test ke https://sahamlens.id/.
+PASS - Target health check adalah localhost VPS port 3001.
+
+CARA PAKAI
+----------
+1. Extract ZIP.
+2. Copy folder `.github` ke root repository SahamLens.
 3. Pilih Replace/Overwrite.
 4. Buka GitHub Desktop.
-5. Pastikan perubahan hanya .github/workflows/deploy-vps.yml
+5. Pastikan file yang berubah:
+     .github/workflows/deploy-vps.yml
 6. Commit to main.
 7. Push origin.
 
 Commit message:
-  fix: repair VPS public smoke test
+  fix: use internal VPS health check after deploy
