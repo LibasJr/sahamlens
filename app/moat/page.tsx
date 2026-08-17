@@ -9,8 +9,11 @@ import {
   CircleHelp,
   Database,
   ExternalLink,
+  Layers,
   RefreshCcw,
   Shield,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { Badge, Button, Card, Skeleton } from '@/components/ui';
@@ -22,12 +25,11 @@ import {
 import MoatExportCard from '@/components/export/MoatExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
 import { buildExportFileName } from '@/shared/format/export-filename';
+import { useLanguage } from '@/lib/i18n';
 
 interface MoatPayload {
   ticker: string;
   analyzers?: FundamentalAnalyzerSnapshot[];
-  /** Pilar ketahanan 4 tahun buku - lihat modules/fundamental/service/moat-durability.service.ts.
-   * Opsional: emiten yang tahun bukunya kurang dari minimum tidak mengirimnya. */
   moatDurability?: {
     status: 'TAHAN' | 'CAMPURAN' | 'RAPUH' | 'DATA TERBATAS';
     years: number;
@@ -62,42 +64,6 @@ interface MoatPayload {
   error?: string;
 }
 
-const QUALITATIVE_GAPS = [
-  {
-    label: 'Pangsa pasar',
-    detail: 'Perlu laporan industri atau paparan publik emiten.',
-  },
-  {
-    label: 'Switching cost',
-    detail: 'Perlu bukti retensi pelanggan dan kontrak.',
-  },
-  {
-    label: 'Kekuatan merek',
-    detail: 'Perlu data harga, loyalitas, dan belanja pemasaran.',
-  },
-  {
-    label: 'Network effect',
-    detail: 'Perlu data pengguna, transaksi, dan kepadatan jaringan.',
-  },
-  {
-    label: 'Lisensi dan regulasi',
-    detail: 'Perlu penelaahan izin serta hambatan masuk industri.',
-  },
-];
-
-const INDICATOR_NAMES: Record<string, string> = {
-  'ROE (Profitability)': 'Return on Equity',
-  'ROA (Efficiency)': 'Return on Assets',
-  'Gross Margin': 'Gross Margin',
-  'Operating Margin': 'Operating Margin',
-  'Net Profit Margin': 'Net Profit Margin',
-  'EPS Growth (QoQ)': 'Pertumbuhan EPS',
-  'Revenue Growth (YoY)': 'Pertumbuhan Pendapatan',
-  'Debt/Equity (Risk)': 'Debt to Equity',
-  'Current Ratio (Liquidity)': 'Current Ratio',
-  'Quick Ratio (Liquidity)': 'Quick Ratio',
-};
-
 function normalizeTicker(value: string) {
   return value.trim().toUpperCase().replace(/\.JK$/, '');
 }
@@ -112,59 +78,10 @@ function safeWebsite(value?: string) {
   }
 }
 
-function formatRetrievedAt(value?: string) {
-  if (!value) return 'Waktu pengambilan tidak tersedia';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Waktu pengambilan tidak tersedia';
-  return new Intl.DateTimeFormat('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Asia/Jakarta',
-  }).format(date) + ' WIB';
-}
-
-function statusBadge(status: MoatProxyStatus) {
-  if (status === 'KUAT') return <Badge variant='success' dot>KUAT</Badge>;
-  if (status === 'LEMAH') return <Badge variant='danger' dot>LEMAH</Badge>;
-  if (status === 'CAMPURAN') return <Badge variant='warning' dot>CAMPURAN</Badge>;
-  return <Badge variant='neutral' dot>DATA TERBATAS</Badge>;
-}
-
-// Kosakata SENGAJA berbeda dari statusBadge di atas. "KUAT/LEMAH" menjawab "bagaimana
-// rasionya sekarang"; "TAHAN/RAPUH" menjawab "apakah bertahan lintas waktu". Memakai kata
-// yang sama untuk dua pertanyaan berbeda adalah cara tercepat membuat pembaca mengira
-// keduanya mengukur hal yang sama - persis kegagalan kartu verdict di halaman teknikal.
-function durabilityBadge(status: 'TAHAN' | 'CAMPURAN' | 'RAPUH' | 'DATA TERBATAS') {
-  if (status === 'TAHAN') return <Badge variant='success' dot>TAHAN</Badge>;
-  if (status === 'RAPUH') return <Badge variant='danger' dot>RAPUH</Badge>;
-  if (status === 'CAMPURAN') return <Badge variant='warning' dot>CAMPURAN</Badge>;
-  return <Badge variant='neutral' dot>DATA TERBATAS</Badge>;
-}
-
-function signalBadge(decision: 'BULLISH' | 'BEARISH' | 'NEUTRAL') {
-  if (decision === 'BULLISH') return <Badge variant='success'>MENDUKUNG</Badge>;
-  if (decision === 'BEARISH') return <Badge variant='danger'>PERLU DIWASPADAI</Badge>;
-  return <Badge variant='neutral'>NETRAL</Badge>;
-}
-
-function MoatLoading() {
-  return (
-    <div className='grid gap-4 lg:grid-cols-2'>
-      {[0, 1, 2, 3].map((item) => (
-        <Card key={item} className='space-y-4'>
-          <div className='flex items-center justify-between'>
-            <Skeleton variant='text' className='w-36' />
-            <Skeleton className='h-5 w-20 rounded-full' />
-          </div>
-          <Skeleton variant='text' className='w-3/4' />
-          <Skeleton className='h-16 w-full rounded-xl' />
-        </Card>
-      ))}
-    </div>
-  );
-}
-
 export default function MoatPage() {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
+
   const [ticker, setTicker] = useState('BBCA');
   const [payload, setPayload] = useState<MoatPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,6 +89,42 @@ export default function MoatPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
   const exportRef = useRef<HTMLDivElement>(null);
+
+  const QUALITATIVE_GAPS = [
+    {
+      label: isEn ? 'Market share' : 'Pangsa pasar',
+      detail: isEn ? 'Requires industry reports or corporate public disclosures.' : 'Perlu laporan industri atau paparan publik emiten.',
+    },
+    {
+      label: isEn ? 'Switching costs' : 'Switching cost',
+      detail: isEn ? 'Requires customer retention metrics and long-term contract data.' : 'Perlu bukti retensi pelanggan dan kontrak.',
+    },
+    {
+      label: isEn ? 'Brand power' : 'Kekuatan merek',
+      detail: isEn ? 'Requires pricing power evidence, loyalty index, and marketing ROI.' : 'Perlu data harga, loyalitas, dan belanja pemasaran.',
+    },
+    {
+      label: isEn ? 'Network effects' : 'Network effect',
+      detail: isEn ? 'Requires active user density and bilateral platform volume.' : 'Perlu data pengguna, transaksi, dan kepadatan jaringan.',
+    },
+    {
+      label: isEn ? 'Regulatory barriers' : 'Lisensi dan regulasi',
+      detail: isEn ? 'Requires review of statutory licenses and industry barriers to entry.' : 'Perlu penelaahan izin serta hambatan masuk industri.',
+    },
+  ];
+
+  const INDICATOR_NAMES: Record<string, string> = {
+    'ROE (Profitability)': 'Return on Equity',
+    'ROA (Efficiency)': 'Return on Assets',
+    'Gross Margin': 'Gross Margin',
+    'Operating Margin': 'Operating Margin',
+    'Net Profit Margin': 'Net Profit Margin',
+    'EPS Growth (QoQ)': isEn ? 'EPS Growth' : 'Pertumbuhan EPS',
+    'Revenue Growth (YoY)': isEn ? 'Revenue Growth' : 'Pertumbuhan Pendapatan',
+    'Debt/Equity (Risk)': 'Debt to Equity',
+    'Current Ratio (Liquidity)': 'Current Ratio',
+    'Quick Ratio (Liquidity)': 'Quick Ratio',
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -185,14 +138,14 @@ export default function MoatPage() {
         const response = await fetch('/api/fundamental/' + encodeURIComponent(selectedTicker), {
           signal: controller.signal,
         });
-        const result = await response.json() as MoatPayload;
+        const result = (await response.json()) as MoatPayload;
         if (!response.ok) {
-          throw new Error(result.error || 'Data fundamental publik belum tersedia.');
+          throw new Error(result.error || (isEn ? 'Fundamental data not available yet.' : 'Data fundamental publik belum tersedia.'));
         }
         setPayload(result);
       } catch (caught) {
         if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : 'Gagal mengambil data publik.');
+        setError(caught instanceof Error ? caught.message : (isEn ? 'Failed to fetch public data.' : 'Gagal mengambil data publik.'));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -200,12 +153,9 @@ export default function MoatPage() {
 
     void loadMoatData();
     return () => controller.abort();
-  }, [selectedTicker, reloadKey]);
+  }, [selectedTicker, reloadKey, isEn]);
 
-  const moat = useMemo(
-    () => buildMoatProxy(payload?.analyzers ?? []),
-    [payload?.analyzers],
-  );
+  const moat = useMemo(() => buildMoatProxy(payload?.analyzers ?? []), [payload?.analyzers]);
   const website = safeWebsite(payload?.profile?.website);
 
   function handleTickerChange(nextTicker: string) {
@@ -215,207 +165,363 @@ export default function MoatPage() {
     window.localStorage.setItem('lastTicker', normalized);
   }
 
+  function formatRetrievedAt(value?: string) {
+    if (!value) return isEn ? 'Retrieval time unavailable' : 'Waktu pengambilan tidak tersedia';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return isEn ? 'Retrieval time unavailable' : 'Waktu pengambilan tidak tersedia';
+    return (
+      new Intl.DateTimeFormat(isEn ? 'en-US' : 'id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Asia/Jakarta',
+      }).format(date) + (isEn ? ' WIB' : ' WIB')
+    );
+  }
+
+  function statusBadge(status: MoatProxyStatus) {
+    if (status === 'KUAT') return <Badge variant="success" dot>{isEn ? 'STRONG' : 'KUAT'}</Badge>;
+    if (status === 'LEMAH') return <Badge variant="danger" dot>{isEn ? 'WEAK' : 'LEMAH'}</Badge>;
+    if (status === 'CAMPURAN') return <Badge variant="warning" dot>{isEn ? 'MIXED' : 'CAMPURAN'}</Badge>;
+    return <Badge variant="neutral" dot>{isEn ? 'LIMITED DATA' : 'DATA TERBATAS'}</Badge>;
+  }
+
+  function durabilityBadge(status: 'TAHAN' | 'CAMPURAN' | 'RAPUH' | 'DATA TERBATAS') {
+    if (status === 'TAHAN') return <Badge variant="success" dot>{isEn ? 'DURABLE' : 'TAHAN'}</Badge>;
+    if (status === 'RAPUH') return <Badge variant="danger" dot>{isEn ? 'FRAGILE' : 'RAPUH'}</Badge>;
+    if (status === 'CAMPURAN') return <Badge variant="warning" dot>{isEn ? 'MIXED' : 'CAMPURAN'}</Badge>;
+    return <Badge variant="neutral" dot>{isEn ? 'LIMITED DATA' : 'DATA TERBATAS'}</Badge>;
+  }
+
+  function signalBadge(decision: 'BULLISH' | 'BEARISH' | 'NEUTRAL') {
+    if (decision === 'BULLISH') return <Badge variant="success">{isEn ? 'SUPPORTIVE' : 'MENDUKUNG'}</Badge>;
+    if (decision === 'BEARISH') return <Badge variant="danger">{isEn ? 'CAUTION' : 'PERLU DIWASPADAI'}</Badge>;
+    return <Badge variant="neutral">{isEn ? 'NEUTRAL' : 'NETRAL'}</Badge>;
+  }
+
+  function moatSourceScoreBadge(score: 'KUAT' | 'MODERAT' | 'TERBATAS') {
+    if (score === 'KUAT') return <Badge variant="success">{t('moatEnhance.scoreHigh')}</Badge>;
+    if (score === 'MODERAT') return <Badge variant="warning">{t('moatEnhance.scoreMedium')}</Badge>;
+    return <Badge variant="neutral">{t('moatEnhance.scoreLow')}</Badge>;
+  }
+
   return (
     <TickerAnalysisShell
       ticker={selectedTicker}
       onTickerChange={handleTickerChange}
-      moduleTitle='Moat Proxy'
-      icon={<Award className='h-6 w-6' />}
-      accent='purple'
-      title={'Proxy Kualitas Bisnis ' + selectedTicker}
-      subtitle='Ringkasan kuantitatif dari fundamental publik. Ini bukan rating moat kualitatif dan bukan rekomendasi transaksi.'
+      moduleTitle={isEn ? 'Moat & Quality Analysis' : 'Moat Proxy'}
+      icon={<Award className="h-6 w-6" />}
+      accent="purple"
+      title={isEn ? `Business Quality & Moat — ${selectedTicker}` : `Proxy Kualitas Bisnis ${selectedTicker}`}
+      subtitle={t('moatEnhance.subtitle')}
       headerExtra={
-        <div className='flex flex-wrap items-center gap-2'>
-          <Badge variant='info' dot>{payload?.source?.provider || 'Sumber publik'}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="info" dot>{payload?.source?.provider || (isEn ? 'Public Source' : 'Sumber publik')}</Badge>
           {!loading && statusBadge(moat.status)}
           <ExportImageButton
             targetRef={exportRef}
             fileName={buildExportFileName('Moat', selectedTicker)}
-            label='Export Kartu Moat'
+            label={isEn ? 'Export Moat Card' : 'Export Kartu Moat'}
             disabled={!payload || loading}
           />
         </div>
       }
     >
-      {loading && <MoatLoading />}
+      {loading && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => (
+            <Card key={item} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton variant="text" className="w-36" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton variant="text" className="w-3/4" />
+              <Skeleton className="h-16 w-full rounded-xl" />
+            </Card>
+          ))}
+        </div>
+      )}
 
       {!loading && error && (
-        <Card className='flex flex-col items-start gap-4 border-tv-red/20 bg-tv-red/[0.04]'>
-          <div className='flex items-start gap-3'>
-            <AlertTriangle className='mt-0.5 h-5 w-5 shrink-0 text-tv-red' />
+        <Card className="flex flex-col items-start gap-4 border-tv-red/20 bg-tv-red/[0.04]">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-tv-red" />
             <div>
-              <h2 className='font-heading font-semibold text-tv-text'>Data {selectedTicker} belum dapat dimuat</h2>
-              <p className='mt-1 text-sm text-tv-muted'>{error}</p>
+              <h2 className="font-heading font-semibold text-tv-text">
+                {isEn ? `Data for ${selectedTicker} could not be loaded` : `Data ${selectedTicker} belum dapat dimuat`}
+              </h2>
+              <p className="mt-1 text-sm text-tv-muted">{error}</p>
             </div>
           </div>
-          <Button type='button' variant='secondary' onClick={() => setReloadKey((value) => value + 1)}>
-            <RefreshCcw className='h-4 w-4' />
-            Coba lagi
+          <Button type="button" variant="secondary" onClick={() => setReloadKey((value) => value + 1)}>
+            <RefreshCcw className="h-4 w-4" />
+            {isEn ? 'Try again' : 'Coba lagi'}
           </Button>
         </Card>
       )}
 
       {!loading && !error && payload && (
         <>
-          <Card variant='glass' className='grid gap-5 lg:grid-cols-[1.4fr_1fr]'>
-            <div className='min-w-0'>
-              <div className='flex flex-wrap items-center gap-2'>
-                <h2 className='font-heading text-xl font-bold text-tv-text'>
+          <Card variant="glass" className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-heading text-xl font-bold text-tv-text">
                   {payload.stock?.name || selectedTicker}
                 </h2>
-                <Badge variant='neutral'>{selectedTicker}.JK</Badge>
+                <Badge variant="neutral">{selectedTicker}.JK</Badge>
               </div>
-              <p className='mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-tv-purple'>
-                {[payload.profile?.sector, payload.profile?.industry].filter(Boolean).join(' · ') || 'Klasifikasi sektor belum tersedia'}
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-tv-purple">
+                {[payload.profile?.sector, payload.profile?.industry].filter(Boolean).join(' · ') ||
+                  (isEn ? 'Sector classification unavailable' : 'Klasifikasi sektor belum tersedia')}
               </p>
-              <p className='mt-4 line-clamp-4 text-sm leading-6 text-tv-muted'>
-                {payload.profile?.description || 'Deskripsi bisnis belum tersedia dari sumber publik.'}
+              <p className="mt-4 line-clamp-4 text-sm leading-6 text-tv-muted">
+                {payload.profile?.description ||
+                  (isEn ? 'Business description unavailable from public feeds.' : 'Deskripsi bisnis belum tersedia dari sumber publik.')}
               </p>
               {website && (
                 <a
                   href={website}
-                  target='_blank'
-                  rel='noreferrer'
-                  className='mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-tv-blue hover:underline'
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-tv-blue hover:underline"
                 >
-                  Situs resmi perusahaan
-                  <ExternalLink className='h-3.5 w-3.5' />
+                  {isEn ? 'Official Company Website' : 'Situs resmi perusahaan'}
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
             </div>
 
-            <div className='rounded-2xl border border-tv-purple/20 bg-tv-purple/[0.06] p-4'>
-              <div className='flex items-center justify-between gap-3'>
+            <div className="rounded-2xl border border-tv-purple/20 bg-tv-purple/[0.06] p-4">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className='text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted'>Hasil proxy</p>
-                  <div className='mt-2'>{statusBadge(moat.status)}</div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
+                    {isEn ? 'Moat Proxy Result' : 'Hasil proxy'}
+                  </p>
+                  <div className="mt-2">{statusBadge(moat.status)}</div>
                 </div>
-                <Shield className='h-9 w-9 text-tv-purple' />
+                <Shield className="h-9 w-9 text-tv-purple" />
               </div>
-              <div className='mt-5 flex items-end justify-between gap-3'>
+              <div className="mt-5 flex items-end justify-between gap-3">
                 <div>
-                  <p className='font-heading text-3xl font-bold text-tv-text'>{moat.available}/{moat.expected}</p>
-                  <p className='text-xs text-tv-muted'>indikator tersedia</p>
+                  <p className="font-heading text-3xl font-bold text-tv-text">
+                    {moat.available}/{moat.expected}
+                  </p>
+                  <p className="text-xs text-tv-muted">{isEn ? 'available indicators' : 'indikator tersedia'}</p>
                 </div>
-                <p className='text-right text-xs text-tv-muted'>{moat.coveragePct}% cakupan</p>
+                <p className="text-right text-xs text-tv-muted">{moat.coveragePct}% {isEn ? 'coverage' : 'cakupan'}</p>
               </div>
-              <div className='mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]'>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
-                  className='h-full rounded-full bg-tv-purple transition-[width] duration-500'
+                  className="h-full rounded-full bg-tv-purple transition-[width] duration-500"
                   style={{ width: String(moat.coveragePct) + '%' }}
                 />
               </div>
             </div>
           </Card>
 
-          <div className='grid gap-3 sm:grid-cols-3'>
-            <Card padding='sm'>
-              <p className='text-xs text-tv-muted'>Indikator mendukung</p>
-              <p className='mt-1 font-heading text-2xl font-bold text-tv-green'>{moat.supportive}</p>
+          {/* DuPont 3-Stage Analysis Section */}
+          {moat.dupont && (
+            <Card hoverable className="space-y-4 border-tv-blue/20 bg-gradient-to-br from-tv-blue/[0.04] to-tv-purple/[0.03]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-tv-blue" />
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-white">{t('moatEnhance.dupontTitle')}</h3>
+                    <p className="text-xs text-tv-muted">{t('moatEnhance.dupontSubtitle')}</p>
+                  </div>
+                </div>
+                <Badge variant={moat.dupont.primaryDriver === 'MARGIN' ? 'success' : moat.dupont.primaryDriver === 'TURNOVER' ? 'info' : 'warning'}>
+                  {isEn ? 'Primary Driver: ' : 'Pendorong Utama: '}{moat.dupont.primaryDriver}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                  <span className="text-[11px] text-tv-muted">{t('moatEnhance.netProfitMargin')}</span>
+                  <div className="text-lg font-bold font-number text-tv-green mt-1">
+                    {moat.dupont.netProfitMarginPct != null ? `${moat.dupont.netProfitMarginPct.toFixed(1)}%` : 'N/A'}
+                  </div>
+                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Pricing Power' : 'Kekuatan Harga'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                  <span className="text-[11px] text-tv-muted">{t('moatEnhance.assetTurnover')}</span>
+                  <div className="text-lg font-bold font-number text-tv-blue mt-1">
+                    {moat.dupont.assetTurnover != null ? `${moat.dupont.assetTurnover.toFixed(2)}x` : 'N/A'}
+                  </div>
+                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Asset Velocity' : 'Perputaran Aset'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                  <span className="text-[11px] text-tv-muted">{t('moatEnhance.financialLeverage')}</span>
+                  <div className="text-lg font-bold font-number text-tv-purple mt-1">
+                    {moat.dupont.equityMultiplier != null ? `${moat.dupont.equityMultiplier.toFixed(2)}x` : 'N/A'}
+                  </div>
+                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Equity Multiplier' : 'Pengungkit Modal'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-gradient-to-r from-tv-blue/10 to-tv-purple/10 border border-tv-blue/30">
+                  <span className="text-[11px] font-semibold text-tv-text">{t('moatEnhance.roeResult')}</span>
+                  <div className="text-2xl font-bold font-number text-white mt-1">
+                    {moat.dupont.roePct != null ? `${moat.dupont.roePct.toFixed(1)}%` : 'N/A'}
+                  </div>
+                  <span className="text-[10px] text-tv-muted">{isEn ? 'Compounded Return' : 'Imbal Hasil Ekuitas'}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-tv-muted leading-relaxed bg-tv-bg/50 p-2.5 rounded-lg border border-tv-border/50">
+                <span className="font-semibold text-tv-text">{t('moatEnhance.driversExplanation')} </span>
+                {moat.dupont.primaryDriver === 'MARGIN'
+                  ? t('moatEnhance.highMarginDriver')
+                  : moat.dupont.primaryDriver === 'TURNOVER'
+                  ? t('moatEnhance.highTurnoverDriver')
+                  : moat.dupont.primaryDriver === 'LEVERAGE'
+                  ? t('moatEnhance.highLeverageDriver')
+                  : moat.dupont.explanation}
+              </p>
             </Card>
-            <Card padding='sm'>
-              <p className='text-xs text-tv-muted'>Perlu diwaspadai</p>
-              <p className='mt-1 font-heading text-2xl font-bold text-tv-red'>{moat.caution}</p>
+          )}
+
+          {/* 5 Moat Sources Assessment */}
+          {moat.moatSources && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-tv-gold" />
+                <h3 className="font-heading text-lg font-bold text-tv-text">{t('moatEnhance.moatSourcesTitle')}</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {moat.moatSources.map((source) => (
+                  <Card key={source.id} hoverable className="flex flex-col justify-between gap-3 p-4">
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t(source.titleKey)}</h4>
+                        {moatSourceScoreBadge(source.score)}
+                      </div>
+                      <p className="mt-2 text-xs text-tv-muted leading-relaxed">{source.basis}</p>
+                    </div>
+                    <div className="pt-2 border-t border-tv-border/50 flex items-center justify-between text-[11px]">
+                      <span className="text-tv-muted">{isEn ? 'Evidence:' : 'Bukti data:'}</span>
+                      <span className="font-number font-bold text-tv-text">{source.evidence}</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 4 Pillars Summary Counts */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card padding="sm">
+              <p className="text-xs text-tv-muted">{isEn ? 'Supportive indicators' : 'Indikator mendukung'}</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-tv-green">{moat.supportive}</p>
             </Card>
-            <Card padding='sm'>
-              <p className='text-xs text-tv-muted'>Netral</p>
-              <p className='mt-1 font-heading text-2xl font-bold text-tv-text'>{moat.neutral}</p>
+            <Card padding="sm">
+              <p className="text-xs text-tv-muted">{isEn ? 'Caution indicators' : 'Perlu diwaspadai'}</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-tv-red">{moat.caution}</p>
+            </Card>
+            <Card padding="sm">
+              <p className="text-xs text-tv-muted">{isEn ? 'Neutral' : 'Netral'}</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-tv-text">{moat.neutral}</p>
             </Card>
           </div>
 
-          {/* KETAHANAN (2026-08-12). Empat pilar di bawah dinilai dari rasio TERKINI.
-              Moat menurut definisinya adalah daya tahan lintas waktu, jadi satu potret
-              mengukur hal yang berbeda dari yang dijanjikan namanya: emiten di puncak
-              siklus tampil kuat, bisnis bagus di tahun lemah tampil lemah. Bagian ini
-              menilai 4 tahun buku, dan sengaja ditaruh DI ATAS keempat pilar itu. */}
+          {/* 4-Year Durability Pillar */}
           {payload?.moatDurability && (
             <section>
-              <div className='mb-3 flex items-center gap-2'>
-                <Award className='h-5 w-5 text-tv-purple' />
-                <h2 className='font-heading text-lg font-bold text-tv-text'>
-                  Ketahanan lintas waktu
+              <div className="mb-3 flex items-center gap-2">
+                <Award className="h-5 w-5 text-tv-purple" />
+                <h2 className="font-heading text-lg font-bold text-tv-text">
+                  {t('moatEnhance.durabilitySummaryTitle')}
                   {payload.moatDurability.firstFiscalYear
-                    ? ' (' + payload.moatDurability.firstFiscalYear + '-' + payload.moatDurability.lastFiscalYear + ')'
+                    ? ` (${payload.moatDurability.firstFiscalYear}-${payload.moatDurability.lastFiscalYear})`
                     : ''}
                 </h2>
                 {durabilityBadge(payload.moatDurability.status)}
               </div>
 
               {payload.moatDurability.checks.length > 0 ? (
-                <div className='space-y-2'>
+                <div className="space-y-2">
                   {payload.moatDurability.checks.map((check: any) => (
                     <div
                       key={check.key}
-                      className={'rounded-lg border p-3 ' + (
-                        check.verdict === 'SUPPORTIVE' ? 'border-tv-green/30 bg-tv-green/5'
-                          : check.verdict === 'CAUTION' ? 'border-tv-red/30 bg-tv-red/5'
-                            : 'border-tv-border bg-tv-bg'
-                      )}
+                      className={
+                        'rounded-lg border p-3 ' +
+                        (check.verdict === 'SUPPORTIVE'
+                          ? 'border-tv-green/30 bg-tv-green/5'
+                          : check.verdict === 'CAUTION'
+                          ? 'border-tv-red/30 bg-tv-red/5'
+                          : 'border-tv-border bg-tv-bg')
+                      }
                     >
-                      <div className='flex items-center justify-between gap-3'>
-                        <span className='text-sm font-semibold text-tv-text'>{check.label}</span>
-                        <span className={'text-[11px] font-bold ' + (
-                          check.verdict === 'SUPPORTIVE' ? 'text-tv-green'
-                            : check.verdict === 'CAUTION' ? 'text-tv-red'
-                              : 'text-tv-muted'
-                        )}>
-                          {check.verdict === 'SUPPORTIVE' ? 'BERTAHAN'
-                            : check.verdict === 'CAUTION' ? 'TIDAK BERTAHAN'
-                              : 'TIDAK BERLAKU'}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-tv-text">{check.label}</span>
+                        <span
+                          className={
+                            'text-[11px] font-bold ' +
+                            (check.verdict === 'SUPPORTIVE'
+                              ? 'text-tv-green'
+                              : check.verdict === 'CAUTION'
+                              ? 'text-tv-red'
+                              : 'text-tv-muted')
+                          }
+                        >
+                          {check.verdict === 'SUPPORTIVE'
+                            ? isEn ? 'DURABLE' : 'BERTAHAN'
+                            : check.verdict === 'CAUTION'
+                            ? isEn ? 'NOT DURABLE' : 'TIDAK BERTAHAN'
+                            : isEn ? 'NOT APPLICABLE' : 'TIDAK BERLAKU'}
                         </span>
                       </div>
-                      <p className='mt-1 text-xs leading-relaxed text-tv-muted'>{check.detail}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-tv-muted">{check.detail}</p>
                     </div>
                   ))}
                 </div>
               ) : null}
 
-              <p className='mt-3 text-[11px] leading-relaxed text-tv-muted'>
+              <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
                 {payload.moatDurability.conclusion}
-              </p>
-              <p className='mt-2 text-[11px] leading-relaxed text-tv-muted/80'>
-                Jendela 4 tahun buku dan bergulir setiap tahun - lebih pendek dari satu siklus
-                komoditas penuh, jadi ini indikasi ketahanan jangka menengah, bukan vonis.
-                Ambang tiap pemeriksaan belum diuji terhadap data historis IDX.
               </p>
             </section>
           )}
 
+          {/* 4 Quantitative Proxy Pillars */}
           <section>
-            <div className='mb-3 flex items-center gap-2'>
-              <BarChart3 className='h-5 w-5 text-tv-purple' />
-              <h2 className='font-heading text-lg font-bold text-tv-text'>Empat pilar proxy kuantitatif</h2>
-              <span className='text-[11px] text-tv-muted'>— potret terkini</span>
+            <div className="mb-3 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-tv-purple" />
+              <h2 className="font-heading text-lg font-bold text-tv-text">
+                {isEn ? 'Four Quantitative Proxy Pillars' : 'Empat pilar proxy kuantitatif'}
+              </h2>
+              <span className="text-[11px] text-tv-muted">— {isEn ? 'current snapshot' : 'potret terkini'}</span>
             </div>
-            <div className='grid gap-4 lg:grid-cols-2'>
+            <div className="grid gap-4 lg:grid-cols-2">
               {moat.pillars.map((pillar) => (
                 <Card key={pillar.key} hoverable>
-                  <div className='flex items-start justify-between gap-3'>
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className='font-heading font-semibold text-tv-text'>{pillar.label}</h3>
-                      <p className='mt-1 text-xs leading-5 text-tv-muted'>{pillar.description}</p>
+                      <h3 className="font-heading font-semibold text-tv-text">{pillar.label}</h3>
+                      <p className="mt-1 text-xs leading-5 text-tv-muted">{pillar.description}</p>
                     </div>
                     {statusBadge(pillar.status)}
                   </div>
 
-                  <div className='mt-4 space-y-2'>
+                  <div className="mt-4 space-y-2">
                     {pillar.indicators.map((indicator) => (
                       <div
                         key={indicator.label}
-                        className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5'
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5"
                       >
                         <div>
-                          <p className='text-xs font-medium text-tv-text'>
+                          <p className="text-xs font-medium text-tv-text">
                             {INDICATOR_NAMES[indicator.label] || indicator.label}
                           </p>
-                          <p className='mt-0.5 font-heading text-base font-bold text-tv-text'>{indicator.value}</p>
+                          <p className="mt-0.5 font-heading text-base font-bold text-tv-text">{indicator.value}</p>
                         </div>
                         {signalBadge(indicator.decision)}
                       </div>
                     ))}
                     {pillar.indicators.length === 0 && (
-                      <div className='rounded-xl border border-dashed border-white/[0.08] px-3 py-4 text-center text-xs text-tv-muted'>
-                        Indikator pilar ini belum tersedia dari feed publik.
+                      <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-4 text-center text-xs text-tv-muted">
+                        {isEn ? 'Indicators for this pillar not available in public feeds.' : 'Indikator pilar ini belum tersedia dari feed publik.'}
                       </div>
                     )}
                   </div>
@@ -424,22 +530,25 @@ export default function MoatPage() {
             </div>
           </section>
 
-          <div className='grid gap-4 xl:grid-cols-2'>
+          {/* Qualitative Gaps and Sources */}
+          <div className="grid gap-4 xl:grid-cols-2">
             <Card>
-              <div className='flex items-center gap-2'>
-                <CircleHelp className='h-5 w-5 text-tv-warning' />
-                <h2 className='font-heading font-semibold text-tv-text'>Faktor moat yang belum dinilai</h2>
+              <div className="flex items-center gap-2">
+                <CircleHelp className="h-5 w-5 text-tv-warning" />
+                <h2 className="font-heading font-semibold text-tv-text">{t('moatEnhance.qualitativeGapsTitle')}</h2>
               </div>
-              <p className='mt-2 text-xs leading-5 text-tv-muted'>
-                Faktor berikut tidak disimpulkan otomatis karena membutuhkan bukti dari laporan tahunan, paparan publik, atau riset industri.
+              <p className="mt-2 text-xs leading-5 text-tv-muted">
+                {isEn
+                  ? 'The following factors are not computed automatically as they require qualitative evidence from annual reports, public exposes, or industry research.'
+                  : 'Faktor berikut tidak disimpulkan otomatis karena membutuhkan bukti dari laporan tahunan, paparan publik, atau riset industri.'}
               </p>
-              <div className='mt-4 space-y-2'>
+              <div className="mt-4 space-y-2">
                 {QUALITATIVE_GAPS.map((gap) => (
-                  <div key={gap.label} className='flex items-start gap-2.5 rounded-xl bg-white/[0.025] px-3 py-2.5'>
-                    <CircleHelp className='mt-0.5 h-4 w-4 shrink-0 text-tv-muted' />
+                  <div key={gap.label} className="flex items-start gap-2.5 rounded-xl bg-white/[0.025] px-3 py-2.5">
+                    <CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-tv-muted" />
                     <div>
-                      <p className='text-xs font-semibold text-tv-text'>{gap.label}</p>
-                      <p className='mt-0.5 text-xs leading-5 text-tv-muted'>{gap.detail}</p>
+                      <p className="text-xs font-semibold text-tv-text">{gap.label}</p>
+                      <p className="mt-0.5 text-xs leading-5 text-tv-muted">{gap.detail}</p>
                     </div>
                   </div>
                 ))}
@@ -447,25 +556,28 @@ export default function MoatPage() {
             </Card>
 
             <Card>
-              <div className='flex items-center gap-2'>
-                <Database className='h-5 w-5 text-tv-blue' />
-                <h2 className='font-heading font-semibold text-tv-text'>Sumber dan metode</h2>
+              <div className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-tv-blue" />
+                <h2 className="font-heading font-semibold text-tv-text">{isEn ? 'Sources & Methodology' : 'Sumber dan metode'}</h2>
               </div>
-              <div className='mt-4 space-y-3 text-xs leading-5 text-tv-muted'>
-                <div className='rounded-xl border border-white/[0.06] bg-white/[0.025] p-3'>
-                  <p className='font-semibold text-tv-text'>{payload.source?.provider || 'Penyedia data publik'}</p>
-                  <p>{payload.source?.period || 'Snapshot terbaru yang tersedia'}</p>
+              <div className="mt-4 space-y-3 text-xs leading-5 text-tv-muted">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
+                  <p className="font-semibold text-tv-text">{payload.source?.provider || (isEn ? 'Public data provider' : 'Penyedia data publik')}</p>
+                  <p>{payload.source?.period || (isEn ? 'Latest available snapshot' : 'Snapshot terbaru yang tersedia')}</p>
                   <p>{formatRetrievedAt(payload.source?.retrievedAt)}</p>
                 </div>
                 <p>
-                  Status dihitung dari mayoritas indikator yang tersedia pada empat pilar. Nilai N/A tidak ikut dihitung, dan metrik valuasi seperti PER/PBV tidak memengaruhi hasil.
+                  {isEn
+                    ? 'Status is computed from the majority of available indicators across the four pillars. Valuation metrics do not distort the business quality verdict.'
+                    : 'Status dihitung dari mayoritas indikator yang tersedia pada empat pilar. Nilai N/A tidak ikut dihitung, dan metrik valuasi seperti PER/PBV tidak memengaruhi hasil.'}
                 </p>
-                <p>
-                  Data penyedia publik dapat terlambat atau tidak lengkap. Cocokkan angka material dengan laporan resmi emiten sebelum mengambil keputusan.
-                </p>
-                <div className='flex items-start gap-2 rounded-xl border border-tv-green/15 bg-tv-green/[0.04] p-3 text-tv-text'>
-                  <CheckCircle2 className='mt-0.5 h-4 w-4 shrink-0 text-tv-green' />
-                  <span>Tidak ada skor pangsa pasar, merek, atau network effect yang dikarang saat datanya tidak tersedia.</span>
+                <div className="flex items-start gap-2 rounded-xl border border-tv-green/15 bg-tv-green/[0.04] p-3 text-tv-text">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tv-green" />
+                  <span>
+                    {isEn
+                      ? 'No market share, brand power, or network effect scores are fabricated without empirical underlying data.'
+                      : 'Tidak ada skor pangsa pasar, merek, atau network effect yang dikarang saat datanya tidak tersedia.'}
+                  </span>
                 </div>
               </div>
             </Card>
@@ -473,10 +585,6 @@ export default function MoatPage() {
         </>
       )}
 
-      {/* Kartu export offscreen - selalu di DOM (kalau data ada) supaya ExportImageButton
-          punya node valid untuk di-screenshot, tapi tidak terlihat/tidak mengubah layout
-          halaman. Pola SAMA PERSIS dengan app/fundamental/page.tsx (lihat catatan panjang
-          di situ soal kenapa wrapper penyembunyi dipisah dari elemen yang di-ref). */}
       {payload && (
         <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
           <div ref={exportRef}>
@@ -485,7 +593,11 @@ export default function MoatPage() {
               stock={{ name: payload.stock?.name }}
               profile={{ sector: payload.profile?.sector, industry: payload.profile?.industry }}
               moat={moat}
-              durability={payload.moatDurability ? { status: payload.moatDurability.status, conclusion: payload.moatDurability.conclusion } : null}
+              durability={
+                payload.moatDurability
+                  ? { status: payload.moatDurability.status, conclusion: payload.moatDurability.conclusion }
+                  : null
+              }
               exportedAt={new Date()}
             />
           </div>

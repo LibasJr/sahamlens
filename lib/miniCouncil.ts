@@ -331,28 +331,67 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
 
 // Insight naratif ringkas (dipakai untuk kartu "Insight Terkini") - juga rule-based,
 // murni turunan dari Indicators yang sama, tidak ada teks kalengan yang mengarang data.
-export function generateInsight(ind: Indicators): string {
+export function generateInsight(ind: Indicators, lang: 'id' | 'en' = 'id'): string {
   const notes: string[] = [];
   const { price, ma20, ma50, rsi14, volRatio } = ind;
+  const isEn = lang === 'en';
 
   if (ma20 != null && ma50 != null) {
     if (price < ma20 && ma20 < ma50) {
-      notes.push('Downtrend terkonfirmasi, harga berada di bawah MA20 dan MA50. Tekanan jual masih dominan.');
+      notes.push(
+        isEn
+          ? 'Downtrend confirmed, price is trading below MA20 and MA50. Selling pressure remains dominant.'
+          : 'Downtrend terkonfirmasi, harga berada di bawah MA20 dan MA50. Tekanan jual masih dominan.'
+      );
     } else if (price > ma20 && ma20 > ma50) {
-      notes.push('Uptrend terkonfirmasi, harga berada di atas MA20 dan MA50. Tekanan beli masih dominan.');
+      notes.push(
+        isEn
+          ? 'Uptrend confirmed, price is trading above MA20 and MA50. Buying pressure remains dominant.'
+          : 'Uptrend terkonfirmasi, harga berada di atas MA20 dan MA50. Tekanan beli masih dominan.'
+      );
     } else {
-      notes.push('Harga sedang sideways di sekitar MA20/MA50, belum ada tren jangka pendek yang jelas.');
+      notes.push(
+        isEn
+          ? 'Price is consolidating near MA20/MA50, with no clear short-term directional trend.'
+          : 'Harga sedang sideways di sekitar MA20/MA50, belum ada tren jangka pendek yang jelas.'
+      );
     }
   }
 
   if (rsi14 != null) {
-    if (rsi14 < 30) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi oversold (di bawah 30), potensi technical rebound.`);
-    else if (rsi14 > 70) notes.push(`RSI ${rsi14.toFixed(1)} menunjukkan kondisi overbought (di atas 70), potensi technical pullback.`);
+    if (rsi14 < 30) {
+      notes.push(
+        isEn
+          ? `RSI ${rsi14.toFixed(1)} indicates oversold conditions (below 30), potential for technical rebound.`
+          : `RSI ${rsi14.toFixed(1)} menunjukkan kondisi oversold (di bawah 30), potensi technical rebound.`
+      );
+    } else if (rsi14 > 70) {
+      notes.push(
+        isEn
+          ? `RSI ${rsi14.toFixed(1)} indicates overbought conditions (above 70), potential for technical pullback.`
+          : `RSI ${rsi14.toFixed(1)} menunjukkan kondisi overbought (di atas 70), potensi technical pullback.`
+      );
+    }
   }
 
-  if (volRatio != null && volRatio > 1.2) notes.push(`Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat.`);
-  else if (volRatio != null && volRatio < 0.8) notes.push(`Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata 20 hari, minat pasar cenderung sepi.`);
+  if (volRatio != null && volRatio > 1.2) {
+    notes.push(
+      isEn
+        ? `Volume is ${((volRatio - 1) * 100).toFixed(0)}% above 20-day average, market participation is increasing.`
+        : `Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat.`
+    );
+  } else if (volRatio != null && volRatio < 0.8) {
+    notes.push(
+      isEn
+        ? `Volume is ${((1 - volRatio) * 100).toFixed(0)}% below 20-day average, market participation is relatively quiet.`
+        : `Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata 20 hari, minat pasar cenderung sepi.`
+    );
+  }
 
-  if (notes.length === 0) return 'Belum cukup data historis untuk menghasilkan insight teknikal pada titik ini.';
+  if (notes.length === 0) {
+    return isEn
+      ? 'Insufficient historical data to generate technical insight at this time.'
+      : 'Belum cukup data historis untuk menghasilkan insight teknikal pada titik ini.';
+  }
   return notes.join(' ');
 }

@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Flame,
 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 interface BandarFlowProProps {
   symbol: string;
@@ -21,6 +22,7 @@ interface BandarFlowProProps {
 // (bukan diganti versi jujur, karena tidak ada sumber data broker gratis), diganti
 // ringkasan 20 hari yang bisa dihitung dari data yang benar-benar ada.
 export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
+  const { t, language } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,74 +37,112 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
         const res = await fetch(`/api/flow/${cleanSymbol}`);
         const json = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(json?.error || (res.status === 402 ? 'LensFlow memerlukan akses akun.' : 'Data arus dana sementara tidak tersedia.'));
+          setError(
+            json?.error ||
+              (res.status === 402
+                ? language === 'en'
+                  ? 'LensFlow requires an active account.'
+                  : 'LensFlow memerlukan akses akun.'
+                : language === 'en'
+                  ? 'Money flow data temporarily unavailable.'
+                  : 'Data arus dana sementara tidak tersedia.')
+          );
         } else if (!json?.summary || !Array.isArray(json.foreignFlow20D)) {
-          setError('Respons data arus dana tidak lengkap. Coba segarkan halaman.');
+          setError(
+            language === 'en'
+              ? 'Incomplete money flow response. Please refresh the page.'
+              : 'Respons data arus dana tidak lengkap. Coba segarkan halaman.'
+          );
         } else {
           setData(json);
         }
       } catch (err) {
         console.error('Failed to fetch flow data', err);
-        setError('Data arus dana sementara tidak dapat dimuat. Coba lagi beberapa saat lagi.');
+        setError(
+          language === 'en'
+            ? 'Failed to fetch money flow data. Please try again.'
+            : 'Gagal mengambil data arus dana. Silakan coba lagi.'
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    if (symbol) {
-      fetchFlowData();
-    }
-  }, [symbol]);
+    fetchFlowData();
+  }, [symbol, language]);
 
   if (loading) {
     return (
-      <div className="w-full h-48 flex items-center justify-center bg-tv-bg border border-tv-border rounded-xl">
-        <Activity className="w-6 h-6 text-tv-green animate-spin" />
-        <span className="ml-3 text-sm font-sans text-tv-muted">Analisa Bandar Flow...</span>
+      <div className="bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col gap-4 animate-pulse">
+        <div className="flex justify-between items-center pb-4 border-b border-tv-border">
+          <div className="h-6 w-48 bg-tv-hover rounded" />
+          <div className="h-6 w-24 bg-tv-hover rounded" />
+        </div>
+        <div className="h-28 bg-tv-hover rounded-lg" />
+        <div className="h-40 bg-tv-hover rounded-lg" />
       </div>
     );
   }
 
-  if (!data) return <div className="w-full rounded-xl border border-tv-border bg-tv-card p-5 text-sm text-tv-muted">{error || 'Data arus dana belum tersedia.'}</div>;
+  if (error) {
+    return (
+      <div className="bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col items-center justify-center text-center gap-3 min-h-[220px]">
+        <AlertCircle className="w-8 h-8 text-tv-muted" />
+        <p className="text-sm text-tv-muted max-w-sm">{error}</p>
+        <button
+          onClick={() => {
+            const clean = symbol.replace('.JK', '');
+            setLoading(true);
+            setError(null);
+            fetch(`/api/flow/${clean}`)
+              .then((r) => r.json())
+              .then((d) => {
+                if (d?.summary && Array.isArray(d.foreignFlow20D)) setData(d);
+                else setError(language === 'en' ? 'Data unavailable.' : 'Data tidak tersedia.');
+              })
+              .catch(() => setError(language === 'en' ? 'Network error.' : 'Gagal menghubungi server.'))
+              .finally(() => setLoading(false));
+          }}
+          className="text-xs text-tv-blue hover:underline font-semibold"
+        >
+          {language === 'en' ? 'Try Again' : 'Coba lagi'}
+        </button>
+      </div>
+    );
+  }
+
+  if (!data || !data.summary) {
+    return null;
+  }
 
   const { summary } = data;
-  const formatFlowValue = (value: number | null | undefined) =>
+  const isEn = language === 'en';
+  const formatFlowValue = (value: unknown): string =>
     typeof value === 'number' && Number.isFinite(value) ? `${value}M` : 'N/A';
 
-  // 5-tier LensFlow status (spec BUILD 002 item 10) - turunan dari summary.status
-  // (3 nilai) + summary.streak (sudah dihitung, sudah dipakai badge "N HARI" di bawah),
-  // BUKAN status baru dari backend. STRONG cuma penanda visual (badge terisi penuh vs
-  // outline), bukan ambang beda formula.
   const isStrong = summary.streak >= 3;
   const flowTier =
     summary.status === 'AKUMULASI' ? (isStrong ? 'STRONG ACCUMULATION' : 'ACCUMULATION') :
     summary.status === 'DISTRIBUSI' ? (isStrong ? 'STRONG DISTRIBUTION' : 'DISTRIBUTION') :
     'NEUTRAL';
 
-  // BARU (2026-08-14, laporan pengguna: kotak NETRAL tidak terbaca di tema terang).
-  // Dulu `bg-gray-800/40 border-gray-600 text-gray-300` - abu GELAP mati, bukan token
-  // tv-*. Di tema gelap kebetulan terlihat oke (panel gelap, teks abu terang di
-  // atasnya), tapi di tema terang `gray-800/40` di atas latar putih jadi kotak
-  // abu-medium sementara `text-gray-300` (abu terang, dirancang untuk latar gelap)
-  // nyaris tak terbaca - persis laporan pengguna. `bg-tv-hover`/`text-tv-muted` sudah
-  // peka tema dan dipakai aman di panel netral lain (mis. mini-kartu CMF di bawah).
   let insightColor = 'bg-tv-hover border-tv-border text-tv-muted';
   let insightBadge = 'bg-gray-500 text-white';
-  let insightTitle = 'NETRAL';
-  let insightMessage = 'Belum ada tren arus dana yang konsisten dalam 3 hari terakhir.';
+  let insightTitle = t('bandarFlow.neutralTitle');
+  let insightMessage = t('bandarFlow.neutralMessage');
 
   if (summary.status === 'AKUMULASI') {
     insightColor = 'bg-tv-green/10 border-tv-green/50 text-tv-green';
     insightBadge = 'bg-tv-green text-white';
-    insightTitle = 'TEKANAN BELI KONSISTEN';
+    insightTitle = t('bandarFlow.consistentBuying');
     insightMessage = isStrong
-      ? `Akumulasi ${summary.streak} hari berturut-turut - volume di hari naik lebih besar dari hari turun.`
-      : 'Tekanan beli mendominasi 3 hari terakhir.';
+      ? t('bandarFlow.accumulationStreakMessage', { count: summary.streak })
+      : t('bandarFlow.accumulationMessage');
   } else if (summary.status === 'DISTRIBUSI') {
     insightColor = 'bg-tv-red/10 border-tv-red/50 text-tv-red';
     insightBadge = 'bg-tv-red text-white';
-    insightTitle = 'TEKANAN JUAL KONSISTEN';
-    insightMessage = 'Volume di hari turun lebih besar dari hari naik 3 hari terakhir - waspada.';
+    insightTitle = t('bandarFlow.consistentSelling');
+    insightMessage = t('bandarFlow.distributionMessage');
   }
 
   const borderAccent = summary.status === 'AKUMULASI' ? 'border-l-tv-green' : summary.status === 'DISTRIBUSI' ? 'border-l-tv-red' : 'border-l-tv-border';
@@ -116,15 +156,12 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             <Building className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h3 className="font-heading font-bold text-white text-lg">LensFlow — Analisis Money Flow</h3>
-            <p className="text-xs text-tv-muted font-sans">Estimasi arus dana dari volume transaksi - bukan data broker resmi</p>
+            <h3 className="font-heading font-bold text-white text-lg">{t('bandarFlow.title')}</h3>
+            <p className="text-xs text-tv-muted font-sans">{t('bandarFlow.subtitle')}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* BUG FIX (2026-08-06, sweep "font beda" - laporan user): font-mono di 3 badge
-              status ini (AKUMULASI/DISTRIBUSI/NETRAL) dilepas - font-mono khusus data
-              tabular/kode (aturan app/globals.css), bukan kata status. */}
           {summary.status === 'AKUMULASI' && (
             <div className={`px-4 py-1.5 rounded-full border font-bold text-sm font-sans ${isStrong ? 'bg-tv-green/30 border-tv-green text-tv-green animate-pulse' : 'bg-tv-green/10 border-tv-green/60 text-tv-green'}`}>
               {flowTier}
@@ -136,8 +173,6 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             </div>
           )}
           {summary.status === 'NETRAL' && (
-            // Sama seperti insightColor di atas: bg-gray-500/20 + text-gray-400 kontrasnya
-            // gagal di tema terang. Diganti token tv-* yang sudah teruji.
             <div className="px-4 py-1.5 rounded-full bg-tv-border/40 border border-tv-border text-tv-muted font-bold text-sm font-sans">
               {flowTier}
             </div>
@@ -156,7 +191,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               </div>
               {summary.streak >= 3 && (
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 ${insightBadge}`}>
-                  <Flame className="w-3 h-3" /> {summary.streak} HARI
+                  <Flame className="w-3 h-3" /> {t('bandarFlow.daysStreak', { count: summary.streak })}
                 </span>
               )}
             </div>
@@ -167,9 +202,9 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
           <div className="bg-tv-card rounded-lg p-4 border border-tv-border flex-1">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-white font-heading">Estimasi Net Buy 20 Hari</h4>
+              <h4 className="text-sm font-bold text-white font-heading">{t('bandarFlow.netBuy20DTitle')}</h4>
               <span className={`text-xs font-bold font-mono ${summary.net5D > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                5D Net: {summary.net5D > 0 ? '+' : ''}{summary.net5D} M
+                {t('bandarFlow.net5DLabel')} {summary.net5D > 0 ? '+' : ''}{summary.net5D} M
               </span>
             </div>
 
@@ -200,43 +235,41 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
         {/* Ringkasan 20 Hari berbasis CMF dari histori harga dan volume. */}
         <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-          <h4 className="text-sm font-bold text-tv-text font-heading mb-4">Ringkasan 20 Hari</h4>
+          <h4 className="text-sm font-bold text-tv-text font-heading mb-4">
+            {isEn ? '20-Day Summary' : 'Ringkasan 20 Hari'}
+          </h4>
 
-          {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono dilepas dari LABEL
-              ("Hari Naik"/"Hari Turun"/"Rata² nilai:") - font-mono khusus data
-              tabular/kode (aturan app/globals.css). Angka besarnya (upDays20D dsb)
-              tetap font-mono, itu genuinely angka. */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="text-xs font-sans text-tv-green border-b border-tv-border pb-1 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5" /> Hari Naik
+                <TrendingUp className="w-3.5 h-3.5" /> {isEn ? 'Up Days' : 'Hari Naik'}
               </div>
               <div className="text-2xl font-bold font-mono text-tv-text">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-              <div className="text-[11px] font-sans text-tv-muted">Rata² nilai: <span className="font-mono text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span></div>
+              <div className="text-[11px] font-sans text-tv-muted">
+                {isEn ? 'Avg value: ' : 'Rata² nilai: '}<span className="font-mono text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span>
+              </div>
             </div>
 
             <div className="space-y-2">
               <div className="text-xs font-sans text-tv-red border-b border-tv-border pb-1 flex items-center gap-1.5">
-                <TrendingDown className="w-3.5 h-3.5" /> Hari Turun
+                <TrendingDown className="w-3.5 h-3.5" /> {isEn ? 'Down Days' : 'Hari Turun'}
               </div>
               <div className="text-2xl font-bold font-mono text-tv-text">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-              <div className="text-[11px] font-sans text-tv-muted">Rata² nilai: <span className="font-mono text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span></div>
+              <div className="text-[11px] font-sans text-tv-muted">
+                {isEn ? 'Avg value: ' : 'Rata² nilai: '}<span className="font-mono text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span>
+              </div>
             </div>
           </div>
 
-          {/* CMF20/Net Pressure - dari analyzeBandarmology() (foreign-flow-proxy.ts),
-              indikator baku sama yang dipakai Screener. Ditambah biar kartu ini tidak
-              cuma 2 angka di atas ruang kosong lebar (dulu kartu ini kalah gemuk dari
-              tetangganya di kolom kiri walau sudah items-start di grid luar). */}
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-              <div className="text-[10px] font-sans text-tv-muted uppercase">CMF 20 Hari</div>
+              <div className="text-[10px] font-sans text-tv-muted uppercase">{isEn ? '20-Day CMF' : 'CMF 20 Hari'}</div>
               <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                 {summary.cmf20 > 0 ? '+' : ''}{summary.cmf20}%
               </div>
             </div>
             <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-              <div className="text-[10px] font-sans text-tv-muted uppercase">Tekanan Beli/Jual Hari Ini</div>
+              <div className="text-[10px] font-sans text-tv-muted uppercase">{isEn ? "Today's Net Pressure" : 'Tekanan Beli/Jual Hari Ini'}</div>
               <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                 {summary.netPressurePct > 0 ? '+' : ''}{summary.netPressurePct}%
               </div>
@@ -244,7 +277,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
 
           <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
-            Data hanya berasal dari Chaikin Money Flow (CMF).
+            {isEn ? 'Data derived exclusively from Chaikin Money Flow (CMF).' : 'Data hanya berasal dari Chaikin Money Flow (CMF).'}
           </div>
         </div>
       </div>

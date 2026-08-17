@@ -23,6 +23,7 @@ export function extractMentionedTickers(prompt: string): string[] {
 
   for (const candidate of candidates) {
     const symbol = candidate.toUpperCase();
+    if (symbol in INDEX_ALIASES) continue;
     if (!symbols.has(symbol)) continue;
     if (isCommonWordNotTicker(candidate)) continue;
     if (!result.includes(symbol)) result.push(symbol);

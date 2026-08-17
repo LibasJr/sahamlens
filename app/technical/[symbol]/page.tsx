@@ -12,6 +12,7 @@ import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
+import TechnicalAnalysisSuite from '@/components/technical/TechnicalAnalysisSuite';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
@@ -517,6 +518,8 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             <LensConsensusAnalysisDisplay symbol={symbol} />
           </Suspense>
         )}
+
+        <TechnicalAnalysisSuite symbol={symbol} />
       </PageContainer>
     </div>
   );

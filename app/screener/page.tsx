@@ -351,13 +351,69 @@ export default function ScreenerPage() {
           {riskProfile === 'Agresif' && 'Agresif: pertumbuhan 35%, momentum 30%, ROE 20%, PER 15%. Utang dan dividen berbobot NOL - emiten berutang besar tidak dihukum sedikit pun di profil ini.'}
         </p>
 
-        {/* BARU (2026-08-14, masukan review eksternal - "tambahkan filter Market Cap,
-            Sektor, Harga < 5000, Likuiditas" + "simpan template screener favorit").
-            Market Cap/Likuiditas sekarang pakai field yang sudah ditangkap dari Yahoo
-            `price` module (marketCap) dan adv20() (fungsi SAMA dengan gerbang
-            LOW_LIQUIDITY) - lihat screener.service.ts. */}
+        {/* Master Strategy Presets */}
         <div className="bg-tv-card border border-tv-border rounded-xl p-4 shadow-1 space-y-3">
-          <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-tv-muted block mb-2">
+              Preset Strategi Institusional (1-Klik):
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRiskProfile('Konservatif');
+                  setMinMarketCapInput('10');
+                  setMinLiquidityInput('10');
+                  setMaxPriceInput('');
+                  setSectorFilter('');
+                }}
+                className="px-3 py-1.5 rounded-lg border border-tv-green/30 bg-tv-green/[0.08] hover:bg-tv-green/[0.15] text-xs font-semibold text-tv-green flex items-center gap-1.5 transition-colors"
+              >
+                👑 Buffett Quality Compounders
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRiskProfile('Moderat');
+                  setMinMarketCapInput('2');
+                  setMinLiquidityInput('5');
+                  setMaxPriceInput('');
+                  setSectorFilter('');
+                }}
+                className="px-3 py-1.5 rounded-lg border border-tv-blue/30 bg-tv-blue/[0.08] hover:bg-tv-blue/[0.15] text-xs font-semibold text-tv-blue flex items-center gap-1.5 transition-colors"
+              >
+                📈 Peter Lynch GARP
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRiskProfile('Konservatif');
+                  setMinMarketCapInput('5');
+                  setMinLiquidityInput('5');
+                  setMaxPriceInput('');
+                  setSectorFilter('');
+                }}
+                className="px-3 py-1.5 rounded-lg border border-tv-gold/30 bg-tv-gold/[0.08] hover:bg-tv-gold/[0.15] text-xs font-semibold text-tv-gold flex items-center gap-1.5 transition-colors"
+              >
+                💰 Dividend Aristocrats IDX
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRiskProfile('Agresif');
+                  setMaxPriceInput('5000');
+                  setMinMarketCapInput('1');
+                  setMinLiquidityInput('2');
+                  setSectorFilter('');
+                }}
+                className="px-3 py-1.5 rounded-lg border border-tv-purple/30 bg-tv-purple/[0.08] hover:bg-tv-purple/[0.15] text-xs font-semibold text-tv-purple flex items-center gap-1.5 transition-colors"
+              >
+                💎 Deep Value Bargains
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-tv-border">
             <div>
               <label htmlFor="screener-sector" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Sektor</label>
               <select

@@ -569,6 +569,33 @@ export async function calculateDcfModel(rawTicker: string) {
   const mos = fairValue > 0 && price > 0 ? ((fairValue - price) / fairValue) * 100 : 0;
   const valuationStatus = mos >= 0 ? 'UNDERVALUED' : 'OVERVALUED';
 
+  // Reverse DCF: Hitung laju pertumbuhan tahunan (Implied Growth Rate) yang sedang di-price in oleh harga pasar saat ini
+  let impliedGrowthPct: number | null = null;
+  if (price > 0 && fcfPerShare && fcfPerShare > 0) {
+    let low = -0.30;
+    let high = 0.60;
+    let bestG = 0.05;
+    for (let iter = 0; iter < 25; iter++) {
+      const mid = (low + high) / 2;
+      let pvFcfSum = 0;
+      let fcfN = fcfPerShare as number;
+      for (let y = 1; y <= PROJECTION_YEARS; y++) {
+        fcfN = fcfN * (1 + mid);
+        pvFcfSum += fcfN / Math.pow(1 + discountRate, y);
+      }
+      const terminalVal = (fcfN * (1 + (TERMINAL_GROWTH_PCT / 100))) / (discountRate - (TERMINAL_GROWTH_PCT / 100));
+      const pvTerminal = terminalVal / Math.pow(1 + discountRate, PROJECTION_YEARS);
+      const fairVal = (pvFcfSum + pvTerminal) - netDebtPerShare;
+      if (fairVal > price) {
+        high = mid;
+      } else {
+        low = mid;
+      }
+      bestG = mid;
+    }
+    impliedGrowthPct = Math.round(bestG * 1000) / 10;
+  }
+
   // Sensitivitas: WACC -1%/base/+1% (baris) x Terminal Growth 3.0/3.5/4.0% (kolom) -
   // tiap sel dihitung ulang dengan model yang sama, bukan interpolasi kira-kira.
   const discountRateRows = [discountRatePct - 1, discountRatePct, discountRatePct + 1];
@@ -588,13 +615,12 @@ export async function calculateDcfModel(rawTicker: string) {
       current_price: price,
       discount_rate_pct: parseFloat(discountRatePct.toFixed(2)),
       cost_of_equity_pct: parseFloat(discountRatePct.toFixed(2)),
-      // Backward-compatible alias; UI baru melabelinya sebagai discount rate proxy,
-      // bukan WACC aktual karena struktur modal/beta emiten belum dihitung.
       wacc_pct: parseFloat(discountRatePct.toFixed(2)),
       sbn_10y_yield: SBN_10Y_YIELD_PCT,
       risk_premium: EQUITY_RISK_PREMIUM_PCT,
       terminal_growth_pct: TERMINAL_GROWTH_PCT,
       fair_value: Math.round(fairValue),
+      implied_fcf_growth_pct: impliedGrowthPct,
       enterprise_value_per_share: Math.round(base.enterpriseValuePerShare),
       net_debt_per_share: Math.round(netDebtPerShare),
       valuation_status: valuationStatus,

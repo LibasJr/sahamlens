@@ -6,8 +6,11 @@ import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { Input } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
+import { useLanguage } from '@/lib/i18n';
 
 export default function DividendPage() {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const [capital, setCapital] = useState(200_000_000);
   const [targetMonthly, setTargetMonthly] = useState(10_000_000);
   const [ticker, setTicker] = useState('BBCA');
@@ -76,12 +79,12 @@ export default function DividendPage() {
       moduleBank="HARVARD HMC"
       icon={<Coins className="w-6 h-6" />}
       accent="green"
-      title="Simulasi Cash Flow Dividen IDX"
-      subtitle="Bebas Pajak 10% jika direinvestasikan kembali (Pajak Dividen 0% UU HPP)"
+      title={isEn ? 'IDX Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen IDX'}
+      subtitle={isEn ? 'Tax-free if reinvested in Indonesian domestic capital (UU HPP 0% Dividend Tax)' : 'Bebas Pajak 10% jika direinvestasikan kembali (Pajak Dividen 0% UU HPP)'}
       headerExtra={
         <div className="flex flex-wrap items-end gap-3">
           <Input
-            label="Modal Awal (IDR)"
+            label={isEn ? 'Initial Capital (IDR)' : 'Modal Awal (IDR)'}
             type="number"
             size="sm"
             value={capital}
@@ -89,7 +92,7 @@ export default function DividendPage() {
             className="w-40 font-number"
           />
           <Input
-            label="Target Pasif/Bulan (IDR)"
+            label={isEn ? 'Monthly Target (IDR)' : 'Target Pasif/Bulan (IDR)'}
             type="number"
             size="sm"
             value={targetMonthly}

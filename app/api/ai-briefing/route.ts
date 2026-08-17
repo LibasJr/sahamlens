@@ -20,11 +20,26 @@ interface BriefingInput {
   topPick: { ticker: string; consensus: string; confidence: number } | null;
   indices: { name: string; changePct: number }[];
   pickCounts?: { attractive: number; breakout: number; undervalue: number };
+  lang?: 'id' | 'en';
 }
 
-function fallbackBriefing(input: BriefingInput): string {
+function fallbackBriefing(input: BriefingInput, isEn: boolean): string {
   const parts: string[] = [];
   const ihsg = input.indices.find((i) => i.name === 'IHSG');
+
+  if (isEn) {
+    if (ihsg) {
+      parts.push(`IHSG ${ihsg.changePct >= 0 ? 'gained' : 'declined'} ${Math.abs(ihsg.changePct)}% today.`);
+    }
+    if (input.topPick) {
+      parts.push(`Top signal: ${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence}/100).`);
+    }
+    if (input.pickCounts && (input.pickCounts.attractive || input.pickCounts.breakout)) {
+      parts.push('AI identified multiple promising stock candidates and breakout signals today - explore LensRadar for details.');
+    }
+    return parts.length ? parts.join(' ') : 'No strong signals detected today. Check LensRadar for comprehensive scanning details.';
+  }
+
   if (ihsg) {
     parts.push(`IHSG ${ihsg.changePct >= 0 ? 'menguat' : 'melemah'} ${Math.abs(ihsg.changePct)}% hari ini.`);
   }
@@ -53,27 +68,21 @@ export async function POST(req: NextRequest) {
   if (!budget.allowed) return rateLimitExceeded(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
   const input = (await req.json()) as BriefingInput;
+  const isEn = input.lang === 'en' || req.cookies.get('sahamlens_lang')?.value === 'en';
 
-  // BUG FIX (audit integritas data 2026-08-03, temuan M-05): sebelumnya lewat
-  // getModel() (lib/gemini.ts, sudah dihapus - dead code sejak migrasi ini) - HANYA
-  // memilih SATU model Gemini acak, tanpa retry
-  // lintas model/provider. Kalau model yang terpilih gagal (kuota habis/nama model
-  // sudah tidak berlaku), endpoint langsung jatuh ke fallback meski model/provider lain
-  // masih tersedia. generateAI() (lib/aiProviders.ts) sudah mencoba SEMUA kombinasi
-  // Gemini+Groq+OpenRouter yang terkonfigurasi sebelum menyerah - dipakai di sini juga.
   if (!hasAnyAIProvider()) {
-    return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
+    return NextResponse.json({ briefing: fallbackBriefing(input, isEn), source: 'fallback' });
   }
 
-  // BUG FIX (2026-08-05, permintaan user): field "Temuan hari ini" (jumlah saham
-  // menarik/breakout/undervalue) DIHAPUS dari data yang dikirim ke LLM - sebelumnya
-  // model memparafrase angka itu jadi kalimat pasti ("50 saham menarik, 8 breakout,
-  // dan 4 undervalue") padahal tidak ada halaman mana pun di aplikasi yang menampilkan
-  // daftar konkret di baliknya (kategori itu sudah dihapus dari /breakout-radar saat
-  // konsolidasi 8-tab jadi 1-tab, 2026-08-03) - klaim angka yang tidak bisa ditelusuri
-  // pengguna. `pickCounts` di BriefingInput dipertahankan (masih dipakai fallbackBriefing
-  // di atas dengan kalimat kualitatif, bukan angka), cuma tidak lagi masuk prompt AI.
-  const prompt = `Kamu adalah asisten AI investasi SahamLens. Tulis SATU paragraf pendek (maksimal 3 kalimat, Bahasa Indonesia santai tapi profesional) yang merangkum kondisi PASAR hari ini berdasarkan data berikut. Jangan mengulang angka mentah persis seperti daftar, rangkai jadi kalimat natural. Jangan beri saran beli/jual eksplisit di luar data yang ada. Jangan menyebut portofolio/akun pengguna - aplikasi ini alat analisis/screener, bukan platform sekuritas.
+  const prompt = isEn
+    ? `You are an AI investment assistant for SahamLens. Write ONE concise paragraph (maximum 3 sentences, natural English, professional yet engaging) summarizing today's IDX MARKET conditions and top opportunities based on the following data. Do not repeat raw numbers as a list; integrate them naturally. Do not provide explicit buy/sell advice beyond the data. Do not mention user portfolio/account - this application is a research & screener tool, not a brokerage.
+
+Data:
+- Market index: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'unavailable'}
+- Top signal: ${input.topPick ? `${input.topPick.ticker} ${input.topPick.consensus} (LensScore ${input.topPick.confidence} out of 100)` : 'no strong signals'}
+
+Reply ONLY with the summary paragraph, no extra commentary.`
+    : `Kamu adalah asisten AI investasi SahamLens. Tulis SATU paragraf pendek (maksimal 3 kalimat, Bahasa Indonesia santai tapi profesional) yang merangkum kondisi PASAR hari ini berdasarkan data berikut. Jangan mengulang angka mentah persis seperti daftar, rangkai jadi kalimat natural. Jangan beri saran beli/jual eksplisit di luar data yang ada. Jangan menyebut portofolio/akun pengguna - aplikasi ini alat analisis/screener, bukan platform sekuritas.
 
 Data:
 - Indeks pasar: ${input.indices.map((i) => `${i.name} ${i.changePct >= 0 ? '+' : ''}${i.changePct}%`).join(', ') || 'tidak tersedia'}
@@ -83,7 +92,7 @@ Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;
 
   const text = await generateAI({ prompt, timeoutMs: 8000 });
   if (!text) {
-    return NextResponse.json({ briefing: fallbackBriefing(input), source: 'fallback' });
+    return NextResponse.json({ briefing: fallbackBriefing(input, isEn), source: 'fallback' });
   }
   return NextResponse.json({ briefing: text.trim(), source: 'ai' });
 }
