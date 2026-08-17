@@ -204,9 +204,9 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
                 CAPM per emiten - model yang SAMA dengan komponen Valuasi LensScore, jadi
                 dua angka di layar tidak lagi berasal dari dua model yang berbeda. */}
             <div className="text-[10px] text-tv-muted/80 mt-2 leading-relaxed">
-              Rata-rata berbobot beberapa metode valuasi menurut sektor.
-              {data?.assumptions ? (
+              {detailsUnlocked && data?.assumptions?.cost_of_equity_pct != null ? (
                 <>
+                  Rata-rata berbobot beberapa metode valuasi menurut sektor.
                   {' '}PBV &amp; PER wajar dari model Gordon dengan biaya ekuitas{' '}
                   <span className="font-number">{fmtNum(data.assumptions.cost_of_equity_pct, 2)}%</span>
                   {' '}(beta <span className="font-number">{fmtNum(data.assumptions.beta_used, 2)}</span>
@@ -218,9 +218,13 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
                   . DDM dan perpetuitas FCF masih memakai diskonto tetap{' '}
                   <span className="font-number">{data.assumptions.discount_rate_pct}%</span> untuk semua emiten.
                   Bobot antar metode per sektor belum divalidasi terhadap forward return.
+                  {' '}Keluaran model - bukan target harga analis.
                 </>
-              ) : null}
-              {' '}Keluaran model - bukan target harga analis.
+              ) : (
+                <>
+                  Rata-rata berbobot model valuasi multi-metode (Graham Number, Gordon PBV/PER, DDM Dividend, FCF Perpetuity). Keluaran model - bukan target harga analis.
+                </>
+              )}
             </div>
           </div>
 
@@ -241,89 +245,107 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
           </div>
         </div>
 
-        {/* Chart and Methods Breakdown */}
-        <div className="col-span-1 lg:col-span-2 flex flex-col">
-          <div className="h-[200px] w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => Number(v).toLocaleString('id-ID')} />
-                {/* BARU (2026-08-14): tooltip Recharts dulu latar+teks hex mati (dark-only) -
-                    kotak tooltip tetap gelap dengan teks putih walau tema terang, tidak
-                    terbaca di atas kartu putih. rgb(var(--lens-*)) sudah peka-tema (bukan
-                    class Tailwind - Recharts butuh style inline literal). */}
-                <Tooltip
-                  cursor={{ fill: 'rgb(var(--lens-hover))', opacity: 0.4 }}
-                  contentStyle={{ backgroundColor: 'rgb(var(--lens-card))', borderColor: 'rgb(var(--lens-border))', color: 'rgb(var(--lens-text))', fontSize: '12px' }}
-                  itemStyle={{ color: 'rgb(var(--lens-text))' }}
-                  formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Value']}
-                />
-                <ReferenceLine y={harga} stroke="#EF4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Harga Sekarang', fill: '#EF4444', fontSize: 10 }} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-4 pt-4 border-t border-tv-border">
-            {Object.keys(methods).map(key => (
-              <div key={key} className="bg-tv-bg border border-tv-border rounded p-2 text-center">
-                <div className="text-[10px] text-tv-muted uppercase truncate" title={methods[key].name}>{methods[key].name}</div>
-                <div className="text-sm font-bold text-white mt-1" style={{ color: methods[key].color }}>
-                  {formatIDR(methods[key].value)}
-                </div>
+        {/* Chart and Methods Breakdown (Gated for guests) */}
+        <div className="col-span-1 lg:col-span-2 relative flex flex-col justify-between overflow-hidden rounded-xl border border-tv-border bg-tv-bg/40 p-4">
+          {!detailsUnlocked && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-tv-bg/80 backdrop-blur-[4px] p-6 text-center">
+              <div className="w-10 h-10 rounded-full bg-tv-yellow/10 border border-tv-yellow/30 flex items-center justify-center mb-2.5">
+                <Lock className="w-5 h-5 text-tv-yellow" />
               </div>
-            ))}
-          </div>
-          
-          {/* Active Methods (Sector Router) */}
-          {data.applied_rule && Object.keys(data.applied_rule).length > 0 && (
-            <div className="mt-4 pt-3 border-t border-tv-border">
-              <div className="text-[10px] text-tv-muted uppercase mb-2">Metode Kalkulasi Aktif (Weighted Sector Router)</div>
-              <div className="flex flex-wrap gap-2">
-                {Object.keys(data.applied_rule).map(key => (
-                  <div key={key} className="px-2 py-1 rounded bg-tv-card border border-tv-border text-[10px] font-mono text-white">
-                    {key.toUpperCase()} <span className="text-tv-accent ml-1">{(data.applied_rule[key] * 100).toFixed(0)}%</span>
-                  </div>
-                ))}
+              <h4 className="text-sm font-bold text-tv-text mb-1">
+                5 Rincian Metode Valuasi Terkunci
+              </h4>
+              <p className="text-xs text-tv-muted max-w-sm mb-4 leading-relaxed">
+                Masuk atau daftar gratis untuk membuka grafik komparasi Graham Number, PBV/PER Gordon, DDM Dividend, dan FCF Perpetuity.
+              </p>
+              <div className="flex items-center gap-2">
+                <Link
+                  onClick={() => trackSignupClick('intrinsic_valuation')}
+                  href={`/login?next=${encodeURIComponent(nextPath)}`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-tv-yellow/50 bg-tv-yellow/10 px-3.5 py-1.5 text-xs font-bold text-tv-yellow hover:bg-tv-yellow/20 hover:text-white transition-colors"
+                >
+                  <Lock className="w-3.5 h-3.5" /> Masuk
+                </Link>
+                <Link
+                  onClick={() => trackSignupClick('intrinsic_valuation')}
+                  href={`/signup?next=${encodeURIComponent(nextPath)}`}
+                  className="rounded-md bg-tv-blue px-3.5 py-1.5 text-xs font-bold text-white hover:bg-tv-blueHover transition-colors shadow-sm"
+                >
+                  Daftar Gratis
+                </Link>
               </div>
-              {hasWeightedFormula && (detailsUnlocked ? (
-                <details className="mt-3 rounded-lg border border-tv-border bg-tv-bg/70">
-                  <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-blue">
-                    Lihat cara Rp {formatIDR(fair_value)} dihitung
-                  </summary>
-                  <div className="border-t border-tv-border px-3 py-3 text-[11px] leading-relaxed text-tv-muted">
-                    <div className="mb-2">Nilai model adalah penjumlahan nilai tiap metode × bobot aktif setelah redistribusi metode yang tersedia.</div>
-                    <div className="space-y-1 font-number">
-                      {weightedParts.map((part) => (
-                        <div key={part.key} className="flex items-center justify-between gap-3">
-                          <span className="min-w-0 truncate font-sans text-tv-text">{part.name}</span>
-                          <span className="shrink-0">Rp {formatIDR(part.value)} × {(part.weight * 100).toFixed(0)}%</span>
-                        </div>
-                      ))}
-                      <div className="mt-2 border-t border-tv-border pt-2 flex items-center justify-between font-bold text-white">
-                        <span className="font-sans">Hasil model</span>
-                        <span>≈ Rp {formatIDR(fair_value)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </details>
-              ) : authResolved ? (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-3 py-2.5 text-[11px]">
-                  <div className="flex items-start gap-2 text-tv-muted">
-                    <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-blue" />
-                    <span><strong className="text-tv-text">Rincian perhitungan terkunci.</strong> Masuk untuk melihat bobot metode dan cara nilai wajar dihitung.</span>
-                  </div>
-                  <Link onClick={() => trackSignupClick('intrinsic_valuation')} href={`/login?next=${encodeURIComponent(nextPath)}`} className="shrink-0 rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">
-                    Masuk
-                  </Link>
-                </div>
-              ) : null)}
             </div>
           )}
+
+          <div className={!detailsUnlocked ? 'blur-sm select-none opacity-35 pointer-events-none' : ''}>
+            <div className="h-[200px] w-full mt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="name" stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => Number(v).toLocaleString('id-ID')} />
+                  <Tooltip
+                    cursor={{ fill: 'rgb(var(--lens-hover))', opacity: 0.4 }}
+                    contentStyle={{ backgroundColor: 'rgb(var(--lens-card))', borderColor: 'rgb(var(--lens-border))', color: 'rgb(var(--lens-text))', fontSize: '12px' }}
+                    itemStyle={{ color: 'rgb(var(--lens-text))' }}
+                    formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Value']}
+                  />
+                  <ReferenceLine y={harga} stroke="#EF4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Harga Sekarang', fill: '#EF4444', fontSize: 10 }} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-4 pt-4 border-t border-tv-border">
+              {Object.keys(methods).map(key => (
+                <div key={key} className="bg-tv-bg border border-tv-border rounded p-2 text-center">
+                  <div className="text-[10px] text-tv-muted uppercase truncate" title={methods[key].name}>{methods[key].name}</div>
+                  <div className="text-sm font-bold text-white mt-1" style={{ color: methods[key].color }}>
+                    {formatIDR(methods[key].value)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Active Methods (Sector Router) */}
+            {data.applied_rule && Object.keys(data.applied_rule).length > 0 && (
+              <div className="mt-4 pt-3 border-t border-tv-border">
+                <div className="text-[10px] text-tv-muted uppercase mb-2">Metode Kalkulasi Aktif (Weighted Sector Router)</div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(data.applied_rule).map(key => (
+                    <div key={key} className="px-2 py-1 rounded bg-tv-card border border-tv-border text-[10px] font-mono text-white">
+                      {key.toUpperCase()} <span className="text-tv-accent ml-1">{(data.applied_rule[key] * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+                {hasWeightedFormula && (detailsUnlocked ? (
+                  <details className="mt-3 rounded-lg border border-tv-border bg-tv-bg/70">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-blue">
+                      Lihat cara Rp {formatIDR(fair_value)} dihitung
+                    </summary>
+                    <div className="border-t border-tv-border px-3 py-3 text-[11px] leading-relaxed text-tv-muted">
+                      <div className="mb-2">Nilai model adalah penjumlahan nilai tiap metode × bobot aktif setelah redistribusi metode yang tersedia.</div>
+                      <div className="space-y-1 font-number">
+                        {weightedParts.map((part) => (
+                          <div key={part.key} className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 truncate font-sans text-tv-text">{part.name}</span>
+                            <span className="shrink-0">Rp {formatIDR(part.value)} × {(part.weight * 100).toFixed(0)}%</span>
+                          </div>
+                        ))}
+                        <div className="mt-2 border-t border-tv-border pt-2 flex items-center justify-between font-bold text-white">
+                          <span className="font-sans">Hasil model</span>
+                          <span>≈ Rp {formatIDR(fair_value)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+                ) : null)}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
