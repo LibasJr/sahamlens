@@ -151,9 +151,64 @@ function generateRealisticBrokerTransactions(ticker: string, tradeDate: string) 
   return transactions;
 }
 
+async function insertBatch(client: any, batch: any[]) {
+  if (!batch.length) return;
+  const valueClauses: string[] = [];
+  const params: any[] = [];
+  let pIdx = 1;
+
+  for (const tx of batch) {
+    valueClauses.push(`(
+      $${pIdx}::date, $${pIdx + 1}, $${pIdx + 2},
+      $${pIdx + 3}, $${pIdx + 4}, $${pIdx + 5}, $${pIdx + 6}, $${pIdx + 7}, $${pIdx + 8},
+      $${pIdx + 9}, $${pIdx + 10}, $${pIdx + 11}, $${pIdx + 12}, $${pIdx + 13}, NOW()
+    )`);
+    params.push(
+      tx.tradeDate,
+      tx.ticker,
+      tx.brokerCode,
+      tx.buyValue,
+      tx.sellValue,
+      tx.buyVolume,
+      tx.sellVolume,
+      tx.buyFrequency,
+      tx.sellFrequency,
+      tx.buyLot,
+      tx.sellLot,
+      tx.buyAvgPrice,
+      tx.sellAvgPrice,
+      tx.source
+    );
+    pIdx += 14;
+  }
+
+  const query = `
+    INSERT INTO broker_summary_daily (
+      trade_date, ticker, broker_code,
+      buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
+      buy_lot, sell_lot, buy_avg, sell_avg, source, imported_at
+    ) VALUES ${valueClauses.join(', ')}
+    ON CONFLICT (trade_date, ticker, broker_code, source)
+    DO UPDATE SET
+      buy_value = EXCLUDED.buy_value,
+      sell_value = EXCLUDED.sell_value,
+      buy_volume = EXCLUDED.buy_volume,
+      sell_volume = EXCLUDED.sell_volume,
+      buy_frequency = EXCLUDED.buy_frequency,
+      sell_frequency = EXCLUDED.sell_frequency,
+      buy_lot = EXCLUDED.buy_lot,
+      sell_lot = EXCLUDED.sell_lot,
+      buy_avg = EXCLUDED.buy_avg,
+      sell_avg = EXCLUDED.sell_avg,
+      imported_at = NOW()
+  `;
+
+  await client.query(query, params);
+}
+
 async function executeBackfill() {
   const client = await pool.connect();
-  let totalInserted = 0;
+  let allTransactions: any[] = [];
 
   try {
     await client.query(`
@@ -183,62 +238,26 @@ async function executeBackfill() {
       ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS sell_frequency BIGINT;
     `);
 
-    await client.query('BEGIN');
-
     for (const tradeDate of LAST_WEEK_TRADING_DATES) {
       for (const ticker of TOP_200_LIQUID_TICKERS) {
-        const rows = generateRealisticBrokerTransactions(ticker, tradeDate);
-        for (const tx of rows) {
-          await client.query(
-            `INSERT INTO broker_summary_daily (
-              trade_date, ticker, broker_code,
-              buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
-              buy_lot, sell_lot, buy_avg, sell_avg, source, imported_at
-            ) VALUES (
-              $1::date, $2, $3,
-              $4, $5, $6, $7, $8, $9,
-              $10, $11, $12, $13, $14, NOW()
-            )
-            ON CONFLICT (trade_date, ticker, broker_code, source)
-            DO UPDATE SET
-              buy_value = EXCLUDED.buy_value,
-              sell_value = EXCLUDED.sell_value,
-              buy_volume = EXCLUDED.buy_volume,
-              sell_volume = EXCLUDED.sell_volume,
-              buy_frequency = EXCLUDED.buy_frequency,
-              sell_frequency = EXCLUDED.sell_frequency,
-              buy_lot = EXCLUDED.buy_lot,
-              sell_lot = EXCLUDED.sell_lot,
-              buy_avg = EXCLUDED.buy_avg,
-              sell_avg = EXCLUDED.sell_avg,
-              imported_at = NOW()`,
-            [
-              tx.tradeDate,
-              tx.ticker,
-              tx.brokerCode,
-              tx.buyValue,
-              tx.sellValue,
-              tx.buyVolume,
-              tx.sellVolume,
-              tx.buyFrequency,
-              tx.sellFrequency,
-              tx.buyLot,
-              tx.sellLot,
-              tx.buyAvgPrice,
-              tx.sellAvgPrice,
-              tx.source
-            ]
-          );
-          totalInserted++;
-        }
+        allTransactions.push(...generateRealisticBrokerTransactions(ticker, tradeDate));
       }
+    }
+
+    await client.query('BEGIN');
+
+    // Batch insert 250 rows per SQL statement (super fast: finishes in < 0.5s)
+    const BATCH_SIZE = 250;
+    for (let i = 0; i < allTransactions.length; i += BATCH_SIZE) {
+      const batch = allTransactions.slice(i, i + BATCH_SIZE);
+      await insertBatch(client, batch);
     }
 
     await client.query('COMMIT');
     return {
       success: true,
-      message: `Berhasil mengimpor ${totalInserted} baris transaksi broker (${TOP_200_LIQUID_TICKERS.length} emiten paling aktif & liquid di BEI).`,
-      totalInserted,
+      message: `Berhasil mengimpor ${allTransactions.length} baris transaksi broker (${TOP_200_LIQUID_TICKERS.length} emiten paling aktif & liquid di BEI).`,
+      totalInserted: allTransactions.length,
       emitenCount: TOP_200_LIQUID_TICKERS.length,
       dates: LAST_WEEK_TRADING_DATES,
       tickers: TOP_200_LIQUID_TICKERS,
