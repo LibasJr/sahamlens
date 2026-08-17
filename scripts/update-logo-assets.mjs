@@ -2,27 +2,26 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-const sourceImgPath = 'C:\\Users\\TyaTyoKya\\.gemini\\antigravity-ide\\brain\\9e252d0d-5e0a-4c6e-a1f4-a29d400bd113\\sahamlens_logo_stacked_1786953252301.jpg';
+const sourceImgPath = 'C:\\Users\\TyaTyoKya\\.gemini\\antigravity-ide\\brain\\9e252d0d-5e0a-4c6e-a1f4-a29d400bd113\\.user_uploaded\\media_1786954664518.jpg';
 
 async function updateLogos() {
-  console.log('Generating updated stacked logo and icon assets for Web & Mobile...');
+  console.log('Generating updated 3D embossed logo assets for Web & Mobile...');
 
-  // The source image is 1024x1024 with the full stacked logo centered.
-  // We extract a tight centered region (e.g. 700x700 centered at 512,512: left=162, top=200, width=700, height=620)
-  // or use the whole image with padding:
-  const iconBuffer = await sharp(sourceImgPath)
-    .extract({ left: 100, top: 220, width: 824, height: 580 })
-    .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
-    .png({ quality: 100 })
+  // Extend 1024x770 to square 1024x1024 with background { r: 25, g: 37, b: 53, alpha: 1 }
+  const squareBuffer = await sharp(sourceImgPath)
+    .resize(1024, 1024, {
+      fit: 'contain',
+      background: { r: 25, g: 37, b: 53, alpha: 1 }
+    })
     .toBuffer();
 
   // 1. public/sahamlens-scope.png & public/sahamlens-logo.png (512x512)
-  await sharp(iconBuffer)
-    .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
+  await sharp(squareBuffer)
+    .resize(512, 512, { fit: 'contain', background: { r: 25, g: 37, b: 53, alpha: 1 } })
     .png({ quality: 95 })
     .toFile('public/sahamlens-scope.png');
-  await sharp(iconBuffer)
-    .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
+  await sharp(squareBuffer)
+    .resize(512, 512, { fit: 'contain', background: { r: 25, g: 37, b: 53, alpha: 1 } })
     .png({ quality: 95 })
     .toFile('public/sahamlens-logo.png');
   console.log('✓ public/sahamlens-logo.png generated');
