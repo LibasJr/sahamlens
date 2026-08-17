@@ -25,19 +25,27 @@ async function updateLogos() {
     .toFile('public/sahamlens-logo.png');
   console.log('✓ public/sahamlens-logo.png generated');
 
-  // 2. public/icon-512x512.png
+  // 2. public/icon-512x512.png & public/icon-pwa-512.png
   await sharp(iconBuffer)
     .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
     .png({ quality: 95 })
     .toFile('public/icon-512x512.png');
-  console.log('✓ public/icon-512x512.png generated');
+  await sharp(iconBuffer)
+    .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
+    .png({ quality: 95 })
+    .toFile('public/icon-pwa-512.png');
+  console.log('✓ public/icon-pwa-512.png generated');
 
-  // 3. public/icon-192x192.png
+  // 3. public/icon-192x192.png & public/icon-pwa-192.png
   await sharp(iconBuffer)
     .resize(192, 192, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
     .png({ quality: 95 })
     .toFile('public/icon-192x192.png');
-  console.log('✓ public/icon-192x192.png generated');
+  await sharp(iconBuffer)
+    .resize(192, 192, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
+    .png({ quality: 95 })
+    .toFile('public/icon-pwa-192.png');
+  console.log('✓ public/icon-pwa-192.png generated');
 
   // 4. app/apple-icon.png (180x180 for iOS)
   await sharp(iconBuffer)
