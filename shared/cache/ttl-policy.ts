@@ -1,7 +1,7 @@
-// Policy freshness data pasar IDX: 1 menit saat sesi reguler aktif, 30 menit saat
-// bursa tutup. Dihitung dalam zona Asia/Jakarta agar tidak bergantung timezone server.
+// Policy freshness data pasar IDX: 1 menit saat sesi reguler aktif, 6 jam saat
+// bursa tutup/libur/malam hari. Dihitung dalam zona Asia/Jakarta agar tidak bergantung timezone server.
 export const MARKET_OPEN_TTL_SEC = 60;
-export const MARKET_CLOSED_TTL_SEC = 30 * 60;
+export const MARKET_CLOSED_TTL_SEC = 6 * 60 * 60;
 
 export function isIdxMarketOpen(now: Date = new Date()): boolean {
   const parts = new Intl.DateTimeFormat('en-US', {
