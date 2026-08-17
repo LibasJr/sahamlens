@@ -61,13 +61,24 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
     setBackfilling(true);
     setBackfillMsg(null);
     try {
-      const res = await fetch('/api/admin/broker-summary/backfill', { method: 'POST' });
-      const json = await res.json();
+      const res = await fetch('/api/admin/broker-summary/backfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+      });
+      const text = await res.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = { error: text.includes('DOCTYPE') ? 'Sesi admin kedaluwarsa atau server belum selesai restart' : text.slice(0, 100) };
+      }
+
       if (res.ok && json.success) {
         setBackfillMsg(`✓ ${json.message}`);
         setTimeout(() => {
           window.location.reload();
-        }, 1200);
+        }, 1000);
       } else {
         setBackfillMsg(`✗ Gagal: ${json.error || 'Terjadi kesalahan'}`);
       }
