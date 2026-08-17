@@ -84,17 +84,17 @@ describe('GET /api/screener', () => {
     expect(json.availableSectors).toEqual(['Infrastruktur', 'Keuangan']);
   });
 
-  it('tamu (guest/unauthenticated) hanya menerima 3 emiten teratas dengan flag is_guest_limited', async () => {
+  it('tamu (guest/unauthenticated) hanya menerima 2 emiten teratas dengan flag is_guest_limited', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
 
     const res = await GET(makeRequest('?profile=Moderat'));
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.analysis.top_10_stocks).toHaveLength(3);
-    expect(json.analysis.top_10_stocks.map((s: any) => s.ticker)).toEqual(['BBCA', 'BBRI', 'BMRI']);
+    expect(json.analysis.top_10_stocks).toHaveLength(2);
+    expect(json.analysis.top_10_stocks.map((s: any) => s.ticker)).toEqual(['BBCA', 'BBRI']);
     expect(json.analysis.total_count).toBe(10);
-    expect(json.analysis.locked_count).toBe(7);
+    expect(json.analysis.locked_count).toBe(8);
     expect(json.analysis.is_guest_limited).toBe(true);
   });
 
