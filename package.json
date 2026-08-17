@@ -32,7 +32,9 @@
     "audit:manual-market": "node scripts/audit-manual-market-references.mjs",
     "audit:market-labels": "node scripts/audit-market-label-semantics.mjs",
     "restore:verify": "node scripts/verify-restore-drill-target.mjs",
-    "audit:risk-controls": "node scripts/audit-risk-controls.mjs"
+    "audit:risk-controls": "node scripts/audit-risk-controls.mjs",
+    "audit:zero-dummy": "node scripts/audit-zero-dummy-policy.mjs",
+    "audit:broker-forensics": "node scripts/audit-broker-summary-forensics.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

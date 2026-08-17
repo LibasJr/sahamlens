@@ -38,6 +38,12 @@ export async function GET(request: Request) {
 
   try {
     const universe = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.DIVIDEND_UNIVERSE, fetchDividendUniverse);
+    if (!Array.isArray(universe) || universe.length === 0) {
+      return NextResponse.json(
+        { error: 'Data dividend universe tidak tersedia dari provider; proyeksi tidak dihitung.', code: 'DIVIDEND_DATA_UNAVAILABLE' },
+        { status: 503 },
+      );
+    }
     const quant = buildDividendPlan(universe, capital, targetMonthly);
     return NextResponse.json({ quant });
   } catch (error) {

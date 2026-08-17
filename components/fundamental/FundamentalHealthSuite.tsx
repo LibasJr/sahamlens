@@ -14,6 +14,7 @@ import {
   TrendingDown,
   TrendingUp,
   XCircle,
+  CircleHelp,
   Zap,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
@@ -60,10 +61,10 @@ export default function FundamentalHealthSuite({
             </div>
             <div className="flex items-center gap-2">
               <span className="font-number text-2xl font-extrabold text-tv-green">
-                {piotroski.score}
+                {piotroski.score == null ? 'N/A' : piotroski.score}
                 <span className="text-xs font-normal text-tv-muted">/{piotroski.maxScore}</span>
               </span>
-              <Badge variant={piotroski.verdict === 'STRONG' ? 'success' : piotroski.verdict === 'MODERATE' ? 'info' : 'danger'}>
+              <Badge variant={piotroski.verdict === 'STRONG' ? 'success' : piotroski.verdict === 'MODERATE' ? 'info' : piotroski.verdict === 'DATA_UNAVAILABLE' ? 'neutral' : 'danger'}>
                 {t(piotroski.verdictLabelKey)}
               </Badge>
             </div>
@@ -74,15 +75,19 @@ export default function FundamentalHealthSuite({
               <div
                 key={check.id}
                 className={`p-2.5 rounded-lg border flex items-start gap-2 ${
-                  check.passed
+                  check.passed === true
                     ? 'border-tv-green/20 bg-tv-green/[0.03]'
+                    : check.passed === false
+                    ? 'border-tv-red/20 bg-tv-red/[0.02]'
                     : 'border-tv-border bg-tv-bg/50 opacity-75'
                 }`}
               >
-                {check.passed ? (
+                {check.passed === true ? (
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-tv-green mt-0.5" />
+                ) : check.passed === false ? (
+                  <XCircle className="h-4 w-4 shrink-0 text-tv-red mt-0.5" />
                 ) : (
-                  <XCircle className="h-4 w-4 shrink-0 text-tv-muted mt-0.5" />
+                  <CircleHelp className="h-4 w-4 shrink-0 text-tv-muted mt-0.5" />
                 )}
                 <div>
                   <p className="font-semibold text-tv-text">{check.label}</p>
@@ -146,6 +151,9 @@ export default function FundamentalHealthSuite({
               </span>
             </div>
 
+            {valuationPercentile.pePercentile == null && (
+              <p className="text-[10px] text-tv-muted">{isEn ? 'Historical P/E series is not available; no percentile is estimated.' : 'Seri historis P/E belum tersedia; persentil tidak diestimasi.'}</p>
+            )}
             {valuationPercentile.pePercentile != null && (
               <div className="space-y-1">
                 <div className="h-2 w-full rounded-full bg-white/[0.06] overflow-hidden">
@@ -179,11 +187,13 @@ export default function FundamentalHealthSuite({
                 </p>
               </div>
             </div>
-            <Badge variant={sectorBenchmark.verdict === 'ATTRACTIVE' ? 'success' : sectorBenchmark.verdict === 'FAIR' ? 'info' : 'warning'}>
+            <Badge variant={sectorBenchmark.verdict === 'ATTRACTIVE' ? 'success' : sectorBenchmark.verdict === 'FAIR' ? 'info' : sectorBenchmark.verdict === 'DATA_UNAVAILABLE' ? 'neutral' : 'warning'}>
               {sectorBenchmark.verdict === 'ATTRACTIVE'
                 ? t('fundamentalEnhance.attractiveValuation')
                 : sectorBenchmark.verdict === 'FAIR'
                 ? t('fundamentalEnhance.fairValuation')
+                : sectorBenchmark.verdict === 'DATA_UNAVAILABLE'
+                ? t('fundamentalEnhance.dataUnavailable')
                 : t('fundamentalEnhance.expensiveValuation')}
             </Badge>
           </div>
@@ -193,10 +203,10 @@ export default function FundamentalHealthSuite({
               <span className="text-[11px] text-tv-muted">P/E vs Sektor</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {sectorBenchmark.emitenPE != null ? `${sectorBenchmark.emitenPE.toFixed(1)}x` : 'N/A'}
-                <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianPE.toFixed(1)}x</span>
+                <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianPE != null ? `${sectorBenchmark.sectorMedianPE.toFixed(1)}x` : 'N/A'}</span>
               </div>
               <span className={`text-[10px] font-bold ${
-                (sectorBenchmark.peDiscountPct ?? 0) <= 0 ? 'text-tv-green' : 'text-tv-red'
+                sectorBenchmark.peDiscountPct == null ? false : sectorBenchmark.peDiscountPct <= 0 ? 'text-tv-green' : 'text-tv-red'
               }`}>
                 {sectorBenchmark.peDiscountPct != null
                   ? `${sectorBenchmark.peDiscountPct > 0 ? '+' : ''}${sectorBenchmark.peDiscountPct}% ${isEn ? 'vs Median' : 'vs Median'}`
@@ -208,10 +218,10 @@ export default function FundamentalHealthSuite({
               <span className="text-[11px] text-tv-muted">PBV vs Sektor</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {sectorBenchmark.emitenPBV != null ? `${sectorBenchmark.emitenPBV.toFixed(2)}x` : 'N/A'}
-                <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianPBV.toFixed(2)}x</span>
+                <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianPBV != null ? `${sectorBenchmark.sectorMedianPBV.toFixed(2)}x` : 'N/A'}</span>
               </div>
               <span className={`text-[10px] font-bold ${
-                (sectorBenchmark.pbvDiscountPct ?? 0) <= 0 ? 'text-tv-green' : 'text-tv-red'
+                sectorBenchmark.pbvDiscountPct == null ? false : sectorBenchmark.pbvDiscountPct <= 0 ? 'text-tv-green' : 'text-tv-red'
               }`}>
                 {sectorBenchmark.pbvDiscountPct != null
                   ? `${sectorBenchmark.pbvDiscountPct > 0 ? '+' : ''}${sectorBenchmark.pbvDiscountPct}% ${isEn ? 'vs Median' : 'vs Median'}`
@@ -223,10 +233,10 @@ export default function FundamentalHealthSuite({
               <span className="text-[11px] text-tv-muted">ROE vs Sektor</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {sectorBenchmark.emitenROE != null ? `${sectorBenchmark.emitenROE.toFixed(1)}%` : 'N/A'}
-                <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianROE.toFixed(1)}%</span>
+                <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianROE != null ? `${sectorBenchmark.sectorMedianROE.toFixed(1)}%` : 'N/A'}</span>
               </div>
               <span className={`text-[10px] font-bold ${
-                (sectorBenchmark.roeSpreadPct ?? 0) >= 0 ? 'text-tv-green' : 'text-tv-red'
+                sectorBenchmark.roeSpreadPct == null ? false : sectorBenchmark.roeSpreadPct >= 0 ? 'text-tv-green' : 'text-tv-red'
               }`}>
                 {sectorBenchmark.roeSpreadPct != null
                   ? `${sectorBenchmark.roeSpreadPct > 0 ? '+' : ''}${sectorBenchmark.roeSpreadPct}% spread`
@@ -234,6 +244,7 @@ export default function FundamentalHealthSuite({
               </span>
             </div>
           </div>
+          <p className="text-[10px] text-tv-muted">{sectorBenchmark.source ? `Sumber median: ${sectorBenchmark.source}` : (isEn ? 'No real peer median source is wired; benchmark stays unavailable.' : 'Belum ada sumber median peer nyata; benchmark tetap N/A.')}</p>
         </Card>
 
         {/* Dividend Safety & Coverage Card */}
@@ -253,7 +264,11 @@ export default function FundamentalHealthSuite({
                 ? isEn ? 'MODERATE' : 'MODERAT'
                 : dividendSafety.safetyRating === 'CAUTION'
                 ? isEn ? 'HIGH PAYOUT RISK' : 'RISIKO PEMANGKASAN'
-                : isEn ? 'NO DIVIDEND' : 'TANPA DIVIDEN'}
+                : dividendSafety.safetyRating === 'NO_DIVIDEND'
+                ? isEn ? 'NO DIVIDEND' : 'TANPA DIVIDEN'
+                : dividendSafety.safetyRating === 'DATA_PARTIAL'
+                ? isEn ? 'PARTIAL DATA' : 'DATA PARSIAL'
+                : isEn ? 'DATA N/A' : 'DATA N/A'}
             </Badge>
           </div>
 
@@ -261,7 +276,7 @@ export default function FundamentalHealthSuite({
             <div className="p-3 rounded-xl bg-tv-card/70 border border-tv-border">
               <span className="text-[11px] text-tv-muted">{t('fundamentalEnhance.dividendYield')}</span>
               <div className="text-base font-bold font-number text-tv-gold mt-1">
-                {dividendSafety.dividendYieldPct != null ? `${dividendSafety.dividendYieldPct.toFixed(2)}%` : '0.0%'}
+                {dividendSafety.dividendYieldPct != null ? `${dividendSafety.dividendYieldPct.toFixed(2)}%` : 'N/A'}
               </div>
               <span className="text-[10px] text-tv-muted">{isEn ? 'Trailing 12M' : 'Imbal hasil tahunan'}</span>
             </div>
@@ -276,10 +291,10 @@ export default function FundamentalHealthSuite({
 
             <div className="p-3 rounded-xl bg-tv-card/70 border border-tv-border">
               <span className="text-[11px] text-tv-muted">{t('fundamentalEnhance.fcfCoverage')}</span>
-              <div className={`text-sm font-bold font-number mt-1 ${dividendSafety.fcfCovered ? 'text-tv-green' : 'text-tv-yellow'}`}>
-                {dividendSafety.fcfCovered ? t('fundamentalEnhance.fcfCoverageYes') : t('fundamentalEnhance.fcfCoverageNo')}
+              <div className={`text-sm font-bold font-number mt-1 ${dividendSafety.fcfPositive == null ? 'text-tv-muted' : dividendSafety.fcfPositive ? 'text-tv-green' : 'text-tv-yellow'}`}>
+                {dividendSafety.fcfPositive == null ? 'N/A' : dividendSafety.fcfPositive ? (isEn ? 'FCF POSITIVE' : 'FCF POSITIF') : (isEn ? 'FCF NEGATIVE' : 'FCF NEGATIF')}
               </div>
-              <span className="text-[10px] text-tv-muted">{isEn ? 'Operational cash support' : 'Dukungan kas operasional'}</span>
+              <span className="text-[10px] text-tv-muted">{isEn ? 'FCF sign; not dividend cash-coverage proof' : 'Tanda FCF; bukan bukti coverage pembayaran dividen'}</span>
             </div>
           </div>
 
