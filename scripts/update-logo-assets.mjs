@@ -11,7 +11,9 @@ async function updateLogos() {
   // We extract a tight centered region (e.g. 700x700 centered at 512,512: left=162, top=200, width=700, height=620)
   // or use the whole image with padding:
   const iconBuffer = await sharp(sourceImgPath)
-    .extract({ left: 140, top: 250, width: 744, height: 520 })
+    .extract({ left: 100, top: 220, width: 824, height: 580 })
+    .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
+    .png({ quality: 100 })
     .toBuffer();
 
   // 1. public/sahamlens-scope.png & public/sahamlens-logo.png (512x512)
