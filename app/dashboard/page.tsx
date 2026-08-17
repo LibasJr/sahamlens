@@ -16,6 +16,7 @@ import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
 import { classifyCapTier, CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR, CURRENT_LARGE_LIQUID_MIN_ADV20_IDR } from '@/lib/utils/cap-tier';
 import { isBlueChipConstituent } from '@/lib/utils/blue-chip-index';
+import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
@@ -42,6 +43,15 @@ import {
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
   ssr: false,
   loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
+});
+
+const ProTradingViewChart = dynamic(() => import('@/components/ProTradingViewChart').then((m) => m.ProTradingViewChart), {
+  ssr: false,
+  loading: () => <div className="h-[420px] w-full animate-pulse rounded-2xl bg-tv-surface" aria-label="Memuat Pro Chart" />,
+});
+
+const SeasonalityMatrix = dynamic(() => import('@/components/SeasonalityMatrix').then((m) => m.SeasonalityMatrix), {
+  ssr: false,
 });
 
 // Normalisasi simbol: pastikan hanya 1x .JK. IHSG diperlakukan sebagai indeks pasar,
@@ -1159,28 +1169,44 @@ function DashboardContent() {
                 {(() => {
                   const isLq45 = isBlueChipConstituent(ticker);
                   const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
-                  if (!isLq45 && !tier) return null;
+                  const boardInfo = classifyTradingBoard(ticker);
                   return (
-                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                      {isLq45 && (
+                    <>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        {isLq45 && (
+                          <Badge
+                            variant="info"
+                            title="Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)"
+                          >
+                            Indeks LQ45
+                          </Badge>
+                        )}
                         <Badge
-                          variant="info"
-                          title="Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)"
+                          variant={boardInfo.badgeVariant}
+                          title={boardInfo.description}
                         >
-                          Indeks LQ45
+                          {boardInfo.shortLabel}
                         </Badge>
+                        {tier && (
+                          <Badge
+                            variant={tier === 'LARGE_LIQUID_CURRENT' ? 'neutral' : 'warning'}
+                            title={tier === 'LARGE_LIQUID_CURRENT'
+                              ? `Kondisi saat ini: market cap & likuiditas di atas ambang konteks (>= Rp ${(CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(CURRENT_LARGE_LIQUID_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
+                              : 'Kondisi saat ini: market cap lebih kecil dan/atau likuiditas lebih tipis. Ini konteks kondisi pasar, bukan penilaian kualitas atau identitas emiten.'}
+                          >
+                            {tier === 'LARGE_LIQUID_CURRENT' ? 'Large & Liquid · saat ini' : 'Small / Thin · saat ini'}
+                          </Badge>
+                        )}
+                      </div>
+                      {boardInfo.isFca && (
+                        <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2.5 text-xs text-tv-gold">
+                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                          <div>
+                            <strong>Peringatan Papan Pemantauan Khusus (FCA):</strong> Emiten ini diperdagangkan dengan mekanisme <em>Periodic Call Auction</em> (5 sesi lelang per hari) dengan fraksi harga tetap Rp 1. Formasi pergerakan harga berbeda dari lelang kontinu biasa.
+                          </div>
+                        </div>
                       )}
-                      {tier && (
-                        <Badge
-                          variant={tier === 'LARGE_LIQUID_CURRENT' ? 'neutral' : 'warning'}
-                          title={tier === 'LARGE_LIQUID_CURRENT'
-                            ? `Kondisi saat ini: market cap & likuiditas di atas ambang konteks (>= Rp ${(CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(CURRENT_LARGE_LIQUID_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
-                            : 'Kondisi saat ini: market cap lebih kecil dan/atau likuiditas lebih tipis. Ini konteks kondisi pasar, bukan penilaian kualitas atau identitas emiten.'}
-                        >
-                          {tier === 'LARGE_LIQUID_CURRENT' ? 'Large & Liquid · saat ini' : 'Small / Thin · saat ini'}
-                        </Badge>
-                      )}
-                    </div>
+                    </>
                   );
                 })()}
                 <div className="flex items-center gap-3 mt-1">
@@ -1285,16 +1311,15 @@ function DashboardContent() {
           {/* Chart ditempatkan langsung setelah konteks emiten: pengguna bisa membaca
               harga dan struktur candle sebelum menafsirkan skor, voting, atau kartu
               indikator. Detail indikator di bawah menjadi penjelas untuk chart ini. */}
-          <div className="mt-4 w-full">
-            <TradingViewChart
+          <div className="mt-4 w-full space-y-4">
+            <ProTradingViewChart
               candles={candles}
-              technical={chartTechnical}
-              symbol={stock.symbol || ticker}
-              timeframe={timeframe}
-              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
-              onTimeframeChange={setTimeframe}
-              variant="full"
-              height={600}
+              ticker={stock.symbol || ticker}
+            />
+
+            <SeasonalityMatrix
+              candles={candles}
+              ticker={stock.symbol || ticker}
             />
           </div>
 

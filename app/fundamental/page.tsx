@@ -15,9 +15,11 @@ import { isMarketOpen } from '@/lib/utils/market';
 // /fundamental. Ikon Brain & AlertTriangle juga tidak dipakai di mana pun.
 import {
   Zap, ArrowUpRight, ArrowDownRight, Layers,
-  RefreshCw, ShieldCheck, TrendingUp, Info, Lock
+  RefreshCw, ShieldCheck, TrendingUp, Info, Lock, AlertTriangle
 } from 'lucide-react';
-import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber, Badge } from '@/components/ui';
+import { isBlueChipConstituent } from '@/lib/utils/blue-chip-index';
+import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
@@ -503,6 +505,32 @@ function FundamentalContent() {
                 <h1 className="shrink-0 text-xl font-bold tracking-tight text-white font-heading sm:text-2xl">{displayTicker(stock.symbol || ticker)}.JK</h1>
                 <span className="min-w-0 truncate text-xs text-tv-muted font-sans font-normal sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
               </div>
+              {(() => {
+                const isLq45 = isBlueChipConstituent(ticker);
+                const boardInfo = classifyTradingBoard(ticker);
+                return (
+                  <>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      {isLq45 && (
+                        <Badge variant="info" title="Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)">
+                          Indeks LQ45
+                        </Badge>
+                      )}
+                      <Badge variant={boardInfo.badgeVariant} title={boardInfo.description}>
+                        {boardInfo.shortLabel}
+                      </Badge>
+                    </div>
+                    {boardInfo.isFca && (
+                      <div className="mt-2 flex items-start gap-2 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2 text-xs text-tv-gold">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <strong>Papan Pemantauan Khusus (FCA):</strong> Diperdagangkan dengan mekanisme Periodic Call Auction (5 sesi lelang/hari).
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               <div className="flex items-center gap-3 mt-1">
                 {typeof stock.current_price === 'number' && Number.isFinite(stock.current_price) ? (
                   <AnimatedNumber
