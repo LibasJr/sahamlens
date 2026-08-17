@@ -248,6 +248,48 @@ export default function Sidebar() {
   const role: 'guest' | 'trial' | 'admin' = hasAdminAccess ? 'admin' : effectiveRole;
   const visibleGroups = useMemo(() => visibleGroupsFor(role), [role]);
 
+  const { t } = useLanguage();
+
+  const getLocalizedGroupName = useCallback((id: string, defaultLabel: string) => {
+    switch (id) {
+      case 'overview': return t('nav.groupMain');
+      case 'trading': return t('nav.groupTrading');
+      case 'investing': return t('nav.groupInvesting');
+      case 'risk-portfolio': return t('nav.groupRiskPortfolio');
+      case 'research': return t('nav.groupResearch');
+      case 'admin': return t('nav.groupAdmin');
+      default: return defaultLabel;
+    }
+  }, [t]);
+
+  const getLocalizedItem = useCallback((id: string, defaultName: string, defaultSub: string) => {
+    switch (id) {
+      case 'home': return { name: t('nav.home'), subtitle: t('nav.homeSub') };
+      case 'market-pulse': return { name: t('nav.marketPulse'), subtitle: t('nav.marketPulseSub') };
+      case 'breakout-radar': return { name: t('nav.radar'), subtitle: t('nav.radarSub') };
+      case 'dashboard': return { name: t('nav.technical'), subtitle: t('nav.technicalSub') };
+      case 'screener': return { name: t('nav.screener'), subtitle: t('nav.screenerSub') };
+      case 'compare': return { name: t('nav.compare'), subtitle: t('nav.compareSub') };
+      case 'backtest': return { name: t('nav.backtest'), subtitle: t('nav.backtestSub') };
+      case 'fundamental': return { name: t('nav.fundamental'), subtitle: t('nav.fundamentalSub') };
+      case 'dcf': return { name: t('nav.dcf'), subtitle: t('nav.dcfSub') };
+      case 'moat': return { name: t('nav.moat'), subtitle: t('nav.moatSub') };
+      case 'earnings': return { name: t('nav.earnings'), subtitle: t('nav.earningsSub') };
+      case 'dividend': return { name: t('nav.dividend'), subtitle: t('nav.dividendSub') };
+      case 'watchlist': return { name: t('nav.watchlist'), subtitle: t('nav.watchlistSub') };
+      case 'portfolio': return { name: t('nav.portfolio'), subtitle: t('nav.portfolioSub') };
+      case 'risk': return { name: t('nav.risk'), subtitle: t('nav.riskSub') };
+      case 'risk-calculator': return { name: t('nav.riskCalculator'), subtitle: t('nav.riskCalculatorSub') };
+      case 'ownership-flow': return { name: t('nav.ownershipFlow'), subtitle: t('nav.ownershipFlowSub') };
+      case 'news': return { name: t('nav.news'), subtitle: t('nav.newsSub') };
+      case 'calendar': return { name: t('nav.calendar'), subtitle: t('nav.calendarSub') };
+      case 'macro': return { name: t('nav.macro'), subtitle: t('nav.macroSub') };
+      case 'transparency': return { name: t('nav.transparency'), subtitle: t('nav.transparencySub') };
+      case 'about': return { name: t('nav.about'), subtitle: t('nav.aboutSub') };
+      default: return { name: defaultName, subtitle: defaultSub };
+    }
+  }, [t]);
+
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
       const next = !prev;
@@ -266,7 +308,7 @@ export default function Sidebar() {
       {isOpen && (
         <button
           type="button"
-          aria-label="Tutup menu"
+          aria-label={t('common.close')}
           className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm md:hidden"
           onClick={() => setIsOpen(false)}
         />
@@ -278,10 +320,6 @@ export default function Sidebar() {
         } ${isCollapsed ? 'w-[min(22rem,calc(100vw-1rem))] md:w-[76px]' : 'w-[min(22rem,calc(100vw-1rem))] md:w-[292px]'}`}
       >
         <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
-          {/* Logo menuju "/", bukan "/home". Konvensi web: logo = akar situs. "/home"
-              tetap terjangkau lewat butir nav "Beranda" tepat di bawahnya, jadi tidak
-              ada jalan yang hilang - justru sebaliknya, ini menutup satu-satunya celah
-              di mana pengguna yang sudah masuk tidak punya jalan kembali ke "/". */}
           <Link href="/" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner p-1">
               <Image src="/sahamlens-logo.png" alt="SahamLens" fill sizes="40px" className="object-contain" />
@@ -298,8 +336,8 @@ export default function Sidebar() {
             type="button"
             onClick={toggleCollapse}
             className={`hidden h-8 w-8 items-center justify-center rounded-xl text-tv-muted transition-colors hover:bg-white/[0.06] hover:text-white md:flex ${isCollapsed ? 'absolute left-[22px] top-[80px]' : ''}`}
-            title={isCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
-            aria-label={isCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
@@ -310,20 +348,17 @@ export default function Sidebar() {
             {visibleGroups.map((group) => (
               <section key={group.id}>
                 <div className={`mb-1.5 px-2 text-xs font-bold uppercase tracking-[0.14em] text-white/35 md:text-[10px] md:tracking-[0.18em] ${isCollapsed ? 'md:hidden' : ''}`}>
-                  {group.label}
+                  {getLocalizedGroupName(group.id, group.label)}
                 </div>
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
+                    const localized = getLocalizedItem(item.id, item.name, item.subtitle);
                     const targetHref = item.id === 'lensai' ? `/technical/${councilTicker.symbol}.JK` : item.path;
                     const active = isPathActive(pathname, item);
-                    // `authResolved` wajib: kalau /api/auth/me gagal dihubungi, user yang
-                    // SUDAH login akan terlihat seperti guest di sini dan seluruh menunya
-                    // dipasangi gembok + tautan /login-required - persis keluhan "sudah
-                    // login tapi disuruh login lagi". Ragu = jangan kunci.
                     const lockedForGuest = !authLoading && authResolved && !user && role === 'guest' && isProtectedPage(item.path);
                     const href = lockedForGuest
-                      ? `/login-required?next=${encodeURIComponent(targetHref)}&feature=${encodeURIComponent(item.name)}`
+                      ? `/login-required?next=${encodeURIComponent(targetHref)}&feature=${encodeURIComponent(localized.name)}`
                       : targetHref;
                     const Icon = item.icon;
                     const accentClass = item.accent ? ACCENT_CLASS[item.accent] : 'text-white/45 bg-white/[0.03]';
@@ -331,14 +366,14 @@ export default function Sidebar() {
                       <Link
                         key={item.id}
                         href={href}
-                        title={lockedForGuest ? `${item.name} - login diperlukan` : item.name}
-                        aria-label={lockedForGuest ? `${item.name}, login diperlukan` : item.name}
+                        title={lockedForGuest ? `${localized.name} - ${t('nav.loginRequired')}` : localized.name}
+                        aria-label={lockedForGuest ? `${localized.name}, ${t('nav.loginRequired')}` : localized.name}
                         onClick={() => setIsOpen(false)}
                         onMouseEnter={(event) => {
                           if (!isCollapsed) return;
                           const rect = event.currentTarget.getBoundingClientRect();
                           setHoveredNav({
-                            label: item.name,
+                            label: localized.name,
                             top: rect.top + rect.height / 2,
                             locked: lockedForGuest,
                           });
@@ -348,7 +383,7 @@ export default function Sidebar() {
                           if (!isCollapsed) return;
                           const rect = event.currentTarget.getBoundingClientRect();
                           setHoveredNav({
-                            label: item.name,
+                            label: localized.name,
                             top: rect.top + rect.height / 2,
                             locked: lockedForGuest,
                           });
@@ -372,10 +407,10 @@ export default function Sidebar() {
                         </span>
                         <span className={`ml-2.5 min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-semibold md:text-[12.5px]">{item.name}</span>
+                            <span className="truncate text-sm font-semibold md:text-[12.5px]">{localized.name}</span>
                             {item.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.9)]" />}
                           </span>
-                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/40 md:truncate md:text-[10px] md:leading-normal md:text-white/32">{item.subtitle}</span>
+                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/40 md:truncate md:text-[10px] md:leading-normal md:text-white/32">{localized.subtitle}</span>
                         </span>
                         {!isCollapsed && lockedForGuest && (
                           <LockKeyhole className="h-4 w-4 shrink-0 text-tv-muted" aria-hidden="true" />
@@ -401,7 +436,7 @@ export default function Sidebar() {
           >
             <span className="absolute -left-1.5 h-3 w-3 rotate-45 border-b border-l border-white/10 bg-[#111A29]" aria-hidden="true" />
             <span className="relative">
-              {hoveredNav.label}{hoveredNav.locked ? ' · Login diperlukan' : ''}
+              {hoveredNav.label}{hoveredNav.locked ? ` · ${t('nav.loginRequired')}` : ''}
             </span>
           </div>
         )}
@@ -427,7 +462,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  title="Keluar"
+                  title={t('nav.logout')}
                   className={`rounded-xl p-2 text-tv-muted transition-colors hover:bg-tv-red/10 hover:text-tv-red ${isCollapsed ? 'md:hidden' : ''}`}
                 >
                   <LogOut className="h-4 w-4" />
@@ -437,13 +472,13 @@ export default function Sidebar() {
           ) : !authLoading ? (
             <Link href="/login" className={`flex items-center gap-2 rounded-2xl border border-tv-blue/15 bg-tv-blue/10 p-2.5 font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15 ${isCollapsed ? 'md:justify-center md:px-0' : ''}`}>
               <LogIn className="h-4 w-4 shrink-0" />
-              <span className={`text-sm ${isCollapsed ? 'md:hidden' : ''}`}>Masuk / Daftar</span>
+              <span className={`text-sm ${isCollapsed ? 'md:hidden' : ''}`}>{t('nav.login')}</span>
             </Link>
           ) : null}
 
           <div className={`mt-2.5 flex items-center justify-between px-1 text-[10px] font-medium text-white/25 ${isCollapsed ? 'md:hidden' : ''}`}>
-            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-tv-green" /> IDX data connected</span>
-            <span>v2 UI</span>
+            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-tv-green" /> {t('nav.idxConnected')}</span>
+            <span>{t('nav.v2Ui')}</span>
           </div>
         </div>
       </aside>

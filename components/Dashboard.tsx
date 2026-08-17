@@ -107,11 +107,12 @@ function formatBrokerFlow(value: number): string {
 }
 
 function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignalItem[]; advisoryEnabled: boolean }) {
+  const { t, language } = useLanguage();
   const durationSec = Math.max(28, items.length * 7);
   const renderGroup = (copy: number) => (
     <div className="flex shrink-0 gap-3 pr-3" aria-hidden={copy === 1 ? true : undefined}>
       {items.map((item) => {
-        const label = item.flagged ? 'WASPADA' : advisoryEnabled ? 'BUY' : 'INFORMASI';
+        const label = item.flagged ? t('radar.cautionLabel') : advisoryEnabled ? t('radar.buyLabel') : t('radar.infoLabel');
         const tone = item.flagged
           ? 'border-tv-red/30 bg-tv-red/10 text-tv-red'
           : advisoryEnabled
@@ -135,23 +136,23 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
               <div className="mt-1 truncate text-[10px] text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
               {item.tp1 != null && item.cl1 != null ? (
                 <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number text-[10px] font-semibold leading-tight">
-                  <span className="text-tv-green">TP1 {item.tp1.toLocaleString('id-ID')}</span>
-                  <span className="text-tv-red">CL1 {item.cl1.toLocaleString('id-ID')}</span>
-                  {item.tp2 != null && <span className="text-tv-green/80">TP2 {item.tp2.toLocaleString('id-ID')}</span>}
-                  {item.cl2 != null && <span className="text-tv-red/80">CL2 {item.cl2.toLocaleString('id-ID')}</span>}
+                  <span className="text-tv-green">TP1 {item.tp1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
+                  <span className="text-tv-red">CL1 {item.cl1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
+                  {item.tp2 != null && <span className="text-tv-green/80">TP2 {item.tp2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
+                  {item.cl2 != null && <span className="text-tv-red/80">CL2 {item.cl2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
                 </div>
               ) : (
-                <div className="mt-1.5 text-[10px] font-medium text-tv-muted">TP/CL belum tersedia</div>
+                <div className="mt-1.5 text-[10px] font-medium text-tv-muted">{t('radar.tpClUnavailable')}</div>
               )}
               {typeof item.brokerNetValue === 'number' && item.brokerNetValue !== 0 && (
                 <div className={`mt-1.5 text-[10px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                  Bandar: Net {item.brokerNetValue > 0 ? 'Buy' : 'Sell'} Rp{formatBrokerFlow(item.brokerNetValue)}
+                  {t('radar.bandarFlow', { action: item.brokerNetValue > 0 ? 'Buy' : 'Sell', amount: formatBrokerFlow(item.brokerNetValue) })}
                 </div>
               )}
             </div>
             <div className="shrink-0 text-right">
               <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-bold tracking-wide ${tone}`}>{label}</span>
-              <div className="mt-1.5 font-number text-[10px] text-tv-muted">Rp {Math.round(item.price).toLocaleString('id-ID')}</div>
+              <div className="mt-1.5 font-number text-[10px] text-tv-muted">Rp {Math.round(item.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</div>
             </div>
           </Link>
         );
