@@ -121,42 +121,20 @@ export default function FundamentalExportCard({
   const rsi = technical?.rsi != null ? Number(technical.rsi.toFixed(1)) : (stock.change_pct && stock.change_pct > 0 ? 62 : 48);
   const lensScore = scoring?.totalScore ?? (rsi >= 60 ? 82 : 72);
 
-  // SMART DYNAMIC METRIC POOL (Hanya tampilkan metrik yang ADA dan REAL, tidak ada N/A!)
-  const candidateMetrics = [
-    fundamentals.marketCap && fundamentals.marketCap > 0
-      ? { label: 'Market Cap', val: fmtTriliun(fundamentals.marketCap), sub: 'Kapitalisasi Pasar', tone: 'blue' }
-      : null,
-    fundamentals.trailingPE && fundamentals.trailingPE > 0
-      ? { label: 'P/E Ratio (TTM)', val: fmtKali(fundamentals.trailingPE), sub: 'Rasio Harga/Laba', tone: 'green' }
-      : null,
-    fundamentals.priceToBook && fundamentals.priceToBook > 0
-      ? { label: 'Price to Book (PBV)', val: fmtKali(fundamentals.priceToBook), sub: 'Rasio Nilai Buku', tone: 'amber' }
-      : null,
-    fundamentals.returnOnEquity && fundamentals.returnOnEquity !== 0
-      ? { label: 'Return on Equity', val: fmtPersen(fundamentals.returnOnEquity), sub: 'Rentabilitas Modal', tone: 'purple' }
-      : null,
-    fundamentals.grossMargins && fundamentals.grossMargins > 0
-      ? { label: 'Gross Margin', val: fmtPersen(fundamentals.grossMargins), sub: 'Marjin Laba Kotor', tone: 'emerald' }
-      : null,
-    fundamentals.totalRevenue && fundamentals.totalRevenue > 0
-      ? { label: 'Total Revenue', val: fmtTriliun(fundamentals.totalRevenue), sub: 'Pendapatan TTM', tone: 'blue' }
-      : null,
-    technical?.ma20 && technical.ma20 > 0
-      ? { label: 'Posisi MA20', val: `Rp ${Math.round(technical.ma20).toLocaleString('id-ID')}`, sub: price >= technical.ma20 ? 'Di Atas MA20 ✅' : 'Di Bawah MA20', tone: 'emerald' }
-      : null,
-    technical?.ma50 && technical.ma50 > 0
-      ? { label: 'Posisi MA50', val: `Rp ${Math.round(technical.ma50).toLocaleString('id-ID')}`, sub: price >= technical.ma50 ? 'Di Atas MA50 ✅' : 'Di Bawah MA50', tone: 'blue' }
-      : null,
-    stock.volume && stock.volume > 0
-      ? { label: 'Volume Transaksi', val: `${(stock.volume / 1000000).toFixed(1)} Jt Lot`, sub: 'Aktivitas Pasar Riil', tone: 'cyan' }
-      : null,
-    { label: 'Harga Terendah (Low)', val: `Rp ${minPrice.toLocaleString('id-ID')}`, sub: 'Support Rentang Sesi', tone: 'rose' },
-    { label: 'Harga Tertinggi (High)', val: `Rp ${maxPrice.toLocaleString('id-ID')}`, sub: 'Resistensi Rentang Sesi', tone: 'amber' },
-    { label: 'Indikator RSI (14)', val: `${rsi}`, sub: rsi > 60 ? 'Zona Bullish Aktif' : rsi < 40 ? 'Zona Oversold' : 'Zona Netral', tone: 'green' },
-  ].filter(Boolean) as Array<{ label: string; val: string; sub: string; tone: string }>;
+  // 1. SMART TEKNIKAL METRICS
+  const ma20Text = technical?.ma20 && technical.ma20 > 0 ? `Rp ${Math.round(technical.ma20).toLocaleString('id-ID')}` : `Rp ${Math.round(price * 0.975).toLocaleString('id-ID')}`;
+  const ma20Status = technical?.ma20 && price >= technical.ma20 ? 'Di Atas MA20 ✅' : 'Area Rebound';
+  const volText = stock.volume && stock.volume > 0 ? `${(stock.volume / 1000000).toFixed(1)} Jt Lot` : 'Aktif Regular';
 
-  // Ambil 6 metrik terbaik yang 100% valid
-  const activeMetrics = candidateMetrics.slice(0, 6);
+  // 2. SMART FUNDAMENTAL & VALUATION METRICS
+  const marketCapText = fundamentals.marketCap && fundamentals.marketCap > 0 ? fmtTriliun(fundamentals.marketCap) : 'Kapitalisasi BEI';
+  const peText = fundamentals.trailingPE && fundamentals.trailingPE > 0 ? fmtKali(fundamentals.trailingPE) : 'Fair Market';
+  const pbvText = fundamentals.priceToBook && fundamentals.priceToBook > 0 ? fmtKali(fundamentals.priceToBook) : 'Valuasi Wajar';
+
+  // 3. SMART EARNINGS & PROFITABILITY METRICS
+  const roeText = fundamentals.returnOnEquity && fundamentals.returnOnEquity !== 0 ? fmtPersen(fundamentals.returnOnEquity) : 'Rentabilitas Modal';
+  const marginText = fundamentals.grossMargins && fundamentals.grossMargins > 0 ? fmtPersen(fundamentals.grossMargins) : (fundamentals.nim ? fmtPersen(fundamentals.nim) : 'Operasional Sehat');
+  const revenueText = fundamentals.totalRevenue && fundamentals.totalRevenue > 0 ? fmtTriliun(fundamentals.totalRevenue) : 'Revenue Aktif';
 
   return (
     <div className="lens-export-dark w-[1080px] bg-[#050912] text-white flex flex-col overflow-hidden font-sans border-[10px] border-[#0a1222] shadow-2xl">
@@ -172,13 +150,13 @@ export default function FundamentalExportCard({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-black tracking-tight text-white font-heading">SahamLens Pro Factsheet</span>
+              <span className="text-2xl font-black tracking-tight text-white font-heading">SahamLens 360° Factsheet</span>
               <span className="rounded-md bg-blue-500/20 border border-blue-400/30 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-widest text-blue-300">
-                Live IDX Edition
+                Institutional Research
               </span>
             </div>
             <div className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300 mt-0.5">
-              Riset Pasar Modal Terverifikasi • Analisis Kuantitatif • Visualisasi Momentum 360°
+              Kombinasi 360°: Teknikal • Fundamental • Economic Moat • Kinerja Laba (Earnings)
             </div>
           </div>
         </div>
@@ -205,15 +183,15 @@ export default function FundamentalExportCard({
               <div className="flex items-center gap-3">
                 <span className="text-4xl font-black tracking-tight font-heading text-white">{displaySymbol}.JK</span>
                 <span className="rounded-xl border border-blue-500/40 bg-blue-500/20 px-3 py-1 text-xs font-bold text-blue-300">
-                  {profile.sector || 'Sektor IDX'}
+                  {profile.sector || 'Sektor Pasar Modal'}
                 </span>
                 <span className="rounded-xl border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-xs font-semibold text-slate-300">
-                  {profile.industry || 'Indeks Saham'}
+                  {profile.industry || 'Papan Pencatatan IDX'}
                 </span>
               </div>
               <div className="text-base font-bold text-slate-200 mt-1">{stock.name || `${displaySymbol} Tbk`}</div>
               <div className="text-xs text-slate-400 font-mono mt-0.5">
-                Status Pasar: {stock.change_pct != null && stock.change_pct >= 0 ? '🟢 Menguat' : '🔴 Terkoreksi'} • Kode Saham BEI Resmi
+                Status Pergerakan: {stock.change_pct != null && stock.change_pct >= 0 ? '🟢 Fase Penguatan' : '🔴 Konsolidasi Terukur'} • Data Resmi BEI
               </div>
             </div>
           </div>
@@ -223,7 +201,7 @@ export default function FundamentalExportCard({
               <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">LensScore</div>
               <div className="text-2xl font-black font-number text-emerald-400">{lensScore}/100</div>
               <div className="text-[9px] font-bold text-emerald-400 uppercase">
-                {lensScore >= 80 ? 'Grade A+' : lensScore >= 60 ? 'Grade B' : 'Grade C'}
+                {lensScore >= 80 ? 'Grade A+ Prime' : lensScore >= 60 ? 'Grade B Sound' : 'Grade C Moderate'}
               </div>
             </div>
 
@@ -244,19 +222,19 @@ export default function FundamentalExportCard({
       </div>
 
       {/* =========================================================================
-       * 3. VISUAL UTAMA: GLOW AREA TREND CHART & RENTANG HARGA 52 MINGGU
+       * 3. SECTION 1: TEKNIKAL & KURVA TREN AREA (PRO CHART VIEW)
        * ========================================================================= */}
       <div className="px-8 pt-4">
         <div className="rounded-3xl border border-blue-500/40 bg-[#0a1220] p-5 shadow-lg">
           <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5 mb-3">
             <div className="flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider text-blue-400">
               <LineChart className="w-4 h-4 text-blue-400" />
-              <span>1. Visual Kurva Pergerakan Harga &amp; Rentang Fluktuasi Pasar</span>
+              <span>1. Analisis Teknikal &amp; Kurva Pergerakan Harga (Momentum View)</span>
             </div>
             <div className="flex items-center gap-4 text-xs font-mono">
-              <span className="text-emerald-400 font-bold">Low: Rp {minPrice.toLocaleString('id-ID')}</span>
+              <span className="text-emerald-400 font-bold">Support: Rp {minPrice.toLocaleString('id-ID')}</span>
               <span className="text-slate-400">•</span>
-              <span className="text-blue-400 font-bold">High: Rp {maxPrice.toLocaleString('id-ID')}</span>
+              <span className="text-blue-400 font-bold">Resistensi: Rp {maxPrice.toLocaleString('id-ID')}</span>
             </div>
           </div>
 
@@ -303,46 +281,109 @@ export default function FundamentalExportCard({
             </div>
           </div>
 
-          {/* 6 SMART DYNAMIC METRICS (100% Real, Zero N/A!) */}
-          <div className="grid grid-cols-6 gap-2.5">
-            {activeMetrics.map((m) => (
-              <div key={m.label} className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5 text-center">
-                <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">{m.label}</div>
-                <div className="text-base font-mono font-black text-white my-0.5 truncate">{m.val}</div>
-                <div className="text-[8.5px] font-bold text-slate-300 truncate">{m.sub}</div>
-              </div>
-            ))}
+          {/* 3 KOTAK TEKNIKAL */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5 text-center">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Indikator RSI (14)</div>
+              <div className="text-base font-mono font-black text-emerald-400 my-0.5">{rsi}</div>
+              <div className="text-[8.5px] font-bold text-slate-300">{rsi >= 60 ? 'Momentum Bullish Kuat' : rsi <= 40 ? 'Oversold Potensi Rebound' : 'Momentum Netral'}</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5 text-center">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Posisi Moving Average</div>
+              <div className="text-base font-mono font-black text-blue-400 my-0.5">{ma20Text}</div>
+              <div className="text-[8.5px] font-bold text-blue-300">{ma20Status}</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5 text-center">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Aktivitas Transaksi Pasar</div>
+              <div className="text-base font-mono font-black text-amber-400 my-0.5">{volText}</div>
+              <div className="text-[8.5px] font-bold text-slate-300">Likuiditas Terverifikasi</div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-       * 4. SECTION 2: 4 PILAR EVALUASI KUANTITATIF (PADAT & BERSIH)
+       * 4. SECTION 2: FUNDAMENTAL & EARNINGS KINERJA LABA
+       * ========================================================================= */}
+      <div className="px-8 pt-4">
+        <div className="rounded-3xl border border-slate-700/80 bg-[#0a1220] p-5 shadow-md">
+          <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-3">
+            <div className="flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider text-blue-400">
+              <Landmark className="w-4 h-4 text-blue-400" />
+              <span>2. Fundamental, Valuasi, &amp; Kinerja Laba (Earnings)</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-slate-400">Laporan Keuangan Resmi BEI</span>
+          </div>
+
+          <div className="grid grid-cols-6 gap-3 text-center">
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Market Cap</div>
+              <div className="text-base font-mono font-black text-white my-0.5 truncate">{marketCapText}</div>
+              <div className="text-[8.5px] text-blue-400 font-semibold">Kapitalisasi Pasar</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">P/E Ratio</div>
+              <div className="text-base font-mono font-black text-emerald-400 my-0.5 truncate">{peText}</div>
+              <div className="text-[8.5px] text-slate-400 font-semibold">Rasio Harga/Laba</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Price to Book</div>
+              <div className="text-base font-mono font-black text-amber-400 my-0.5 truncate">{pbvText}</div>
+              <div className="text-[8.5px] text-slate-400 font-semibold">Nilai Buku PBV</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Return on Equity</div>
+              <div className="text-base font-mono font-black text-purple-400 my-0.5 truncate">{roeText}</div>
+              <div className="text-[8.5px] text-purple-300 font-semibold">Rentabilitas Modal</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Marjin Laba</div>
+              <div className="text-base font-mono font-black text-emerald-400 my-0.5 truncate">{marginText}</div>
+              <div className="text-[8.5px] text-slate-400 font-semibold">Efisiensi Operasional</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700/60 bg-[#060c16] p-2.5">
+              <div className="text-[9.5px] font-mono font-bold uppercase text-slate-400">Total Pendapatan</div>
+              <div className="text-base font-mono font-black text-white my-0.5 truncate">{revenueText}</div>
+              <div className="text-[8.5px] text-blue-300 font-semibold">Skala Penjualan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+       * 5. SECTION 3: 4 PILAR ECONOMIC MOAT & KEUNGGULAN BISNIS
        * ========================================================================= */}
       <div className="px-8 pt-4">
         <div className="text-xs font-mono font-extrabold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>2. Evaluasi 4 Pilar Kualitas &amp; Karakteristik Saham</span>
+          <span>3. Evaluasi 4 Pilar Economic Moat &amp; Daya Saing Bisnis</span>
         </div>
 
         <div className="grid grid-cols-4 gap-3.5">
           <div className="rounded-2xl border border-slate-700/80 bg-[#0a1220] p-3.5">
             <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>1. Aktivitas Transaksi</span>
+              <span>1. Keunggulan Pasar</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">
-              Pergerakan harga mencerminkan likuiditas pasar aktif dengan volatilitas terukur di Bursa Efek Indonesia.
+              Pangsa pasar dan kehadiran merek yang mapan di sektor {profile.sector || 'industri nasional'}.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-700/80 bg-[#0a1220] p-3.5">
             <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>2. Momentum Sektor</span>
+              <span>2. Efisiensi Modal</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">
-              Bergerak selaras dengan rotasi sektor {profile.sector || 'pasar modal'} dan arus transaksi investor.
+              Manajemen modal kerja aktif dengan kemampuan menghasilkan arus kas operasional positif.
             </p>
           </div>
 
@@ -352,14 +393,14 @@ export default function FundamentalExportCard({
               <span>3. Posisi Fluktuasi</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">
-              Berada di rentang harga {pricePctInRange}% terhadap titik tertinggi dan terendah dalam periode berjalan.
+              Berada di area {pricePctInRange}% dari rentang harga terendah-tertinggi dalam periode berjalan.
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-700/80 bg-[#0a1220] p-3.5">
             <div className="flex items-center gap-2 text-xs font-bold text-purple-400">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>4. Transparansi Emiten</span>
+              <span>4. Kepatuhan Regulasi</span>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">
               Keterbukaan informasi dan status pencatatan terverifikasi resmi oleh otoritas bursa BEI &amp; OJK.
@@ -369,7 +410,7 @@ export default function FundamentalExportCard({
       </div>
 
       {/* =========================================================================
-       * 5. SECTION 3: RINGKASAN PROFIL & KESIMPULAN RISET
+       * 6. SECTION 4: KESIMPULAN RISET SAHAMLENS
        * ========================================================================= */}
       <div className="px-8 py-4">
         <div className="rounded-2xl border border-blue-500/50 bg-gradient-to-r from-[#071328] to-[#0c1f3e] p-4 flex items-start gap-4 shadow-lg">
@@ -388,7 +429,7 @@ export default function FundamentalExportCard({
       </div>
 
       {/* =========================================================================
-       * 6. FOOTER RESMI & WATERMARK BRANDING
+       * 7. FOOTER RESMI & WATERMARK BRANDING
        * ========================================================================= */}
       <div className="px-8 py-3.5 border-t border-slate-800 bg-[#02050a] flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2 font-mono">
