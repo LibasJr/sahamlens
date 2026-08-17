@@ -1,0 +1,29 @@
+SAHAMLENS - FIX DEPLOY VPS SMOKE TEST
+Tanggal: 2026-08-17
+
+Masalah:
+GitHub Actions gagal pada step "Smoke test publik setelah deploy" karena JavaScript di workflow rusak:
+  SyntaxError: Unexpected token '{'
+  const url = ${base}/;
+
+Perbaikan:
+- Hanya .github/workflows/deploy-vps.yml yang diubah.
+- Step SSH dan deploy VPS tidak diubah.
+- Smoke test tidak lagi memakai Node.js.
+- Smoke test memakai curl ke https://sahamlens.id/
+- Retry 5 kali dengan jeda 5 detik.
+- HTTP 2xx/3xx = PASS.
+- 4xx/5xx/network error = FAIL setelah retry.
+- /api/health tetap tidak dibuka ke publik.
+
+Cara pakai:
+1. Extract ZIP patch.
+2. Copy folder .github ke ROOT repository SahamLens lokal.
+3. Pilih Replace/Overwrite.
+4. Buka GitHub Desktop.
+5. Pastikan perubahan hanya .github/workflows/deploy-vps.yml
+6. Commit to main.
+7. Push origin.
+
+Commit message:
+  fix: repair VPS public smoke test

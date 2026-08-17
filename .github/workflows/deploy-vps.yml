@@ -140,54 +140,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          
-          node --input-type=module <<'NODE'
-          const base = 'https://sahamlens.id';
-          const url = ${base}/;
-          
-          async function smokeTest() {
-            let lastError;
-          
-            for (let attempt = 1; attempt <= 5; attempt++) {
-              try {
-                const res = await fetch(url, {
-                  redirect: 'follow',
-                  headers: {
-                    'user-agent': 'SahamLens-GitHub-Deploy-SmokeTest/1.0',
-                    'accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
-                  },
-                  signal: AbortSignal.timeout(20000),
-                });
-          
-                console.log(Public smoke test attempt : / -> HTTP );
-          
-                if (res.status === 403) {
-                  throw new Error(/ HTTP 403);
-                }
-          
-                if (res.status === 404) {
-                  throw new Error(/ HTTP 404);
-                }
-          
-                if (res.status >= 500) {
-                  throw new Error(/ HTTP );
-                }
-          
-                console.log('Public smoke test PASS');
-                return;
-              } catch (err) {
-                lastError = err;
-                console.error(Attempt  gagal:, err?.message ?? err);
-          
-                if (attempt < 5) {
-                  await new Promise(resolve => setTimeout(resolve, 5000));
-                }
-              }
-            }
-          
-            throw lastError ?? new Error('Public smoke test gagal');
-          }
-          
-          await smokeTest();
-          NODE
 
+          URL="https://sahamlens.id/"
+          USER_AGENT="SahamLens-GitHub-Deploy-SmokeTest/2.0"
+
+          echo "Smoke test publik: $URL"
+
+          for attempt in 1 2 3 4 5; do
+            status="$(
+              curl \
+                --location \
+                --silent \
+                --show-error \
+                --output /tmp/sahamlens-smoke-response.html \
+                --write-out '%{http_code}' \
+                --connect-timeout 10 \
+                --max-time 20 \
+                --user-agent "$USER_AGENT" \
+                "$URL" \
+              || true
+            )"
+
+            echo "Attempt $attempt/5 -> HTTP ${status:-000}"
+
+            case "$status" in
+              2??|3??)
+                echo "Public smoke test PASS"
+                exit 0
+                ;;
+            esac
+
+            if [ "$attempt" -lt 5 ]; then
+              echo "Belum sehat dari jalur publik; retry 5 detik..."
+              sleep 5
+            fi
+          done
+
+          echo "::error::Public smoke test gagal setelah 5 percobaan."
+          echo "::error::Status HTTP terakhir: ${status:-000}"
+          exit 1
