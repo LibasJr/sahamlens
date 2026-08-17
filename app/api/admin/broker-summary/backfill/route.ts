@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { isAdminServer } from '@/modules/user';
 import { pool } from '@/shared/database/postgres.client';
 
-export const TOP_200_LIQUID_TICKERS = [
+const TOP_200_LIQUID_TICKERS = [
   // 1. Banking & Financial Services (22)
   'BBCA', 'BBRI', 'BMRI', 'BBNI', 'BBTN', 'BRIS', 'BDMN', 'BNGA', 'BTPS', 'ARTO',
   'BFIN', 'BBHI', 'BBYB', 'BJBR', 'BJTM', 'BNII', 'BNLI', 'PNBN', 'AGRO', 'NOBU', 'BANK', 'BTPN',
