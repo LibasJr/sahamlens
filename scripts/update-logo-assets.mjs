@@ -2,16 +2,16 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-const sourceImgPath = 'C:\\Users\\TyaTyoKya\\.gemini\\antigravity-ide\\brain\\9e252d0d-5e0a-4c6e-a1f4-a29d400bd113\\sahamlens_logo_eye_lens_1786949625141.jpg';
+const sourceImgPath = 'C:\\Users\\TyaTyoKya\\.gemini\\antigravity-ide\\brain\\9e252d0d-5e0a-4c6e-a1f4-a29d400bd113\\sahamlens_logo_stacked_1786953252301.jpg';
 
 async function updateLogos() {
-  console.log('Generating updated logo and icon assets for Web & Mobile...');
+  console.log('Generating updated stacked logo and icon assets for Web & Mobile...');
 
-  // The source image is 1024x1024.
-  // The Eye-Lens mark is centered horizontally around x=295, y=500.
-  // We crop a 440x440 square region: left=75, top=280.
+  // The source image is 1024x1024 with the full stacked logo centered.
+  // We extract a tight centered region (e.g. 700x700 centered at 512,512: left=162, top=200, width=700, height=620)
+  // or use the whole image with padding:
   const iconBuffer = await sharp(sourceImgPath)
-    .extract({ left: 75, top: 280, width: 440, height: 440 })
+    .extract({ left: 140, top: 250, width: 744, height: 520 })
     .toBuffer();
 
   // 1. public/sahamlens-scope.png & public/sahamlens-logo.png (512x512)
