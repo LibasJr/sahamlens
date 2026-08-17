@@ -63,10 +63,10 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
         <div>
           <div className='flex items-center gap-2'>
             <Bot className='h-5 w-5 text-tv-green' />
-            <h2 className='font-heading text-xl font-bold text-white'>Monitor Sinkronisasi Otomatis</h2>
+            <h2 className='font-heading text-xl font-bold text-white'>Monitor EOD Broker Summary & Bandarmology</h2>
           </div>
           <p className='mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted'>
-            Data server-only dari Index Alpha. Value, volume, dan frequency disimpan terpisah agar evidence broker tidak hilang. Data ini belum dicampur ke LensScore sampai tersedia histori PIT yang cukup untuk validasi.
+            Data resmi transaksi harian kode broker BEI (End-of-Day) yang otomatis diproses setiap hari bursa pukul 17:30 WIB. Value, volume, dan frequency tersimpan lengkap untuk analisis konsentrasi akumulasi dan distribusi bandar.
           </p>
         </div>
         <a
@@ -278,9 +278,9 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
               <div className='flex items-start gap-3'>
                 <AlertTriangle className='mt-0.5 h-5 w-5 shrink-0 text-tv-yellow' />
                 <div>
-                  <p className='font-semibold text-tv-yellow'>Belum ada data otomatis</p>
+                  <p className='font-semibold text-tv-yellow'>Belum ada data transaksi broker</p>
                   <p className='mt-1 text-sm text-tv-muted'>
-                    Setelah QStash menjalankan broker-summary-scan pertama kali, ringkasan akan muncul di sini.
+                    Setelah cron job harian atau skrip sinkronisasi dijalankan, ringkasan data transaksi broker akan muncul di sini.
                   </p>
                 </div>
               </div>

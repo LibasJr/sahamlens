@@ -57,9 +57,9 @@ export default async function BrokerSummaryPage({ searchParams }: BrokerSummaryP
           Kembali ke Admin
         </Link>
         <div className="mb-8">
-          <h1 className="font-heading text-2xl font-bold text-tv-text sm:text-3xl">Broker Summary</h1>
+          <h1 className="font-heading text-2xl font-bold text-tv-text sm:text-3xl">Broker Summary & Bandarmology</h1>
           <p className="mt-2 max-w-3xl text-sm text-tv-muted">
-            Pantau sinkronisasi otomatis Index Alpha atau gunakan import manual sebagai jalur cadangan.
+            Pantau sinkronisasi otomatis EOD Broker Summary BEI dan analisis konsentrasi Bandarmology.
           </p>
         </div>
         <BrokerSummaryMonitorPanel

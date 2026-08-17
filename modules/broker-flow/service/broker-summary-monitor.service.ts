@@ -1,7 +1,6 @@
 import { queryReadWithRetry } from '@/shared/database/postgres.client';
 import { getLastRun, type JobRunLog } from '@/shared/scheduler/job-run-log.repository';
 
-const AUTOMATED_SOURCE = 'INDEX_ALPHA_API';
 const MAX_HISTORY_DATES = 31;
 const MAX_BROKER_ROWS = 50;
 
@@ -59,7 +58,7 @@ export interface BrokerMonitorRow {
 }
 
 export interface BrokerSummaryMonitor {
-  source: typeof AUTOMATED_SOURCE;
+  source: string;
   tableReady: boolean;
   job: JobRunLog | null;
   dates: BrokerMonitorDateSummary[];
@@ -94,7 +93,7 @@ export function normalizeBrokerMonitorTicker(value: string | null | undefined): 
 
 function emptyMonitor(job: JobRunLog | null): BrokerSummaryMonitor {
   return {
-    source: AUTOMATED_SOURCE,
+    source: 'IDX_EOD_REPORT',
     tableReady: false,
     job,
     dates: [],
@@ -139,12 +138,11 @@ export async function getBrokerSummaryMonitor(input: {
         COUNT(DISTINCT broker_code)::int AS broker_count,
         MAX(imported_at)::text AS last_imported_at
       FROM broker_summary_daily
-      WHERE source = $1
       GROUP BY trade_date
       ORDER BY trade_date DESC
-      LIMIT $2
+      LIMIT $1
     `,
-    [AUTOMATED_SOURCE, MAX_HISTORY_DATES],
+    [MAX_HISTORY_DATES],
   );
 
   const dates = dateResult.rows.map((row) => ({
@@ -154,6 +152,7 @@ export async function getBrokerSummaryMonitor(input: {
     brokerCount: numberValue(row.broker_count),
     lastImportedAt: row.last_imported_at,
   }));
+
   if (dates.length === 0) {
     return { ...emptyMonitor(job), tableReady: true };
   }
@@ -162,16 +161,17 @@ export async function getBrokerSummaryMonitor(input: {
     ? input.date
     : dates[0]!.tradeDate;
   const selectedTicker = normalizeBrokerMonitorTicker(input.ticker);
+  const dbTickerPattern = selectedTicker ? (selectedTicker.includes('.JK') ? selectedTicker : `${selectedTicker}.JK`) : null;
 
   const [tickerResult, coverageResult, brokerResult] = await Promise.all([
     queryReadWithRetry<{ ticker: string }>(
       `
         SELECT DISTINCT ticker
         FROM broker_summary_daily
-        WHERE source = $1 AND trade_date = $2
+        WHERE trade_date = $1::date
         ORDER BY ticker
       `,
-      [AUTOMATED_SOURCE, requestedDate],
+      [requestedDate],
     ),
     queryReadWithRetry<CoverageRow>(
       `
@@ -187,11 +187,10 @@ export async function getBrokerSummaryMonitor(input: {
           COALESCE(SUM(sell_frequency), 0)::text AS total_sell_frequency,
           MAX(imported_at)::text AS last_imported_at
         FROM broker_summary_daily
-        WHERE source = $1
-          AND trade_date = $2
-          AND ($3::text IS NULL OR ticker = $3)
+        WHERE trade_date = $1::date
+          AND ($2::text IS NULL OR ticker = $2 OR ticker = $2 || '.JK' OR REPLACE(ticker, '.JK', '') = $2)
       `,
-      [AUTOMATED_SOURCE, requestedDate, selectedTicker],
+      [requestedDate, selectedTicker],
     ),
     queryReadWithRetry<BrokerAggregateRow>(
       `
@@ -205,26 +204,25 @@ export async function getBrokerSummaryMonitor(input: {
           COALESCE(SUM(sell_frequency), 0)::text AS sell_frequency,
           COALESCE(SUM(buy_value - sell_value), 0)::text AS net_value
         FROM broker_summary_daily
-        WHERE source = $1
-          AND trade_date = $2
-          AND ($3::text IS NULL OR ticker = $3)
+        WHERE trade_date = $1::date
+          AND ($2::text IS NULL OR ticker = $2 OR ticker = $2 || '.JK' OR REPLACE(ticker, '.JK', '') = $2)
         GROUP BY broker_code
         ORDER BY ABS(SUM(buy_value - sell_value)) DESC, broker_code
-        LIMIT $4
+        LIMIT $3
       `,
-      [AUTOMATED_SOURCE, requestedDate, selectedTicker, MAX_BROKER_ROWS],
+      [requestedDate, selectedTicker, MAX_BROKER_ROWS],
     ),
   ]);
 
   const coverageRow = coverageResult.rows[0];
   return {
-    source: AUTOMATED_SOURCE,
+    source: 'IDX_EOD_REPORT',
     tableReady: true,
     job,
     dates,
     selectedDate: requestedDate,
     selectedTicker,
-    availableTickers: tickerResult.rows.map((row) => row.ticker),
+    availableTickers: tickerResult.rows.map((r) => r.ticker.replace(/\.JK$/i, '')),
     coverage: {
       rowCount: numberValue(coverageRow?.row_count),
       tickerCount: numberValue(coverageRow?.ticker_count),
@@ -250,8 +248,8 @@ export async function getBrokerSummaryMonitor(input: {
         sellVolume: numberValue(row.sell_volume),
         buyFrequency,
         sellFrequency,
-        avgBuyValuePerTrade: buyFrequency > 0 ? buyValue / buyFrequency : null,
-        avgSellValuePerTrade: sellFrequency > 0 ? sellValue / sellFrequency : null,
+        avgBuyValuePerTrade: buyFrequency > 0 ? Math.round(buyValue / buyFrequency) : null,
+        avgSellValuePerTrade: sellFrequency > 0 ? Math.round(sellValue / sellFrequency) : null,
         netValue: numberValue(row.net_value),
       };
     }),
