@@ -1132,3 +1132,36 @@ html .lens-chip {
 .lens-export-dark .text-xs {
   font-size: 0.75rem;
 }
+
+/* Bento Grid Ambient Glow Utilities */
+.bento-glow-emerald {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bento-glow-emerald:hover {
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.15);
+}
+
+.bento-glow-blue {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bento-glow-blue:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.15);
+}
+
+.bento-glow-amber {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bento-glow-amber:hover {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.15);
+}
+
+.bento-glow-rose {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bento-glow-rose:hover {
+  border-color: rgba(244, 63, 94, 0.45);
+  box-shadow: 0 0 24px rgba(244, 63, 94, 0.15);
+}

@@ -591,18 +591,16 @@ export async function GET(
     const dataIntegrity = await getLatestMarketIntegrity(ticker);
 
     const atrVal = calculateWilderAtr(analyzerHistory.map((h: any) => ({
-      High: h.High,
-      Low: h.Low,
-      Close: h.Close,
+      high: Number(h.High) || 0,
+      low: Number(h.Low) || 0,
+      close: Number(h.Close) || 0,
     })));
     const tradeSetup = buildLongTradingSetup(
       analyzerHistory.map((h: any) => ({
-        date: h.Date.split('T')[0],
-        open: h.Open,
-        high: h.High,
-        low: h.Low,
-        close: h.Close,
-        volume: h.Volume,
+        High: Number(h.High) || 0,
+        Low: Number(h.Low) || 0,
+        Close: Number(h.Close) || 0,
+        AdjClose: typeof h.AdjClose === 'number' ? h.AdjClose : null,
       })),
       currentPrice,
       atrVal

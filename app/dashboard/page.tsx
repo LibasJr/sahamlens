@@ -9,6 +9,8 @@ import BandarFlowPro from '@/components/BandarFlowPro';
 import OwnershipFlowCard from '@/components/ownership-flow/OwnershipFlowCard';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import { PositionSizingCalculator } from '@/components/PositionSizingCalculator';
+import { QuickWatchlistStar } from '@/components/QuickWatchlistStar';
+import { PriceRangeSlider } from '@/components/ui/PriceRangeSlider';
 import AlgoFilters from '@/components/AlgoFilters';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
 import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
@@ -1158,8 +1160,9 @@ function DashboardContent() {
                   membedakan apa pun. Diganti avatar berwarna deterministik per emiten. */}
               <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
               <div>
-                <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                   <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                  <QuickWatchlistStar ticker={stock.symbol || ticker} />
                   <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
                 </div>
                 {/* BUG FIX (2026-08-14, brainstorm lanjutan review eksternal - false
@@ -1235,20 +1238,24 @@ function DashboardContent() {
                     </span>
                   )}
                 </div>
-                {/* BUG FIX (audit logika & algoritma 2026-08-05, temuan C-8): baris ini
-                    dulu HANYA menampilkan jam saat browser menerima response - bukan umur
-                    data pasarnya. /api/stock/[ticker] sudah lama mengirim `_meta`
-                    (source live/stale-cache, freshness DELAYED/EOD/STALE, dataTimestamp
-                    dari `meta.regularMarketTime` Yahoo), termasuk saat menyajikan cache
-                    darurat yang bisa berumur sampai 24 jam - tapi TIDAK ADA satu pun
-                    pembacaan `_meta` di halaman ini, sehingga data kemarin/minggu lalu
-                    dirender identik dengan data hari ini. Sekarang ditampilkan apa adanya. */}
                 <p className="text-[11px] text-tv-muted mt-1">
                   Data sesi: {formatTime(lastUpdate)}
                   {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
                 </p>
               </div>
             </div>
+
+            {/* Price Range Slider (Day's Range) */}
+            {typeof stock.current_price === 'number' && candles && candles.length > 0 && (
+              <div className="w-full md:w-72 shrink-0">
+                <PriceRangeSlider
+                  currentPrice={stock.current_price}
+                  lowPrice={Number(candles[candles.length - 1]?.low) || (stock.current_price * 0.98)}
+                  highPrice={Number(candles[candles.length - 1]?.high) || (stock.current_price * 1.02)}
+                  label="Rentang Harga Hari Ini"
+                />
+              </div>
+            )}
 
             <div className="flex w-full min-w-0 items-stretch gap-4 md:w-auto md:items-center md:gap-6">
                {data?.bestPerformer && (
@@ -1611,8 +1618,8 @@ function DashboardContent() {
                   <PositionSizingCalculator
                     ticker={ticker}
                     entryPrice={data?.tradeSetup?.entryPrice ?? data?.stock?.current_price}
-                    cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find(a => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
-                    takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find(a => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
+                    cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
+                    takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
                     takeProfit2Price={data?.tradeSetup?.takeProfit2 ?? (data?.stock?.current_price * 1.15)}
                   />
                 )}
@@ -1634,8 +1641,8 @@ function DashboardContent() {
                 <PositionSizingCalculator
                   ticker={ticker}
                   entryPrice={data?.tradeSetup?.entryPrice ?? data?.stock?.current_price}
-                  cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find(a => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
-                  takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find(a => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
+                  cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
+                  takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
                   takeProfit2Price={data?.tradeSetup?.takeProfit2 ?? (data?.stock?.current_price * 1.15)}
                 />
               )}

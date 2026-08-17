@@ -1,7 +1,5 @@
-'use client';
-
 import React, { useState, useMemo } from 'react';
-import { Shield, Calculator, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, DollarSign } from 'lucide-react';
+import { Shield, Calculator, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, DollarSign, Copy, Check } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { calculatePositionSize } from '@/lib/utils/position-sizer';
 import { formatRupiah } from '@/shared/config/pricing';
@@ -25,6 +23,7 @@ export function PositionSizingCalculator({
 }: PositionSizingCalculatorProps) {
   const [capital, setCapital] = useState<number>(10_000_000);
   const [riskPct, setRiskPct] = useState<number>(1.0);
+  const [isCopied, setIsCopied] = useState(false);
 
   const cleanTicker = ticker.replace('.JK', '');
 
@@ -38,6 +37,22 @@ export function PositionSizingCalculator({
       takeProfit2Price,
     });
   }, [capital, riskPct, entryPrice, cutLossPrice, takeProfit1Price, takeProfit2Price]);
+
+  const handleCopyPlan = () => {
+    if (!result.isValid) return;
+    const text = `🎯 TRADING PLAN SAHAMLENS (${cleanTicker})
+• Entry: Rp ${entryPrice.toLocaleString('id-ID')}
+• Cut Loss: Rp ${cutLossPrice.toLocaleString('id-ID')} (-${(((entryPrice - cutLossPrice) / entryPrice) * 100).toFixed(1)}%)
+${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('id-ID')} (+${result.reward1Pct}% • R:R 1:${result.riskRewardRatio1})\n` : ''}${takeProfit2Price ? `• Take Profit 2: Rp ${takeProfit2Price.toLocaleString('id-ID')} (+${result.reward2Pct}% • R:R 1:${result.riskRewardRatio2})\n` : ''}• Max Pembelian: ${result.maxLots.toLocaleString('id-ID')} Lot (${result.totalShares.toLocaleString('id-ID')} lembar • ${formatRupiah(result.totalPositionCostIdr)})
+• Batas Risiko: ${riskPct}% (${formatRupiah(result.actualRiskLossIdr)})
+• Alokasi Modal: ${result.portfolioAllocationPct}% dari ${formatRupiah(capital)}`;
+
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   if (!entryPrice || !cutLossPrice || cutLossPrice >= entryPrice) {
     return null;
@@ -60,6 +75,21 @@ export function PositionSizingCalculator({
             </p>
           </div>
         </div>
+
+        {/* 1-Click Copy Trading Plan Button */}
+        <button
+          type="button"
+          onClick={handleCopyPlan}
+          title="Salin Rencana Trading ke Clipboard"
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+            isCopied
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+              : 'bg-white/[0.04] text-tv-muted hover:text-white border-white/[0.08] hover:bg-white/[0.08]'
+          }`}
+        >
+          {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+          <span>{isCopied ? 'Tersalin!' : 'Salin Trading Plan'}</span>
+        </button>
       </CardHeader>
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-5">
