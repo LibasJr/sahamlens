@@ -1,40 +1,8 @@
-import { queryReadWithRetry } from '@/shared/database/postgres.client';
 import { getLastRun, type JobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { queryReadWithRetry } from '@/shared/database/postgres.client';
 
-const MAX_HISTORY_DATES = 31;
+const MAX_HISTORY_DATES = 30;
 const MAX_BROKER_ROWS = 50;
-
-interface DateSummaryRow {
-  trade_date: string;
-  row_count: number | string;
-  ticker_count: number | string;
-  broker_count: number | string;
-  last_imported_at: string | null;
-}
-
-interface CoverageRow {
-  row_count: number | string;
-  ticker_count: number | string;
-  broker_count: number | string;
-  total_buy_value: number | string | null;
-  total_sell_value: number | string | null;
-  total_buy_volume: number | string | null;
-  total_sell_volume: number | string | null;
-  total_buy_frequency: number | string | null;
-  total_sell_frequency: number | string | null;
-  last_imported_at: string | null;
-}
-
-interface BrokerAggregateRow {
-  broker_code: string;
-  buy_value: number | string;
-  sell_value: number | string;
-  buy_volume: number | string;
-  sell_volume: number | string;
-  buy_frequency: number | string;
-  sell_frequency: number | string;
-  net_value: number | string;
-}
 
 export interface BrokerMonitorDateSummary {
   tradeDate: string;
@@ -52,9 +20,41 @@ export interface BrokerMonitorRow {
   sellVolume: number;
   buyFrequency: number;
   sellFrequency: number;
+  netValue: number;
   avgBuyValuePerTrade: number | null;
   avgSellValuePerTrade: number | null;
-  netValue: number;
+}
+
+interface DateSummaryRow {
+  trade_date: string;
+  row_count: number | string;
+  ticker_count: number | string;
+  broker_count: number | string;
+  last_imported_at: string | null;
+}
+
+interface CoverageRow {
+  row_count: number | string;
+  ticker_count: number | string;
+  broker_count: number | string;
+  total_buy_value: string | number;
+  total_sell_value: string | number;
+  total_buy_volume: string | number;
+  total_sell_volume: string | number;
+  total_buy_frequency: string | number;
+  total_sell_frequency: string | number;
+  last_imported_at: string | null;
+}
+
+interface BrokerAggregateRow {
+  broker_code: string;
+  buy_value: string | number;
+  sell_value: string | number;
+  buy_volume: string | number;
+  sell_volume: string | number;
+  buy_frequency: string | number;
+  sell_frequency: string | number;
+  net_value: string | number;
 }
 
 export interface BrokerSummaryMonitor {
@@ -132,7 +132,7 @@ export async function getBrokerSummaryMonitor(input: {
   const dateResult = await queryReadWithRetry<DateSummaryRow>(
     `
       SELECT
-        trade_date::text AS trade_date,
+        TO_CHAR(trade_date, 'YYYY-MM-DD') AS trade_date,
         COUNT(*)::int AS row_count,
         COUNT(DISTINCT ticker)::int AS ticker_count,
         COUNT(DISTINCT broker_code)::int AS broker_count,
@@ -161,7 +161,26 @@ export async function getBrokerSummaryMonitor(input: {
     ? input.date
     : dates[0]!.tradeDate;
   const selectedTicker = normalizeBrokerMonitorTicker(input.ticker);
-  const dbTickerPattern = selectedTicker ? (selectedTicker.includes('.JK') ? selectedTicker : `${selectedTicker}.JK`) : null;
+
+  const coverageConditions = ['trade_date = $1::date'];
+  const coverageParams: any[] = [requestedDate];
+  if (selectedTicker) {
+    coverageParams.push(selectedTicker);
+    coverageConditions.push(
+      `(ticker = $${coverageParams.length} OR ticker = $${coverageParams.length} || '.JK' OR REPLACE(ticker, '.JK', '') = $${coverageParams.length})`
+    );
+  }
+
+  const brokerConditions = ['trade_date = $1::date'];
+  const brokerParams: any[] = [requestedDate];
+  if (selectedTicker) {
+    brokerParams.push(selectedTicker);
+    brokerConditions.push(
+      `(ticker = $${brokerParams.length} OR ticker = $${brokerParams.length} || '.JK' OR REPLACE(ticker, '.JK', '') = $${brokerParams.length})`
+    );
+  }
+  brokerParams.push(MAX_BROKER_ROWS);
+  const brokerLimitPlaceholder = `$${brokerParams.length}`;
 
   const [tickerResult, coverageResult, brokerResult] = await Promise.all([
     queryReadWithRetry<{ ticker: string }>(
@@ -187,10 +206,9 @@ export async function getBrokerSummaryMonitor(input: {
           COALESCE(SUM(sell_frequency), 0)::text AS total_sell_frequency,
           MAX(imported_at)::text AS last_imported_at
         FROM broker_summary_daily
-        WHERE trade_date = $1::date
-          AND ($2::text IS NULL OR ticker = $2 OR ticker = $2 || '.JK' OR REPLACE(ticker, '.JK', '') = $2)
+        WHERE ${coverageConditions.join(' AND ')}
       `,
-      [requestedDate, selectedTicker],
+      coverageParams,
     ),
     queryReadWithRetry<BrokerAggregateRow>(
       `
@@ -204,13 +222,12 @@ export async function getBrokerSummaryMonitor(input: {
           COALESCE(SUM(sell_frequency), 0)::text AS sell_frequency,
           COALESCE(SUM(buy_value - sell_value), 0)::text AS net_value
         FROM broker_summary_daily
-        WHERE trade_date = $1::date
-          AND ($2::text IS NULL OR ticker = $2 OR ticker = $2 || '.JK' OR REPLACE(ticker, '.JK', '') = $2)
+        WHERE ${brokerConditions.join(' AND ')}
         GROUP BY broker_code
         ORDER BY ABS(SUM(buy_value - sell_value)) DESC, broker_code
-        LIMIT $3
+        LIMIT ${brokerLimitPlaceholder}
       `,
-      [requestedDate, selectedTicker, MAX_BROKER_ROWS],
+      brokerParams,
     ),
   ]);
 
@@ -248,9 +265,9 @@ export async function getBrokerSummaryMonitor(input: {
         sellVolume: numberValue(row.sell_volume),
         buyFrequency,
         sellFrequency,
+        netValue: numberValue(row.net_value),
         avgBuyValuePerTrade: buyFrequency > 0 ? Math.round(buyValue / buyFrequency) : null,
         avgSellValuePerTrade: sellFrequency > 0 ? Math.round(sellValue / sellFrequency) : null,
-        netValue: numberValue(row.net_value),
       };
     }),
   };
