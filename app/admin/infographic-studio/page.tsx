@@ -5,12 +5,13 @@ import Link from 'next/link';
 import {
   ArrowLeft, Search, Download, Sparkles, PieChart, ShieldCheck,
   TrendingUp, RefreshCw, Layers, CheckCircle2, Image as ImageIcon,
-  Building2, Sliders, FileText, Check, AlertTriangle
+  Building2, Sliders, FileText, Check, AlertTriangle, ChevronDown
 } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
+import { TICKERS } from '@/lib/tickers';
 
 const POPULAR_TICKERS = ['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'ITMG', 'BREN', 'UNVR', 'ICBP'];
 
@@ -23,12 +24,43 @@ export default function InfographicStudioPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
   const [exporting, setExporting] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const showToast = (message: string, variant: ToastVariant = 'info') => {
     setToastMessage(message);
     setToastVariant(variant);
   };
+
+  // Autocomplete Suggestions Filter
+  const filteredTickers = React.useMemo(() => {
+    const query = tickerInput.trim().toUpperCase();
+    if (!query) return TICKERS.slice(0, 8);
+    return TICKERS.filter(
+      (t) =>
+        t.symbol.replace('.JK', '').toUpperCase().includes(query) ||
+        t.name.toUpperCase().includes(query)
+    ).slice(0, 10);
+  }, [tickerInput]);
+
+  const selectTicker = (symbol: string) => {
+    const cleanSym = symbol.replace('.JK', '').toUpperCase();
+    setTickerInput(cleanSym);
+    setIsDropdownOpen(false);
+    fetchStockData(cleanSym);
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const fetchStockData = async (symbol: string) => {
     const cleanSym = symbol.trim().toUpperCase().replace('.JK', '');
@@ -170,34 +202,71 @@ export default function InfographicStudioPage() {
           </p>
         </div>
 
-        {/* Emiten Input Bar */}
+        {/* Emiten Input Bar with Autocomplete Dropdown */}
         <div className="mb-8 rounded-2xl border border-slate-700/80 bg-tv-card/90 p-5 shadow-sm">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              fetchStockData(tickerInput);
-            }}
-            className="flex flex-col sm:flex-row items-center gap-3"
-          >
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-tv-muted" />
-              <input
-                type="text"
-                value={tickerInput}
-                onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
-                placeholder="Ketik kode saham (misal: BBCA, ITMG, TLKM, ASII)..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#090e18] border border-slate-700 text-white font-number font-bold text-base placeholder:text-slate-500 focus:outline-none focus:border-tv-blue focus:ring-2 focus:ring-tv-blue/20"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-tv-blue hover:bg-tv-blueHover text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0"
+          <div ref={searchContainerRef} className="relative">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setIsDropdownOpen(false);
+                fetchStockData(tickerInput);
+              }}
+              className="flex flex-col sm:flex-row items-center gap-3"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>{loading ? 'Memuat...' : 'Buat Infografis'}</span>
-            </button>
-          </form>
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-tv-muted" />
+                <input
+                  type="text"
+                  value={tickerInput}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setTickerInput(e.target.value.toUpperCase());
+                    setIsDropdownOpen(true);
+                  }}
+                  placeholder="Ketik kode saham (misal: BB, TLKM, ITMG, ASII, BREN)..."
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#090e18] border border-slate-700 text-white font-number font-bold text-base placeholder:text-slate-500 focus:outline-none focus:border-tv-blue focus:ring-2 focus:ring-tv-blue/20"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-tv-blue hover:bg-tv-blueHover text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>{loading ? 'Memuat...' : 'Buat Infografis'}</span>
+              </button>
+            </form>
+
+            {/* Autocomplete Dropdown Suggestions */}
+            {isDropdownOpen && filteredTickers.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-slate-700 bg-[#0d1626] shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+                <div className="px-3.5 py-2 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 bg-[#09101d]">
+                  Pilih Emiten ({filteredTickers.length} hasil ditemukan):
+                </div>
+                {filteredTickers.map((t) => {
+                  const sym = t.symbol.replace('.JK', '');
+                  return (
+                    <button
+                      key={t.symbol}
+                      type="button"
+                      onClick={() => selectTicker(sym)}
+                      className="w-full px-4 py-2.5 text-left hover:bg-tv-blue/20 hover:text-tv-blue flex items-center justify-between border-b border-slate-800/60 last:border-0 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-black text-sm text-white px-2 py-0.5 rounded-lg bg-[#142034] border border-slate-700">
+                          {sym}
+                        </span>
+                        <span className="text-xs text-slate-300 font-medium truncate max-w-[340px]">
+                          {t.name}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400">Pilih</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Quick Emiten Chips */}
           <div className="mt-3 flex items-center gap-1.5 flex-wrap text-xs text-tv-muted">
@@ -206,10 +275,7 @@ export default function InfographicStudioPage() {
               <button
                 key={s}
                 type="button"
-                onClick={() => {
-                  setTickerInput(s);
-                  fetchStockData(s);
-                }}
+                onClick={() => selectTicker(s)}
                 className={`px-2.5 py-1 rounded-lg border font-number text-xs font-bold transition-all ${
                   activeTicker === s
                     ? 'border-tv-blue bg-tv-blue/20 text-tv-blue shadow-xs'
