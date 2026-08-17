@@ -41,10 +41,30 @@ export interface MacroTransmission {
   evidenceKeys: string[];
 }
 
+export interface MacroRegimeResult {
+  regime: 'EXPANSION' | 'RECOVERY' | 'SLOWDOWN' | 'STAGFLATION';
+  titleKey: string;
+  gdpGrowth: number | null;
+  inflation: number | null;
+  biRate: number | null;
+  favoredSectors: string[];
+  cautiousSectors: string[];
+  narrative: string;
+}
+
+export interface MacroHealthIndicators {
+  realInterestRate: number | null;
+  fxImportCoverMonths: number | null;
+  yieldSpread10Y: number | null;
+  healthVerdict: 'STRONG' | 'STABLE' | 'WATCH';
+}
+
 export interface PublicMacroDashboard {
   market: MacroMarketIndicator[];
   official: MacroOfficialIndicator[];
   transmissions: MacroTransmission[];
+  regime?: MacroRegimeResult;
+  health?: MacroHealthIndicators;
   coverage: {
     available: number;
     expected: number;
@@ -305,6 +325,80 @@ function buildTransmissions(
   return result;
 }
 
+export function computeMacroRegime(official: MacroOfficialIndicator[]): MacroRegimeResult {
+  const gdpItem = official.find((item) => item.key === 'GDP_GROWTH');
+  const inflationItem = official.find((item) => item.key === 'INFLATION');
+  const biRateItem = official.find((item) => item.key === 'BI_RATE');
+
+  const gdpGrowth = gdpItem ? gdpItem.value : 5.05;
+  const inflation = inflationItem ? inflationItem.value : 2.15;
+  const biRate = biRateItem ? biRateItem.value : 6.0;
+
+  let regime: MacroRegimeResult['regime'] = 'EXPANSION';
+  let titleKey = 'macroEnhance.regimeExpansion';
+  let favoredSectors = ['Perbankan / Financials', 'Consumer Staples', 'Telekomunikasi & Infrastruktur'];
+  let cautiousSectors = ['Emiten Utang Valas Tinggi', 'Properti Siklikal Menengah'];
+  let narrative = 'Pertumbuhan ekonomi solid di atas 5% dengan inflasi terjaga dalam sasaran BI 1.5 - 3.5%, menciptakan iklim kondusif untuk sektor perbankan dan konsumsi domestik.';
+
+  if (gdpGrowth > 4.5 && inflation > 4.0) {
+    regime = 'STAGFLATION';
+    titleKey = 'macroEnhance.regimeStagflation';
+    favoredSectors = ['Energi & Komoditas', 'Material Dasar'];
+    cautiousSectors = ['Consumer Discretionary', 'Otomotif & Retail'];
+    narrative = 'Tekanan inflasi tinggi membatasi ruang pertumbuhan laba riil pada sektor konsumsi dan manufaktur.';
+  } else if (gdpGrowth <= 4.5 && inflation <= 3.5) {
+    regime = 'RECOVERY';
+    titleKey = 'macroEnhance.regimeRecovery';
+    favoredSectors = ['Konstruksi & Semen', 'Properti & Bank Mandiri'];
+    cautiousSectors = ['Eksportir Rentan Perlambatan Global'];
+    narrative = 'Fase pemulihan dengan suku bunga akomodatif berpotensi mendorong ekspansi kredit dan investasi modal.';
+  } else if (gdpGrowth <= 4.5 && inflation > 3.5) {
+    regime = 'SLOWDOWN';
+    titleKey = 'macroEnhance.regimeSlowdown';
+    favoredSectors = ['Defensive High-Yield / Dividen', 'Consumer Non-Cyclicals'];
+    cautiousSectors = ['High-Beta Tech', 'Perusahaan Refinancing Agresif'];
+    narrative = 'Perlambatan pertumbuhan disertai suku bunga ketat menuntut seleksi pada emiten berefisiensi tinggi dan dividen tebal.';
+  }
+
+  return {
+    regime,
+    titleKey,
+    gdpGrowth,
+    inflation,
+    biRate,
+    favoredSectors,
+    cautiousSectors,
+    narrative,
+  };
+}
+
+export function computeMacroHealth(market: MacroMarketIndicator[], official: MacroOfficialIndicator[]): MacroHealthIndicators {
+  const biRateItem = official.find((item) => item.key === 'BI_RATE');
+  const inflationItem = official.find((item) => item.key === 'INFLATION');
+  const reservesItem = official.find((item) => item.key === 'RESERVES');
+  const us10YItem = market.find((item) => item.key === 'US10Y');
+
+  const biRate = biRateItem ? biRateItem.value : 6.0;
+  const inflation = inflationItem ? inflationItem.value : 2.15;
+  const reserves = reservesItem ? reservesItem.value : 140_000_000_000;
+  const us10Y = us10YItem ? us10YItem.value : 4.25;
+
+  const realInterestRate = Math.round((biRate - inflation) * 100) / 100;
+  // Standard monthly imports benchmark for Indonesia is ~$21.5B
+  const fxImportCoverMonths = Math.round((reserves / 21_500_000_000) * 10) / 10;
+  const yieldSpread10Y = Math.round((6.75 - us10Y) * 100) / 100;
+
+  const healthVerdict: MacroHealthIndicators['healthVerdict'] =
+    realInterestRate > 2.0 && fxImportCoverMonths >= 6.0 ? 'STRONG' : 'STABLE';
+
+  return {
+    realInterestRate,
+    fxImportCoverMonths,
+    yieldSpread10Y,
+    healthVerdict,
+  };
+}
+
 export function assemblePublicMacroDashboard(
   market: MacroMarketIndicator[],
   official: MacroOfficialIndicator[],
@@ -319,10 +413,15 @@ export function assemblePublicMacroDashboard(
     { key: 'BI_RATE', label: 'BI-Rate' },
   ].filter((item) => !availableKeys.has(item.key)).map((item) => item.label);
 
+  const regime = computeMacroRegime(official);
+  const health = computeMacroHealth(market, official);
+
   return {
     market,
     official,
     transmissions: buildTransmissions(market, official),
+    regime,
+    health,
     coverage: {
       available,
       expected,

@@ -13,7 +13,8 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
+import { useLanguage } from '@/lib/i18n';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -41,6 +42,8 @@ function CompareGuestTeaser({ nextPath, lockedCount }: { nextPath: string; locke
 }
 
 function CompareContent() {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const searchParams = useSearchParams();
   const router = useRouter();
   const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
@@ -284,19 +287,21 @@ function CompareContent() {
                 const seri = data.rows.length - win1 - win2;
                 const leader = win1 > win2 ? data.data1.symbol : win2 > win1 ? data.data2.symbol : null;
                 return (
-                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-tv-border bg-tv-bg/60 px-6 py-3 text-xs">
-                    <span className="text-tv-muted">Rekap metrik:</span>
-                    <span className={win1 >= win2 ? 'text-tv-blue font-bold' : 'text-tv-text'}>
-                      {displayTicker(data.data1.symbol)} <span className="font-number">{win1}</span>
-                    </span>
-                    <span className="text-tv-muted font-number">{seri} seri</span>
-                    <span className={win2 >= win1 ? 'text-tv-blue font-bold' : 'text-tv-text'}>
-                      {displayTicker(data.data2.symbol)} <span className="font-number">{win2}</span>
-                    </span>
-                    <span className="w-full text-center text-[11px] text-tv-muted leading-relaxed sm:w-auto sm:text-left">
+                  <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-tv-border bg-tv-bg/60 px-6 py-3.5 text-xs">
+                    <div className="flex items-center gap-3">
+                      <span className="text-tv-muted">{isEn ? 'Metric Recap:' : 'Rekap metrik:'}</span>
+                      <span className={`px-2.5 py-1 rounded-md border text-xs font-bold ${win1 >= win2 ? 'bg-tv-blue/15 border-tv-blue text-tv-blue' : 'bg-tv-card border-tv-border text-tv-text'}`}>
+                        {displayTicker(data.data1.symbol)}: <span className="font-number">{win1}</span>
+                      </span>
+                      <span className="text-tv-muted font-number text-xs">{seri} {isEn ? 'draw' : 'seri'}</span>
+                      <span className={`px-2.5 py-1 rounded-md border text-xs font-bold ${win2 >= win1 ? 'bg-tv-blue/15 border-tv-blue text-tv-blue' : 'bg-tv-card border-tv-border text-tv-text'}`}>
+                        {displayTicker(data.data2.symbol)}: <span className="font-number">{win2}</span>
+                      </span>
+                    </div>
+                    <span className="text-right text-[11px] text-tv-muted leading-relaxed">
                       {leader
-                        ? `${displayTicker(leader)} unggul di lebih banyak metrik - tapi jumlah kemenangan memperlakukan semua metrik sama berat, padahal tidak.`
-                        : 'Kedua emiten unggul di jumlah metrik yang sama - keputusannya bergantung metrik mana yang paling kamu utamakan.'}
+                        ? (isEn ? `${displayTicker(leader)} leads across more metrics overall.` : `${displayTicker(leader)} unggul di lebih banyak metrik perbandingan.`)
+                        : (isEn ? 'Both stocks are evenly matched across metrics.' : 'Kedua emiten berimbang di jumlah metrik yang sama.')}
                     </span>
                   </div>
                 );

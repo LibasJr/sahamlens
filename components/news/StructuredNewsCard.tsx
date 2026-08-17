@@ -1,9 +1,11 @@
 'use client';
 
+import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui';
 import { fadeUp } from '@/lib/motion';
+import { useLanguage } from '@/lib/i18n';
 
 export interface StructuredNewsCardItem {
   title: string;
@@ -25,29 +27,6 @@ export interface StructuredNewsCardItem {
     evidenceBasis: 'HEADLINE_ONLY';
   };
 }
-
-const HORIZON_LABELS: Record<string, string> = {
-  IMMEDIATE: 'Segera / hari ini',
-  SHORT_TERM: 'Jangka pendek',
-  MEDIUM_TERM: 'Jangka menengah',
-  LONG_TERM: 'Jangka panjang',
-  UNDETERMINED: 'Belum ditentukan',
-};
-
-const IMPACT_LABELS: Record<string, string> = {
-  POSITIVE: 'Positif',
-  NEGATIVE: 'Negatif',
-  MIXED: 'Campuran',
-  NEUTRAL: 'Netral',
-  UNCLEAR: 'Belum jelas',
-};
-
-const MAGNITUDE_LABELS: Record<string, string> = {
-  LOW: 'Rendah',
-  MEDIUM: 'Sedang',
-  HIGH: 'Tinggi',
-  UNDETERMINED: 'Belum pasti',
-};
 
 function impactTone(direction: string): string {
   if (direction === 'POSITIVE') return 'text-tv-green';
@@ -72,17 +51,25 @@ function FlowArrow() {
 }
 
 export function StructuredNewsIntro({ itemCount }: { itemCount: number }) {
-  const stages = ['Event', 'Affected metric', 'Horizon', 'Expected impact', 'Confidence'];
+  const { t, dictionary } = useLanguage();
+  const stages = [
+    dictionary.newsPage.stages.event,
+    dictionary.newsPage.stages.affectedMetric,
+    dictionary.newsPage.stages.horizon,
+    dictionary.newsPage.stages.expectedImpact,
+    dictionary.newsPage.stages.confidence,
+  ];
+
   return (
     <div className="mb-5 rounded-lg border border-tv-blue/25 bg-tv-blue/[0.055] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-heading text-sm font-bold text-tv-text">Structured Event Intelligence</h2>
+          <h2 className="font-heading text-sm font-bold text-tv-text">{t('newsPage.introTitle')}</h2>
           <p className="mt-1 text-[11px] leading-relaxed text-tv-muted">
-            {itemCount} berita dipetakan ke jalur dampaknya. Sentimen tetap ditampilkan sebagai informasi sekunder.
+            {t('newsPage.introDesc', { count: itemCount })}
           </p>
         </div>
-        <Badge variant="info">Analisis judul RSS</Badge>
+        <Badge variant="info">{t('newsPage.headlineAnalysisBadge')}</Badge>
       </div>
       <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-center">
         {stages.map((stage, index) => (
@@ -95,7 +82,7 @@ export function StructuredNewsIntro({ itemCount }: { itemCount: number }) {
         ))}
       </div>
       <p className="mt-3 text-[10px] leading-relaxed text-tv-muted/75">
-        Confidence dibatasi maksimal 75% karena sistem belum membaca isi artikel penuh. Expected impact adalah inferensi, bukan prediksi harga.
+        {t('newsPage.introConfidenceNote')}
       </p>
     </div>
   );
@@ -110,8 +97,29 @@ export function StructuredNewsCard({
   meta: string[];
   absoluteDate?: string | null;
 }) {
+  const { t, dictionary, language } = useLanguage();
   const intelligence = item.intelligence;
   const confidence = intelligence?.confidence ?? 0;
+
+  const eventLabel = intelligence
+    ? (dictionary.newsCard.eventLabels as Record<string, string>)[intelligence.eventType] ?? intelligence.eventLabel
+    : '';
+
+  const horizonLabel = intelligence
+    ? (dictionary.newsCard.horizonLabels as Record<string, string>)[intelligence.horizon] ?? intelligence.horizon
+    : '';
+
+  const impactLabel = intelligence
+    ? (dictionary.newsCard.impactLabels as Record<string, string>)[intelligence.expectedImpact.direction] ?? intelligence.expectedImpact.direction
+    : '';
+
+  const magnitudeLabel = intelligence
+    ? (dictionary.newsCard.magnitudeLabels as Record<string, string>)[intelligence.expectedImpact.magnitude] ?? intelligence.expectedImpact.magnitude
+    : '';
+
+  const sentimentLabel = language === 'en'
+    ? (item.sentiment === 'POSITIF' ? 'Bullish' : item.sentiment === 'NEGATIF' ? 'Caution' : 'Neutral')
+    : (item.sentiment === 'POSITIF' ? 'Positif' : item.sentiment === 'NEGATIF' ? 'Negatif' : 'Netral');
 
   return (
     <motion.a
@@ -127,9 +135,9 @@ export function StructuredNewsCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            {intelligence && <Badge variant="info">{intelligence.eventLabel}</Badge>}
+            {intelligence && <Badge variant="info">{eventLabel}</Badge>}
             <Badge variant={item.sentiment === 'POSITIF' ? 'success' : item.sentiment === 'NEGATIF' ? 'danger' : 'neutral'}>
-              Sentimen {item.sentiment.toLowerCase()}
+              {t('newsCard.sentimentPrefix', { sentiment: sentimentLabel.toLowerCase() })}
             </Badge>
           </div>
           <p className="text-sm font-semibold leading-snug text-tv-text">{item.title}</p>
@@ -144,29 +152,29 @@ export function StructuredNewsCard({
       {intelligence ? (
         <div className="mt-4 rounded-md border border-white/[0.055] bg-tv-bg/50 p-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-1">
-            <Step label="Event">
-              <p className="text-xs font-semibold text-tv-text">{intelligence.eventLabel}</p>
+            <Step label={dictionary.newsPage.stages.event}>
+              <p className="text-xs font-semibold text-tv-text">{eventLabel}</p>
             </Step>
             <FlowArrow />
-            <Step label="Affected metric">
+            <Step label={dictionary.newsPage.stages.affectedMetric}>
               <p className="text-xs leading-relaxed text-tv-text">{intelligence.affectedMetrics.join(', ')}</p>
             </Step>
             <FlowArrow />
-            <Step label="Horizon">
+            <Step label={dictionary.newsPage.stages.horizon}>
               <p className="text-xs font-medium text-tv-text">
-                {HORIZON_LABELS[intelligence.horizon] ?? intelligence.horizon}
+                {horizonLabel}
               </p>
             </Step>
             <FlowArrow />
-            <Step label="Expected impact">
+            <Step label={dictionary.newsPage.stages.expectedImpact}>
               <p className={'text-xs font-semibold ' + impactTone(intelligence.expectedImpact.direction)}>
-                {IMPACT_LABELS[intelligence.expectedImpact.direction] ?? intelligence.expectedImpact.direction}
+                {impactLabel}
                 {' · '}
-                {MAGNITUDE_LABELS[intelligence.expectedImpact.magnitude] ?? intelligence.expectedImpact.magnitude}
+                {magnitudeLabel}
               </p>
             </Step>
             <FlowArrow />
-            <Step label="Confidence">
+            <Step label={dictionary.newsPage.stages.confidence}>
               <div className="flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-tv-hover">
                   <div
@@ -183,13 +191,13 @@ export function StructuredNewsCard({
           </p>
         </div>
       ) : (
-        <p className="mt-3 text-[11px] text-tv-muted">Event intelligence akan tersedia setelah cache berita diperbarui.</p>
+        <p className="mt-3 text-[11px] text-tv-muted">{t('newsCard.pendingIntelligence')}</p>
       )}
 
       <div className="mt-2 flex items-start justify-between gap-3">
-        {item.reason && <p className="text-[10px] leading-relaxed text-tv-muted/70">Dasar sentimen: {item.reason}</p>}
+        {item.reason && <p className="text-[10px] leading-relaxed text-tv-muted/70">{t('newsCard.sentimentReason', { reason: item.reason })}</p>}
         <p className="ml-auto shrink-0 text-[9px] font-medium uppercase tracking-wide text-tv-muted/50">
-          Inferensi dari judul RSS
+          {t('newsCard.rssInference')}
         </p>
       </div>
     </motion.a>

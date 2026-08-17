@@ -6,6 +6,7 @@ import { Newspaper } from 'lucide-react';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
 import { StructuredNewsCard, StructuredNewsIntro } from '@/components/news/StructuredNewsCard';
 import { staggerContainer } from '@/lib/motion';
+import { useLanguage } from '@/lib/i18n';
 
 interface NewsItemDto {
   title: string;
@@ -29,48 +30,37 @@ interface NewsItemDto {
   };
 }
 
-function formatNewsDate(pubDate: string): string | null {
+function formatNewsDate(pubDate: string, language: 'id' | 'en'): string | null {
   const d = new Date(pubDate);
-  // Mengembalikan null, bukan string kosong: pemanggilnya dulu tetap merangkai
-  // "Sumber • {kosong} • alasan" sehingga muncul dua pemisah berdempetan setiap
-  // kali tanggal RSS tidak bisa diurai.
   if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+  return d.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta',
+  });
 }
 
-/**
- * Umur berita jauh lebih menentukan daripada tanggalnya. "3 jam lalu" langsung
- * memberi tahu apakah ini masih relevan; "6 Agu 2026" menuntut pembaca
- * membandingkannya sendiri dengan hari ini.
- */
-function formatRelative(pubDate: string): string | null {
-  const t = new Date(pubDate).getTime();
-  if (isNaN(t)) return null;
-  const diffMin = Math.round((Date.now() - t) / 60000);
-  if (diffMin < 0) return null;               // tanggal di masa depan - jangan ditebak
-  if (diffMin < 60) return `${diffMin} menit lalu`;
+function formatRelative(
+  pubDate: string,
+  t: (path: string, params?: Record<string, string | number>) => string
+): string | null {
+  const tTime = new Date(pubDate).getTime();
+  if (isNaN(tTime)) return null;
+  const diffMin = Math.round((Date.now() - tTime) / 60000);
+  if (diffMin < 0) return null;
+  if (diffMin < 60) return t('newsPage.timeMinutesAgo', { count: Math.max(1, diffMin) });
   const diffJam = Math.round(diffMin / 60);
-  if (diffJam < 24) return `${diffJam} jam lalu`;
+  if (diffJam < 24) return t('newsPage.timeHoursAgo', { count: diffJam });
   const diffHari = Math.round(diffJam / 24);
-  if (diffHari <= 7) return `${diffHari} hari lalu`;
-  return null;                                 // lebih tua dari sepekan: tanggal saja lebih jelas
+  if (diffHari <= 7) return t('newsPage.timeDaysAgo', { count: diffHari });
+  return null;
 }
 
 type SentimentKey = 'ALL' | 'POSITIF' | 'NEGATIF' | 'NETRAL';
 
-const FILTERS: { id: SentimentKey; label: string; tone: string }[] = [
-  { id: 'ALL', label: 'Semua', tone: 'border-tv-blue/40 bg-tv-blue/10 text-tv-blue' },
-  { id: 'POSITIF', label: 'Positif', tone: 'border-tv-green/40 bg-tv-green/10 text-tv-green' },
-  { id: 'NETRAL', label: 'Netral', tone: 'border-tv-borderLight bg-tv-hover text-tv-text' },
-  { id: 'NEGATIF', label: 'Negatif', tone: 'border-tv-red/40 bg-tv-red/10 text-tv-red' },
-];
-
-// Halaman Berita penuh - widget "Berita & Sentimen Pasar" di Beranda cuma tampilkan
-// 12 teratas (ruang terbatas), fungsi getMarketNews() di baliknya sekarang menghitung
-// sampai 40 (lihat modules/news/service/news.service.ts) supaya halaman ini bisa
-// menampilkan jauh lebih banyak dari cache 15 menit yang sama, tanpa panggilan AI
-// sentimen/​fetch RSS terpisah.
 export default function NewsPage() {
+  const { t, language } = useLanguage();
   const [newsItems, setNewsItems] = useState<NewsItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,15 +70,22 @@ export default function NewsPage() {
     setLoading(true);
     setError(null);
     fetch('/api/news', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Gagal memuat berita'))))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(t('newsPage.errorTitle')))))
       .then((d) => setNewsItems(d?.items || []))
-      .catch(() => setError('Permintaan ke server berita tidak sampai.'))
+      .catch(() => setError(t('newsPage.errorTitle')))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadNews();
   }, [loadNews]);
+
+  const filters = useMemo<{ id: SentimentKey; label: string; tone: string }[]>(() => [
+    { id: 'ALL', label: t('newsPage.filterAll'), tone: 'border-tv-blue/40 bg-tv-blue/10 text-tv-blue' },
+    { id: 'POSITIF', label: t('newsPage.filterPositive'), tone: 'border-tv-green/40 bg-tv-green/10 text-tv-green' },
+    { id: 'NETRAL', label: t('newsPage.filterNeutral'), tone: 'border-tv-borderLight bg-tv-hover text-tv-text' },
+    { id: 'NEGATIF', label: t('newsPage.filterNegative'), tone: 'border-tv-red/40 bg-tv-red/10 text-tv-red' },
+  ], [t]);
 
   const counts = useMemo(() => ({
     ALL: newsItems.length,
@@ -111,57 +108,69 @@ export default function NewsPage() {
             <Newspaper className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="lens-page-title">Event &amp; News Intelligence</h1>
-            <p className="text-xs text-tv-muted">Event, metrik terdampak, horizon, expected impact, dan confidence</p>
+            <h1 className="lens-page-title">{t('newsPage.pageTitle')}</h1>
+            <p className="text-xs text-tv-muted">{t('newsPage.pageSubtitle')}</p>
           </div>
         </div>
       </header>
 
-      {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. Isinya SENGAJA
-          tetap grid 2 kolom (bukan satu Card selebar 1600px) - kalau satu baris judul
-          berita direntangkan sepanjang itu, terlalu lebar untuk dibaca nyaman. Lebar
-          kontainer dan lebar baris teks dua urusan berbeda. */}
       <PageContainer className="p-4 md:p-6 lg:p-7">
         {!loading && !error && newsItems.length > 0 && (
           <StructuredNewsIntro itemCount={newsItems.length} />
         )}
-        {/* Halaman ini bernama "Sentimen Pasar" tapi tidak pernah menjumlahkan
-            sentimennya - tiap berita punya badge sendiri, dan pembaca harus
-            menghitung sendiri untuk tahu nada pasarnya condong ke mana. */}
+
         {!loading && !error && newsItems.length > 0 && (
           <div className="mb-5 rounded-lg border border-tv-border bg-tv-card p-4">
             <div className="flex items-center gap-2 mb-3">
               <Newspaper className="w-4 h-4 text-tv-muted" />
-              <h2 className="font-heading text-sm font-bold text-tv-text">Nada {newsItems.length} berita terakhir</h2>
+              <h2 className="font-heading text-sm font-bold text-tv-text">
+                {t('newsPage.toneTitle', { count: newsItems.length })}
+              </h2>
               <Badge variant="info">LensAI</Badge>
             </div>
 
-            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-tv-hover" role="img"
-              aria-label={`${counts.POSITIF} positif, ${counts.NETRAL} netral, ${counts.NEGATIF} negatif`}>
-              <div className="h-full bg-tv-green transition-[width] duration-700 ease-settle" style={{ width: `${(counts.POSITIF / newsItems.length) * 100}%` }} />
-              <div className="h-full bg-tv-muted transition-[width] duration-700 ease-settle" style={{ width: `${(counts.NETRAL / newsItems.length) * 100}%` }} />
-              <div className="h-full bg-tv-red transition-[width] duration-700 ease-settle" style={{ width: `${(counts.NEGATIF / newsItems.length) * 100}%` }} />
+            <div
+              className="flex h-2.5 w-full overflow-hidden rounded-full bg-tv-hover"
+              role="img"
+              aria-label={t('newsPage.toneAriaLabel', {
+                pos: counts.POSITIF,
+                net: counts.NETRAL,
+                neg: counts.NEGATIF,
+              })}
+            >
+              <div
+                className="h-full bg-tv-green transition-[width] duration-700 ease-settle"
+                style={{ width: `${(counts.POSITIF / newsItems.length) * 100}%` }}
+              />
+              <div
+                className="h-full bg-tv-muted transition-[width] duration-700 ease-settle"
+                style={{ width: `${(counts.NETRAL / newsItems.length) * 100}%` }}
+              />
+              <div
+                className="h-full bg-tv-red transition-[width] duration-700 ease-settle"
+                style={{ width: `${(counts.NEGATIF / newsItems.length) * 100}%` }}
+              />
             </div>
 
             <p className="mt-2.5 text-[11px] leading-relaxed text-tv-muted">
               {(() => {
                 const { POSITIF: pos, NEGATIF: neg, NETRAL: net } = counts;
                 const berbobot = pos + neg;
-                const dasar = `${pos} positif, ${net} netral, ${neg} negatif.`;
-                if (berbobot === 0) return `${dasar} Seluruh berita terklasifikasi netral - tidak ada arah yang bisa disimpulkan dari pemberitaan hari ini.`;
-                if (pos >= neg * 2) return `${dasar} Pemberitaan condong positif. Sentimen berita mengikuti peristiwa yang SUDAH terjadi - ia menjelaskan pergerakan kemarin lebih baik daripada memprediksi besok.`;
-                if (neg >= pos * 2) return `${dasar} Pemberitaan condong negatif. Perlu diingat media cenderung meliput kabar buruk lebih intens, jadi porsi negatif hampir selalu lebih besar dari kondisi sebenarnya.`;
-                return `${dasar} Nada pemberitaan relatif berimbang - tidak ada satu narasi yang mendominasi.`;
+                const dasar = language === 'en'
+                  ? `${pos} bullish, ${net} neutral, ${neg} cautious.`
+                  : `${pos} positif, ${net} netral, ${neg} negatif.`;
+                if (berbobot === 0) return t('newsPage.toneNeutralAll', { base: dasar });
+                if (pos >= neg * 2) return t('newsPage.tonePositiveDominant', { base: dasar });
+                if (neg >= pos * 2) return t('newsPage.toneNegativeDominant', { base: dasar });
+                return t('newsPage.toneBalanced', { base: dasar });
               })()}
             </p>
           </div>
         )}
 
-        {/* Filter sentimen - dengan 40 berita, membaca hanya yang negatif (atau hanya
-            yang positif) adalah cara paling cepat menangkap isinya. */}
         {!loading && !error && newsItems.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
+            {filters.map((f) => (
               <button
                 key={f.id}
                 type="button"
@@ -180,7 +189,9 @@ export default function NewsPage() {
           <div className="space-y-3">
             <Skeleton className="h-24 w-full" />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
             </div>
             <LoadingFact />
           </div>
@@ -188,27 +199,29 @@ export default function NewsPage() {
           <div className="rounded-lg border border-tv-border bg-tv-card">
             <EmptyState
               illustration="empty"
-              title="Berita gagal dimuat"
-              description={`${error} Berita diambil dari RSS 10 media dan disimpan di cache 15 menit - kegagalan di sini biasanya sementara.`}
-              action={{ label: 'Coba lagi', onClick: loadNews }}
+              title={t('newsPage.errorTitle')}
+              description={t('newsPage.errorDesc', { error })}
+              action={{ label: t('newsPage.errorRetry'), onClick: loadNews }}
             />
           </div>
         ) : newsItems.length === 0 ? (
           <div className="rounded-lg border border-tv-border bg-tv-card">
             <EmptyState
               illustration="search"
-              title="Belum ada berita pada siklus ini"
-              description="Sumber RSS belum mengembalikan artikel baru. Daftar disegarkan tiap 15 menit."
-              action={{ label: 'Muat ulang', onClick: loadNews }}
+              title={t('newsPage.emptyTitle')}
+              description={t('newsPage.emptyDesc')}
+              action={{ label: t('newsPage.emptyRefresh'), onClick: loadNews }}
             />
           </div>
         ) : visibleItems.length === 0 ? (
           <div className="rounded-lg border border-tv-border bg-tv-card">
             <EmptyState
               illustration="search"
-              title={`Tidak ada berita bersentimen ${FILTERS.find((f) => f.id === filter)?.label.toLowerCase()}`}
-              description="Berita lain tetap ada - kembali ke tab Semua untuk melihat seluruhnya."
-              action={{ label: 'Tampilkan semua', onClick: () => setFilter('ALL') }}
+              title={t('newsPage.emptyFilteredTitle', {
+                sentiment: filters.find((f) => f.id === filter)?.label.toLowerCase() || '',
+              })}
+              description={t('newsPage.emptyFilteredDesc')}
+              action={{ label: t('newsPage.emptyFilteredAction'), onClick: () => setFilter('ALL') }}
             />
           </div>
         ) : (
@@ -219,11 +232,8 @@ export default function NewsPage() {
             className="grid grid-cols-1 gap-3"
           >
             {visibleItems.map((n) => {
-              // Bagian meta dirangkai dari potongan yang BENAR-BENAR ada, bukan
-              // ditempel dengan " • " tanpa syarat - tanggal RSS yang gagal diurai
-              // sebelumnya meninggalkan dua pemisah berdempetan.
-              const relative = formatRelative(n.pubDate);
-              const tanggal = formatNewsDate(n.pubDate);
+              const relative = formatRelative(n.pubDate, t);
+              const tanggal = formatNewsDate(n.pubDate, language);
               const meta = [n.source, relative ?? tanggal].filter(Boolean);
               return (
                 <StructuredNewsCard

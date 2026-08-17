@@ -30,6 +30,8 @@ import { buildExportFileName } from '@/shared/format/export-filename';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
+import { useLanguage } from '@/lib/i18n';
+import FundamentalHealthSuite from '@/components/fundamental/FundamentalHealthSuite';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -57,6 +59,8 @@ const splitStatusText = (value?: string | null) => {
 // sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
 // Analyzer (yang sekarang mengirim ?symbol=<ticker aktif>) langsung akurat.
 function FundamentalContent() {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const searchParams = useSearchParams();
   const { loading: authLoading, resolved: authResolved, user } = useAuthUser();
   const [ticker, setTickerState] = useState('BBCA');
@@ -925,6 +929,14 @@ function FundamentalContent() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="w-full">
+            <FundamentalHealthSuite
+              fundamentals={data?.fundamentals}
+              profile={data?.profile}
+              analyzers={data?.analyzers}
+            />
           </div>
 
           <div className="w-full">
