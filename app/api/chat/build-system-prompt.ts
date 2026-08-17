@@ -11,28 +11,26 @@ import { getLensScoreValidationStatus } from '@/modules/validation';
  * Kalau menambah intent + blok data baru di router, tambahkan barisnya di sini pada
  * commit yang sama.
  */
-const CAPABILITY_BLOCK = `## Kemampuan LensAI (yang punya jalur data nyata):
-- Analisis emiten IDX: fundamental (PER/PBV/ROE/DER/current ratio/pertumbuhan), teknikal (tren, RSI, MACD, EMA/SMA, volume, support/resistance), dan valuasi/nilai wajar.
-- Fundamental point-in-time untuk tanggal historis tertentu.
-- Kondisi pasar: level & arah IHSG, breadth (berapa naik vs turun), regime pasar, peta sektor.
-- Peringkat pasar: top gainer/loser, transaksi terbesar, RSI terendah, kekuatan relatif terhadap IHSG.
-- LensRadar/LensScore: peringkat saham hasil pemindaian, beserta alasan skornya.
-- Cara LensScore dihitung: bobot tiap kelompok, aturan kelengkapan data, ambang kategori, gerbang kelayakan.
-- Bukti backtest LensScore per bucket (rata-rata return, win rate, drawdown, sampel) beserta batasnya.
-- Screener per profil risiko (Konservatif/Moderat/Agresif).
-- Berita & sentimen pasar dan per emiten (diklasifikasi dari JUDUL berita).
-- Dividen, earnings/laporan kuartalan, dan kalender korporasi.
-- Arus dana: broker summary kalau tersedia, plus proksi akumulasi/distribusi dari OHLCV.
-- Moat/ketahanan usaha (proksi dari angka keuangan) dan risiko/beta terhadap IHSG.
-- Indikator makro yang dimuat SahamLens.
-- Portofolio & watchlist MILIK PENGGUNA - hanya kalau dia sedang login.
-- Penjelasan fitur & cara kerja aplikasi SahamLens, termasuk fitur admin/lab: LensRadar Calibration, TP/CL Validation, Intraday Validation, Fundamental Backfill/PIT, Financial Integrity & Adoption Gate, Macro PIT, Bank Evidence, Ownership Flow/Validation, Broker Summary, Operational Health, dan Feedback LensAI.
+const CAPABILITY_BLOCK = `## Kemampuan Komprehensif LensAI:
+- Analisis Emiten IDX Mendalam: Fundamental (12 rasio: PER, PBV, EV/EBITDA, ROE DuPont 3-tahap, ROA, ROIC, DER, Current/Quick Ratio, Interest Coverage, FCF), Teknikal (Price Action, Moving Averages EMA 20/50/200, RSI & Divergence, MACD, Volume Price Analysis, Wilder ATR, Support/Resistance & Fibonacci, Pattern), dan Valuasi Nilai Wajar (DCF, Graham Number, Margin of Safety).
+- LensConsensus: Rapat voting 10 algoritma teknikal independen (Trend, Momentum, Volume, Volatility) yang transparan.
+- Klasifikasi Konstituen Indeks LQ45 Resmi BEI vs Cap-Tier Likuiditas Real-Time (Large & Liquid vs Small / Thin).
+- Kondisi Pasar & Breadth: Arah IHSG, Market Breadth (100 saham likuid teratas setara Kompas 100 & IDX80), 11 Sektor Heatmap IDX, dan pembacaan Market Regime.
+- Kalender Libur Bursa BEI Resmi & Jam Perdagangan Pasar Reguler IDX (termasuk status libur nasional dan cuti bersama).
+- Peringkat Pasar Real-Time: Top Gainer, Top Loser, Top Value/Volume, RSI Oversold/Overbought, dan Relatif Strength vs IHSG.
+- LensRadar & Breakout Radar: Pemindaian kandidat momentum/breakout universe likuid, LensScore, dan breakdown voting tiap analyzer.
+- LensScanner / Screener: Penyaringan multi-faktor per profil risiko (Konservatif, Moderat, Agresif) dan filter kustom.
+- Backtest Engine: Pengujian filter multi-saham (Return, Win Rate, Max Drawdown, Benchmark IHSG) dan Replay Visual Candle Saham Tunggal.
+- Dividen, Earnings & Corporate Calendar: Jadwal cum/ex-date, dividend yield, dividend trap risk, simulator passive income, dan laporan keuangan kuartalan.
+- Ownership Flow: Pelacakan perubahan kepemilikan Foreign vs Local berbasis data agregat KSEI secara berkala.
+- Teori Pasar Modal, Makroekonomi & Dinamika Sektoral: Transmisi BI-Rate/Fed Funds Rate, inflasi, kurs USD/IDR, komoditas siklikal, metrik perbankan khusus (NIM, NPL, CASA, CAR, CoC, LDR), serta manajemen risiko trading (Position Sizing 1-2%, R:R minimal 1:2).
+- Portofolio Virtual (Paper Trading) & Watchlist Alert Pribadi pengguna.
+- Penjelasan Seluruh Fitur Aplikasi SahamLens & Lab Internal: LensRadar Calibration Lab, TP/CL Validation Lab, Intraday Lab, Fundamental PIT Backfill, Financial Integrity & Adoption Gate, Macro PIT, Bank Evidence, dan Operational Health.
 
-## Yang TIDAK bisa (jangan dijanjikan):
-- Eksekusi order, transfer dana, atau apa pun yang mengubah posisi pengguna.
-- Data selain saham IDX: kripto, emas, forex, reksa dana, obligasi ritel, saham luar negeri.
-- Harga tick real-time atau order book/bid-offer.
-- Prediksi harga masa depan sebagai kepastian.`;
+## Batasan (Yang Tidak Bisa):
+- Eksekusi order nyata, transaksi finansial, atau pemindahan saldo pengguna (bukan broker).
+- Aset non-IDX (kripto, emas fisik, forex, saham luar negeri Wall Street).
+- Prediksi harga masa depan sebagai kepastian mutlak.`;
 
 // Prompt dipisahkan dari route agar Next.js hanya melihat export handler/config resmi.
 // Context browser tidak dipercaya sebagai sumber angka; data terverifikasi server
