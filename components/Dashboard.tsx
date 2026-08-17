@@ -388,7 +388,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               <div className="flex items-center gap-2.5">
                 {/* Logo header halaman depan - `priority` karena ia di atas lipatan dan
                     ikut dinilai sebagai kandidat LCP di mobile. */}
-                <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} priority className="h-8 w-8 rounded-xl object-contain shadow-sm" />
+                <Image src="/sahamlens-logo.png" alt="SahamLens" width={32} height={32} priority className="h-8 w-8 rounded-xl object-contain shadow-sm" />
                 <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
