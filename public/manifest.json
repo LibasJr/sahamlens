@@ -1,11 +1,14 @@
 {
-  "name": "SahamLens",
+  "name": "SahamLens - Super-App Saham Indonesia",
   "short_name": "SahamLens",
-  "description": "Stock Screener IDX Smart AI",
+  "description": "Screener & Analisis Kuantitatif Saham IDX",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A0E27",
-  "theme_color": "#0A0E27",
+  "orientation": "portrait-primary",
+  "background_color": "#080D16",
+  "theme_color": "#080D16",
+  "lang": "id",
+  "categories": ["finance", "business", "productivity"],
   "icons": [
     {
       "src": "/icon-192x192.png",
