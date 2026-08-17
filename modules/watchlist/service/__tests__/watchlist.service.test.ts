@@ -52,8 +52,18 @@ describe('watchlist server enforcement', () => {
     expect(mocks.upsert).toHaveBeenCalledOnce();
   });
 
-  it('remove meneruskan user dan simbol ke repository', async () => {
-    await removeFromWatchlist('u1', 'BBCA.JK');
-    expect(mocks.remove).toHaveBeenCalledWith('u1', 'BBCA.JK');
+  it('free user bisa menambah simbol saat jumlah watchlist masih di bawah limit', async () => {
+    mocks.count.mockResolvedValue(1);
+    mocks.list.mockResolvedValue([{ ...item, symbol: 'BBRI.JK' }]);
+    await expect(addToWatchlist('u1', false, { symbol: 'BBCA.JK' })).resolves.toEqual(item);
+    expect(mocks.upsert).toHaveBeenCalledWith('u1', { symbol: 'BBCA.JK' }, client);
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('error database saat upsert watchlist memicu rollback dan release client', async () => {
+    mocks.upsert.mockRejectedValue(new Error('Watchlist write failed'));
+    await expect(addToWatchlist('u1', true, { symbol: 'BBCA.JK' })).rejects.toThrow('Watchlist write failed');
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(client.release).toHaveBeenCalledOnce();
   });
 });

@@ -22,7 +22,10 @@
 // Risiko kalau daftar ini telat diperbarui SEPIHAK dan kecil: emiten yang baru saja
 // keluar dari LQ45 mungkin masih tampil Blue-chip beberapa waktu (dampak kosmetik
 // ringan). TIDAK ADA jalan bagi saham gorengan untuk lolos hanya karena harga/volume
-// hari ini melonjak - itu celah yang justru sedang ditutup oleh perubahan ini.
+// Tanggal batas tinjau manual konstituen LQ45 (dievaluasi per semester oleh IDX).
+// Test otomatis akan mengingatkan pengembang ketika tanggal ini tercapai agar selalu diverifikasi.
+export const LQ45_REVIEWED_UNTIL = '2026-08-31';
+
 export const LQ45_CONSTITUENTS: readonly string[] = [
   'ACES.JK', 'ADRO.JK', 'AKRA.JK', 'AMMN.JK', 'AMRT.JK', 'ANTM.JK', 'ARTO.JK', 'ASII.JK',
   'BBCA.JK', 'BBNI.JK', 'BBRI.JK', 'BBTN.JK', 'BMRI.JK', 'BRPT.JK', 'BUKA.JK', 'CPIN.JK',
