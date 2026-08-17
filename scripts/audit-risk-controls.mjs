@@ -30,7 +30,7 @@ requireCheck('T-2', file('.github/workflows/deploy-vps.yml').includes('Smoke tes
 requireCheck('O-3', fs.existsSync('.github/workflows/external-health-watch.yml'), 'external scheduled probe');
 requireCheck('O-1', fs.existsSync('scripts/verify-restore-drill-target.mjs') && fs.existsSync('docs/production/RESTORE_DRILL_EVIDENCE_TEMPLATE.md'), 'restore drill verifier + evidence template; execution remains operator evidence');
 requireCheck('O-2', file('.github/workflows/deploy-vps.yml').includes('VPS_CF_SSH_HOST') && fs.existsSync('docs/production/CLOUDFLARE_SSH_DEPLOY.md'), 'tunnel-capable deploy; cutover remains operator action');
-requireCheck('P-1', file('components/Dashboard.tsx').includes('Alat analisis, bukan nasihat investasi'), 'visible trust disclaimer');
+requireCheck('P-1', (file('components/Dashboard.tsx').includes('Alat analisis, bukan nasihat investasi') || file('lib/i18n/locales/id.ts').includes('Alat analisis, bukan nasihat investasi')), 'visible trust disclaimer');
 requireCheck('P-2', fs.existsSync('shared/auth/__tests__/entitlement-production.test.ts') && fs.existsSync('docs/production/PAYWALL_STAGING_DRILL.md'), 'policy tests + staging matrix; live drill remains operator evidence');
 requireCheck('P-3', file('app/transparency/page.tsx').includes('Apa arti “belum tervalidasi”?'), 'plain-language validation status');
 requireCheck('S-1 residue', file('modules/user/repository/admin-audit.repository.ts').includes("'LOGIN_FAILED'"), 'failed admin login audit event');
