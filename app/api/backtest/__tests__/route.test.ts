@@ -159,15 +159,47 @@ describe('POST /api/backtest (akses tamu)', () => {
     expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), anonTrial);
   });
 
-  it('user dengan session valid tidak menyentuh logic trial anonim sama sekali', async () => {
-    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+  it('tamu (guest/unauthenticated) menerima trades dibatasi ke 2 item dan is_guest_limited true', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
     vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
-    vi.mocked(simulateBacktest).mockReturnValue(sampleResult as any);
+    vi.mocked(simulateBacktest).mockReturnValue({
+      ...sampleResult,
+      totalTrades: 5,
+      trades: [
+        { entryDate: '2026-01-01', date: '2026-01-15', symbol: 'BBCA.JK', buy: 9000, sell: 9500, pnlPct: 5.56 },
+        { entryDate: '2026-01-10', date: '2026-01-20', symbol: 'BBRI.JK', buy: 4500, sell: 4700, pnlPct: 4.44 },
+        { entryDate: '2026-01-15', date: '2026-01-25', symbol: 'BMRI.JK', buy: 6000, sell: 6200, pnlPct: 3.33 },
+      ],
+    } as any);
 
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
+    const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(readOrIssueAnonymousTrial).not.toHaveBeenCalled();
-    expect(applyAnonymousTrialCookie).not.toHaveBeenCalled();
+    expect(json.is_guest_limited).toBe(true);
+    expect(json.trades).toHaveLength(2);
+    expect(json.trades_locked_count).toBe(3);
+  });
+
+  it('user login menerima seluruh riwayat trade tanpa pembatasan tamu', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
+    vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
+    vi.mocked(simulateBacktest).mockReturnValue({
+      ...sampleResult,
+      totalTrades: 3,
+      trades: [
+        { entryDate: '2026-01-01', date: '2026-01-15', symbol: 'BBCA.JK', buy: 9000, sell: 9500, pnlPct: 5.56 },
+        { entryDate: '2026-01-10', date: '2026-01-20', symbol: 'BBRI.JK', buy: 4500, sell: 4700, pnlPct: 4.44 },
+        { entryDate: '2026-01-15', date: '2026-01-25', symbol: 'BMRI.JK', buy: 6000, sell: 6200, pnlPct: 3.33 },
+      ],
+    } as any);
+
+    const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.is_guest_limited).toBe(false);
+    expect(json.trades).toHaveLength(3);
+    expect(json.trades_locked_count).toBe(0);
   });
 });

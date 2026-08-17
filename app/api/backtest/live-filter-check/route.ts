@@ -46,10 +46,17 @@ export async function POST(request: Request) {
 
     const result = await scanLiveFilterCheck(filters);
 
+    const isGuest = !session || typeof session.id !== 'string';
+    const visibleMatches = isGuest ? result.matches.slice(0, 1) : result.matches;
+    const lockedCount = isGuest ? Math.max(0, result.matches.length - 1) : 0;
+
     const responseBody = {
       scannedAt: result.scannedAt,
       filters: result.filters,
-      matches: result.matches,
+      matches: visibleMatches,
+      total_matches: result.matches.length,
+      locked_count: lockedCount,
+      is_guest_limited: isGuest,
       skippedCount: result.skipped.length,
       message: result.matches.length === 0
         ? 'Tidak ada saham di universe yang memenuhi kombinasi filter ini SEKARANG.'

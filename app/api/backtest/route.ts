@@ -119,6 +119,10 @@ export async function POST(request: Request) {
     const cache = await getCache(cachedBacktest);
     const result = simulateBacktest(cache, { filters, modal, periodMonths: period });
 
+    const isGuest = !session || typeof session.id !== 'string';
+    const visibleTrades = isGuest ? result.trades.slice(0, 2) : result.trades.slice(0, MAX_TRADES_IN_RESPONSE);
+    const tradesLockedCount = isGuest ? Math.max(0, result.totalTrades - 2) : 0;
+
     const responseBody: Record<string, unknown> = {
       return: fmtPct(result.returnPct),
       ihsgReturn: fmtPct(result.ihsgReturnPct),
@@ -136,12 +140,14 @@ export async function POST(request: Request) {
       universe: result.universe,
       equityCurve: result.equityCurve,
       ihsgCurve: result.ihsgCurve,
-      trades: result.trades.slice(0, MAX_TRADES_IN_RESPONSE).map((t) => ({
+      trades: visibleTrades.map((t) => ({
         date: t.date,
         symbol: t.symbol,
         buy: Math.round(t.buy),
         pnl: fmtPct(t.pnlPct),
       })),
+      trades_locked_count: tradesLockedCount,
+      is_guest_limited: isGuest,
       dataAsOf: result.computedAt,
     };
 

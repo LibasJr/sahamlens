@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { Target, Activity, Play, Settings2, BarChart2, CheckSquare, Square, Zap, Lock } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Input, Select, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import CandleReplayChart, { type ReplayCandle } from '@/components/backtest/CandleReplayChart';
 // Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
@@ -98,6 +101,10 @@ function EquityTooltip({ active, payload, label, initialCapital }: any) {
 }
 
 export default function BacktestPage() {
+  const { user, resolved: authResolved, loading: authLoading } = useAuthUser();
+  const isGuest = authResolved && !authLoading && !user;
+  const isPresetLocked = (index: number) => isGuest && index >= 2;
+
   const [modal, setModal] = useState(100000000);
   const [period, setPeriod] = useState(12);
 
@@ -393,16 +400,32 @@ export default function BacktestPage() {
               </h3>
               <p className="text-[10px] text-tv-muted mb-3">Win rate dihitung live dari data historis tiap kombinasi - bisa berubah, bukan angka tetap.</p>
               <div className="flex flex-col gap-2">
-                {presets.map(p => (
-                  <button
-                    key={p.label}
-                    onClick={() => applyPreset(p.filters)}
-                    className="text-left px-4 py-2 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors"
-                  >
-                    {p.label}
-                    <span className="block text-[10px] text-tv-muted font-normal">{p.filters.length} filter</span>
-                  </button>
-                ))}
+                {presets.map((p, idx) => {
+                  const locked = isPresetLocked(idx);
+                  return (
+                    <button
+                      key={p.label}
+                      onClick={() => {
+                        if (locked) {
+                          setShowLoginPrompt(true);
+                          return;
+                        }
+                        applyPreset(p.filters);
+                      }}
+                      className="text-left px-4 py-2.5 bg-tv-hover hover:bg-tv-borderLight rounded-md text-sm text-tv-text transition-colors flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <div className="font-semibold">{p.label}</div>
+                        <span className="block text-[10px] text-tv-muted font-normal">{p.filters.length} filter</span>
+                      </div>
+                      {locked && (
+                        <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-0.5 rounded-full">
+                          <Lock className="w-3 h-3" /> Masuk
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -431,9 +454,22 @@ export default function BacktestPage() {
                 {/* Daftar periode dari satu sumber bersama dengan API dan precompute -
                     lihat modules/backtest/constants/backtest-periods.ts. Menulisnya ulang
                     di sini pernah menjadi cara ketiganya berpisah tanpa ada yang tahu. */}
-                <Select label="Periode (Bulan)" value={period} onChange={e => setPeriod(Number(e.target.value))}>
+                <Select
+                  label="Periode (Bulan)"
+                  value={period}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    if (isGuest && val > 12) {
+                      setShowLoginPrompt(true);
+                      return;
+                    }
+                    setPeriod(val);
+                  }}
+                >
                   {BACKTEST_PERIOD_MONTHS.map((bulan) => (
-                    <option key={bulan} value={bulan}>{bulan} Bulan</option>
+                    <option key={bulan} value={bulan}>
+                      {bulan} Bulan {isGuest && bulan > 12 ? '(🔒 Masuk)' : ''}
+                    </option>
                   ))}
                 </Select>
 
@@ -554,6 +590,33 @@ export default function BacktestPage() {
                                   </tbody>
                                 </table>
                               </div>
+
+                              {Boolean(liveResults.is_guest_limited && (liveResults.locked_count > 0 || liveResults.total_matches > 1)) && (
+                                <div className="mt-3 p-3.5 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                  <div className="flex items-center gap-2 text-tv-yellow">
+                                    <Lock className="w-4 h-4 shrink-0" />
+                                    <span>
+                                      <strong>{liveResults.locked_count || Math.max(0, (liveResults.total_matches || liveResults.matches.length) - 1)} saham live lainnya terkunci.</strong> Masuk untuk melihat seluruh saham yang memenuhi kriteria filter hari ini.
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Link
+                                      onClick={() => trackSignupClick('backtest_live_check')}
+                                      href="/login?next=%2Fbacktest"
+                                      className="rounded-md border border-tv-yellow/50 bg-tv-yellow/10 px-3 py-1.5 text-xs font-bold text-tv-yellow hover:bg-tv-yellow/20 hover:text-white transition-colors"
+                                    >
+                                      Masuk
+                                    </Link>
+                                    <Link
+                                      onClick={() => trackSignupClick('backtest_live_check')}
+                                      href="/signup?next=%2Fbacktest"
+                                      className="rounded-md bg-tv-blue px-3 py-1.5 text-xs font-bold text-white hover:bg-tv-blueHover transition-colors shadow-sm"
+                                    >
+                                      Daftar Gratis
+                                    </Link>
+                                  </div>
+                                </div>
+                              )}
                             </>
                           )}
                         </>
@@ -803,6 +866,33 @@ export default function BacktestPage() {
                         </tbody>
                       </table>
                       </div>
+
+                      {Boolean(results.is_guest_limited && (results.trades_locked_count > 0 || results.totalTrades > 2)) && (
+                        <div className="p-4 border-t border-tv-border bg-tv-yellow/5 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2 text-tv-yellow">
+                            <Lock className="w-4 h-4 shrink-0" />
+                            <span>
+                              <strong>{results.trades_locked_count || Math.max(0, results.totalTrades - 2)} riwayat transaksi saham lainnya terkunci.</strong> Masuk untuk melihat seluruh riwayat trade, tanggal entry/exit, dan profit per saham.
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Link
+                              onClick={() => trackSignupClick('backtest_trades')}
+                              href="/login?next=%2Fbacktest"
+                              className="rounded-md border border-tv-yellow/50 bg-tv-yellow/10 px-3 py-1.5 text-xs font-bold text-tv-yellow hover:bg-tv-yellow/20 hover:text-white transition-colors"
+                            >
+                              Masuk
+                            </Link>
+                            <Link
+                              onClick={() => trackSignupClick('backtest_trades')}
+                              href="/signup?next=%2Fbacktest"
+                              className="rounded-md bg-tv-blue px-3 py-1.5 text-xs font-bold text-white hover:bg-tv-blueHover transition-colors shadow-sm"
+                            >
+                              Daftar Gratis
+                            </Link>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Batasan simulasi (audit 2026-08-05, temuan M-12) - dua bias yang
