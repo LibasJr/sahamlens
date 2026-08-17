@@ -195,8 +195,10 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     // Jangan mengekstrapolasi ke full-day dengan profil U-shape tersembunyi karena
     // volRatio ikut membentuk ranking Agresif. Missing/model estimate harus tetap
     // unavailable kecuali outputnya secara eksplisit diberi label sebagai estimasi.
-    const volRatio = !isIdxMarketHoursNow() && rawVolume != null && avgVolume != null
-      ? rawVolume / avgVolume
+    const isLiveMarketHours = isIdxMarketHoursNow();
+    const scoringVolume = isLiveMarketHours ? null : rawVolume;
+    const volRatio = scoringVolume != null && avgVolume != null
+      ? scoringVolume / avgVolume
       : null;
 
     const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
@@ -289,7 +291,7 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
           macdHist: macdHistVal,
           macdLine: macdLineVal,
           macdSignal: macdSigVal,
-          volToday: volume,
+          volToday: scoringVolume,
           volAvg20,
           // P1-8: volume besar tanpa arah harga bukan konfirmasi beli. Yahoo
           // mengembalikan `regularMarketChangePercent` sebagai FRAKSI (0.0317 = 3,17%) -
