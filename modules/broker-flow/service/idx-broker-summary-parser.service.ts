@@ -19,8 +19,12 @@ export interface BrokerTransactionRaw {
   sellVolume: number;
   buyFrequency?: number;
   sellFrequency?: number;
+  buyLot?: number;
+  sellLot?: number;
   buyAvgPrice?: number;
   sellAvgPrice?: number;
+  source?: string;
+  sourceFile?: string;
 }
 
 export interface ParsedBrokerSummaryReport {
@@ -91,9 +95,8 @@ export function parseIdxBrokerSummaryText(
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]?.trim();
-    if (!line || line.startsWith('#') || line.toLowerCase().startsWith('ticker')) continue;
+    if (!line || line.startsWith('#') || line.toLowerCase().startsWith('ticker') || line.toLowerCase().startsWith('trade_date')) continue;
 
-    // Supports delimiter: comma, semicolon, tab, or fixed width space
     const parts = line.includes('\t')
       ? line.split('\t')
       : line.includes(';')
@@ -102,21 +105,35 @@ export function parseIdxBrokerSummaryText(
 
     if (parts.length < 5) continue;
 
-    const rawTicker = parts[0]?.trim().toUpperCase().replace(/\.JK$/i, '');
-    const brokerCode = parts[1]?.trim().toUpperCase();
+    // Handle formats: [ticker, broker, buyVal, sellVal, ...] or [date, ticker, broker, buyVal, sellVal, ...]
+    let rawTicker = parts[0]?.trim().toUpperCase().replace(/\.JK$/i, '');
+    let brokerCode = parts[1]?.trim().toUpperCase();
+    let buyIdx = 2;
+    let sellIdx = 3;
+    let buyVolIdx = 4;
+    let sellVolIdx = 5;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawTicker)) {
+      rawTicker = parts[1]?.trim().toUpperCase().replace(/\.JK$/i, '');
+      brokerCode = parts[2]?.trim().toUpperCase();
+      buyIdx = 3;
+      sellIdx = 4;
+      buyVolIdx = 5;
+      sellVolIdx = 6;
+    }
 
     if (!rawTicker || !brokerCode || brokerCode.length > 4) continue;
     if (validSymbols.size > 0 && !validSymbols.has(rawTicker)) continue;
 
-    const buyValue = Math.max(0, parseFloat(parts[2]?.replace(/[^0-9.-]/g, '') || '0') || 0);
-    const sellValue = Math.max(0, parseFloat(parts[3]?.replace(/[^0-9.-]/g, '') || '0') || 0);
-    const buyVolume = Math.max(0, parseFloat(parts[4]?.replace(/[^0-9.-]/g, '') || '0') || 0);
-    const sellVolume = Math.max(0, parseFloat(parts[5]?.replace(/[^0-9.-]/g, '') || '0') || 0);
-    const buyFreq = parts[6] ? Math.max(0, parseInt(parts[6].replace(/[^0-9]/g, ''), 10) || 0) : undefined;
-    const sellFreq = parts[7] ? Math.max(0, parseInt(parts[7].replace(/[^0-9]/g, ''), 10) || 0) : undefined;
+    const buyValue = Math.max(0, parseFloat(parts[buyIdx]?.replace(/[^0-9.-]/g, '') || '0') || 0);
+    const sellValue = Math.max(0, parseFloat(parts[sellIdx]?.replace(/[^0-9.-]/g, '') || '0') || 0);
+    const buyVolume = Math.max(0, parseFloat(parts[buyVolIdx]?.replace(/[^0-9.-]/g, '') || '0') || 0);
+    const sellVolume = Math.max(0, parseFloat(parts[sellVolIdx]?.replace(/[^0-9.-]/g, '') || '0') || 0);
 
     if (buyValue === 0 && sellValue === 0 && buyVolume === 0 && sellVolume === 0) continue;
 
+    const buyLot = Math.round(buyVolume / 100);
+    const sellLot = Math.round(sellVolume / 100);
     const buyAvgPrice = buyVolume > 0 && buyValue > 0 ? Math.round(buyValue / (buyVolume * 100)) : undefined;
     const sellAvgPrice = sellVolume > 0 && sellValue > 0 ? Math.round(sellValue / (sellVolume * 100)) : undefined;
 
@@ -128,10 +145,11 @@ export function parseIdxBrokerSummaryText(
       sellValue,
       buyVolume,
       sellVolume,
-      buyFrequency: buyFreq,
-      sellFrequency: sellFreq,
+      buyLot,
+      sellLot,
       buyAvgPrice,
       sellAvgPrice,
+      source,
     });
   }
 
@@ -156,20 +174,21 @@ export async function saveBrokerTransactionsToDb(transactions: BrokerTransaction
     await client.query('BEGIN');
 
     for (const tx of transactions) {
-      const netValue = tx.buyValue - tx.sellValue;
-      const netVolume = tx.buyVolume - tx.sellVolume;
+      const source = tx.source || 'IDX_EOD_REPORT';
+      const buyLot = tx.buyLot ?? Math.round(tx.buyVolume / 100);
+      const sellLot = tx.sellLot ?? Math.round(tx.sellVolume / 100);
 
       await client.query(
         `INSERT INTO broker_summary_daily (
-          ticker, trade_date, broker_code, buy_value, sell_value,
-          buy_volume, sell_volume, buy_frequency, sell_frequency,
-          net_value, net_volume, buy_avg_price, sell_avg_price, updated_at
+          trade_date, ticker, broker_code,
+          buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
+          buy_lot, sell_lot, buy_avg, sell_avg, source, source_file, imported_at
         ) VALUES (
-          $1, $2::date, $3, $4, $5,
-          $6, $7, $8, $9,
-          $10, $11, $12, $13, NOW()
+          $1::date, $2, $3,
+          $4, $5, $6, $7, $8, $9,
+          $10, $11, $12, $13, $14, $15, NOW()
         )
-        ON CONFLICT (ticker, trade_date, broker_code)
+        ON CONFLICT (trade_date, ticker, broker_code, source)
         DO UPDATE SET
           buy_value = EXCLUDED.buy_value,
           sell_value = EXCLUDED.sell_value,
@@ -177,14 +196,14 @@ export async function saveBrokerTransactionsToDb(transactions: BrokerTransaction
           sell_volume = EXCLUDED.sell_volume,
           buy_frequency = EXCLUDED.buy_frequency,
           sell_frequency = EXCLUDED.sell_frequency,
-          net_value = EXCLUDED.net_value,
-          net_volume = EXCLUDED.net_volume,
-          buy_avg_price = EXCLUDED.buy_avg_price,
-          sell_avg_price = EXCLUDED.sell_avg_price,
-          updated_at = NOW()`,
+          buy_lot = EXCLUDED.buy_lot,
+          sell_lot = EXCLUDED.sell_lot,
+          buy_avg = EXCLUDED.buy_avg,
+          sell_avg = EXCLUDED.sell_avg,
+          imported_at = NOW()`,
         [
-          tx.ticker,
           tx.tradeDate,
+          tx.ticker,
           tx.brokerCode,
           tx.buyValue,
           tx.sellValue,
@@ -192,10 +211,12 @@ export async function saveBrokerTransactionsToDb(transactions: BrokerTransaction
           tx.sellVolume,
           tx.buyFrequency ?? null,
           tx.sellFrequency ?? null,
-          netValue,
-          netVolume,
+          buyLot,
+          sellLot,
           tx.buyAvgPrice ?? null,
           tx.sellAvgPrice ?? null,
+          source,
+          tx.sourceFile ?? null,
         ]
       );
       inserted++;
@@ -221,7 +242,6 @@ export async function computeStockBrokerSummary(
   const ticker = rawTicker.trim().toUpperCase().includes('.JK') ? rawTicker.trim().toUpperCase() : `${rawTicker.trim().toUpperCase()}.JK`;
 
   try {
-    // If targetDate not provided, query the latest available date for this ticker
     const dateQuery = targetDate
       ? targetDate
       : (
@@ -238,10 +258,10 @@ export async function computeStockBrokerSummary(
     const rowsRes = await pool.query(
       `SELECT
         broker_code, buy_value, sell_value, buy_volume, sell_volume,
-        net_value, net_volume, buy_avg_price, sell_avg_price
+        buy_avg, sell_avg
       FROM broker_summary_daily
       WHERE ticker = $1 AND trade_date = $2::date
-      ORDER BY ABS(net_value) DESC`,
+      ORDER BY ABS(buy_value - sell_value) DESC`,
       [ticker, formattedDate]
     );
 
@@ -258,8 +278,8 @@ export async function computeStockBrokerSummary(
       const sellV = parseFloat(r.sell_value) || 0;
       const buyVol = parseFloat(r.buy_volume) || 0;
       const sellVol = parseFloat(r.sell_volume) || 0;
-      const netV = parseFloat(r.net_value) || (buyV - sellV);
-      const netVol = parseFloat(r.net_volume) || (buyVol - sellVol);
+      const netV = buyV - sellV;
+      const netVol = buyVol - sellVol;
       const category = classifyBrokerCode(bCode);
 
       totalTurnover += buyV + sellV;
@@ -279,12 +299,12 @@ export async function computeStockBrokerSummary(
         buyVolume: buyVol,
         sellVolume: sellVol,
         netVolume: netVol,
-        avgBuyPrice: r.buy_avg_price ? parseFloat(r.buy_avg_price) : null,
-        avgSellPrice: r.sell_avg_price ? parseFloat(r.sell_avg_price) : null,
+        avgBuyPrice: r.buy_avg ? parseFloat(r.buy_avg) : null,
+        avgSellPrice: r.sell_avg ? parseFloat(r.sell_avg) : null,
       };
     });
 
-    totalTurnover = totalTurnover / 2; // Each trade has buyer and seller
+    totalTurnover = totalTurnover / 2;
     totalVolume = totalVolume / 2;
 
     const topBuyers = [...items].filter((i) => i.netValue > 0).sort((a, b) => b.netValue - a.netValue).slice(0, 5);
@@ -348,7 +368,7 @@ export async function computeStockBrokerSummary(
       bandarmologyNarrative: narrative,
     };
   } catch (err: any) {
-    if (err?.code === '42P01') return null; // Table does not exist in testing mock
+    if (err?.code === '42P01') return null;
     console.error('[computeStockBrokerSummary] query failed', err);
     return null;
   }

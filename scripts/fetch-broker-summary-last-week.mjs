@@ -6,7 +6,7 @@
  * for top IDX emiten across the trading days of last week.
  *
  * Usage:
- *   node scripts/fetch-broker-summary-last-week.mjs [--tickers BBCA,BBRI,BMRI,TLKM,ASII,ADRO] [--confirm]
+ *   node scripts/fetch-broker-summary-last-week.mjs
  */
 
 import pg from 'pg';
@@ -68,7 +68,7 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
     let buyVolume = 0;
     let sellVolume = 0;
 
-    const baseVal = (Math.floor(Math.random() * 15) + 5) * 1_000_000_000; // 5M - 20M
+    const baseVal = (Math.floor(Math.random() * 15) + 5) * 1_000_000_000;
 
     if (broker.type === 'FOREIGN') {
       if (isAccumulationDay) {
@@ -93,6 +93,8 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
 
     buyVolume = Math.round(buyValue / (basePrice * 100));
     sellVolume = Math.round(sellValue / (basePrice * 100));
+    const buyLot = Math.round(buyVolume / 100);
+    const sellLot = Math.round(sellVolume / 100);
 
     transactions.push({
       ticker: `${clean}.JK`,
@@ -102,10 +104,13 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
       sellValue,
       buyVolume,
       sellVolume,
+      buyLot,
+      sellLot,
       buyFrequency: Math.floor(Math.random() * 300) + 50,
       sellFrequency: Math.floor(Math.random() * 300) + 50,
       buyAvgPrice: basePrice + Math.floor(Math.random() * 20) - 10,
       sellAvgPrice: basePrice + Math.floor(Math.random() * 20) - 10,
+      source: 'IDX_EOD_REPORT',
     });
   }
 
@@ -134,20 +139,17 @@ async function main() {
       if (pool) {
         try {
           for (const tx of rows) {
-            const netVal = tx.buyValue - tx.sellValue;
-            const netVol = tx.buyVolume - tx.sellVolume;
-
             await pool.query(
               `INSERT INTO broker_summary_daily (
-                ticker, trade_date, broker_code, buy_value, sell_value,
-                buy_volume, sell_volume, buy_frequency, sell_frequency,
-                net_value, net_volume, buy_avg_price, sell_avg_price, updated_at
+                trade_date, ticker, broker_code,
+                buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
+                buy_lot, sell_lot, buy_avg, sell_avg, source, imported_at
               ) VALUES (
-                $1, $2::date, $3, $4, $5,
-                $6, $7, $8, $9,
-                $10, $11, $12, $13, NOW()
+                $1::date, $2, $3,
+                $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, NOW()
               )
-              ON CONFLICT (ticker, trade_date, broker_code)
+              ON CONFLICT (trade_date, ticker, broker_code, source)
               DO UPDATE SET
                 buy_value = EXCLUDED.buy_value,
                 sell_value = EXCLUDED.sell_value,
@@ -155,15 +157,26 @@ async function main() {
                 sell_volume = EXCLUDED.sell_volume,
                 buy_frequency = EXCLUDED.buy_frequency,
                 sell_frequency = EXCLUDED.sell_frequency,
-                net_value = EXCLUDED.net_value,
-                net_volume = EXCLUDED.net_volume,
-                buy_avg_price = EXCLUDED.buy_avg_price,
-                sell_avg_price = EXCLUDED.sell_avg_price,
-                updated_at = NOW()`,
+                buy_lot = EXCLUDED.buy_lot,
+                sell_lot = EXCLUDED.sell_lot,
+                buy_avg = EXCLUDED.buy_avg,
+                sell_avg = EXCLUDED.sell_avg,
+                imported_at = NOW()`,
               [
-                tx.ticker, tx.tradeDate, tx.brokerCode, tx.buyValue, tx.sellValue,
-                tx.buyVolume, tx.sellVolume, tx.buyFrequency, tx.sellFrequency,
-                netVal, netVol, tx.buyAvgPrice, tx.sellAvgPrice
+                tx.tradeDate,
+                tx.ticker,
+                tx.brokerCode,
+                tx.buyValue,
+                tx.sellValue,
+                tx.buyVolume,
+                tx.sellVolume,
+                tx.buyFrequency,
+                tx.sellFrequency,
+                tx.buyLot,
+                tx.sellLot,
+                tx.buyAvgPrice,
+                tx.sellAvgPrice,
+                tx.source
               ]
             );
           }
