@@ -4,7 +4,7 @@ import {
   type BandarmologyStatus,
 } from './foreign-flow-proxy';
 import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
-import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type ScoringResult } from '@/modules/technical';
 import { evaluateIndicatorDecisions, BACKTEST_PRESETS } from '@/modules/backtest';
@@ -186,15 +186,18 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
     // shared/market/trading-session.ts). Tidak perlu cek tanggal terpisah seperti di
     // route lain - field ini SELALU merepresentasikan sesi HARI INI selama bursa buka.
     const rawVolume = isFiniteNonNegative(q.price?.regularMarketVolume) ? q.price.regularMarketVolume : null;
-    const volume = rawVolume != null
-      ? (isIdxMarketHoursNow() ? estimateFullDayVolume(rawVolume) : rawVolume)
-      : null;
     const avgVolume = isFinitePositive(q.summaryDetail?.averageVolume10days)
       ? q.summaryDetail.averageVolume10days
       : isFinitePositive(q.summaryDetail?.averageVolume)
       ? q.summaryDetail.averageVolume
       : null;
-    const volRatio = volume != null && avgVolume != null ? volume / avgVolume : null;
+    // Zero Dummy Policy: selama bursa buka, regularMarketVolume adalah volume parsial.
+    // Jangan mengekstrapolasi ke full-day dengan profil U-shape tersembunyi karena
+    // volRatio ikut membentuk ranking Agresif. Missing/model estimate harus tetap
+    // unavailable kecuali outputnya secara eksplisit diberi label sebagai estimasi.
+    const volRatio = !isIdxMarketHoursNow() && rawVolume != null && avgVolume != null
+      ? rawVolume / avgVolume
+      : null;
 
     const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
 
@@ -254,11 +257,9 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
         ? history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20
         : null;
 
-      // Arus dana - definisi SAMA dengan recommendation.service.ts (analyzeAccumulationSignal
-      // 4-lapis untuk arah, computeAccumulationStreak untuk lama streak berturut-turut),
-      // duplikat yang didokumentasikan (bukan disatukan ke helper bersama karena di luar
-      // cakupan permintaan ini) supaya kategori foreignFlow yang sama artinya di kedua
-      // tempat, bukan cabang logika ketiga yang bisa berbeda hasil (pelajaran M-04).
+      // Arus dana proxy: status konfirmasi + streak dihitung dari OHLCV yang sama.
+      // Tidak ada label foreign-flow terpisah yang perlu dibuat; scoring memakai field
+      // turunan yang eksplisit dan nullable di bawah.
       const dailyFlow = computeDailyNetFlow(dailyHistory).slice(-20);
       const buyStreak = computeAccumulationStreak(dailyFlow);
       let sellStreak = 0;
@@ -267,9 +268,6 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
         else break;
       }
       const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
-      let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
-      if (accumulation.status === 'AKUMULASI') foreignFlow = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
-      else if (accumulation.status === 'DISTRIBUSI') foreignFlow = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
 
       const scoring = calculateScore(
         ticker.replace('.JK', ''),
@@ -310,8 +308,8 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
             beta: null,
           },
         },
-        // Satu kelompok arus dana (temuan H-1) - `foreignFlow` tetap dihitung di atas
-        // untuk label kolom, tapi tidak lagi disekor terpisah dari cmf20 yang jadi asalnya.
+        // Satu kelompok arus dana (temuan H-1); semua input berasal dari proxy OHLCV
+        // yang eksplisit dan nullable, tanpa label transaksi asing palsu.
         {
           cmf20: bandarmology.cmf20,
           accumulationStatus: accumulation.status,
@@ -422,17 +420,20 @@ export async function fetchScreenerUniverse(): Promise<RawStock[]> {
 function profitabilityQualityLabel(roe: number | null, grossMargin: number | null): string {
   if (roe != null && roe >= 20 && grossMargin != null && grossMargin >= 40) return 'Profit kuat';
   if (roe != null && roe >= 12) return 'Profit cukup';
+  if (roe == null && grossMargin == null) return 'Data N/A';
   return 'Profit lemah';
 }
 
 function bandarmologyLabel(status: BandarmologyStatus): string {
   if (status === 'BULLISH') return 'Akumulasi';
   if (status === 'BEARISH') return 'Distribusi';
+  if (status === 'UNAVAILABLE') return 'Data N/A';
   return 'Netral';
 }
 
 function directionalMomentumScore(volRatio: number | null, status: BandarmologyStatus): number | null {
   if (volRatio == null || !Number.isFinite(volRatio) || volRatio < 0) return null;
+  if (status === 'UNAVAILABLE') return null;
   const boundedVol = Math.min(2, volRatio);
   if (status === 'BULLISH') return Math.min(100, 50 + boundedVol * 25);
   if (status === 'BEARISH') return Math.max(0, 50 - boundedVol * 25);

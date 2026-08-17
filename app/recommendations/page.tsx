@@ -52,6 +52,7 @@ const FOREIGN_FLOW_LABEL: Record<string, string> = {
   'NEUTRAL': 'NETRAL',
   'NET SELL': 'DISTRIBUSI',
   'STRONG NET SELL': 'DISTRIBUSI KUAT',
+  'UNAVAILABLE': 'DATA N/A',
 };
 
 export default function Recommendations() {
@@ -221,9 +222,9 @@ export default function Recommendations() {
           aValue = (scoreMap[a?.consensus] || 0) * 100 + (a?.confidence || 0);
           bValue = (scoreMap[b?.consensus] || 0) * 100 + (b?.confidence || 0);
         } else if (sortConfig.key === 'foreignFlow') {
-          const flowMap: any = { 'STRONG NET BUY': 4, 'NET BUY': 3, 'NEUTRAL': 2, 'NET SELL': 1, 'STRONG NET SELL': 0 };
-          aValue = flowMap[a?.foreignFlow] ?? 2;
-          bValue = flowMap[b?.foreignFlow] ?? 2;
+          const flowMap: any = { 'STRONG NET BUY': 4, 'NET BUY': 3, 'NEUTRAL': 2, 'NET SELL': 1, 'STRONG NET SELL': 0, 'UNAVAILABLE': -1 };
+          aValue = flowMap[a?.foreignFlow] ?? -1;
+          bValue = flowMap[b?.foreignFlow] ?? -1;
         }
 
         if (aValue === undefined || aValue === null) aValue = '';
@@ -447,9 +448,10 @@ export default function Recommendations() {
                     <td className="p-4 text-center">
                       <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans text-[11px] ${item.foreignFlow?.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/50' :
                           item.foreignFlow?.includes('SELL') ? 'bg-tv-red/10 text-tv-red border border-tv-red/50' :
+                            item.foreignFlow === 'UNAVAILABLE' ? 'bg-tv-card text-tv-muted border border-tv-border' :
                             'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/50'
                         }`}>
-                        {FOREIGN_FLOW_LABEL[item.foreignFlow] || item.foreignFlow || 'NETRAL'}
+                        {FOREIGN_FLOW_LABEL[item.foreignFlow] || item.foreignFlow || 'DATA N/A'}
                       </div>
                     </td>
                     <td className="p-4 text-right font-mono text-tv-muted">

@@ -34,7 +34,7 @@ export interface Range52Week {
   positionPct: number; // 0% at 52w low, 100% at 52w high
 }
 
-export type TrendStatus = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+export type TrendStatus = 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'NA';
 
 export interface TimeframeTrend {
   timeframe: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
@@ -182,8 +182,11 @@ function calculateEMA(data: number[], period: number): number | null {
 /**
  * Average True Range helper (14 periods).
  */
-export function calculateATR(candles: OHLCVCandle[], period = 14): number {
-  if (candles.length < 2) return Math.max(1, (candles[0]?.high ?? 100) - (candles[0]?.low ?? 90));
+export function calculateATR(candles: OHLCVCandle[], period = 14): number | null {
+  // Zero Dummy Policy: ATR membutuhkan setidaknya dua candle untuk menghitung
+  // true range terhadap previous close. Jangan menciptakan rentang 100/90 saat
+  // input kosong atau tidak cukup.
+  if (candles.length < 2) return null;
   const trs: number[] = [];
   for (let i = 1; i < candles.length; i++) {
     const current = candles[i];
@@ -196,6 +199,7 @@ export function calculateATR(candles: OHLCVCandle[], period = 14): number {
     trs.push(tr);
   }
   const slice = trs.slice(-period);
+  if (slice.length === 0) return null;
   return slice.reduce((a, b) => a + b, 0) / slice.length;
 }
 
@@ -213,7 +217,7 @@ export function calculateMultiTimeframeTrends(candles: OHLCVCandle[]): Timeframe
   const ma200 = calculateSMA(closes, 200);
 
   const shortStatus: TrendStatus =
-    ema20 != null ? (currentPrice > ema20 * 1.005 ? 'BULLISH' : currentPrice < ema20 * 0.995 ? 'BEARISH' : 'NEUTRAL') : 'NEUTRAL';
+    ema20 != null ? (currentPrice > ema20 * 1.005 ? 'BULLISH' : currentPrice < ema20 * 0.995 ? 'BEARISH' : 'NEUTRAL') : 'NA';
 
   const medStatus: TrendStatus =
     ma50 != null && ma100 != null
@@ -226,7 +230,7 @@ export function calculateMultiTimeframeTrends(candles: OHLCVCandle[]): Timeframe
       ? currentPrice > ma50
         ? 'BULLISH'
         : 'BEARISH'
-      : 'NEUTRAL';
+      : 'NA';
 
   const longStatus: TrendStatus =
     ma200 != null
@@ -235,7 +239,7 @@ export function calculateMultiTimeframeTrends(candles: OHLCVCandle[]): Timeframe
         : currentPrice < ma200 * 0.99
         ? 'BEARISH'
         : 'NEUTRAL'
-      : 'NEUTRAL';
+      : 'NA';
 
   return [
     {
@@ -286,16 +290,20 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
 
   // Average volume of prior 20 bars
   const recentVolumes = candles.slice(-21, -1).map((c) => c.volume);
-  const avgVol = recentVolumes.length > 0 ? recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length : 1;
-  const isHighVolume = c0.volume > avgVol * 1.15;
+  const hasVolumeBaseline = recentVolumes.length === 20 && recentVolumes.every((v) => Number.isFinite(v) && v >= 0);
+  const avgVol = hasVolumeBaseline ? recentVolumes.reduce((a, b) => a + b, 0) / 20 : null;
+  const isHighVolume = avgVol != null && avgVol > 0 && Number.isFinite(c0.volume) && c0.volume > avgVol * 1.15;
 
   const body0 = Math.abs(c0.close - c0.open);
-  const range0 = c0.high - c0.low || 1;
+  const range0 = c0.high - c0.low;
+  // Candle tanpa range tidak punya wick/body ratio yang bermakna. Jangan mengganti
+  // range 0 dengan angka 1 karena itu menciptakan pola candlestick yang tidak terukur.
+  if (!Number.isFinite(range0) || range0 <= 0) return [];
   const isBullish0 = c0.close > c0.open;
   const isBearish0 = c0.close < c0.open;
 
   const body1 = Math.abs(c1.close - c1.open);
-  const range1 = c1.high - c1.low || 1;
+  const range1 = c1.high - c1.low;
   const isBullish1 = c1.close > c1.open;
   const isBearish1 = c1.close < c1.open;
 
@@ -401,7 +409,9 @@ export function calculateTradingPlan(
 ): TradingPlan | null {
   if (candles.length < 14) return null;
   const currentPrice = candles[candles.length - 1].close;
-  const atr14 = Math.round(calculateATR(candles, 14));
+  const atr = calculateATR(candles, 14);
+  if (atr == null || !Number.isFinite(atr) || atr <= 0) return null;
+  const atr14 = Math.round(atr);
 
   const classic = pivots.CLASSIC;
   const s1 = classic.s1;

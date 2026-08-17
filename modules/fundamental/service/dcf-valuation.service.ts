@@ -207,11 +207,12 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     quoteSummary.assetProfile?.sector ?? null,
     quoteSummary.assetProfile?.industry ?? null,
   );
+  const reportedPayoutRatio = isFiniteNumber(quoteSummary.summaryDetail?.payoutRatio)
+    ? quoteSummary.summaryDetail.payoutRatio
+    : null;
   const implied = impliedMultiples({
     roePct: roe,
-    payoutRatio: isFiniteNumber(quoteSummary.summaryDetail?.payoutRatio)
-      ? quoteSummary.summaryDetail.payoutRatio
-      : null,
+    payoutRatio: reportedPayoutRatio,
     beta: isFiniteNumber(quoteSummary.defaultKeyStatistics?.beta)
       ? quoteSummary.defaultKeyStatistics.beta
       : null,
@@ -366,6 +367,10 @@ export async function calculateIntrinsicValue(rawTicker: string) {
       fair_per_basis: implied.fairPerBasis,
       cost_of_equity_pct: implied.costOfEquityPct,
       growth_pct: implied.growthPct,
+      payout_ratio: reportedPayoutRatio,
+      retention_ratio: implied.retentionRatio,
+      retention_source: implied.retentionSource,
+      growth_cap_pct: implied.growthCapPct,
       beta_used: implied.betaUsed,
       beta_source: implied.betaSource,
       risk_free_rate_pct: MACRO_ASSUMPTIONS.RISK_FREE_RATE_PCT,
@@ -528,6 +533,7 @@ export async function calculateDcfModel(rawTicker: string) {
   // kalau payout ratio tersedia, dibatasi ke rentang wajar 2-12% supaya tidak meledak
   // untuk emiten ROE ekstrem - bukan angka tebakan tetap untuk semua saham.
   const retentionRatio = payoutRatio != null ? clamp(1 - payoutRatio, 0, 1) : 0.6;
+  const retentionSource = payoutRatio != null ? 'REPORTED_PAYOUT' : 'MODEL_ASSUMPTION_60_PCT';
   const rawGrowth = (roe / 100) * retentionRatio;
   const projectionGrowth = clamp(rawGrowth, 0.02, 0.12);
 
@@ -637,11 +643,17 @@ export async function calculateDcfModel(rawTicker: string) {
       assumptions: {
         is_assumption: true,
         set_on: MACRO_ASSUMPTION_SET_ON,
-        note: 'SBN 10Y & equity risk premium adalah asumsi tetap yang ditinjau manual - backend ini tidak tersambung ke sumber data yield SBN. Ubah asumsi, dan nilai wajar ikut berubah (lihat tabel sensitivitas).',
+        payout_ratio: payoutRatio,
+        retention_ratio: retentionRatio,
+        retention_source: retentionSource,
+        raw_sustainable_growth_pct: rawGrowth * 100,
+        projection_growth_pct: projectionGrowth * 100,
+        projection_growth_constraint_pct: { min: 2, max: 12 },
+        note: `SBN 10Y & equity risk premium adalah asumsi tetap yang ditinjau manual - backend ini tidak tersambung ke sumber data yield SBN. ${retentionSource === 'MODEL_ASSUMPTION_60_PCT' ? 'Payout ratio tidak tersedia; proyeksi memakai asumsi retensi laba 60% dan harus dibaca sebagai MODEL ASSUMPTION. ' : ''}Pertumbuhan proyeksi dibatasi model ke 2%-12% per tahun; ini guardrail model, bukan data emiten. Ubah asumsi, dan nilai wajar ikut berubah (lihat tabel sensitivitas).`,
       },
     },
     analysis: {
-      executive_summary: `Model DCF 5-tahun memakai discount rate proxy ${discountRatePct.toFixed(1)}% (= asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, tetap per ${MACRO_ASSUMPTION_SET_ON}); FCF dihitung sebagai nilai operasi lalu dikurangi utang bersih per saham Rp ${Math.round(netDebtPerShare).toLocaleString('id-ID')}. Nilai wajar ekuitas Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL, bukan target harga; lihat tabel sensitivitas.`,
+      executive_summary: `Model DCF 5-tahun memakai discount rate proxy ${discountRatePct.toFixed(1)}% (= asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, tetap per ${MACRO_ASSUMPTION_SET_ON}); ${retentionSource === 'MODEL_ASSUMPTION_60_PCT' ? 'payout ratio tidak tersedia sehingga growth memakai asumsi retensi laba 60% (MODEL ASSUMPTION); ' : `retensi laba diturunkan dari payout ratio provider (${(retentionRatio * 100).toFixed(1)}%); `}FCF dihitung sebagai nilai operasi lalu dikurangi utang bersih per saham Rp ${Math.round(netDebtPerShare).toLocaleString('id-ID')}. Nilai wajar ekuitas Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL, bukan target harga; lihat tabel sensitivitas.`,
     },
   };
 }

@@ -112,6 +112,10 @@ export interface ImpliedMultiples {
   fairPerBasis: 'gordon' | 'no-growth';
   costOfEquityPct: number;
   growthPct: number;
+  /** Rasio laba ditahan yang dipakai model; 0-1. */
+  retentionRatio: number;
+  retentionSource: 'REPORTED_PAYOUT' | 'MODEL_ASSUMPTION_60_PCT';
+  growthCapPct: number;
   betaUsed: number;
   betaSource: CostOfEquityResult['betaSource'];
 }
@@ -155,6 +159,10 @@ export function impliedMultiples(input: ImpliedMultiplesInput): ImpliedMultiples
   const coe = costOfEquity({ beta: input.beta, fallbackBeta: input.fallbackBeta });
   const r = coe.rate;
 
+  const hasReportedPayout = input.payoutRatio != null && Number.isFinite(input.payoutRatio);
+  const retentionRatio = hasReportedPayout
+    ? Math.min(1, Math.max(0, 1 - (input.payoutRatio as number)))
+    : 0.6;
   let g = sustainableGrowth(input.roePct, input.payoutRatio);
   const roeDecimal = input.roePct != null && Number.isFinite(input.roePct) ? input.roePct / 100 : null;
 
@@ -184,6 +192,9 @@ export function impliedMultiples(input: ImpliedMultiplesInput): ImpliedMultiples
     fairPerBasis,
     costOfEquityPct: r * 100,
     growthPct: g * 100,
+    retentionRatio,
+    retentionSource: hasReportedPayout ? 'REPORTED_PAYOUT' : 'MODEL_ASSUMPTION_60_PCT',
+    growthCapPct: MACRO_ASSUMPTIONS.MAX_PERPETUAL_GROWTH_PCT,
     betaUsed: coe.betaUsed,
     betaSource: coe.betaSource,
   };

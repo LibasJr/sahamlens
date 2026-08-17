@@ -203,7 +203,10 @@ function parseLocalizedNumber(raw: string, label: string, nullable = false): num
   let value = raw.trim();
   if (!value) {
     if (nullable) return null;
-    return 0;
+    // Zero Dummy Policy: kolom kosong berarti "tidak tersedia", bukan angka nol.
+    // Untuk field wajib (buy_value/sell_value), tolak file agar tidak mengubah missing
+    // menjadi transaksi 0 yang terlihat seperti data sumber yang sah.
+    throw new BrokerSummaryValidationError(`${label}: nilai wajib tidak boleh kosong.`);
   }
 
   value = value.replace(/\s+/g, '').replace(/^rp/i, '').replace(/idr$/i, '');
@@ -268,8 +271,11 @@ function rowFromCsv(
   const brokerCode = normalizeBrokerCode(pick(row, BROKER_ALIASES));
   if (!brokerCode) throw new BrokerSummaryValidationError(`Baris ${line}: broker_code kosong/tidak valid.`);
 
-  const buyValue = parseLocalizedNumber(pick(row, BUY_VALUE_ALIASES), `Baris ${line} buy_value`) ?? 0;
-  const sellValue = parseLocalizedNumber(pick(row, SELL_VALUE_ALIASES), `Baris ${line} sell_value`) ?? 0;
+  const buyValue = parseLocalizedNumber(pick(row, BUY_VALUE_ALIASES), `Baris ${line} buy_value`);
+  const sellValue = parseLocalizedNumber(pick(row, SELL_VALUE_ALIASES), `Baris ${line} sell_value`);
+  if (buyValue == null || sellValue == null) {
+    throw new BrokerSummaryValidationError(`Baris ${line}: buy_value/sell_value wajib tersedia.`);
+  }
   const buyVolume = parseLocalizedNumber(pick(row, BUY_VOLUME_ALIASES), `Baris ${line} buy_volume`, true);
   const sellVolume = parseLocalizedNumber(pick(row, SELL_VOLUME_ALIASES), `Baris ${line} sell_volume`, true);
   const buyFrequency = parseLocalizedNumber(pick(row, BUY_FREQUENCY_ALIASES), `Baris ${line} buy_frequency`, true);

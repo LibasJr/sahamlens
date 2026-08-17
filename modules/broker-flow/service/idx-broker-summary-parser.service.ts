@@ -1,5 +1,10 @@
 import { pool } from '@/shared/database/postgres.client';
 import { getEmitenSymbolSet } from '@/shared/market/emiten-list';
+import {
+  PUBLIC_BROKER_DAILY_SOURCE,
+  brokerDailyIntegrityStatus,
+  type BrokerDailyIntegrityStatus,
+} from './broker-summary-integrity';
 
 export const KNOWN_FOREIGN_BROKERS = new Set([
   'AK', 'BK', 'CC', 'CS', 'KZ', 'MS', 'RX', 'YU', 'ZP', 'CG', 'DP', 'DB', 'LG', 'ML', 'OD', 'AI', 'BS', 'GW', 'HP', 'FS',
@@ -9,30 +14,11 @@ export const KNOWN_RETAIL_BROKERS = new Set([
   'YP', 'PD', 'XC', 'NI', 'XL', 'SQ', 'KK', 'CP', 'GR', 'HD', 'EP', 'AZ', 'BQ',
 ]);
 
-/**
- * Daftar PUTIH sumber yang boleh dibaca ke permukaan produk. Bukan daftar hitam -
- * sumber yang tidak dikenal DITOLAK, bukan diizinkan sampai terbukti buruk.
- *
- * Kenapa 'IDX_EOD_REPORT' TIDAK ada di sini meski namanya terdengar paling resmi:
- * satu-satunya penulis yang pernah menghasilkan label itu adalah endpoint backfill
- * di 28d5d98, yang isinya Math.random(). Parser IDX yang sah
- * (parseIdxBrokerSummaryText) memakai label yang sama sebagai default, tetapi
- * `git log -S` atas seluruh riwayat membuktikan ia TIDAK PERNAH tersambung ke jalur
- * tulis mana pun. Jadi tidak ada satu baris 'IDX_EOD_REPORT' yang sah untuk
- * dilindungi, dan mengeluarkannya dari daftar ini tidak menghilangkan data nyata.
- *
- * Sebelum menambahkan sumber baru ke sini, pastikan jalur tulisnya tervalidasi
- * (lihat importBrokerSummaryCsv) dan provenance-nya terisi.
- */
-export const TRUSTED_BROKER_SOURCES: readonly string[] = [
-  'INDEX_ALPHA_API',
-  'STOCKBIT_MANUAL',
-  'STOCKBIT_MANUAL_JSON',
-];
+export type BrokerCategory = 'FOREIGN' | 'RETAIL' | 'UNKNOWN';
 
 export interface BrokerTransactionRaw {
   ticker: string;
-  tradeDate: string; // YYYY-MM-DD
+  tradeDate: string;
   brokerCode: string;
   buyValue: number;
   sellValue: number;
@@ -52,12 +38,13 @@ export interface ParsedBrokerSummaryReport {
   tradeDate: string;
   source: string;
   totalRecords: number;
+  rejectedRecords: number;
   transactions: BrokerTransactionRaw[];
 }
 
 export interface TopBrokerItem {
   brokerCode: string;
-  brokerCategory: 'FOREIGN' | 'DOMESTIC_INSTITUTION' | 'RETAIL';
+  brokerCategory: BrokerCategory;
   buyValue: number;
   sellValue: number;
   netValue: number;
@@ -68,17 +55,25 @@ export interface TopBrokerItem {
   avgSellPrice: number | null;
 }
 
+interface CompositionBucket {
+  buyValue: number;
+  sellValue: number;
+  netValue: number;
+  pct: number;
+}
+
 export interface StockBrokerSummaryResult {
   ticker: string;
   tradeDate: string;
-  /** Asal baris yang benar-benar dipakai. Wajib ikut ditampilkan di UI - angka broker
-   * tanpa sumber tidak dapat dibedakan dari angka yang dikarang. */
-  provenance: {
-    sources: string[];
-    lastImportedAt: string | null;
-  };
   totalTurnover: number;
   totalVolume: number;
+  provenance: {
+    source: string;
+    sourceFile: string | null;
+    importedAt: string | null;
+    integrityStatus: BrokerDailyIntegrityStatus;
+    reconciliationStatus: 'UNRECONCILED';
+  };
   topBuyers: TopBrokerItem[];
   topSellers: TopBrokerItem[];
   concentration: {
@@ -95,80 +90,93 @@ export interface StockBrokerSummaryResult {
     foreignNetValue: number;
   };
   brokerComposition: {
-    foreign: { buyValue: number; sellValue: number; netValue: number; pct: number };
-    domesticInst: { buyValue: number; sellValue: number; netValue: number; pct: number };
-    retail: { buyValue: number; sellValue: number; netValue: number; pct: number };
+    foreign: CompositionBucket;
+    domesticInst: CompositionBucket | null;
+    retail: CompositionBucket;
+    unknown: CompositionBucket;
+    classifiedCoveragePct: number;
+    classificationMethod: 'INTERNAL_BROKER_CODE_MAP';
   };
-  bandarPriceAnalysis: {
-    bandarAvgBuyPrice: number | null;
-    bandarAvgSellPrice: number | null;
-    estimatedClosingPrice: number | null;
-    bandarPriceDiffPct: number | null;
-    priceZone: 'DISCOUNT_ZONE' | 'ACCUMULATION_ZONE' | 'MARKUP_ZONE' | 'NEUTRAL';
+  dominantBrokerPriceAnalysis: {
+    dominantBuyerAvgPrice: number | null;
+    dominantSellerAvgPrice: number | null;
   };
   retailBehavior: {
-    status: 'PANIC_SELLING' | 'FOMO_BUYING' | 'RETAIL_ACCUMULATION' | 'RETAIL_DISTRIBUTION' | 'NEUTRAL';
+    status: 'PANIC_SELLING' | 'FOMO_BUYING' | 'RETAIL_ACCUMULATION' | 'RETAIL_DISTRIBUTION' | 'NEUTRAL' | 'UNAVAILABLE';
     summary: string;
   };
-  bandarmologyStatus: 'BIG_ACCUMULATION' | 'NORMAL_ACCUMULATION' | 'NEUTRAL' | 'NORMAL_DISTRIBUTION' | 'BIG_DISTRIBUTION';
-  bandarmologyNarrative: string;
+  brokerConcentrationStatus: 'BIG_ACCUMULATION' | 'NORMAL_ACCUMULATION' | 'NEUTRAL' | 'NORMAL_DISTRIBUTION' | 'BIG_DISTRIBUTION';
+  brokerConcentrationNarrative: string;
 }
 
 /**
- * Classify broker category (Foreign, Domestic Institutional, Retail).
+ * Klasifikasi ini adalah mapping internal SahamLens, bukan atribut resmi yang datang
+ * bersama setiap baris provider. Kode yang belum ada di mapping HARUS UNKNOWN.
  */
-export function classifyBrokerCode(code: string): 'FOREIGN' | 'DOMESTIC_INSTITUTION' | 'RETAIL' {
+export function classifyBrokerCode(code: string): BrokerCategory {
   const upper = code.trim().toUpperCase();
   if (KNOWN_FOREIGN_BROKERS.has(upper)) return 'FOREIGN';
   if (KNOWN_RETAIL_BROKERS.has(upper)) return 'RETAIL';
-  return 'DOMESTIC_INSTITUTION';
+  return 'UNKNOWN';
+}
+
+function parseNonNegativeNumber(value: string | undefined): number | null {
+  if (value == null || value.trim() === '') return null;
+  const clean = value.replace(/[^0-9.-]+/g, '');
+  const parsed = Number(clean);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 /**
- * Parse text or CSV content of an IDX End-of-Day Daily Trading/Broker Summary.
+ * Parser report manual. Fail-closed: buy/sell value DAN buy/sell volume wajib ada.
+ * Tidak ada lagi estimasi volume dari `value / 1000` ketika kolom volume hilang.
+ *
+ * Default source sengaja UNVERIFIED supaya hasil parser tidak dapat menyamar sebagai
+ * feed resmi hanya karena caller lupa memberikan provenance.
  */
 export function parseIdxBrokerSummaryText(
   content: string,
   tradeDate: string,
-  source = 'IDX_EOD_REPORT'
+  source = 'UNVERIFIED_MANUAL_REPORT',
 ): ParsedBrokerSummaryReport {
   const validSymbols = getEmitenSymbolSet();
-  const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const transactions: BrokerTransactionRaw[] = [];
+  let rejectedRecords = 0;
 
   for (const line of lines) {
-    const parts = line.includes('\t')
-      ? line.split('\t')
-      : line.includes(';')
-      ? line.split(';')
-      : line.split(',');
-
-    if (parts.length < 4) continue;
+    const parts = line.includes('\t') ? line.split('\t') : line.includes(';') ? line.split(';') : line.split(',');
+    if (parts.length < 6) {
+      rejectedRecords += 1;
+      continue;
+    }
 
     const rawTicker = parts[0]?.trim().toUpperCase().replace(/\.JK$/i, '');
     if (!rawTicker || !validSymbols.has(rawTicker)) continue;
 
     const brokerCode = parts[1]?.trim().toUpperCase();
-    if (!brokerCode || brokerCode.length > 8 || !/^[A-Z0-9]+$/.test(brokerCode)) continue;
+    if (!brokerCode || brokerCode.length > 8 || !/^[A-Z0-9]+$/.test(brokerCode)) {
+      rejectedRecords += 1;
+      continue;
+    }
 
-    const parseNum = (val: string | undefined): number => {
-      if (!val) return 0;
-      const clean = val.replace(/[^0-9.-]+/g, '');
-      const parsed = parseFloat(clean);
-      return Number.isFinite(parsed) ? parsed : 0;
-    };
+    const buyValue = parseNonNegativeNumber(parts[2]);
+    const sellValue = parseNonNegativeNumber(parts[3]);
+    const buyVolume = parseNonNegativeNumber(parts[4]);
+    const sellVolume = parseNonNegativeNumber(parts[5]);
+    if (buyValue == null || sellValue == null || buyVolume == null || sellVolume == null) {
+      rejectedRecords += 1;
+      continue;
+    }
 
-    const buyValue = parseNum(parts[2]);
-    const sellValue = parseNum(parts[3]);
-    const buyVolume = parts[4] ? parseNum(parts[4]) : Math.round(buyValue / 1000);
-    const sellVolume = parts[5] ? parseNum(parts[5]) : Math.round(sellValue / 1000);
+    const buyFrequencyRaw = parseNonNegativeNumber(parts[6]);
+    const sellFrequencyRaw = parseNonNegativeNumber(parts[7]);
+    const buyFrequency = buyFrequencyRaw == null ? undefined : Math.round(buyFrequencyRaw);
+    const sellFrequency = sellFrequencyRaw == null ? undefined : Math.round(sellFrequencyRaw);
     const buyLot = Math.round(buyVolume / 100);
     const sellLot = Math.round(sellVolume / 100);
-    const buyFrequency = parts[6] ? Math.round(parseNum(parts[6])) : undefined;
-    const sellFrequency = parts[7] ? Math.round(parseNum(parts[7])) : undefined;
-
-    const buyAvgPrice = buyVolume > 0 ? parseFloat((buyValue / buyVolume).toFixed(2)) : undefined;
-    const sellAvgPrice = sellVolume > 0 ? parseFloat((sellValue / sellVolume).toFixed(2)) : undefined;
+    const buyAvgPrice = buyVolume > 0 ? Number((buyValue / buyVolume).toFixed(2)) : undefined;
+    const sellAvgPrice = sellVolume > 0 ? Number((sellValue / sellVolume).toFixed(2)) : undefined;
 
     transactions.push({
       ticker: `${rawTicker}.JK`,
@@ -188,284 +196,229 @@ export function parseIdxBrokerSummaryText(
     });
   }
 
+  return { tradeDate, source, totalRecords: transactions.length, rejectedRecords, transactions };
+}
+
+function finiteDbNumber(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function weightedAveragePrice(items: TopBrokerItem[], side: 'BUY' | 'SELL'): number | null {
+  let weighted = 0;
+  let volume = 0;
+  for (const item of items.slice(0, 3)) {
+    const avg = side === 'BUY' ? item.avgBuyPrice : item.avgSellPrice;
+    const vol = side === 'BUY' ? item.buyVolume : item.sellVolume;
+    if (avg != null && avg > 0 && vol > 0) {
+      weighted += avg * vol;
+      volume += vol;
+    }
+  }
+  return volume > 0 ? Math.round(weighted / volume) : null;
+}
+
+function bucket(buyValue: number, sellValue: number, total: number): CompositionBucket {
+  const turnover = buyValue + sellValue;
   return {
-    tradeDate,
-    source,
-    totalRecords: transactions.length,
-    transactions,
+    buyValue,
+    sellValue,
+    netValue: buyValue - sellValue,
+    pct: total > 0 ? Math.round((turnover / total) * 100) : 0,
   };
 }
 
-// saveBrokerTransactionsToDb() DIHAPUS 2026-08-17.
-//
-// Fungsi ini di-export sejak 6564c64 dan TIDAK PERNAH dipanggil dari mana pun
-// (diverifikasi atas seluruh riwayat git dengan `git log -S`). Yang membuatnya
-// berbahaya bukan pemakaiannya, melainkan sifatnya: ON CONFLICT DO UPDATE
-// (menimpa baris yang sudah ada, berbeda dari jalur impor resmi yang append-only
-// DO NOTHING), tanpa validasi baris, dan dengan `source` default 'IDX_EOD_REPORT'
-// - label sumber resmi yang sama yang dipakai backfill sintetis di 28d5d98.
-//
-// Satu-satunya jalur tulis yang sah sekarang: importBrokerSummaryCsv() dan
-// importBrokerDistributionJson() di broker-summary-import.service.ts.
-
 /**
- * Compute institutional Bandarmology metrics for a given stock and date.
+ * Compute Broker Summary hanya dari source harian yang provenance-nya diketahui.
+ * `IDX_EOD_REPORT` sengaja diblok karena source label itu pernah tercemar data sintetis.
  */
 export async function computeStockBrokerSummary(
   rawTicker: string,
-  targetDate?: string
+  targetDate?: string,
 ): Promise<StockBrokerSummaryResult | null> {
-  const ticker = rawTicker.trim().toUpperCase().includes('.JK') ? rawTicker.trim().toUpperCase() : `${rawTicker.trim().toUpperCase()}.JK`;
+  const code = rawTicker.trim().toUpperCase().replace(/\.JK$/i, '');
+  if (!/^[A-Z0-9]{1,12}$/.test(code)) return null;
+  const ticker = `${code}.JK`;
+  const source = PUBLIC_BROKER_DAILY_SOURCE;
+  const integrityStatus = brokerDailyIntegrityStatus(source);
+  if (!integrityStatus) return null;
 
   try {
     const dateQuery = targetDate
       ? targetDate
       : (
           await pool.query(
-            `SELECT trade_date FROM broker_summary_daily
-             WHERE ticker = $1 AND source = ANY($2::text[])
-             ORDER BY trade_date DESC LIMIT 1`,
-            [ticker, TRUSTED_BROKER_SOURCES]
+            `SELECT trade_date
+             FROM broker_summary_daily
+             WHERE ticker = $1 AND source = $2
+             ORDER BY trade_date DESC
+             LIMIT 1`,
+            [ticker, source],
           )
         ).rows[0]?.trade_date;
 
     if (!dateQuery) return null;
-
     const formattedDate = dateQuery instanceof Date ? dateQuery.toISOString().slice(0, 10) : String(dateQuery).slice(0, 10);
 
     const rowsRes = await pool.query(
-      `SELECT
-        broker_code, buy_value, sell_value, buy_volume, sell_volume,
-        buy_avg, sell_avg, source, imported_at
-      FROM broker_summary_daily
-      WHERE ticker = $1 AND trade_date = $2::date AND source = ANY($3::text[])
-      ORDER BY ABS(buy_value - sell_value) DESC`,
-      [ticker, formattedDate, TRUSTED_BROKER_SOURCES]
+      `SELECT broker_code, buy_value, sell_value, buy_volume, sell_volume,
+              buy_avg, sell_avg, source, source_file, imported_at
+       FROM broker_summary_daily
+       WHERE ticker = $1 AND trade_date = $2::date AND source = $3
+       ORDER BY ABS(buy_value - sell_value) DESC`,
+      [ticker, formattedDate, source],
     );
-
     if (!rowsRes.rows.length) return null;
 
-    // Provenance dibawa keluar, bukan disimpulkan. Pemanggil TIDAK boleh menyatakan
-    // "ini data broker nyata" hanya karena query mengembalikan baris.
-    const sources = Array.from(new Set(rowsRes.rows.map((r: any) => String(r.source))));
-    const importedAtValues = rowsRes.rows
-      .map((r: any) => (r.imported_at instanceof Date ? r.imported_at.toISOString() : r.imported_at ? String(r.imported_at) : null))
-      .filter((v): v is string => v != null)
-      .sort();
-    const lastImportedAt = importedAtValues[importedAtValues.length - 1] ?? null;
-
-    let totalTurnover = 0;
-    let totalVolume = 0;
-
+    let totalTurnoverDoubleCounted = 0;
+    let totalVolumeDoubleCounted = 0;
     let foreignBuyValue = 0;
     let foreignSellValue = 0;
     let retailBuyValue = 0;
     let retailSellValue = 0;
-    let domInstBuyValue = 0;
-    let domInstSellValue = 0;
+    let unknownBuyValue = 0;
+    let unknownSellValue = 0;
 
-    const items: TopBrokerItem[] = rowsRes.rows.map((r: any) => {
-      const bCode = String(r.broker_code);
-      const buyV = parseFloat(r.buy_value) || 0;
-      const sellV = parseFloat(r.sell_value) || 0;
-      const buyVol = parseFloat(r.buy_volume) || 0;
-      const sellVol = parseFloat(r.sell_volume) || 0;
-      const netV = buyV - sellV;
-      const netVol = buyVol - sellVol;
-      const category = classifyBrokerCode(bCode);
+    const items: TopBrokerItem[] = [];
+    for (const row of rowsRes.rows) {
+      const buyValue = finiteDbNumber(row.buy_value);
+      const sellValue = finiteDbNumber(row.sell_value);
+      const buyVolume = finiteDbNumber(row.buy_volume);
+      const sellVolume = finiteDbNumber(row.sell_volume);
+      if (buyValue == null || sellValue == null || buyVolume == null || sellVolume == null) continue;
 
-      totalTurnover += buyV + sellV;
-      totalVolume += buyVol + sellVol;
+      const brokerCode = String(row.broker_code ?? '').trim().toUpperCase();
+      if (!brokerCode) continue;
+      const category = classifyBrokerCode(brokerCode);
+      totalTurnoverDoubleCounted += buyValue + sellValue;
+      totalVolumeDoubleCounted += buyVolume + sellVolume;
 
       if (category === 'FOREIGN') {
-        foreignBuyValue += buyV;
-        foreignSellValue += sellV;
+        foreignBuyValue += buyValue;
+        foreignSellValue += sellValue;
       } else if (category === 'RETAIL') {
-        retailBuyValue += buyV;
-        retailSellValue += sellV;
+        retailBuyValue += buyValue;
+        retailSellValue += sellValue;
       } else {
-        domInstBuyValue += buyV;
-        domInstSellValue += sellV;
+        unknownBuyValue += buyValue;
+        unknownSellValue += sellValue;
       }
 
-      return {
-        brokerCode: bCode,
+      items.push({
+        brokerCode,
         brokerCategory: category,
-        buyValue: buyV,
-        sellValue: sellV,
-        netValue: netV,
-        buyVolume: buyVol,
-        sellVolume: sellVol,
-        netVolume: netVol,
-        avgBuyPrice: r.buy_avg ? parseFloat(r.buy_avg) : null,
-        avgSellPrice: r.sell_avg ? parseFloat(r.sell_avg) : null,
-      };
-    });
-
-    totalTurnover = totalTurnover / 2;
-    totalVolume = totalVolume / 2;
-    const turnoverBase = Math.max(1, totalTurnover);
-
-    const topBuyers = [...items].filter((i) => i.netValue > 0).sort((a, b) => b.netValue - a.netValue).slice(0, 5);
-    const topSellers = [...items].filter((i) => i.netValue < 0).sort((a, b) => a.netValue - b.netValue).slice(0, 5);
-
-    const top1BuySum = topBuyers.slice(0, 1).reduce((s, b) => s + b.netValue, 0);
-    const top3BuySum = topBuyers.slice(0, 3).reduce((s, b) => s + b.netValue, 0);
-    const top5BuySum = topBuyers.slice(0, 5).reduce((s, b) => s + b.netValue, 0);
-
-    const top1SellSum = Math.abs(topSellers.slice(0, 1).reduce((s, b) => s + b.netValue, 0));
-    const top3SellSum = Math.abs(topSellers.slice(0, 3).reduce((s, b) => s + b.netValue, 0));
-    const top5SellSum = Math.abs(topSellers.slice(0, 5).reduce((s, b) => s + b.netValue, 0));
-
-    const top1BuyPct = Math.round((top1BuySum / turnoverBase) * 100);
-    const top3BuyPct = Math.round((top3BuySum / turnoverBase) * 100);
-    const top5BuyPct = Math.round((top5BuySum / turnoverBase) * 100);
-
-    const top1SellPct = Math.round((top1SellSum / turnoverBase) * 100);
-    const top3SellPct = Math.round((top3SellSum / turnoverBase) * 100);
-    const top5SellPct = Math.round((top5SellSum / turnoverBase) * 100);
-
-    // Bandar Average Price Calculation
-    let topBuyerValWeighted = 0;
-    let topBuyerVolWeighted = 0;
-    for (const b of topBuyers.slice(0, 3)) {
-      if (b.avgBuyPrice && b.buyVolume > 0) {
-        topBuyerValWeighted += b.avgBuyPrice * b.buyVolume;
-        topBuyerVolWeighted += b.buyVolume;
-      }
-    }
-    const bandarAvgBuyPrice = topBuyerVolWeighted > 0 ? Math.round(topBuyerValWeighted / topBuyerVolWeighted) : (topBuyers[0]?.avgBuyPrice ? Math.round(topBuyers[0].avgBuyPrice) : null);
-
-    let topSellerValWeighted = 0;
-    let topSellerVolWeighted = 0;
-    for (const s of topSellers.slice(0, 3)) {
-      if (s.avgSellPrice && s.sellVolume > 0) {
-        topSellerValWeighted += s.avgSellPrice * s.sellVolume;
-        topSellerVolWeighted += s.sellVolume;
-      }
-    }
-    const bandarAvgSellPrice = topSellerVolWeighted > 0 ? Math.round(topSellerValWeighted / topSellerVolWeighted) : (topSellers[0]?.avgSellPrice ? Math.round(topSellers[0].avgSellPrice) : null);
-
-    const estimatedClosingPrice = bandarAvgBuyPrice && bandarAvgSellPrice
-      ? Math.round((bandarAvgBuyPrice + bandarAvgSellPrice) / 2)
-      : bandarAvgBuyPrice || bandarAvgSellPrice;
-
-    let bandarPriceDiffPct: number | null = null;
-    let priceZone: StockBrokerSummaryResult['bandarPriceAnalysis']['priceZone'] = 'NEUTRAL';
-
-    if (estimatedClosingPrice && bandarAvgBuyPrice) {
-      bandarPriceDiffPct = parseFloat((((estimatedClosingPrice - bandarAvgBuyPrice) / bandarAvgBuyPrice) * 100).toFixed(1));
-      if (bandarPriceDiffPct <= -1.5) {
-        priceZone = 'DISCOUNT_ZONE';
-      } else if (bandarPriceDiffPct <= 2.5) {
-        priceZone = 'ACCUMULATION_ZONE';
-      } else {
-        priceZone = 'MARKUP_ZONE';
-      }
+        buyValue,
+        sellValue,
+        netValue: buyValue - sellValue,
+        buyVolume,
+        sellVolume,
+        netVolume: buyVolume - sellVolume,
+        avgBuyPrice: finiteDbNumber(row.buy_avg),
+        avgSellPrice: finiteDbNumber(row.sell_avg),
+      });
     }
 
-    // Broker Composition Breakdown
-    const foreignTotal = foreignBuyValue + foreignSellValue;
-    const retailTotal = retailBuyValue + retailSellValue;
-    const domInstTotal = domInstBuyValue + domInstSellValue;
-    const allTotal = Math.max(1, foreignTotal + retailTotal + domInstTotal);
+    if (!items.length) return null;
 
-    const brokerComposition = {
-      foreign: {
-        buyValue: foreignBuyValue,
-        sellValue: foreignSellValue,
-        netValue: foreignBuyValue - foreignSellValue,
-        pct: Math.round((foreignTotal / allTotal) * 100),
-      },
-      domesticInst: {
-        buyValue: domInstBuyValue,
-        sellValue: domInstSellValue,
-        netValue: domInstBuyValue - domInstSellValue,
-        pct: Math.round((domInstTotal / allTotal) * 100),
-      },
-      retail: {
-        buyValue: retailBuyValue,
-        sellValue: retailSellValue,
-        netValue: retailBuyValue - retailSellValue,
-        pct: Math.round((retailTotal / allTotal) * 100),
-      },
+    const totalTurnover = totalTurnoverDoubleCounted / 2;
+    const totalVolume = totalVolumeDoubleCounted / 2;
+    const turnoverBase = totalTurnover > 0 ? totalTurnover : null;
+    const topBuyers = [...items].filter((item) => item.netValue > 0).sort((a, b) => b.netValue - a.netValue).slice(0, 5);
+    const topSellers = [...items].filter((item) => item.netValue < 0).sort((a, b) => a.netValue - b.netValue).slice(0, 5);
+
+    const buyPct = (count: number) => turnoverBase == null ? 0 : Math.round((topBuyers.slice(0, count).reduce((sum, item) => sum + item.netValue, 0) / turnoverBase) * 100);
+    const sellPct = (count: number) => turnoverBase == null ? 0 : Math.round((Math.abs(topSellers.slice(0, count).reduce((sum, item) => sum + item.netValue, 0)) / turnoverBase) * 100);
+    const concentration = {
+      top1BuyPct: buyPct(1), top3BuyPct: buyPct(3), top5BuyPct: buyPct(5),
+      top1SellPct: sellPct(1), top3SellPct: sellPct(3), top5SellPct: sellPct(5),
     };
 
-    // Retail Behavior Status
+    const foreignTotal = foreignBuyValue + foreignSellValue;
+    const retailTotal = retailBuyValue + retailSellValue;
+    const unknownTotal = unknownBuyValue + unknownSellValue;
+    const allTotal = foreignTotal + retailTotal + unknownTotal;
+    const classifiedTotal = foreignTotal + retailTotal;
+
+    const brokerComposition = {
+      foreign: bucket(foreignBuyValue, foreignSellValue, allTotal),
+      // Belum ada mapping institusi domestik yang tervalidasi. Null lebih jujur daripada 0%.
+      domesticInst: null,
+      retail: bucket(retailBuyValue, retailSellValue, allTotal),
+      unknown: bucket(unknownBuyValue, unknownSellValue, allTotal),
+      classifiedCoveragePct: allTotal > 0 ? Math.round((classifiedTotal / allTotal) * 100) : 0,
+      classificationMethod: 'INTERNAL_BROKER_CODE_MAP' as const,
+    };
+
     const retailNet = brokerComposition.retail.netValue;
-    let retailStatus: StockBrokerSummaryResult['retailBehavior']['status'] = 'NEUTRAL';
-    let retailSummary = 'Aktivitas transaksi ritel terpantau seimbang dengan broker pasar.';
-
-    if (retailNet < -1_000_000_000 && (top3BuyPct >= 25 || brokerComposition.foreign.netValue > 0)) {
-      retailStatus = 'PANIC_SELLING';
-      retailSummary = 'Ritel melakukan aksi jual bersih (net sell) saat broker institusi/asing melakukan serap akumulasi.';
-    } else if (retailNet > 1_000_000_000 && (top3SellPct >= 25 || brokerComposition.foreign.netValue < 0)) {
-      retailStatus = 'FOMO_BUYING';
-      retailSummary = 'Ritel mendominasi pembelian (net buy) di saat broker besar melakukan distribusi barang.';
-    } else if (retailNet < 0) {
-      retailStatus = 'RETAIL_DISTRIBUTION';
-      retailSummary = 'Arus transaksi broker ritel tercatat net sell moderat.';
-    } else if (retailNet > 0) {
-      retailStatus = 'RETAIL_ACCUMULATION';
-      retailSummary = 'Arus transaksi broker ritel tercatat net buy moderat.';
+    let retailStatus: StockBrokerSummaryResult['retailBehavior']['status'] = 'UNAVAILABLE';
+    let retailSummary = 'Klasifikasi pelaku belum memiliki cakupan yang cukup untuk menyimpulkan perilaku ritel.';
+    if (brokerComposition.classifiedCoveragePct >= 80) {
+      retailStatus = 'NEUTRAL';
+      retailSummary = 'Berdasarkan klasifikasi broker internal SahamLens, arus ritel relatif seimbang.';
+      if (retailNet < -1_000_000_000 && (concentration.top3BuyPct >= 25 || brokerComposition.foreign.netValue > 0)) {
+        retailStatus = 'PANIC_SELLING';
+        retailSummary = 'Berdasarkan klasifikasi internal, broker yang dipetakan sebagai ritel tercatat net sell saat broker dominan menyerap pembelian.';
+      } else if (retailNet > 1_000_000_000 && (concentration.top3SellPct >= 25 || brokerComposition.foreign.netValue < 0)) {
+        retailStatus = 'FOMO_BUYING';
+        retailSummary = 'Berdasarkan klasifikasi internal, broker yang dipetakan sebagai ritel tercatat net buy saat broker dominan melakukan penjualan.';
+      } else if (retailNet < 0) {
+        retailStatus = 'RETAIL_DISTRIBUTION';
+        retailSummary = 'Berdasarkan klasifikasi internal, broker yang dipetakan sebagai ritel tercatat net sell moderat.';
+      } else if (retailNet > 0) {
+        retailStatus = 'RETAIL_ACCUMULATION';
+        retailSummary = 'Berdasarkan klasifikasi internal, broker yang dipetakan sebagai ritel tercatat net buy moderat.';
+      }
     }
 
-    let bandarmologyStatus: StockBrokerSummaryResult['bandarmologyStatus'] = 'NEUTRAL';
-    let narrative = 'Aktivitas transaksi relatif seimbang antara pembeli dan penjual tanpa konsentrasi dominan.';
-
-    if (top3BuyPct >= 40) {
-      bandarmologyStatus = 'BIG_ACCUMULATION';
-      narrative = `Akumulasi masif terdeteksi: Top 3 Broker (${topBuyers.map((b) => b.brokerCode).join(', ')}) menyerap ${top3BuyPct}% dari total nilai transaksi.`;
-    } else if (top3BuyPct >= 20) {
-      bandarmologyStatus = 'NORMAL_ACCUMULATION';
-      narrative = `Akumulasi moderat oleh broker utama (${topBuyers.slice(0, 3).map((b) => b.brokerCode).join(', ')}).`;
-    } else if (top3SellPct >= 40) {
-      bandarmologyStatus = 'BIG_DISTRIBUTION';
-      narrative = `Distribusi masif terdeteksi: Top 3 Broker (${topSellers.map((b) => b.brokerCode).join(', ')}) melepas ${top3SellPct}% dari total nilai transaksi.`;
-    } else if (top3SellPct >= 20) {
-      bandarmologyStatus = 'NORMAL_DISTRIBUTION';
-      narrative = `Distribusi terdeteksi oleh broker penjual (${topSellers.slice(0, 3).map((b) => b.brokerCode).join(', ')}).`;
+    let brokerConcentrationStatus: StockBrokerSummaryResult['brokerConcentrationStatus'] = 'NEUTRAL';
+    let brokerConcentrationNarrative = 'Arus broker relatif seimbang tanpa konsentrasi net dominan.';
+    if (concentration.top3BuyPct >= 40) {
+      brokerConcentrationStatus = 'BIG_ACCUMULATION';
+      brokerConcentrationNarrative = `Konsentrasi net buy tinggi: tiga broker teratas (${topBuyers.slice(0, 3).map((item) => item.brokerCode).join(', ')}) mencakup ${concentration.top3BuyPct}% dari turnover.`;
+    } else if (concentration.top3BuyPct >= 20) {
+      brokerConcentrationStatus = 'NORMAL_ACCUMULATION';
+      brokerConcentrationNarrative = `Konsentrasi net buy moderat pada broker ${topBuyers.slice(0, 3).map((item) => item.brokerCode).join(', ')}.`;
+    } else if (concentration.top3SellPct >= 40) {
+      brokerConcentrationStatus = 'BIG_DISTRIBUTION';
+      brokerConcentrationNarrative = `Konsentrasi net sell tinggi: tiga broker teratas (${topSellers.slice(0, 3).map((item) => item.brokerCode).join(', ')}) mencakup ${concentration.top3SellPct}% dari turnover.`;
+    } else if (concentration.top3SellPct >= 20) {
+      brokerConcentrationStatus = 'NORMAL_DISTRIBUTION';
+      brokerConcentrationNarrative = `Konsentrasi net sell moderat pada broker ${topSellers.slice(0, 3).map((item) => item.brokerCode).join(', ')}.`;
     }
 
+    const provenanceRow = rowsRes.rows[0];
     return {
       ticker,
       tradeDate: formattedDate,
-      provenance: { sources, lastImportedAt },
       totalTurnover,
       totalVolume,
+      provenance: {
+        source,
+        sourceFile: typeof provenanceRow?.source_file === 'string' ? provenanceRow.source_file : null,
+        importedAt: provenanceRow?.imported_at ? new Date(provenanceRow.imported_at).toISOString() : null,
+        integrityStatus,
+        reconciliationStatus: 'UNRECONCILED',
+      },
       topBuyers,
       topSellers,
-      concentration: {
-        top1BuyPct,
-        top3BuyPct,
-        top5BuyPct,
-        top1SellPct,
-        top3SellPct,
-        top5SellPct,
-      },
+      concentration,
       foreignSummary: {
         foreignBuyValue,
         foreignSellValue,
         foreignNetValue: foreignBuyValue - foreignSellValue,
       },
       brokerComposition,
-      bandarPriceAnalysis: {
-        bandarAvgBuyPrice,
-        bandarAvgSellPrice,
-        estimatedClosingPrice,
-        bandarPriceDiffPct,
-        priceZone,
+      dominantBrokerPriceAnalysis: {
+        dominantBuyerAvgPrice: weightedAveragePrice(topBuyers, 'BUY'),
+        dominantSellerAvgPrice: weightedAveragePrice(topSellers, 'SELL'),
       },
-      retailBehavior: {
-        status: retailStatus,
-        summary: retailSummary,
-      },
-      bandarmologyStatus,
-      bandarmologyNarrative: narrative,
+      retailBehavior: { status: retailStatus, summary: retailSummary },
+      brokerConcentrationStatus,
+      brokerConcentrationNarrative,
     };
-  } catch (err: any) {
-    if (err?.code === '42P01') return null;
-    console.error('[computeStockBrokerSummary] query failed', err);
+  } catch (error: any) {
+    if (error?.code === '42P01') return null;
+    console.error('[computeStockBrokerSummary] query failed', error);
     return null;
   }
 }
