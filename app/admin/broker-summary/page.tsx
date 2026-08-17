@@ -3,8 +3,6 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
-import BrokerSummaryUploadClient from './BrokerSummaryUploadClient';
-import BrokerSummaryBatchUploadClient from './BrokerSummaryBatchUploadClient';
 import BrokerSummaryMonitorPanel from './BrokerSummaryMonitorPanel';
 import {
   getBrokerSummaryMonitor,
@@ -43,7 +41,7 @@ export default async function BrokerSummaryPage({ searchParams }: BrokerSummaryP
       ticker: normalizedTicker,
     });
   } catch {
-    monitorError = 'Periksa koneksi database dan environment QStash, lalu muat ulang halaman.';
+    monitorError = 'Periksa koneksi database dan status scheduler, lalu muat ulang halaman.';
   }
 
   return (
@@ -67,18 +65,6 @@ export default async function BrokerSummaryPage({ searchParams }: BrokerSummaryP
           error={monitorError}
           invalidTicker={invalidTicker}
         />
-
-        {/* Cadangan Importer Manual */}
-        <details className="mt-8 rounded-xl border border-tv-border bg-tv-card p-5 group">
-          <summary className="cursor-pointer font-heading text-sm font-bold text-tv-muted hover:text-white transition-colors flex items-center justify-between list-none">
-            <span>⚙️ Cadangan: Upload Manual / Format Custom</span>
-            <span className="text-xs font-normal text-tv-muted group-open:rotate-180 transition-transform">▼</span>
-          </summary>
-          <div className="mt-6 space-y-6 pt-4 border-t border-tv-border">
-            <BrokerSummaryUploadClient />
-            <BrokerSummaryBatchUploadClient />
-          </div>
-        </details>
       </div>
     </div>
   );
