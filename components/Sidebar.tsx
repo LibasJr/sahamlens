@@ -43,6 +43,8 @@ import {
 import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { isProtectedPage } from '@/shared/constants/access';
+import { useLanguage } from '@/lib/i18n';
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
@@ -405,6 +407,7 @@ export default function Sidebar() {
         )}
 
         <div className="border-t border-white/[0.06] p-3">
+          <LanguageSwitcher variant="sidebar" className={`mb-2.5 ${isCollapsed ? 'md:hidden' : ''}`} />
           {!authLoading && user ? (
             <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2 ${isCollapsed ? 'md:border-transparent md:bg-transparent md:p-0' : ''}`}>
               <div className={`flex items-center gap-2 ${isCollapsed ? 'md:justify-center' : ''}`}>

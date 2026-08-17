@@ -18,6 +18,8 @@ import { fadeUp, staggerContainer } from '@/lib/motion';
 import { isMarketOpen } from '@/lib/utils/market';
 import ThemeToggle from '@/components/ThemeToggle';
 import GettingStartedGuide from '@/components/GettingStartedGuide';
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { useLanguage } from '@/lib/i18n';
 import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 
@@ -185,6 +187,7 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ initialIhsg = null, initialRenderedAt, initialLensRadar = null }: DashboardProps) {
+  const { t, language } = useLanguage();
   const router = useRouter();
   const [quickSearch, setQuickSearch] = useState('');
   const [guideVisible, setGuideVisible] = useState<boolean | null>(null);
@@ -393,36 +396,38 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] uppercase tracking-widest text-white/60 font-semibold">IHSG Hari Ini</span>
+                  <span className="text-[11px] uppercase tracking-widest text-white/60 font-semibold">{t('hero.ihsgTitle')}</span>
                   <span className="h-1 w-1 rounded-full bg-tv-green animate-pulse" />
                 </div>
                 {ihsg ? (
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[18px] font-bold tracking-tight font-number">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className="text-[18px] font-bold tracking-tight font-number">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'}`}>
                       {ihsg.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />} {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                     </span>
                   </div>
                 ) : ihsgFailed ? (
-                  <span className="text-[12px] font-medium text-white/50">IHSG tidak tersedia</span>
+                  <span className="text-[12px] font-medium text-white/50">{t('common.noData')}</span>
                 ) : (
                   <Skeleton variant="text" className="w-32 h-4" />
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <LanguageSwitcher variant="pill" className="hidden sm:inline-flex" />
+              <LanguageSwitcher variant="compact" className="sm:hidden" />
               <ThemeToggle />
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
                 <CommandPalette />
               </div>
               <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-2.5 py-1">
                 <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />
-                <span className="text-[11px] font-medium text-white">{marketOpen ? 'Live' : 'Tutup'}</span>
+                <span className="text-[11px] font-medium text-white">{marketOpen ? t('common.live') : t('common.closed')}</span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-medium text-white/50">
-                <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : 'Waktu Jakarta'}</span>
-                <span className="sm:hidden">{jakartaTime || 'WIB'}</span>
+                <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : t('common.jakartaTime')}</span>
+                <span className="sm:hidden">{jakartaTime || t('common.wibTime')}</span>
               </div>
             </div>
           </div>
@@ -432,16 +437,16 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               <span className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">IHSG</span>
               {ihsg ? (
                 <>
-                  <span className="text-[14px] font-bold font-number">{ihsg.price.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  <span className="text-[14px] font-bold font-number">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   <span className={`text-[11px] font-semibold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
                 </>
               ) : ihsgFailed ? (
-                <span className="text-[12px] text-white/50">tidak tersedia</span>
+                <span className="text-[12px] text-white/50">{t('common.noData')}</span>
               ) : (
                 <Skeleton variant="text" className="w-24 h-3.5" />
               )}
             </div>
-            <span className={`text-[10px] flex items-center gap-1 ${marketOpen ? 'text-tv-green' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />{marketOpen ? 'Market Buka' : 'Market Tutup'}</span>
+            <span className={`text-[10px] flex items-center gap-1 ${marketOpen ? 'text-tv-green' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />{marketOpen ? t('common.marketOpen') : t('common.marketClosed')}</span>
           </div>
         </div>
       </header>
@@ -489,15 +494,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-stretch">
               <div className="min-w-0">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
-                  <Sparkles className="h-3 w-3" /> Analisis saham IDX berbasis data kuantitatif
+                  <Sparkles className="h-3 w-3" /> {t('hero.badge')}
                 </span>
                 <h2 className="mt-3.5 font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-tv-text leading-[1.15]">
-                  Lihat Peluang<br className="hidden sm:block" /> Lebih Jelas.
+                  {t('hero.titleLine1')}<br className="hidden sm:block" /> {t('hero.titleLine2')}
                 </h2>
                 <p className="mt-3 text-sm sm:text-base text-tv-muted max-w-lg leading-relaxed">
-                  Screener &amp; analisis saham IDX dari data pasar riil — teknikal, fundamental,
-                  backtest, Moat proxy, Earnings Monitor, hingga Dashboard Makroekonomi dalam satu aplikasi.
-                  Skornya dihitung dengan rumus terbuka; AI membantu menjelaskan angkanya.
+                  {t('hero.description')}
                 </p>
 
                 {/* Hero Quick Search Bar */}
@@ -508,7 +511,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                       type="text"
                       value={quickSearch}
                       onChange={(e) => setQuickSearch(e.target.value.toUpperCase())}
-                      placeholder="Cari kode saham (contoh: BBCA, ASII, TLKM, BREN)..."
+                      placeholder={t('common.searchPlaceholder')}
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-tv-card/90 border border-tv-border text-tv-text placeholder:text-tv-muted/70 text-sm font-semibold focus:outline-none focus:border-tv-blue focus:ring-2 focus:ring-tv-blue/20 transition-all shadow-sm"
                     />
                   </div>
@@ -516,14 +519,14 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     type="submit"
                     className="px-4 py-2.5 rounded-xl bg-tv-blue hover:bg-tv-blueHover text-white text-sm font-bold transition-all shadow-sm shrink-0 flex items-center gap-1.5"
                   >
-                    <span>Cari</span>
+                    <span>{t('common.search')}</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </form>
 
                 {/* Popular Quick Ticker Chips */}
                 <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-xs text-tv-muted">
-                  <span className="text-[11px] font-medium opacity-80">Populer:</span>
+                  <span className="text-[11px] font-medium opacity-80">{t('common.popular')}:</span>
                   {['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'BREN'].map((s) => (
                     <Link
                       key={s}
@@ -540,13 +543,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     href="/home"
                     className="rounded-lg bg-tv-blue px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover shadow-sm"
                   >
-                    Mulai Analisis Saham
+                    {t('common.startAnalysis')}
                   </Link>
                   <Link
                     href="/breakout-radar"
                     className="rounded-lg border border-tv-border bg-tv-card px-5 py-2.5 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight shadow-sm"
                   >
-                    Lihat LensRadar
+                    {t('common.openRadar')}
                   </Link>
                   {guideVisible === false && (
                     <button
@@ -554,16 +557,16 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                       onClick={() => setGuideOpenRequest((current) => current + 1)}
                       className="rounded-lg border border-tv-blue/40 bg-tv-blue/10 px-4 py-2.5 text-sm font-semibold text-tv-blue transition-colors hover:bg-tv-blue/20"
                     >
-                      Mulai dari sini
+                      {t('common.startHere')}
                     </button>
                   )}
                 </div>
 
                 <div className="mt-5 rounded-lg border border-tv-border/70 bg-tv-bg/35 px-3 py-2 text-[11px] leading-relaxed text-tv-muted max-w-lg">
-                  <span className="font-semibold text-tv-text">Alat analisis, bukan nasihat investasi.</span>{' '}
-                  Model SahamLens berstatus riset dan formula perhitungannya 100% transparan.
-                  {' '}<Link href="/transparency" className="font-semibold text-tv-blue hover:underline">Lihat Transparansi</Link>
-                  {' '}·{' '}<Link href="/disclaimer" className="hover:text-tv-text hover:underline">Disclaimer</Link>
+                  <span className="font-semibold text-tv-text">{t('common.disclaimerShort')}</span>{' '}
+                  {t('hero.disclaimerBox')}
+                  {' '}<Link href="/transparency" className="font-semibold text-tv-blue hover:underline">{t('common.transparencyLink')}</Link>
+                  {' '}·{' '}<Link href="/disclaimer" className="hover:text-tv-text hover:underline">{t('common.disclaimerLink')}</Link>
                 </div>
               </div>
 
@@ -574,16 +577,16 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-tv-green animate-pulse" />
-                        IHSG Hari Ini
+                        {t('hero.ihsgTitle')}
                       </div>
                       <span className="text-[10px] text-tv-muted bg-tv-hover px-1.5 py-0.5 rounded border border-tv-border">
-                        Live (~15m delay)
+                        {t('hero.ihsgDelay')}
                       </span>
                     </div>
                     {ihsg ? (
                       <>
                         <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
-                          {ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
@@ -593,7 +596,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                         </div>
                         {ihsg.dataTimestamp && (
                           <div className="mt-1.5 text-[11px] text-tv-muted">
-                            Per {new Date(ihsg.dataTimestamp).toLocaleTimeString('id-ID', {
+                            Per {new Date(ihsg.dataTimestamp).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', {
                               hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
                             })} WIB
                             {typeof ihsg.ageSeconds === 'number' && ihsg.ageSeconds >= 20 * 60
@@ -603,12 +606,12 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                         )}
                         {ihsgFailed && (
                           <div className="mt-1 text-[11px] font-medium text-tv-red">
-                            Gagal menyegarkan - angka di atas data terakhir yang berhasil diambil.
+                            {t('common.noData')}
                           </div>
                         )}
                       </>
                     ) : ihsgFailed ? (
-                      <p className="mt-2 text-sm text-tv-muted">Angka indeks tidak tersedia saat ini.</p>
+                      <p className="mt-2 text-sm text-tv-muted">{t('common.noData')}</p>
                     ) : (
                       <div className="mt-2 space-y-2">
                         <Skeleton className="h-9 w-40" />
@@ -621,17 +624,17 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="font-number text-lg font-bold text-tv-text">{ACTIVE_UNIVERSE_COUNT}</div>
-                        <div className="text-[10px] text-tv-muted leading-tight">universe likuid aktif dipindai tiap sesi</div>
+                        <div className="text-[10px] text-tv-muted leading-tight">{t('hero.universeSubtitle')}</div>
                       </div>
                       <div>
                         <div className="font-number text-lg font-bold text-tv-text">
                           {aiPicks === null ? '—' : aiPicks.length}
                         </div>
-                        <div className="text-[10px] text-tv-muted leading-tight">lolos ambang skor hari ini</div>
+                        <div className="text-[10px] text-tv-muted leading-tight">{t('hero.passedSubtitle')}</div>
                       </div>
                     </div>
                     <p className="mt-3 text-[10px] leading-relaxed text-tv-muted">
-                      Universe aktif {ACTIVE_LIQUID_UNIVERSE_VERSION} berisi {ACTIVE_UNIVERSE_COUNT} emiten IDX likuid dengan gerbang kelayakan likuiditas, ATR, &amp; data history.
+                      {t('hero.universeDescription', { count: ACTIVE_UNIVERSE_COUNT })}
                     </p>
                   </div>
                 </div>
@@ -654,22 +657,21 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tv-green opacity-60" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-tv-green" />
                 </span>
-                Signal Saham &amp; LensRadar
+                {t('radar.title')}
               </h2>
               <p className="mt-1 text-[13px] text-tv-muted max-w-2xl">
-                Running text kandidat saham berperingkat dari pemindaian teknikal, fundamental, &amp; bandar flow.
-                Arahkan kursor atau fokuskan kartu untuk menghentikan pergerakan.
+                {t('radar.subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[11px] text-tv-muted">
-                {aiPicksUpdatedAt ? `Update ${aiPicksUpdatedAt}` : 'Menunggu snapshot LensRadar'}
+                {aiPicksUpdatedAt ? t('radar.updateTime', { time: aiPicksUpdatedAt }) : t('radar.waitingSnapshot')}
               </span>
               <Link
                 href="/breakout-radar"
                 className="rounded-lg border border-tv-border bg-tv-card px-3 py-1.5 text-[12px] font-semibold text-tv-text transition-colors hover:border-tv-borderLight shadow-sm"
               >
-                Lihat semua radar →
+                {t('radar.viewAllRadar')}
               </Link>
             </div>
           </div>
@@ -695,8 +697,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             <Card>
               <EmptyState
                 illustration="search"
-                title="Belum ada saham lolos filter sesi ini"
-                description="Pemindaian berjalan normal. Saham berdata tidak lengkap atau berlikuiditas rendah dikeluarkan demi kehati-hatian analisis."
+                title={t('radar.emptyTitle')}
+                description={t('radar.emptyDesc')}
               />
             </Card>
           ) : (
@@ -704,7 +706,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           )}
 
           <p className="mt-2 text-[10px] leading-relaxed text-tv-muted">
-            *TP/CL diproyeksikan dari ATR-14. Ranking dinamis mengikuti fluktuasi harga sesi bursa &amp; kalkulasi EOD.
+            {t('radar.footerNote')}
           </p>
         </motion.section>
 
@@ -718,26 +720,26 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           {[
             {
               icon: Zap,
-              title: `${ACTIVE_UNIVERSE_COUNT} Saham Likuid`,
-              subtitle: 'Dipindai otomatis tiap sesi',
+              title: t('metrics.liquidTitle', { count: ACTIVE_UNIVERSE_COUNT }),
+              subtitle: t('metrics.liquidSub'),
               tone: 'text-tv-blue bg-tv-blue/10 border-tv-blue/20',
             },
             {
               icon: Cpu,
-              title: '10 Parameter Rule-Based',
-              subtitle: 'Konsensus teknikal & volume',
+              title: t('metrics.rulesTitle'),
+              subtitle: t('metrics.rulesSub'),
               tone: 'text-tv-green bg-tv-green/10 border-tv-green/20',
             },
             {
               icon: ShieldCheck,
-              title: '100% Rumus Terbuka',
-              subtitle: 'Tanpa janji palsu / black-box',
+              title: t('metrics.transparencyTitle'),
+              subtitle: t('metrics.transparencySub'),
               tone: 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20',
             },
             {
               icon: Clock,
-              title: 'Sesi Bursa & Analisis EOD',
-              subtitle: 'Snapshot live & rekap malam',
+              title: t('metrics.eodTitle'),
+              subtitle: t('metrics.eodSub'),
               tone: 'text-tv-purple bg-tv-purple/10 border-tv-purple/20',
             },
           ].map((m, idx) => (
@@ -766,10 +768,10 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           className="mb-8"
         >
           <div className="mb-4 flex flex-col gap-1">
-            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-blue">Ekosistem Alat Analisis</span>
-            <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">Satu Terminal untuk Semua Kebutuhan Riset</h2>
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-blue">{t('bento.tag')}</span>
+            <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">{t('bento.title')}</h2>
             <p className="max-w-3xl text-sm leading-relaxed text-tv-muted">
-              Dari konfirmasi teknikal multi-indikator, evaluasi kualitas fundamental, hingga deteksi breakout dan konteks makroekonomi.
+              {t('bento.subtitle')}
             </p>
           </div>
 
@@ -786,25 +788,25 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                       <LineChart className="h-5 w-5" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-blue">Fitur Utama</span>
-                      <h3 className="font-heading text-lg font-bold text-tv-text">LensConsensus &amp; Teknikal Pro</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-blue">{t('bento.featuredBadge')}</span>
+                      <h3 className="font-heading text-lg font-bold text-tv-text">{t('bento.technicalTitle')}</h3>
                     </div>
                   </div>
                   <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-tv-blue/15 text-tv-blue border border-tv-blue/30">
-                    10 Indikator Konsensus
+                    {t('bento.consensusBadge')}
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-tv-muted max-w-xl">
-                  Bagan candlestick interaktif TradingView dengan EMA 20/50/200, Volume Profile (VPVR/POC), Radial Speedometer Score, serta kalkulator Position Sizing untuk menjaga batas risiko per trade.
+                  {t('bento.technicalDesc')}
                 </p>
               </div>
               <div className="mt-5 pt-4 border-t border-tv-border/60 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-semibold text-tv-muted">
                   <CheckCircle2 className="h-3.5 w-3.5 text-tv-green" />
-                  <span>Rule-based tanpa lagging</span>
+                  <span>{t('bento.technicalRuleBadge')}</span>
                 </div>
                 <span className="inline-flex text-xs font-bold text-tv-blue transition-colors group-hover:text-tv-text flex items-center gap-1">
-                  Buka Terminal Teknikal <ArrowRight className="h-3 w-3" />
+                  {t('bento.technicalAction')} <ArrowRight className="h-3 w-3" />
                 </span>
               </div>
             </Link>
@@ -818,15 +820,15 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-tv-green bg-tv-green/10 border-tv-green/20">
                   <Target className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-green">Kualitas Bisnis</span>
-                <h3 className="font-heading text-lg font-bold text-tv-text mt-0.5">Moat Proxy &amp; Fundamental</h3>
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-green">{t('bento.qualityBadge')}</span>
+                <h3 className="font-heading text-lg font-bold text-tv-text mt-0.5">{t('bento.fundamentalTitle')}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-tv-muted">
-                  Estimasi keunggulan kompetitif, ketahanan laba, Piotroski F-Score, dan valuasi wajar berdasarkan rasio keuangan emiten.
+                  {t('bento.fundamentalDesc')}
                 </p>
               </div>
               <div className="mt-5 pt-4 border-t border-tv-border/60 flex items-center justify-between">
                 <span className="inline-flex text-xs font-bold text-tv-green transition-colors group-hover:text-tv-text flex items-center gap-1">
-                  Cek Fundamental <ArrowRight className="h-3 w-3" />
+                  {t('bento.fundamentalAction')} <ArrowRight className="h-3 w-3" />
                 </span>
               </div>
             </Link>
@@ -840,13 +842,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-tv-purple bg-tv-purple/10 border-tv-purple/20">
                   <Filter className="h-5 w-5" />
                 </div>
-                <h4 className="font-heading text-base font-bold text-tv-text">LensScanner Kuantitatif</h4>
+                <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.screenerTitle')}</h4>
                 <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
-                  Saring ratusan saham dengan filter likuiditas, momentum RSI, Golden Cross, dan lonjakan volume harian.
+                  {t('bento.screenerDesc')}
                 </p>
               </div>
               <span className="mt-4 inline-flex text-xs font-bold text-tv-purple transition-colors group-hover:text-tv-text flex items-center gap-1">
-                Buka Screener <ArrowRight className="h-3 w-3" />
+                {t('bento.screenerAction')} <ArrowRight className="h-3 w-3" />
               </span>
             </Link>
 
@@ -859,13 +861,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-tv-yellow bg-tv-yellow/10 border-tv-yellow/20">
                   <History className="h-5 w-5" />
                 </div>
-                <h4 className="font-heading text-base font-bold text-tv-text">Backtest Transparan</h4>
+                <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.backtestTitle')}</h4>
                 <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
-                  Uji sampel historis, win-rate, dan batasan strategi agar sinyal tidak hanya terlihat menarik di atas kertas.
+                  {t('bento.backtestDesc')}
                 </p>
               </div>
               <span className="mt-4 inline-flex text-xs font-bold text-tv-yellow transition-colors group-hover:text-tv-text flex items-center gap-1">
-                Uji Backtest <ArrowRight className="h-3 w-3" />
+                {t('bento.backtestAction')} <ArrowRight className="h-3 w-3" />
               </span>
             </Link>
 
@@ -878,13 +880,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-tv-green bg-tv-green/10 border-tv-green/20">
                   <BarChart3 className="h-5 w-5" />
                 </div>
-                <h4 className="font-heading text-base font-bold text-tv-text">Dividen &amp; Earnings</h4>
+                <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.dividendTitle')}</h4>
                 <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
-                  Pantau track record konsistensi dividen, dividen yield aristocrat, dan tanggal rilis laporan keuangan.
+                  {t('bento.dividendDesc')}
                 </p>
               </div>
               <span className="mt-4 inline-flex text-xs font-bold text-tv-green transition-colors group-hover:text-tv-text flex items-center gap-1">
-                Lihat Kalender <ArrowRight className="h-3 w-3" />
+                {t('bento.dividendAction')} <ArrowRight className="h-3 w-3" />
               </span>
             </Link>
 
@@ -899,28 +901,24 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-heading text-base font-bold text-tv-text">Dashboard Makroekonomi &amp; Rotasi Sektor IDX</h4>
+                    <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.macroTitle')}</h4>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-tv-purple/15 text-tv-purple border border-tv-purple/30">
-                      11 Sektor
+                      {t('bento.macroBadge')}
                     </span>
                   </div>
                   <p className="mt-1 text-sm leading-relaxed text-tv-muted max-w-3xl">
-                    Ketahui arah arus dana sektoral, suku bunga BI, inflasi, serta nilai tukar Rupiah untuk mengantisipasi risiko sistemik pasar.
+                    {t('bento.macroDesc')}
                   </p>
                 </div>
               </div>
               <span className="inline-flex shrink-0 text-xs font-bold text-tv-purple transition-colors group-hover:text-tv-text items-center gap-1">
-                Buka Makro <ArrowRight className="h-3.5 w-3.5" />
+                {t('bento.macroAction')} <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
           </div>
         </motion.section>
 
-        {/* Berita & Jadwal - dikeluarkan dari dalam kartu chart. Keduanya dulu
-            ditumpuk vertikal DI DALAM kolom chart, sekadar mengisi ruang kosong yang
-            tersisa karena kolom kiri lebih pendek dari panel kanan. Setelah panel
-            kanan dipindah ke atas, alasan itu hilang - sekarang keduanya jadi baris
-            dua kolom yang berdiri sendiri. */}
+        {/* Berita & Jadwal - dikeluarkan dari dalam kartu chart. */}
         <motion.div
           variants={staggerContainer}
           initial="hidden"
@@ -931,10 +929,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <motion.div variants={fadeUp}>
               <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
-                  {/* h3, bukan h4: heading di landing melompat h2 -> h4 tepat di sini,
-                      melewati satu tingkat (WCAG 1.3.1). */}
-                  <h3 className="font-heading text-[13px] font-bold text-tv-text">Berita Terkini</h3>
-                  <Link href="/news" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">Lihat semua</Link>
+                  <h3 className="font-heading text-[13px] font-bold text-tv-text">{t('news.title')}</h3>
+                  <Link href="/news" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">{t('news.viewAll')}</Link>
                 </div>
                 <div className="mt-3 divide-y divide-tv-border/60">
                   {loadingNews ? (
@@ -944,8 +940,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   ) : newsItems.length === 0 ? (
                     <EmptyState
                       illustration="search"
-                      title="Belum ada berita pada siklus ini"
-                      description="Sumber RSS disegarkan tiap 15 menit."
+                      title={t('news.emptyTitle')}
+                      description={t('news.emptyDesc')}
                     />
                   ) : (
                     newsItems.map((n) => (
@@ -953,9 +949,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                         <p className="text-[12px] font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
                         <p className="text-[10px] text-tv-muted mt-1 flex items-center gap-1.5">
                           {n.source}
-                          {/* Sentimen sudah dihitung dan dikirim API yang sama, tapi di
-                              halaman depan dibuang - padahal itu pembeda utamanya dari
-                              daftar berita biasa. */}
                           {n.sentiment && (
                             <span className={`lens-chip rounded px-1.5 py-px font-bold ${
                               n.sentiment === 'POSITIF' ? 'bg-tv-green/15 text-tv-green'
@@ -971,14 +964,12 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               </Card>
           </motion.div>
 
-          {/* Jadwal Terdekat - dividen/earnings, sumber sama dengan widget di Beranda
-              (/home). Cakupan cuma Dividen & Earnings, lihat catatan di
-              corporate-calendar.service.ts soal RUPS/Stock Split. */}
+          {/* Jadwal Terdekat - dividen/earnings */}
           <motion.div variants={fadeUp}>
               <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="font-heading text-[13px] font-bold text-tv-text">Jadwal Terdekat</h4>
-                  <Link href="/calendar" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">Lihat Semua</Link>
+                  <h4 className="font-heading text-[13px] font-bold text-tv-text">{t('calendar.title')}</h4>
+                  <Link href="/calendar" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">{t('calendar.viewAll')}</Link>
                 </div>
                 <div className="mt-3">
                   {calendarEvents === null ? (
@@ -988,8 +979,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   ) : calendarEvents.length === 0 ? (
                     <EmptyState
                       illustration="empty"
-                      title="Belum ada jadwal dalam waktu dekat"
-                      description="Cakupan terbatas Dividen & Earnings - RUPS dan stock split tidak tersedia di sumber data ini."
+                      title={t('calendar.emptyTitle')}
+                      description={t('calendar.emptyDesc')}
                     />
                   ) : (
                     <div className="space-y-2">
@@ -1003,13 +994,13 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                             <div className="flex items-center gap-2">
                               <span className="font-number text-[12px] font-bold text-tv-text">{e.symbol}</span>
                               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${e.type === 'DIVIDEND' ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-blue/15 text-tv-blue'}`}>
-                                {e.type === 'DIVIDEND' ? 'Dividen' : 'Earnings'}
+                                {e.type === 'DIVIDEND' ? t('calendar.dividendType') : t('calendar.earningsType')}
                               </span>
                             </div>
                             <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
                           </div>
                           <span className="text-[11px] text-tv-muted font-number shrink-0">
-                            {new Date(e.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                            {new Date(e.date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}
                           </span>
                         </Link>
                       ))}

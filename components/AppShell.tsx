@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { MotionConfig } from 'framer-motion';
 import { usePathname } from 'next/navigation';
+import { LanguageProvider } from '@/lib/i18n';
 import Sidebar from '@/components/Sidebar';
 import TopMarketBar from '@/components/TopMarketBar';
 import MobileNav from '@/components/MobileNav';
@@ -45,7 +46,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // reducedMotion="user" mengurusnya secara reaktif dan menyeluruh, termasuk untuk
   // komponen yang menulis animasinya sendiri tanpa lewat lib/motion.
   const bungkus = (isi: React.ReactNode) => (
-    <MotionConfig reducedMotion="user">{isi}</MotionConfig>
+    <LanguageProvider>
+      <MotionConfig reducedMotion="user">{isi}</MotionConfig>
+    </LanguageProvider>
   );
 
   if (isLandingPage) {
