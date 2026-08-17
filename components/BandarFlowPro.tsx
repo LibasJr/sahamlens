@@ -188,7 +188,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                       className={`w-full rounded-t-sm transition-all duration-300 ${isPos ? 'bg-tv-green' : 'bg-tv-red'}`}
                       style={{ height: `${Math.max(5, heightPct)}%`, opacity: isPos ? 0.8 : 0.7 }}
                     />
-                    <div className="absolute -top-8 bg-black/80 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none">
+                    <div className="absolute -top-8 bg-tv-card text-tv-text border border-tv-border shadow-md text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none">
                       {d.date}: {d.netValueBillion > 0 ? '+' : ''}{d.netValueBillion}M
                     </div>
                   </div>
@@ -200,7 +200,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
         {/* Ringkasan 20 Hari berbasis CMF dari histori harga dan volume. */}
         <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-          <h4 className="text-sm font-bold text-white font-heading mb-4">Ringkasan 20 Hari</h4>
+          <h4 className="text-sm font-bold text-tv-text font-heading mb-4">Ringkasan 20 Hari</h4>
 
           {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono dilepas dari LABEL
               ("Hari Naik"/"Hari Turun"/"Rata² nilai:") - font-mono khusus data
@@ -211,7 +211,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               <div className="text-xs font-sans text-tv-green border-b border-tv-border pb-1 flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5" /> Hari Naik
               </div>
-              <div className="text-2xl font-bold font-mono text-white">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
+              <div className="text-2xl font-bold font-mono text-tv-text">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
               <div className="text-[11px] font-sans text-tv-muted">Rata² nilai: <span className="font-mono text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span></div>
             </div>
 
@@ -219,7 +219,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               <div className="text-xs font-sans text-tv-red border-b border-tv-border pb-1 flex items-center gap-1.5">
                 <TrendingDown className="w-3.5 h-3.5" /> Hari Turun
               </div>
-              <div className="text-2xl font-bold font-mono text-white">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
+              <div className="text-2xl font-bold font-mono text-tv-text">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
               <div className="text-[11px] font-sans text-tv-muted">Rata² nilai: <span className="font-mono text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span></div>
             </div>
           </div>
@@ -231,13 +231,13 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
               <div className="text-[10px] font-sans text-tv-muted uppercase">CMF 20 Hari</div>
-              <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-white'}`}>
+              <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                 {summary.cmf20 > 0 ? '+' : ''}{summary.cmf20}%
               </div>
             </div>
             <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
               <div className="text-[10px] font-sans text-tv-muted uppercase">Tekanan Beli/Jual Hari Ini</div>
-              <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-white'}`}>
+              <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                 {summary.netPressurePct > 0 ? '+' : ''}{summary.netPressurePct}%
               </div>
             </div>

@@ -25,26 +25,26 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
 
   const getCellColor = (val: number | null) => {
     if (val === null) return 'text-tv-muted/30 bg-transparent';
-    if (val > 10) return 'bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/30';
-    if (val >= 3) return 'bg-emerald-500/18 text-emerald-400 font-semibold';
-    if (val > 0) return 'bg-emerald-500/8 text-emerald-400/90';
-    if (val === 0) return 'bg-white/[0.02] text-tv-muted';
-    if (val >= -3) return 'bg-rose-500/8 text-rose-400/90';
-    if (val >= -10) return 'bg-rose-500/18 text-rose-400 font-semibold';
-    return 'bg-rose-500/30 text-rose-300 font-bold border border-rose-500/30';
+    if (val > 10) return 'bg-emerald-500/25 text-emerald-600 dark:text-emerald-300 font-bold border border-emerald-500/30';
+    if (val >= 3) return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold';
+    if (val > 0) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400/90';
+    if (val === 0) return 'bg-tv-hover text-tv-muted';
+    if (val >= -3) return 'bg-rose-500/10 text-rose-600 dark:text-rose-400/90';
+    if (val >= -10) return 'bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold';
+    return 'bg-rose-500/25 text-rose-600 dark:text-rose-300 font-bold border border-rose-500/30';
   };
 
   const cleanTicker = ticker.replace('.JK', '');
 
   return (
-    <Card variant="default" padding="lg" className="border-white/[0.08] shadow-2">
+    <Card variant="default" padding="lg" className="border-tv-border bg-tv-card shadow-2">
       <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-tv-blue/10 border border-tv-blue/20 text-tv-blue">
             <Calendar className="h-4 w-4" />
           </div>
           <div>
-            <CardTitle className="text-base font-bold text-white">
+            <CardTitle className="text-base font-bold text-tv-text">
               Kinerja Musiman Bulanan ({cleanTicker})
             </CardTitle>
             <p className="text-xs text-tv-muted">
@@ -72,8 +72,8 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
       <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
         <table className="w-full text-center border-collapse text-xs">
           <thead>
-            <tr className="border-b border-white/[0.08] text-tv-muted">
-              <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-[#080D16]/95 z-10">Tahun</th>
+            <tr className="border-b border-tv-border text-tv-muted">
+              <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-tv-card border-r border-tv-border z-10">Tahun</th>
               {MONTH_NAMES_SHORT.map((m) => (
                 <th key={m} className="py-2.5 px-2 font-semibold min-w-[52px]">
                   {m}
@@ -81,10 +81,10 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.04]">
+          <tbody className="divide-y divide-tv-border/40">
             {data.matrix.map((row) => (
-              <tr key={row.year} className="hover:bg-white/[0.02] transition-colors">
-                <td className="py-2 px-3 text-left font-bold font-number text-white/90 sticky left-0 bg-[#080D16]/95 z-10">
+              <tr key={row.year} className="hover:bg-tv-hover/40 transition-colors">
+                <td className="py-2 px-3 text-left font-bold font-number text-tv-text sticky left-0 bg-tv-card border-r border-tv-border z-10">
                   {row.year}
                 </td>
                 {row.months.map((val, idx) => (
@@ -101,8 +101,8 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
             ))}
 
             {/* Average Return Row */}
-            <tr className="border-t-2 border-white/[0.12] bg-white/[0.015]">
-              <td className="py-2.5 px-3 text-left font-bold text-tv-blue sticky left-0 bg-[#080D16]/95 z-10">
+            <tr className="border-t-2 border-tv-border bg-tv-hover/20">
+              <td className="py-2.5 px-3 text-left font-bold text-tv-blue sticky left-0 bg-tv-card border-r border-tv-border z-10">
                 Rata-rata
               </td>
               {data.monthAverages.map((avg, idx) => (
@@ -117,8 +117,8 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
             </tr>
 
             {/* Win Rate Row */}
-            <tr className="bg-white/[0.025]">
-              <td className="py-2.5 px-3 text-left font-bold text-tv-gold sticky left-0 bg-[#080D16]/95 z-10" title="Persentase tahun di mana bulan tersebut berakhir positif">
+            <tr className="bg-tv-hover/30">
+              <td className="py-2.5 px-3 text-left font-bold text-tv-gold sticky left-0 bg-tv-card border-r border-tv-border z-10" title="Persentase tahun di mana bulan tersebut berakhir positif">
                 Win Rate
               </td>
               {data.monthWinRates.map((wr, idx) => (
@@ -135,7 +135,7 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
         </table>
       </div>
 
-      <div className="mt-4 flex items-start gap-2 rounded-xl bg-white/[0.02] border border-white/[0.05] p-3 text-xs text-tv-muted">
+      <div className="mt-4 flex items-start gap-2 rounded-xl bg-tv-hover/40 border border-tv-border p-3 text-xs text-tv-muted">
         <Info className="h-4 w-4 text-tv-blue shrink-0 mt-0.5" />
         <p className="leading-relaxed">
           <strong>Catatan Analisis Musiman:</strong> Data musiman mengukur kecenderungan statistik tahunan (seperti <em>Window Dressing</em> di bulan Desember atau <em>January Effect</em>). Gunakan angka ini sebagai penguat probabilitas bersama konfirmasi tren teknikal dan valuasi fundamental, bukan sebagai sinyal tunggal.

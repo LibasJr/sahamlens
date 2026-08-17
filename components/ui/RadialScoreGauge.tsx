@@ -35,11 +35,11 @@ export function RadialScoreGauge({
 
   // Dynamic color selection
   const getColor = (s: number) => {
-    if (s >= 75) return { text: 'text-emerald-400', stroke: '#10B981', glow: 'rgba(16, 185, 129, 0.4)', bg: 'bg-emerald-500/15' };
-    if (s >= 60) return { text: 'text-teal-400', stroke: '#14B8A6', glow: 'rgba(20, 184, 166, 0.3)', bg: 'bg-teal-500/15' };
-    if (s >= 45) return { text: 'text-amber-400', stroke: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', bg: 'bg-amber-500/15' };
-    if (s >= 30) return { text: 'text-orange-400', stroke: '#F97316', glow: 'rgba(249, 115, 22, 0.3)', bg: 'bg-orange-500/15' };
-    return { text: 'text-rose-400', stroke: '#F43F5E', glow: 'rgba(244, 63, 94, 0.4)', bg: 'bg-rose-500/15' };
+    if (s >= 75) return { text: 'text-emerald-500 dark:text-emerald-400', stroke: '#10B981', glow: 'rgba(16, 185, 129, 0.4)', bg: 'bg-emerald-500/15' };
+    if (s >= 60) return { text: 'text-teal-600 dark:text-teal-400', stroke: '#14B8A6', glow: 'rgba(20, 184, 166, 0.3)', bg: 'bg-teal-500/15' };
+    if (s >= 45) return { text: 'text-amber-600 dark:text-amber-400', stroke: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', bg: 'bg-amber-500/15' };
+    if (s >= 30) return { text: 'text-orange-600 dark:text-orange-400', stroke: '#F97316', glow: 'rgba(249, 115, 22, 0.3)', bg: 'bg-orange-500/15' };
+    return { text: 'text-rose-600 dark:text-rose-400', stroke: '#F43F5E', glow: 'rgba(244, 63, 94, 0.4)', bg: 'bg-rose-500/15' };
   };
 
   const theme = getColor(clampedScore);
@@ -74,7 +74,8 @@ export function RadialScoreGauge({
           <path
             d={`M ${strokeWidth / 2} ${centerY} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${centerY}`}
             fill="none"
-            stroke="rgba(255, 255, 255, 0.08)"
+            stroke="currentColor"
+            className="text-tv-border"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
           />
@@ -127,9 +128,9 @@ export function RadialScoreGauge({
 
       {/* Scale Limits Legend */}
       <div className="flex justify-between w-full px-2 text-[10px] font-bold text-tv-muted font-number mt-0.5">
-        <span className="text-rose-400/80">0 Bearish</span>
-        <span className="text-amber-400/80">50 Netral</span>
-        <span className="text-emerald-400/80">100 Bullish</span>
+        <span className="text-rose-500 dark:text-rose-400/80">0 Bearish</span>
+        <span className="text-amber-500 dark:text-amber-400/80">50 Netral</span>
+        <span className="text-emerald-600 dark:text-emerald-400/80">100 Bullish</span>
       </div>
 
       {label && (

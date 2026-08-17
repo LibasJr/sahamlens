@@ -104,13 +104,13 @@ export function QuickWatchlistStar({
       aria-label={isSaved ? `Hapus ${cleanTicker} dari Watchlist` : `Tambah ${cleanTicker} ke Watchlist`}
       className={`group relative inline-flex items-center gap-1.5 rounded-xl p-2 transition-all duration-200 ${
         isSaved
-          ? 'bg-amber-500/15 border border-amber-500/40 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-          : 'bg-white/[0.03] border border-white/[0.08] text-tv-muted hover:text-white hover:bg-white/[0.08] hover:border-white/[0.15]'
+          ? 'bg-amber-500/15 border border-amber-500/40 text-amber-500 dark:text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+          : 'bg-tv-card border border-tv-border text-tv-muted hover:text-tv-text hover:bg-tv-hover hover:border-tv-borderLight'
       } ${className}`}
     >
       <Star
         className={`h-4 w-4 transition-transform duration-300 ${
-          isSaved ? 'fill-amber-400 text-amber-400' : 'text-tv-muted group-hover:text-white'
+          isSaved ? 'fill-amber-400 text-amber-500 dark:text-amber-400' : 'text-tv-muted group-hover:text-tv-text'
         } ${isAnimating ? 'scale-135 rotate-12' : 'scale-100'}`}
       />
       {showLabel && (
