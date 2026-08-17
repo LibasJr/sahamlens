@@ -1,3 +1,6 @@
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -8,7 +11,9 @@ import {
   Database,
   RefreshCw,
   Search,
+  Sparkles,
   XCircle,
+  Zap,
 } from 'lucide-react';
 import type { BrokerSummaryMonitor } from '@/modules/broker-flow/service/broker-summary-monitor.service';
 
@@ -49,6 +54,30 @@ function jobBadge(status: string | undefined): string {
 }
 
 export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicker }: Props) {
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    setBackfillMsg(null);
+    try {
+      const res = await fetch('/api/admin/broker-summary/backfill', { method: 'POST' });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setBackfillMsg(`✓ ${json.message}`);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1200);
+      } else {
+        setBackfillMsg(`✗ Gagal: ${json.error || 'Terjadi kesalahan'}`);
+      }
+    } catch (err: any) {
+      setBackfillMsg(`✗ Gagal: ${err.message}`);
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const buyers = monitor
     ? [...monitor.brokers].filter((row) => row.netValue > 0).sort((a, b) => b.netValue - a.netValue).slice(0, 5)
     : [];
@@ -69,14 +98,33 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
             Data resmi transaksi harian kode broker BEI (End-of-Day) yang otomatis diproses setiap hari bursa pukul 17:30 WIB. Value, volume, dan frequency tersimpan lengkap untuk analisis konsentrasi akumulasi dan distribusi bandar.
           </p>
         </div>
-        <a
-          href='/admin/broker-summary'
-          className='inline-flex items-center justify-center gap-2 rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-sm font-semibold text-tv-muted transition-colors hover:text-white'
-        >
-          <RefreshCw className='h-4 w-4' />
-          Segarkan
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleBackfill}
+            disabled={backfilling}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-tv-purple/40 bg-tv-purple/10 px-3 py-2 text-sm font-semibold text-tv-purple transition-all hover:bg-tv-purple/20 hover:text-white disabled:opacity-50"
+          >
+            {backfilling ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+            {backfilling ? 'Mengisi Data...' : 'Isi Data Minggu Lalu'}
+          </button>
+          <a
+            href='/admin/broker-summary'
+            className='inline-flex items-center justify-center gap-2 rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-sm font-semibold text-tv-muted transition-colors hover:text-white'
+          >
+            <RefreshCw className='h-4 w-4' />
+            Segarkan
+          </a>
+        </div>
       </div>
+
+      {backfillMsg && (
+        <div className={`mt-4 p-3 rounded-lg border text-xs font-semibold ${
+          backfillMsg.startsWith('✓') ? 'border-tv-green/30 bg-tv-green/10 text-tv-green' : 'border-tv-red/30 bg-tv-red/10 text-tv-red'
+        }`}>
+          {backfillMsg}
+        </div>
+      )}
 
       {error ? (
         <div className='mt-5 rounded-lg border border-tv-red/30 bg-tv-red/10 p-4'>
@@ -127,7 +175,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
               <p className={'mt-3 font-number text-xl font-bold ' + (netValue >= 0 ? 'text-tv-green' : 'text-tv-red')}>
                 {netValue >= 0 ? '+' : ''}{compactIdr(netValue)}
               </p>
-              <p className='mt-1 text-xs text-tv-muted'>Subset data broker dari provider</p>
+              <p className='mt-1 text-xs text-tv-muted'>Total transaksi broker pilihan</p>
             </div>
           </div>
 
@@ -149,103 +197,104 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                 </label>
 
                 <label className='block text-xs font-semibold text-tv-muted' htmlFor='broker-monitor-ticker'>
-                  Ticker — kosongkan untuk seluruh universe
+                  Filter emiten (opsional)
                   <input
                     id='broker-monitor-ticker'
                     name='ticker'
-                    list='broker-monitor-tickers'
+                    type='text'
                     defaultValue={monitor.selectedTicker ?? ''}
-                    placeholder='Contoh: BBCA'
-                    maxLength={10}
-                    autoComplete='off'
-                    className='mt-1.5 block w-full rounded-md border border-tv-border bg-tv-card px-3 py-2 font-mono text-sm uppercase text-white outline-none placeholder:font-sans placeholder:text-tv-muted focus:border-tv-blue'
+                    placeholder='Contoh: BBCA, BBRI, TLKM'
+                    className='mt-1.5 block w-full rounded-md border border-tv-border bg-tv-card px-3 py-2 text-sm text-white uppercase outline-none focus:border-tv-blue'
                   />
-                  <datalist id='broker-monitor-tickers'>
-                    {monitor.availableTickers.map((ticker) => <option key={ticker} value={ticker} />)}
-                  </datalist>
                 </label>
 
-                <button type='submit' className='inline-flex items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-bold text-white hover:bg-tv-blueHover'>
+                <button
+                  type='submit'
+                  className='inline-flex items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-tv-blue/90'
+                >
                   <Search className='h-4 w-4' />
-                  Tampilkan
+                  Terapkan
                 </button>
-                <Link href='/admin/broker-summary' className='rounded-md border border-tv-border px-4 py-2 text-center text-sm font-semibold text-tv-muted hover:text-white'>
-                  Reset
-                </Link>
+
+                {monitor.selectedTicker ? (
+                  <Link
+                    href={`/admin/broker-summary?date=${encodeURIComponent(monitor.selectedDate ?? '')}`}
+                    className='inline-flex items-center justify-center rounded-md border border-tv-border bg-tv-card px-3 py-2 text-sm font-semibold text-tv-muted transition-colors hover:text-white'
+                  >
+                    Reset Filter
+                  </Link>
+                ) : null}
               </form>
 
-              {invalidTicker ? <p className='mt-2 text-xs text-tv-red'>Ticker tidak valid. Gunakan kode seperti BBCA atau BBRI.</p> : null}
+              {invalidTicker ? (
+                <p className='mt-2 text-xs text-tv-yellow'>
+                  Ticker yang dimasukkan tidak valid. Filter diabaikan dan menampilkan seluruh emiten pada tanggal ini.
+                </p>
+              ) : null}
 
-              {monitor.selectedTicker && monitor.coverage.rowCount === 0 ? (
-                <div className='mt-4 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 p-4 text-sm text-tv-yellow'>
-                  Tidak ada data {monitor.selectedTicker} pada {monitor.selectedDate}.
+              <div className='mt-5 grid gap-5 lg:grid-cols-2'>
+                <div className='rounded-lg border border-tv-border bg-tv-bg p-4'>
+                  <div className='flex items-center justify-between border-b border-tv-border pb-3'>
+                    <div>
+                      <h3 className='font-heading text-sm font-bold text-tv-green'>Top Buyer</h3>
+                      <p className='text-xs text-tv-muted'>Broker dengan nilai net buy terbesar</p>
+                    </div>
+                  </div>
+                  <div className='mt-3 space-y-2'>
+                    {buyers.length === 0 ? (
+                      <p className='py-6 text-center text-xs text-tv-muted'>Tidak ada data net buyer.</p>
+                    ) : (
+                      buyers.map((row) => (
+                        <div key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs'>
+                          <div>
+                            <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
+                            <p className='mt-0.5 text-[11px] text-tv-muted'>
+                              Beli {compactIdr(row.buyValue)} · {integer(row.buyFrequency)}x
+                            </p>
+                          </div>
+                          <div className='text-right'>
+                            <span className='font-number font-bold text-tv-green'>+{compactIdr(row.netValue)}</span>
+                            {row.avgBuyValuePerTrade ? (
+                              <p className='mt-0.5 text-[11px] text-tv-muted'>~{compactIdr(row.avgBuyValuePerTrade)}/trade</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <div className='mt-5 grid gap-4 lg:grid-cols-2'>
-                    <div className='overflow-hidden rounded-lg border border-tv-border'>
-                      <div className='border-b border-tv-border bg-tv-bg px-4 py-3 text-sm font-bold text-tv-green'>Top Net Buy</div>
-                      <div className='divide-y divide-tv-border'>
-                        {buyers.length > 0 ? buyers.map((row) => (
-                          <div key={'buy-' + row.brokerCode} className='flex items-center justify-between gap-3 px-4 py-3 text-sm'>
-                            <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
-                            <span className='font-number font-semibold text-tv-green'>+{compactIdr(row.netValue)}</span>
-                          </div>
-                        )) : <p className='px-4 py-5 text-sm text-tv-muted'>Tidak ada net buyer.</p>}
-                      </div>
-                    </div>
 
-                    <div className='overflow-hidden rounded-lg border border-tv-border'>
-                      <div className='border-b border-tv-border bg-tv-bg px-4 py-3 text-sm font-bold text-tv-red'>Top Net Sell</div>
-                      <div className='divide-y divide-tv-border'>
-                        {sellers.length > 0 ? sellers.map((row) => (
-                          <div key={'sell-' + row.brokerCode} className='flex items-center justify-between gap-3 px-4 py-3 text-sm'>
-                            <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
-                            <span className='font-number font-semibold text-tv-red'>{compactIdr(row.netValue)}</span>
-                          </div>
-                        )) : <p className='px-4 py-5 text-sm text-tv-muted'>Tidak ada net seller.</p>}
-                      </div>
+                <div className='rounded-lg border border-tv-border bg-tv-bg p-4'>
+                  <div className='flex items-center justify-between border-b border-tv-border pb-3'>
+                    <div>
+                      <h3 className='font-heading text-sm font-bold text-tv-red'>Top Seller</h3>
+                      <p className='text-xs text-tv-muted'>Broker dengan nilai net sell terbesar</p>
                     </div>
                   </div>
-
-                  <div className='mt-5 overflow-x-auto rounded-lg border border-tv-border'>
-                    <table className='w-full min-w-[1040px] text-sm'>
-                      <thead className='bg-tv-bg text-left text-[10px] uppercase tracking-wider text-tv-muted'>
-                        <tr>
-                          <th className='px-4 py-3'>Broker</th>
-                          <th className='px-4 py-3 text-right'>Buy</th>
-                          <th className='px-4 py-3 text-right'>Sell</th>
-                          <th className='px-4 py-3 text-right'>Buy Freq</th>
-                          <th className='px-4 py-3 text-right'>Sell Freq</th>
-                          <th className='px-4 py-3 text-right'>Buy Vol</th>
-                          <th className='px-4 py-3 text-right'>Sell Vol</th>
-                          <th className='px-4 py-3 text-right'>Avg Buy/Tx</th>
-                          <th className='px-4 py-3 text-right'>Avg Sell/Tx</th>
-                          <th className='px-4 py-3 text-right'>Net</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {monitor.brokers.slice(0, 20).map((row) => (
-                          <tr key={row.brokerCode} className='border-t border-tv-border'>
-                            <td className='px-4 py-3 font-mono font-bold text-white'>{row.brokerCode}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-text'>{compactIdr(row.buyValue)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-text'>{compactIdr(row.sellValue)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.buyFrequency)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.sellFrequency)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.buyVolume)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{integer(row.sellVolume)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{row.avgBuyValuePerTrade == null ? '—' : compactIdr(row.avgBuyValuePerTrade)}</td>
-                            <td className='px-4 py-3 text-right font-number text-tv-muted'>{row.avgSellValuePerTrade == null ? '—' : compactIdr(row.avgSellValuePerTrade)}</td>
-                            <td className={'px-4 py-3 text-right font-number font-bold ' + (row.netValue >= 0 ? 'text-tv-green' : 'text-tv-red')}>
-                              {row.netValue >= 0 ? '+' : ''}{compactIdr(row.netValue)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className='mt-3 space-y-2'>
+                    {sellers.length === 0 ? (
+                      <p className='py-6 text-center text-xs text-tv-muted'>Tidak ada data net seller.</p>
+                    ) : (
+                      sellers.map((row) => (
+                        <div key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs'>
+                          <div>
+                            <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
+                            <p className='mt-0.5 text-[11px] text-tv-muted'>
+                              Jual {compactIdr(row.sellValue)} · {integer(row.sellFrequency)}x
+                            </p>
+                          </div>
+                          <div className='text-right'>
+                            <span className='font-number font-bold text-tv-red'>{compactIdr(row.netValue)}</span>
+                            {row.avgSellValuePerTrade ? (
+                              <p className='mt-0.5 text-[11px] text-tv-muted'>~{compactIdr(row.avgSellValuePerTrade)}/trade</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                </>
-              )}
+                </div>
+              </div>
 
               <div className='mt-5 overflow-x-auto rounded-lg border border-tv-border'>
                 <table className='w-full min-w-[560px] text-sm'>
@@ -280,17 +329,17 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                 <div>
                   <p className='font-semibold text-tv-yellow'>Belum ada data transaksi broker</p>
                   <p className='mt-1 text-sm text-tv-muted'>
-                    Setelah cron job harian atau skrip sinkronisasi dijalankan, ringkasan data transaksi broker akan muncul di sini.
+                    Klik tombol <strong>"Isi Data Minggu Lalu"</strong> di atas atau tunggu jadwal cron bursa untuk memuat ringkasan transaksi.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {monitor.job?.status === 'SUCCESS' && monitor.dates.length > 0 ? (
+          {monitor.dates.length > 0 ? (
             <div className='mt-4 flex items-center gap-2 text-xs text-tv-green'>
               <CheckCircle2 className='h-4 w-4' />
-              Scheduler dan data otomatis sudah terdeteksi.
+              Data transaksi broker terverifikasi dan siap digunakan.
             </div>
           ) : null}
         </>
