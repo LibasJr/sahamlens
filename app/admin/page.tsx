@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSquare, RefreshCw, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSquare, RefreshCw, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -136,6 +136,24 @@ export default async function AdminPage() {
         {/* Dua pintu masuk ini sebelumnya bertumpuk selebar penuh dengan mb-8
             masing-masing, mendorong tabel "Aktif Sekarang" jauh ke bawah lipatan. */}
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Link
+          href="/admin/infographic-studio"
+          className="flex items-start gap-3 rounded-xl border border-tv-blue/40 bg-gradient-to-br from-tv-card to-blue-950/20 p-5 hover:border-tv-blue hover:bg-tv-hover transition-all shadow-sm"
+        >
+          <div className="rounded-lg bg-tv-blue/20 p-2 text-tv-blue">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-lg font-bold text-tv-text">Infographic Studio 360°</h2>
+              <span className="rounded-full bg-tv-blue/20 px-2 py-0.5 text-[10px] font-bold text-tv-blue">Baru</span>
+            </div>
+            <p className="text-sm text-tv-muted mt-1">
+              Generator Factsheet Finansial &amp; Infografis Saham (Fundamental, Teknikal, Moat, Kepemilikan) siap ekspor HD PNG.
+            </p>
+          </div>
+        </Link>
+
         <Link
           href="/admin/calibration"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
