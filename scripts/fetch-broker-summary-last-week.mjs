@@ -65,9 +65,6 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
   for (const broker of TOP_BROKERS) {
     let buyValue = 0;
     let sellValue = 0;
-    let buyVolume = 0;
-    let sellVolume = 0;
-
     const baseVal = (Math.floor(Math.random() * 15) + 5) * 1_000_000_000;
 
     if (broker.type === 'FOREIGN') {
@@ -91,8 +88,8 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
       sellValue = Math.round(baseVal * 0.85);
     }
 
-    buyVolume = Math.round(buyValue / (basePrice * 100));
-    sellVolume = Math.round(sellValue / (basePrice * 100));
+    const buyVolume = Math.round(buyValue / (basePrice * 100));
+    const sellVolume = Math.round(sellValue / (basePrice * 100));
     const buyLot = Math.round(buyVolume / 100);
     const sellLot = Math.round(sellVolume / 100);
 
@@ -118,25 +115,35 @@ function generateRealisticBrokerTransactions(ticker, tradeDate) {
 }
 
 async function main() {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
+  const rawDbUrl = process.env.DATABASE_URL;
+  if (!rawDbUrl) {
     console.log('[WARN] DATABASE_URL tidak disetel. Menampilkan preview simulasi data...');
   }
 
   let pool = null;
-  if (dbUrl) {
-    const isNeon = dbUrl.includes('neon') || dbUrl.includes('sslmode=require') || dbUrl.includes('verify');
+  if (rawDbUrl) {
+    const databaseUrl = rawDbUrl.replace(
+      /([?&])sslmode=(?:prefer|require|verify-ca)(?=(&|$))/i,
+      '$1sslmode=verify-full'
+    );
     pool = new Pool({
-      connectionString: dbUrl,
-      ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: true },
+      max: 3,
+      connectionTimeoutMillis: 15000,
     });
+  }
 
+  console.log('=== IDX BROKER SUMMARY INGESTION (LAST WEEK) ===');
+  console.log(`Rentang Tanggal: ${LAST_WEEK_TRADING_DATES[0]} s/d ${LAST_WEEK_TRADING_DATES.at(-1)}`);
+  console.log(`Emiten Target: ${DEFAULT_TICKERS.join(', ')}\n`);
+
+  let client = null;
+  if (pool) {
     try {
-      await pool.query('SELECT 1');
+      client = await pool.connect();
       console.log('✓ Terhubung ke database PostgreSQL');
-      
-      // Ensure table and all columns exist
-      await pool.query(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS broker_summary_daily (
           id BIGSERIAL PRIMARY KEY,
           trade_date DATE NOT NULL,
@@ -162,28 +169,24 @@ async function main() {
         ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS buy_frequency BIGINT;
         ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS sell_frequency BIGINT;
       `);
-      console.log('✓ Skema tabel broker_summary_daily siap');
+      console.log('✓ Skema tabel broker_summary_daily siap\n');
     } catch (e) {
-      console.error('[ERROR] Koneksi database atau skema gagal:', e.message || e);
+      console.error('[ERROR] Koneksi database atau skema gagal:', e?.message || e);
     }
   }
-
-  console.log('\n=== IDX BROKER SUMMARY INGESTION (LAST WEEK) ===');
-  console.log(`Rentang Tanggal: ${LAST_WEEK_TRADING_DATES[0]} s/d ${LAST_WEEK_TRADING_DATES.at(-1)}`);
-  console.log(`Emiten Target: ${DEFAULT_TICKERS.join(', ')}\n`);
 
   let totalRows = 0;
 
   for (const tradeDate of LAST_WEEK_TRADING_DATES) {
-    console.log(`\n📅 Memproses Tanggal: ${tradeDate}`);
+    console.log(`📅 Memproses Tanggal: ${tradeDate}`);
     for (const ticker of DEFAULT_TICKERS) {
       const rows = generateRealisticBrokerTransactions(ticker, tradeDate);
       totalRows += rows.length;
 
-      if (pool) {
+      if (client) {
         try {
           for (const tx of rows) {
-            await pool.query(
+            await client.query(
               `INSERT INTO broker_summary_daily (
                 trade_date, ticker, broker_code,
                 buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
@@ -234,6 +237,7 @@ async function main() {
     }
   }
 
+  if (client) client.release();
   if (pool) await pool.end();
 
   console.log(`\n======================================================`);
