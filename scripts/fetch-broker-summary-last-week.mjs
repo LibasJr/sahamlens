@@ -13,8 +13,8 @@ import pg from 'pg';
 import process from 'node:process';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env.production' });
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const { Pool } = pg;
@@ -123,7 +123,50 @@ async function main() {
     console.log('[WARN] DATABASE_URL tidak disetel. Menampilkan preview simulasi data...');
   }
 
-  const pool = dbUrl ? new Pool({ connectionString: dbUrl }) : null;
+  const pool = dbUrl
+    ? new Pool({
+        connectionString: dbUrl,
+        ssl: dbUrl.includes('sslmode=require') || dbUrl.includes('neon') || dbUrl.includes('verify')
+          ? { rejectUnauthorized: false }
+          : undefined,
+      })
+    : null;
+
+  if (pool) {
+    try {
+      // Ensure table and all columns exist
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS broker_summary_daily (
+          id BIGSERIAL PRIMARY KEY,
+          trade_date DATE NOT NULL,
+          ticker TEXT NOT NULL,
+          broker_code VARCHAR(8) NOT NULL,
+          buy_value NUMERIC(24,2) NOT NULL DEFAULT 0,
+          sell_value NUMERIC(24,2) NOT NULL DEFAULT 0,
+          buy_volume BIGINT,
+          sell_volume BIGINT,
+          buy_frequency BIGINT,
+          sell_frequency BIGINT,
+          buy_lot BIGINT,
+          sell_lot BIGINT,
+          buy_avg NUMERIC(18,4),
+          sell_avg NUMERIC(18,4),
+          source TEXT NOT NULL,
+          source_file TEXT,
+          imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CONSTRAINT broker_summary_daily_unique UNIQUE (trade_date, ticker, broker_code, source)
+        );
+        ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS buy_volume BIGINT;
+        ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS sell_volume BIGINT;
+        ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS buy_frequency BIGINT;
+        ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS sell_frequency BIGINT;
+      `);
+      console.log('✓ Skema tabel broker_summary_daily diverifikasi');
+    } catch (e) {
+      console.warn('Pemeriksaan skema:', e.message);
+    }
+  }
+
   console.log('=== IDX BROKER SUMMARY INGESTION (LAST WEEK) ===');
   console.log(`Rentang Tanggal: ${LAST_WEEK_TRADING_DATES[0]} s/d ${LAST_WEEK_TRADING_DATES.at(-1)}`);
   console.log(`Emiten Target: ${DEFAULT_TICKERS.join(', ')}\n`);
@@ -182,7 +225,7 @@ async function main() {
           }
           console.log(`  ✓ ${ticker}: ${rows.length} records tersimpan`);
         } catch (e) {
-          console.error(`  ✗ ${ticker} gagal:`, e.message);
+          console.error(`  ✗ ${ticker} gagal:`, e.message || e);
         }
       } else {
         console.log(`  ✓ ${ticker}: ${rows.length} records diproses (dry-run)`);
