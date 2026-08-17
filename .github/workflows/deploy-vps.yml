@@ -108,7 +108,19 @@ jobs:
           chmod 600 "$HOME/.ssh/known_hosts"
           sed -i 's/\r$//' "$HOME/.ssh/sahamlens_deploy" "$HOME/.ssh/known_hosts"
           ssh-keygen -y -f "$HOME/.ssh/sahamlens_deploy" >/dev/null
-          grep -qE '^[^#[:space:]]+ +(ssh-|ecdsa-)' "$HOME/.ssh/known_hosts"
+
+          if ! grep -qE '(ssh-|ecdsa-|sk-)' "$HOME/.ssh/known_hosts"; then
+            echo "::error::Isi known_hosts tidak mengandung SSH key yang valid. Periksa kembali secret VPS_CF_KNOWN_HOSTS atau VPS_KNOWN_HOSTS."
+            echo "Isi secret saat ini:"
+            cat "$HOME/.ssh/known_hosts" || true
+            exit 1
+          fi
+
+          # Jika secret hanya berisi key tanpa hostname di depan, tambahkan hostname deploy secara otomatis
+          if grep -qE '^(ssh-|ecdsa-)' "$HOME/.ssh/known_hosts"; then
+            echo "Menambahkan hostname $DEPLOY_HOST ke known_hosts..."
+            sed -i "s/^\(ssh-\|ecdsa-\)/$DEPLOY_HOST \1/" "$HOME/.ssh/known_hosts"
+          fi
 
       - name: Deploy SahamLens ke VPS
         run: |
