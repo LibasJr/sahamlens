@@ -14,12 +14,16 @@ async function updateLogos() {
     .extract({ left: 75, top: 280, width: 440, height: 440 })
     .toBuffer();
 
-  // 1. public/sahamlens-scope.png (512x512)
+  // 1. public/sahamlens-scope.png & public/sahamlens-logo.png (512x512)
   await sharp(iconBuffer)
     .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
     .png({ quality: 95 })
     .toFile('public/sahamlens-scope.png');
-  console.log('✓ public/sahamlens-scope.png generated');
+  await sharp(iconBuffer)
+    .resize(512, 512, { fit: 'contain', background: { r: 10, g: 15, b: 29, alpha: 1 } })
+    .png({ quality: 95 })
+    .toFile('public/sahamlens-logo.png');
+  console.log('✓ public/sahamlens-logo.png generated');
 
   // 2. public/icon-512x512.png
   await sharp(iconBuffer)
