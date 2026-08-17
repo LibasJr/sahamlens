@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, Clock3, Menu, User as UserIcon } from 'lucide-react';
-import { isMarketOpen } from '@/lib/utils/market';
+import { getMarketStatus } from '@/lib/utils/market';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
 import ThemeToggle from './ThemeToggle';
@@ -43,7 +43,7 @@ export default function TopMarketBar() {
       .catch(() => {});
   }, []);
 
-  const marketOpen = now ? isMarketOpen(now) : false;
+  const marketStatus = now ? getMarketStatus(now) : { isOpen: false, label: 'Bursa tutup', holidayName: null };
   const hasModuleSearch = MODULE_SEARCH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`)) || pathname.startsWith('/technical/');
   const jakartaTime = now
     ? `${new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(now)} WIB`
@@ -82,9 +82,9 @@ export default function TopMarketBar() {
       {hasModuleSearch && <div className="hidden flex-1 lg:block" />}
 
       <div className="ml-auto flex items-center gap-1.5">
-        <div className={`hidden items-center gap-2 rounded-xl border px-2.5 py-1.5 text-[10px] font-semibold md:flex ${marketOpen ? 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green' : 'border-white/[0.06] bg-white/[0.025] text-tv-muted'}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${marketOpen ? 'bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.8)]' : 'bg-tv-muted/50'}`} />
-          {marketOpen ? 'Bursa buka' : 'Bursa tutup'}
+        <div className={`hidden items-center gap-2 rounded-xl border px-2.5 py-1.5 text-[10px] font-semibold md:flex ${marketStatus.isOpen ? 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green' : marketStatus.holidayName ? 'border-tv-gold/30 bg-tv-gold/10 text-tv-gold' : 'border-white/[0.06] bg-white/[0.025] text-tv-muted'}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.8)]' : marketStatus.holidayName ? 'bg-tv-gold' : 'bg-tv-muted/50'}`} />
+          {marketStatus.label}
         </div>
 
         <div className="hidden items-center gap-1.5 px-2 text-[10px] font-medium text-tv-muted xl:flex">
