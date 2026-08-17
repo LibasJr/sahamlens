@@ -22,8 +22,9 @@ export interface VolumeProfileCandle {
   high: number;
   low: number;
   close: number;
-  volume: number;
+  volume?: number;
   time?: string | number;
+  date?: string | number | Date;
 }
 
 export function computeVolumeProfile(
@@ -36,9 +37,8 @@ export function computeVolumeProfile(
     (c) =>
       typeof c.high === 'number' &&
       typeof c.low === 'number' &&
-      typeof c.volume === 'number' &&
       c.high >= c.low &&
-      c.volume >= 0 &&
+      Number(c.volume || 0) > 0 &&
       !isNaN(c.high) &&
       !isNaN(c.low)
   );

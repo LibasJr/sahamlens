@@ -1,6 +1,5 @@
-'use client';
-
 import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { RadialScoreGauge } from '@/components/ui/RadialScoreGauge';
 
 interface DecisionScoreCardProps {
   verdict: string;
@@ -50,8 +49,8 @@ export default function DecisionScoreCard({
       aria-labelledby="score-summary-title"
       className="w-full rounded-2xl border border-tv-blue/25 bg-gradient-to-br from-tv-blue/10 via-tv-card to-tv-card p-5 shadow-2 md:p-6"
     >
-      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-tv-blue">
             <Eye className="h-4 w-4" aria-hidden="true" />
             Ringkasan SahamLens
@@ -60,10 +59,6 @@ export default function DecisionScoreCard({
             {verdict} <span className="text-tv-muted">—</span> Score {safeTotal ?? 'N/A'}
           </h2>
           <p className="mt-1.5 text-xs leading-relaxed text-tv-muted">
-            {/* Kalimat lamanya - "Masuk watchlist untuk diteliti lebih lanjut" - membaca
-                seperti instruksi aksi, padahal LensWatch adalah daftar favorit yang diisi
-                pengguna sendiri dan tidak ada kaitannya dengan putusan model. Sekarang
-                kalimatnya menyatakan keadaan, bukan menyuruh. */}
             {verdict === 'INFORMASI'
               ? 'Belum ada arah transaksi. Skor ini belum lolos validasi backtest yang dapat diaudit.'
               : verdict === 'DATA TERBATAS'
@@ -77,7 +72,20 @@ export default function DecisionScoreCard({
           )}
         </div>
 
-        <div className="w-full space-y-2.5 md:max-w-md">
+        {/* Speedometer Radial Gauge */}
+        {safeTotal !== null && (
+          <div className="flex justify-center shrink-0">
+            <RadialScoreGauge
+              score={safeTotal}
+              category={verdict}
+              size={150}
+              label="Konsensus Komposit"
+            />
+          </div>
+        )}
+
+        {/* Sub-Score Breakdown Bars */}
+        <div className="w-full space-y-2.5 lg:max-w-xs shrink-0">
           {SCORE_PARTS.map((part) => {
             const score = safeScore(scores[part.key], part.max);
             return (
