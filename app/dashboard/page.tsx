@@ -5,8 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
-import BandarFlowPro from '@/components/BandarFlowPro';
-import OwnershipFlowCard from '@/components/ownership-flow/OwnershipFlowCard';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import { PositionSizingCalculator } from '@/components/PositionSizingCalculator';
 import { QuickWatchlistStar } from '@/components/QuickWatchlistStar';
@@ -1595,23 +1593,6 @@ function DashboardContent() {
 
           {viewMode === 'full' ? (
             <>
-              {/* Bandar Flow Analysis */}
-              <div className="w-full">
-                <BandarFlowPro symbol={stock.symbol || ticker} />
-              </div>
-
-              {/* OWNERSHIP FLOW - bukti pendukung, BUKAN sinyal transaksi.
-                  Sengaja diletakkan BERSEBELAHAN dengan Bandar Flow supaya
-                  pembacanya melihat keduanya sekaligus, dan sengaja memakai
-                  kartu terpisah dengan label sumber+tanggal sendiri supaya tidak
-                  terbaca sebagai bagian dari analisis arus dana di atasnya:
-                  yang satu proksi dari OHLCV, yang satu komposisi kepemilikan
-                  dari kustodian. Kartunya menghilang sendiri (render null) kalau
-                  modulnya belum aktif. */}
-              <div className="w-full">
-                <OwnershipFlowCard ticker={stock.symbol || ticker} />
-              </div>
-
               <div className="w-full space-y-4">
                 <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
                 {data?.stock?.current_price && (
