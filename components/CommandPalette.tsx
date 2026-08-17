@@ -109,7 +109,13 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
           const closes = data.history.map((h: any) => h.close);
           const price = closes[closes.length - 1];
           const prev = closes[closes.length - 2];
-          const changePct = prev ? ((price - prev) / prev) * 100 : 0;
+          if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0 ||
+              typeof prev !== 'number' || !Number.isFinite(prev) || prev <= 0) {
+            previewCache.current.set(symbol, { data: null, fetchedAt: Date.now() });
+            setPreview(null);
+            return;
+          }
+          const changePct = ((price - prev) / prev) * 100;
           const result = { closes, price, changePct };
           previewCache.current.set(symbol, { data: result, fetchedAt: Date.now() });
           setPreview(result);
