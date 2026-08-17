@@ -55,6 +55,29 @@ function calculateEMA(data: { time: Time; close: number }[], period: number): Li
   return emaData;
 }
 
+function bacaPaletChart(): { latar: string; teks: string; kisi: string; garis: string; bidik: string } {
+  if (typeof window === 'undefined') {
+    return { latar: '#080D16', teks: '#94a3b8', kisi: 'rgba(255, 255, 255, 0.04)', garis: 'rgba(255, 255, 255, 0.08)', bidik: 'rgba(255, 255, 255, 0.25)' };
+  }
+  const isLight = document.documentElement.classList.contains('light');
+  if (isLight) {
+    return {
+      latar: '#FFFFFF',
+      teks: '#475569',
+      kisi: 'rgba(0, 0, 0, 0.06)',
+      garis: 'rgba(0, 0, 0, 0.12)',
+      bidik: 'rgba(0, 0, 0, 0.35)',
+    };
+  }
+  return {
+    latar: '#080D16',
+    teks: '#94a3b8',
+    kisi: 'rgba(255, 255, 255, 0.04)',
+    garis: 'rgba(255, 255, 255, 0.08)',
+    bidik: 'rgba(255, 255, 255, 0.25)',
+  };
+}
+
 export function ProTradingViewChart({ candles, ticker, className = '' }: ProTradingViewChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -142,40 +165,42 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    const palet = bacaPaletChart();
+
     // Create TradingView Chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#080D16' },
-        textColor: '#94a3b8',
+        background: { type: ColorType.Solid, color: palet.latar },
+        textColor: palet.teks,
         fontSize: 11,
         fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
+        vertLines: { color: palet.kisi },
+        horzLines: { color: palet.kisi },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
-          color: 'rgba(255, 255, 255, 0.25)',
+          color: palet.bidik,
           width: 1,
           style: 3,
-          labelBackgroundColor: '#1e293b',
+          labelBackgroundColor: palet.latar,
         },
         horzLine: {
-          color: 'rgba(255, 255, 255, 0.25)',
+          color: palet.bidik,
           width: 1,
           style: 3,
-          labelBackgroundColor: '#1e293b',
+          labelBackgroundColor: palet.latar,
         },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: palet.garis,
         timeVisible: false,
         secondsVisible: false,
       },
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: palet.garis,
         scaleMargins: {
           top: 0.1,
           bottom: 0.2,
@@ -287,9 +312,33 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(chartContainerRef.current);
 
+    // Theme mutation observer
+    const themeObserver = new MutationObserver(() => {
+      if (!chartRef.current) return;
+      const p = bacaPaletChart();
+      chartRef.current.applyOptions({
+        layout: {
+          background: { type: ColorType.Solid, color: p.latar },
+          textColor: p.teks,
+        },
+        grid: {
+          vertLines: { color: p.kisi },
+          horzLines: { color: p.kisi },
+        },
+        crosshair: {
+          vertLine: { color: p.bidik, labelBackgroundColor: p.latar },
+          horzLine: { color: p.bidik, labelBackgroundColor: p.latar },
+        },
+        timeScale: { borderColor: p.garis },
+        rightPriceScale: { borderColor: p.garis },
+      });
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     return () => {
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
+      themeObserver.disconnect();
       chart.remove();
     };
   }, []);
@@ -378,32 +427,32 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   } : null);
 
   return (
-    <div className={`relative flex flex-col rounded-2xl border border-white/[0.08] bg-[#080D16] overflow-hidden shadow-2 ${className}`}>
+    <div className={`relative flex flex-col rounded-2xl border border-tv-border bg-tv-card overflow-hidden shadow-2 ${className}`}>
       {/* Top Interactive Toolbar & Live HUD */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-[#0D1424]/80 px-4 py-2.5 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border bg-tv-card/95 px-4 py-2.5 backdrop-blur-md">
         {/* Left: Ticker & Live OHLCV HUD */}
         <div className="flex items-center gap-3 flex-wrap text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-heading font-bold text-white tracking-wide">
+            <span className="font-heading font-bold text-tv-text tracking-wide">
               {ticker.replace('.JK', '')}
             </span>
-            <span className="text-[10px] text-tv-muted font-mono uppercase bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.05]">
+            <span className="text-[10px] text-tv-muted font-mono uppercase bg-tv-hover px-1.5 py-0.5 rounded border border-tv-border">
               Daily
             </span>
           </div>
 
           {displayData && (
             <div className="flex items-center gap-2.5 font-number text-[11px] text-tv-muted flex-wrap">
-              <span className="text-white/60 font-mono">{displayData.dateStr}</span>
-              <span>O: <strong className="text-white">{displayData.open.toLocaleString('id-ID')}</strong></span>
+              <span className="text-tv-muted font-mono">{displayData.dateStr}</span>
+              <span>O: <strong className="text-tv-text">{displayData.open.toLocaleString('id-ID')}</strong></span>
               <span>H: <strong className="text-tv-green">{displayData.high.toLocaleString('id-ID')}</strong></span>
               <span>L: <strong className="text-tv-red">{displayData.low.toLocaleString('id-ID')}</strong></span>
-              <span>C: <strong className="text-white">{displayData.close.toLocaleString('id-ID')}</strong></span>
+              <span>C: <strong className="text-tv-text">{displayData.close.toLocaleString('id-ID')}</strong></span>
               <span className={`font-bold ${displayData.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 {displayData.changePct >= 0 ? '+' : ''}{displayData.changePct}%
               </span>
               {displayData.volume !== null && (
-                <span className="hidden md:inline text-white/70">
+                <span className="hidden md:inline text-tv-muted">
                   Vol: {displayData.volume > 1e6 ? `${(displayData.volume / 1e6).toFixed(2)}M` : displayData.volume.toLocaleString('id-ID')}
                 </span>
               )}
@@ -414,15 +463,15 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         {/* Right: Indicators & Range Toggle */}
         <div className="flex items-center gap-2 flex-wrap ml-auto">
           {/* EMA Pills */}
-          <div className="flex items-center gap-1 border-r border-white/[0.08] pr-2">
+          <div className="flex items-center gap-1 border-r border-tv-border pr-2">
             <button
               type="button"
               onClick={() => setShowEMA20(!showEMA20)}
               title="Toggle EMA 20 (Trend Jangka Pendek)"
               className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
                 showEMA20
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]'
-                  : 'bg-white/[0.02] text-tv-muted/40 line-through'
+                  ? 'bg-cyan-500/20 text-cyan-500 dark:text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]'
+                  : 'bg-tv-hover text-tv-muted/40 line-through'
               }`}
             >
               EMA 20
@@ -434,8 +483,8 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               title="Toggle EMA 50 (Trend Jangka Menengah)"
               className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
                 showEMA50
-                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.2)]'
-                  : 'bg-white/[0.02] text-tv-muted/40 line-through'
+                  ? 'bg-orange-500/20 text-orange-500 dark:text-orange-400 border border-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.2)]'
+                  : 'bg-tv-hover text-tv-muted/40 line-through'
               }`}
             >
               EMA 50
@@ -447,8 +496,8 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               title="Toggle EMA 200 (Garis Batas Bullish/Bearish Mayor)"
               className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
                 showEMA200
-                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]'
-                  : 'bg-white/[0.02] text-tv-muted/40 line-through'
+                  ? 'bg-purple-500/20 text-purple-500 dark:text-purple-400 border border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]'
+                  : 'bg-tv-hover text-tv-muted/40 line-through'
               }`}
             >
               EMA 200
@@ -460,8 +509,8 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               title="Toggle Volume Profile (VPVR & POC)"
               className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
                 showVPVR
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
-                  : 'bg-white/[0.02] text-tv-muted/40 line-through'
+                  ? 'bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
+                  : 'bg-tv-hover text-tv-muted/40 line-through'
               }`}
             >
               VPVR / POC
@@ -472,7 +521,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               onClick={() => setShowVolume(!showVolume)}
               title="Toggle Volume Bar"
               className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
-                showVolume ? 'bg-white/[0.06] text-white' : 'bg-transparent text-tv-muted/40'
+                showVolume ? 'bg-tv-hover text-tv-text' : 'bg-transparent text-tv-muted/40'
               }`}
             >
               <BarChart2 className="h-3 w-3" />
@@ -480,7 +529,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
           </div>
 
           {/* Range Selector */}
-          <div className="flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.06]">
+          <div className="flex items-center gap-1 bg-tv-hover/50 p-0.5 rounded-lg border border-tv-border">
             {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map((r) => (
               <button
                 key={r}
@@ -489,7 +538,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
                 className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
                   activeRange === r
                     ? 'bg-tv-blue text-white shadow-sm'
-                    : 'text-tv-muted hover:text-white'
+                    : 'text-tv-muted hover:text-tv-text'
                 }`}
               >
                 {r === '1M' ? '1B' : r === '3M' ? '3B' : r === '6M' ? '6B' : r === '1Y' ? '1T' : 'Semua'}
@@ -501,7 +550,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
             type="button"
             onClick={handleResetZoom}
             title="Reset Zoom / Fit Content"
-            className="p-1 rounded-lg text-tv-muted hover:text-white hover:bg-white/[0.05] transition-colors"
+            className="p-1 rounded-lg text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
@@ -511,12 +560,12 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
       {/* Floating VPVR / POC Legend Badge */}
       {showVPVR && volumeProfile && (
         <div className="absolute top-12 left-4 z-10 flex items-center gap-2 flex-wrap pointer-events-none">
-          <div className="flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 text-[10px] font-number text-amber-300 shadow-md">
+          <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 text-[10px] font-number text-amber-500 dark:text-amber-300 shadow-md">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
             <span>POC (Point of Control): <strong>Rp {volumeProfile.pocPrice.toLocaleString('id-ID')}</strong></span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur-md px-2 py-1 border border-white/[0.08] text-[10px] font-number text-tv-muted">
-            <span>Value Area (70% Vol): <strong className="text-white">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
+          <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2 py-1 border border-tv-border text-[10px] font-number text-tv-muted">
+            <span>Value Area (70% Vol): <strong className="text-tv-text">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
           </div>
         </div>
       )}
