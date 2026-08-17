@@ -15,6 +15,7 @@ import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
 import { classifyCapTier, CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR, CURRENT_LARGE_LIQUID_MIN_ADV20_IDR } from '@/lib/utils/cap-tier';
+import { isBlueChipConstituent } from '@/lib/utils/blue-chip-index';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
@@ -1156,18 +1157,29 @@ function DashboardContent() {
                     tampil kalau market cap ATAU likuiditas tidak diketahui (mis. IHSG,
                     yang bukan saham individual) - diam lebih baik daripada menebak. */}
                 {(() => {
+                  const isLq45 = isBlueChipConstituent(ticker);
                   const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
-                  if (!tier) return null;
+                  if (!isLq45 && !tier) return null;
                   return (
-                    <div className="mt-1">
-                      <Badge
-                        variant={tier === 'LARGE_LIQUID_CURRENT' ? 'info' : 'warning'}
-                        title={tier === 'LARGE_LIQUID_CURRENT'
-                          ? `Kondisi saat ini: market cap & likuiditas di atas ambang konteks (>= Rp ${(CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(CURRENT_LARGE_LIQUID_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
-                          : 'Kondisi saat ini: market cap lebih kecil dan/atau likuiditas lebih tipis. Ini konteks kondisi pasar, bukan penilaian kualitas atau identitas emiten.'}
-                      >
-                        {tier === 'LARGE_LIQUID_CURRENT' ? 'Large & Liquid · saat ini' : 'Small / Thin · saat ini'}
-                      </Badge>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      {isLq45 && (
+                        <Badge
+                          variant="info"
+                          title="Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)"
+                        >
+                          Indeks LQ45
+                        </Badge>
+                      )}
+                      {tier && (
+                        <Badge
+                          variant={tier === 'LARGE_LIQUID_CURRENT' ? 'neutral' : 'warning'}
+                          title={tier === 'LARGE_LIQUID_CURRENT'
+                            ? `Kondisi saat ini: market cap & likuiditas di atas ambang konteks (>= Rp ${(CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(CURRENT_LARGE_LIQUID_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
+                            : 'Kondisi saat ini: market cap lebih kecil dan/atau likuiditas lebih tipis. Ini konteks kondisi pasar, bukan penilaian kualitas atau identitas emiten.'}
+                        >
+                          {tier === 'LARGE_LIQUID_CURRENT' ? 'Large & Liquid · saat ini' : 'Small / Thin · saat ini'}
+                        </Badge>
+                      )}
                     </div>
                   );
                 })()}
