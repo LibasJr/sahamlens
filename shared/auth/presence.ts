@@ -1,4 +1,4 @@
-import { cacheSet, scanKeys, cacheMGet } from '../cache/redis-cache';
+import { cacheGet, cacheSet, scanKeys, cacheMGet } from '../cache/redis-cache';
 import { pool } from '../database/postgres.client';
 import type { SessionPayload } from './jwt';
 
@@ -20,6 +20,8 @@ export type PresenceEntry = {
   email: string;
   role: string;
   lastSeen: string;
+  startedAt?: string;
+  durationSec?: number;
 };
 
 /** Menyimpan aktivitas lebih tahan lama dari Redis presence. Map proses membatasi
@@ -43,9 +45,22 @@ async function recordPersistedActivity(session: SessionPayload): Promise<void> {
  * tidak pernah melempar (lihat pemanggilnya di shared/auth/session.ts). */
 export async function touchPresence(session: SessionPayload): Promise<void> {
   if (!session?.id) return;
+  const key = `${PRESENCE_PREFIX}${session.id}`;
+  const existing = await cacheGet<PresenceEntry>(key);
+  const nowIso = new Date().toISOString();
+  const startedAt = existing?.startedAt || nowIso;
+  const durationSec = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000));
+
   await cacheSet<PresenceEntry>(
-    `${PRESENCE_PREFIX}${session.id}`,
-    { id: session.id, email: session.email, role: session.role, lastSeen: new Date().toISOString() },
+    key,
+    {
+      id: session.id,
+      email: session.email,
+      role: session.role,
+      lastSeen: nowIso,
+      startedAt,
+      durationSec,
+    },
     PRESENCE_TTL_SEC,
   );
   void recordPersistedActivity(session);
