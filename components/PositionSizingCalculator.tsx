@@ -59,14 +59,14 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
   }
 
   return (
-    <Card variant="default" padding="lg" className="border-white/[0.08] shadow-2">
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+    <Card variant="default" padding="lg" className="border-tv-border bg-tv-card shadow-2">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-tv-border">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-tv-green/10 border border-tv-green/20 text-tv-green">
             <Shield className="h-4 w-4" />
           </div>
           <div>
-            <CardTitle className="text-base font-bold text-white flex items-center gap-2">
+            <CardTitle className="text-base font-bold text-tv-text flex items-center gap-2">
               Kalkulator Position Sizing ({cleanTicker})
               <Badge variant="success" className="text-[10px] py-0.5 px-2">Anti-Habis Modal</Badge>
             </CardTitle>
@@ -83,8 +83,8 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           title="Salin Rencana Trading ke Clipboard"
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
             isCopied
-              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
-              : 'bg-white/[0.04] text-tv-muted hover:text-white border-white/[0.08] hover:bg-white/[0.08]'
+              ? 'bg-emerald-500/20 text-emerald-500 dark:text-emerald-300 border-emerald-500/40 shadow-sm'
+              : 'bg-tv-hover text-tv-muted hover:text-tv-text border-tv-border'
           }`}
         >
           {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
@@ -110,7 +110,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                 step="500000"
                 value={capital}
                 onChange={(e) => setCapital(Number(e.target.value) || 0)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.1] text-white font-number text-sm font-bold focus:outline-none focus:border-tv-blue focus:ring-1 focus:ring-tv-blue transition-all"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-tv-bg border border-tv-border text-tv-text font-number text-sm font-bold focus:outline-none focus:border-tv-blue focus:ring-1 focus:ring-tv-blue transition-all"
               />
             </div>
 
@@ -124,7 +124,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                   className={`px-2 py-1 rounded-lg text-[10px] font-bold font-number transition-all ${
                     capital === p
                       ? 'bg-tv-blue/20 text-tv-blue border border-tv-blue/40 shadow-sm'
-                      : 'bg-white/[0.03] text-tv-muted hover:text-white border border-white/[0.05]'
+                      : 'bg-tv-hover text-tv-muted hover:text-tv-text border border-tv-border'
                   }`}
                 >
                   Rp {(p / 1e6).toFixed(0)} Jt
@@ -142,7 +142,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
               {[
                 { val: 0.5, label: '0.5% (Konservatif)' },
                 { val: 1.0, label: '1.0% (Standar Pro)' },
-                { val: 2.0, label: '2.0% (Agresif)' },
+                { val: 2.0, label: 'Agresif 2%' },
               ].map((item) => (
                 <button
                   key={item.val}
@@ -151,21 +151,21 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                   className={`p-2 rounded-xl text-left transition-all border ${
                     riskPct === item.val
                       ? 'bg-tv-green/15 border-tv-green/40 text-tv-green shadow-sm'
-                      : 'bg-white/[0.02] border-white/[0.06] text-tv-muted hover:text-white'
+                      : 'bg-tv-hover/40 border-tv-border text-tv-muted hover:text-tv-text'
                   }`}
                 >
                   <div className="font-number font-bold text-xs">{item.val}%</div>
-                  <div className="text-[9px] opacity-80 truncate">{item.label.split(' ')[1]}</div>
+                  <div className="text-[9px] opacity-80 truncate">{item.label}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Current Setup Snapshot */}
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-1.5 text-xs font-number">
+          <div className="p-3 rounded-xl bg-tv-hover/30 border border-tv-border space-y-1.5 text-xs font-number">
             <div className="flex justify-between text-tv-muted">
               <span>Harga Entry:</span>
-              <strong className="text-white">Rp {entryPrice.toLocaleString('id-ID')}</strong>
+              <strong className="text-tv-text">Rp {entryPrice.toLocaleString('id-ID')}</strong>
             </div>
             <div className="flex justify-between text-tv-muted">
               <span>Batas Cut Loss:</span>
@@ -173,7 +173,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
             </div>
             <div className="flex justify-between text-tv-muted">
               <span>Risiko per Lembar:</span>
-              <strong className="text-white">Rp {result.riskPerShareIdr.toLocaleString('id-ID')}</strong>
+              <strong className="text-tv-text">Rp {result.riskPerShareIdr.toLocaleString('id-ID')}</strong>
             </div>
           </div>
         </div>
@@ -186,7 +186,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
               Rekomendasi Ukuran Posisi Maksimal
             </div>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="font-heading text-3xl font-extrabold text-white font-number">
+              <span className="font-heading text-3xl font-extrabold text-tv-text font-number">
                 {result.maxLots.toLocaleString('id-ID')} <span className="text-lg font-bold text-tv-green">Lot</span>
               </span>
               <span className="text-xs text-tv-muted font-number">
@@ -194,9 +194,9 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
               </span>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-white/[0.08] flex items-center justify-between text-xs font-number flex-wrap gap-2">
+            <div className="mt-3 pt-3 border-t border-tv-border flex items-center justify-between text-xs font-number flex-wrap gap-2">
               <div className="text-tv-muted">
-                Alokasi Modal: <strong className="text-white">{result.portfolioAllocationPct}%</strong>
+                Alokasi Modal: <strong className="text-tv-text">{result.portfolioAllocationPct}%</strong>
               </div>
               <div className="text-tv-muted">
                 Batas Kerugian Maksimal: <strong className="text-tv-red">{formatRupiah(result.actualRiskLossIdr)} ({result.actualRiskLossPct}%)</strong>
@@ -208,11 +208,11 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Cut Loss Scenario */}
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400 mb-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-500 dark:text-rose-400 mb-1">
                 <TrendingDown className="h-3.5 w-3.5" />
                 Skenario Kena Cut Loss
               </div>
-              <div className="text-base font-bold text-white font-number">
+              <div className="text-base font-bold text-tv-text font-number">
                 -{formatRupiah(result.actualRiskLossIdr)}
               </div>
               <div className="text-[10px] text-tv-muted mt-0.5">
@@ -223,11 +223,11 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
             {/* Take Profit Scenario */}
             {result.reward1Idr !== null && (
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 mb-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">
                   <TrendingUp className="h-3.5 w-3.5" />
                   Skenario Kena TP 1 (R:R {result.riskRewardRatio1})
                 </div>
-                <div className="text-base font-bold text-emerald-300 font-number">
+                <div className="text-base font-bold text-emerald-600 dark:text-emerald-300 font-number">
                   +{formatRupiah(result.reward1Idr)}
                 </div>
                 <div className="text-[10px] text-tv-muted mt-0.5">

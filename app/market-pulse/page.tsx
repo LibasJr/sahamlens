@@ -92,15 +92,12 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
       }}
     >
       <div>
-        <div className="text-xs font-bold text-white truncate">{sector}</div>
+        <div className="text-xs font-bold text-tv-text truncate">{sector}</div>
         {/* Dinyatakan apa adanya: ini rata-rata beberapa saham wakil, bukan indeks sektor
             resmi IDX (temuan M-3). */}
-        {sampleSize ? <div className="text-[10px] text-white/60">rata-rata {sampleSize} saham wakil</div> : null}
-        {/* Angka % dulu pakai text-tv-green/text-tv-red di atas background yang juga
-            hijau/merah (hue sama) - kontras rendah, apalagi saat perubahan besar bikin
-            background makin pekat. Ganti jadi putih (kontras tinggi di kedua background)
-            + ikon arah kecil yang tetap pakai warna hijau/merah untuk isyarat visual. */}
-        <div className="text-lg font-extrabold font-number text-white flex items-center gap-1">
+        {sampleSize ? <div className="text-[10px] text-tv-muted">rata-rata {sampleSize} saham wakil</div> : null}
+        {/* Angka % */}
+        <div className="text-lg font-extrabold font-number text-tv-text flex items-center gap-1">
           {isUp ? (
             <TrendingUp className="w-3.5 h-3.5 text-tv-green shrink-0" />
           ) : (
@@ -109,19 +106,19 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
           {changePct == null ? 'N/A' : `${isUp ? '+' : ''}${changePct.toFixed(2)}%`}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1 mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
+      <div className="flex flex-wrap items-center gap-1 mt-1 opacity-80 group-hover:opacity-100 transition-opacity">
         {stocks?.slice(0, 4).map((s: any) => (
           <span
             key={s.symbol}
             className={`text-[10px] font-number font-semibold px-1 py-0.5 rounded text-white ${
-              s.changePct >= 0 ? 'bg-tv-green/60' : 'bg-tv-red/60'
+              s.changePct >= 0 ? 'bg-tv-green/80' : 'bg-tv-red/80'
             }`}
           >
             {s.symbol} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%
           </span>
         ))}
         {stocks?.length > 4 && (
-          <span className="text-[10px] text-white/60 font-medium">+{stocks.length - 4} lainnya</span>
+          <span className="text-[10px] text-tv-muted font-medium">+{stocks.length - 4} lainnya</span>
         )}
       </div>
     </motion.button>
