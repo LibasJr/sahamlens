@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
+import { trackSignupClick } from '@/shared/analytics/product-funnel';
 
 // BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
 // 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
@@ -76,6 +78,7 @@ function DcfContent() {
   const fcfList = quant?.fcf_projections || [];
   const sensitivity = quant?.sensitivity_table || [];
   const discountRatePct = quant.discount_rate_pct ?? quant.wacc_pct ?? null;
+  const isGuestLimited = Boolean(data?.is_guest_limited || quant?.is_guest_limited);
 
   return (
     <TickerAnalysisShell
@@ -177,6 +180,19 @@ function DcfContent() {
               </tbody>
             </table>
           </div>
+
+          {isGuestLimited && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-3.5 py-2.5 text-xs">
+              <div className="flex items-start gap-2 text-tv-muted">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-blue" />
+                <span><strong className="text-tv-text">Proyeksi 3 tahun berikutnya &amp; rincian terkunci.</strong> Masuk atau daftar gratis untuk melihat seluruh proyeksi 5-tahun.</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Link onClick={() => trackSignupClick('dcf_valuation')} href={`/login?next=${encodeURIComponent(`/dcf?symbol=${ticker}`)}`} className="rounded-md border border-tv-blue/50 px-2.5 py-1 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
+                <Link onClick={() => trackSignupClick('dcf_valuation')} href={`/signup?next=${encodeURIComponent(`/dcf?symbol=${ticker}`)}`} className="rounded-md bg-tv-blue px-2.5 py-1 font-semibold text-white hover:bg-tv-blueHover">Daftar Gratis</Link>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* WACC vs Terminal Growth Sensitivity Matrix */}
@@ -186,30 +202,46 @@ function DcfContent() {
             Tabel Sensitivitas Valuasi Discount Rate vs Terminal Growth
           </h3>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-tv-border bg-tv-bg text-tv-muted text-[10px] font-semibold tracking-wide">
-                  <th className="p-3">Discount Rate \ g</th>
-                  <th className="p-3">Growth 3.0%</th>
-                  <th className="p-3">Growth 3.5% (Base)</th>
-                  <th className="p-3">Growth 4.0%</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-tv-border/50">
-                {sensitivity.map((row: any, i: number) => (
-                  <tr key={i} className="hover:bg-tv-hover/50">
-                    <td className="p-3 font-bold text-tv-yellow bg-tv-bg/50 font-number">{row.discount_rate_pct ?? row.wacc_pct}</td>
-                    <td className="p-3 text-tv-text font-bold font-number">Rp {row['g_3.0%']?.toLocaleString('id-ID')}</td>
-                    <td className="p-3 text-tv-green font-extrabold bg-tv-green/10 border border-tv-green/30 font-number">
-                      Rp {row['g_3.5%']?.toLocaleString('id-ID')}
-                    </td>
-                    <td className="p-3 text-tv-text font-bold font-number">Rp {row['g_4.0%']?.toLocaleString('id-ID')}</td>
+          {isGuestLimited || sensitivity.length === 0 ? (
+            <div className="p-6 rounded-lg border border-tv-blue/35 bg-tv-blue/5 text-center space-y-3">
+              <Lock className="w-6 h-6 text-tv-blue mx-auto" />
+              <div>
+                <div className="text-sm font-bold text-tv-text">Matriks Sensitivitas Valuasi Terkunci</div>
+                <div className="text-xs text-tv-muted mt-1 max-w-md mx-auto">
+                  Lihat bagaimana estimasi nilai wajar {ticker} bergerak terhadap simulasi tingkat diskonto dan pertumbuhan perpetuitas.
+                </div>
+              </div>
+              <div className="pt-1 flex items-center justify-center gap-2">
+                <Link onClick={() => trackSignupClick('dcf_valuation')} href={`/login?next=${encodeURIComponent(`/dcf?symbol=${ticker}`)}`} className="rounded-md border border-tv-blue/50 px-3 py-1.5 text-xs font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
+                <Link onClick={() => trackSignupClick('dcf_valuation')} href={`/signup?next=${encodeURIComponent(`/dcf?symbol=${ticker}`)}`} className="rounded-md bg-tv-blue px-3 py-1.5 text-xs font-semibold text-white hover:bg-tv-blueHover">Daftar Gratis</Link>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-center text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-tv-border bg-tv-bg text-tv-muted text-[10px] font-semibold tracking-wide">
+                    <th className="p-3">Discount Rate \ g</th>
+                    <th className="p-3">Growth 3.0%</th>
+                    <th className="p-3">Growth 3.5% (Base)</th>
+                    <th className="p-3">Growth 4.0%</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-tv-border/50">
+                  {sensitivity.map((row: any, i: number) => (
+                    <tr key={i} className="hover:bg-tv-hover/50">
+                      <td className="p-3 font-bold text-tv-yellow bg-tv-bg/50 font-number">{row.discount_rate_pct ?? row.wacc_pct}</td>
+                      <td className="p-3 text-tv-text font-bold font-number">Rp {row['g_3.0%']?.toLocaleString('id-ID')}</td>
+                      <td className="p-3 text-tv-green font-extrabold bg-tv-green/10 border border-tv-green/30 font-number">
+                        Rp {row['g_3.5%']?.toLocaleString('id-ID')}
+                      </td>
+                      <td className="p-3 text-tv-text font-bold font-number">Rp {row['g_4.0%']?.toLocaleString('id-ID')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="p-4 rounded-lg bg-tv-bg border border-tv-border space-y-2">
             <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading">Ringkasan Analisis</h4>

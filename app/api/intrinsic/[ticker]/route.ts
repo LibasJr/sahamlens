@@ -7,6 +7,7 @@ import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { getSession } from '@/modules/user';
 
 // BUILD 004 (AI Architecture) - logika DCF/Graham/PBV/PER/DDM dipindah ke
 // modules/fundamental/service/dcf-valuation.service.ts (dipakai ulang oleh
@@ -41,7 +42,26 @@ export async function GET(
     if ('notFound' in wrapped) {
       return NextResponse.json({ error: 'No data found' }, { status: 404 });
     }
-    return NextResponse.json(wrapped);
+
+    const session = await getSession().catch(() => null);
+    const isGuest = !session || typeof session.id !== 'string';
+
+    if (isGuest) {
+      return NextResponse.json({
+        ...wrapped,
+        applied_rule: {},
+        assumptions: {
+          is_model_estimate: true,
+          is_guest_limited: true,
+        },
+        is_guest_limited: true,
+      });
+    }
+
+    return NextResponse.json({
+      ...wrapped,
+      is_guest_limited: false,
+    });
   } catch (error: any) {
     console.error(error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

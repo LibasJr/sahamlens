@@ -105,16 +105,16 @@ function loadTemplates(): ScreenerTemplate[] {
 
 const GUEST_VISIBLE_RESULT_COUNT = 3;
 
-function GuestScannerLock() {
+function GuestScannerLock({ lockedCount = 7 }: { lockedCount?: number }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-4 py-3 text-xs">
       <div className="flex items-start gap-2 text-tv-muted">
         <Lock className="mt-0.5 h-4 w-4 shrink-0 text-tv-blue" />
-        <span><strong className="text-tv-text">7 kandidat berikutnya terkunci.</strong> Masuk untuk melihat seluruh hasil LensScanner, menyimpan template, dan mengekspor CSV.</span>
+        <span><strong className="text-tv-text">{lockedCount > 0 ? `${lockedCount} kandidat lainnya terkunci.` : 'Kandidat lainnya terkunci.'}</strong> Masuk atau daftar gratis untuk melihat seluruh ranking sektor ini, menyimpan template, dan mengekspor CSV.</span>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Link onClick={() => trackSignupClick('screener_results')} href="/login?next=%2Fscreener" className="rounded-md border border-tv-blue/50 px-2.5 py-1.5 font-semibold text-tv-blue hover:bg-tv-blue/10">Masuk</Link>
-        <Link onClick={() => trackSignupClick('screener_results')} href="/signup?next=%2Fscreener" className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar</Link>
+        <Link onClick={() => trackSignupClick('screener_results')} href="/signup?next=%2Fscreener" className="rounded-md bg-tv-blue px-2.5 py-1.5 font-semibold text-white hover:bg-tv-blueHover">Daftar Gratis</Link>
       </div>
     </div>
   );
@@ -725,7 +725,7 @@ export default function ScreenerPage() {
                 {hasLockedGuestRows && (
                   <tr>
                     <td colSpan={SORTABLE_COLUMNS.length + 1} className="p-4">
-                      <GuestScannerLock />
+                      <GuestScannerLock lockedCount={data?.analysis?.locked_count} />
                     </td>
                   </tr>
                 )}
@@ -839,7 +839,7 @@ export default function ScreenerPage() {
                   </motion.div>
                 );
               })}
-              {hasLockedGuestRows && <GuestScannerLock />}
+              {hasLockedGuestRows && <GuestScannerLock lockedCount={data?.analysis?.locked_count} />}
             </div>
           )}
 
