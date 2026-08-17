@@ -9,6 +9,7 @@ import { getMarketStatus } from '@/lib/utils/market';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
 import ThemeToggle from './ThemeToggle';
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
@@ -91,6 +92,8 @@ export default function TopMarketBar() {
           <Clock3 className="h-3.5 w-3.5" /> {jakartaTime}
         </div>
 
+        <LanguageSwitcher variant="pill" className="hidden sm:inline-flex" />
+        <LanguageSwitcher variant="compact" className="sm:hidden" />
         <ThemeToggle />
 
         <TrialCountdown daysLeft={trialDaysLeft} />
