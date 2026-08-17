@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
-import { ShieldCheck, Loader2 } from 'lucide-react';
+import { ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
 
 function AdminLoginContent() {
   const [key, setKey] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -76,22 +77,33 @@ function AdminLoginContent() {
               Admin Secret Key
             </label>
             <div className="flex gap-2">
-              <input
-                id="admin-key"
-                type="password"
-                name="key"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                placeholder="Password admin"
-                disabled={loading}
-                className="flex-1 bg-tv-bg/60 border border-tv-border rounded-md px-3 py-2 text-tv-text text-sm outline-none focus:border-tv-blue focus:ring-1 focus:ring-tv-blue/40 transition-colors disabled:opacity-60"
-                autoComplete="current-password"
-                required
-              />
+              <div className="relative flex-1">
+                <input
+                  id="admin-key"
+                  type={showPassword ? 'text' : 'password'}
+                  name="key"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder="Password admin"
+                  disabled={loading}
+                  className="w-full bg-tv-bg/60 border border-tv-border rounded-md pl-3 pr-9 py-2 text-tv-text text-sm outline-none focus:border-tv-blue focus:ring-1 focus:ring-tv-blue/40 transition-colors disabled:opacity-60"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-tv-muted hover:text-tv-text transition-colors p-0.5"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               <button
                 type="submit"
                 disabled={loading || !key.trim()}
-                className="bg-tv-blue hover:bg-tv-blueHover disabled:opacity-50 text-white font-bold px-4 py-2 rounded-md text-sm transition-all whitespace-nowrap flex items-center gap-1.5"
+                className="bg-tv-blue hover:bg-tv-blueHover disabled:opacity-50 text-white font-bold px-4 py-2 rounded-md text-sm transition-all whitespace-nowrap flex items-center gap-1.5 shadow-sm"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>{loading ? 'Memeriksa...' : 'Masuk'}</span>
