@@ -10,6 +10,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { useLanguage } from '@/lib/i18n';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
