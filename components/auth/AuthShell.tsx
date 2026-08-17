@@ -36,7 +36,7 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
     <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4 relative overflow-hidden">
       <div className="w-full max-w-md relative z-10 animate-fadeIn">
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <Image src="/sahamlens-scope.png" alt="SahamLens" width={36} height={36} className="h-9 w-9 rounded-full object-cover" priority />
+          <Image src="/sahamlens-scope.png" alt="SahamLens" width={40} height={40} className="h-10 w-10 rounded-xl object-contain shadow-sm" priority />
           <span className="font-heading font-bold text-[18px] tracking-tight text-tv-text">SahamLens</span>
         </Link>
 

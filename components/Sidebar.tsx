@@ -281,8 +281,8 @@ export default function Sidebar() {
               ada jalan yang hilang - justru sebaliknya, ini menutup satu-satunya celah
               di mana pengguna yang sudah masuk tidak punya jalan kembali ke "/". */}
           <Link href="/" className="group flex min-w-0 items-center gap-3">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner">
-              <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-cover" />
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner p-1">
+              <Image src="/sahamlens-scope.png" alt="SahamLens" fill sizes="40px" className="object-contain" />
             </div>
             <div className={isCollapsed ? 'md:hidden' : ''}>
               <div className="flex items-center gap-2">
