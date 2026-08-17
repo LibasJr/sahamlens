@@ -116,23 +116,31 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-tv-green px-1 font-number text-[10px] font-extrabold text-black shadow-[0_0_8px_rgba(35,196,131,0.8)]">
+          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-tv-green px-1 font-number text-[10px] font-extrabold text-black shadow-[0_0_8px_rgba(35,196,131,0.9)]">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown Popover */}
+      {/* Backdrop for Mobile */}
       {isOpen && (
-        <div className="absolute right-0 top-11 z-50 w-[340px] sm:w-[380px] rounded-2xl border border-tv-border bg-tv-card/98 p-4 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs sm:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Solid Opaque Dropdown Modal */}
+      {isOpen && (
+        <div className="fixed inset-x-3.5 top-16 z-50 rounded-2xl border border-slate-700 bg-[#0d1522] p-4 text-white shadow-[0_20px_60px_rgba(0,0,0,0.9)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-[380px] animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-tv-border/80 pb-3">
+          <div className="flex items-center justify-between border-b border-slate-700/80 pb-3">
             <div className="flex items-center gap-2">
-              <span className="font-heading text-sm font-bold text-tv-text">
+              <span className="font-heading text-sm font-bold text-white">
                 {language === 'id' ? 'Notifikasi & Alert' : 'Notifications & Alerts'}
               </span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-tv-green/15 px-2 py-0.5 text-[11px] font-bold text-tv-green">
+                <span className="rounded-full bg-tv-green/20 px-2 py-0.5 text-[11px] font-bold text-tv-green border border-tv-green/30">
                   {unreadCount} {language === 'id' ? 'baru' : 'new'}
                 </span>
               )}
@@ -146,8 +154,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 title={prefs.soundEnabled ? (language === 'id' ? 'Suara Aktif' : 'Sound On') : (language === 'id' ? 'Suara Nonaktif' : 'Sound Muted')}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${
                   prefs.soundEnabled
-                    ? 'border-tv-blue/30 bg-tv-blue/10 text-tv-blue'
-                    : 'border-tv-border bg-tv-hover text-tv-muted'
+                    ? 'border-tv-blue/50 bg-tv-blue/20 text-tv-blue'
+                    : 'border-slate-700 bg-slate-800 text-slate-400'
                 }`}
               >
                 {prefs.soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
@@ -157,7 +165,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-tv-text transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -166,24 +174,24 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
           {/* Browser Permission Banner (if not yet granted) */}
           {browserPermission !== 'granted' && (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-tv-blue/30 bg-tv-blue/10 p-2.5 text-xs text-tv-blue">
-              <span className="leading-snug">
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-tv-blue/40 bg-tv-blue/15 p-2.5 text-xs text-tv-blue">
+              <span className="leading-snug font-medium">
                 {language === 'id' ? 'Aktifkan notifikasi pop-up saat ada sinyal baru.' : 'Enable pop-up alerts for new signals.'}
               </span>
               <button
                 type="button"
                 onClick={handleRequestPush}
-                className="shrink-0 rounded-lg bg-tv-blue px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-tv-blueHover"
+                className="shrink-0 rounded-lg bg-tv-blue px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-tv-blueHover active:scale-95"
               >
                 {language === 'id' ? 'Izinkan' : 'Enable'}
               </button>
             </div>
           )}
 
-          {/* Notification List */}
-          <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto pr-1">
+          {/* Notification List - Solid Opaque Cards */}
+          <div className="mt-3 max-h-[320px] space-y-2.5 overflow-y-auto pr-1">
             {notifications.length === 0 ? (
-              <div className="py-8 text-center text-xs text-tv-muted">
+              <div className="py-8 text-center text-xs text-slate-400">
                 {language === 'id' ? 'Belum ada notifikasi baru.' : 'No new notifications.'}
               </div>
             ) : (
@@ -191,29 +199,29 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 <div
                   key={notif.id}
                   onClick={() => markNotificationAsRead(notif.id)}
-                  className={`group relative rounded-xl border p-3 transition-all duration-150 ${
+                  className={`group relative rounded-xl border p-3 transition-all duration-150 cursor-pointer ${
                     notif.read
-                      ? 'border-tv-border/50 bg-tv-bg/40 opacity-75 hover:opacity-100'
-                      : 'border-tv-blue/30 bg-tv-cardAlt/80 shadow-xs'
+                      ? 'border-slate-800 bg-[#111a28] opacity-70 hover:opacity-100'
+                      : 'border-slate-700 bg-[#142032] shadow-sm hover:border-tv-blue/50'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        {!notif.read && <span className="h-2 w-2 shrink-0 rounded-full bg-tv-green" />}
-                        <h4 className="font-heading text-xs font-bold text-tv-text truncate">{notif.title}</h4>
+                      <div className="flex items-center gap-2">
+                        {!notif.read && <span className="h-2 w-2 shrink-0 rounded-full bg-tv-green shadow-[0_0_6px_rgba(35,196,131,0.8)]" />}
+                        <h4 className="font-heading text-xs font-bold text-white truncate">{notif.title}</h4>
                       </div>
-                      <p className="mt-1 text-[11.5px] leading-relaxed text-tv-muted">{notif.body}</p>
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-tv-muted/80">
+                      <p className="mt-1 text-[11.5px] leading-relaxed text-slate-300">{notif.body}</p>
+                      <div className="mt-2.5 flex items-center justify-between text-[10.5px] text-slate-400">
                         <span className="font-medium">{formatTimeAgo(notif.timestamp)}</span>
                         {notif.link && (
                           <Link
                             href={notif.link}
                             onClick={() => setIsOpen(false)}
-                            className="flex items-center gap-1 font-semibold text-tv-blue hover:underline"
+                            className="flex items-center gap-1 font-bold text-tv-blue hover:text-white transition-colors"
                           >
                             <span>{language === 'id' ? 'Buka Analisis' : 'View Analysis'}</span>
-                            <ExternalLink className="h-2.5 w-2.5" />
+                            <ExternalLink className="h-3 w-3" />
                           </Link>
                         )}
                       </div>
@@ -225,14 +233,14 @@ export default function NotificationCenter({ className = '' }: NotificationCente
           </div>
 
           {/* Footer Controls */}
-          <div className="mt-3 flex items-center justify-between border-t border-tv-border/80 pt-3 text-[11px]">
+          <div className="mt-3 flex items-center justify-between border-t border-slate-700/80 pt-3 text-[11px]">
             <button
               type="button"
               onClick={handleTestAlert}
-              className="font-medium text-tv-muted hover:text-tv-text transition-colors flex items-center gap-1"
+              className="font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5"
             >
-              <Sparkles className="h-3 w-3 text-tv-gold" />
-              <span>{language === 'id' ? 'Test Alert' : 'Test Alert'}</span>
+              <Sparkles className="h-3.5 w-3.5 text-tv-gold" />
+              <span>Test Alert</span>
             </button>
 
             <div className="flex items-center gap-3">
@@ -250,7 +258,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 <button
                   type="button"
                   onClick={clearAllNotifications}
-                  className="font-medium text-tv-muted hover:text-tv-red transition-colors"
+                  className="font-medium text-slate-400 hover:text-tv-red transition-colors"
                 >
                   {language === 'id' ? 'Hapus' : 'Clear'}
                 </button>

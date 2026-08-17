@@ -420,7 +420,6 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               <LanguageSwitcher variant="pill" className="hidden sm:inline-flex" />
               <LanguageSwitcher variant="compact" className="sm:hidden" />
               <ThemeToggle />
-              <NotificationCenter />
               <div className="w-[40px] sm:w-[180px] md:w-[220px]">
                 <CommandPalette />
               </div>
