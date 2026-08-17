@@ -90,6 +90,57 @@ describe('public macro dashboard', () => {
       'OIL_CHANNEL',
       'DOMESTIC_RATE_CHANNEL',
     ]);
+    expect(dashboard.regime).toBeUndefined();
+    expect(dashboard.health).toBeUndefined();
     expect(dashboard.retrievedAt).toBe('2026-08-11T00:00:00.000Z');
+  });
+
+  it('tidak membuat macro regime dari angka fallback ketika GDP atau inflasi hilang', () => {
+    const dashboard = assemblePublicMacroDashboard([], [{
+      key: 'BI_RATE',
+      label: 'BI-Rate',
+      value: 5.75,
+      unit: '%',
+      period: '22 Juli 2026',
+      previousValue: null,
+      previousPeriod: null,
+      trend: 'NA',
+      frequency: 'Keputusan RDG',
+      source: 'Bank Indonesia',
+      sourceUrl: 'https://www.bi.go.id/',
+      retrievalStatus: 'LIVE',
+      note: null,
+    }], new Date('2026-08-11T00:00:00.000Z'));
+
+    expect(dashboard.regime).toBeUndefined();
+    expect(dashboard.health).toBeUndefined();
+  });
+
+  it('menghitung regime hanya dari GDP dan inflasi yang benar-benar tersedia', () => {
+    const official = [
+      normalizeWorldBankIndicator({
+        key: 'GDP_GROWTH',
+        label: 'Pertumbuhan PDB Indonesia',
+        indicator: 'NY.GDP.MKTP.KD.ZG',
+        unit: '% YoY',
+        frequency: 'Tahunan',
+      }, [{}, [{ date: '2025', value: 5.1 }]]),
+      normalizeWorldBankIndicator({
+        key: 'INFLATION',
+        label: 'Inflasi Indonesia',
+        indicator: 'FP.CPI.TOTL.ZG',
+        unit: '% YoY',
+        frequency: 'Tahunan',
+      }, [{}, [{ date: '2025', value: 2.2 }]]),
+    ].filter((item): item is NonNullable<typeof item> => item !== null);
+
+    const dashboard = assemblePublicMacroDashboard([], official, new Date('2026-08-11T00:00:00.000Z'));
+    expect(dashboard.regime).toMatchObject({
+      regime: 'EXPANSION',
+      gdpGrowth: 5.1,
+      inflation: 2.2,
+      biRate: null,
+    });
+    expect(dashboard.health).toBeUndefined();
   });
 });

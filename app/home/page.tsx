@@ -101,8 +101,19 @@ function hasSeenPromoToday(): boolean {
  */
 function MarketBreadthBar({ breadth }: { breadth: { advancing: number; declining: number; total: number } }) {
   const { advancing, declining, total } = breadth;
+  if (!Number.isFinite(total) || total <= 0) {
+    return (
+      <div className="rounded-xl border border-tv-border/80 bg-tv-card/40 p-4 sm:p-5 backdrop-blur-sm">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-tv-muted">
+          <BarChart3 className="w-4 h-4 text-tv-blue" />
+          Market Breadth
+        </div>
+        <p className="mt-3 text-sm text-tv-muted">Data breadth belum tersedia. SahamLens tidak mengubah data kosong menjadi breadth 0% atau sinyal pasar.</p>
+      </div>
+    );
+  }
   const unchanged = Math.max(0, total - (advancing + declining));
-  const denom = total || 1;
+  const denom = total;
   const advPct = Math.round((advancing / denom) * 100);
   const decPct = Math.round((declining / denom) * 100);
   const unchPct = Math.max(0, 100 - advPct - decPct);
