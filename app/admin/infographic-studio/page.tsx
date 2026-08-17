@@ -240,10 +240,10 @@ export default function InfographicStudioPage() {
             </button>
           </div>
 
-          {/* Scaled Preview Wrapper to comfortably fit on desktop screen */}
-          <div className="flex justify-center overflow-x-auto py-4 bg-[#04070d] rounded-2xl border border-white/[0.04] p-4">
-            <div className="shadow-2xl rounded-2xl overflow-hidden border border-slate-700/80 transform-gpu origin-top scale-[0.65] sm:scale-[0.8] md:scale-[0.85] lg:scale-[0.9] -my-20">
-              <div ref={canvasRef}>
+          {/* Scaled Preview Wrapper to comfortably fit on desktop/mobile screen */}
+          <div className="flex justify-center overflow-x-auto py-6 bg-[#04070d] rounded-2xl border border-white/[0.04] p-2 sm:p-4">
+            <div className="shadow-2xl rounded-3xl overflow-hidden border-2 border-slate-700/80 transform-gpu origin-top scale-[0.42] sm:scale-[0.62] md:scale-[0.75] lg:scale-[0.88] xl:scale-[0.95]">
+              <div ref={canvasRef} style={{ width: '1080px' }}>
                 {data ? (
                   <FundamentalExportCard
                     ticker={data.symbol}
@@ -254,8 +254,8 @@ export default function InfographicStudioPage() {
                     exportedAt={new Date()}
                   />
                 ) : (
-                  <div className="w-[1080px] h-[1480px] bg-[#090f18] flex items-center justify-center text-slate-500 text-lg">
-                    Memuat preview visual infografis...
+                  <div className="w-[1080px] h-[1400px] bg-[#090f18] flex items-center justify-center text-slate-500 text-lg font-mono">
+                    Memuat data emiten dan merender visual infografis...
                   </div>
                 )}
               </div>
