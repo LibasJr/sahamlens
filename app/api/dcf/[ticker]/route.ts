@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateDcfModel } from '@/modules/fundamental';
 import { getMarketAwareCacheHeaders, CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -25,6 +26,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const budget = await checkPublicComputeBudget(request.headers, 'dcf');
+  if (!budget.allowed) return rateLimitExceeded(budget);
   try {
     const { ticker: rawTicker } = await params;
     const ticker = normalizeIdxTickerParam(rawTicker);

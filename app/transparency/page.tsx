@@ -54,6 +54,15 @@ export default async function TransparencyPage() {
           </p>
         </div>
 
+        <section className="mb-6 rounded-xl border border-tv-blue/30 bg-tv-blue/5 p-4 sm:p-5">
+          <h2 className="text-base font-semibold text-tv-text">Apa arti “belum tervalidasi”?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-tv-muted">
+            Kami belum punya cukup bukti forward bahwa LensScore dapat memprediksi pergerakan harga secara konsisten.
+            Bukti tersebut sedang dikumpulkan secara terbuka dan diuji dengan data yang benar-benar tersedia setelah model dibekukan.
+            Sampai jumlah dan durasinya cukup, perlakukan skor sebagai <span className="font-semibold text-tv-text">bahan riset dan pembanding</span>, bukan sinyal beli atau jaminan hasil.
+          </p>
+        </section>
+
         <section className="mb-6 rounded-xl border border-tv-border bg-tv-card p-4 sm:p-5">
           <h2 className="text-base font-semibold text-tv-text">Komitmen Integritas Data</h2>
           <div className="mt-3 grid gap-3 text-sm text-tv-muted md:grid-cols-2">

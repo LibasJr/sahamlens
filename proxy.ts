@@ -6,6 +6,7 @@ import { decrypt } from '@/shared/auth/jwt';
 import { verifyAdminToken } from '@/shared/auth/admin-token';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedClientIp } from '@/shared/http/client-ip';
+import { isSelfLimitedExpensiveApi } from '@/shared/security/expensive-api-policy';
 
 // Next.js 16 mengganti file convention "middleware" jadi "proxy" (nama fungsi
 // & file berubah, perilaku/matcher sama - lihat node_modules/next/dist/docs/
@@ -82,7 +83,10 @@ function hasOwnGuestLimiterApi(pathname: string): boolean {
   return (
     pathname === '/api/chat' ||
     pathname === '/api/council' ||
-    pathname.startsWith('/api/agents/orchestrator')
+    pathname === '/api/ai-briefing' ||
+    pathname === '/api/intrinsic-explain' ||
+    pathname.startsWith('/api/agents/orchestrator') ||
+    isSelfLimitedExpensiveApi(pathname)
   );
 }
 
@@ -342,6 +346,15 @@ export const config = {
     '/api/council/:path*',
     '/api/payment/:path*',
     '/api/analytics/:path*',
+    '/api/dcf/:path*',
+    '/api/intrinsic/:path*',
+    '/api/earnings/:path*',
+    '/api/compare/:path*',
+    '/api/flow/:path*',
+    '/api/live/:path*',
+    '/api/news/stock/:path*',
+    '/api/ai-briefing/:path*',
+    '/api/intrinsic-explain/:path*',
     '/home/:path*',
     '/market-pulse/:path*',
     '/calendar/:path*',

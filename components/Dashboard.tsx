@@ -509,11 +509,12 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   )}
                 </div>
 
-                {/* Baris "Gratis untuk mulai · ... bukan nasihat investasi" DIHAPUS
-                    (permintaan user 2026-08-06) - disclaimer "bukan nasihat investasi"
-                    sudah ada di footer halaman ini (lihat "Data bersumber dari Yahoo
-                    Finance..." di bawah), jadi tidak hilang sama sekali, cuma tidak
-                    diulang dua kali. */}
+                <div className="mt-5 rounded-lg border border-tv-border/70 bg-tv-bg/35 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+                  <span className="font-semibold text-tv-text">Alat analisis, bukan nasihat investasi.</span>{' '}
+                  Model SahamLens masih berstatus riset dan belum punya cukup bukti forward bahwa skor memprediksi harga.
+                  {' '}<Link href="/transparency" className="font-semibold text-tv-blue hover:underline">Lihat Transparansi</Link>
+                  {' '}·{' '}<Link href="/disclaimer" className="hover:text-tv-text hover:underline">Disclaimer</Link>
+                </div>
 
               </div>
 

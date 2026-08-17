@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
@@ -21,6 +22,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const budget = await checkPublicComputeBudget(request.headers, 'live');
+  if (!budget.allowed) return rateLimitExceeded(budget);
   const { ticker: rawTicker } = await params;
   const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
   if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });

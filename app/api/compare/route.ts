@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { fetchYahooHistory, analyzeRsi } from '@/modules/technical';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
@@ -198,6 +199,8 @@ function explainRow(
 }
 
 export async function GET(request: Request) {
+  const budget = await checkPublicComputeBudget(request.headers, 'compare');
+  if (!budget.allowed) return rateLimitExceeded(budget);
   // Tamu (session null) dapat akses PENUH tanpa perlu login - keputusan produk
   // 2026-08-13, lihat hasOpenOrProAccess(). Akun terdaftar tetap lewat gerbang
   // trial/Pro seperti sebelumnya.
