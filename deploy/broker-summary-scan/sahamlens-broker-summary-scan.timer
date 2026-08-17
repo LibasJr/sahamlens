@@ -1,0 +1,14 @@
+# /etc/systemd/system/sahamlens-broker-summary-scan.timer
+#
+# 17:30 WIB Senin-Jumat: setelah sesi reguler pasar saham BEI selesai dan data broker EOD dirilis.
+
+[Unit]
+Description=Jadwal SahamLens - Sinkronisasi EOD Broker Summary IDX
+
+[Timer]
+OnCalendar=Mon..Fri 17:30 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
