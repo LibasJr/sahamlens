@@ -1,0 +1,15 @@
+services:
+  app:
+    container_name: sahamlens-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+        DATABASE_URL: ${DATABASE_URL}
+    env_file:
+      - .env.production
+    ports:
+      - "127.0.0.1:3001:3001"
+    restart: unless-stopped
+    init: true
