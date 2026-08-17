@@ -487,6 +487,7 @@ function FundamentalContent() {
             <FundamentalExportCard
               ticker={ticker}
               stock={stock}
+              fundamentalAnalyzers={data?.analyzers || []}
               fundamentals={data?.fundamentals || {}}
               profile={data?.profile || {}}
               consensus={data?.consensus}
