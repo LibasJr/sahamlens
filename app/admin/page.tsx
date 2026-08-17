@@ -270,17 +270,17 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/broker-summary"
-          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 opacity-60 hover:border-tv-borderLight hover:bg-tv-hover hover:opacity-100 transition-all"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
         >
-          <div className="rounded-lg bg-white/[0.05] p-2 text-tv-muted">
+          <div className="rounded-lg bg-tv-purple/10 p-2 text-tv-purple">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              Broker Summary <span className="ml-1 rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-muted align-middle">Nonaktif</span>
+              Broker Summary <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Aktif (EOD)</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
-              Dinonaktifkan karena ingestion masih menuntut upload sumber manual. Data historis, skema, dan kode tetap dipertahankan untuk sumber otomatis di masa depan.
+              Monitor sinkronisasi harian transaksi kode broker BEI (End-of-Day) dan konsentrasi akumulasi/distribusi Bandarmology.
             </p>
           </div>
         </Link>
