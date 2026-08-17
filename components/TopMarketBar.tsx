@@ -10,6 +10,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import NotificationCenter from '@/components/ui/NotificationCenter';
 import { useLanguage } from '@/lib/i18n';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
@@ -105,16 +106,7 @@ export default function TopMarketBar() {
 
         <TrialCountdown daysLeft={trialDaysLeft} />
 
-        {effectiveRole !== 'guest' && (
-          <Link
-            href="/watchlist"
-            title="Watchlist & alert"
-            aria-label="Watchlist & alert"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl text-tv-muted transition-colors hover:bg-white/[0.05] hover:text-white"
-          >
-            <Bell className="h-4 w-4" />
-          </Link>
-        )}
+        <NotificationCenter />
 
         {authLoading ? (
           <span className="flex h-9 w-9 items-center justify-center rounded-xl text-tv-muted/40"><UserIcon className="h-4 w-4" /></span>

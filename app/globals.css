@@ -1165,3 +1165,33 @@ html .lens-chip {
   border-color: rgba(244, 63, 94, 0.45);
   box-shadow: 0 0 24px rgba(244, 63, 94, 0.15);
 }
+
+/* ==========================================================================
+ * EFISIENSI BATERAI & PENGHEMAT DAYA (BATTERY SAVER & ZERO-CPU BACKGROUND)
+ * ========================================================================== */
+
+/* 1. Tab Latar Belakang / Layar Mati (Zero-CPU Mode):
+ * Saat tab tidak aktif (document.hidden), SEMUA animasi ticker, pulse, dan
+ * transform dihentikan sementara (play-state: paused). Ini membuat pemakaian
+ * CPU & GPU turun ke 0% saat HP terkunci atau tab berada di background. */
+html.lens-page-hidden *,
+html.lens-page-hidden *::before,
+html.lens-page-hidden *::after {
+  animation-play-state: paused !important;
+}
+
+/* 2. Mode Hemat Baterai (Low Battery <= 20% / Data Saver):
+ * Mereduksi efek filter blur berat dan efek ping berulang untuk menghemat daya baterai. */
+html.lens-battery-saver .animate-ping,
+html.lens-battery-saver .animate-pulse {
+  animation: none !important;
+}
+html.lens-battery-saver .blur-3xl,
+html.lens-battery-saver .blur-2xl {
+  filter: none !important;
+  opacity: 0.15 !important;
+}
+html.lens-battery-saver .sahamlens-signal-track {
+  will-change: transform;
+}
+
