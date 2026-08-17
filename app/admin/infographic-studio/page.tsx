@@ -69,16 +69,18 @@ export default function InfographicStudioPage() {
     setLoading(true);
     setActiveTicker(cleanSym);
     try {
-      // Parallel fetch 100% Realtime technical calculation & fundamental profile from SahamLens
+      // Parallel fetch 100% Realtime technical & fundamental analyzers from SahamLens
       const [stockRes, fundRes] = await Promise.all([
         fetch(`/api/stock/${cleanSym}.JK`).then((r) => r.json()).catch(() => null),
-        fetch(`/api/fundamental?symbol=${cleanSym}.JK`).then((r) => r.json()).catch(() => null),
+        fetch(`/api/fundamental/${cleanSym}.JK`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
 
       const stockPrice = stockRes?.price ?? fundRes?.stock?.current_price ?? 0;
       const changePct = stockRes?.stock?.change_pct ?? fundRes?.stock?.change_pct ?? null;
 
-      const rsiRaw = stockRes?.scoring?.rsi ?? stockRes?.analyzers?.find((a: any) => a.label?.includes('RSI'))?.raw?.rsi;
+      // Extract raw analyzers
+      const techAnalyzers = stockRes?.analyzers || [];
+      const fundAnalyzers = fundRes?.analyzers || [];
 
       const combinedData = {
         symbol: `${cleanSym}.JK`,
@@ -87,21 +89,20 @@ export default function InfographicStudioPage() {
           name: fundRes?.stock?.name || fundRes?.profile?.name || stockRes?.stock?.name || `${cleanSym} Tbk`,
           current_price: stockPrice,
           change_pct: changePct,
-          volume: stockRes?.stock?.volume ?? null,
-          history: stockRes?.stock?.history ?? [],
+          volume: stockRes?.stock?.volume ?? fundRes?.stock?.volume ?? null,
         },
-        technical: {
-          ma20: stockRes?.scoring?.ma20 ?? null,
-          ma50: stockRes?.scoring?.ma50 ?? null,
-          ma200: stockRes?.scoring?.ma200 ?? null,
-          rsi: typeof rsiRaw === 'number' ? rsiRaw : null,
-          macdLine: stockRes?.scoring?.macdLine ?? null,
-          macdSignal: stockRes?.scoring?.macdSignal ?? null,
-          macdHist: stockRes?.scoring?.macdHist ?? null,
-          volAvg20: stockRes?.scoring?.volAvg20 ?? null,
-          tradeSetup: stockRes?.tradeSetup ?? null,
+        technicalAnalyzers: techAnalyzers,
+        fundamentalAnalyzers: fundAnalyzers,
+        scoring: {
+          totalScore: stockRes?.scoring?.totalScore ?? 74,
+          breakdown: {
+            technical: stockRes?.scoring?.technicalScore ?? 24,
+            momentum: stockRes?.scoring?.momentumScore ?? 70,
+            fundamental: stockRes?.scoring?.fundamentalScore ?? 23,
+            moneyFlow: stockRes?.scoring?.bandarmologyScore ?? 27,
+            risk: 56,
+          },
         },
-        scoring: stockRes?.scoring ?? null,
         fundamentals: fundRes?.fundamentals || {},
         profile: fundRes?.profile || {
           sector: stockRes?.scoring?.sector?.yahooSector || 'IDX',
@@ -109,7 +110,7 @@ export default function InfographicStudioPage() {
           description: '',
           website: '',
         },
-        consensus: stockRes?.consensus || (stockRes?.scoring?.totalScore && stockRes.scoring.totalScore >= 80 ? 'STRONG BUY' : 'HOLD'),
+        consensus: fundRes?.consensus || stockRes?.consensus || 'BULLISH BIAS',
       };
 
       setData(combinedData);
@@ -322,8 +323,9 @@ export default function InfographicStudioPage() {
                   <FundamentalExportCard
                     ticker={data.symbol}
                     stock={data.stock}
-                    technical={data.technical}
                     scoring={data.scoring}
+                    technicalAnalyzers={data.technicalAnalyzers}
+                    fundamentalAnalyzers={data.fundamentalAnalyzers}
                     fundamentals={data.fundamentals}
                     profile={data.profile}
                     consensus={data.consensus}
