@@ -38,6 +38,15 @@ function waktuWib(iso: string | null): string {
   }) + ' WIB';
 }
 
+function formatDurasi(sec?: number): string {
+  if (sec == null || isNaN(sec) || sec < 60) return '< 1 menit';
+  const m = Math.floor(sec / 60);
+  if (m < 60) return `${m} menit`;
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  return remM > 0 ? `${h} jam ${remM} mnt` : `${h} jam`;
+}
+
 function authEventLabel(eventType: AuthEventType): string {
   return eventType === 'signup' ? 'Daftar' : eventType === 'verify' ? 'Verifikasi' : 'Login';
 }
@@ -385,7 +394,9 @@ export default async function AdminPage() {
                 <tr>
                   <th className="px-6 py-3 whitespace-nowrap">Email</th>
                   <th className="px-6 py-3 whitespace-nowrap">Role</th>
-                  <th className="px-6 py-3 whitespace-nowrap">Terakhir terlihat</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Durasi Buka Aplikasi</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Sesi Mulai</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Terakhir Terlihat</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border">
@@ -401,7 +412,18 @@ export default async function AdminPage() {
                         {u.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-tv-muted font-number whitespace-nowrap">{jamWib(u.lastSeen)}</td>
+                    <td className="px-6 py-3 whitespace-nowrap font-number">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-tv-green/10 border border-tv-green/20 px-2.5 py-0.5 text-xs font-bold text-tv-green">
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-green animate-pulse" />
+                        {formatDurasi(u.durationSec)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-tv-muted font-number whitespace-nowrap">
+                      {jamWib(u.startedAt || u.lastSeen)}
+                    </td>
+                    <td className="px-6 py-3 text-tv-muted font-number whitespace-nowrap">
+                      {jamWib(u.lastSeen)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

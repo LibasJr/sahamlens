@@ -23,6 +23,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isLandingPage = pathname === '/';
   const isBareAuthPage = BARE_AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
+  // Heartbeat presence berkala setiap 90 detik saat tab aktif/terbuka
+  // Memastikan durasi sesi aktif di Admin Panel tercatat akurat
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetch('/api/auth/me', { method: 'GET', credentials: 'include' }).catch(() => {});
+      }
+    }, 90 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // CELAH YANG DITUTUP DI SINI. Aturan @media (prefers-reduced-motion) di globals.css
   // hanya mengatur animasi CSS. Framer Motion menganimasi lewat JavaScript - ia tidak
   // melihat aturan itu sama sekali, padahal DIA-lah sumber gerak terbanyak di aplikasi
