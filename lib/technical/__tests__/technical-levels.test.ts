@@ -45,7 +45,8 @@ describe('technical-levels calculation engine', () => {
 
   it('calculates ATR and dynamic trading plan', () => {
     const atr = calculateATR(mockCandles, 14);
-    expect(atr).toBeGreaterThan(0);
+    expect(atr).not.toBeNull();
+    expect(atr!).toBeGreaterThan(0);
 
     const pivots = calculatePivotPoints(1500, 1400, 1450);
     const plan = calculateTradingPlan(mockCandles, pivots);
@@ -53,6 +54,11 @@ describe('technical-levels calculation engine', () => {
     expect(plan?.stopLoss).toBeLessThan(plan!.currentPrice);
     expect(plan?.targetPrice1).toBeGreaterThan(plan!.currentPrice);
     expect(plan?.targetPrice2).toBeGreaterThan(plan!.targetPrice1);
+  });
+
+  it('keeps ATR unavailable when candle history is insufficient', () => {
+    expect(calculateATR([])).toBeNull();
+    expect(calculateATR([mockCandles[0]])).toBeNull();
   });
 
   it('detects candlestick patterns like Bullish Engulfing and Hammer', () => {

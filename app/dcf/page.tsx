@@ -115,6 +115,15 @@ function DcfContent() {
         </div>
       }
     >
+      {!quant.not_applicable && quant?.assumptions?.retention_source && (
+        <div className="rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 p-3 text-xs text-tv-muted">
+          <span className="font-semibold text-tv-text">Asumsi pertumbuhan DCF: </span>
+          {quant.assumptions.retention_source === 'MODEL_ASSUMPTION_60_PCT'
+            ? `payout ratio tidak tersedia dari provider; model memakai retensi laba ${(Number(quant.assumptions.retention_ratio) * 100).toFixed(0)}%. Ini asumsi model, bukan data emiten.`
+            : `retensi laba ${(Number(quant.assumptions.retention_ratio) * 100).toFixed(1)}% diturunkan dari payout ratio provider.`}
+        </div>
+      )}
+
       {loadError && (
         <div className="rounded-lg border border-tv-red/30 bg-tv-red/10 p-4 text-sm text-tv-red">
           {loadError}

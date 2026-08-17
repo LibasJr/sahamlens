@@ -5,14 +5,14 @@ import {
 } from '../idx-broker-summary-parser.service';
 
 describe('idx-broker-summary-parser.service', () => {
-  it('classifies foreign, domestic institution, and retail brokers correctly', () => {
+  it('classifies only mapped foreign/retail brokers and keeps unknown codes UNKNOWN', () => {
     expect(classifyBrokerCode('AK')).toBe('FOREIGN');
     expect(classifyBrokerCode('BK')).toBe('FOREIGN');
     expect(classifyBrokerCode('YP')).toBe('RETAIL');
     expect(classifyBrokerCode('PD')).toBe('RETAIL');
     expect(classifyBrokerCode('CC')).toBe('FOREIGN');
     expect(classifyBrokerCode('OD')).toBe('FOREIGN');
-    expect(classifyBrokerCode('DR')).toBe('DOMESTIC_INSTITUTION');
+    expect(classifyBrokerCode('DR')).toBe('UNKNOWN');
   });
 
   it('parses raw text and CSV broker summary report cleanly', () => {
@@ -26,6 +26,8 @@ TLKM,CC,2000000000,500000000,600000,150000,400,80
 
     const parsed = parseIdxBrokerSummaryText(rawReport, '2026-08-17');
     expect(parsed.totalRecords).toBe(4);
+    expect(parsed.rejectedRecords).toBe(0); // komentar/header diabaikan; tidak ada baris data yang diestimasi
+    expect(parsed.source).toBe('UNVERIFIED_MANUAL_REPORT');
     expect(parsed.transactions[0]!.ticker).toBe('BBCA.JK');
     expect(parsed.transactions[0]!.brokerCode).toBe('YP');
     expect(parsed.transactions[0]!.buyValue).toBe(500_000_000);
@@ -39,5 +41,11 @@ TLKM,CC,2000000000,500000000,600000,150000,400,80
     expect(parsed.totalRecords).toBe(1);
     expect(parsed.transactions[0]!.ticker).toBe('ASII.JK');
     expect(parsed.transactions[0]!.brokerCode).toBe('BK');
+  });
+
+  it('rejects rows with missing value/volume instead of fabricating them', () => {
+    const parsed = parseIdxBrokerSummaryText('BBCA,AK,1200000000,200000000,,,250,50', '2026-08-17');
+    expect(parsed.totalRecords).toBe(0);
+    expect(parsed.rejectedRecords).toBe(1);
   });
 });

@@ -12,6 +12,7 @@ import {
   getBrokerSummaryMonitor,
   normalizeBrokerMonitorTicker,
 } from '../broker-summary-monitor.service';
+import { PUBLIC_BROKER_DAILY_SOURCE } from '../broker-summary-integrity';
 
 describe('normalizeBrokerMonitorTicker', () => {
   it('menormalkan ticker IDX dan menolak input yang tidak aman', () => {
@@ -105,8 +106,12 @@ describe('getBrokerSummaryMonitor', () => {
     ]);
     expect(queryReadWithRetry.mock.calls[4]?.[1]).toEqual([
       '2026-08-11',
+      PUBLIC_BROKER_DAILY_SOURCE,
       'BBCA',
       50,
     ]);
+    expect(result.source).toBe(PUBLIC_BROKER_DAILY_SOURCE);
+    expect(queryReadWithRetry.mock.calls[1]?.[1]).toEqual([PUBLIC_BROKER_DAILY_SOURCE, 30]);
+    expect(queryReadWithRetry.mock.calls[2]?.[1]).toEqual(['2026-08-11', PUBLIC_BROKER_DAILY_SOURCE]);
   });
 });

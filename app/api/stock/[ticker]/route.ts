@@ -33,7 +33,7 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import { peekDailyAnalisaUsed, recordDailyAnalisa, getUsedSymbolsToday } from '@/shared/usage/daily-analisa-quota';
 import { classifyFreshness } from '@/shared/http/freshness';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
-import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import { resolveSectorProfile } from '@/modules/sector';
 import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
@@ -308,35 +308,24 @@ export async function GET(
     const ANALYZER_HISTORY_DAYS = 200;
     const analyzerHistory = history.slice(-ANALYZER_HISTORY_DAYS);
 
-    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): kalau bar terakhir adalah
-    // bar HARI INI dan bursa sedang buka SEKARANG, volume-nya masih PARSIAL (baru
-    // sebagian sesi terkumpul) - dibandingkan mentah dengan rata-rata 20 hari PENUH,
-    // rasio volume bias ke bawah sepanjang jam bursa (lihat shared/market/trading-session.ts).
-    // Array TERPISAH (bukan menimpa `analyzerHistory` asli) dibuat khusus untuk analyzer
-    // yang memakai Volume (analyzeVolume, analyzeMarketFlow) - analyzer lain (RSI/MACD/
-    // EMA/dst, yang cuma pakai Close/High/Low) tetap memakai `analyzerHistory` asli tanpa
-    // perubahan. `modules/technical/service/analyzers/*.ts` SENGAJA tidak disentuh -
-    // fungsi itu dipakai ulang oleh backtest/precompute atas bar HISTORIS yang sudah
-    // closed, bukan cuma live, jadi estimasi ini HARUS diterapkan di titik pemanggilan
-    // (di sini), bukan di dalam analyzer bersama.
+    // Zero Dummy Policy: bar volume sesi berjalan adalah data REAL tetapi PARSIAL.
+    // Jangan mengubahnya menjadi proyeksi volume penutupan. Analyzer volume bersama
+    // akan fail-closed (N/A) selama bar hari ini masih terbentuk.
     const lastBar = analyzerHistory[analyzerHistory.length - 1];
     const isLiveFormingBar = !!lastBar && lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
-    const volumeAdjustedHistory = isLiveFormingBar
-      ? [...analyzerHistory.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
-      : analyzerHistory;
 
     // Run all 10 analyzers
     const analyzersResult = await Promise.all([
       Promise.resolve(analyzeEma(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeRsi(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeMacd(analyzerHistory, currentPrice)),
-      Promise.resolve(analyzeVolume(volumeAdjustedHistory, currentPrice)),
+      Promise.resolve(analyzeVolume(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeTrend(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeVolatility(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeMomentum(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeSupport(analyzerHistory, currentPrice)),
       Promise.resolve(analyzeSma(analyzerHistory, currentPrice)),
-      Promise.resolve(analyzeMarketFlow(volumeAdjustedHistory, currentPrice))
+      Promise.resolve(analyzeMarketFlow(analyzerHistory, currentPrice))
     ]);
 
     // === FOREIGN FLOW (ESTIMASI): proxy dari harga+volume Yahoo Finance yang REAL ===
@@ -369,11 +358,13 @@ export async function GET(
     const isAccumulation3D = accumulation.status === 'AKUMULASI';
     const isDistribution3D = accumulation.status === 'DISTRIBUSI';
 
-    // Status kanonik dikonsumsi calculateScore (FlowInput.foreignFlow) - lihat
-    // modules/technical/service/scoring.service.ts untuk 5 nilai yang diharapkan.
-    let foreignFlowStatus: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
+    // Label ini adalah PROXY dari OHLCV, bukan transaksi broker asing. Jika proxy tidak
+    // dapat dihitung, jangan mengubah ketiadaan data menjadi status NETRAL atau Net 0.
+    const flowProxyAvailable = accumulation.status != null && dailyFlow.length > 0;
+    let foreignFlowStatus: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' | 'UNAVAILABLE' =
+      flowProxyAvailable ? 'NEUTRAL' : 'UNAVAILABLE';
     let ffDecision = 'NEUTRAL';
-    let ffConfidence = 50;
+    let ffConfidence = 0;
     if (isAccumulation3D) {
       foreignFlowStatus = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
       ffDecision = 'BULLISH';
@@ -382,8 +373,12 @@ export async function GET(
       foreignFlowStatus = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
       ffDecision = 'BEARISH';
       ffConfidence = sellStreak >= 4 ? 80 : 65;
+    } else if (flowProxyAvailable) {
+      ffConfidence = 50;
     }
-    const foreignFlow = `${foreignFlowStatus} | Net 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(2)}M | Streak: ${buyStreak > 0 ? `${buyStreak}D akumulasi` : sellStreak > 0 ? `${sellStreak}D distribusi` : 'netral'}`;
+    const foreignFlow = !flowProxyAvailable
+      ? 'N/A (proxy OHLCV tidak tersedia)'
+      : `${foreignFlowStatus} | Net 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(2)}M | Streak: ${buyStreak > 0 ? `${buyStreak}D akumulasi` : sellStreak > 0 ? `${sellStreak}D distribusi` : 'netral'}`;
 
     const consecutiveBuyDays = buyStreak;
     const consecutiveSellDays = sellStreak;
@@ -400,10 +395,14 @@ export async function GET(
     // dihitung di atas untuk Foreign Flow (bukan fetch/hitung ulang).
     const bandarmology = analyzeBandarmology(flowHistory.slice(-20));
     const bandarmologyDecision = bandarmology.status === 'BULLISH' ? 'BULLISH' : bandarmology.status === 'BEARISH' ? 'BEARISH' : 'NEUTRAL';
-    const bandarmologyConfidence = Math.round(50 + Math.min(45, Math.abs(bandarmology.cmf20)));
+    const bandarmologyConfidence = bandarmology.cmf20 == null
+      ? 0
+      : Math.round(50 + Math.min(45, Math.abs(bandarmology.cmf20)));
     analyzersResult.push({
       label: 'Bandarmology (CMF)',
-      value: `CMF20: ${bandarmology.cmf20 > 0 ? '+' : ''}${bandarmology.cmf20}% | Tekanan: ${bandarmology.netPressurePct > 0 ? '+' : ''}${bandarmology.netPressurePct}%`,
+      value: bandarmology.cmf20 == null || bandarmology.netPressurePct == null
+        ? 'N/A (histori OHLCV tidak cukup)'
+        : `CMF20: ${bandarmology.cmf20 > 0 ? '+' : ''}${bandarmology.cmf20}% | Tekanan: ${bandarmology.netPressurePct > 0 ? '+' : ''}${bandarmology.netPressurePct}%`,
       decision: bandarmologyDecision,
       confidence: bandarmologyConfidence,
       // `raw` (angka asli, pola temuan M-03) - dipakai header chart di app/dashboard
@@ -473,14 +472,15 @@ export async function GET(
     const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
     const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
-    // volToday dipakai untuk scoring engine di bawah - pakai bar yang SUDAH disesuaikan
-    // (volumeAdjustedHistory, dibangun di atas dekat analyzerHistory) kalau bar terakhir
-    // adalah bar hari ini yang masih berjalan, sama seperti yang dipakai analyzeVolume/
-    // analyzeMarketFlow, supaya scoring engine & vote analyzer konsisten satu sama lain.
-    const volToday = isLiveFormingBar ? volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume : lastBar?.Volume;
-    const volWindow = analyzerHistory.slice(-20);
-    const volAvg20v = volWindow.length > 0 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
-      ? volWindow.reduce((s, h) => s + h.Volume, 0) / volWindow.length
+    // Volume scoring membutuhkan basis sesi penuh. Saat bar hari ini masih berjalan,
+    // volToday sengaja null sehingga komponen volume tidak dinilai. Rata-rata 20 hari
+    // selalu mengambil bar SEBELUM observasi terakhir agar hari ini tidak masuk ke
+    // baseline pembandingnya sendiri.
+    const rawVolToday = lastBar?.Volume;
+    const volToday = !isLiveFormingBar && isFiniteNonNegative(rawVolToday) ? rawVolToday : null;
+    const volWindow = analyzerHistory.slice(0, -1).slice(-20);
+    const volAvg20v = volWindow.length === 20 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
+      ? volWindow.reduce((s, h) => s + h.Volume, 0) / 20
       : null;
 
     // Fase 4 #16: hanya untuk sektor siklikal - dua panggilan Yahoo tambahan tidak pantas
@@ -512,7 +512,7 @@ export async function GET(
         macdHist: macdHistVal,
         macdLine: macdLineVal,
         macdSignal: macdSigVal,
-        volToday: isFiniteNonNegative(volToday) ? volToday : null,
+        volToday,
         volAvg20: volAvg20v,
         // P1-8: volume tinggi hanya bernilai kalau MENGONFIRMASI arah harga. Tanpa
         // field ini, saham yang anjlok dengan volume 3x dulu mendapat nilai volume
@@ -552,7 +552,7 @@ export async function GET(
         accumulationStatus: accumulation.status,
         consecutiveBuyDays,
         consecutiveSellDays,
-        volRatio: isFiniteNonNegative(volToday) && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
+        volRatio: volToday != null && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
         // P1-9: persistensi diukur atas jendela 20 hari, bukan panjang streak.
         mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
       }
@@ -590,21 +590,27 @@ export async function GET(
 
     const dataIntegrity = await getLatestMarketIntegrity(ticker);
 
-    const atrVal = calculateWilderAtr(analyzerHistory.map((h: any) => ({
-      high: Number(h.High) || 0,
-      low: Number(h.Low) || 0,
-      close: Number(h.Close) || 0,
+    // Zero Dummy Policy: candle yang tidak lengkap dibuang dari kalkulasi TP/CL/ATR,
+    // bukan diubah menjadi harga 0. Harga 0 adalah data pasar palsu dan dapat merusak
+    // true range, support/resistance, serta level TP/CL.
+    const setupHistory = analyzerHistory.flatMap((h: any) => {
+      const high = typeof h.High === 'number' && Number.isFinite(h.High) && h.High > 0 ? h.High : null;
+      const low = typeof h.Low === 'number' && Number.isFinite(h.Low) && h.Low > 0 ? h.Low : null;
+      const close = typeof h.Close === 'number' && Number.isFinite(h.Close) && h.Close > 0 ? h.Close : null;
+      if (high == null || low == null || close == null || high < low) return [];
+      return [{
+        High: high,
+        Low: low,
+        Close: close,
+        AdjClose: typeof h.AdjClose === 'number' && Number.isFinite(h.AdjClose) && h.AdjClose > 0 ? h.AdjClose : null,
+      }];
+    });
+    const atrVal = calculateWilderAtr(setupHistory.map((h) => ({
+      high: h.High,
+      low: h.Low,
+      close: h.Close,
     })));
-    const tradeSetup = buildLongTradingSetup(
-      analyzerHistory.map((h: any) => ({
-        High: Number(h.High) || 0,
-        Low: Number(h.Low) || 0,
-        Close: Number(h.Close) || 0,
-        AdjClose: typeof h.AdjClose === 'number' ? h.AdjClose : null,
-      })),
-      currentPrice,
-      atrVal
-    );
+    const tradeSetup = buildLongTradingSetup(setupHistory, currentPrice, atrVal);
 
     const resultPayload = {
       ticker,

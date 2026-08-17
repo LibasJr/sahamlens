@@ -61,9 +61,11 @@ function trueRanges(history: SwingBar[]): number[] {
 export function classifyHybridVolatility(
   history: SwingBar[],
   atr: number,
-): { regime: HybridVolatilityRegime; percentile: number } {
+): { regime: HybridVolatilityRegime; percentile: number } | null {
   const sample = trueRanges(history).slice(-120).filter(finitePositive).sort((a, b) => a - b);
-  if (!sample.length || !finitePositive(atr)) return { regime: 'NORMAL', percentile: 50 };
+  // Missing sample bukan "NORMAL/50". Nilai 50 adalah angka statistik yang bermakna
+  // percentile median, jadi memakainya sebagai fallback akan memalsukan observasi.
+  if (!sample.length || !finitePositive(atr)) return null;
   const belowOrEqual = sample.filter((value) => value <= atr).length;
   const percentile = Math.round((belowOrEqual / sample.length) * 100);
   return { regime: percentile >= 75 ? 'HIGH' : percentile <= 25 ? 'LOW' : 'NORMAL', percentile };
@@ -98,6 +100,7 @@ export function buildHybridV2TradingSetup(
   if (!Array.isArray(history) || history.length < 55 || !finitePositive(currentPrice) || !finitePositive(atr)) return null;
   const marketRegime = classifyHybridMarketRegime(history);
   const volatility = classifyHybridVolatility(history, atr);
+  if (!volatility) return null;
   const parameters = hybridV2Parameters(marketRegime, volatility.regime);
   if (!parameters) return null;
   const baseline = buildLongTradingSetup(history, currentPrice, atr, parameters);
