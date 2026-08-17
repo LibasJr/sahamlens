@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Clock3, Menu, User as UserIcon } from 'lucide-react';
+import { Clock3, User as UserIcon } from 'lucide-react';
 import { getMarketStatus } from '@/lib/utils/market';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TrialCountdown from './TrialCountdown';
@@ -60,14 +61,20 @@ export default function TopMarketBar() {
 
   return (
     <header className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-white/[0.07] bg-[#080D16]/88 px-3 backdrop-blur-xl md:px-5">
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-        aria-label="Menu"
-        className="flex h-11 w-11 shrink-0 items-center justify-center md:h-9 md:w-9 rounded-xl text-tv-muted transition-colors hover:bg-white/[0.05] hover:text-white md:hidden"
+      <Link
+        href="/"
+        title="SahamLens Beranda"
+        aria-label="Kembali ke Beranda SahamLens"
+        className="flex items-center gap-2 shrink-0 md:hidden transition-transform active:scale-95"
       >
-        <Menu className="h-5 w-5" />
-      </button>
+        <Image
+          src="/sahamlens-logo.png"
+          alt="SahamLens"
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-xl object-contain shadow-xs border border-white/10"
+        />
+      </Link>
 
       <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.025] min-h-11 px-2.5 py-1.5 md:min-h-0 md:px-3">
         <span className="text-xs font-bold uppercase tracking-[0.14em] text-tv-muted md:text-[10px] md:tracking-[0.16em]">IHSG</span>
