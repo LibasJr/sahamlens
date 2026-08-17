@@ -40,7 +40,6 @@ export async function GET() {
     const brokerBadges = await getBrokerFlowBadges(rankedItems.map((item) => item.symbol));
     const items = rankedItems.map((item) => ({
       ...item,
-      brokerCode: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.brokerCode ?? null,
       brokerNetValue: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.netValue ?? null,
       brokerTradeDate: brokerBadges[item.symbol.replace(/\.JK$/, '')]?.tradeDate ?? null,
     }));

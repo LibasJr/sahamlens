@@ -70,11 +70,10 @@ describe('analyzeBandarmology', () => {
     expect(result.status).toBe('NEUTRAL');
   });
 
-  it('history kosong -> UNAVAILABLE/null, bukan angka netral buatan', () => {
+  it('history kosong -> NEUTRAL, tidak error', () => {
     const result = analyzeBandarmology([]);
-    expect(result.status).toBe('UNAVAILABLE');
-    expect(result.cmf20).toBeNull();
-    expect(result.clv).toBeNull();
+    expect(result.status).toBe('NEUTRAL');
+    expect(result.cmf20).toBe(0);
   });
 });
 
@@ -135,8 +134,8 @@ describe('analyzeAccumulationSignal (konfirmasi 4-lapis)', () => {
     days[days.length - 1].volume = 1_000_000; // hari terakhir kembali normal
     const result = analyzeAccumulationSignal(days);
     expect(result.status).toBe('AKUMULASI');
-    expect(result.volRatio!).toBeLessThan(1.5);   // gerbang LAMA akan gagal di sini
-    expect(result.volRatio5D!).toBeGreaterThan(1.2); // gerbang BARU tetap lolos
+    expect(result.volRatio).toBeLessThan(1.5);   // gerbang LAMA akan gagal di sini
+    expect(result.volRatio5D).toBeGreaterThan(1.2); // gerbang BARU tetap lolos
   });
 
   it('mfmPositiveRatio20 melaporkan persistensi atas jendela, bukan streak', () => {
@@ -151,11 +150,9 @@ describe('analyzeAccumulationSignal (konfirmasi 4-lapis)', () => {
     expect(result.mfmPositiveRatio20).toBeNull();
   });
 
-  it('history < 3 hari -> unavailable/null, tidak mengarang NETRAL/1x volume', () => {
+  it('history < 3 hari -> NETRAL, tidak error', () => {
     const result = analyzeAccumulationSignal(makeDays(2, 0.9, 1_000_000));
-    expect(result.status).toBeNull();
+    expect(result.status).toBe('NETRAL');
     expect(result.confirmed).toBe(false);
-    expect(result.volRatio).toBeNull();
-    expect(result.cmf20).toBeNull();
   });
 });

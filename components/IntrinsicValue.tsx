@@ -212,11 +212,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
                   {' '}(beta <span className="font-number">{fmtNum(data.assumptions.beta_used, 2)}</span>
                   {data.assumptions.beta_source === 'sector-default' ? ', default sektor' : ''}) dan
                   pertumbuhan <span className="font-number">{fmtNum(data.assumptions.growth_pct, 2)}%</span>
-                  {data.assumptions.retention_source === 'MODEL_ASSUMPTION_60_PCT'
-                    ? ' (payout ratio tidak tersedia; retensi laba 60% adalah asumsi model, bukan data emiten)'
-                    : data.assumptions.retention_ratio != null
-                      ? ` (retensi laba ${(Number(data.assumptions.retention_ratio) * 100).toFixed(1)}% dari payout ratio provider)`
-                      : ''}
                   {data.assumptions.fair_per_basis === 'no-growth'
                     ? ' — ROE tidak tersedia, PER wajar memakai perpetuitas tanpa pertumbuhan (angka bersyarat)'
                     : ''}

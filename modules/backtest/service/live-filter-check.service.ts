@@ -21,6 +21,7 @@ import { analyze as analyzeSupport } from '../../technical/service/analyzers/sup
 import { analyze as analyzeMarketFlow } from '../../technical/service/analyzers/market-flow';
 import { analyze as analyzeSma } from '../../technical/service/analyzers/moving-average';
 import { BACKTEST_UNIVERSE } from '../constants/backtest-universe';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { classifyFreshness } from '../../../shared/http/freshness';
 import type { IndicatorName } from '../types/backtest.types';
 
@@ -74,11 +75,19 @@ export interface LiveFilterCheckResult {
 // ketiga yang bisa berbeda hasil (pelajaran M-04, sama alasannya dengan BACKTEST_PRESETS
 // di constants/presets.ts).
 export function evaluateIndicatorDecisions(history: any[], currentPrice: number): Record<IndicatorName, string> {
-  // Zero Dummy Policy: jangan memproyeksikan volume sesi penuh. Analyzer Volume dan
-  // Market Flow sendiri mengembalikan N/A/NEUTRAL confidence 0 ketika bar hari ini
-  // masih parsial; indikator berbasis harga tetap memakai observasi provider apa adanya.
+  // BUG FIX (audit integritas data 2026-08-03, pola M-02): volume hari ini masih
+  // PARSIAL selama jam bursa - diestimasi ke volume penuh sehari SEBELUM dievaluasi
+  // analyzer Volume/Market Flow, supaya sinyal "BULLISH" tidak bias tertunda sepanjang
+  // hari. AdjClose (pola M-01) sudah otomatis terbawa dari fetchYahooHistory untuk
+  // analyzer tren (EMA/MACD/RSI/MA Trend/SMA/Momentum).
+  const lastBar = history[history.length - 1];
+  const isLiveFormingBar = lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
+  const adjustedHistory = isLiveFormingBar
+    ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
+    : history;
+
   return ALL_INDICATORS.reduce((acc, name) => {
-    acc[name] = INDICATOR_ANALYZERS[name](history, currentPrice).decision;
+    acc[name] = INDICATOR_ANALYZERS[name](adjustedHistory, currentPrice).decision;
     return acc;
   }, {} as Record<IndicatorName, string>);
 }

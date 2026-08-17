@@ -83,17 +83,11 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
             className="flex min-h-6 shrink-0 items-center gap-1.5 border-r border-tv-border px-4 text-[12px] font-number transition-opacity hover:opacity-80"
           >
             <span className="font-bold text-tv-text">{item.symbol}</span>
-            <span className="text-tv-muted">
-              {Number.isFinite(item.price) ? `Rp ${Math.round(item.price).toLocaleString('id-ID')}` : 'Harga N/A'}
+            <span className="text-tv-muted">Rp {Math.round(item.price || 0).toLocaleString('id-ID')}</span>
+            <span className={`font-semibold flex items-center gap-0.5 ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+              {item.changePct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
             </span>
-            {item.changePct == null ? (
-              <span className="font-semibold text-tv-muted">N/A</span>
-            ) : (
-              <span className={`font-semibold flex items-center gap-0.5 ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                {item.changePct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
-              </span>
-            )}
           </Link>
         ))}
       </div>
@@ -103,10 +97,10 @@ function TickerTape({ items, failed }: { items: { symbol: string; price: number;
 }
 
 type StockSignalItem = {
-  symbol: string; price: number; changePct: number | null; finalScore: number;
+  symbol: string; price: number; changePct: number; finalScore: number;
   signals?: string[]; tp1: number | null; tp2: number | null;
   cl1: number | null; cl2: number | null; flagged?: boolean;
-  brokerCode?: string | null; brokerNetValue?: number | null; brokerTradeDate?: string | null;
+  brokerNetValue?: number | null; brokerTradeDate?: string | null;
 };
 
 function formatBrokerFlow(value: number): string {
@@ -136,8 +130,8 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-number text-sm font-bold text-tv-text group-hover/signal:text-tv-blue transition-colors">{item.symbol.replace('.JK', '')}</span>
-                <span className={`font-number text-xs font-bold ${item.changePct == null ? 'text-tv-muted' : item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                  {item.changePct == null ? 'N/A' : `${item.changePct >= 0 ? '+' : ''}${item.changePct.toFixed(2)}%`}
+                <span className={`font-number text-xs font-bold ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
                 </span>
               </div>
               <div className="mt-1 truncate text-[11px] font-medium text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
@@ -153,7 +147,7 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
               )}
               {typeof item.brokerNetValue === 'number' && item.brokerNetValue !== 0 && (
                 <div className={`mt-1.5 text-[11px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                  {t('radar.bandarFlow', { code: item.brokerCode || '?', action: item.brokerNetValue > 0 ? 'Buy' : 'Sell', amount: formatBrokerFlow(item.brokerNetValue) })}
+                  {t('radar.bandarFlow', { action: item.brokerNetValue > 0 ? 'Buy' : 'Sell', amount: formatBrokerFlow(item.brokerNetValue) })}
                 </div>
               )}
             </div>
@@ -187,7 +181,7 @@ type DashboardProps = {
   } | null;
   initialRenderedAt?: string;
   initialLensRadar?: {
-    items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number | null; brokerCode?: string | null; brokerNetValue?: number | null; brokerTradeDate?: string | null }[];
+    items: { symbol: string; price: number; finalScore: number; flagged?: boolean; tp1: number | null; tp2: number | null; cl1: number | null; signals?: string[]; coverage?: number | null; cl2?: number | null; changePct?: number; brokerNetValue?: number | null; brokerTradeDate?: string | null }[];
     computedAt: string | null;
     advisoryEnabled: boolean;
     note: string | null;
@@ -270,18 +264,18 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   // langsung menampilkan isi peringkatnya, dan tiap kode saham menuju analisis teknikalnya.
   const [aiPicks, setAiPicks] = useState<
     {
-      symbol: string; price: number; changePct: number | null; finalScore: number;
+      symbol: string; price: number; changePct: number; finalScore: number;
       // `signals` menggantikan `bonuses` (audit skor 2026-08-05) - sinyal hari ini jadi
       // label, bukan poin. Opsional: response bisa berasal dari cache lama.
       signals?: string[];
       coverage?: number | null;
       tp1: number | null; tp2: number | null; cl1: number | null; cl2: number | null;
       flagged?: boolean;
-      brokerCode?: string | null; brokerNetValue?: number | null; brokerTradeDate?: string | null;
+      brokerNetValue?: number | null; brokerTradeDate?: string | null;
     }[] | null
   >(initialLensRadar?.items ? initialLensRadar.items.map((item) => ({
     ...item,
-    changePct: typeof item.changePct === 'number' && Number.isFinite(item.changePct) ? item.changePct : null,
+    changePct: typeof item.changePct === 'number' ? item.changePct : 0,
     cl2: item.cl2 ?? null,
   })) : null);
   // Panel ini live (cron refresh tiap 5 menit ngikutin harga pasar) - ranking top-5 bisa

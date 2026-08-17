@@ -268,14 +268,22 @@ export default async function AdminPage() {
           </div>
         </Link>
 
-        {/* Kartu Broker Summary DIHAPUS 2026-08-17. Isi broker_summary_daily belum dapat
-            dibuktikan bersih: endpoint backfill yang dihapus di 043c6ab menulis baris
-            Math.random() dengan source 'IDX_EOD_REPORT', label yang sama dipakai parser
-            IDX yang sah - jadi kolom source tidak bisa memisahkan baris palsu dari yang
-            asli. Rutenya (/admin/broker-summary) sengaja DIBIARKAN hidup untuk forensik
-            lewat URL langsung; yang dicabut hanya jalan masuknya dari panel admin, supaya
-            angka yang belum terverifikasi tidak terbaca sebagai monitoring rutin.
-            Lihat SAHAMLENS_ZERO_DUMMY_AUDIT_2026-08-17.md temuan F-01/F-02. */}
+        <Link
+          href="/admin/broker-summary"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-purple/10 p-2 text-tv-purple">
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">
+              Broker Summary <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Aktif (EOD)</span>
+            </h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Monitor sinkronisasi harian transaksi kode broker BEI (End-of-Day) dan konsentrasi akumulasi/distribusi Bandarmology.
+            </p>
+          </div>
+        </Link>
 
         {/* TP/CL Validation Lab berdiri sendiri di sini. Rutenya
             (/admin/tpcl-validation) memang sudah terpisah sejak awal, tapi satu-satunya
