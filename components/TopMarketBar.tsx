@@ -44,10 +44,16 @@ export default function TopMarketBar() {
       .catch(() => {});
   }, []);
 
+  const { t, language } = useLanguage();
   const marketStatus = now ? getMarketStatus(now) : { isOpen: false, label: 'Bursa tutup', holidayName: null };
+  const marketStatusLabel = marketStatus.isOpen
+    ? t('common.marketOpen')
+    : marketStatus.holidayName
+      ? marketStatus.holidayName
+      : t('common.marketClosed');
   const hasModuleSearch = MODULE_SEARCH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`)) || pathname.startsWith('/technical/');
   const jakartaTime = now
-    ? `${new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(now)} WIB`
+    ? `${new Intl.DateTimeFormat(language === 'id' ? 'id-ID' : 'en-US', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(now)} ${t('common.wibTime')}`
     : '--:--';
 
   return (
@@ -55,7 +61,7 @@ export default function TopMarketBar() {
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-        aria-label="Buka menu"
+        aria-label="Menu"
         className="flex h-11 w-11 shrink-0 items-center justify-center md:h-9 md:w-9 rounded-xl text-tv-muted transition-colors hover:bg-white/[0.05] hover:text-white md:hidden"
       >
         <Menu className="h-5 w-5" />
@@ -65,7 +71,7 @@ export default function TopMarketBar() {
         <span className="text-xs font-bold uppercase tracking-[0.14em] text-tv-muted md:text-[10px] md:tracking-[0.16em]">IHSG</span>
         {ihsg ? (
           <>
-            <span className="hidden font-number text-xs font-bold text-white sm:inline">{ihsg.price.toLocaleString('id-ID')}</span>
+            <span className="hidden font-number text-xs font-bold text-white sm:inline">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
             <span className={`font-number text-xs font-bold md:text-[11px] ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
               {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%
             </span>
@@ -85,7 +91,7 @@ export default function TopMarketBar() {
       <div className="ml-auto flex items-center gap-1.5">
         <div className={`hidden items-center gap-2 rounded-xl border px-2.5 py-1.5 text-[10px] font-semibold md:flex ${marketStatus.isOpen ? 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green' : marketStatus.holidayName ? 'border-tv-gold/30 bg-tv-gold/10 text-tv-gold' : 'border-white/[0.06] bg-white/[0.025] text-tv-muted'}`}>
           <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.8)]' : marketStatus.holidayName ? 'bg-tv-gold' : 'bg-tv-muted/50'}`} />
-          {marketStatus.label}
+          {marketStatusLabel}
         </div>
 
         <div className="hidden items-center gap-1.5 px-2 text-[10px] font-medium text-tv-muted xl:flex">
