@@ -744,20 +744,38 @@ export default function ScreenerPage() {
                   </tr>
                 ))}
 
-                {/* Baris Emiten Terkunci (4 - 10) untuk Tamu */}
+                {/* Baris Emiten Terkunci (3 - 10) untuk Tamu */}
                 {hasLockedGuestRows && Array.from({ length: lockedCount }).map((_, i) => {
                   const rowIdx = visibleRows.length + i + 1;
                   return (
                     <tr key={`locked-row-${rowIdx}`} className="hover:bg-tv-hover/20 transition-colors">
-                      <td className="p-3 text-tv-muted font-bold">{rowIdx}</td>
-                      <td className="p-3 blur-sm select-none opacity-40">
-                        <span className="inline-flex items-center gap-2 font-bold text-white">
-                          <span className="w-5 h-5 rounded-full bg-tv-border inline-flex items-center justify-center text-[9px]">?</span>
-                          ••••
+                      <td className="p-3 text-tv-muted font-bold whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          <Lock className="h-3 w-3 text-tv-yellow shrink-0" />
+                          <span>{rowIdx}</span>
                         </span>
                       </td>
-                      <td className="p-3 text-tv-text font-sans font-medium blur-sm select-none opacity-40">
-                        PT •••••••••••••••• Tbk
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-2 font-bold text-white">
+                          <span className="w-5 h-5 rounded-full bg-tv-yellow/10 border border-tv-yellow/30 inline-flex items-center justify-center text-tv-yellow">
+                            <Lock className="h-2.5 w-2.5" />
+                          </span>
+                          <span className="blur-sm select-none opacity-40 font-mono">••••</span>
+                        </span>
+                      </td>
+                      <td className="p-3 font-sans font-medium whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-tv-text blur-sm select-none opacity-40">
+                            PT •••••••••••••••• Tbk
+                          </span>
+                          <Link
+                            onClick={() => trackSignupClick('screener_results')}
+                            href="/login?next=%2Fscreener"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-0.5 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm shrink-0 whitespace-nowrap"
+                          >
+                            <Lock className="h-3 w-3" /> Masuk
+                          </Link>
+                        </div>
                       </td>
                       <td className="p-3 text-tv-muted blur-sm select-none opacity-40">••••••••</td>
                       <td className="p-3 text-right font-bold text-white font-number blur-sm select-none opacity-40">••.x</td>
