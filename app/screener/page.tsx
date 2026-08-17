@@ -213,14 +213,16 @@ export default function ScreenerPage() {
 
   const top10 = data?.analysis?.top_10_stocks || [];
   const isConfirmedGuest = authResolved && !authLoading && !user;
+  const isGuestLimited = Boolean(data?.analysis?.is_guest_limited ?? isConfirmedGuest);
+  const lockedCount = isGuestLimited ? (data?.analysis?.locked_count ?? 7) : 0;
+  const hasLockedGuestRows = isGuestLimited && lockedCount > 0;
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return top10;
     const col = SORTABLE_COLUMNS.find((c) => c.key === sortKey)!;
     return [...top10].sort((a: any, b: any) => compareValues(col.getValue(a), col.getValue(b), sortDir));
   }, [top10, sortKey, sortDir]);
-  const visibleRows = isConfirmedGuest ? sortedRows.slice(0, GUEST_VISIBLE_RESULT_COUNT) : sortedRows;
-  const hasLockedGuestRows = isConfirmedGuest && sortedRows.length > GUEST_VISIBLE_RESULT_COUNT;
+  const visibleRows = isGuestLimited ? sortedRows.slice(0, GUEST_VISIBLE_RESULT_COUNT) : sortedRows;
 
   useEffect(() => {
     if (!hasLockedGuestRows || hasTrackedGuestLock.current) return;
@@ -528,6 +530,25 @@ export default function ScreenerPage() {
             </div>
           </div>
 
+          {/* Amber Lock Banner matching AlgoFilters screenshot */}
+          {hasLockedGuestRows && (
+            <div className="mb-4 px-3.5 py-2.5 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-sans flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>
+                  <strong>{lockedCount} emiten lanjutan terkunci</strong> (LensScanner). Masuk untuk membuka seluruh hasil 10 LensScore.
+                </span>
+              </div>
+              <Link
+                onClick={() => trackSignupClick('screener_results')}
+                href="/login?next=%2Fscreener"
+                className="shrink-0 font-bold underline underline-offset-2 hover:text-white"
+              >
+                Masuk untuk membuka
+              </Link>
+            </div>
+          )}
+
           {/* Keadaan kosong dikeluarkan dari dalam <tbody>: sebuah sel colSpan=17
               memaksa ilustrasi & tombol aksi hidup di dalam tata letak tabel, dan
               di layar sempit ia ikut tergulir horizontal bersama 16 kolom kosong. */}
@@ -722,13 +743,57 @@ export default function ScreenerPage() {
                     <td className="p-3 text-right text-tv-text font-number">{fmtMiliar(item.adv20_idr)}</td>
                   </tr>
                 ))}
-                {hasLockedGuestRows && (
-                  <tr>
-                    <td colSpan={SORTABLE_COLUMNS.length + 1} className="p-4">
-                      <GuestScannerLock lockedCount={data?.analysis?.locked_count} />
-                    </td>
-                  </tr>
-                )}
+
+                {/* Baris Emiten Terkunci (4 - 10) untuk Tamu */}
+                {hasLockedGuestRows && Array.from({ length: lockedCount }).map((_, i) => {
+                  const rowIdx = visibleRows.length + i + 1;
+                  return (
+                    <tr key={`locked-row-${rowIdx}`} className="hover:bg-tv-hover/20 transition-colors">
+                      <td className="p-3 text-tv-muted font-bold">{rowIdx}</td>
+                      <td className="p-3 blur-sm select-none opacity-40">
+                        <span className="inline-flex items-center gap-2 font-bold text-white">
+                          <span className="w-5 h-5 rounded-full bg-tv-border inline-flex items-center justify-center text-[9px]">?</span>
+                          ••••
+                        </span>
+                      </td>
+                      <td className="p-3 text-tv-text font-sans font-medium blur-sm select-none opacity-40">
+                        PT •••••••••••••••• Tbk
+                      </td>
+                      <td className="p-3 text-tv-muted blur-sm select-none opacity-40">••••••••</td>
+                      <td className="p-3 text-right font-bold text-white font-number blur-sm select-none opacity-40">••.x</td>
+                      <td className="p-3 text-right font-bold font-number blur-sm select-none opacity-40">••%</td>
+                      <td className="p-3 text-right text-tv-accent font-bold font-number blur-sm select-none opacity-40">••%</td>
+                      <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">••</td>
+                      <td className="p-3 text-right text-tv-yellow font-bold font-number blur-sm select-none opacity-40">••%</td>
+                      <td className="p-3 blur-sm select-none opacity-40">
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-tv-hover text-tv-text font-bold">••••••••</span>
+                      </td>
+                      <td className="p-3 text-tv-text blur-sm select-none opacity-40">••••••</td>
+                      <td className="p-3 blur-sm select-none opacity-40">
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-tv-green/20 text-tv-green font-bold">REKOMENDASI: BUY</span>
+                      </td>
+                      <td className="p-3 text-tv-text text-[11px] blur-sm select-none opacity-40">••••••••</td>
+                      <td className="p-3 blur-sm select-none opacity-40">
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-tv-hover text-tv-text font-bold">Positif</span>
+                      </td>
+                      <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp •••• / Rp ••••</td>
+                      <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp ••••</td>
+                      <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">±••%/hari</td>
+                      <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">Rp •• T</td>
+                      <td className="p-3 text-right text-tv-text font-number">
+                        <div className="flex justify-end">
+                          <Link
+                            onClick={() => trackSignupClick('screener_results')}
+                            href="/login?next=%2Fscreener"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2.5 py-1 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm whitespace-nowrap"
+                          >
+                            <Lock className="h-3 w-3" /> Masuk
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -839,7 +904,40 @@ export default function ScreenerPage() {
                   </motion.div>
                 );
               })}
-              {hasLockedGuestRows && <GuestScannerLock lockedCount={data?.analysis?.locked_count} />}
+
+              {/* Kartu Emiten Terkunci (4 - 10) untuk Tamu di Mobile */}
+              {hasLockedGuestRows && Array.from({ length: lockedCount }).map((_, i) => {
+                const cardIdx = visibleRows.length + i + 1;
+                return (
+                  <div
+                    key={`locked-card-${cardIdx}`}
+                    className="relative rounded-lg border border-tv-border bg-tv-bg/40 p-3 overflow-hidden"
+                  >
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
+                      <Link
+                        onClick={() => trackSignupClick('screener_results')}
+                        href="/login?next=%2Fscreener"
+                        className="flex items-center gap-1 text-[11px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-3 py-1.5 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm"
+                      >
+                        <Lock className="h-3.5 w-3.5" /> Masuk
+                      </Link>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 blur-sm select-none opacity-40">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-tv-border flex items-center justify-center text-[10px]">?</div>
+                        <span className="font-bold text-white">••••</span>
+                        <span className="text-xs text-tv-muted">PT •••••••••••• Tbk</span>
+                      </div>
+                      <span className="text-xs font-bold text-tv-muted">#{cardIdx}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 blur-sm select-none opacity-40 text-[11px]">
+                      <div>PER: ••.x</div>
+                      <div>ROE: ••%</div>
+                      <div>Div: ••%</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
