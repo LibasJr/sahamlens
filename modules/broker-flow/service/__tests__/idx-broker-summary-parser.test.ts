@@ -30,7 +30,7 @@ TLKM,CC,2000000000,500000000,600000,150000,400,80
     expect(parsed.transactions[0]!.brokerCode).toBe('YP');
     expect(parsed.transactions[0]!.buyValue).toBe(500_000_000);
     expect(parsed.transactions[0]!.sellValue).toBe(100_000_000);
-    expect(parsed.transactions[0]!.buyAvgPrice).toBe(100); // 500M / (50k * 100) = 100
+    expect(parsed.transactions[0]!.buyAvgPrice).toBe(10000); // 500M / 50k shares = 10,000
   });
 
   it('handles tab and semicolon separated values smoothly', () => {
