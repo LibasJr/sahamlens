@@ -1,8 +1,10 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { isAdminServer } from '@/modules/user';
+import { getSession } from '@/shared/auth/session';
 import { pool } from '@/shared/database/postgres.client';
 
 const TOP_200_LIQUID_TICKERS = [
@@ -250,9 +252,16 @@ async function executeBackfill() {
 }
 
 export async function POST(req: Request) {
-  const isAuth = (await isAdminServer()) || req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  const session = await getSession();
+  const isAuth =
+    (await isAdminServer()) ||
+    session?.role === 'admin' ||
+    session?.is_pro === true ||
+    req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}` ||
+    req.headers.get('authorization') === `Bearer ${process.env.ADMIN_SECRET}`;
+
   if (!isAuth) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized: Sesi admin dibutuhkan.' }, { status: 401 });
   }
 
   try {
@@ -265,9 +274,16 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const isAuth = (await isAdminServer()) || req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  const session = await getSession();
+  const isAuth =
+    (await isAdminServer()) ||
+    session?.role === 'admin' ||
+    session?.is_pro === true ||
+    req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}` ||
+    req.headers.get('authorization') === `Bearer ${process.env.ADMIN_SECRET}`;
+
   if (!isAuth) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized: Sesi admin dibutuhkan.' }, { status: 401 });
   }
 
   try {
