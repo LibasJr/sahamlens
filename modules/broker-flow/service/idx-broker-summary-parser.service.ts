@@ -9,6 +9,27 @@ export const KNOWN_RETAIL_BROKERS = new Set([
   'YP', 'PD', 'XC', 'NI', 'XL', 'SQ', 'KK', 'CP', 'GR', 'HD', 'EP', 'AZ', 'BQ',
 ]);
 
+/**
+ * Daftar PUTIH sumber yang boleh dibaca ke permukaan produk. Bukan daftar hitam -
+ * sumber yang tidak dikenal DITOLAK, bukan diizinkan sampai terbukti buruk.
+ *
+ * Kenapa 'IDX_EOD_REPORT' TIDAK ada di sini meski namanya terdengar paling resmi:
+ * satu-satunya penulis yang pernah menghasilkan label itu adalah endpoint backfill
+ * di 28d5d98, yang isinya Math.random(). Parser IDX yang sah
+ * (parseIdxBrokerSummaryText) memakai label yang sama sebagai default, tetapi
+ * `git log -S` atas seluruh riwayat membuktikan ia TIDAK PERNAH tersambung ke jalur
+ * tulis mana pun. Jadi tidak ada satu baris 'IDX_EOD_REPORT' yang sah untuk
+ * dilindungi, dan mengeluarkannya dari daftar ini tidak menghilangkan data nyata.
+ *
+ * Sebelum menambahkan sumber baru ke sini, pastikan jalur tulisnya tervalidasi
+ * (lihat importBrokerSummaryCsv) dan provenance-nya terisi.
+ */
+export const TRUSTED_BROKER_SOURCES: readonly string[] = [
+  'INDEX_ALPHA_API',
+  'STOCKBIT_MANUAL',
+  'STOCKBIT_MANUAL_JSON',
+];
+
 export interface BrokerTransactionRaw {
   ticker: string;
   tradeDate: string; // YYYY-MM-DD
@@ -50,6 +71,12 @@ export interface TopBrokerItem {
 export interface StockBrokerSummaryResult {
   ticker: string;
   tradeDate: string;
+  /** Asal baris yang benar-benar dipakai. Wajib ikut ditampilkan di UI - angka broker
+   * tanpa sumber tidak dapat dibedakan dari angka yang dikarang. */
+  provenance: {
+    sources: string[];
+    lastImportedAt: string | null;
+  };
   totalTurnover: number;
   totalVolume: number;
   topBuyers: TopBrokerItem[];
@@ -169,76 +196,17 @@ export function parseIdxBrokerSummaryText(
   };
 }
 
-/**
- * Persist parsed broker transactions into PostgreSQL `broker_summary_daily`.
- */
-export async function saveBrokerTransactionsToDb(transactions: BrokerTransactionRaw[]): Promise<number> {
-  if (!transactions.length) return 0;
-
-  const client = await pool.connect();
-  let inserted = 0;
-
-  try {
-    await client.query('BEGIN');
-
-    for (const tx of transactions) {
-      const source = tx.source || 'IDX_EOD_REPORT';
-      const buyLot = tx.buyLot ?? Math.round(tx.buyVolume / 100);
-      const sellLot = tx.sellLot ?? Math.round(tx.sellVolume / 100);
-
-      await client.query(
-        `INSERT INTO broker_summary_daily (
-          trade_date, ticker, broker_code,
-          buy_value, sell_value, buy_volume, sell_volume, buy_frequency, sell_frequency,
-          buy_lot, sell_lot, buy_avg, sell_avg, source, source_file, imported_at
-        ) VALUES (
-          $1::date, $2, $3,
-          $4, $5, $6, $7, $8, $9,
-          $10, $11, $12, $13, $14, $15, NOW()
-        )
-        ON CONFLICT (trade_date, ticker, broker_code, source)
-        DO UPDATE SET
-          buy_value = EXCLUDED.buy_value,
-          sell_value = EXCLUDED.sell_value,
-          buy_volume = EXCLUDED.buy_volume,
-          sell_volume = EXCLUDED.sell_volume,
-          buy_frequency = EXCLUDED.buy_frequency,
-          sell_frequency = EXCLUDED.sell_frequency,
-          buy_lot = EXCLUDED.buy_lot,
-          sell_lot = EXCLUDED.sell_lot,
-          buy_avg = EXCLUDED.buy_avg,
-          sell_avg = EXCLUDED.sell_avg,
-          imported_at = NOW()`,
-        [
-          tx.tradeDate,
-          tx.ticker,
-          tx.brokerCode,
-          tx.buyValue,
-          tx.sellValue,
-          tx.buyVolume,
-          tx.sellVolume,
-          tx.buyFrequency ?? null,
-          tx.sellFrequency ?? null,
-          buyLot,
-          sellLot,
-          tx.buyAvgPrice ?? null,
-          tx.sellAvgPrice ?? null,
-          source,
-          tx.sourceFile ?? null,
-        ]
-      );
-      inserted++;
-    }
-
-    await client.query('COMMIT');
-    return inserted;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-}
+// saveBrokerTransactionsToDb() DIHAPUS 2026-08-17.
+//
+// Fungsi ini di-export sejak 6564c64 dan TIDAK PERNAH dipanggil dari mana pun
+// (diverifikasi atas seluruh riwayat git dengan `git log -S`). Yang membuatnya
+// berbahaya bukan pemakaiannya, melainkan sifatnya: ON CONFLICT DO UPDATE
+// (menimpa baris yang sudah ada, berbeda dari jalur impor resmi yang append-only
+// DO NOTHING), tanpa validasi baris, dan dengan `source` default 'IDX_EOD_REPORT'
+// - label sumber resmi yang sama yang dipakai backfill sintetis di 28d5d98.
+//
+// Satu-satunya jalur tulis yang sah sekarang: importBrokerSummaryCsv() dan
+// importBrokerDistributionJson() di broker-summary-import.service.ts.
 
 /**
  * Compute institutional Bandarmology metrics for a given stock and date.
@@ -254,8 +222,10 @@ export async function computeStockBrokerSummary(
       ? targetDate
       : (
           await pool.query(
-            'SELECT trade_date FROM broker_summary_daily WHERE ticker = $1 ORDER BY trade_date DESC LIMIT 1',
-            [ticker]
+            `SELECT trade_date FROM broker_summary_daily
+             WHERE ticker = $1 AND source = ANY($2::text[])
+             ORDER BY trade_date DESC LIMIT 1`,
+            [ticker, TRUSTED_BROKER_SOURCES]
           )
         ).rows[0]?.trade_date;
 
@@ -266,14 +236,23 @@ export async function computeStockBrokerSummary(
     const rowsRes = await pool.query(
       `SELECT
         broker_code, buy_value, sell_value, buy_volume, sell_volume,
-        buy_avg, sell_avg
+        buy_avg, sell_avg, source, imported_at
       FROM broker_summary_daily
-      WHERE ticker = $1 AND trade_date = $2::date
+      WHERE ticker = $1 AND trade_date = $2::date AND source = ANY($3::text[])
       ORDER BY ABS(buy_value - sell_value) DESC`,
-      [ticker, formattedDate]
+      [ticker, formattedDate, TRUSTED_BROKER_SOURCES]
     );
 
     if (!rowsRes.rows.length) return null;
+
+    // Provenance dibawa keluar, bukan disimpulkan. Pemanggil TIDAK boleh menyatakan
+    // "ini data broker nyata" hanya karena query mengembalikan baris.
+    const sources = Array.from(new Set(rowsRes.rows.map((r: any) => String(r.source))));
+    const importedAtValues = rowsRes.rows
+      .map((r: any) => (r.imported_at instanceof Date ? r.imported_at.toISOString() : r.imported_at ? String(r.imported_at) : null))
+      .filter((v): v is string => v != null)
+      .sort();
+    const lastImportedAt = importedAtValues[importedAtValues.length - 1] ?? null;
 
     let totalTurnover = 0;
     let totalVolume = 0;
@@ -451,6 +430,7 @@ export async function computeStockBrokerSummary(
     return {
       ticker,
       tradeDate: formattedDate,
+      provenance: { sources, lastImportedAt },
       totalTurnover,
       totalVolume,
       topBuyers,

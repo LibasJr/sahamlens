@@ -107,12 +107,28 @@ for (const tradeDate of LAST_WEEK_TRADING_DATES) {
 pengguna.
 
 **Kenapa ini masalah:** ini bukan sekadar data palsu — ini data palsu **yang menandai
-dirinya sebagai laporan EOD resmi BEI**. Setelah kode dihapus, tidak tersisa cara
-programatik untuk membedakannya dari baris impor asli, karena baris asli via
-`importBrokerSummaryCsv` dengan `source` default `STOCKBIT_MANUAL` atau
-`INDEX_ALPHA_API` — tetapi parser IDX yang sah (`parseIdxBrokerSummaryText`,
-`idx-broker-summary-parser.service.ts:101`) **juga** memakai default
-`source = 'IDX_EOD_REPORT'`. Kedua kelas baris jadi tidak terpisahkan lewat kolom mana pun.
+dirinya sebagai laporan EOD resmi BEI**.
+
+> ### KOREKSI 2026-08-17 (setelah verifikasi lanjutan) — MENGUNTUNGKAN
+>
+> Draf pertama laporan ini menyatakan `source` **tidak dapat** memisahkan baris palsu
+> dari baris asli, dengan alasan parser IDX yang sah (`parseIdxBrokerSummaryText`,
+> `idx-broker-summary-parser.service.ts:101`) memakai default `source` yang sama.
+> **Kesimpulan itu terlalu pesimistis dan sudah dikoreksi.**
+>
+> Verifikasi: `git log --all -S 'saveBrokerTransactionsToDb'` menunjukkan satu-satunya
+> jalur tulis yang bisa dipakai parser tersebut **tidak pernah dipanggil dari mana pun,
+> di commit mana pun** — ia hanya pernah muncul di file definisinya sendiri (`6564c64`).
+> `parseIdxBrokerSummaryText` sendiri juga hanya dipakai oleh file test-nya, tidak pernah
+> tersambung ke database.
+>
+> **Konsekuensi:** tidak ada satu pun baris `source = 'IDX_EOD_REPORT'` yang sah.
+> Setiap baris berlabel itu berasal dari endpoint backfill sintetis. Label itu karena
+> itu adalah **penanda kontaminasi yang dapat diandalkan**, dan pembersihan berbasis
+> `source` **tidak akan menghapus data nyata**.
+>
+> Ini menyederhanakan §11 secara signifikan: fingerprint statistik tetap berguna sebagai
+> konfirmasi silang, tetapi tidak lagi menjadi satu-satunya cara memisahkan.
 
 **Catatan mitigasi (penting, tetapi tidak membebaskan):** varian script
 `scripts/fetch-broker-summary-last-week.mjs` (commit `6564c64`) menulis ke kolom
