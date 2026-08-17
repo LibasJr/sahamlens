@@ -33,3 +33,17 @@ Tujuan drill adalah membuktikan backup benar-benar dapat dipulihkan tanpa menyen
 - Tidak ada data dummy/sintetis yang ditambahkan untuk membuat audit terlihat lulus.
 
 Lakukan minimal tiap kuartal dan setelah perubahan besar pada strategi backup atau schema database.
+
+## Verifikasi otomatis target restore
+
+Setelah backup selesai dipulihkan ke database terisolasi, jangan mengganti `DATABASE_URL` service production. Jalankan dari shell operator:
+
+```bash
+DATABASE_URL='postgresql://...production...' \
+RESTORE_DRILL_DATABASE_URL='postgresql://...restore-target...' \
+node scripts/verify-restore-drill-target.mjs
+```
+
+Script menolak target dengan host/port/database yang sama dengan production, memeriksa tabel data pengguna kritis, migration ledger, dan snapshot Ownership Flow. Simpan hasilnya bersama `docs/production/RESTORE_DRILL_EVIDENCE_TEMPLATE.md`.
+
+**Status risiko O-1 tetap PARTIAL sampai drill sungguhan dilakukan dan RPO/RTO aktual dicatat.** Runbook atau script saja bukan bukti restore berhasil.

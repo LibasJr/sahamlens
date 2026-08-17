@@ -9,6 +9,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
+import { checkAiAccountBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Belum login' }, { status: 401 });
   }
+
+  const budget = await checkAiAccountBudget(session.id, 'intrinsic-explain');
+  if (!budget.allowed) return rateLimitExceeded(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
   const body = (await req.json()) as { symbol?: string };
   const symbol = typeof body?.symbol === 'string' ? body.symbol.trim().toUpperCase() : '';

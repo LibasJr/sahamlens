@@ -21,6 +21,11 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Static integrity audits
+        run: |
+          npm run audit:manual-market
+          npm run audit:market-labels
+          npm run audit:risk-controls
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test

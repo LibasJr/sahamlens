@@ -9,6 +9,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
+import { checkAiAccountBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 
 // BUG FIX (2026-08-01): dulu prompt ini merangkai "kondisi akun & pasar" (cash, jumlah
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Belum login' }, { status: 401 });
   }
+
+  const budget = await checkAiAccountBudget(session.id, 'ai-briefing');
+  if (!budget.allowed) return rateLimitExceeded(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
   const input = (await req.json()) as BriefingInput;
 

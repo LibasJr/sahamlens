@@ -1,4 +1,5 @@
-// Universe aktif AI Pick / LensRadar.
+// Universe aktif AI Pick / LensRadar. Freshness manual dijaga oleh manual-reference-review.ts;
+// daftar ini BUKAN klaim konstituen indeks atau identitas blue-chip.
 //
 // Versi baru 2026-08-15: idx-liquid-v2-200. 109 ticker pertama tetap universe
 // tervalidasi lama dari scripts/backtest-universe-refresh.mjs / BACKTEST_UNIVERSE,
@@ -16,10 +17,6 @@ export const ACTIVE_LIQUID_UNIVERSE_VERSION = 'idx-liquid-v2-200';
 export const ACTIVE_LIQUID_UNIVERSE_TARGET_SIZE = 200;
 export const LEGACY_VALIDATED_UNIVERSE_VERSION = 'idx-liquid-v1-109';
 export const LEGACY_VALIDATED_UNIVERSE_SIZE = 109;
-
-// Universe khusus validasi historis: candidate superset luas, membership per tanggal
-// diputuskan hanya dari data yang tersedia sampai tanggal itu (H-02).
-export const POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION = 'idx-pit-v1-current-listing-superset';
 
 export const AI_PICK_UNIVERSE: string[] = [
   'BBCA.JK', 'TPIA.JK', 'BMRI.JK', 'BBRI.JK', 'BRPT.JK', 'DSSA.JK', 'AMMN.JK', 'ANTM.JK', 'TLKM.JK',

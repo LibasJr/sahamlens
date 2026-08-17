@@ -1,8 +1,9 @@
 import { TICKERS } from './tickers';
 
-// Daftar saham likuid LQ45/blue-chip - dipakai sebagai kamus nama emiten (getTickerName)
-// dan daftar simbol umum. BUKAN daftar "trending": tidak ada satu pun pengukuran
-// popularitas/volume di baliknya (lihat catatan L-1 di bawah).
+// Kamus simbol umum/populer untuk UX dan getTickerName. BUKAN daftar konstituen LQ45,
+// BUKAN identitas blue-chip, dan BUKAN daftar "trending": tidak ada pengukuran
+// popularitas/volume di baliknya (lihat catatan L-1 di bawah). Freshness-nya dijaga
+// oleh modules/market/constants/manual-reference-review.ts.
 export const TRENDING_SYMBOLS = [
   'BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ADRO', 'ANTM', 'ICBP', 'UNVR',
   'GOTO', 'MDKA', 'PGAS', 'INDF', 'KLBF', 'PTBA', 'SMGR', 'INCO', 'ITMG', 'AKRA',

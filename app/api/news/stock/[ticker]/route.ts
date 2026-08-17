@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getStockNews } from '@/modules/news';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -9,6 +10,8 @@ export const dynamic = 'force-dynamic';
 
 
 export async function GET(request: Request, { params }: { params: Promise<{ ticker: string }> }) {
+  const budget = await checkPublicComputeBudget(request.headers, 'stock-news');
+  if (!budget.allowed) return rateLimitExceeded(budget);
   try {
     const { ticker: rawTicker } = await params;
     const ticker = normalizeIdxTickerParam(rawTicker);

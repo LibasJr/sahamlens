@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { fetchPublicEarningsData } from '@/modules/fundamental/service/public-earnings-data.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -8,6 +9,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ ticker: string }> },
 ) {
+  const budget = await checkPublicComputeBudget(_request.headers, 'earnings');
+  if (!budget.allowed) return rateLimitExceeded(budget);
   try {
     const { ticker: rawTicker } = await params;
     const ticker = normalizeIdxTickerParam(rawTicker);
