@@ -131,7 +131,7 @@ export const en: TranslationDictionary = {
     cautionLabel: 'CAUTION',
     buyLabel: 'BUY',
     infoLabel: 'INFO',
-    bandarFlow: 'Dominant broker {code}: Net {action} Rp{amount}',
+    bandarFlow: 'Institutional: Net {action} Rp{amount}',
     tpClUnavailable: 'TP/CL not available yet',
   },
   guide: {
@@ -474,7 +474,6 @@ export const en: TranslationDictionary = {
     fScoreStrong: 'Very Strong (Score 7–9)',
     fScoreModerate: 'Normal / Stable (Score 4–6)',
     fScoreWeak: 'Fragile / Caution (Score 0–3)',
-    dataUnavailable: 'Insufficient data',
     zScoreTitle: 'Altman Z-Score (Distress Risk)',
     zScoreSafe: 'Safe Zone (Low Solvency Risk)',
     zScoreGrey: 'Grey Zone (Requires Monitoring)',

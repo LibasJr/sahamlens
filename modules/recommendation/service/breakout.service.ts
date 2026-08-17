@@ -1,6 +1,6 @@
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { calculateRsi, calculateWilderAtr } from '../../technical';
-import { isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { resolvePreviousClose } from '../../../shared/market/previous-close';
 import { buildLongTradingSetup, type LongTradingSetup } from './trading-setup';
 
@@ -132,16 +132,15 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const isDeadCross = ma20 < ma50 && prevMa20 >= prevMa50;
 
     // Volume Spike
-    // Zero Dummy Policy: volume hari ini selama jam bursa masih PARSIAL. Dulu volume
-    // parsial diproyeksikan menjadi full-day dengan profil U-shape hipotesis lalu hasil
-    // estimasi itu masuk skor breakout tanpa label. Sekarang sinyal volume TIDAK dinilai
-    // sampai candle harian selesai; lebih baik kehilangan dua poin intraday daripada
-    // menyajikan proyeksi model sebagai volume yang sudah terjadi.
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): volume hari ini selama
+    // jam bursa masih PARSIAL - dibandingkan mentah dengan rata-rata 20 hari PENUH,
+    // "VOL SPIKE" (>2x avg, bobot terbesar skor breakout) bias tidak pernah terpicu di
+    // pagi/siang hari walau volumenya sedang menuju spike sungguhan.
     const lastBar = history[history.length - 1];
     const isLiveFormingBar = lastBar.date === todayDateKeyWIB() && isIdxMarketHoursNow();
-    const currentVol = isLiveFormingBar ? null : vols[vols.length - 1];
+    const currentVol = isLiveFormingBar ? estimateFullDayVolume(vols[vols.length - 1]) : vols[vols.length - 1];
     const avgVol20 = vols.slice(-20).reduce((a, b) => a + b, 0) / 20;
-    const isVolSpike = currentVol != null && currentVol > avgVol20 * 2;
+    const isVolSpike = currentVol > avgVol20 * 2;
 
     // RSI 14 - Wilder smoothing baku (lihat modules/technical/service/rsi.ts), bukan
     // rata-rata aritmatik sederhana yang dulu di sini (bias, lihat H-01 di audit).
@@ -177,7 +176,7 @@ async function analyzeSymbolForBreakout(symbol: string): Promise<RawSymbolSignal
     const signals: string[] = [];
 
     if (isCrossUp) { score += 3; signals.push('GOLDEN CROSS'); }
-    if (isVolSpike && currentVol != null) { score += 2; signals.push(`VOL SPIKE ${(currentVol/avgVol20).toFixed(1)}x`); }
+    if (isVolSpike) { score += 2; signals.push(`VOL SPIKE ${(currentVol/avgVol20).toFixed(1)}x`); }
     if (isRsiBreakout) { score += 1; signals.push('RSI MOMENTUM'); }
     if (isNearRes) { score += 1; signals.push('NEAR RES'); }
     if (isBandarAccum) signals.push('FLOW CONFIRM');

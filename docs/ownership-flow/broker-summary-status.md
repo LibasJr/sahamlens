@@ -1,47 +1,65 @@
-# Status Broker Summary — FAIL-CLOSED SETELAH INSIDEN ZERO DUMMY
+# Status Broker Summary — NONAKTIF, SENGAJA DIPERTAHANKAN
 
-> Status repo per 2026-08-17. Status timer/runtime VPS harus diverifikasi langsung di server.
+> **Disabled because ingestion currently requires manual source upload.
+> Retained for future automated/legal data source.**
+
+---
 
 ## Ringkasan
 
-Broker Summary **tidak boleh menganggap semua row di `broker_summary_daily` sebagai data nyata**.
-Source historis `IDX_EOD_REPORT` pernah dipakai oleh generator sintetis dan juga pernah dipakai
-sebagai label parser manual. Karena provenance label itu tercemar, row tersebut **diblok dari jalur
-publik** sampai audit database selesai.
+Broker Summary **dinonaktifkan**, bukan dihapus. Tidak ada satu pun baris data,
+tabel, atau modul yang dibuang.
 
 | Aspek | Status |
 |---|---|
-| Generator sintetis lama | **dihapus dari working tree** |
-| `IDX_EOD_REPORT` | **UNVERIFIED / tidak boleh dibaca publik** |
-| Source publik yang diizinkan | `INDEX_ALPHA_API` saja |
-| Status source publik | **KNOWN_EXTERNAL_PROVIDER_UNRECONCILED** |
-| `hasRealBrokerData` | tidak boleh bernilai true hanya karena row ada |
-| Database historis | **belum boleh dianggap bersih tanpa forensic audit** |
-| Cron/timer | repo memiliki konfigurasi; **runtime VPS perlu diverifikasi** |
+| Kode sumber (`modules/broker-flow/`) | **utuh** |
+| Skema database | **utuh**, tidak ada migrasi destruktif |
+| Data historis | **utuh** |
+| Route API & halaman admin | **utuh dan dapat diakses** |
+| Cron `broker-summary-scan` | **nonaktif** (timer systemd disabled 2026-08-14) |
+| Menu sidebar admin | terlihat, diberi label `(nonaktif)` |
+| Kartu di halaman admin | terlihat, diredupkan + badge `Nonaktif` |
 
-## Aturan Zero Dummy
+---
 
-1. Missing/unverified data tetap unavailable; jangan diubah menjadi angka.
-2. Jangan memakai `source='IDX_EOD_REPORT'` sebagai bukti keaslian.
-3. Jangan `TRUNCATE`/`DELETE` sebelum fingerprint insiden dan batch import diperiksa.
-4. Data provider eksternal harus dilabeli sebagai provider eksternal dan belum direkonsiliasi
-   terhadap sumber primer bila rekonsiliasi belum dilakukan.
-5. Klasifikasi broker yang tidak ada di mapping internal harus `UNKNOWN`, bukan otomatis
-   `DOMESTIC_INSTITUTION`.
+## Kenapa dinonaktifkan
 
-## Forensic audit produksi
+Ingestion-nya menuntut **upload berkas sumber secara manual per emiten**.
+Melakukannya untuk ratusan ticker setiap hari bursa tidak realistis, jadi fitur
+ini tidak pernah benar-benar terpakai — sementara cron-nya tetap gagal setiap
+kali berjalan (`INDEXALPHA_API_KEY` tidak dikonfigurasi di VPS), yang membuat
+panel admin terus menampilkan `FAILED`.
 
-Jalankan di VPS dengan `DATABASE_URL` yang benar:
+Lihat catatan pada entri `/api/cron/broker-summary-scan` di
+`config/scheduled-jobs.json`.
 
-```bash
-npm run audit:broker-forensics
-```
+---
 
-Script tersebut **READ-ONLY** (`BEGIN READ ONLY` + `SELECT` + `ROLLBACK`). Ia memeriksa fingerprint
-generator yang diketahui untuk 10–14 Agustus 2026 tanpa menghapus atau mengubah data.
+## Yang TIDAK boleh dilakukan
 
-## Hubungan dengan Ownership Flow
+- ❌ Menghapus tabel atau kolom broker summary
+- ❌ Membuat migrasi destruktif
+- ❌ Menghapus `modules/broker-flow/`
+- ❌ Mengaktifkan kembali cron-nya hanya demi menyelesaikan pekerjaan lain
+- ❌ Menganggap Ownership Flow sebagai penggantinya
 
-**Ownership Flow bukan pengganti Broker Summary.** Broker Summary mengukur transaksi per kode broker,
-sedangkan Ownership Flow mengukur komposisi kepemilikan. Keduanya tidak boleh saling diubah label atau
-dijadikan substitusi data.
+## Yang perlu terjadi sebelum diaktifkan kembali
+
+1. Tersedia sumber broker summary yang **legal, stabil, dan dapat diotomasi**
+   (tanpa upload manual)
+2. Kredensial/kontrak sumber terkonfigurasi di VPS
+3. Cron didaftarkan ulang dan diverifikasi lewat `systemctl list-timers`
+4. `config/scheduled-jobs.json` diperbarui dengan jadwal yang **terbukti**
+
+---
+
+## Hubungannya dengan Ownership Flow
+
+**Ownership Flow bukan pengganti Broker Summary.**
+
+Keduanya mengukur besaran yang berbeda secara fundamental — transaksi per kode
+broker vs komposisi kepemilikan — dan yang satu tidak dapat disimpulkan dari
+yang lain. Ownership Flow dibuat sebagai **modul baru yang independen**, dengan
+tabel, service, cron, API, dan menu sendiri.
+
+Penjelasan lengkap: `docs/ownership-flow/broker-vs-ownership.md`.

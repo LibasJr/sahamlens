@@ -140,9 +140,7 @@ export function buildMoatDurability(
     checks.push({
       key: 'margin_stability',
       label: 'Stabilitas margin operasi',
-      detail: marginStd == null
-        ? `Margin operasi rata-rata ${marginMean}%; simpangan tidak dapat dihitung.`
-        : `Margin operasi rata-rata ${marginMean}% dengan simpangan ${round(marginStd)} poin antar tahun.`,
+      detail: `Margin operasi rata-rata ${marginMean}% dengan simpangan ${round(marginStd ?? 0)} poin antar tahun.`,
       verdict: marginStd != null && marginStd <= STABLE_MARGIN_STDDEV_PCT ? 'SUPPORTIVE' : 'CAUTION',
     });
   } else {

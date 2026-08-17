@@ -1,5 +1,3 @@
-import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
-
 // BUG FIX (audit integritas data 2026-08-03, temuan L-04): fungsi ini SEBELUMNYA
 // mengembalikan 3 nama berbeda untuk indikator yang SAMA ('Market Flow (Accum/Dist)',
 // 'Market Flow (A/D)', 'Accumulation / Distribution') tergantung cabang mana yang
@@ -10,16 +8,8 @@ import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-se
 const LABEL = 'Market Flow Index (Accum/Dist)';
 
 export function analyze(history: any[], currentPrice: number) {
-  const last = history[history.length - 1];
-  const lastDate = typeof last?.Date === 'string' ? last.Date.split('T')[0] : null;
-  if (lastDate === todayDateKeyWIB() && isIdxMarketHoursNow()) {
-    return { label: LABEL, value: 'N/A (INTRADAY_VOLUME_PARTIAL)', decision: 'NEUTRAL', confidence: 0 };
-  }
   if (history.length < 15) return { label: LABEL, value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
-  if (history.some((h) =>
-    typeof h.AdjClose !== 'number' || !Number.isFinite(h.AdjClose) || h.AdjClose <= 0 ||
-    typeof h.Volume !== 'number' || !Number.isFinite(h.Volume) || h.Volume < 0
-  )) {
+  if (history.some((h) => typeof h.AdjClose !== 'number' || !Number.isFinite(h.AdjClose) || h.AdjClose <= 0)) {
     return { label: LABEL, value: 'N/A (MISSING_ADJUSTED_PRICE)', decision: 'NEUTRAL', confidence: 0 };
   }
 
@@ -41,9 +31,7 @@ export function analyze(history: any[], currentPrice: number) {
   let confidence = 50;
 
   const total = accum + dist;
-  // Tidak ada volume valid = data tidak tersedia. Confidence 50 dulu terlihat seperti
-  // keyakinan model netral padahal tidak ada observasi; gunakan 0 agar fail-closed.
-  if (total === 0) return { label: LABEL, value: 'N/A', decision: 'NEUTRAL', confidence: 0 };
+  if (total === 0) return { label: LABEL, value: 'N/A', decision: 'NEUTRAL', confidence: 50 };
 
   const accumPct = (accum / total) * 100;
 

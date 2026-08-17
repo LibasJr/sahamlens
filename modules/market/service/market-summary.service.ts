@@ -1,7 +1,7 @@
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal } from './foreign-flow-proxy';
 import { calculateRsi } from '@/modules/technical';
-import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-summary/route.ts, verbatim.
 // Rute publik (tanpa login) - ringkasan pasar untuk landing page & halaman /market/[category].
@@ -169,13 +169,23 @@ async function fetchQuote(symbol: string) {
     });
     const prevClose = resolvedPrevClose;
     const currentPrice = isFinitePositive(meta?.regularMarketPrice) ? meta.regularMarketPrice : closes[closes.length - 1];
-    const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : null;
+    const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
     const rawVolume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : volumes[volumes.length - 1];
-    // Volume sesi berjalan adalah observasi REAL tetapi PARSIAL. Untuk Zero Dummy Policy
-    // volume tersebut ditampilkan apa adanya dan diberi flag, bukan diekstrapolasi dengan
-    // kurva intraday hipotetis untuk memengaruhi ranking/skor.
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): volume hari ini selama
+    // jam bursa masih PARSIAL - dibandingkan mentah dengan avgVolume20 (rata-rata 20
+    // hari PENUH) di bawah, volRatio (dipakai "Top Volume"/technicalScore di halaman
+    // utama) bias ke bawah sepanjang jam bursa.
+    //
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-7): hasil ekstrapolasi ini
+    // dulu MENGGANTIKAN `volume` yang dikembalikan ke UI, sehingga kartu "Top Volume" &
+    // "Top Value" di halaman publik menampilkan PROYEKSI volume sesi penuh sebagai kalau
+    // itu volume yang benar-benar sudah tertransaksi. Sekarang keduanya dipisah:
+    // `volume` = angka mentah apa adanya (untuk ditampilkan), `volumeEstimated` = versi
+    // disetahunkan-sesi (untuk perbandingan rasio yang memang butuh basis setara),
+    // plus penanda `volumeIsPartial` supaya UI bisa memberi label.
     const isPartialSession = dates[dates.length - 1] === todayDateKeyWIB() && isIdxMarketHoursNow();
     const volume = rawVolume;
+    const volumeEstimatedFullDay = isPartialSession ? estimateFullDayVolume(rawVolume) : rawVolume;
 
     const weekAgoClose = closes.length >= 6 ? closes[closes.length - 6] : closes[0];
     const weeklyChangePct = weekAgoClose ? ((currentPrice - weekAgoClose) / weekAgoClose) * 100 : 0;
@@ -183,15 +193,12 @@ async function fetchQuote(symbol: string) {
     const ma20 = sma(closes, 20);
     const ma50 = sma(closes, 50);
     const rsi14 = rsi(closes, 14);
-    const priorVolumes = volumes.slice(0, -1).slice(-20);
-    const avgVolume20 = priorVolumes.length === 20 && priorVolumes.every((v) => Number.isFinite(v) && v >= 0)
-      ? priorVolumes.reduce((a, b) => a + b, 0) / 20
-      : null;
-    // Tidak ada volume ratio live: basisnya berbeda (parsial vs EOD). Setelah sesi selesai
-    // bar observasi penuh boleh dibandingkan dengan 20 sesi sebelumnya.
-    const volRatio = !isPartialSession && avgVolume20 != null && avgVolume20 > 0
-      ? volume / avgVolume20
-      : null;
+    const avgVolume20 = volumes.length >= 20
+      ? volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
+      : (volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1));
+    // Rasio memakai volume yang SUDAH disetarakan ke sesi penuh - membandingkan volume
+    // separuh hari dengan rata-rata 20 hari PENUH bias ke bawah sepanjang jam bursa.
+    const volRatio = avgVolume20 > 0 ? volumeEstimatedFullDay / avgVolume20 : null;
 
     // Proxy "akumulasi asing berkelanjutan" - streak hari berturut-turut netValue
     // (Chaikin Money Flow: posisi close di range High-Low, bukan cuma arah harga)
@@ -220,7 +227,7 @@ async function fetchQuote(symbol: string) {
     return {
       symbol,
       price: currentPrice,
-      changePct: changePct == null ? null : parseFloat(changePct.toFixed(2)),
+      changePct: parseFloat(changePct.toFixed(2)),
       sourceTimestamp: sourceTimestampFromChart(result),
       weeklyChangePct: parseFloat(weeklyChangePct.toFixed(2)),
       // Volume & nilai transaksi APA ADANYA (temuan H-7) - kalau bursa masih buka, ini
@@ -267,12 +274,11 @@ export async function getMarketSummary() {
   // for the dedicated /market/[category] pages; dashboard cards just show the first 4.
   const LIST_CAP = 50;
 
-  const quotesWithDailyChange = quotes.filter((s) => typeof s.changePct === 'number' && Number.isFinite(s.changePct));
-  const topGainers = [...quotesWithDailyChange].sort((a, b) => b.changePct - a.changePct).slice(0, LIST_CAP).map(s => ({
+  const topGainers = [...quotes].sort((a, b) => b.changePct - a.changePct).slice(0, LIST_CAP).map(s => ({
     symbol: strip(s), changePct: s.changePct, price: s.price
   }));
 
-  const topLosers = [...quotesWithDailyChange].sort((a, b) => a.changePct - b.changePct).slice(0, LIST_CAP).map(s => ({
+  const topLosers = [...quotes].sort((a, b) => a.changePct - b.changePct).slice(0, LIST_CAP).map(s => ({
     symbol: strip(s), changePct: s.changePct, price: s.price
   }));
 
@@ -316,13 +322,13 @@ export async function getMarketSummary() {
 
   const topTechnical = [...quotes]
     .filter(s => s.technicalSignal === 'BULLISH')
-    .sort((a, b) => (b.technicalScore - a.technicalScore) || ((b.changePct ?? 0) - (a.changePct ?? 0)))
+    .sort((a, b) => (b.technicalScore - a.technicalScore) || (b.changePct - a.changePct))
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
 
   const topTechnicalBearish = [...quotes]
     .filter(s => s.technicalSignal === 'BEARISH')
-    .sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0))
+    .sort((a, b) => a.changePct - b.changePct)
     .slice(0, LIST_CAP)
     .map(s => ({ symbol: strip(s), score: s.technicalScore, changePct: s.changePct, price: s.price }));
 

@@ -3,10 +3,10 @@ import { resolvePreviousClose } from '@/shared/market/previous-close';
 export interface MarketQuote {
   symbol: string;
   price: number;
-  changePct: number | null;
+  changePct: number;
   volume: number | null;
   source: string;
-  timestamp: number | null;
+  timestamp: number;
 }
 
 export interface MarketDataProvider {
@@ -51,7 +51,7 @@ export class YahooFinanceProvider implements MarketDataProvider {
       if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
       const changePct = typeof prevClose === 'number' && prevClose > 0
         ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2))
-        : null;
+        : 0;
 
       return {
         symbol,
@@ -59,9 +59,7 @@ export class YahooFinanceProvider implements MarketDataProvider {
         changePct,
         volume: typeof meta.regularMarketVolume === 'number' ? meta.regularMarketVolume : null,
         source: 'Yahoo Finance',
-        // Missing provider timestamp harus tetap missing; memakai Date.now() akan
-        // membuat data tanpa timestamp terlihat baru/fresh padahal provenance waktunya tidak diketahui.
-        timestamp: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime * 1000 : null,
+        timestamp: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime * 1000 : Date.now(),
       };
     } catch {
       return null;
@@ -98,10 +96,10 @@ export class SecondaryRestProvider implements MarketDataProvider {
       return {
         symbol,
         price: data.price,
-        changePct: typeof data.changePct === 'number' && Number.isFinite(data.changePct) ? data.changePct : null,
+        changePct: typeof data.changePct === 'number' ? data.changePct : 0,
         volume: typeof data.volume === 'number' ? data.volume : null,
         source: 'Secondary Datafeed',
-        timestamp: typeof data.timestamp === 'number' && Number.isFinite(data.timestamp) ? data.timestamp : null,
+        timestamp: typeof data.timestamp === 'number' ? data.timestamp : Date.now(),
       };
     } catch {
       return null;

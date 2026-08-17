@@ -129,7 +129,7 @@ export const id = {
     cautionLabel: 'WASPADA',
     buyLabel: 'BUY',
     infoLabel: 'INFORMASI',
-    bandarFlow: 'Broker dominan {code}: Net {action} Rp{amount}',
+    bandarFlow: 'Bandar: Net {action} Rp{amount}',
     tpClUnavailable: 'TP/CL belum tersedia',
   },
   guide: {
@@ -472,7 +472,6 @@ export const id = {
     fScoreStrong: 'Sangat Kuat (Skor 7–9)',
     fScoreModerate: 'Normal / Stabil (Skor 4–6)',
     fScoreWeak: 'Rapuh / Waspada (Skor 0–3)',
-    dataUnavailable: 'Data belum cukup',
     zScoreTitle: 'Altman Z-Score (Distress Risk)',
     zScoreSafe: 'Zona Aman (Risiko Solvabilitas Rendah)',
     zScoreGrey: 'Zona Netral (Perlu Pemantauan)',
