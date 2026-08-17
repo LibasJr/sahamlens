@@ -44,8 +44,16 @@ jobs:
 
             console.log(`[1/2] Probing public page ${base}/home ...`);
             const pageRes = await fetchWithRetry(`${base}/home`, { headers, redirect: 'follow' });
-            if (!pageRes.ok) throw new Error(`/home HTTP ${pageRes.status}`);
-            console.log(`[PASS] /home HTTP ${pageRes.status}`);
+            const pageText = await pageRes.text();
+            if (!pageRes.ok) {
+              if (pageRes.status === 403 && (pageText.includes('Just a moment...') || pageText.includes('Cloudflare') || pageText.includes('challenge'))) {
+                console.log(`[INFO] /home HTTP 403 Cloudflare challenge dari IP runner eksternal (Cloudflare WAF aktif).`);
+              } else {
+                throw new Error(`/home HTTP ${pageRes.status}`);
+              }
+            } else {
+              console.log(`[PASS] /home HTTP ${pageRes.status}`);
+            }
 
             console.log(`[2/2] Probing ${base}/api/health ...`);
             const healthRes = await fetchWithRetry(`${base}/api/health`, { headers: { ...headers, Accept: 'application/json' } });
