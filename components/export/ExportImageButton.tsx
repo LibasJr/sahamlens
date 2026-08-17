@@ -1,8 +1,7 @@
-'use client';
-
 import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import Toast from '@/components/ui/Toast';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
 interface ExportImageButtonProps {
   targetRef: React.RefObject<HTMLElement>;
@@ -11,12 +10,15 @@ interface ExportImageButtonProps {
   disabled?: boolean;
 }
 
-// html-to-image di-import dinamis (bukan top-level) - sama pola dengan xlsx di
-// app/admin/ExportButton.tsx - supaya library screenshot tidak masuk bundle awal
-// halaman /fundamental atau /technical, cuma dimuat saat tombol ini benar-benar diklik.
-export default function ExportImageButton({ targetRef, fileName, label = 'Export Gambar', disabled }: ExportImageButtonProps) {
+export default function ExportImageButton({ targetRef, fileName, label = 'Export Infografis (Admin)', disabled }: ExportImageButtonProps) {
+  const { effectiveRole } = useAuthUser();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Fitur Export Card dikhususkan eksklusif untuk user Admin saja
+  if (effectiveRole !== 'admin') {
+    return null;
+  }
 
   const handleExport = async () => {
     if (!targetRef.current) return;
