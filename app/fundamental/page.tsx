@@ -23,6 +23,7 @@ import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
+import { QuickWatchlistStar } from '@/components/QuickWatchlistStar';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
 import { buildExportFileName } from '@/shared/format/export-filename';
@@ -501,8 +502,9 @@ function FundamentalContent() {
             {/* Ikon petir kuning identik untuk semua emiten diganti avatar per-emiten. */}
             <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
             <div>
-              <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 <h1 className="shrink-0 text-xl font-bold tracking-tight text-white font-heading sm:text-2xl">{displayTicker(stock.symbol || ticker)}.JK</h1>
+                <QuickWatchlistStar ticker={stock.symbol || ticker} />
                 <span className="min-w-0 truncate text-xs text-tv-muted font-sans font-normal sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
               </div>
               {(() => {
