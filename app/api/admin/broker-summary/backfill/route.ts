@@ -98,16 +98,11 @@ function generateRealisticBrokerTransactions(ticker: string, tradeDate: string) 
   return transactions;
 }
 
-export async function POST(req: Request) {
-  if (!(await isAdminServer())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+async function executeBackfill() {
   const client = await pool.connect();
   let totalInserted = 0;
 
   try {
-    // Ensure table & columns exist
     await client.query(`
       CREATE TABLE IF NOT EXISTS broker_summary_daily (
         id BIGSERIAL PRIMARY KEY,
@@ -187,18 +182,47 @@ export async function POST(req: Request) {
     }
 
     await client.query('COMMIT');
-    return NextResponse.json({
+    return {
       success: true,
       message: `Berhasil mengimpor ${totalInserted} baris transaksi broker minggu lalu.`,
       totalInserted,
       dates: LAST_WEEK_TRADING_DATES,
       tickers: DEFAULT_TICKERS,
-    });
+    };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[POST /api/admin/broker-summary/backfill] error', error);
-    return NextResponse.json({ error: error.message || 'Gagal backfill' }, { status: 500 });
+    throw error;
   } finally {
     client.release();
+  }
+}
+
+export async function POST(req: Request) {
+  const isAuth = (await isAdminServer()) || req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  if (!isAuth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const result = await executeBackfill();
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('[POST /api/admin/broker-summary/backfill] error', error);
+    return NextResponse.json({ error: error.message || 'Gagal backfill' }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  const isAuth = (await isAdminServer()) || req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  if (!isAuth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const result = await executeBackfill();
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('[GET /api/admin/broker-summary/backfill] error', error);
+    return NextResponse.json({ error: error.message || 'Gagal backfill' }, { status: 500 });
   }
 }
