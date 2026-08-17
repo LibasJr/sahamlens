@@ -114,45 +114,45 @@ function StockSignalRunningText({ items, advisoryEnabled }: { items: StockSignal
       {items.map((item) => {
         const label = item.flagged ? t('radar.cautionLabel') : advisoryEnabled ? t('radar.buyLabel') : t('radar.infoLabel');
         const tone = item.flagged
-          ? 'border-tv-red/30 bg-tv-red/10 text-tv-red'
+          ? 'border-tv-red/40 bg-tv-red/15 text-tv-red shadow-[0_0_12px_rgba(239,68,68,0.15)]'
           : advisoryEnabled
-            ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
-            : 'border-tv-gold/30 bg-tv-gold/10 text-tv-gold';
+            ? 'border-tv-green/40 bg-tv-green/15 text-tv-green shadow-[0_0_12px_rgba(34,197,94,0.15)]'
+            : 'border-tv-gold/40 bg-tv-gold/15 text-tv-gold shadow-[0_0_12px_rgba(234,179,8,0.15)]';
         return (
           <Link
             key={`${copy}-${item.symbol}`}
             href={`/technical/${item.symbol}`}
             tabIndex={copy === 1 ? -1 : undefined}
-            className="group/signal flex w-[280px] shrink-0 items-center gap-3 rounded-xl border border-tv-border bg-tv-card/90 px-4 py-3 transition-colors hover:border-tv-borderLight hover:bg-tv-cardAlt sm:w-[320px]"
+            className="group/signal flex w-[290px] shrink-0 items-center gap-3.5 rounded-2xl border border-tv-border bg-tv-card/95 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt hover:shadow-lg sm:w-[330px]"
           >
             <TickerAvatar symbol={item.symbol} size="md" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-number text-sm font-bold text-tv-text group-hover/signal:text-tv-blue">{item.symbol.replace('.JK', '')}</span>
-                <span className={`font-number text-[10px] font-semibold ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                <span className="font-number text-sm font-bold text-tv-text group-hover/signal:text-tv-blue transition-colors">{item.symbol.replace('.JK', '')}</span>
+                <span className={`font-number text-xs font-bold ${item.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   {item.changePct >= 0 ? '+' : ''}{item.changePct.toFixed(2)}%
                 </span>
               </div>
-              <div className="mt-1 truncate text-[10px] text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
+              <div className="mt-1 truncate text-[11px] font-medium text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
               {item.tp1 != null && item.cl1 != null ? (
-                <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number text-[10px] font-semibold leading-tight">
+                <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number text-[11px] font-bold leading-tight">
                   <span className="text-tv-green">TP1 {item.tp1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
                   <span className="text-tv-red">CL1 {item.cl1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
-                  {item.tp2 != null && <span className="text-tv-green/80">TP2 {item.tp2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
-                  {item.cl2 != null && <span className="text-tv-red/80">CL2 {item.cl2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
+                  {item.tp2 != null && <span className="text-tv-green/80 font-semibold">TP2 {item.tp2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
+                  {item.cl2 != null && <span className="text-tv-red/80 font-semibold">CL2 {item.cl2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
                 </div>
               ) : (
-                <div className="mt-1.5 text-[10px] font-medium text-tv-muted">{t('radar.tpClUnavailable')}</div>
+                <div className="mt-1.5 text-[11px] font-medium text-tv-muted">{t('radar.tpClUnavailable')}</div>
               )}
               {typeof item.brokerNetValue === 'number' && item.brokerNetValue !== 0 && (
-                <div className={`mt-1.5 text-[10px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                <div className={`mt-1.5 text-[11px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   {t('radar.bandarFlow', { action: item.brokerNetValue > 0 ? 'Buy' : 'Sell', amount: formatBrokerFlow(item.brokerNetValue) })}
                 </div>
               )}
             </div>
             <div className="shrink-0 text-right">
-              <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-bold tracking-wide ${tone}`}>{label}</span>
-              <div className="mt-1.5 font-number text-[10px] text-tv-muted">Rp {Math.round(item.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</div>
+              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${tone}`}>{label}</span>
+              <div className="mt-2 font-number text-xs font-bold text-tv-text">Rp {Math.round(item.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</div>
             </div>
           </Link>
         );
@@ -506,49 +506,52 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
 
                 {/* Hero Quick Search Bar */}
                 <form onSubmit={handleQuickSearch} className="mt-5 flex items-center gap-2 max-w-lg">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tv-muted" />
+                  <div className="relative flex-1 group">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tv-muted group-focus-within:text-tv-blue transition-colors" />
                     <input
                       type="text"
                       value={quickSearch}
                       onChange={(e) => setQuickSearch(e.target.value.toUpperCase())}
                       placeholder={t('common.searchPlaceholder')}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-tv-card/90 border border-tv-border text-tv-text placeholder:text-tv-muted/70 text-sm font-semibold focus:outline-none focus:border-tv-blue focus:ring-2 focus:ring-tv-blue/20 transition-all shadow-sm"
+                      className="w-full pl-10 pr-16 py-3 rounded-2xl bg-tv-card/95 border border-tv-border text-tv-text placeholder:text-tv-muted/70 text-sm font-semibold focus:outline-none focus:border-tv-blue focus:ring-4 focus:ring-tv-blue/15 transition-all shadow-sm"
                     />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 pointer-events-none">
+                      <kbd className="rounded-md border border-tv-border bg-tv-bg/80 px-1.5 py-0.5 font-mono text-[10px] font-bold text-tv-muted shadow-inner">Ctrl K</kbd>
+                    </div>
                   </div>
                   <button
                     type="submit"
-                    className="px-4 py-2.5 rounded-xl bg-tv-blue hover:bg-tv-blueHover text-white text-sm font-bold transition-all shadow-sm shrink-0 flex items-center gap-1.5"
+                    className="px-5 py-3 rounded-2xl bg-tv-blue hover:bg-tv-blueHover text-white text-sm font-bold transition-all duration-200 hover:shadow-lg shadow-sm shrink-0 flex items-center gap-2 active:scale-95"
                   >
                     <span>{t('common.search')}</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <ArrowRight className="h-4 w-4" />
                   </button>
                 </form>
 
                 {/* Popular Quick Ticker Chips */}
-                <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-xs text-tv-muted">
-                  <span className="text-[11px] font-medium opacity-80">{t('common.popular')}:</span>
+                <div className="mt-3 flex items-center gap-2 flex-wrap text-xs text-tv-muted">
+                  <span className="text-xs font-semibold text-tv-muted/90">{t('common.popular')}:</span>
                   {['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'BREN'].map((s) => (
                     <Link
                       key={s}
                       href={`/technical/${s}.JK`}
-                      className="px-2 py-0.5 rounded-lg bg-tv-hover border border-tv-border text-tv-text hover:border-tv-blue/50 text-[11px] font-bold font-number transition-colors"
+                      className="px-2.5 py-1 rounded-xl bg-tv-card/90 border border-tv-border text-tv-text hover:border-tv-blue/60 hover:bg-tv-blue/10 hover:text-tv-blue text-xs font-bold font-number transition-all duration-150 hover:scale-105 shadow-2xs"
                     >
                       {s}
                     </Link>
                   ))}
                 </div>
 
-                <div className="mt-5 flex flex-wrap items-center gap-3">
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     href="/home"
-                    className="rounded-lg bg-tv-blue px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-tv-blueHover shadow-sm"
+                    className="rounded-xl bg-tv-blue px-6 py-3 text-sm font-bold text-white transition-all duration-200 hover:bg-tv-blueHover hover:shadow-lg shadow-sm active:scale-95"
                   >
                     {t('common.startAnalysis')}
                   </Link>
                   <Link
                     href="/breakout-radar"
-                    className="rounded-lg border border-tv-border bg-tv-card px-5 py-2.5 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight shadow-sm"
+                    className="rounded-xl border border-tv-border bg-tv-card px-5 py-3 text-sm font-bold text-tv-text transition-all duration-200 hover:border-tv-borderLight hover:bg-tv-cardAlt shadow-sm active:scale-95"
                   >
                     {t('common.openRadar')}
                   </Link>
@@ -556,48 +559,48 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     <button
                       type="button"
                       onClick={() => setGuideOpenRequest((current) => current + 1)}
-                      className="rounded-lg border border-tv-blue/40 bg-tv-blue/10 px-4 py-2.5 text-sm font-semibold text-tv-blue transition-colors hover:bg-tv-blue/20"
+                      className="rounded-xl border border-tv-blue/40 bg-tv-blue/10 px-4 py-3 text-sm font-bold text-tv-blue transition-colors hover:bg-tv-blue/20"
                     >
                       {t('common.startHere')}
                     </button>
                   )}
                 </div>
 
-                <div className="mt-5 rounded-lg border border-tv-border/70 bg-tv-bg/35 px-3 py-2 text-[11px] leading-relaxed text-tv-muted max-w-lg">
+                <div className="mt-6 rounded-xl border border-tv-border/80 bg-tv-bg/40 px-3.5 py-2.5 text-xs leading-relaxed text-tv-muted max-w-lg">
                   {/* P-1 trust disclaimer: Alat analisis, bukan nasihat investasi */}
-                  <span className="font-semibold text-tv-text">{t('common.disclaimerShort')}</span>{' '}
+                  <span className="font-bold text-tv-text">{t('common.disclaimerShort')}</span>{' '}
                   {t('hero.disclaimerBox')}
-                  {' '}<Link href="/transparency" className="font-semibold text-tv-blue hover:underline">{t('common.transparencyLink')}</Link>
-                  {' '}·{' '}<Link href="/disclaimer" className="hover:text-tv-text hover:underline">{t('common.disclaimerLink')}</Link>
+                  {' '}<Link href="/transparency" className="font-bold text-tv-blue hover:underline">{t('common.transparencyLink')}</Link>
+                  {' '}·{' '}<Link href="/disclaimer" className="font-medium hover:text-tv-text hover:underline">{t('common.disclaimerLink')}</Link>
                 </div>
               </div>
 
               {/* Panel angka hidup - IHSG besar + jumlah emiten terpantau */}
               <div className="flex flex-col justify-between">
-                <div className="rounded-xl border border-tv-border/60 bg-tv-bg/40 p-4 sm:p-5 backdrop-blur-sm h-full flex flex-col justify-between">
+                <div className="rounded-2xl border border-tv-border/80 bg-tv-bg/50 p-5 sm:p-6 backdrop-blur-md h-full flex flex-col justify-between shadow-sm">
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-green animate-pulse" />
+                      <div className="text-xs font-bold uppercase tracking-wider text-tv-muted flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-tv-green animate-pulse" />
                         {t('hero.ihsgTitle')}
                       </div>
-                      <span className="text-[10px] text-tv-muted bg-tv-hover px-1.5 py-0.5 rounded border border-tv-border">
+                      <span className="text-[11px] font-semibold text-tv-muted bg-tv-card px-2 py-0.5 rounded-lg border border-tv-border shadow-2xs">
                         {t('hero.ihsgDelay')}
                       </span>
                     </div>
                     {ihsg ? (
                       <>
-                        <div className="mt-2 font-number text-3xl sm:text-4xl font-bold tracking-tight text-tv-text">
+                        <div className="mt-3 font-number text-3xl sm:text-4xl font-extrabold tracking-tight text-tv-text">
                           {ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
-                        <div className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
+                        <div className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                          ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green border border-tv-green/30' : 'bg-tv-red/15 text-tv-red border border-tv-red/30'
                         }`}>
-                          {ihsg.change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                          {ihsg.change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                           {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                         </div>
                         {ihsg.dataTimestamp && (
-                          <div className="mt-1.5 text-[11px] text-tv-muted">
+                          <div className="mt-2 text-xs font-medium text-tv-muted">
                             Per {new Date(ihsg.dataTimestamp).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', {
                               hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
                             })} WIB
@@ -607,7 +610,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                           </div>
                         )}
                         {ihsgFailed && (
-                          <div className="mt-1 text-[11px] font-medium text-tv-red">
+                          <div className="mt-1 text-xs font-medium text-tv-red">
                             {t('common.noData')}
                           </div>
                         )}
@@ -622,20 +625,20 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     )}
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-tv-border">
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className="mt-6 pt-5 border-t border-tv-border/80">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="font-number text-lg font-bold text-tv-text">{ACTIVE_UNIVERSE_COUNT}</div>
-                        <div className="text-[10px] text-tv-muted leading-tight">{t('hero.universeSubtitle')}</div>
+                        <div className="font-number text-xl font-bold text-tv-text">{ACTIVE_UNIVERSE_COUNT}</div>
+                        <div className="text-xs font-medium text-tv-muted leading-snug mt-0.5">{t('hero.universeSubtitle')}</div>
                       </div>
                       <div>
-                        <div className="font-number text-lg font-bold text-tv-text">
+                        <div className="font-number text-xl font-bold text-tv-text">
                           {aiPicks === null ? '—' : aiPicks.length}
                         </div>
-                        <div className="text-[10px] text-tv-muted leading-tight">{t('hero.passedSubtitle')}</div>
+                        <div className="text-xs font-medium text-tv-muted leading-snug mt-0.5">{t('hero.passedSubtitle')}</div>
                       </div>
                     </div>
-                    <p className="mt-3 text-[10px] leading-relaxed text-tv-muted">
+                    <p className="mt-3.5 text-xs leading-relaxed text-tv-muted/90">
                       {t('hero.universeDescription', { count: ACTIVE_UNIVERSE_COUNT })}
                     </p>
                   </div>
@@ -747,14 +750,14 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           ].map((m, idx) => (
             <div
               key={idx}
-              className="p-3.5 rounded-2xl bg-tv-card border border-tv-border flex items-center gap-3 shadow-1 transition-all hover:border-tv-borderLight"
+              className="p-4 rounded-2xl bg-tv-card border border-tv-border flex items-center gap-3.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt hover:shadow-md"
             >
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${m.tone}`}>
-                <m.icon className="h-4 w-4" />
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${m.tone}`}>
+                <m.icon className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <div className="font-heading text-xs sm:text-sm font-bold text-tv-text truncate">{m.title}</div>
-                <div className="text-[10px] text-tv-muted truncate">{m.subtitle}</div>
+                <div className="font-heading text-sm font-bold text-tv-text truncate">{m.title}</div>
+                <div className="text-xs font-medium text-tv-muted truncate mt-0.5">{m.subtitle}</div>
               </div>
             </div>
           ))}
@@ -769,46 +772,46 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           animate="show"
           className="mb-8"
         >
-          <div className="mb-4 flex flex-col gap-1">
-            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-tv-blue">{t('bento.tag')}</span>
-            <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-tv-text">{t('bento.title')}</h2>
-            <p className="max-w-3xl text-sm leading-relaxed text-tv-muted">
+          <div className="mb-5 flex flex-col gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-tv-blue">{t('bento.tag')}</span>
+            <h2 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-tight text-tv-text">{t('bento.title')}</h2>
+            <p className="max-w-3xl text-sm sm:text-base leading-relaxed text-tv-muted">
               {t('bento.subtitle')}
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {/* Tile 1 (Large - Featured): LensConsensus & Teknikal Pro */}
             <Link
               href="/dashboard"
-              className="group lg:col-span-2 relative overflow-hidden rounded-2xl border border-tv-border bg-tv-card p-6 shadow-1 transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt flex flex-col justify-between"
+              className="group lg:col-span-2 relative overflow-hidden rounded-3xl border border-tv-border bg-tv-card p-6 sm:p-7 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-tv-blue/40 hover:bg-tv-cardAlt hover:shadow-xl flex flex-col justify-between"
             >
               <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border text-tv-blue bg-tv-blue/10 border-tv-blue/20">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border text-tv-blue bg-tv-blue/10 border-tv-blue/30 shadow-xs">
                       <LineChart className="h-5 w-5" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-blue">{t('bento.featuredBadge')}</span>
-                      <h3 className="font-heading text-lg font-bold text-tv-text">{t('bento.technicalTitle')}</h3>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-tv-blue">{t('bento.featuredBadge')}</span>
+                      <h3 className="font-heading text-xl font-bold text-tv-text">{t('bento.technicalTitle')}</h3>
                     </div>
                   </div>
-                  <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-tv-blue/15 text-tv-blue border border-tv-blue/30">
+                  <span className="hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-bold bg-tv-blue/15 text-tv-blue border border-tv-blue/30 shadow-2xs">
                     {t('bento.consensusBadge')}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed text-tv-muted max-w-xl">
+                <p className="text-sm sm:text-[14.5px] leading-relaxed text-tv-muted/90 max-w-xl">
                   {t('bento.technicalDesc')}
                 </p>
               </div>
-              <div className="mt-5 pt-4 border-t border-tv-border/60 flex items-center justify-between">
+              <div className="mt-6 pt-4 border-t border-tv-border/70 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-semibold text-tv-muted">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-tv-green" />
+                  <CheckCircle2 className="h-4 w-4 text-tv-green" />
                   <span>{t('bento.technicalRuleBadge')}</span>
                 </div>
-                <span className="inline-flex text-xs font-bold text-tv-blue transition-colors group-hover:text-tv-text flex items-center gap-1">
-                  {t('bento.technicalAction')} <ArrowRight className="h-3 w-3" />
+                <span className="inline-flex text-xs sm:text-sm font-bold text-tv-blue transition-colors group-hover:text-tv-text flex items-center gap-1.5">
+                  {t('bento.technicalAction')} <ArrowRight className="h-4 w-4" />
                 </span>
               </div>
             </Link>
@@ -816,21 +819,21 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             {/* Tile 2: Moat Proxy & Fundamental Sehat */}
             <Link
               href="/fundamental"
-              className="group relative overflow-hidden rounded-2xl border border-tv-border bg-tv-card p-6 shadow-1 transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt flex flex-col justify-between"
+              className="group relative overflow-hidden rounded-3xl border border-tv-border bg-tv-card p-6 sm:p-7 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-tv-green/40 hover:bg-tv-cardAlt hover:shadow-xl flex flex-col justify-between"
             >
               <div>
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-tv-green bg-tv-green/10 border-tv-green/20">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border text-tv-green bg-tv-green/10 border-tv-green/30 shadow-xs">
                   <Target className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-green">{t('bento.qualityBadge')}</span>
-                <h3 className="font-heading text-lg font-bold text-tv-text mt-0.5">{t('bento.fundamentalTitle')}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-tv-muted">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-tv-green">{t('bento.qualityBadge')}</span>
+                <h3 className="font-heading text-xl font-bold text-tv-text mt-0.5">{t('bento.fundamentalTitle')}</h3>
+                <p className="mt-2 text-sm sm:text-[14.5px] leading-relaxed text-tv-muted/90">
                   {t('bento.fundamentalDesc')}
                 </p>
               </div>
-              <div className="mt-5 pt-4 border-t border-tv-border/60 flex items-center justify-between">
-                <span className="inline-flex text-xs font-bold text-tv-green transition-colors group-hover:text-tv-text flex items-center gap-1">
-                  {t('bento.fundamentalAction')} <ArrowRight className="h-3 w-3" />
+              <div className="mt-6 pt-4 border-t border-tv-border/70 flex items-center justify-between">
+                <span className="inline-flex text-xs sm:text-sm font-bold text-tv-green transition-colors group-hover:text-tv-text flex items-center gap-1.5">
+                  {t('bento.fundamentalAction')} <ArrowRight className="h-4 w-4" />
                 </span>
               </div>
             </Link>
@@ -838,19 +841,19 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             {/* Tile 3: LensScanner & Breakout Radar */}
             <Link
               href="/screener"
-              className="group relative overflow-hidden rounded-2xl border border-tv-border bg-tv-card p-5 shadow-1 transition-all duration-200 hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-cardAlt flex flex-col justify-between"
+              className="group relative overflow-hidden rounded-3xl border border-tv-border bg-tv-card p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-tv-purple/40 hover:bg-tv-cardAlt hover:shadow-xl flex flex-col justify-between"
             >
               <div>
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-tv-purple bg-tv-purple/10 border-tv-purple/20">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border text-tv-purple bg-tv-purple/10 border-tv-purple/30 shadow-xs">
                   <Filter className="h-5 w-5" />
                 </div>
-                <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.screenerTitle')}</h4>
-                <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
+                <h4 className="font-heading text-lg font-bold text-tv-text">{t('bento.screenerTitle')}</h4>
+                <p className="mt-2 text-sm leading-relaxed text-tv-muted/90">
                   {t('bento.screenerDesc')}
                 </p>
               </div>
-              <span className="mt-4 inline-flex text-xs font-bold text-tv-purple transition-colors group-hover:text-tv-text flex items-center gap-1">
-                {t('bento.screenerAction')} <ArrowRight className="h-3 w-3" />
+              <span className="mt-5 inline-flex text-xs sm:text-sm font-bold text-tv-purple transition-colors group-hover:text-tv-text flex items-center gap-1.5">
+                {t('bento.screenerAction')} <ArrowRight className="h-4 w-4" />
               </span>
             </Link>
 
