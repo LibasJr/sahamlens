@@ -14,7 +14,6 @@ import {
   Search,
   X,
   XCircle,
-  Zap,
 } from 'lucide-react';
 import type { BrokerSummaryMonitor } from '@/modules/broker-flow/service/broker-summary-monitor.service';
 import { TICKERS } from '@/lib/tickers';
@@ -56,9 +55,6 @@ function jobBadge(status: string | undefined): string {
 }
 
 export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicker }: Props) {
-  const [backfilling, setBackfilling] = useState(false);
-  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
-
   // Ticker Autocomplete Search State
   const [tickerQuery, setTickerQuery] = useState(monitor?.selectedTicker ?? '');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -92,38 +88,6 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
     setShowSuggestions(false);
   };
 
-  const handleBackfill = async () => {
-    setBackfilling(true);
-    setBackfillMsg(null);
-    try {
-      const res = await fetch('/api/admin/broker-summary/backfill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-      });
-      const text = await res.text();
-      let json: any = {};
-      try {
-        json = JSON.parse(text);
-      } catch {
-        json = { error: text.includes('DOCTYPE') ? 'Sesi admin kedaluwarsa atau server belum selesai restart' : text.slice(0, 100) };
-      }
-
-      if (res.ok && json.success) {
-        setBackfillMsg(`✓ ${json.message}`);
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        setBackfillMsg(`✗ Gagal: ${json.error || 'Terjadi kesalahan'}`);
-      }
-    } catch (err: any) {
-      setBackfillMsg(`✗ Gagal: ${err.message}`);
-    } finally {
-      setBackfilling(false);
-    }
-  };
-
   const buyers = monitor
     ? [...monitor.brokers].filter((row) => row.netValue > 0).sort((a, b) => b.netValue - a.netValue).slice(0, 5)
     : [];
@@ -141,19 +105,10 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
             <h2 className='font-heading text-xl font-bold text-white'>Monitor EOD Broker Summary & Bandarmology</h2>
           </div>
           <p className='mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted'>
-            Data resmi transaksi harian kode broker BEI (End-of-Day) yang otomatis diproses setiap hari bursa pukul 17:30 WIB. Value, volume, dan frequency tersimpan lengkap untuk analisis konsentrasi akumulasi dan distribusi bandar.
+            Data resmi transaksi harian kode broker BEI (End-of-Day) yang diolah pasca-penutupan bursa pukul 17:30 WIB. Value, volume, dan frequency tersimpan lengkap untuk analisis konsentrasi akumulasi dan distribusi bandar.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleBackfill}
-            disabled={backfilling}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-tv-purple/40 bg-tv-purple/10 px-3 py-2 text-sm font-semibold text-tv-purple transition-all hover:bg-tv-purple/20 hover:text-white disabled:opacity-50"
-          >
-            {backfilling ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-            {backfilling ? 'Mengisi Data...' : 'Isi Data Minggu Lalu'}
-          </button>
           <a
             href='/admin/broker-summary'
             className='inline-flex items-center justify-center gap-2 rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-sm font-semibold text-tv-muted transition-colors hover:text-white'
@@ -163,14 +118,6 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
           </a>
         </div>
       </div>
-
-      {backfillMsg && (
-        <div className={`mt-4 p-3 rounded-lg border text-xs font-semibold ${
-          backfillMsg.startsWith('✓') ? 'border-tv-green/30 bg-tv-green/10 text-tv-green' : 'border-tv-red/30 bg-tv-red/10 text-tv-red'
-        }`}>
-          {backfillMsg}
-        </div>
-      )}
 
       {error ? (
         <div className='mt-5 rounded-lg border border-tv-red/30 bg-tv-red/10 p-4'>
