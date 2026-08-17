@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import IntrinsicValue from '@/components/IntrinsicValue';
@@ -785,10 +786,18 @@ function FundamentalContent() {
               </div>
 
               {lockedAnalyzerCount > 0 && (
-                <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-3 py-2 text-xs text-tv-yellow">
-                  <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span>{lockedAnalyzerCount} indikator fundamental terkunci (ROA, rasio likuiditas, margin, pertumbuhan, dll).</span>
-                  <a href="/signup" onClick={() => trackSignupClick('fundamental_indicators')} className="font-bold underline underline-offset-2 hover:text-white">Daftar gratis untuk buka</a>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-3.5 py-2.5 text-xs text-tv-yellow">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span><strong>{lockedAnalyzerCount} indikator fundamental lanjutan terkunci</strong> (ROA, likuiditas, margin, EPS growth).</span>
+                  </div>
+                  <Link
+                    href="/login?next=%2Ffundamental"
+                    onClick={() => trackSignupClick('fundamental_indicators')}
+                    className="shrink-0 font-bold underline underline-offset-2 hover:text-white"
+                  >
+                    Masuk untuk membuka
+                  </Link>
                 </div>
               )}
 
@@ -813,22 +822,22 @@ function FundamentalContent() {
                     return (
                       <div key={idx} className="relative flex min-h-[104px] flex-col gap-2 overflow-hidden rounded-lg border border-tv-border bg-tv-bg p-3">
                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
-                          <a
-                            href="/signup"
+                          <Link
+                            href="/login?next=%2Ffundamental"
                             onClick={() => trackSignupClick('fundamental_indicators')}
-                            className="flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-2 py-1 text-[10px] font-bold text-tv-yellow transition-colors hover:border-tv-yellow hover:text-white"
-                            aria-label={`Daftar gratis untuk membuka indikator ${algo.label}`}
+                            className="flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-2.5 py-1 text-[10px] font-bold text-tv-yellow transition-colors hover:border-tv-yellow hover:text-white shadow-sm"
+                            aria-label={`Masuk untuk membuka indikator ${algo.label}`}
                           >
-                            <Lock className="h-3 w-3" aria-hidden="true" /> Daftar Gratis
-                          </a>
+                            <Lock className="h-3 w-3" aria-hidden="true" /> Masuk
+                          </Link>
                         </div>
-                        <div className="flex justify-between items-center text-sm blur-sm select-none" aria-hidden="true">
+                        <div className="flex justify-between items-center text-sm blur-sm select-none opacity-40" aria-hidden="true">
                           <span className="text-white font-bold">{algo.label}</span>
                           <span className="font-sans text-xs font-bold px-2 py-0.5 rounded bg-tv-yellow/20 text-tv-yellow">
                             {algo.decision}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-xs font-mono text-tv-muted blur-sm select-none" aria-hidden="true">
+                        <div className="flex justify-between items-center text-xs font-mono text-tv-muted blur-sm select-none opacity-40" aria-hidden="true">
                           <span>{algo.value}</span>
                           <span className="text-white">Conf: {algo.confidence}%</span>
                         </div>
