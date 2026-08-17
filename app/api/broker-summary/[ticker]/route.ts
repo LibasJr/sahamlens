@@ -26,16 +26,25 @@ export async function GET(
         {
           ticker,
           hasRealBrokerData: false,
+          status: 'DATA_UNAVAILABLE',
+          source: null,
           message: 'Data Broker Summary EOD belum tersedia untuk emiten ini pada tanggal bursa terakhir.',
         },
         { headers: getMarketAwareCacheHeaders() }
       );
     }
 
+    // `hasRealBrokerData` diturunkan dari provenance baris, BUKAN dari "query
+    // mengembalikan sesuatu". Sebelumnya flag ini selalu true begitu rows.length > 0,
+    // sehingga ia menyatakan klaim tentang asal data tanpa pernah memeriksa asalnya.
+    const { provenance } = brokerSummary;
+    const hasRealBrokerData = provenance.sources.length > 0 && provenance.lastImportedAt != null;
+
     return NextResponse.json(
       {
         ...brokerSummary,
-        hasRealBrokerData: true,
+        hasRealBrokerData,
+        status: hasRealBrokerData ? 'OK' : 'PROVENANCE_UNVERIFIED',
       },
       { headers: getMarketAwareCacheHeaders() }
     );
