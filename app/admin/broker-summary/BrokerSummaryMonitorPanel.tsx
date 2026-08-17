@@ -1,21 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
   Bot,
+  Building,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Database,
   RefreshCw,
   Search,
-  Sparkles,
+  X,
   XCircle,
   Zap,
 } from 'lucide-react';
 import type { BrokerSummaryMonitor } from '@/modules/broker-flow/service/broker-summary-monitor.service';
+import { TICKERS } from '@/lib/tickers';
 
 interface Props {
   monitor: BrokerSummaryMonitor | null;
@@ -56,6 +58,39 @@ function jobBadge(status: string | undefined): string {
 export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicker }: Props) {
   const [backfilling, setBackfilling] = useState(false);
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
+
+  // Ticker Autocomplete Search State
+  const [tickerQuery, setTickerQuery] = useState(monitor?.selectedTicker ?? '');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const cleanQuery = tickerQuery.trim().toUpperCase().replace('.JK', '');
+  const suggestions = cleanQuery.length >= 1
+    ? TICKERS
+        .filter((t) => !t.symbol.startsWith('^') && t.symbol !== 'IHSG')
+        .map((t) => ({
+          symbol: t.symbol.replace('.JK', ''),
+          name: t.name,
+        }))
+        .filter((t) => t.symbol.startsWith(cleanQuery) || t.name.toUpperCase().includes(cleanQuery))
+        .slice(0, 8)
+    : [];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectTicker = (symbol: string) => {
+    setTickerQuery(symbol);
+    setShowSuggestions(false);
+  };
 
   const handleBackfill = async () => {
     setBackfilling(true);
@@ -207,17 +242,82 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                   </select>
                 </label>
 
-                <label className='block text-xs font-semibold text-tv-muted' htmlFor='broker-monitor-ticker'>
-                  Filter emiten (opsional)
-                  <input
-                    id='broker-monitor-ticker'
-                    name='ticker'
-                    type='text'
-                    defaultValue={monitor.selectedTicker ?? ''}
-                    placeholder='Contoh: BBCA, BBRI, TLKM'
-                    className='mt-1.5 block w-full rounded-md border border-tv-border bg-tv-card px-3 py-2 text-sm text-white uppercase outline-none focus:border-tv-blue'
-                  />
-                </label>
+                {/* Filter Emiten dengan Autocomplete Dropdown */}
+                <div className='relative' ref={searchContainerRef}>
+                  <label className='block text-xs font-semibold text-tv-muted' htmlFor='broker-monitor-ticker'>
+                    Filter emiten (Autocomplete)
+                  </label>
+                  <div className="relative mt-1.5">
+                    <input
+                      id='broker-monitor-ticker'
+                      name='ticker'
+                      type='text'
+                      value={tickerQuery}
+                      onChange={(e) => {
+                        setTickerQuery(e.target.value.toUpperCase());
+                        setShowSuggestions(true);
+                        setActiveIndex(0);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (!showSuggestions || suggestions.length === 0) return;
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setActiveIndex((prev) => (prev + 1) % suggestions.length);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setActiveIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                        } else if (e.key === 'Enter' && showSuggestions && suggestions[activeIndex]) {
+                          e.preventDefault();
+                          handleSelectTicker(suggestions[activeIndex].symbol);
+                        } else if (e.key === 'Escape') {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      placeholder='Ketik kode/nama (mis: BBCA, BBRI)...'
+                      autoComplete='off'
+                      className='block w-full rounded-md border border-tv-border bg-tv-card px-3 py-2 text-sm text-white uppercase outline-none focus:border-tv-blue'
+                    />
+                    {tickerQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTickerQuery('');
+                          setShowSuggestions(false);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-tv-muted hover:text-white"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown Suggestions */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-tv-border bg-tv-card p-1 shadow-2xl backdrop-blur-xl">
+                      {suggestions.map((item, idx) => (
+                        <button
+                          key={item.symbol}
+                          type="button"
+                          onClick={() => handleSelectTicker(item.symbol)}
+                          className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs transition-colors ${
+                            idx === activeIndex
+                              ? 'bg-tv-blue text-white'
+                              : 'text-tv-text hover:bg-tv-hover hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold">{item.symbol}</span>
+                            <span className="truncate max-w-[280px] text-[11px] text-tv-muted">
+                              {item.name}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-tv-muted uppercase font-mono">Pilih</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type='submit'
