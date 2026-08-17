@@ -1,4 +1,6 @@
 export const TICKERS = [
+  { symbol: '^JKSE', name: 'Indeks Harga Saham Gabungan (IHSG)' },
+  { symbol: 'IHSG', name: 'Indeks Harga Saham Gabungan (^JKSE Composite Index)' },
   { symbol: '2019', name: '"PT Nusantara Almazia' },
   { symbol: 'AADI.JK', name: 'PT Adaro Andalan Indonesia Tbk' },
   { symbol: 'AALI.JK', name: 'Astra Agro Lestari Tbk.' },
