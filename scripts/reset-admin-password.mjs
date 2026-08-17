@@ -41,7 +41,8 @@ try {
        secret_hash = EXCLUDED.secret_hash,
        session_version = admin_secret.session_version + 1,
        updated_at = now()
-     RETURNING session_version`
+     RETURNING session_version`,
+    [hash],
   );
 
   console.log('\n✅ BERHASIL: Password admin telah di-reset.');
