@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Newspaper, ExternalLink } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 export interface StockNewsItem {
   title: string;
@@ -20,29 +21,40 @@ interface StockNewsModalProps {
   items: StockNewsItem[];
 }
 
-function formatWaktu(pubDate?: string): string {
+function formatWaktu(
+  pubDate: string | undefined,
+  language: 'id' | 'en',
+  t: (path: string, params?: Record<string, string | number>) => string
+): string {
   if (!pubDate) return '';
   const d = new Date(pubDate);
   if (Number.isNaN(d.getTime())) return '';
   const menit = Math.floor((Date.now() - d.getTime()) / 60_000);
-  if (menit < 60) return `${Math.max(1, menit)} menit lalu`;
-  if (menit < 1440) return `${Math.floor(menit / 60)} jam lalu`;
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (menit < 60) return t('newsPage.timeMinutesAgo', { count: Math.max(1, menit) });
+  if (menit < 1440) return t('newsPage.timeHoursAgo', { count: Math.floor(menit / 60) });
+  return d.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta',
+  });
 }
 
-/** Sentimen yang tidak dikenal diperlakukan sebagai netral - jangan sampai satu nilai
- * tak terduga dari sumber berita membuat seluruh baris gagal dirender. */
-function gayaSentimen(sentiment?: string): { label: string; kelas: string } {
-  if (sentiment === 'POSITIF') return { label: 'POSITIF', kelas: 'bg-tv-green/15 text-tv-green' };
-  if (sentiment === 'NEGATIF') return { label: 'NEGATIF', kelas: 'bg-tv-red/15 text-tv-red' };
-  return { label: 'NETRAL', kelas: 'bg-tv-hover text-tv-muted' };
+function gayaSentimen(sentiment?: string, language?: 'id' | 'en'): { label: string; kelas: string } {
+  const isEn = language === 'en';
+  if (sentiment === 'POSITIF') {
+    return { label: isEn ? 'BULLISH' : 'POSITIF', kelas: 'bg-tv-green/15 text-tv-green' };
+  }
+  if (sentiment === 'NEGATIF') {
+    return { label: isEn ? 'CAUTION' : 'NEGATIF', kelas: 'bg-tv-red/15 text-tv-red' };
+  }
+  return { label: isEn ? 'NEUTRAL' : 'NETRAL', kelas: 'bg-tv-hover text-tv-muted' };
 }
 
 export default function StockNewsModal({ open, onClose, symbol, items }: StockNewsModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const { t, language } = useLanguage();
 
-  // Escape untuk tutup + focus trap - pola sama dengan components/PaywallModal.tsx,
-  // supaya pengguna keyboard tidak "tersesat" ke elemen halaman di belakang overlay.
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,7 +104,7 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
             ref={modalRef}
             role="dialog"
             aria-modal="true"
-            aria-label={`Berita ${symbol}`}
+            aria-label={t('stockNewsModal.title', { symbol })}
             className="relative w-full max-w-lg bg-tv-bg border border-tv-border rounded-xl shadow-2 p-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -103,7 +115,7 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
             <button
               onClick={onClose}
               className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
-              aria-label="Tutup"
+              aria-label={t('stockNewsModal.close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -113,22 +125,25 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
                 <Newspaper className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-heading text-lg font-bold text-tv-text">Berita {symbol}</h3>
+                <h3 className="font-heading text-lg font-bold text-tv-text">
+                  {t('stockNewsModal.title', { symbol })}
+                </h3>
                 <p className="text-xs text-tv-muted">
-                  {items.length > 0 ? `${items.length} berita terkait` : 'Tidak ada berita terkait'}
+                  {items.length > 0
+                    ? t('stockNewsModal.subtitleCount', { count: items.length })
+                    : t('stockNewsModal.subtitleEmpty')}
                 </p>
               </div>
             </div>
 
             {items.length === 0 ? (
               <p className="text-sm text-tv-muted py-6 text-center">
-                Belum ada berita untuk saham ini. Berita disaring dari RSS berdasarkan penyebutan
-                kode dan nama perusahaan, jadi emiten yang jarang diberitakan bisa kosong.
+                {t('stockNewsModal.emptyText')}
               </p>
             ) : (
               <div className="space-y-3">
                 {items.map((n, idx) => {
-                  const s = gayaSentimen(n.sentiment);
+                  const s = gayaSentimen(n.sentiment, language);
                   return (
                     <div
                       key={n.link || `${n.title}-${idx}`}
@@ -137,8 +152,6 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${s.kelas}`}>
                         {s.label}
                       </span>
-                      {/* Tautan mati lebih membingungkan daripada teks biasa - kalau link
-                          kosong, judul tetap tampil tapi tidak bisa diklik. */}
                       {n.link ? (
                         <a
                           href={n.link}
@@ -153,7 +166,7 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
                         <p className="text-sm font-medium text-tv-text leading-snug">{n.title}</p>
                       )}
                       <p className="text-xs text-tv-muted mt-1">
-                        {[n.source, formatWaktu(n.pubDate), n.reason].filter(Boolean).join(' • ')}
+                        {[n.source, formatWaktu(n.pubDate, language, t), n.reason].filter(Boolean).join(' • ')}
                       </p>
                     </div>
                   );
@@ -162,7 +175,7 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
             )}
 
             <p className="text-[10px] text-tv-muted mt-5">
-              Sentimen dinilai otomatis dari judul berita, bukan analisis mendalam isi artikel.
+              {t('stockNewsModal.sentimentDisclaimer')}
             </p>
           </motion.div>
         </motion.div>

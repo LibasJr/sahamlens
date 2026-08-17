@@ -3,9 +3,10 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock } from 'lucide-react';
+import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock, Gauge, ArrowUpRight } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
+import { useLanguage } from '@/lib/i18n';
 
 // BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
 // 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
@@ -14,10 +15,9 @@ import { trackSignupClick } from '@/shared/analytics/product-funnel';
 // ?symbol= di URL, lalu localStorage 'last_searched_ticker' (dipakai bersama lintas
 // 3 halaman ini), baru default TLKM kalau memang belum pernah cari apa-apa.
 function DcfContent() {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const searchParams = useSearchParams();
-  // Default bukan saham bank - DCF berbasis Free Cash Flow secara sengaja tidak berlaku
-  // untuk sektor keuangan (lihat calculateDcfModel), jadi kalau default-nya bank (mis.
-  // BBCA) halaman ini akan selalu tampak kosong saat pertama dibuka.
   const [ticker, setTickerState] = useState('TLKM');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -244,12 +244,57 @@ function DcfContent() {
           )}
 
           <div className="p-4 rounded-lg bg-tv-bg border border-tv-border space-y-2">
-            <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading">Ringkasan Analisis</h4>
+            <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading">
+              {isEn ? 'Analysis Summary' : 'Ringkasan Analisis'}
+            </h4>
             <p className="text-xs text-tv-text leading-relaxed">
-              {ai.executive_summary || (loading ? 'Menghitung model DCF...' : 'Data FCF tidak tersedia untuk simbol ini (mis. sektor bank tidak memakai model DCF FCF-based).')}
+              {ai.executive_summary || (loading ? (isEn ? 'Calculating DCF model...' : 'Menghitung model DCF...') : (isEn ? 'FCF data unavailable for this symbol.' : 'Data FCF tidak tersedia untuk simbol ini (mis. sektor bank tidak memakai model DCF FCF-based).'))}
             </p>
           </div>
         </div>
+
+        {/* Reverse DCF / Implied Market Growth Card */}
+        {quant.implied_fcf_growth_pct != null && (
+          <div className="col-span-1 lg:col-span-2 bg-gradient-to-r from-tv-blue/[0.06] to-tv-card border border-tv-blue/30 rounded-lg p-5 shadow-1 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
+              <div className="flex items-center gap-2">
+                <Gauge className="w-5 h-5 text-tv-blue" />
+                <div>
+                  <h3 className="font-heading text-base font-bold text-tv-text">
+                    {isEn ? 'Reverse DCF: Market Implied FCF Growth' : 'Reverse DCF: Ekspektasi Pertumbuhan yang Di-Price-In Pasar'}
+                  </h3>
+                  <p className="text-xs text-tv-muted">
+                    {isEn
+                      ? 'The annual Free Cash Flow growth rate required over the next 5 years to justify the current market price.'
+                      : 'Laju pertumbuhan FCF tahunan yang dibutuhkan selama 5 tahun ke depan agar nilai wajar sama dengan harga pasar saat ini.'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-tv-muted block">{isEn ? 'Implied FCF Growth Rate' : 'Pertumbuhan FCF Tersirat'}</span>
+                <span className={`text-2xl font-extrabold font-number ${
+                  quant.implied_fcf_growth_pct > 15 ? 'text-tv-yellow' : quant.implied_fcf_growth_pct < 0 ? 'text-tv-red' : 'text-tv-green'
+                }`}>
+                  {quant.implied_fcf_growth_pct > 0 ? '+' : ''}{quant.implied_fcf_growth_pct}% / {isEn ? 'year' : 'tahun'}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-tv-muted leading-relaxed">
+              {quant.implied_fcf_growth_pct < 3
+                ? (isEn
+                    ? `The market currently prices in modest/conservative growth (${quant.implied_fcf_growth_pct}%/yr). If actual performance exceeds this low hurdle, there is high upside potential.`
+                    : `Pasar saat ini hanya memperhitungkan pertumbuhan sangat rendah/konservatif (${quant.implied_fcf_growth_pct}%/tahun). Jika kinerja riil melampaui ekspektasi rendah ini, terdapat potensi kenaikan harga yang menarik (Margin of Safety tinggi).`)
+                : quant.implied_fcf_growth_pct <= 12
+                ? (isEn
+                    ? `The market prices in a realistic annual growth rate of ${quant.implied_fcf_growth_pct}%/yr, broadly matching healthy corporate expansion.`
+                    : `Pasar memperhitungkan pertumbuhan wajar sebesar ${quant.implied_fcf_growth_pct}%/tahun, sejalan dengan laju ekspansi bisnis yang sehat.`)
+                : (isEn
+                    ? `The market expects aggressive growth (${quant.implied_fcf_growth_pct}%/yr). High expectations create vulnerability if quarterly earnings slow down.`
+                    : `Pasar memiliki ekspektasi pertumbuhan sangat agresif (${quant.implied_fcf_growth_pct}%/tahun). Saham ini rentan koreksi jika pertumbuhan laba melambat dari target tinggi tersebut.`)}
+            </p>
+          </div>
+        )}
       </div>
       )}
     </TickerAnalysisShell>
