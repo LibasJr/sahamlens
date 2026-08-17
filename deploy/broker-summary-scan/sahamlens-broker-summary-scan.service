@@ -1,0 +1,16 @@
+# /etc/systemd/system/sahamlens-broker-summary-scan.service
+#
+# Pengumpul Broker Summary EOD IDX & Bandarmology Flow.
+# Pola sama dengan timer systemd lain di VPS (intraday-collect/screener-scan/dividend-scan):
+# curl ke endpoint cron aplikasi dengan CRON_SECRET.
+
+[Unit]
+Description=SahamLens - Sinkronisasi EOD Broker Summary IDX
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/usr/bin/curl -sf --max-time 300 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/broker-summary-scan

@@ -20,9 +20,9 @@
     {
       "path": "/api/cron/broker-summary-scan",
       "provider": "systemd",
-      "schedule": null,
-      "scheduleStatus": "verify-server",
-      "source": "DINONAKTIFKAN 2026-08-14 atas permintaan pengguna - INDEXALPHA_API_KEY belum dikonfigurasi di VPS (job gagal tiap jalan, terlihat FAILED di panel admin) dan fiturnya belum dipakai. Timer di-disable (bukan dihapus) - lihat DEPLOYMENT.md untuk cara mengaktifkan lagi kalau INDEXALPHA_API_KEY sudah tersedia. schedule NULL sengaja - jadwal '10 19 * * *' lama sudah tidak berlaku selama timer nonaktif, jangan dianggap masih jalan."
+      "schedule": "30 17 * * 1-5",
+      "scheduleStatus": "known",
+      "source": "Diaktifkan 2026-08-17 untuk sinkronisasi EOD Broker Summary BEI & Bandarmology. Timer: deploy/broker-summary-scan/sahamlens-broker-summary-scan.timer. Jadwal: Mon..Fri 17:30 Asia/Jakarta."
     },
     {
       "path": "/api/cron/ai-pick-scan",
