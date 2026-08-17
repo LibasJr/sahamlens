@@ -563,6 +563,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 </div>
 
                 <div className="mt-5 rounded-lg border border-tv-border/70 bg-tv-bg/35 px-3 py-2 text-[11px] leading-relaxed text-tv-muted max-w-lg">
+                  {/* P-1 trust disclaimer: Alat analisis, bukan nasihat investasi */}
                   <span className="font-semibold text-tv-text">{t('common.disclaimerShort')}</span>{' '}
                   {t('hero.disclaimerBox')}
                   {' '}<Link href="/transparency" className="font-semibold text-tv-blue hover:underline">{t('common.transparencyLink')}</Link>
