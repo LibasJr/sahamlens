@@ -75,9 +75,9 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
     );
   }
 
-  const hasData = data && data.hasRealBrokerData && data.topBuyers && data.topBuyers.length > 0;
+  const hasData = data && data.hasBrokerData && data.topBuyers && data.topBuyers.length > 0;
   const comp = data?.brokerComposition;
-  const priceAnalysis = data?.bandarPriceAnalysis;
+  const priceAnalysis = data?.dominantBrokerPriceAnalysis;
   const retail = data?.retailBehavior;
 
   return (
@@ -88,13 +88,13 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
           <Building className="h-5 w-5 text-tv-purple" />
           <div>
             <h3 className="font-heading text-base font-bold text-white flex items-center gap-2">
-              {isEn ? 'IDX Broker Summary (End-of-Day)' : 'Broker Summary BEI (End-of-Day)'}
+              {isEn ? 'Broker Summary (End-of-Day)' : 'Broker Summary (End-of-Day)'}
               <span className="text-xs font-normal text-tv-muted">({cleanSymbol})</span>
             </h3>
             <p className="text-xs text-tv-muted">
               {isEn
-                ? 'Official IDX post-market broker concentration & accumulation flow.'
-                : 'Data resmi transaksi broker pasca-penutupan bursa & konsentrasi bandarmology.'}
+                ? 'External-provider broker data. Source and reconciliation status are shown below.'
+                : 'Data broker dari provider eksternal. Sumber dan status rekonsiliasi ditampilkan di bawah.'}
             </p>
           </div>
         </div>
@@ -103,26 +103,34 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
           <div className="flex items-center gap-2">
             <Badge
               variant={
-                data.bandarmologyStatus === 'BIG_ACCUMULATION' || data.bandarmologyStatus === 'NORMAL_ACCUMULATION'
+                data.brokerConcentrationStatus === 'BIG_ACCUMULATION' || data.brokerConcentrationStatus === 'NORMAL_ACCUMULATION'
                   ? 'success'
-                  : data.bandarmologyStatus === 'BIG_DISTRIBUTION' || data.bandarmologyStatus === 'NORMAL_DISTRIBUTION'
+                  : data.brokerConcentrationStatus === 'BIG_DISTRIBUTION' || data.brokerConcentrationStatus === 'NORMAL_DISTRIBUTION'
                   ? 'danger'
                   : 'neutral'
               }
             >
-              {data.bandarmologyStatus === 'BIG_ACCUMULATION'
+              {data.brokerConcentrationStatus === 'BIG_ACCUMULATION'
                 ? isEn ? 'BIG ACCUMULATION' : 'AKUMULASI MASIF'
-                : data.bandarmologyStatus === 'NORMAL_ACCUMULATION'
+                : data.brokerConcentrationStatus === 'NORMAL_ACCUMULATION'
                 ? isEn ? 'ACCUMULATION' : 'AKUMULASI'
-                : data.bandarmologyStatus === 'BIG_DISTRIBUTION'
+                : data.brokerConcentrationStatus === 'BIG_DISTRIBUTION'
                 ? isEn ? 'BIG DISTRIBUTION' : 'DISTRIBUSI MASIF'
-                : data.bandarmologyStatus === 'NORMAL_DISTRIBUTION'
+                : data.brokerConcentrationStatus === 'NORMAL_DISTRIBUTION'
                 ? isEn ? 'DISTRIBUTION' : 'DISTRIBUSI'
                 : isEn ? 'NEUTRAL' : 'NETRAL'}
             </Badge>
           </div>
         )}
       </div>
+
+      {hasData && data.provenance && (
+        <div className="rounded-lg border border-tv-border bg-tv-bg/60 px-3 py-2 text-[11px] text-tv-muted">
+          Sumber: <span className="font-semibold text-tv-text">{data.provenance.source}</span>
+          {' · '}Import: {data.provenance.importedAt ? new Date(data.provenance.importedAt).toLocaleString(language === 'id' ? 'id-ID' : 'en-US') : 'N/A'}
+          {' · '}Status: <span className="font-semibold text-tv-yellow">provider eksternal, belum direkonsiliasi dengan sumber primer</span>
+        </div>
+      )}
 
       {hasData ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -131,7 +139,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
             {/* Narrative Summary */}
             <div className="p-3 rounded-xl bg-tv-bg/70 border border-tv-border flex items-start gap-2.5 text-xs text-tv-text leading-relaxed">
               <Zap className="h-4 w-4 text-tv-yellow shrink-0 mt-0.5" />
-              <p>{data.bandarmologyNarrative}</p>
+              <p>{data.brokerConcentrationNarrative}</p>
             </div>
 
             {/* Top 5 Buyers vs Top 5 Sellers Table */}
@@ -157,12 +165,12 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                             ? 'bg-tv-gold/20 text-tv-gold border border-tv-gold/40'
                             : b.brokerCategory === 'RETAIL'
                             ? 'bg-tv-muted/20 text-tv-muted'
-                            : 'bg-tv-blue/20 text-tv-blue border border-tv-blue/40'
+                            : 'bg-tv-card text-tv-muted border border-tv-border'
                         }`}>
                           {b.brokerCode}
                         </span>
                         <span className="text-[10px] text-tv-muted">
-                          {b.brokerCategory === 'FOREIGN' ? 'Asing' : b.brokerCategory === 'RETAIL' ? 'Ritel' : 'Inst.'}
+                          {b.brokerCategory === 'FOREIGN' ? 'Asing*' : b.brokerCategory === 'RETAIL' ? 'Ritel*' : 'Unknown'}
                         </span>
                       </div>
                       <div className="text-right font-number">
@@ -197,12 +205,12 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                             ? 'bg-tv-gold/20 text-tv-gold border border-tv-gold/40'
                             : s.brokerCategory === 'RETAIL'
                             ? 'bg-tv-muted/20 text-tv-muted'
-                            : 'bg-tv-blue/20 text-tv-blue border border-tv-blue/40'
+                            : 'bg-tv-card text-tv-muted border border-tv-border'
                         }`}>
                           {s.brokerCode}
                         </span>
                         <span className="text-[10px] text-tv-muted">
-                          {s.brokerCategory === 'FOREIGN' ? 'Asing' : s.brokerCategory === 'RETAIL' ? 'Ritel' : 'Inst.'}
+                          {s.brokerCategory === 'FOREIGN' ? 'Asing*' : s.brokerCategory === 'RETAIL' ? 'Ritel*' : 'Unknown'}
                         </span>
                       </div>
                       <div className="text-right font-number">
@@ -251,15 +259,15 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                   {/* Multi-segment Bar */}
                   <div className="h-2 w-full rounded-full bg-tv-bg flex overflow-hidden">
                     <div style={{ width: `${comp.foreign?.pct || 0}%` }} className="bg-tv-gold" title={`Asing: ${comp.foreign?.pct}%`} />
-                    <div style={{ width: `${comp.domesticInst?.pct || 0}%` }} className="bg-tv-blue" title={`Domestik Inst: ${comp.domesticInst?.pct}%`} />
-                    <div style={{ width: `${comp.retail?.pct || 0}%` }} className="bg-tv-muted" title={`Ritel: ${comp.retail?.pct}%`} />
+                    <div style={{ width: `${comp.retail?.pct || 0}%` }} className="bg-tv-muted" title={`Ritel*: ${comp.retail?.pct}%`} />
+                    <div style={{ width: `${comp.unknown?.pct || 0}%` }} className="bg-tv-borderLight" title={`Belum terklasifikasi: ${comp.unknown?.pct}%`} />
                   </div>
 
                   {/* Legends */}
-                  <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
                     <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
                       <div className="flex items-center justify-center gap-1 text-[10px] text-tv-gold font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-gold" /> Asing ({comp.foreign?.pct}%)
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-gold" /> Asing* ({comp.foreign?.pct}%)
                       </div>
                       <div className={`font-number font-bold mt-1 text-[10px] ${
                         comp.foreign?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
@@ -270,18 +278,14 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
 
                     <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
                       <div className="flex items-center justify-center gap-1 text-[10px] text-tv-blue font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-blue" /> Institusi ({comp.domesticInst?.pct}%)
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-blue" /> Institusi domestik
                       </div>
-                      <div className={`font-number font-bold mt-1 text-[10px] ${
-                        comp.domesticInst?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
-                      }`}>
-                        {comp.domesticInst?.netValue >= 0 ? '+' : ''}{compactIdr(comp.domesticInst?.netValue || 0)}
-                      </div>
+                      <div className="font-number font-bold mt-1 text-[10px] text-tv-muted">N/A</div>
                     </div>
 
                     <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
                       <div className="flex items-center justify-center gap-1 text-[10px] text-tv-muted font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-muted" /> Ritel ({comp.retail?.pct}%)
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-muted" /> Ritel* ({comp.retail?.pct}%)
                       </div>
                       <div className={`font-number font-bold mt-1 text-[10px] ${
                         comp.retail?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
@@ -289,47 +293,44 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                         {comp.retail?.netValue >= 0 ? '+' : ''}{compactIdr(comp.retail?.netValue || 0)}
                       </div>
                     </div>
+                    <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
+                      <div className="flex items-center justify-center gap-1 text-[10px] text-tv-muted font-semibold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-borderLight" /> Unknown ({comp.unknown?.pct || 0}%)
+                      </div>
+                      <div className="font-number font-bold mt-1 text-[10px] text-tv-muted">
+                        {compactIdr(comp.unknown?.netValue || 0)}
+                      </div>
+                    </div>
                   </div>
+                  <p className="text-[10px] text-tv-muted leading-relaxed">
+                    * Klasifikasi Asing/Ritel berasal dari mapping internal kode broker. Institusi domestik belum dipetakan dan ditampilkan N/A; coverage terklasifikasi {comp.classifiedCoveragePct ?? 0}%.
+                  </p>
                 </div>
               )}
             </div>
 
-            {/* 2. Analisis Posisi Harga Bandar (Bandar Average Price) */}
-            {priceAnalysis && priceAnalysis.bandarAvgBuyPrice && (
+            {/* 2. Harga rata-rata broker dominan */}
+            {priceAnalysis && (priceAnalysis.dominantBuyerAvgPrice != null || priceAnalysis.dominantSellerAvgPrice != null) && (
               <div className="p-3.5 rounded-xl bg-tv-bg/60 border border-tv-border space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                     <Target className="h-4 w-4 text-tv-purple" />
-                    <span>Posisi Harga Serap Bandar</span>
+                    <span>Harga Rata-rata Broker Dominan</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    priceAnalysis.priceZone === 'DISCOUNT_ZONE'
-                      ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
-                      : priceAnalysis.priceZone === 'ACCUMULATION_ZONE'
-                      ? 'bg-tv-blue/20 text-tv-blue border border-tv-blue/30'
-                      : 'bg-tv-yellow/20 text-tv-yellow border border-tv-yellow/30'
-                  }`}>
-                    {priceAnalysis.priceZone === 'DISCOUNT_ZONE'
-                      ? 'Area Diskon (< Avg)'
-                      : priceAnalysis.priceZone === 'ACCUMULATION_ZONE'
-                      ? 'Area Serap Bandar'
-                      : 'Area Markup (> Avg)'}
-                  </span>
+                  <span className="text-[10px] text-tv-muted">Top 3 net broker</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-2.5 rounded-lg bg-tv-card/60 border border-tv-border">
-                    <span className="text-[10px] text-tv-muted block">Rata-rata Beli Bandar</span>
+                    <span className="text-[10px] text-tv-muted block">Rata-rata Beli Broker Dominan</span>
                     <span className="font-number font-bold text-sm text-tv-green mt-0.5 block">
-                      Rp {priceAnalysis.bandarAvgBuyPrice.toLocaleString('id-ID')}
+                      {priceAnalysis.dominantBuyerAvgPrice != null ? `Rp ${priceAnalysis.dominantBuyerAvgPrice.toLocaleString('id-ID')}` : 'N/A'}
                     </span>
                   </div>
                   <div className="p-2.5 rounded-lg bg-tv-card/60 border border-tv-border">
-                    <span className="text-[10px] text-tv-muted block">Deviasi dari Avg Bandar</span>
-                    <span className={`font-number font-bold text-sm mt-0.5 block ${
-                      priceAnalysis.bandarPriceDiffPct >= 0 ? 'text-tv-green' : 'text-tv-red'
-                    }`}>
-                      {priceAnalysis.bandarPriceDiffPct >= 0 ? '+' : ''}{priceAnalysis.bandarPriceDiffPct}%
+                    <span className="text-[10px] text-tv-muted block">Rata-rata Jual Broker Dominan</span>
+                    <span className="font-number font-bold text-sm mt-0.5 block text-tv-red">
+                      {priceAnalysis.dominantSellerAvgPrice != null ? `Rp ${priceAnalysis.dominantSellerAvgPrice.toLocaleString('id-ID')}` : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -342,7 +343,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                     <Users className="h-4 w-4 text-tv-gold" />
-                    <span>Dinamika Smart Money vs Ritel</span>
+                    <span>Arus Broker Terklasifikasi vs Ritel*</span>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                     retail.status === 'PANIC_SELLING'
@@ -352,10 +353,10 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                       : 'bg-tv-muted/20 text-tv-muted'
                   }`}>
                     {retail.status === 'PANIC_SELLING'
-                      ? 'Retail Selling (Diserap Bandar)'
+                      ? 'Ritel* Net Sell'
                       : retail.status === 'FOMO_BUYING'
-                      ? 'Retail FOMO (Distribusi)'
-                      : 'Normal Flow'}
+                      ? 'Ritel* Net Buy'
+                      : retail.status === 'UNAVAILABLE' ? 'Data Klasifikasi Terbatas' : 'Normal Flow'}
                   </span>
                 </div>
                 <p className="text-[11px] text-tv-muted leading-relaxed">
@@ -369,12 +370,12 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
         <div className="p-6 rounded-xl bg-tv-bg/50 border border-tv-border text-center space-y-2">
           <Clock className="h-6 w-6 text-tv-muted mx-auto" />
           <h4 className="font-bold text-sm text-tv-text">
-            {isEn ? 'Broker Summary End-of-Day Available Post-Market' : 'Broker Summary EOD Dirilis Pasca-Penutupan Bursa'}
+            {isEn ? 'Broker Summary unavailable' : 'Broker Summary belum tersedia'}
           </h4>
           <p className="text-xs text-tv-muted max-w-md mx-auto leading-relaxed">
             {isEn
-              ? 'In accordance with IDX post-2021 regulations, official broker transaction details are compiled and refreshed daily at 17:30 WIB.'
-              : 'Sesuai regulasi penutupan kode broker BEI, data transaksi broker harian diolah dan diperbarui setiap sore hari bursa pukul 17:30 WIB.'}
+              ? 'No broker rows from an allowed provenance source are available for this ticker.'
+              : 'Belum ada baris broker dari sumber provenance yang diizinkan untuk emiten ini. Data berlabel sumber historis yang tercemar tidak ditampilkan.'}
           </p>
         </div>
       )}

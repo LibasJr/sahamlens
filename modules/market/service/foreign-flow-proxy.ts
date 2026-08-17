@@ -52,39 +52,43 @@ export function computeAccumulationStreak(daily: DailyFlowPoint[]): number {
   return streak;
 }
 
-export type BandarmologyStatus = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+export type BandarmologyStatus = 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'UNAVAILABLE';
 export interface BandarmologyResult {
   status: BandarmologyStatus;
-  cmf20: number;
-  clv: number;
-  netPressurePct: number;
+  cmf20: number | null;
+  clv: number | null;
+  netPressurePct: number | null;
 }
 
 /** Chaikin Money Flow 20 hari - rata-rata MFM dibobot volume, persen -100 s/d +100.
  * Beda dari netValueBillion (yang sudah dikali harga jadi "nilai Rupiah"): CMF murni
  * rasio volume, jadi bisa dibandingkan antar saham beda harga/market cap. */
-function chaikinMoneyFlow20(history: OhlcvPoint[]): number {
+function chaikinMoneyFlow20(history: OhlcvPoint[]): number | null {
   const window = history.slice(-20);
-  if (window.length === 0) return 0;
+  if (window.length === 0) return null;
   let mfvSum = 0;
   let volSum = 0;
   for (const h of window) {
     mfvSum += moneyFlowMultiplier(h.high, h.low, h.close) * h.volume;
     volSum += h.volume;
   }
-  return volSum > 0 ? (mfvSum / volSum) * 100 : 0;
+  return volSum > 0 ? (mfvSum / volSum) * 100 : null;
 }
 
 /** Klasifikasi BULLISH/BEARISH/NEUTRAL dari CMF 20 hari + CLV hari terakhir. Ambang
  * 20/-20 untuk CMF dan 0.6/0.4 untuk CLV adalah standar industri (indikator Chaikin). */
 export function analyzeBandarmology(history: OhlcvPoint[]): BandarmologyResult {
   if (history.length === 0) {
-    return { status: 'NEUTRAL', cmf20: 0, clv: 0.5, netPressurePct: 0 };
+    return { status: 'UNAVAILABLE', cmf20: null, clv: null, netPressurePct: null };
   }
   const last = history[history.length - 1];
   const clv = closeLocationValue(last.high, last.low, last.close);
   const cmf20 = chaikinMoneyFlow20(history);
   const netPressurePct = (2 * clv - 1) * 100;
+
+  if (cmf20 == null) {
+    return { status: 'UNAVAILABLE', cmf20: null, clv: null, netPressurePct: null };
+  }
 
   let status: BandarmologyStatus = 'NEUTRAL';
   if (cmf20 > 20 && clv > 0.6) status = 'BULLISH';
@@ -100,26 +104,26 @@ export function analyzeBandarmology(history: OhlcvPoint[]): BandarmologyResult {
 
 export type AccumulationStatus = 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL';
 export interface AccumulationSignal {
-  status: AccumulationStatus;
+  status: AccumulationStatus | null;
   /** true kalau lolos SEMUA syarat (bukan cuma 1) - dipakai gantikan cek lama
    * "3 hari netValue positif berturut-turut" yang gampang lolos meski sinyalnya lemah. */
   confirmed: boolean;
-  cmf20: number;
-  avgMfm3D: number;
-  volRatio: number;
+  cmf20: number | null;
+  avgMfm3D: number | null;
+  volRatio: number | null;
   /** Proporsi hari dengan MFM > 0 dalam 20 hari terakhir, 0-1. Ukuran PERSISTENSI yang
    * stabil - lihat catatan P1-9 di bawah. `null` kalau jendelanya belum penuh 20 bar. */
   mfmPositiveRatio20: number | null;
   /** Rata-rata volume relatif 5 hari terakhir terhadap rata-rata 20 hari. Menggantikan
    * gerbang volume SATU HARI yang membuat status melompat-lompat (P1-9). */
-  volRatio5D: number;
+  volRatio5D: number | null;
 }
 
 /** Rata-rata volume `n` hari terakhir dibagi rata-rata 20 hari. */
-function recentVolumeRatio(window20: OhlcvPoint[], n: number): number {
-  if (window20.length === 0) return 1;
+function recentVolumeRatio(window20: OhlcvPoint[], n: number): number | null {
+  if (window20.length === 0) return null;
   const avg20 = window20.reduce((s, h) => s + h.volume, 0) / window20.length;
-  if (avg20 <= 0) return 1;
+  if (avg20 <= 0) return null;
   const recent = window20.slice(-n);
   const avgRecent = recent.reduce((s, h) => s + h.volume, 0) / recent.length;
   return avgRecent / avg20;
@@ -152,8 +156,8 @@ function recentVolumeRatio(window20: OhlcvPoint[], n: number): number {
 export function analyzeAccumulationSignal(history: OhlcvPoint[]): AccumulationSignal {
   if (history.length < 3) {
     return {
-      status: 'NETRAL', confirmed: false, cmf20: 0, avgMfm3D: 0, volRatio: 1,
-      mfmPositiveRatio20: null, volRatio5D: 1,
+      status: null, confirmed: false, cmf20: null, avgMfm3D: null, volRatio: null,
+      mfmPositiveRatio20: null, volRatio5D: null,
     };
   }
   const window20 = history.slice(-20);
@@ -161,10 +165,10 @@ export function analyzeAccumulationSignal(history: OhlcvPoint[]): AccumulationSi
   const last3 = window20.slice(-3);
   const avgVol20 = window20.reduce((s, h) => s + h.volume, 0) / window20.length;
   const lastDay = history[history.length - 1];
-  const volRatio = avgVol20 > 0 ? lastDay.volume / avgVol20 : 1;
+  const volRatio = avgVol20 > 0 ? lastDay.volume / avgVol20 : null;
   const volRatio5D = recentVolumeRatio(window20, Math.min(5, window20.length));
   const mfmSum3D = last3.reduce((s, h) => s + moneyFlowMultiplier(h.high, h.low, h.close), 0);
-  const volConfirmed = volRatio5D > 1.2;
+  const volConfirmed = volRatio5D != null && volRatio5D > 1.2;
 
   const mfmPositiveRatio20 =
     window20.length >= 20
@@ -172,14 +176,14 @@ export function analyzeAccumulationSignal(history: OhlcvPoint[]): AccumulationSi
       : null;
 
   const bullish = [
-    cmf20 > 15,
+    cmf20 != null && cmf20 > 15,
     last3.every((h) => moneyFlowMultiplier(h.high, h.low, h.close) > 0 && closeLocationValue(h.high, h.low, h.close) > 0.6),
     volConfirmed,
     mfmSum3D > 0.5,
   ].every(Boolean);
 
   const bearish = [
-    cmf20 < -15,
+    cmf20 != null && cmf20 < -15,
     last3.every((h) => moneyFlowMultiplier(h.high, h.low, h.close) < 0 && closeLocationValue(h.high, h.low, h.close) < 0.4),
     volConfirmed,
     mfmSum3D < -0.5,
@@ -192,10 +196,10 @@ export function analyzeAccumulationSignal(history: OhlcvPoint[]): AccumulationSi
   return {
     status,
     confirmed: bullish || bearish,
-    cmf20: parseFloat(cmf20.toFixed(1)),
+    cmf20: cmf20 == null ? null : parseFloat(cmf20.toFixed(1)),
     avgMfm3D: parseFloat((mfmSum3D / 3).toFixed(2)),
-    volRatio: parseFloat(volRatio.toFixed(2)),
+    volRatio: volRatio == null ? null : parseFloat(volRatio.toFixed(2)),
     mfmPositiveRatio20: mfmPositiveRatio20 == null ? null : parseFloat(mfmPositiveRatio20.toFixed(3)),
-    volRatio5D: parseFloat(volRatio5D.toFixed(2)),
+    volRatio5D: volRatio5D == null ? null : parseFloat(volRatio5D.toFixed(2)),
   };
 }

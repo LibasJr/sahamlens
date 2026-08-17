@@ -21,8 +21,8 @@
       "path": "/api/cron/broker-summary-scan",
       "provider": "systemd",
       "schedule": "30 17 * * 1-5",
-      "scheduleStatus": "known",
-      "source": "Diaktifkan 2026-08-17 untuk sinkronisasi EOD Broker Summary BEI & Bandarmology. Timer: deploy/broker-summary-scan/sahamlens-broker-summary-scan.timer. Jadwal: Mon..Fri 17:30 Asia/Jakarta."
+      "scheduleStatus": "verify-server",
+      "source": "Repo memiliki timer Mon..Fri 17:30 Asia/Jakarta untuk sinkronisasi provider eksternal INDEX_ALPHA_API. Status runtime VPS BELUM diverifikasi ulang setelah insiden 2026-08-17. Jangan menyebut data ini feed resmi BEI; jalur publik hanya menerima source INDEX_ALPHA_API dan menandainya KNOWN_EXTERNAL_PROVIDER_UNRECONCILED sampai ada rekonsiliasi sumber primer."
     },
     {
       "path": "/api/cron/ai-pick-scan",
