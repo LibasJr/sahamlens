@@ -12,8 +12,9 @@ import {
   LineData,
   Time,
 } from 'lightweight-charts';
-import { Eye, EyeOff, Maximize2, RotateCcw, BarChart2 } from 'lucide-react';
+import { Eye, EyeOff, Maximize2, RotateCcw, BarChart2, Layers } from 'lucide-react';
 import { formatRupiah } from '@/shared/config/pricing';
+import { computeVolumeProfile, type VolumeProfileResult } from '@/lib/utils/volume-profile';
 
 export interface RawCandle {
   date?: string | number | Date;
@@ -67,7 +68,13 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   const [showEMA50, setShowEMA50] = useState(true);
   const [showEMA200, setShowEMA200] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
+  const [showVPVR, setShowVPVR] = useState(true);
   const [activeRange, setActiveRange] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M');
+
+  // Compute Volume Profile
+  const volumeProfile = useMemo(() => {
+    return computeVolumeProfile(candles || [], 20);
+  }, [candles]);
 
   // Crosshair live status
   const [hoverData, setHoverData] = useState<{
@@ -449,6 +456,19 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
             <button
               type="button"
+              onClick={() => setShowVPVR(!showVPVR)}
+              title="Toggle Volume Profile (VPVR & POC)"
+              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+                showVPVR
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
+                  : 'bg-white/[0.02] text-tv-muted/40 line-through'
+              }`}
+            >
+              VPVR / POC
+            </button>
+
+            <button
+              type="button"
               onClick={() => setShowVolume(!showVolume)}
               title="Toggle Volume Bar"
               className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
@@ -487,6 +507,19 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
           </button>
         </div>
       </div>
+
+      {/* Floating VPVR / POC Legend Badge */}
+      {showVPVR && volumeProfile && (
+        <div className="absolute top-12 left-4 z-10 flex items-center gap-2 flex-wrap pointer-events-none">
+          <div className="flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 text-[10px] font-number text-amber-300 shadow-md">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <span>POC (Point of Control): <strong>Rp {volumeProfile.pocPrice.toLocaleString('id-ID')}</strong></span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur-md px-2 py-1 border border-white/[0.08] text-[10px] font-number text-tv-muted">
+            <span>Value Area (70% Vol): <strong className="text-white">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
+          </div>
+        </div>
+      )}
 
       {/* Chart Canvas Area */}
       <div ref={chartContainerRef} className="h-[420px] w-full" />

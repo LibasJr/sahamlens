@@ -20,6 +20,8 @@ import {
   calculateScore,
   calculateConsensus,
 } from '@/modules/technical';
+import { calculateWilderAtr } from '@/modules/technical/service/atr';
+import { buildLongTradingSetup } from '@/modules/recommendation/service/trading-setup';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
@@ -588,9 +590,28 @@ export async function GET(
 
     const dataIntegrity = await getLatestMarketIntegrity(ticker);
 
+    const atrVal = calculateWilderAtr(analyzerHistory.map((h: any) => ({
+      High: h.High,
+      Low: h.Low,
+      Close: h.Close,
+    })));
+    const tradeSetup = buildLongTradingSetup(
+      analyzerHistory.map((h: any) => ({
+        date: h.Date.split('T')[0],
+        open: h.Open,
+        high: h.High,
+        low: h.Low,
+        close: h.Close,
+        volume: h.Volume,
+      })),
+      currentPrice,
+      atrVal
+    );
+
     const resultPayload = {
       ticker,
       price: currentPrice,
+      tradeSetup,
       // BARU (2026-08-14) - untuk badge Blue-chip/Small-cap di halaman Technical.
       // Likuiditas (ADV20) TIDAK diulang di sini - sudah ada di eligibility.details.adv20Idr
       // di bawah, satu sumber, bukan disalin dua kali dalam satu payload yang sama.

@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import OwnershipFlowCard from '@/components/ownership-flow/OwnershipFlowCard';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
+import { PositionSizingCalculator } from '@/components/PositionSizingCalculator';
 import AlgoFilters from '@/components/AlgoFilters';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
 import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
@@ -1606,6 +1607,15 @@ function DashboardContent() {
 
               <div className="w-full space-y-4">
                 <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+                {data?.stock?.current_price && (
+                  <PositionSizingCalculator
+                    ticker={ticker}
+                    entryPrice={data?.tradeSetup?.entryPrice ?? data?.stock?.current_price}
+                    cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find(a => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
+                    takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find(a => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
+                    takeProfit2Price={data?.tradeSetup?.takeProfit2 ?? (data?.stock?.current_price * 1.15)}
+                  />
+                )}
                 <AlgoFilters
                   analyzers={analyzers}
                   sortByConfidence={sortByConfidence}
@@ -1620,6 +1630,15 @@ function DashboardContent() {
           ) : (
             <div className="w-full space-y-4">
               <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+              {data?.stock?.current_price && (
+                <PositionSizingCalculator
+                  ticker={ticker}
+                  entryPrice={data?.tradeSetup?.entryPrice ?? data?.stock?.current_price}
+                  cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find(a => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
+                  takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find(a => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
+                  takeProfit2Price={data?.tradeSetup?.takeProfit2 ?? (data?.stock?.current_price * 1.15)}
+                />
+              )}
               <button
                 type="button"
                 onClick={() => changeViewMode('full')}
