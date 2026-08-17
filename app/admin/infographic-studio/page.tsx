@@ -69,43 +69,51 @@ export default function InfographicStudioPage() {
     setLoading(true);
     setActiveTicker(cleanSym);
     try {
-      // Parallel fetch realtime live price & fundamental profile
-      const [liveRes, fundRes] = await Promise.all([
-        fetch(`/api/live/${cleanSym}.JK`).then((r) => r.json()).catch(() => null),
+      // Parallel fetch 100% Realtime technical calculation & fundamental profile from SahamLens
+      const [stockRes, fundRes] = await Promise.all([
+        fetch(`/api/stock/${cleanSym}.JK`).then((r) => r.json()).catch(() => null),
         fetch(`/api/fundamental?symbol=${cleanSym}.JK`).then((r) => r.json()).catch(() => null),
       ]);
 
-      const stockPrice = liveRes?.price || 10250;
-      const changePct = liveRes?.changePercent || 0.74;
+      const stockPrice = stockRes?.price ?? fundRes?.stock?.current_price ?? 0;
+      const changePct = stockRes?.stock?.change_pct ?? fundRes?.stock?.change_pct ?? null;
+
+      const rsiRaw = stockRes?.scoring?.rsi ?? stockRes?.analyzers?.find((a: any) => a.label?.includes('RSI'))?.raw?.rsi;
 
       const combinedData = {
         symbol: `${cleanSym}.JK`,
         stock: {
           symbol: `${cleanSym}.JK`,
-          name: fundRes?.stock?.name || fundRes?.profile?.name || `${cleanSym} Tbk`,
+          name: fundRes?.stock?.name || fundRes?.profile?.name || stockRes?.stock?.name || `${cleanSym} Tbk`,
           current_price: stockPrice,
           change_pct: changePct,
+          volume: stockRes?.stock?.volume ?? null,
+          history: stockRes?.stock?.history ?? [],
         },
-        fundamentals: fundRes?.fundamentals || {
-          marketCap: 1250000000000000,
-          trailingPE: 21.4,
-          priceToBook: 4.8,
-          returnOnEquity: 0.224,
-          nim: 0.057,
-          grossMargins: 0.76,
-          totalRevenue: 104000000000000,
+        technical: {
+          ma20: stockRes?.scoring?.ma20 ?? null,
+          ma50: stockRes?.scoring?.ma50 ?? null,
+          ma200: stockRes?.scoring?.ma200 ?? null,
+          rsi: typeof rsiRaw === 'number' ? rsiRaw : null,
+          macdLine: stockRes?.scoring?.macdLine ?? null,
+          macdSignal: stockRes?.scoring?.macdSignal ?? null,
+          macdHist: stockRes?.scoring?.macdHist ?? null,
+          volAvg20: stockRes?.scoring?.volAvg20 ?? null,
+          tradeSetup: stockRes?.tradeSetup ?? null,
         },
+        scoring: stockRes?.scoring ?? null,
+        fundamentals: fundRes?.fundamentals || {},
         profile: fundRes?.profile || {
-          sector: 'Financial Services',
-          industry: 'Commercial Banking',
-          description: `${cleanSym} adalah salah satu emiten terkemuka di Bursa Efek Indonesia dengan fundamental keuangan dan jaringan nasabah yang sangat kuat.`,
-          website: `${cleanSym.toLowerCase()}.co.id`,
+          sector: stockRes?.scoring?.sector?.yahooSector || 'IDX',
+          industry: stockRes?.scoring?.sector?.yahooIndustry || 'IDX Stock',
+          description: '',
+          website: '',
         },
-        consensus: 'STRONG QUALITY • MOAT LEADER',
+        consensus: stockRes?.consensus || (stockRes?.scoring?.totalScore && stockRes.scoring.totalScore >= 80 ? 'STRONG BUY' : 'HOLD'),
       };
 
       setData(combinedData);
-      showToast(`Data untuk ${cleanSym} berhasil dimuat!`, 'success');
+      showToast(`Data riil ${cleanSym} berhasil dimuat!`, 'success');
     } catch (err) {
       console.error('Fetch error:', err);
       showToast(`Gagal memuat data emiten ${cleanSym}`, 'error');
@@ -314,6 +322,8 @@ export default function InfographicStudioPage() {
                   <FundamentalExportCard
                     ticker={data.symbol}
                     stock={data.stock}
+                    technical={data.technical}
+                    scoring={data.scoring}
                     fundamentals={data.fundamentals}
                     profile={data.profile}
                     consensus={data.consensus}
