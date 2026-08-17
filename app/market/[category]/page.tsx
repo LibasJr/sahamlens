@@ -117,7 +117,7 @@ export default function MarketCategoryPage() {
           <div className="flex items-center gap-2.5">
             {/* next/image, bukan <img>: berkasnya 263 KB dan dulu dikirim utuh untuk
                 kotak 32 piksel. Optimizer melayaninya 1,1 KB WebP. */}
-            <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} className="h-8 w-8 rounded-full object-cover" priority />
+            <Image src="/sahamlens-scope.png" alt="SahamLens" width={32} height={32} className="h-8 w-8 rounded-xl object-contain shadow-sm" priority />
             <span className="font-bold text-[15px] tracking-tight font-heading">SahamLens</span>
           </div>
         </div>
