@@ -33,6 +33,7 @@ import { fadeUp, staggerContainer } from '@/lib/motion';
 
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
+import { isMarketOpen, getMarketStatus } from '@/lib/utils/market';
 
 
 const PromoUpgradeModal = dynamic(() => import('@/components/PromoUpgradeModal'), { ssr: false });
@@ -774,7 +775,11 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4 text-tv-gold" />
               <CardTitle>Peluang Hari Ini</CardTitle>
-              {radarStale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>}
+              {radarStale || !isMarketOpen() ? (
+                <Badge variant="neutral" dot>Data Sesi Terakhir</Badge>
+              ) : (
+                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>
+              )}
             </div>
             <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
           </CardHeader>
