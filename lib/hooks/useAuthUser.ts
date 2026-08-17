@@ -95,12 +95,23 @@ export function useAuthUser(): AuthState {
 
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((res) => {
+      .then(async (res) => {
+        if (res.status === 401) {
+          // 401 adalah response normal saat user belum login (Guest terkonfirmasi)
+          setUser(null);
+          setResolved(true);
+          return;
+        }
         if (!res.ok) throw new Error(`Auth check failed: ${res.status}`);
-        return res.json();
+        const d = await res.json();
+        if (d.authenticated && d.user) {
+          setUser(d.user);
+        } else {
+          setUser(null);
+        }
+        setResolved(true);
       })
-      .then((d) => { if (d.authenticated && d.user) setUser(d.user); })
-      // Jaringan putus/response bukan JSON = kita TIDAK TAHU statusnya, bukan "guest".
+      // Jaringan putus/server error 500 = kita TIDAK TAHU statusnya, bukan guest.
       .catch(() => setResolved(false))
       .finally(() => setLoading(false));
   }, []);
