@@ -105,38 +105,76 @@ function hasSeenPromoToday(): boolean {
  */
 function MarketBreadthBar({ breadth }: { breadth: { advancing: number; declining: number; total: number } }) {
   const { advancing, declining, total } = breadth;
-  const denom = advancing + declining || 1;
-  const advPct = (advancing / denom) * 100;
+  const unchanged = Math.max(0, total - (advancing + declining));
+  const denom = total || 1;
+  const advPct = Math.round((advancing / denom) * 100);
+  const decPct = Math.round((declining / denom) * 100);
+  const unchPct = Math.max(0, 100 - advPct - decPct);
   const ratio = declining > 0 ? advancing / declining : advancing;
 
   // Kalimatnya menerjemahkan rasio jadi kondisi pasar. Ambangnya sengaja lebar
   // (2:1 dan 1:2) supaya hari-hari biasa disebut "seimbang", bukan didramatisir.
   const verdict =
-    ratio >= 2 ? { text: 'Partisipasi naik luas - mayoritas saham ikut menguat, bukan cuma emiten besar.', tone: 'text-tv-green' }
-    : ratio <= 0.5 ? { text: 'Tekanan jual merata - pelemahan tidak terbatas pada beberapa saham saja.', tone: 'text-tv-red' }
-    : { text: 'Pasar terbelah cukup seimbang. Arah indeks lebih ditentukan bobot emiten besar hari ini.', tone: 'text-tv-muted' };
+    ratio >= 2 ? { text: 'Partisipasi naik luas — mayoritas saham ikut menguat, momentum pasar positif.', tone: 'text-tv-green', bgTone: 'border-tv-green/30 bg-tv-green/10 text-tv-green' }
+    : ratio <= 0.5 ? { text: 'Tekanan jual merata — pelemahan meluas ke hampir seluruh sektor.', tone: 'text-tv-red', bgTone: 'border-tv-red/30 bg-tv-red/10 text-tv-red' }
+    : { text: 'Pasar berimbang — pergerakan indeks lebih ditentukan oleh bobot emiten berkapitalisasi besar.', tone: 'text-tv-muted', bgTone: 'border-tv-border bg-tv-card/60 text-tv-text/90' };
 
   return (
-    <div className="rounded-md border border-tv-border bg-tv-bg/50 p-3">
-      <div className="flex items-baseline justify-between mb-2">
-        <span className="text-[10px] uppercase tracking-wide text-tv-muted">Market Breadth</span>
-        <span className="text-[11px] text-tv-muted">
-          <AnimatedNumber value={total} className="font-number font-semibold text-tv-text" /> saham
-        </span>
+    <div className="rounded-xl border border-tv-border/80 bg-tv-card/40 p-4 sm:p-5 backdrop-blur-sm space-y-4">
+      {/* Header & Metrics */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-tv-blue" />
+          <span className="text-xs font-bold uppercase tracking-wider text-tv-muted">Market Breadth</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-tv-card border border-tv-border text-tv-muted font-number font-medium">
+            <AnimatedNumber value={total} className="font-number font-semibold text-tv-text" /> Saham
+          </span>
+        </div>
+
+        {/* 3 KPI Summary Badges */}
+        <div className="flex items-center gap-2 text-xs font-semibold flex-wrap">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-tv-green/30 bg-tv-green/10 text-tv-green font-number">
+            <span className="w-2 h-2 rounded-full bg-tv-green animate-pulse" />
+            <AnimatedNumber value={advancing} /> Naik ({advPct}%)
+          </span>
+          {unchanged > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-tv-border bg-tv-card text-tv-muted font-number">
+              <span className="w-2 h-2 rounded-full bg-tv-muted/60" />
+              <AnimatedNumber value={unchanged} /> Netral ({unchPct}%)
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-tv-red/30 bg-tv-red/10 text-tv-red font-number">
+            <span className="w-2 h-2 rounded-full bg-tv-red" />
+            <AnimatedNumber value={declining} /> Turun ({decPct}%)
+          </span>
+        </div>
       </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-tv-hover" role="img" aria-label={`${advancing} saham naik, ${declining} saham turun`}>
-        <div className="h-full bg-tv-green transition-[width] duration-700 ease-settle" style={{ width: `${advPct}%` }} />
-        <div className="h-full bg-tv-red transition-[width] duration-700 ease-settle" style={{ width: `${100 - advPct}%` }} />
+
+      {/* Modern Thicker Segmented Breadth Bar */}
+      <div className="space-y-1.5">
+        <div className="flex h-3.5 sm:h-4 w-full overflow-hidden rounded-full bg-tv-hover/80 p-0.5 border border-tv-border/50 shadow-inner" role="img" aria-label={`${advancing} saham naik, ${declining} saham turun`}>
+          <div
+            className="h-full bg-gradient-to-r from-emerald-600 to-tv-green rounded-l-full transition-all duration-700 ease-settle shadow-sm"
+            style={{ width: `${advPct}%` }}
+          />
+          {unchanged > 0 && (
+            <div
+              className="h-full bg-tv-muted/40 transition-all duration-700 ease-settle"
+              style={{ width: `${unchPct}%` }}
+            />
+          )}
+          <div
+            className="h-full bg-gradient-to-r from-tv-red to-rose-600 rounded-r-full transition-all duration-700 ease-settle shadow-sm"
+            style={{ width: `${decPct}%` }}
+          />
+        </div>
       </div>
-      <div className="mt-2 flex items-center justify-between text-[11px]">
-        <span className="font-number font-semibold text-tv-green">
-          <AnimatedNumber value={advancing} className="font-number" /> naik
-        </span>
-        <span className="font-number font-semibold text-tv-red">
-          turun <AnimatedNumber value={declining} className="font-number" />
-        </span>
+
+      {/* Storytelling Verdict Box */}
+      <div className={`p-3 rounded-lg border text-xs sm:text-[13px] leading-relaxed flex items-center gap-2.5 ${verdict.bgTone}`}>
+        <Activity className="w-4 h-4 shrink-0 opacity-80" />
+        <span>{verdict.text}</span>
       </div>
-      <p className={`mt-2 text-[11px] leading-relaxed ${verdict.tone}`}>{verdict.text}</p>
     </div>
   );
 }
@@ -190,33 +228,49 @@ function SectorHeatmap({ sectors }: { sectors: { sector: string; changePct: numb
   const INTENSITY_CAP_PCT = 3;
 
   return (
-    <div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-tv-muted">Performa 11 Sektor IDX</h4>
+        <span className="text-[11px] text-tv-muted/80">Disortir dari terkuat</span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
         {sorted.map((s) => {
+          const isPos = s.changePct > 0;
+          const isNeg = s.changePct < 0;
           const magnitude = Math.min(Math.abs(s.changePct) / INTENSITY_CAP_PCT, 1);
-          const alpha = 0.08 + magnitude * 0.42;
-          const rgb = s.changePct >= 0 ? '34,197,94' : '239,68,68';
+          const alpha = 0.08 + magnitude * 0.35;
+          const rgb = isPos ? '34,197,94' : isNeg ? '239,68,68' : '148,163,184';
+
           return (
             <div
               key={s.sector}
-              title={`${s.sector}: ${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`}
-              className="group rounded-md border border-tv-border px-2 py-2 transition-transform duration-150 ease-settle hover:scale-[1.03] hover:border-tv-borderLight cursor-default"
-              style={{ background: `rgba(${rgb},${alpha})` }}
+              title={`${s.sector}: ${isPos ? '+' : ''}${s.changePct.toFixed(2)}%`}
+              className="group relative flex flex-col justify-between rounded-xl border border-tv-border/80 p-3 sm:p-3.5 transition-all duration-200 ease-settle hover:scale-[1.02] hover:border-tv-borderLight hover:shadow-md cursor-default overflow-hidden"
+              style={{ background: `rgba(${rgb}, ${alpha})` }}
             >
-              <div className="text-[10px] leading-tight text-tv-text/90 truncate">{s.sector}</div>
-              <div className={`font-number text-xs font-bold mt-0.5 ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-xs sm:text-[13px] font-semibold text-tv-text/95 truncate">
+                  {s.sector}
+                </span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isPos ? 'bg-tv-green/20 text-tv-green' : isNeg ? 'bg-tv-red/20 text-tv-red' : 'bg-tv-muted/20 text-tv-muted'}`}>
+                  {isPos ? '▲' : isNeg ? '▼' : '●'}
+                </span>
+              </div>
+              <div className={`font-number text-sm sm:text-base font-bold mt-2 ${isPos ? 'text-tv-green' : isNeg ? 'text-tv-red' : 'text-tv-muted'}`}>
+                {isPos ? '+' : ''}{s.changePct.toFixed(2)}%
               </div>
             </div>
           );
         })}
       </div>
+
       {sorted.length > 1 && (
-        <p className="mt-2.5 text-[11px] leading-relaxed text-tv-muted">
-          <span className="text-tv-green font-medium">{best.sector}</span> memimpin ({best.changePct >= 0 ? '+' : ''}{best.changePct.toFixed(2)}%),{' '}
-          <span className="text-tv-red font-medium">{worst.sector}</span> tertinggal ({worst.changePct >= 0 ? '+' : ''}{worst.changePct.toFixed(2)}%) - selisih{' '}
-          <span className="font-number font-semibold text-tv-text">{(best.changePct - worst.changePct).toFixed(2)} poin persen</span> antar sektor.
-        </p>
+        <div className="p-3 rounded-lg border border-tv-border/60 bg-tv-card/30 text-xs text-tv-muted leading-relaxed">
+          <span className="text-tv-green font-semibold">{best.sector}</span> memimpin ({best.changePct >= 0 ? '+' : ''}{best.changePct.toFixed(2)}%),{' '}
+          <span className="text-tv-red font-semibold">{worst.sector}</span> tertinggal ({worst.changePct >= 0 ? '+' : ''}{worst.changePct.toFixed(2)}%) — selisih{' '}
+          <span className="font-number font-bold text-tv-text">{(best.changePct - worst.changePct).toFixed(2)} poin persen</span> antar sektor terkuat dan terlemah.
+        </div>
       )}
     </div>
   );
