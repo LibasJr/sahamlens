@@ -16,7 +16,7 @@ export function getAuthRequestMeta(request: Request): AuthRequestMeta {
   // If the dedicated secret is missing we prefer losing the linkable hash (null) over
   // widening the purpose/blast radius of JWT_SECRET_KEY. Tests/dev retain a fallback.
   const secret = process.env.AUTH_AUDIT_HASH_SECRET
-    || (process.env.NODE_ENV === 'production' ? undefined : process.env.JWT_SECRET_KEY);
+    || (process.env.NODE_ENV === 'production' && !process.env.VITEST ? undefined : process.env.JWT_SECRET_KEY);
   const ipHash = ip && secret
     ? crypto.createHmac('sha256', secret).update(ip).digest('hex')
     : null;

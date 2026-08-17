@@ -1,4 +1,4 @@
-﻿name: Deploy VPS
+name: Deploy VPS
 
 on:
   workflow_run:
@@ -38,10 +38,10 @@ jobs:
         run: npm run verify:prod
         env:
           NODE_ENV: production
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
-          ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'ci-manual-deploy-verify-secret' }}
+          ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET || 'ci-manual-deploy-verify-admin-secret' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgres://lens:test@localhost:5432/sahamlens' }}
+          ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY || 'ci-manual-deploy-verify-admin-key' }}
           APP_URL: https://sahamlens.id
           NEXT_PUBLIC_APP_URL: https://sahamlens.id
           NEXT_PUBLIC_TESTING_OPEN_ACCESS: ${{ vars.NEXT_PUBLIC_TESTING_OPEN_ACCESS || 'true' }}

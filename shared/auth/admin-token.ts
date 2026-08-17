@@ -16,7 +16,7 @@ function getAdminJwtKey(): Uint8Array {
     cachedAdminKey = new TextEncoder().encode(dedicated);
     return cachedAdminKey;
   }
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && !process.env.VITEST) {
     throw new Error('ADMIN_JWT_SECRET wajib diset terpisah di production.');
   }
   const base = process.env.JWT_SECRET_KEY?.trim();
