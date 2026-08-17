@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import { getSectorTheme, type SectorTheme } from './sector-theme';
+import SectorIllustration3D from './SectorIllustration3D';
 
 interface FundamentalExportCardProps {
   ticker: string;
@@ -112,8 +113,8 @@ export default function FundamentalExportCard({
       <div className="px-8 pt-5">
         <div className="rounded-3xl border border-slate-700/80 bg-[#0d1626] p-5 shadow-lg flex items-center justify-between">
           <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-2xl bg-[#142238] border border-blue-500/30 p-2 flex items-center justify-center font-mono font-black text-3xl text-blue-400 shadow-inner">
-              {displaySymbol}
+            <div className="h-24 w-24 shrink-0 rounded-2xl bg-[#091120] border border-blue-500/30 p-1 flex items-center justify-center shadow-inner overflow-hidden">
+              <SectorIllustration3D sector={profile.sector || profile.industry} ticker={displaySymbol} className="w-full h-full" />
             </div>
             <div>
               <div className="flex items-center gap-3">
