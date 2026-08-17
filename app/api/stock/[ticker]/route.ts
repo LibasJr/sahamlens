@@ -79,7 +79,7 @@ export async function GET(
 ) {
   try {
     const { ticker: rawTicker } = await params;
-    const normalizedTicker = normalizeIdxTickerParam(rawTicker);
+    const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
     if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();

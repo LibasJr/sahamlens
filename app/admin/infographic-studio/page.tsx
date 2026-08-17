@@ -79,17 +79,22 @@ export default function InfographicStudioPage() {
   }, []);
 
   const fetchStockData = async (symbol: string) => {
-    const cleanSym = symbol.trim().toUpperCase().replace('.JK', '');
+    const rawUpper = symbol.trim().toUpperCase();
+    const isIhsg = rawUpper === 'IHSG' || rawUpper === '^JKSE' || rawUpper === 'JKSE' || rawUpper.includes('JKSE');
+    const cleanSym = isIhsg ? 'IHSG' : rawUpper.replace('.JK', '');
     if (!cleanSym) return;
 
     setLoading(true);
     setActiveTicker(cleanSym);
     try {
+      const apiTicker = isIhsg ? '^JKSE' : `${cleanSym}.JK`;
+      const displaySymbol = isIhsg ? 'IHSG' : `${cleanSym}.JK`;
+
       // Parallel fetch 100% Realtime technical, fundamental, & earnings analyzers from SahamLens
       const [stockRes, fundRes, earningsRes] = await Promise.all([
-        fetch(`/api/stock/${cleanSym}.JK`).then((r) => r.json()).catch(() => null),
-        fetch(`/api/fundamental/${cleanSym}.JK`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch(`/api/earnings/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`/api/stock/${encodeURIComponent(apiTicker)}`).then((r) => r.json()).catch(() => null),
+        isIhsg ? null : fetch(`/api/fundamental/${cleanSym}.JK`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        isIhsg ? null : fetch(`/api/earnings/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
 
       const stockPrice = stockRes?.price ?? fundRes?.stock?.current_price ?? 0;
@@ -125,10 +130,10 @@ export default function InfographicStudioPage() {
         : null;
 
       const combinedData = {
-        symbol: `${cleanSym}.JK`,
+        symbol: displaySymbol,
         stock: {
-          symbol: `${cleanSym}.JK`,
-          name: fundRes?.stock?.name || fundRes?.profile?.name || stockRes?.stock?.name || `${cleanSym} Tbk`,
+          symbol: displaySymbol,
+          name: isIhsg ? 'Indeks Harga Saham Gabungan (IHSG)' : (fundRes?.stock?.name || fundRes?.profile?.name || stockRes?.stock?.name || `${cleanSym} Tbk`),
           current_price: stockPrice,
           change_pct: changePct,
           volume: stockVolume,

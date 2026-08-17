@@ -65,7 +65,8 @@ export default function TechnicalExportCard3D({
   exportedAt = new Date(),
 }: TechnicalExportCard3DProps) {
   const activeTheme = theme || getThemeById(themeId || 'sapphire-bank');
-  const displaySymbol = symbol.replace('.JK', '').toUpperCase();
+  const upperSym = symbol.toUpperCase();
+  const displaySymbol = (upperSym.includes('JKSE') || upperSym === 'IHSG') ? 'IHSG' : symbol.replace('.JK', '').toUpperCase();
   const timeLabel = exportedAt.toLocaleString('id-ID', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }) + ' WIB';
@@ -180,14 +181,14 @@ export default function TechnicalExportCard3D({
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-4xl font-black tracking-tight font-heading text-white">
-                    {displaySymbol}.JK
+                    {displaySymbol === 'IHSG' ? 'IHSG' : `${displaySymbol}.JK`}
                   </h1>
                   <span className={`rounded-xl border ${activeTheme.accentBorder} ${activeTheme.accentBg} px-3 py-1 text-xs font-mono font-bold ${activeTheme.accentText} shadow-sm`}>
-                    Saham Reguler IDX
+                    {displaySymbol === 'IHSG' ? 'Indeks Komposit BEI' : 'Saham Reguler IDX'}
                   </span>
                 </div>
                 <div className="text-sm font-semibold text-slate-300 mt-1">
-                  {stockName || `${displaySymbol} Tbk`}
+                  {stockName || (displaySymbol === 'IHSG' ? 'Indeks Harga Saham Gabungan (IHSG)' : `${displaySymbol} Tbk`)}
                 </div>
                 <div className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-3">
                   <span>Vol: {volume ? `${(volume / 1000000).toFixed(1)}M Lot` : 'Normal'}</span>
