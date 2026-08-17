@@ -29,7 +29,7 @@ export const metadata = {
   },
   description: 'Skor teknikal, fundamental, dan arus dana saham likuid IDX dari rumus terbuka - bukan kotak hitam. Screener, LensRadar, backtest, dan penjelasan AI untuk membantu riset saham Indonesia.',
   applicationName: 'SahamLens',
-  manifest: '/manifest.json?v=4',
+  manifest: '/manifest.json?v=5',
   alternates: { canonical: '/' },
   robots: {
     index: true,
@@ -56,12 +56,12 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico?v=4' },
-      { url: '/icon-pwa-192.png?v=4', sizes: '192x192', type: 'image/png' },
-      { url: '/icon-pwa-512.png?v=4', sizes: '512x512', type: 'image/png' },
+      { url: '/favicon.ico?v=5' },
+      { url: '/icon-pwa-192.png?v=5', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-pwa-512.png?v=5', sizes: '512x512', type: 'image/png' },
     ],
     apple: [
-      { url: '/apple-icon.png?v=4', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-icon.png?v=5', sizes: '180x180', type: 'image/png' },
     ],
   },
   twitter: {
