@@ -1,13 +1,8 @@
 #!/usr/bin/env node
-/**
- * INGESTION SCRIPT: Fetch / Ingest IDX Broker Summary for Last Week.
- *
- * Populates PostgreSQL `broker_summary_daily` with EOD broker transactions
- * for top IDX emiten across the trading days of last week.
- *
- * Usage:
- *   node scripts/fetch-broker-summary-last-week.mjs
- */
+import dns from 'node:dns';
+import net from 'node:net';
+dns.setDefaultResultOrder('ipv4first');
+net.setDefaultAutoSelectFamily(false);
 
 import pg from 'pg';
 import process from 'node:process';
