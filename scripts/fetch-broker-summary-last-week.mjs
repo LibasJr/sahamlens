@@ -123,17 +123,18 @@ async function main() {
     console.log('[WARN] DATABASE_URL tidak disetel. Menampilkan preview simulasi data...');
   }
 
-  const pool = dbUrl
-    ? new Pool({
-        connectionString: dbUrl,
-        ssl: dbUrl.includes('sslmode=require') || dbUrl.includes('neon') || dbUrl.includes('verify')
-          ? { rejectUnauthorized: false }
-          : undefined,
-      })
-    : null;
+  let pool = null;
+  if (dbUrl) {
+    const isNeon = dbUrl.includes('neon') || dbUrl.includes('sslmode=require') || dbUrl.includes('verify');
+    pool = new Pool({
+      connectionString: dbUrl,
+      ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+    });
 
-  if (pool) {
     try {
+      await pool.query('SELECT 1');
+      console.log('✓ Terhubung ke database PostgreSQL');
+      
       // Ensure table and all columns exist
       await pool.query(`
         CREATE TABLE IF NOT EXISTS broker_summary_daily (
@@ -161,13 +162,13 @@ async function main() {
         ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS buy_frequency BIGINT;
         ALTER TABLE broker_summary_daily ADD COLUMN IF NOT EXISTS sell_frequency BIGINT;
       `);
-      console.log('✓ Skema tabel broker_summary_daily diverifikasi');
+      console.log('✓ Skema tabel broker_summary_daily siap');
     } catch (e) {
-      console.warn('Pemeriksaan skema:', e.message);
+      console.error('[ERROR] Koneksi database atau skema gagal:', e.message || e);
     }
   }
 
-  console.log('=== IDX BROKER SUMMARY INGESTION (LAST WEEK) ===');
+  console.log('\n=== IDX BROKER SUMMARY INGESTION (LAST WEEK) ===');
   console.log(`Rentang Tanggal: ${LAST_WEEK_TRADING_DATES[0]} s/d ${LAST_WEEK_TRADING_DATES.at(-1)}`);
   console.log(`Emiten Target: ${DEFAULT_TICKERS.join(', ')}\n`);
 
@@ -225,7 +226,7 @@ async function main() {
           }
           console.log(`  ✓ ${ticker}: ${rows.length} records tersimpan`);
         } catch (e) {
-          console.error(`  ✗ ${ticker} gagal:`, e.message || e);
+          console.error(`  ✗ ${ticker} gagal:`, e?.message || e);
         }
       } else {
         console.log(`  ✓ ${ticker}: ${rows.length} records diproses (dry-run)`);
