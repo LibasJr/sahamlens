@@ -47,7 +47,25 @@ try {
 
   console.log('\n✅ BERHASIL: Password admin telah di-reset.');
   console.log(`Session version baru: ${rows[0]?.session_version}`);
-  console.log('Silakan login di https://sahamlens.id/admin-login dengan password baru Anda.\n');
+
+  const redisUrl = process.env.REDIS_URL?.trim();
+  if (redisUrl) {
+    try {
+      const { createClient } = await import('redis');
+      const redisClient = createClient({ url: redisUrl });
+      await redisClient.connect();
+      const keys = await redisClient.keys('sahamlens:ratelimit:*');
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        console.log(`🧹 Rate limit counter & blokir dibersihkan (${keys.length} keys di Redis).`);
+      }
+      await redisClient.disconnect();
+    } catch {
+      // Redis optional
+    }
+  }
+
+  console.log('Silakan restart service lalu login di https://sahamlens.id/admin-login dengan password baru Anda.\n');
 } catch (err) {
   console.error('❌ GAGAL mereset password admin:', err?.message ?? err);
   process.exit(1);
