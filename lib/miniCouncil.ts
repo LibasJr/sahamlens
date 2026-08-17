@@ -56,7 +56,6 @@ export function moneyFlowLabel(candles: Candle[]): string | null {
   }));
   const bandarmology = analyzeBandarmology(history);
   const cmf = bandarmology.cmf20;
-  if (cmf == null || bandarmology.status === 'UNAVAILABLE') return null;
   const sign = cmf > 0 ? '+' : '';
   if (bandarmology.status === 'BULLISH') return `AKUMULASI (${sign}${cmf}%)`;
   if (bandarmology.status === 'BEARISH') return `DISTRIBUSI (${sign}${cmf}%)`;

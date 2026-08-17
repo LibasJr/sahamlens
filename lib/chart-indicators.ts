@@ -274,7 +274,7 @@ export function cmfSeries(candles: ChartCandle[], period: number): Array<number 
       flowSum -= mfv[i - safePeriod];
       volumeSum -= candles[i - safePeriod].volume;
     }
-    if (i >= safePeriod - 1) out[i] = volumeSum > 0 ? flowSum / volumeSum : null;
+    if (i >= safePeriod - 1) out[i] = volumeSum > 0 ? flowSum / volumeSum : 0;
   }
   return out;
 }

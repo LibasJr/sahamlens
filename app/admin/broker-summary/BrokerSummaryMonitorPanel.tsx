@@ -387,8 +387,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                 <div>
                   <p className='font-semibold text-tv-yellow'>Belum ada data transaksi broker</p>
                   <p className='mt-1 text-sm text-tv-muted'>
-                    Data hanya masuk lewat impor sumber nyata: <strong>POST /api/admin/broker-summary/import</strong>{' '}
-                    (CSV harian atau JSON Broker Distribution), atau cron EOD bila sumber broker sudah dikonfigurasi.
+                    Klik tombol <strong>"Isi Data Minggu Lalu"</strong> di atas atau tunggu jadwal cron bursa untuk memuat ringkasan transaksi.
                   </p>
                 </div>
               </div>

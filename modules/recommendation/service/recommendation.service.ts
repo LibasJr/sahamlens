@@ -15,7 +15,7 @@ import {
   calculateConsensus,
 } from '@/modules/technical';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '@/modules/market';
-import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import {
@@ -127,23 +127,29 @@ export async function analyzeStock(ticker: string) {
 
     if (history.length < 30) return null;
 
-    // Zero Dummy Policy: volume sesi berjalan tidak diekstrapolasi. Nilai mentah tetap
-    // boleh ditampilkan sebagai volume parsial, tetapi analyzer/scoring volume fail-closed
-    // sampai bar harian selesai.
+    // BUG FIX (audit integritas data 2026-08-03, temuan M-02): bar terakhir selama jam
+    // bursa masih volume PARSIAL (baru sebagian sesi terkumpul) - dibandingkan mentah
+    // dengan rata-rata harian PENUH di bawah (avgVolume/volRatio), rasio volume bias ke
+    // bawah sepanjang hari. Array terpisah dipakai KHUSUS untuk analyzer yang membaca
+    // Volume (analyzeVolume/analyzeMarketFlow) - lihat shared/market/trading-session.ts
+    // dan pola yang sama di app/api/stock/[ticker]/route.ts.
     const lastBar = history[history.length - 1];
     const isLiveFormingBar = !!lastBar && lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
+    const volumeAdjustedHistory = isLiveFormingBar
+      ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
+      : history;
 
     const analyzersResult = await Promise.all([
       Promise.resolve(analyzeEma(history, currentPrice)),
       Promise.resolve(analyzeRsi(history, currentPrice)),
       Promise.resolve(analyzeMacd(history, currentPrice)),
-      Promise.resolve(analyzeVolume(history, currentPrice)),
+      Promise.resolve(analyzeVolume(volumeAdjustedHistory, currentPrice)),
       Promise.resolve(analyzeTrend(history, currentPrice)),
       Promise.resolve(analyzeVolatility(history, currentPrice)),
       Promise.resolve(analyzeMomentum(history, currentPrice)),
       Promise.resolve(analyzeSupport(history, currentPrice)),
       Promise.resolve(analyzeSma(history, currentPrice)),
-      Promise.resolve(analyzeMarketFlow(history, currentPrice))
+      Promise.resolve(analyzeMarketFlow(volumeAdjustedHistory, currentPrice))
     ]);
 
     // BUG FIX (audit integritas data 2026-08-03, temuan M-04): blok ini SEBELUMNYA
@@ -181,9 +187,10 @@ export async function analyzeStock(ticker: string) {
     // menyebutnya 0% (flat) karena itu fakta pasar yang tidak kita miliki.
     if (typeof prevClose !== 'number' || !Number.isFinite(prevClose) || prevClose <= 0) return null;
     const changePct = ((currentPrice - prevClose) / prevClose) * 100;
-    // Volume yang dikembalikan adalah observasi provider apa adanya. Selama jam bursa
-    // ia parsial; jangan gunakan sebagai pengganti volume EOD di scoring.
-    const volume = lastBar?.Volume;
+    // Volume yang SUDAH disesuaikan (lihat volumeAdjustedHistory di atas, temuan M-02) -
+    // dipakai konsisten untuk volRatio/avgVolume di bawah, sama seperti analyzeVolume/
+    // analyzeMarketFlow di atas.
+    const volume = volumeAdjustedHistory[volumeAdjustedHistory.length - 1]?.Volume;
     if (!isFiniteNonNegative(volume)) return null;
 
     // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-9): rumus lama
@@ -209,12 +216,8 @@ export async function analyzeStock(ticker: string) {
       else sentimentLabel = 'Terbelah';
     }
 
-    const completedVolumeWindow = history.slice(0, -1).slice(-20);
-    const avgVolume = completedVolumeWindow.length === 20 && completedVolumeWindow.every((h) => isFiniteNonNegative(h.Volume))
-      ? completedVolumeWindow.reduce((sum, h) => sum + h.Volume, 0) / 20
-      : null;
-    const scoringVolume = isLiveFormingBar ? null : volume;
-    const volRatio = scoringVolume != null && isFinitePositive(avgVolume) ? scoringVolume / avgVolume : null;
+    const avgVolume = history.length > 0 ? history.reduce((sum, h) => sum + h.Volume, 0) / history.length : null;
+    const volRatio = isFinitePositive(avgVolume) ? volume / avgVolume : null;
 
     // BUG FIX (audit integritas data 2026-08-03, temuan H-03): `foreignFlow` di sini
     // SEBELUMNYA murni arah perubahan harga hari ini (`changePct`/`volRatio`) yang
@@ -239,8 +242,7 @@ export async function analyzeStock(ticker: string) {
     // dimensi terpisah dari volRatio/foreignFlow, lihat temuan H-07 di audit.
     const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
 
-    let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' | 'UNAVAILABLE' =
-      accumulation.status == null ? 'UNAVAILABLE' : 'NEUTRAL';
+    let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
     if (accumulation.status === 'AKUMULASI') foreignFlow = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
     else if (accumulation.status === 'DISTRIBUSI') foreignFlow = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
 
@@ -328,7 +330,9 @@ export async function analyzeStock(ticker: string) {
     const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
     const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
-    const volAvg20 = avgVolume;
+    const volAvg20 = history.length >= 20
+      ? history.slice(-20).reduce((s, h) => s + h.Volume, 0) / 20
+      : avgVolume;
 
     const scoring = calculateScore(
       ticker.replace('.JK', ''),
@@ -347,7 +351,7 @@ export async function analyzeStock(ticker: string) {
         macdHist: macdHistVal,
         macdLine: macdLineVal,
         macdSignal: macdSigVal,
-        volToday: scoringVolume,
+        volToday: volume,
         volAvg20,
         changePct,   // P1-8: volume besar hanya bernilai kalau mengonfirmasi arah harga
       },
@@ -396,7 +400,6 @@ export async function analyzeStock(ticker: string) {
       },
       changePct: parseFloat(changePct.toFixed(2)),
       volume: volume,
-      volumeIsPartial: isLiveFormingBar,
       consensus,
       // P3-26: ini adalah persentase vote analyzer, BUKAN probabilitas sukses / confidence
       // terkalibrasi. Field lama `confidence` dipertahankan untuk kompatibilitas UI lama,

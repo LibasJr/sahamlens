@@ -150,13 +150,11 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
       close: c.close,
     }));
 
-    const volumes: HistogramData[] = sorted
-      .filter((c) => typeof c.volume === 'number' && Number.isFinite(c.volume) && c.volume >= 0)
-      .map((c) => ({
-        time: c.time,
-        value: c.volume as number,
-        color: c.close >= c.open ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)',
-      }));
+    const volumes: HistogramData[] = sorted.map((c) => ({
+      time: c.time,
+      value: c.volume || 0,
+      color: c.close >= c.open ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)',
+    }));
 
     const emaSource = sorted.map((c) => ({ time: c.time, close: c.close }));
 

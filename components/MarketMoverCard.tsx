@@ -20,8 +20,7 @@ export const ACCENT_MAP: Record<string, { bg: string; text: string; border: stri
 export function formatCardItems(id: string, arr: any[]): CardItem[] {
   return (arr || []).slice(0, 4).map((s: any) => {
     const href = `/technical/${s.symbol}.JK`;
-    const price = Number.isFinite(Number(s.price)) ? Number(s.price) : null;
-    const priceStr = price == null ? 'Harga N/A' : `Rp ${Math.round(price).toLocaleString('id-ID')}`;
+    const priceStr = `Rp ${Math.round(s.price || 0).toLocaleString('id-ID')}`;
     const changePct = Number.isFinite(Number(s.changePct)) ? Number(s.changePct) : null;
     const rsi = Number.isFinite(Number(s.rsi)) ? Number(s.rsi) : null;
     const change = changePct == null ? 'N/A' : `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`;
@@ -30,10 +29,8 @@ export function formatCardItems(id: string, arr: any[]): CardItem[] {
         return { code: s.symbol, change, value: priceStr, dir: 'up', href };
       case 'loser':
         return { code: s.symbol, change, value: priceStr, dir: 'down', href };
-      case 'volume': {
-        const volume = Number.isFinite(Number(s.volume)) ? Number(s.volume) : null;
-        return { code: s.symbol, change: volume == null ? 'Volume N/A' : `${Math.round(volume / 100).toLocaleString('id-ID')} lot`, value: priceStr, dir: 'neutral', href };
-      }
+      case 'volume':
+        return { code: s.symbol, change: `${Math.round(s.volume / 100).toLocaleString('id-ID')} lot`, value: priceStr, dir: 'neutral', href };
       case 'technical':
         return { code: s.symbol, change: `Skor ${s.score ?? 'N/A'}%`, value: change, dir: 'up', href };
       case 'technicalBearish':

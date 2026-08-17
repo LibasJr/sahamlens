@@ -786,11 +786,7 @@ function DashboardContent() {
     if (history.length < 50) return {};
 
     const results: Record<string, { pct: number; samples: number }> = {};
-    // Fail-closed: hanya bar dengan close valid yang boleh masuk evaluasi. Volume tetap
-    // nullable karena "tidak tersedia" tidak sama dengan volume transaksi nol.
-    const validHistory = history.filter((h: any) => typeof h?.close === 'number' && Number.isFinite(h.close) && h.close > 0);
-    if (validHistory.length < 50) return {};
-    const closes: number[] = validHistory.map((h: any) => h.close);
+    const closes: number[] = history.map((h: any) => h.close);
     const HORIZON = 10;      // hari bursa ke depan
     const TARGET_GAIN = 1.03; // +3%
     const MIN_SAMPLES = 20;   // di bawah ini tidak dilaporkan sama sekali
@@ -811,16 +807,10 @@ function DashboardContent() {
 
     // Volume spike (> 1.5x rata-rata 20 hari) + candle hijau
     let volCorrect = 0, volTotal = 0;
-    const volumes: Array<number | null> = validHistory.map((h: any) =>
-      typeof h?.volume === 'number' && Number.isFinite(h.volume) && h.volume >= 0 ? h.volume : null
-    );
+    const volumes: number[] = history.map((h: any) => h.volume || 0);
     for (let i = 20; i < closes.length - HORIZON; i++) {
-      const window = volumes.slice(i - 20, i);
-      const currentVolume = volumes[i];
-      if (currentVolume == null || window.some((value) => value == null)) continue;
-      const numericWindow = window as number[];
-      const avgVol = numericWindow.reduce((a, b) => a + b, 0) / numericWindow.length;
-      if (avgVol > 0 && currentVolume > avgVol * 1.5 && closes[i] > closes[i - 1]) {
+      const avgVol = volumes.slice(i - 20, i).reduce((a, b) => a + b, 0) / 20;
+      if (avgVol > 0 && volumes[i] > avgVol * 1.5 && closes[i] > closes[i - 1]) {
         volTotal++; if (hit(i)) volCorrect++;
       }
     }

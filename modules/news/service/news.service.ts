@@ -130,13 +130,8 @@ Balas HANYA dalam format JSON array, urut sesuai nomor, tanpa teks lain:
     if (!text) return null;
     const parsed = JSON.parse(text);
     if (!Array.isArray(parsed) || parsed.length !== titles.length) return null;
-    if (parsed.some((p: any) => !['POSITIF', 'NETRAL', 'NEGATIF'].includes(p?.sentiment))) {
-      // Invalid AI output is provider/classification failure, not neutral sentiment.
-      // Returning null makes the whole batch use the explicitly-labelled keyword fallback.
-      return null;
-    }
     return parsed.map((p: any) => ({
-      sentiment: p.sentiment as Sentiment,
+      sentiment: ['POSITIF', 'NETRAL', 'NEGATIF'].includes(p.sentiment) ? p.sentiment : 'NETRAL',
       reason: typeof p.reason === 'string' ? p.reason : '',
     }));
   } catch (e) {
@@ -299,13 +294,7 @@ export async function getBatchStockSentiment(
       result[stock.ticker] = { sentiment: null, matchedHeadline: null, matchedCount: 0 };
       continue;
     }
-    const labels = matched
-      .map((m) => sentimentByTitle.get(m.title))
-      .filter((label): label is Sentiment => label != null);
-    if (labels.length === 0) {
-      result[stock.ticker] = { sentiment: null, matchedHeadline: matched[0].title, matchedCount: matched.length };
-      continue;
-    }
+    const labels = matched.map((m) => sentimentByTitle.get(m.title) || 'NETRAL');
     const posCount = labels.filter((l) => l === 'POSITIF').length;
     const negCount = labels.filter((l) => l === 'NEGATIF').length;
     const agg: Sentiment = posCount > negCount ? 'POSITIF' : negCount > posCount ? 'NEGATIF' : 'NETRAL';

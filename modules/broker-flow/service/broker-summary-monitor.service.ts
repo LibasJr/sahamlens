@@ -1,6 +1,5 @@
 import { getLastRun, type JobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { queryReadWithRetry } from '@/shared/database/postgres.client';
-import { PUBLIC_BROKER_DAILY_SOURCE } from './broker-summary-integrity';
 
 const MAX_HISTORY_DATES = 30;
 const MAX_BROKER_ROWS = 50;
@@ -94,7 +93,7 @@ export function normalizeBrokerMonitorTicker(value: string | null | undefined): 
 
 function emptyMonitor(job: JobRunLog | null): BrokerSummaryMonitor {
   return {
-    source: PUBLIC_BROKER_DAILY_SOURCE,
+    source: 'IDX_EOD_REPORT',
     tableReady: false,
     job,
     dates: [],
@@ -139,12 +138,11 @@ export async function getBrokerSummaryMonitor(input: {
         COUNT(DISTINCT broker_code)::int AS broker_count,
         MAX(imported_at)::text AS last_imported_at
       FROM broker_summary_daily
-      WHERE source = $1
       GROUP BY trade_date
       ORDER BY trade_date DESC
-      LIMIT $2
+      LIMIT $1
     `,
-    [PUBLIC_BROKER_DAILY_SOURCE, MAX_HISTORY_DATES],
+    [MAX_HISTORY_DATES],
   );
 
   const dates = dateResult.rows.map((row) => ({
@@ -164,8 +162,8 @@ export async function getBrokerSummaryMonitor(input: {
     : dates[0]!.tradeDate;
   const selectedTicker = normalizeBrokerMonitorTicker(input.ticker);
 
-  const coverageConditions = ['trade_date = $1::date', 'source = $2'];
-  const coverageParams: any[] = [requestedDate, PUBLIC_BROKER_DAILY_SOURCE];
+  const coverageConditions = ['trade_date = $1::date'];
+  const coverageParams: any[] = [requestedDate];
   if (selectedTicker) {
     coverageParams.push(selectedTicker);
     coverageConditions.push(
@@ -173,8 +171,8 @@ export async function getBrokerSummaryMonitor(input: {
     );
   }
 
-  const brokerConditions = ['trade_date = $1::date', 'source = $2'];
-  const brokerParams: any[] = [requestedDate, PUBLIC_BROKER_DAILY_SOURCE];
+  const brokerConditions = ['trade_date = $1::date'];
+  const brokerParams: any[] = [requestedDate];
   if (selectedTicker) {
     brokerParams.push(selectedTicker);
     brokerConditions.push(
@@ -189,10 +187,10 @@ export async function getBrokerSummaryMonitor(input: {
       `
         SELECT DISTINCT ticker
         FROM broker_summary_daily
-        WHERE trade_date = $1::date AND source = $2
+        WHERE trade_date = $1::date
         ORDER BY ticker
       `,
-      [requestedDate, PUBLIC_BROKER_DAILY_SOURCE],
+      [requestedDate],
     ),
     queryReadWithRetry<CoverageRow>(
       `
@@ -235,7 +233,7 @@ export async function getBrokerSummaryMonitor(input: {
 
   const coverageRow = coverageResult.rows[0];
   return {
-    source: PUBLIC_BROKER_DAILY_SOURCE,
+    source: 'IDX_EOD_REPORT',
     tableReady: true,
     job,
     dates,

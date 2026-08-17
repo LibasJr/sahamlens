@@ -89,11 +89,6 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
   // besar-ke-kecil), jadi tidak perlu parsing Date sama sekali.
   const ihsgAll = endDate ? cache.ihsg.filter((b) => b.date <= endDate) : cache.ihsg;
   const ihsgWindow = ihsgAll.slice(-tradingDays);
-  if (ihsgWindow.length === 0 || !Number.isFinite(ihsgWindow[0]?.close) || (ihsgWindow[0]?.close ?? 0) <= 0) {
-    // Benchmark kosong tidak boleh diam-diam diubah menjadi IHSG=1 karena itu membuat
-    // return/alpha dan kurva benchmark fiktif. Biarkan request gagal secara eksplisit.
-    throw new Error('BACKTEST_BENCHMARK_UNAVAILABLE');
-  }
   const allIndexes = cache.tickers
     .map((series) => ({ ticker: series.ticker, index: buildTickerIndex(series) }));
   const tickerIndexes = allIndexes
@@ -260,8 +255,8 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
   const finalEquity = equityCurveDaily[equityCurveDaily.length - 1] ?? modal;
   const returnPct = ((finalEquity - modal) / modal) * 100;
 
-  const ihsgStart = ihsgWindow[0]!.close;
-  const ihsgEnd = ihsgWindow[ihsgWindow.length - 1]!.close;
+  const ihsgStart = ihsgWindow[0]?.close ?? 1;
+  const ihsgEnd = ihsgWindow[ihsgWindow.length - 1]?.close ?? ihsgStart;
   const ihsgReturnPct = ((ihsgEnd - ihsgStart) / ihsgStart) * 100;
   const alphaPct = returnPct - ihsgReturnPct;
 

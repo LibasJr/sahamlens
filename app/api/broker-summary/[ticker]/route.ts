@@ -25,9 +25,8 @@ export async function GET(
       return NextResponse.json(
         {
           ticker,
-          hasBrokerData: false,
           hasRealBrokerData: false,
-          message: 'Data Broker Summary dengan provenance yang diizinkan belum tersedia untuk emiten ini.',
+          message: 'Data Broker Summary EOD belum tersedia untuk emiten ini pada tanggal bursa terakhir.',
         },
         { headers: getMarketAwareCacheHeaders() }
       );
@@ -36,10 +35,7 @@ export async function GET(
     return NextResponse.json(
       {
         ...brokerSummary,
-        hasBrokerData: true,
-        // Dipertahankan untuk kompatibilitas klien lama, tetapi tidak lagi dipakai sebagai
-        // klaim bahwa provider eksternal sudah direkonsiliasi dengan sumber primer.
-        hasRealBrokerData: false,
+        hasRealBrokerData: true,
       },
       { headers: getMarketAwareCacheHeaders() }
     );

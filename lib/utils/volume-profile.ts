@@ -39,13 +39,13 @@ export function computeVolumeProfile(
         typeof c.high === 'number' &&
         typeof c.low === 'number' &&
         c.high >= c.low &&
-        typeof c.volume === 'number' && Number.isFinite(c.volume) && c.volume > 0 &&
+        Number(c.volume || 0) > 0 &&
         !isNaN(c.high) &&
         !isNaN(c.low)
     )
     .map((c) => ({
       ...c,
-      volume: c.volume as number,
+      volume: Number(c.volume) || 0,
     }));
 
   if (validCandles.length === 0) return null;

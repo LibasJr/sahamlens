@@ -26,9 +26,9 @@ function normalizeTicker(raw: string): string {
   return /^[A-Z0-9]{1,12}$/.test(code) ? `${code}.JK` : '';
 }
 
-function asFiniteNumber(value: unknown): number | null {
+function asNumber(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return Number.isFinite(n) ? n : 0;
 }
 
 function asDate(value: unknown): string {
@@ -67,26 +67,13 @@ export async function getLatestBrokerPeriodSummary(rawTicker: string): Promise<B
       [ticker, startDate, endDate, source],
     );
 
-    const rows: BrokerPeriodViewRow[] = [];
-    for (const row of result.rows) {
-      const brokerCode = String((row as any).broker_code ?? '').trim().toUpperCase();
-      const buyValue = asFiniteNumber((row as any).buy_value);
-      const sellValue = asFiniteNumber((row as any).sell_value);
-      const netValueRaw = typeof (row as any).net_value === 'number' ? (row as any).net_value : Number((row as any).net_value);
-      if (!brokerCode || buyValue == null || sellValue == null || !Number.isFinite(netValueRaw)) {
-        console.error('[broker-period-query] malformed broker period row; refusing partial summary', { ticker, startDate, endDate, source, brokerCode });
-        return null;
-      }
-      rows.push({
-        brokerCode,
-        brokerType: (row as any).broker_type ? String((row as any).broker_type) : null,
-        buyValue,
-        sellValue,
-        netValue: netValueRaw,
-      });
-    }
-
-    if (!rows.length) return null;
+    const rows: BrokerPeriodViewRow[] = result.rows.map((row: any) => ({
+      brokerCode: String(row.broker_code ?? ''),
+      brokerType: row.broker_type ? String(row.broker_type) : null,
+      buyValue: asNumber(row.buy_value),
+      sellValue: asNumber(row.sell_value),
+      netValue: asNumber(row.net_value),
+    }));
 
     return {
       ticker,

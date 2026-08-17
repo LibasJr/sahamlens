@@ -2,7 +2,7 @@ import { fetchYahooHistory, analyzeRsi, analyzeMacd, analyzeVolatility, calculat
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '../../market';
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
-import { isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
+import { estimateFullDayVolume, isIdxMarketHoursNow, todayDateKeyWIB } from '../../../shared/market/trading-session';
 import { evaluateMinimalEligibility } from '../../eligibility';
 import { evaluatePointInTimeUniverse } from '../../backtest/service/point-in-time-universe';
 import { logger } from '../../../shared/logger/logger';
@@ -116,19 +116,20 @@ async function scoreOne(
   const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
   const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
-  // Zero Dummy Policy: jangan proyeksikan volume EOD dari bar intraday parsial.
-  // Selama sesi berjalan komponen volume dikeluarkan dari scoring; baseline 20 hari
-  // hanya memakai sesi yang sudah selesai.
+  // BUG FIX (pola M-02): volume bar terakhir masih PARSIAL selama jam bursa - sama
+  // seperti screener.service.ts/live-filter-check.service.ts.
   const lastBar = history[history.length - 1];
   const isLiveFormingBar = lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
-  const rawVolToday = lastBar?.Volume;
-  if (!isFiniteNonNegative(rawVolToday)) return null;
-  const volToday = isLiveFormingBar ? null : rawVolToday;
-  const volWindow = history.slice(0, -1).slice(-20);
-  const volAvg20 = volWindow.length === 20 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
-    ? volWindow.reduce((s, h) => s + h.Volume, 0) / 20
+  const adjustedHistory = isLiveFormingBar
+    ? [...history.slice(0, -1), { ...lastBar, Volume: estimateFullDayVolume(lastBar.Volume) }]
+    : history;
+  const volToday = adjustedHistory[adjustedHistory.length - 1]?.Volume;
+  if (!isFiniteNonNegative(volToday)) return null;
+  const volWindow = adjustedHistory.slice(-20);
+  const volAvg20 = volWindow.length > 0 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
+    ? volWindow.reduce((s, h) => s + h.Volume, 0) / volWindow.length
     : null;
-  const volRatio = volToday != null && isFinitePositive(volAvg20) ? volToday / volAvg20 : null;
+  const volRatio = isFinitePositive(volAvg20) ? volToday / volAvg20 : null;
 
   // Shape {date,high,low,close,volume} untuk Bandarmology/CMF/arus dana - Close MENTAH
   // (bukan AdjClose), sama seperti recommendation.service.ts/screener.service.ts.
@@ -143,6 +144,14 @@ async function scoreOne(
   const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
   const accumulationConfirmed = accumulation.status === 'AKUMULASI';
   const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
+
+  // BUG FIX (temuan H-03, sekarang disamakan ke AI Pick juga): foreignFlow dari status
+  // analyzeAccumulationSignal (CMF20 + CLV 3 hari + volume spike + tren MFM), BUKAN lagi
+  // dari arah changePct/volRatio - supaya scoreAsing()/scoreBandar() menerima masukan
+  // yang konsisten dengan Recommendations/Screener untuk saham+hari yang sama.
+  let foreignFlow: 'STRONG NET BUY' | 'NET BUY' | 'NEUTRAL' | 'NET SELL' | 'STRONG NET SELL' = 'NEUTRAL';
+  if (accumulation.status === 'AKUMULASI') foreignFlow = buyStreak >= 4 ? 'STRONG NET BUY' : 'NET BUY';
+  else if (accumulation.status === 'DISTRIBUSI') foreignFlow = sellStreak >= 4 ? 'STRONG NET SELL' : 'NET SELL';
 
   const scoring = calculateScore(
     ticker.replace('.JK', ''),
@@ -183,8 +192,11 @@ async function scoreOne(
   // SEBELUM pemeringkatan di rankAiPicks() - saham tidak layak tidak pernah jadi
   // kandidat, bukan sekadar diberi peringkat rendah.
   //
-  // Bar mentah `history` dipakai di sini. Kelayakan menilai transaksi yang benar-benar
-  // tercatat; tidak ada volume hasil estimasi dalam jalur ini.
+  // Bar mentah `history` (bukan `adjustedHistory`) dipakai di sini: estimasi volume
+  // penuh untuk bar hari ini adalah alat untuk membandingkan rasio volume, sementara
+  // gerbang ini menanyakan hal berbeda - "apakah ada transaksi tercatat" dan "berapa
+  // nilai transaksi rata-ratanya". Memakai angka hasil estimasi untuk menjawab itu
+  // berarti menilai kelayakan atas angka yang kita karang sendiri.
   const eligibilityBars = history.map((h) => ({
     date: h.Date.split('T')[0],
     close: typeof h.Close === 'number' ? h.Close : null,

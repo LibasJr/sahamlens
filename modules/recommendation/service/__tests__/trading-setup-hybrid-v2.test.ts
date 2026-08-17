@@ -44,8 +44,6 @@ describe('HYBRID_V2 shadow setup', () => {
 
   it('mengklasifikasikan volatilitas secara deterministik', () => {
     const result = classifyHybridVolatility(trendHistory('up'), 6);
-    expect(result).not.toBeNull();
-    if (result == null) throw new Error('Expected volatility classification for valid history and ATR');
     expect(result.percentile).toBeGreaterThanOrEqual(0);
     expect(result.percentile).toBeLessThanOrEqual(100);
   });

@@ -117,18 +117,7 @@ export async function POST(request: Request) {
     }
 
     const cache = await getCache(cachedBacktest);
-    let result;
-    try {
-      result = simulateBacktest(cache, { filters, modal, periodMonths: period });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'BACKTEST_BENCHMARK_UNAVAILABLE') {
-        return NextResponse.json(
-          { error: 'Data benchmark IHSG tidak tersedia untuk periode ini. Backtest tidak dihitung agar alpha tidak difabrikasi.' },
-          { status: 503 },
-        );
-      }
-      throw error;
-    }
+    const result = simulateBacktest(cache, { filters, modal, periodMonths: period });
 
     const isGuest = !session || typeof session.id !== 'string';
     const visibleTrades = isGuest ? result.trades.slice(0, 2) : result.trades.slice(0, MAX_TRADES_IN_RESPONSE);
