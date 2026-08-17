@@ -387,7 +387,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                 <div>
                   <p className='font-semibold text-tv-yellow'>Belum ada data transaksi broker</p>
                   <p className='mt-1 text-sm text-tv-muted'>
-                    Klik tombol <strong>"Isi Data Minggu Lalu"</strong> di atas atau tunggu jadwal cron bursa untuk memuat ringkasan transaksi.
+                    Data Broker Summary belum tersedia. Hanya data dengan sumber dan provenance terverifikasi yang dapat ditampilkan.
                   </p>
                 </div>
               </div>

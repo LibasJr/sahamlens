@@ -8,6 +8,13 @@ vi.mock('../../../technical', async () => {
   };
 });
 
+// Unit test precompute hanya membutuhkan universe minimal.
+// Jangan menjalankan seluruh universe production karena tujuan test ini
+// adalah memverifikasi fault-isolation, bukan benchmark performa.
+vi.mock('../../constants/backtest-universe', () => ({
+  BACKTEST_UNIVERSE: ['BBCA.JK', 'BBRI.JK'],
+}));
+
 import {
   BACKTEST_PERIOD_MONTHS,
   MAX_BACKTEST_TRADING_DAYS,

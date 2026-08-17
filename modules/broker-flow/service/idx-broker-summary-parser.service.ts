@@ -145,6 +145,10 @@ export function parseIdxBrokerSummaryText(
   let rejectedRecords = 0;
 
   for (const line of lines) {
+    // Komentar/header metadata bukan record transaksi dan tidak boleh
+    // dihitung sebagai rejected data row.
+    if (line.startsWith('#')) continue;
+
     const parts = line.includes('\t') ? line.split('\t') : line.includes(';') ? line.split(';') : line.split(',');
     if (parts.length < 6) {
       rejectedRecords += 1;
