@@ -20,6 +20,7 @@ export interface DividendStock {
   safety_score: number;
   payout_ratio: number | null;
   consistency_years: number;
+  is_aristocrat: boolean;
 }
 
 export interface CompoundingYear {
@@ -75,12 +76,16 @@ async function fetchDividendStock(ticker: string): Promise<DividendStock | null>
       else break;
     }
 
+    const currentSafety = safetyScore(payoutRatio, consistencyYears);
+    const isAristocrat = consistencyYears >= 5 && (payoutRatio == null || (payoutRatio > 0 && payoutRatio <= 85)) && currentSafety >= 7;
+
     return {
       ticker: ticker.replace('.JK', ''),
       yield_pct: parseFloat((yieldRaw * 100).toFixed(2)),
-      safety_score: safetyScore(payoutRatio, consistencyYears),
+      safety_score: currentSafety,
       payout_ratio: payoutRatio != null ? parseFloat(payoutRatio.toFixed(1)) : null,
       consistency_years: consistencyYears,
+      is_aristocrat: isAristocrat,
     };
   } catch {
     return null; // ticker gagal fetch - dilewati, tidak menggagalkan yang lain
