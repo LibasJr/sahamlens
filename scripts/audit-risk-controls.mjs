@@ -26,7 +26,7 @@ requireCheck('D-3', file('app/dashboard/page.tsx').includes('saat ini') && !file
 requireCheck('D-4', fs.existsSync('modules/market/constants/manual-reference-review.ts') && fs.existsSync('scripts/audit-manual-market-references.mjs'), 'manual reference expiry guard');
 requireCheck('T-1 portfolio', fs.existsSync('modules/portfolio/service/__tests__/trade.service.test.ts'), 'money-path regression tests');
 requireCheck('T-1 watchlist', fs.existsSync('modules/watchlist/service/__tests__/watchlist.service.test.ts'), 'watchlist server tests');
-requireCheck('T-2', file('.github/workflows/deploy-vps.yml').includes('Smoke test publik setelah deploy'), 'post-deploy smoke');
+requireCheck('T-2', file('.github/workflows/deploy-vps.yml').includes('Smoke test internal VPS setelah deploy') || file('.github/workflows/deploy-vps.yml').includes('Smoke test publik setelah deploy'), 'post-deploy smoke');
 requireCheck('O-3', fs.existsSync('.github/workflows/external-health-watch.yml'), 'external scheduled probe');
 requireCheck('O-1', fs.existsSync('scripts/verify-restore-drill-target.mjs') && fs.existsSync('docs/production/RESTORE_DRILL_EVIDENCE_TEMPLATE.md'), 'restore drill verifier + evidence template; execution remains operator evidence');
 requireCheck('O-2', file('.github/workflows/deploy-vps.yml').includes('VPS_CF_SSH_HOST') && fs.existsSync('docs/production/CLOUDFLARE_SSH_DEPLOY.md'), 'tunnel-capable deploy; cutover remains operator action');

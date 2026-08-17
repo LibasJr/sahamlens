@@ -42,6 +42,12 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-17 - Perbaikan External Health Watch & CI Audit Risk Controls (T-2 Smoke Test)
+
+- **External Health Watch (`.github/workflows/external-health-watch.yml`)**: Runner GitHub Actions sebelumnya menerima HTTP 403 Challenge Cloudflare ("Just a moment...") saat memanggil `/api/health` secara langsung tanpa browser headers. Workflow kini dilengkapi browser User-Agent & Accept headers, retry mechanism 3x dengan backoff, validasi `/home` (HTTP 200), serta penanganan Cloudflare WAF challenge secara anggun bila IP runner eksternal di-challenge.
+- **CI Audit Risk Controls (`scripts/audit-risk-controls.mjs`)**: Aturan `T-2` diperbarui untuk mengenali step `Smoke test internal VPS setelah deploy` pada `deploy-vps.yml` (yang mengecek endpoint lokal `http://127.0.0.1:3001/api/health` via SSH untuk menghindari false positive blokir 403 WAF dari runner eksternal).
+- **Hasil pengujian**: `npm run audit:risk-controls` PASS (22 pass, 0 fail), `typecheck` PASS, `lint` PASS, 1731 unit tests PASS, dan `npm run build` sukses (124 routes).
+
 ### 2026-08-16 - Badge "Blue-chip" salah nempel di saham gorengan (kasus PACK.JK) - diganti ke daftar konstituen LQ45
 
 Bug report pengguna via screenshot: PACK.JK ("PT Abadi Nusantara Hijau Investama Tbk.",
