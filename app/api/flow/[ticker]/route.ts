@@ -2,6 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
+import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
@@ -25,6 +26,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const budget = await checkPublicComputeBudget(request.headers, 'flow');
+  if (!budget.allowed) return rateLimitExceeded(budget);
   // Tamu (session null) dapat akses PENUH tanpa perlu login - keputusan produk
   // 2026-08-13, lihat hasOpenOrProAccess(). Akun terdaftar tetap lewat gerbang
   // trial/Pro seperti sebelumnya.

@@ -30,6 +30,7 @@ export default function SiteFooter({ className = '' }: { className?: string }) {
         <Link href="/privacy" className="hover:text-tv-text">Privasi</Link>
         <Link href="/terms" className="hover:text-tv-text">Ketentuan</Link>
         <Link href="/disclaimer" className="hover:text-tv-text">Disclaimer</Link>
+        <Link href="/status" className="hover:text-tv-text">Status</Link>
         <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
       </div>
     </footer>

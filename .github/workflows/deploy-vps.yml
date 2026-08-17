@@ -3,8 +3,7 @@ name: Deploy VPS
 on:
   workflow_run:
     workflows: ["CI"]
-    types:
-      - completed
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -15,25 +14,17 @@ jobs:
   deploy:
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main'
-      )
-
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
 
     steps:
-      # workflow_run sudah hanya terpanggil setelah CI sukses. workflow_dispatch tetap
-      # berguna untuk redeploy manual, tetapi TIDAK boleh menjadi pintu belakang yang
-      # melewati typecheck/lint/test/build. Karena itu manual dispatch memverifikasi
-      # commit main lagi sebelum SSH.
       - name: Checkout untuk verifikasi manual
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node untuk verifikasi manual
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -55,115 +46,119 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://sahamlens.id
           NEXT_PUBLIC_TESTING_OPEN_ACCESS: ${{ vars.NEXT_PUBLIC_TESTING_OPEN_ACCESS || 'true' }}
 
-      # PERBAIKAN 2026-08-12. Sebelumnya `env:` dan `run:` langkah ini menjorok 2 spasi -
-      # lebih dangkal daripada `steps:` sendiri - sehingga SELURUH file gagal di-parse.
-      # Gejalanya menyesatkan: run muncul bernama ".github/workflows/deploy-vps.yml"
-      # (bukan "Deploy VPS") dengan NOL job, jadi tidak ada log langkah yang bisa dibaca
-      # dan tidak ada satu pun pesan yang menyebut indentasi.
-      - name: Periksa secret sebelum menyentuh SSH
+      - name: Pilih jalur SSH dan periksa secret
         env:
           VPS_SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_CF_SSH_HOST: ${{ secrets.VPS_CF_SSH_HOST }}
+          VPS_CF_KNOWN_HOSTS: ${{ secrets.VPS_CF_KNOWN_HOSTS }}
         run: |
-          # Hanya ada/tidaknya yang dicetak - tidak pernah nilainya.
+          set -euo pipefail
           missing=0
-
           if [ -z "$VPS_SSH_KEY_B64" ] && [ -z "$VPS_SSH_KEY" ]; then
-            echo "::error::Kunci deploy belum diisi. Set SALAH SATU: VPS_SSH_KEY_B64 (disarankan) atau VPS_SSH_KEY."
+            echo "::error::Set VPS_SSH_KEY_B64 (disarankan) atau VPS_SSH_KEY."
             missing=1
-          else
-            [ -n "$VPS_SSH_KEY_B64" ] && echo "VPS_SSH_KEY_B64: terisi"
-            [ -n "$VPS_SSH_KEY" ] && echo "VPS_SSH_KEY: terisi"
           fi
 
-          for name in VPS_KNOWN_HOSTS VPS_HOST; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Secret $name belum diisi di Settings > Secrets and variables > Actions"
-              missing=1
-            else
-              echo "$name: terisi"
-            fi
-          done
-
-          # VPS_PORT opsional. Sebelumnya kosongnya berbahaya: `ssh -p ""` membuat ssh
-          # menelan argumen berikutnya sebagai nomor port.
-          if [ -z "$VPS_PORT" ]; then
-            echo "VPS_PORT: kosong, memakai 22"
+          if [ -n "$VPS_CF_SSH_HOST" ]; then
+            echo "SSH transport: Cloudflare Tunnel"
+            [ -n "$VPS_CF_KNOWN_HOSTS" ] || { echo "::error::VPS_CF_KNOWN_HOSTS wajib saat VPS_CF_SSH_HOST dipakai."; missing=1; }
+            echo "DEPLOY_HOST=$VPS_CF_SSH_HOST" >> "$GITHUB_ENV"
+            echo "DEPLOY_PORT=22" >> "$GITHUB_ENV"
+            echo "DEPLOY_VIA_TUNNEL=true" >> "$GITHUB_ENV"
           else
-            echo "VPS_PORT: terisi"
+            echo "SSH transport: direct/legacy"
+            [ -n "$VPS_HOST" ] || { echo "::error::VPS_HOST belum diisi."; missing=1; }
+            [ -n "$VPS_KNOWN_HOSTS" ] || { echo "::error::VPS_KNOWN_HOSTS belum diisi."; missing=1; }
+            echo "DEPLOY_HOST=$VPS_HOST" >> "$GITHUB_ENV"
+            echo "DEPLOY_PORT=${VPS_PORT:-22}" >> "$GITHUB_ENV"
+            echo "DEPLOY_VIA_TUNNEL=false" >> "$GITHUB_ENV"
           fi
-
-          [ "$missing" = "0" ] || exit 1
+          [ "$missing" = 0 ] || exit 1
 
       - name: Siapkan SSH
         env:
           VPS_SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_CF_KNOWN_HOSTS: ${{ secrets.VPS_CF_KNOWN_HOSTS }}
         run: |
-          mkdir -p "$HOME/.ssh"
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh" "$HOME/bin"
           chmod 700 "$HOME/.ssh"
-
-          # Base64 didahulukan: secret multi-baris rentan kehilangan/berubah akhiran baris,
-          # dan kunci OpenSSH menolak dimuat kalau barisnya rusak sedikit saja.
           if [ -n "$VPS_SSH_KEY_B64" ]; then
-            if ! printf '%s' "$VPS_SSH_KEY_B64" | tr -d '[:space:]' | base64 -d > "$HOME/.ssh/sahamlens_deploy" 2>/dev/null; then
-              echo "::error::VPS_SSH_KEY_B64 bukan base64 yang sah. Buat ulang dengan: base64 -w0 < ~/.ssh/id_ed25519   (macOS: base64 -i ~/.ssh/id_ed25519)"
-              exit 1
-            fi
+            printf '%s' "$VPS_SSH_KEY_B64" | tr -d '[:space:]' | base64 -d > "$HOME/.ssh/sahamlens_deploy"
           else
             printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/sahamlens_deploy"
           fi
           chmod 600 "$HOME/.ssh/sahamlens_deploy"
-
-          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          if [ "$DEPLOY_VIA_TUNNEL" = "true" ]; then
+            printf '%s\n' "$VPS_CF_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+            curl -fsSL --retry 3 --connect-timeout 15 \
+              https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+              -o "$HOME/bin/cloudflared"
+            chmod 700 "$HOME/bin/cloudflared"
+            "$HOME/bin/cloudflared" --version
+          else
+            printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          fi
           chmod 600 "$HOME/.ssh/known_hosts"
-
-          # Kunci yang pernah lewat editor Windows membawa CRLF; OpenSSH menolaknya dengan
-          # "invalid format" yang tidak menunjuk ke penyebabnya sama sekali.
           sed -i 's/\r$//' "$HOME/.ssh/sahamlens_deploy" "$HOME/.ssh/known_hosts"
-
-          # Inilah baris yang menggagalkan run 31597396135 dengan exit code 1 - tanpa satu
-          # kalimat pun yang menjelaskan kenapa. Sekarang alasannya ditulis.
-          if ! ssh-keygen -y -f "$HOME/.ssh/sahamlens_deploy" > /dev/null 2>&1; then
-            echo "::error::Isi secret bukan private key OpenSSH yang sah. Yang dibutuhkan SELURUH file kunci PRIVAT (termasuk baris BEGIN dan END) - bukan kunci publik (.pub), bukan format PuTTY (.ppk), dan bukan kunci yang dilindungi passphrase (BatchMode tidak bisa mengetiknya)."
-            exit 1
-          fi
-          echo "Private key sah."
-
-          if ! grep -qE '^[^#[:space:]]+ +(ssh-|ecdsa-)' "$HOME/.ssh/known_hosts"; then
-            echo "::error::VPS_KNOWN_HOSTS tidak berisi baris host key yang sah. Isi dengan keluaran: ssh-keyscan -p <PORT> <HOST>"
-            exit 1
-          fi
-          echo "known_hosts sah."
+          ssh-keygen -y -f "$HOME/.ssh/sahamlens_deploy" >/dev/null
+          grep -qE '^[^#[:space:]]+ +(ssh-|ecdsa-)' "$HOME/.ssh/known_hosts"
 
       - name: Deploy SahamLens ke VPS
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
-          PORT="${VPS_PORT:-22}"
           set +e
+          proxy=()
+          if [ "$DEPLOY_VIA_TUNNEL" = "true" ]; then
+            proxy=(-o "ProxyCommand=$HOME/bin/cloudflared access ssh --hostname %h")
+          fi
           ssh \
             -i "$HOME/.ssh/sahamlens_deploy" \
-            -p "$PORT" \
+            -p "$DEPLOY_PORT" \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -o ConnectTimeout=15 \
-            lens@"$VPS_HOST" deploy
+            -o ConnectTimeout=20 \
+            "${proxy[@]}" \
+            lens@"$DEPLOY_HOST" deploy
           code=$?
           set -e
-
-          # Kode keluar SSH punya arti spesifik. Tanpa terjemahan ini setiap kegagalan
-          # tampil sama saja: satu tanda merah tanpa keterangan.
           case "$code" in
-            0)   echo "Deploy selesai." ;;
-            127) echo "::error::Perintah 'deploy' tidak ada di PATH user lens. Catatan penting: ALIAS di ~/.bashrc TIDAK berlaku untuk ssh non-interaktif - perintahnya harus skrip yang bisa dieksekusi (mis. /usr/local/bin/deploy), atau tulis path lengkapnya di workflow ini." ;;
-            255) echo "::error::Koneksi/otentikasi SSH gagal. Urutan cek: host & port benar; kunci PUBLIK pasangannya ada di ~lens/.ssh/authorized_keys; VPS_KNOWN_HOSTS cocok dengan host key server SAAT INI (berubah kalau server dibangun ulang)." ;;
-            *)   echo "::error::Skrip deploy di VPS keluar dengan kode $code - kegagalannya DI SERVER, bukan di koneksinya. Periksa log skrip deploy di VPS." ;;
+            0) echo "Deploy selesai." ;;
+            127) echo "::error::Perintah 'deploy' tidak ada di PATH non-interaktif user lens." ;;
+            255) echo "::error::Transport/otentikasi SSH gagal. Periksa hostname, known_hosts, key, dan konfigurasi Tunnel." ;;
+            *) echo "::error::Skrip deploy VPS keluar dengan kode $code." ;;
           esac
           exit "$code"
+
+      - name: Smoke test publik setelah deploy
+        env:
+          BASE_URL: https://sahamlens.id
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.BASE_URL;
+          const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+          async function get(path, attempts = 8) {
+            let last;
+            for (let i = 1; i <= attempts; i++) {
+              try {
+                const res = await fetch(base + path, { redirect: 'follow', signal: AbortSignal.timeout(12000) });
+                const body = await res.text();
+                if (res.ok) return { res, body };
+                last = new Error(`${path} HTTP ${res.status}`);
+              } catch (e) { last = e; }
+              await sleep(i * 3000);
+            }
+            throw last;
+          }
+          const health = await get('/api/health');
+          const parsed = JSON.parse(health.body);
+          if (parsed?.checks?.database !== 'ok') throw new Error('Smoke: database health bukan ok');
+          await get('/home');
+          console.log('SMOKE PASS: /api/health + /home dapat dilayani dari luar VPS.');
+          NODE

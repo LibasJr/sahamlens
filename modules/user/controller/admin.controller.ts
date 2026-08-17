@@ -120,7 +120,12 @@ async function auditAdmin(
 export async function handleAdminLoginByKey(key: string | null): Promise<HttpResult> {
   if (!key) return { status: 404, body: { error: 'Not found' } };
   const verification = await verifyAdminSecret(key);
-  if (!verification.ok) return { status: 404, body: { error: 'Not found' } };
+  if (!verification.ok) {
+    // Jangan pernah simpan key/secret yang dicoba. Event gagal cukup membuktikan bahwa
+    // sebuah percobaan terjadi; limiter proxy membatasi volume sebelum route ini.
+    await auditAdmin(null, 'LOGIN_FAILED', null, { source: 'REJECTED' });
+    return { status: 404, body: { error: 'Not found' } };
+  }
   await auditAdmin(null, 'LOGIN', null, { source: verification.source });
   return {
     status: 302,

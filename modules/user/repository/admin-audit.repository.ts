@@ -3,6 +3,7 @@ import { assertDatabaseMigrated } from '../../../shared/database/migration-guard
 
 export type AdminAuditAction =
   | 'LOGIN'
+  | 'LOGIN_FAILED'
   | 'CHANGE_SECRET'
   | 'SET_PRO'
   | 'CREATE_TEST_USER'

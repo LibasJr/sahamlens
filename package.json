@@ -20,7 +20,7 @@
     "eval:answers": "node scripts/eval-lensai-answers.mjs",
     "audit:performance": "node scripts/audit-performance.mjs",
     "check:9router": "node scripts/check-9router.mjs",
-    "verify:prod": "npm run audit:schema && npm run audit:cron && npm run audit:ui && npm run audit:performance && npm run typecheck && npm run lint && npm test && npm run build",
+    "verify:prod": "npm run audit:schema && npm run audit:cron && npm run audit:ui && npm run audit:performance && npm run audit:manual-market && npm run audit:market-labels && npm run audit:risk-controls && npm run typecheck && npm run lint && npm test && npm run build",
     "db:migrate": "node scripts/migrate-database.mjs --confirm",
     "db:migrate:check": "node scripts/migrate-database.mjs",
     "audit:integrity": "node scripts/audit-production-integrity.mjs",
@@ -28,7 +28,11 @@
     "import:macro-assumptions": "node scripts/import-macro-assumptions.mjs",
     "import:bank-fundamentals": "node scripts/import-bank-fundamentals.mjs",
     "audit:schema": "node scripts/audit-schema-ownership.mjs",
-    "import:bank-metric-evidence": "node scripts/import-bank-metric-evidence.mjs"
+    "import:bank-metric-evidence": "node scripts/import-bank-metric-evidence.mjs",
+    "audit:manual-market": "node scripts/audit-manual-market-references.mjs",
+    "audit:market-labels": "node scripts/audit-market-label-semantics.mjs",
+    "restore:verify": "node scripts/verify-restore-drill-target.mjs",
+    "audit:risk-controls": "node scripts/audit-risk-controls.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

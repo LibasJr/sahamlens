@@ -1,34 +1,29 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/shared/database/postgres.client';
 import { pingRedis } from '@/shared/cache/redis-cache';
+import { listDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 
 export const dynamic = 'force-dynamic';
 
-// Endpoint termurah & paling mendasar di seluruh Production Checklist - prasyarat
-// untuk uptime monitor eksternal DAN untuk QStash mengecek aplikasi hidup sebelum
-// memicu job berat. Publik (tanpa auth) dengan sengaja - status hidup/mati bukan
-// informasi sensitif, dan justru harus bisa dicek dari luar tanpa kredensial.
 export async function GET() {
-  const checks: { database: 'ok' | 'error'; redis: 'ok' | 'not_configured' | 'error' } = {
-    database: 'error',
-    redis: 'not_configured',
-  };
-
-  try {
-    await pool.query('SELECT 1');
-    checks.database = 'ok';
-  } catch {
-    checks.database = 'error';
-  }
-
+  const checks: { database: 'ok' | 'error'; redis: 'ok' | 'not_configured' | 'error' } = { database: 'error', redis: 'not_configured' };
+  try { await pool.query('SELECT 1'); checks.database = 'ok'; } catch { checks.database = 'error'; }
   checks.redis = await pingRedis();
 
-  // Redis boleh 'not_configured'/'error' (cache murni, aplikasi tetap jalan tanpa
-  // itu) - TAPI database 'error' berarti aplikasi genuinely tidak sehat.
-  const healthy = checks.database === 'ok';
+  let dataSources: Array<{ sourceId: string; status: 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'; lastSuccessAt: string | null; lastFailureAt: string | null; consecutiveFailures: number; dataObservedAt: string | null; updatedAt: string }> = [];
+  try {
+    dataSources = (await listDataSourceHealth()).map((row) => ({
+      sourceId: row.sourceId,
+      status: row.status,
+      lastSuccessAt: row.lastSuccessAt,
+      lastFailureAt: row.lastFailureAt,
+      consecutiveFailures: row.consecutiveFailures,
+      dataObservedAt: row.dataObservedAt,
+      updatedAt: row.updatedAt,
+    }));
+  } catch { dataSources = []; }
 
-  return NextResponse.json(
-    { status: healthy ? 'ok' : 'degraded', checks, timestamp: new Date().toISOString() },
-    { status: healthy ? 200 : 503 }
-  );
+  const sourceSummary = dataSources.reduce((acc, row) => { acc[row.status] += 1; return acc; }, { HEALTHY: 0, DEGRADED: 0, DOWN: 0, UNKNOWN: 0 } as Record<'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN', number>);
+  const healthy = checks.database === 'ok';
+  return NextResponse.json({ status: healthy ? 'ok' : 'degraded', checks, sources: { summary: sourceSummary, items: dataSources }, timestamp: new Date().toISOString() }, { status: healthy ? 200 : 503 });
 }

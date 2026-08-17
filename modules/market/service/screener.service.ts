@@ -40,7 +40,8 @@ import {
 //   menyesatkan seolah itu prediksi AI, sudah diperbaiki jadi apa adanya)
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
-// Saham likuid LQ45/blue-chip - universe yang sama dipakai getMarketSummary(), supaya
+// Universe scanner kurasi internal - BUKAN daftar konstituen LQ45/IDX30 dan BUKAN identitas blue-chip.
+// Universe yang sama dipakai getMarketSummary(), supaya
 // screener ini tidak perlu scan 900+ emiten (lambat & rawan rate-limit Yahoo). Diexport
 // supaya modul lain yang butuh universe likuid yang sama (mis. corporate-calendar.service.ts)
 // tidak duplikat daftar ini.

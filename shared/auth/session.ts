@@ -5,6 +5,7 @@ import { verifyAdminTokenLive } from './admin-token-live';
 import { touchPresence } from './presence';
 import { fetchLiveProFields } from './pro-status';
 import { TESTING_OPEN_ACCESS } from '../constants/access';
+import { evaluateEntitlement } from './entitlement';
 
 export type { SessionPayload };
 
@@ -49,26 +50,8 @@ export async function getSession(): Promise<SessionPayload | null> {
   return null;
 }
 
-function hasActiveProExpiry(expiresAt: string | null | undefined): boolean {
-  // Non-admin paid access must always have an explicit expiry. Null used to mean
-  // unlimited access; production hardening makes missing entitlement metadata fail closed.
-  if (!expiresAt) return false;
-  const time = new Date(expiresAt).getTime();
-  return Number.isFinite(time) && time > Date.now();
-}
-
-
-// role === 'pro' SENGAJA tidak lagi memberi akses sendiri: tidak ada satu baris kode pun
-// yang menulis nilai itu (hanya is_pro yang pernah ditulis), sementara membiarkannya
-// berarti menyisakan jalur akses yang kebal terhadap tanggal kedaluwarsa. Admin tetap
-// lolos tanpa syarat lewat cabang pertama.
 export function checkProAccess(session: SessionPayload | null): boolean {
-  if (!session) return false;
-  if (TESTING_OPEN_ACCESS) return true;
-  if (session.role === 'admin') return true;
-  if (session.is_pro && hasActiveProExpiry(session.pro_expires_at)) return true;
-  if (session.trial_ends_at && new Date(session.trial_ends_at) > new Date()) return true;
-  return false;
+  return evaluateEntitlement(session, { testingOpen: TESTING_OPEN_ACCESS });
 }
 
 // checkProAccess() sinkron hanya membaca snapshot JWT dan dipakai untuk presentasi ringan.
