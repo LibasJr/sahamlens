@@ -51,9 +51,28 @@ const DIIZINKAN = new Set([
   'modules/technical/service/analyzers/volume-analyzer.ts:33',   // delta current vs previous dari history yang sama
   'modules/recommendation/service/breakout.service.ts:178',      // currentPrice-nya juga closes[last]
   'app/dashboard/page.tsx:54',                                   // candle terakhir vs sebelumnya
-  'lib/miniCouncil.ts:97',                                       // badge indikator, larik closes yang sama
   'components/CommandPalette.tsx:111',                           // pratinjau hover, larik closes yang sama
 ]);
+
+
+/**
+ * Pengecualian yang stabil terhadap pergeseran nomor baris.
+ *
+ * MiniCouncil membandingkan dua observasi berurutan dari `closes` yang SAMA.
+ * Ini bukan fallback previous-close dari Yahoo dan bukan rekonstruksi acuan sesi.
+ */
+function diizinkanBerdasarkanKode(file: string, line: string): boolean {
+  const normalized = file.replace(/\\/g, '/');
+
+  if (
+    normalized === 'lib/miniCouncil.ts' &&
+    /const\s+prev\s*=\s*closes\.length\s*>\s*1\s*\?\s*closes\[closes\.length\s*-\s*2\]\s*:\s*price/.test(line)
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 function daftarFile(dir: string): string[] {
   const out: string[] = [];
@@ -116,6 +135,7 @@ describe('penjaga penutupan sesi sebelumnya', () => {
         if (!pola.test(line)) return;
         const id = `${file.replace(/\\/g, '/')}:${i + 1}`;
         if (DIIZINKAN.has(id)) return;
+        if (diizinkanBerdasarkanKode(file, line)) return;
         pelanggar.push(id);
       });
     }
