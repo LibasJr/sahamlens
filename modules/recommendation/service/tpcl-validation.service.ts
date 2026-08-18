@@ -13,6 +13,7 @@ import {
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
 } from '@/modules/lens-radar/service/bucket-backtest.service';
 import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import { MIN_VALIDATION_COVERAGE_PCT } from '@/modules/lens-radar/service/validation-population';
 import {
   buildLongTradingSetup,
@@ -766,6 +767,7 @@ async function readSignals(historyRange: TpclHistoryRange): Promise<SignalRow[]>
        FROM lens_radar_history
       WHERE lens_score >= $1
         AND score_version = $2
+        AND universe_version = $6
         AND avg_value_20d >= $3
         AND coverage_pct >= $4
         AND eligibility_status = 'ELIGIBLE'
@@ -778,6 +780,7 @@ async function readSignals(historyRange: TpclHistoryRange): Promise<SignalRow[]>
       LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
       MIN_VALIDATION_COVERAGE_PCT,
       cutoffDate,
+      ACTIVE_LIQUID_UNIVERSE_VERSION,
     ],
   );
   return result.rows.map((row: any) => {

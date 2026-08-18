@@ -12,6 +12,7 @@ import {
 } from './history-return-utils';
 import { logger } from '@/shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -610,8 +611,10 @@ export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRa
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
+      AND universe_version = $1
     ORDER BY ticker ASC, "date" ASC
-    `
+    `,
+    [ACTIVE_LIQUID_UNIVERSE_VERSION]
   );
   return rows as LensRadarHistoryEntry[];
 }
