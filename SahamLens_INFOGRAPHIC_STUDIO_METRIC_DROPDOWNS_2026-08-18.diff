@@ -1,0 +1,289 @@
+--- a/app/admin/infographic-studio/page.tsx
++++ b/app/admin/infographic-studio/page.tsx
+@@ -28,6 +28,46 @@
+ 
+ const POPULAR_TICKERS = ['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'ITMG', 'BREN', 'UNVR', 'ICBP'];
+ 
++
++const MAX_STUDIO_METRICS = 8;
++
++const FUNDAMENTAL_METRIC_OPTIONS = [
++  { key: 'returnOnEquity', label: 'ROE — Return on Equity' },
++  { key: 'returnOnAssets', label: 'ROA — Return on Assets' },
++  { key: 'profitMargins', label: 'Net Profit Margin' },
++  { key: 'operatingMargins', label: 'Operating Margin' },
++  { key: 'grossMargins', label: 'Gross Profit Margin' },
++  { key: 'trailingPE', label: 'PER — Price to Earnings' },
++  { key: 'forwardPE', label: 'Forward P/E' },
++  { key: 'priceToBook', label: 'PBV — Price to Book Value' },
++  { key: 'debtToEquity', label: 'DER — Debt to Equity' },
++  { key: 'currentRatio', label: 'Current Ratio' },
++  { key: 'quickRatio', label: 'Quick Ratio' },
++  { key: 'revenueGrowth', label: 'Revenue Growth' },
++  { key: 'earningsGrowth', label: 'Earnings Growth' },
++  { key: 'dividendYield', label: 'Dividend Yield' },
++  { key: 'marketCap', label: 'Market Capitalization' },
++  { key: 'totalRevenue', label: 'Total Revenue' },
++  { key: 'ebitda', label: 'EBITDA' },
++] as const;
++
++type FundamentalMetricKey = (typeof FUNDAMENTAL_METRIC_OPTIONS)[number]['key'];
++
++const DEFAULT_FUNDAMENTAL_METRICS: FundamentalMetricKey[] = [
++  'returnOnEquity',
++  'returnOnAssets',
++  'profitMargins',
++  'operatingMargins',
++  'trailingPE',
++  'priceToBook',
++  'revenueGrowth',
++  'dividendYield',
++];
++
++function analyzerKey(analyzer: any): string {
++  return String(analyzer?.label || analyzer?.name || '').trim();
++}
++
+ export default function InfographicStudioPage() {
+   const { effectiveRole, loading: authLoading } = useAuthUser();
+   const [tickerInput, setTickerInput] = useState('BBCA');
+@@ -41,6 +81,8 @@
+   const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
+   const [exporting, setExporting] = useState(false);
+   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
++  const [selectedTechnicalIndicators, setSelectedTechnicalIndicators] = useState<string[]>([]);
++  const [selectedFundamentalMetrics, setSelectedFundamentalMetrics] = useState<FundamentalMetricKey[]>(DEFAULT_FUNDAMENTAL_METRICS);
+   const searchContainerRef = useRef<HTMLDivElement>(null);
+   const canvasRef = useRef<HTMLDivElement>(null);
+ 
+@@ -60,6 +102,80 @@
+     ).slice(0, 10);
+   }, [tickerInput]);
+ 
++  const technicalIndicatorOptions = React.useMemo(() => {
++    const analyzers = Array.isArray(data?.technical?.analyzers) ? data.technical.analyzers : [];
++    const seen = new Set<string>();
++    return analyzers
++      .map((analyzer: any) => ({
++        key: analyzerKey(analyzer),
++        label: analyzerKey(analyzer),
++        value: analyzer?.value,
++      }))
++      .filter((item: { key: string; label: string; value: unknown }) => {
++        if (!item.key || seen.has(item.key)) return false;
++        if (item.value == null || item.value === 'N/A' || String(item.value).startsWith('N/A')) return false;
++        seen.add(item.key);
++        return true;
++      });
++  }, [data?.technical?.analyzers]);
++
++  const availableFundamentalOptions = React.useMemo(() => {
++    const fundamentals = data?.fundamental?.fundamentals || {};
++    return FUNDAMENTAL_METRIC_OPTIONS.filter((item) => {
++      const value = fundamentals[item.key];
++      return typeof value === 'number' && Number.isFinite(value);
++    });
++  }, [data?.fundamental?.fundamentals]);
++
++  useEffect(() => {
++    if (technicalIndicatorOptions.length === 0) {
++      setSelectedTechnicalIndicators([]);
++      return;
++    }
++    setSelectedTechnicalIndicators((current) => {
++      const valid = current.filter((key) => technicalIndicatorOptions.some((item) => item.key === key));
++      if (valid.length > 0) return valid.slice(0, MAX_STUDIO_METRICS);
++      return technicalIndicatorOptions.slice(0, MAX_STUDIO_METRICS).map((item) => item.key);
++    });
++  }, [technicalIndicatorOptions]);
++
++  useEffect(() => {
++    if (availableFundamentalOptions.length === 0) {
++      setSelectedFundamentalMetrics([]);
++      return;
++    }
++    setSelectedFundamentalMetrics((current) => {
++      const available = new Set(availableFundamentalOptions.map((item) => item.key));
++      const valid = current.filter((key) => available.has(key));
++      if (valid.length > 0) return valid.slice(0, MAX_STUDIO_METRICS);
++      const preferred = DEFAULT_FUNDAMENTAL_METRICS.filter((key) => available.has(key));
++      const fallback = availableFundamentalOptions.map((item) => item.key);
++      return (preferred.length > 0 ? preferred : fallback).slice(0, MAX_STUDIO_METRICS);
++    });
++  }, [availableFundamentalOptions]);
++
++  const toggleTechnicalIndicator = (key: string) => {
++    setSelectedTechnicalIndicators((current) => {
++      if (current.includes(key)) return current.filter((item) => item !== key);
++      if (current.length >= MAX_STUDIO_METRICS) {
++        showToast(`Maksimal ${MAX_STUDIO_METRICS} indikator teknikal per infografis.`, 'info');
++        return current;
++      }
++      return [...current, key];
++    });
++  };
++
++  const toggleFundamentalMetric = (key: FundamentalMetricKey) => {
++    setSelectedFundamentalMetrics((current) => {
++      if (current.includes(key)) return current.filter((item) => item !== key);
++      if (current.length >= MAX_STUDIO_METRICS) {
++        showToast(`Maksimal ${MAX_STUDIO_METRICS} indikator fundamental per infografis.`, 'info');
++        return current;
++      }
++      return [...current, key];
++    });
++  };
++
+   const selectTicker = (symbol: string) => {
+     const cleanSym = symbol.replace('.JK', '').toUpperCase();
+     setTickerInput(cleanSym);
+@@ -205,6 +321,23 @@
+     showToast(`Tema 3D diacak: ${random.name}`, 'info');
+   };
+ 
++  const selectedTechnicalAnalyzers = React.useMemo(() => {
++    const analyzers = Array.isArray(data?.technical?.analyzers) ? data.technical.analyzers : [];
++    if (selectedTechnicalIndicators.length === 0) return [];
++    const selected = new Set(selectedTechnicalIndicators);
++    return analyzers.filter((analyzer: any) => selected.has(analyzerKey(analyzer)));
++  }, [data?.technical?.analyzers, selectedTechnicalIndicators]);
++
++  const selectedFundamentalsForExport = React.useMemo(() => {
++    const source = data?.fundamental?.fundamentals || {};
++    const filtered: Record<string, number | null> = {};
++    for (const key of selectedFundamentalMetrics) {
++      const value = source[key];
++      if (typeof value === 'number' && Number.isFinite(value)) filtered[key] = value;
++    }
++    return filtered;
++  }, [data?.fundamental?.fundamentals, selectedFundamentalMetrics]);
++
+   const handleDownloadImage = async () => {
+     if (!canvasRef.current) return;
+     setExporting(true);
+@@ -416,7 +549,106 @@
+               </button>
+             </div>
+ 
+-            {/* 2. Theme Selector & Randomize Button */}
++            {/* 2. Content selectors: only real values available in the loaded payload */}
++            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
++              <details className={`relative group ${cardMode === 'technical' ? '' : 'opacity-60'}`}>
++                <summary className={`list-none cursor-pointer flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
++                  cardMode === 'technical'
++                    ? `${active3DTheme.accentBorder} ${active3DTheme.accentBg} ${active3DTheme.accentText}`
++                    : 'border-slate-700 bg-[#030612] text-slate-400'
++                }`}>
++                  <Sliders className="w-3.5 h-3.5" />
++                  <span>Indikator Teknikal</span>
++                  <span className="font-mono text-[10px]">{selectedTechnicalIndicators.length}/{Math.min(MAX_STUDIO_METRICS, technicalIndicatorOptions.length)}</span>
++                  <ChevronDown className="w-3.5 h-3.5" />
++                </summary>
++                <div className="absolute left-0 z-50 mt-2 w-[320px] max-w-[85vw] rounded-2xl border border-slate-700 bg-[#07101f] p-3 shadow-2xl">
++                  <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
++                    <div>
++                      <div className="text-[11px] font-bold text-white">Pilih indikator yang dicantumkan</div>
++                      <div className="text-[9px] text-slate-400">Hanya indikator dengan nilai tersedia • maksimal {MAX_STUDIO_METRICS}</div>
++                    </div>
++                    <button
++                      type="button"
++                      onClick={() => setSelectedTechnicalIndicators(technicalIndicatorOptions.slice(0, MAX_STUDIO_METRICS).map((item) => item.key))}
++                      className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300"
++                    >
++                      Default
++                    </button>
++                  </div>
++                  <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
++                    {technicalIndicatorOptions.length > 0 ? technicalIndicatorOptions.map((item) => {
++                      const checked = selectedTechnicalIndicators.includes(item.key);
++                      return (
++                        <label key={item.key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-white/5">
++                          <span className="min-w-0 truncate text-[11px] text-slate-200">{item.label}</span>
++                          <input
++                            type="checkbox"
++                            checked={checked}
++                            onChange={() => toggleTechnicalIndicator(item.key)}
++                            className="h-4 w-4 accent-cyan-500"
++                          />
++                        </label>
++                      );
++                    }) : (
++                      <div className="rounded-xl border border-slate-800 p-3 text-[10px] text-slate-400">Belum ada indikator teknikal valid pada payload emiten ini.</div>
++                    )}
++                  </div>
++                </div>
++              </details>
++
++              <details className={`relative group ${cardMode === 'fundamental_moat_earnings' ? '' : 'opacity-60'}`}>
++                <summary className={`list-none cursor-pointer flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
++                  cardMode === 'fundamental_moat_earnings'
++                    ? `${active3DTheme.accentBorder} ${active3DTheme.accentBg} ${active3DTheme.accentText}`
++                    : 'border-slate-700 bg-[#030612] text-slate-400'
++                }`}>
++                  <Landmark className="w-3.5 h-3.5" />
++                  <span>Fundamental</span>
++                  <span className="font-mono text-[10px]">{selectedFundamentalMetrics.length}/{Math.min(MAX_STUDIO_METRICS, availableFundamentalOptions.length)}</span>
++                  <ChevronDown className="w-3.5 h-3.5" />
++                </summary>
++                <div className="absolute right-0 z-50 mt-2 w-[340px] max-w-[85vw] rounded-2xl border border-slate-700 bg-[#07101f] p-3 shadow-2xl">
++                  <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
++                    <div>
++                      <div className="text-[11px] font-bold text-white">Pilih rasio fundamental</div>
++                      <div className="text-[9px] text-slate-400">Hanya field dengan data nyata pada payload • maksimal {MAX_STUDIO_METRICS}</div>
++                    </div>
++                    <button
++                      type="button"
++                      onClick={() => {
++                        const available = new Set(availableFundamentalOptions.map((item) => item.key));
++                        const preferred = DEFAULT_FUNDAMENTAL_METRICS.filter((key) => available.has(key));
++                        setSelectedFundamentalMetrics((preferred.length > 0 ? preferred : availableFundamentalOptions.map((item) => item.key)).slice(0, MAX_STUDIO_METRICS));
++                      }}
++                      className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300"
++                    >
++                      Default
++                    </button>
++                  </div>
++                  <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
++                    {availableFundamentalOptions.length > 0 ? availableFundamentalOptions.map((item) => {
++                      const checked = selectedFundamentalMetrics.includes(item.key);
++                      return (
++                        <label key={item.key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-white/5">
++                          <span className="min-w-0 truncate text-[11px] text-slate-200">{item.label}</span>
++                          <input
++                            type="checkbox"
++                            checked={checked}
++                            onChange={() => toggleFundamentalMetric(item.key)}
++                            className="h-4 w-4 accent-cyan-500"
++                          />
++                        </label>
++                      );
++                    }) : (
++                      <div className="rounded-xl border border-slate-800 p-3 text-[10px] text-slate-400">Belum ada rasio fundamental valid untuk emiten ini.</div>
++                    )}
++                  </div>
++                </div>
++              </details>
++            </div>
++
++            {/* 3. Theme Selector & Randomize Button */}
+             <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+               <div className="flex items-center gap-1.5 bg-[#030612] border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
+                 <Palette className={`w-3.5 h-3.5 ${active3DTheme.accentText}`} />
+@@ -517,7 +749,7 @@
+                       buyPct={data.technical.bullPct}
+                       sellPct={data.technical.bearPct}
+                       neutralPct={data.technical.neutralPct}
+-                      analyzers={data.technical.analyzers}
++                      analyzers={selectedTechnicalAnalyzers}
+                       theme={active3DTheme}
+                       exportedAt={new Date()}
+                     />
+@@ -526,7 +758,7 @@
+                       ticker={data.symbol}
+                       stock={data.stock}
+                       scoring={data.fundamental.scoring}
+-                      fundamentals={data.fundamental.fundamentals}
++                      fundamentals={selectedFundamentalsForExport}
+                       profile={data.fundamental.profile}
+                       moat={data.fundamental.moat}
+                       durability={data.fundamental.durability}
