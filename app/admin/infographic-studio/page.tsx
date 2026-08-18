@@ -482,13 +482,14 @@ export default function InfographicStudioPage() {
                   className="bg-transparent text-white font-mono text-xs font-bold focus:outline-none cursor-pointer"
                 >
                   <option value="auto" className="bg-[#0c162c] text-white">🏛️ Sesuai Sektor Emiten (Otomatis)</option>
-                  <option value="sapphire-bank" className="bg-[#0c162c] text-cyan-400">💎 Biru Safir &amp; Titanium (Banking)</option>
-                  <option value="solar-mining" className="bg-[#0c162c] text-amber-400">⚡ Emas Solar Flare (Mining/Energy)</option>
-                  <option value="violet-cyber" className="bg-[#0c162c] text-fuchsia-400">🔮 Violet Cyberpunk (Tech/Telco)</option>
-                  <option value="rose-fmcg" className="bg-[#0c162c] text-pink-400">🌸 Mawar Sampanye (Consumer/FMCG)</option>
-                  <option value="emerald-infra" className="bg-[#0c162c] text-emerald-400">🌿 Matrix Zamrud (Infra/ESG)</option>
-                  <option value="luxury-gold" className="bg-[#0c162c] text-yellow-400">👑 Emas Kemewahan (Property)</option>
-                  <option value="ruby-health" className="bg-[#0c162c] text-rose-400">💉 Ruby Merah (Healthcare)</option>
+                  <option value="obsidian-cyber" className="bg-[#0c162c] text-emerald-300">⚡ Obsidian Cyber Neon (High Contrast)</option>
+                  <option value="imperial-gold" className="bg-[#0c162c] text-amber-300">👑 Imperial Gold &amp; Wealth (Luxury)</option>
+                  <option value="tokyo-neon" className="bg-[#0c162c] text-fuchsia-300">🔮 Tokyo Quantum Violet (Tech/Crypto)</option>
+                  <option value="emerald-infra" className="bg-[#0c162c] text-emerald-400">🟢 Bullish Emerald Matrix (High Growth)</option>
+                  <option value="sapphire-bank" className="bg-[#0c162c] text-cyan-300">💎 Royal Sapphire (Banking/Bluechip)</option>
+                  <option value="solar-mining" className="bg-[#0c162c] text-amber-400">🌋 Ember Magma (Energy/Mining)</option>
+                  <option value="rose-fmcg" className="bg-[#0c162c] text-pink-300">🌸 Champagne Rose (Consumer/Retail)</option>
+                  <option value="ruby-health" className="bg-[#0c162c] text-rose-300">🩸 Ruby Crimson (Healthcare)</option>
                 </select>
               </div>
 
