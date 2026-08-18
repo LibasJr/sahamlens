@@ -76,11 +76,47 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const qClean = q.replace('.jk', '');
     const searchable = [...MARKET_INDEXES, ...emiten];
     if (!q) return searchable.slice(0, 8);
-    return searchable
-      .filter((e) => e.symbol.toLowerCase().includes(q) || e.name.toLowerCase().includes(q))
-      .slice(0, 8);
+
+    const matched = searchable.filter((e) => {
+      const sym = e.symbol.toLowerCase().replace('.jk', '');
+      const name = e.name.toLowerCase();
+      return sym.includes(qClean) || name.includes(q);
+    });
+
+    matched.sort((a, b) => {
+      const aSym = a.symbol.toLowerCase().replace('.jk', '');
+      const bSym = b.symbol.toLowerCase().replace('.jk', '');
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+
+      // 1. Exact symbol match
+      const aExact = aSym === qClean ? 0 : 1;
+      const bExact = bSym === qClean ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+
+      // 2. Symbol prefix match
+      const aSymPrefix = aSym.startsWith(qClean) ? 0 : 1;
+      const bSymPrefix = bSym.startsWith(qClean) ? 0 : 1;
+      if (aSymPrefix !== bSymPrefix) return aSymPrefix - bSymPrefix;
+
+      // 3. Name prefix or word prefix match
+      const aNamePrefix = aName.startsWith(q) || aName.includes(' ' + q) ? 0 : 1;
+      const bNamePrefix = bName.startsWith(q) || bName.includes(' ' + q) ? 0 : 1;
+      if (aNamePrefix !== bNamePrefix) return aNamePrefix - bNamePrefix;
+
+      // 4. Symbol contains
+      const aSymContains = aSym.includes(qClean) ? 0 : 1;
+      const bSymContains = bSym.includes(qClean) ? 0 : 1;
+      if (aSymContains !== bSymContains) return aSymContains - bSymContains;
+
+      // Default alphabetical by symbol
+      return aSym.localeCompare(bSym);
+    });
+
+    return matched.slice(0, 8);
   }, [query, emiten]);
 
   useEffect(() => setActiveIdx(0), [query]);
