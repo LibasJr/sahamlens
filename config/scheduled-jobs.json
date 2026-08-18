@@ -21,8 +21,8 @@
       "path": "/api/cron/broker-summary-scan",
       "provider": "systemd",
       "schedule": "30 17 * * 1-5",
-      "scheduleStatus": "known",
-      "source": "Diaktifkan 2026-08-17 untuk sinkronisasi EOD Broker Summary BEI & Bandarmology. Timer: deploy/broker-summary-scan/sahamlens-broker-summary-scan.timer. Jadwal: Mon..Fri 17:30 Asia/Jakarta."
+      "scheduleStatus": "verify-server",
+      "source": "TIMER TIDAK ADA DI VPS. `systemctl list-timers --all | grep sahamlens` pada 2026-08-18 20:40 WIB memuat 13 timer sahamlens dan sahamlens-broker-summary-scan.timer BUKAN salah satunya. Status 'known' sebelumnya berasal dari niat pemasangan 2026-08-17, bukan dari pengamatan server. Ini konsisten dengan data broker summary yang berhenti di 2026-08-14. Unit tersedia di deploy/broker-summary-scan/; pasang lalu verifikasi ulang sebelum status dikembalikan ke known."
     },
     {
       "path": "/api/cron/ai-pick-scan",
@@ -126,8 +126,8 @@
       "path": "/api/cron/ownership-flow-ksei-sync",
       "provider": "systemd",
       "schedule": "Daily 19:15 Asia/Jakarta (jeda acak hingga 300 detik)",
-      "scheduleStatus": "verify-server",
-      "source": "BARU 2026-08-16 untuk sumber VERIFIED KSEI_HOLDING_COMPOSITION. Timer repo: deploy/ownership-flow-ksei-sync/sahamlens-ownership-flow-ksei-sync.timer. Jadwal 19:15 WIB adalah jadwal POLLING SahamLens, bukan klaim jam publikasi KSEI. Satu kali sehari cukup untuk snapshot bulanan. Setelah unit dipasang di VPS, verifikasi dengan systemctl list-timers lalu ubah scheduleStatus menjadi known."
+      "scheduleStatus": "known",
+      "source": "BARU 2026-08-16 untuk sumber VERIFIED KSEI_HOLDING_COMPOSITION. Timer repo: deploy/ownership-flow-ksei-sync/sahamlens-ownership-flow-ksei-sync.timer. Jadwal 19:15 WIB adalah jadwal POLLING SahamLens, bukan klaim jam publikasi KSEI. Satu kali sehari cukup untuk snapshot bulanan. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 19:16:23 WIB, NEXT Rab 2026-08-19 19:18:19 WIB - jeda acak terlihat pada selisih menit antar eksekusi."
     },
     {
       "path": "/api/cron/calendar-scan",
@@ -140,36 +140,36 @@
       "path": "/api/cron/privacy-cleanup",
       "provider": "systemd",
       "schedule": "Weekly Sunday 02:30 Asia/Jakarta (jeda acak hingga 600 detik)",
-      "scheduleStatus": "verify-server",
-      "source": "BARU Production Hardening 2026-08-16. Menjalankan kebijakan retensi user_auth_events/product_funnel/LensAI feedback/payment non-PAID/admin audit. Timer repo deploy/privacy-cleanup; setelah dipasang di VPS verifikasi systemctl list-timers dan ubah status menjadi known."
+      "scheduleStatus": "known",
+      "source": "BARU Production Hardening 2026-08-16. Menjalankan kebijakan retensi user_auth_events/product_funnel/LensAI feedback/payment non-PAID/admin audit. Timer repo deploy/privacy-cleanup. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: terpasang dan aktif, NEXT Min 2026-08-23 02:38:32 WIB. LAST masih n/a - wajar untuk job mingguan yang baru dipasang dan belum melewati hari Minggu pertamanya."
     },
     {
       "path": "/api/cron/tpcl-validation-worker",
       "provider": "systemd",
       "schedule": "Every 1 minute while VPS is running (queue worker; max one research run per invocation)",
-      "scheduleStatus": "verify-server",
-      "source": "BARU Production Hardening 2026-08-16. Memproses antrean persisten tpcl_validation_runs; action admin hanya enqueue sehingga browser disconnect tidak membatalkan riset. Timer repo deploy/tpcl-validation-worker."
+      "scheduleStatus": "known",
+      "source": "BARU Production Hardening 2026-08-16. Memproses antrean persisten tpcl_validation_runs; action admin hanya enqueue sehingga browser disconnect tidak membatalkan riset. Timer repo deploy/tpcl-validation-worker. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 20:38:30 WIB, NEXT 20:39:31 WIB - jarak satu menit sesuai desain worker antrean."
     },
     {
       "path": "/api/cron/bank-fundamental-collect",
       "provider": "systemd",
       "schedule": "Daily 20:45 Asia/Jakarta (jeda acak hingga 600 detik)",
-      "scheduleStatus": "verify-server",
-      "source": "BARU Financial Integrity 2026-08-16. Collector hanya crawl domain resmi issuer BBCA/BBRI/BMRI/BBNI, PDF text-layer via pdftotext, ambiguous/conflict masuk quarantine. Timer repo deploy/bank-fundamental-collector; setelah dipasang verifikasi systemctl list-timers dan ubah status menjadi known."
+      "scheduleStatus": "known",
+      "source": "BARU Financial Integrity 2026-08-16. Collector hanya crawl domain resmi issuer BBCA/BBRI/BMRI/BBNI, PDF text-layer via pdftotext, ambiguous/conflict masuk quarantine. Timer repo deploy/bank-fundamental-collector. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sen 2026-08-17 20:52:07 WIB, NEXT Sel 2026-08-18 20:54:55 WIB - harian dengan jeda acak."
     },
     {
       "path": "/api/cron/market-data-reconcile",
       "provider": "systemd",
       "schedule": "Mon..Fri 18:30 Asia/Jakarta (jeda acak hingga 300 detik)",
-      "scheduleStatus": "verify-server",
-      "source": "BARU D-1 Market Data Integrity 2026-08-17. Rekonsiliasi close harian Yahoo vs sumber pembanding IDX untuk universe aktif. Timer repo deploy/market-data-reconcile; setelah dipasang verifikasi systemctl list-timers lalu ubah scheduleStatus menjadi known."
+      "scheduleStatus": "known",
+      "source": "BARU D-1 Market Data Integrity 2026-08-17. Rekonsiliasi close harian untuk universe aktif; sejak 2026-08-18 IDX menjadi primary dan Yahoo pembanding. Timer repo deploy/market-data-reconcile. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 18:35:00 WIB, NEXT Rab 2026-08-19 18:31:30 WIB."
     },
     {
       "path": "/api/cron/idx-flow-sync",
       "provider": "systemd",
       "schedule": "Mon..Fri *-*-* 17:30:00 Asia/Jakarta",
       "scheduleStatus": "known",
-      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup."
+      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup. PERHATIAN: `systemctl list-timers --all` 2026-08-18 20:40 WIB menunjukkan timer terpasang tetapi LAST masih n/a - belum pernah sekali pun tereksekusi, padahal jadwalnya Sen-Jum 17:30 dan hari itu Selasa. NEXT Rab 2026-08-19 17:32:59 WIB. Bersama broker-summary-scan yang timernya tidak ada, ini menjelaskan data broker summary yang berhenti di 2026-08-14."
     }
   ]
 }
