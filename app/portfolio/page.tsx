@@ -15,7 +15,7 @@ import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { fadeUp } from '@/lib/motion';
 import { getDecisionPresentation } from '@/modules/eligibility';
 
-const formatIDR = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+const formatIDR = (n: number | null | undefined) => n == null || !Number.isFinite(n) ? 'N/A' : 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
 // AVATAR_COLORS + tickerAvatarColor() dihapus: keduanya implementasi avatar
 // berwarna-per-emiten yang kini sudah ada sebagai komponen bersama
@@ -205,7 +205,7 @@ export default function PortfolioPage() {
         // P&L dihitung tepat nol dan halaman menampilkan posisi itu sebagai "impas".
         // Kegagalan mengambil data dirender sebagai fakta pasar. Sekarang keadaan
         // itu ditandai (priceStale) supaya UI bisa menyebutnya apa adanya.
-        let currentPrice = h.avgPrice;
+        let currentPrice: number | null = null;
         let priceStale = true;
         let scoreLabel: string | null = null;
         try {
@@ -231,9 +231,9 @@ export default function PortfolioPage() {
           if (e instanceof DOMException && e.name === 'AbortError') throw e;
         }
 
-        const currentValue = currentPrice * h.lots * 100;
-        const pnl = currentValue - h.totalCost;
-        const pnlPct = h.totalCost > 0 ? (pnl / h.totalCost) * 100 : 0;
+        const currentValue = currentPrice != null ? currentPrice * h.lots * 100 : null;
+        const pnl = currentValue != null ? currentValue - h.totalCost : null;
+        const pnlPct = pnl != null && h.totalCost > 0 ? (pnl / h.totalCost) * 100 : null;
 
         return { ...h, currentPrice, currentValue, pnl, pnlPct, scoreLabel, priceStale };
       }));
@@ -269,10 +269,10 @@ export default function PortfolioPage() {
     const wsHoldings = XLSX.utils.json_to_sheet(holdings.map(h => ({
       Symbol: h.symbol,
       'Avg Buy': h.avgPrice,
-      Current: h.currentPrice,
+      Current: h.currentPrice ?? 'N/A',
       Lots: h.lots,
-      'P/L Rp': h.pnl,
-      'P/L %': (h.pnlPct / 100).toFixed(4),
+      'P/L Rp': h.pnl ?? 'N/A',
+      'P/L %': h.pnlPct != null ? (h.pnlPct / 100).toFixed(4) : 'N/A',
       Score: h.scoreLabel || 'N/A'
     })));
     XLSX.utils.book_append_sheet(wb, wsHoldings, 'Holdings');
@@ -291,7 +291,7 @@ export default function PortfolioPage() {
       startY: 30,
       head: [['Symbol', 'Avg Buy', 'Current', 'Lots', 'P/L Rp', 'P/L %']],
       body: holdings.map(h => [
-        h.symbol, h.avgPrice, h.currentPrice, h.lots, h.pnl, h.pnlPct.toFixed(2) + '%'
+        h.symbol, h.avgPrice, h.currentPrice ?? 'N/A', h.lots, h.pnl ?? 'N/A', h.pnlPct != null ? h.pnlPct.toFixed(2) + '%' : 'N/A'
       ])
     });
     doc.save('SahamLens_Portfolio.pdf');
@@ -445,18 +445,17 @@ export default function PortfolioPage() {
     );
   }
 
-  const holdingsValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
-  const totalEquity = portfolio.cash + holdingsValue;
-  const totalPnl = totalEquity - portfolio.initial_cash;
-  const totalPnlPct = portfolio.initial_cash > 0 ? (totalPnl / portfolio.initial_cash) * 100 : 0;
-  const isPositive = totalPnl >= 0;
+  const stalePriceCount = holdings.filter((h) => h.priceStale || h.currentValue == null).length;
+  const allHoldingsPriced = stalePriceCount === 0;
+  const holdingsValue = allHoldingsPriced ? holdings.reduce((sum, h) => sum + (h.currentValue as number), 0) : null;
+  const totalEquity = holdingsValue != null ? portfolio.cash + holdingsValue : null;
+  const totalPnl = totalEquity != null ? totalEquity - portfolio.initial_cash : null;
+  const totalPnlPct = totalPnl != null && portfolio.initial_cash > 0 ? (totalPnl / portfolio.initial_cash) * 100 : null;
+  const isPositive = totalPnl != null ? totalPnl >= 0 : false;
   // Akun yang belum pernah bertransaksi punya totalPnl tepat 0, dan `>= 0` membuatnya
   // lolos sebagai "positif" - badge UNTUNG hijau menyala di akun yang belum melakukan
   // apa pun. Keadaan netral dipisahkan.
-  const isUntouched = totalPnl === 0;
-  // Ditandai kalau ADA posisi yang harganya gagal diambil: seluruh angka ekuitas di
-  // atas ikut terpengaruh, jadi peringatannya harus muncul di dekat angkanya.
-  const stalePriceCount = holdings.filter((h) => h.priceStale).length;
+  const isUntouched = totalPnl === 0 && holdings.length === 0;
 
   return (
     <div className="min-h-screen bg-tv-bg text-white font-sans pb-20">
@@ -488,7 +487,9 @@ export default function PortfolioPage() {
           <div className="p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-tv-muted text-sm font-medium">Total Ekuitas</span>
-              {isUntouched ? (
+              {totalEquity == null ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-warning/15 text-tv-warning">HARGA BELUM LENGKAP</span>
+              ) : isUntouched ? (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-hover text-tv-muted">BELUM ADA TRANSAKSI</span>
               ) : isPositive ? (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-green/15 text-tv-green">UNTUNG</span>
@@ -497,34 +498,37 @@ export default function PortfolioPage() {
               )}
             </div>
             <div className="flex items-end gap-3 mb-4">
-              <AnimatedNumber
-                value={totalEquity}
-                format={formatIDR}
-                className="text-3xl font-bold text-white tracking-tight font-number tabular-nums"
-              />
+              {totalEquity != null ? (
+                <AnimatedNumber
+                  value={totalEquity}
+                  format={formatIDR}
+                  className="text-3xl font-bold text-white tracking-tight font-number tabular-nums"
+                />
+              ) : (
+                <span className="text-3xl font-bold text-tv-warning tracking-tight font-number">N/A</span>
+              )}
             </div>
 
             {/* Peringatan harga basi ditempatkan tepat di bawah angka ekuitas karena
                 angka itulah yang terpengaruh - bukan disembunyikan di baris posisi. */}
             {stalePriceCount > 0 && (
               <p className="mb-4 rounded-md border border-tv-warning/30 bg-tv-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-tv-warning">
-                Harga pasar {stalePriceCount} posisi gagal diambil, jadi nilainya dihitung memakai harga rata-rata belinya sendiri.
-                Total ekuitas dan return di kartu ini lebih rendah akurasinya dari biasanya.
+                Harga pasar {stalePriceCount} posisi gagal diambil. SahamLens tidak mengganti harga yang hilang dengan harga beli, sehingga total ekuitas dan return ditampilkan N/A sampai semua posisi memiliki harga pasar.
               </p>
             )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-xs text-tv-muted mb-1 block">Return (Rp)</span>
-                <div className={`font-semibold font-number tabular-nums flex items-center gap-1 ${isUntouched ? 'text-tv-muted' : isPositive ? 'text-tv-green' : 'text-tv-red'}`}>
-                  {isUntouched ? null : isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                  {isPositive && !isUntouched ? '+' : ''}{formatIDR(totalPnl)}
+                <div className={`font-semibold font-number tabular-nums flex items-center gap-1 ${totalPnl == null ? 'text-tv-warning' : isUntouched ? 'text-tv-muted' : isPositive ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {totalPnl == null || isUntouched ? null : isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                  {totalPnl == null ? 'N/A' : `${isPositive && !isUntouched ? '+' : ''}${formatIDR(totalPnl)}`}
                 </div>
               </div>
               <div>
                 <span className="text-xs text-tv-muted mb-1 block">Return (%)</span>
-                <div className={`font-semibold font-number tabular-nums flex items-center gap-1 ${isUntouched ? 'text-tv-muted' : isPositive ? 'text-tv-green' : 'text-tv-red'}`}>
-                  {isPositive && !isUntouched ? '+' : ''}{totalPnlPct.toFixed(2)}%
+                <div className={`font-semibold font-number tabular-nums flex items-center gap-1 ${totalPnl == null ? 'text-tv-warning' : isUntouched ? 'text-tv-muted' : isPositive ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {totalPnlPct == null ? 'N/A' : `${isPositive && !isUntouched ? '+' : ''}${totalPnlPct.toFixed(2)}%`}
                 </div>
               </div>
             </div>
@@ -545,7 +549,7 @@ export default function PortfolioPage() {
               <div className="text-sm font-bold text-white font-number tabular-nums">{formatIDR(portfolio.cash)}</div>
               {/* Storytelling: porsi kas vs saham menentukan seberapa terekspos akun
                   ini ke pergerakan pasar - angka kas sendirian tidak menyatakan itu. */}
-              {totalEquity > 0 && (
+              {totalEquity != null && totalEquity > 0 && (
                 <div className="text-[10px] text-tv-muted mt-0.5">
                   {Math.round((portfolio.cash / totalEquity) * 100)}% dari ekuitas masih kas
                 </div>
@@ -593,7 +597,7 @@ export default function PortfolioPage() {
             ) : (
               <div className="divide-y divide-tv-border/60">
                 {holdings.map(h => {
-                  const isProfit = h.pnl >= 0;
+                  const isProfit = h.pnl != null ? h.pnl >= 0 : false;
                   return (
                     <div key={h.symbol} className="p-4 hover:bg-tv-bg transition-colors cursor-pointer" onClick={() => router.push(`/dashboard?symbol=${h.symbol}`)}>
                       <div className="flex justify-between items-start mb-2">
@@ -639,7 +643,7 @@ export default function PortfolioPage() {
                         </div>
                         <div className="text-tv-muted">
                           Last: <span className={`font-semibold font-number tabular-nums ${h.priceStale ? 'text-tv-warning' : 'text-tv-text'}`}>
-                            {h.priceStale ? '—' : h.currentPrice.toLocaleString('id-ID')}
+                            {h.currentPrice == null ? '—' : h.currentPrice.toLocaleString('id-ID')}
                           </span>
                         </div>
                         <div className="text-tv-muted">

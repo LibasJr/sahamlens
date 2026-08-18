@@ -711,7 +711,7 @@ export default function WatchlistPage() {
         benefits={[
           'LensWatch unlimited (bukan cuma 3 saham)',
           'LensAlert unlimited (bukan cuma 2)',
-          'LensRadar LIVE, LensConsensus & fitur Pro lainnya',
+          'LensRadar scan berkala, LensConsensus & fitur Pro lainnya',
         ]}
         secondaryLabel="Nanti"
       />

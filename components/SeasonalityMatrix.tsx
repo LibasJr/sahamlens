@@ -48,7 +48,7 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
               Kinerja Musiman Bulanan ({cleanTicker})
             </CardTitle>
             <p className="text-xs text-tv-muted">
-              Distribusi return historis bulanan & probabilitas penguatan (Win Rate)
+              Distribusi return historis bulanan & frekuensi bulan positif (Win Rate)
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
       <div className="mt-4 flex items-start gap-2 rounded-xl bg-tv-hover/40 border border-tv-border p-3 text-xs text-tv-muted">
         <Info className="h-4 w-4 text-tv-blue shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          <strong>Catatan Analisis Musiman:</strong> Data musiman mengukur kecenderungan statistik tahunan (seperti <em>Window Dressing</em> di bulan Desember atau <em>January Effect</em>). Gunakan angka ini sebagai penguat probabilitas bersama konfirmasi tren teknikal dan valuasi fundamental, bukan sebagai sinyal tunggal.
+          <strong>Catatan Analisis Musiman:</strong> Data musiman mengukur kecenderungan statistik tahunan (seperti <em>Window Dressing</em> di bulan Desember atau <em>January Effect</em>). Gunakan sebagai konteks historis bersama tren teknikal dan valuasi fundamental. Win rate adalah frekuensi empiris pada sampel yang tersedia, bukan probabilitas terkalibrasi atau jaminan bulan berikutnya.
         </p>
       </div>
     </Card>

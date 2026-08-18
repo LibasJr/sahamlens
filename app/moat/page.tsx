@@ -340,7 +340,7 @@ export default function MoatPage() {
                   <div className="text-lg font-bold font-number text-tv-green mt-1">
                     {moat.dupont.netProfitMarginPct != null ? `${moat.dupont.netProfitMarginPct.toFixed(1)}%` : 'N/A'}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Pricing Power' : 'Kekuatan Harga'}</span>
+                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Margin contribution' : 'Kontribusi Margin'}</span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
@@ -400,7 +400,7 @@ export default function MoatPage() {
                       <p className="mt-2 text-xs text-tv-muted leading-relaxed">{source.basis}</p>
                     </div>
                     <div className="pt-2 border-t border-tv-border/50 flex items-center justify-between text-[11px]">
-                      <span className="text-tv-muted">{isEn ? 'Evidence:' : 'Bukti data:'}</span>
+                      <span className="text-tv-muted">{isEn ? 'Financial clue:' : 'Petunjuk rasio:'}</span>
                       <span className="font-number font-bold text-tv-text">{source.evidence}</span>
                     </div>
                   </Card>
@@ -575,8 +575,8 @@ export default function MoatPage() {
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tv-green" />
                   <span>
                     {isEn
-                      ? 'No market share, brand power, or network effect scores are fabricated without empirical underlying data.'
-                      : 'Tidak ada skor pangsa pasar, merek, atau network effect yang dikarang saat datanya tidak tersedia.'}
+                      ? 'These source cards are ratio-based clues only; they are not evidence of market share, brand power, switching costs, or network effects. Qualitative evidence remains unavailable until sourced.'
+                      : 'Kartu sumber moat ini hanya petunjuk berbasis rasio; bukan bukti pangsa pasar, kekuatan merek, switching cost, atau network effect. Bukti kualitatif tetap N/A sampai ada sumbernya.'}
                   </span>
                 </div>
               </div>

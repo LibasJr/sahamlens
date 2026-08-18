@@ -105,7 +105,7 @@ export default function FundamentalHealthSuite({
               <HeartPulse className="h-5 w-5 text-tv-blue" />
               <div>
                 <h3 className="font-heading text-base font-bold text-white">{t('fundamentalEnhance.zScoreTitle')}</h3>
-                <p className="text-xs text-tv-muted">{isEn ? 'Solvency & financial distress probability.' : 'Indikator ketahanan solvabilitas & risiko kesulitan finansial.'}</p>
+                <p className="text-xs text-tv-muted">{isEn ? 'Solvency screening score & distress-risk zone; not a calibrated probability.' : 'Skor screening solvabilitas & zona risiko kesulitan finansial; bukan probabilitas terkalibrasi.'}</p>
               </div>
             </div>
             {altmanZ.score != null ? (
@@ -163,9 +163,9 @@ export default function FundamentalHealthSuite({
                   />
                 </div>
                 <div className="flex justify-between text-[10px] text-tv-muted">
-                  <span>{isEn ? 'Undervalued (<35%)' : 'Murah (<35%)'}</span>
-                  <span>{isEn ? 'Fair (50%)' : 'Rata-rata (50%)'}</span>
-                  <span>{isEn ? 'Elevated (>75%)' : 'Mahal (>75%)'}</span>
+                  <span>{isEn ? 'Low vs history (<35%)' : 'Rendah vs histori (<35%)'}</span>
+                  <span>{isEn ? 'Median area (50%)' : 'Area median (50%)'}</span>
+                  <span>{isEn ? 'High vs history (>75%)' : 'Tinggi vs histori (>75%)'}</span>
                 </div>
               </div>
             )}
@@ -259,11 +259,11 @@ export default function FundamentalHealthSuite({
             </div>
             <Badge variant={dividendSafety.safetyRating === 'SAFE' ? 'success' : dividendSafety.safetyRating === 'MODERATE' ? 'info' : dividendSafety.safetyRating === 'CAUTION' ? 'warning' : 'neutral'}>
               {dividendSafety.safetyRating === 'SAFE'
-                ? isEn ? 'SAFE PAYOUT' : 'DIVIDEN AMAN'
+                ? isEn ? 'HEURISTIC: LOWER PAYOUT RISK' : 'HEURISTIK: PAYOUT LEBIH RENDAH'
                 : dividendSafety.safetyRating === 'MODERATE'
-                ? isEn ? 'MODERATE' : 'MODERAT'
+                ? isEn ? 'HEURISTIC: MODERATE' : 'HEURISTIK: MODERAT'
                 : dividendSafety.safetyRating === 'CAUTION'
-                ? isEn ? 'HIGH PAYOUT RISK' : 'RISIKO PEMANGKASAN'
+                ? isEn ? 'HEURISTIC: HIGH PAYOUT' : 'HEURISTIK: PAYOUT TINGGI'
                 : dividendSafety.safetyRating === 'NO_DIVIDEND'
                 ? isEn ? 'NO DIVIDEND' : 'TANPA DIVIDEN'
                 : dividendSafety.safetyRating === 'DATA_PARTIAL'

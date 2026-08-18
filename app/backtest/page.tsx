@@ -927,7 +927,7 @@ export default function BacktestPage() {
         body="Silakan masuk kembali untuk melanjutkan penggunaan Backtest."
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensConsensus & Compare Tool',
+          'LensRadar scan berkala, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
       />

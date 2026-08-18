@@ -9,33 +9,11 @@ import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { PageContainer } from '@/components/ui';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
+import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
-const LIQUID_STOCKS = [
-  'BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'BBNI.JK', 'TLKM.JK', 'ASII.JK', 'GOTO.JK', 'AMMN.JK', 'ADRO.JK', 'UNTR.JK',
-  'ICBP.JK', 'KLBF.JK', 'PGAS.JK', 'PTBA.JK', 'ANTM.JK', 'BRPT.JK', 'INKP.JK', 'INDF.JK', 'ITMG.JK', 'MEDC.JK',
-  'CPIN.JK', 'UNVR.JK', 'AKRA.JK', 'BRIS.JK', 'TPIA.JK', 'SMGR.JK', 'INTP.JK', 'MDKA.JK', 'CTRA.JK', 'BSDE.JK',
-  'SMRA.JK', 'PWON.JK', 'ISAT.JK', 'EXCL.JK', 'BUKA.JK', 'MTEL.JK', 'TOWR.JK', 'TBIG.JK', 'SIDO.JK', 'AMRT.JK',
-  'MYOR.JK', 'HMSP.JK', 'GGRM.JK', 'MIDI.JK', 'JPFA.JK', 'ARTO.JK', 'BDMN.JK', 'BNGA.JK', 'BBTN.JK', 'PNBN.JK',
-  'NISP.JK', 'MEGA.JK', 'INDY.JK', 'ENRG.JK', 'BUMI.JK', 'BRMS.JK', 'BYAN.JK', 'CUAN.JK', 'PTRO.JK', 'MBMA.JK',
-  'NCKL.JK', 'HRUM.JK', 'INCO.JK', 'TINS.JK', 'DGWG.JK', 'ESSA.JK', 'MAPA.JK', 'MAPI.JK', 'SILO.JK', 'HEAL.JK',
-  'MIKA.JK', 'BMTR.JK', 'MNCN.JK', 'SCMA.JK', 'EMTK.JK', 'SRTG.JK', 'PTPP.JK', 'WIKA.JK', 'ADHI.JK', 'WSKT.JK',
-  'WEGE.JK', 'SSIA.JK', 'ASRI.JK', 'DILD.JK', 'LPKR.JK', 'LPCK.JK', 'MTLA.JK', 'BBHI.JK', 'BBYB.JK', 'AGRO.JK',
-  'BTPS.JK', 'BFIN.JK', 'PNLF.JK', 'AVIA.JK', 'MAIN.JK', 'LSIP.JK', 'AALI.JK', 'SSMS.JK', 'SIMP.JK', 'DSNG.JK',
-  'TAPG.JK', 'MGRO.JK', 'WIFI.JK', 'FREN.JK', 'CASS.JK', 'BIRD.JK', 'ASLC.JK', 'DRMA.JK', 'AUTO.JK', 'GJTL.JK',
-  'IMAS.JK', 'SMSM.JK', 'ACES.JK', 'RALS.JK', 'LPPF.JK', 'EPMT.JK', 'SGRO.JK', 'SMDR.JK', 'TMAS.JK', 'PSSI.JK',
-  'TPMA.JK', 'KAEF.JK', 'INAF.JK', 'SMCB.JK', 'ARNA.JK', 'MLIA.JK', 'TOTO.JK', 'MARK.JK', 'CLEO.JK', 'ULTJ.JK',
-  'CINT.JK', 'WOOD.JK', 'SLIS.JK', 'KRYA.JK', 'PANI.JK', 'BSBK.JK', 'NELY.JK', 'BESS.JK', 'OMRE.JK', 'JSPT.JK',
-  'BAPA.JK', 'BEST.JK', 'BKSL.JK', 'DART.JK', 'ELTY.JK', 'KIJA.JK', 'MDLN.JK', 'PLIN.JK', 'RBMS.JK', 'RDTX.JK',
-  'SMDM.JK', 'TRIN.JK', 'BSWD.JK', 'DNAR.JK', 'NOBU.JK', 'BGTG.JK', 'ARKO.JK', 'PGEO.JK', 'KEEN.JK', 'BREN.JK',
-  'VKTR.JK', 'DATA.JK', 'GELC.JK', 'AWAN.JK', 'NSSS.JK', 'DOID.JK', 'ABMM.JK', 'GEMS.JK', 'KKGI.JK', 'MBAP.JK',
-  'MYOH.JK', 'TOBA.JK', 'MCOL.JK', 'BOSS.JK', 'BSSR.JK', 'GTBO.JK', 'SMMT.JK', 'PKPK.JK', 'ZINC.JK', 'CITA.JK',
-  'PSAB.JK', 'DKFT.JK', 'CKRA.JK', 'MRLV.JK', 'ALDO.JK', 'FASW.JK', 'SPMA.JK', 'KDSI.JK', 'LTLS.JK', 'DPNS.JK',
-  'IGAR.JK', 'IMPC.JK', 'TRST.JK', 'YPAS.JK', 'AKPI.JK', 'BTON.JK', 'LION.JK', 'BAJA.JK', 'BIMA.JK', 'GDST.JK',
-  'INAI.JK', 'ISSP.JK', 'LMSH.JK', 'NIKL.JK', 'PICO.JK', 'TBMS.JK', 'CPRO.JK', 'DSFI.JK', 'CASA.JK', 'TBLA.JK',
-  'HOKI.JK', 'AISA.JK', 'ALTO.JK', 'CAMP.JK', 'CEKA.JK', 'DLTA.JK', 'GOOD.JK', 'KINO.JK', 'MLBI.JK', 'PCAR.JK'
-];
+const LIQUID_STOCKS = AI_PICK_UNIVERSE;
 
 type SortKey = 'ticker' | 'sector' | 'price' | 'changePct' | 'consensus' | 'sentimentScore' | 'bullishVotes' | 'foreignFlow';
 
@@ -468,10 +446,10 @@ export default function Recommendations() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensConsensus & Compare Tool',
+          'LensRadar scan berkala, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

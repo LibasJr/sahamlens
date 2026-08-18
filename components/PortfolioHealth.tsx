@@ -81,12 +81,15 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
     <Card padding="none" hoverable className="mb-6 overflow-hidden">
       <CardHeader className="p-4 border-b border-tv-border mb-0">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Activity className="w-5 h-5 text-tv-blue" /> Portfolio Health Check
+          <Activity className="w-5 h-5 text-tv-blue" /> Konsentrasi & Diversifikasi
         </CardTitle>
         <Badge variant={diversificationScore > 60 ? 'success' : 'danger'} className="font-number">
-          Skor: {Math.round(diversificationScore)}/100
+          Skor heuristik: {Math.round(diversificationScore)}/100
         </Badge>
       </CardHeader>
+      <p className="px-5 pt-4 text-[10px] leading-relaxed text-tv-muted">
+        Skor ini adalah heuristik konsentrasi posisi berdasarkan bobot nilai saat ini; bukan VaR, probabilitas rugi, atau rating risiko terkalibrasi.
+      </p>
 
       <div className="p-5 flex flex-col md:flex-row gap-6">
         <div className="flex-1 space-y-4">
@@ -130,7 +133,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
             )}
             <div>
               <h3 className={`font-heading font-bold text-sm mb-1 ${isHighRisk ? 'text-tv-red' : 'text-tv-blue'}`}>
-                {isHighRisk ? 'High Concentration Risk' : 'Healthy Portfolio Allocation'}
+                {isHighRisk ? 'Konsentrasi Tinggi' : 'Diversifikasi Relatif Lebih Baik'}
               </h3>
               <p className="text-xs font-sans text-tv-muted leading-relaxed">
                 {isHighRisk

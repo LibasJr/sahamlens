@@ -145,17 +145,21 @@ export default function EarningsPage() {
     if (!data) return null;
     const ocf = data.latestFundamentals.operatingCashflow;
     const fcf = data.latestFundamentals.freeCashflow;
-    const annualNetIncome = data.annuals.length > 0 ? data.annuals[data.annuals.length - 1].netIncome : null;
-    const quarterlyNetIncome = latestQuarter?.netIncome ?? null;
-    const netIncome = annualNetIncome ?? (quarterlyNetIncome ? quarterlyNetIncome * 4 : null);
+    const lastFourQuarterNetIncome = data.quarters
+      .slice(-4)
+      .map((quarter) => quarter.netIncome)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    const netIncomeTtm = lastFourQuarterNetIncome.length === 4
+      ? lastFourQuarterNetIncome.reduce((sum, value) => sum + value, 0)
+      : null;
 
     let ocfRatio: number | null = null;
-    if (ocf != null && netIncome != null && netIncome > 0) {
-      ocfRatio = Math.round((ocf / netIncome) * 100) / 100;
+    if (ocf != null && netIncomeTtm != null && netIncomeTtm > 0) {
+      ocfRatio = Math.round((ocf / netIncomeTtm) * 100) / 100;
     }
 
-    let status: 'HIGH' | 'NORMAL' | 'LOW' = 'NORMAL';
-    let statusLabel = t('earningsEnhance.moderateQuality');
+    let status: 'HIGH' | 'NORMAL' | 'LOW' | 'UNKNOWN' = 'UNKNOWN';
+    let statusLabel = isEn ? 'Insufficient comparable-period data' : 'Data periode sebanding belum cukup';
     if (ocfRatio != null) {
       if (ocfRatio >= 1.0) {
         status = 'HIGH';
@@ -170,10 +174,11 @@ export default function EarningsPage() {
       ocfRatio,
       ocf,
       fcf,
+      netIncomeTtm,
       status,
       statusLabel,
     };
-  }, [data, latestQuarter, t]);
+  }, [data, isEn, t]);
 
   function handleTickerChange(nextTicker: string) {
     const normalized = normalizeTicker(nextTicker);
@@ -319,7 +324,7 @@ export default function EarningsPage() {
                     <p className="text-xs text-tv-muted">{t('earningsEnhance.qualitySubtitle')}</p>
                   </div>
                 </div>
-                <Badge variant={earningsQuality.status === 'HIGH' ? 'success' : earningsQuality.status === 'NORMAL' ? 'info' : 'warning'}>
+                <Badge variant={earningsQuality.status === 'HIGH' ? 'success' : earningsQuality.status === 'NORMAL' ? 'info' : earningsQuality.status === 'LOW' ? 'warning' : 'neutral'}>
                   {earningsQuality.statusLabel}
                 </Badge>
               </div>
@@ -331,9 +336,11 @@ export default function EarningsPage() {
                     {earningsQuality.ocfRatio != null ? `${earningsQuality.ocfRatio.toFixed(2)}x` : 'N/A'}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">
-                    {earningsQuality.ocfRatio && earningsQuality.ocfRatio >= 1.0
-                      ? isEn ? 'High Cash Backing (> 1.0x)' : 'Didukung Kas Kuat (> 1.0x)'
-                      : isEn ? 'Lower Cash Conversion' : 'Konversi Kas Rendah'}
+                    {earningsQuality.ocfRatio == null
+                      ? isEn ? 'Needs OCF plus 4 complete quarters of net income' : 'Butuh OCF + laba bersih 4 kuartal lengkap'
+                      : earningsQuality.ocfRatio >= 1.0
+                        ? isEn ? 'High Cash Backing (> 1.0x)' : 'Didukung Kas Kuat (> 1.0x)'
+                        : isEn ? 'Lower Cash Conversion' : 'Konversi Kas Rendah'}
                   </span>
                 </div>
 
@@ -347,12 +354,17 @@ export default function EarningsPage() {
 
                 <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
                   <span className="text-[11px] text-tv-muted">{isEn ? 'Free Cash Flow (FCF)' : 'Free Cash Flow'}</span>
-                  <div className={`text-lg font-bold font-number mt-1 ${(earningsQuality.fcf ?? 0) >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  <div className={`text-lg font-bold font-number mt-1 ${earningsQuality.fcf == null ? 'text-tv-muted' : earningsQuality.fcf >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                     {formatCompact(earningsQuality.fcf, financialCurrency)}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">{isEn ? 'After CapEx expenditures' : 'Setelah belanja modal CapEx'}</span>
                 </div>
               </div>
+              <p className="text-[10px] leading-relaxed text-tv-muted">
+                {isEn
+                  ? 'OCF/NI is computed only when operating cash flow and four complete quarterly net-income observations are available. A single quarter is never annualized to fill missing data.'
+                  : 'OCF/NI hanya dihitung bila arus kas operasi dan empat observasi laba bersih kuartalan lengkap tersedia. Satu kuartal tidak pernah disetahunkan untuk mengisi data yang hilang.'}
+              </p>
             </Card>
           )}
 

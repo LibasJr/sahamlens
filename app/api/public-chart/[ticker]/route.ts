@@ -62,6 +62,9 @@ export async function GET(
       close: number;
       price: number;
       volume: number;
+      sessionStatus?: 'COMPLETE' | 'PARTIAL';
+      openEstimated?: boolean;
+      openSource?: 'PROVIDER' | 'PREVIOUS_CLOSE_PROXY';
     }[] = [];
     for (let i = 0; i < timestamps.length; i++) {
       const timestamp = timestamps[i];
@@ -114,13 +117,14 @@ export async function GET(
         if (!sudahAda) {
           const high = isFiniteNumber(meta.regularMarketDayHigh) ? meta.regularMarketDayHigh : sesiClose;
           const low = isFiniteNumber(meta.regularMarketDayLow) ? meta.regularMarketDayLow : sesiClose;
-          // `regularMarketOpen` sering tidak dikirim. Penutupan sesi sebelumnya dipakai
-          // sebagai pembuka, dijepit ke rentang high/low hari itu supaya lilinnya tetap
-          // sah secara bentuk. Ini APROKSIMASI - satu-satunya angka yang tidak berasal
-          // langsung dari Yahoo, dan hanya menyangkut ujung atas/bawah badan lilin
-          // terakhir; high/low/close/volume semuanya nilai sungguhan.
+          // Yahoo kadang belum mengirim `regularMarketOpen` untuk bar sesi berjalan.
+          // Chart tetap menampilkan sesi berjalan agar pengguna tidak melihat grafik yang
+          // tertinggal satu hari, tetapi proxy open WAJIB diberi provenance. Downstream
+          // candlestick recognition/volume-ratio dilarang memperlakukannya sebagai candle
+          // penutupan yang sudah lengkap.
           const penutupanSebelumnya = history[history.length - 1].close;
-          const open = isFiniteNumber(meta.regularMarketOpen) && meta.regularMarketOpen > 0
+          const hasProviderOpen = isFiniteNumber(meta.regularMarketOpen) && meta.regularMarketOpen > 0;
+          const open = hasProviderOpen
             ? meta.regularMarketOpen
             : Math.min(Math.max(penutupanSebelumnya, Math.min(low, sesiClose)), Math.max(high, sesiClose));
           const volume = isFiniteNumber(meta.regularMarketVolume) && meta.regularMarketVolume >= 0
@@ -135,6 +139,11 @@ export async function GET(
               close: sesiClose,
               price: sesiClose,
               volume,
+              // Metadata kualitas ini sengaja ikut dikirim ke client. Nilai open proxy
+              // hanya untuk visualisasi candle sesi berjalan, bukan input pattern/score.
+              sessionStatus: 'PARTIAL',
+              openEstimated: !hasProviderOpen,
+              openSource: hasProviderOpen ? 'PROVIDER' : 'PREVIOUS_CLOSE_PROXY',
             });
           }
         }

@@ -28,37 +28,16 @@ const DEFAULT_PREFS: NotificationPrefs = {
   marketOpenCloseAlerts: true,
 };
 
-const INITIAL_DEMO_NOTIFICATIONS: SahamLensNotification[] = [
-  {
-    id: 'notif-1',
-    title: '🎯 Sinyal Breakout Terdeteksi',
-    body: 'BBCA menembus resistensi dinamis dengan akumulasi broker signifikan. Target TP1: 10.450',
-    category: 'signal',
-    symbol: 'BBCA',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    read: false,
-    link: '/technical/BBCA.JK',
-  },
-  {
-    id: 'notif-2',
-    title: '🔔 Bursa Efek Indonesia (IDX) Aktif',
-    body: 'Sesi perdagangan pagi telah resmi dibuka. Pantau pergerakan harga likuid di LensMarket.',
-    category: 'market',
-    timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    read: false,
-    link: '/market-pulse',
-  },
-  {
-    id: 'notif-3',
-    title: '💡 Evaluasi Nilai Wajar DCF',
-    body: 'Emiten BMRI dan BBRI masuk kategori Undervalued dengan Margin of Safety > 20%.',
-    category: 'watchlist',
-    symbol: 'BMRI',
-    timestamp: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-    read: true,
-    link: '/dcf',
-  },
-];
+const EMPTY_NOTIFICATIONS: SahamLensNotification[] = [];
+
+const LEGACY_FABRICATED_DEMO_IDS = new Set(['notif-1', 'notif-2', 'notif-3']);
+
+function isLegacyFabricatedDemoNotification(notification: SahamLensNotification): boolean {
+  return LEGACY_FABRICATED_DEMO_IDS.has(notification.id) ||
+    notification.title.includes('Sinyal Breakout Terdeteksi') ||
+    notification.body.includes('Target TP1: 10.450') ||
+    notification.body.includes('Margin of Safety > 20%');
+}
 
 export function getNotificationPrefs(): NotificationPrefs {
   if (typeof window === 'undefined') return DEFAULT_PREFS;
@@ -84,16 +63,19 @@ export function saveNotificationPrefs(prefs: Partial<NotificationPrefs>): Notifi
 }
 
 export function getNotifications(): SahamLensNotification[] {
-  if (typeof window === 'undefined') return INITIAL_DEMO_NOTIFICATIONS;
+  if (typeof window === 'undefined') return EMPTY_NOTIFICATIONS;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_NOTIFICATIONS));
-      return INITIAL_DEMO_NOTIFICATIONS;
-    }
-    return JSON.parse(saved);
+    if (!saved) return EMPTY_NOTIFICATIONS;
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return EMPTY_NOTIFICATIONS;
+    const cleaned = parsed.filter((item): item is SahamLensNotification =>
+      item && typeof item === 'object' && !isLegacyFabricatedDemoNotification(item as SahamLensNotification)
+    );
+    if (cleaned.length !== parsed.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    return cleaned;
   } catch {
-    return INITIAL_DEMO_NOTIFICATIONS;
+    return EMPTY_NOTIFICATIONS;
   }
 }
 

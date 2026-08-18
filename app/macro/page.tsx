@@ -238,6 +238,11 @@ export default function MacroPage() {
                 <p className="text-xs text-tv-muted leading-relaxed bg-tv-bg/50 p-3 rounded-lg border border-tv-border">
                   {data.regime.narrative}
                 </p>
+                <p className="text-[10px] leading-relaxed text-tv-muted/80">
+                  {isEn
+                    ? 'Method note: regime thresholds and sector mappings are SahamLens heuristics applied to sourced macro observations; they are not empirical sector-return probabilities.'
+                    : 'Catatan metode: threshold rezim dan pemetaan sektor adalah heuristik SahamLens yang diterapkan pada observasi makro bersumber; bukan probabilitas return sektor.'}
+                </p>
               </Card>
             )}
 

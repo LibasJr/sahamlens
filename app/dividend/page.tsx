@@ -19,7 +19,7 @@ export default function DividendPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
 
-  // Catatan: kalkulator ini menghitung rata-rata dari 15-20 saham dividen IDX terbaik
+  // Catatan: kalkulator ini menghitung statistik dari universe saham dividen yang berhasil dibaca provider
   // (universe likuid, lihat modules/fundamental/service/dividend-plan.service.ts),
   // BUKAN dividend yield khusus `ticker` yang dipilih di header - input ticker di sini
   // sengaja tetap ada untuk konsistensi shell (TickerAnalysisShellProps mewajibkannya),
@@ -75,12 +75,12 @@ export default function DividendPage() {
     <TickerAnalysisShell
       ticker={ticker}
       onTickerChange={setTicker}
-      moduleTitle="Harvard Dividend Compounding & DRIP Planner"
-      moduleBank="HARVARD HMC"
+      moduleTitle="Dividend Compounding & DRIP Planner"
+      moduleBank="SAHAMLENS MODEL"
       icon={<Coins className="w-6 h-6" />}
       accent="green"
       title={isEn ? 'IDX Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen IDX'}
-      subtitle={isEn ? 'Tax-free if reinvested in Indonesian domestic capital (UU HPP 0% Dividend Tax)' : 'Bebas Pajak 10% jika direinvestasikan kembali (Pajak Dividen 0% UU HPP)'}
+      subtitle={isEn ? 'Dividend-yield and DRIP scenario from provider data; tax treatment follows applicable rules.' : 'Skenario yield dividen & DRIP dari data provider; perlakuan pajak mengikuti ketentuan yang berlaku.'}
       headerExtra={
         <div className="flex flex-wrap items-end gap-3">
           <Input
@@ -115,15 +115,15 @@ export default function DividendPage() {
       {data && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Rata-Rata Yield Portfolio</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">Rata-rata Yield Universe</div>
             <div className="text-2xl font-bold text-tv-yellow font-number mt-1">
               {quant.average_portfolio_yield}%
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">Dari {stocks.length} saham dividen IDX</div>
+            <div className="text-[11px] text-tv-muted mt-0.5">Equal-weight snapshot universe · {stocks.length} saham tampil</div>
           </div>
 
           <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Est. Pasif Income / Bulan</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">Skenario Income / Bulan</div>
             <div className="text-2xl font-bold text-tv-green font-number mt-1">
               Rp {quant.est_monthly_income_now?.toLocaleString('id-ID')}
             </div>
@@ -131,20 +131,27 @@ export default function DividendPage() {
           </div>
 
           <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Est. Pasif Income / Tahun</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">Skenario Income / Tahun</div>
             <div className="text-2xl font-bold text-tv-blue font-number mt-1">
               Rp {quant.est_annual_income_now?.toLocaleString('id-ID')}
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">Total cash flow tahunan</div>
+            <div className="text-[11px] text-tv-muted mt-0.5">Yield snapshot diasumsikan konstan</div>
           </div>
 
           <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Modal Butuh Untuk Target</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">Modal Teoretis Untuk Target</div>
             <div className="text-2xl font-bold text-tv-text font-number mt-1">
               Rp {quant.required_capital_for_target?.toLocaleString('id-ID')}
             </div>
             <div className="text-[11px] text-tv-muted mt-0.5">Untuk Rp {targetMonthly.toLocaleString('id-ID')}/bln</div>
           </div>
+        </div>
+      )}
+
+      {data && (
+        <div className="mb-6 rounded-lg border border-tv-blue/20 bg-tv-blue/[0.04] px-3.5 py-3 text-[11px] leading-relaxed text-tv-muted">
+          <span className="font-semibold text-tv-text">Metodologi:</span>{' '}
+          rata-rata yield adalah equal-weight snapshot dari universe yang berhasil dibaca provider, bukan yield portofolio aktual. Safety 1-10 adalah skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.
         </div>
       )}
 
@@ -154,7 +161,7 @@ export default function DividendPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-tv-border pb-3">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-tv-green" />
-              Saham Dividen IDX Terbaik
+              Kandidat Dividen dari Universe Terpantau
             </h3>
 
             {/* Filter Toggle */}
@@ -179,7 +186,7 @@ export default function DividendPage() {
                     : 'text-tv-muted hover:text-amber-300'
                 }`}
               >
-                <span>👑</span> Aristocrats ({stocks.filter((s: any) => s.is_aristocrat).length})
+                <span>✓</span> Konsisten 5Y+ ({stocks.filter((s: any) => s.is_aristocrat).length})
               </button>
             </div>
           </div>
@@ -190,7 +197,7 @@ export default function DividendPage() {
                 <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
                   <th className="p-2.5">Ticker</th>
                   <th className="p-2.5 text-right">Yield</th>
-                  <th className="p-2.5 text-right">Safety (1-10)</th>
+                  <th className="p-2.5 text-right">Safety heuristik (1-10)</th>
                   <th className="p-2.5 text-right">Payout Ratio</th>
                   <th className="p-2.5 text-right">Track Record</th>
                 </tr>
@@ -205,7 +212,7 @@ export default function DividendPage() {
                         </span>
                         {s.is_aristocrat && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-300">
-                            👑 Aristocrat
+                            ✓ Konsisten 5Y+
                           </span>
                         )}
                       </div>
@@ -224,7 +231,7 @@ export default function DividendPage() {
         <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <Repeat className="w-5 h-5 text-tv-blue" />
-            Simulasi Compounding 10-Tahun (DRIP Reinvestment)
+            Skenario Compounding 10-Tahun (DRIP, yield konstan)
           </h3>
 
           <div className="overflow-x-auto">

@@ -43,7 +43,7 @@ export function PriceRangeSlider({
           style={{ width: `${clampedPct}%` }}
         />
 
-        {/* Glowing Live Indicator Dot */}
+        {/* Current-session price indicator dot */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center"
           style={{ left: `${clampedPct}%` }}
@@ -60,7 +60,7 @@ export function PriceRangeSlider({
         </div>
 
         <div className="text-center">
-          <span className="text-[9px] uppercase tracking-wider block opacity-70">Live</span>
+          <span className="text-[9px] uppercase tracking-wider block opacity-70">Sesi</span>
           <strong className="text-tv-blue font-bold">Rp {currentPrice.toLocaleString('id-ID')}</strong>
         </div>
 

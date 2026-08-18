@@ -283,10 +283,10 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
       open={showPaywall}
       onClose={() => setShowPaywall(false)}
       title="Upgrade ke SahamLens Pro"
-      body="Buka semua fitur Pro tanpa batas: LensConsensus, LensRadar LIVE, Compare Tool, Market Pulse, dan lainnya."
+      body="Buka semua fitur Pro tanpa batas: LensConsensus, LensRadar scan berkala, Compare Tool, Market Pulse, dan lainnya."
       benefits={[
         'Unlimited LensTechnical (10 filter)',
-        'LensRadar LIVE, LensConsensus & Compare Tool',
+        'LensRadar scan berkala, LensConsensus & Compare Tool',
         'Watchlist & Alert unlimited',
       ]}
     />

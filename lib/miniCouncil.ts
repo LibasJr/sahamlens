@@ -10,7 +10,7 @@ import { calculateEmaSeries, MACD_FAST, MACD_SLOW, MACD_SIGNAL } from '@/modules
 import { CONSENSUS_VOTE_THRESHOLDS } from '@/modules/technical/service/decision-thresholds';
 import { analyzeBandarmology } from '@/modules/market/service/foreign-flow-proxy';
 
-export type Candle = { time: string; open: number; high: number; low: number; close: number; volume: number };
+export type Candle = { time: string; open: number; high: number; low: number; close: number; volume: number; sessionStatus?: 'COMPLETE' | 'PARTIAL'; openEstimated?: boolean; openSource?: 'PROVIDER' | 'PREVIOUS_CLOSE_PROXY' };
 export type Signal = 'BUY' | 'HOLD' | 'SELL';
 export type MiniAgent = { name: string; signal: Signal; reason: string };
 
@@ -92,7 +92,12 @@ function calcRsi(closes: number[], period = 14): number | null {
 }
 
 // Indikator inti (dipakai untuk badge harga/MA/RSI/volume) - real, dari OHLCV asli.
-export function computeIndicators(time: string, closes: number[], volumes: number[]): Indicators {
+export function computeIndicators(
+  time: string,
+  closes: number[],
+  volumes: number[],
+  options: { latestVolumePartial?: boolean } = {}
+): Indicators {
   const price = closes[closes.length - 1];
   const prev = closes.length > 1 ? closes[closes.length - 2] : price;
   const change = price - prev;
@@ -103,10 +108,13 @@ export function computeIndicators(time: string, closes: number[], volumes: numbe
   // BUKAN rata-rata bar seadanya yang dilabeli "MA200" (temuan H-2).
   const ma200 = sma(closes, 200);
   const rsi14 = calcRsi(closes, 14);
-  const volume = isFiniteNumber(volumes[volumes.length - 1]) && volumes[volumes.length - 1] >= 0
+  // Jangan membandingkan volume sesi berjalan dengan rata-rata FULL-DAY. Volume parsial
+  // tetap ditampilkan di chart, tetapi volRatio/score menunggu daily session lengkap.
+  const volume = !options.latestVolumePartial && isFiniteNumber(volumes[volumes.length - 1]) && volumes[volumes.length - 1] >= 0
     ? volumes[volumes.length - 1]
     : null;
-  const validVolumes = volumes.filter((v) => isFiniteNumber(v) && v >= 0);
+  const comparisonVolumes = options.latestVolumePartial ? volumes.slice(0, -1) : volumes;
+  const validVolumes = comparisonVolumes.filter((v) => isFiniteNumber(v) && v >= 0);
   const avgVolume20 = validVolumes.length >= 20
     ? validVolumes.slice(-20).reduce((a, b) => a + b, 0) / 20
     : validVolumes.length > 0
@@ -188,10 +196,17 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
     agents.push({ name: 'Momentum', signal: 'HOLD', reason: 'Data harian belum cukup untuk RSI14.' });
   }
 
-  // 3. Volume Agent
-  const avgVol20 = volumes.length >= 20 ? sma(volumes, 20) : (volumes.reduce((a, b) => a + b, 0) / volumes.length);
-  const volRatio = avgVol20 && avgVol20 > 0 ? volumes[volumes.length - 1] / avgVol20 : null;
-  if (volRatio == null) agents.push({ name: 'Volume', signal: 'HOLD', reason: 'Data volume belum cukup untuk dibandingkan dengan rata-rata.' });
+  // 3. Volume Agent — sesi berjalan tidak boleh dibandingkan dengan average full-day.
+  const latestSessionPartial = last.sessionStatus === 'PARTIAL';
+  const completedVolumes = latestSessionPartial ? volumes.slice(0, -1) : volumes;
+  const avgVol20 = completedVolumes.length >= 20
+    ? sma(completedVolumes, 20)
+    : (completedVolumes.length > 0 ? completedVolumes.reduce((a, b) => a + b, 0) / completedVolumes.length : null);
+  const volRatio = !latestSessionPartial && avgVol20 && avgVol20 > 0
+    ? volumes[volumes.length - 1] / avgVol20
+    : null;
+  if (latestSessionPartial) agents.push({ name: 'Volume', signal: 'HOLD', reason: 'Volume sesi berjalan masih parsial; rasio terhadap rata-rata full-day belum dinilai.' });
+  else if (volRatio == null) agents.push({ name: 'Volume', signal: 'HOLD', reason: 'Data volume belum cukup untuk dibandingkan dengan rata-rata.' });
   else if (volRatio > 1.3) agents.push({ name: 'Volume', signal: closes[closes.length - 1] >= prevCandle.close ? 'BUY' : 'SELL', reason: `Volume ${((volRatio - 1) * 100).toFixed(0)}% di atas rata-rata 20 hari, minat pasar meningkat tajam.` });
   else if (volRatio < 0.7) agents.push({ name: 'Volume', signal: 'HOLD', reason: `Volume ${((1 - volRatio) * 100).toFixed(0)}% di bawah rata-rata, minat pasar sepi.` });
   else agents.push({ name: 'Volume', signal: 'HOLD', reason: 'Volume berada di kisaran rata-rata 20 hari.' });
@@ -254,15 +269,25 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   else if (obvSlope < 0) agents.push({ name: 'Money Flow', signal: 'SELL', reason: 'On-Balance Volume turun 10 hari terakhir, indikasi distribusi.' });
   else agents.push({ name: 'Money Flow', signal: 'HOLD', reason: 'On-Balance Volume relatif flat.' });
 
-  // 8. Candlestick Pattern Agent (candle terakhir)
-  const body = Math.abs(last.close - last.open);
-  const range = (last.high - last.low) || 1;
-  const isBullish = last.close > last.open;
-  const prevIsBearish = prevCandle.close < prevCandle.open;
-  const isEngulfing = isBullish && prevIsBearish && last.close > prevCandle.open && last.open < prevCandle.close;
-  if (isEngulfing) agents.push({ name: 'Candlestick', signal: 'BUY', reason: 'Pola bullish engulfing terbentuk pada candle terakhir.' });
-  else if (body / range < 0.25) agents.push({ name: 'Candlestick', signal: 'HOLD', reason: 'Candle terakhir berbadan kecil (doji-like), pasar ragu arah.' });
-  else agents.push({ name: 'Candlestick', signal: isBullish ? 'BUY' : 'SELL', reason: isBullish ? 'Candle terakhir bullish dengan badan solid.' : 'Candle terakhir bearish dengan badan solid.' });
+  // 8. Candlestick Pattern Agent — hanya candle harian yang SUDAH lengkap dan open-nya
+  // observasi provider. Candle sesi berjalan boleh tampil pada chart, tetapi tidak boleh
+  // dianggap pola terkonfirmasi karena bentuk badan/wick masih dapat berubah.
+  const patternCandles = validCandles.filter((c) => c.sessionStatus !== 'PARTIAL' && c.openEstimated !== true);
+  const patternLast = patternCandles.at(-1);
+  const patternPrev = patternCandles.at(-2);
+  if (!patternLast || !patternPrev) {
+    agents.push({ name: 'Candlestick', signal: 'HOLD', reason: 'Belum ada cukup candle harian lengkap untuk konfirmasi pola.' });
+  } else {
+    const body = Math.abs(patternLast.close - patternLast.open);
+    const range = patternLast.high - patternLast.low;
+    const isBullish = patternLast.close > patternLast.open;
+    const prevIsBearish = patternPrev.close < patternPrev.open;
+    const isEngulfing = isBullish && prevIsBearish && patternLast.close > patternPrev.open && patternLast.open < patternPrev.close;
+    if (!Number.isFinite(range) || range <= 0) agents.push({ name: 'Candlestick', signal: 'HOLD', reason: 'Candle lengkap terakhir tidak memiliki range valid untuk membaca pola.' });
+    else if (isEngulfing) agents.push({ name: 'Candlestick', signal: 'BUY', reason: `Bullish engulfing terkonfirmasi pada sesi lengkap ${patternLast.time.slice(0, 10)}.` });
+    else if (body / range < 0.25) agents.push({ name: 'Candlestick', signal: 'HOLD', reason: `Candle sesi lengkap ${patternLast.time.slice(0, 10)} berbadan kecil (doji-like).` });
+    else agents.push({ name: 'Candlestick', signal: isBullish ? 'BUY' : 'SELL', reason: isBullish ? `Candle sesi lengkap ${patternLast.time.slice(0, 10)} bullish dengan badan solid.` : `Candle sesi lengkap ${patternLast.time.slice(0, 10)} bearish dengan badan solid.` });
+  }
 
   // 9. Price Action (struktur higher-high/lower-low 10 candle terakhir)
   const paLookback = Math.min(10, candles.length);

@@ -97,7 +97,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
   }
 
   const activePivots = suite.pivots[selectedPivotMethod];
-  const { range52w, trends, patterns, tradingPlan, currentPrice } = suite;
+  const { range52w, trends, patterns, tradingPlan, currentPrice, dataQuality } = suite;
 
   return (
     <div className="space-y-6">
@@ -232,6 +232,21 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
           </div>
         </div>
 
+        {dataQuality.latestObservationPartial && (
+          <div className="rounded-lg border border-tv-yellow/20 bg-tv-yellow/[0.04] px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+            <strong className="text-tv-yellow">{isEn ? 'Confirmation basis:' : 'Basis konfirmasi:'}</strong>{' '}
+            {isEn
+              ? `the live daily candle is not treated as a confirmed pattern. Patterns below are evaluated through the latest completed session${dataQuality.patternAsOf ? ` (${dataQuality.patternAsOf.slice(0, 10)})` : ''}.`
+              : `daily candle sesi berjalan tidak dianggap sebagai pola terkonfirmasi. Pattern di bawah dievaluasi sampai sesi lengkap terakhir${dataQuality.patternAsOf ? ` (${dataQuality.patternAsOf.slice(0, 10)})` : ''}.`}
+          </div>
+        )}
+
+        <p className="text-[10px] leading-relaxed text-tv-muted/80">
+          {isEn
+            ? 'Pattern labels are deterministic rule-based classifications, not empirical success probabilities.'
+            : 'Label pattern adalah klasifikasi rule-based deterministik, bukan probabilitas keberhasilan empiris.'}
+        </p>
+
         {patterns.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {patterns.map((p) => (
@@ -327,7 +342,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
 
           <p className="text-[11px] text-tv-muted leading-relaxed bg-tv-bg/50 p-2.5 rounded-lg border border-tv-border">
             <span className="font-semibold text-tv-text">Catatan Volatilitas: </span>
-            Nilai volatilitas 14-hari (ATR) saat ini adalah <strong className="text-white font-number">{formatRp(tradingPlan.atr14)}</strong> per hari. {t('technicalEnhance.planDisclaimer')}
+            Nilai volatilitas 14-hari (ATR) dari sesi harian lengkap adalah <strong className="text-white font-number">{formatRp(tradingPlan.atr14)}</strong> per hari{dataQuality.atrAsOf ? ` (s.d. ${dataQuality.atrAsOf.slice(0, 10)})` : ''}. {t('technicalEnhance.planDisclaimer')}
           </p>
         </Card>
       )}

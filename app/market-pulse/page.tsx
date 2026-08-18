@@ -563,18 +563,15 @@ export default function MarketPulse() {
         <div className="bg-tv-card border border-tv-blue/30 rounded-lg p-5 shadow-1 relative overflow-hidden">
           <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
             <div>
-              {/* flex-wrap: lencana "Live" terpotong di 320px tanpa ini. */}
+              {/* flex-wrap: lencana "Delayed" terpotong di 320px tanpa ini. */}
               <h3 className="font-heading text-base font-bold text-tv-text flex flex-wrap items-center gap-2">
                 <Zap className="w-5 h-5 text-tv-blue" />
                 Top 3 Breakout Hari Ini
-                {/* BUG FIX (2026-08-14, masukan review eksternal - "label 'Live' bisa
+                {/* BUG FIX (2026-08-14, masukan review eksternal - "label 'Delayed' perlu
                     menyesatkan, sumber datanya delay bukan realtime"): title (tooltip
                     hover) untuk desktop + caption di bawah (terlihat tanpa hover, untuk
-                    HP) - keduanya jujur soal delay Yahoo Finance ~15 menit. "Live" tetap
-                    dipertahankan sebagai kata (bukan salah - datanya memang terus
-                    di-refresh cron, bukan statis), cuma sekarang tidak berdiri sendiri
-                    tanpa konteks. */}
-                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>
+                    HP) - keduanya jujur soal delay Yahoo Finance ~15 menit. Label dibuat eksplisit sebagai delayed karena sumber Yahoo dapat tertunda; refresh berkala tidak membuat data menjadi realtime. */}
+                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Delayed</Badge>
               </h3>
               <p className="mt-0.5 text-[10px] text-tv-muted">Sumber: Yahoo Finance, delay ±15 menit</p>
             </div>
@@ -685,10 +682,10 @@ export default function MarketPulse() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3 mb-4">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-tv-green" />
-              Market Breadth (100 emiten)
+              Market Breadth (universe terpantau)
             </h3>
             <span className="text-[10px] text-tv-muted">
-              {data?.breadth?.total || 0} / {data?.breadth?.expectedTotal || 100} saham terbaca
+              {data?.breadth?.total ?? 0} / {data?.breadth?.expectedTotal ?? 'N/A'} saham terbaca
             </span>
           </div>
 
@@ -755,7 +752,7 @@ export default function MarketPulse() {
                   r > 1.5 ? { label: 'SANGAT BULLISH', tone: 'bg-tv-green/20 text-tv-green border-tv-green/30', story: `Untuk tiap 1 saham turun, ada ${r.toFixed(1)} saham naik. Penguatan berbasis luas.` }
                   : r >= 1 ? { label: 'BULLISH', tone: 'bg-tv-blue/20 text-tv-blue border-tv-blue/30', story: `Saham naik sedikit lebih banyak dari yang turun (rasio ${r.toFixed(2)}). Keunggulannya tipis.` }
                   : r >= 0.7 ? { label: 'NETRAL', tone: 'bg-tv-warning/20 text-tv-warning border-tv-warning/30', story: `Yang turun lebih banyak dari yang naik (rasio ${r.toFixed(2)}), tapi belum cukup lebar untuk disebut tekanan jual.` }
-                  : { label: 'BEARISH', tone: 'bg-tv-red/20 text-tv-red border-tv-red/30', story: `Untuk tiap 1 saham naik, ada ${(1 / (r || 0.01)).toFixed(1)} saham turun. Pelemahan merata.` };
+                  : { label: 'BEARISH', tone: 'bg-tv-red/20 text-tv-red border-tv-red/30', story: r > 0 ? `Untuk tiap 1 saham naik, ada ${(1 / r).toFixed(1)} saham turun. Pelemahan meluas.` : 'Tidak ada saham naik pada snapshot universe terpantau; rasio A/D tidak dapat dibalik menjadi angka yang bermakna.' };
                 return (
                   <div>
                     <div className={`flex items-center justify-center gap-2 rounded-lg border py-2 text-sm font-bold ${verdict.tone}`}>
@@ -784,10 +781,10 @@ export default function MarketPulse() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensConsensus & Compare Tool',
+          'LensRadar scan berkala, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

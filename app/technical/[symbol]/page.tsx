@@ -416,7 +416,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                     </span>
                   </div>
                   <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
-                  <p className="mt-1 text-[11px] text-tv-muted">Keyakinan {a.confidence ?? '-'}%</p>
+                  <p className="mt-1 text-[11px] text-tv-muted">Kekuatan rule {a.confidence ?? '-'} / 100</p>
                 </div>
               </div>
             );
@@ -436,7 +436,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               </div>
               <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
               {typeof a.confidence === 'number' && a.confidence > 0 && (
-                <p className="mt-1 text-[11px] text-tv-muted">Keyakinan {a.confidence}%</p>
+                <p className="mt-1 text-[11px] text-tv-muted">Kekuatan rule {a.confidence} / 100</p>
               )}
             </div>
           );

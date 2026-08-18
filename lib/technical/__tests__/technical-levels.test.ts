@@ -72,6 +72,46 @@ describe('technical-levels calculation engine', () => {
     expect(patterns.some((p) => p.id === 'BULLISH_ENGULFING')).toBe(true);
   });
 
+
+  it('does not confirm candlestick patterns from a partial session with estimated open', () => {
+    const candles: OHLCVCandle[] = [
+      { time: '2025-12-31', open: 990, high: 1010, low: 980, close: 1000, volume: 1000 },
+      { time: '2026-01-01', open: 1000, high: 1020, low: 980, close: 1010, volume: 1000 },
+      { time: '2026-01-02', open: 1010, high: 1015, low: 970, close: 975, volume: 1000 },
+      { time: '2026-01-03', open: 970, high: 1030, low: 965, close: 1025, volume: 5000 },
+      // Secara bentuk ini bisa terlihat bearish, tetapi open-nya proxy visual dan sesi belum final.
+      { time: '2026-01-04', open: 1025, high: 1040, low: 950, close: 960, volume: 2000, sessionStatus: 'PARTIAL', openEstimated: true },
+    ];
+
+    const patterns = detectCandlestickPatterns(candles);
+    expect(patterns.some((p) => p.id === 'BULLISH_ENGULFING')).toBe(true);
+    // Pattern tetap berasal dari sesi lengkap 3 Jan, bukan bar partial 4 Jan.
+    const suite = buildTechnicalSuite(candles);
+    expect(suite?.dataQuality.latestObservationPartial).toBe(true);
+    expect(suite?.dataQuality.latestOpenEstimated).toBe(true);
+    expect(suite?.dataQuality.patternAsOf).toBe('2026-01-03');
+  });
+
+  it('uses completed sessions for ATR while allowing live price as the trading-plan reference', () => {
+    const completed: OHLCVCandle[] = Array.from({ length: 20 }, (_, i) => ({
+      time: `2026-02-${String(i + 1).padStart(2, '0')}`,
+      open: 1000 + i * 5,
+      high: 1020 + i * 5,
+      low: 990 + i * 5,
+      close: 1010 + i * 5,
+      volume: 100000,
+    }));
+    const partial: OHLCVCandle = {
+      time: '2026-02-21', open: 1105, high: 1150, low: 1090, close: 1140, volume: 20000,
+      sessionStatus: 'PARTIAL', openEstimated: true,
+    };
+    const candles = [...completed, partial];
+    const pivots = calculatePivotPoints(completed.at(-1)!.high, completed.at(-1)!.low, completed.at(-1)!.close);
+    const plan = calculateTradingPlan(candles, pivots, partial.close);
+    expect(plan?.currentPrice).toBe(1140);
+    expect(plan?.atr14).toBe(Math.round(calculateATR(completed, 14)!));
+  });
+
   it('assembles full TechnicalSuiteResult cleanly', () => {
     const suite = buildTechnicalSuite(mockCandles);
     expect(suite).not.toBeNull();

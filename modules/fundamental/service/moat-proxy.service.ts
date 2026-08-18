@@ -167,7 +167,7 @@ export function computeDuPontAnalysis(byLabel: Map<string, MoatProxyIndicator>):
   }
 
   let primaryDriver: DuPontAnalysisResult['primaryDriver'] = 'MARGIN';
-  let explanation = 'Profit margin yang tebal menjadi pendorong utama imbal hasil ekuitas (pricing power).';
+  let explanation = 'Profit margin yang tebal menjadi pendorong utama imbal hasil ekuitas. Margin tinggi sendiri tidak membuktikan pricing power.';
 
   if (equityMultiplier != null && equityMultiplier > 3.0) {
     primaryDriver = 'LEVERAGE';
@@ -202,35 +202,35 @@ export function computeMoatSources(byLabel: Map<string, MoatProxyIndicator>): Mo
       titleKey: 'moatEnhance.intangiblesTitle',
       score: (grossMargin != null && grossMargin > 40) || (opMargin != null && opMargin > 20) ? 'KUAT' : (opMargin != null && opMargin > 10) ? 'MODERAT' : 'TERBATAS',
       evidence: opMargin != null ? `Operating Margin ${opMargin.toFixed(1)}%` : 'Data margin terbatas',
-      basis: 'Kekuatan merek dan keunggulan produk tercermin dari margin operasi tebal.',
+      basis: 'Margin operasi tinggi dapat konsisten dengan diferensiasi produk, tetapi tidak membuktikan kekuatan merek tanpa bukti kualitatif.',
     },
     {
       id: 'switching_costs',
       titleKey: 'moatEnhance.switchingCostTitle',
       score: (roe != null && roe > 18 && (netMargin != null && netMargin > 12)) ? 'KUAT' : (roe != null && roe > 12) ? 'MODERAT' : 'TERBATAS',
       evidence: roe != null ? `ROE ${roe.toFixed(1)}% & Net Margin ${netMargin ?? '-'}%` : 'Data profitabilitas terbatas',
-      basis: 'Keterikatan pelanggan dan biaya berpindah tinggi menjaga konsistensi laba bersih.',
+      basis: 'ROE dan margin yang konsisten dapat menjadi petunjuk retensi ekonomi, tetapi tidak membuktikan switching cost pelanggan.',
     },
     {
       id: 'network_effects',
       titleKey: 'moatEnhance.networkEffectTitle',
       score: (revGrowth != null && revGrowth > 15 && (netMargin != null && netMargin > 10)) ? 'KUAT' : (revGrowth != null && revGrowth > 5) ? 'MODERAT' : 'TERBATAS',
       evidence: revGrowth != null ? `Pertumbuhan Pendapatan ${revGrowth > 0 ? '+' : ''}${revGrowth.toFixed(1)}% YoY` : 'Data pertumbuhan terbatas',
-      basis: 'Nilai platform meningkat seiring bertambahnya transaksi tanpa menekan margin.',
+      basis: 'Pertumbuhan pendapatan dengan margin terjaga dapat menjadi petunjuk skala jaringan, tetapi tidak membuktikan network effect.',
     },
     {
       id: 'cost_advantage',
       titleKey: 'moatEnhance.costAdvantageTitle',
       score: (grossMargin != null && grossMargin > 30) && (roa != null && roa > 8) ? 'KUAT' : (grossMargin != null && grossMargin > 20) ? 'MODERAT' : 'TERBATAS',
       evidence: grossMargin != null ? `Gross Margin ${grossMargin.toFixed(1)}% & ROA ${roa ?? '-'}%` : 'Data efisiensi terbatas',
-      basis: 'Struktur biaya rendah dan skala produksi masif memberikan keunggulan harga.',
+      basis: 'Gross margin dan ROA dapat memberi petunjuk efisiensi biaya; keduanya tidak membuktikan cost advantage tanpa pembanding operasional.',
     },
     {
       id: 'efficient_scale',
       titleKey: 'moatEnhance.efficientScaleTitle',
       score: (der != null && der < 1.0 && (roa != null && roa > 7)) ? 'KUAT' : (der != null && der < 2.0) ? 'MODERAT' : 'TERBATAS',
       evidence: der != null ? `DER ${der.toFixed(2)}x & ROA ${roa ?? '-'}%` : 'Data solvabilitas terbatas',
-      basis: 'Pasar terkonsolidasi dan disiplin alokasi belanja modal yang sehat.',
+      basis: 'DER dan ROA memberi petunjuk disiplin modal, tetapi tidak membuktikan struktur pasar atau efficient scale.',
     },
   ];
 

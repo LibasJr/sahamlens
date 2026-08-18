@@ -12,6 +12,11 @@ export interface OHLCVCandle {
   low: number;
   close: number;
   volume: number;
+  /** Sesi berjalan dari meta provider; belum merupakan daily candle final. */
+  sessionStatus?: 'COMPLETE' | 'PARTIAL';
+  /** true bila open hanya proxy visual karena provider belum mengirim open sesi. */
+  openEstimated?: boolean;
+  openSource?: 'PROVIDER' | 'PREVIOUS_CLOSE_PROXY';
 }
 
 export type PivotMethod = 'CLASSIC' | 'FIBONACCI' | 'CAMARILLA';
@@ -49,6 +54,7 @@ export interface CandlestickPattern {
   name: string;
   sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   description: string;
+  /** Heuristic pattern grade; bukan probabilitas keberhasilan/backtest accuracy. */
   reliability: 'HIGH' | 'MEDIUM' | 'LOW';
   volumeConfirmed: boolean;
 }
@@ -75,6 +81,12 @@ export interface TechnicalSuiteResult {
   trends: TimeframeTrend[];
   patterns: CandlestickPattern[];
   tradingPlan: TradingPlan | null;
+  dataQuality: {
+    latestObservationPartial: boolean;
+    latestOpenEstimated: boolean;
+    patternAsOf: string | null;
+    atrAsOf: string | null;
+  };
 }
 
 /**
@@ -277,19 +289,36 @@ export function calculateMultiTimeframeTrends(candles: OHLCVCandle[]): Timeframe
   ];
 }
 
+function isCompletedPatternCandle(candle: OHLCVCandle): boolean {
+  return (
+    candle.sessionStatus !== 'PARTIAL' &&
+    candle.openEstimated !== true &&
+    Number.isFinite(candle.open) &&
+    Number.isFinite(candle.high) &&
+    Number.isFinite(candle.low) &&
+    Number.isFinite(candle.close) &&
+    candle.open > 0 &&
+    candle.high >= candle.low &&
+    candle.close > 0
+  );
+}
+
 /**
- * Detect Candlestick Patterns on the most recent 1-3 bars.
+ * Detect candlestick patterns only on completed daily candles with observed open.
+ * A live/partial daily candle can be shown on the chart, but its body is not final and
+ * must not be promoted to a confirmed candlestick pattern.
  */
 export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPattern[] {
-  if (candles.length < 3) return [];
+  const completed = candles.filter(isCompletedPatternCandle);
+  if (completed.length < 3) return [];
   const patterns: CandlestickPattern[] = [];
 
-  const c0 = candles.at(-1)!; // Latest
-  const c1 = candles.at(-2)!; // Prior
-  const c2 = candles.at(-3)!; // 2 bars ago
+  const c0 = completed.at(-1)!; // Latest completed session
+  const c1 = completed.at(-2)!; // Prior completed session
+  const c2 = completed.at(-3)!; // 2 completed sessions ago
 
-  // Average volume of prior 20 bars
-  const recentVolumes = candles.slice(-21, -1).map((c) => c.volume);
+  // Average volume of the 20 completed sessions preceding c0.
+  const recentVolumes = completed.slice(-21, -1).map((c) => c.volume);
   const hasVolumeBaseline = recentVolumes.length === 20 && recentVolumes.every((v) => Number.isFinite(v) && v >= 0);
   const avgVol = hasVolumeBaseline ? recentVolumes.reduce((a, b) => a + b, 0) / 20 : null;
   const isHighVolume = avgVol != null && avgVol > 0 && Number.isFinite(c0.volume) && c0.volume > avgVol * 1.15;
@@ -316,7 +345,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'BULLISH_ENGULFING',
       name: 'Bullish Engulfing',
       sentiment: 'BULLISH',
-      description: 'Candle hijau membungkus penuh candle merah sebelumnya, mengindikasikan dominasi beli kuat.',
+      description: 'Candle hijau membungkus candle merah sebelumnya; secara rule-based menunjukkan pergeseran tekanan ke sisi beli dan tetap memerlukan konfirmasi konteks tren/volume.',
       reliability: 'HIGH',
       volumeConfirmed: isHighVolume,
     });
@@ -328,7 +357,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'BEARISH_ENGULFING',
       name: 'Bearish Engulfing',
       sentiment: 'BEARISH',
-      description: 'Candle merah membungkus penuh candle hijau sebelumnya, menandakan tekanan jual mendadak.',
+      description: 'Candle merah membungkus candle hijau sebelumnya; secara rule-based menunjukkan pergeseran tekanan ke sisi jual dan tetap memerlukan konfirmasi konteks tren/volume.',
       reliability: 'HIGH',
       volumeConfirmed: isHighVolume,
     });
@@ -340,7 +369,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'HAMMER',
       name: 'Hammer / Pinbar Bullish',
       sentiment: 'BULLISH',
-      description: 'Ekor bawah panjang menunjukkan penolakan harga murah dan adanya perlawanan beli agresif.',
+      description: 'Ekor bawah panjang konsisten dengan rejection di area bawah; ini sinyal bentuk candle, bukan jaminan reversal.',
       reliability: 'MEDIUM',
       volumeConfirmed: isHighVolume,
     });
@@ -352,7 +381,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'SHOOTING_STAR',
       name: 'Shooting Star / Bearish Rejection',
       sentiment: 'BEARISH',
-      description: 'Ekor atas panjang menunjukkan aksi ambil untung / penolakan di area resisten.',
+      description: 'Ekor atas panjang konsisten dengan rejection di area atas; ini sinyal bentuk candle, bukan jaminan reversal.',
       reliability: 'MEDIUM',
       volumeConfirmed: isHighVolume,
     });
@@ -366,7 +395,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
         id: 'MORNING_STAR',
         name: 'Morning Star Pattern',
         sentiment: 'BULLISH',
-        description: 'Pola pembalikan 3 candle mengkonfirmasi terbentuknya swing low baru.',
+        description: 'Formasi 3 candle konsisten dengan skenario bullish reversal; arah berikutnya tetap perlu konfirmasi sesi selanjutnya.',
         reliability: 'HIGH',
         volumeConfirmed: isHighVolume,
       });
@@ -379,7 +408,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'DOJI',
       name: 'Doji (Konsolidasi / Ragu)',
       sentiment: 'NEUTRAL',
-      description: 'Kekuatan beli dan jual seimbang, biasanya mengawali jeda atau potensi perubahan arah tren.',
+      description: 'Badan sangat kecil menunjukkan indecision pada sesi tersebut; arah berikutnya belum dapat disimpulkan dari Doji saja.',
       reliability: 'LOW',
       volumeConfirmed: isHighVolume,
     });
@@ -391,7 +420,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'BULLISH_MARUBOZU',
       name: 'Bullish Marubozu (Full Body)',
       sentiment: 'BULLISH',
-      description: 'Badan candle penuh tanpa ekor signifikan, mencerminkan momentum beli mutlak sepanjang sesi.',
+      description: 'Badan candle dominan dengan ekor kecil menunjukkan tekanan beli kuat pada sesi tersebut, tanpa menyiratkan probabilitas kelanjutan tertentu.',
       reliability: 'HIGH',
       volumeConfirmed: isHighVolume,
     });
@@ -405,11 +434,17 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
  */
 export function calculateTradingPlan(
   candles: OHLCVCandle[],
-  pivots: Record<PivotMethod, PivotLevels>
+  pivots: Record<PivotMethod, PivotLevels>,
+  currentPriceOverride?: number
 ): TradingPlan | null {
-  if (candles.length < 14) return null;
-  const currentPrice = candles[candles.length - 1].close;
-  const atr = calculateATR(candles, 14);
+  // ATR harian harus memakai sesi yang sudah lengkap. Harga entry/reference boleh
+  // menggunakan observasi live terbaru karena itu angka provider nyata, bukan estimasi.
+  const completed = candles.filter((c) => c.sessionStatus !== 'PARTIAL');
+  if (completed.length < 14) return null;
+  const currentPrice = Number.isFinite(currentPriceOverride) && (currentPriceOverride ?? 0) > 0
+    ? currentPriceOverride!
+    : completed[completed.length - 1].close;
+  const atr = calculateATR(completed, 14);
   if (atr == null || !Number.isFinite(atr) || atr <= 0) return null;
   const atr14 = Math.round(atr);
 
@@ -462,13 +497,21 @@ export function calculateTradingPlan(
 export function buildTechnicalSuite(candles: OHLCVCandle[]): TechnicalSuiteResult | null {
   if (!candles || candles.length < 5) return null;
   const latest = candles.at(-1)!;
-  const prior = candles.at(-2)!;
+  const completed = candles.filter((c) => c.sessionStatus !== 'PARTIAL');
+  if (completed.length < 2) return null;
 
-  const pivots = calculatePivotPoints(prior.high, prior.low, prior.close);
+  // Saat sesi berjalan ada, pivot hari ini memakai sesi lengkap terakhir. Setelah daily
+  // candle sudah final, perilaku lama dipertahankan: pivot memakai sesi sebelumnya.
+  const pivotBase = latest.sessionStatus === 'PARTIAL'
+    ? completed.at(-1)!
+    : completed.at(-2)!;
+
+  const pivots = calculatePivotPoints(pivotBase.high, pivotBase.low, pivotBase.close);
   const range52w = calculate52WeekRange(candles);
   const trends = calculateMultiTimeframeTrends(candles);
   const patterns = detectCandlestickPatterns(candles);
-  const tradingPlan = calculateTradingPlan(candles, pivots);
+  const tradingPlan = calculateTradingPlan(candles, pivots, latest.close);
+  const patternBase = completed.filter(isCompletedPatternCandle).at(-1) ?? null;
 
   return {
     currentPrice: latest.close,
@@ -477,5 +520,11 @@ export function buildTechnicalSuite(candles: OHLCVCandle[]): TechnicalSuiteResul
     trends,
     patterns,
     tradingPlan,
+    dataQuality: {
+      latestObservationPartial: latest.sessionStatus === 'PARTIAL',
+      latestOpenEstimated: latest.openEstimated === true,
+      patternAsOf: patternBase?.time ?? null,
+      atrAsOf: completed.at(-1)?.time ?? null,
+    },
   };
 }
