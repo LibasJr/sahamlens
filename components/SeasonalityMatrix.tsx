@@ -6,11 +6,14 @@ import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import {
   calculateMonthlySeasonality,
   MONTH_NAMES_SHORT,
+  type SeasonalityCandle,
   type SeasonalitySummary,
 } from '@/lib/utils/seasonality';
 
 interface SeasonalityMatrixProps {
-  candles: { date?: string | number | Date; time?: string | number; close: number }[];
+  /** WAJIB membawa `adjClose`. Return musiman dihitung dari basis total return saja -
+   * lihat catatan temuan H-03 di lib/utils/seasonality.ts. */
+  candles: SeasonalityCandle[];
   ticker: string;
 }
 
@@ -19,9 +22,29 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
     return calculateMonthlySeasonality(candles);
   }, [candles]);
 
-  if (!data || data.matrix.length === 0) {
-    return null;
+  if (!data) return null;
+
+  // Adjusted close tidak tersedia -> nyatakan apa adanya, jangan diam-diam menghitung
+  // dari harga perdagangan (temuan H-03). Komponen ini sebelumnya mengembalikan `null`
+  // untuk matriks kosong; sekarang alasan kosongnya ikut sampai ke pengguna.
+  if (data.basis === 'UNAVAILABLE') {
+    return (
+      <Card variant="default" padding="lg" className="border-tv-border bg-tv-card shadow-2">
+        <CardHeader className="flex items-center gap-2.5 pb-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-tv-blue/10 border border-tv-blue/20 text-tv-blue">
+            <Calendar className="h-4 w-4" />
+          </div>
+          <CardTitle className="text-sm">Pola Musiman Bulanan</CardTitle>
+        </CardHeader>
+        <p className="flex items-start gap-2 text-xs text-tv-muted">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{data.unavailableReason}</span>
+        </p>
+      </Card>
+    );
   }
+
+  if (data.matrix.length === 0) return null;
 
   const getCellColor = (val: number | null) => {
     if (val === null) return 'text-tv-muted/30 bg-transparent';

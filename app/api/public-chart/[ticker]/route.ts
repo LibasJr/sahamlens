@@ -37,7 +37,12 @@ export async function GET(
   const isMarketIndex = ticker.startsWith('^');
 
   try {
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`;
+    // `events=div|split&includeAdjustedClose=true` meminta deret adjusted close - dasar
+    // TOTAL_RETURN_ADJUSTED yang dibutuhkan perhitungan return lintas tahun (temuan H-03:
+    // Seasonality Matrix dulu menghitung return bulanan dari harga split-adjusted saja,
+    // sehingga tiap bulan ex-dividen tercatat sebagai rugi yang tidak pernah terjadi).
+    // Bar intraday tidak punya adjusted close dan memang tidak memakainya.
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&events=div%7Csplit&includeAdjustedClose=true`;
     const res = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       // TTL market-aware SALAH untuk deret candle. Saat bursa tutup ia mengembalikan 6 jam
@@ -63,12 +68,17 @@ export async function GET(
     const quote = result.indicators?.quote?.[0] || {};
     const isIntraday = interval.endsWith('m') || interval.endsWith('h');
 
+    const adjcloseArr: (number | null)[] | undefined = result.indicators?.adjclose?.[0]?.adjclose;
+
     let history: {
       time: string;
       open: number;
       high: number;
       low: number;
       close: number;
+      /** Adjusted close (dividen + split). `null` kalau provider tidak menyediakannya -
+       * konsumen berbasis return WAJIB fail-closed, bukan jatuh balik ke `close`. */
+      adjClose: number | null;
       price: number;
       volume: number;
       sessionStatus?: 'COMPLETE' | 'PARTIAL';
@@ -103,7 +113,17 @@ export async function GET(
         normalizedVolume >= 0
       ) {
         const iso = new Date(timestamp * 1000).toISOString();
-        history.push({ time: isIntraday ? iso : iso.split('T')[0], open, high, low, close, price: close, volume: normalizedVolume });
+        const adj = adjcloseArr?.[i];
+        history.push({
+          time: isIntraday ? iso : iso.split('T')[0],
+          open,
+          high,
+          low,
+          close,
+          adjClose: isFiniteNumber(adj) && adj > 0 ? adj : null,
+          price: close,
+          volume: normalizedVolume,
+        });
       }
     }
 
@@ -146,6 +166,10 @@ export async function GET(
               high: Math.max(high, sesiClose, open),
               low: Math.min(low, sesiClose, open),
               close: sesiClose,
+              // Bar sesi berjalan belum punya adjusted close dari provider. `null`, bukan
+              // disamakan dengan `close` - konsumen berbasis return harus tahu bar ini
+              // tidak punya basis total return (temuan H-03).
+              adjClose: null,
               price: sesiClose,
               volume,
               // Metadata kualitas ini sengaja ikut dikirim ke client. Nilai open proxy

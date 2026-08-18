@@ -64,19 +64,66 @@ describe('financial-health calculation engine — zero dummy', () => {
     expect(incomplete.score).toBeNull();
   });
 
-  it('calculates Altman Z from the actual five-factor inputs only', () => {
+  // Temuan M-02 (audit 2026-08-19): Z klasik (manufaktur) diganti Z'' (non-manufaktur &
+  // pasar berkembang). Acuan dihitung terpisah dari rumusnya:
+  //   6.56(20/100) + 3.26(30/100) + 6.72(15/100) + 1.05((100-50)/50)
+  // = 1.312 + 0.978 + 1.008 + 1.050 = 4.348
+  it("calculates Altman Z'' from the actual four-factor inputs only", () => {
     const res = calculateAltmanZScore({
       workingCapital: 20,
       totalAssets: 100,
       retainedEarnings: 30,
       ebit: 15,
-      marketCap: 120,
       totalLiabilities: 50,
-      totalRevenue: 110,
     }, { sector: 'Basic Materials' });
 
-    expect(res.score).toBeCloseTo(3.7, 1);
+    expect(res.score).toBeCloseTo(4.35, 2);
     expect(res.zone).toBe('SAFE');
+  });
+
+  it("Z'' tidak butuh marketCap maupun revenue - skor tidak bergerak mengikuti harga saham", () => {
+    const inputs = {
+      workingCapital: 20,
+      totalAssets: 100,
+      retainedEarnings: 30,
+      ebit: 15,
+      totalLiabilities: 50,
+    };
+    const murah = calculateAltmanZScore({ ...inputs, marketCap: 40 }, { sector: 'Industrials' });
+    const mahal = calculateAltmanZScore({ ...inputs, marketCap: 400 }, { sector: 'Industrials' });
+    expect(murah.score).toBe(mahal.score);
+  });
+
+  // Inti M-02: suku Sales/TA pada Z klasik menghukum model bisnis padat modal yang
+  // perputaran asetnya memang rendah secara struktural (jalan tol, menara, properti).
+  it('emiten padat modal yang solven tidak lagi jatuh ke DISTRESS karena perputaran aset rendah', () => {
+    const jalanTol = calculateAltmanZScore({
+      workingCapital: 5,
+      totalAssets: 100,
+      retainedEarnings: 25,
+      ebit: 9,
+      totalLiabilities: 45,
+      totalRevenue: 12, // perputaran aset 0,12x - wajar untuk aset konsesi jangka panjang
+      marketCap: 90,
+    }, { sector: 'Industrials' });
+
+    // Z klasik untuk masukan yang sama = 1.2(.05)+1.4(.25)+3.3(.09)+0.6(2.0)+1.0(.12)
+    // = 0.06+0.35+0.297+1.2+0.12 = 2.03 -> GREY, nyaris DISTRESS.
+    expect(jalanTol.score).toBeGreaterThan(2.6);
+    expect(jalanTol.zone).toBe('SAFE');
+  });
+
+  it("ambang zona memakai 1,1 dan 2,6 (Z''), bukan 1,8/2,99 milik Z klasik", () => {
+    const grey = calculateAltmanZScore({
+      workingCapital: 0,
+      totalAssets: 100,
+      retainedEarnings: 0,
+      ebit: 5,
+      totalLiabilities: 60,
+    }, { sector: 'Energy' });
+    // 6.56(0) + 3.26(0) + 6.72(0.05) + 1.05(40/60) = 0.336 + 0.70 = 1.036 -> DISTRESS
+    expect(grey.score).toBeCloseTo(1.04, 2);
+    expect(grey.zone).toBe('DISTRESS');
   });
 
   it('requires an explicit real peer median for sector-relative valuation', () => {

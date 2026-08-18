@@ -20,6 +20,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import {
+  ALTMAN_Z_DOUBLE_PRIME_THRESHOLDS,
   buildFundamentalHealthSuite,
   type FundamentalHealthSuiteResult,
 } from '@/lib/fundamental/financial-health';
@@ -126,14 +127,16 @@ export default function FundamentalHealthSuite({
             <p className="text-xs text-tv-muted leading-relaxed">{altmanZ.explanation}</p>
             {!altmanZ.isFinancialSector && (
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-tv-border/60 text-center text-[10px]">
+                {/* Ambang Z'' (temuan M-02). Angka lama 1.8/2.9 milik Z klasik untuk
+                    manufaktur - dan bahkan itu pun salah tulis (Altman: 1.81). */}
                 <div className={`p-1.5 rounded ${altmanZ.zone === 'SAFE' ? 'bg-tv-green/15 text-tv-green font-bold' : 'text-tv-muted'}`}>
-                  Safe: Z &gt; 2.9
+                  Safe: Z&Prime; &gt; {ALTMAN_Z_DOUBLE_PRIME_THRESHOLDS.safeAbove}
                 </div>
                 <div className={`p-1.5 rounded ${altmanZ.zone === 'GREY' ? 'bg-tv-yellow/15 text-tv-yellow font-bold' : 'text-tv-muted'}`}>
-                  Grey: 1.8 - 2.9
+                  Grey: {ALTMAN_Z_DOUBLE_PRIME_THRESHOLDS.distressBelow} - {ALTMAN_Z_DOUBLE_PRIME_THRESHOLDS.safeAbove}
                 </div>
                 <div className={`p-1.5 rounded ${altmanZ.zone === 'DISTRESS' ? 'bg-tv-red/15 text-tv-red font-bold' : 'text-tv-muted'}`}>
-                  Distress: Z &lt; 1.8
+                  Distress: Z&Prime; &lt; {ALTMAN_Z_DOUBLE_PRIME_THRESHOLDS.distressBelow}
                 </div>
               </div>
             )}

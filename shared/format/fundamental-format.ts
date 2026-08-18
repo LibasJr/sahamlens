@@ -10,6 +10,20 @@
 export const fmtKali = (v: number | null | undefined): string =>
   typeof v === 'number' ? `${v.toFixed(2)}x` : 'N/A';
 
+// BUG FIX (audit kuantitatif 2026-08-19, temuan H-01): DER dari provider berbasis PERSEN
+// (47.2 = 0,47x). Konvensi itu dipatuhi lima pemanggil - screener.service.ts:209,
+// recommendation.service.ts:274, api/stock/[ticker]:247, cron/fundamental-snapshot:37,
+// dan fundamental-pit-adapter.ts:31 yang menulis balik `pit.der * 100` - tetapi
+// FundamentalMoatEarningsExportCard3D merendernya lewat `fmtKali()` yang TIDAK membagi
+// 100. Akibatnya kartu ekspor Fundamental & Moat, aset yang memang dibuat untuk
+// dibagikan ke luar aplikasi, menampilkan emiten ber-DER 0,47x sebagai "47,20x" -
+// angka yang menyiratkan kebangkrutan pada neraca yang sehat.
+//
+// Pembagian 100 sekarang hidup DI SINI, satu tempat, supaya tidak mungkin lagi ada
+// pemanggil yang memasangkan field persen dengan formatter rasio.
+export const fmtDer = (persen: number | null | undefined): string =>
+  typeof persen === 'number' && Number.isFinite(persen) ? `${(persen / 100).toFixed(2)}x` : 'N/A';
+
 export const fmtPersen = (fraksi: number | null | undefined): string =>
   typeof fraksi === 'number' ? `${(fraksi * 100).toFixed(2)}%` : 'N/A';
 

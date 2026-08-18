@@ -153,9 +153,31 @@ export function calculatePiotroskiFScore(fundamentals: any = {}, _analyzers: any
 }
 
 /**
- * Altman Z (public manufacturing form):
- * Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MVE/TL) + 1.0(Sales/TA).
- * Tidak ada proxy PBV/DER/ROA untuk mengganti komponen yang hilang.
+ * Altman Z'' (varian 1993 untuk emiten NON-MANUFAKTUR & pasar berkembang):
+ *
+ *     Z'' = 6.56(WC/TA) + 3.26(RE/TA) + 6.72(EBIT/TA) + 1.05(BVE/TL)
+ *     Zona: Z'' > 2.6 SAFE | 1.1-2.6 GREY | < 1.1 DISTRESS
+ *
+ * BUG FIX (audit kuantitatif 2026-08-19, temuan M-02). Versi sebelumnya memakai bentuk
+ * Z klasik untuk emiten MANUFAKTUR PUBLIK:
+ *
+ *     Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MVE/TL) + 1.0(Sales/TA)
+ *
+ * lalu menerapkannya ke SELURUH emiten non-keuangan. Suku terakhir, perputaran aset
+ * (Sales/TA), menghukum berat model bisnis padat modal yang perputaran asetnya memang
+ * rendah secara struktural: jalan tol, menara telekomunikasi, properti, pembangkit
+ * listrik. Emiten sehat di sektor itu masuk zona GREY/DISTRESS karena bentuk neracanya,
+ * bukan karena risiko gagal bayarnya - dan "DISTRESS" adalah pernyataan berat tentang
+ * perusahaan nyata. Ambang bawahnya juga tertulis 1.8, sedangkan nilai Altman 1.81.
+ *
+ * KENAPA Z'' UNTUK SEMUA NON-KEUANGAN, BUKAN DIPILIH PER SEKTOR. Taksonomi sektor
+ * provider (Yahoo) tidak punya kategori "manufaktur" - 'Industrials' dan
+ * 'Basic Materials' mencampur manufaktur dengan jasa dan pertambangan. Menebak varian
+ * dari label sektor akan mengganti satu kesalahan sistematis dengan kesalahan lain yang
+ * lebih sulit dilihat. Z'' memang dirancang Altman justru untuk kasus ini: emiten
+ * non-manufaktur DAN pasar berkembang, dua-duanya berlaku untuk mayoritas emiten IDX.
+ * Ia juga memakai NILAI BUKU ekuitas, bukan kapitalisasi pasar, sehingga skornya tidak
+ * ikut bergerak setiap harga saham bergerak.
  */
 export function calculateAltmanZScore(fundamentals: any = {}, profile: any = {}): AltmanZResult {
   const isFinancialSector = Boolean(
@@ -178,13 +200,11 @@ export function calculateAltmanZScore(fundamentals: any = {}, profile: any = {})
   const totalAssets = finite(fundamentals.totalAssets);
   const retainedEarnings = finite(fundamentals.retainedEarnings);
   const ebit = finite(fundamentals.ebit);
-  const marketCap = finite(fundamentals.marketCap);
   const totalLiabilities = finite(fundamentals.totalLiabilities);
-  const sales = finite(fundamentals.totalRevenue);
 
   if (
     workingCapital == null || totalAssets == null || totalAssets <= 0 || retainedEarnings == null ||
-    ebit == null || marketCap == null || totalLiabilities == null || totalLiabilities <= 0 || sales == null
+    ebit == null || totalLiabilities == null || totalLiabilities <= 0
   ) {
     return {
       score: null,
@@ -195,14 +215,29 @@ export function calculateAltmanZScore(fundamentals: any = {}, profile: any = {})
     };
   }
 
+  // Nilai buku ekuitas = total aset - total liabilitas. Z'' memakai nilai BUKU, bukan
+  // kapitalisasi pasar seperti Z klasik, sehingga skornya tidak ikut bergerak tiap hari
+  // mengikuti harga saham. Ekuitas negatif tetap dihitung apa adanya - itu memang
+  // kondisi yang seharusnya menekan skor, bukan yang perlu disembunyikan.
+  const bookValueEquity = totalAssets - totalLiabilities;
+
   const scoreRaw =
-    1.2 * (workingCapital / totalAssets) +
-    1.4 * (retainedEarnings / totalAssets) +
-    3.3 * (ebit / totalAssets) +
-    0.6 * (marketCap / totalLiabilities) +
-    1.0 * (sales / totalAssets);
+    6.56 * (workingCapital / totalAssets) +
+    3.26 * (retainedEarnings / totalAssets) +
+    6.72 * (ebit / totalAssets) +
+    1.05 * (bookValueEquity / totalLiabilities);
+  if (!Number.isFinite(scoreRaw)) {
+    return {
+      score: null,
+      zone: 'DATA_UNAVAILABLE',
+      zoneLabelKey: 'fundamentalEnhance.dataUnavailable',
+      isFinancialSector: false,
+      explanation: 'Altman Z-Score tidak dihitung karena komponen neraca/laba yang diwajibkan formula belum tersedia. Tidak ada angka default yang digunakan.',
+    };
+  }
   const score = Math.round(scoreRaw * 100) / 100;
-  const zone: AltmanZResult['zone'] = score < 1.8 ? 'DISTRESS' : score <= 2.99 ? 'GREY' : 'SAFE';
+  // Ambang resmi Z'' (Altman 1993): 1.1 dan 2.6.
+  const zone: AltmanZResult['zone'] = score < 1.1 ? 'DISTRESS' : score <= 2.6 ? 'GREY' : 'SAFE';
   return {
     score,
     zone,
@@ -212,9 +247,12 @@ export function calculateAltmanZScore(fundamentals: any = {}, profile: any = {})
       ? 'fundamentalEnhance.zScoreGrey'
       : 'fundamentalEnhance.zScoreDistress',
     isFinancialSector: false,
-    explanation: 'Skor dihitung langsung dari lima komponen Altman Z tanpa proxy atau nilai default.',
+    explanation: "Altman Z'' (varian non-manufaktur & pasar berkembang) dihitung langsung dari empat komponen neraca/laba, memakai nilai buku ekuitas - tanpa proxy atau nilai default. Ambang zona: 1,1 dan 2,6.",
   };
 }
+
+/** Ambang zona Z'' - satu sumber supaya label UI tidak bisa menyimpang dari perhitungan. */
+export const ALTMAN_Z_DOUBLE_PRIME_THRESHOLDS = { distressBelow: 1.1, safeAbove: 2.6 } as const;
 
 export interface SectorMedianInput {
   pe: number | null;
