@@ -164,7 +164,10 @@ export default function EarningsPage() {
       if (ocfRatio >= 1.0) {
         status = 'HIGH';
         statusLabel = t('earningsEnhance.highQuality');
-      } else if (ocfRatio < 0.7) {
+      } else if (ocfRatio >= 0.7) {
+        status = 'NORMAL';
+        statusLabel = t('earningsEnhance.moderateQuality');
+      } else {
         status = 'LOW';
         statusLabel = t('earningsEnhance.lowQuality');
       }
