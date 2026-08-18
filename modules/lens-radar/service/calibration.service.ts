@@ -27,6 +27,7 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import { buildScoreCalibration, type ScoreCalibrationResult } from './score-calibration.service';
 import {
   VALIDATION_LIMITATIONS,
@@ -606,8 +607,10 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
+      AND universe_version = $1
     ORDER BY ticker ASC, "date" ASC
-    `
+    `,
+    [ACTIVE_LIQUID_UNIVERSE_VERSION]
   );
   return rows as LensRadarHistoryEntry[];
 }

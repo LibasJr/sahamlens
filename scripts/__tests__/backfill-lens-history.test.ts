@@ -76,7 +76,7 @@ describe('backfill-lens-history script', () => {
     ]);
 
     expect(query).not.toBeNull();
-    expect(query!.text).toContain('ON CONFLICT (date, ticker) DO UPDATE SET');
+    expect(query!.text).toContain('ON CONFLICT (date, ticker, score_version, universe_version) DO UPDATE SET');
     expect(query!.text).toContain('universe_version = EXCLUDED.universe_version');
     expect(query!.text).toContain('raw_close_price');
     expect(query!.text).toContain('adjusted_close_price');
