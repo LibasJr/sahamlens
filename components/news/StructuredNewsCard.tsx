@@ -182,7 +182,7 @@ export function StructuredNewsCard({
                     style={{ width: String(confidence) + '%' }}
                   />
                 </div>
-                <span className="font-number text-xs font-bold text-tv-text">{confidence}%</span>
+                <span className="font-number text-xs font-bold text-tv-text">{confidence}/100</span>
               </div>
             </Step>
           </div>

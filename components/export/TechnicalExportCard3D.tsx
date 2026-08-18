@@ -408,7 +408,7 @@ export default function TechnicalExportCard3D({
                   <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] font-mono text-slate-400">
                     <span>{a.description || 'Deskripsi tidak tersedia'}</span>
                     {a.confidence != null && (
-                      <span className={`${activeTheme.accentText} font-bold`}>{a.confidence}%</span>
+                      <span className={`${activeTheme.accentText} font-bold`}>{a.confidence}/100</span>
                     )}
                   </div>
                 </div>

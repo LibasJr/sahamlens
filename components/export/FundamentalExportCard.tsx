@@ -105,7 +105,7 @@ export default function FundamentalExportCard({
         </span>
         {confidence != null && (
           <span className="text-[8.5px] font-mono text-slate-400">
-            Conf: {confidence}%
+            Rule: {confidence}/100
           </span>
         )}
       </div>

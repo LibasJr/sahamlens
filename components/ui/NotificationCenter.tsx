@@ -77,7 +77,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       setPrefs((p) => ({ ...p, browserPushEnabled: true }));
       addNotification({
         title: language === 'id' ? '🔔 Notifikasi Browser Aktif' : '🔔 Browser Notifications Enabled',
-        body: language === 'id' ? 'Anda akan menerima pemberitahuan langsung saat sinyal saham terdeteksi.' : 'You will receive instant alerts when stock signals trigger.',
+        body: language === 'id' ? 'Izin browser aktif. Alert hanya akan muncul jika fitur SahamLens yang terhubung benar-benar mengirim notifikasi.' : 'Browser permission is active. Alerts appear only when a connected SahamLens feature actually emits a notification.',
         category: 'system',
       });
     } else {
@@ -176,7 +176,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
           {browserPermission !== 'granted' && (
             <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-tv-blue/40 bg-tv-blue/15 p-2.5 text-xs text-tv-blue">
               <span className="leading-snug font-medium">
-                {language === 'id' ? 'Aktifkan notifikasi pop-up saat ada sinyal baru.' : 'Enable pop-up alerts for new signals.'}
+                {language === 'id' ? 'Aktifkan notifikasi browser untuk alert yang benar-benar dipicu fitur SahamLens.' : 'Enable browser notifications for alerts actually emitted by SahamLens features.'}
               </span>
               <button
                 type="button"

@@ -343,26 +343,26 @@ export function computeMacroRegime(official: MacroOfficialIndicator[]): MacroReg
   let titleKey = 'macroEnhance.regimeExpansion';
   let favoredSectors = ['Perbankan / Financials', 'Consumer Staples', 'Telekomunikasi & Infrastruktur'];
   let cautiousSectors = ['Emiten Utang Valas Tinggi', 'Properti Siklikal Menengah'];
-  let narrative = 'Pertumbuhan ekonomi solid di atas 5% dengan inflasi terjaga dalam sasaran BI 1.5 - 3.5%, menciptakan iklim kondusif untuk sektor perbankan dan konsumsi domestik.';
+  let narrative = 'Kerangka rule-based mengelompokkan kombinasi pertumbuhan dan inflasi ini sebagai ekspansi. Implikasi sektor bersifat indikatif, bukan forecast return.';
 
   if (gdpGrowth > 4.5 && inflation > 4.0) {
     regime = 'STAGFLATION';
     titleKey = 'macroEnhance.regimeStagflation';
     favoredSectors = ['Energi & Komoditas', 'Material Dasar'];
     cautiousSectors = ['Consumer Discretionary', 'Otomotif & Retail'];
-    narrative = 'Tekanan inflasi tinggi membatasi ruang pertumbuhan laba riil pada sektor konsumsi dan manufaktur.';
+    narrative = 'Dalam kerangka rule-based ini, inflasi tinggi bersama pertumbuhan yang masih kuat memberi headwind indikatif pada sektor sensitif daya beli. Bukan prediksi return.';
   } else if (gdpGrowth <= 4.5 && inflation <= 3.5) {
     regime = 'RECOVERY';
     titleKey = 'macroEnhance.regimeRecovery';
-    favoredSectors = ['Konstruksi & Semen', 'Properti & Bank Mandiri'];
+    favoredSectors = ['Konstruksi & Semen', 'Properti', 'Perbankan sensitif suku bunga'];
     cautiousSectors = ['Eksportir Rentan Perlambatan Global'];
-    narrative = 'Fase pemulihan dengan suku bunga akomodatif berpotensi mendorong ekspansi kredit dan investasi modal.';
+    narrative = 'Dalam kerangka rule-based ini, pertumbuhan lebih lemah dengan inflasi rendah dibaca sebagai pemulihan. Implikasi kredit/investasi bersifat indikatif.';
   } else if (gdpGrowth <= 4.5 && inflation > 3.5) {
     regime = 'SLOWDOWN';
     titleKey = 'macroEnhance.regimeSlowdown';
     favoredSectors = ['Defensive High-Yield / Dividen', 'Consumer Non-Cyclicals'];
     cautiousSectors = ['High-Beta Tech', 'Perusahaan Refinancing Agresif'];
-    narrative = 'Perlambatan pertumbuhan disertai suku bunga ketat menuntut seleksi pada emiten berefisiensi tinggi dan dividen tebal.';
+    narrative = 'Dalam kerangka rule-based ini, pertumbuhan lebih lemah dan inflasi lebih tinggi dibaca sebagai perlambatan. Implikasi sektor bersifat indikatif.';
   }
 
   return {
