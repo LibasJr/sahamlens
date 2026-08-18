@@ -51,7 +51,6 @@ const DIIZINKAN = new Set([
   'modules/technical/service/analyzers/volume-analyzer.ts:33',   // delta current vs previous dari history yang sama
   'modules/recommendation/service/breakout.service.ts:178',      // currentPrice-nya juga closes[last]
   'app/dashboard/page.tsx:54',                                   // candle terakhir vs sebelumnya
-  'components/CommandPalette.tsx:111',                           // pratinjau hover, larik closes yang sama
 ]);
 
 
@@ -67,6 +66,13 @@ function diizinkanBerdasarkanKode(file: string, line: string): boolean {
   if (
     normalized === 'lib/miniCouncil.ts' &&
     /const\s+prev\s*=\s*closes\.length\s*>\s*1\s*\?\s*closes\[closes\.length\s*-\s*2\]\s*:\s*price/.test(line)
+  ) {
+    return true;
+  }
+
+  if (
+    normalized === 'components/CommandPalette.tsx' &&
+    /const\s+prev\s*=\s*closes\[closes\.length\s*-\s*2\]/.test(line)
   ) {
     return true;
   }
