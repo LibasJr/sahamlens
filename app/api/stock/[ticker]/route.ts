@@ -1,6 +1,7 @@
 import { getTrustedClientIp } from '@/shared/http/client-ip';
 import { COMPUTED_CACHE_VERSION } from '@/shared/cache/cache-version';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
+import { getEmitenBoard } from '@/shared/market/emiten-list';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
@@ -695,6 +696,10 @@ export async function GET(
       stock: {
         symbol: ticker,
         current_price: currentPrice,
+        // Papan pencatatan IDX dari kolom `listing_board` di all.csv (temuan C-01).
+        // `null` untuk indeks & kode yang tidak ada di master - klien TIDAK menampilkan
+        // lencana papan saat null, bukan menebak "Papan Pengembangan" seperti dulu.
+        listing_board: getEmitenBoard(ticker),
         // BUG FIX (audit logika & algoritma 2026-08-05, temuan M-7): keduanya dulu jatuh
         // ke `0` kalau close/volume terakhir tidak ada - "0%" terbaca sebagai "harga tidak
         // bergerak" dan "volume 0" sebagai "tidak ada transaksi", dua pernyataan tentang
@@ -723,6 +728,10 @@ export async function GET(
           high: h.High,
           low: h.Low,
           close: h.Close,
+          // Adjusted close ikut dikirim supaya konsumen berbasis RETURN (mis. Seasonality
+          // Matrix, temuan H-03) punya basis TOTAL_RETURN_ADJUSTED. `null` kalau provider
+          // tidak menyediakannya - konsumen WAJIB fail-closed, bukan memakai `close`.
+          adjClose: typeof h.AdjClose === 'number' ? h.AdjClose : null,
           volume: h.Volume
         }))
       },

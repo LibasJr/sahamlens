@@ -18,7 +18,7 @@ import {
   RefreshCw, ShieldCheck, TrendingUp, Info, Lock, AlertTriangle
 } from 'lucide-react';
 import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber, Badge } from '@/components/ui';
-import { isBlueChipConstituent } from '@/lib/utils/blue-chip-index';
+import { isBlueChipConstituent, LQ45_BADGE_TITLE } from '@/lib/utils/blue-chip-index';
 import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
@@ -151,6 +151,10 @@ function FundamentalContent() {
       {
         // Merge so we get chart history from jsonStock but analyzers from jsonAlgo
         jsonAlgo.stock.history = jsonStock?.stock?.history || [];
+        // Papan pencatatan IDX hanya dikirim /api/stock (temuan C-01). Ikut di-merge di
+        // sini supaya lencana papan di halaman ini memakai sumber yang sama dengan
+        // Dashboard, bukan hasil tebakan dari kode tickernya.
+        jsonAlgo.stock.listing_board = jsonStock?.stock?.listing_board ?? null;
         jsonAlgo._meta = jsonStock?._meta ?? null;
         setData(jsonAlgo);
         const sourceTime = new Date(jsonAlgo?._meta?.dataTimestamp);
@@ -538,20 +542,25 @@ function FundamentalContent() {
               </div>
               {(() => {
                 const isLq45 = isBlueChipConstituent(ticker);
-                const boardInfo = classifyTradingBoard(ticker);
+                // Papan dari `listing_board` IDX (all.csv) lewat /api/stock, bukan dari
+                // daftar ticker ketikan tangan (temuan C-01). `null` = papan tidak
+                // diketahui -> lencana & peringatan FCA tidak dirender sama sekali.
+                const boardInfo = classifyTradingBoard(stock?.listing_board);
                 return (
                   <>
                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                       {isLq45 && (
-                        <Badge variant="info" title="Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)">
+                        <Badge variant="info" title={LQ45_BADGE_TITLE}>
                           Indeks LQ45
                         </Badge>
                       )}
-                      <Badge variant={boardInfo.badgeVariant} title={boardInfo.description}>
-                        {boardInfo.shortLabel}
-                      </Badge>
+                      {boardInfo && (
+                        <Badge variant={boardInfo.badgeVariant} title={boardInfo.description}>
+                          {boardInfo.shortLabel}
+                        </Badge>
+                      )}
                     </div>
-                    {boardInfo.isFca && (
+                    {boardInfo?.isFca && (
                       <div className="mt-2 flex items-start gap-2 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2 text-xs text-tv-gold">
                         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                         <div>

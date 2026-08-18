@@ -8,7 +8,7 @@ import {
   ArrowDownRight, CircleDollarSign, BarChart3, Coins, PieChart,
   Target, Scale, Activity, Users, Flame, Info
 } from 'lucide-react';
-import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
+import { fmtDer, fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
 import SectorIllustration3D from './SectorIllustration3D';
 import { Card3DTheme, getSector3DTheme, getThemeById } from './card-3d-themes';
 import type { MoatProxyResult, MoatProxyStatus } from '@/modules/fundamental/service/moat-proxy.service';
@@ -164,7 +164,7 @@ export default function FundamentalMoatEarningsExportCard3D({
     { code: 'PBV', name: 'Price to Book Value', val: fmtKali(fundamentals.priceToBook), desc: 'Valuasi Nilai Buku', tone: 'cyan' },
     { code: 'REV', name: 'Revenue Growth', val: fmtPersen(fundamentals.revenueGrowth), desc: 'Pertumbuhan YoY', tone: 'emerald' },
     { code: 'DY', name: 'Dividend Yield', val: fmtPersen(fundamentals.dividendYield), desc: 'Imbal Hasil Dividen', tone: 'amber' },
-    { code: 'DER', name: 'Debt to Equity', val: fmtKali(fundamentals.debtToEquity), desc: 'Rasio Solvabilitas', tone: 'blue' },
+    { code: 'DER', name: 'Debt to Equity', val: fmtDer(fundamentals.debtToEquity), desc: 'Rasio Solvabilitas', tone: 'blue' },
     { code: 'CR', name: 'Current Ratio', val: fmtKali(fundamentals.currentRatio), desc: 'Rasio Likuiditas', tone: 'blue' },
     { code: 'GPM', name: 'Gross Profit Margin', val: fmtPersen(fundamentals.grossMargins), desc: 'Margin Laba Kotor', tone: 'emerald' },
     { code: 'EPS.G', name: 'EPS Growth QoQ', val: fmtPersen(fundamentals.earningsGrowth), desc: 'Pertumbuhan Laba', tone: 'cyan' },

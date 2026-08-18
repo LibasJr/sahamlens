@@ -176,15 +176,21 @@ function DcfContent() {
                   <td className="p-3 text-right text-tv-muted">-</td>
                   <td className="p-3 text-right text-tv-blue font-number">Rp {quant.pv_terminal_value?.toLocaleString('id-ID')}</td>
                 </tr>
+                {/* Temuan H-02 (audit 2026-08-19): baris ini dulu berbunyi "Enterprise
+                    Value / Share" lalu "Less: Net Debt / Share", padahal modelnya
+                    mendiskonto arus kas EKUITAS (sudah setelah bunga) pada biaya
+                    ekuitas - hasilnya sudah nilai ekuitas, dan pengurangan utang bersih
+                    itu menghitung beban utang untuk kedua kalinya. Utang bersih tetap
+                    ditampilkan, tetapi sebagai konteks neraca, bukan langkah rumus. */}
                 <tr className="bg-tv-bg font-bold">
-                  <td className="p-3 text-tv-text">Enterprise Value / Share</td>
+                  <td className="p-3 text-tv-text">Nilai Ekuitas / Saham</td>
                   <td className="p-3 text-right text-tv-muted">-</td>
-                  <td className="p-3 text-right text-tv-blue font-number">Rp {quant.enterprise_value_per_share?.toLocaleString('id-ID')}</td>
+                  <td className="p-3 text-right text-tv-blue font-number">Rp {quant.equity_value_per_share?.toLocaleString('id-ID')}</td>
                 </tr>
-                <tr className="bg-tv-bg font-bold">
-                  <td className="p-3 text-tv-text">Less: Net Debt / Share</td>
+                <tr>
+                  <td className="p-3 text-tv-muted">Utang Bersih / Saham <span className="text-[10px]">(konteks neraca, tidak dikurangkan)</span></td>
                   <td className="p-3 text-right text-tv-muted">-</td>
-                  <td className="p-3 text-right text-tv-red font-number">Rp {quant.net_debt_per_share?.toLocaleString('id-ID')}</td>
+                  <td className="p-3 text-right text-tv-muted font-number">Rp {quant.net_debt_per_share?.toLocaleString('id-ID')}</td>
                 </tr>
               </tbody>
             </table>
@@ -261,6 +267,29 @@ function DcfContent() {
             </p>
           </div>
         </div>
+
+        {/* Temuan M-01 (audit 2026-08-19): saat harga pasar berada di luar rentang yang
+            bisa dijelaskan model, bisection lama mengembalikan batas kurungnya sendiri
+            (tepat +60,0% atau -30,0%) dan angka itu tampil seolah hasil pengukuran.
+            Sekarang backend mengirim status, dan yang ditampilkan adalah batasnya apa
+            adanya - bukan angka presisi yang tidak pernah ditemukan. */}
+        {(quant.implied_fcf_growth_status === 'ABOVE_RANGE' || quant.implied_fcf_growth_status === 'BELOW_RANGE') && (
+          <div className="col-span-1 lg:col-span-2 rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 p-4 text-xs text-tv-muted">
+            <span className="font-bold text-tv-yellow">
+              {isEn ? 'Implied FCF growth is outside the model range' : 'Pertumbuhan FCF tersirat di luar rentang model'}
+              {': '}
+              {quant.implied_fcf_growth_status === 'ABOVE_RANGE'
+                ? `> ${quant.implied_fcf_growth_range_pct?.max}%`
+                : `< ${quant.implied_fcf_growth_range_pct?.min}%`}
+              {' / '}{isEn ? 'year' : 'tahun'}
+            </span>
+            <span className="ml-1">
+              {isEn
+                ? 'The market price cannot be reconciled with this model within its search range, so no single figure is reported.'
+                : 'Harga pasar tidak dapat dijelaskan model ini di dalam rentang pencariannya, jadi tidak ada satu angka yang dilaporkan.'}
+            </span>
+          </div>
+        )}
 
         {/* Reverse DCF / Implied Market Growth Card */}
         {quant.implied_fcf_growth_pct != null && (

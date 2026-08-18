@@ -5,6 +5,7 @@ export type Emiten = { symbol: string; name: string; board: string };
 
 let cached: Emiten[] | null = null;
 let cachedSymbolSet: Set<string> | null = null;
+let cachedBoardBySymbol: Map<string, string> | null = null;
 
 const PLACEHOLDER_NAME = /\s+Company Tbk\.?$/;
 
@@ -49,4 +50,35 @@ export function getEmitenSymbolSet(): Set<string> {
   if (cachedSymbolSet) return cachedSymbolSet;
   cachedSymbolSet = new Set(loadEmitenList().map((e) => e.symbol));
   return cachedSymbolSet;
+}
+
+/**
+ * Papan pencatatan IDX untuk satu emiten, apa adanya dari kolom `listing_board` di
+ * `all.csv` ("Utama" | "Pengembangan" | "Pemantauan Khusus" | "Akselerasi" |
+ * "Ekonomi Baru").
+ *
+ * BUG FIX (audit kuantitatif 2026-08-19, temuan C-01): kolom ini sudah dibaca
+ * `loadEmitenList()` sejak lama lalu dibuang, sementara `lib/utils/idx-trading-board.ts`
+ * mengklasifikasikan papan dari TIGA HIMPUNAN TICKER YANG DITULIS TANGAN. Diukur
+ * terhadap CSV yang sama: 419 dari 962 emiten (43,6%) salah papan - 224 emiten Papan
+ * Utama dilabeli "Papan Pengembangan", dan 4 emiten Papan Utama (BUMI, DEWA, ENRG,
+ * BRMS) diberi peringatan "Periodic Call Auction 5 sesi lelang/hari" yang tidak berlaku
+ * untuk mereka.
+ *
+ * `null` = kode tidak ada di master emiten (mis. indeks `^JKSE`, atau emiten yang sudah
+ * delisting seperti MYRX). Pemanggil WAJIB memperlakukannya sebagai "papan tidak
+ * diketahui" dan tidak menampilkan lencana apa pun - bukan menebak papan default.
+ */
+export function getEmitenBoard(symbol: string | null | undefined): string | null {
+  if (!symbol) return null;
+  const clean = symbol.replace(/\.JK$/i, '').toUpperCase().trim();
+  if (!clean) return null;
+  if (!cachedBoardBySymbol) {
+    cachedBoardBySymbol = new Map(
+      loadEmitenList()
+        .filter((e) => e.board)
+        .map((e) => [e.symbol.toUpperCase(), e.board]),
+    );
+  }
+  return cachedBoardBySymbol.get(clean) ?? null;
 }

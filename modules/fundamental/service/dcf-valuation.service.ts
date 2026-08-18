@@ -411,6 +411,88 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+export interface FcfeProjectionInput {
+  /** Arus kas bebas per saham periode terakhir. Sudah setelah bunga (lihat catatan H-02). */
+  fcfPerShare: number;
+  /** Pertumbuhan tahunan selama `years`, desimal. */
+  growth: number;
+  /** Biaya ekuitas, desimal. WAJIB > `terminalGrowth`. */
+  discountRate: number;
+  /** Pertumbuhan perpetuitas setelah `years`, desimal. */
+  terminalGrowth: number;
+  years?: number;
+  /** Tahun kalender pertama proyeksi. Dipisah supaya hasilnya deterministik di test. */
+  baseYear?: number;
+}
+
+/**
+ * Proyeksi FCFE + nilai terminal Gordon, dikembalikan sebagai NILAI EKUITAS per saham.
+ *
+ * Dipisahkan dari `calculateDcfModel()` (yang butuh jaringan) supaya invarian temuan H-02
+ * dapat diuji langsung: hasil fungsi ini TIDAK dikurangi utang bersih, karena arus kas
+ * yang masuk ke sini sudah arus kas untuk pemegang saham dan diskontonya biaya ekuitas.
+ * Lihat catatan panjang di dalam `calculateDcfModel()`.
+ */
+export function buildFcfeProjection(input: FcfeProjectionInput) {
+  const years = input.years ?? PROJECTION_YEARS;
+  const baseYear = input.baseYear ?? new Date().getFullYear();
+  const fcfProjections: { year: number; fcf_per_share: number; pv_fcf: number }[] = [];
+  let pvFcfSum = 0;
+  let fcfYearN = input.fcfPerShare;
+  for (let y = 1; y <= years; y++) {
+    fcfYearN = fcfYearN * (1 + input.growth);
+    const pv = fcfYearN / Math.pow(1 + input.discountRate, y);
+    pvFcfSum += pv;
+    fcfProjections.push({ year: baseYear + y, fcf_per_share: fcfYearN, pv_fcf: pv });
+  }
+  const terminalValue = (fcfYearN * (1 + input.terminalGrowth)) / (input.discountRate - input.terminalGrowth);
+  const pvTerminalValue = terminalValue / Math.pow(1 + input.discountRate, years);
+  const equityValuePerShare = pvFcfSum + pvTerminalValue;
+  return { fcfProjections, pvFcfSum, pvTerminalValue, equityValuePerShare, fairValue: equityValuePerShare };
+}
+
+/** Batas pencarian reverse DCF. Di luar rentang ini model tidak melaporkan satu angka. */
+export const IMPLIED_GROWTH_MIN = -0.30;
+export const IMPLIED_GROWTH_MAX = 0.60;
+
+export type ImpliedGrowthStatus = 'RESOLVED' | 'ABOVE_RANGE' | 'BELOW_RANGE' | 'NOT_APPLICABLE';
+
+/**
+ * Reverse DCF: cari `g` yang membuat nilai ekuitas model sama dengan harga pasar.
+ *
+ * TEMUAN M-01: versi sebelumnya melakukan bisection tanpa memeriksa akarnya terkurung,
+ * sehingga harga di luar rentang menghasilkan TEPAT batas kurungnya (-30,0% / 60,0%) dan
+ * angka itu tampil di UI seolah hasil pengukuran pasar. Sekarang kedua ujung dievaluasi
+ * lebih dulu; di luar rentang mengembalikan `pct: null` beserta arahnya.
+ */
+export function solveImpliedGrowth(params: {
+  fcfPerShare: number;
+  price: number;
+  discountRate: number;
+  terminalGrowth: number;
+  years?: number;
+}): { pct: number | null; status: ImpliedGrowthStatus } {
+  const { fcfPerShare, price, discountRate, terminalGrowth, years } = params;
+  if (!(fcfPerShare > 0) || !(price > 0)) return { pct: null, status: 'NOT_APPLICABLE' };
+
+  const valueAt = (growth: number) =>
+    buildFcfeProjection({ fcfPerShare, growth, discountRate, terminalGrowth, years }).equityValuePerShare;
+
+  // Nilai ekuitas naik monoton terhadap growth - dua evaluasi ujung cukup untuk tahu
+  // apakah harga pasar berada di dalam rentang yang bisa dijelaskan model.
+  if (valueAt(IMPLIED_GROWTH_MAX) < price) return { pct: null, status: 'ABOVE_RANGE' };
+  if (valueAt(IMPLIED_GROWTH_MIN) > price) return { pct: null, status: 'BELOW_RANGE' };
+
+  let low = IMPLIED_GROWTH_MIN;
+  let high = IMPLIED_GROWTH_MAX;
+  for (let iter = 0; iter < 40; iter++) {
+    const mid = (low + high) / 2;
+    if (valueAt(mid) > price) high = mid;
+    else low = mid;
+  }
+  return { pct: Math.round(((low + high) / 2) * 1000) / 10, status: 'RESOLVED' };
+}
+
 // Model DCF 5-tahun + tabel sensitivitas WACC x Terminal Growth, dihitung dari FCF/share
 // dan ROE riil yang sama seperti calculateIntrinsicValue() di atas (dengan fix currency
 // USD/IDR yang sama) - dipakai oleh /app/dcf (halaman "DCF Intrinsic Valuation"), yang
@@ -537,23 +619,40 @@ export async function calculateDcfModel(rawTicker: string) {
   const rawGrowth = (roe / 100) * retentionRatio;
   const projectionGrowth = clamp(rawGrowth, 0.02, 0.12);
 
-  function buildProjection(discountRateInput: number, terminalGrowthRate: number) {
-    const fcfProjections: { year: number; fcf_per_share: number; pv_fcf: number }[] = [];
-    let pvFcfSum = 0;
-    let fcfYearN = fcfPerShare as number;
-    const currentYear = new Date().getFullYear();
-    for (let y = 1; y <= PROJECTION_YEARS; y++) {
-      fcfYearN = fcfYearN * (1 + projectionGrowth);
-      const pv = fcfYearN / Math.pow(1 + discountRateInput, y);
-      pvFcfSum += pv;
-      fcfProjections.push({ year: currentYear + y, fcf_per_share: fcfYearN, pv_fcf: pv });
-    }
-    const terminalValue = (fcfYearN * (1 + terminalGrowthRate)) / (discountRateInput - terminalGrowthRate);
-    const pvTerminalValue = terminalValue / Math.pow(1 + discountRateInput, PROJECTION_YEARS);
-    const enterpriseValuePerShare = pvFcfSum + pvTerminalValue;
-    const fairValue = enterpriseValuePerShare - netDebtPerShare;
-    return { fcfProjections, pvFcfSum, pvTerminalValue, enterpriseValuePerShare, fairValue };
-  }
+  // BUG FIX (audit kuantitatif 2026-08-19, temuan H-02): UTANG DIHITUNG DUA KALI.
+  //
+  // Versi sebelumnya menamai `pvFcfSum + pvTerminalValue` sebagai `enterpriseValuePerShare`
+  // lalu menguranginya dengan utang bersih per saham. Itu hanya sah untuk model FCFF yang
+  // didiskonto pada WACC. Yang sesungguhnya dihitung di sini bukan itu:
+  //
+  //   arus kas  : Yahoo `financialData.freeCashflow` = arus kas operasi - capex.
+  //               Arus kas operasi SUDAH dikurangi bunga yang dibayar, jadi angkanya
+  //               mendekati FCFE (arus kas untuk pemegang saham), bukan FCFF.
+  //   diskonto  : SBN_10Y_YIELD_PCT + EQUITY_RISK_PREMIUM_PCT = biaya EKUITAS, bukan WACC.
+  //               Kode lama bahkan melaporkan keduanya sebagai angka yang sama
+  //               (`cost_of_equity_pct` dan `wacc_pct` diisi variabel yang identik) -
+  //               bukti kebingungannya ada di keluarannya sendiri.
+  //
+  // Mendiskonto arus kas pasca-bunga pada biaya ekuitas SUDAH menghasilkan nilai ekuitas.
+  // Menguranginya lagi dengan utang bersih memotong beban utang untuk kedua kalinya, dan
+  // besarnya persis sebesar utang bersih per saham. Emiten padat modal (jalan tol, semen,
+  // properti, menara telekomunikasi) paling terpukul, dan biasnya selalu satu arah:
+  // nilai wajar terlalu rendah, `valuation_status` condong ke OVERVALUED, seluruh
+  // `sensitivity_table` dan `implied_fcf_growth_pct` ikut bergeser.
+  //
+  // Yang benar untuk data yang tersedia adalah kerangka FCFE: nilai sekarang arus kas
+  // itu SENDIRI adalah nilai ekuitas per saham. `netDebtPerShare` tetap dihitung dan tetap
+  // dilaporkan sebagai KONTEKS NERACA, tetapi tidak lagi masuk ke rumus nilai wajar.
+  //
+  // Matematikanya ada di `buildFcfeProjection()` di atas - fungsi murni tanpa jaringan,
+  // supaya invarian "tidak dikurangi utang bersih" bisa diuji langsung di golden test.
+  const buildProjection = (discountRateInput: number, terminalGrowthRate: number) =>
+    buildFcfeProjection({
+      fcfPerShare: fcfPerShare as number,
+      growth: projectionGrowth,
+      discountRate: discountRateInput,
+      terminalGrowth: terminalGrowthRate,
+    });
 
   const base = buildProjection(discountRate, TERMINAL_GROWTH_PCT / 100);
   const fairValue = base.fairValue;
@@ -563,11 +662,11 @@ export async function calculateDcfModel(rawTicker: string) {
       quant: {
         current_price: price,
         not_applicable: true,
-        enterprise_value_per_share: Math.round(base.enterpriseValuePerShare),
+        equity_value_per_share: Math.round(base.equityValuePerShare),
         net_debt_per_share: Math.round(netDebtPerShare),
       },
       analysis: {
-        executive_summary: `Nilai operasi DCF ${ticker} setelah dikurangi utang bersih menghasilkan nilai ekuitas <= 0. Model tidak menampilkan target harga positif karena itu akan menyesatkan.`,
+        executive_summary: `Nilai kini arus kas ${ticker} menghasilkan nilai ekuitas per saham <= 0. Model tidak menampilkan target harga positif karena itu akan menyesatkan.`,
       },
       not_applicable_reason: 'NEGATIVE_EQUITY_VALUE',
     };
@@ -575,39 +674,33 @@ export async function calculateDcfModel(rawTicker: string) {
   const mos = fairValue > 0 && price > 0 ? ((fairValue - price) / fairValue) * 100 : 0;
   const valuationStatus = mos >= 0 ? 'UNDERVALUED' : 'OVERVALUED';
 
-  // Reverse DCF: Hitung laju pertumbuhan tahunan (Implied Growth Rate) yang sedang di-price in oleh harga pasar saat ini
-  let impliedGrowthPct: number | null = null;
-  if (price > 0 && fcfPerShare && fcfPerShare > 0) {
-    let low = -0.30;
-    let high = 0.60;
-    let bestG = 0.05;
-    for (let iter = 0; iter < 25; iter++) {
-      const mid = (low + high) / 2;
-      let pvFcfSum = 0;
-      let fcfN = fcfPerShare as number;
-      for (let y = 1; y <= PROJECTION_YEARS; y++) {
-        fcfN = fcfN * (1 + mid);
-        pvFcfSum += fcfN / Math.pow(1 + discountRate, y);
-      }
-      const terminalVal = (fcfN * (1 + (TERMINAL_GROWTH_PCT / 100))) / (discountRate - (TERMINAL_GROWTH_PCT / 100));
-      const pvTerminal = terminalVal / Math.pow(1 + discountRate, PROJECTION_YEARS);
-      const fairVal = (pvFcfSum + pvTerminal) - netDebtPerShare;
-      if (fairVal > price) {
-        high = mid;
-      } else {
-        low = mid;
-      }
-      bestG = mid;
-    }
-    impliedGrowthPct = Math.round(bestG * 1000) / 10;
-  }
+  // Reverse DCF: laju pertumbuhan tahunan yang sedang di-price in oleh harga pasar.
+  //
+  // BUG FIX (audit kuantitatif 2026-08-19):
+  //  - temuan H-02: memakai kerangka ekuitas yang sama dengan buildProjection() di atas.
+  //    Sebelumnya di sini `- netDebtPerShare` dipakai, ikut menghitung utang dua kali,
+  //    sehingga growth tersirat selalu lebih tinggi daripada yang sebenarnya di-price in.
+  //  - temuan M-01: bisection LAMA tidak pernah memeriksa akarnya terkurung. Ketika harga
+  //    pasar berada di luar rentang [-30%, +60%], iterasinya konvergen ke batas kurungnya
+  //    sendiri dan mengembalikan TEPAT -30,0% atau 60,0% - angka batas model yang tampil
+  //    di UI seolah hasil pengukuran pasar. Sekarang batasnya dievaluasi lebih dulu dan
+  //    di luar rentang mengembalikan `null` + penanda arah, supaya UI bisa menulis
+  //    "> 60%" / "< -30%" alih-alih angka yang tidak pernah ditemukan.
+  const implied = solveImpliedGrowth({
+    fcfPerShare: fcfPerShare as number,
+    price,
+    discountRate,
+    terminalGrowth: TERMINAL_GROWTH_PCT / 100,
+  });
+  const impliedGrowthPct = implied.pct;
+  const impliedGrowthStatus = implied.status;
 
   // Sensitivitas: WACC -1%/base/+1% (baris) x Terminal Growth 3.0/3.5/4.0% (kolom) -
   // tiap sel dihitung ulang dengan model yang sama, bukan interpolasi kira-kira.
   const discountRateRows = [discountRatePct - 1, discountRatePct, discountRatePct + 1];
   const growthCols = [3.0, 3.5, 4.0];
   const sensitivityTable = discountRateRows.map((rateRow) => {
-    const row: Record<string, any> = { discount_rate_pct: rateRow.toFixed(2), wacc_pct: rateRow.toFixed(2) };
+    const row: Record<string, any> = { discount_rate_pct: rateRow.toFixed(2) };
     growthCols.forEach((g) => {
       const result = rateRow > g ? buildProjection(rateRow / 100, g / 100) : null;
       row[`g_${g.toFixed(1)}%`] = result ? Math.round(result.fairValue) : null;
@@ -621,13 +714,20 @@ export async function calculateDcfModel(rawTicker: string) {
       current_price: price,
       discount_rate_pct: parseFloat(discountRatePct.toFixed(2)),
       cost_of_equity_pct: parseFloat(discountRatePct.toFixed(2)),
-      wacc_pct: parseFloat(discountRatePct.toFixed(2)),
+      // `wacc_pct` DIHAPUS (temuan H-02). Model ini mendiskonto arus kas ekuitas pada
+      // biaya ekuitas; ia tidak pernah menghitung WACC. Melaporkan angka yang sama dengan
+      // dua nama berbeda membuat pembacanya mengira ada dua model di baliknya.
+      valuation_framework: 'FCFE_DISCOUNTED_AT_COST_OF_EQUITY',
       sbn_10y_yield: SBN_10Y_YIELD_PCT,
       risk_premium: EQUITY_RISK_PREMIUM_PCT,
       terminal_growth_pct: TERMINAL_GROWTH_PCT,
       fair_value: Math.round(fairValue),
       implied_fcf_growth_pct: impliedGrowthPct,
-      enterprise_value_per_share: Math.round(base.enterpriseValuePerShare),
+      implied_fcf_growth_status: impliedGrowthStatus,
+      implied_fcf_growth_range_pct: { min: IMPLIED_GROWTH_MIN * 100, max: IMPLIED_GROWTH_MAX * 100 },
+      equity_value_per_share: Math.round(base.equityValuePerShare),
+      // Konteks neraca, BUKAN komponen rumus nilai wajar - lihat catatan H-02 di
+      // buildProjection(). Ditampilkan supaya pembaca tetap melihat beban utangnya.
       net_debt_per_share: Math.round(netDebtPerShare),
       valuation_status: valuationStatus,
       pv_fcf_sum: Math.round(base.pvFcfSum),
@@ -653,7 +753,7 @@ export async function calculateDcfModel(rawTicker: string) {
       },
     },
     analysis: {
-      executive_summary: `Model DCF 5-tahun memakai discount rate proxy ${discountRatePct.toFixed(1)}% (= asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, tetap per ${MACRO_ASSUMPTION_SET_ON}); ${retentionSource === 'MODEL_ASSUMPTION_60_PCT' ? 'payout ratio tidak tersedia sehingga growth memakai asumsi retensi laba 60% (MODEL ASSUMPTION); ' : `retensi laba diturunkan dari payout ratio provider (${(retentionRatio * 100).toFixed(1)}%); `}FCF dihitung sebagai nilai operasi lalu dikurangi utang bersih per saham Rp ${Math.round(netDebtPerShare).toLocaleString('id-ID')}. Nilai wajar ekuitas Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL, bukan target harga; lihat tabel sensitivitas.`,
+      executive_summary: `Model DCF 5-tahun memakai kerangka FCFE: arus kas bebas (sudah setelah bunga) didiskonto pada biaya ekuitas ${discountRatePct.toFixed(1)}% (= asumsi SBN 10Y ${SBN_10Y_YIELD_PCT}% + premi risiko ekuitas ${EQUITY_RISK_PREMIUM_PCT}%, tetap per ${MACRO_ASSUMPTION_SET_ON}); ${retentionSource === 'MODEL_ASSUMPTION_60_PCT' ? 'payout ratio tidak tersedia sehingga growth memakai asumsi retensi laba 60% (MODEL ASSUMPTION); ' : `retensi laba diturunkan dari payout ratio provider (${(retentionRatio * 100).toFixed(1)}%); `}hasilnya SUDAH berupa nilai ekuitas, jadi utang bersih per saham Rp ${Math.round(netDebtPerShare).toLocaleString('id-ID')} ditampilkan sebagai konteks neraca dan tidak dikurangkan lagi. Nilai wajar ekuitas Rp ${Math.round(fairValue).toLocaleString('id-ID')} vs harga pasar Rp ${Math.round(price).toLocaleString('id-ID')} - margin of safety ${mos >= 0 ? '+' : ''}${mos.toFixed(1)}%. Ini keluaran MODEL, bukan target harga; lihat tabel sensitivitas.`,
     },
   };
 }
