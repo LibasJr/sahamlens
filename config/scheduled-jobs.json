@@ -116,13 +116,6 @@
       "source": "Diverifikasi dari VPS 2026-08-16 lewat `systemctl list-timers --all`: sahamlens-intraday-collect.timer aktif, NEXT Sen 2026-08-17 17:31:05 WIB. Jadwal unit: Mon..Fri 17:30 Asia/Jakarta dengan RandomizedDelaySec=120. LAST n/a wajar karena belum mencapai eksekusi otomatis pertama."
     },
     {
-      "path": "/api/cron/ownership-flow-scan",
-      "provider": "systemd",
-      "schedule": null,
-      "scheduleStatus": "disabled-by-policy",
-      "source": "DINONAKTIFKAN OLEH KEBIJAKAN INTEGRITAS DATA. Sumber live KSEI_REGISTERED_SECURITY masih UNVERIFIED dan pernah mengembalikan placeholder 0/0/0. Jangan pasang timer untuk route ini. Ownership Flow production memakai arsip periodik KSEI_HOLDING_COMPOSITION melalui /api/cron/ownership-flow-ksei-sync."
-    },
-    {
       "path": "/api/cron/ownership-flow-ksei-sync",
       "provider": "systemd",
       "schedule": "Daily 19:15 Asia/Jakarta (jeda acak hingga 300 detik)",
