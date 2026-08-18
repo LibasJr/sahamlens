@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
-import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 
 
 function isFiniteNumber(value: unknown): value is number {
@@ -41,7 +40,17 @@ export async function GET(
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`;
     const res = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: getMarketAwareTtlSec() }
+      // TTL market-aware SALAH untuk deret candle. Saat bursa tutup ia mengembalikan 6 jam
+      // (MARKET_CLOSED_TTL_SEC), padahal justru di jendela itulah bar terakhir baru
+      // terbentuk - payload Yahoo yang ditarik pra-bursa dibekukan sampai siang, isinya
+      // belum punya bar hari ini. Diperparah `revalidate` Next yang stale-while-revalidate:
+      // lewat TTL pun pembaca PERTAMA tetap disajikan payload basi. Terukur 2026-08-18 pada
+      // ANTM: request #1 balas lilin terakhir 13 Agu (3030), request #2 balas 18 Agu (3100),
+      // sementara header /api/stock/ANTM menampilkan 3100 sepanjang waktu.
+      //
+      // Fallback penyusun lilin sesi berjalan di bawah tidak bisa menambal ini karena
+      // `meta` yang dibacanya berasal dari payload basi yang sama.
+      next: { revalidate: 60 }
     });
 
     if (!res.ok) throw new Error('Failed to fetch from Yahoo');
