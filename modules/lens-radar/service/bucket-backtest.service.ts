@@ -1,7 +1,7 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import { todayDateKeyWIB } from '../../../shared/market/trading-session';
-import { fetchYahooHistory } from '../../technical';
+import { fetchYahooHistoryDirect } from '../../technical';
 import {
   barAtForwardTradingOffset,
   barAtTradingOffset,
@@ -181,14 +181,14 @@ interface NormalizedEntry {
 
 class YahooDailyOpenProvider implements DailyOpenProvider {
   async getIdxTradingCalendarDates(): Promise<string[]> {
-    const history = await fetchYahooHistory(IDX_BENCHMARK_TICKER, '5y').catch(() => null);
+    const history = await fetchYahooHistoryDirect(IDX_BENCHMARK_TICKER, '5y').catch(() => null);
     return (history?.history ?? [])
       .map((bar) => String(bar.Date).slice(0, 10))
       .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date));
   }
 
   async getDailyOpenBars(ticker: string): Promise<DailyOpenBar[]> {
-    const history = await fetchYahooHistory(ticker, '5y');
+    const history = await fetchYahooHistoryDirect(ticker, '5y');
     const normalized = normalizeYahooOhlcRows(history?.history ?? [], ticker, history?.regularMarketTime ? new Date(history.regularMarketTime * 1000).toISOString() : null);
     return selectPriceSeries(normalized, RETURN_PRICE_BASIS).bars
       .map((bar) => ({

@@ -1,6 +1,6 @@
 import { pool } from '@/shared/database/postgres.client';
 import { ensureSharedSchema } from '@/shared/database/schema.service';
-import { fetchYahooHistory, wilderAtrAt, ATR_PERIOD } from '@/modules/technical';
+import { fetchYahooHistoryDirect, wilderAtrAt, ATR_PERIOD } from '@/modules/technical';
 import {
   detectCorporateAction,
   normalizeYahooOhlcRows,
@@ -800,7 +800,7 @@ async function loadTickerSeries(tickers: string[], yahooFetchRange: TpclYahooFet
     const batch = tickers.slice(i, i + FETCH_BATCH);
     const rows = await Promise.all(batch.map(async (ticker) => {
       try {
-        const response = await fetchYahooHistory(ticker, yahooFetchRange);
+        const response = await fetchYahooHistoryDirect(ticker, yahooFetchRange);
         const normalized = normalizeYahooOhlcRows(
           response?.history ?? [], ticker,
           response?.regularMarketTime ? new Date(response.regularMarketTime * 1000).toISOString() : null,
@@ -839,7 +839,7 @@ export async function getTpclValidationDashboard(
 
   const [seriesMap, ihsgResponse] = await Promise.all([
     loadTickerSeries(tickers, yahooFetchRange),
-    fetchYahooHistory('^JKSE', yahooFetchRange).catch(() => null),
+    fetchYahooHistoryDirect('^JKSE', yahooFetchRange).catch(() => null),
   ]);
 
   const ihsgNormalized = normalizeYahooOhlcRows(

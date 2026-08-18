@@ -11,6 +11,7 @@ import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
 
+import { applyIdxLq45EodPrimary } from './idx-lq45-history.service';
 export interface OhlcRow {
   Date: string;
   Open: number;
@@ -51,7 +52,7 @@ export interface YahooHistoryResult {
   previousClose: number | null;
 }
 
-export async function fetchYahooHistory(ticker: string, range: string = '1y'): Promise<YahooHistoryResult | null> {
+export async function fetchYahooHistory(ticker: string, range: string = '1y', options: { sourcePolicy?: 'AUTO' | 'YAHOO_ONLY' } = {}): Promise<YahooHistoryResult | null> {
   if (await isProviderCircuitOpen('YAHOO_CHART')) return null;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
   const controller = new AbortController();
@@ -108,7 +109,20 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
     });
     await recordProviderSuccess('YAHOO_CHART');
     void recordDataSourceHealth({ sourceId: 'YAHOO_CHART', ok: true, latencyMs: Date.now() - startedAt, dataObservedAt: regularMarketTime ? new Date(regularMarketTime * 1000).toISOString() : null, detail: { tickerSample: ticker, range } });
-    return { history, currentPrice, regularMarketTime, previousClose };
+    const eod = options.sourcePolicy === 'YAHOO_ONLY'
+      ? null
+      : await applyIdxLq45EodPrimary(ticker, range, history);
+    return {
+      history: eod?.history ?? history,
+      currentPrice,
+      regularMarketTime,
+      previousClose,
+      historySource: eod?.source ?? 'YAHOO_CHART',
+      liveQuoteSource: 'YAHOO_CHART',
+      adjustedCloseSource: eod?.adjustedCloseSource ?? (history.some((row) => typeof row.AdjClose === 'number') ? 'YAHOO_CHART' : null),
+      universeVersion: eod?.universeVersion ?? null,
+      reconciliationStatus: eod?.latestCloseReconciliation ?? null,
+    } as YahooHistoryResult & Record<string, unknown>;
   } catch (e) {
     clearTimeout(timeoutId);
     await recordProviderFailure('YAHOO_CHART');
@@ -116,3 +130,9 @@ export async function fetchYahooHistory(ticker: string, range: string = '1y'): P
     return null;
   }
 }
+
+/** Research/validation escape hatch: immutable Yahoo-only input for legacy datasets. */
+export async function fetchYahooHistoryDirect(ticker: string, range: string = '1y'): Promise<YahooHistoryResult | null> {
+  return fetchYahooHistory(ticker, range, { sourcePolicy: 'YAHOO_ONLY' });
+}
+

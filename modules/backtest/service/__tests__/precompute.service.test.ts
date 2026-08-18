@@ -4,7 +4,7 @@ vi.mock('../../../technical', async () => {
   const actual = await vi.importActual<typeof import('../../../technical')>('../../../technical');
   return {
     ...actual,
-    fetchYahooHistory: vi.fn(),
+    fetchYahooHistoryDirect: vi.fn(),
   };
 });
 
@@ -21,7 +21,7 @@ import {
   TRADING_DAYS_PER_MONTH,
 } from '../../constants/backtest-periods';
 import { computeTickerSeries, precomputeBacktestData, RETAIN_DAYS } from '../precompute.service';
-import { fetchYahooHistory } from '../../../technical';
+import { fetchYahooHistoryDirect } from '../../../technical';
 import type { OhlcRow } from '../../../technical';
 
 function makeHistory(days: number, startPrice = 1000): OhlcRow[] {
@@ -90,7 +90,7 @@ describe('computeTickerSeries', () => {
 describe('precomputeBacktestData', () => {
   it('melewati saham yang gagal fetch tanpa menggagalkan yang lain', async () => {
     const goodHistory = makeHistory(400);
-    vi.mocked(fetchYahooHistory).mockImplementation(async (ticker: string) => {
+    vi.mocked(fetchYahooHistoryDirect).mockImplementation(async (ticker: string) => {
       if (ticker === 'BBCA.JK') return null; // simulasikan satu saham gagal fetch
       return { history: goodHistory, currentPrice: goodHistory[goodHistory.length - 1].Close, regularMarketTime: null, previousClose: null };
     });

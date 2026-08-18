@@ -6,13 +6,16 @@ import { fetchYahooCloseForDate } from './yahoo-close-source.service';
 import { finishReconciliationRun, startReconciliationRun, upsertCloseReconciliation } from '../repository/market-data-reconciliation.repository';
 import type { CloseObservation, CloseReconciliationRow, ReconciliationStatus } from '../types';
 
-const PRIMARY_SOURCE = 'YAHOO_CHART';
-const SECONDARY_SOURCE = 'IDX_PUBLIC_STOCK_SUMMARY';
+import { CURRENT_LQ45_UNIVERSE } from '@/modules/market/constants/lq45-universe';
+const PRIMARY_SOURCE = 'IDX_PUBLIC_STOCK_SUMMARY';
+const SECONDARY_SOURCE = 'YAHOO_CHART';
 
 function limitUniverse(): string[] {
-  const raw = Number(process.env.MARKET_RECON_UNIVERSE_LIMIT ?? AI_PICK_UNIVERSE.length);
-  const limit = Number.isFinite(raw) && raw > 0 ? Math.min(Math.floor(raw), AI_PICK_UNIVERSE.length) : AI_PICK_UNIVERSE.length;
-  return AI_PICK_UNIVERSE.slice(0, limit);
+  const mode = process.env.MARKET_RECON_UNIVERSE_MODE?.trim().toLowerCase();
+  const base = mode === 'lq45' ? [...CURRENT_LQ45_UNIVERSE] : AI_PICK_UNIVERSE;
+  const raw = Number(process.env.MARKET_RECON_UNIVERSE_LIMIT ?? base.length);
+  const limit = Number.isFinite(raw) && raw > 0 ? Math.min(Math.floor(raw), base.length) : base.length;
+  return base.slice(0, limit);
 }
 
 async function mapConcurrent<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
@@ -75,11 +78,9 @@ export async function runDailyCloseReconciliation(): Promise<Record<string, unkn
   const idxMap = new Map(idxBatch.rows.map((row) => [row.ticker, row]));
   const concurrency = Math.max(1, Math.min(8, Number(process.env.MARKET_RECON_YAHOO_CONCURRENCY ?? 4) || 4));
   const reconciled = await mapConcurrent(universe, concurrency, async (ticker) => {
-    const secondary = idxMap.get(ticker) ?? null;
-    // Fetch primary untuk SELURUH universe. Kalau secondary tidak punya ticker ini,
-    // kita tetap ingin membedakan PRIMARY_ONLY dari NO_DATA; gap coverage tidak boleh
-    // hilang hanya karena sumber pembanding tidak punya row.
-    const primary = await fetchYahooCloseForDate(ticker, idxBatch.tradeDate);
+    const primary = idxMap.get(ticker) ?? null;
+    // IDX adalah primary untuk universe LQ45. Yahoo dipertahankan sebagai pembanding.
+    const secondary = await fetchYahooCloseForDate(ticker, idxBatch.tradeDate);
     return reconcileClose(primary, secondary, runId, ticker, idxBatch.tradeDate);
   });
 

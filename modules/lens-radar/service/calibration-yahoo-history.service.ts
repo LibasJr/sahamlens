@@ -1,4 +1,4 @@
-import { fetchYahooHistory, type YahooHistoryResult } from '@/modules/technical';
+import { fetchYahooHistoryDirect, type YahooHistoryResult } from '@/modules/technical';
 import { createBoundedLoader } from '@/shared/async/bounded-loader';
 
 export type CalibrationYahooRange = '5y';
@@ -13,7 +13,7 @@ const calibrationYahooLoader = createBoundedLoader<
 >(
   async ({ ticker, range }) => {
     try {
-      return await fetchYahooHistory(ticker, range);
+      return await fetchYahooHistoryDirect(ticker, range);
     } catch (error) {
       console.warn('[calibration.yahoo] ticker fetch failed', {
         ticker,

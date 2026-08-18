@@ -3,7 +3,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { pool } from '@/shared/database/postgres.client';
 import { ensureSharedSchema } from '@/shared/database/schema.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
-import { fetchYahooHistory } from '@/modules/technical';
+import { fetchYahooHistoryDirect } from '@/modules/technical';
 import {
   LENS_BUCKET_MIN_AVG_VALUE_20D_IDR,
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
@@ -288,7 +288,7 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
 }
 
 async function fetchIhsgBars(): Promise<IhsgBar[]> {
-  const history = await fetchYahooHistory('^JKSE', '5y');
+  const history = await fetchYahooHistoryDirect('^JKSE', '5y');
   return (history?.history ?? [])
     .map((bar) => ({
       date: bar.Date.split('T')[0],
