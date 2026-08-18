@@ -1,0 +1,188 @@
+--- /mnt/data/work_impl/current/app/admin/infographic-studio/page.tsx	2026-08-18 04:44:09.267682916 +0000
++++ /mnt/data/work_impl/test_morning/app/admin/infographic-studio/page.tsx	2026-08-18 04:47:26.564600083 +0000
+@@ -11,6 +11,8 @@
+ import { useAuthUser } from '@/lib/hooks/useAuthUser';
+ import TechnicalExportCard3D from '@/components/export/TechnicalExportCard3D';
+ import FundamentalMoatEarningsExportCard3D from '@/components/export/FundamentalMoatEarningsExportCard3D';
++import TechnicalMorningStreamCard from '@/components/export/TechnicalMorningStreamCard';
++import FundamentalMorningStreamCard from '@/components/export/FundamentalMorningStreamCard';
+ import {
+   Card3DTheme,
+   CARD_3D_THEMES,
+@@ -25,6 +27,7 @@
+ import { TICKERS } from '@/lib/tickers';
+ 
+ type StudioCardMode = 'technical' | 'fundamental_moat_earnings';
++type StudioLayoutMode = 'detail' | 'morning';
+ 
+ const POPULAR_TICKERS = ['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'ITMG', 'BREN', 'UNVR', 'ICBP'];
+ 
+@@ -73,6 +76,7 @@
+   const [tickerInput, setTickerInput] = useState('BBCA');
+   const [activeTicker, setActiveTicker] = useState('BBCA');
+   const [cardMode, setCardMode] = useState<StudioCardMode>('technical');
++  const [layoutMode, setLayoutMode] = useState<StudioLayoutMode>('detail');
+   const [selectedThemeId, setSelectedThemeId] = useState<string>('auto'); // 'auto' | themeId
+   const [zoomScale, setZoomScale] = useState<number>(0.75);
+   const [loading, setLoading] = useState(false);
+@@ -345,11 +349,18 @@
+       const { toPng } = await import('html-to-image');
+       const dataUrl = await toPng(canvasRef.current, { pixelRatio: 2, cacheBust: true });
+       const link = document.createElement('a');
+-      const typeLabel = cardMode === 'technical' ? 'Technical-3D' : 'Fundamental-Moat-Earnings-3D';
++      const typeLabel = layoutMode === 'morning'
++        ? (cardMode === 'technical' ? 'Technical-Morning-Stream' : 'Fundamental-Morning-Stream')
++        : (cardMode === 'technical' ? 'Technical-3D' : 'Fundamental-Moat-Earnings-3D');
+       link.download = `SahamLens-${typeLabel}-${activeTicker}-${new Date().toISOString().slice(0, 10)}.png`;
+       link.href = dataUrl;
+       link.click();
+-      showToast(`Infografis 3D ${cardMode === 'technical' ? 'Teknikal' : 'Fundamental+Moat'} berhasil diekspor (HD PNG)!`, 'success');
++      showToast(
++        layoutMode === 'morning'
++          ? `Morning Stream ${cardMode === 'technical' ? 'Teknikal' : 'Fundamental'} berhasil diekspor (HD PNG)!`
++          : `Infografis 3D ${cardMode === 'technical' ? 'Teknikal' : 'Fundamental+Moat'} berhasil diekspor (HD PNG)!`,
++        'success'
++      );
+     } catch (error) {
+       console.error('Export error:', error);
+       showToast('Gagal mengekspor infografis. Silakan coba lagi.', 'error');
+@@ -549,6 +560,32 @@
+               </button>
+             </div>
+ 
++            {/* Format output: detail report vs social-first 4:5 Morning Stream */}
++            <div className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-[#030612] p-1 w-full lg:w-auto">
++              <button
++                type="button"
++                onClick={() => setLayoutMode('detail')}
++                className={`flex-1 lg:flex-initial rounded-lg px-3 py-2 text-[11px] font-black transition-all ${
++                  layoutMode === 'detail'
++                    ? `bg-white/10 text-white border ${active3DTheme.accentBorder}`
++                    : 'text-slate-500 hover:text-white'
++                }`}
++              >
++                Detail 360°
++              </button>
++              <button
++                type="button"
++                onClick={() => setLayoutMode('morning')}
++                className={`flex-1 lg:flex-initial rounded-lg px-3 py-2 text-[11px] font-black transition-all ${
++                  layoutMode === 'morning'
++                    ? `bg-gradient-to-r ${active3DTheme.buttonGrad} text-white ${active3DTheme.accentShadow}`
++                    : 'text-slate-500 hover:text-white'
++                }`}
++              >
++                Morning Stream 4:5
++              </button>
++            </div>
++
+             {/* 2. Content selectors: only real values available in the loaded payload */}
+             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+               <details className={`relative group ${cardMode === 'technical' ? '' : 'opacity-60'}`}>
+@@ -709,7 +746,7 @@
+             <div className="flex items-center gap-2">
+               <ImageIcon className={`w-5 h-5 ${active3DTheme.accentText}`} />
+               <span className="font-heading text-sm font-bold text-white">
+-                Live 3D Preview: {cardMode === 'technical' ? 'Laporan Teknikal & Smart Money' : 'Laporan Fundamental, Moat & Earnings'}
++                {layoutMode === 'morning' ? 'Morning Stream 4:5' : 'Live 3D Preview'}: {cardMode === 'technical' ? 'Teknikal & Smart Money' : 'Fundamental, Moat & Earnings'}
+               </span>
+               <span className="hidden md:inline text-[11px] font-mono text-slate-400">
+                 • Tema Sektor: <b className={active3DTheme.accentText}>{active3DTheme.name}</b>
+@@ -735,39 +772,65 @@
+             >
+               <div ref={canvasRef} style={{ width: '1080px' }}>
+                 {data ? (
+-                  cardMode === 'technical' ? (
+-                    <TechnicalExportCard3D
+-                      symbol={data.symbol}
+-                      stockName={data.stock.name}
+-                      currentPrice={data.stock.current_price}
+-                      changePct={data.stock.change_pct}
+-                      volume={data.stock.volume}
+-                      consensusLabel={data.technical.consensusLabel}
+-                      consensusTone={data.technical.consensusTone}
+-                      score={data.technical.score}
+-                      scoreBreakdown={data.technical.breakdown}
+-                      buyPct={data.technical.bullPct}
+-                      sellPct={data.technical.bearPct}
+-                      neutralPct={data.technical.neutralPct}
+-                      analyzers={selectedTechnicalAnalyzers}
+-                      theme={active3DTheme}
+-                      exportedAt={new Date()}
+-                    />
++                  layoutMode === 'morning' ? (
++                    cardMode === 'technical' ? (
++                      <TechnicalMorningStreamCard
++                        symbol={data.symbol}
++                        stockName={data.stock.name}
++                        currentPrice={data.stock.current_price}
++                        changePct={data.stock.change_pct}
++                        volume={data.stock.volume}
++                        analyzers={selectedTechnicalAnalyzers}
++                        theme={active3DTheme}
++                        exportedAt={new Date()}
++                      />
++                    ) : (
++                      <FundamentalMorningStreamCard
++                        ticker={data.symbol}
++                        stock={data.stock}
++                        fundamentals={selectedFundamentalsForExport}
++                        profile={data.fundamental.profile}
++                        moat={data.fundamental.moat}
++                        upcomingEarnings={data.fundamental.upcomingEarnings}
++                        theme={active3DTheme}
++                        exportedAt={new Date()}
++                      />
++                    )
+                   ) : (
+-                    <FundamentalMoatEarningsExportCard3D
+-                      ticker={data.symbol}
+-                      stock={data.stock}
+-                      scoring={data.fundamental.scoring}
+-                      fundamentals={selectedFundamentalsForExport}
+-                      profile={data.fundamental.profile}
+-                      moat={data.fundamental.moat}
+-                      durability={data.fundamental.durability}
+-                      upcomingEarnings={data.fundamental.upcomingEarnings}
+-                      earningsExpectation={data.fundamental.earningsExpectation}
+-                      latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
+-                      theme={active3DTheme}
+-                      exportedAt={new Date()}
+-                    />
++                    cardMode === 'technical' ? (
++                      <TechnicalExportCard3D
++                        symbol={data.symbol}
++                        stockName={data.stock.name}
++                        currentPrice={data.stock.current_price}
++                        changePct={data.stock.change_pct}
++                        volume={data.stock.volume}
++                        consensusLabel={data.technical.consensusLabel}
++                        consensusTone={data.technical.consensusTone}
++                        score={data.technical.score}
++                        scoreBreakdown={data.technical.breakdown}
++                        buyPct={data.technical.bullPct}
++                        sellPct={data.technical.bearPct}
++                        neutralPct={data.technical.neutralPct}
++                        analyzers={selectedTechnicalAnalyzers}
++                        theme={active3DTheme}
++                        exportedAt={new Date()}
++                      />
++                    ) : (
++                      <FundamentalMoatEarningsExportCard3D
++                        ticker={data.symbol}
++                        stock={data.stock}
++                        scoring={data.fundamental.scoring}
++                        fundamentals={selectedFundamentalsForExport}
++                        profile={data.fundamental.profile}
++                        moat={data.fundamental.moat}
++                        durability={data.fundamental.durability}
++                        upcomingEarnings={data.fundamental.upcomingEarnings}
++                        earningsExpectation={data.fundamental.earningsExpectation}
++                        latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
++                        theme={active3DTheme}
++                        exportedAt={new Date()}
++                      />
++                    )
+                   )
+                 ) : (
+                   <div className="w-[1080px] h-[1420px] bg-[#030610] flex flex-col items-center justify-center text-slate-500 font-mono gap-3">
