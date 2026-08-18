@@ -34,7 +34,10 @@
     "restore:verify": "node scripts/verify-restore-drill-target.mjs",
     "audit:risk-controls": "node scripts/audit-risk-controls.mjs",
     "audit:zero-dummy": "node scripts/audit-zero-dummy-policy.mjs",
-    "audit:broker-forensics": "node scripts/audit-broker-summary-forensics.mjs"
+    "audit:broker-forensics": "node scripts/audit-broker-summary-forensics.mjs",
+    "sync:idx-foreign-flow": "python scripts/sync-idx-foreign-flow.py",
+    "sync:idx-broker-summary": "python scripts/sync-idx-broker-summary.py",
+    "import:broker-eod": "node scripts/import-broker-market-daily.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -12,6 +12,7 @@ import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
+import BandarFlowPro from '@/components/BandarFlowPro';
 import TechnicalAnalysisSuite from '@/components/technical/TechnicalAnalysisSuite';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
@@ -502,6 +503,13 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
         {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
 
         <StockChartPanel symbol={symbol} />
+
+        {/* LensFlow - arus dana asing. Sumber utamanya Net Foreign Buy/Sell RESMI BEI
+            (data/foreign-flow/, lihat modules/market/service/idx-foreign-flow.service.ts);
+            emiten yang artefaknya belum tersinkron otomatis jatuh ke proxy CMF Yahoo
+            dengan label berbeda. IHSG dikecualikan: indeks bukan emiten, Bursa tidak
+            mencatat ForeignBuy/ForeignSell untuknya. */}
+        {!isIndex && <BandarFlowPro symbol={symbol} />}
 
         {!isIndex && SHOW_BROKER_DISTRIBUTION_PANEL && (
           <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>

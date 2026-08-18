@@ -1,0 +1,24 @@
+# /etc/systemd/system/sahamlens-idx-flow-sync.timer
+#
+# Ini JADWAL POLLING SahamLens, bukan klaim jam publikasi BEI.
+#
+# Senin-Jumat 17:30 WIB: sesi bursa tutup 16:00 WIB, dan angka EOD (termasuk
+# ForeignBuy/ForeignSell serta broker summary) baru lengkap setelah itu. Weekend tidak
+# dijadwalkan karena bursa libur - skrip broker summary memang mundur mencari hari bursa
+# terakhir, tapi menjadwalkannya di hari libur hanya menghasilkan polling kosong.
+#
+# Kalau BEI terlambat menerbitkan, polling berikutnya (hari kerja berikutnya) tetap
+# mengambil hari yang terlewat: skrip foreign flow selalu meminta 90 hari terakhir dan
+# impor broker bersifat append-only.
+
+[Unit]
+Description=Jadwal SahamLens - sync Foreign Flow & Broker EOD resmi BEI
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 17:30:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target
