@@ -41,6 +41,7 @@ import YahooFinanceClass from 'yahoo-finance2';
 import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
 import { getLatestMarketIntegrity } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
 
+import { applyIdxLq45EodPrimary } from '@/modules/technical/service/idx-lq45-history.service';
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
 function isFiniteNumber(value: unknown): value is number {
@@ -121,12 +122,13 @@ export async function GET(
     const rangeParam = requestUrl.searchParams.get('range');
     const range = rangeParam && ALLOWED_RANGES.has(rangeParam) ? rangeParam : '20y';
 
-    const cacheKey = `sahamlens:cache:computed:technical:${COMPUTED_CACHE_VERSION}:${ticker}:${range}`;
+    const providerCacheTag = process.env.IDX_LQ45_EOD_PRIMARY_ENABLED === 'true' ? 'idx-lq45-eod-v1' : 'yahoo-eod-v1';
+    const cacheKey = `sahamlens:cache:computed:technical:${COMPUTED_CACHE_VERSION}:${providerCacheTag}:${ticker}:${range}`;
     // Key kedua, TTL jauh lebih panjang - HANYA dibaca kalau fetch Yahoo gagal
     // (lihat blok catch di bawah). Mempertahankan perilaku lama: lebih baik
     // sajikan data basi (bisa >3 menit) daripada error keras saat Yahoo down,
     // yang hilang kalau cuma mengandalkan TTL pendek cacheKey di atas.
-    const staleFallbackKey = `sahamlens:cache:computed:technical-stale-fallback:${COMPUTED_CACHE_VERSION}:${ticker}:${range}`;
+    const staleFallbackKey = `sahamlens:cache:computed:technical-stale-fallback:${COMPUTED_CACHE_VERSION}:${providerCacheTag}:${ticker}:${range}`;
 
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
@@ -271,7 +273,7 @@ export async function GET(
     const adjcloseArr: (number | null)[] | undefined = result.indicators.adjclose?.[0]?.adjclose;
 
     // Convert to history array for analyzers
-    const history = [];
+    let history: any[] = [];
     for (let i = 0; i < timestamps.length; i++) {
       const timestamp = timestamps[i];
       const open = quote.open?.[i];
@@ -300,6 +302,9 @@ export async function GET(
         });
       }
     }
+
+    const eodHistory = await applyIdxLq45EodPrimary(ticker, range, history);
+    history = eodHistory.history;
 
     // Window 200 hari terakhir untuk analyzer/scoring (Performance Roadmap Fase 2
     // poin 6) - indikator standar (RSI/MACD/EMA/dst.) tidak butuh histori 20 tahun
@@ -683,6 +688,12 @@ export async function GET(
       // response ini "live".
       _meta: {
         source: 'live',
+        eodHistorySource: eodHistory.source,
+        liveQuoteSource: 'YAHOO_CHART',
+        adjustedCloseSource: eodHistory.adjustedCloseSource,
+        lq45UniverseVersion: eodHistory.universeVersion,
+        eodLatestTradeDate: eodHistory.latestTradeDate,
+        eodReconciliationStatus: eodHistory.latestCloseReconciliation,
         computedAt: new Date().toISOString(),
         dataTimestamp: freshness.dataTimestamp,
         freshness: freshness.freshness,

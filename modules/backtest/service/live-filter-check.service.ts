@@ -10,7 +10,7 @@
 // (bisa berjam-jam basi, cuma granularitas EOD per hari cron terakhir jalan). Versi ini
 // FETCH LIVE ke Yahoo Finance saat dipanggil - akurat sampai ke jam yang sama (freshness
 // dilaporkan eksplisit per hasil), bukan cuma "hari yang sama".
-import { fetchYahooHistory } from '../../technical/service/yahoo-history.service';
+import { fetchYahooHistoryDirect } from '../../technical/service/yahoo-history.service';
 import { analyze as analyzeEma } from '../../technical/service/analyzers/ema-analyzer';
 import { analyze as analyzeVolume } from '../../technical/service/analyzers/volume-analyzer';
 import { analyze as analyzeRsi } from '../../technical/service/analyzers/rsi-analyzer';
@@ -84,7 +84,7 @@ export function evaluateIndicatorDecisions(history: any[], currentPrice: number)
 }
 
 async function checkOne(ticker: string, filters: IndicatorName[]): Promise<LiveFilterMatch | 'skip' | null> {
-  const data = await fetchYahooHistory(ticker, FETCH_RANGE);
+  const data = await fetchYahooHistoryDirect(ticker, FETCH_RANGE);
   if (!data || data.history.length < MIN_HISTORY_BARS) return 'skip';
 
   const { history, currentPrice, regularMarketTime } = data;

@@ -14,7 +14,7 @@ import {
   applyIsotonic,
   type CalibrationPair,
 } from '@/modules/lens-radar/service/score-calibration.service';
-import { fetchYahooHistory } from '@/modules/technical/service/yahoo-history.service';
+import { fetchYahooHistoryDirect } from '@/modules/technical/service/yahoo-history.service';
 import {
   INTRADAY_COST_SCENARIOS,
   INTRADAY_HORIZONS,
@@ -483,7 +483,7 @@ export const REGIME_DEFINITION =
 
 async function classifyRegimes(tradingDates: string[]): Promise<Map<string, string> | null> {
   if (!tradingDates.length) return null;
-  const history = await fetchYahooHistory('^JKSE', '6mo');
+  const history = await fetchYahooHistoryDirect('^JKSE', '6mo');
   if (!history?.history?.length) return null;
 
   const daily = history.history
