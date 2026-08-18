@@ -32,7 +32,7 @@ export default function SymbolAutocomplete({
   onKeyDown,
   showSearchIcon = false,
   endAdornment,
-  maxSuggestions = 8,
+  maxSuggestions = 50,
   ...props
 }: SymbolAutocompleteProps) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -79,14 +79,14 @@ export default function SymbolAutocomplete({
   const handleSelect = (symbol: string) => {
     const symbolWithJK = symbol.includes('.JK') ? symbol : `${symbol}.JK`;
     onChange(symbolWithJK);
-    setShowDropdown(false);
     onSelect?.(symbolWithJK);
+    setShowDropdown(false);
   };
 
   return (
-    <div className={containerClassName} ref={dropdownRef}>
+    <div ref={dropdownRef} className={containerClassName}>
       {showSearchIcon && (
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-tv-muted transition-colors group-focus-within:text-tv-blue" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-tv-muted" />
       )}
       <input
         type="text"
@@ -95,8 +95,9 @@ export default function SymbolAutocomplete({
         aria-activedescendant={showDropdown && suggestions.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined}
         value={value}
         onChange={(event) => {
-          onChange(event.target.value.toUpperCase());
-          setShowDropdown(true);
+          const next = event.target.value;
+          onChange(next);
+          setShowDropdown(next.trim().length >= 2);
         }}
         onFocus={(event) => {
           setShowDropdown(true);
@@ -139,7 +140,7 @@ export default function SymbolAutocomplete({
       )}
 
       {showDropdown && suggestions.length > 0 && (
-        <div id={listboxId} className="absolute left-0 top-full z-50 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-tv-border bg-tv-surface p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
+        <div id={listboxId} className="absolute left-0 top-full z-50 mt-2 max-h-72 w-full min-w-[260px] overflow-y-auto rounded-2xl border border-tv-border bg-tv-surface p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
           <div className="flex items-center gap-2 px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
             <Search className="h-3 w-3" /> Hasil emiten
           </div>

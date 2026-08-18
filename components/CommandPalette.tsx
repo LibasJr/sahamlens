@@ -116,7 +116,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       return aSym.localeCompare(bSym);
     });
 
-    return matched.slice(0, 8);
+    return matched.slice(0, 50);
   }, [query, emiten]);
 
   useEffect(() => setActiveIdx(0), [query]);
