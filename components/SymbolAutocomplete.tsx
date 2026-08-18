@@ -1,15 +1,25 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { TICKERS } from '@/lib/tickers';
 import TickerAvatar from '@/components/ui/TickerAvatar';
+
+const POPULAR_SEARCH_RANK = new Map<string, number>([
+  ['BBRI.JK', 0],
+  ['BBCA.JK', 1],
+  ['BBNI.JK', 2],
+  ['BMRI.JK', 3],
+]);
 
 interface SymbolAutocompleteProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'onSelect'> {
   value: string;
   onChange: (value: string) => void;
   onSelect?: (value: string) => void;
   containerClassName?: string;
+  showSearchIcon?: boolean;
+  endAdornment?: React.ReactNode;
+  maxSuggestions?: number;
 }
 
 export default function SymbolAutocomplete({
@@ -20,23 +30,43 @@ export default function SymbolAutocomplete({
   className,
   onFocus,
   onKeyDown,
+  showSearchIcon = false,
+  endAdornment,
+  maxSuggestions = 8,
   ...props
 }: SymbolAutocompleteProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [suggestions, setSuggestions] = useState<typeof TICKERS>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   useEffect(() => {
     if (value.length >= 2 && showDropdown) {
-      const match = value.toUpperCase().replace('.JK', '');
-      const filtered = TICKERS.filter((ticker) => ticker.symbol.startsWith(match) || ticker.name.toUpperCase().includes(match));
-      setSuggestions(filtered.slice(0, 8));
+      const match = value.toUpperCase().replace('.JK', '').trim();
+      const filtered = TICKERS
+        .filter((ticker) => ticker.symbol.replace('.JK', '').startsWith(match) || ticker.name.toUpperCase().includes(match))
+        .sort((a, b) => {
+          const aSymbol = a.symbol.replace('.JK', '');
+          const bSymbol = b.symbol.replace('.JK', '');
+          const aExactPrefix = aSymbol.startsWith(match) ? 0 : 1;
+          const bExactPrefix = bSymbol.startsWith(match) ? 0 : 1;
+          if (aExactPrefix !== bExactPrefix) return aExactPrefix - bExactPrefix;
+
+          // Untuk query pendek seperti "BB", tampilkan bank IDX yang paling umum
+          // terlebih dahulu. Ini hanya ranking hasil pencarian, bukan data finansial.
+          const aPopular = POPULAR_SEARCH_RANK.get(a.symbol) ?? 99;
+          const bPopular = POPULAR_SEARCH_RANK.get(b.symbol) ?? 99;
+          if (aPopular !== bPopular) return aPopular - bPopular;
+
+          return aSymbol.localeCompare(bSymbol);
+        });
+      setSuggestions(filtered.slice(0, maxSuggestions));
       setActiveIndex(0);
     } else {
       setSuggestions([]);
     }
-  }, [value, showDropdown]);
+  }, [maxSuggestions, value, showDropdown]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -55,8 +85,14 @@ export default function SymbolAutocomplete({
 
   return (
     <div className={containerClassName} ref={dropdownRef}>
+      {showSearchIcon && (
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-tv-muted transition-colors group-focus-within:text-tv-blue" />
+      )}
       <input
         type="text"
+        role="combobox"
+        aria-controls={listboxId}
+        aria-activedescendant={showDropdown && suggestions.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined}
         value={value}
         onChange={(event) => {
           onChange(event.target.value.toUpperCase());
@@ -96,14 +132,21 @@ export default function SymbolAutocomplete({
         {...props}
       />
 
+      {endAdornment && (
+        <div className="pointer-events-none absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-0.5 sm:flex">
+          {endAdornment}
+        </div>
+      )}
+
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-tv-border bg-tv-surface p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
+        <div id={listboxId} className="absolute left-0 top-full z-50 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-tv-border bg-tv-surface p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl" role="listbox">
           <div className="flex items-center gap-2 px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
             <Search className="h-3 w-3" /> Hasil emiten
           </div>
           {suggestions.map((item, index) => (
             <button
               type="button"
+              id={`${listboxId}-option-${index}`}
               role="option"
               aria-selected={index === activeIndex}
               key={item.symbol}
