@@ -20,16 +20,22 @@ function normalizeName(symbol: string, rawName: string): string {
 // bertahan lintas request selama instance serverless yang sama masih hangat.
 export function loadEmitenList(): Emiten[] {
   if (cached) return cached;
-  const csvPath = path.join(process.cwd(), 'idx_emiten_900.csv');
+  const allCsvPath = path.join(process.cwd(), 'all.csv');
+  const legacyCsvPath = path.join(process.cwd(), 'idx_emiten_900.csv');
+  const csvPath = fs.existsSync(allCsvPath) ? allCsvPath : legacyCsvPath;
   const lines = fs.readFileSync(csvPath, 'utf8').split('\n').filter(Boolean);
+  const header = lines[0] || '';
+  const isAllCsv = header.toLowerCase().startsWith('code,');
+
   cached = lines.slice(1).map((line) => {
     const parts = line.split(',');
-    const symbol = (parts[1] || '').trim();
-    const rawName = (parts[2] || '').trim();
+    const symbol = (isAllCsv ? parts[0] : parts[1] || '').trim();
+    const rawName = (isAllCsv ? parts[1] : parts[2] || '').trim();
+    const board = (isAllCsv ? parts[4] : parts[4] || '').trim();
     return {
       symbol,
       name: normalizeName(symbol, rawName),
-      board: (parts[4] || '').trim(),
+      board,
     };
   }).filter((r) => r.symbol && r.name);
 
