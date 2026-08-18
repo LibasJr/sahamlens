@@ -1,0 +1,23 @@
+# /etc/systemd/system/sahamlens-idx-flow-sync.service
+#
+# Sinkronisasi harian data resmi BEI: Net Foreign Buy/Sell per emiten dan EOD Broker
+# Summary tingkat pasar. Service memanggil endpoint localhost aplikasi supaya job
+# tercatat di job_run_log dan memakai concurrency guard yang sama dengan cron SahamLens
+# lain.
+#
+# PRASYARAT SERVER: python3 dengan curl_cffi terpasang untuk user yang menjalankan
+# aplikasi (pip install curl_cffi). Tanpa itu langkah Python dilaporkan gagal - endpoint
+# idx.co.id menolak klien tanpa fingerprint TLS browser.
+
+[Unit]
+Description=SahamLens - sync Foreign Flow & Broker EOD resmi BEI
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+# Endpoint localhost. CRON_SECRET tetap wajib; request tanpa secret ditolak.
+ExecStart=/usr/bin/curl -sfS --max-time 1800 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/idx-flow-sync
+TimeoutStartSec=1860

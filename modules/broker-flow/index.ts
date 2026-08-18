@@ -56,3 +56,16 @@ export {
   type BrokerMonitorDateSummary,
   type BrokerMonitorRow,
 } from './service/broker-summary-monitor.service';
+
+// EOD Broker Summary tingkat PASAR (agregat per kode broker, tanpa emiten dan tanpa
+// pemisahan beli/jual) - sumber resmi BEI TradingSummary/GetBrokerSummary. Terpisah dari
+// broker summary per-emiten di atas karena mengukur besaran yang berbeda; lihat
+// database/migrations/009_broker_market_daily.sql.
+export {
+  getBrokerMarketDaily,
+  normalizeBrokerMarketDate,
+  BROKER_MARKET_SOURCE,
+  type BrokerMarketDaily,
+  type BrokerMarketDateSummary,
+  type BrokerMarketRow,
+} from './service/broker-market-daily.service';

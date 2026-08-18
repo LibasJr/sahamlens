@@ -6,17 +6,37 @@ import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/a
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
-import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
+import {
+  computeDailyNetFlow,
+  computeAccumulationStreak,
+  analyzeBandarmology,
+  analyzeAccumulationSignal,
+  getRealForeignFlow,
+  summarizeForeignFlow,
+  IDX_FOREIGN_FLOW_SOURCE,
+} from '@/modules/market';
 
-// REWRITE TOTAL (2026-08-01) - versi sebelumnya (BUILD 003) menghasilkan SEMUA angka
-// (foreignFlow20D, nama broker, volume beli/jual, status AKUMULASI/DISTRIBUSI) dari
-// seedRandom(ticker) murni, angka acak yang selalu sama untuk ticker yang sama, TIDAK
-// PERNAH benar-benar mencerminkan pasar - ditemukan saat audit, dipakai fitur Pro
-// berbayar. Sekarang dihitung dari histori harga+volume Yahoo Finance yang real, lewat
-// modules/market/service/foreign-flow-proxy.ts (dipakai bareng kategori "Akumulasi
-// Asing Berkelanjutan" di AI Pick). "Top Broker" DIHAPUS (bukan diganti versi jujur) -
-// IDX tidak menyediakan feed broker summary gratis, jadi tidak ada cara menghitungnya
-// dari data real yang tersedia.
+// SUMBER DATA (2026-08-18): Net Foreign Buy/Sell RESMI Bursa Efek Indonesia jadi sumber
+// UTAMA. Angkanya berasal dari endpoint publik BEI ListedCompany/GetTradingInfoSS yang
+// disinkronkan ke data/foreign-flow/{TICKER}.json oleh scripts/sync-idx-foreign-flow.py
+// (Node tidak bisa memanggil idx.co.id langsung - Cloudflare menolak klien tanpa
+// fingerprint TLS browser, 403; skrip Python memakai curl_cffi impersonate chrome124).
+//
+// FALLBACK: emiten yang artefak resminya belum tersinkron TETAP dilayani proxy Chaikin
+// Money Flow dari histori harga+volume Yahoo (modules/market/service/foreign-flow-proxy.ts)
+// - dua-duanya angka riil, tapi mengukur hal BERBEDA: yang resmi adalah lembar saham yang
+// benar-benar ditransaksikan investor asing menurut Bursa, yang proxy hanya menyimpulkan
+// tekanan beli/jual dari posisi close dalam range harian. Karena itu setiap respons
+// membawa field `source` dan UI wajib melabeli keduanya berbeda - jangan pernah
+// menyeragamkan labelnya seolah satu jenis data.
+//
+// Riwayat: versi BUILD 003 menghasilkan SEMUA angka di sini dari seedRandom(ticker)
+// (acak, tapi stabil per ticker sehingga tampak seperti data). Itu sudah dihapus total
+// 2026-08-01. Jangan pernah mengembalikan angka yang tidak berasal dari sumber nyata.
+
+// Tidak di-export: Next.js melarang route file mengekspor apa pun selain handler HTTP
+// dan segment config (validator .next/types menolaknya saat typecheck).
+const FALLBACK_FLOW_SOURCE = 'YAHOO_CMF_PROXY' as const;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -41,6 +61,34 @@ export async function GET(
   if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
   const cleanTicker = ticker.replace('.JK', '');
 
+  // ---------------------------------------------------------------------------
+  // JALUR 1 - Data resmi BEI (utama)
+  // ---------------------------------------------------------------------------
+  const official = getRealForeignFlow(cleanTicker, 20);
+  if (official && official.history.length > 0) {
+    const summary = summarizeForeignFlow(official.history);
+    return NextResponse.json({
+      ticker: cleanTicker,
+      source: IDX_FOREIGN_FLOW_SOURCE,
+      updatedAt: official.updatedAt,
+      summary,
+      foreignFlow20D: official.history.map((point) => ({
+        date: point.date,
+        close: point.close,
+        volume: point.volume,
+        foreignBuy: point.foreignBuy,
+        foreignSell: point.foreignSell,
+        netForeignVolume: point.netForeignVolume,
+        netForeignValueBillion: point.netForeignValueBillion,
+        // Alias supaya komponen grafik memakai satu nama field untuk kedua sumber.
+        netValueBillion: point.netForeignValueBillion,
+      })),
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // JALUR 2 - Fallback proxy CMF dari histori harga+volume Yahoo
+  // ---------------------------------------------------------------------------
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=2mo&interval=1d`;
     const res = await fetch(url, {
@@ -89,6 +137,7 @@ export async function GET(
     }
 
     const dailyFlow = computeDailyNetFlow(history).slice(-20);
+    const closeByDate = new Map(history.map((h) => [h.date, h.close]));
     const net5D = parseFloat(dailyFlow.slice(-5).reduce((sum, d) => sum + d.netValueBillion, 0).toFixed(2));
     const streak = computeAccumulationStreak(dailyFlow);
 
@@ -110,11 +159,16 @@ export async function GET(
 
     return NextResponse.json({
       ticker,
-      foreignFlow20D: dailyFlow,
+      source: FALLBACK_FLOW_SOURCE,
+      foreignFlow20D: dailyFlow.map((d) => ({ ...d, close: closeByDate.get(d.date) ?? null })),
       summary: {
         status,
         net5D,
+        // Nama yang sama dengan jalur resmi supaya UI tidak perlu dua cabang untuk
+        // angka yang artinya sama-sama "akumulasi 5 hari terakhir".
+        net5DBillion: net5D,
         streak,
+        accumulationStreak: streak,
         isAccumulation3D,
         isDistribution3D,
         upDays20D: upDays.length,

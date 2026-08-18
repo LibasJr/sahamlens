@@ -268,8 +268,15 @@ export default async function AdminPage() {
           </div>
         </Link>
 
+        {/* 2026-08-18: kartu ini dulu menunjuk /admin/broker-summary (monitor broker
+            PER EMITEN) dan berlabel "Aktif (EOD)". Labelnya menyesatkan - ingestion
+            per-emiten itu menuntut upload berkas manual dan sudah dinonaktifkan
+            2026-08-14 (lihat modules/broker-flow/index.ts), sehingga panelnya selalu
+            kosong. Kartu sekarang menunjuk panel Broker EOD BEI yang benar-benar terisi
+            dari API resmi Bursa. Rute lama TIDAK dihapus - modul, skema, dan datanya
+            sengaja dipertahankan, hanya tidak lagi dipajang sebagai menu utama. */}
         <Link
-          href="/admin/broker-summary"
+          href="/admin/broker-eod"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
         >
           <div className="rounded-lg bg-tv-purple/10 p-2 text-tv-purple">
@@ -277,10 +284,10 @@ export default async function AdminPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              Broker Summary <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Aktif (EOD)</span>
+              Broker EOD BEI <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Resmi</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
-              Monitor sinkronisasi harian transaksi kode broker BEI (End-of-Day) dan konsentrasi akumulasi/distribusi Bandarmology.
+              Ringkasan harian seluruh Anggota Bursa dari API resmi BEI: nilai transaksi, volume, dan frekuensi per kode broker.
             </p>
           </div>
         </Link>
