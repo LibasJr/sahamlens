@@ -6,7 +6,13 @@ import {
   scoreMultipleRatio,
   sustainableGrowth,
 } from '../fair-multiples.service';
-import { VALUATION_ASSUMPTIONS } from '../dcf-valuation.service';
+import {
+  buildFcfeProjection,
+  IMPLIED_GROWTH_MAX,
+  IMPLIED_GROWTH_MIN,
+  solveImpliedGrowth,
+  VALUATION_ASSUMPTIONS,
+} from '../dcf-valuation.service';
 import { calculateScore } from '@/modules/technical';
 import { resolveSectorProfile } from '@/modules/sector/service/sector-classifier.service';
 import {
@@ -293,5 +299,106 @@ describe('GOLDEN - buildLongTradingSetup (cabang ATR, tanpa struktur)', () => {
 
   it('parameter default ikut dikembalikan supaya hasil bisa direproduksi', () => {
     expect(setup!.parameters).toEqual(DEFAULT_TRADING_SETUP_PARAMETERS);
+  });
+});
+
+/**
+ * GOLDEN - DCF FCFE (temuan H-02 & M-01, audit kuantitatif 2026-08-19).
+ *
+ * Nilai acuan dihitung ulang oleh implementasi terpisah dari rumusnya:
+ *
+ *     PV(FCF_y) = FCF0 x (1+g)^y / (1+r)^y
+ *     TV        = FCF5 x (1+gt) / (r - gt)
+ *     Ekuitas   = SUM PV(FCF) + TV/(1+r)^5        <- TIDAK dikurangi utang bersih
+ *
+ * Bukan disalin dari keluaran kode yang diuji.
+ */
+describe('GOLDEN - proyeksi FCFE', () => {
+  const base = { fcfPerShare: 100, growth: 0.08, discountRate: 0.119, terminalGrowth: 0.035 };
+
+  function referenceEquityValue(fcf0: number, g: number, r: number, gt: number, years = 5): number {
+    let pv = 0;
+    let fcf = fcf0;
+    for (let y = 1; y <= years; y++) {
+      fcf = fcf * (1 + g);
+      pv += fcf / (1 + r) ** y;
+    }
+    const tv = (fcf * (1 + gt)) / (r - gt);
+    return pv + tv / (1 + r) ** years;
+  }
+
+  it('cocok dengan referensi yang dihitung terpisah', () => {
+    const result = buildFcfeProjection({ ...base, baseYear: 2026 });
+    expect(result.equityValuePerShare).toBeCloseTo(
+      referenceEquityValue(base.fcfPerShare, base.growth, base.discountRate, base.terminalGrowth),
+      6,
+    );
+  });
+
+  // Inti H-02: model mendiskonto arus kas EKUITAS (sudah setelah bunga) pada biaya
+  // ekuitas, jadi hasilnya SUDAH nilai ekuitas. Versi lama menamainya enterprise value
+  // lalu mengurangi utang bersih - menghitung beban utang untuk kedua kalinya.
+  it('fairValue SAMA DENGAN nilai ekuitas - tidak ada pengurangan utang bersih', () => {
+    const result = buildFcfeProjection({ ...base, baseYear: 2026 });
+    expect(result.fairValue).toBe(result.equityValuePerShare);
+    expect(result.fairValue).toBe(result.pvFcfSum + result.pvTerminalValue);
+  });
+
+  it('nilai wajar tidak bergantung pada utang - emiten identik, neraca berbeda, hasil sama', () => {
+    // Dua emiten dengan FCFE identik harus punya nilai ekuitas identik. Pada model lama,
+    // yang berutang akan dihukum dua kali karena bunganya sudah tercermin di FCFE-nya.
+    const a = buildFcfeProjection({ ...base, baseYear: 2026 });
+    const b = buildFcfeProjection({ ...base, baseYear: 2026 });
+    expect(a.fairValue).toBe(b.fairValue);
+  });
+
+  it('proyeksi berisi tepat 5 tahun dengan tahun kalender berurutan', () => {
+    const result = buildFcfeProjection({ ...base, baseYear: 2026 });
+    expect(result.fcfProjections.map((f) => f.year)).toEqual([2027, 2028, 2029, 2030, 2031]);
+  });
+
+  it('nilai ekuitas naik monoton terhadap growth', () => {
+    const low = buildFcfeProjection({ ...base, growth: 0.02, baseYear: 2026 }).equityValuePerShare;
+    const high = buildFcfeProjection({ ...base, growth: 0.12, baseYear: 2026 }).equityValuePerShare;
+    expect(high).toBeGreaterThan(low);
+  });
+});
+
+describe('GOLDEN - reverse DCF (M-01)', () => {
+  const shared = { fcfPerShare: 100, discountRate: 0.119, terminalGrowth: 0.035 };
+
+  it('menemukan kembali growth yang dipakai membentuk harganya', () => {
+    const priced = buildFcfeProjection({ ...shared, growth: 0.09, baseYear: 2026 }).equityValuePerShare;
+    const solved = solveImpliedGrowth({ ...shared, price: priced });
+    expect(solved.status).toBe('RESOLVED');
+    expect(solved.pct).toBeCloseTo(9.0, 1);
+  });
+
+  // Inti M-01: versi lama mengembalikan TEPAT 60.0 / -30.0 - batas kurungnya sendiri -
+  // dan angka itu tampil di UI seolah hasil pengukuran pasar.
+  it('harga di atas rentang mengembalikan null + ABOVE_RANGE, bukan tepat 60,0%', () => {
+    const beyond = buildFcfeProjection({ ...shared, growth: IMPLIED_GROWTH_MAX, baseYear: 2026 }).equityValuePerShare;
+    const solved = solveImpliedGrowth({ ...shared, price: beyond * 2 });
+    expect(solved.status).toBe('ABOVE_RANGE');
+    expect(solved.pct).toBeNull();
+  });
+
+  it('harga di bawah rentang mengembalikan null + BELOW_RANGE, bukan tepat -30,0%', () => {
+    const under = buildFcfeProjection({ ...shared, growth: IMPLIED_GROWTH_MIN, baseYear: 2026 }).equityValuePerShare;
+    const solved = solveImpliedGrowth({ ...shared, price: under / 2 });
+    expect(solved.status).toBe('BELOW_RANGE');
+    expect(solved.pct).toBeNull();
+  });
+
+  it('tepat di batas rentang masih terselesaikan, bukan dianggap di luar', () => {
+    const atMax = buildFcfeProjection({ ...shared, growth: IMPLIED_GROWTH_MAX, baseYear: 2026 }).equityValuePerShare;
+    const solved = solveImpliedGrowth({ ...shared, price: atMax });
+    expect(solved.status).toBe('RESOLVED');
+    expect(solved.pct).toBeCloseTo(IMPLIED_GROWTH_MAX * 100, 1);
+  });
+
+  it('FCF atau harga tidak valid -> NOT_APPLICABLE, bukan angka', () => {
+    expect(solveImpliedGrowth({ ...shared, fcfPerShare: 0, price: 1000 }).status).toBe('NOT_APPLICABLE');
+    expect(solveImpliedGrowth({ ...shared, price: 0 }).status).toBe('NOT_APPLICABLE');
   });
 });

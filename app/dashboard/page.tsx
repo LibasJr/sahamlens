@@ -16,7 +16,7 @@ import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
 import { classifyCapTier, CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR, CURRENT_LARGE_LIQUID_MIN_ADV20_IDR } from '@/lib/utils/cap-tier';
-import { isBlueChipConstituent } from '@/lib/utils/blue-chip-index';
+import { isBlueChipConstituent, LQ45_BADGE_TITLE } from '@/lib/utils/blue-chip-index';
 import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
@@ -1120,24 +1120,29 @@ function DashboardContent() {
                 {(() => {
                   const isLq45 = isBlueChipConstituent(ticker);
                   const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
-                  const boardInfo = classifyTradingBoard(ticker);
+                  // Papan dari `listing_board` IDX (all.csv) lewat /api/stock, bukan dari
+                  // daftar ticker ketikan tangan (temuan C-01). `null` = papan tidak
+                  // diketahui -> lencana tidak dirender sama sekali.
+                  const boardInfo = classifyTradingBoard(data?.stock?.listing_board);
                   return (
                     <>
                       <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                         {isLq45 && (
                           <Badge
                             variant="info"
-                            title="Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)"
+                            title={LQ45_BADGE_TITLE}
                           >
                             Indeks LQ45
                           </Badge>
                         )}
-                        <Badge
-                          variant={boardInfo.badgeVariant}
-                          title={boardInfo.description}
-                        >
-                          {boardInfo.shortLabel}
-                        </Badge>
+                        {boardInfo && (
+                          <Badge
+                            variant={boardInfo.badgeVariant}
+                            title={boardInfo.description}
+                          >
+                            {boardInfo.shortLabel}
+                          </Badge>
+                        )}
                         {tier && (
                           <Badge
                             variant={tier === 'LARGE_LIQUID_CURRENT' ? 'neutral' : 'warning'}
@@ -1149,7 +1154,7 @@ function DashboardContent() {
                           </Badge>
                         )}
                       </div>
-                      {boardInfo.isFca && (
+                      {boardInfo?.isFca && (
                         <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2.5 text-xs text-tv-gold">
                           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                           <div>

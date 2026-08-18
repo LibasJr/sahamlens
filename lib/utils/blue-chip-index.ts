@@ -32,6 +32,7 @@
 // JANGAN memakai "List Emiten LQ45.csv" dari scrapper pihak ketiga - berkas itu
 // bertanggal 2021 dan hanya tampak segar karena nama emitennya ikut ter-update.
 import {
+  CURRENT_LQ45_EFFECTIVE_FROM,
   CURRENT_LQ45_EFFECTIVE_TO,
   CURRENT_LQ45_UNIVERSE,
   isCurrentLq45Ticker,
@@ -39,6 +40,25 @@ import {
 
 /** Batas berlaku konstituen periode ini. Test menolak daftar yang sudah lewat tanggal ini. */
 export const LQ45_REVIEWED_UNTIL = CURRENT_LQ45_EFFECTIVE_TO;
+export const LQ45_EFFECTIVE_FROM = CURRENT_LQ45_EFFECTIVE_FROM;
+
+/**
+ * BUG FIX (audit kuantitatif 2026-08-19, temuan H-04): tooltip lencana di Dashboard dan
+ * LensFundamental berbunyi "Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX)" -
+ * asersi status resmi atas daftar yang komentar di atas nyatakan sendiri BELUM pernah
+ * dicocokkan ke pengumuman IDX. Sampai verifikasi manual itu dilakukan, UI wajib memakai
+ * teks di bawah, yang menyatakan periode berlakunya dan keterbatasannya apa adanya.
+ *
+ * Setelah daftar diverifikasi terhadap Peng-00148/BEI.POP/07-2026, ganti nilai
+ * `LQ45_VERIFICATION_STATUS` menjadi 'VERIFIED_AGAINST_IDX_ANNOUNCEMENT' dan naikkan
+ * kembali bahasanya - dalam commit yang sama dengan bukti verifikasinya.
+ */
+export const LQ45_VERIFICATION_STATUS = 'UNVERIFIED_INTERNAL_SNAPSHOT' as const;
+
+/** Teks tooltip lencana LQ45. Satu sumber supaya kedua halaman tidak menyimpang. */
+export const LQ45_BADGE_TITLE =
+  `Tercantum di daftar LQ45 periode ${CURRENT_LQ45_EFFECTIVE_FROM} s/d ${CURRENT_LQ45_EFFECTIVE_TO} ` +
+  'yang dipelihara SahamLens. Snapshot internal, belum dicocokkan ke pengumuman resmi IDX.';
 
 export const LQ45_CONSTITUENTS: readonly string[] = CURRENT_LQ45_UNIVERSE;
 

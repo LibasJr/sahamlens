@@ -1,30 +1,83 @@
 import { describe, expect, it } from 'vitest';
 import { classifyTradingBoard } from '../idx-trading-board';
+import { getEmitenBoard, loadEmitenList } from '@/shared/market/emiten-list';
 
 describe('classifyTradingBoard', () => {
-  it('mengidentifikasi Papan Utama untuk emiten besar (BBCA, BBRI, TLKM)', () => {
-    const bbca = classifyTradingBoard('BBCA.JK');
-    expect(bbca.board).toBe('MAIN');
-    expect(bbca.isFca).toBe(false);
-    expect(bbca.shortLabel).toBe('Papan Utama');
+  it('memetakan setiap nilai listing_board IDX yang ada di all.csv', () => {
+    expect(classifyTradingBoard('Utama')?.board).toBe('MAIN');
+    expect(classifyTradingBoard('Pengembangan')?.board).toBe('DEVELOPMENT');
+    expect(classifyTradingBoard('Akselerasi')?.board).toBe('ACCELERATION');
+    expect(classifyTradingBoard('Ekonomi Baru')?.board).toBe('NEW_ECONOMY');
+    expect(classifyTradingBoard('Pemantauan Khusus')?.board).toBe('WATCHLIST_FCA');
   });
 
-  it('mengidentifikasi Papan Pemantauan Khusus (FCA) dan memberikan flag isFca', () => {
-    const goto = classifyTradingBoard('GOTO');
-    expect(goto.board).toBe('WATCHLIST_FCA');
-    expect(goto.isFca).toBe(true);
-    expect(goto.tradingMechanism).toContain('Periodic Call Auction');
+  it('hanya Papan Pemantauan Khusus yang berstatus FCA / Periodic Call Auction', () => {
+    const fca = classifyTradingBoard('Pemantauan Khusus')!;
+    expect(fca.isFca).toBe(true);
+    expect(fca.tradingMechanism).toContain('Periodic Call Auction');
+
+    for (const board of ['Utama', 'Pengembangan', 'Akselerasi', 'Ekonomi Baru']) {
+      const info = classifyTradingBoard(board)!;
+      expect(info.isFca).toBe(false);
+      expect(info.tradingMechanism).toContain('Continuous Auction');
+    }
   });
 
-  it('mengidentifikasi Papan Akselerasi', () => {
-    const runs = classifyTradingBoard('RUNS.JK');
-    expect(runs.board).toBe('ACCELERATION');
-    expect(runs.isFca).toBe(false);
+  it('toleran terhadap spasi dan besar-kecil huruf', () => {
+    expect(classifyTradingBoard('  pemantauan khusus  ')?.board).toBe('WATCHLIST_FCA');
+    expect(classifyTradingBoard('UTAMA')?.board).toBe('MAIN');
   });
 
-  it('default ke Papan Pengembangan untuk emiten lain', () => {
-    const random = classifyTradingBoard('ABCD.JK');
-    expect(random.board).toBe('DEVELOPMENT');
-    expect(random.isFca).toBe(false);
+  // Inti temuan C-01: tidak ada papan tebakan. Versi lama mengembalikan
+  // 'DEVELOPMENT' untuk apa pun yang tidak ada di tiga himpunan ketikan tangan,
+  // sehingga 224 emiten Papan Utama dilabeli "Papan Pengembangan" sebagai fakta.
+  it('mengembalikan null untuk masukan kosong, tidak jatuh ke papan default', () => {
+    expect(classifyTradingBoard(null)).toBeNull();
+    expect(classifyTradingBoard(undefined)).toBeNull();
+    expect(classifyTradingBoard('')).toBeNull();
+  });
+
+  it('mengembalikan null untuk nama papan yang belum dikenal, bukan menebak', () => {
+    expect(classifyTradingBoard('Papan Yang Belum Ada')).toBeNull();
+  });
+});
+
+describe('papan diturunkan dari all.csv, bukan daftar ketikan tangan', () => {
+  // Empat emiten ini ada di WATCHLIST_FCA_TICKERS versi lama padahal Papan Utama,
+  // sehingga UI memberi mereka peringatan "Periodic Call Auction 5 sesi lelang/hari"
+  // yang tidak berlaku. Uji ini gagal kalau regresi itu kembali.
+  it.each(['BUMI', 'DEWA', 'ENRG', 'BRMS'])(
+    '%s adalah Papan Utama dan bukan FCA',
+    (symbol) => {
+      const info = classifyTradingBoard(getEmitenBoard(symbol));
+      expect(info?.board).toBe('MAIN');
+      expect(info?.isFca).toBe(false);
+    },
+  );
+
+  it('GOTO memakai papan dari CSV, bukan FCA seperti daftar lama', () => {
+    const info = classifyTradingBoard(getEmitenBoard('GOTO.JK'));
+    expect(info?.isFca).toBe(false);
+  });
+
+  it('emiten yang tidak ada di master (mis. sudah delisting) tidak dapat lencana', () => {
+    // MYRX masih tercantum di WATCHLIST_FCA_TICKERS lama walau tidak ada di all.csv.
+    expect(getEmitenBoard('MYRX')).toBeNull();
+    expect(classifyTradingBoard(getEmitenBoard('MYRX'))).toBeNull();
+  });
+
+  it('indeks bukan emiten dan tidak punya papan', () => {
+    expect(classifyTradingBoard(getEmitenBoard('^JKSE'))).toBeNull();
+  });
+
+  it('setiap listing_board di all.csv dapat dipetakan - tidak ada papan yang diam-diam hilang', () => {
+    const unmapped = [
+      ...new Set(
+        loadEmitenList()
+          .map((e) => e.board)
+          .filter((board) => board && classifyTradingBoard(board) === null),
+      ),
+    ];
+    expect(unmapped).toEqual([]);
   });
 });
