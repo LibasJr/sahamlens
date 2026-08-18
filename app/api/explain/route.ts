@@ -38,6 +38,12 @@ export async function POST(request: Request) {
       } else {
         explanation = `RSI ${data.value} berada di area netral. Momentum belum menunjukkan kondisi ekstrem ke arah manapun.`;
       }
+    } else if ((filter === 'LensFlow (Arus Dana Asing BEI)' || filter === 'Bandarmology (Net Asing BEI)') && status) {
+      // Catatan resmi Bursa: lembar saham yang benar-benar dibeli dan dijual investor
+      // asing, bukan tekanan yang ditebak dari harga.
+      explanation = status === 'BULLISH'
+        ? 'Catatan resmi BEI menunjukkan investor asing membukukan pembelian bersih pada periode ini. Angkanya transaksi asing sungguhan, bukan estimasi dari harga dan volume.'
+        : 'Catatan resmi BEI menunjukkan investor asing membukukan penjualan bersih pada periode ini. Angkanya transaksi asing sungguhan, bukan estimasi dari harga dan volume.';
     } else if ((filter === 'LensFlow (Estimasi Arus Dana Asing)' || filter === 'Foreign Flow (Estimasi Asing)' || filter === 'Foreign Flow') && status) {
       // Proxy dari harga+volume Yahoo Finance (BUKAN data broker resmi - IDX tidak
       // menyediakan feed itu gratis), konsisten dengan label di seluruh aplikasi lain.

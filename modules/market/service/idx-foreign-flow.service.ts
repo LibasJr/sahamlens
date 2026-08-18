@@ -293,3 +293,103 @@ export function summarizeForeignFlow(history: IdxForeignFlowPoint[]): IdxForeign
     latestClose: latest.close,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Analisis arus asing dari catatan RESMI BEI.
+//
+// Menggantikan jalur proxy Chaikin Money Flow (foreign-flow-proxy.ts) pada emiten yang
+// artefaknya sudah tersedia. Proxy itu dulu dipakai karena tidak ada pilihan lain -
+// ForeignBuy/ForeignSell per emiten baru masuk lewat scripts/sync-idx-foreign-flow.py
+// pada 2026-08-18. CMF menebak tekanan beli/jual dari posisi close di dalam range harian;
+// angka di bawah TIDAK menebak apa pun, ia menghitung lembar saham yang benar-benar dibeli
+// dan dijual investor asing menurut Bursa.
+//
+// Skalanya sengaja dibuat setara CMF20 (-100..100 persen) supaya ambang skor di
+// scoreFlowTekanan() tidak perlu dikalibrasi ulang. Bedanya penyebutnya: CMF memakai total
+// volume pasar, ini memakai total transaksi ASING (beli + jual) - kalau dibagi volume
+// pasar, angkanya akan selalu beberapa persen saja dan seluruh ambangnya jadi mati.
+// ---------------------------------------------------------------------------
+
+export interface OfficialForeignFlowAnalysis {
+  /** Net asing 20 hari sebagai persen dari total transaksi asing, -100..100. Pengganti
+   *  langsung CMF20 pada jalur skor. `null` = jendela kosong / tidak ada transaksi asing. */
+  netPressure20: number | null;
+  /** Tekanan asing pada hari bursa terakhir, -100..100. */
+  netPressureToday: number | null;
+  status: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'UNAVAILABLE';
+  accumulationStatus: 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL' | null;
+  consecutiveBuyDays: number;
+  consecutiveSellDays: number;
+  /** Proporsi hari dengan net asing positif dalam jendela (0-1). Pengganti
+   *  mfmPositiveRatio20 - ukuran persistensi, bukan panjang streak. */
+  positiveRatio20: number | null;
+  net5DBillion: number | null;
+  latestDate: string | null;
+  /** Jumlah hari bursa yang benar-benar dipakai. Dilaporkan apa adanya supaya pembaca
+   *  tahu kalau jendelanya belum penuh, bukan disembunyikan. */
+  observedDays: number;
+}
+
+const KOSONG: OfficialForeignFlowAnalysis = {
+  netPressure20: null,
+  netPressureToday: null,
+  status: 'UNAVAILABLE',
+  accumulationStatus: null,
+  consecutiveBuyDays: 0,
+  consecutiveSellDays: 0,
+  positiveRatio20: null,
+  net5DBillion: null,
+  latestDate: null,
+  observedDays: 0,
+};
+
+function tekanan(net: number, turnover: number): number | null {
+  return turnover > 0 ? (net / turnover) * 100 : null;
+}
+
+export function analyzeOfficialForeignFlow(history: IdxForeignFlowPoint[]): OfficialForeignFlowAnalysis {
+  if (history.length === 0) return KOSONG;
+
+  const window20 = history.slice(-20);
+  const latest = window20[window20.length - 1];
+
+  const netTotal = window20.reduce((sum, row) => sum + row.netForeignVolume, 0);
+  const turnoverTotal = window20.reduce((sum, row) => sum + row.foreignBuy + row.foreignSell, 0);
+  const netPressure20 = tekanan(netTotal, turnoverTotal);
+  const netPressureToday = tekanan(latest.netForeignVolume, latest.foreignBuy + latest.foreignSell);
+
+  let consecutiveBuyDays = 0;
+  for (let i = window20.length - 1; i >= 0 && window20[i].netForeignVolume > 0; i--) consecutiveBuyDays++;
+  let consecutiveSellDays = 0;
+  for (let i = window20.length - 1; i >= 0 && window20[i].netForeignVolume < 0; i--) consecutiveSellDays++;
+
+  const positiveRatio20 = window20.filter((row) => row.netForeignVolume > 0).length / window20.length;
+  const net5DBillion = window20.slice(-5).reduce((sum, row) => sum + row.netForeignValueBillion, 0);
+
+  if (netPressure20 == null) {
+    return { ...KOSONG, latestDate: latest.date, observedDays: window20.length, net5DBillion };
+  }
+
+  // Dua syarat, sama seperti analyzeBandarmology: besaran 20 hari DAN arah hari terakhir.
+  // Satu hari besar berlawanan arah tidak boleh membalik label sendirian.
+  let status: OfficialForeignFlowAnalysis['status'] = 'NEUTRAL';
+  if (netPressure20 > 20 && (netPressureToday ?? 0) > 0) status = 'BULLISH';
+  else if (netPressure20 < -20 && (netPressureToday ?? 0) < 0) status = 'BEARISH';
+
+  let accumulationStatus: OfficialForeignFlowAnalysis['accumulationStatus'] = 'NETRAL';
+  if (netPressure20 > 10 && positiveRatio20 >= 0.6) accumulationStatus = 'AKUMULASI';
+  else if (netPressure20 < -10 && positiveRatio20 <= 0.4) accumulationStatus = 'DISTRIBUSI';
+
+  return {
+    netPressure20: parseFloat(netPressure20.toFixed(1)),
+    netPressureToday: netPressureToday == null ? null : parseFloat(netPressureToday.toFixed(1)),
+    status,
+    accumulationStatus,
+    consecutiveBuyDays,
+    consecutiveSellDays,
+    positiveRatio20: parseFloat(positiveRatio20.toFixed(3)),
+    net5DBillion: parseFloat(net5DBillion.toFixed(4)),
+    latestDate: latest.date,
+    observedDays: window20.length,
+  };
+}

@@ -24,7 +24,7 @@ import { calculateWilderAtr } from '@/modules/technical/service/atr';
 import { buildLongTradingSetup } from '@/modules/recommendation/service/trading-setup';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
-import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal } from '@/modules/market';
+import { computeDailyNetFlow, computeAccumulationStreak, analyzeBandarmology, analyzeAccumulationSignal, getRealForeignFlow, analyzeOfficialForeignFlow } from '@/modules/market';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { recordAnalisaHit } from '@/lib/serverStats';
 import { FREE_LIMITS } from '@/shared/constants/limits';
@@ -385,35 +385,76 @@ export async function GET(
       ? 'N/A (proxy OHLCV tidak tersedia)'
       : `${foreignFlowStatus} | Net 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(2)}M | Streak: ${buyStreak > 0 ? `${buyStreak}D akumulasi` : sellStreak > 0 ? `${sellStreak}D distribusi` : 'netral'}`;
 
-    const consecutiveBuyDays = buyStreak;
-    const consecutiveSellDays = sellStreak;
+    // === CATATAN RESMI BEI LEBIH DIUTAMAKAN DARIPADA PROXY DI ATAS ===
+    //
+    // Seluruh blok proxy di atas dipertahankan sebagai CADANGAN, bukan warisan yang lupa
+    // dihapus: emiten yang artefaknya belum tersinkron tetap harus punya angka, dan
+    // labelnya memang menyatakan dirinya estimasi. Begitu artefak resmi ada, proxy tidak
+    // dipakai sama sekali untuk emiten itu - bukan dirata-rata, bukan dicampur.
+    const officialSeries = getRealForeignFlow(ticker, 20);
+    const official = officialSeries ? analyzeOfficialForeignFlow(officialSeries.history) : null;
+    const officialUsable = official != null && official.netPressure20 != null;
 
-    analyzersResult.push({
-      label: 'LensFlow (Estimasi Arus Dana Asing)',
-      value: foreignFlow,
-      decision: ffDecision,
-      confidence: ffConfidence
-    });
+    const consecutiveBuyDays = officialUsable ? official.consecutiveBuyDays : buyStreak;
+    const consecutiveSellDays = officialUsable ? official.consecutiveSellDays : sellStreak;
+
+    if (officialUsable) {
+      const net5D = official.net5DBillion ?? 0;
+      const streakLabel = official.consecutiveBuyDays > 0
+        ? `${official.consecutiveBuyDays}D akumulasi`
+        : official.consecutiveSellDays > 0
+          ? `${official.consecutiveSellDays}D distribusi`
+          : 'netral';
+      const statusLabel = official.accumulationStatus === 'AKUMULASI'
+        ? (official.consecutiveBuyDays >= 4 ? 'STRONG NET BUY' : 'NET BUY')
+        : official.accumulationStatus === 'DISTRIBUSI'
+          ? (official.consecutiveSellDays >= 4 ? 'STRONG NET SELL' : 'NET SELL')
+          : 'NEUTRAL';
+      analyzersResult.push({
+        label: 'LensFlow (Arus Dana Asing BEI)',
+        value: `${statusLabel} | Net 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(2)}M | Streak: ${streakLabel}`,
+        decision: official.accumulationStatus === 'AKUMULASI' ? 'BULLISH' : official.accumulationStatus === 'DISTRIBUSI' ? 'BEARISH' : 'NEUTRAL',
+        confidence: official.accumulationStatus === 'NETRAL'
+          ? 50
+          : Math.max(official.consecutiveBuyDays, official.consecutiveSellDays) >= 4 ? 80 : 65,
+      });
+    } else {
+      analyzersResult.push({
+        label: 'LensFlow (Estimasi Arus Dana Asing)',
+        value: foreignFlow,
+        decision: ffDecision,
+        confidence: ffConfidence
+      });
+    }
 
     // Bandarmology (Chaikin Money Flow) - definisi SAMA dipakai Screener & Bandar Flow
     // (modules/market/service/foreign-flow-proxy.ts), dari flowHistory yang sudah
     // dihitung di atas untuk Foreign Flow (bukan fetch/hitung ulang).
     const bandarmology = analyzeBandarmology(flowHistory.slice(-20));
-    const bandarmologyDecision = bandarmology.status === 'BULLISH' ? 'BULLISH' : bandarmology.status === 'BEARISH' ? 'BEARISH' : 'NEUTRAL';
-    const bandarmologyConfidence = bandarmology.cmf20 == null
+
+    // Besaran yang masuk ke kartu Bandarmology DAN ke skor Flow. Saat artefak resmi ada,
+    // keduanya memakai net asing sungguhan; CMF20 hanya dipakai kalau tidak ada.
+    const flowPressure20 = officialUsable ? official.netPressure20 : bandarmology.cmf20;
+    const flowPressureToday = officialUsable ? official.netPressureToday : bandarmology.netPressurePct;
+    const flowStatus = officialUsable ? official.status : bandarmology.status;
+
+    const bandarmologyDecision = flowStatus === 'BULLISH' ? 'BULLISH' : flowStatus === 'BEARISH' ? 'BEARISH' : 'NEUTRAL';
+    const bandarmologyConfidence = flowPressure20 == null
       ? 0
-      : Math.round(50 + Math.min(45, Math.abs(bandarmology.cmf20)));
+      : Math.round(50 + Math.min(45, Math.abs(flowPressure20)));
     analyzersResult.push({
-      label: 'Bandarmology (CMF)',
-      value: bandarmology.cmf20 == null || bandarmology.netPressurePct == null
-        ? 'N/A (histori OHLCV tidak cukup)'
-        : `CMF20: ${bandarmology.cmf20 > 0 ? '+' : ''}${bandarmology.cmf20}% | Tekanan: ${bandarmology.netPressurePct > 0 ? '+' : ''}${bandarmology.netPressurePct}%`,
+      label: officialUsable ? 'Bandarmology (Net Asing BEI)' : 'Bandarmology (CMF)',
+      value: flowPressure20 == null || flowPressureToday == null
+        ? (officialUsable ? 'N/A (transaksi asing nol pada jendela ini)' : 'N/A (histori OHLCV tidak cukup)')
+        : officialUsable
+          ? `Net asing 20D: ${flowPressure20 > 0 ? '+' : ''}${flowPressure20}% | Hari ini: ${flowPressureToday > 0 ? '+' : ''}${flowPressureToday}%`
+          : `CMF20: ${flowPressure20 > 0 ? '+' : ''}${flowPressure20}% | Tekanan: ${flowPressureToday > 0 ? '+' : ''}${flowPressureToday}%`,
       decision: bandarmologyDecision,
       confidence: bandarmologyConfidence,
       // `raw` (angka asli, pola temuan M-03) - dipakai header chart di app/dashboard
       // untuk menampilkan Money Flow yang BENAR-BENAR dihitung (temuan C-1/C-2),
       // tanpa mem-parse string `value` yang diformat untuk tampilan.
-      raw: { cmf20: bandarmology.cmf20, netPressurePct: bandarmology.netPressurePct, status: bandarmology.status },
+      raw: { cmf20: flowPressure20, netPressurePct: flowPressureToday, status: flowStatus, source: officialUsable ? 'IDX_OFFICIAL_API' : 'YAHOO_CMF_PROXY' },
     } as any);
 
     let bullish = 0;
@@ -553,13 +594,17 @@ export async function GET(
         // `foreignFlowStatus` TIDAK lagi dikirim sebagai input skor terpisah karena ia
         // sendiri turunan dari cmf20 yang sama (analyzeAccumulationSignal), jadi dulu
         // satu angka dihitung dua kali. Status itu tetap dipakai untuk label UI di bawah.
-        cmf20: bandarmology.cmf20,
-        accumulationStatus: accumulation.status,
+        // Sejak 2026-08-18 ini net asing RESMI BEI kalau artefaknya ada, dan CMF20 hanya
+        // kalau tidak. Skalanya sama (-100..100 persen) sehingga ambang di
+        // scoreFlowTekanan() tetap berlaku tanpa kalibrasi ulang - lihat alasan pemilihan
+        // penyebutnya di analyzeOfficialForeignFlow().
+        cmf20: flowPressure20,
+        accumulationStatus: officialUsable ? official.accumulationStatus : accumulation.status,
         consecutiveBuyDays,
         consecutiveSellDays,
         volRatio: volToday != null && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
         // P1-9: persistensi diukur atas jendela 20 hari, bukan panjang streak.
-        mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
+        mfmPositiveRatio20: officialUsable ? official.positiveRatio20 : accumulation.mfmPositiveRatio20,
       }
     );
 
