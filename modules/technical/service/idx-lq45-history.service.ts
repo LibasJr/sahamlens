@@ -1,5 +1,5 @@
-import { createBoundedLoader } from '@/shared/async/bounded-loader';
-import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
+import fs from 'node:fs';
+import path from 'node:path';
 import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import {
   CURRENT_LQ45_VERSION,
@@ -7,8 +7,26 @@ import {
   normalizeLq45Ticker,
 } from '@/modules/market/constants/lq45-universe';
 
+// Data EOD IDX dibaca dari artefak di disk, TIDAK di-fetch dari sini.
+//
+// idx.co.id ada di belakang Cloudflare yang menolak klien tanpa TLS/JA3 fingerprint
+// browser dengan 403 - terukur dari VPS produksi 2026-08-18. Itu bukan soal header
+// atau IP: `fetch()` Node tidak bisa meniru fingerprint TLS Chrome, jadi versi
+// sebelumnya (fetch langsung ke GetTradingInfoSS) mustahil berhasil di server dan
+// selalu jatuh diam-diam ke Yahoo.
+//
+// Jalur yang sudah terbukti jalan di repo ini adalah scripts/sync-idx-foreign-flow.py
+// dengan curl_cffi impersonate="chrome124". Skrip itu memanggil endpoint yang SAMA,
+// sudah mengambil OpenPrice/High/Low/Close/Volume, dan menulis
+// data/foreign-flow/{KODE}.json. Alasannya didokumentasikan di docstring skrip itu.
 const SOURCE_ID = 'IDX_TRADING_INFO_SS';
-const DEFAULT_URL = 'https://www.idx.co.id/primary/ListedCompany/GetTradingInfoSS';
+
+/** Kode emiten IDX selalu 4 huruf. Pola ketat sekaligus menutup path traversal. */
+const CODE_PATTERN = /^[A-Z]{4}$/;
+
+function artifactDir(): string {
+  return path.join(process.cwd(), 'data', 'foreign-flow');
+}
 
 export interface IdxHistoryRow {
   Date: string;
@@ -142,12 +160,6 @@ function rangeDays(range: string): number | null {
   return table[normalized] ?? null;
 }
 
-function requestLength(range: string): number {
-  const days = rangeDays(range);
-  if (days == null) return 6000;
-  return Math.min(8000, Math.max(260, Math.ceil(days * 0.78) + 80));
-}
-
 function cutoffForRange(range: string): string | null {
   const days = rangeDays(range);
   if (days == null) return null;
@@ -211,115 +223,117 @@ export function parseIdxTradingInfo(payload: unknown, range: string): IdxHistory
   return [...dedup.values()].sort((a, b) => a.Date.localeCompare(b.Date));
 }
 
-async function fetchIdxTradingInfoUncached(input: { ticker: string; range: string }): Promise<IdxHistoryFetchResult | null> {
-  if (process.env.IDX_LQ45_EOD_PRIMARY_ENABLED !== 'true') return null;
-  const ticker = normalizeLq45Ticker(input.ticker);
-  if (!isCurrentLq45Ticker(ticker)) return null;
-  if (await isProviderCircuitOpen(SOURCE_ID)) return null;
+interface ArtifactEntry {
+  mtimeMs: number;
+  rows: unknown[];
+  updatedAt: string | null;
+}
 
-  const code = ticker.replace(/\.JK$/, '');
-  const base = process.env.IDX_TRADING_INFO_URL?.trim() || DEFAULT_URL;
-  const url = new URL(base);
-  url.searchParams.set('code', code);
-  url.searchParams.set('start', '0');
-  url.searchParams.set('length', String(requestLength(input.range)));
+// Artefak hanya berubah saat sinkronisasi jalan (sekali sehari setelah pasar tutup),
+// jadi cache-nya di-invalidasi oleh mtime berkas - pola yang sama dipakai
+// modules/market/service/idx-foreign-flow.service.ts terhadap artefak yang sama.
+const artifactCache = new Map<string, ArtifactEntry>();
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  const startedAt = Date.now();
+/** Folder artefak. Default `<cwd>/data/foreign-flow`; diisi eksplisit oleh test. */
+export interface IdxLq45ReadOptions {
+  dataDir?: string;
+}
 
+function readArtifact(code: string, dataDir?: string): ArtifactEntry | null {
+  const filePath = path.join(dataDir ?? artifactDir(), `${code}.json`);
+
+  let mtimeMs: number;
   try {
-    const response = await fetch(url.toString(), {
-      headers: {
-        Accept: 'application/json,text/plain,*/*',
-        Referer: `https://www.idx.co.id/id/perusahaan-tercatat/profil-perusahaan-tercatat/${code}`,
-        'User-Agent': 'Mozilla/5.0 (compatible; SahamLens-IDX-EOD/1.0; +https://sahamlens.id/transparency)',
-      },
-      cache: 'no-store',
-      signal: controller.signal,
-    });
+    mtimeMs = fs.statSync(filePath).mtimeMs;
+  } catch {
+    return null;
+  }
 
-    if (!response.ok) {
-      await recordProviderFailure(SOURCE_ID, { immediateOpen: response.status === 403 || response.status === 429 });
-      await recordDataSourceHealth({
-        sourceId: SOURCE_ID,
-        ok: false,
-        force: true,
-        latencyMs: Date.now() - startedAt,
-        detail: { status: response.status, code },
-      });
-      return null;
-    }
+  const cached = artifactCache.get(filePath);
+  if (cached && cached.mtimeMs === mtimeMs) return cached;
 
-    const payload = await response.json();
-    const history = parseIdxTradingInfo(payload, input.range);
-    if (!history.length) {
-      await recordProviderSuccess(SOURCE_ID);
-      await recordDataSourceHealth({
-        sourceId: SOURCE_ID,
-        ok: false,
-        force: true,
-        latencyMs: Date.now() - startedAt,
-        detail: { reason: 'empty_history', code, range: input.range },
-      });
-      return null;
-    }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
 
-    await recordProviderSuccess(SOURCE_ID);
-    const latest = history[history.length - 1];
-    await recordDataSourceHealth({
-      sourceId: SOURCE_ID,
-      ok: true,
-      force: true,
-      latencyMs: Date.now() - startedAt,
-      dataObservedAt: `${latest.Date.slice(0, 10)}T16:00:00+07:00`,
-      detail: { code, range: input.range, rows: history.length, universeVersion: CURRENT_LQ45_VERSION },
-    });
+  const document = (parsed ?? {}) as Record<string, unknown>;
+  const entry: ArtifactEntry = {
+    mtimeMs,
+    rows: Array.isArray(document.history) ? document.history : [],
+    updatedAt: typeof document.updatedAt === 'string' ? document.updatedAt : null,
+  };
+  artifactCache.set(filePath, entry);
+  return entry;
+}
 
-    return {
-      history,
-      latestTradeDate: latest.Date.slice(0, 10),
-      latestClose: latest.Close,
-      source: SOURCE_ID,
-      universeVersion: CURRENT_LQ45_VERSION,
-    };
-  } catch (error) {
-    await recordProviderFailure(SOURCE_ID);
+export async function fetchIdxLq45History(
+  ticker: string,
+  range = '1y',
+  options: IdxLq45ReadOptions = {},
+): Promise<IdxHistoryFetchResult | null> {
+  if (process.env.IDX_LQ45_EOD_PRIMARY_ENABLED !== 'true') return null;
+  const normalized = normalizeLq45Ticker(ticker);
+  if (!isCurrentLq45Ticker(normalized)) return null;
+
+  const code = normalized.replace(/\.JK$/, '');
+  if (!CODE_PATTERN.test(code)) return null;
+
+  const artifact = readArtifact(code, options.dataDir);
+  if (!artifact) {
     await recordDataSourceHealth({
       sourceId: SOURCE_ID,
       ok: false,
       force: true,
-      latencyMs: Date.now() - startedAt,
-      detail: { reason: error instanceof Error ? error.message : String(error), code },
+      detail: { reason: 'artifact_missing', code, hint: 'python scripts/sync-idx-foreign-flow.py --universe lq45' },
     });
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
-}
 
-const loader = createBoundedLoader<{ ticker: string; range: string }, IdxHistoryFetchResult | null>(
-  fetchIdxTradingInfoUncached,
-  ({ ticker, range }) => `${normalizeLq45Ticker(ticker)}|${range}`,
-  {
-    concurrency: Math.max(1, Math.min(6, Number(process.env.IDX_LQ45_CONCURRENCY ?? 3) || 3)),
-    ttlMs: Math.max(60_000, Number(process.env.IDX_LQ45_CACHE_TTL_MS ?? 600_000) || 600_000),
-    timeoutMs: 20_000,
-    maxEntries: 256,
-    shouldCache: (value) => value !== null,
-  },
-);
+  const history = parseIdxTradingInfo(artifact.rows, range);
+  if (!history.length) {
+    await recordDataSourceHealth({
+      sourceId: SOURCE_ID,
+      ok: false,
+      force: true,
+      detail: { reason: 'empty_history', code, range, artifactUpdatedAt: artifact.updatedAt },
+    });
+    return null;
+  }
 
-export async function fetchIdxLq45History(ticker: string, range = '1y'): Promise<IdxHistoryFetchResult | null> {
-  return loader.get({ ticker, range });
+  const latest = history[history.length - 1];
+  await recordDataSourceHealth({
+    sourceId: SOURCE_ID,
+    ok: true,
+    force: true,
+    dataObservedAt: `${latest.Date.slice(0, 10)}T16:00:00+07:00`,
+    detail: {
+      code,
+      range,
+      rows: history.length,
+      universeVersion: CURRENT_LQ45_VERSION,
+      artifactUpdatedAt: artifact.updatedAt,
+    },
+  });
+
+  return {
+    history,
+    latestTradeDate: latest.Date.slice(0, 10),
+    latestClose: latest.Close,
+    source: SOURCE_ID,
+    universeVersion: CURRENT_LQ45_VERSION,
+  };
 }
 
 export async function applyIdxLq45EodPrimary(
   ticker: string,
   range: string,
   yahooHistory: IdxHistoryRow[],
+  options: IdxLq45ReadOptions = {},
 ): Promise<AppliedIdxHistoryResult> {
-  const idx = await fetchIdxLq45History(ticker, range);
+  const idx = await fetchIdxLq45History(ticker, range, options);
   if (!idx) {
     return {
       history: yahooHistory,
@@ -336,18 +350,39 @@ export async function applyIdxLq45EodPrimary(
     };
   }
 
+  // Yahoo jadi TULANG PUNGGUNG kalender, IDX menimpa OHLCV pada tanggal yang dimilikinya.
+  //
+  // Versi installer menyusun hasilnya dari `idx.history` saja dan cuma memungut AdjClose
+  // dari Yahoo. Dua kerusakan lahir dari situ, keduanya diam:
+  //
+  //   1. Artefak sinkronisasi menyimpan N hari terakhir (default jauh di bawah setahun),
+  //      jadi chart 1Y/10Y akan terpotong jadi sepanjang artefak.
+  //   2. Artefak baru terisi setelah sinkronisasi jalan pasca-penutupan, jadi sepanjang
+  //      sesi berjalan sesi TERBARU tidak ada di IDX dan akan hilang dari deret -
+  //      persis bug "lilin tertinggal dari harga header" yang sudah diperbaiki di
+  //      app/api/public-chart pada 2026-08-18.
+  //
+  // Menjadikan Yahoo tulang punggung menutup keduanya: rentang penuh dan sesi terbaru
+  // selalu ada, sementara baris yang punya padanan di IDX tetap memakai angka resmi Bursa.
   const yahooByDate = new Map(yahooHistory.map((row) => [row.Date.slice(0, 10), row]));
+  const idxByDate = new Map(idx.history.map((row) => [row.Date.slice(0, 10), row]));
   let overlapRows = 0;
-  const merged = idx.history.map((row) => {
-    const yahoo = yahooByDate.get(row.Date.slice(0, 10));
-    if (yahoo) overlapRows += 1;
+
+  const overlaid = yahooHistory.map((row) => {
+    const idxRow = idxByDate.get(row.Date.slice(0, 10));
+    if (!idxRow) return row;
+    overlapRows += 1;
     return {
-      ...row,
-      ...(typeof yahoo?.AdjClose === 'number' && Number.isFinite(yahoo.AdjClose) && yahoo.AdjClose > 0
-        ? { AdjClose: yahoo.AdjClose }
+      ...idxRow,
+      ...(typeof row.AdjClose === 'number' && Number.isFinite(row.AdjClose) && row.AdjClose > 0
+        ? { AdjClose: row.AdjClose }
         : {}),
     };
   });
+
+  // Tanggal yang ada di IDX tetapi bolong di Yahoo tetap dibawa masuk, bukan dibuang.
+  const idxOnlyRows = idx.history.filter((row) => !yahooByDate.has(row.Date.slice(0, 10)));
+  const merged = [...overlaid, ...idxOnlyRows].sort((a, b) => a.Date.localeCompare(b.Date));
 
   const idxLatestDate = idx.latestTradeDate;
   const yahooSameDate = yahooByDate.get(idxLatestDate);
@@ -369,21 +404,25 @@ export async function applyIdxLq45EodPrimary(
     });
   }
 
+  // Tidak satu baris pun berasal dari IDX - laporkan apa adanya, jangan mengaku IDX.
+  const applied = overlapRows > 0 || idxOnlyRows.length > 0;
+  const lastRow = merged.at(-1) ?? null;
+
   return {
     history: merged,
-    applied: true,
-    source: SOURCE_ID,
+    applied,
+    source: applied ? SOURCE_ID : 'YAHOO_CHART',
     adjustedCloseSource: merged.some((row) => typeof row.AdjClose === 'number') ? 'YAHOO_CHART' : null,
-    universeVersion: idx.universeVersion,
-    latestTradeDate: idx.latestTradeDate,
-    latestClose: idx.latestClose,
+    universeVersion: applied ? idx.universeVersion : null,
+    // Baris TERAKHIR deret yang benar-benar dikirim, bukan baris terakhir IDX. Saat sesi
+    // berjalan keduanya berbeda: artefak IDX baru terisi setelah penutupan, jadi baris
+    // terakhir deret adalah sesi hari ini dari Yahoo. Melaporkan tanggal IDX di sini akan
+    // membuat _meta mengklaim tanggal yang lebih tua daripada lilin yang tampil di layar.
+    latestTradeDate: lastRow?.Date.slice(0, 10) ?? null,
+    latestClose: lastRow?.Close ?? null,
     idxRows: idx.history.length,
     yahooRows: yahooHistory.length,
     overlapRows,
     latestCloseReconciliation,
   };
-}
-
-export function idxLq45HistoryLoaderStats() {
-  return loader.stats();
 }
