@@ -44,9 +44,13 @@ export default function AlgoFilters({
           onClick={() => setSortByConfidence(!sortByConfidence)}
           className={`text-xs px-2 py-1 rounded border transition-colors ${sortByConfidence ? 'bg-tv-accent/20 border-tv-accent text-tv-accent' : 'border-tv-border text-tv-muted hover:text-white'}`}
         >
-          Sort by Confidence
+          Urutkan Kekuatan Rule
         </button>
       </div>
+
+      <p className="mb-3 text-[10px] leading-relaxed text-tv-muted">
+        Kekuatan rule 0-100 menunjukkan intensitas aturan indikator pada input saat ini; bukan probabilitas akurasi atau peluang profit. Hit-rate historis, bila tersedia, adalah uji deskriptif pada histori saham ini dengan horizon tetap dan bukan validasi OOS.
+      </p>
 
       {lockForGuest && lockedAnalyzers.length > 0 && (
         <div className="mb-4 px-3 py-2 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-sans flex items-center gap-2">
@@ -85,7 +89,7 @@ export default function AlgoFilters({
                 </div>
                 <div className="flex justify-between items-center text-xs font-mono text-tv-muted blur-sm select-none">
                   <span>{algo.value}</span>
-                  <span className="text-white">Conf: {algo.confidence}%</span>
+                  <span className="text-white">Rule: {algo.confidence}/100</span>
                 </div>
               </div>
             );
@@ -107,7 +111,7 @@ export default function AlgoFilters({
               </div>
               <div className="flex justify-between items-center text-xs font-mono text-tv-muted">
                 <span>{algo.value}</span>
-                <span className="text-white">Conf: {algo.confidence}%</span>
+                <span className="text-white">Rule: {algo.confidence}/100</span>
               </div>
               <div className="pt-2 border-t border-tv-hover text-[10px]">
                 {getAccuracyPct(algo.label) ? (

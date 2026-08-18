@@ -76,7 +76,7 @@ function IndicatorCard({ indicator }: { indicator: MarketRegimeIndicator }) {
       <p className="mt-2 min-h-8 text-[10px] leading-relaxed text-tv-text/80">{rawSummary(indicator)}</p>
       <div className="mt-2 flex items-center justify-between border-t border-tv-border pt-2 text-[9px] text-tv-muted/70">
         <span>Kontribusi {score == null ? '0' : indicator.contribution.toFixed(1)} poin</span>
-        <span>Q {indicator.confidence}%</span>
+        <span>Kualitas data {indicator.confidence}%</span>
       </div>
     </div>
   );
@@ -159,7 +159,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
-                <p className="text-[9px] uppercase tracking-wide text-tv-muted">Confidence</p>
+                <p className="text-[9px] uppercase tracking-wide text-tv-muted">Kualitas data</p>
                 <p className="mt-1 font-number text-lg font-bold text-tv-text">{data.confidence}%</p>
               </div>
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">

@@ -18,7 +18,7 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 
 #### A. LensTechnical (Analisis Teknikal & Konsensus Algoritmik)
 - **Fungsi Utama**: Menganalisis struktur pergerakan harga (Price Action), tren, momentum, volatilitas, volume, dan support/resistance saham.
-- **LensConsensus (10 Algoritma Independen)**: Rapat 10 agen teknikal rule-based (Trend Follower, RSI Momentum, MACD Oscillator, Moving Average Ribbon, Volume Flow, Volatility Squeeze, Breakout Detector, Candlestick Pattern, Support/Resistance Zone, ATR Reversion) yang melakukan voting transparan. Keputusan diringkas menjadi sinyal informasional: BUY / SELL / HOLD beserta tabel breakdown-voting per-indikator lengkap dengan tingkat keyakinan (confidence score).
+- **LensConsensus (10 Algoritma Independen)**: Rapat 10 agen teknikal rule-based (Trend Follower, RSI Momentum, MACD Oscillator, Moving Average Ribbon, Volume Flow, Volatility Squeeze, Breakout Detector, Candlestick Pattern, Support/Resistance Zone, ATR Reversion) yang melakukan voting transparan. Keputusan diringkas menjadi sinyal informasional: BUY / SELL / HOLD beserta tabel breakdown-voting per-indikator lengkap dengan kekuatan aturan/vote (rule strength; bukan probabilitas akurasi).
 - **Indeks LQ45 vs Cap-Tier Real-Time (Fitur Baru)**:
   * **Badge "Indeks LQ45" (Biru)**: Menandakan emiten adalah konstituen resmi indeks LQ45 Bursa Efek Indonesia (berdasarkan evaluasi resmi BEI 6 bulanan). Hanya saham LQ45 resmi yang bisa menyandang badge ini, sehingga saham gorengan yang tiba-tiba naik volume tidak bisa menyamar sebagai blue-chip.
   * **Badge Likuiditas & Ukuran ("Large & Liquid · saat ini" vs "Small / Thin · saat ini")**: Klasifikasi real-time berdasarkan Market Cap (>= Rp 10 Triliun) dan Likuiditas rata-rata 20 hari (ADV20 >= Rp 5 Miliar/hari). Memberi konteks eksekusi dan volatilitas tanpa menghakimi kualitas emiten.
@@ -44,7 +44,7 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 
 #### D. LensMarket & Market Pulse (Denyut Pasar & Breadth)
 - **Fungsi Utama**: Memberikan gambaran makro kesehatan seluruh bursa IDX dalam satu layar.
-- **Market Breadth Modern (100 Saham Likuid)**: Mengukur seberapa luas partisipasi kenaikan/penurunan pasar menggunakan 100 saham paling likuid di IDX (setara metodologi Kompas 100 dan IDX80):
+- **Market Breadth Modern (universe terpantau)**: Mengukur seberapa luas partisipasi kenaikan/penurunan pasar menggunakan sampel 100 emiten pertama dari universe aktif SahamLens; ini bukan konstituen Kompas100/IDX80 dan bukan indeks resmi IDX:
   * *Naik (Advancing)*: Saham dengan pergerakan > +0.10%.
   * *Netral/Stagnan (Unchanged)*: Saham di dalam pita toleransi -0.10% s/d +0.10%.
   * *Turun (Declining)*: Saham dengan pergerakan < -0.10%.
@@ -70,11 +70,11 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 
 #### H. Dividend, Earnings & Corporate Calendar
 - **Fungsi Utama**: Memantau kalender aksi korporasi emiten IDX.
-- **Dividend Tracker & Planner**: Informasi Dividend Yield, Dividend Payout Ratio (DPR), histori dividen, tanggal krusial (Cum Date, Ex Date, Recording Date, Payment Date), analisis risiko Dividend Trap, dan simulator passive income bulanan.
+- **Dividend Tracker & Planner**: Informasi yield/payout/histori yang tersedia dari provider, konsistensi dividen berbasis observasi historis, dan simulator skenario passive income/DRIP. Jangan menyatakan tanggal aksi korporasi atau status pajak bila field/sumbernya tidak tersedia.
 - **Earnings Calendar**: Jadwal rilis laporan keuangan kuartalan (Q1, Q2, Q3, FY).
 
 #### I. Ownership Flow (Data KSEI Kustodian)
-- **Fungsi Utama**: Melacak perubahan komposisi kepemilikan saham antara Investor Asing (Foreign) vs Investor Domestik (Local) berbasis snapshot data resmi KSEI secara berkala/bulanan.
+- **Fungsi Utama**: Melacak perubahan komposisi kepemilikan asing vs domestik hanya dari snapshot yang lolos source-registry/provenance SahamLens. Jangan menyebut data KSEI sebagai tersedia/terverifikasi bila pipeline menandainya UNVERIFIED atau DATA_UNAVAILABLE.
 - **Keunggulan**: Mengukur akumulasi/distribusi struktural riil, bukan sekadar lalu lintas broker harian yang bisa berupa transaksi spekulatif jangka pendek.
 
 #### J. Akun Demo / Portfolio Virtual & Watchlist
@@ -97,7 +97,7 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 ### Panduan fungsi dan cara pakai setiap menu pengguna
 Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: **fungsi → langkah pakai → hasil yang dibaca → batasannya**:
 - **Beranda**: Ringkasan snapshot kondisi pasar, kartu penggerak pasar, Peluang Hari Ini (LensRadar), kalender aksi korporasi, dan watchlist.
-- **LensMarket**: Kondisi pasar makro (IHSG real-time, Market Breadth 100 saham, Market Regime, dan 11 Sektor Heatmap).
+- **LensMarket**: Kondisi pasar makro (IHSG real-time, Market Breadth universe terpantau, Market Regime, dan 11 Sektor Heatmap).
 - **LensRadar**: Pemindai saham berpeluang tinggi (Breakout Radar & Momentum) dari universe likuid beserta LensScore.
 - **LensTechnical**: Analisis teknikal emiten, rapat 10 agen LensConsensus, badge Indeks LQ45 & Large/Small Cap, level Entry/TP1/TP2/CL, dan ekspor kartu grafis PNG.
 - **LensScanner**: Penyaringan multi-faktor per profil risiko (Konservatif/Moderat/Agresif), filter sektor, market cap, dan ekspor CSV.
@@ -105,7 +105,7 @@ Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: *
 - **Backtest**: Menguji kombinasi filter pada histori. Pilih preset atau indikator, modal dan periode 3–60 bulan, tekan Backtest, lalu baca return, win rate, drawdown, dan pembanding IHSG. Gunakan **Live Filter Check** untuk melihat kandidat yang memenuhi filter sekarang. Mode **Backtest Saham Tunggal** memutar ulang candle historis (Start/Stop Replay).
 - **LensFundamental**: Membedah 12 rasio finansial, kualitas neraca, profitabilitas, arus kas, mode ringkas/lengkap, dan ekspor kartu grafis PNG.
 - **Valuation / DCF**: Estimasi nilai intrinsik wajar saham dan Margin of Safety (MoS).
-- **Moat**: Proksi keunggulan kompetitif ekonomi emiten berbasis data fundamental.
+- **Moat**: Proksi keunggulan kompetitif berbasis rasio fundamental; petunjuk rasio tidak membuktikan brand, switching cost, network effect, atau moat kualitatif.
 - **Earnings**: Monitor rilis laporan keuangan kuartalan emiten.
 - **Dividend**: Informasi jadwal dividen, yield, pay-out ratio, dan simulator passive income bulanan.
 - **LensWatch**: Watchlist dan alert harga pribadi pengguna (wajib login).
@@ -113,7 +113,7 @@ Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: *
 - **Risk Matrix & Risk Calculator**: Simulasi stres portofolio dan kalkulator ukuran posisi (Position Sizing) berbasis toleransi risiko 1-2%.
 - **News & Sentiment**: Berita terkini dan klasifikasi sentimen pasar modal.
 - **Corporate Calendar**: Kalender terintegrasi dividen, earnings, dan aksi korporasi emiten IDX.
-- **Macro**: Analisis BI-Rate, inflasi, kurs USD/IDR, dan peta transmisi ke 11 sektor IDX.
+- **Macro**: Analisis BI-Rate, inflasi, kurs USD/IDR, dan peta transmisi rule-based ke sektor. Mapping sektor bersifat heuristik/indikatif, bukan forecast return sektor.
 - **Transparansi**: Publikasi metodologi, bukti validasi empiris, dan akurasi model kuantitatif.
 - **Tentang**: Filosofi dan prinsip objektivitas SahamLens.
 - **Pattern**: Deteksi pola grafik teknikal dan konfirmasinya.

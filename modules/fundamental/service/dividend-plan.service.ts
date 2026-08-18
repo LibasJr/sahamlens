@@ -69,11 +69,14 @@ async function fetchDividendStock(ticker: string): Promise<DividendStock | null>
 
     const dividendEvents: { date: string | Date }[] = (chart as any)?.events?.dividends || [];
     const yearsWithDividend = new Set(dividendEvents.map((d) => new Date(d.date).getFullYear()));
-    const currentYear = new Date().getFullYear();
+    const observedYears = [...yearsWithDividend].sort((a, b) => b - a);
+    const latestDividendYear = observedYears[0] ?? null;
     let consistencyYears = 0;
-    for (let y = currentYear; y >= currentYear - 15; y--) {
-      if (yearsWithDividend.has(y)) consistencyYears++;
-      else break;
+    if (latestDividendYear != null) {
+      for (let y = latestDividendYear; y >= latestDividendYear - 15; y--) {
+        if (yearsWithDividend.has(y)) consistencyYears++;
+        else break;
+      }
     }
 
     const currentSafety = safetyScore(payoutRatio, consistencyYears);

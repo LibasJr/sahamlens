@@ -55,6 +55,13 @@ const splitStatusText = (value?: string | null) => {
   };
 };
 
+type LocalDirectionObservation = {
+  aligned: number;
+  opposed: number;
+  totalGapHours: number;
+  gapSamples: number;
+};
+
 // BUG FIX (2026-08-01): sama seperti /dcf - dulu tidak baca ?symbol= dari URL sama
 // sekali, cuma localStorage. Ditambah prioritas URL param supaya link dari Technical
 // Analyzer (yang sekarang mengirim ?symbol=<ticker aktif>) langsung akurat.
@@ -68,7 +75,7 @@ function FundamentalContent() {
   const [data, setData] = useState<any>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [marketClosed, setMarketClosed] = useState(false);
-  const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
+  const [localObservations, setLocalObservations] = useState<Record<string, LocalDirectionObservation>>({});
   const [sortByConfidence, setSortByConfidence] = useState(false);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('full');
   const [mounted, setMounted] = useState(false);
@@ -165,8 +172,10 @@ function FundamentalContent() {
           }
         }));
         
-        // Tracking accuracy in localStorage
-        trackAccuracy(symbol, jsonAlgo.price, jsonAlgo.analyzers);
+        // Observasi lokal transparan: hanya mencatat apakah arah analyzer pada kunjungan
+        // sebelumnya sejalan dengan harga saat pengguna membuka halaman lagi. Ini bukan
+        // backtest dan tidak memiliki horizon tetap.
+        trackLocalDirectionObservation(symbol, jsonAlgo.price, jsonAlgo.analyzers);
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -180,44 +189,66 @@ function FundamentalContent() {
     }
   };
 
-  // Track accuracy history in localStorage (simulated historical accuracy tracking)
-  const trackAccuracy = (sym: string, price: number, analyzers: any[]) => {
+  // Observasi lokal perangkat — BUKAN historical hit-rate/backtest. Metodenya hanya
+  // membandingkan arah analyzer pada kunjungan sebelumnya dengan harga saat halaman
+  // dibuka lagi. Horizon antar-kunjungan tidak tetap, jadi yang disajikan adalah jumlah
+  // kecocokan arah + rata-rata jeda observasi, bukan persentase akurasi model.
+  //
+  // Storage memakai v2 agar statistik lama yang pernah dilabeli "hit-rate historis"
+  // tidak ikut diwariskan sebagai bukti performa.
+  const trackLocalDirectionObservation = (sym: string, price: number, analyzers: any[]) => {
+    if (!Number.isFinite(price) || price <= 0 || !Array.isArray(analyzers)) return;
     try {
-      const historyStr = localStorage.getItem('fundamental_scores') || '{}';
-      const history = JSON.parse(historyStr);
-      
+      const historyKey = 'fundamental_local_observations_v2';
+      const history = JSON.parse(localStorage.getItem(historyKey) || '{}');
       if (!history[sym]) history[sym] = {};
-      
-      const storageKey = `trading_tracker_${sym}`;
+
+      const storageKey = `fundamental_local_tracker_v2_${sym}`;
       const lastTracker = JSON.parse(localStorage.getItem(storageKey) || 'null');
-      
-      if (lastTracker && lastTracker.price !== price) {
+      const nowMs = Date.now();
+      const lastObservedMs = lastTracker?.observedAt ? Date.parse(lastTracker.observedAt) : NaN;
+      const gapHours = Number.isFinite(lastObservedMs) && nowMs > lastObservedMs
+        ? (nowMs - lastObservedMs) / 3_600_000
+        : null;
+
+      if (lastTracker && Number.isFinite(lastTracker.price) && lastTracker.price !== price) {
         const priceMovedUp = price > lastTracker.price;
         const priceMovedDown = price < lastTracker.price;
-        
+
         if (priceMovedUp || priceMovedDown) {
-          lastTracker.analyzers.forEach((pastAlgo: any) => {
+          for (const pastAlgo of Array.isArray(lastTracker.analyzers) ? lastTracker.analyzers : []) {
+            if (!pastAlgo?.label || !['BULLISH', 'BEARISH', 'NEUTRAL'].includes(pastAlgo.decision)) continue;
+            if (pastAlgo.decision === 'NEUTRAL') continue;
             if (!history[sym][pastAlgo.label]) {
-              history[sym][pastAlgo.label] = { correct: 0, wrong: 0 };
+              history[sym][pastAlgo.label] = { aligned: 0, opposed: 0, totalGapHours: 0, gapSamples: 0 };
             }
-            
-            if ((priceMovedUp && pastAlgo.decision === 'BULLISH') || 
+
+            const stat = history[sym][pastAlgo.label] as LocalDirectionObservation;
+            if ((priceMovedUp && pastAlgo.decision === 'BULLISH') ||
                 (priceMovedDown && pastAlgo.decision === 'BEARISH')) {
-              history[sym][pastAlgo.label].correct++;
-            } else if (pastAlgo.decision !== 'NEUTRAL') {
-              history[sym][pastAlgo.label].wrong++;
+              stat.aligned++;
+            } else {
+              stat.opposed++;
             }
-          });
-          localStorage.setItem('fundamental_scores', JSON.stringify(history));
+            if (gapHours != null && Number.isFinite(gapHours) && gapHours > 0) {
+              stat.totalGapHours += gapHours;
+              stat.gapSamples++;
+            }
+          }
+          localStorage.setItem(historyKey, JSON.stringify(history));
         }
       }
-      
+
       localStorage.setItem(storageKey, JSON.stringify({
-        price: price,
-        analyzers: analyzers
+        price,
+        observedAt: new Date(nowMs).toISOString(),
+        analyzers: analyzers.map((algo: any) => ({ label: algo?.label, decision: algo?.decision })),
       }));
-      setScores(history[sym] || {});
-    } catch(e) {}
+      setLocalObservations(history[sym] || {});
+    } catch {
+      // Statistik lokal bersifat opsional; kegagalan localStorage tidak boleh mengubah
+      // hasil fundamental, score, ataupun membuat fallback angka.
+    }
   };
 
   const handleRefresh = () => {
@@ -351,10 +382,10 @@ function FundamentalContent() {
           open={showPaywall}
           onClose={() => setShowPaywall(false)}
           title="Limit Gratis Habis"
-          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+          body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
           benefits={[
             'Unlimited LensTechnical (10 filter)',
-            'LensRadar LIVE, LensConsensus & Compare Tool',
+            'LensRadar scan berkala, LensConsensus & Compare Tool',
             'Watchlist & Alert unlimited',
           ]}
         />
@@ -375,20 +406,13 @@ function FundamentalContent() {
     analyzers = [...analyzers].sort((a, b) => b.confidence - a.confidence);
   }
 
-  // Akurasi real dari tracking lokal (localStorage, lihat trackAccuracy) - prediksi
-  // BULLISH/BEARISH terakhir dicocokkan ke pergerakan harga kunjungan berikutnya.
-  // Butuh minimal 20 sampel sebelum dianggap representatif; di bawah itu null
-  // (bukan angka karangan) supaya UI bisa menampilkan "belum cukup data" apa adanya.
-  //
-  // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-3): nilainya dulu di-clamp
-  // ke rentang 45-95% - hit-rate riil 20% ditampilkan "45%". Clamp dihapus dan jumlah
-  // sampel ikut dilaporkan, sama seperti app/dashboard/page.tsx.
-  const getAccuracyPct = (algoName: string): string | null => {
-    const score = scores[algoName];
-    if (!score) return null;
-    const total = score.correct + score.wrong;
-    if (total < 20) return null;
-    return `${Math.round((score.correct / total) * 100)}% (n=${total})`;
+  const getLocalObservation = (algoName: string) => {
+    const stat = localObservations[algoName];
+    if (!stat) return null;
+    const total = stat.aligned + stat.opposed;
+    if (total <= 0) return null;
+    const avgGapHours = stat.gapSamples > 0 ? stat.totalGapHours / stat.gapSamples : null;
+    return { ...stat, total, avgGapHours };
   };
 
   const filteredAnalyzers = analyzers.filter((algo: any) => {
@@ -420,7 +444,7 @@ function FundamentalContent() {
     return picked.slice(0, 3);
   })();
   const displayedAnalyzers = viewMode === 'compact' ? compactAnalyzers : filteredAnalyzers;
-  const lowSampleCount = displayedAnalyzers.filter((algo: any) => getAccuracyPct(algo.label) == null).length;
+  const noLocalObservationCount = displayedAnalyzers.filter((algo: any) => getLocalObservation(algo.label) == null).length;
   // Kalau status sesi gagal dibaca, jangan mengunci UI secara keliru. Hanya tamu yang
   // sudah terkonfirmasi melihat teaser kartu; user yang sudah login tetap melihat
   // seluruh indikator, terlepas dari status trial/Pro-nya.
@@ -568,7 +592,7 @@ function FundamentalContent() {
                   <div className="text-[10px] text-tv-muted uppercase tracking-wide">TOP METHOD TODAY</div>
                   <div className="text-lg font-bold text-white flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-tv-green" />
-                    {data.bestPerformer.label} ({data.bestPerformer.confidence}% Conf)
+                    {data.bestPerformer.label} (rule {data.bestPerformer.confidence}/100)
                   </div>
                 </div>
              )}
@@ -816,9 +840,13 @@ function FundamentalContent() {
                   onClick={() => setSortByConfidence(!sortByConfidence)}
                   className={`text-xs px-2 py-1 rounded border transition-colors ${sortByConfidence ? 'bg-tv-accent/20 border-tv-accent text-tv-accent' : 'border-tv-border text-tv-muted hover:text-white'}`}
                 >
-                  Sort by Confidence
+                  Urutkan Kekuatan Rule
                 </button>
               </div>
+
+              <p className="mb-3 text-[10px] leading-relaxed text-tv-muted">
+                Kekuatan rule 0-100 adalah intensitas aturan dari rasio yang tersedia, bukan probabilitas akurasi model atau peluang profit. Statistik lokal kunjungan, bila tampil, dipisahkan jelas dan bukan backtest/OOS.
+              </p>
 
               {lockedAnalyzerCount > 0 && (
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-3.5 py-2.5 text-xs text-tv-yellow">
@@ -836,10 +864,10 @@ function FundamentalContent() {
                 </div>
               )}
 
-              {lowSampleCount > 0 && (
+              {noLocalObservationCount > 0 && (
                 <div className="mb-4 rounded-lg border border-tv-border bg-tv-bg/70 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
-                  <span className="font-semibold text-tv-text">Validasi historis indikator masih mengumpulkan sampel.</span>{' '}
-                  {lowSampleCount} dari {displayedAnalyzers.length} indikator yang tampil belum mencapai minimum 20 observasi. Detail hit-rate akan muncul setelah sampel cukup.
+                  <span className="font-semibold text-tv-text">Tracking lokal perangkat masih terbatas.</span>{' '}
+                  {noLocalObservationCount} dari {displayedAnalyzers.length} indikator yang tampil belum memiliki observasi kunjungan berikutnya. Ini bukan validasi historis/OOS dan tidak memengaruhi skor fundamental.
                 </div>
               )}
               {viewMode === 'compact' && filteredAnalyzers.length > displayedAnalyzers.length && (
@@ -874,7 +902,7 @@ function FundamentalContent() {
                         </div>
                         <div className="flex justify-between items-center text-xs font-mono text-tv-muted blur-sm select-none opacity-40" aria-hidden="true">
                           <span>{algo.value}</span>
-                          <span className="text-white">Conf: {algo.confidence}%</span>
+                          <span className="text-white">Rule: {algo.confidence}/100</span>
                         </div>
                       </div>
                     );
@@ -897,19 +925,33 @@ function FundamentalContent() {
                       </div>
                       <div className="flex justify-between items-center text-xs font-mono text-tv-muted">
                         <span>{algo.value}</span>
-                        <span className="text-white">Conf: {algo.confidence}%</span>
+                        <span className="text-white">Rule: {algo.confidence}/100</span>
                       </div>
                       <div className="pt-2 border-t border-tv-hover text-[10px]">
-                        {getAccuracyPct(algo.label) ? (
-                          <>
-                            <span className="text-tv-muted block">Hit-rate historis (saham ini)</span>
-                            <span className="font-bold text-tv-accent">{getAccuracyPct(algo.label)}</span>
-                          </>
-                        ) : (
-                          <span className="inline-flex rounded-full border border-tv-border bg-tv-card px-2 py-0.5 font-medium text-tv-muted" title="Belum mencapai minimum 20 observasi">
-                            Sampel rendah <Info className="ml-1 h-3 w-3" aria-hidden="true" />
-                          </span>
-                        )}
+                        {(() => {
+                          const localStat = getLocalObservation(algo.label);
+                          if (!localStat) {
+                            return (
+                              <span className="inline-flex rounded-full border border-tv-border bg-tv-card px-2 py-0.5 font-medium text-tv-muted" title={isEn ? 'No next-visit observation has been recorded on this device.' : 'Belum ada observasi kunjungan berikutnya yang tercatat di perangkat ini.'}>
+                                {isEn ? 'No local observations yet' : 'Belum ada observasi lokal'} <Info className="ml-1 h-3 w-3" aria-hidden="true" />
+                              </span>
+                            );
+                          }
+                          return (
+                            <>
+                              <span className="text-tv-muted block">{isEn ? 'Local direction check (experimental)' : 'Cek arah lokal (eksperimental)'}</span>
+                              <span className="font-bold text-tv-accent">
+                                {localStat.aligned}/{localStat.total} {isEn ? 'observations aligned' : 'observasi searah'}
+                              </span>
+                              <span className="mt-0.5 block text-tv-muted/80" title={isEn ? 'Compared with the price on your next visit. The horizon is not fixed, so this is not a historical backtest or model accuracy metric.' : 'Dibandingkan dengan harga saat kunjungan berikutnya. Horizon tidak tetap, jadi ini bukan backtest historis atau metrik akurasi model.'}>
+                                {localStat.avgGapHours != null
+                                  ? `${isEn ? 'Avg. gap' : 'Jeda rata-rata'} ${localStat.avgGapHours < 48 ? `${Math.round(localStat.avgGapHours)} ${isEn ? 'hours' : 'jam'}` : `${Math.round(localStat.avgGapHours / 24)} ${isEn ? 'days' : 'hari'}`} · `
+                                  : ''}
+                                {isEn ? 'not a backtest' : 'bukan backtest'}
+                              </span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -953,10 +995,10 @@ function FundamentalContent() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini. Upgrade Pro ${formatRupiah(MONTHLY_PRICE)}/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensConsensus & Compare Tool',
+          'LensRadar scan berkala, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

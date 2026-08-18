@@ -355,7 +355,7 @@ export default function ScreenerPage() {
         <div className="bg-tv-card border border-tv-border rounded-xl p-4 shadow-1 space-y-3">
           <div>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-tv-muted block mb-2">
-              Preset Strategi Institusional (1-Klik):
+              Preset Parameter (1-Klik):
             </span>
             <div className="flex flex-wrap gap-2">
               <button
@@ -369,7 +369,7 @@ export default function ScreenerPage() {
                 }}
                 className="px-3 py-1.5 rounded-lg border border-tv-green/30 bg-tv-green/[0.08] hover:bg-tv-green/[0.15] text-xs font-semibold text-tv-green flex items-center gap-1.5 transition-colors"
               >
-                👑 Buffett Quality Compounders
+                🛡️ Quality + Large/Liquid
               </button>
               <button
                 type="button"
@@ -382,7 +382,7 @@ export default function ScreenerPage() {
                 }}
                 className="px-3 py-1.5 rounded-lg border border-tv-blue/30 bg-tv-blue/[0.08] hover:bg-tv-blue/[0.15] text-xs font-semibold text-tv-blue flex items-center gap-1.5 transition-colors"
               >
-                📈 Peter Lynch GARP
+                📈 Kualitas + Valuasi + Growth
               </button>
               <button
                 type="button"
@@ -395,7 +395,7 @@ export default function ScreenerPage() {
                 }}
                 className="px-3 py-1.5 rounded-lg border border-tv-gold/30 bg-tv-gold/[0.08] hover:bg-tv-gold/[0.15] text-xs font-semibold text-tv-gold flex items-center gap-1.5 transition-colors"
               >
-                💰 Dividend Aristocrats IDX
+                💰 Defensif: Dividen + DER
               </button>
               <button
                 type="button"
@@ -408,9 +408,12 @@ export default function ScreenerPage() {
                 }}
                 className="px-3 py-1.5 rounded-lg border border-tv-purple/30 bg-tv-purple/[0.08] hover:bg-tv-purple/[0.15] text-xs font-semibold text-tv-purple flex items-center gap-1.5 transition-colors"
               >
-                💎 Deep Value Bargains
+                ⚡ Growth + Momentum &lt; Rp5.000
               </button>
             </div>
+            <p className="text-[10px] leading-relaxed text-tv-muted">
+              Preset hanya mengisi parameter SahamLens yang terlihat; bukan strategi resmi investor tertentu, bukan indeks resmi, dan bukan jaminan hasil.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-tv-border">

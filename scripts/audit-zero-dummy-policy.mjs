@@ -31,6 +31,14 @@ const knownBad = [
   ['misleading export verification label', /Status Verifikasi Realtime|IDX Realtime Technical Engine|Menunggu Publikasi BEI/],
   ['old heuristic PE percentile', /\bpe\s*\/\s*25\b/],
   ['old heuristic PBV percentile', /\bpbv\s*\/\s*3\.5\b/],
+  ['demo notifications with fabricated market signals', /INITIAL_DEMO_NOTIFICATIONS/],
+  ['portfolio stale quote falls back to average buy', /currentPrice\s*=\s*h\.avgPrice/],
+  ['single-quarter net income annualization', /quarterlyNetIncome\s*\*\s*4/],
+  ['fabricated dashboard stop-loss 5pct', /current_price\s*\*\s*0\.95/],
+  ['fabricated dashboard TP1 8pct', /current_price\s*\*\s*1\.08/],
+  ['fabricated dashboard TP2 15pct', /current_price\s*\*\s*1\.15/],
+  ['fabricated dashboard day-low 2pct', /current_price\s*\*\s*0\.98/],
+  ['fabricated dashboard day-high 2pct', /current_price\s*\*\s*1\.02/],
 ];
 
 async function walk(dir) {

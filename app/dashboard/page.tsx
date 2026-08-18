@@ -177,7 +177,6 @@ function DashboardContent() {
   const [data, setData] = useState<any>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [marketClosed, setMarketClosed] = useState(false);
-  const [scores, setScores] = useState<Record<string, { correct: number, wrong: number }>>({});
   const [sortByConfidence, setSortByConfidence] = useState(true);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
@@ -348,8 +347,6 @@ function DashboardContent() {
           }
         }));
         
-        // Tracking accuracy in localStorage
-        trackAccuracy(symbol, jsonAlgo.price, jsonAlgo.analyzers);
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -363,51 +360,10 @@ function DashboardContent() {
     }
   };
 
-  const trackAccuracy = (symbol: string, currentPrice: number, currentAnalyzers: any[]) => {
-    const storageKey = `trading_tracker_${symbol}`;
-    const scoreKey = `trading_scores`;
-    
-    try {
-      // Load global scores
-      let globalScores = JSON.parse(localStorage.getItem(scoreKey) || '{}');
+  // LocalStorage visit-to-visit accuracy tracking was removed: its horizon depended on
+  // when a user revisited the page, so it was not a valid historical accuracy metric.
+  // Analyzer hit-rate shown below now comes only from deterministic historical bars.
 
-      // Load last prediction
-      const lastTracker = JSON.parse(localStorage.getItem(storageKey) || 'null');
-    
-    if (lastTracker && lastTracker.price !== currentPrice) {
-      const priceMovedUp = currentPrice > lastTracker.price;
-      const priceMovedDown = currentPrice < lastTracker.price;
-      
-      if (priceMovedUp || priceMovedDown) {
-        lastTracker.analyzers.forEach((pastAlgo: any) => {
-          if (!globalScores[pastAlgo.label]) {
-            globalScores[pastAlgo.label] = { correct: 0, wrong: 0 };
-          }
-          
-          if ((priceMovedUp && pastAlgo.decision === 'BULLISH') || 
-              (priceMovedDown && pastAlgo.decision === 'BEARISH')) {
-            globalScores[pastAlgo.label].correct++;
-          } else if (pastAlgo.decision !== 'NEUTRAL') {
-            globalScores[pastAlgo.label].wrong++;
-          }
-        });
-        localStorage.setItem(scoreKey, JSON.stringify(globalScores));
-      }
-    }
-    
-    // Save current state for next comparison
-    localStorage.setItem(storageKey, JSON.stringify({
-      price: currentPrice,
-      analyzers: currentAnalyzers
-    }));
-    
-      setScores(globalScores);
-    } catch (error) {
-      // Local storage adalah fitur tambahan; data pasar yang berhasil dimuat tidak
-      // boleh berubah menjadi error halaman hanya karena cache browser rusak.
-      console.warn('Ignoring invalid local accuracy cache', error);
-    }
-  };
 
   const handleRefresh = () => {
     if (isIndexTicker(ticker)) {
@@ -481,9 +437,6 @@ function DashboardContent() {
         fetchAnalyzerData(ticker);
       }
     }, 60000);
-
-    // Load initial scores
-    setScores(JSON.parse(localStorage.getItem('trading_scores') || '{}'));
 
     return () => {
       clearInterval(interval);
@@ -588,12 +541,12 @@ function DashboardContent() {
       a.label,
       a.value,
       a.decision,
-      `${a.confidence}%`
+      `${a.confidence}/100`
     ]);
     
     autoTable(doc, {
       startY: finalY + 5,
-      head: [['Filter', 'Value', 'Signal', 'Confidence']],
+      head: [['Filter', 'Value', 'Signal', 'Rule Strength']],
       body: tableData
     });
 
@@ -859,26 +812,12 @@ function DashboardContent() {
     return results;
   }, [data]);
 
-  // Butuh minimal 20 sampel tracking (localStorage, lihat trackAccuracy) sebelum
-  // persentase dianggap representatif - di bawah itu null (bukan angka karangan),
-  // dan nilainya TIDAK di-clamp (temuan C-3).
-  const calcAccuracy = (wins: number, total: number): number | null => {
-    if (total < 20) return null;
-    return Math.round((wins / total) * 100);
-  };
-
-  // Selalu menyertakan jumlah sampel: "62% (n=41)" - angka tanpa n tidak bisa dinilai
-  // pembaca apakah 2 kejadian atau 200.
+  // Selalu menyertakan jumlah sampel. Hanya hasil historical-bar test yang dipakai;
+  // tracking visit-to-visit localStorage sengaja tidak dijadikan fallback karena horizon
+  // observasinya tidak tetap dan bukan backtest.
   const getAccuracyPct = (label: string): string | null => {
     const bt = backtestAccuracy[label];
-    if (bt) return `${bt.pct}% (n=${bt.samples})`;
-    if (scores[label]) {
-      const wins = scores[label].correct;
-      const total = scores[label].correct + scores[label].wrong;
-      const acc = calcAccuracy(wins, total);
-      return acc !== null ? `${acc}% (n=${total})` : null;
-    }
-    return null;
+    return bt ? `${bt.pct}% (n=${bt.samples})` : null;
   };
 
   if (loading && !data) {
@@ -965,10 +904,10 @@ function DashboardContent() {
           open={showPaywall}
           onClose={() => { if (!isTrialExpired) setShowPaywall(false); }}
           title={isTrialExpired ? "Akses Akun Belum Tersedia" : "Limit Gratis Habis"}
-          body={isTrialExpired ? "Silakan masuk kembali untuk melanjutkan penggunaan SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+          body={isTrialExpired ? "Silakan masuk kembali untuk melanjutkan penggunaan SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
           benefits={[
             'Unlimited LensTechnical (10 filter)',
-            'LensRadar LIVE, LensConsensus & Compare Tool',
+            'LensRadar scan berkala, LensConsensus & Compare Tool',
             'Watchlist & Alert unlimited',
           ]}
         />
@@ -1253,17 +1192,26 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* Price Range Slider (Day's Range) */}
-            {typeof stock.current_price === 'number' && candles && candles.length > 0 && (
-              <div className="w-full md:w-72 shrink-0">
-                <PriceRangeSlider
-                  currentPrice={stock.current_price}
-                  lowPrice={Number(candles[candles.length - 1]?.low) || (stock.current_price * 0.98)}
-                  highPrice={Number(candles[candles.length - 1]?.high) || (stock.current_price * 1.02)}
-                  label="Rentang Harga Hari Ini"
-                />
-              </div>
-            )}
+            {/* Price Range Slider (Day's Range) - hanya bar provider valid; tidak ada +/-2% fallback. */}
+            {(() => {
+              const lastCandle = candles?.[candles.length - 1];
+              const lowPrice = Number(lastCandle?.low);
+              const highPrice = Number(lastCandle?.high);
+              if (typeof stock.current_price !== 'number' || !Number.isFinite(stock.current_price) || stock.current_price <= 0 ||
+                  !Number.isFinite(lowPrice) || lowPrice <= 0 || !Number.isFinite(highPrice) || highPrice <= 0 || highPrice < lowPrice) {
+                return null;
+              }
+              return (
+                <div className="w-full md:w-72 shrink-0">
+                  <PriceRangeSlider
+                    currentPrice={stock.current_price}
+                    lowPrice={lowPrice}
+                    highPrice={highPrice}
+                    label="Rentang Harga Hari Ini"
+                  />
+                </div>
+              );
+            })()}
 
             <div className="flex w-full min-w-0 items-stretch gap-4 md:w-auto md:items-center md:gap-6">
                {data?.bestPerformer && (
@@ -1271,7 +1219,7 @@ function DashboardContent() {
                     <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">TOP METHOD TODAY</div>
                     <div className="text-lg font-bold text-white flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5 text-tv-green" />
-                      {data.bestPerformer.label} ({data.bestPerformer.confidence}% Conf)
+                      {data.bestPerformer.label} (rule {data.bestPerformer.confidence}/100)
                     </div>
                   </div>
                )}
@@ -1372,7 +1320,7 @@ function DashboardContent() {
                       }`}>
                         {a.decision === 'BULLISH' ? 'Bullish' : a.decision === 'BEARISH' ? 'Bearish' : 'Netral'}
                       </span>
-                      <span className="w-9 text-right font-number text-tv-muted/70">{a.confidence}%</span>
+                      <span className="w-9 text-right font-number text-tv-muted/70">{a.confidence}/100</span>
                     </div>
                   </div>
                 ))}
@@ -1605,15 +1553,31 @@ function DashboardContent() {
             <>
               <div className="w-full space-y-4">
                 <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
-                {data?.stock?.current_price && (
-                  <PositionSizingCalculator
-                    ticker={ticker}
-                    entryPrice={data?.tradeSetup?.entryPrice ?? data?.stock?.current_price}
-                    cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
-                    takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
-                    takeProfit2Price={data?.tradeSetup?.takeProfit2 ?? (data?.stock?.current_price * 1.15)}
-                  />
-                )}
+                {(() => {
+                  const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
+                  const support = analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support;
+                  const resistance = analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance;
+                  const stopLossPrice = data?.tradeSetup?.stopLoss ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                  const takeProfit1Price = data?.tradeSetup?.takeProfit1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                  const takeProfit2Price = data?.tradeSetup?.takeProfit2 ?? null;
+                  const entryPrice = data?.tradeSetup?.entryPrice ?? currentPrice;
+                  if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
+                    return (
+                      <div className="rounded-xl border border-tv-border bg-tv-card/50 px-4 py-3 text-xs text-tv-muted">
+                        Position sizing belum ditampilkan karena level stop-loss terverifikasi belum tersedia. SahamLens tidak membuat stop-loss/TP persentase default.
+                      </div>
+                    );
+                  }
+                  return (
+                    <PositionSizingCalculator
+                      ticker={ticker}
+                      entryPrice={entryPrice}
+                      cutLossPrice={stopLossPrice}
+                      takeProfit1Price={takeProfit1Price ?? undefined}
+                      takeProfit2Price={takeProfit2Price ?? undefined}
+                    />
+                  );
+                })()}
                 <AlgoFilters
                   analyzers={analyzers}
                   sortByConfidence={sortByConfidence}
@@ -1628,15 +1592,31 @@ function DashboardContent() {
           ) : (
             <div className="w-full space-y-4">
               <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
-              {data?.stock?.current_price && (
-                <PositionSizingCalculator
-                  ticker={ticker}
-                  entryPrice={data?.tradeSetup?.entryPrice ?? data?.stock?.current_price}
-                  cutLossPrice={data?.tradeSetup?.stopLoss ?? (analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support ?? (data?.stock?.current_price * 0.95))}
-                  takeProfit1Price={data?.tradeSetup?.takeProfit1 ?? (analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance ?? (data?.stock?.current_price * 1.08))}
-                  takeProfit2Price={data?.tradeSetup?.takeProfit2 ?? (data?.stock?.current_price * 1.15)}
-                />
-              )}
+              {(() => {
+                const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
+                const support = analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support;
+                const resistance = analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance;
+                const stopLossPrice = data?.tradeSetup?.stopLoss ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                const takeProfit1Price = data?.tradeSetup?.takeProfit1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                const takeProfit2Price = data?.tradeSetup?.takeProfit2 ?? null;
+                const entryPrice = data?.tradeSetup?.entryPrice ?? currentPrice;
+                if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
+                  return (
+                    <div className="rounded-xl border border-tv-border bg-tv-card/50 px-4 py-3 text-xs text-tv-muted">
+                      Position sizing belum ditampilkan karena level stop-loss terverifikasi belum tersedia. Tidak ada stop-loss/TP persentase default.
+                    </div>
+                  );
+                }
+                return (
+                  <PositionSizingCalculator
+                    ticker={ticker}
+                    entryPrice={entryPrice}
+                    cutLossPrice={stopLossPrice}
+                    takeProfit1Price={takeProfit1Price ?? undefined}
+                    takeProfit2Price={takeProfit2Price ?? undefined}
+                  />
+                );
+              })()}
               <button
                 type="button"
                 onClick={() => changeViewMode('full')}
@@ -1775,10 +1755,10 @@ function DashboardContent() {
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar LIVE.`}
+        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
         benefits={[
           'Unlimited LensTechnical (10 filter)',
-          'LensRadar LIVE, LensConsensus & Compare Tool',
+          'LensRadar scan berkala, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"

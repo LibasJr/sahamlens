@@ -55,12 +55,18 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
     return () => controller.abort();
   }, [code, timeframe, isEn]);
 
+  const latestCandle = chartData.at(-1) ?? null;
+  const latestSessionPartial = latestCandle?.sessionStatus === 'PARTIAL';
+  const latestOpenEstimated = latestCandle?.openEstimated === true;
+
   const ind: Indicators | null = useMemo(() => {
     if (chartData.length < 2) return null;
     const closes = chartData.map((h: any) => h.close);
     const volumes = chartData.map((h: any) => h.volume);
-    return computeIndicators(chartData[chartData.length - 1].time, closes, volumes);
-  }, [chartData]);
+    return computeIndicators(chartData[chartData.length - 1].time, closes, volumes, {
+      latestVolumePartial: latestSessionPartial,
+    });
+  }, [chartData, latestSessionPartial]);
 
   const council = useMemo(() => computeMiniCouncil(chartData as any, isIndex), [chartData, isIndex]);
   const finalSignal = council?.finalSignal ?? ind?.signal ?? 'HOLD';
@@ -80,6 +86,19 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           >
             {finalSignal}
           </span>
+        </div>
+      )}
+
+      {latestSessionPartial && (
+        <div className="rounded-lg border border-tv-yellow/25 bg-tv-yellow/[0.05] px-3 py-2 text-xs leading-relaxed text-tv-muted">
+          <strong className="text-tv-yellow">{isEn ? 'Live session candle' : 'Candle sesi berjalan'}:</strong>{' '}
+          {latestOpenEstimated
+            ? isEn
+              ? 'the provider has not supplied today\'s open yet, so the candle body uses previous close only as a chart proxy. Confirmed candlestick patterns and full-day volume ratio use the latest completed session.'
+              : 'provider belum mengirim harga open hari ini, jadi badan candle memakai previous close hanya sebagai proxy visual. Pattern candlestick terkonfirmasi dan rasio volume full-day memakai sesi lengkap terakhir.'
+            : isEn
+            ? 'the daily candle is still forming. Confirmed candlestick patterns and full-day volume ratio use the latest completed session.'
+            : 'daily candle masih terbentuk. Pattern candlestick terkonfirmasi dan rasio volume full-day memakai sesi lengkap terakhir.'}
         </div>
       )}
 

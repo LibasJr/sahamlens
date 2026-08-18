@@ -805,7 +805,7 @@ export default function HomePage() {
           gerbang. Kalau nanti gerbangnya berubah, tidak ada lagi salinan kedua yang
           bisa lupa ikut diubah.
 
-          Badge Live/Data-Sesi-Terakhir naik ke CardHeader supaya statusnya terbaca
+          Badge Delayed/Data-Sesi-Terakhir naik ke CardHeader supaya statusnya terbaca
           sebelum angkanya, bukan terselip di dalam badan kartu. */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
         <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
@@ -816,7 +816,7 @@ export default function HomePage() {
               {radarStale || !isMarketOpen() ? (
                 <Badge variant="neutral" dot>Data Sesi Terakhir</Badge>
               ) : (
-                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>
+                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Delayed</Badge>
               )}
             </div>
             <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
