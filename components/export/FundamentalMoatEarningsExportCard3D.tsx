@@ -106,7 +106,7 @@ const STATUS_STYLE: Record<MoatProxyStatus, { text: string; badge: string }> = {
 };
 
 function formatCompact(value: number | null, currency: string | null = null): string {
-  if (value == null) return 'N/A';
+  if (value == null) return '-';
   const formatted = new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 2 }).format(value);
   return currency ? `${currency} ${formatted}` : formatted;
 }
@@ -154,8 +154,8 @@ export default function FundamentalMoatEarningsExportCard3D({
   const activeMoat = moat ?? null;
   const moatStatusStyle = activeMoat ? STATUS_STYLE[activeMoat.status] : STATUS_STYLE['DATA TERBATAS'];
 
-  // Score resolution
-  const fundScore = scoring?.totalScore ?? (scoring?.breakdown?.fundamental != null ? Math.round((scoring.breakdown.fundamental / 30) * 100) : 80);
+  // Score resolution (Zero dummy fallback)
+  const fundScore = scoring?.totalScore ?? (scoring?.breakdown?.fundamental != null ? Math.round((scoring.breakdown.fundamental / 30) * 100) : null);
 
   // Smart Ratios List - Filter valid only
   const allCandidateRatios: Array<{ code: string; name: string; val: string | null; desc: string; tone?: 'emerald' | 'amber' | 'blue' | 'cyan' }> = [
@@ -185,18 +185,18 @@ export default function FundamentalMoatEarningsExportCard3D({
       tone: r.tone || 'emerald',
     }));
 
-  // Valuation Resolution
-  const fairVal = valuation?.fairValue ?? (price && fundamentals.trailingPE ? Math.round(price * 1.15) : null);
+  // Valuation Resolution (Zero dummy fallback)
+  const fairVal = valuation?.fairValue ?? null;
   const mosVal = valuation?.mos ?? (fairVal && price ? parseFloat((((fairVal - price) / fairVal) * 100).toFixed(1)) : null);
-  const valStatus = valuation?.valuation || (mosVal != null ? (mosVal > 10 ? 'UNDERVALUED' : mosVal < -10 ? 'OVERVALUED' : 'FAIR VALUE') : 'FAIR VALUE');
-  const valMethod = valuation?.method || 'Weighted DCF + Sector Multiples';
+  const valStatus = valuation?.valuation || (mosVal != null ? (mosVal > 10 ? 'UNDERVALUED' : mosVal < -10 ? 'OVERVALUED' : 'FAIR VALUE') : null);
+  const valMethod = valuation?.method || null;
 
-  // Ownership Resolution (KSEI / SahamLens)
-  const foreignPct = ownership?.foreignPct ?? (displaySymbol === 'BBCA' ? 48.5 : displaySymbol === 'BBRI' ? 34.2 : displaySymbol === 'TLKM' ? 26.8 : 35.0);
-  const localPct = ownership?.localPct ?? (100 - foreignPct);
-  const scriplessPct = ownership?.scriplessPct ?? 99.8;
-  const delta1d = ownership?.delta?.['1d'] != null ? ownership.delta['1d'] : 0.05;
-  const delta7d = ownership?.delta?.['7d'] != null ? ownership.delta['7d'] : 0.28;
+  // Ownership Resolution (Zero dummy fallback)
+  const foreignPct = typeof ownership?.foreignPct === 'number' ? ownership.foreignPct : null;
+  const localPct = typeof ownership?.localPct === 'number' ? ownership.localPct : null;
+  const scriplessPct = typeof ownership?.scriplessPct === 'number' ? ownership.scriplessPct : null;
+  const delta1d = typeof ownership?.delta?.['1d'] === 'number' ? ownership.delta['1d'] : null;
+  const delta7d = typeof ownership?.delta?.['7d'] === 'number' ? ownership.delta['7d'] : null;
 
   return (
     <div
@@ -277,10 +277,10 @@ export default function FundamentalMoatEarningsExportCard3D({
                     {displaySymbol}.JK
                   </h1>
                   <span className={`rounded-xl border ${activeTheme.accentBorder} ${activeTheme.accentBg} px-3 py-0.5 text-xs font-mono font-bold ${activeTheme.accentText}`}>
-                    {profile.sector || 'Financial'}
+                    {profile.sector || 'Sektor IDX'}
                   </span>
                   <span className="rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-0.5 text-xs font-mono text-slate-300">
-                    {profile.industry || 'Banking'}
+                    {profile.industry || 'Industri'}
                   </span>
                 </div>
                 <div className="text-sm font-semibold text-slate-200 mt-1">
@@ -302,10 +302,10 @@ export default function FundamentalMoatEarningsExportCard3D({
                   LensScore Fundamental
                 </div>
                 <div className={`text-2xl font-black font-number ${activeTheme.accentText} mt-0.5`}>
-                  {fundScore}/100
+                  {fundScore != null ? `${fundScore}/100` : '-'}
                 </div>
                 <div className={`text-[9px] font-mono font-bold ${activeTheme.accentTextSecondary} uppercase`}>
-                  {fundScore >= 80 ? 'Grade A+ (Unggul)' : fundScore >= 60 ? 'Grade B (Solid)' : 'Grade C (Wajar)'}
+                  {fundScore != null ? (fundScore >= 80 ? 'Grade A+ (Unggul)' : fundScore >= 60 ? 'Grade B (Solid)' : 'Grade C (Wajar)') : '-'}
                 </div>
               </div>
 
@@ -355,7 +355,7 @@ export default function FundamentalMoatEarningsExportCard3D({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-700/70 bg-[#060d1c] p-4 text-xs text-slate-400">
-              Memuat data rasio fundamental...
+              Rasio fundamental tidak tersedia pada instrumen ini.
             </div>
           )}
         </div>
@@ -373,7 +373,7 @@ export default function FundamentalMoatEarningsExportCard3D({
                   <span>Moat Proxy • Kualitas &amp; Keunggulan Bisnis</span>
                 </div>
                 <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border uppercase ${moatStatusStyle.badge}`}>
-                  Status: {activeMoat?.status ?? 'KUAT'}
+                  Status: {activeMoat?.status ?? 'DATA TERBATAS'}
                 </div>
               </div>
 
@@ -382,22 +382,17 @@ export default function FundamentalMoatEarningsExportCard3D({
                 <div className={`flex items-center gap-2 ${activeTheme.accentText}`}>
                   <Award className="w-4 h-4" />
                   <span className="text-xs font-bold font-mono">
-                    {activeMoat ? `${activeMoat.supportive} dari ${activeMoat.available} pilar kuantitatif mendukung` : 'Pilar keunggulan bisnis teruji'}
+                    {activeMoat ? `${activeMoat.supportive} dari ${activeMoat.available} pilar kuantitatif mendukung` : 'Pilar keunggulan bisnis'}
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-300">
-                  {activeMoat ? `Cakupan ${activeMoat.coveragePct}% data` : 'Cakupan 100%'}
+                  {activeMoat ? `Cakupan ${activeMoat.coveragePct}% data` : '-'}
                 </span>
               </div>
 
               {/* 4 Pillars Grid */}
               <div className="grid grid-cols-2 gap-2.5">
-                {(activeMoat?.pillars && activeMoat.pillars.length > 0 ? activeMoat.pillars : [
-                  { key: 'pricing', label: 'Pricing Power (Margin Kuat)', status: 'KUAT', description: 'Kemampuan menjaga margin laba di atas rata-rata industri' },
-                  { key: 'cost', label: 'Cost Advantage (Efisiensi Biaya)', status: 'KUAT', description: 'Struktur biaya rendah berkat skala ekonomi bisnis yang besar' },
-                  { key: 'switching', label: 'Switching Cost (Retensi Tinggi)', status: 'KUAT', description: 'Tingkat loyalitas dan ketergantungan nasabah/konsumen sangat solid' },
-                  { key: 'network', label: 'Network Effect / Brand', status: 'KUAT', description: 'Ekosistem jaringan luas dan reputasi merek terdepan di Indonesia' },
-                ]).map((pillar) => {
+                {(activeMoat?.pillars && activeMoat.pillars.length > 0) ? activeMoat.pillars.map((pillar) => {
                   const isStrong = pillar.status === 'KUAT';
                   const isMixed = pillar.status === 'CAMPURAN';
                   const pBg = isStrong ? 'text-emerald-400' : isMixed ? 'text-amber-400' : 'text-rose-400';
@@ -413,14 +408,20 @@ export default function FundamentalMoatEarningsExportCard3D({
                       </p>
                     </div>
                   );
-                })}
+                }) : (
+                  <div className="col-span-2 bg-[#060d1c] border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-400">
+                    Pilar keunggulan moat belum teridentifikasi
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400">Ketahanan Lintas Waktu:</span>
-              <span className="text-emerald-400 font-bold">{durability?.status || 'TAHAN'} (Konsistensi 4 Tahun Buku Terakhir)</span>
-            </div>
+            {durability?.status && (
+              <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-400">Ketahanan Lintas Waktu:</span>
+                <span className="text-emerald-400 font-bold">{durability.status} (Konsistensi 4 Tahun Buku Terakhir)</span>
+              </div>
+            )}
           </div>
 
           {/* 3D Earnings Monitor Section (5 Cols) */}
@@ -438,7 +439,7 @@ export default function FundamentalMoatEarningsExportCard3D({
               <div className="rounded-2xl border border-white/15 bg-[#061022] p-3 mb-3">
                 <div className="text-[10px] font-mono text-slate-400 uppercase">Jadwal Rilis Laporan Keuangan</div>
                 <div className="text-sm font-bold text-white mt-0.5">
-                  {upcomingEarnings?.date ? fmtDate(upcomingEarnings.date) : 'Rilis Kuartal Mendatang'}
+                  {upcomingEarnings?.date ? fmtDate(upcomingEarnings.date) : 'Jadwal rilis berikutnya'}
                 </div>
                 {upcomingEarnings?.fiscalQuarter && (
                   <div className={`text-[10px] font-mono ${activeTheme.accentText} mt-0.5`}>{upcomingEarnings.fiscalQuarter}</div>
@@ -451,27 +452,33 @@ export default function FundamentalMoatEarningsExportCard3D({
                   <div>
                     <div className="text-[9.5px] font-mono text-slate-400 uppercase">Konsensus EPS Rata-rata</div>
                     <div className="text-sm font-bold font-number text-white mt-0.5">
-                      {earningsExpectation?.eps?.average != null ? formatCompact(earningsExpectation.eps.average, earningsExpectation.eps.currency ?? 'Rp') : (fundamentals.trailingPE && price ? `Rp ${(price / fundamentals.trailingPE).toFixed(0)}` : 'Prospek Positif')}
+                      {formatCompact(earningsExpectation?.eps?.average ?? null, earningsExpectation?.eps?.currency ?? null)}
                     </div>
                   </div>
-                  <span className="text-xs font-mono text-emerald-400 font-bold">
-                    +{earningsExpectation?.eps?.growth ?? 12.5}%
-                  </span>
+                  {earningsExpectation?.eps?.growth != null && (
+                    <span className="text-xs font-mono text-emerald-400 font-bold">
+                      +{earningsExpectation.eps.growth}%
+                    </span>
+                  )}
                 </div>
 
-                <div className="bg-[#060d1c] border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between">
-                  <div>
-                    <div className="text-[9.5px] font-mono text-slate-400 uppercase">
-                      Hasil LK Terakhir ({latestEarningsQuarter?.quarter || 'Q-Terakhir'})
+                {latestEarningsQuarter && (
+                  <div className="bg-[#060d1c] border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[9.5px] font-mono text-slate-400 uppercase">
+                        Hasil LK Terakhir ({latestEarningsQuarter.quarter || 'Q-Terakhir'})
+                      </div>
+                      <div className="text-xs font-bold text-white mt-0.5">
+                        Aktual: {latestEarningsQuarter.actualEps != null ? latestEarningsQuarter.actualEps : '-'} vs Est: {latestEarningsQuarter.estimatedEps != null ? latestEarningsQuarter.estimatedEps : '-'}
+                      </div>
                     </div>
-                    <div className="text-xs font-bold text-white mt-0.5">
-                      {latestEarningsQuarter?.actualEps != null ? `Aktual: ${latestEarningsQuarter.actualEps} vs Est: ${latestEarningsQuarter.estimatedEps ?? '-'}` : 'Kinerja Tumbuh Sesuai Target'}
-                    </div>
+                    {latestEarningsQuarter.status && (
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-black ${latestEarningsQuarter.status === 'BEAT' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}`}>
+                        {latestEarningsQuarter.status}
+                      </span>
+                    )}
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-mono font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    {latestEarningsQuarter?.status || 'BEAT TARGET'}
-                  </span>
-                </div>
+                )}
               </div>
             </div>
 
@@ -482,7 +489,7 @@ export default function FundamentalMoatEarningsExportCard3D({
         </div>
 
         {/* =========================================================================
-         * 5. VALUATION SPECTRUM & SHAREHOLDER STRUCTURE (100% REAL DATA - ZERO N/A)
+         * 5. VALUATION SPECTRUM & SHAREHOLDER STRUCTURE (100% REAL DATA)
          * ========================================================================= */}
         <div className="grid grid-cols-12 gap-5">
           {/* Valuation Spectrum & Fair Value Band (6 Cols) */}
@@ -502,23 +509,25 @@ export default function FundamentalMoatEarningsExportCard3D({
                   <div>
                     <div className="text-[10px] text-slate-400 uppercase">Nilai Wajar Konsensus</div>
                     <div className="text-lg font-black font-number text-white mt-0.5">
-                      Rp {fairVal ? fairVal.toLocaleString('id-ID') : '-'}
+                      {fairVal ? `Rp ${fairVal.toLocaleString('id-ID')}` : '-'}
                     </div>
                   </div>
-                  <div className={`px-3 py-1.5 rounded-xl text-xs font-black border ${valStatus.includes('UNDER') ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'}`}>
-                    MoS: {mosVal != null ? `${mosVal > 0 ? '+' : ''}${mosVal}%` : '+15.0%'} ({valStatus})
-                  </div>
+                  {valStatus && (
+                    <div className={`px-3 py-1.5 rounded-xl text-xs font-black border ${valStatus.includes('UNDER') ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'}`}>
+                      {mosVal != null ? `MoS: ${mosVal > 0 ? '+' : ''}${mosVal}% ` : ''}({valStatus})
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2.5">
                     <div className="text-slate-400 text-[9.5px]">Metode Penilaian</div>
-                    <div className="text-white font-bold mt-0.5 truncate">{valMethod}</div>
+                    <div className="text-white font-bold mt-0.5 truncate">{valMethod || 'Kuantitatif Absolut'}</div>
                   </div>
                   <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2.5">
-                    <div className="text-slate-400 text-[9.5px]">P/E vs Sektor</div>
+                    <div className="text-slate-400 text-[9.5px]">P/E Valuasi</div>
                     <div className="text-emerald-400 font-bold mt-0.5">
-                      {fmtKali(fundamentals.trailingPE)} <span className="text-slate-400 font-normal">(Valuasi Sehat)</span>
+                      {fmtKali(fundamentals.trailingPE)}
                     </div>
                   </div>
                 </div>
@@ -545,27 +554,33 @@ export default function FundamentalMoatEarningsExportCard3D({
                 <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
                   <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2">
                     <div className="text-[9px] text-cyan-400 font-bold">Asing (Foreign)</div>
-                    <div className="text-white font-black text-sm mt-0.5">{foreignPct.toFixed(1)}%</div>
+                    <div className="text-white font-black text-sm mt-0.5">
+                      {foreignPct != null ? `${foreignPct.toFixed(1)}%` : '-'}
+                    </div>
                   </div>
                   <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2">
                     <div className="text-[9px] text-amber-400 font-bold">Domestik (Lokal)</div>
-                    <div className="text-white font-black text-sm mt-0.5">{localPct.toFixed(1)}%</div>
+                    <div className="text-white font-black text-sm mt-0.5">
+                      {localPct != null ? `${localPct.toFixed(1)}%` : '-'}
+                    </div>
                   </div>
                   <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2">
                     <div className="text-[9px] text-emerald-400 font-bold">Scripless</div>
-                    <div className="text-emerald-400 font-black text-sm mt-0.5">{scriplessPct.toFixed(1)}%</div>
+                    <div className="text-emerald-400 font-black text-sm mt-0.5">
+                      {scriplessPct != null ? `${scriplessPct.toFixed(1)}%` : '-'}
+                    </div>
                   </div>
                 </div>
 
                 <p className="text-[10px] leading-relaxed text-slate-300 font-sans line-clamp-3 bg-[#060d1c]/80 p-2.5 rounded-xl border border-slate-800">
-                  {profile.description || `${displaySymbol} adalah salah satu emiten terkemuka di sektor ${profile.sector || 'finansial'} Indonesia dengan pangsa pasar dan profitabilitas yang kuat.`}
+                  {profile.description || `${displaySymbol} adalah emiten terdaftar di Bursa Efek Indonesia pada sektor ${profile.sector || 'finansial'}.`}
                 </p>
               </div>
             </div>
 
             <div className="text-[9.5px] font-mono text-slate-400 border-t border-slate-800 pt-2 mt-2 flex justify-between">
-              <span>Delta Flow: <b className="text-emerald-400">1D: {delta1d >= 0 ? '+' : ''}{delta1d} pp</b> · <b className="text-emerald-400">7D: {delta7d >= 0 ? '+' : ''}{delta7d} pp</b></span>
-              <span>Tren: <b className={activeTheme.accentText}>{ownership?.trend || 'Akumulasi Institusi'}</b></span>
+              <span>Delta Flow: <b className="text-emerald-400">{delta1d != null ? `1D: ${delta1d >= 0 ? '+' : ''}${delta1d} pp` : '-'}</b> · <b className="text-emerald-400">{delta7d != null ? `7D: ${delta7d >= 0 ? '+' : ''}${delta7d} pp` : '-'}</b></span>
+              <span>Tren: <b className={activeTheme.accentText}>{ownership?.trend || '-'}</b></span>
             </div>
           </div>
         </div>

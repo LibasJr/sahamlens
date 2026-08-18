@@ -103,78 +103,78 @@ function getAnalyzerAnalyticalNote(a: TechnicalAnalyzerItem): string {
 
   if (label.includes('EMA')) {
     return isBull
-      ? 'EMA 20 berada di atas EMA 50 (Golden cross momentum naik)'
+      ? 'EMA 20 > EMA 50 (Golden cross momentum positif)'
       : isBear
-      ? 'EMA 20 di bawah EMA 50 (Death cross momentum turun)'
-      : 'Pita EMA bergerak datar dalam fase konsolidasi';
+      ? 'EMA 20 < EMA 50 (Death cross momentum negatif)'
+      : 'Pita EMA bergerak menyempit dalam konsolidasi';
   }
   if (label.includes('RSI')) {
     return isBull
-      ? 'RSI bergerak sehat di zona akumulasi (35-65)'
+      ? 'RSI bergerak di area akumulasi positif'
       : isBear
-      ? 'RSI tertekan atau mendekati batas jenuh jual/beli'
-      : 'RSI berada di kisaran netral 45-55';
+      ? 'RSI melemah / mendekati batas jenuh'
+      : 'RSI berada di kisaran netral';
   }
   if (label.includes('MACD')) {
     return isBull
-      ? 'MACD histogram positif di atas garis sinyal (Bullish expansion)'
+      ? 'MACD histogram positif di atas garis sinyal'
       : isBear
-      ? 'MACD histogram negatif di bawah sinyal (Bearish pressure)'
-      : 'MACD bergerak konvergen dekat garis ekuilibrium nol';
+      ? 'MACD histogram negatif di bawah sinyal'
+      : 'MACD konvergen dekat garis nol';
   }
   if (label.includes('VOLUME')) {
     return isBull
-      ? 'Volume perdagangan terkonfirmasi menguat di atas rata-rata'
+      ? 'Volume transaksi mengonfirmasi pergerakan harga'
       : isBear
-      ? 'Volume mencerminkan tekanan distribusi'
-      : 'Volume perdagangan bergerak normal sesuai rata-rata 20D';
+      ? 'Tekanan volume mengindikasikan distribusi'
+      : 'Volume transaksi normal sesuai rata-rata';
   }
   if (label.includes('TREND') || label.includes('MA')) {
     return isBull
-      ? 'Struktur MA bergerak berurutan (P > MA20 > MA50 > MA200)'
+      ? 'Struktur MA uptrend berurutan'
       : isBear
-      ? 'Harga berada di bawah rata-rata tren utama'
-      : 'Harga bergerak dalam batas rata-rata MA';
+      ? 'Harga tertahan di bawah moving average utama'
+      : 'Harga berkonsolidasi di sekitar MA';
   }
   if (label.includes('VOLATILITY') || label.includes('ATR')) {
     return isBull
       ? 'Rentang volatilitas harian teratur dan terukur'
       : isBear
       ? 'Rentang volatilitas harian melebar'
-      : 'Volatilitas stabil dalam kisaran rata-rata historis';
+      : 'Volatilitas stabil dalam kisaran normal';
   }
   if (label.includes('MOMENTUM')) {
     return isBull
-      ? 'Akselerasi harga 10D & 50D menunjukkan dorongan naik'
+      ? 'Akselerasi harga menunjukkan dorongan beli'
       : isBear
-      ? 'Momentum harga jangka pendek mengalami deselerasi'
-      : 'Momentum harga bergerak stabil tanpa divergensi tajam';
+      ? 'Momentum harga mengalami deselerasi'
+      : 'Momentum harga bergerak datar';
   }
   if (label.includes('SUPPORT') || label.includes('RESIST')) {
     return isBull
-      ? 'Pullback bertahan kokoh di atas support struktural'
+      ? 'Pullback bertahan di atas level support'
       : isBear
-      ? 'Harga menguji level resistance kuat'
-      : 'Pergerakan harga berada di dalam koridor rentang support-resistance';
+      ? 'Harga menguji level resistance'
+      : 'Harga berada di dalam koridor rentang';
   }
   if (label.includes('LENSFLOW') || label.includes('ASING')) {
     return isBull
-      ? 'Estimasi arus modal institusi / asing mencatatkan akumulasi'
+      ? 'Estimasi arus modal institusi/asing mencatatkan akumulasi'
       : isBear
-      ? 'Estimasi arus modal institusi / asing mencatatkan distribusi'
-      : 'Estimasi arus modal institusi / asing dalam posisi seimbang';
+      ? 'Estimasi arus modal institusi/asing mencatatkan distribusi'
+      : 'Estimasi arus modal institusi/asing berimbang';
   }
   if (label.includes('BANDARMOLOGY') || label.includes('CMF')) {
     return isBull
-      ? 'Chaikin Money Flow mencerminkan akumulasi likuiditas'
+      ? 'Chaikin Money Flow positif (akumulasi likuiditas)'
       : isBear
-      ? 'Chaikin Money Flow mencerminkan tekanan jual likuiditas'
-      : 'Money flow berimbang di sekitar level netral';
+      ? 'Chaikin Money Flow negatif (distribusi likuiditas)'
+      : 'Chaikin Money Flow di sekitar level netral';
   }
   return isBull
-    ? 'Indikator kuantitatif mengindikasikan struktur positif'
+    ? 'Indikator kuantitatif mengindikasikan sinyal positif'
     : isBear
-    ? 'Indikator kuantitatif mengindikasikan kewaspadaan'
+    ? 'Indikator kuantitatif mengindikasikan sinyal waspada'
     : 'Indikator kuantitatif berada dalam batas normal';
 }
 
@@ -184,7 +184,7 @@ export default function TechnicalExportCard3D({
   currentPrice = 0,
   changePct = null,
   volume = null,
-  consensusLabel = 'HOLD',
+  consensusLabel = 'DATA N/A',
   consensusTone = 'neutral',
   score = null,
   scoreBreakdown = {},
@@ -223,7 +223,7 @@ export default function TechnicalExportCard3D({
     ? 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.5)]'
     : 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.5)]';
 
-  // Sub-scores calculations
+  // Sub-scores calculations (Zero dummy fallback)
   const rawTech = scoreBreakdown.technical;
   const safeTechScore = rawTech == null ? null : rawTech > 40 ? Math.round((rawTech / 100) * 40) : Math.round(rawTech);
   const rawFlow = scoreBreakdown.flow ?? scoreBreakdown.moneyFlow;
@@ -239,39 +239,23 @@ export default function TechnicalExportCard3D({
     .filter((a) => a.value !== 'N/A' && a.value !== null && a.value !== undefined)
     .slice(0, 8);
 
-  // Resolved Pivot Points
-  const resolvedPP = pivots?.pp ?? (currentPrice ? Math.round(currentPrice) : null);
-  const resolvedS1 = pivots?.s1 ?? (tradeSetup?.support?.price ?? (resolvedPP && currentPrice ? Math.round(resolvedPP * 0.985) : null));
-  const resolvedS2 = pivots?.s2 ?? (tradeSetup?.nearestSupport?.price ?? (resolvedS1 ? Math.round(resolvedS1 * 0.98) : null));
-  const resolvedR1 = pivots?.r1 ?? (tradeSetup?.resistance?.price ?? (resolvedPP && currentPrice ? Math.round(resolvedPP * 1.015) : null));
-  const resolvedR2 = pivots?.r2 ?? (resolvedR1 ? Math.round(resolvedR1 * 1.02) : null);
+  // Resolved Pivot Points from actual calculation
+  const resolvedPP = pivots?.pp ?? null;
+  const resolvedS1 = pivots?.s1 ?? (tradeSetup?.support?.price ?? null);
+  const resolvedS2 = pivots?.s2 ?? (tradeSetup?.nearestSupport?.price ?? null);
+  const resolvedR1 = pivots?.r1 ?? (tradeSetup?.resistance?.price ?? null);
+  const resolvedR2 = pivots?.r2 ?? null;
 
   // Resolved Trading Plan (Entry, Stop, TP1, TP2, R:R)
-  const entryPrice = tradingPlan?.entryZone ? tradingPlan.entryZone[0] : (tradeSetup?.entry ?? (currentPrice ? Math.round(currentPrice * 0.99) : null));
-  const stopLoss = tradingPlan?.stopLoss ?? (tradeSetup?.stop ?? (resolvedS1 ? Math.round(resolvedS1 * 0.985) : null));
-  const tp1 = tradingPlan?.targetPrice1 ?? (tradeSetup?.tp1 ?? (resolvedR1 ? resolvedR1 : null));
-  const tp2 = tradingPlan?.targetPrice2 ?? (tradeSetup?.tp2 ?? (resolvedR2 ? resolvedR2 : null));
-  const rrRatio = tradingPlan?.riskRewardRatio ?? (tradeSetup?.rr ? `1 : ${tradeSetup.rr.toFixed(1)}` : '1 : 2.0+');
-
-  // Resolved Multi-Timeframe Trends
-  const trend1D = trends.find((t) => t.timeframe === 'SHORT_TERM') ?? {
-    label: 'Harian (1D/20D)',
-    status: isPositive ? 'BULLISH' : 'NEUTRAL',
-    detail: currentPrice ? `Harga Rp ${currentPrice.toLocaleString('id-ID')}` : 'Sesi harian',
-  };
-  const trend1W = trends.find((t) => t.timeframe === 'MEDIUM_TERM') ?? {
-    label: 'Mingguan (1W/50D)',
-    status: safeTechScore != null && safeTechScore >= 20 ? 'BULLISH' : 'NEUTRAL',
-    detail: 'MA50 medium-term',
-  };
-  const trend1M = trends.find((t) => t.timeframe === 'LONG_TERM') ?? {
-    label: 'Bulanan (1M/200D)',
-    status: displayScore != null && displayScore >= 60 ? 'BULLISH' : 'NEUTRAL',
-    detail: 'MA200 benchmark',
-  };
+  const entryPrice = tradingPlan?.entryZone ? tradingPlan.entryZone[0] : (tradeSetup?.entry ?? null);
+  const stopLoss = tradingPlan?.stopLoss ?? (tradeSetup?.stop ?? null);
+  const tp1 = tradingPlan?.targetPrice1 ?? (tradeSetup?.tp1 ?? null);
+  const tp2 = tradingPlan?.targetPrice2 ?? (tradeSetup?.tp2 ?? null);
+  const rrRatio = tradingPlan?.riskRewardRatio ?? (tradeSetup?.rr ? `1 : ${tradeSetup.rr.toFixed(1)}` : null);
 
   // 52-Week Range Position
-  const pos52w = range52w?.positionPct != null ? Math.max(0, Math.min(100, Math.round(range52w.positionPct))) : 50;
+  const hasRange52w = range52w?.high52w != null && range52w?.low52w != null && range52w.high52w > range52w.low52w;
+  const pos52w = range52w?.positionPct != null ? Math.max(0, Math.min(100, Math.round(range52w.positionPct))) : null;
 
   return (
     <div
@@ -362,7 +346,7 @@ export default function TechnicalExportCard3D({
                   {stockName || (displaySymbol === 'IHSG' ? 'Indeks Harga Saham Gabungan (IHSG)' : `${displaySymbol} Tbk`)}
                 </div>
                 <div className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-3">
-                  <span>Vol: <b className="text-white">{volume != null ? `${(volume / 1000000).toFixed(1)}M` : 'Aktif'}</b></span>
+                  <span>Vol: <b className="text-white">{volume != null ? `${(volume / 1000000).toFixed(1)}M` : '-'}</b></span>
                   <span className="text-slate-600">•</span>
                   <span>Multi-Timeframe Analisis Terpadu</span>
                 </div>
@@ -377,13 +361,11 @@ export default function TechnicalExportCard3D({
                 <div className="text-3xl font-black font-number text-white mt-0.5 tracking-tight">
                   Rp {currentPrice ? currentPrice.toLocaleString('id-ID') : '-'}
                 </div>
-                {changePct != null ? (
+                {changePct != null && (
                   <div className={`mt-0.5 inline-flex items-center gap-1 text-xs font-mono font-extrabold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                     {isPositive ? '+' : ''}{changePct}%
                   </div>
-                ) : (
-                  <div className="text-[10px] font-mono text-slate-400 mt-0.5">Sesi Berjalan</div>
                 )}
               </div>
 
@@ -398,8 +380,8 @@ export default function TechnicalExportCard3D({
             </div>
           </div>
 
-          {/* 52-Week Range Bar (High Impact on Stockbit Stream) */}
-          {range52w && (
+          {/* 52-Week Range Bar (Only shown when calculated data exists) */}
+          {hasRange52w && pos52w != null && (
             <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between gap-4 text-xs font-mono">
               <div className="flex items-center gap-2 text-slate-400 shrink-0">
                 <SlidersHorizontal className={`w-3.5 h-3.5 ${activeTheme.accentText}`} />
@@ -474,7 +456,7 @@ export default function TechnicalExportCard3D({
                 </svg>
                 <div className="absolute bottom-1 text-center">
                   <div className="text-4xl font-black font-number text-white tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
-                    {displayScore ?? (safeTechScore != null ? safeTechScore : '75')}
+                    {displayScore != null ? displayScore : '-'}
                   </div>
                   <div className={`text-[10px] font-mono font-bold ${activeTheme.accentTextSecondary} uppercase tracking-widest`}>
                     Skor Total / 100
@@ -486,15 +468,15 @@ export default function TechnicalExportCard3D({
             <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
               <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2">
                 <div className="text-slate-400 text-[9px]">Technical</div>
-                <div className="text-emerald-400 font-bold text-xs mt-0.5">{safeTechScore != null ? `${safeTechScore}/40` : '28/40'}</div>
+                <div className="text-emerald-400 font-bold text-xs mt-0.5">{safeTechScore != null ? `${safeTechScore}/40` : '-'}</div>
               </div>
               <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2">
                 <div className="text-slate-400 text-[9px]">Flow / Bandar</div>
-                <div className={`${activeTheme.accentText} font-bold text-xs mt-0.5`}>{safeFlowScore != null ? `${safeFlowScore}/30` : '22/30'}</div>
+                <div className={`${activeTheme.accentText} font-bold text-xs mt-0.5`}>{safeFlowScore != null ? `${safeFlowScore}/30` : '-'}</div>
               </div>
               <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2">
                 <div className="text-slate-400 text-[9px]">Fundamental</div>
-                <div className="text-amber-400 font-bold text-xs mt-0.5">{safeFundScore != null ? `${safeFundScore}/30` : '24/30'}</div>
+                <div className="text-amber-400 font-bold text-xs mt-0.5">{safeFundScore != null ? `${safeFundScore}/30` : '-'}</div>
               </div>
             </div>
           </div>
@@ -508,35 +490,51 @@ export default function TechnicalExportCard3D({
                   <span>Distribusi Keselarasan Sinyal AI</span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400">
-                  {displayAnalyzers.length || 8} Dimensi Analisis Aktif
+                  {displayAnalyzers.length} Dimensi Analisis Aktif
                 </span>
               </div>
 
               {/* 3D Tube Energy Progress Bar */}
               <div className="mb-3">
-                <div className="flex justify-between text-xs font-mono font-bold mb-1.5">
-                  <span className="text-emerald-400">{buyPct ?? 65}% BULLISH</span>
-                  <span className="text-amber-400">{neutralPct ?? 25}% NETRAL</span>
-                  <span className="text-rose-400">{sellPct ?? 10}% BEARISH</span>
-                </div>
-                <div className="h-5 w-full bg-[#050b18] rounded-full p-1 border border-slate-700 flex overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
-                  <div
-                    style={{ width: `${buyPct ?? 65}%` }}
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-l-full shadow-[0_0_12px_rgba(16,185,129,0.7)]"
-                  />
-                  <div
-                    style={{ width: `${neutralPct ?? 25}%` }}
-                    className="h-full bg-gradient-to-r from-amber-500 to-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]"
-                  />
-                  <div
-                    style={{ width: `${sellPct ?? 10}%` }}
-                    className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-r-full shadow-[0_0_12px_rgba(244,63,94,0.7)]"
-                  />
-                </div>
+                {hasDistribution ? (
+                  <>
+                    <div className="flex justify-between text-xs font-mono font-bold mb-1.5">
+                      <span className="text-emerald-400">{buyPct}% BULLISH</span>
+                      <span className="text-amber-400">{neutralPct}% NETRAL</span>
+                      <span className="text-rose-400">{sellPct}% BEARISH</span>
+                    </div>
+                    <div className="h-5 w-full bg-[#050b18] rounded-full p-1 border border-slate-700 flex overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
+                      {buyPct! > 0 && (
+                        <div
+                          style={{ width: `${buyPct}%` }}
+                          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-l-full shadow-[0_0_12px_rgba(16,185,129,0.7)]"
+                        />
+                      )}
+                      {neutralPct! > 0 && (
+                        <div
+                          style={{ width: `${neutralPct}%` }}
+                          className="h-full bg-gradient-to-r from-amber-500 to-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]"
+                        />
+                      )}
+                      {sellPct! > 0 && (
+                        <div
+                          style={{ width: `${sellPct}%` }}
+                          className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-r-full shadow-[0_0_12px_rgba(244,63,94,0.7)]"
+                        />
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-slate-700 bg-[#050b18] p-3 text-xs text-slate-400">
+                    Distribusi sinyal sedang diproses.
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-[#050e20]/80 p-3 text-xs leading-relaxed text-slate-300 font-sans">
-                {summaryText || `Konsensus ${displaySymbol}: ${buyPct ?? 65}% dimensi teknikal condong bullish, ${neutralPct ?? 25}% netral, dan ${sellPct ?? 10}% bearish berdasarkan model kuantitatif terverifikasi.`}
+                {summaryText || (hasDistribution
+                  ? `Konsensus ${displaySymbol}: ${buyPct}% dimensi teknikal condong bullish, ${neutralPct}% netral, dan ${sellPct}% bearish berdasarkan model kuantitatif terverifikasi.`
+                  : `Konsensus ${displaySymbol}: hasil pembacaan arah berdasarkan indikator teknikal aktif.`)}
               </div>
             </div>
 
@@ -544,13 +542,13 @@ export default function TechnicalExportCard3D({
               <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2.5 flex items-center justify-between">
                 <span className="text-[11px] font-mono text-slate-400">Bandarmology (CMF)</span>
                 <span className="text-xs font-mono font-black text-emerald-400">
-                  {flowDetails?.cmf20 != null ? `CMF20: ${flowDetails.cmf20 > 0 ? '+' : ''}${flowDetails.cmf20}%` : 'Akumulasi Aktif'}
+                  {flowDetails?.cmf20 != null ? `CMF20: ${flowDetails.cmf20 > 0 ? '+' : ''}${flowDetails.cmf20}%` : (flowDetails?.bandarmologyStatus || '-')}
                 </span>
               </div>
               <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2.5 flex items-center justify-between">
                 <span className="text-[11px] font-mono text-slate-400">Arus Modal / Asing</span>
                 <span className={`text-xs font-mono font-black ${activeTheme.accentText}`}>
-                  {flowDetails?.foreignFlowStatus || 'Inflow Terkonfirmasi'}
+                  {flowDetails?.foreignFlowStatus || '-'}
                 </span>
               </div>
             </div>
@@ -604,7 +602,7 @@ export default function TechnicalExportCard3D({
                       </div>
 
                       <div className="text-xs font-mono font-black text-white tracking-tight mt-1 truncate">
-                        {a.value ?? 'Terkonfirmasi'}
+                        {a.value ?? '-'}
                       </div>
                     </div>
 
@@ -620,13 +618,13 @@ export default function TechnicalExportCard3D({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-700 bg-[#050b18] p-4 text-xs text-slate-400">
-              Memuat kalkulasi 8 indikator teknikal...
+              Analyzer teknikal tidak tersedia pada instrumen ini.
             </div>
           )}
         </div>
 
         {/* =========================================================================
-         * 5. KEY TRADING LEVELS & ATR TRADING PLAN GRID (100% REAL DATA - NO N/A)
+         * 5. KEY TRADING LEVELS & ATR TRADING PLAN GRID (100% REAL DATA)
          * ========================================================================= */}
         <div className="grid grid-cols-12 gap-5">
           {/* Key Trading Levels & Pivot Point (7 Cols) */}
@@ -645,31 +643,31 @@ export default function TechnicalExportCard3D({
                 <div className="bg-[#050b18] border border-rose-500/30 rounded-xl p-2">
                   <div className="text-[8.5px] text-rose-400 font-bold">SUPPORT 2</div>
                   <div className="text-white font-black text-xs sm:text-sm mt-0.5">
-                    Rp {resolvedS2 ? resolvedS2.toLocaleString('id-ID') : '-'}
+                    {resolvedS2 ? `Rp ${resolvedS2.toLocaleString('id-ID')}` : '-'}
                   </div>
                 </div>
                 <div className="bg-[#050b18] border border-amber-500/30 rounded-xl p-2">
                   <div className="text-[8.5px] text-amber-400 font-bold">SUPPORT 1</div>
                   <div className="text-white font-black text-xs sm:text-sm mt-0.5">
-                    Rp {resolvedS1 ? resolvedS1.toLocaleString('id-ID') : '-'}
+                    {resolvedS1 ? `Rp ${resolvedS1.toLocaleString('id-ID')}` : '-'}
                   </div>
                 </div>
                 <div className="bg-[#050b18] border border-cyan-500/40 rounded-xl p-2 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
                   <div className={`text-[8.5px] ${activeTheme.accentText} font-bold`}>PIVOT POINT</div>
                   <div className="text-white font-black text-xs sm:text-sm mt-0.5">
-                    Rp {resolvedPP ? resolvedPP.toLocaleString('id-ID') : '-'}
+                    {resolvedPP ? `Rp ${resolvedPP.toLocaleString('id-ID')}` : '-'}
                   </div>
                 </div>
                 <div className="bg-[#050b18] border border-blue-500/30 rounded-xl p-2">
                   <div className="text-[8.5px] text-blue-400 font-bold">RESIST 1</div>
                   <div className="text-white font-black text-xs sm:text-sm mt-0.5">
-                    Rp {resolvedR1 ? resolvedR1.toLocaleString('id-ID') : '-'}
+                    {resolvedR1 ? `Rp ${resolvedR1.toLocaleString('id-ID')}` : '-'}
                   </div>
                 </div>
                 <div className="bg-[#050b18] border border-emerald-500/30 rounded-xl p-2">
                   <div className="text-[8.5px] text-emerald-400 font-bold">RESIST 2</div>
                   <div className="text-white font-black text-xs sm:text-sm mt-0.5">
-                    Rp {resolvedR2 ? resolvedR2.toLocaleString('id-ID') : '-'}
+                    {resolvedR2 ? `Rp ${resolvedR2.toLocaleString('id-ID')}` : '-'}
                   </div>
                 </div>
               </div>
@@ -680,24 +678,24 @@ export default function TechnicalExportCard3D({
               <div className="bg-[#040914] border border-slate-800 rounded-lg p-1.5">
                 <span className="text-[8.5px] text-slate-400 uppercase">Entry Zone</span>
                 <div className="text-white font-bold text-[11px] mt-0.5">
-                  Rp {entryPrice ? entryPrice.toLocaleString('id-ID') : '-'}
+                  {entryPrice ? `Rp ${entryPrice.toLocaleString('id-ID')}` : '-'}
                 </div>
               </div>
               <div className="bg-[#040914] border border-slate-800 rounded-lg p-1.5">
                 <span className="text-[8.5px] text-emerald-400 uppercase">Target (TP1)</span>
                 <div className="text-emerald-400 font-bold text-[11px] mt-0.5">
-                  Rp {tp1 ? tp1.toLocaleString('id-ID') : '-'}
+                  {tp1 ? `Rp ${tp1.toLocaleString('id-ID')}` : '-'}
                 </div>
               </div>
               <div className="bg-[#040914] border border-slate-800 rounded-lg p-1.5">
                 <span className="text-[8.5px] text-rose-400 uppercase">Cut Loss (CL)</span>
                 <div className="text-rose-400 font-bold text-[11px] mt-0.5">
-                  Rp {stopLoss ? stopLoss.toLocaleString('id-ID') : '-'}
+                  {stopLoss ? `Rp ${stopLoss.toLocaleString('id-ID')}` : '-'}
                 </div>
               </div>
               <div className="bg-[#040914] border border-slate-800 rounded-lg p-1.5">
                 <span className="text-[8.5px] text-cyan-400 uppercase">Risk : Reward</span>
-                <div className="text-cyan-400 font-bold text-[11px] mt-0.5">{rrRatio}</div>
+                <div className="text-cyan-400 font-bold text-[11px] mt-0.5">{rrRatio || '-'}</div>
               </div>
             </div>
           </div>
@@ -713,39 +711,28 @@ export default function TechnicalExportCard3D({
                 <span className="text-[10px] font-mono font-bold text-slate-400">Alignment Sistemik</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
-                {/* 1D */}
-                <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2.5">
-                  <div className="text-[9px] text-slate-400 uppercase font-bold">{trend1D.label.split(' ')[0]}</div>
-                  <div className={`font-black text-xs mt-1 ${trend1D.status === 'BULLISH' ? 'text-emerald-400' : trend1D.status === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}`}>
-                    {trend1D.status}
-                  </div>
-                  <div className="text-[8.5px] text-slate-400 mt-0.5 truncate">{trend1D.detail}</div>
+              {trends.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                  {trends.slice(0, 3).map((tr, idx) => (
+                    <div key={idx} className="bg-[#050b18] border border-slate-800 rounded-xl p-2.5">
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">{tr.label.split(' ')[0]}</div>
+                      <div className={`font-black text-xs mt-1 ${tr.status === 'BULLISH' ? 'text-emerald-400' : tr.status === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}`}>
+                        {tr.status}
+                      </div>
+                      <div className="text-[8.5px] text-slate-400 mt-0.5 truncate">{tr.detail}</div>
+                    </div>
+                  ))}
                 </div>
-
-                {/* 1W */}
-                <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2.5">
-                  <div className="text-[9px] text-slate-400 uppercase font-bold">{trend1W.label.split(' ')[0]}</div>
-                  <div className={`font-black text-xs mt-1 ${trend1W.status === 'BULLISH' ? 'text-emerald-400' : trend1W.status === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}`}>
-                    {trend1W.status}
-                  </div>
-                  <div className="text-[8.5px] text-slate-400 mt-0.5 truncate">{trend1W.detail}</div>
+              ) : (
+                <div className="bg-[#050b18] border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-400 font-mono">
+                  Deret timeframe belum tersedia
                 </div>
-
-                {/* 1M */}
-                <div className="bg-[#050b18] border border-slate-800 rounded-xl p-2.5">
-                  <div className="text-[9px] text-slate-400 uppercase font-bold">{trend1M.label.split(' ')[0]}</div>
-                  <div className={`font-black text-xs mt-1 ${trend1M.status === 'BULLISH' ? 'text-emerald-400' : trend1M.status === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}`}>
-                    {trend1M.status}
-                  </div>
-                  <div className="text-[8.5px] text-slate-400 mt-0.5 truncate">{trend1M.detail}</div>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="text-[9.5px] font-mono text-slate-400 border-t border-slate-800 pt-2.5 mt-2.5 flex justify-between items-center">
-              <span>Arus Broker: <b className="text-emerald-400">{flowDetails?.foreignFlowStatus || 'Akumulasi Asing'}</b></span>
-              <span>Spike Vol: <b className={activeTheme.accentText}>{volume != null ? 'Terkonfirmasi' : 'Normal'}</b></span>
+              <span>Arus Broker: <b className="text-emerald-400">{flowDetails?.foreignFlowStatus || '-'}</b></span>
+              <span>Spike Vol: <b className={activeTheme.accentText}>{volume != null ? 'Terkonfirmasi' : '-'}</b></span>
             </div>
           </div>
         </div>
