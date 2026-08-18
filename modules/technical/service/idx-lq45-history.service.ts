@@ -50,7 +50,9 @@ export interface AppliedIdxHistoryResult {
   idxRows: number;
   yahooRows: number;
   overlapRows: number;
-  latestCloseReconciliation: 'MATCH' | 'MISMATCH' | 'NO_OVERLAP' | 'IDX_ONLY';
+  /** YAHOO_ONLY = IDX tidak mengembalikan apa pun (flag mati, di luar LQ45, circuit
+   *  terbuka, atau fetch gagal) sehingga seluruh baris berasal dari Yahoo. */
+  latestCloseReconciliation: 'MATCH' | 'MISMATCH' | 'NO_OVERLAP' | 'IDX_ONLY' | 'YAHOO_ONLY';
 }
 
 function objectRows(payload: unknown): Record<string, unknown>[] {
@@ -330,7 +332,7 @@ export async function applyIdxLq45EodPrimary(
       idxRows: 0,
       yahooRows: yahooHistory.length,
       overlapRows: 0,
-      latestCloseReconciliation: 'IDX_ONLY',
+      latestCloseReconciliation: 'YAHOO_ONLY',
     };
   }
 
