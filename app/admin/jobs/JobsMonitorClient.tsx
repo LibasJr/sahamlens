@@ -53,7 +53,17 @@ interface CacheRow {
 // Diagnosis ditulis sebagai kalimat, bukan cuma badge status. Perbedaan antara "tidak
 // pernah dipanggil", "dipanggil lalu ditolak", dan "dipanggil lalu dilewati" menentukan
 // tindakan yang sama sekali berbeda - dan itulah persis yang dulu tidak bisa dibedakan.
+function isDisabledByPolicy(job: JobRow): boolean {
+  return job.scheduleStatus === 'disabled-by-policy';
+}
+
 function diagnose(job: JobRow): { tone: 'ok' | 'warn' | 'bad'; text: string } {
+  if (isDisabledByPolicy(job)) {
+    return {
+      tone: 'warn',
+      text: job.source || 'Dinonaktifkan sesuai kebijakan integritas data. Scheduler tidak boleh menjalankan job ini sampai sumber datanya terverifikasi.',
+    };
+  }
   if (!job.lastStatus) {
     return job.scheduleStatus === 'verify-dashboard'
       ? { tone: 'bad', text: 'Belum pernah tercatat sekali pun. Jadwalnya juga belum terverifikasi di repo - kemungkinan besar cron ini memang belum terdaftar di QStash.' }
@@ -267,7 +277,7 @@ export default function JobsMonitorClient() {
                   <div className="mt-0.5 font-mono text-[11px] text-tv-muted">{job.path}</div>
                 </div>
                 <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${BADGE_CLASS[d.tone]}`}>
-                  {job.lastStatus ?? 'BELUM ADA CATATAN'}
+                  {isDisabledByPolicy(job) ? 'DINONAKTIFKAN' : (job.lastStatus ?? 'BELUM ADA CATATAN')}
                 </span>
               </div>
 
@@ -293,11 +303,13 @@ export default function JobsMonitorClient() {
               </div>
 
               <div className="mt-3 text-xs text-tv-muted">
-                Jadwal: {job.schedule
-                  ? <code className="font-mono text-tv-text">{job.schedule}</code>
-                  : job.provider === 'systemd' && job.source.includes('BELUM dipasang')
-                    ? <span className="text-tv-yellow">belum terpasang otomatis di VPS — pengumpulan manual tetap dapat berjalan</span>
-                    : <span className="text-tv-yellow">belum terverifikasi ({job.provider})</span>}
+                Jadwal: {isDisabledByPolicy(job)
+                  ? <span className="font-semibold text-tv-yellow">dinonaktifkan oleh kebijakan integritas data</span>
+                  : job.schedule
+                    ? <code className="font-mono text-tv-text">{job.schedule}</code>
+                    : job.provider === 'systemd' && job.source.includes('BELUM dipasang')
+                      ? <span className="text-tv-yellow">belum terpasang otomatis di VPS — pengumpulan manual tetap dapat berjalan</span>
+                      : <span className="text-tv-yellow">belum terverifikasi ({job.provider})</span>}
               </div>
 
               {job.lastErrorMessage && (

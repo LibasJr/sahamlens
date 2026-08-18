@@ -13,7 +13,7 @@
           "path": { "type": "string", "pattern": "^/api/cron/" },
           "provider": { "enum": ["vercel", "qstash", "systemd"] },
           "schedule": { "type": ["string", "null"] },
-          "scheduleStatus": { "enum": ["known", "verify-dashboard", "verify-server"] },
+          "scheduleStatus": { "enum": ["known", "verify-dashboard", "verify-server", "disabled-by-policy"] },
           "source": { "type": "string" }
         },
         "additionalProperties": false
