@@ -154,9 +154,6 @@ export default function FundamentalMoatEarningsExportCard3D({
   const activeMoat = moat ?? null;
   const moatStatusStyle = activeMoat ? STATUS_STYLE[activeMoat.status] : STATUS_STYLE['DATA TERBATAS'];
 
-  // Score resolution (Zero dummy fallback)
-  const fundScore = scoring?.totalScore ?? (scoring?.breakdown?.fundamental != null ? Math.round((scoring.breakdown.fundamental / 30) * 100) : null);
-
   // Smart Ratios List - Filter valid only
   const allCandidateRatios: Array<{ code: string; name: string; val: string | null; desc: string; tone?: 'emerald' | 'amber' | 'blue' | 'cyan' }> = [
     { code: 'ROE', name: 'Return on Equity', val: fmtPersen(fundamentals.returnOnEquity), desc: 'Efisiensi Ekuitas', tone: 'emerald' },
@@ -297,15 +294,15 @@ export default function FundamentalMoatEarningsExportCard3D({
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="rounded-2xl border border-slate-700/90 bg-[#020712]/95 px-5 py-3 shadow-inner text-center min-w-[140px]">
+              <div className="rounded-2xl border border-slate-700/90 bg-[#020712]/95 px-5 py-3 shadow-inner text-center min-w-[150px]">
                 <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                  LensScore Fundamental
+                  Moat Keunggulan Bisnis
                 </div>
-                <div className={`text-2xl font-black font-number ${activeTheme.accentText} mt-0.5`}>
-                  {fundScore != null ? `${fundScore}/100` : '-'}
+                <div className={`text-2xl font-black font-heading ${activeMoat?.status === 'KUAT' ? 'text-emerald-400' : activeMoat?.status === 'CAMPURAN' ? 'text-amber-400' : activeMoat?.status === 'LEMAH' ? 'text-rose-400' : 'text-slate-300'} mt-0.5`}>
+                  {activeMoat?.status ?? 'DATA TERBATAS'}
                 </div>
                 <div className={`text-[9.5px] font-mono font-black ${activeTheme.accentTextSecondary} uppercase`}>
-                  {fundScore != null ? (fundScore >= 80 ? 'Grade A+ (Unggul)' : fundScore >= 60 ? 'Grade B (Solid)' : 'Grade C (Wajar)') : '-'}
+                  {activeMoat ? `${activeMoat.supportive} dari ${activeMoat.available} Pilar Mendukung` : 'Audit Kualitas Bisnis'}
                 </div>
               </div>
 
