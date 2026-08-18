@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
+import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Check, Crown } from 'lucide-react';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
@@ -33,39 +34,7 @@ export default function PromoUpgradeModal({
 }: PromoUpgradeModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const container = modalRef.current;
-      if (!container) return;
-      const focusable = Array.from(
-        container.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-      ).filter((el) => !el.hasAttribute('disabled'));
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    const focusTimer = setTimeout(() => {
-      modalRef.current?.querySelector<HTMLElement>('button, [href]')?.focus();
-    }, 30);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      clearTimeout(focusTimer);
-    };
-  }, [open, onClose]);
+  useModalBehavior({ open, onClose, containerRef: modalRef });
 
   return (
     <AnimatePresence>

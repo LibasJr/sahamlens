@@ -6,13 +6,21 @@ import type {
   QuantitativeMarketRegime,
 } from '@/modules/market/service/market-regime.service';
 
+// Token, bukan hex mati. Hex-nya dulu nilai tema GELAP yang ikut terpakai di tema
+// terang: terukur di atas kartu putih, #eab308 = 1,92:1 dan #22c55e = 2,28:1 - di bawah
+// ambang 3:1 untuk grafis, jadi bar indikatornya praktis tidak terlihat. Token --lens-*
+// punya pasangan terang yang sudah diukur (lihat matriks di globals.css).
+//
+// Ujung atas TIDAK lagi biru. Merah-oranye-kuning-hijau-BIRU mencampur keluarga rona:
+// biru sudah punya arti lain di aplikasi ini (aksi primer, aksen aktif), sehingga
+// "greed ekstrem" justru terbaca paling netral. Sekarang hijau paling pekat.
 function scoreColor(score: number | null): string {
-  if (score == null) return '#64748b';
-  if (score < 20) return '#ef4444';
-  if (score < 40) return '#f97316';
-  if (score < 60) return '#eab308';
-  if (score < 80) return '#22c55e';
-  return '#3b82f6';
+  if (score == null) return 'rgb(var(--lens-muted))';
+  if (score < 20) return 'rgb(var(--lens-red))';
+  if (score < 40) return 'rgb(var(--lens-warning))';
+  if (score < 60) return 'rgb(var(--lens-yellow))';
+  if (score < 80) return 'rgb(var(--lens-green))';
+  return 'rgb(var(--lens-green-hover))';
 }
 
 function signalClass(signal: MarketRegimeIndicator['signal']): string {
@@ -67,7 +75,9 @@ function IndicatorCard({ indicator }: { indicator: MarketRegimeIndicator }) {
           {score ?? 'N/A'}
         </span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-tv-hover">
+      {/* 6px terlalu tipis untuk bidang berwarna yang jadi satu-satunya pembawa nilai
+          di kartu ini; 8px membuatnya terbaca tanpa menggeser tata letak. */}
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-tv-hover">
         <div
           className="h-full rounded-full transition-[width] duration-700"
           style={{ width: String(score ?? 0) + '%', backgroundColor: scoreColor(score) }}
