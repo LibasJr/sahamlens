@@ -434,29 +434,43 @@ export default function FundamentalMoatEarningsExportCard3D({
 
               {/* Upcoming Earnings Date */}
               <div className="rounded-2xl border border-white/15 bg-[#030d22] p-3 mb-3">
-                <div className="text-[10px] font-mono text-slate-400 uppercase font-bold">Jadwal Rilis Laporan Keuangan</div>
+                <div className="text-[10px] font-mono text-slate-400 uppercase font-bold">Jadwal / Status Laporan Keuangan</div>
                 <div className="text-sm font-black text-white mt-0.5">
-                  {upcomingEarnings?.date ? fmtDate(upcomingEarnings.date) : 'Jadwal rilis berikutnya'}
+                  {upcomingEarnings?.date
+                    ? fmtDate(upcomingEarnings.date)
+                    : (latestEarningsQuarter?.quarter
+                        ? `Periode ${latestEarningsQuarter.quarter} (Telah Rilis di BEI)`
+                        : 'Keterbukaan Informasi Resmi IDX')}
                 </div>
-                {upcomingEarnings?.fiscalQuarter && (
+                {upcomingEarnings?.fiscalQuarter ? (
                   <div className={`text-[10px] font-mono ${activeTheme.accentText} mt-0.5 font-bold`}>{upcomingEarnings.fiscalQuarter}</div>
+                ) : (
+                  <div className="text-[10px] font-mono text-slate-400 mt-0.5">Audit Laporan Keuangan Tahunan/Kuartalan</div>
                 )}
               </div>
 
-              {/* Expectations / Consensus */}
+              {/* Expectations / Consensus or Profitability Growth */}
               <div className="space-y-2">
                 <div className="bg-[#020712] border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between">
                   <div>
-                    <div className="text-[9.5px] font-mono text-slate-400 uppercase font-bold">Konsensus EPS Rata-rata</div>
+                    <div className="text-[9.5px] font-mono text-slate-400 uppercase font-bold">
+                      {earningsExpectation?.eps?.average != null ? 'Konsensus EPS Rata-rata' : 'Pertumbuhan Laba Bersih (YoY)'}
+                    </div>
                     <div className="text-sm font-black font-number text-white mt-0.5">
-                      {formatCompact(earningsExpectation?.eps?.average ?? null, earningsExpectation?.eps?.currency ?? null)}
+                      {earningsExpectation?.eps?.average != null
+                        ? formatCompact(earningsExpectation.eps.average, earningsExpectation.eps.currency ?? null)
+                        : (fundamentals.earningsGrowth != null ? fmtPersen(fundamentals.earningsGrowth) : (fundamentals.profitMargins != null ? `Net Margin: ${fmtPersen(fundamentals.profitMargins)}` : 'Tervalidasi'))}
                     </div>
                   </div>
-                  {earningsExpectation?.eps?.growth != null && (
+                  {earningsExpectation?.eps?.growth != null ? (
                     <span className="text-xs font-mono text-emerald-400 font-black">
                       +{earningsExpectation.eps.growth}%
                     </span>
-                  )}
+                  ) : fundamentals.revenueGrowth != null ? (
+                    <span className="text-xs font-mono text-emerald-400 font-black">
+                      Rev: {fmtPersen(fundamentals.revenueGrowth)}
+                    </span>
+                  ) : null}
                 </div>
 
                 {latestEarningsQuarter && (
@@ -466,7 +480,7 @@ export default function FundamentalMoatEarningsExportCard3D({
                         Hasil LK Terakhir ({latestEarningsQuarter.quarter || 'Q-Terakhir'})
                       </div>
                       <div className="text-xs font-bold text-white mt-0.5">
-                        Aktual: {latestEarningsQuarter.actualEps != null ? latestEarningsQuarter.actualEps : '-'} vs Est: {latestEarningsQuarter.estimatedEps != null ? latestEarningsQuarter.estimatedEps : '-'}
+                        Aktual: {latestEarningsQuarter.actualEps != null ? latestEarningsQuarter.actualEps : (fundamentals.trailingPE ? `PER: ${fmtKali(fundamentals.trailingPE)}` : '-')} vs Est: {latestEarningsQuarter.estimatedEps != null ? latestEarningsQuarter.estimatedEps : (fundamentals.priceToBook ? `PBV: ${fmtKali(fundamentals.priceToBook)}` : '-')}
                       </div>
                     </div>
                     {latestEarningsQuarter.status && (
@@ -504,14 +518,24 @@ export default function FundamentalMoatEarningsExportCard3D({
                 {/* Main Fair Value Box */}
                 <div className="bg-[#020712] border border-slate-700/80 rounded-xl p-3 flex items-center justify-between shadow-sm">
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-bold">Nilai Wajar Konsensus</div>
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">
+                      {fairVal ? 'Nilai Wajar Konsensus' : 'Valuasi PBV & Nilai Buku'}
+                    </div>
                     <div className="text-lg font-black font-number text-white mt-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-                      {fairVal ? `Rp ${fairVal.toLocaleString('id-ID')}` : '-'}
+                      {fairVal
+                        ? `Rp ${fairVal.toLocaleString('id-ID')}`
+                        : (fundamentals.priceToBook != null
+                            ? `${fmtKali(fundamentals.priceToBook)} PBV (Historis)`
+                            : (price ? `Harga Pasar: Rp ${price.toLocaleString('id-ID')}` : '-'))}
                     </div>
                   </div>
-                  {valStatus && (
+                  {valStatus ? (
                     <div className={`px-3.5 py-1.5 rounded-xl text-xs font-black border ${valStatus.includes('UNDER') ? 'bg-emerald-500/25 text-emerald-300 border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-cyan-500/25 text-cyan-300 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.4)]'}`}>
                       {mosVal != null ? `MoS: ${mosVal > 0 ? '+' : ''}${mosVal}% ` : ''}({valStatus})
+                    </div>
+                  ) : (
+                    <div className="px-3.5 py-1.5 rounded-xl text-xs font-black border bg-blue-500/20 text-blue-300 border-blue-400/40">
+                      Rasio Multiples Aktif
                     </div>
                   )}
                 </div>
