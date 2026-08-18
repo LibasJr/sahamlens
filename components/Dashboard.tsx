@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
   ArrowUpRight, ArrowDownRight, Sparkles, LineChart, Building2,
-  History, Users, Filter, Target, BarChart3, Waves, Search,
+  History, Users, Filter, Target, BarChart3, Waves,
   ArrowRight, ShieldCheck, Cpu, Zap, CheckCircle2, Clock
 } from 'lucide-react';
 
@@ -20,6 +20,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import GettingStartedGuide from '@/components/GettingStartedGuide';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import NotificationCenter from '@/components/ui/NotificationCenter';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { useLanguage } from '@/lib/i18n';
 import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
@@ -513,19 +514,20 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
 
                 {/* Hero Quick Search Bar */}
                 <form onSubmit={handleQuickSearch} className="mt-5 flex items-center gap-2 max-w-lg">
-                  <div className="relative flex-1 group">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tv-muted group-focus-within:text-tv-blue transition-colors" />
-                    <input
-                      type="text"
-                      value={quickSearch}
-                      onChange={(e) => setQuickSearch(e.target.value.toUpperCase())}
-                      placeholder={t('common.searchPlaceholder')}
-                      className="w-full pl-10 pr-16 py-3 rounded-2xl bg-tv-card/95 border border-tv-border text-tv-text placeholder:text-tv-muted/70 text-sm font-semibold focus:outline-none focus:border-tv-blue focus:ring-4 focus:ring-tv-blue/15 transition-all shadow-sm"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 pointer-events-none">
+                  <SymbolAutocomplete
+                    value={quickSearch}
+                    onChange={setQuickSearch}
+                    onSelect={(symbol) => router.push(`/technical/${symbol}`)}
+                    placeholder={t('common.searchPlaceholder')}
+                    showSearchIcon
+                    maxSuggestions={5}
+                    endAdornment={
                       <kbd className="rounded-md border border-tv-border bg-tv-bg/80 px-1.5 py-0.5 font-mono text-[10px] font-bold text-tv-muted shadow-inner">Ctrl K</kbd>
-                    </div>
-                  </div>
+                    }
+                    containerClassName="relative flex-1 group"
+                    className="w-full pl-10 pr-16 py-3 rounded-2xl bg-tv-card/95 border border-tv-border text-tv-text placeholder:text-tv-muted/70 text-sm font-semibold focus:outline-none focus:border-tv-blue focus:ring-4 focus:ring-tv-blue/15 transition-all shadow-sm"
+                    aria-label={t('common.searchPlaceholder')}
+                  />
                   <button
                     type="submit"
                     className="px-5 py-3 rounded-2xl bg-tv-blue hover:bg-tv-blueHover text-white text-sm font-bold transition-all duration-200 hover:shadow-lg shadow-sm shrink-0 flex items-center gap-2 active:scale-95"
