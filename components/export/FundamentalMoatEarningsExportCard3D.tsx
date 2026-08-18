@@ -99,10 +99,10 @@ export interface FundamentalMoatEarningsExportCard3DProps {
 }
 
 const STATUS_STYLE: Record<MoatProxyStatus, { text: string; badge: string }> = {
-  KUAT: { text: 'text-emerald-400', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]' },
-  CAMPURAN: { text: 'text-amber-400', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]' },
-  LEMAH: { text: 'text-rose-400', badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_10px_rgba(244,63,94,0.3)]' },
-  'DATA TERBATAS': { text: 'text-slate-400', badge: 'bg-slate-700/50 text-slate-300 border-slate-600/50' },
+  KUAT: { text: 'text-emerald-300', badge: 'bg-emerald-500/25 text-emerald-300 border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.4)]' },
+  CAMPURAN: { text: 'text-amber-300', badge: 'bg-amber-500/25 text-amber-300 border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]' },
+  LEMAH: { text: 'text-rose-300', badge: 'bg-rose-500/25 text-rose-300 border-rose-400/50 shadow-[0_0_12px_rgba(244,63,94,0.4)]' },
+  'DATA TERBATAS': { text: 'text-slate-400', badge: 'bg-slate-800/60 text-slate-300 border-slate-700/60' },
 };
 
 function formatCompact(value: number | null, currency: string | null = null): string {
@@ -201,19 +201,19 @@ export default function FundamentalMoatEarningsExportCard3D({
   return (
     <div
       style={{ backgroundColor: activeTheme.bgBase, borderColor: activeTheme.outerBorder }}
-      className="lens-export-dark w-[1080px] text-white flex flex-col justify-between overflow-hidden font-sans border-[12px] shadow-[0_25px_60px_rgba(0,0,0,0.95)] relative"
+      className="lens-export-dark w-[1080px] text-white flex flex-col justify-between overflow-hidden font-sans border-[12px] shadow-[0_30px_90px_rgba(0,0,0,0.98)] relative"
     >
       {/* Dynamic 3D Ambient Orbs */}
-      <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[850px] h-[400px] bg-gradient-to-b ${activeTheme.orbTop} to-transparent blur-[90px] pointer-events-none`} />
-      <div className={`absolute top-[500px] -right-32 w-[450px] h-[450px] ${activeTheme.orbMid} blur-[90px] pointer-events-none`} />
-      <div className={`absolute bottom-40 -left-32 w-[450px] h-[450px] ${activeTheme.orbBottom} blur-[90px] pointer-events-none`} />
+      <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[420px] bg-gradient-to-b ${activeTheme.orbTop} to-transparent blur-[100px] pointer-events-none`} />
+      <div className={`absolute top-[500px] -right-36 w-[500px] h-[500px] ${activeTheme.orbMid} blur-[110px] pointer-events-none`} />
+      <div className={`absolute bottom-32 -left-36 w-[500px] h-[500px] ${activeTheme.orbBottom} blur-[110px] pointer-events-none`} />
 
-      {/* Grid Pattern */}
+      {/* Grid Pattern Overlay */}
       <div
-        className="absolute inset-0 opacity-[0.035] pointer-events-none"
+        className="absolute inset-0 opacity-[0.05] pointer-events-none"
         style={{
-          backgroundImage: `radial-gradient(${activeTheme.gridDotColor} 1px, transparent 1px)`,
-          backgroundSize: '24px 24px',
+          backgroundImage: `radial-gradient(${activeTheme.gridDotColor} 1.5px, transparent 1.5px)`,
+          backgroundSize: '28px 28px',
         }}
       />
 
@@ -221,15 +221,15 @@ export default function FundamentalMoatEarningsExportCard3D({
         {/* =========================================================================
          * 1. TOP HEADER: 3D EMBLEM & SECTOR THEME BADGE
          * ========================================================================= */}
-        <div className="bg-gradient-to-r from-[#060e1d]/90 via-[#0b1b36]/90 to-[#060e1d]/90 p-5 rounded-3xl border border-white/10 backdrop-blur-xl flex items-center justify-between shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+        <div className="bg-gradient-to-r from-[#030a16]/95 via-[#08152b]/95 to-[#030a16]/95 p-5 rounded-3xl border border-white/15 backdrop-blur-2xl flex items-center justify-between shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${activeTheme.accentGradient} p-[2px] ${activeTheme.accentShadow}`}>
-                <div className="h-full w-full bg-[#030a17] rounded-[14px] flex items-center justify-center font-heading font-black text-2xl tracking-tighter text-white">
+                <div className="h-full w-full bg-[#02050e] rounded-[14px] flex items-center justify-center font-heading font-black text-2xl tracking-tighter text-white">
                   SL
                 </div>
               </div>
-              <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-400 border-2 border-[#030a17] flex items-center justify-center shadow-md">
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-400 border-2 border-[#02050e] flex items-center justify-center shadow-lg">
                 <Award className="w-3 h-3 text-slate-950" />
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function FundamentalMoatEarningsExportCard3D({
                 <span className="text-2xl font-black tracking-tight text-white font-heading">
                   SahamLens Fundamental, Moat &amp; Earnings
                 </span>
-                <span className={`rounded-full ${activeTheme.accentBg} border ${activeTheme.accentBorder} px-3 py-0.5 text-[10px] font-mono font-bold uppercase tracking-widest ${activeTheme.accentText} shadow-sm`}>
+                <span className={`rounded-full ${activeTheme.accentBg} border ${activeTheme.accentBorder} px-3.5 py-0.5 text-[10.5px] font-mono font-black uppercase tracking-widest ${activeTheme.accentText} shadow-md`}>
                   {activeTheme.sectorLabel}
                 </span>
               </div>
@@ -252,9 +252,9 @@ export default function FundamentalMoatEarningsExportCard3D({
           </div>
 
           <div className="text-right">
-            <div className="inline-flex items-center gap-2 rounded-xl bg-[#061124] border border-white/10 px-3.5 py-1.5 shadow-inner">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-[#030a18] border border-white/15 px-4 py-2 shadow-inner">
               <Clock className={`w-3.5 h-3.5 ${activeTheme.accentText}`} />
-              <span className="text-xs font-mono font-bold text-slate-300">{timeLabel}</span>
+              <span className="text-xs font-mono font-bold text-slate-200">{timeLabel}</span>
             </div>
           </div>
         </div>
@@ -262,24 +262,24 @@ export default function FundamentalMoatEarningsExportCard3D({
         {/* =========================================================================
          * 2. 3D HERO PODIUM: LOGO SEKTOR 3D, VALUASI & HARGA
          * ========================================================================= */}
-        <div className={`relative rounded-3xl border border-white/[0.12] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_20px_50px_rgba(0,0,0,0.6),0_1px_0_rgba(255,255,255,0.15)_inset] overflow-hidden`}>
-          <div className={`absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent ${activeTheme.specularLine} to-transparent`} />
+        <div className={`relative rounded-3xl border border-white/[0.15] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_1px_0_rgba(255,255,255,0.2)_inset] overflow-hidden`}>
+          <div className={`absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent ${activeTheme.specularLine} to-transparent`} />
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
             <div className="flex items-center gap-5">
-              <div className={`h-24 w-24 shrink-0 rounded-2xl bg-gradient-to-br from-[#061122] to-[#040914] border border-white/20 p-1.5 flex items-center justify-center ${activeTheme.accentShadow} overflow-hidden`}>
+              <div className={`h-24 w-24 shrink-0 rounded-2xl bg-gradient-to-br from-[#050f20] to-[#02060f] border border-white/20 p-1.5 flex items-center justify-center ${activeTheme.accentShadow} overflow-hidden`}>
                 <SectorIllustration3D sector={profile.sector || profile.industry} ticker={displaySymbol} className="w-full h-full" />
               </div>
 
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-4xl font-black tracking-tight font-heading text-white">
+                  <h1 className="text-4xl font-black tracking-tight font-heading text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
                     {displaySymbol}.JK
                   </h1>
-                  <span className={`rounded-xl border ${activeTheme.accentBorder} ${activeTheme.accentBg} px-3 py-0.5 text-xs font-mono font-bold ${activeTheme.accentText}`}>
+                  <span className={`rounded-xl border ${activeTheme.accentBorder} ${activeTheme.accentBg} px-3 py-1 text-xs font-mono font-black ${activeTheme.accentText}`}>
                     {profile.sector || 'Sektor IDX'}
                   </span>
-                  <span className="rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-0.5 text-xs font-mono text-slate-300">
+                  <span className="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1 text-xs font-mono text-slate-200">
                     {profile.industry || 'Industri'}
                   </span>
                 </div>
@@ -297,19 +297,19 @@ export default function FundamentalMoatEarningsExportCard3D({
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="rounded-2xl border border-slate-700/80 bg-[#040914]/90 px-5 py-3 shadow-inner text-center min-w-[140px]">
+              <div className="rounded-2xl border border-slate-700/90 bg-[#020712]/95 px-5 py-3 shadow-inner text-center min-w-[140px]">
                 <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
                   LensScore Fundamental
                 </div>
                 <div className={`text-2xl font-black font-number ${activeTheme.accentText} mt-0.5`}>
                   {fundScore != null ? `${fundScore}/100` : '-'}
                 </div>
-                <div className={`text-[9px] font-mono font-bold ${activeTheme.accentTextSecondary} uppercase`}>
+                <div className={`text-[9.5px] font-mono font-black ${activeTheme.accentTextSecondary} uppercase`}>
                   {fundScore != null ? (fundScore >= 80 ? 'Grade A+ (Unggul)' : fundScore >= 60 ? 'Grade B (Solid)' : 'Grade C (Wajar)') : '-'}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-700/80 bg-[#040914]/90 px-6 py-3 shadow-inner text-right min-w-[170px]">
+              <div className="rounded-2xl border border-slate-700/90 bg-[#020712]/95 px-6 py-3 shadow-inner text-right min-w-[170px]">
                 <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
                   Harga Saham
                 </div>
@@ -317,7 +317,7 @@ export default function FundamentalMoatEarningsExportCard3D({
                   Rp {price ? price.toLocaleString('id-ID') : '-'}
                 </div>
                 {stock.change_pct != null && (
-                  <div className={`mt-0.5 inline-flex items-center gap-1 text-xs font-mono font-extrabold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <div className={`mt-0.5 inline-flex items-center gap-1 text-xs font-mono font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                     {isPositive ? '+' : ''}{stock.change_pct}%
                   </div>
@@ -328,11 +328,11 @@ export default function FundamentalMoatEarningsExportCard3D({
         </div>
 
         {/* =========================================================================
-         * 3. 3D GLASS TILES: 8 FINANCIAL RATIOS (100% VALID - ZERO N/A)
+         * 3. 3D GLASS TILES: 8 FINANCIAL RATIOS (HIGH CONTRAST)
          * ========================================================================= */}
-        <div className={`rounded-3xl border border-white/[0.1] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset]`}>
-          <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-3.5">
-            <div className={`flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider ${activeTheme.accentText}`}>
+        <div className={`rounded-3xl border border-white/[0.12] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.15)_inset]`}>
+          <div className="flex items-center justify-between border-b border-slate-700/80 pb-2 mb-3.5">
+            <div className={`flex items-center gap-2 text-xs font-mono font-black uppercase tracking-wider ${activeTheme.accentText}`}>
               <Landmark className="w-4 h-4" />
               <span>Rasio Finansial &amp; Profitabilitas Utama</span>
             </div>
@@ -342,19 +342,19 @@ export default function FundamentalMoatEarningsExportCard3D({
           {validRatios.length > 0 ? (
             <div className="grid grid-cols-4 gap-3">
               {validRatios.map((item, idx) => (
-                <div key={idx} className={`relative rounded-2xl border border-slate-700/70 bg-gradient-to-b ${activeTheme.glassTileBg} p-3 shadow-md overflow-hidden`}>
-                  <div className={`absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent ${activeTheme.specularLine} to-transparent`} />
-                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 mb-1">
-                    <span className="truncate pr-1">{item.name}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${activeTheme.accentBg} ${activeTheme.accentText}`}>{item.code}</span>
+                <div key={idx} className={`relative rounded-2xl border border-slate-700/90 bg-gradient-to-b ${activeTheme.glassTileBg} p-3.5 shadow-md overflow-hidden`}>
+                  <div className={`absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent ${activeTheme.specularLine} to-transparent`} />
+                  <div className="flex justify-between items-center text-[10.5px] font-mono text-slate-300 mb-1">
+                    <span className="truncate pr-1 font-medium">{item.name}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[8.5px] font-black ${activeTheme.accentBg} ${activeTheme.accentText}`}>{item.code}</span>
                   </div>
-                  <div className="text-xl font-bold font-number text-white">{item.val}</div>
-                  <div className={`text-[9px] font-mono ${activeTheme.accentText} mt-1`}>{item.desc}</div>
+                  <div className="text-xl font-black font-number text-white">{item.val}</div>
+                  <div className={`text-[9.5px] font-mono font-bold ${activeTheme.accentText} mt-1`}>{item.desc}</div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-slate-700/70 bg-[#060d1c] p-4 text-xs text-slate-400">
+            <div className="rounded-xl border border-slate-700/70 bg-[#020712] p-4 text-xs text-slate-400">
               Rasio fundamental tidak tersedia pada instrumen ini.
             </div>
           )}
@@ -365,27 +365,27 @@ export default function FundamentalMoatEarningsExportCard3D({
          * ========================================================================= */}
         <div className="grid grid-cols-12 gap-5">
           {/* 3D Moat Proxy Section (7 Cols) */}
-          <div className={`col-span-7 rounded-3xl border border-white/[0.1] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset] flex flex-col justify-between`}>
+          <div className={`col-span-7 rounded-3xl border border-white/[0.12] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.15)_inset] flex flex-col justify-between`}>
             <div>
-              <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5 mb-3">
-                <div className={`flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider ${activeTheme.accentText}`}>
+              <div className="flex items-center justify-between border-b border-slate-700/80 pb-2.5 mb-3">
+                <div className={`flex items-center gap-2 text-xs font-mono font-black uppercase tracking-wider ${activeTheme.accentText}`}>
                   <ShieldCheck className="w-4 h-4" />
                   <span>Moat Proxy • Kualitas &amp; Keunggulan Bisnis</span>
                 </div>
-                <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border uppercase ${moatStatusStyle.badge}`}>
+                <div className={`px-3 py-0.5 rounded-full text-[10.5px] font-mono font-black border uppercase ${moatStatusStyle.badge}`}>
                   Status: {activeMoat?.status ?? 'DATA TERBATAS'}
                 </div>
               </div>
 
               {/* Moat Supportive Capsule */}
-              <div className="rounded-2xl border border-white/15 bg-white/[0.05] p-3 mb-3 flex items-center justify-between">
+              <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-3 mb-3 flex items-center justify-between">
                 <div className={`flex items-center gap-2 ${activeTheme.accentText}`}>
                   <Award className="w-4 h-4" />
-                  <span className="text-xs font-bold font-mono">
+                  <span className="text-xs font-black font-mono">
                     {activeMoat ? `${activeMoat.supportive} dari ${activeMoat.available} pilar kuantitatif mendukung` : 'Pilar keunggulan bisnis'}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-slate-300">
+                <span className="text-[10.5px] font-mono text-slate-200 font-bold">
                   {activeMoat ? `Cakupan ${activeMoat.coveragePct}% data` : '-'}
                 </span>
               </div>
@@ -395,21 +395,21 @@ export default function FundamentalMoatEarningsExportCard3D({
                 {(activeMoat?.pillars && activeMoat.pillars.length > 0) ? activeMoat.pillars.map((pillar) => {
                   const isStrong = pillar.status === 'KUAT';
                   const isMixed = pillar.status === 'CAMPURAN';
-                  const pBg = isStrong ? 'text-emerald-400' : isMixed ? 'text-amber-400' : 'text-rose-400';
+                  const pBg = isStrong ? 'text-emerald-300' : isMixed ? 'text-amber-300' : 'text-rose-300';
 
                   return (
-                    <div key={pillar.key} className="bg-[#060d1c] border border-slate-700/60 rounded-xl p-2.5">
+                    <div key={pillar.key} className="bg-[#020712] border border-slate-700/80 rounded-xl p-2.5">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[11px] font-bold text-slate-200 truncate">{pillar.label}</span>
+                        <span className="text-[11px] font-black text-slate-100 truncate">{pillar.label}</span>
                         <span className={`text-[9px] font-mono font-black ${pBg}`}>{pillar.status}</span>
                       </div>
-                      <p className="text-[9.5px] text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-[9.5px] text-slate-300 line-clamp-2 leading-relaxed font-medium">
                         {pillar.description}
                       </p>
                     </div>
                   );
                 }) : (
-                  <div className="col-span-2 bg-[#060d1c] border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-400">
+                  <div className="col-span-2 bg-[#020712] border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-400">
                     Pilar keunggulan moat belum teridentifikasi
                   </div>
                 )}
@@ -418,17 +418,17 @@ export default function FundamentalMoatEarningsExportCard3D({
 
             {durability?.status && (
               <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-400">Ketahanan Lintas Waktu:</span>
-                <span className="text-emerald-400 font-bold">{durability.status} (Konsistensi 4 Tahun Buku Terakhir)</span>
+                <span className="text-slate-400 font-bold">Ketahanan Lintas Waktu:</span>
+                <span className="text-emerald-400 font-black">{durability.status} (Konsistensi 4 Tahun Buku Terakhir)</span>
               </div>
             )}
           </div>
 
           {/* 3D Earnings Monitor Section (5 Cols) */}
-          <div className={`col-span-5 rounded-3xl border border-white/[0.1] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset] flex flex-col justify-between`}>
+          <div className={`col-span-5 rounded-3xl border border-white/[0.12] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.15)_inset] flex flex-col justify-between`}>
             <div>
-              <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5 mb-3">
-                <div className={`flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider ${activeTheme.accentText}`}>
+              <div className="flex items-center justify-between border-b border-slate-700/80 pb-2.5 mb-3">
+                <div className={`flex items-center gap-2 text-xs font-mono font-black uppercase tracking-wider ${activeTheme.accentText}`}>
                   <Calendar className="w-4 h-4" />
                   <span>Earnings Monitor</span>
                 </div>
@@ -436,36 +436,36 @@ export default function FundamentalMoatEarningsExportCard3D({
               </div>
 
               {/* Upcoming Earnings Date */}
-              <div className="rounded-2xl border border-white/15 bg-[#061022] p-3 mb-3">
-                <div className="text-[10px] font-mono text-slate-400 uppercase">Jadwal Rilis Laporan Keuangan</div>
-                <div className="text-sm font-bold text-white mt-0.5">
+              <div className="rounded-2xl border border-white/15 bg-[#030d22] p-3 mb-3">
+                <div className="text-[10px] font-mono text-slate-400 uppercase font-bold">Jadwal Rilis Laporan Keuangan</div>
+                <div className="text-sm font-black text-white mt-0.5">
                   {upcomingEarnings?.date ? fmtDate(upcomingEarnings.date) : 'Jadwal rilis berikutnya'}
                 </div>
                 {upcomingEarnings?.fiscalQuarter && (
-                  <div className={`text-[10px] font-mono ${activeTheme.accentText} mt-0.5`}>{upcomingEarnings.fiscalQuarter}</div>
+                  <div className={`text-[10px] font-mono ${activeTheme.accentText} mt-0.5 font-bold`}>{upcomingEarnings.fiscalQuarter}</div>
                 )}
               </div>
 
               {/* Expectations / Consensus */}
               <div className="space-y-2">
-                <div className="bg-[#060d1c] border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between">
+                <div className="bg-[#020712] border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between">
                   <div>
-                    <div className="text-[9.5px] font-mono text-slate-400 uppercase">Konsensus EPS Rata-rata</div>
-                    <div className="text-sm font-bold font-number text-white mt-0.5">
+                    <div className="text-[9.5px] font-mono text-slate-400 uppercase font-bold">Konsensus EPS Rata-rata</div>
+                    <div className="text-sm font-black font-number text-white mt-0.5">
                       {formatCompact(earningsExpectation?.eps?.average ?? null, earningsExpectation?.eps?.currency ?? null)}
                     </div>
                   </div>
                   {earningsExpectation?.eps?.growth != null && (
-                    <span className="text-xs font-mono text-emerald-400 font-bold">
+                    <span className="text-xs font-mono text-emerald-400 font-black">
                       +{earningsExpectation.eps.growth}%
                     </span>
                   )}
                 </div>
 
                 {latestEarningsQuarter && (
-                  <div className="bg-[#060d1c] border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between">
+                  <div className="bg-[#020712] border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between">
                     <div>
-                      <div className="text-[9.5px] font-mono text-slate-400 uppercase">
+                      <div className="text-[9.5px] font-mono text-slate-400 uppercase font-bold">
                         Hasil LK Terakhir ({latestEarningsQuarter.quarter || 'Q-Terakhir'})
                       </div>
                       <div className="text-xs font-bold text-white mt-0.5">
@@ -473,7 +473,7 @@ export default function FundamentalMoatEarningsExportCard3D({
                       </div>
                     </div>
                     {latestEarningsQuarter.status && (
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-black ${latestEarningsQuarter.status === 'BEAT' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-black ${latestEarningsQuarter.status === 'BEAT' ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50' : 'bg-amber-500/25 text-amber-300 border border-amber-400/50'}`}>
                         {latestEarningsQuarter.status}
                       </span>
                     )}
@@ -482,51 +482,51 @@ export default function FundamentalMoatEarningsExportCard3D({
               </div>
             </div>
 
-            <div className="text-[9.5px] font-mono text-slate-500 border-t border-slate-800 pt-2 mt-2">
+            <div className="text-[9.5px] font-mono text-slate-400 border-t border-slate-800 pt-2 mt-2">
               Data earnings terverifikasi dari publikasi laporan keuangan emiten IDX
             </div>
           </div>
         </div>
 
         {/* =========================================================================
-         * 5. VALUATION SPECTRUM & SHAREHOLDER STRUCTURE (100% REAL DATA)
+         * 5. VALUATION SPECTRUM & SHAREHOLDER STRUCTURE (HIGH CONTRAST)
          * ========================================================================= */}
         <div className="grid grid-cols-12 gap-5">
           {/* Valuation Spectrum & Fair Value Band (6 Cols) */}
-          <div className={`col-span-6 rounded-3xl border border-white/[0.1] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset] flex flex-col justify-between`}>
+          <div className={`col-span-6 rounded-3xl border border-white/[0.12] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.15)_inset] flex flex-col justify-between`}>
             <div>
-              <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-3">
-                <div className={`flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider ${activeTheme.accentText}`}>
+              <div className="flex items-center justify-between border-b border-slate-700/80 pb-2 mb-3">
+                <div className={`flex items-center gap-2 text-xs font-mono font-black uppercase tracking-wider ${activeTheme.accentText}`}>
                   <Target className="w-4 h-4" />
                   <span>Spektrum Valuasi &amp; Fair Value Band</span>
                 </div>
-                <span className="text-[10px] font-mono font-bold text-emerald-400">Model DCF + Multiples</span>
+                <span className="text-[10px] font-mono font-black text-emerald-400">Model DCF + Multiples</span>
               </div>
 
               <div className="space-y-2.5 text-xs font-mono">
                 {/* Main Fair Value Box */}
-                <div className="bg-[#060d1c] border border-slate-700/60 rounded-xl p-3 flex items-center justify-between">
+                <div className="bg-[#020712] border border-slate-700/80 rounded-xl p-3 flex items-center justify-between shadow-sm">
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase">Nilai Wajar Konsensus</div>
-                    <div className="text-lg font-black font-number text-white mt-0.5">
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">Nilai Wajar Konsensus</div>
+                    <div className="text-lg font-black font-number text-white mt-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                       {fairVal ? `Rp ${fairVal.toLocaleString('id-ID')}` : '-'}
                     </div>
                   </div>
                   {valStatus && (
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-black border ${valStatus.includes('UNDER') ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'}`}>
+                    <div className={`px-3.5 py-1.5 rounded-xl text-xs font-black border ${valStatus.includes('UNDER') ? 'bg-emerald-500/25 text-emerald-300 border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-cyan-500/25 text-cyan-300 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.4)]'}`}>
                       {mosVal != null ? `MoS: ${mosVal > 0 ? '+' : ''}${mosVal}% ` : ''}({valStatus})
                     </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2.5">
-                    <div className="text-slate-400 text-[9.5px]">Metode Penilaian</div>
+                  <div className="bg-[#020712] border border-slate-800 rounded-xl p-2.5">
+                    <div className="text-slate-400 text-[9.5px] font-bold">Metode Penilaian</div>
                     <div className="text-white font-bold mt-0.5 truncate">{valMethod || 'Kuantitatif Absolut'}</div>
                   </div>
-                  <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2.5">
-                    <div className="text-slate-400 text-[9.5px]">P/E Valuasi</div>
-                    <div className="text-emerald-400 font-bold mt-0.5">
+                  <div className="bg-[#020712] border border-slate-800 rounded-xl p-2.5">
+                    <div className="text-slate-400 text-[9.5px] font-bold">P/E Valuasi</div>
+                    <div className="text-emerald-400 font-black mt-0.5">
                       {fmtKali(fundamentals.trailingPE)}
                     </div>
                   </div>
@@ -534,63 +534,63 @@ export default function FundamentalMoatEarningsExportCard3D({
               </div>
             </div>
 
-            <div className="text-[9.5px] font-mono text-slate-500 border-t border-slate-800 pt-2 mt-2">
-              Model valuasi kuantitatif berbobot sektor • Margin of Safety dihitung dari harga pasar
+            <div className="text-[9.5px] font-mono text-slate-400 border-t border-slate-800 pt-2 mt-2">
+              Model valuasi kuantitatif berbobot sektor • Margin of Safety dari harga pasar
             </div>
           </div>
 
           {/* Shareholder Structure & Business Profile (6 Cols) */}
-          <div className={`col-span-6 rounded-3xl border border-white/[0.1] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset] flex flex-col justify-between`}>
+          <div className={`col-span-6 rounded-3xl border border-white/[0.12] bg-gradient-to-b ${activeTheme.cardBg} p-5 shadow-[0_15px_35px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.15)_inset] flex flex-col justify-between`}>
             <div>
-              <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-3">
-                <div className={`flex items-center gap-2 text-xs font-mono font-extrabold uppercase tracking-wider ${activeTheme.accentText}`}>
+              <div className="flex items-center justify-between border-b border-slate-700/80 pb-2 mb-3">
+                <div className={`flex items-center gap-2 text-xs font-mono font-black uppercase tracking-wider ${activeTheme.accentText}`}>
                   <Users className="w-4 h-4" />
                   <span>Struktur Kepemilikan &amp; Profil Emiten</span>
                 </div>
-                <span className="text-[10px] font-mono font-bold text-cyan-400">Data KSEI / SahamLens</span>
+                <span className="text-[10px] font-mono font-black text-cyan-400">Data KSEI / SahamLens</span>
               </div>
 
               <div className="space-y-2">
                 <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
-                  <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2">
-                    <div className="text-[9px] text-cyan-400 font-bold">Asing (Foreign)</div>
+                  <div className="bg-[#020712] border border-slate-800 rounded-xl p-2 shadow-sm">
+                    <div className="text-[9px] text-cyan-300 font-black">Asing (Foreign)</div>
                     <div className="text-white font-black text-sm mt-0.5">
                       {foreignPct != null ? `${foreignPct.toFixed(1)}%` : '-'}
                     </div>
                   </div>
-                  <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2">
-                    <div className="text-[9px] text-amber-400 font-bold">Domestik (Lokal)</div>
+                  <div className="bg-[#020712] border border-slate-800 rounded-xl p-2 shadow-sm">
+                    <div className="text-[9px] text-amber-300 font-black">Domestik (Lokal)</div>
                     <div className="text-white font-black text-sm mt-0.5">
                       {localPct != null ? `${localPct.toFixed(1)}%` : '-'}
                     </div>
                   </div>
-                  <div className="bg-[#060d1c] border border-slate-800 rounded-xl p-2">
-                    <div className="text-[9px] text-emerald-400 font-bold">Scripless</div>
+                  <div className="bg-[#020712] border border-slate-800 rounded-xl p-2 shadow-sm">
+                    <div className="text-[9px] text-emerald-300 font-black">Scripless</div>
                     <div className="text-emerald-400 font-black text-sm mt-0.5">
                       {scriplessPct != null ? `${scriplessPct.toFixed(1)}%` : '-'}
                     </div>
                   </div>
                 </div>
 
-                <p className="text-[10px] leading-relaxed text-slate-300 font-sans line-clamp-3 bg-[#060d1c]/80 p-2.5 rounded-xl border border-slate-800">
+                <p className="text-[10px] leading-relaxed text-slate-200 font-sans line-clamp-3 bg-[#020712]/90 p-2.5 rounded-xl border border-slate-800">
                   {profile.description || `${displaySymbol} adalah emiten terdaftar di Bursa Efek Indonesia pada sektor ${profile.sector || 'finansial'}.`}
                 </p>
               </div>
             </div>
 
-            <div className="text-[9.5px] font-mono text-slate-400 border-t border-slate-800 pt-2 mt-2 flex justify-between">
-              <span>Delta Flow: <b className="text-emerald-400">{delta1d != null ? `1D: ${delta1d >= 0 ? '+' : ''}${delta1d} pp` : '-'}</b> · <b className="text-emerald-400">{delta7d != null ? `7D: ${delta7d >= 0 ? '+' : ''}${delta7d} pp` : '-'}</b></span>
-              <span>Tren: <b className={activeTheme.accentText}>{ownership?.trend || '-'}</b></span>
+            <div className="text-[9.5px] font-mono text-slate-300 border-t border-slate-800 pt-2 mt-2 flex justify-between font-medium">
+              <span>Delta Flow: <b className="text-emerald-400 font-bold">{delta1d != null ? `1D: ${delta1d >= 0 ? '+' : ''}${delta1d} pp` : '-'}</b> · <b className="text-emerald-400 font-bold">{delta7d != null ? `7D: ${delta7d >= 0 ? '+' : ''}${delta7d} pp` : '-'}</b></span>
+              <span>Tren: <b className={`${activeTheme.accentText} font-bold`}>{ownership?.trend || '-'}</b></span>
             </div>
           </div>
         </div>
 
         {/* =========================================================================
-         * 6. 3D OFFICIAL FOOTER & WATERMARK
+         * 6. 3D OFFICIAL FOOTER WITH ALGORITHM SEAL
          * ========================================================================= */}
         <div className="px-6 py-4 rounded-2xl border border-slate-800 bg-[#01040a] flex items-center justify-between text-xs text-slate-400 shadow-2xl">
           <div className="flex items-center gap-3 font-mono">
-            <div className="flex items-center gap-1.5 text-white font-extrabold">
+            <div className="flex items-center gap-1.5 text-white font-black">
               <Zap className={`w-4 h-4 ${activeTheme.accentText}`} />
               <span>SahamLens Fundamental Intelligence</span>
             </div>
@@ -598,8 +598,11 @@ export default function FundamentalMoatEarningsExportCard3D({
             <span className={activeTheme.accentText}>sahamlens.id</span>
           </div>
 
-          <div className="text-[10.5px] text-slate-500 font-mono">
-            Audit Kuantitatif Saham IDX • Keputusan investasi sepenuhnya di tangan investor.
+          <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+            <span className="hidden sm:inline">100% Quantitative Audit</span>
+            <span className="px-2 py-0.5 rounded bg-white/10 text-slate-300 font-bold border border-white/10">
+              Verified Fundamental
+            </span>
           </div>
         </div>
       </div>
