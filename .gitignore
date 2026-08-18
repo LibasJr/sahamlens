@@ -57,3 +57,7 @@ scripts/.universe-*-backfill-checkpoint.json
 
 # Template env aman untuk onboarding developer; secret nyata tetap di-ignore.
 !/.env.example
+
+# Cache bytecode Python dari scripts/*.py
+__pycache__/
+*.pyc

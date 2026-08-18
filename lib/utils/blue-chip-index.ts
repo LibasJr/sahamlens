@@ -10,30 +10,37 @@
 // Keanggotaan indeks tidak berubah harian - IDX menetapkannya lewat evaluasi berkala,
 // jadi tidak bisa dimanipulasi oleh pergerakan harga/volume satu-dua minggu.
 //
-// >>> WAJIB DIVERIFIKASI MANUAL, BUKAN FEED LIVE <<<
-// IDX mengevaluasi ulang konstituen LQ45 DUA KALI SETAHUN - efektif akhir Januari/awal
-// Februari, dan akhir Juli/awal Agustus (jadwal pasti ada di kalender resmi IDX). Daftar
-// di bawah disusun dari pengetahuan pelatihan model (cutoff Januari 2026) dan BELUM
-// dicocokkan langsung ke pengumuman resmi terbaru (idx.co.id -> Data Pasar -> Indeks ->
-// LQ45 -> Konstituen). Karena hari ini (dicatat 2026-08-16) sudah lewat jadwal evaluasi
-// akhir Juli/awal Agustus, ADA KEMUNGKINAN daftar ini sudah satu periode basi - cek dan
-// perbarui manual sebelum terlalu percaya pada daftar ini untuk periode berjalan.
+// KONSOLIDASI 2026-08-18: daftar konstituen TIDAK LAGI ditulis di berkas ini.
 //
-// Risiko kalau daftar ini telat diperbarui SEPIHAK dan kecil: emiten yang baru saja
-// keluar dari LQ45 mungkin masih tampil Blue-chip beberapa waktu (dampak kosmetik
-// ringan). TIDAK ADA jalan bagi saham gorengan untuk lolos hanya karena harga/volume
-// Tanggal batas tinjau manual konstituen LQ45 (dievaluasi per semester oleh IDX).
-// Test otomatis akan mengingatkan pengembang ketika tanggal ini tercapai agar selalu diverifikasi.
-export const LQ45_REVIEWED_UNTIL = '2026-08-31';
+// Sebelumnya ada dua daftar LQ45 yang hidup berdampingan dan sudah menyimpang 21 ticker:
+// daftar di sini (46 entri - mustahil, LQ45 beranggotakan tepat 45) dan
+// CURRENT_LQ45_UNIVERSE di modules/market/constants/lq45-universe.ts. Keduanya dibaca
+// pihak yang berbeda: badge Blue-chip memakai yang ini, sementara overlay EOD IDX dan
+// scripts/sync-idx-foreign-flow.py memakai yang satunya. Akibatnya sepuluh emiten masuk
+// universe overlay tanpa pernah disinkronkan artefaknya.
+//
+// Sekarang satu sumber saja. Isi daftar lama berasal dari pengetahuan pelatihan model
+// (diakui sendiri di komentar versi sebelumnya) dan jumlahnya salah, jadi yang
+// dipertahankan adalah lq45-universe.ts yang setidaknya mencantumkan periode berlaku dan
+// nomor pengumuman.
+//
+// >>> MASIH WAJIB DIVERIFIKASI MANUAL <<<
+// Sampai 2026-08-18 daftar yang tersisa itu pun BELUM pernah dicocokkan ke pengumuman
+// resmi IDX. API publik IDX tidak menyediakan konstituen periode berjalan (arsip
+// GetIndexConstituent berhenti di 2018), jadi verifikasinya harus lewat pengumuman
+// Peng-00148/BEI.POP/07-2026 atau idx.co.id -> Data Pasar -> Indeks Saham -> LQ45.
+// JANGAN memakai "List Emiten LQ45.csv" dari scrapper pihak ketiga - berkas itu
+// bertanggal 2021 dan hanya tampak segar karena nama emitennya ikut ter-update.
+import {
+  CURRENT_LQ45_EFFECTIVE_TO,
+  CURRENT_LQ45_UNIVERSE,
+  isCurrentLq45Ticker,
+} from '@/modules/market/constants/lq45-universe';
 
-export const LQ45_CONSTITUENTS: readonly string[] = [
-  'ACES.JK', 'ADRO.JK', 'AKRA.JK', 'AMMN.JK', 'AMRT.JK', 'ANTM.JK', 'ARTO.JK', 'ASII.JK',
-  'BBCA.JK', 'BBNI.JK', 'BBRI.JK', 'BBTN.JK', 'BMRI.JK', 'BRPT.JK', 'BUKA.JK', 'CPIN.JK',
-  'CTRA.JK', 'ESSA.JK', 'EXCL.JK', 'GOTO.JK', 'ICBP.JK', 'INCO.JK', 'INDF.JK', 'INDY.JK',
-  'INKP.JK', 'ISAT.JK', 'ITMG.JK', 'JPFA.JK', 'JSMR.JK', 'KLBF.JK', 'MAPI.JK', 'MBMA.JK',
-  'MDKA.JK', 'MEDC.JK', 'PGAS.JK', 'PGEO.JK', 'PTBA.JK', 'PWON.JK', 'SIDO.JK', 'SMGR.JK',
-  'SMRA.JK', 'SRTG.JK', 'TLKM.JK', 'TOWR.JK', 'UNTR.JK', 'UNVR.JK',
-];
+/** Batas berlaku konstituen periode ini. Test menolak daftar yang sudah lewat tanggal ini. */
+export const LQ45_REVIEWED_UNTIL = CURRENT_LQ45_EFFECTIVE_TO;
+
+export const LQ45_CONSTITUENTS: readonly string[] = CURRENT_LQ45_UNIVERSE;
 
 /** Normalisasi lalu cek keanggotaan LQ45 - menerima ticker dengan atau tanpa suffix `.JK`,
  * huruf besar/kecil apa pun. */
@@ -41,6 +48,5 @@ export function isBlueChipConstituent(ticker: string | null | undefined): boolea
   if (!ticker) return false;
   const normalized = ticker.trim().toUpperCase();
   if (!normalized) return false;
-  const withSuffix = normalized.endsWith('.JK') ? normalized : `${normalized}.JK`;
-  return LQ45_CONSTITUENTS.includes(withSuffix);
+  return isCurrentLq45Ticker(normalized);
 }

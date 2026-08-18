@@ -38,7 +38,7 @@ except ImportError:  # pragma: no cover - dependency guard
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "data", "foreign-flow")
-LQ45_SOURCE = os.path.join(REPO_ROOT, "lib", "utils", "blue-chip-index.ts")
+LQ45_SOURCE = os.path.join(REPO_ROOT, "modules", "market", "constants", "lq45-universe.ts")
 EMITEN_CSV = os.path.join(REPO_ROOT, "idx_emiten_900.csv")
 
 IDX_ENDPOINT = "https://www.idx.co.id/primary/ListedCompany/GetTradingInfoSS"
@@ -48,19 +48,27 @@ TICKER_RE = re.compile(r"^[A-Z]{4}$")
 
 
 def load_lq45_universe() -> list[str]:
-    """Baca konstituen LQ45 dari lib/utils/blue-chip-index.ts.
+    """Baca konstituen LQ45 dari modules/market/constants/lq45-universe.ts.
 
-    Daftarnya dibaca dari sumber tunggal yang sudah dipakai UI (badge Blue-chip),
-    bukan disalin ulang di sini - supaya tidak ada dua daftar yang bisa berbeda.
+    Sumbernya SATU berkas, dipakai bersama oleh overlay EOD IDX, badge Blue-chip di UI,
+    dan skrip ini. Sebelum 2026-08-18 skrip ini membaca lib/utils/blue-chip-index.ts
+    sementara overlay menyaring dengan lq45-universe.ts; kedua daftar sudah menyimpang 21
+    ticker, sehingga sepuluh emiten masuk universe overlay tanpa pernah disinkronkan
+    artefaknya - dan tidak ada yang gagal karenanya.
     """
     with open(LQ45_SOURCE, "r", encoding="utf-8") as handle:
         text = handle.read()
-    match = re.search(r"LQ45_CONSTITUENTS[^=]*=\s*\[(.*?)\]", text, re.S)
+    match = re.search(r"CURRENT_LQ45_UNIVERSE[^=]*=\s*\[(.*?)\]", text, re.S)
     if not match:
-        raise SystemExit(f"[!] Tidak menemukan LQ45_CONSTITUENTS di {LQ45_SOURCE}")
+        raise SystemExit(f"[!] Tidak menemukan CURRENT_LQ45_UNIVERSE di {LQ45_SOURCE}")
     codes = re.findall(r"'([A-Z]{4})\.JK'", match.group(1))
     if not codes:
-        raise SystemExit(f"[!] LQ45_CONSTITUENTS kosong di {LQ45_SOURCE}")
+        raise SystemExit(f"[!] CURRENT_LQ45_UNIVERSE kosong di {LQ45_SOURCE}")
+    if len(codes) != 45:
+        raise SystemExit(
+            f"[!] CURRENT_LQ45_UNIVERSE berisi {len(codes)} emiten, seharusnya 45. "
+            "Perbaiki daftarnya dulu di lq45-universe.ts sebelum sinkronisasi."
+        )
     return codes
 
 
