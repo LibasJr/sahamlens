@@ -1,5 +1,5 @@
 import {
-  fetchYahooHistory,
+  fetchYahooHistoryDirect,
   analyzeEma,
   analyzeRsi,
   analyzeMacd,
@@ -116,7 +116,7 @@ export function computeTickerSeries(ticker: string, rawHistory: OhlcRow[]): Tick
 }
 
 async function fetchTickerSeries(ticker: string): Promise<TickerIndicatorSeries | null> {
-  const result = await fetchYahooHistory(ticker, FETCH_RANGE);
+  const result = await fetchYahooHistoryDirect(ticker, FETCH_RANGE);
   if (!result) {
     // fetch gagal - saham ini di-skip, tidak melempar error (spec: satu saham gagal
     // tidak boleh menggagalkan seluruh precompute harian) - tapi dicatat di log.
@@ -141,7 +141,7 @@ export async function precomputeBacktestData(): Promise<BacktestIndicatorCache> 
     }
   }
 
-  const ihsgResult = await fetchYahooHistory('^JKSE', FETCH_RANGE);
+  const ihsgResult = await fetchYahooHistoryDirect('^JKSE', FETCH_RANGE);
   const ihsg: DailyBar[] = ihsgResult
     ? ihsgResult.history.slice(LOOKBACK_DAYS).slice(-RETAIN_DAYS).map((h) => ({ date: h.Date.split('T')[0], close: h.Close, open: h.Open }))
     : [];

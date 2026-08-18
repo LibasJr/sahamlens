@@ -27,4 +27,4 @@ export {
 
 // BUILD 009 (Performance) - fetch+parse OHLC Yahoo yang sebelumnya diduplikasi di
 // app/api/council/route.ts dan modules/ai/service/orchestrator.service.ts.
-export { fetchYahooHistory, type OhlcRow, type YahooHistoryResult } from './service/yahoo-history.service';
+export { fetchYahooHistory, fetchYahooHistoryDirect, type OhlcRow, type YahooHistoryResult } from './service/yahoo-history.service';
