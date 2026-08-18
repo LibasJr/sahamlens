@@ -140,11 +140,11 @@ export default function InfographicStudioPage() {
         : 'DATA N/A';
       const consensusTone = typeof rawKategori === 'string' ? getKategoriTone(rawKategori) : 'neutral';
 
-      const bullPct = typeof consensusObj?.bull_pct === 'number' ? consensusObj.bull_pct : 60;
-      const bearPct = typeof consensusObj?.bear_pct === 'number' ? consensusObj.bear_pct : 15;
+      const bullPct = typeof consensusObj?.bull_pct === 'number' ? consensusObj.bull_pct : null;
+      const bearPct = typeof consensusObj?.bear_pct === 'number' ? consensusObj.bear_pct : null;
       const neutralPct = typeof consensusObj?.neutral_pct === 'number'
         ? consensusObj.neutral_pct
-        : Math.max(0, 100 - bullPct - bearPct);
+        : (bullPct != null && bearPct != null ? Math.max(0, 100 - bullPct - bearPct) : null);
 
       // Flow details
       const cmfAnalyzer = techAnalyzers.find((a: any) => (a.label || '').includes('Bandarmology') || (a.label || '').includes('CMF'));
