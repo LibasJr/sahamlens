@@ -235,9 +235,12 @@ export default function TechnicalExportCard3D({
   const displayScore = score == null || !Number.isFinite(score) ? null : Math.min(100, Math.max(0, Math.round(score)));
   const hasDistribution = buyPct != null && sellPct != null && neutralPct != null;
 
-  // Filter valid analyzers
+  // Filter valid analyzers (100% genuine data, zero N/A or incomplete indicators)
   const displayAnalyzers = analyzers
-    .filter((a) => a.value !== 'N/A' && a.value !== null && a.value !== undefined)
+    .filter((a) => {
+      const valStr = String(a.value || '').trim();
+      return valStr !== '' && valStr !== 'N/A' && !valStr.startsWith('N/A') && a.value !== null && a.value !== undefined;
+    })
     .slice(0, 8);
 
   // Resolved Pivot Points from actual calculation
