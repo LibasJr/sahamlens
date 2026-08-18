@@ -292,6 +292,29 @@ export default async function AdminPage() {
           </div>
         </Link>
 
+        {/* Cakupan Arus Asing dipajang terpisah dari Broker EOD BEI karena datanya beda
+            sumbu: Broker EOD adalah agregat per KODE BROKER untuk seluruh pasar, sedangkan
+            ini per EMITEN. Digabung, keduanya terbaca seolah satu tabel yang sama. Kartu ini
+            juga satu-satunya tempat ketiadaan artefak terlihat - emiten tanpa artefak tetap
+            tampil normal di UI dengan proxy CMF Yahoo, jadi tidak ada gejala di layar
+            pengguna. */}
+        <Link
+          href="/admin/foreign-flow"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-blue/10 p-2 text-tv-blue">
+            <Waves className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">
+              Cakupan Arus Asing <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Resmi</span>
+            </h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Emiten mana yang sudah punya Net Foreign Buy/Sell resmi BEI, mana yang masih memakai proxy, dan sesegar apa artefaknya.
+            </p>
+          </div>
+        </Link>
+
         {/* TP/CL Validation Lab berdiri sendiri di sini. Rutenya
             (/admin/tpcl-validation) memang sudah terpisah sejak awal, tapi satu-satunya
             tautan menujunya terkubur DI DALAM halaman Calibration Lab - jadi ia terbaca
