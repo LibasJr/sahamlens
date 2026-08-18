@@ -1,6 +1,7 @@
 ﻿'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AlertTriangle, CheckCircle2, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui';
 
@@ -50,6 +51,13 @@ export default function FundamentalBackfillClient() {
   // yang sama dengan yang akan di-insert.
   const [verifiedInput, setVerifiedInput] = useState<string | null>(null);
   const [confirmInsertOpen, setConfirmInsertOpen] = useState(false);
+  // Dialog ini mengonfirmasi INSERT append-only ke database: koreksinya butuh DELETE
+  // bertarget. Justru dialog seperti ini yang paling butuh jalan keluar yang pasti
+  // (Escape), fokus yang terkurung, dan latar yang tidak ikut tergulir - dan sebelumnya
+  // ia satu-satunya dari enam dialog beraria-modal yang tidak punya satu pun.
+  const confirmRef = useRef<HTMLDivElement>(null);
+  const closeConfirm = useCallback(() => setConfirmInsertOpen(false), []);
+  useModalBehavior({ open: confirmInsertOpen, onClose: closeConfirm, containerRef: confirmRef });
 
   const lineCount = useMemo(() => csvText.split(/\r?\n/).filter((line) => line.trim()).length, [csvText]);
   const inputFingerprint = useMemo(
@@ -224,7 +232,7 @@ export default function FundamentalBackfillClient() {
 
       {confirmInsertOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-backfill-title">
-          <div className="w-full max-w-md rounded-2xl border border-tv-border bg-tv-card p-5 shadow-2xl">
+          <div ref={confirmRef} className="w-full max-w-md rounded-2xl border border-tv-border bg-tv-card p-5 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="rounded-full bg-tv-yellow/10 p-2 text-tv-yellow"><AlertTriangle className="h-5 w-5" /></div>
               <div>

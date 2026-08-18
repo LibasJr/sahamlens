@@ -90,8 +90,11 @@ function DcfContent() {
       accent="blue"
       title={`${stock.symbol || ticker}.JK Intrinsic Valuation`}
       subtitle={`Discount rate proxy ${discountRatePct != null ? `${discountRatePct}%` : '-'} (asumsi SBN 10Y ${quant.sbn_10y_yield != null ? `${quant.sbn_10y_yield}%` : '-'} + risk premium ${quant.risk_premium != null ? `${quant.risk_premium}%` : '-'})`}
+      // flex-wrap: tiga blok metrik + gap 24px tidak muat di 320-375px, dan karena
+      // <main> memakai overflow-y-auto (yang membuat overflow-x terhitung auto),
+      // luberannya menggulirkan SELURUH halaman menyamping, bukan blok ini saja.
       headerExtra={
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div>
             <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Harga Pasar Saat Ini</div>
             <div className="text-xl font-bold text-tv-text font-number">Rp {quant.current_price?.toLocaleString('id-ID') || '-'}</div>

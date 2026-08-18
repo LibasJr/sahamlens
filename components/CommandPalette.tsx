@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { useRouter } from 'next/navigation';
 import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { getMarketAwareTtlMs } from '@/shared/cache/ttl-policy';
@@ -53,8 +54,6 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       if (enableShortcut && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setOpen((o) => !o);
-      } else if (e.key === 'Escape') {
-        setOpen(false);
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -164,6 +163,11 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       .finally(() => { if (activeSymbolRef.current === symbol) setPreviewLoading(false); });
   }, [active?.symbol]);
 
+  // autoFocus dimatikan: dialog ini sudah memindahkan fokus ke kolom pencariannya
+  // sendiri (lihat inputRef), dan itu tujuan yang lebih tepat daripada tombol pertama.
+  const closePalette = useCallback(() => setOpen(false), []);
+  useModalBehavior({ open, onClose: closePalette, containerRef: modalRef, autoFocus: false });
+
   const goTo = (emiten: Emiten) => {
     setOpen(false);
     setQuery('');
@@ -181,27 +185,6 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
     else if (e.key === 'Enter') { e.preventDefault(); if (active) goTo(active); }
   };
 
-  // Focus trap - tanpa ini Tab bisa memindahkan fokus keyboard ke elemen di belakang
-  // overlay (yang cuma tertutup visual, bukan aria-hidden), user keyboard-only bisa
-  // "tersesat" fokus di luar dialog padahal dialog masih terlihat terbuka.
-  const handleModalKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Tab') return;
-    const container = modalRef.current;
-    if (!container) return;
-    const focusable = Array.from(
-      container.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-    ).filter((el) => !el.hasAttribute('disabled'));
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
 
   return (
     <>
@@ -228,7 +211,6 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
             aria-modal="true"
             className="w-full max-w-[620px] overflow-hidden rounded-[22px] border border-tv-border bg-tv-surface shadow-[0_30px_90px_rgba(0,0,0,0.55)]"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleModalKeyDown}
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-tv-border">
               <Search className="h-4 w-4 text-tv-muted shrink-0" />
