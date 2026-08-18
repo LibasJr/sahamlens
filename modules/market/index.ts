@@ -5,6 +5,8 @@ export { calculateBeta, type BetaResult, type OhlcPoint } from './service/beta.s
 export {
   getRealForeignFlow,
   summarizeForeignFlow,
+  analyzeOfficialForeignFlow,
+  type OfficialForeignFlowAnalysis,
   calculateAccumulationStreak as calculateForeignAccumulationStreak,
   calculateDistributionStreak as calculateForeignDistributionStreak,
   getForeignParticipationRatio,
