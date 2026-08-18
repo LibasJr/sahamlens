@@ -338,7 +338,7 @@ export function buildLensHistoryUpsert(rows) {
         updated_at
       )
       VALUES ${tuples.join(', ')}
-      ON CONFLICT (date, ticker) DO UPDATE SET
+      ON CONFLICT (date, ticker, score_version, universe_version) DO UPDATE SET
         lens_score = EXCLUDED.lens_score,
         close_price = EXCLUDED.close_price,
         market_cap = EXCLUDED.market_cap,
