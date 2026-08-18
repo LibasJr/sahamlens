@@ -56,7 +56,7 @@ for (const job of jobs) {
 }
 
 const byProvider = (name) => jobs.filter((job) => job.provider === name).length;
-const unverified = jobs.filter((job) => job.scheduleStatus !== 'known');
+const unverified = jobs.filter((job) => !['known', 'disabled-by-policy'].includes(job.scheduleStatus));
 if (!process.exitCode) {
   console.log(
     `[scheduled-jobs] PASS: ${routes.length} cron route tercatat ` +
