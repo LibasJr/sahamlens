@@ -163,6 +163,13 @@
       "schedule": "Mon..Fri 18:30 Asia/Jakarta (jeda acak hingga 300 detik)",
       "scheduleStatus": "verify-server",
       "source": "BARU D-1 Market Data Integrity 2026-08-17. Rekonsiliasi close harian Yahoo vs sumber pembanding IDX untuk universe aktif. Timer repo deploy/market-data-reconcile; setelah dipasang verifikasi systemctl list-timers lalu ubah scheduleStatus menjadi known."
+    },
+    {
+      "path": "/api/cron/idx-flow-sync",
+      "provider": "systemd",
+      "schedule": "Mon..Fri *-*-* 17:30:00 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup."
     }
   ]
 }
