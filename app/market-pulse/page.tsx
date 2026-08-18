@@ -110,8 +110,14 @@ function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }: any) {
         {stocks?.slice(0, 4).map((s: any) => (
           <span
             key={s.symbol}
-            className={`text-[10px] font-number font-semibold px-1 py-0.5 rounded text-white ${
-              s.changePct >= 0 ? 'bg-tv-green/80' : 'bg-tv-red/80'
+            /* Pola tint 15% + teks berwarna, bukan `bg-tv-green/80 text-white`.
+               Penjaga kontras di globals.css sengaja mencocokkan KATA UTUH
+               (`[class~='bg-tv-green']`) supaya tint /10 tidak ikut terkena - efek
+               sampingnya, tint /80 yang hampir padat juga tidak tercakup, dan chip ini
+               terukur gagal AA di KEDUA tema. Pola tint sudah tercakup penuh oleh
+               matriks kontras yang ada dan seragam dengan <Badge>. */
+            className={`lens-chip font-number font-semibold px-1.5 py-0.5 rounded ${
+              s.changePct >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
             }`}
           >
             {s.symbol} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%

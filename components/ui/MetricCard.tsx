@@ -61,7 +61,10 @@ function Sparkline({ points, stroke }: { points: number[]; stroke: string }) {
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible shrink-0" aria-hidden="true">
-      <polyline points={path} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      {/* style, bukan atribut `stroke`: atribut presentasi SVG diurai sebagai nilai
+          atribut, bukan CSS, jadi rgb(var(--lens-green)) tidak akan pernah resolve
+          di sana. Lewat style ia melewati mesin CSS dan ikut tema. */}
+      <polyline points={path} fill="none" style={{ stroke }} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -83,7 +86,13 @@ export function MetricCard({
 }: MetricCardProps) {
   const hasValue = value !== null && value !== undefined && Number.isFinite(value);
   const resolvedTone = resolveTone(tone, deltaPct);
-  const strokeColor = resolvedTone === 'positive' ? '#22C55E' : resolvedTone === 'negative' ? '#EF4444' : '#3B82F6';
+  // Hex mati di sini adalah nilai tema gelap; di kartu putih garis 1,5px #22C55E
+  // terukur 2,28:1 - di bawah ambang 3:1 untuk elemen grafis.
+  const strokeColor = resolvedTone === 'positive'
+    ? 'rgb(var(--lens-green))'
+    : resolvedTone === 'negative'
+      ? 'rgb(var(--lens-red))'
+      : 'rgb(var(--lens-blue))';
   const interactive = Boolean(onClick);
 
   return (

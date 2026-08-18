@@ -175,7 +175,11 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         background: { type: ColorType.Solid, color: palet.latar },
         textColor: palet.teks,
         fontSize: 11,
-        fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+        // --font-geist-mono tidak pernah didefinisikan di mana pun (app/layout.tsx hanya
+        // menyediakan --font-inter dan --font-jetbrains-mono), jadi label harga & sumbu
+        // selama ini jatuh ke monospace generik - satu-satunya angka di aplikasi yang
+        // fontnya berbeda dari sisanya.
+        fontFamily: 'var(--font-jetbrains-mono), ui-monospace, monospace',
       },
       grid: {
         vertLines: { color: palet.kisi },

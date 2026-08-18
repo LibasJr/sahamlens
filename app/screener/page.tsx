@@ -635,12 +635,17 @@ export default function ScreenerPage() {
             />
           )}
 
+          {/* Dua kolom dibekukan, bukan satu: kolom pertama di sini adalah nomor urut,
+              jadi membekukan first-child saja akan mengunci angka peringkat sementara
+              KODE SAHAM - satu-satunya yang membuat 15 kolom sisanya berarti - tetap
+              ikut tergulir. --lens-sticky-head-bg menyamakan latar sel beku di header
+              dengan bg-tv-bg milik baris headernya. */}
           {sortedRows.length > 0 && (
-          <div className="hidden lg:block overflow-x-auto">
+          <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden lg:block overflow-x-auto">
             <table className="w-full text-left text-xs font-mono border-collapse">
               <thead>
                 <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase text-[10px]">
-                  <th className="p-3">#</th>
+                  <th className="w-12 p-3">#</th>
                   {SORTABLE_COLUMNS.map((col) => (
                     <th key={col.key} className={`p-3 ${col.align === 'right' ? 'text-right' : ''}`}>
                       {/* Ikon dua-arah redup menandai kolom yang bisa diurutkan.
@@ -667,7 +672,7 @@ export default function ScreenerPage() {
               <tbody className="divide-y divide-tv-border/50">
                 {visibleRows.map((item: any, idx: number) => (
                   <tr key={item.ticker} className="hover:bg-tv-hover/50 transition-colors">
-                    <td className="p-3 text-tv-muted font-bold">{idx + 1}</td>
+                    <td className="w-12 p-3 text-tv-muted font-bold">{idx + 1}</td>
                     <td className="p-3">
                       <Link
                         href={`/technical/${item.ticker}.JK`}

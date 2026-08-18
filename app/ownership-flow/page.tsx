@@ -226,7 +226,7 @@ export default function OwnershipFlowPage() {
               {/* Desktop: tabel. Mobile: kartu - tabel 8 kolom tidak pernah
                   terbaca di layar 360px, dan menggulirnya menyamping membuat
                   kode sahamnya sendiri hilang dari pandangan. */}
-              <div className="hidden overflow-x-auto md:block">
+              <div className="lens-table-sticky-col hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[900px] text-left text-[13px]">
                   <thead className="border-b border-white/[0.06] text-[11px] uppercase tracking-wide text-tv-muted">
                     <tr>

@@ -33,6 +33,56 @@ const FOREIGN_FLOW_LABEL: Record<string, string> = {
   'UNAVAILABLE': 'DATA N/A',
 };
 
+type SortConfig = { key: SortKey; direction: 'asc' | 'desc' } | null;
+
+const TH_ALIGN = { left: '', right: 'text-right justify-end', center: 'text-center justify-center' } as const;
+
+/**
+ * Header kolom yang bisa diurutkan.
+ *
+ * SEBELUMNYA `<th onClick={...}>` polos. `<th>` bukan elemen fokusabel dan tidak punya
+ * peran interaktif, jadi kedelapan kontrol pengurutan di tabel ini mustahil dipakai
+ * tanpa mouse - dan pembaca layar tidak pernah diberi tahu kolom mana yang sedang
+ * menjadi dasar urutan. Aksinya sekarang dibawa <button> sungguhan, dan `aria-sort`
+ * dipasang di `<th>` (bukan di tombolnya) sesuai WAI-ARIA.
+ *
+ * Didefinisikan di module scope, BUKAN di dalam Recommendations: komponen yang lahir
+ * ulang tiap render akan melepas-pasang DOM-nya, dan tabel ini memang re-render terus
+ * selama pemindaian berjalan - fokus keyboard di tombol header akan hilang tiap batch.
+ */
+function SortableTh({
+  label, sortKey, align = 'left', sortConfig, onSort, children,
+}: {
+  label: string;
+  sortKey: SortKey;
+  align?: keyof typeof TH_ALIGN;
+  sortConfig: SortConfig;
+  onSort: (key: SortKey) => void;
+  children?: React.ReactNode;
+}) {
+  const active = sortConfig?.key === sortKey;
+  const icon = active
+    ? (sortConfig!.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />)
+    : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />;
+
+  return (
+    <th
+      className={`p-4 font-semibold ${align === 'left' ? '' : TH_ALIGN[align].split(' ')[0]}`}
+      aria-sort={active ? (sortConfig!.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      {children}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        title={`Urutkan menurut ${label}`}
+        className={`group inline-flex min-h-6 w-full items-center gap-1.5 rounded transition-colors hover:text-tv-text ${TH_ALIGN[align]} ${active ? 'text-tv-text' : ''}`}
+      >
+        {align === 'left' ? <>{label} {icon}</> : <>{icon} {label}</>}
+      </button>
+    </th>
+  );
+}
+
 export default function Recommendations() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,13 +216,6 @@ export default function Recommendations() {
     setSortConfig({ key, direction });
   };
 
-  const getSortIcon = (key: SortKey) => {
-    if (sortConfig?.key === key) {
-      return sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />;
-    }
-    return <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />;
-  };
-
   const processedData = React.useMemo(() => {
     let result = [...data];
 
@@ -286,61 +329,22 @@ export default function Recommendations() {
         </div>
 
         <div className="bg-tv-card border border-tv-border rounded-xl shadow-1 overflow-hidden">
-          <div className="overflow-x-auto min-h-[500px]">
+          <div className="lens-table-sticky-col [--lens-sticky-head-bg:rgb(var(--lens-hover))] overflow-x-auto min-h-[500px]">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-tv-hover border-b border-tv-border text-xs font-mono text-tv-muted uppercase tracking-wider select-none">
-                  <th
-                    className="p-4 font-semibold cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('ticker')}
-                  >
-                    <div className="flex items-center gap-1.5">Simbol {getSortIcon('ticker')}</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('sector')}
-                  >
-                    <div className="flex items-center gap-1.5">Sektor {getSortIcon('sector')}</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold text-right cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('price')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">{getSortIcon('price')} Harga (Rp)</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold text-right cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('changePct')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">{getSortIcon('changePct')} Perubahan (%)</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('consensus')}
-                  >
-                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('consensus')} Konsensus Indikator</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('sentimentScore')}
-                  >
+                  <SortableTh label="Simbol" sortKey="ticker" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Sektor" sortKey="sector" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Harga (Rp)" sortKey="price" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Perubahan (%)" sortKey="changePct" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Konsensus Indikator" sortKey="consensus" align="center" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Bias Teknikal" sortKey="sentimentScore" align="center" sortConfig={sortConfig} onSort={handleSort}>
                     {/* Label diperbaiki (audit 2026-08-05, temuan H-9): kolom ini tidak
                         pernah mengukur sentimen - isinya persentase analyzer teknikal yang
                         bervote bullish. */}
-                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('sentimentScore')} Bias Teknikal</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold text-center cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('foreignFlow')}
-                  >
-                    <div className="flex items-center justify-center gap-1.5">{getSortIcon('foreignFlow')} Sinyal Arus Dana</div>
-                  </th>
-                  <th
-                    className="p-4 font-semibold text-right cursor-pointer group hover:bg-tv-border transition-colors"
-                    onClick={() => handleSort('bullishVotes')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">{getSortIcon('bullishVotes')} Vote (Bull:Bear)</div>
-                  </th>
+                  </SortableTh>
+                  <SortableTh label="Sinyal Arus Dana" sortKey="foreignFlow" align="center" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Vote (Bull:Bear)" sortKey="bullishVotes" align="right" sortConfig={sortConfig} onSort={handleSort} />
                 </tr>
               </thead>
               <tbody className="text-sm">

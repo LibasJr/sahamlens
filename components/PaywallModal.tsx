@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
@@ -143,42 +144,7 @@ export default function PaywallModal({
     setPaymentError(null);
   }, [open, isUpgradeFlow, selectedPlanId]);
 
-  // Escape untuk tutup + focus trap - sebelumnya tidak ada satu pun, Tab bisa
-  // memindahkan fokus keyboard ke elemen halaman di belakang overlay yang secara
-  // visual tertutup tapi tetap ada di tab order (user keyboard-only bisa "tersesat").
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const container = modalRef.current;
-      if (!container) return;
-      const focusable = Array.from(
-        container.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-      ).filter((el) => !el.hasAttribute('disabled'));
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    const focusTimer = setTimeout(() => {
-      modalRef.current?.querySelector<HTMLElement>('button, [href]')?.focus();
-    }, 30);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      clearTimeout(focusTimer);
-    };
-  }, [open, onClose]);
+  useModalBehavior({ open, onClose, containerRef: modalRef });
 
   return (
     <AnimatePresence>

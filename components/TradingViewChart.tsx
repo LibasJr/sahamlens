@@ -242,7 +242,9 @@ export default function TradingViewChart({
         background: { type: ColorType.Solid, color: palet.latar },
         textColor: palet.teks,
         fontSize: 11,
-        fontFamily: 'JetBrains Mono, monospace',
+        // next/font memancarkan nama keluarga ber-hash; menyebut 'JetBrains Mono' sebagai
+        // nama literal tidak pernah resolve. Hanya variabel CSS-nya yang bisa dirujuk.
+        fontFamily: 'var(--font-jetbrains-mono), ui-monospace, monospace',
       },
       localization: {
         priceFormatter: (price: number) => isIndexSymbol

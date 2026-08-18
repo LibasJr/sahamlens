@@ -63,7 +63,10 @@ export function TickerAnalysisShell({
                 {subtitle && <p className="mt-1 max-w-3xl text-sm leading-relaxed text-tv-muted">{subtitle}</p>}
               </div>
             </div>
-            {headerExtra && <div className="w-full shrink-0 md:w-auto">{headerExtra}</div>}
+            {/* min-w-0 wajib: tanpa itu flex item tidak boleh menyusut di bawah lebar
+                kontennya, sehingga flex-wrap di dalam headerExtra tidak pernah terpicu.
+                shrink-0 dipindah ke md+ saja - di mobile justru ia yang mengunci luberan. */}
+            {headerExtra && <div className="w-full min-w-0 md:w-auto md:shrink-0">{headerExtra}</div>}
           </Card>
         </div>
 

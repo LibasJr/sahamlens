@@ -47,6 +47,19 @@
    * pasangannya teks gelap. Lihat catatan panjang di aturan .bg-tv-green dst. */
   --lens-on-accent: 7 11 18;
 
+  /* Dua stop shimmer skeleton. Arahnya BERBALIK antar tema: di latar gelap
+   * placeholder harus lebih TERANG dari kartunya, di latar terang lebih GELAP.
+   * Satu token yang dipakai dua-duanya akan jadi putih-di-atas-putih di mode
+   * terang - kegagalan yang sama persis, cuma terbalik.
+   *
+   * Basisnya --lens-hover, BUKAN --lens-card. Gradien lamanya memakai #101926 yang
+   * praktis identik dengan kartunya sendiri (terukur 1,00:1), jadi skeleton gelap
+   * selama ini hanya terlihat karena sheen-nya BERGERAK - dan ia berhenti bergerak
+   * persis untuk pengguna yang meminta prefers-reduced-motion. Sekarang kotaknya
+   * terbaca diam-diam pun: 1,14:1 di atas kartu, 1,25:1 di atas latar halaman. */
+  --lens-skeleton-base: rgb(var(--lens-hover));
+  --lens-skeleton-sheen: rgb(var(--lens-border-light));
+
   --background: rgb(var(--lens-bg));
   --foreground: rgb(var(--lens-text));
 }
@@ -118,6 +131,12 @@ html.light {
   --lens-purple-solid: 109 40 217;
   /* Tema terang: aksennya sudah gelap, jadi pasangannya putih. */
   --lens-on-accent: 255 255 255;
+
+  /* Kartu terang berlatar putih, jadi basisnya --lens-border: terukur 1,39:1 di atas
+   * kartu putih dan 1,29:1 di atas --lens-bg abu - terlihat di keduanya tanpa jadi
+   * balok pekat. Sheen-nya menyapu ke arah putih, kebalikan dari tema gelap. */
+  --lens-skeleton-base: rgb(var(--lens-border));
+  --lens-skeleton-sheen: rgb(var(--lens-card-alt));
 }
 
 /* Kartu ekspor gambar (components/export/*ExportCard.tsx) DIKUNCI gelap, apa pun tema
@@ -643,6 +662,89 @@ body > div > .lens-theme-toggle {
 .light .ai-response blockquote { color: #28476d; background: rgba(58, 134, 255, .08); }
 .light .ai-response td,
 .light .ai-response th { border-color: #d2dce8; }
+
+/* Shimmer skeleton (components/ui/Skeleton.tsx) mengikuti tema.
+ *
+ * Gradiennya dulu tiga hex mati bernuansa gelap (#101926 -> #1A2940 -> #101926). Itu
+ * benar selama palet aplikasi selalu gelap, tapi begitu token menjadi peka-tema ia
+ * berubah jadi regresi yang paling kasat mata dari seluruh pekerjaan token: terukur
+ * 16,44:1 terhadap --lens-bg terang, yaitu balok hampir hitam di atas halaman putih -
+ * bukan "kurang kontras", melainkan kebalikan dari maksud sebuah placeholder.
+ *
+ * Yang membuatnya serius adalah kapan ia muncul: app/layout.tsx memilih tema dari
+ * prefers-color-scheme kalau pengguna belum pernah memilih, dan skeleton adalah hal
+ * PERTAMA yang dirender di /home (14 pemakaian), /market-pulse (9), /dashboard (8).
+ * Jadi ini persis tampilan pertama bagi pengunjung ber-OS mode terang.
+ *
+ * Dipasang sebagai kelas, bukan diperbaiki di komponen dengan utility arbitrer, karena
+ * nilai gradien harus mengikuti variabel - dan `bg-[linear-gradient(...)]` Tailwind
+ * tidak bisa menyisipkan rgb(var(--lens-card)) tanpa jadi tidak terbaca. Satu aturan
+ * ini memperbaiki 31 pemakaian di 25 berkas sekaligus. */
+.lens-skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--lens-skeleton-base) 25%,
+    var(--lens-skeleton-sheen) 50%,
+    var(--lens-skeleton-base) 75%
+  );
+}
+
+/* ====== Kolom kunci tabel tetap terlihat saat digulir menyamping ======
+ *
+ * Tabel finansial terlebar di aplikasi punya 17 kolom (screener), 8 kolom
+ * (recommendations, ownership-flow). Tanpa kolom beku, menggulir ke kanan untuk membaca
+ * "Bandarmology" atau "delta asing" membuat KODE SAHAMNYA sendiri hilang dari layar -
+ * angkanya terbaca tanpa diketahui milik emiten mana.
+ *
+ * app/ownership-flow/page.tsx sudah menyadari persis masalah ini dan menyelesaikannya
+ * untuk mobile dengan mengganti tabel jadi kartu. Aturan ini menutup sisanya: desktop
+ * dan tablet, tempat tabelnya justru paling lebar.
+ *
+ * `background-color` opaque WAJIB: sel sticky yang transparan membuat isi kolom di
+ * bawahnya terlihat menembus saat digulir. Latarnya --lens-card karena ketiga tabel itu
+ * duduk di dalam pembungkus bg-tv-card; header boleh berbeda lewat --lens-sticky-head-bg.
+ *
+ * Pembatasnya box-shadow, BUKAN border-right: ketiga tabel memakai border-collapse:
+ * collapse, dan border yang dikolaps tidak ikut menempel pada sel sticky. box-shadow
+ * digambar di luar model border jadi ia selalu ikut.
+ *
+ * `:not([colspan])` mengecualikan baris keadaan kosong/memuat yang merentang penuh
+ * (mis. <td colSpan={8}>) - sel semacam itu ADALAH first-child, dan membekukannya akan
+ * menempelkan ilustrasi kosong ke tepi kiri. */
+.lens-table-sticky-col :where(thead th, tbody td):first-child:not([colspan]),
+.lens-table-sticky-col-2 :where(thead th, tbody td):nth-child(2):not([colspan]) {
+  position: sticky;
+  background-color: rgb(var(--lens-card));
+}
+
+.lens-table-sticky-col :where(thead th, tbody td):first-child:not([colspan]) {
+  left: 0;
+}
+
+.lens-table-sticky-col thead th:first-child:not([colspan]),
+.lens-table-sticky-col-2 thead th:nth-child(2):not([colspan]) {
+  background-color: var(--lens-sticky-head-bg, rgb(var(--lens-card)));
+  z-index: 3;
+}
+
+.lens-table-sticky-col tbody td:first-child:not([colspan]),
+.lens-table-sticky-col-2 tbody td:nth-child(2):not([colspan]) {
+  z-index: 2;
+}
+
+/* Pembatas hanya di kolom beku TERAKHIR, jadi dua kolom beku terbaca sebagai satu
+ * blok, bukan dua kolom yang masing-masing bergaris. */
+.lens-table-sticky-col:not(.lens-table-sticky-col-2) :where(thead th, tbody td):first-child:not([colspan]),
+.lens-table-sticky-col-2 :where(thead th, tbody td):nth-child(2):not([colspan]) {
+  box-shadow: 1px 0 0 0 rgb(var(--lens-border));
+}
+
+/* Kolom kedua butuh offset selebar kolom pertama. Nilainya BUKAN tebakan: tabel yang
+ * memakai varian ini mengunci lebar kolom pertamanya (w-12 = 3rem) supaya offset ini
+ * tepat. Kalau lebarnya diubah, ubah juga variabelnya di pembungkus tabel. */
+.lens-table-sticky-col-2 :where(thead th, tbody td):nth-child(2):not([colspan]) {
+  left: var(--lens-sticky-col-1-w, 3rem);
+}
 
 .lens-theme-toggle { -webkit-tap-highlight-color: transparent; }
 

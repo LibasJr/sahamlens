@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 
 interface RadialScoreGaugeProps {
   score: number; // 0 to 100
@@ -8,6 +8,27 @@ interface RadialScoreGaugeProps {
   category?: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG SELL' | string;
   size?: number;
   className?: string;
+}
+
+// Tangga warna yang SAMA dengan MarketRegimePanel, supaya dua pengukur skor di aplikasi
+// ini tidak memakai dua bahasa warna yang berbeda: merah - warning - kuning - hijau -
+// hijau paling pekat. Arah "makin pekat = makin kuat" berlaku di kedua tema (terang
+// #116F2E -> #0F5E27, gelap #23C483 -> #1BAD72), jadi maknanya tidak berbalik.
+//
+// Palet Tailwind mentah yang dipakai sebelumnya (emerald/teal/amber/orange/rose) adalah
+// nilai yang dirancang untuk latar gelap dan tidak punya pasangan terang. Terukur di
+// kartu putih: text-amber-500 pada legenda 2,15:1 dan text-emerald-500 pada angka skor
+// 2,54:1 - dua-duanya gagal, dan angka skor itu isi utama komponennya.
+const SCORE_TONES = [
+  { min: 75, text: 'text-tv-greenHover', bg: 'bg-tv-greenHover/15', token: '--lens-green-hover' },
+  { min: 60, text: 'text-tv-green', bg: 'bg-tv-green/15', token: '--lens-green' },
+  { min: 45, text: 'text-tv-yellow', bg: 'bg-tv-yellow/15', token: '--lens-yellow' },
+  { min: 30, text: 'text-tv-warning', bg: 'bg-tv-warning/15', token: '--lens-warning' },
+  { min: -Infinity, text: 'text-tv-red', bg: 'bg-tv-red/15', token: '--lens-red' },
+] as const;
+
+function toneFor(score: number) {
+  return SCORE_TONES.find((tone) => score >= tone.min) ?? SCORE_TONES[SCORE_TONES.length - 1];
 }
 
 export function RadialScoreGauge({
@@ -33,17 +54,13 @@ export function RadialScoreGauge({
   const dotX = centerX + radius * Math.cos(angleRad);
   const dotY = centerY - radius * Math.sin(angleRad);
 
-  // Dynamic color selection
-  const getColor = (s: number) => {
-    if (s >= 75) return { text: 'text-emerald-500 dark:text-emerald-400', stroke: '#10B981', glow: 'rgba(16, 185, 129, 0.4)', bg: 'bg-emerald-500/15' };
-    if (s >= 60) return { text: 'text-teal-600 dark:text-teal-400', stroke: '#14B8A6', glow: 'rgba(20, 184, 166, 0.3)', bg: 'bg-teal-500/15' };
-    if (s >= 45) return { text: 'text-amber-600 dark:text-amber-400', stroke: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', bg: 'bg-amber-500/15' };
-    if (s >= 30) return { text: 'text-orange-600 dark:text-orange-400', stroke: '#F97316', glow: 'rgba(249, 115, 22, 0.3)', bg: 'bg-orange-500/15' };
-    return { text: 'text-rose-600 dark:text-rose-400', stroke: '#F43F5E', glow: 'rgba(244, 63, 94, 0.4)', bg: 'bg-rose-500/15' };
-  };
-
-  const theme = getColor(clampedScore);
+  const theme = toneFor(clampedScore);
   const height = size / 2 + 35;
+  // id SVG bersifat GLOBAL di dokumen. Dua gauge dalam satu halaman menghasilkan id
+  // kembar dan setiap url(#...) akan menunjuk ke definisi yang pertama saja.
+  const uid = useId().replace(/:/g, '');
+  const gradientId = `lens-gauge-grad-${uid}`;
+  const glowId = `lens-gauge-glow-${uid}`;
 
   return (
     <div className={`flex flex-col items-center justify-center select-none ${className}`}>
@@ -56,15 +73,17 @@ export function RadialScoreGauge({
         >
           <defs>
             {/* Linear Gradient for Progress Arc */}
-            <linearGradient id="scoreGaugeGrad" x1="0%" y1="100%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#F43F5E" />
-              <stop offset="35%" stopColor="#F59E0B" />
-              <stop offset="65%" stopColor="#14B8A6" />
-              <stop offset="100%" stopColor="#10B981" />
+            {/* stopColor lewat `style`, bukan atribut: atribut presentasi SVG diurai
+                sebagai nilai atribut - bukan CSS - jadi var(--lens-*) tidak resolve. */}
+            <linearGradient id={gradientId} x1="0%" y1="100%" x2="100%" y2="100%">
+              <stop offset="0%" style={{ stopColor: 'rgb(var(--lens-red))' }} />
+              <stop offset="35%" style={{ stopColor: 'rgb(var(--lens-warning))' }} />
+              <stop offset="65%" style={{ stopColor: 'rgb(var(--lens-yellow))' }} />
+              <stop offset="100%" style={{ stopColor: 'rgb(var(--lens-green))' }} />
             </linearGradient>
 
             {/* Glowing filter */}
-            <filter id="gaugeGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="3" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
@@ -84,7 +103,7 @@ export function RadialScoreGauge({
           <path
             d={`M ${strokeWidth / 2} ${centerY} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${centerY}`}
             fill="none"
-            stroke="url(#scoreGaugeGrad)"
+            stroke={`url(#${gradientId})`}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -99,11 +118,14 @@ export function RadialScoreGauge({
             cx={dotX}
             cy={dotY}
             r={strokeWidth / 2 + 2}
-            fill="#FFFFFF"
-            stroke={theme.stroke}
             strokeWidth={3}
-            filter="url(#gaugeGlow)"
+            filter={`url(#${glowId})`}
             style={{
+              // Isinya warna kartu, bukan putih mati: knob dibaca sebagai lubang yang
+              // dilubangi pada busur, dan itu kontras di kedua tema. Putih mati hilang
+              // di atas kartu putih tema terang.
+              fill: 'rgb(var(--lens-card))',
+              stroke: `rgb(var(${theme.token}))`,
               transition: 'cx 0.8s cubic-bezier(0.16, 1, 0.3, 1), cy 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           />
@@ -119,7 +141,7 @@ export function RadialScoreGauge({
           </div>
 
           {category && (
-            <div className={`mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${theme.bg} ${theme.text} border-current/30 shadow-sm`}>
+            <div className={`lens-chip mt-1 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider border ${theme.bg} ${theme.text} border-current/30 shadow-sm`}>
               {category}
             </div>
           )}
@@ -128,9 +150,9 @@ export function RadialScoreGauge({
 
       {/* Scale Limits Legend */}
       <div className="flex justify-between w-full px-2 text-[10px] font-bold text-tv-muted font-number mt-0.5">
-        <span className="text-rose-500 dark:text-rose-400/80">0 Bearish</span>
-        <span className="text-amber-500 dark:text-amber-400/80">50 Netral</span>
-        <span className="text-emerald-600 dark:text-emerald-400/80">100 Bullish</span>
+        <span className="text-tv-red">0 Bearish</span>
+        <span className="text-tv-yellow">50 Netral</span>
+        <span className="text-tv-green">100 Bullish</span>
       </div>
 
       {label && (
