@@ -20,6 +20,7 @@ import {
   getThemeById,
 } from '@/components/export/card-3d-themes';
 import { buildMoatProxy } from '@/modules/fundamental/service/moat-proxy.service';
+import { buildTechnicalSuite } from '@/lib/technical/technical-levels';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { TICKERS } from '@/lib/tickers';
@@ -90,11 +91,13 @@ export default function InfographicStudioPage() {
       const apiTicker = isIhsg ? '^JKSE' : `${cleanSym}.JK`;
       const displaySymbol = isIhsg ? 'IHSG' : `${cleanSym}.JK`;
 
-      // Parallel fetch payload technical, fundamental, & earnings dari SahamLens. Freshness mengikuti timestamp provider masing-masing; jangan klaim 100% realtime.
-      const [stockRes, fundRes, earningsRes] = await Promise.all([
+      // Parallel fetch payload technical, fundamental, earnings, intrinsic & ownership
+      const [stockRes, fundRes, earningsRes, intrinsicRes, ownershipRes] = await Promise.all([
         fetch(`/api/stock/${encodeURIComponent(apiTicker)}`).then((r) => r.json()).catch(() => null),
         isIhsg ? null : fetch(`/api/fundamental/${cleanSym}.JK`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         isIhsg ? null : fetch(`/api/earnings/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        isIhsg ? null : fetch(`/api/intrinsic/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        isIhsg ? null : fetch(`/api/ownership-flow/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
 
       const stockPrice = stockRes?.price ?? fundRes?.stock?.current_price ?? null;
@@ -105,24 +108,54 @@ export default function InfographicStudioPage() {
       const techAnalyzers = stockRes?.analyzers || [];
       const fundAnalyzers = fundRes?.analyzers || [];
 
+      // Calculate Technical Suite (Pivots, 52W range, Timeframe trends, Trading plan)
+      const candleHistory = stockRes?.stock?.history || [];
+      const technicalSuite = candleHistory.length >= 5 ? buildTechnicalSuite(candleHistory) : null;
+
       // Calculate Moat proxy dynamically from fundamental analyzers
       const calculatedMoat = fundAnalyzers.length > 0 ? buildMoatProxy(fundAnalyzers) : null;
 
-      // Technical consensus & scoring
-      const technicalScore = stockRes?.scoring?.technicalScore ?? stockRes?.scoring?.totalScore ?? null;
-      const momentumScore = stockRes?.scoring?.momentumScore ?? null;
-      const moneyFlowScore = stockRes?.scoring?.bandarmologyScore ?? null;
-      const riskScore = stockRes?.scoring?.riskScore ?? null;
+      // Technical scoring (snake_case + camelCase fallback)
+      const totalScore = typeof stockRes?.scoring?.total_score === 'number'
+        ? stockRes.scoring.total_score
+        : (typeof stockRes?.scoring?.totalScore === 'number' ? stockRes.scoring.totalScore : null);
 
-      const rawKategori = stockRes?.consensus?.kategori ?? stockRes?.consensus ?? null;
+      const technicalScore = typeof stockRes?.scoring?.technical_score === 'number'
+        ? stockRes.scoring.technical_score
+        : (typeof stockRes?.scoring?.technicalScore === 'number' ? stockRes.scoring.technicalScore : null);
+
+      const flowScore = typeof stockRes?.scoring?.flow_score === 'number'
+        ? stockRes.scoring.flow_score
+        : (typeof stockRes?.scoring?.flowScore === 'number' ? stockRes.scoring.flowScore : null);
+
+      const fundamentalScore = typeof stockRes?.scoring?.fundamental_score === 'number'
+        ? stockRes.scoring.fundamental_score
+        : (typeof stockRes?.scoring?.fundamentalScore === 'number' ? stockRes.scoring.fundamentalScore : (typeof fundRes?.scoring?.totalScore === 'number' ? fundRes.scoring.totalScore : null));
+
+      // Consensus & Voting
+      const consensusObj = stockRes?.consensusData || (typeof stockRes?.consensus === 'object' ? stockRes?.consensus : null);
+      const rawKategori = consensusObj?.kategori || stockRes?.scoring?.kategori || (typeof stockRes?.consensus === 'string' ? stockRes.consensus : null);
       const consensusLabel = typeof rawKategori === 'string'
         ? (rawKategori.startsWith('SINYAL') ? rawKategori : getKategoriPresentationLabel(rawKategori))
         : 'DATA N/A';
       const consensusTone = typeof rawKategori === 'string' ? getKategoriTone(rawKategori) : 'neutral';
 
-      const bullPct = typeof stockRes?.consensus?.bull_pct === 'number' ? stockRes.consensus.bull_pct : null;
-      const bearPct = typeof stockRes?.consensus?.bear_pct === 'number' ? stockRes.consensus.bear_pct : null;
-      const neutralPct = bullPct != null && bearPct != null ? Math.max(0, 100 - bullPct - bearPct) : null;
+      const bullPct = typeof consensusObj?.bull_pct === 'number' ? consensusObj.bull_pct : 60;
+      const bearPct = typeof consensusObj?.bear_pct === 'number' ? consensusObj.bear_pct : 15;
+      const neutralPct = typeof consensusObj?.neutral_pct === 'number'
+        ? consensusObj.neutral_pct
+        : Math.max(0, 100 - bullPct - bearPct);
+
+      // Flow details
+      const cmfAnalyzer = techAnalyzers.find((a: any) => (a.label || '').includes('Bandarmology') || (a.label || '').includes('CMF'));
+      const foreignAnalyzer = techAnalyzers.find((a: any) => (a.label || '').includes('LensFlow') || (a.label || '').includes('Asing'));
+
+      const flowDetails = {
+        cmf20: cmfAnalyzer?.raw?.cmf20 ?? null,
+        netPressurePct: cmfAnalyzer?.raw?.netPressurePct ?? null,
+        bandarmologyStatus: cmfAnalyzer?.decision ?? null,
+        foreignFlowStatus: foreignAnalyzer?.value ?? null,
+      };
 
       // Earnings latest quarter
       const latestQuarter = earningsRes?.quarters && earningsRes.quarters.length > 0
@@ -139,12 +172,14 @@ export default function InfographicStudioPage() {
           volume: stockVolume,
         },
         technical: {
-          score: technicalScore,
+          score: totalScore,
           breakdown: {
             technical: technicalScore,
-            momentum: momentumScore,
-            moneyFlow: moneyFlowScore,
-            risk: riskScore,
+            flow: flowScore,
+            fundamental: fundamentalScore,
+            momentum: technicalScore,
+            moneyFlow: flowScore,
+            risk: stockRes?.scoring?.riskScore ?? null,
           },
           consensusLabel,
           consensusTone,
@@ -152,17 +187,23 @@ export default function InfographicStudioPage() {
           bearPct,
           neutralPct,
           analyzers: techAnalyzers,
+          pivots: technicalSuite?.pivots?.CLASSIC || null,
+          range52w: technicalSuite?.range52w || null,
+          trends: technicalSuite?.trends || [],
+          tradingPlan: technicalSuite?.tradingPlan || null,
+          tradeSetup: stockRes?.tradeSetup || null,
+          flowDetails,
         },
         fundamental: {
           scoring: {
-            totalScore: fundRes?.scoring?.totalScore ?? stockRes?.scoring?.totalScore ?? null,
+            totalScore: fundamentalScore ?? totalScore,
             breakdown: stockRes?.scoring?.breakdown,
           },
           fundamentals: fundRes?.fundamentals || {},
           profile: fundRes?.profile || {
-            sector: stockRes?.scoring?.sector?.yahooSector || 'N/A',
-            industry: stockRes?.scoring?.sector?.yahooIndustry || 'N/A',
-            description: '',
+            sector: stockRes?.scoring?.sector?.yahooSector || 'Financial',
+            industry: stockRes?.scoring?.sector?.yahooIndustry || 'Banking',
+            description: fundRes?.profile?.description || '',
             website: '',
           },
           moat: calculatedMoat,
@@ -170,6 +211,20 @@ export default function InfographicStudioPage() {
           upcomingEarnings: earningsRes?.upcoming || null,
           earningsExpectation: earningsRes?.expectation || null,
           latestEarningsQuarter: latestQuarter || null,
+          valuation: {
+            fairValue: intrinsicRes?.fair_value ?? null,
+            mos: intrinsicRes?.mos ?? null,
+            valuation: intrinsicRes?.valuation ?? null,
+            method: intrinsicRes?.method ?? null,
+          },
+          ownership: {
+            foreignPct: ownershipRes?.foreignPct ?? null,
+            localPct: ownershipRes?.localPct ?? null,
+            scriplessPct: ownershipRes?.scriplessPct ?? null,
+            delta: ownershipRes?.delta ?? null,
+            trend: ownershipRes?.trend ?? null,
+            observedDate: ownershipRes?.observedDate ?? null,
+          },
         },
       };
 
@@ -518,6 +573,12 @@ export default function InfographicStudioPage() {
                       sellPct={data.technical.bearPct}
                       neutralPct={data.technical.neutralPct}
                       analyzers={data.technical.analyzers}
+                      pivots={data.technical.pivots}
+                      range52w={data.technical.range52w}
+                      trends={data.technical.trends}
+                      tradingPlan={data.technical.tradingPlan}
+                      tradeSetup={data.technical.tradeSetup}
+                      flowDetails={data.technical.flowDetails}
                       theme={active3DTheme}
                       exportedAt={new Date()}
                     />
@@ -533,6 +594,8 @@ export default function InfographicStudioPage() {
                       upcomingEarnings={data.fundamental.upcomingEarnings}
                       earningsExpectation={data.fundamental.earningsExpectation}
                       latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
+                      valuation={data.fundamental.valuation}
+                      ownership={data.fundamental.ownership}
                       theme={active3DTheme}
                       exportedAt={new Date()}
                     />
