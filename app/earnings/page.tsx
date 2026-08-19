@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import useSWR from 'swr';
 import {
   AlertTriangle,
   BarChart3,
@@ -37,9 +38,6 @@ export default function EarningsPage() {
   const isEn = language === 'en';
 
   const [ticker, setTicker] = useState('BBCA');
-  const [data, setData] = useState<PublicEarningsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
   const exportRef = useRef<HTMLDivElement>(null);
@@ -98,34 +96,22 @@ export default function EarningsPage() {
     return <Badge variant="neutral">N/A</Badge>;
   }
 
-  useEffect(() => {
-    const controller = new AbortController();
+  // SWR menggantikan useEffect + AbortController. Penjaga urutannya tidak hilang - SWR
+  // mengunci hasil ke kuncinya, jadi respons emiten lama tidak bisa mendarat sebagai
+  // milik emiten baru. Yang DIDAPAT: berbagi permintaan dengan halaman lain yang memakai
+  // endpoint sama, revalidasi saat tab kembali fokus, dan retry berjenjang yang dulu
+  // tidak ada sama sekali.
+  const {
+    data: data,
+    error: loadError,
+    isLoading: loading,
+  } = useSWR<PublicEarningsData>(selectedTicker ? '/api/earnings/' + encodeURIComponent(selectedTicker) : null);
 
-    async function loadEarnings() {
-      setLoading(true);
-      setError(null);
-      setData(null);
-
-      try {
-        const response = await fetch('/api/earnings/' + encodeURIComponent(selectedTicker), {
-          signal: controller.signal,
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload?.error || (isEn ? 'Earnings data not available yet.' : 'Data earnings publik belum tersedia.'));
-        }
-        setData(payload as PublicEarningsData);
-      } catch (caught) {
-        if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : (isEn ? 'Failed to fetch public earnings data.' : 'Gagal mengambil data earnings publik.'));
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-
-    void loadEarnings();
-    return () => controller.abort();
-  }, [selectedTicker, reloadKey, isEn]);
+  // Pesan dari server dipakai kalau ada, sama seperti `result.error` sebelumnya.
+  const error = loadError
+    ? (loadError as Error).message ||
+      (isEn ? 'Failed to fetch public earnings data.' : 'Gagal mengambil data earnings publik.')
+    : null;
 
   const estimateCurrency = data?.expectation.eps.currency ?? data?.stock.currency ?? null;
   const financialCurrency = data?.latestFundamentals.financialCurrency ?? data?.stock.currency ?? null;
