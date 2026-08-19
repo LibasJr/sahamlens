@@ -94,7 +94,7 @@ export default function RiskPage() {
       title="Risk Matrix & Stress Testing Portofolio"
       subtitle="Beta historis 1 tahun (regresi return harian terhadap IHSG & USD/IDR, data Yahoo Finance) - dihitung dari komposisi portofolio Anda"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
         <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <PieChart className="w-5 h-5 text-tv-red" />

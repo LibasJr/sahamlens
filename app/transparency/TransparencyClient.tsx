@@ -324,7 +324,7 @@ export default function TransparencyClient() {
       <section className="rounded-xl border border-tv-border bg-tv-card p-5">
         <h2 className="font-heading text-lg font-bold">Jejak audit data</h2>
         <p className="mt-1 text-xs text-tv-muted">Versi dan baris yang dikeluarkan ditampilkan agar hasil tidak dibaca sebagai campuran model lama.</p>
-        <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
           <div><dt className="text-tv-muted">Versi skor</dt><dd className="mt-1 font-number text-tv-text">{data.scoreVersion || data.requestedScoreVersion}</dd></div>
           <div><dt className="text-tv-muted">Basis harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceBasis}</dd></div>
           <div><dt className="text-tv-muted">Versi data harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceDataVersion}</dd></div>
