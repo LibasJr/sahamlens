@@ -650,6 +650,8 @@ export default function AiPickPage() {
                             <button
                               type="button"
                               onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
+                              aria-label={`Rincian ${it.symbol}`}
+                              aria-expanded={isExpanded}
                               className="inline-flex items-center gap-1 text-[11px] text-tv-blue hover:text-tv-text transition-colors"
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

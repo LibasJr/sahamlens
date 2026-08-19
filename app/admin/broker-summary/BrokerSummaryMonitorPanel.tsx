@@ -228,6 +228,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                     {tickerQuery && (
                       <button
                         type="button"
+                        aria-label='Bersihkan pencarian kode saham'
                         onClick={() => {
                           setTickerQuery('');
                           setShowSuggestions(false);

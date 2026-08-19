@@ -39,6 +39,7 @@ jobs:
           npm run audit:risk-controls
           npm run audit:zero-dummy
           npm run audit:adoption
+          npm run audit:a11y
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
