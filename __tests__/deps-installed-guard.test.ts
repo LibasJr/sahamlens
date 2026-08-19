@@ -30,7 +30,9 @@ describe('penjaga sinkronisasi node_modules', () => {
     // Kalau ini merah di CI, node_modules-nya yang bermasalah - bukan tesnya.
     const out = execFileSync('node', [SCRIPT], { cwd: ROOT, encoding: 'utf8' });
     expect(out).toMatch(/dependensi terpasang lengkap/);
-  });
+    // 30 detik: proses node terpisah, sama seperti gerbang a11y - 5 detik bawaan terlalu
+    // ketat saat suite penuh berjalan paralel.
+  }, 30_000);
 
   it('menyebut `npm ci` di pesan galatnya - itu seluruh gunanya', () => {
     // Nilai skrip ini bukan "mendeteksi", melainkan MEMBERI TAHU perintah perbaikannya.

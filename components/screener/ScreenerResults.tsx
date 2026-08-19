@@ -122,7 +122,7 @@ export default function ScreenerResults({
       ikut tergulir. --lens-sticky-head-bg menyamakan latar sel beku di header
       dengan bg-tv-bg milik baris headernya. */}
   {sortedRows.length > 0 && (
-  <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden lg:block overflow-x-auto">
+  <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden md:block overflow-x-auto">
     <table className="w-full text-left text-xs font-mono border-collapse">
       <thead>
         <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase text-[10px]">
@@ -367,7 +367,7 @@ export default function ScreenerResults({
       yang sama, dikelompokkan menurut cara membacanya (valuasi, kualitas,
       risiko) alih-alih dijejer dalam satu baris. */}
   {sortedRows.length > 0 && (
-    <div className="lg:hidden space-y-2">
+    <div className="md:hidden space-y-2">
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
         {SORTABLE_COLUMNS.filter((c) => c.align === 'right' || c.key === 'ticker').map((col) => (
