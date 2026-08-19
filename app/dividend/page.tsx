@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
+import { ApiError } from '@/lib/api/fetcher';
 import { Coins, ShieldCheck, Repeat } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { Input } from '@/components/ui';
@@ -14,9 +16,6 @@ export default function DividendPage() {
   const [capital, setCapital] = useState(200_000_000);
   const [targetMonthly, setTargetMonthly] = useState(10_000_000);
   const [ticker, setTicker] = useState('BBCA');
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
 
   // Catatan: kalkulator ini menghitung statistik dari universe saham dividen yang berhasil dibaca provider
@@ -24,44 +23,57 @@ export default function DividendPage() {
   // BUKAN dividend yield khusus `ticker` yang dipilih di header - input ticker di sini
   // sengaja tetap ada untuk konsistensi shell (TickerAnalysisShellProps mewajibkannya),
   // tapi tidak memengaruhi hasil simulasi di bawah.
-  const fetchDividendPlan = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
-      const json = await res.json();
-      // 402 = butuh Pro. Tampilkan modal upgrade (jalan keluar yang bisa ditindaklanjuti),
-      // bukan teks error merah yang jadi jalan buntu seperti kegagalan teknis.
-      if (res.status === 402 || json?.code === 'SUBSCRIPTION_REQUIRED') {
-        setShowPaywall(true);
-        setData(null);
-        return;
-      }
-      if (!res.ok) {
-        setError(json?.error || 'Gagal memuat simulasi dividen');
-        setData(null);
-        return;
-      }
-      setData(json);
-    } catch (e) {
-      console.error(e);
-      setError('Gagal memuat simulasi dividen');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Debounce 500 ms DIPERTAHANKAN, tapi lewat state kunci alih-alih setTimeout yang
+  // memanggil fetch. Bedanya penting: cara lama menembak satu request per "berhenti
+  // mengetik", dan dua nilai modal yang sama menghasilkan dua request yang sama pula -
+  // sekarang keduanya kunci SWR yang identik, jadi yang kedua dijawab dari cache.
+  const [debounced, setDebounced] = useState<{ capital: number; targetMonthly: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     // Ketikan angka tidak perlu mengirim satu request untuk setiap digit. Nilai nol
     // sementara saat field dikosongkan juga bukan simulasi yang bermakna.
-    if (capital <= 0 || targetMonthly < 0) return;
-    const timeout = window.setTimeout(fetchDividendPlan, 500);
+    if (capital <= 0 || targetMonthly < 0) {
+      setDebounced(null);
+      return;
+    }
+    const timeout = window.setTimeout(() => setDebounced({ capital, targetMonthly }), 500);
     return () => window.clearTimeout(timeout);
   }, [capital, targetMonthly]);
 
-  const quant = data?.quant || {};
-  const stocks = quant?.div_stocks || [];
-  const schedule = quant?.compounding_schedule || [];
+  const {
+    data,
+    error: planError,
+    isLoading: loading,
+  } = useSWR<any>(
+    debounced
+      ? `/api/dividend-plan?capital=${debounced.capital}&targetMonthly=${debounced.targetMonthly}`
+      : null,
+  );
+
+  // 402 = butuh Pro. Tampilkan modal upgrade (jalan keluar yang bisa ditindaklanjuti),
+  // bukan teks error merah yang jadi jalan buntu seperti kegagalan teknis.
+  const needsPro =
+    planError instanceof ApiError &&
+    (planError.status === 402 || planError.code === 'SUBSCRIPTION_REQUIRED');
+
+  useEffect(() => {
+    if (needsPro) setShowPaywall(true);
+  }, [needsPro]);
+
+  const error =
+    planError && !needsPro
+      ? (planError as Error).message || 'Gagal memuat simulasi dividen'
+      : null;
+
+
+  // useMemo pada ketiganya: `|| {}` dan `|| []` menghasilkan identitas baru setiap render,
+  // dan filteredStocks di bawah bergantung pada `stocks` - tanpa ini ia dihitung ulang
+  // terus walau datanya tidak berubah. Ditangkap react-hooks/exhaustive-deps.
+  const quant = useMemo(() => data?.quant ?? {}, [data]);
+  const stocks = useMemo(() => quant?.div_stocks ?? [], [quant]);
+  const schedule = useMemo(() => quant?.compounding_schedule ?? [], [quant]);
   const [aristocratFilter, setAristocratFilter] = useState<'all' | 'aristocrats'>('all');
 
   const filteredStocks = React.useMemo(() => {
