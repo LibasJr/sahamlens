@@ -130,6 +130,42 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/**
+ * Grup yang terbuka sebelum pengguna menyentuh apa pun. Sisanya (tools, intelligence,
+ * admin) mulai tertutup - daftarnya panjang dan jarang dipakai sekaligus.
+ *
+ * Ini NILAI AWAL, bukan aturan. Begitu pengguna mengklik kepala grup, pilihannya
+ * disimpan di `expandedGroups` dan menang atas nilai di sini.
+ */
+const GRUP_TERBUKA_AWAL = new Set(['overview', 'research']);
+
+/**
+ * Apakah isi sebuah grup ditampilkan.
+ *
+ * `pilihan[id]` yang `undefined` berarti pengguna belum menyentuh grup itu, jadi nilai
+ * awalnya yang dipakai. Begitu ia mengklik, nilainya eksplisit dan MENANG - termasuk
+ * atas grup yang memuat halaman yang sedang dibuka.
+ *
+ * Versi sebelumnya meng-OR `groupHasActiveItem` ke sini, sehingga grup yang sedang
+ * dipakai tidak pernah bisa ditutup sama sekali: chevron-nya berputar, isinya tetap.
+ */
+export function grupTerbuka(id: string, pilihan: Record<string, boolean>, sidebarCiut: boolean): boolean {
+  // Mode rail: kepala grup memang disembunyikan, jadi tidak ada cara membukanya lagi
+  // kalau ia tertutup - isinya selalu ditampilkan sebagai ikon.
+  if (sidebarCiut) return true;
+  return pilihan[id] ?? GRUP_TERBUKA_AWAL.has(id);
+}
+
+/**
+ * Balik keadaan satu grup. Dihitung dari keadaan EFEKTIF, bukan langsung dari
+ * `pilihan[id]`: untuk grup yang default-nya terbuka nilai itu masih `undefined`, dan
+ * `!undefined` bernilai `true` - klik pertama akan menyetelnya "terbuka" lagi sehingga
+ * tombolnya tampak tidak berfungsi.
+ */
+export function balikGrup(id: string, pilihan: Record<string, boolean>): Record<string, boolean> {
+  return { ...pilihan, [id]: !grupTerbuka(id, pilihan, false) };
+}
+
 const ADMIN_NAV_GROUP: NavGroup = {
   id: 'admin',
   label: 'Admin',
@@ -181,7 +217,11 @@ export default function Sidebar() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, research: true, tools: false, intelligence: false, admin: false });
+  // Kosong = pengguna BELUM memilih apa pun untuk grup itu. Dibedakan dari `false`
+  // (sengaja ditutup) supaya pilihan pengguna bisa menang atas pembukaan otomatis di
+  // bawah. Sebelumnya seluruh kunci diisi di awal, sehingga "belum memilih" dan
+  // "memilih tertutup" tidak bisa dibedakan sama sekali.
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 
   useEffect(() => {
@@ -246,11 +286,17 @@ export default function Sidebar() {
   useEffect(() => {
     const activeGroup = visibleGroups.find((group) => group.items.some((item) => isPathActive(pathname, item)));
     if (!activeGroup) return;
-    setExpandedGroups((current) => current[activeGroup.id] ? current : { ...current, [activeGroup.id]: true });
+    // Buka otomatis HANYA kalau pengguna belum pernah menyentuh grup ini. Versi lama
+    // membuka paksa setiap kali pathname berubah, jadi grup yang baru saja ditutup
+    // menganga lagi begitu pengguna pindah halaman di dalamnya - tombolnya terasa rusak.
+    setExpandedGroups((current) => (activeGroup.id in current ? current : { ...current, [activeGroup.id]: true }));
   }, [pathname, visibleGroups]);
 
   const toggleGroup = useCallback((groupId: string) => {
-    setExpandedGroups((current) => ({ ...current, [groupId]: !current[groupId] }));
+    // Dibalik dari keadaan EFEKTIF, bukan dari `current[groupId]` yang bisa `undefined`.
+    // Untuk grup yang default-nya terbuka, `!undefined` bernilai true - artinya klik
+    // pertama menyetelnya "terbuka" lagi dan tidak terjadi apa-apa di layar.
+    setExpandedGroups((current) => balikGrup(groupId, current));
   }, []);
 
   const getLocalizedGroupName = useCallback((id: string, defaultLabel: string) => {
@@ -348,8 +394,12 @@ export default function Sidebar() {
         <div className={`flex-1 overflow-y-auto overflow-x-visible py-4 ${isCollapsed ? 'md:px-2 px-3' : 'px-3'}`}>
           <div className="space-y-5">
             {visibleGroups.map((group) => {
-              const groupHasActiveItem = group.items.some((item) => isPathActive(pathname, item));
-              const groupOpen = isCollapsed || expandedGroups[group.id] !== false || groupHasActiveItem;
+              // `groupHasActiveItem` sengaja TIDAK lagi ikut memaksa terbuka. Dulu ia
+              // di-OR ke sini, sehingga grup yang memuat halaman yang sedang dibuka tidak
+              // pernah bisa ditutup - persis grup yang paling sering ingin ditutup orang
+              // setelah selesai memakainya. Pembukaan otomatis tetap ada, tapi tempatnya
+              // di useEffect di atas sebagai NILAI AWAL, bukan sebagai penimpa.
+              const groupOpen = grupTerbuka(group.id, expandedGroups, isCollapsed);
               return (
               <section key={group.id}>
                 <Button
