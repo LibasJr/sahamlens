@@ -412,7 +412,7 @@ export async function GET(
           ? (official.consecutiveSellDays >= 4 ? 'STRONG NET SELL' : 'NET SELL')
           : 'NEUTRAL';
       analyzersResult.push({
-        label: 'LensFlow (Arus Dana Asing BEI)',
+        label: 'LensFlow (Arus Dana Asing)',
         value: `${statusLabel} | Net 5D: ${net5D >= 0 ? '+' : ''}${net5D.toFixed(2)}M | Streak: ${streakLabel}`,
         decision: official.accumulationStatus === 'AKUMULASI' ? 'BULLISH' : official.accumulationStatus === 'DISTRIBUSI' ? 'BEARISH' : 'NEUTRAL',
         confidence: official.accumulationStatus === 'NETRAL'
@@ -444,7 +444,7 @@ export async function GET(
       ? 0
       : Math.round(50 + Math.min(45, Math.abs(flowPressure20)));
     analyzersResult.push({
-      label: officialUsable ? 'Bandarmology (Net Asing BEI)' : 'Bandarmology (CMF)',
+      label: officialUsable ? 'Bandarmology (Net Asing)' : 'Bandarmology (CMF)',
       value: flowPressure20 == null || flowPressureToday == null
         ? (officialUsable ? 'N/A (transaksi asing nol pada jendela ini)' : 'N/A (histori OHLCV tidak cukup)')
         : officialUsable
