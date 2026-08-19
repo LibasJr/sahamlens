@@ -4,7 +4,18 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
-import IntrinsicValue from '@/components/IntrinsicValue';
+// recharts adalah dependency terberat di aplikasi ini, dan IntrinsicValue satu-satunya
+// yang membawanya ke halaman ini - padahal kartunya berada jauh di bawah lipatan. Dimuat
+// statis, setiap pengunjung /fundamental mengunduh seluruh pustaka chart sebelum baris
+// pertama data fundamental sempat tampil.
+// Pola dan tinggi placeholder-nya disamakan dengan components/StockChartPanel.tsx supaya
+// tidak ada layout shift saat chart-nya masuk.
+const IntrinsicValue = dynamic(() => import('@/components/IntrinsicValue'), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[320px] animate-pulse rounded-lg bg-tv-card" aria-label="Memuat grafik nilai intrinsik" />
+  ),
+});
 import PaywallModal from '@/components/PaywallModal';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
@@ -32,6 +43,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import { useLanguage } from '@/lib/i18n';
 import FundamentalHealthSuite from '@/components/fundamental/FundamentalHealthSuite';
+import dynamic from 'next/dynamic';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');

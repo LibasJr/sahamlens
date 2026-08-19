@@ -13,7 +13,7 @@ export const maxDuration = 120;
 // lambat). Sama seperti screener-scan (lihat catatan di sana) - /api/calendar murni
 // getOrCompute() TTL 6 jam TANPA cron warmer, jadi pengunjung pertama tiap 6 jam
 // menanggung fetchCorporateCalendar() live. GET + CRON_SECRET (pola systemd, QStash
-// sudah penuh 10/10) - lihat instruksi timer di DEPLOYMENT.md.
+// sudah penuh 10/10) - lihat instruksi timer di docs/operations/DEPLOYMENT.md.
 async function runScan() {
   const events = await fetchCorporateCalendar();
   await cacheSet(COMPUTED_CACHE_KEY.CORPORATE_CALENDAR, events, TTL.CORPORATE_CALENDAR);

@@ -7,7 +7,7 @@ import { precomputeBacktestData, writeBacktestCache } from '@/modules/backtest';
 
 export const maxDuration = 60;
 
-// Cron harian (didaftarkan sebagai QStash schedule terpisah, lihat DEPLOYMENT.md) -
+// Cron harian (didaftarkan sebagai QStash schedule terpisah, lihat docs/operations/DEPLOYMENT.md) -
 // mengisi ulang cache indikator harian utk 100 saham universe backtest + IHSG.
 // Tanpa ini jalan (atau kalau baru pertama kali deploy), /api/backtest fallback ke
 // precompute sinkron langsung di request (lambat, lihat app/api/backtest/route.ts).

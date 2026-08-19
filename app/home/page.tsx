@@ -35,6 +35,7 @@ import { useLanguage } from '@/lib/i18n';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { MarketMoverCard, formatCardItems, type CardDef, type MoverCard } from '@/components/MarketMoverCard';
 import { isMarketOpen, getMarketStatus } from '@/lib/utils/market';
+import GettingStartedGuide from '@/components/GettingStartedGuide';
 
 
 const PromoUpgradeModal = dynamic(() => import('@/components/PromoUpgradeModal'), { ssr: false });
@@ -689,6 +690,15 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Panduan awal. DULU hanya dirender di components/Dashboard.tsx - yaitu halaman
+          landing "/" - padahal pengguna yang BARU MENDAFTAR mendarat di sini, bukan di
+          sana. Akibatnya panduannya menunggu di halaman yang baru ditemukan orang
+          setelah mereka selesai kebingungan sendiri.
+          Kunci "dibuang"-nya (localStorage) dipakai bersama dengan yang di landing, jadi
+          menutupnya di satu tempat menutupnya di kedua tempat - bukan dua panduan yang
+          harus ditutup dua kali. */}
+      <GettingStartedGuide />
 
       {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
           sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat

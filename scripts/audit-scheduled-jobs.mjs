@@ -31,7 +31,7 @@ if (duplicates.length) fail(`duplicate path: ${[...new Set(duplicates)].join(', 
 
 // Production pindah ke VPS 2026-08-12/13. Vercel Cron TIDAK dipakai lagi, dan blok
 // `crons` di vercel.json pernah menghidupkan penjadwal kedua yang menulis ke database
-// Neon yang sama - lihat commit 2a64988 dan bagian "Jebakan" di DEPLOYMENT.md.
+// Neon yang sama - lihat commit 2a64988 dan bagian "Jebakan" di docs/operations/DEPLOYMENT.md.
 const vercel = JSON.parse(fs.readFileSync(vercelPath, 'utf8'));
 const vercelCrons = vercel.crons ?? [];
 
