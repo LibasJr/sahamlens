@@ -1,9 +1,11 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { NotFoundError } from '@/shared/errors/app-error';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
 import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
-import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -27,10 +29,10 @@ export async function GET(
 ) {
   const budget = await checkPublicComputeBudget(request.headers, 'intrinsic');
   if (!budget.allowed) return rateLimitExceeded(budget);
-  try {
+
+  return runController(async () => {
     const { ticker: rawTicker } = await params;
-    const ticker = normalizeIdxTickerParam(rawTicker);
-    if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
     const wrapped = await getOrCompute(
       `sahamlens:cache:computed:intrinsic:${ticker}`,
       CACHE_TTL_SEC.TECHNICAL,
@@ -40,14 +42,14 @@ export async function GET(
       },
     );
     if ('notFound' in wrapped) {
-      return NextResponse.json({ error: 'No data found' }, { status: 404 });
+      throw new NotFoundError('Data valuasi tidak tersedia untuk simbol ini');
     }
 
     const session = await getSession().catch(() => null);
     const isGuest = !session || typeof session.id !== 'string';
 
     if (isGuest) {
-      return NextResponse.json({
+      return { status: 200, body: {
         ...wrapped,
         applied_rule: {},
         assumptions: {
@@ -55,15 +57,11 @@ export async function GET(
           is_guest_limited: true,
         },
         is_guest_limited: true,
-      });
+      } };
     }
 
-    return NextResponse.json({
-      ...wrapped,
-      is_guest_limited: false,
-    });
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return { status: 200, body: { ...wrapped, is_guest_limited: false } };
+  });
 }

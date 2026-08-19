@@ -1,7 +1,8 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { NotFoundError } from '@/shared/errors/app-error';
 import { getOwnershipFlowConfig } from '@/modules/ownership-flow/config/ownership-flow.config';
 import { getOwnershipFlowList } from '@/modules/ownership-flow/service/ownership-flow-query.service';
 import { getOwnershipUniverse } from '@/modules/ownership-flow/service/ownership-flow-ingest.service';
@@ -19,15 +20,18 @@ import { logger } from '@/shared/logger/logger';
 export const maxDuration = 60;
 
 export async function GET() {
+  return runController(async () => {
   const config = getOwnershipFlowConfig();
   if (!config.enabled) {
-    return NextResponse.json(
-      { error: 'Ownership Flow belum diaktifkan', code: 'FEATURE_DISABLED' },
-      { status: 404 }
-    );
+    // Dulu 404 dengan `code: 'FEATURE_DISABLED'` yang ditulis tangan. Kode mesin itu
+    // BUKAN bagian dari katalog ErrorCode, jadi klien yang men-switch atas `code` tidak
+    // pernah bisa menanganinya bersama kode lain. NotFoundError memberi 404 yang sama
+    // dengan `code: 'NOT_FOUND'` yang memang ada di katalog; pesannya tetap menjelaskan
+    // bahwa fiturnya belum diaktifkan, bukan bahwa datanya hilang.
+    throw new NotFoundError('Ownership Flow belum diaktifkan');
   }
 
-  try {
+  {
     const universe = getOwnershipUniverse(config.universeLimit);
     const [rows, stats] = await Promise.all([
       getOwnershipFlowList(universe),
@@ -40,7 +44,9 @@ export async function GET() {
       ? rows.filter((row) => row.observedDate === stats.latestObservedDate).length
       : 0;
 
-    return NextResponse.json({
+    return {
+      status: 200,
+      body: {
       source: {
         id: source.id,
         name: source.name,
@@ -82,9 +88,10 @@ export async function GET() {
         freshness: row.freshness,
         ageDays: row.ageDays,
       })),
-    });
-  } catch (error) {
-    logger.error('API ownership-flow (daftar) gagal', { module: 'ownership-flow', error });
-    return NextResponse.json({ error: 'Gagal memuat Ownership Flow' }, { status: 500 });
+      },
+    };
   }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }

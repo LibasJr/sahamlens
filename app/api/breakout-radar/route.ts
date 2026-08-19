@@ -1,7 +1,7 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
 import { cacheGet } from '@/shared/cache/redis-cache';
 
 // BUILD 006/007 - baca cache-first (diisi app/api/cron/breakout-scan setiap 5 menit).
@@ -10,17 +10,17 @@ import { cacheGet } from '@/shared/cache/redis-cache';
 const CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
 export async function GET() {
-  try {
+  return runController(async () => {
     const cached = await cacheGet<any>(CACHE_KEY);
     if (cached) {
-      return NextResponse.json(cached);
+      return { status: 200, body: cached };
     }
 
     // Cache belum terisi - jawab kosong, JANGAN memindai. Pemindaian adalah tugas
     // /api/cron/breakout-scan; menjalankannya di request pengguna berarti satu orang
     // menanggung full active-universe fetch Yahoo dan halaman menggantung puluhan detik.
-    return NextResponse.json({ data: [], crossSignals: { golden: [], dead: [] }, lastUpdate: null });
-  } catch (error) {
-    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
-  }
+    return { status: 200, body: { data: [], crossSignals: { golden: [], dead: [] }, lastUpdate: null } };
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }
