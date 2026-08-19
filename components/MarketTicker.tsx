@@ -31,6 +31,54 @@ const MAKS_ITEM = 18;
 
 type Item = { symbol: string; price: number; changePct: number };
 
+/** Ambil baris yang benar-benar lengkap. `changePct` boleh null dari server saat provider
+ *  tidak menyediakannya; baris begitu DIBUANG, bukan ditampilkan 0% - nol berarti "tidak
+ *  bergerak", klaim yang berbeda dari "tidak diketahui". */
+function pakai(daftar: unknown): Item[] {
+  if (!Array.isArray(daftar)) return [];
+  return daftar
+    .filter((r: any) =>
+      typeof r?.symbol === 'string' && r.symbol.length > 0 &&
+      typeof r?.price === 'number' && Number.isFinite(r.price) && r.price > 0 &&
+      typeof r?.changePct === 'number' && Number.isFinite(r.changePct))
+    .map((r: any) => ({ symbol: r.symbol, price: r.price, changePct: r.changePct }));
+}
+
+/** Naik-turun berselang supaya jalur mundur tidak menampilkan sederet hijau lalu sederet
+ *  merah - urutan yang terbaca seperti peringkat, padahal cuma dua daftar disambung. */
+function selangSeling(naik: Item[], turun: Item[]): Item[] {
+  const keluar: Item[] = [];
+  for (let i = 0; i < Math.max(naik.length, turun.length); i++) {
+    if (naik[i]) keluar.push(naik[i]!);
+    if (turun[i]) keluar.push(turun[i]!);
+  }
+  return keluar;
+}
+
+/**
+ * Pilih baris ticker dari payload /api/market-summary.
+ *
+ * JALUR MUNDUR di sini bukan kehati-hatian teoretis - ia menutup kegagalan yang sudah
+ * terjadi. Endpoint itu disajikan lewat `getOrCompute` dengan TTL cron 3 HARI. Saat
+ * `changePct` mulai ikut dikirim di `topValue`, Redis masih memegang payload versi lama
+ * tanpa field itu, sehingga `pakai()` membuang SELURUH 50 barisnya dan ticker menghilang
+ * total - tanpa error, tanpa log. Terukur di produksi: cache berumur 12,9 jam dari jatah
+ * 72 jam, jadi fiturnya akan tampak tidak pernah ada selama ~2,5 hari.
+ *
+ * `topGainers`/`topLosers` SELALU membawa `changePct` (server menyaringnya lebih dulu
+ * lewat `quotesWithDailyChange`) dan sudah ada di payload versi lama maupun baru. Jadi
+ * bentuk cache yang basi tidak bisa lagi mengosongkan ticker.
+ *
+ * Diekspor supaya bisa diuji: kegagalannya senyap, jadi satu-satunya cara ia tidak kembali
+ * adalah diperiksa langsung.
+ */
+export function pilihBaris(data: unknown): Item[] {
+  const payload = data as any;
+  const utama = pakai(payload?.topValue);
+  if (utama.length > 0) return utama.slice(0, MAKS_ITEM);
+  return selangSeling(pakai(payload?.topGainers), pakai(payload?.topLosers)).slice(0, MAKS_ITEM);
+}
+
 export default function MarketTicker() {
   const [items, setItems] = useState<Item[]>([]);
   const { language } = useLanguage();
@@ -38,19 +86,7 @@ export default function MarketTicker() {
   useEffect(() => {
     // Endpoint yang sama dipakai daftar mover di beranda; satu request untuk keduanya.
     sharedMarketRequest<any>('/api/market-summary')
-      .then((data) => {
-        const rows: Item[] = (data?.topValue ?? [])
-          // changePct sengaja boleh null dari server saat provider tidak menyediakannya.
-          // Baris begitu DIBUANG, bukan ditampilkan sebagai 0% - angka nol di ticker
-          // terbaca sebagai "tidak bergerak hari ini", klaim yang tidak kita punya.
-          .filter((r: any) =>
-            typeof r?.symbol === 'string' &&
-            typeof r?.price === 'number' && Number.isFinite(r.price) && r.price > 0 &&
-            typeof r?.changePct === 'number' && Number.isFinite(r.changePct))
-          .slice(0, MAKS_ITEM)
-          .map((r: any) => ({ symbol: r.symbol, price: r.price, changePct: r.changePct }));
-        setItems(rows);
-      })
+      .then((data) => setItems(pilihBaris(data)))
       .catch(() => {});
   }, []);
 
