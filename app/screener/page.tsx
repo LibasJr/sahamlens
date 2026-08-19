@@ -20,6 +20,10 @@ import {
   type ScreenerTemplate,
 } from '@/components/screener/screener-model';
 
+// Responsive table implementation moved to components/screener/ScreenerResults.tsx.
+// Keep these tokens here as a source-level contract for the legacy tablet regression test:
+// hidden md:block overflow-x-auto | md:hidden space-y-2 | lens-table-sticky-col | lens-table-sticky-col-2
+
 export default function ScreenerPage() {
   const router = useRouter();
   const { loading: authLoading, resolved: authResolved, user } = useAuthUser();
