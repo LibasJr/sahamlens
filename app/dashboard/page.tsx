@@ -21,7 +21,7 @@ import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
-import { computeRole, useAuthUser } from '@/lib/hooks/useAuthUser';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { isMarketOpen } from '@/lib/utils/market';
@@ -170,7 +170,27 @@ const signalBadgeTone = (signal: string | null | undefined) =>
 
 function DashboardContent() {
   const searchParams = useSearchParams();
-  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
+  const {
+    loading: authLoading,
+    resolved: authResolved,
+    user: authUser,
+    isTrialExpired,
+  } = useAuthUser();
+
+  // Blok fetch('/api/auth/me') terpisah DIHAPUS dari efek di bawah. Berkas ini sudah
+  // memanggil useAuthUser() di sini DAN mengimpor computeRole - jadi ia menulis ulang
+  // hook-nya secara inline di sebelah pemakaian hook yang asli, dan menembak endpoint
+  // yang sama dua kali pada setiap muat halaman.
+  //
+  // Catatan bug fix yang dulu menempel di blok itu tetap berlaku dan justru lebih kuat
+  // sekarang: keputusan Pro/trial datang dari computeRole() (di dalam useAuthUser),
+  // logic yang sama dengan checkProAccess() di server - bukan dari `role === 'pro'` yang
+  // membuat pelanggan berbayar disodori paywall, karena panel admin tidak pernah menulis
+  // kolom role.
+  const isAdminUser = authUser?.role === 'admin';
+  // `adminReady` = statusnya sudah diketahui, entah berhasil atau gagal terbaca. Sama
+  // seperti sebelumnya: cabang .catch juga menyetelnya true.
+  const adminReady = !authLoading;
   const [ticker, setTickerState] = useState('DGWG.JK');
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
@@ -235,15 +255,18 @@ function DashboardContent() {
   // Free-tier "analisa per hari" limit
   const [analisaRemaining, setAnalisaRemaining] = useState<number>(FREE_LIMITS.analisaPerHari);
   const [showPaywall, setShowPaywall] = useState(false);
+
+  // Tetap state, bukan turunan: modal ini bisa DITUTUP pengguna, jadi nilainya tidak
+  // sepenuhnya ditentukan status trial. Yang berubah hanya sumber pemicunya.
+  useEffect(() => {
+    if (isTrialExpired) setShowPaywall(true);
+  }, [isTrialExpired]);
   // ATURAN BARU (2026-08-01) - halaman ini sekarang bisa dibuka tanpa login (lihat
   // middleware.ts), tapi /api/stock/[ticker] tetap wajib login. State terpisah dari
   // showPaywall (itu utk trial/Pro habis) supaya pesannya jelas beda: ajakan DAFTAR,
   // bukan upgrade Pro (user belum tentu punya akun sama sekali).
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
-  const [adminReady, setAdminReady] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
-  const [isTrialExpired, setIsTrialExpired] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
   const analyzerAbortRef = useRef<AbortController | null>(null);
@@ -376,27 +399,6 @@ function DashboardContent() {
   useEffect(() => {
     const controller = new AbortController();
     setMounted(true);
-
-    // BUG FIX (2026-08-06, dilaporkan user "pelanggan Pro 1 bulan masih dapat notif
-    // limit habis"): blok ini dulu memutuskan status Pro dari `role === 'pro'` lalu
-    // jatuh ke cabang trial_ends_at. Panel admin TIDAK PERNAH menulis role - hanya
-    // is_pro & pro_expires_at - jadi pelanggan berbayar terbaca role 'free' dengan
-    // trial yang sudah lewat, dan langsung disodori paywall. Sekarang keputusannya
-    // dari computeRole() (lib/hooks/useAuthUser.ts), logic yang sama dengan
-    // checkProAccess() di server, sehingga UI dan API tidak lagi berbeda pendapat.
-    fetch('/api/auth/me', { signal: controller.signal })
-      .then(res => res.json())
-      .then(d => {
-        const user = d.authenticated && d.user ? d.user : null;
-        const { effectiveRole, isTrialExpired } = computeRole(user);
-        setIsAdminUser(user?.role === 'admin');
-        setIsTrialExpired(isTrialExpired);
-        setShowPaywall(isTrialExpired);
-        setAdminReady(true);
-      })
-      .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) setAdminReady(true);
-      });
 
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
