@@ -149,11 +149,28 @@ const GRUP_TERBUKA_AWAL = new Set(['overview', 'research']);
  * Versi sebelumnya meng-OR `groupHasActiveItem` ke sini, sehingga grup yang sedang
  * dipakai tidak pernah bisa ditutup sama sekali: chevron-nya berputar, isinya tetap.
  */
-export function grupTerbuka(id: string, pilihan: Record<string, boolean>, sidebarCiut: boolean): boolean {
-  // Mode rail: kepala grup memang disembunyikan, jadi tidak ada cara membukanya lagi
-  // kalau ia tertutup - isinya selalu ditampilkan sebagai ikon.
-  if (sidebarCiut) return true;
+export function grupTerbuka(id: string, pilihan: Record<string, boolean>): boolean {
   return pilihan[id] ?? GRUP_TERBUKA_AWAL.has(id);
+}
+
+/**
+ * Kelas visibilitas isi grup.
+ *
+ * `isCollapsed` (mode rail) SENGAJA tidak lagi ikut menentukan `grupTerbuka`. Ia keadaan
+ * khusus desktop - seluruh pemakaiannya di className digandeng `md:` (lebar rail
+ * `md:w-[76px]`, tombolnya `md:flex`, kepala grup `md:hidden`), sementara di HP drawer
+ * selalu lebar penuh. Tetapi nilainya disimpan di localStorage dan dibaca sebagai boolean
+ * mentah, jadi sekali pengguna men-collapse sidebar di desktop, di PONSEL setiap grup
+ * ikut dipaksa terbuka dan tidak satu pun bisa ditutup - fiturnya mati total di HP.
+ *
+ * Karena itu penjaganya dipindah ke CSS, di breakpoint yang sama dengan rail-nya:
+ * grup tertutup disembunyikan di mana saja, KECUALI di md+ saat rail aktif - di sana
+ * kepala grupnya tidak dirender, jadi isinya harus tetap tampil sebagai ikon supaya
+ * tidak ada grup yang mustahil dibuka lagi.
+ */
+export function kelasIsiGrup(terbuka: boolean, sidebarCiut: boolean): string {
+  if (terbuka) return '';
+  return sidebarCiut ? 'hidden md:block' : 'hidden';
 }
 
 /**
@@ -163,7 +180,7 @@ export function grupTerbuka(id: string, pilihan: Record<string, boolean>, sideba
  * tombolnya tampak tidak berfungsi.
  */
 export function balikGrup(id: string, pilihan: Record<string, boolean>): Record<string, boolean> {
-  return { ...pilihan, [id]: !grupTerbuka(id, pilihan, false) };
+  return { ...pilihan, [id]: !grupTerbuka(id, pilihan) };
 }
 
 const ADMIN_NAV_GROUP: NavGroup = {
@@ -399,7 +416,7 @@ export default function Sidebar() {
               // pernah bisa ditutup - persis grup yang paling sering ingin ditutup orang
               // setelah selesai memakainya. Pembukaan otomatis tetap ada, tapi tempatnya
               // di useEffect di atas sebagai NILAI AWAL, bukan sebagai penimpa.
-              const groupOpen = grupTerbuka(group.id, expandedGroups, isCollapsed);
+              const groupOpen = grupTerbuka(group.id, expandedGroups);
               return (
               <section key={group.id}>
                 <Button
@@ -414,8 +431,7 @@ export default function Sidebar() {
                   <ChevronRight className={`h-3.5 w-3.5 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true" />
                 </Button>
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
-                {groupOpen && (
-                <div className="space-y-0.5">
+                <div className={`space-y-0.5 ${kelasIsiGrup(groupOpen, isCollapsed)}`}>
                   {group.items.map((item) => {
                     const localized = getLocalizedItem(item.id, item.name, item.subtitle);
                     const active = isPathActive(pathname, item);
@@ -516,7 +532,6 @@ export default function Sidebar() {
                     );
                   })}
                 </div>
-                )}
               </section>
               );
             })}
