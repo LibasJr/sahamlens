@@ -271,7 +271,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
       {/* Kartu ringkasan resmi BEI - hanya untuk data resmi, karena hanya di sana
           ada angka lembar/lot asing yang sungguh dicatat Bursa. */}
       {isOfficial && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
           <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
             <div className="text-[10px] font-sans text-tv-muted uppercase tracking-wide">
               {isEn ? 'Net Foreign Today' : 'Net Asing Hari Ini'}

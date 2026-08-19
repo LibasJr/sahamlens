@@ -558,7 +558,7 @@ export default function BacktestPage() {
                                   <> Data sesi {new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(liveResults.matches[0].dataTimestamp))} WIB.</>
                                 )}
                               </p>
-                              <div className="overflow-x-auto">
+                              <div className="lens-table-sticky-col overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                   <thead>
                                     <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
@@ -837,7 +837,7 @@ export default function BacktestPage() {
                           Riwayat Trade {results.totalTrades > 30 ? `(30 terbaru dari ${results.totalTrades})` : ''}
                         </h3>
                       </div>
-                      <div className="overflow-x-auto">
+                      <div className="lens-table-sticky-col overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-tv-card border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">

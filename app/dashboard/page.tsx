@@ -1020,7 +1020,7 @@ function DashboardContent() {
                   {indexTechnicalSummary.explanation}
                 </p>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
                   <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Perubahan</p>
                     <div className="mt-2 space-y-1 text-sm">

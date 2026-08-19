@@ -326,7 +326,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-xl bg-tv-card/80 border border-tv-border">
               <span className="text-[11px] text-tv-muted font-medium">{t('technicalEnhance.entryZone')}</span>
               <div className="text-base font-bold font-number text-white mt-1">

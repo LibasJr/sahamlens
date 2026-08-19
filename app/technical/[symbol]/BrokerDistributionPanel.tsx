@@ -75,7 +75,7 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-tv-border">
+      <div className="lens-table-sticky-col [--lens-sticky-head-bg:rgb(var(--lens-bg))] mt-4 overflow-x-auto rounded-lg border border-tv-border">
         <table className="w-full min-w-[620px] text-sm">
           <thead className="bg-tv-bg text-left text-[10px] uppercase tracking-wider text-tv-muted">
             <tr><th className="px-3 py-2">Broker</th><th className="px-3 py-2">Tipe</th><th className="px-3 py-2 text-right">Buy</th><th className="px-3 py-2 text-right">Sell</th><th className="px-3 py-2 text-right">Net</th></tr>
