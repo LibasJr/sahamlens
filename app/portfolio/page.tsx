@@ -562,8 +562,8 @@ export default function PortfolioPage() {
               )}
             </div>
             <div className="text-right flex items-center justify-end gap-2">
-              <button onClick={downloadExcel} title="Export Excel" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><Download className="w-4 h-4" /></button>
-              <button onClick={downloadPDF} title="Export PDF" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><FileText className="w-4 h-4" /></button>
+              <button onClick={downloadExcel} title="Export Excel" aria-label="Export Excel" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><Download className="w-4 h-4" /></button>
+              <button onClick={downloadPDF} title="Export PDF" aria-label="Export PDF" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><FileText className="w-4 h-4" /></button>
             </div>
           </div>
         </motion.div>
