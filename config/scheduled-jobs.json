@@ -62,9 +62,9 @@
     {
       "path": "/api/cron/market-pulse",
       "provider": "qstash",
-      "schedule": "*/5 9-15 * * 1-5",
+      "schedule": "*/5 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"
+      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id. DIUBAH 2026-08-20 dari '*/5 9-15' ke '*/5 9-16' oleh pengguna di dashboard QStash. Alasan: jam 9-15 membuat eksekusi terakhir jatuh 15:55, dan dikurangi jeda ~15 menit Yahoo, snapshot terakhir hari itu mencerminkan ~15:45 - sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts) apalagi sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Akibatnya LensMarket tidak pernah menampilkan harga penutupan sama sekali; label 'As of 15.45 WIB' pada 19 Agu 2026 adalah gejalanya. Dengan 9-16 eksekusi terakhir 16:55 dan snapshotnya mencerminkan ~16:40, sudah lewat lelang penutupan. Pola ini sama dengan ai-pick-scan dan macro yang memang sudah 9-16."
     },
     {
       "path": "/api/cron/market-summary",
