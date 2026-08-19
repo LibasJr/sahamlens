@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import useSWR from 'swr';
+import { ApiError } from '@/lib/api/fetcher';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock, Gauge, ArrowUpRight } from 'lucide-react';
@@ -19,9 +21,6 @@ function DcfContent() {
   const isEn = language === 'en';
   const searchParams = useSearchParams();
   const [ticker, setTickerState] = useState('TLKM');
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -47,30 +46,30 @@ function DcfContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchDcf = async (symbol: string) => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch('/api/dcf/' + symbol);
-      const json = await res.json();
-      if (!res.ok) {
-        setData(null);
-        setLoadError(json?.error || 'Data DCF sementara tidak dapat dimuat.');
-        return;
-      }
-      setData(json);
-    } catch (e) {
-      console.error(e);
-      setData(null);
-      setLoadError('Tidak dapat menghubungi layanan DCF. Coba lagi beberapa saat lagi.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // SWR menggantikan fetchDcf + useEffect. Yang hilang bersamanya bukan cuma kode:
+  //
+  //   - Versi lama TIDAK punya penjaga urutan (tanpa AbortController maupun flag
+  //     `cancelled`), jadi mengganti emiten lebih cepat dari respons membuat hasil
+  //     emiten LAMA mendarat sebagai milik yang BARU. Di halaman valuasi itu berarti
+  //     harga wajar emiten lain ditampilkan di bawah nama emiten yang sedang dilihat.
+  //     SWR mengunci hasil ke kuncinya, jadi salah-pasang itu tidak bisa terjadi.
+  //   - Dua cabang error digabung jadi satu: ApiError membawa pesan dari server kalau
+  //     ada (`json?.error` dulu), dan `code: 'NETWORK_ERROR'` kalau servernya tidak
+  //     terjangkau sama sekali - perbedaan yang dulu ditulis tangan di catch.
+  //   - `keepPreviousData` TIDAK dinyalakan di sini, sengaja: menahan angka valuasi
+  //     emiten sebelumnya selama emiten baru dimuat adalah persis salah-pasang yang
+  //     baru saja diperbaiki.
+  const {
+    data,
+    error,
+    isLoading: loading,
+  } = useSWR<any>(ticker ? `/api/dcf/${ticker}` : null);
 
-  useEffect(() => {
-    fetchDcf(ticker);
-  }, [ticker]);
+  const loadError = error
+    ? error instanceof ApiError && error.code === 'NETWORK_ERROR'
+      ? 'Tidak dapat menghubungi layanan DCF. Coba lagi beberapa saat lagi.'
+      : (error as Error).message || 'Data DCF sementara tidak dapat dimuat.'
+    : null;
 
   const quant = data?.quant || {};
   const stock = data?.stock || {};
