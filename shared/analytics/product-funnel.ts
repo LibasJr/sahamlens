@@ -1,5 +1,6 @@
-import { apiRequest } from '@/shared/http/api-client';
 'use client';
+
+import { apiRequest } from '@/shared/http/api-client';
 
 export type ProductFunnelEventType = 'locked_view' | 'signup_click' | 'signup_completed';
 

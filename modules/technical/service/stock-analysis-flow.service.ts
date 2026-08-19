@@ -11,7 +11,7 @@ export interface StockAnalysisFlowMetrics {
   flowPressure20: number | null;
   flowPressureToday: number | null;
   officialUsable: boolean;
-  accumulationStatus: string | null;
+  accumulationStatus: 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL' | null;
   consecutiveBuyDays: number;
   consecutiveSellDays: number;
   mfmPositiveRatio20: number | null;
