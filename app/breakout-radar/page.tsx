@@ -8,6 +8,7 @@ import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from '
 import PaywallModal from '@/components/PaywallModal';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
 const displayTicker = (s: string) => s.replace('.JK', '');
 
@@ -291,6 +292,23 @@ export default function AiPickPage() {
   const [computedAt, setComputedAt] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [bucketBacktest, setBucketBacktest] = useState<BucketBacktest | null>(null);
+  // Validasi bucket LensScore adalah alat kalibrasi internal - isinya statistik
+  // backtest per rentang skor, bukan informasi yang berguna buat user biasa dan
+  // gampang salah dibaca sebagai janji hasil. Ditampilkan khusus admin.
+  //
+  // Dua sumber status admin digabung persis seperti di components/Sidebar.tsx:
+  // cookie admin HttpOnly (dibaca lewat /api/admin-status karena client tidak bisa
+  // membacanya sendiri) ATAU role pada sesi login.
+  const { effectiveRole, resolved: authResolved } = useAuthUser();
+  const [hasAdminCookie, setHasAdminCookie] = useState(false);
+  const canSeeBucketBacktest = hasAdminCookie || (authResolved && effectiveRole === 'admin');
+
+  useEffect(() => {
+    fetch('/api/admin-status')
+      .then((res) => res.json())
+      .then((d) => setHasAdminCookie(Boolean(d.isAdmin)))
+      .catch(() => setHasAdminCookie(false));
+  }, []);
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -369,13 +387,19 @@ export default function AiPickPage() {
   }, [fetchPicks]);
 
   useEffect(() => {
+    // Non-admin tidak perlu request ini sama sekali - menyembunyikan di render saja
+    // menyisakan payload backtest di tab network setiap kali halaman dibuka.
+    if (!canSeeBucketBacktest) {
+      setBucketBacktest(null);
+      return;
+    }
     fetch('/api/lens-score-bucket-backtest')
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => {
         if (d && !d.error) setBucketBacktest(d);
       })
       .catch(console.error);
-  }, []);
+  }, [canSeeBucketBacktest]);
 
   // Jam diambil dari computedAt milik cache, BUKAN jam client saat halaman dibuka -
   // label lama memakai new Date() sehingga selalu menampilkan waktu klik seolah-olah
@@ -481,9 +505,9 @@ export default function AiPickPage() {
               />
             )}
 
-            {!loading && !gated && !loadError && ready && bucketBacktest?.ready ? (
+            {!loading && !gated && !loadError && ready && canSeeBucketBacktest && bucketBacktest?.ready ? (
               <BucketBacktestCard data={bucketBacktest} />
-            ) : !loading && !gated && !loadError && ready && bucketBacktest ? (
+            ) : !loading && !gated && !loadError && ready && canSeeBucketBacktest && bucketBacktest ? (
               /* Histori belum cukup panjang - dulu kondisi ini cuma menghasilkan satu
                  baris teks kuning, dan kalau `note` kebetulan null tidak menghasilkan
                  apa pun sama sekali. */
