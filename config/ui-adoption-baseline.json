@@ -1,5 +1,6 @@
 {
-  "rawCardClassNames": 322,
-  "rawButtonElements": 200,
-  "routesWithoutRunController": 0
+  "rawCardClassNames": 0,
+  "rawButtonElements": 0,
+  "routesWithoutRunController": 0,
+  "rawClientApiFetchCalls": 0
 }

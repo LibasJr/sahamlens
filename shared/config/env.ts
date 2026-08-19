@@ -11,6 +11,7 @@ import { z } from 'zod';
  */
 const nodeEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL wajib diset'),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(20).default(3),
 });
 
 export const FEATURE_ENV_KEYS = {
@@ -34,6 +35,7 @@ export function getNodeEnv() {
   if (!cached) {
     cached = nodeEnvSchema.parse({
       DATABASE_URL: process.env.DATABASE_URL,
+      DATABASE_POOL_MAX: process.env.DATABASE_POOL_MAX,
     });
   }
   return cached;

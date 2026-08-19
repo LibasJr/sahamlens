@@ -1,7 +1,10 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 interface JobRow {
   name: string;
@@ -139,21 +142,16 @@ export default function JobsMonitorClient() {
     setLoading(true);
     setError(null);
     try {
-      const [res, healthRes] = await Promise.all([
-        fetch('/api/admin/jobs', { cache: 'no-store' }),
-        fetch('/api/health', { cache: 'no-store' }),
+      const [json, healthJson] = await Promise.all([
+        apiRequest<any>('/api/admin/jobs', { cache: 'no-store' }),
+        apiRequest<HealthPayload>('/api/health', { cache: 'no-store' }),
       ]);
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error || 'Gagal memuat status job');
-        return;
-      }
       setJobs(json.jobs ?? []);
       setCaches(json.caches ?? []);
       setSourceHealth(json.sourceHealth ?? []);
-      if (healthRes.ok) setHealth(await healthRes.json());
-    } catch {
-      setError('Gagal memuat status job');
+      setHealth(healthJson);
+    } catch (error) {
+      setError(apiErrorMessage(error, 'Gagal memuat status job', true));
     } finally {
       setLoading(false);
     }
@@ -164,10 +162,10 @@ export default function JobsMonitorClient() {
   if (loading) return <div className="text-sm text-tv-muted">Memuat status job...</div>;
   if (error) {
     return (
-      <div className="rounded-xl border border-tv-red/30 bg-tv-card p-5 text-sm text-tv-red">
+      <Card as="div" className="border-tv-red/30 p-5 text-sm text-tv-red" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         {error}
-        <button type="button" onClick={load} className="ml-3 underline">Coba lagi</button>
-      </div>
+        <Button variant="bare" size="none" type="button" onClick={load} className="ml-3 underline">Coba lagi</Button>
+      </Card>
     );
   }
 
@@ -180,34 +178,34 @@ export default function JobsMonitorClient() {
           {jobs.length} job terdaftar
           {bermasalah > 0 && <span className="text-tv-red font-bold"> • {bermasalah} perlu perhatian</span>}
         </p>
-        <button
+        <Button variant="bare" size="none"
           type="button"
           onClick={load}
           className="inline-flex items-center gap-2 rounded-lg border border-tv-border px-3 py-2 text-sm hover:border-tv-borderLight"
         >
           <RefreshCw className="h-4 w-4" />
           Muat ulang
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="text-xs text-tv-muted">Database</div>
           <div className={`mt-1 text-sm font-bold ${health?.checks?.database === 'ok' ? 'text-tv-green' : 'text-tv-red'}`}>{health?.checks?.database === 'ok' ? 'Terhubung' : 'Tidak tersedia'}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="text-xs text-tv-muted">Cache Redis</div>
           <div className={`mt-1 text-sm font-bold ${health?.checks?.redis === 'ok' ? 'text-tv-green' : health?.checks?.redis === 'not_configured' ? 'text-tv-yellow' : 'text-tv-red'}`}>{health?.checks?.redis === 'ok' ? 'Terhubung' : health?.checks?.redis === 'not_configured' ? 'Tidak dikonfigurasi' : 'Tidak tersedia'}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="text-xs text-tv-muted">Deploy production</div>
           <div className="mt-1 text-sm font-bold text-tv-muted">Verifikasi di GitHub Actions</div>
           <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
-        </div>
+        </Card>
       </div>
 
       {sourceHealth.length > 0 && (
-        <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card as="section" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <h2 className="font-heading text-base font-bold text-tv-text">Data Source Health</h2>
           <p className="mt-1 text-xs text-tv-muted">Status provider dicatat dari request nyata; kegagalan health logging tidak pernah mengubah data finansial.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -220,10 +218,10 @@ export default function JobsMonitorClient() {
               </div>
             ))}
           </div>
-        </section>
+        </Card>
       )}
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+      <Card as="section" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h2 className="font-heading text-base font-bold text-tv-text">Kesehatan Cache Data</h2>
@@ -264,7 +262,7 @@ export default function JobsMonitorClient() {
             );
           })}
         </div>
-      </section>
+      </Card>
 
       <div className="space-y-3">
         {jobs.map((job) => {

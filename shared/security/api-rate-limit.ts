@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimitShared, type RateLimitConfig } from '@/shared/middleware/rate-limiter';
 import { getTrustedClientIp } from '@/shared/http/client-ip';
+import type { HttpResult } from '@/shared/types/http-result.types';
 
 function envInt(name: string, fallback: number, min: number, max: number): number {
   const raw = Number(process.env[name]);
@@ -35,9 +36,19 @@ export async function checkAiAccountBudget(userId: string, scope: string) {
   return checkRateLimitShared(`ai-account:${scope}:${userId}`, Date.now(), aiAccountRateLimitConfig());
 }
 
+export function rateLimitResult(
+  result: { retryAfterSec?: number },
+  message = 'Terlalu banyak permintaan. Coba lagi nanti.',
+): HttpResult<{ error: string }> {
+  return {
+    status: 429,
+    body: { error: message },
+    headers: result.retryAfterSec ? { 'Retry-After': String(result.retryAfterSec) } : undefined,
+  };
+}
+
+// Compatibility helper for legacy routes that have not migrated to runController yet.
 export function rateLimitExceeded(result: { retryAfterSec?: number }, message = 'Terlalu banyak permintaan. Coba lagi nanti.') {
-  return NextResponse.json(
-    { error: message },
-    { status: 429, headers: result.retryAfterSec ? { 'Retry-After': String(result.retryAfterSec) } : undefined },
-  );
+  const mapped = rateLimitResult(result, message);
+  return NextResponse.json(mapped.body, { status: mapped.status, headers: mapped.headers });
 }

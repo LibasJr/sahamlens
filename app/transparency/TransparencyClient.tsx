@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import useSWR from 'swr';
 import {
   CartesianGrid,
   Legend,
@@ -14,11 +13,12 @@ import {
   YAxis,
 } from 'recharts';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
-import { Skeleton, EmptyState, LoadingFact } from '@/components/ui';
+import { Card, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
 // File konstanta murni (nol impor, nol kode server) - aman dipakai dari komponen
 // klien. Ambangnya diambil dari sumber yang sama dengan yang dipakai backend untuk
 // memutuskan status validasi, bukan angka yang ditulis ulang di UI.
 import { MIN_VALIDATION_DAYS, MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION } from '@/modules/lens-radar/constants/research-status';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 type Bucket = '80-100' | '70-79' | '60-69' | '<60';
 
@@ -123,7 +123,7 @@ function CollectingPanel({ data }: { data: TransparencyData }) {
   const effectiveLow = Math.max(0, data.effectiveLowBucketSamples);
 
   return (
-    <section className="bg-tv-card border border-tv-border rounded-xl overflow-hidden">
+    <Card as="section" padding="none" radius="xl" elevation="none" overflow="hidden" highlight={false} className="border-tv-border">
       <EmptyState
         illustration="collecting"
         title="Validasi masih dalam masa pengumpulan data"
@@ -156,7 +156,7 @@ function CollectingPanel({ data }: { data: TransparencyData }) {
           </p>
         </div>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -173,7 +173,7 @@ function EquityCurveTooltip({ active, payload, label }: any) {
   const gap = typeof lens === 'number' && typeof ihsg === 'number' ? lens - ihsg : null;
 
   return (
-    <div className="rounded-lg border border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
+    <Card as="div" padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
       <div className="text-[10px] uppercase tracking-wide text-tv-muted">Tanggal sinyal {label}</div>
       <div className="mt-1.5 space-y-1">
         <div className="flex items-center justify-between gap-4 text-xs">
@@ -204,7 +204,7 @@ function EquityCurveTooltip({ active, payload, label }: any) {
           <div className="text-tv-muted">{point.signals} sinyal pada tanggal ini</div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -232,19 +232,27 @@ function Banner({ data }: { data: TransparencyData }) {
 }
 
 export default function TransparencyClient() {
+  const [data, setData] = useState<TransparencyData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Pesan dari server dipakai kalau ada (`json?.error` dulu) - ApiError sudah membawanya,
-  // dan runController menjamin hanya pesan yang memang ditujukan ke pengguna yang lolos.
-  const {
-    data,
-    error: transparencyError,
-    isLoading: loading,
-    mutate: loadData,
-  } = useSWR<TransparencyData>('/api/transparency');
+  async function loadData() {
+    setLoading(true);
+    setError(null);
+    try {
+      const json = await apiRequest<any>('/api/transparency');
+      setData(json);
+    } catch {
+      setError('Gagal memuat data transparansi');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const error = transparencyError
-    ? (transparencyError as Error).message || 'Gagal memuat data transparansi'
-    : null;
+  useEffect(() => {
+    loadData();
+  }, []);
 
   if (loading) {
     return (
@@ -261,14 +269,14 @@ export default function TransparencyClient() {
 
   if (error || !data) {
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl">
+      <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border">
         <EmptyState
           illustration="empty"
           title="Data transparansi gagal dimuat"
           description={error || 'Permintaan ke server tidak sampai. Ini bukan berarti validasinya kosong - datanya belum sempat diambil.'}
           action={{ label: 'Coba muat ulang', onClick: loadData }}
         />
-      </div>
+      </Card>
     );
   }
 
@@ -285,30 +293,30 @@ export default function TransparencyClient() {
       {isCollecting && <CollectingPanel data={data} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Data Sejak</div>
           <div className="font-number text-xl font-bold mt-1">
             {data.startDate || <span className="text-sm font-normal not-italic text-tv-muted">arsip belum dimulai</span>}
           </div>
-        </div>
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        </Card>
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">As-of</div>
           <div className="font-number text-xl font-bold mt-1">{data.asOfDate}</div>
-        </div>
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        </Card>
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Run Stats</div>
           <div className="font-number text-xl font-bold mt-1">{data.latestStatsRunDate || 'On-demand'}</div>
-        </div>
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        </Card>
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Sampel T+20 Mentah</div>
           <div className="font-number text-xl font-bold mt-1">{data.totalSamples.toLocaleString('id-ID')}</div>
           <div className="text-[10px] text-tv-muted mt-0.5">
             bukan penyebut uji signifikansi
           </div>
-        </div>
+        </Card>
       </div>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold">Jejak audit data</h2>
         <p className="mt-1 text-xs text-tv-muted">Versi dan baris yang dikeluarkan ditampilkan agar hasil tidak dibaca sebagai campuran model lama.</p>
         <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
@@ -318,9 +326,9 @@ export default function TransparencyClient() {
           <div><dt className="text-tv-muted">Baris versi lain dibuang</dt><dd className="mt-1 font-number text-tv-text">{num(data.rejectedRows)}{data.unversionedRows > 0 ? ` (${num(data.unversionedRows)} tanpa versi)` : ''}</dd></div>
         </dl>
         {data.versionRejectedReason && <p className="mt-3 text-xs leading-relaxed text-tv-yellow">{data.versionRejectedReason}</p>}
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Performa per Bucket LensScore</h2>
         <p className="text-xs text-tv-muted mb-4">
           Win Rate, Max DD, Avg Win/Loss ditampilkan untuk horizon T+20.
@@ -444,9 +452,9 @@ export default function TransparencyClient() {
             })()}
           </>
         )}
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-yellow/30 rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-yellow/30 p-5">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-tv-yellow" />
           <div>
@@ -457,9 +465,9 @@ export default function TransparencyClient() {
             </ol>
           </div>
         </div>
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Equity Curve: Top 5 LensRadar Hold T+20 vs IHSG</h2>
         <p className="text-xs text-tv-muted mb-4">
           Simulasi publik: setiap tanggal validasi memilih Top 5 LensRadar, masuk di open H+1,
@@ -495,12 +503,12 @@ export default function TransparencyClient() {
             </ResponsiveContainer>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-2">Disclaimer Audit</h2>
         <p className="text-sm text-tv-muted leading-relaxed">{data.disclaimer}</p>
-      </section>
+      </Card>
     </div>
   );
 }

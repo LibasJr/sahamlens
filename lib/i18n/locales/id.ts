@@ -34,8 +34,7 @@ export const id = {
   },
   nav: {
     groupMain: 'Utama',
-    groupTrading: 'Trading',
-    groupInvesting: 'Investing',
+    groupAnalysis: 'Analisis',
     groupRiskPortfolio: 'Portfolio & Risiko',
     groupResearch: 'Research & Lainnya',
     groupAdmin: 'Admin',

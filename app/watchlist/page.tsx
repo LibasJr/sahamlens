@@ -1,20 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuthUser } from '@/lib/hooks/useAuthUser';
-import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Activity, Bell, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
 import { checkWatchlistLimit } from '@/lib/limits';
 import { FREE_LIMITS } from '@/shared/constants/limits';
-import { fetchProAccess } from '@/lib/hooks/useAuthUser';
+import { hasProAccessFor, useAuthUser } from '@/lib/hooks/useAuthUser';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { getTickerName } from '@/lib/trendingTickers';
-import { Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { Card, Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
+import { WatchlistHeader } from '@/components/watchlist/WatchlistHeader';
+import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 interface WatchlistItem {
   symbol: string;
@@ -33,6 +34,9 @@ interface AlertItem {
 }
 
 export default function WatchlistPage() {
+  const { user: authUser, resolved: authResolved } = useAuthUser();
+  const isAdmin = authResolved && authUser?.role === 'admin';
+  const hasPro = authResolved && hasProAccessFor(authUser);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistError, setWatchlistError] = useState(false);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -53,7 +57,6 @@ export default function WatchlistPage() {
   // Batas watchlist gratis hanya berlaku kalau user memang TIDAK punya akses Pro.
   // Sebelumnya diendus dari cookie yang tidak pernah ditulis untuk pelanggan Pro,
   // jadi pelanggan berbayar tetap mentok di 3 saham (lihat lib/limits.ts).
-  const [hasPro, setHasPro] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
 
@@ -64,17 +67,6 @@ export default function WatchlistPage() {
   };
 
   useEffect(() => {
-    fetchProAccess().then(setHasPro);
-  }, []);
-
-  // checkAdmin() DIHAPUS: ia memanggil /api/auth/me sendiri hanya untuk membaca satu
-  // field (role), padahal useAuthUser sudah membaca endpoint yang sama - dan halaman ini
-  // merender TopMarketBar serta SmartBackNavigation yang juga memakainya. Dulu itu
-  // beberapa permintaan identik pada satu kali muat; sekarang satu kunci SWR bersama.
-  const { user: authUser } = useAuthUser();
-  const isAdmin = authUser?.role === 'admin';
-
-  useEffect(() => {
     const controller = new AbortController();
     fetchWatchlist(controller.signal);
     fetchAlerts(controller.signal);
@@ -83,29 +75,21 @@ export default function WatchlistPage() {
 
   const fetchWatchlist = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/watchlist', { signal });
-      if (res.status === 401) {
-        if (await shouldShowLoginPromptFor401()) {
-          setShowLoginPrompt(true);
-        } else {
-          setWatchlistError(true);
-        }
+      const json = await apiRequest<any>('/api/watchlist', { signal });
+      setWatchlist(json?.data || []);
+      setWatchlistError(false);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
+        if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
+        else setWatchlistError(true);
         return;
       }
-      if (res.ok) {
-        const json = await res.json();
-        setWatchlist(json?.data || []);
-        setWatchlistError(false);
-      } else {
-        // Sebelumnya kegagalan (401 session expired, 500, dst) diam-diam meninggalkan
-        // watchlist=[] - tampilannya identik dengan watchlist kosong asli, user dengan
-        // watchlist terisi bisa mengira datanya terhapus padahal cuma gagal fetch.
-        setWatchlistError(true);
-      }
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
-      console.error('Failed to fetch watchlist', e);
+      console.error('Failed to fetch watchlist', error);
       setWatchlistError(true);
+      if (isApiClientError(error) && error.requestId) {
+        showToast(`Watchlist gagal dimuat. ID request: ${error.requestId}`, 'error');
+      }
     }
   };
 
@@ -123,39 +107,33 @@ export default function WatchlistPage() {
 
   const fetchAlerts = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/alert', { signal });
-      if (res.ok) {
-        const json = await res.json();
-        setAlerts(json?.data || []);
-      }
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
-      console.error('Failed to fetch alerts', e);
+      const json = await apiRequest<any>('/api/alert', { signal });
+      setAlerts(json?.data || []);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      console.error('Failed to fetch alerts', error);
     }
   };
 
   const fetchLiveData = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      // BUG FIX (2026-08-01, audit dummy-data): sebelumnya for-await sekuensial - total
-      // waktu = JUMLAH semua fetch simbol di watchlist, bukan MAKSIMUM salah satu (pola
-      // sama yang sudah diperbaiki di modules/notification/service/alert-evaluation.service.ts).
       const results = await Promise.all(watchlist.map(async (item) => {
         try {
-          const res = await fetch(`/api/stock/${item.symbol.replace('.JK', '')}`, { signal });
-          if (res.ok) return [item.symbol, await res.json()] as const;
-        } catch (e) {
-          if (e instanceof DOMException && e.name === 'AbortError') throw e;
-          console.error(`Failed to fetch data for ${item.symbol}`);
+          const data = await apiRequest<any>(`/api/stock/${item.symbol.replace('.JK', '')}`, { signal });
+          return [item.symbol, data] as const;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') throw error;
+          console.error(`Failed to fetch data for ${item.symbol}`, error);
+          return null;
         }
-        return null;
       }));
       const newData: Record<string, any> = {};
-      results.forEach((r) => { if (r) newData[r[0]] = r[1]; });
+      results.forEach((result) => { if (result) newData[result[0]] = result[1]; });
       if (!signal?.aborted) setLiveData(newData);
-    } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError')) {
-        console.error('Failed to refresh watchlist prices', e);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        console.error('Failed to refresh watchlist prices', error);
       }
     } finally {
       if (!signal?.aborted) setLoading(false);
@@ -168,53 +146,40 @@ export default function WatchlistPage() {
 
     const symbol = newSymbol.toUpperCase().replace('.JK', '') + '.JK';
     const price = parseFloat(buyPrice) || 0;
-    const isNewSymbol = !watchlist.some(w => w.symbol === symbol);
-
+    const isNewSymbol = !watchlist.some((item) => item.symbol === symbol);
     if (isNewSymbol) {
       const limit = checkWatchlistLimit(watchlist.length, hasPro);
-      if (!limit.allowed) {
-        setShowPaywall(true);
-        return;
-      }
+      if (!limit.allowed) { setShowPaywall(true); return; }
     }
 
     try {
-      const res = await fetch('/api/watchlist', {
+      await apiRequest('/api/watchlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, buy_price: price, lot: lotAmount ? parseInt(lotAmount) : null })
+        body: JSON.stringify({ symbol, buy_price: price, lot: lotAmount ? parseInt(lotAmount) : null }),
       });
-      if (res.ok) {
-        fetchWatchlist();
-        setNewSymbol('');
-        setBuyPrice('');
-        setLotAmount('');
-      } else {
-        const body = await res.json().catch(() => null);
-        showToast(body?.error || body?.message || 'Saham gagal ditambahkan ke watchlist.', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to add to watchlist', err);
-      showToast('Saham gagal ditambahkan ke watchlist. Coba lagi.', 'error');
+      void fetchWatchlist();
+      setNewSymbol('');
+      setBuyPrice('');
+      setLotAmount('');
+    } catch (error) {
+      console.error('Failed to add to watchlist', error);
+      showToast(apiErrorMessage(error, 'Saham gagal ditambahkan ke watchlist. Coba lagi.', true), 'error');
     }
   };
 
   const removeWatchlist = async (symbol: string) => {
     try {
-      const res = await fetch(`/api/watchlist?symbol=${symbol}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        showToast(body?.error || body?.message || 'Saham gagal dihapus dari watchlist.', 'error');
-        return;
-      }
-      fetchWatchlist();
-
-      const newLiveData = { ...liveData };
-      delete newLiveData[symbol];
-      setLiveData(newLiveData);
-    } catch (err) {
-      console.error('Failed to remove from watchlist', err);
-      showToast('Saham gagal dihapus dari watchlist. Coba lagi.', 'error');
+      await apiRequest(`/api/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' });
+      void fetchWatchlist();
+      setLiveData((current) => {
+        const next = { ...current };
+        delete next[symbol];
+        return next;
+      });
+    } catch (error) {
+      console.error('Failed to remove from watchlist', error);
+      showToast(apiErrorMessage(error, 'Saham gagal dihapus dari watchlist. Coba lagi.', true), 'error');
     }
   };
 
@@ -223,10 +188,6 @@ export default function WatchlistPage() {
     if (!alertSymbol) return;
 
     const needsValue = alertCondition === 'PRICE_BELOW' || alertCondition === 'PRICE_ABOVE';
-    // Backend (alertSchema) mewajibkan targetValue berupa number, tapi state ini bersumber
-    // dari <input type="number"> yang selalu berupa string di React - sebelumnya string
-    // mentah ("400") dikirim langsung dan ditolak validasi Zod, gagal 400 tanpa pesan apa
-    // pun ke user (klik "Set Alert" terlihat seperti tidak terjadi apa-apa).
     const parsedValue = alertValue.trim() ? Number(alertValue) : null;
     if (needsValue && (parsedValue === null || Number.isNaN(parsedValue))) {
       showToast('Target Nilai wajib diisi dengan angka.', 'error');
@@ -234,68 +195,54 @@ export default function WatchlistPage() {
     }
 
     try {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-          await Notification.requestPermission();
-        }
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        await Notification.requestPermission();
       }
-
-      const res = await fetch('/api/alert', {
+      await apiRequest('/api/alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: alertSymbol.toUpperCase().replace('.JK', '') + '.JK',
           conditionType: alertCondition,
-          targetValue: needsValue ? parsedValue : null
-        })
+          targetValue: needsValue ? parsedValue : null,
+        }),
       });
-
-      if (res.ok) {
-        fetchAlerts();
-        setAlertSymbol('');
-        setAlertValue('');
-        showToast('Alert berhasil dibuat.', 'success');
-      } else {
-        const errBody = await res.json().catch(() => null);
-        showToast(errBody?.error || errBody?.message || 'Gagal membuat alert. Coba lagi.', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to add alert', err);
-      showToast('Gagal membuat alert. Coba lagi.', 'error');
+      void fetchAlerts();
+      setAlertSymbol('');
+      setAlertValue('');
+      showToast('Alert berhasil dibuat.', 'success');
+    } catch (error) {
+      console.error('Failed to add alert', error);
+      showToast(apiErrorMessage(error, 'Gagal membuat alert. Coba lagi.', true), 'error');
     }
   };
 
   const removeAlert = async (id: string) => {
     try {
-      await fetch(`/api/alert?id=${id}`, { method: 'DELETE' });
-      fetchAlerts();
-    } catch (err) {
-      console.error('Failed to remove alert', err);
+      await apiRequest(`/api/alert?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      void fetchAlerts();
+    } catch (error) {
+      console.error('Failed to remove alert', error);
+      showToast(apiErrorMessage(error, 'Gagal menghapus alert.', true), 'error');
     }
   };
 
   const triggerCron = async () => {
     try {
-      const res = await fetch('/api/alerts/check');
-      const json = await res.json();
-
-      if (json.triggeredAlerts && json.triggeredAlerts.length > 0) {
+      const json = await apiRequest<any>('/api/alerts/check');
+      if (json.triggeredAlerts?.length > 0) {
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          json.triggeredAlerts.forEach((alert: any) => {
-            new Notification('SahamLens LensAlert', {
-              body: alert.message
-            });
-          });
+          json.triggeredAlerts.forEach((alert: any) => new Notification('SahamLens LensAlert', { body: alert.message }));
         } else {
           showToast(`${json.triggeredAlerts.length} alert berhasil dipicu.`, 'success');
         }
       } else {
         showToast(`Pemeriksaan selesai. Tidak ada alert baru (${json.checked ?? 0} diperiksa).`, 'info');
       }
-
-      fetchAlerts();
-    } catch (e) {
-      console.error('Failed to trigger cron', e);
+      void fetchAlerts();
+    } catch (error) {
+      console.error('Failed to trigger alert check', error);
+      showToast(apiErrorMessage(error, 'Pemeriksaan alert gagal.', true), 'error');
     }
   };
 
@@ -316,64 +263,16 @@ export default function WatchlistPage() {
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Toast message={toastMessage} variant={toastVariant} />
-      <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-5 backdrop-blur-xl md:px-6">
-        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-tv-blue text-white">
-              <Bell className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="lens-page-title">LensWatch</h2>
-              <p className="text-xs text-white/50">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
-            </div>
-          </div>
-          <button
-            onClick={() => fetchLiveData()}
-            disabled={loading}
-            className="bg-white/5 border border-white/10 hover:bg-white/10 px-4 py-2 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50 text-xs font-semibold"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </button>
-        </div>
-
-        {/* Stat tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* Ketiga kartu ini dulu jatuh ke '-' saat belum ada posisi. Tanda hubung
-              tidak membedakan "belum mengisi harga beli" dari "gagal memuat harga",
-              padahal jalan keluarnya berbeda: yang satu perlu diisi user, yang satu
-              perlu dicoba ulang. */}
-          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Wallet className="w-3 h-3" /> Nilai Posisi</div>
-            <div className="mt-1 text-[16px] font-bold text-white font-number">
-              {totalCurrent > 0
-                ? <AnimatedNumber value={totalCurrent} format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`} />
-                : <span className="text-[11px] font-normal text-white/40">isi harga beli &amp; lot dulu</span>}
-            </div>
-          </div>
-          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-            {/* Panah dulu memakai `totalPnlPct >= 0` tanpa syarat, jadi saat belum ada
-                posisi sama sekali (P&L = 0) ikon panah HIJAU tetap menyala di sebelah
-                nilai yang kosong. */}
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
-              {totalInvested <= 0 ? <Activity className="w-3 h-3" /> : totalPnlPct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} Total P&amp;L
-            </div>
-            <div className={`mt-1 text-[16px] font-bold font-number ${totalInvested <= 0 ? 'text-white/40' : totalPnlPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-              {totalInvested > 0
-                ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%`
-                : <span className="text-[11px] font-normal">belum ada posisi</span>}
-            </div>
-          </div>
-          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><Activity className="w-3 h-3" /> Saham Dipantau</div>
-            <div className="mt-1 text-[16px] font-bold text-white font-number">{watchlist.length} / {hasPro || FREE_LIMITS.WATCHLIST === Infinity ? '∞' : FREE_LIMITS.WATCHLIST}</div>
-          </div>
-          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40"><BellRing className="w-3 h-3" /> Alert Aktif</div>
-            <div className="mt-1 text-[16px] font-bold text-white font-number">{activeAlertsCount}</div>
-          </div>
-        </div>
-      </header>
+      <WatchlistHeader
+        loading={loading}
+        totalCurrent={totalCurrent}
+        totalInvested={totalInvested}
+        totalPnlPct={totalPnlPct}
+        watchlistCount={watchlist.length}
+        watchlistLimit={hasPro || FREE_LIMITS.WATCHLIST === Infinity ? '∞' : FREE_LIMITS.WATCHLIST}
+        activeAlertsCount={activeAlertsCount}
+        onRefresh={() => fetchLiveData()}
+      />
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -391,7 +290,7 @@ export default function WatchlistPage() {
             })}
           />
 
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1">
+          <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border p-5">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
               <Activity className="w-5 h-5 text-tv-blue" />
               My Watchlist
@@ -499,13 +398,13 @@ export default function WatchlistPage() {
                         </div>
                       )}
                       {pnl < -20 && data?.scoring?.kategori?.includes('SELL') && supportTarget && (
-                        <button
+                        <Button variant="bare" size="none"
                           type="button"
                           onClick={() => { setAlertSymbol(item.symbol); setAlertCondition('PRICE_BELOW'); setAlertValue(supportTarget); }}
                           className="mt-1 flex items-center gap-1 text-[10px] text-tv-warning hover:text-tv-warning/80"
                         >
                           <AlertCircle className="w-3 h-3" /> Suggest: Alert Support {supportTarget}
-                        </button>
+                        </Button>
                       )}
                     </div>
 
@@ -540,9 +439,9 @@ export default function WatchlistPage() {
                       )}
                     </div>
 
-                    <button onClick={() => removeWatchlist(item.symbol)} aria-label={`Hapus ${displayTicker(item.symbol)} dari watchlist`} className="shrink-0 p-2 text-tv-muted hover:text-tv-red hover:bg-tv-red/10 rounded-md transition-colors">
+                    <Button variant="bare" size="none" onClick={() => removeWatchlist(item.symbol)} className="shrink-0 p-2 text-tv-muted hover:text-tv-red hover:bg-tv-red/10 rounded-md transition-colors">
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 );
               })}
@@ -592,7 +491,7 @@ export default function WatchlistPage() {
                 );
               })()}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Alerts Section - h-full pada kartu ini WAJIB, bukan cuma pada pembungkusnya.
@@ -601,7 +500,7 @@ export default function WatchlistPage() {
             Watchlist) - tapi kartu di DALAMNYA tidak ikut memanjang tanpa h-full,
             menyisakan celah kosong tak terlihat di bawah kartu sampai batas kolom. */}
         <div className="space-y-6 h-full">
-          <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 h-full flex flex-col">
+          <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border p-5 h-full flex flex-col">
             <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
               <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
                 <Bell className="w-5 h-5 text-tv-yellow" />
@@ -614,9 +513,9 @@ export default function WatchlistPage() {
                   mentahnya - tampilan internal yang tidak seharusnya sampai ke
                   pengguna biasa. Sekarang benar-benar digerbangi. */}
               {isAdmin && (
-                <button onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
+                <Button variant="bare" size="none" onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
                   Test Cron
-                </button>
+                </Button>
               )}
             </div>
 
@@ -668,9 +567,9 @@ export default function WatchlistPage() {
                       <span className="font-bold text-tv-text font-number">{displayTicker(alert.symbol)}</span>
                       <div className="flex items-center gap-2">
                         <Badge variant={alert.isActive ? 'success' : 'neutral'}>{alert.isActive ? 'Active' : 'Triggered'}</Badge>
-                        <button onClick={() => removeAlert(alert.id)} aria-label={`Hapus alert ${displayTicker(alert.symbol)}`} className="text-tv-muted hover:text-tv-red">
+                        <Button variant="bare" size="none" onClick={() => removeAlert(alert.id)} className="text-tv-muted hover:text-tv-red">
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     <div className="text-xs text-tv-muted flex items-center gap-1.5">
@@ -691,7 +590,7 @@ export default function WatchlistPage() {
                 />
               )}
             </div>
-          </div>
+          </Card>
         </div>
       </PageContainer>
 

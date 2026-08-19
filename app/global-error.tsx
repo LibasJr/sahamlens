@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import { useEffect } from 'react';
 import * as Sentry from '@sentry/nextjs';
 
@@ -13,7 +14,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
             <h1 className="text-xl font-bold">SahamLens mengalami gangguan</h1>
             <p className="mt-2 text-sm text-white/60">Silakan coba lagi. Jika masalah berulang, kembali ke halaman utama.</p>
             <div className="mt-5 flex justify-center gap-3">
-              <button type="button" onClick={reset} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold">Coba lagi</button>
+              <Button variant="bare" size="none" type="button" onClick={reset} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold">Coba lagi</Button>
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages --
                   <a> DISENGAJA di sini, jangan diganti <Link>. global-error.tsx hanya
                   dirender ketika root layout SENDIRI gagal, dan file ini merender

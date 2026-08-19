@@ -6,279 +6,20 @@ import { motion } from 'framer-motion';
 import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
+import { BucketBacktestCard, BucketBacktestPending } from '@/components/radar/BucketBacktestPanel';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
-import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
+import { Badge, Button, Card, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber, EmptyState } from '@/components/ui';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
-
-const displayTicker = (s: string) => s.replace('.JK', '');
-
-type ScoreBreakdown = { technical: number; fundamental: number; flow: number };
-
-type AiPickItem = {
-  symbol: string;
-  price: number;
-  changePct: number;
-  baseScore: number;
-  /** Sinyal/event hari ini sebagai LABEL (breakout/golden cross/akumulasi) - sejak audit
-   * skor 2026-08-05 TIDAK lagi menambah poin, menggantikan `bonuses` yang lama. */
-  signals?: string[];
-  finalScore: number;
-  /** Kelengkapan data di balik skor (persen) - null/undefined untuk entri cache lama. */
-  coverage?: number | null;
-  flagged: boolean;
-  flagReason: string | null;
-  // Audit BUILD 003 (Explainable AI) - opsional (bukan required) supaya frontend
-  // tidak error kalau response API sempat berasal dari cache lama sebelum field ini
-  // ada (lihat guard `?? fallback` di ai-pick.service.ts rankAiPicks()).
-  breakdown?: ScoreBreakdown;
-  topReasons?: string[];
-};
-
-type HorizonKey = 't1' | 't5' | 't20';
-type BucketBacktest = {
-  ready: boolean;
-  coverageDays: number;
-  /** Ambang hari kalender sebelum tabel validasi ditampilkan (LENS_SCORE_MIN_HISTORY_DAYS). */
-  minRequiredDays?: number;
-  tradingDays: number;
-  minDate: string | null;
-  maxDate: string | null;
-  roundTripCostPct: number;
-  entryRule: string;
-  buckets: {
-    bucket: string;
-    horizons: Record<HorizonKey, { avgReturnPct: number | null; winRatePct: number | null; samples: number }>;
-  }[];
-  tTests: Record<HorizonKey, {
-    meanDiffPct: number | null;
-    tStatistic: number | null;
-    degreesOfFreedom: number | null;
-    pValueApprox: number | null;
-    significantAt5Pct: boolean;
-    bucket80Better: boolean | null;
-    samples80: number;
-    samples60: number;
-    note: string;
-  }>;
-  note: string | null;
-};
-
-type RadarColumnKey = 'symbol' | 'price' | 'changePct' | 'finalScore' | 'technicalScore' | 'fundamentalScore' | 'flowScore' | 'coverage';
-
-interface RadarSortableColumn {
-  key: RadarColumnKey;
-  label: string;
-  align?: 'right';
-  getValue: (item: AiPickItem) => string | number | null | undefined;
-}
-
-const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = [
-  { key: 'symbol', label: 'Saham', getValue: (i) => i.symbol },
-  { key: 'price', label: 'Harga', align: 'right', getValue: (i) => i.price },
-  { key: 'changePct', label: 'Chg', align: 'right', getValue: (i) => i.changePct },
-  // Audit skor 2026-08-05: label "Skor (0-140)" dulu jujur menggambarkan implementasi
-  // (skor 0-100 + bonus 0-40), tapi skala 0-140 itu sendiri yang salah - lihat catatan
-  // lengkap di ai-pick.service.ts. Bonus sudah dihapus; skor sekarang benar-benar 0-100.
-  { key: 'finalScore', label: 'Total', align: 'right', getValue: (i) => i.finalScore },
-  // Breakdown dari calculateScore(): Technical maks 40, Fundamental maks 30, Flow maks
-  // 30. Ditampilkan sebagai kolom terpisah agar skor tinggi tidak disalahbaca sebagai
-  // "semua aspek kuat"; bisa saja dominan teknikal sementara fundamental minim data.
-  { key: 'technicalScore', label: 'Teknikal', align: 'right', getValue: (i) => i.breakdown?.technical },
-  { key: 'fundamentalScore', label: 'Fundamental', align: 'right', getValue: (i) => i.breakdown?.fundamental },
-  { key: 'flowScore', label: 'Flow', align: 'right', getValue: (i) => i.breakdown?.flow },
-  { key: 'coverage', label: 'Coverage', align: 'right', getValue: (i) => i.coverage },
-];
-
-function compareRadarValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
-  const result = typeof a === 'number' && typeof b === 'number'
-    ? a - b
-    : String(a).localeCompare(String(b), 'id');
-  return dir === 'asc' ? result : -result;
-}
-
-function fmtBacktestPct(value: number | null): string {
-  if (value == null) return 'N/A';
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
-}
-
-function scoreBarWidth(value: number | null | undefined, max: number): string {
-  if (typeof value !== 'number' || !Number.isFinite(value) || max <= 0) return '0%';
-  return `${Math.min(100, Math.max(0, (value / max) * 100))}%`;
-}
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/**
- * Kartu pengganti tabel validasi selama histori belum cukup panjang.
- *
- * Sebelumnya kondisi ini cuma menghasilkan satu baris teks kuning, atau - kalau
- * `note` kebetulan null - tidak menghasilkan apa pun sehingga bagian validasi
- * hilang tanpa jejak. Angka 0 sampel bukan kegagalan: backtest ini memang perlu
- * lebih dari 90 hari kalender arsip harian sebelum bisa menghitung apa pun.
- * Yang perlu diberi tahu ke user adalah sudah sampai mana dan kapan siapnya.
- */
-function BucketBacktestPending({ data }: { data: BucketBacktest }) {
-  const required = data.minRequiredDays ?? 90;
-  const collected = Math.max(0, data.coverageDays);
-
-  // Tanggal siap dihitung dari hari pertama arsip, bukan dari hari ini - kalau
-  // dihitung dari hari ini, targetnya mundur terus tiap kali halaman dibuka.
-  const readyDate = data.minDate
-    ? new Date(new Date(data.minDate).getTime() + (required + 1) * MS_PER_DAY)
-    : null;
-
-  return (
-    <div className="border-t border-tv-border bg-tv-bg/30 px-4 py-2">
-      <EmptyState
-        illustration="collecting"
-        title="Validasi bucket belum bisa dihitung"
-        description={`Tabel ini membandingkan hasil nyata tiap rentang LensScore. Perbandingannya baru bermakna setelah arsip harian melewati ${required} hari kalender - menampilkannya lebih awal berarti menyajikan kesimpulan dari sampel yang terlalu kecil.`}
-        progress={{ current: collected, total: required, unit: 'hari', label: 'Pengumpulan data' }}
-        countdown={readyDate ? { targetDate: readyDate, label: 'Perkiraan tabel muncul' } : undefined}
-      />
-      {data.minDate && (
-        <p className="pb-3 text-center text-[10px] text-tv-muted">
-          Arsip dimulai {new Date(data.minDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-          {data.tradingDays > 0 && ` · ${data.tradingDays} hari bursa terekam`}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function BucketBacktestCard({ data }: { data: BucketBacktest }) {
-  const horizons: { key: HorizonKey; label: string }[] = [
-    { key: 't1', label: 'T+1' },
-    { key: 't5', label: 'T+5' },
-    { key: 't20', label: 'T+20' },
-  ];
-  const primaryTest = data.tTests.t20;
-
-  return (
-    <div className="border-t border-tv-border bg-tv-bg/30 px-4 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-        <div>
-          <h3 className="font-heading text-sm font-bold text-tv-text">Validasi Bucket LensScore</h3>
-          <p className="text-[11px] text-tv-muted mt-1">
-            Histori {data.coverageDays} hari kalender ({data.tradingDays} hari bursa), {data.minDate} sampai {data.maxDate}.
-            Return sudah dikurangi fee+slippage {data.roundTripCostPct.toFixed(1)}% round-trip.
-          </p>
-          <p className="text-[10px] text-tv-muted mt-1">{data.entryRule}</p>
-        </div>
-        <div className={`rounded-md border px-3 py-2 text-[11px] ${
-          primaryTest.bucket80Better && primaryTest.significantAt5Pct
-            ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
-            : 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
-        }`}>
-          80-100 vs 60-69 T+20:{' '}
-          {primaryTest.tStatistic == null
-            ? 'sampel belum cukup'
-            : `${primaryTest.bucket80Better ? 'lebih baik' : 'belum lebih baik'}; t=${primaryTest.tStatistic}, p≈${primaryTest.pValueApprox ?? 'N/A'}`}
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr className="border-b border-tv-border text-tv-muted uppercase font-semibold tracking-wide">
-              <th className="py-2 pr-3">Bucket</th>
-              {horizons.map((h) => (
-                <th key={h.key} className="py-2 px-3 text-right">{h.label} Avg</th>
-              ))}
-              {horizons.map((h) => (
-                <th key={`${h.key}-win`} className="py-2 px-3 text-right">{h.label} Win</th>
-              ))}
-              {horizons.map((h) => (
-                <th key={`${h.key}-n`} className="py-2 pl-3 text-right">{h.label} N</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-tv-border/70">
-            {data.buckets.map((bucket) => (
-              <tr key={bucket.bucket}>
-                <td className="py-2 pr-3 font-bold text-tv-text">{bucket.bucket}</td>
-                {horizons.map((h) => (
-                  <td key={h.key} className="py-2 px-3 text-right font-number text-tv-text">
-                    {fmtBacktestPct(bucket.horizons[h.key]?.avgReturnPct ?? null)}
-                  </td>
-                ))}
-                {horizons.map((h) => {
-                  const winRate = bucket.horizons[h.key]?.winRatePct ?? null;
-                  // Heatmap win rate: titik netralnya 50%, bukan 0 - win rate 45% itu
-                  // buruk, dan skala yang berpangkal di 0 akan mewarnainya sebagai
-                  // "cukup baik". Intensitas dipotong di 20 poin dari netral.
-                  const deviation = winRate == null ? 0 : (winRate - 50) / 20;
-                  const magnitude = Math.min(Math.abs(deviation), 1);
-                  const rgb = deviation >= 0 ? '34,197,94' : '239,68,68';
-                  return (
-                    <td
-                      key={`${h.key}-win`}
-                      className="py-2 px-3 text-right font-number text-tv-text"
-                      style={winRate == null ? undefined : { backgroundColor: `rgba(${rgb},${0.06 + magnitude * 0.28})` }}
-                    >
-                      {winRate == null ? <span className="text-tv-muted">N/A</span> : `${winRate.toFixed(0)}%`}
-                    </td>
-                  );
-                })}
-                {horizons.map((h) => {
-                  const samples = bucket.horizons[h.key]?.samples ?? 0;
-                  // Sampel di bawah 30 ditandai: rata-rata dari sampel sekecil itu
-                  // masih didominasi kebetulan, dan angkanya di kolom kiri terbaca
-                  // sama meyakinkannya dengan yang bersampel besar.
-                  const thin = samples > 0 && samples < 30;
-                  return (
-                    <td
-                      key={`${h.key}-n`}
-                      className={`py-2 pl-3 text-right font-number ${thin ? 'text-tv-warning' : 'text-tv-muted'}`}
-                      title={thin ? `${samples} sampel - terlalu sedikit untuk disimpulkan` : undefined}
-                    >
-                      {samples}{thin ? '*' : ''}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Storytelling: tabel di atas menyimpan temuan utamanya di dalam angka yang
-          harus dibandingkan sendiri oleh pembaca. Kalimat ini menyebutkannya. */}
-      {(() => {
-        const high = data.buckets.find((b) => b.bucket.startsWith('80'));
-        const low = data.buckets.find((b) => b.bucket.startsWith('60'));
-        const hiWin = high?.horizons.t20?.winRatePct ?? null;
-        const loWin = low?.horizons.t20?.winRatePct ?? null;
-        if (hiWin == null || loWin == null) return null;
-        const gap = hiWin - loWin;
-        const significant = primaryTest.significantAt5Pct && primaryTest.bucket80Better;
-        return (
-          <div className={`mt-3 rounded-md border px-3 py-2.5 ${significant ? 'border-tv-green/25 bg-tv-green/5' : 'border-tv-border bg-tv-bg/40'}`}>
-            <p className="text-[11px] leading-relaxed text-tv-text">
-              Bucket <span className="font-number font-semibold">{high!.bucket}</span> punya win rate T+20{' '}
-              <span className={`font-number font-semibold ${gap >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
-                {gap >= 0 ? '+' : ''}{gap.toFixed(0)} poin persen
-              </span>{' '}
-              dibanding bucket <span className="font-number font-semibold">{low!.bucket}</span> ({hiWin.toFixed(0)}% vs {loWin.toFixed(0)}%).{' '}
-              {significant
-                ? 'Selisih ini lolos uji signifikansi 5%, jadi kecil kemungkinannya murni kebetulan - tapi tetap dari data masa lalu.'
-                : 'Selisih ini BELUM lolos uji signifikansi 5%, artinya masih bisa muncul dari kebetulan semata. Jangan dijadikan dasar keputusan.'}
-            </p>
-          </div>
-        );
-      })()}
-
-      <p className="text-[10px] text-tv-muted mt-3">
-        T-test memakai Welch sederhana untuk membandingkan bucket 80-100 dengan 60-69. Ini bukti awal kalibrasi scanner,
-        bukan jaminan performa masa depan. Tanda <span className="text-tv-warning">*</span> pada kolom N menandai sampel di bawah 30 -
-        terlalu sedikit untuk disimpulkan. &quot;N/A&quot; berarti belum ada sampel sama sekali di rentang itu, bukan hasil nol.
-      </p>
-    </div>
-  );
-}
+import {
+  RADAR_SORTABLE_COLUMNS,
+  compareRadarValues,
+  displayTicker,
+  scoreBarWidth,
+  type AiPickItem,
+  type BucketBacktest,
+  type RadarColumnKey,
+} from './radar-model';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
@@ -304,8 +45,7 @@ export default function AiPickPage() {
   const canSeeBucketBacktest = hasAdminCookie || (authResolved && effectiveRole === 'admin');
 
   useEffect(() => {
-    fetch('/api/admin-status')
-      .then((res) => res.json())
+    apiRequest<any>('/api/admin-status')
       .then((d) => setHasAdminCookie(Boolean(d.isAdmin)))
       .catch(() => setHasAdminCookie(false));
   }, []);
@@ -346,39 +86,29 @@ export default function AiPickPage() {
   const fetchPicks = useCallback(() => {
     setLoading(true);
     setLoadError(false);
-    fetch('/api/ai-pick')
-      .then(async (res) => {
-        if (res.status === 401) {
-          if (await shouldShowLoginPromptFor401()) {
-            setGated('login');
-            setShowLoginPrompt(true);
-          } else {
-            setLoadError(true);
-          }
-          return null;
+    apiRequest<any>('/api/ai-pick')
+      .then((data) => {
+        setGated(null);
+        setItems(data?.items || []);
+        setReady(data?.ready !== false);
+        setNote(data?.note || null);
+        setComputedAt(data?.computedAt || null);
+        setStale(data?.stale === true);
+      })
+      .catch(async (error) => {
+        if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
+          if (await shouldShowLoginPromptFor401()) { setGated('login'); setShowLoginPrompt(true); }
+          else setLoadError(true);
+          return;
         }
-        if (res.status === 402) {
+        if (isApiClientError(error) && error.code === 'SUBSCRIPTION_REQUIRED') {
           setGated('pro');
           setShowPaywall(true);
-          return null;
+          return;
         }
-        if (!res.ok) {
-          setLoadError(true);
-          return null;
-        }
-        return res.json();
+        console.error(error);
+        setLoadError(true);
       })
-      .then((d) => {
-        if (!d) return;
-        if (d.error) { setLoadError(true); return; }
-        setGated(null);
-        setItems(d.items || []);
-        setReady(d.ready !== false);
-        setNote(d.note || null);
-        setComputedAt(d.computedAt || null);
-        setStale(d.stale === true);
-      })
-      .catch((e) => { console.error(e); setLoadError(true); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -393,8 +123,7 @@ export default function AiPickPage() {
       setBucketBacktest(null);
       return;
     }
-    fetch('/api/lens-score-bucket-backtest')
-      .then((res) => (res.ok ? res.json() : null))
+    apiRequest<any>('/api/lens-score-bucket-backtest')
       .then((d) => {
         if (d && !d.error) setBucketBacktest(d);
       })
@@ -449,7 +178,7 @@ export default function AiPickPage() {
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
             1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
         <PageContainer className="p-4 md:p-6 lg:p-7">
-          <div className="bg-tv-card border border-tv-border rounded-lg shadow-1 overflow-hidden">
+          <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-tv-blue" />
@@ -548,7 +277,7 @@ export default function AiPickPage() {
                                 mana yang bisa diurutkan - sebelumnya penanda hanya muncul
                                 di kolom yang SEDANG aktif, jadi sebelum klik pertama tidak
                                 ada isyarat sama sekali bahwa tabel ini sortable. */}
-                            <button
+                            <Button variant="bare" size="none"
                               type="button"
                               onClick={() => handleRadarSort(col.key)}
                               title={`Urutkan menurut ${col.label}`}
@@ -560,7 +289,7 @@ export default function AiPickPage() {
                               ) : (
                                 <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
                               )}
-                            </button>
+                            </Button>
                           </th>
                         ))}
                         <th className="py-3 px-4">Sinyal</th>
@@ -647,15 +376,13 @@ export default function AiPickPage() {
                             {it.signals?.length ? it.signals.join(', ') : <span className="text-tv-muted">-</span>}
                           </td>
                           <td className="py-3 px-4 text-center">
-                            <button
+                            <Button variant="bare" size="none"
                               type="button"
                               onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
-                              aria-label={`Rincian ${it.symbol}`}
-                              aria-expanded={isExpanded}
                               className="inline-flex items-center gap-1 text-[11px] text-tv-blue hover:text-tv-text transition-colors"
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                         {isExpanded && (
@@ -705,7 +432,7 @@ export default function AiPickPage() {
                   <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 border-b border-tv-border">
                     <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
                     {RADAR_SORTABLE_COLUMNS.map((col) => (
-                      <button
+                      <Button variant="bare" size="none"
                         key={col.key}
                         type="button"
                         onClick={() => handleRadarSort(col.key)}
@@ -717,7 +444,7 @@ export default function AiPickPage() {
                       >
                         {col.label}
                         {radarSortKey === col.key && <span className="ml-1">{radarSortDir === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
+                      </Button>
                     ))}
                   </div>
 
@@ -759,14 +486,14 @@ export default function AiPickPage() {
                                 />
                               </div>
                             </div>
-                            <button
+                            <Button variant="bare" size="none"
                               type="button"
                               onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
                               aria-label={isExpanded ? 'Tutup rincian' : 'Buka rincian'}
                               className="shrink-0 p-1.5 text-tv-blue"
                             >
                               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </button>
+                            </Button>
                           </div>
 
                           {isExpanded && (
@@ -812,7 +539,7 @@ export default function AiPickPage() {
                 </div>
               </>
             )}
-          </div>
+          </Card>
 
           <p className="text-[11px] text-tv-muted mt-4 leading-relaxed">
             Skor 0-100 = komposit teknikal (maks 40), fundamental (maks 30), dan arus dana (maks 30).

@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -26,7 +27,7 @@ export function PasswordToggle({
   label?: string;
 }) {
   return (
-    <button
+    <Button variant="bare" size="none"
       type="button"
       onClick={onToggle}
       aria-label={shown ? `Sembunyikan ${label}` : `Tampilkan ${label}`}
@@ -34,7 +35,7 @@ export function PasswordToggle({
       className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-lg text-tv-muted transition-colors hover:text-tv-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
     >
       {shown ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
-    </button>
+    </Button>
   );
 }
 

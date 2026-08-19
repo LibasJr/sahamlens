@@ -7,6 +7,7 @@ import { getMarketPulse } from '@/modules/market';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 // BUILD 006 (Scheduler) - pola sama persis dengan app/api/cron/macro/route.ts
 // (Cron -> Worker langsung, verifikasi signature QStash, dibungkus job_run_log).
@@ -17,7 +18,7 @@ import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 // pemuatan halaman = ~50 fetch Yahoo baru.
 const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_PULSE;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -46,4 +47,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job market-pulse gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

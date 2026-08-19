@@ -1,7 +1,9 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useState } from 'react';
 import Toast from '@/components/ui/Toast';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 // xlsx di-import dinamis (optimasi loading 2026-08-05), sama seperti app/portfolio -
 // hanya dibutuhkan saat tombol ini diklik.
 
@@ -19,8 +21,7 @@ export default function ExportButton() {
       // dalam sekali klik (bukan UI berpaginasi), jadi minta cap besar daripada
       // diam-diam kepotong di limit default. Kalau data sudah >200 baris, ini
       // perlu diubah jadi loop multi-halaman - dicatat, bukan masalah sekarang.
-      const res = await fetch('/api/admin/export?limit=200');
-      const data = await res.json();
+      const data = await apiRequest<any>('/api/admin/export?limit=200');
 
       if (!data.success) {
         setErrorMessage('Gagal mengekspor data. Coba lagi.');
@@ -62,13 +63,13 @@ export default function ExportButton() {
   return (
     <>
       <Toast message={errorMessage} variant="error" />
-      <button
+      <Button variant="bare" size="none"
       onClick={handleExport}
       disabled={loading}
       className="bg-tv-card border border-tv-border hover:bg-tv-border text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
     >
       {loading ? 'Exporting...' : 'Export Excel'}
-      </button>
+      </Button>
     </>
   );
 }

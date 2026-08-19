@@ -5,6 +5,8 @@ import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
 // SEBELUMNYA angka TETAP ("-5.75%", "-12.5%", "-4.2%", "-6.8%") - halaman sudah jujur
@@ -42,20 +44,14 @@ export default function RiskPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/risk-analysis', {
+      const json = await apiRequest<RiskAnalysisResult>('/api/risk-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ portfolio }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error || 'Gagal menghitung analisis risiko');
-        setAnalysis(null);
-        return;
-      }
       setAnalysis(json);
     } catch (e) {
-      setError('Gagal menghubungi server analisis risiko');
+      setError(isApiClientError(e) ? e.message : 'Gagal menghubungi server analisis risiko');
       setAnalysis(null);
     } finally {
       setLoading(false);
@@ -95,7 +91,7 @@ export default function RiskPage() {
       subtitle="Beta historis 1 tahun (regresi return harian terhadap IHSG & USD/IDR, data Yahoo Finance) - dihitung dari komposisi portofolio Anda"
     >
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+        <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <PieChart className="w-5 h-5 text-tv-red" />
             Komposisi Simulasi (%)
@@ -112,13 +108,12 @@ export default function RiskPage() {
                   </span>
                   <span className="text-tv-text font-bold font-number">{item.weight}%</span>
                 </div>
-                <button
+                <Button variant="bare" size="none"
                   onClick={() => removePosition(idx)}
-                  aria-label={`Hapus ${item.ticker} dari daftar posisi`}
                   className="p-1 text-tv-muted hover:text-tv-red transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -148,10 +143,10 @@ export default function RiskPage() {
           <Button size="sm" variant="secondary" onClick={runAnalysis} disabled={loading} className="w-full">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Menghitung...' : 'Hitung Ulang Beta Portofolio'}
           </Button>
-        </div>
+        </Card>
 
         {/* Stress Testing Results */}
-        <div className="lg:col-span-2 bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+        <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="lg:col-span-2 border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <Activity className="w-5 h-5 text-tv-yellow" />
             Hasil Stress Test (Beta Historis Portofolio)
@@ -208,7 +203,7 @@ export default function RiskPage() {
               jaminan pergerakan yang akan terjadi.
             </p>
           </div>
-        </div>
+        </Card>
       </div>
     </TickerAnalysisShell>
   );

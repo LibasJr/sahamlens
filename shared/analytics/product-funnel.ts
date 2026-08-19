@@ -1,3 +1,4 @@
+import { apiRequest } from '@/shared/http/api-client';
 'use client';
 
 export type ProductFunnelEventType = 'locked_view' | 'signup_click' | 'signup_completed';
@@ -19,7 +20,7 @@ export function trackProductFunnelEvent(eventType: ProductFunnelEventType, featu
   const visitorId = getVisitorId();
   if (!visitorId) return;
   const body = JSON.stringify({ visitorId, eventType, feature });
-  void fetch('/api/analytics/funnel', {
+  void apiRequest<void>('/api/analytics/funnel', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,

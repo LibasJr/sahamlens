@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import useSWR from 'swr';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, DollarSign, BarChart3, Sparkles, Activity } from 'lucide-react';
-import { Input, Skeleton, EmptyState } from '@/components/ui';
+import { Button, Input, Skeleton, EmptyState } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { apiRequest } from '@/shared/http/api-client';
 
 type Row = { symbol: string; price: number; changePct?: number; value?: number; volume?: number; score?: number; rsi?: number };
 
@@ -40,33 +41,27 @@ export default function MarketCategoryPage() {
   const category = String(params.category || '');
   const config = CATEGORY_CONFIG[category];
 
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<'symbol' | 'price' | 'metric'>('metric');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  // Kunci SWR-nya SAMA dengan app/home/page.tsx dan components/TopMarketBar.tsx. Berpindah
-  // dari Beranda ke halaman kategori ini karena itu tidak mengambil apa pun lagi - dulu
-  // permintaan ketiga ke endpoint yang isinya identik.
-  //
-  // Kuncinya null saat kategorinya tidak dikenal, menggantikan `if (!config) return;`.
-  const { data: summary, isLoading } = useSWR<any>(config ? '/api/market-summary' : null);
-  const loading = Boolean(config) && isLoading;
-
-  // Turunan murni, bukan state: `rows` dan `lastUpdated` sepenuhnya ditentukan respons +
-  // kategori yang sedang dibuka.
-  const rows = useMemo<Row[]>(
-    () => (config && summary && !summary.error ? (summary[config.dataKey] ?? []) : []),
-    [summary, config],
-  );
-
-  const lastUpdated = useMemo(() => {
-    if (!summary?.timestamp || summary.error) return null;
-    return `${new Intl.DateTimeFormat('id-ID', {
-      timeZone: 'Asia/Jakarta',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(summary.timestamp))} WIB`;
-  }, [summary]);
+  React.useEffect(() => {
+    if (!config) { setLoading(false); return; }
+    apiRequest<any>('/api/market-summary')
+      .then(data => {
+        if (data && !data.error) {
+          setRows(data[config.dataKey] || []);
+          if (data.timestamp) {
+            setLastUpdated(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.timestamp)) + ' WIB');
+          }
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [category]);
 
   const displayRows = useMemo(() => {
     let out = rows.filter(r => r.symbol.toLowerCase().includes(search.trim().toLowerCase()));
@@ -117,7 +112,7 @@ export default function MarketCategoryPage() {
     <div className="min-h-screen bg-tv-bg text-tv-text">
       <header className="sticky top-0 z-50 bg-tv-surface text-white border-b border-tv-border">
         <div className="mx-auto max-w-[1000px] px-4 sm:px-6 lg:px-8 h-[64px] flex items-center gap-4">
-          <Link href="/" aria-label="Kembali ke beranda" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
+          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2.5">
@@ -151,12 +146,12 @@ export default function MarketCategoryPage() {
           className="mb-4"
         />
 
-        <div className="rounded-lg border border-tv-border bg-tv-card overflow-hidden shadow-1">
+        <Card padding="none" radius="lg" elevation="none" highlight={false} className="border-tv-border overflow-hidden shadow-1">
           <div className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/60 bg-tv-hover/40 text-[11px] font-bold uppercase tracking-widest text-tv-muted">
             <span>#</span>
-            <button onClick={() => toggleSort('symbol')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Kode <SortIcon active={sortKey === 'symbol'} dir={sortDir} /></button>
-            <button onClick={() => toggleSort('price')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Harga <SortIcon active={sortKey === 'price'} dir={sortDir} /></button>
-            <button onClick={() => toggleSort('metric')} className="flex items-center gap-1 text-right justify-end hover:text-tv-text transition-colors">{config.metricLabel} <SortIcon active={sortKey === 'metric'} dir={sortDir} /></button>
+            <Button variant="bare" size="none" onClick={() => toggleSort('symbol')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Kode <SortIcon active={sortKey === 'symbol'} dir={sortDir} /></Button>
+            <Button variant="bare" size="none" onClick={() => toggleSort('price')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Harga <SortIcon active={sortKey === 'price'} dir={sortDir} /></Button>
+            <Button variant="bare" size="none" onClick={() => toggleSort('metric')} className="flex items-center gap-1 text-right justify-end hover:text-tv-text transition-colors">{config.metricLabel} <SortIcon active={sortKey === 'metric'} dir={sortDir} /></Button>
           </div>
 
           {loading && (
@@ -191,7 +186,7 @@ export default function MarketCategoryPage() {
               </Link>
             );
           })}
-        </div>
+        </Card>
       </main>
     </div>
   );

@@ -1,6 +1,5 @@
 import { runController } from '@/shared/http/next-response.adapter';
-import { parseOrThrow } from '@/shared/validation/parse-or-throw';
-import { idxTickerOrIndexParamSchema } from '@/shared/market/ticker-schema';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
 
 
@@ -14,8 +13,8 @@ export async function GET(
 ) {
   return runController(async () => {
   const { ticker: rawTicker } = await params;
-  // Varian yang mengizinkan indeks pasar: chart publik juga melayani IHSG/^JKSE.
-  const normalizedTicker = parseOrThrow(idxTickerOrIndexParamSchema, rawTicker);
+  const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
+  if (!normalizedTicker) return { status: 400, body: { error: 'Ticker tidak valid' } };
   const { searchParams } = new URL(request.url);
   // Default '1Y' (bukan lagi '1M') - permintaan eksplisit supaya semua chart (Beranda,
   // Teknikal, Dashboard) default menampilkan histori 1 tahun.
@@ -39,7 +38,7 @@ export async function GET(
   const ticker = normalizedTicker;
   const isMarketIndex = ticker.startsWith('^');
 
-  {
+  try {
     // `events=div|split&includeAdjustedClose=true` meminta deret adjusted close - dasar
     // TOTAL_RETURN_ADJUSTED yang dibutuhkan perhitungan return lintas tahun (temuan H-03:
     // Seasonality Matrix dulu menghitung return bulanan dari harga split-adjusted saja,
@@ -197,8 +196,9 @@ export async function GET(
       body: { ticker, history },
       headers: publicCacheHeaders(CDN_FRESHNESS_SEC.PUBLIC_CHART),
     };
+  } catch (e: any) {
+    console.error('Public chart API error:', e);
+    return { status: 500, body: { error: 'Internal Server Error' } };
   }
-  // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
-  // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
-  });
+  }, request);
 }

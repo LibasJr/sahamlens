@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import useSWR from 'swr';
-import { ApiError } from '@/lib/api/fetcher';
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,7 +12,8 @@ import {
 } from 'lucide-react';
 import PaywallModal from '@/components/PaywallModal';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
-import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Card, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 const TYPE_LABEL: Record<EventType, string> = {
   DIVIDEND: 'Dividen',
@@ -53,46 +52,26 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(today);
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [activeTab, setActiveTab] = useState('ALL');
-  // Hanya kondisi 401-tapi-sesi-masih-hidup yang perlu state sendiri; sisanya diturunkan
-  // dari hasil SWR di bawah.
-  const [sessionReadError, setSessionReadError] = useState<string | null>(null);
+  const [calendarData, setCalendarData] = useState<Record<string, CalendarEvent[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  // SWR menggantikan loadCalendar. Cabang 401 DIPERTAHANKAN utuh: ia bukan sekadar
-  // "gagal", melainkan dua kemungkinan yang harus dibedakan - sesi memang habis (tampilkan
-  // ajakan login) atau sesi masih hidup tapi kalendernya gagal dibaca (tampilkan pesan,
-  // JANGAN suruh login orang yang sudah login). shouldShowLoginPromptFor401() itu async,
-  // jadi keputusannya dijalankan di efek terpisah, bukan di dalam render.
-  const {
-    data: calendarPayload,
-    error: calendarError,
-    isLoading: loading,
-    mutate: loadCalendar,
-  } = useSWR<{ events?: Record<string, CalendarEvent[]> }>('/api/calendar');
-
-  // Lihat catatan yang sama di app/news/page.tsx: `?? {}` menghasilkan objek baru setiap
-  // render dan membatalkan useMemo yang bergantung padanya.
-  const calendarData = useMemo(() => calendarPayload?.events ?? {}, [calendarPayload]);
-  const is401 = calendarError instanceof ApiError && calendarError.status === 401;
-
-  useEffect(() => {
-    if (!is401) return;
-    let cancelled = false;
-    shouldShowLoginPromptFor401().then((shouldPrompt) => {
-      if (cancelled) return;
-      if (shouldPrompt) setShowLoginPrompt(true);
-      else setSessionReadError('Sesi masih aktif, tetapi kalender gagal dibaca. Coba muat ulang halaman.');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [is401]);
-
-  const error =
-    sessionReadError ??
-    (calendarError && !is401
-      ? (calendarError as Error).message || 'Gagal memuat kalender'
-      : null);
+  const loadCalendar = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    apiRequest<any>('/api/calendar')
+      .then((data) => setCalendarData(data?.events || {}))
+      .catch(async (error) => {
+        if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
+          if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
+          else setError('Sesi masih aktif, tetapi kalender gagal dibaca. Coba muat ulang halaman.');
+          return;
+        }
+        setError(isApiClientError(error) ? error.message : 'Gagal memuat kalender');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     loadCalendar();
@@ -175,7 +154,7 @@ export default function CalendarPage() {
       const types = Array.from(new Set(dayEvents.map((e) => e.type)));
 
       days.push(
-        <button
+        <Button variant="bare" size="none"
           key={`day-${i}`}
           onClick={() => setSelectedDate(d)}
           title={dayEvents.length > 0
@@ -195,7 +174,7 @@ export default function CalendarPage() {
               ))}
             </div>
           )}
-        </button>
+        </Button>
       );
     }
 
@@ -236,7 +215,7 @@ export default function CalendarPage() {
 
       <PageContainer className="p-4 md:p-6 lg:p-7">
         {error && (
-          <div className="bg-tv-card border border-tv-red/30 rounded-lg mb-6">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-red/30 mb-6">
             {/* Sebelumnya cuma satu baris teks merah tanpa tombol apa pun. */}
             <EmptyState
               illustration="empty"
@@ -244,7 +223,7 @@ export default function CalendarPage() {
               description={`${error}. Kalender ini mengambil jadwal dari sumber harga yang sama dengan halaman lain - kegagalan di sini biasanya bersifat sementara.`}
               action={{ label: 'Coba lagi', onClick: loadCalendar }}
             />
-          </div>
+          </Card>
         )}
 
         {/* Tabs - `custom-scrollbar` dilepas: tidak ada blok <style> yang
@@ -254,7 +233,7 @@ export default function CalendarPage() {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <button
+              <Button variant="bare" size="none"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm whitespace-nowrap transition-colors border
@@ -266,7 +245,7 @@ export default function CalendarPage() {
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -275,7 +254,7 @@ export default function CalendarPage() {
 
           {/* Calendar Section */}
           <div className="lg:col-span-2">
-            <div className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-1">
+            <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-6">
               <div className="flex justify-between items-center mb-6 border-b border-tv-border pb-4">
                 <div>
                   <h3 className="font-heading text-lg font-bold text-tv-text">
@@ -290,18 +269,18 @@ export default function CalendarPage() {
                 <div className="flex gap-2">
                   {/* Setelah beberapa kali klik maju/mundur, tidak ada jalan kembali ke
                       bulan ini selain menghitung mundur sendiri. */}
-                  <button
+                  <Button variant="bare" size="none"
                     onClick={() => { setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1)); setSelectedDate(today); }}
                     className="px-3 py-2 rounded-md bg-tv-bg border border-tv-border text-xs font-semibold text-tv-muted hover:text-tv-text transition-colors"
                   >
                     Hari ini
-                  </button>
-                  <button onClick={prevMonth} aria-label="Bulan sebelumnya" className="p-2 rounded-md bg-tv-bg border border-tv-border text-tv-muted hover:text-tv-text transition-colors">
+                  </Button>
+                  <Button variant="bare" size="none" onClick={prevMonth} aria-label="Bulan sebelumnya" className="p-2 rounded-md bg-tv-bg border border-tv-border text-tv-muted hover:text-tv-text transition-colors">
                     <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button onClick={nextMonth} aria-label="Bulan berikutnya" className="p-2 rounded-md bg-tv-bg border border-tv-border text-tv-muted hover:text-tv-text transition-colors">
+                  </Button>
+                  <Button variant="bare" size="none" onClick={nextMonth} aria-label="Bulan berikutnya" className="p-2 rounded-md bg-tv-bg border border-tv-border text-tv-muted hover:text-tv-text transition-colors">
                     <ChevronRight className="w-5 h-5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -324,12 +303,12 @@ export default function CalendarPage() {
                   </div>
                 </>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Event List Section */}
           <div>
-            <div className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-1 sticky top-[100px]">
+            <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-6 sticky top-[100px]">
               <h3 className="font-heading text-base font-bold text-tv-text flex items-center justify-between mb-4 border-b border-tv-border pb-3">
                 <span>Event pada {selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 <span className="text-xs bg-tv-hover text-tv-muted px-2 py-1 rounded font-number">
@@ -376,7 +355,7 @@ export default function CalendarPage() {
                   />
                 )}
               </div>
-            </div>
+            </Card>
           </div>
 
         </div>

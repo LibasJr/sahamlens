@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Cpu, Sparkles } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { SegmentedControl } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
 
 const PERIODS = ['1 Tahun', '3 Tahun', '5 Tahun', '10 Tahun'];
 
@@ -29,7 +30,7 @@ export default function PatternPage() {
       subtitle="Model Kuantitatif & Anomali Perilaku Harga Berdasarkan Data Historis"
       headerExtra={<SegmentedControl options={PERIODS.map((p) => ({ label: p, value: p }))} value={period} onChange={setPeriod} layoutId="pattern-period" />}
     >
-      <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+      <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
         <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
           <Sparkles className="w-5 h-5 text-pink-400" />
           Keunggulan Statistik (Quant Statistical Edge)
@@ -43,7 +44,7 @@ export default function PatternPage() {
           berbasis data historis riil, lihat{' '}
           <a href="/backtest" className="text-tv-blue hover:underline">Backtest</a>.
         </p>
-      </div>
+      </Card>
     </TickerAnalysisShell>
   );
 }

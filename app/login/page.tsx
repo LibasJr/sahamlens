@@ -7,6 +7,7 @@ import { AuthAlert } from '@/components/auth/AuthAlert';
 import { Input, Button, Toast, PasswordToggle } from '@/components/ui';
 import { LOGIN_REQUIRED_NOTICE } from '@/shared/constants/access';
 import { safeInternalPath } from '@/shared/navigation/safe-internal-path';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -38,24 +39,15 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      await apiRequest<any>('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, remember: rememberMe }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Terjadi kesalahan');
-      } else {
-        if (rememberMe) {
-          localStorage.setItem('saham_remember_email', email);
-        } else {
-          localStorage.removeItem('saham_remember_email');
-        }
-        router.push(next);
-        router.refresh();
-      }
+      if (rememberMe) localStorage.setItem('saham_remember_email', email);
+      else localStorage.removeItem('saham_remember_email');
+      router.push(next);
+      router.refresh();
     } catch (err: any) {
       setError(err.message || 'Tidak bisa terhubung ke server. Coba lagi.');
     } finally {

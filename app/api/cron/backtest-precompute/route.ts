@@ -4,6 +4,7 @@ import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { precomputeBacktestData, writeBacktestCache } from '@/modules/backtest';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const maxDuration = 60;
 
@@ -11,7 +12,7 @@ export const maxDuration = 60;
 // mengisi ulang cache indikator harian utk 100 saham universe backtest + IHSG.
 // Tanpa ini jalan (atau kalau baru pertama kali deploy), /api/backtest fallback ke
 // precompute sinkron langsung di request (lambat, lihat app/api/backtest/route.ts).
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -36,4 +37,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job backtest-precompute gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

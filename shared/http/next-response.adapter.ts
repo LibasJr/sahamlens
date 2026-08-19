@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { toErrorResponse } from '../errors/app-error';
 import { logger } from '../logger/logger';
 import type { HttpResult } from '../types/http-result.types';
@@ -32,13 +32,14 @@ function withRequestId<T>(body: T, requestId: string): T {
 // Pakai header Host, BUKAN req.nextUrl.origin - saat dev server bind ke 0.0.0.0
 // (next dev -H 0.0.0.0, lihat package.json), req.nextUrl.origin bisa ikut resolve
 // ke 0.0.0.0 yang tidak valid buat redirect ke browser.
-function resolveOrigin(req: NextRequest): string {
-  const host = req.headers.get('host') || req.nextUrl.host;
-  const protocol = req.headers.get('x-forwarded-proto') || req.nextUrl.protocol.replace(':', '');
+function resolveOrigin(req: Request): string {
+  const requestUrl = new URL(req.url);
+  const host = req.headers.get('host') || requestUrl.host;
+  const protocol = req.headers.get('x-forwarded-proto') || requestUrl.protocol.replace(':', '');
   return `${protocol}://${host}`;
 }
 
-function toNextResponse(result: HttpResult, requestId: string, req?: NextRequest): NextResponse {
+function toNextResponse(result: HttpResult, requestId: string, req?: Request): NextResponse {
   if (result.redirectTo) {
     const origin = req ? resolveOrigin(req) : undefined;
     const url: string | URL = origin ? new URL(result.redirectTo, origin) : result.redirectTo;
@@ -63,10 +64,18 @@ function toNextResponse(result: HttpResult, requestId: string, req?: NextRequest
  * X-Request-Id yang sama dengan yang dicatat di log server - itu yang membuat satu
  * laporan bug user bisa ditelusuri ke baris log persis (API Guideline poin 4).
  */
-export async function runController(handler: () => Promise<HttpResult>, req?: NextRequest): Promise<NextResponse> {
+export async function runController(handler: () => Promise<HttpResult | Response>, req?: Request): Promise<Response> {
   const requestId = crypto.randomUUID();
   try {
     const result = await handler();
+    // Streaming/raw responses (mis. LensAI NDJSON) tetap melewati adapter agar semua
+    // endpoint memiliki request-id yang dapat ditelusuri, tanpa memaksa body stream
+    // diserialisasi ulang sebagai JSON. Cookie/header khusus stream sudah dipasang oleh
+    // response producer; adapter hanya menambahkan request-id otoritatif.
+    if (result instanceof Response) {
+      result.headers.set('X-Request-Id', requestId);
+      return result;
+    }
     return toNextResponse(result, requestId, req);
   } catch (err) {
     // Next.js melempar error internal bertanda `digest: 'DYNAMIC_SERVER_USAGE'` saat
@@ -78,7 +87,7 @@ export async function runController(handler: () => Promise<HttpResult>, req?: Ne
     }
     const mapped = toErrorResponse(err);
     if (mapped.status >= 500) {
-      logger.error('Unhandled controller error', { err, url: req?.nextUrl?.pathname, requestId });
+      logger.error('Unhandled controller error', { err, url: req ? new URL(req.url).pathname : undefined, requestId });
     }
     const res = NextResponse.json(withRequestId(mapped.body, requestId), { status: mapped.status, headers: mapped.headers });
     res.headers.set('X-Request-Id', requestId);

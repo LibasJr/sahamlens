@@ -1,10 +1,13 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Target, TrendingDown, TrendingUp, Lock, Sparkles } from 'lucide-react';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
+import { Card } from '@/components/ui/Card';
+import { apiRequest } from '@/shared/http/api-client';
 
 interface IntrinsicValueProps {
   symbol: string;
@@ -27,9 +30,8 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
       setLoading(true);
       setLoadError(false);
       try {
-        const res = await fetch(`/api/intrinsic/${symbol}`);
-        const json = await res.json();
-        if (!res.ok || json?.error || !json || typeof json !== 'object') throw new Error(json?.error || `Intrinsic request failed: ${res.status}`);
+        const json = await apiRequest<any>(`/api/intrinsic/${symbol}`);
+        if (!json || typeof json !== 'object') throw new Error('Intrinsic response tidak valid');
         if (!cancelled) setData(json);
       } catch (e) {
         console.error("Error fetching intrinsic data:", e);
@@ -64,7 +66,7 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
     setLoadingExplanation(true);
     setExplanation(null);
     setExplanationUnavailable(false);
-    fetch('/api/intrinsic-explain', {
+    apiRequest<any>('/api/intrinsic-explain', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Hanya simbol yang dikirim (audit 2026-08-05, temuan H-12) - angka valuasinya
@@ -86,14 +88,14 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
 
   if (loading) {
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 flex justify-center items-center h-[300px]">
+      <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 flex justify-center items-center h-[300px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tv-accent"></div>
-      </div>
+      </Card>
     );
   }
 
   if (!data || data.error) {
-    return <div className="bg-tv-card border border-tv-border rounded-xl p-5 text-sm text-tv-muted">{loadError ? 'Nilai wajar sementara tidak dapat dimuat. Coba segarkan halaman beberapa saat lagi.' : 'Data nilai wajar belum tersedia untuk emiten ini.'}</div>;
+    return <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 text-sm text-tv-muted">{loadError ? 'Nilai wajar sementara tidak dapat dimuat. Coba segarkan halaman beberapa saat lagi.' : 'Data nilai wajar belum tersedia untuk emiten ini.'}</Card>;
   }
 
   const { fair_value, harga, mos, methods = {}, sektor, applied_rule = {} } = data;
@@ -167,7 +169,7 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
   }
   
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
+    <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1">
       <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
         <div className="flex items-center gap-3">
           <h3 className="font-heading text-base font-bold text-white flex items-center gap-2">
@@ -384,15 +386,15 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
           <p className="text-xs text-tv-muted">Penjelasan LensAI belum tersedia untuk data valuasi ini.</p>
         )}
         {detailsUnlocked && (
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={askLensAIAboutValuation}
             className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-tv-blue/40 bg-tv-blue/5 px-3 py-2 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/10"
           >
             <Sparkles className="h-3.5 w-3.5" /> Tanya LensAI tentang valuasi ini
-          </button>
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

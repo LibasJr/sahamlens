@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BarChart3, BookmarkPlus, Calculator, Search, X } from 'lucide-react';
@@ -48,9 +49,9 @@ export default function GettingStartedGuide({ openRequest = 0, onVisibilityChang
 
   return (
     <section className="relative mb-8 overflow-hidden rounded-xl border border-tv-blue/25 bg-tv-blue/[0.07] p-4 sm:p-5" aria-label="Panduan mulai menggunakan SahamLens">
-      <button type="button" onClick={dismiss} className="absolute right-3 top-3 rounded p-1 text-tv-muted transition hover:bg-tv-hover hover:text-tv-text" aria-label="Tutup panduan">
+      <Button variant="bare" size="none" type="button" onClick={dismiss} className="absolute right-3 top-3 rounded p-1 text-tv-muted transition hover:bg-tv-hover hover:text-tv-text" aria-label="Tutup panduan">
         <X className="h-4 w-4" />
-      </button>
+      </Button>
       <div className="pr-8">
         <h2 className="font-heading text-base font-bold text-tv-text">{t('guide.title')}</h2>
         <p className="mt-1 text-xs text-tv-muted">{t('guide.subtitle')}</p>

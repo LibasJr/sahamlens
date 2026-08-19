@@ -3,6 +3,7 @@ import { Shield, Calculator, AlertTriangle, TrendingUp, TrendingDown, CheckCircl
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { calculatePositionSize } from '@/lib/utils/position-sizer';
 import { formatRupiah } from '@/shared/config/pricing';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
 
 interface PositionSizingCalculatorProps {
   entryPrice: number;
@@ -77,7 +78,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
         </div>
 
         {/* 1-Click Copy Trading Plan Button */}
-        <button
+        <PrimitiveButton variant="bare" size="none"
           type="button"
           onClick={handleCopyPlan}
           title="Salin Rencana Trading ke Clipboard"
@@ -89,7 +90,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
         >
           {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
           <span>{isCopied ? 'Tersalin!' : 'Salin Trading Plan'}</span>
-        </button>
+        </PrimitiveButton>
       </CardHeader>
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -117,7 +118,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
             {/* Quick Capital Preset Pills */}
             <div className="flex items-center gap-1.5 flex-wrap mt-2">
               {CAPITAL_PRESETS.map((p) => (
-                <button
+                <PrimitiveButton variant="bare" size="none"
                   key={p}
                   type="button"
                   onClick={() => setCapital(p)}
@@ -128,7 +129,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                   }`}
                 >
                   Rp {(p / 1e6).toFixed(0)} Jt
-                </button>
+                </PrimitiveButton>
               ))}
             </div>
           </div>
@@ -144,7 +145,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                 { val: 1.0, label: '1.0% (Standar Pro)' },
                 { val: 2.0, label: 'Agresif 2%' },
               ].map((item) => (
-                <button
+                <PrimitiveButton variant="bare" size="none"
                   key={item.val}
                   type="button"
                   onClick={() => setRiskPct(item.val)}
@@ -155,8 +156,8 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                   }`}
                 >
                   <div className="font-number font-bold text-xs">{item.val}%</div>
-                  <div className="text-[9px] opacity-80 truncate">{item.label}</div>
-                </button>
+                  <div className="lens-meta opacity-80 truncate">{item.label}</div>
+                </PrimitiveButton>
               ))}
             </div>
           </div>

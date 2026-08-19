@@ -7,7 +7,7 @@ vi.mock('@/modules/user', () => ({
 }));
 vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
-  buildAnonymousTrialCookie: vi.fn(),
+  applyAnonymousTrialCookie: vi.fn(),
 }));
 vi.mock('@/shared/auth/internal-service', () => ({
   isInternalServiceRequest: vi.fn(() => false),
@@ -51,7 +51,7 @@ describe('GET /api/lens-score-bucket-backtest', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toMatchObject(fakeResult);
+    expect(json).toEqual(fakeResult);
     expect(getOrCompute).toHaveBeenCalledTimes(1);
     expect(getOrCompute).toHaveBeenCalledWith(
       expect.stringContaining('sahamlens:cache:computed:lens-score-bucket-backtest:'),
@@ -69,7 +69,7 @@ describe('GET /api/lens-score-bucket-backtest', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toMatchObject(cached);
+    expect(json).toEqual(cached);
     expect(runLensScoreBucketBacktest).not.toHaveBeenCalled();
   });
 
@@ -105,9 +105,7 @@ describe('GET /api/lens-score-bucket-backtest', () => {
     const res = await GET(makeRequest());
 
     expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ // `code` kini FORBIDDEN dari katalog ErrorCode; ADMIN_REQUIRED tidak pernah ada
-      // di katalog itu, jadi klien tak bisa menanganinya lewat switch(error.code).
-      code: 'FORBIDDEN' });
+    expect(await res.json()).toMatchObject({ code: 'ADMIN_REQUIRED' });
     expect(getOrCompute).not.toHaveBeenCalled();
   });
 

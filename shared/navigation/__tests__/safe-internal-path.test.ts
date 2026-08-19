@@ -17,6 +17,6 @@ describe('safeInternalPath', () => {
     '/%5Cevil.example',
     '/%ZZ',
   ])('menolak tujuan eksternal atau malformed: %s', (value) => {
-    expect(safeInternalPath(value)).toBe('/home');
+    expect(safeInternalPath(value)).toBe('/');
   });
 });

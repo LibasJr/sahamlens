@@ -7,6 +7,7 @@ import { recordDataSourceHealth } from '@/modules/observability/service/data-sou
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 1200;
@@ -50,7 +51,7 @@ async function runCollector(): Promise<CollectorResult> {
   return parseResult(stdout);
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!(await isAuthorized(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const result = await withJobRunLog('bank-fundamental-collect', async () => {
@@ -65,4 +66,8 @@ export async function GET(req: NextRequest) {
     await recordDataSourceHealth({ sourceId: 'BANK_ISSUER_IR_AUTO_COLLECTOR', ok: false, force: true, detail: { error: message } });
     return NextResponse.json({ error: 'Bank fundamental collector gagal', detail: message }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

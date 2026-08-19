@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/Button';
 import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { RadialScoreGauge } from '@/components/ui/RadialScoreGauge';
 
@@ -109,7 +110,7 @@ export default function DecisionScoreCard({
       </div>
 
       <div className="mt-5 border-t border-tv-border pt-4">
-        <button
+        <Button variant="bare" size="none"
           type="button"
           onClick={expanded ? onCollapse : onExplain}
           aria-expanded={expanded}
@@ -118,7 +119,7 @@ export default function DecisionScoreCard({
         >
           {expanded ? <ChevronUp className="h-4 w-4" aria-hidden="true" /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
           {expanded ? 'Ringkas kembali' : 'Kenapa?'}
-        </button>
+        </Button>
       </div>
     </section>
   );

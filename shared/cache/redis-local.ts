@@ -150,6 +150,25 @@ export class Redis {
     return (await this.client()).del(keys);
   }
 
+  /**
+   * Hapus lock hanya kalau nilainya masih milik caller. Ini harus atomik: pola
+   * GET lalu DEL terpisah bisa menghapus lock request baru bila lock lama kedaluwarsa
+   * tepat di antara dua command.
+   */
+  async compareAndDelete(key: string, expectedValue: unknown): Promise<boolean> {
+    const script = `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('DEL', KEYS[1])
+      end
+      return 0
+    `;
+    const result = await (await this.client()).eval(script, {
+      keys: [key],
+      arguments: [encode(expectedValue)],
+    });
+    return Number(result) === 1;
+  }
+
   async incr(key: string): Promise<number> {
     return (await this.client()).incr(key);
   }

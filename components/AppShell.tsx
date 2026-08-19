@@ -15,7 +15,8 @@ import PageTransition from '@/components/PageTransition';
 import EnergySaver from '@/components/EnergySaver';
 import SiteFooter from '@/components/SiteFooter';
 import ScrollRestoration from '@/components/ScrollRestoration';
-import ApiProvider from '@/lib/api/ApiProvider';
+import { AuthUserProvider } from '@/lib/hooks/useAuthUser';
+import { apiRequest } from '@/shared/http/api-client';
 
 const AIChat = dynamic(() => import('@/components/AIChat'), { ssr: false, loading: () => null });
 
@@ -41,23 +42,39 @@ function SkipToContent() {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isLandingPage = pathname === '/';
   const isBareAuthPage = BARE_AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-  // Heartbeat presensi 90 detik DIHAPUS dari sini - lihat useAuthUser() di
-  // lib/hooks/useAuthUser.ts, yang sekarang mengurusnya lewat refreshInterval SWR.
-  //
-  // Yang dulu terjadi: interval ini memukul /api/auth/me tiap 90 detik dari SETIAP tab
-  // yang terbuka (~960 permintaan per hari per tab) HANYA untuk mencatat kehadiran, dan
-  // sepenuhnya terpisah dari 15 komponen yang juga membaca sesi lewat useAuthUser -
-  // masing-masing dengan fetch-nya sendiri. Di /dashboard itu lima permintaan identik
-  // atau lebih pada satu kali muat halaman.
-  //
-  // Sekarang satu kunci SWR melayani semuanya: dedupe menyatukan pembacaan awal,
-  // refreshInterval menggantikan heartbeat, dan refreshWhenHidden: false menggantikan
-  // pemeriksaan document.visibilityState yang dulu ditulis tangan di sini.
-  // Konsekuensi tambahan: presensi kini tercatat dari tab mana pun yang merender
-  // useAuthUser, bukan hanya dari halaman ber-shell.
+  // Presence heartbeat dibatasi lintas-tab. Request aplikasi normal sudah menyentuh
+  // presence lewat getSession(); heartbeat ini hanya menjaga user yang sedang membaca
+  // halaman tanpa interaksi tetap terlihat aktif. localStorage dipakai sebagai throttle
+  // bersama supaya 3 tab tidak mengirim 3 heartbeat paralel.
+  React.useEffect(() => {
+    if (isBareAuthPage) return;
+
+    const storageKey = 'sahamlens_presence_last_ping';
+    const minIntervalMs = 5 * 60 * 1000;
+
+    const pingIfDue = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      const lastPing = Number(window.localStorage.getItem(storageKey) || 0);
+      if (Number.isFinite(lastPing) && now - lastPing < minIntervalMs) return;
+
+      // Tulis SEBELUM fetch agar tab lain langsung melihat slot ini sudah diambil.
+      window.localStorage.setItem(storageKey, String(now));
+      void apiRequest('/api/auth/me', { method: 'GET', credentials: 'include' }).catch(() => undefined);
+    };
+
+    // AuthUserProvider sudah memanggil /api/auth/me saat mount dan request itu sendiri
+    // menyentuh presence. Jangan ping lagi di frame yang sama; heartbeat pertama baru
+    // diperlukan bila user tetap berada di halaman tanpa request lain.
+    const interval = window.setInterval(pingIfDue, 60 * 1000);
+    document.addEventListener('visibilitychange', pingIfDue);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', pingIfDue);
+    };
+  }, [isBareAuthPage]);
 
   // CELAH YANG DITUTUP DI SINI. Aturan @media (prefers-reduced-motion) di globals.css
   // hanya mengatur animasi CSS. Framer Motion menganimasi lewat JavaScript - ia tidak
@@ -69,29 +86,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // dimuat - kalau pengguna mengubah pengaturan OS-nya, nilainya sudah telanjur beku.
   // reducedMotion="user" mengurusnya secara reaktif dan menyeluruh, termasuk untuk
   // komponen yang menulis animasinya sendiri tanpa lewat lib/motion.
-  //
-  // ApiProvider dipasang DI DALAM bungkus() supaya ia melingkupi KETIGA cabang di bawah
-  // (landing, halaman auth telanjang, dan halaman ber-shell). Menaruhnya hanya di cabang
-  // ber-shell akan membuat useSWR di halaman landing/login memakai fetcher default SWR -
-  // yaitu tanpa credentials, tanpa aturan retry kita, dan tanpa ApiError - dan kegagalan
-  // itu senyap: hook-nya tetap jalan, cuma perilakunya beda dari seluruh aplikasi.
   const bungkus = (isi: React.ReactNode) => (
-    <ApiProvider>
+    <AuthUserProvider>
       <LanguageProvider>
         <MotionConfig reducedMotion="user">{isi}</MotionConfig>
       </LanguageProvider>
-    </ApiProvider>
+    </AuthUserProvider>
   );
-
-  if (isLandingPage) {
-    return bungkus(
-      <>
-        <EnergySaver />
-        <PageTransition>{children}</PageTransition>
-        <AIChat />
-      </>
-    );
-  }
 
   if (isBareAuthPage) return bungkus(<><EnergySaver /><ThemeToggle /><PageTransition>{children}</PageTransition></>);
 

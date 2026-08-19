@@ -1009,6 +1009,16 @@ textarea {
   color: rgb(var(--lens-text));
 }
 
+/* Brand proposition on the canonical home workspace. Keep this role semantic so
+ * the hero does not regress to arbitrary per-component pixel typography. */
+.lens-hero-title {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 2rem;
+  line-height: 1.08;
+  font-weight: 750;
+  letter-spacing: -0.035em;
+}
+
 .lens-section-title {
   font-family: var(--font-inter), 'Inter', sans-serif;
   font-size: 0.9375rem;
@@ -1033,8 +1043,18 @@ textarea {
     font-size: 1.5rem;
   }
 
+  .lens-hero-title {
+    font-size: 2.625rem;
+  }
+
   .lens-section-title {
     font-size: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lens-hero-title {
+    font-size: 3rem;
   }
 }
 
@@ -1197,30 +1217,6 @@ a,
 
   html .md\:text-\[9px\] { font-size: 11px; }
   html .md\:text-\[12\.5px\] { font-size: 13px; }
-
-  /* ====== Target sentuh di tablet (FIX-11 audit UI/UX 2026-08-19) ======
-   *
-   * Blok ini sebelumnya HANYA mengurus ukuran huruf. Masalah keduanya: tablet adalah
-   * perangkat SENTUH yang mewarisi ukuran kontrol DESKTOP - varian `sm:` dan `md:` yang
-   * mengecilkan tombol sudah aktif di lebar ini, sementara jarinya tidak ikut mengecil.
-   *
-   * Dibatasi ke rentang tablet, BUKAN ditaruh di `@media (hover: none)` seperti usulan
-   * mentah audit. Alasannya: ponsel sudah punya aturannya sendiri di blok
-   * `@media (hover: none)` yang menaikkan `.min-h-9` ke 44px, dan itu sudah disetel
-   * terhadap tata letak ponsel yang sungguhan. Menambahkan lantai kedua yang berlaku
-   * untuk SEMUA perangkat sentuh akan ikut menggembungkan tombol ikon di dalam tabel
-   * padat pada ponsel - mengubah tata letak yang sudah benar demi memperbaiki tata letak
-   * yang belum.
-   *
-   * 40px, bukan 44px: di tablet kontrolnya berjajar horizontal dalam toolbar dan baris
-   * tabel, jadi 44px mulai memaksa pembungkusan baris. 40px sudah jauh di atas minimum
-   * WCAG 2.5.8 (24px) dan tetap nyaman untuk jempol.
-   *
-   * `:where()` menjaga spesifisitasnya tetap 0, jadi kontrol yang memang sengaja
-   * dibuat lebih besar di komponennya tetap menang tanpa perlu !important. */
-  .lens-main :where(button, [role='button'], a.inline-flex) {
-    min-height: 40px;
-  }
 }
 
 /* ====== Lantai keterbacaan menyeluruh (semua lebar layar) ======
@@ -1362,3 +1358,56 @@ html.lens-battery-saver .sahamlens-signal-track {
   will-change: transform;
 }
 
+
+/* ====== Lens semantic type scale ======
+ * New/maintained components should use these roles instead of arbitrary pixel text.
+ * The legacy arbitrary-size floor above remains as a compatibility safety net while
+ * older screens are migrated incrementally. */
+.lens-body {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.lens-body-sm {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.lens-label {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.lens-caption {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: rgb(var(--lens-muted));
+}
+
+/* Compact metadata/eyebrow role. Intentionally inherits color and weight so
+ * status chips and financial annotations can keep their semantic emphasis. */
+.lens-meta {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.lens-card-title {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .lens-card-title { font-size: 1rem; }
+}

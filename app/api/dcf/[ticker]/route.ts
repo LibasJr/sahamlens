@@ -2,10 +2,8 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { runController } from '@/shared/http/next-response.adapter';
-import { parseOrThrow } from '@/shared/validation/parse-or-throw';
-import { NotFoundError } from '@/shared/errors/app-error';
-import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
-import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
+import { checkPublicComputeBudget, rateLimitResult } from '@/shared/security/api-rate-limit';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateDcfModel } from '@/modules/fundamental';
 import { getMarketAwareCacheHeaders, CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -29,12 +27,13 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
-  const budget = await checkPublicComputeBudget(request.headers, 'dcf');
-  if (!budget.allowed) return rateLimitExceeded(budget);
-
   return runController(async () => {
+    const budget = await checkPublicComputeBudget(request.headers, 'dcf');
+    if (!budget.allowed) return rateLimitResult(budget);
+    try {
     const { ticker: rawTicker } = await params;
-    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
+    const ticker = normalizeIdxTickerParam(rawTicker);
+    if (!ticker) return { status: 400, body: { error: 'Ticker tidak valid' } };
     // Dibungkus jadi { notFound: true } sebelum di-cache - getOrCompute memperlakukan
     // `null` sebagai cache-miss (selalu dihitung ulang), jadi tanpa pembungkus ini
     // ticker yang datanya memang tidak tersedia akan tetap menembak live tiap request.
@@ -47,7 +46,7 @@ export async function GET(
       },
     );
     if ('notFound' in wrapped) {
-      throw new NotFoundError('Data DCF tidak tersedia untuk simbol ini');
+      return { status: 404, body: { error: 'Data DCF tidak tersedia untuk simbol ini' } };
     }
 
     const session = await getSession().catch(() => null);
@@ -56,8 +55,9 @@ export async function GET(
     if (isGuest) {
       const rawQuant = wrapped.quant || {};
       const rawProjections = rawQuant.fcf_projections || [];
-      return { status: 200, headers: getMarketAwareCacheHeaders(), body:
-        {
+      return {
+        status: 200,
+        body: {
           ...wrapped,
           quant: {
             ...rawQuant,
@@ -67,15 +67,22 @@ export async function GET(
             is_guest_limited: true,
           },
           is_guest_limited: true,
-        } };
+        },
+        headers: getMarketAwareCacheHeaders(),
+      };
     }
 
-    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
-    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
     return {
       status: 200,
-      body: { ...wrapped, is_guest_limited: false },
+      body: {
+        ...wrapped,
+        is_guest_limited: false,
+      },
       headers: getMarketAwareCacheHeaders(),
     };
-  });
+  } catch (error: any) {
+    console.error(error);
+    return { status: 500, body: { error: 'Internal Server Error' } };
+    }
+  }, request);
 }

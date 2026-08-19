@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import useSWR from 'swr';
 import {
   AlertTriangle,
   Award,
@@ -27,6 +26,7 @@ import MoatExportCard from '@/components/export/MoatExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { useLanguage } from '@/lib/i18n';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 interface MoatPayload {
   ticker: string;
@@ -84,6 +84,9 @@ export default function MoatPage() {
   const isEn = language === 'en';
 
   const [ticker, setTicker] = useState('BBCA');
+  const [payload, setPayload] = useState<MoatPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
   const exportRef = useRef<HTMLDivElement>(null);
@@ -124,22 +127,28 @@ export default function MoatPage() {
     'Quick Ratio (Liquidity)': 'Quick Ratio',
   };
 
-  // SWR menggantikan useEffect + AbortController. Penjaga urutannya tidak hilang - SWR
-  // mengunci hasil ke kuncinya, jadi respons emiten lama tidak bisa mendarat sebagai
-  // milik emiten baru. Yang DIDAPAT: berbagi permintaan dengan halaman lain yang memakai
-  // endpoint sama, revalidasi saat tab kembali fokus, dan retry berjenjang yang dulu
-  // tidak ada sama sekali.
-  const {
-    data: payload,
-    error: loadError,
-    isLoading: loading,
-  } = useSWR<MoatPayload>(selectedTicker ? '/api/fundamental/' + encodeURIComponent(selectedTicker) : null);
+  useEffect(() => {
+    const controller = new AbortController();
 
-  // Pesan dari server dipakai kalau ada, sama seperti `result.error` sebelumnya.
-  const error = loadError
-    ? (loadError as Error).message ||
-      (isEn ? 'Failed to fetch public data.' : 'Gagal mengambil data publik.')
-    : null;
+    async function loadMoatData() {
+      setLoading(true);
+      setError(null);
+      setPayload(null);
+
+      try {
+        const result = await apiRequest<MoatPayload>('/api/fundamental/' + encodeURIComponent(selectedTicker), { signal: controller.signal });
+        setPayload(result);
+      } catch (caught) {
+        if (controller.signal.aborted) return;
+        setError(caught instanceof Error ? caught.message : (isEn ? 'Failed to fetch public data.' : 'Gagal mengambil data publik.'));
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void loadMoatData();
+    return () => controller.abort();
+  }, [selectedTicker, reloadKey, isEn]);
 
   const moat = useMemo(() => buildMoatProxy(payload?.analyzers ?? []), [payload?.analyzers]);
   const website = safeWebsite(payload?.profile?.website);
@@ -321,29 +330,29 @@ export default function MoatPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
-                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                   <span className="text-[11px] text-tv-muted">{t('moatEnhance.netProfitMargin')}</span>
                   <div className="text-lg font-bold font-number text-tv-green mt-1">
                     {moat.dupont.netProfitMarginPct != null ? `${moat.dupont.netProfitMarginPct.toFixed(1)}%` : 'N/A'}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">{isEn ? 'Margin contribution' : 'Kontribusi Margin'}</span>
-                </div>
+                </Card>
 
-                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                   <span className="text-[11px] text-tv-muted">{t('moatEnhance.assetTurnover')}</span>
                   <div className="text-lg font-bold font-number text-tv-blue mt-1">
                     {moat.dupont.assetTurnover != null ? `${moat.dupont.assetTurnover.toFixed(2)}x` : 'N/A'}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">{isEn ? 'Asset Velocity' : 'Perputaran Aset'}</span>
-                </div>
+                </Card>
 
-                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                   <span className="text-[11px] text-tv-muted">{t('moatEnhance.financialLeverage')}</span>
                   <div className="text-lg font-bold font-number text-tv-purple mt-1">
                     {moat.dupont.equityMultiplier != null ? `${moat.dupont.equityMultiplier.toFixed(2)}x` : 'N/A'}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">{isEn ? 'Equity Multiplier' : 'Pengungkit Modal'}</span>
-                </div>
+                </Card>
 
                 <div className="p-3 rounded-xl bg-gradient-to-r from-tv-blue/10 to-tv-purple/10 border border-tv-blue/30">
                   <span className="text-[11px] font-semibold text-tv-text">{t('moatEnhance.roeResult')}</span>

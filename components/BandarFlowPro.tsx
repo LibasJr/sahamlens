@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import useSWR from 'swr';
-import { ApiError } from '@/lib/api/fetcher';
+import { Button, Card } from '@/components/ui';
 import {
   Building,
   TrendingUp,
@@ -11,6 +10,14 @@ import {
   Flame,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import {
+  buildBandarFlowModel,
+  finiteNumber,
+  formatFlowBillion,
+  formatFlowInteger,
+  formatFlowValue,
+} from '@/components/bandar-flow/bandar-flow-model';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 interface BandarFlowProProps {
   symbol: string;
@@ -33,61 +40,43 @@ const OFFICIAL_SOURCE = 'IDX_OFFICIAL_API';
 // hasil seedRandom (acak tapi stabil per ticker). Sudah dihapus total.
 export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   const { t, language } = useLanguage();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   // Batang grafik 20 hari yang sedang dibaca. Dulu nilainya hanya muncul lewat tooltip
   // :hover, sehingga di layar sentuh angkanya TIDAK PERNAH bisa dibaca - grafiknya jadi
   // dekorasi untuk seluruh pengguna mobile. Sekarang pilihannya berupa state supaya bisa
   // digerakkan oleh sentuhan, klik, dan keyboard. null = pakai hari terakhir.
   const [activeFlowIdx, setActiveFlowIdx] = useState<number | null>(null);
 
-  // SWR menggantikan seluruh useEffect ini. Yang paling penting: versi lama TIDAK punya
-  // penjaga urutan (tanpa AbortController maupun flag cancelled) padahal kuncinya
-  // per-emiten - berpindah emiten lebih cepat dari respons menampilkan arus dana emiten
-  // LAIN di bawah nama emiten yang sedang dilihat. SWR mengunci hasil ke kuncinya.
-  //
-  // Tombol "Coba lagi" di bawah dulu punya SALINAN KEDUA dari logika fetch ini, dengan
-  // penanganan error yang berbeda dari yang di atas ("Data tidak tersedia." vs pesan
-  // lengkapnya). Kedua salinan itu kini satu: tombolnya cukup memanggil retry().
-  const cleanSymbol = symbol.replace('.JK', '');
-  const {
-    data: flowData,
-    error: flowError,
-    isLoading: loading,
-    mutate: retry,
-  } = useSWR<any>(symbol ? `/api/flow/${cleanSymbol}` : null);
-
-  // Bentuk respons tetap dijaga: payload yang datang tanpa summary/foreignFlow20D
-  // diperlakukan sebagai tidak lengkap, bukan dirender sebagai kartu kosong.
-  const shapeOk = Boolean(flowData?.summary && Array.isArray(flowData?.foreignFlow20D));
-  const data = shapeOk ? flowData : null;
-
-  const error = (() => {
-    if (flowError) {
-      const status = flowError instanceof ApiError ? flowError.status : null;
-      if (status === 402) {
-        return language === 'en'
-          ? 'LensFlow requires an active account.'
-          : 'LensFlow memerlukan akses akun.';
-      }
-      // Pesan dari server dipakai kalau ada - runController menjamin hanya pesan yang
-      // memang ditujukan ke pengguna yang lolos ke klien.
-      const serverMessage = (flowError as Error).message;
-      if (serverMessage) return serverMessage;
-      return language === 'en'
-        ? 'Money flow data temporarily unavailable.'
-        : 'Data arus dana sementara tidak tersedia.';
-    }
-    if (flowData && !shapeOk) {
-      return language === 'en'
-        ? 'Incomplete money flow response. Please refresh the page.'
-        : 'Respons data arus dana tidak lengkap. Coba segarkan halaman.';
-    }
-    return null;
-  })();
-
-  // Tooltip grafik kembali ke hari terakhir setiap kali emitennya berganti.
   useEffect(() => {
-    setActiveFlowIdx(null);
-  }, [symbol]);
+    const fetchFlowData = async () => {
+      setLoading(true);
+      setError(null);
+      setData(null);
+      setActiveFlowIdx(null);
+      try {
+        const cleanSymbol = symbol.replace('.JK', '');
+        const json = await apiRequest<any>(`/api/flow/${cleanSymbol}`);
+        if (!json?.summary || !Array.isArray(json.foreignFlow20D)) {
+          setError(
+            language === 'en'
+              ? 'Incomplete money flow response. Please refresh the page.'
+              : 'Respons data arus dana tidak lengkap. Coba segarkan halaman.'
+          );
+        } else {
+          setData(json);
+        }
+      } catch (err) {
+        console.error('Failed to fetch flow data', err);
+        setError(apiErrorMessage(err, language === 'en' ? 'Failed to fetch money flow data. Please try again.' : 'Gagal mengambil data arus dana. Silakan coba lagi.', true));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlowData();
+  }, [symbol, language]);
 
   if (loading) {
     return (
@@ -107,12 +96,23 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
       <div className="bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col items-center justify-center text-center gap-3 min-h-[220px]">
         <AlertCircle className="w-8 h-8 text-tv-muted" />
         <p className="text-sm text-tv-muted max-w-sm">{error}</p>
-        <button
-          onClick={() => void retry()}
+        <Button variant="bare" size="none"
+          onClick={() => {
+            const clean = symbol.replace('.JK', '');
+            setLoading(true);
+            setError(null);
+            apiRequest<any>(`/api/flow/${clean}`)
+              .then((d) => {
+                if (d?.summary && Array.isArray(d.foreignFlow20D)) setData(d);
+                else setError(language === 'en' ? 'Data unavailable.' : 'Data tidak tersedia.');
+              })
+              .catch(() => setError(language === 'en' ? 'Network error.' : 'Gagal menghubungi server.'))
+              .finally(() => setLoading(false));
+          }}
           className="text-xs text-tv-blue hover:underline font-semibold"
         >
           {language === 'en' ? 'Try Again' : 'Coba lagi'}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -126,33 +126,26 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   const isOfficial = data.source === OFFICIAL_SOURCE;
   const flow: any[] = data.foreignFlow20D;
 
-  const num = (value: unknown): number | null =>
-    typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const locale = isEn ? 'en-US' : 'id-ID';
+  const num = finiteNumber;
+  const formatBillion = formatFlowBillion;
+  const formatInt = (value: unknown) => formatFlowInteger(value, locale);
 
-  const formatBillion = (value: unknown): string => {
-    const v = num(value);
-    if (v === null) return 'N/A';
-    return `${v > 0 ? '+' : ''}${v.toFixed(2)} M`;
-  };
-
-  const formatInt = (value: unknown): string => {
-    const v = num(value);
-    if (v === null) return 'N/A';
-    return v.toLocaleString(isEn ? 'en-US' : 'id-ID', { maximumFractionDigits: 0 });
-  };
-
-  const formatFlowValue = (value: unknown): string => {
-    const v = num(value);
-    return v === null ? 'N/A' : `${v}M`;
-  };
-
-  const accumulationStreak = num(summary.accumulationStreak) ?? num(summary.streak) ?? 0;
-  const distributionStreak = num(summary.distributionStreak) ?? 0;
-  const isStrong = accumulationStreak >= 3 || distributionStreak >= 3;
-  const flowTier =
-    summary.status === 'AKUMULASI' ? (isStrong ? 'STRONG ACCUMULATION' : 'ACCUMULATION') :
-    summary.status === 'DISTRIBUSI' ? (isStrong ? 'STRONG DISTRIBUTION' : 'DISTRIBUTION') :
-    'NEUTRAL';
+  const {
+    accumulationStreak,
+    distributionStreak,
+    isStrong,
+    flowTier,
+    activeIdx,
+    activeBar,
+    activeBarValue,
+    maxAbsFlow,
+    pricePoints,
+    buyVolume,
+    sellVolume,
+    buyPct,
+    borderAccent,
+  } = buildBandarFlowModel(flow, summary, activeFlowIdx);
 
   let insightColor = 'bg-tv-hover border-tv-border text-tv-muted';
   let insightBadge = 'bg-gray-500 text-white';
@@ -181,44 +174,6 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
       : t('bandarFlow.distributionMessage');
   }
 
-  // --- Grafik 20 hari: batang arus dana + garis harga penutupan ------------------
-  // Batang yang nilainya sedang ditampilkan. Default-nya sesi terakhir, bukan kosong:
-  // grafik yang belum disentuh pun harus sudah memberi satu angka yang bisa dibaca.
-  const activeIdx = activeFlowIdx != null && flow[activeFlowIdx] ? activeFlowIdx : flow.length - 1;
-  const activeBar = flow[activeIdx] ?? null;
-  const activeBarValue = activeBar
-    ? num(activeBar.netValueBillion) ?? num(activeBar.netForeignValueBillion) ?? 0
-    : 0;
-
-  const maxAbsFlow = Math.max(
-    ...flow.map((d) => Math.abs(num(d.netValueBillion) ?? num(d.netForeignValueBillion) ?? 0)),
-    0
-  );
-  const closes = flow.map((d) => num(d.close)).filter((c): c is number => c !== null);
-  const minClose = closes.length ? Math.min(...closes) : null;
-  const maxClose = closes.length ? Math.max(...closes) : null;
-  const closeRange = minClose !== null && maxClose !== null ? maxClose - minClose : 0;
-
-  // Titik garis harga dipetakan ke viewBox 100x100 (preserveAspectRatio="none"), jadi
-  // lebarnya ikut lebar kolom batang berapa pun ukuran layarnya. Harga datar (range 0)
-  // digambar di tengah, bukan dibagi nol.
-  const pricePoints = flow
-    .map((d, index) => {
-      const close = num(d.close);
-      if (close === null || minClose === null) return null;
-      const x = flow.length > 1 ? (index / (flow.length - 1)) * 100 : 50;
-      const y = closeRange > 0 ? 100 - ((close - minClose) / closeRange) * 90 - 5 : 50;
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .filter((point): point is string => point !== null)
-    .join(' ');
-
-  const borderAccent = summary.status === 'AKUMULASI' ? 'border-l-tv-green' : summary.status === 'DISTRIBUSI' ? 'border-l-tv-red' : 'border-l-tv-border';
-
-  const buyVolume = num(summary.foreignBuyVolume);
-  const sellVolume = num(summary.foreignSellVolume);
-  const compositionTotal = (buyVolume ?? 0) + (sellVolume ?? 0);
-  const buyPct = compositionTotal > 0 ? ((buyVolume ?? 0) / compositionTotal) * 100 : null;
 
   return (
     <div className={`bg-tv-bg border border-tv-border rounded-xl p-5 shadow-1 flex flex-col gap-6 border-l-4 ${borderAccent}`}>
@@ -237,7 +192,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
         <div className="flex items-center gap-3 flex-wrap">
           {!isOfficial && (
-            <div className="px-3 py-1.5 rounded-full border border-tv-border bg-tv-hover text-tv-muted font-bold text-[11px] font-sans">
+            <div className="px-3 py-1.5 rounded-full border border-tv-border bg-tv-hover text-tv-muted font-bold lens-meta font-sans">
               {isEn ? 'Estimated Flow (Price & Volume Proxy)' : 'Estimasi Arus Dana (Proxy Harga & Volume)'}
             </div>
           )}
@@ -264,44 +219,44 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           ada angka lembar/lot asing yang sungguh dicatat Bursa. */}
       {isOfficial && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-            <div className="text-[10px] font-sans text-tv-muted uppercase tracking-wide">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
+            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
               {isEn ? 'Net Foreign Today' : 'Net Asing Hari Ini'}
             </div>
             <div className={`text-2xl font-bold font-mono ${(num(summary.netTodayBillion) ?? 0) > 0 ? 'text-tv-green' : (num(summary.netTodayBillion) ?? 0) < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
               {formatBillion(summary.netTodayBillion)}
             </div>
-            <div className="text-[11px] font-sans text-tv-muted mt-1">
+            <div className="lens-meta font-sans text-tv-muted mt-1">
               {formatInt(summary.netTodayLot)} {isEn ? 'lot' : 'lot'}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-            <div className="text-[10px] font-sans text-tv-muted uppercase tracking-wide">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
+            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
               {isEn ? 'Net Foreign 5 Days' : 'Net Asing 5 Hari'}
             </div>
             <div className={`text-2xl font-bold font-mono ${(num(summary.net5DBillion) ?? 0) > 0 ? 'text-tv-green' : (num(summary.net5DBillion) ?? 0) < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
               {formatBillion(summary.net5DBillion)}
             </div>
-            <div className="text-[11px] font-sans text-tv-muted mt-1">
+            <div className="lens-meta font-sans text-tv-muted mt-1">
               {isEn ? 'Accumulated 5 trading days' : 'Akumulasi 5 hari bursa'}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-            <div className="text-[10px] font-sans text-tv-muted uppercase tracking-wide">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
+            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
               {isEn ? 'Foreign Participation' : 'Partisipasi Asing'}
             </div>
             <div className="text-2xl font-bold font-mono text-tv-text">
               {num(summary.foreignParticipationPct) === null ? 'N/A' : `${summary.foreignParticipationPct}%`}
             </div>
-            <div className="text-[11px] font-sans text-tv-muted mt-1">
+            <div className="lens-meta font-sans text-tv-muted mt-1">
               {isEn ? 'Foreign share of daily turnover' : 'Porsi asing atas transaksi harian'}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
-            <div className="text-[10px] font-sans text-tv-muted uppercase tracking-wide">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
+            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
               {isEn ? 'Streak' : 'Beruntun'}
             </div>
             {accumulationStreak > 0 ? (
@@ -319,10 +274,10 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 {isEn ? 'No streak' : 'Tidak beruntun'}
               </div>
             )}
-            <div className="text-[11px] font-sans text-tv-muted mt-1">
+            <div className="lens-meta font-sans text-tv-muted mt-1">
               {summary.latestDate ? (isEn ? `As of ${summary.latestDate}` : `Data per ${summary.latestDate}`) : ''}
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
@@ -336,7 +291,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 {insightTitle}
               </div>
               {accumulationStreak >= 3 && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 ${insightBadge}`}>
+                <span className={`lens-meta font-bold px-2 py-0.5 rounded flex items-center gap-1 ${insightBadge}`}>
                   <Flame className="w-3 h-3" /> {t('bandarFlow.daysStreak', { count: accumulationStreak })}
                 </span>
               )}
@@ -346,7 +301,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             </div>
           </div>
 
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border flex-1">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border flex-1">
             <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
               <h4 className="text-sm font-bold text-white font-heading">
                 {isOfficial
@@ -369,12 +324,12 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                     // tidak bisa dihitung browser (parent tanpa tinggi eksplisit karena
                     // items-end tidak men-stretch flex item) - akibatnya semua bar tidak
                     // muncul sama sekali walau heightPct terhitung benar.
-                    // <button>, bukan <div>: batangnya kini benar-benar dapat dipilih -
+                    // <Button variant="bare" size="none">, bukan <div>: batangnya kini benar-benar dapat dipilih -
                     // disentuh di ponsel, diklik di desktop, dan dijangkau Tab di keyboard.
                     // Nilainya dibacakan di baris tetap di bawah grafik, bukan tooltip
                     // melayang: di layar sempit tooltip tidak punya ruang untuk memuat, dan
                     // tooltip :hover tidak pernah muncul sama sekali di layar sentuh.
-                    <button
+                    <Button variant="bare" size="none"
                       key={i}
                       type="button"
                       onClick={() => setActiveFlowIdx(i)}
@@ -391,7 +346,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                           opacity: i === activeIdx ? 1 : isPos ? 0.8 : 0.7,
                         }}
                       />
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -429,34 +384,34 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 className="mt-3 flex items-baseline gap-x-3 gap-y-1 flex-wrap border-t border-tv-border pt-2.5"
                 aria-live="polite"
               >
-                <span className="text-[11px] font-sans text-tv-muted">{activeBar.date}</span>
+                <span className="lens-meta font-sans text-tv-muted">{activeBar.date}</span>
                 <span className={`text-sm font-bold font-number ${activeBarValue >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   {activeBarValue > 0 ? '+' : ''}{activeBarValue.toFixed(2)} M
                 </span>
                 {isOfficial && num(activeBar.close) !== null && (
-                  <span className="text-[11px] font-sans text-tv-muted">
+                  <span className="lens-meta font-sans text-tv-muted">
                     {isEn ? 'Close' : 'Tutup'} <span className="font-number text-tv-text">{formatInt(activeBar.close)}</span>
                   </span>
                 )}
                 {activeFlowIdx === null && (
-                  <span className="text-[10px] font-sans text-tv-muted/80">
+                  <span className="lens-meta font-sans text-tv-muted/80">
                     {isEn ? 'latest session - tap a bar for another day' : 'sesi terakhir - ketuk batang lain untuk hari berbeda'}
                   </span>
                 )}
               </div>
             )}
 
-            <div className="mt-3 flex items-center gap-4 text-[10px] font-sans text-tv-muted flex-wrap">
+            <div className="mt-3 flex items-center gap-4 lens-meta font-sans text-tv-muted flex-wrap">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-tv-green inline-block" /> {isEn ? 'Inflow' : 'Dana Masuk'}</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-tv-red inline-block" /> {isEn ? 'Outflow' : 'Dana Keluar'}</span>
               <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-tv-blue inline-block" /> {isEn ? 'Close price' : 'Harga penutupan'}</span>
             </div>
-          </div>
+          </Card>
         </div>
 
         {isOfficial ? (
           /* Komposisi transaksi asing hari terakhir - langsung dari ForeignBuy/ForeignSell BEI. */
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
             <h4 className="text-sm font-bold text-tv-text font-heading mb-4">
               {isEn ? 'Foreign Buy vs Sell (Latest Session)' : 'Komposisi Beli vs Jual Asing (Sesi Terakhir)'}
             </h4>
@@ -471,7 +426,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                   <div className="bg-tv-green h-full" style={{ width: `${buyPct}%` }} />
                   <div className="bg-tv-red h-full" style={{ width: `${100 - buyPct}%` }} />
                 </div>
-                <div className="mt-2 flex justify-between text-[11px] font-mono">
+                <div className="mt-2 flex justify-between lens-meta font-mono">
                   <span className="text-tv-green">{buyPct.toFixed(1)}%</span>
                   <span className="text-tv-red">{(100 - buyPct).toFixed(1)}%</span>
                 </div>
@@ -484,41 +439,41 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                   <TrendingUp className="w-3.5 h-3.5" /> {isEn ? 'Foreign Buy' : 'Beli Asing'}
                 </div>
                 <div className="text-lg font-bold font-mono text-tv-text">{formatInt(buyVolume)}</div>
-                <div className="text-[11px] font-sans text-tv-muted">{isEn ? 'shares' : 'lembar'}</div>
+                <div className="lens-meta font-sans text-tv-muted">{isEn ? 'shares' : 'lembar'}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-xs font-sans text-tv-red border-b border-tv-border pb-1 flex items-center gap-1.5">
                   <TrendingDown className="w-3.5 h-3.5" /> {isEn ? 'Foreign Sell' : 'Jual Asing'}
                 </div>
                 <div className="text-lg font-bold font-mono text-tv-text">{formatInt(sellVolume)}</div>
-                <div className="text-[11px] font-sans text-tv-muted">{isEn ? 'shares' : 'lembar'}</div>
+                <div className="lens-meta font-sans text-tv-muted">{isEn ? 'shares' : 'lembar'}</div>
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-                <div className="text-[10px] font-sans text-tv-muted uppercase">{isEn ? 'Net Volume' : 'Net Lembar'}</div>
+                <div className="lens-meta font-sans text-tv-muted uppercase">{isEn ? 'Net Volume' : 'Net Lembar'}</div>
                 <div className={`text-base font-bold font-mono ${(buyVolume ?? 0) - (sellVolume ?? 0) > 0 ? 'text-tv-green' : (buyVolume ?? 0) - (sellVolume ?? 0) < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                   {buyVolume === null || sellVolume === null ? 'N/A' : formatInt(buyVolume - sellVolume)}
                 </div>
               </div>
               <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-                <div className="text-[10px] font-sans text-tv-muted uppercase">{isEn ? 'Close' : 'Harga Tutup'}</div>
+                <div className="lens-meta font-sans text-tv-muted uppercase">{isEn ? 'Close' : 'Harga Tutup'}</div>
                 <div className="text-base font-bold font-mono text-tv-text">{formatInt(summary.latestClose)}</div>
               </div>
             </div>
 
             {data.updatedAt && (
-              <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
+              <div className="mt-5 pt-4 border-t border-tv-border lens-meta font-sans text-tv-muted leading-relaxed">
                 {isEn
                   ? `Synced ${data.updatedAt.slice(0, 10)}.`
                   : `Disinkronkan ${data.updatedAt.slice(0, 10)}.`}
               </div>
             )}
-          </div>
+          </Card>
         ) : (
           /* Mode fallback: ringkasan 20 hari berbasis CMF dari histori harga dan volume. */
-          <div className="bg-tv-card rounded-lg p-4 border border-tv-border">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
             <h4 className="text-sm font-bold text-tv-text font-heading mb-4">
               {isEn ? '20-Day Summary' : 'Ringkasan 20 Hari'}
             </h4>
@@ -529,7 +484,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                   <TrendingUp className="w-3.5 h-3.5" /> {isEn ? 'Up Days' : 'Hari Naik'}
                 </div>
                 <div className="text-2xl font-bold font-mono text-tv-text">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-                <div className="text-[11px] font-sans text-tv-muted">
+                <div className="lens-meta font-sans text-tv-muted">
                   {isEn ? 'Avg value: ' : 'Rata² nilai: '}<span className="font-mono text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span>
                 </div>
               </div>
@@ -539,7 +494,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                   <TrendingDown className="w-3.5 h-3.5" /> {isEn ? 'Down Days' : 'Hari Turun'}
                 </div>
                 <div className="text-2xl font-bold font-mono text-tv-text">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-                <div className="text-[11px] font-sans text-tv-muted">
+                <div className="lens-meta font-sans text-tv-muted">
                   {isEn ? 'Avg value: ' : 'Rata² nilai: '}<span className="font-mono text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span>
                 </div>
               </div>
@@ -547,25 +502,25 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-                <div className="text-[10px] font-sans text-tv-muted uppercase">{isEn ? '20-Day CMF' : 'CMF 20 Hari'}</div>
+                <div className="lens-meta font-sans text-tv-muted uppercase">{isEn ? '20-Day CMF' : 'CMF 20 Hari'}</div>
                 <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                   {summary.cmf20 > 0 ? '+' : ''}{summary.cmf20}%
                 </div>
               </div>
               <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-                <div className="text-[10px] font-sans text-tv-muted uppercase">{isEn ? "Today's Net Pressure" : 'Tekanan Beli/Jual Hari Ini'}</div>
+                <div className="lens-meta font-sans text-tv-muted uppercase">{isEn ? "Today's Net Pressure" : 'Tekanan Beli/Jual Hari Ini'}</div>
                 <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
                   {summary.netPressurePct > 0 ? '+' : ''}{summary.netPressurePct}%
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
+            <div className="mt-5 pt-4 border-t border-tv-border lens-meta font-sans text-tv-muted leading-relaxed">
               {isEn
                 ? 'Estimate derived from Chaikin Money Flow (CMF) & volume distribution - not the exchange foreign transaction record.'
                 : 'Estimasi dihitung dari Chaikin Money Flow (CMF) & distribusi volume transaksi - bukan catatan transaksi asing resmi Bursa.'}
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>
