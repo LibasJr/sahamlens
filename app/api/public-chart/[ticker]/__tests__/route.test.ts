@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/shared/security/api-rate-limit', () => ({
+// Partial mock: hanya penghitung anggarannya yang distub. `rateLimitResult` dibiarkan
+// asli karena ia justru yang membentuk respons 429 + Retry-After yang diperiksa di bawah -
+// menstubnya berarti menguji tiruan, bukan kontrak yang dikirim ke klien.
+vi.mock('@/shared/security/api-rate-limit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/security/api-rate-limit')>()),
   checkPublicComputeBudget: vi.fn(),
 }));
 
