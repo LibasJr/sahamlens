@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { Trash2, AlertCircle, BellRing, Download, Plus, Activity, Search, Bell, RefreshCw, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -49,7 +50,6 @@ export default function WatchlistPage() {
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   // Batas watchlist gratis hanya berlaku kalau user memang TIDAK punya akses Pro.
   // Sebelumnya diendus dari cookie yang tidak pernah ditulis untuk pelanggan Pro,
   // jadi pelanggan berbayar tetap mentok di 3 saham (lihat lib/limits.ts).
@@ -64,23 +64,15 @@ export default function WatchlistPage() {
   };
 
   useEffect(() => {
-    const controller = new AbortController();
     fetchProAccess().then(setHasPro);
-    checkAdmin(controller.signal);
-    return () => controller.abort();
   }, []);
 
-  const checkAdmin = async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch('/api/auth/me', { signal });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.authenticated && data.user?.role === 'admin') {
-          setIsAdmin(true);
-        }
-      }
-    } catch (e) {}
-  };
+  // checkAdmin() DIHAPUS: ia memanggil /api/auth/me sendiri hanya untuk membaca satu
+  // field (role), padahal useAuthUser sudah membaca endpoint yang sama - dan halaman ini
+  // merender TopMarketBar serta SmartBackNavigation yang juga memakainya. Dulu itu
+  // beberapa permintaan identik pada satu kali muat; sekarang satu kunci SWR bersama.
+  const { user: authUser } = useAuthUser();
+  const isAdmin = authUser?.role === 'admin';
 
   useEffect(() => {
     const controller = new AbortController();
