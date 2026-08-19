@@ -6,7 +6,7 @@ import { runController } from '@/shared/http/next-response.adapter';
 
 const CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   return runController(async () => {
     try {
       const cached = await cacheGet<any>(CACHE_KEY);
