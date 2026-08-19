@@ -474,6 +474,7 @@ export default function Sidebar() {
                   type="button"
                   onClick={handleLogout}
                   title={t('nav.logout')}
+                  aria-label={t('nav.logout')}
                   className={`rounded-xl p-2 text-tv-muted transition-colors hover:bg-tv-red/10 hover:text-tv-red ${isCollapsed ? 'md:hidden' : ''}`}
                 >
                   <LogOut className="h-4 w-4" />

@@ -152,6 +152,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 type="button"
                 onClick={handleToggleSound}
                 title={prefs.soundEnabled ? (language === 'id' ? 'Suara Aktif' : 'Sound On') : (language === 'id' ? 'Suara Nonaktif' : 'Sound Muted')}
+                aria-label={language === 'id' ? 'Suara notifikasi' : 'Notification sound'}
+                aria-pressed={prefs.soundEnabled}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${
                   prefs.soundEnabled
                     ? 'border-tv-blue/50 bg-tv-blue/20 text-tv-blue'
@@ -165,6 +167,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
+                aria-label={language === 'id' ? 'Tutup pusat notifikasi' : 'Close notification center'}
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >
                 <X className="h-4 w-4" />
