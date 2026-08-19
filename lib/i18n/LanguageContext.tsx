@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { id, type TranslationDictionary } from './locales/id';
 import { en } from './locales/en';
+import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 
 export type Language = 'id' | 'en';
 
@@ -19,8 +20,8 @@ const dictionaries: Record<Language, TranslationDictionary> = {
   en,
 };
 
-const STORAGE_KEY = 'sahamlens_lang';
-const COOKIE_KEY = 'sahamlens_lang';
+const STORAGE_KEY = LANG_COOKIE;
+const COOKIE_KEY = LANG_COOKIE;
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
 

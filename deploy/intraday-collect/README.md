@@ -49,6 +49,6 @@ lalu `npm run audit:cron`.
 
 ## Kenapa systemd, bukan QStash
 
-QStash sudah penuh 10/10 job (lihat DEPLOYMENT.md, entri 2026-08-14 "CATATAN PENTING").
+QStash sudah penuh 10/10 job (lihat docs/operations/DEPLOYMENT.md, entri 2026-08-14 "CATATAN PENTING").
 Route-nya tetap punya handler POST + verifikasi signature QStash supaya bisa dipindah
 tanpa mengubah kode kalau slot terbuka.

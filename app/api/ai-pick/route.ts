@@ -7,6 +7,7 @@ import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import { getBrokerFlowBadges } from '@/modules/broker-flow/service/broker-summary-cache.service';
+import { CACHE_TTL_SEC, CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
 
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
@@ -78,7 +79,7 @@ export async function GET() {
         : legacyCacheShape
           ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'
           : null,
-    });
+    }, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR) });
   } catch (error) {
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }

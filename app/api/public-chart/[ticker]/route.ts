@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
 
 
 function isFiniteNumber(value: unknown): value is number {
@@ -192,7 +193,7 @@ export async function GET(
     return NextResponse.json({
       ticker,
       history
-    });
+    }, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.PUBLIC_CHART) });
   } catch (e: any) {
     console.error('Public chart API error:', e);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

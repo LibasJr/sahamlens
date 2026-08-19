@@ -209,7 +209,48 @@ async function refreshSessionCookie(
   return res;
 }
 
+/**
+ * Path yang proxy TIDAK boleh sentuh sama sekali.
+ *
+ * Sejak matcher dibalik menjadi `/api/:path*` (lihat catatan panjang di config.matcher di
+ * bawah), setiap route API melewati fungsi ini. Empat kelompok berikut harus keluar lebih
+ * dulu, dan alasannya berbeda-beda - bukan sekadar "biar cepat":
+ *
+ *   /api/cron/       Dipanggil penjadwal, bukan manusia, dan selalu dari segelintir IP yang
+ *                    sama. Limiter 150/hari/IP akan mematikan seluruh pipeline data dalam
+ *                    satu hari. Keamanannya tidak bergantung pada proxy: tiap job
+ *                    memverifikasi tanda tangan QStash atau CRON_SECRET-nya sendiri.
+ *
+ *   /api/payment/notify
+ *                    Webhook penyedia pembayaran. Ini MEMPERBAIKI paparan yang sudah ada:
+ *                    `/api/payment/:path*` selama ini ADA di matcher dan tidak pernah masuk
+ *                    daftar mana pun yang membebaskannya, jadi notifikasi pembayaran ikut
+ *                    menghabiskan kuota 150/hari dari IP penyedia - dan pembayaran yang
+ *                    ditolak 429 hilang tanpa jejak di aplikasi. Keasliannya diverifikasi
+ *                    di route-nya sendiri.
+ *
+ *   /api/health      Dipanggil pemantauan uptime beberapa kali per menit dari satu IP.
+ *
+ *   /api/company-logo
+ *                    Satu request PER EMITEN pada setiap tabel yang dirender. Satu kali
+ *                    buka LensScanner sudah bisa melepas puluhan request; membiarkannya
+ *                    ikut kuota harian berarti tabel pertama hari itu menghabiskan jatah
+ *                    seluruh sesi. Route-nya sendiri hanya mem-proxy gambar same-origin.
+ */
+export function isProxyExemptPath(pathname: string): boolean {
+  return (
+    pathname.startsWith('/api/cron/') ||
+    pathname === '/api/payment/notify' ||
+    pathname === '/api/health' ||
+    pathname === '/api/company-logo'
+  );
+}
+
 export async function proxy(req: NextRequest) {
+  // Paling awal, SEBELUM decrypt/verifyAdminToken: pekerjaan kriptografi itu tidak gratis
+  // dan tidak satu pun dari path di atas membutuhkannya.
+  if (isProxyExemptPath(req.nextUrl.pathname)) return NextResponse.next();
+
   const sessionCookie = req.cookies.get(SESSION_COOKIE)?.value;
   const decrypted = sessionCookie ? await decrypt(sessionCookie) : null;
   // Guard yang sama dengan shared/auth/session.ts getSession() - token lain yang
@@ -332,30 +373,23 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/api/auth/:path*',
+    // DIBALIK 2026-08-19: dulu di sini ada 24 prefix /api/... yang ditulis satu per satu.
+    // Bentuk itu adalah daftar-IZIN, dan daftar-izin gagal secara DIAM-DIAM: route API baru
+    // lahir tanpa perlindungan apa pun sampai ada yang ingat menambahkannya ke sini. Yang
+    // terlewat bukan hipotesis - saat perubahan ini dibuat, /api/screener, /api/ownership-flow,
+    // /api/risk-analysis, /api/watchlist, /api/portfolio/*, dan /api/alert semuanya di luar
+    // daftar. Komentar di blok ini sendiri sudah mencemaskan pola yang sama untuk jalur
+    // HALAMAN beberapa bulan sebelumnya.
+    //
+    // Sekarang satu pola menutup seluruh permukaan API, dan yang ditulis satu per satu adalah
+    // PENGECUALIANNYA - di isProxyExemptPath() di atas, masing-masing dengan alasannya.
+    // Route baru terlindungi sejak menit pertama; membebaskannya menjadi keputusan sadar yang
+    // terbaca di satu tempat, bukan kelalaian yang tidak terlihat di mana pun.
+    //
+    // Dijaga __tests__/proxy-guest-access.test.ts: setiap berkas app/api/**/route.ts harus
+    // tercakup pola ini atau terdaftar sebagai pengecualian - tidak ada kemungkinan ketiga.
+    '/api/:path*',
     '/admin-login/:path*',
-    '/api/stock/:path*',
-    '/api/fundamental/:path*',
-    '/api/chat/:path*',
-    '/api/calendar/:path*',
-    '/api/backtest/:path*',
-    '/api/market-pulse/:path*',
-    '/api/breakout-radar/:path*',
-    '/api/recommendations/:path*',
-    '/api/agents/:path*',
-    '/api/council/:path*',
-    '/api/payment/:path*',
-    '/api/analytics/:path*',
-    '/api/dcf/:path*',
-    '/api/intrinsic/:path*',
-    '/api/earnings/:path*',
-    '/api/compare/:path*',
-    '/api/flow/:path*',
-    '/api/broker-summary/:path*',
-    '/api/live/:path*',
-    '/api/news/stock/:path*',
-    '/api/ai-briefing/:path*',
-    '/api/intrinsic-explain/:path*',
     '/home/:path*',
     '/market-pulse/:path*',
     '/calendar/:path*',
