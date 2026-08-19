@@ -123,8 +123,8 @@ describe('quoteSummary - modul yang dibaca wajib diminta', () => {
   });
 
   it('route skor live tetap meminta assetProfile - inilah bug yang pernah terjadi', () => {
-    const route = findings.find((f) => f.file.includes('api/stock/') && f.file.includes('route.ts'));
-    expect(route).toBeDefined();
-    expect(Array.from(route!.requested)).toContain('assetProfile');
+    const liveSource = findings.find((f) => f.file.endsWith('modules/technical/service/stock-analysis-source.service.ts'));
+    expect(liveSource).toBeDefined();
+    expect(Array.from(liveSource!.requested)).toContain('assetProfile');
   });
 });

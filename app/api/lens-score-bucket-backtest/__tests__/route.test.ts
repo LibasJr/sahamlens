@@ -51,7 +51,7 @@ describe('GET /api/lens-score-bucket-backtest', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual(fakeResult);
+    expect(json).toEqual({ ...fakeResult, meta: { requestId: expect.any(String) } });
     expect(getOrCompute).toHaveBeenCalledTimes(1);
     expect(getOrCompute).toHaveBeenCalledWith(
       expect.stringContaining('sahamlens:cache:computed:lens-score-bucket-backtest:'),
@@ -69,7 +69,7 @@ describe('GET /api/lens-score-bucket-backtest', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual(cached);
+    expect(json).toEqual({ ...cached, meta: { requestId: expect.any(String) } });
     expect(runLensScoreBucketBacktest).not.toHaveBeenCalled();
   });
 
