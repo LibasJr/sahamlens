@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
@@ -18,7 +18,7 @@ const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 const DETAIL_CAP = 20;
 
 export async function GET() {
-  try {
+  return runController(async () => {
     // Reuse cache key yang sama dengan /api/market-summary supaya tidak scan ulang
     // 250 saham dua kali (cache-nya sudah dipenuhi request landing page yang sama).
     const summary = await getOrCompute(MARKET_SUMMARY_CACHE_KEY, CACHE_TTL_SEC.MARKET_SUMMARY, getMarketSummary);
@@ -56,7 +56,9 @@ export async function GET() {
       detail: items.slice(0, DETAIL_CAP).map(mapDetail),
     });
 
-    return NextResponse.json({
+    return {
+      status: 200,
+      body: {
       attractive: category(summary.topTechnical, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `Skor ${s.score}` })),
       // BARU (2026-08-01) - kategori ke-8 widget "Hari Ini AI Menemukan" (menggantikan
       // tombol "Lihat Analisis {ticker}" yang dihapus, supaya tidak ada ruang kosong).
@@ -93,9 +95,10 @@ export async function GET() {
       })), stale: breakoutStale, asOf: breakoutAsOf },
       foreignAccumulation: category(foreignAccumulationList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `${s.streak} hari akumulasi` })),
       timestamp: summary.timestamp,
-    }, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR) });
-  } catch (error: any) {
-    console.error('Daily picks API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+      },
+      headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR),
+    };
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }

@@ -16,6 +16,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'SERVICE_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
 export class AppError extends Error {
@@ -83,6 +84,29 @@ export class RateLimitedError extends AppError {
   constructor(message = 'Terlalu banyak permintaan', retryAfterSec?: number) {
     super(message, 429, 'RATE_LIMITED');
     this.retryAfterSec = retryAfterSec;
+  }
+}
+
+/**
+ * Sumber data eksternal (Yahoo Finance, feed RSS, rilis makro) sedang tidak dapat
+ * dijangkau. BEDA dari INTERNAL_ERROR secara bermakna bagi klien: yang ini fana dan
+ * layak dicoba lagi, jadi UI boleh menawarkan "muat ulang" alih-alih menyerah.
+ *
+ * Sebelum ada kelas ini, route yang ingin mengatakan hal itu terpaksa keluar dari
+ * runController dan menulis NextResponse.json 503-nya sendiri - dan begitu keluar, ia
+ * kehilangan X-Request-Id sekaligus penyamaran error. Kelas ini menutup satu-satunya
+ * alasan sah yang tersisa untuk melakukan itu.
+ */
+export class ServiceUnavailableError extends AppError {
+  /**
+   * `cause` WAJIB diteruskan saat error ini dilempar dari dalam catch. Tanpa itu error
+   * asli dari penyedia data hilang sepenuhnya, dan log server cuma memuat kalimat ramah
+   * yang kita tulis sendiri - lebih buruk daripada console.error yang digantikannya.
+   * Target ES2022 (lihat tsconfig), jadi Error.cause tersedia asli.
+   */
+  constructor(message = 'Layanan data sedang tidak tersedia', options?: { cause?: unknown }) {
+    super(message, 503, 'SERVICE_UNAVAILABLE');
+    if (options?.cause !== undefined) this.cause = options.cause;
   }
 }
 
