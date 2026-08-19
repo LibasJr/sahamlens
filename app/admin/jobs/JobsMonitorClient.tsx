@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 
 interface JobRow {
   name: string;
@@ -164,10 +165,10 @@ export default function JobsMonitorClient() {
   if (loading) return <div className="text-sm text-tv-muted">Memuat status job...</div>;
   if (error) {
     return (
-      <div className="rounded-xl border border-tv-red/30 bg-tv-card p-5 text-sm text-tv-red">
+      <Card padding="lg" className="border-tv-red/30 text-sm text-tv-red">
         {error}
         <button type="button" onClick={load} className="ml-3 underline">Coba lagi</button>
-      </div>
+      </Card>
     );
   }
 
@@ -191,23 +192,23 @@ export default function JobsMonitorClient() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card>
           <div className="text-xs text-tv-muted">Database</div>
           <div className={`mt-1 text-sm font-bold ${health?.checks?.database === 'ok' ? 'text-tv-green' : 'text-tv-red'}`}>{health?.checks?.database === 'ok' ? 'Terhubung' : 'Tidak tersedia'}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card>
           <div className="text-xs text-tv-muted">Cache Redis</div>
           <div className={`mt-1 text-sm font-bold ${health?.checks?.redis === 'ok' ? 'text-tv-green' : health?.checks?.redis === 'not_configured' ? 'text-tv-yellow' : 'text-tv-red'}`}>{health?.checks?.redis === 'ok' ? 'Terhubung' : health?.checks?.redis === 'not_configured' ? 'Tidak dikonfigurasi' : 'Tidak tersedia'}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card>
           <div className="text-xs text-tv-muted">Deploy production</div>
           <div className="mt-1 text-sm font-bold text-tv-muted">Verifikasi di GitHub Actions</div>
           <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
-        </div>
+        </Card>
       </div>
 
       {sourceHealth.length > 0 && (
-        <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card as="section">
           <h2 className="font-heading text-base font-bold text-tv-text">Data Source Health</h2>
           <p className="mt-1 text-xs text-tv-muted">Status provider dicatat dari request nyata; kegagalan health logging tidak pernah mengubah data finansial.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -220,10 +221,10 @@ export default function JobsMonitorClient() {
               </div>
             ))}
           </div>
-        </section>
+        </Card>
       )}
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+      <Card as="section">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h2 className="font-heading text-base font-bold text-tv-text">Kesehatan Cache Data</h2>
@@ -264,7 +265,7 @@ export default function JobsMonitorClient() {
             );
           })}
         </div>
-      </section>
+      </Card>
 
       <div className="space-y-3">
         {jobs.map((job) => {

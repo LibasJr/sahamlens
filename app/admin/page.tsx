@@ -12,6 +12,7 @@ import CreateTestUserForm from './CreateTestUserForm';
 import ChangeSecretForm from './ChangeSecretForm';
 import { listRecentPaymentOrders } from '@/modules/payment/repository/payment-order.repository';
 import { formatRupiah } from '@/shared/config/pricing';
+import { Card } from '@/components/ui/Card';
 
 // Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
 // mewarisinya - meski pengunjung non-admin dialihkan, tidak ada alasan rute ini
@@ -103,7 +104,7 @@ export default async function AdminPage() {
           <ExportButton />
         </div>
         <SetProForm />
-        <div className="mb-8 overflow-hidden rounded-lg border border-tv-border bg-tv-card">
+        <Card padding="none" className="mb-8 overflow-hidden">
           <div className="border-b border-tv-border px-5 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Payment Order Terbaru</h2>
             <p className="mt-1 text-xs text-tv-muted">Audit klaim transfer sebelum aktivasi Pro. Status PAID hanya muncul setelah rekonsiliasi admin berhasil satu transaksi dengan entitlement.</p>
@@ -129,7 +130,7 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
         <CreateTestUserForm />
         <ChangeSecretForm />
 
@@ -385,7 +386,7 @@ export default async function AdminPage() {
         </Link>
         </div>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+        <Card padding="none" className="overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-tv-border flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="relative flex h-2.5 w-2.5">
@@ -511,9 +512,9 @@ export default async function AdminPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+        <Card padding="none" className="overflow-hidden mb-8">
           <div className="border-b border-tv-border px-6 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Funnel pendaftaran</h2>
             <p className="mt-1 text-xs leading-relaxed text-tv-muted">
@@ -559,9 +560,9 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+        <Card padding="none" className="overflow-hidden mb-8">
           <div className="border-b border-tv-border px-6 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Jejak autentikasi terbaru</h2>
             <p className="mt-1 text-xs leading-relaxed text-tv-muted">
@@ -598,7 +599,7 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

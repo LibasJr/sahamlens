@@ -5,6 +5,14 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'glass' | 'flat';
   hoverable?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  /**
+   * Elemen yang dirender. Sengaja dibatasi ke elemen blok bersemantik, bukan
+   * `React.ElementType` bebas: yang dibutuhkan hanyalah agar migrasi ke design system
+   * tidak MEMAKSA pemakainya melepas landmark. Beberapa halaman admin membungkus tiap
+   * bagian dalam <section>; kalau <Card> hanya bisa <div>, memakainya berarti menukar
+   * struktur dokumen dengan konsistensi visual - dan pertukaran itu tidak perlu ada.
+   */
+  as?: 'div' | 'section' | 'article' | 'aside';
 }
 
 const PADDING: Record<NonNullable<CardProps['padding']>, string> = {
@@ -14,9 +22,9 @@ const PADDING: Record<NonNullable<CardProps['padding']>, string> = {
   lg: 'p-5 md:p-6',
 };
 
-export function Card({ variant = 'default', hoverable = false, padding = 'md', className, children, ...props }: CardProps) {
+export function Card({ variant = 'default', hoverable = false, padding = 'md', as: Tag = 'div', className, children, ...props }: CardProps) {
   return (
-    <div
+    <Tag
       className={cn(
         'relative overflow-hidden rounded-2xl border transition-all duration-250 ease-settle',
         variant === 'default' && 'border-white/[0.075] bg-tv-card shadow-1',
@@ -30,7 +38,7 @@ export function Card({ variant = 'default', hoverable = false, padding = 'md', c
     >
       {variant !== 'flat' && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />}
       {children}
-    </div>
+    </Tag>
   );
 }
 

@@ -5,6 +5,7 @@ import { ArrowLeft, Database, Globe, ShieldAlert, ShieldCheck } from 'lucide-rea
 import { isAdminServer } from '@/modules/user';
 import { getOwnershipFlowMonitor } from '@/modules/ownership-flow/service/ownership-flow-monitor.service';
 import { KSEI_HOLDING_COMPOSITION_ARCHIVE } from '@/modules/ownership-flow/source/source-registry';
+import { Card } from '@/components/ui/Card';
 
 // PANEL STATUS INGESTION OWNERSHIP FLOW.
 //
@@ -132,7 +133,7 @@ export default async function AdminOwnershipFlowPage() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card as="section">
           <h2 className="flex items-center gap-2 font-heading text-base font-bold text-tv-text">
             <Database className="h-4 w-4 text-tv-blue" />
             Histori tersimpan
@@ -149,9 +150,9 @@ export default async function AdminOwnershipFlowPage() {
               valueClassName={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${freshness.className}`}
             />
           </dl>
-        </section>
+        </Card>
 
-        <section className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card as="section">
           <h2 className="flex items-center gap-2 font-heading text-base font-bold text-tv-text">
             <Globe className="h-4 w-4 text-tv-blue" />
             Sumber data
@@ -196,10 +197,10 @@ export default async function AdminOwnershipFlowPage() {
               lalu ikuti checklist di <code className="rounded bg-white/[0.06] px-1">docs/ownership-flow/source-audit.md</code>.
             </p>
           )}
-        </section>
+        </Card>
       </div>
 
-      <section className="mt-4 rounded-xl border border-tv-border bg-tv-card p-4">
+      <Card as="section" className="mt-4">
         <h2 className="font-heading text-base font-bold text-tv-text">Konfigurasi & eksekusi terakhir</h2>
         <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
           <Row label="OWNERSHIP_FLOW_ENABLED" value={monitor.enabled ? 'true' : 'false'} />
@@ -217,18 +218,18 @@ export default async function AdminOwnershipFlowPage() {
             {JSON.stringify(monitor.lastRun.meta, null, 2)}
           </pre>
         )}
-      </section>
+      </Card>
     </div>
   );
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-tv-border bg-tv-card p-3.5">
+    <Card padding="sm">
       <p className="text-[10.5px] uppercase tracking-wide text-tv-muted">{label}</p>
       <p className="mt-1 truncate font-heading text-[15px] font-bold text-tv-text">{value}</p>
       {sub && <p className="mt-0.5 truncate text-[11px] text-tv-muted">{sub}</p>}
-    </div>
+    </Card>
   );
 }
 
