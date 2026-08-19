@@ -114,7 +114,39 @@ git grep -nE "^<<<<<<< |^>>>>>>> "
 Ini pernah terjadi dan lolos ke `main` — tujuh berkas, termasuk satu route produksi
 yang karenanya tidak bisa di-parse sama sekali.
 
-## 5. Lingkungan lokal
+## 5. Selalu lewat PR, jangan push langsung ke `main`
+
+CI (`.github/workflows/ci.yml`) sudah berjalan pada `pull_request` dan sudah punya
+gerbang build lengkap. Ia tidak kurang apa-apa - ia hanya dilewati kalau commit
+mendarat langsung di `main`.
+
+Riwayat 19 Agustus 2026 memisahkannya dengan bersih. Semua yang rusak datang dari
+commit langsung ke `main` berpesan satu kata:
+
+- `76d52e5 "fix"` dan `e2e54c5 "ok"` memasukkan `GET(request?: Request)` yang
+  menggagalkan `next build`.
+- `4917b69 "fix"` adalah merge yang di-commit dengan penanda konflik masih di dalam
+  tujuh berkas, termasuk satu route produksi.
+
+Sementara merge lewat PR (#48, #50, #51) semuanya bersih.
+
+Dua hal yang membuat PR saja belum cukup:
+
+**Tunggu sampai hijau sebelum merge.** PR #49 di-merge dalam keadaan konflik belum
+diselesaikan; PR-nya ada, tapi tidak ditunggu.
+
+**Job `build` memakai `needs: typecheck-lint-test`.** Artinya kalau job pertama merah,
+gerbang build TIDAK jalan sama sekali - ia dilewati, bukan gagal. Jadi `main` yang
+sudah merah menyembunyikan kerusakan berikutnya: galat build `request?: Request`
+tidak terlihat selama penanda konflik masih membuat typecheck gagal lebih dulu.
+Selama `main` merah, anggap tidak ada informasi apa pun tentang kesehatan di
+belakangnya sampai merahnya dibereskan.
+
+Penegakan yang tidak bergantung pada disiplin: nyalakan branch protection di `main`
+(wajib status check lulus, larang push langsung). Selama itu belum ada, aturan ini
+hanya sekuat ingatan orang yang sedang buru-buru.
+
+## 6. Lingkungan lokal
 
 **Jangan menjalankan `next dev` kedua terhadap `.next` yang sama.** Dua instance
 Turbopack berebut berkas yang sama menghasilkan `os error 32` ("used by another
