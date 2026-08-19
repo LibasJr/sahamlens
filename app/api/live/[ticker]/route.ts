@@ -1,9 +1,10 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { idxTickerOrIndexParamSchema } from '@/shared/market/ticker-schema';
 import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
-import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { classifyFreshness } from '@/shared/http/freshness';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
@@ -24,10 +25,9 @@ export async function GET(
 ) {
   const budget = await checkPublicComputeBudget(request.headers, 'live');
   if (!budget.allowed) return rateLimitExceeded(budget);
+  return runController(async () => {
   const { ticker: rawTicker } = await params;
-  const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
-  if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
-  const ticker = normalizedTicker;
+  const ticker = parseOrThrow(idxTickerOrIndexParamSchema, rawTicker);
 
   const yahooCircuitOpen = await isProviderCircuitOpen('YAHOO_CHART');
   try {
@@ -88,7 +88,7 @@ export async function GET(
         // sesungguhnya dari Yahoo) - lihat shared/http/freshness.ts.
         const fresh = classifyFreshness(meta?.regularMarketTime);
 
-        return NextResponse.json({
+        return { status: 200, body: {
           price: lastPrice,
           changePercent: changePercent != null ? parseFloat(changePercent.toFixed(2)) : null,
           // `previousClose` ikut dikirim supaya pemanggil bisa menghitung perubahan POIN
@@ -105,7 +105,7 @@ export async function GET(
           freshness: fresh.freshness,
           source: 'Yahoo Finance',
           delay: null
-        }, { headers: getMarketAwareCacheHeaders() });
+        }, headers: getMarketAwareCacheHeaders() };
       }
       console.warn(`Yahoo Finance returned no valid price for ${ticker}`);
     } else if (yahooRes.status === 429 || yahooRes.status === 403) {
@@ -133,7 +133,12 @@ export async function GET(
   // data 2026-08-03 - persis pola `price || 1000` yang dilarang eksplisit. Sekarang gagal
   // secara jujur (503 + price: null) - pemanggil (Risk Calculator, Beranda, dst.) semua
   // sudah punya jalur catch/null dan menampilkan "N/A", bukan angka karangan.
-  return NextResponse.json({
+  // 503 ini BUKAN amplop error: body-nya payload lengkap ber-field null yang memang
+  // dibaca pemanggil (Risk Calculator, Beranda) untuk menampilkan "N/A". Melemparnya
+  // sebagai ServiceUnavailableError akan mengganti body itu dengan { error, code } dan
+  // memutus kontrak yang justru dijaga komentar di atas. Karena itu status dibawa lewat
+  // HttpResult.status, bukan lewat AppError.
+  return { status: 503, body: {
     price: null,
     changePercent: null,
     volume: null,
@@ -144,5 +149,6 @@ export async function GET(
     source: null,
     delay: null,
     error: 'Data harga tidak tersedia saat ini',
-  }, { status: 503 });
+  } };
+  });
 }

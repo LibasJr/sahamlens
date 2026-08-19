@@ -1,14 +1,11 @@
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
 import { loadEmitenList } from '@/shared/market/emiten-list';
 
 export const revalidate = 3600; // company list barely changes
 
 export async function GET() {
-  try {
+  return runController(async () => {
     const emiten = loadEmitenList();
-    return NextResponse.json({ count: emiten.length, emiten });
-  } catch (error: any) {
-    console.error('Emiten API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    return { status: 200, body: { count: emiten.length, emiten } };
+  });
 }

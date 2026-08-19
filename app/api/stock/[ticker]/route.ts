@@ -5,8 +5,10 @@ import { getEmitenBoard } from '@/shared/market/emiten-list';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
-import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { idxTickerOrIndexParamSchema } from '@/shared/market/ticker-schema';
+import { NotFoundError, ServiceUnavailableError } from '@/shared/errors/app-error';
 import {
   analyzeEma,
   analyzeRsi,
@@ -79,10 +81,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
-  try {
+  return runController(async () => {
     const { ticker: rawTicker } = await params;
-    const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
-    if (!normalizedTicker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+    const normalizedTicker = parseOrThrow(idxTickerOrIndexParamSchema, rawTicker);
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
 
@@ -101,10 +102,22 @@ export async function GET(
       if (used >= FREE_LIMITS.analisaPerHari) {
         // 402 (bukan 429) - lihat catatan yang sama di app/api/breakout-radar/route.ts.
         const usedSymbols = await getUsedSymbolsToday(session!.id);
-        return NextResponse.json(
-          { error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED', usedToday: used, limit: FREE_LIMITS.analisaPerHari, usedSymbols },
-          { status: 402 }
-        );
+        // TIDAK dilempar sebagai SubscriptionRequiredError: body ini membawa
+        // usedToday/limit/usedSymbols yang dipakai UI untuk menampilkan sisa kuota dan
+        // saham apa saja yang sudah dipakai hari ini. AppError hanya menghasilkan
+        // { error, code }, jadi melemparnya akan membuang ketiga field itu diam-diam.
+        // `code` dipertahankan persis sama supaya klien yang men-switch atasnya tidak
+        // perlu berubah.
+        return {
+          status: 402,
+          body: {
+            error: 'Fitur ini butuh akun Pro',
+            code: 'SUBSCRIPTION_REQUIRED',
+            usedToday: used,
+            limit: FREE_LIMITS.analisaPerHari,
+            usedSymbols,
+          },
+        };
       }
     }
     const ticker = normalizedTicker;
@@ -133,7 +146,7 @@ export async function GET(
 
     const cached = await cacheGet<any>(cacheKey);
     if (cached) {
-      return NextResponse.json(await withQuotaInfo(cached, ticker, session?.id, hasPro, isInternal));
+      return { status: 200, body: await withQuotaInfo(cached, ticker, session?.id, hasPro, isInternal) };
     }
 
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
@@ -210,19 +223,19 @@ export async function GET(
             ageSeconds: staleComputedAt ? Math.round((Date.now() - new Date(staleComputedAt).getTime()) / 1000) : null,
           },
         };
-        return NextResponse.json(await withQuotaInfo(stalePayload, ticker, session?.id, hasPro, isInternal));
+        return { status: 200, body: await withQuotaInfo(stalePayload, ticker, session?.id, hasPro, isInternal) };
       }
-      return NextResponse.json({ error: 'Failed to fetch Yahoo data' }, { status: 500 });
+      throw new ServiceUnavailableError('Data harga dari penyedia tidak dapat diambil');
     }
 
     const result = data.chart.result?.[0];
     if (!result) {
-      return NextResponse.json({ error: 'No data found' }, { status: 404 });
+      throw new NotFoundError('Data emiten tidak ditemukan');
     }
 
     const currentPrice = isFinitePositive(result.meta?.regularMarketPrice) ? result.meta.regularMarketPrice : null;
     if (currentPrice == null) {
-      return NextResponse.json({ error: 'Harga pasar tidak tersedia' }, { status: 503 });
+      throw new ServiceUnavailableError('Harga pasar tidak tersedia');
     }
     
     // Extract Fundamental Data
@@ -758,10 +771,8 @@ export async function GET(
     await cacheSet(cacheKey, resultPayload, TTL.TECHNICAL);
     await cacheSet(staleFallbackKey, resultPayload, TTL.STALE_FALLBACK);
 
-    return NextResponse.json(await withQuotaInfo(resultPayload, ticker, session?.id, hasPro, isInternal));
-
-  } catch (error: any) {
-    console.error('Stock API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return { status: 200, body: await withQuotaInfo(resultPayload, ticker, session?.id, hasPro, isInternal) };
+  });
 }
