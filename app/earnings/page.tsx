@@ -471,7 +471,7 @@ export default function EarningsPage() {
                 </div>
               )}
             {data.quarters.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="lens-table-sticky-col overflow-x-auto">
                 <table className="w-full min-w-[880px] text-left text-xs">
                   <thead className="border-b border-white/[0.07] bg-white/[0.02] text-[10px] uppercase tracking-[0.1em] text-tv-muted">
                     <tr>

@@ -71,7 +71,7 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
         {card.items.map((it, idx) => (
           <Link key={it.code} href={it.href} className="flex items-center justify-between gap-2 bg-tv-card px-3 py-[11px] hover:bg-tv-hover transition">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-tv-surface text-[10px] font-bold text-white shrink-0">{idx + 1}</span>
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-tv-surface text-[10px] leading-none font-bold text-white shrink-0">{idx + 1}</span>
               <span className="text-[12px] font-bold tracking-tight text-tv-text">{it.code}</span>
             </div>
             <div className="text-right shrink-0">
