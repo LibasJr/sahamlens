@@ -1212,6 +1212,20 @@ a,
 
   html .md\:text-\[9px\] { font-size: 11px; }
   html .md\:text-\[12\.5px\] { font-size: 13px; }
+
+  /* Lantai TARGET SENTUH, bukan hanya ukuran huruf. Rentang ini mewarisi kontrol
+   * desktop - varian sm:/md: yang mengecilkan tombol sudah aktif di 768px - sementara
+   * alat masukannya tetap jari. Aturan di atas memperbesar teksnya saja, jadi tombol
+   * ikon 28px tetap 28px dan tetap meleset saat disentuh.
+   *
+   * 40px, bukan 24px: 24px adalah minimum WCAG 2.5.8 (ambang "tidak gagal"), 40px
+   * mendekati anjuran 44px iOS/48px Android tanpa mengubah tata letak tabel padat.
+   *
+   * :where() supaya spesifisitasnya NOL. Komponen yang sengaja memilih ukuran lain
+   * tetap menang tanpa perlu !important - ini lantai, bukan paksaan. */
+  :where(button, [role='button'], a[role='button'], input[type='button'], input[type='submit']) {
+    min-height: 40px;
+  }
 }
 
 /* ====== Lantai keterbacaan menyeluruh (semua lebar layar) ======
