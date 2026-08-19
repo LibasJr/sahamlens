@@ -1,7 +1,9 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
 import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { computeStockBrokerSummary } from '@/modules/broker-flow/service/idx-broker-summary-parser.service';
@@ -14,37 +16,32 @@ export async function GET(
   const budget = await checkPublicComputeBudget(request.headers, 'flow');
   if (!budget.allowed) return rateLimitExceeded(budget);
 
-  const { ticker: rawTicker } = await params;
-  const ticker = normalizeIdxTickerParam(rawTicker);
-  if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
-
-  try {
+  return runController(async () => {
+    const { ticker: rawTicker } = await params;
+    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
+  {
     const brokerSummary = await computeStockBrokerSummary(ticker);
 
     if (!brokerSummary) {
-      return NextResponse.json(
+      return { status: 200, headers: getMarketAwareCacheHeaders(), body:
         {
           ticker,
           hasBrokerData: false,
           hasRealBrokerData: false,
           message: 'Data Broker Summary dengan provenance yang diizinkan belum tersedia untuk emiten ini.',
-        },
-        { headers: getMarketAwareCacheHeaders() }
-      );
+        } };
     }
 
-    return NextResponse.json(
+    return { status: 200, headers: getMarketAwareCacheHeaders(), body:
       {
         ...brokerSummary,
         hasBrokerData: true,
         // Dipertahankan untuk kompatibilitas klien lama, tetapi tidak lagi dipakai sebagai
         // klaim bahwa provider eksternal sudah direkonsiliasi dengan sumber primer.
         hasRealBrokerData: false,
-      },
-      { headers: getMarketAwareCacheHeaders() }
-    );
-  } catch (error: any) {
-    console.error('[GET /api/broker-summary/[ticker]] error', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+      } };
   }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }

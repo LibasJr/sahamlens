@@ -1,7 +1,7 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { readAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { rankAiPicks, type BreakoutInfo } from '@/modules/recommendation/service/ai-pick.service';
@@ -15,10 +15,10 @@ const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 // cache belum terisi, jawab apa adanya supaya UI bisa bilang "data sedang disiapkan",
 // bukan diam-diam menembak Yahoo ratusan kali di dalam request seorang pengguna.
 export async function GET() {
-  try {
+  return runController(async () => {
     const scoreData = await readAiPickScores();
     if (!scoreData) {
-      return NextResponse.json({ ready: false, items: [], computedAt: null, note: null });
+      return { status: 200, body: { ready: false, items: [], computedAt: null, note: null } };
     }
 
     const cachedBreakout = await cacheGet<any>(BREAKOUT_CACHE_KEY);
@@ -62,7 +62,9 @@ export async function GET() {
     const scanned = scoreData.scores.length;
     const legacyCacheShape = scanned > 0 && scoreData.scores.every((s) => s.eligibilityStatus == null);
 
-    return NextResponse.json({
+    return {
+      status: 200,
+      body: {
       ready: true,
       items,
       computedAt: scoreData.computedAt,
@@ -79,8 +81,10 @@ export async function GET() {
         : legacyCacheShape
           ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'
           : null,
-    }, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR) });
-  } catch (error) {
-    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
-  }
+      },
+      headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR),
+    };
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }

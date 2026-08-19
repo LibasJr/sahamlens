@@ -1,9 +1,10 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { SubscriptionRequiredError, ForbiddenError } from '@/shared/errors/app-error';
 import { getSession, hasOpenOrProAccess, isAdminServer } from '@/modules/user';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { runLensScoreBucketBacktest } from '@/modules/recommendation/service/lens-score-bucket-backtest.service';
 import { logger } from '@/shared/logger/logger';
@@ -18,7 +19,7 @@ function cacheKeyFor(scoreVersion: string | null): string {
 }
 
 export async function GET(request: Request) {
-  try {
+  return runController(async () => {
     const isInternal = isInternalServiceRequest(request);
     const session = isInternal ? null : await getSession();
 
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
     if (!isInternal && !session) anonTrial = await readOrIssueAnonymousTrial();
 
     if (!isInternal && !(await hasOpenOrProAccess(session))) {
-      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+      throw new SubscriptionRequiredError();
     }
 
     // Backtest bucket adalah alat kalibrasi internal, bukan fitur pengguna. Membatasi
@@ -36,7 +37,10 @@ export async function GET(request: Request) {
     // oleh siapa pun yang punya akun Pro. Sumber status admin sama dengan yang dipakai
     // Sidebar - cookie admin HttpOnly atau role pada sesi login.
     if (!isInternal && !(await isAdminServer()) && session?.role !== 'admin') {
-      return NextResponse.json({ error: 'Khusus admin', code: 'ADMIN_REQUIRED' }, { status: 403 });
+      // `code: 'ADMIN_REQUIRED'` bukan bagian dari katalog ErrorCode, jadi klien tidak
+      // pernah bisa menanganinya lewat switch(error.code). ForbiddenError memberi 403 yang
+      // sama dengan code FORBIDDEN yang memang ada; pesannya tetap menyebut "khusus admin".
+      throw new ForbiddenError('Khusus admin');
     }
 
     const scoreVersion = new URL(request.url).searchParams.get('scoreVersion');
@@ -50,11 +54,16 @@ export async function GET(request: Request) {
       CACHE_TTL_SEC.LENS_BUCKET_BACKTEST,
       () => runLensScoreBucketBacktest(undefined, { scoreVersion }),
     );
-    const response = NextResponse.json(result);
-    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
-    return response;
-  } catch (error) {
-    logger.error('GET /api/lens-score-bucket-backtest gagal', { error });
-    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
-  }
+    // Cookie trial disusun sebagai deskripsi, bukan ditempel ke NextResponse - adapter
+    // yang memasangnya dari cookiesToSet. buildAnonymousTrialCookie mengembalikan null
+    // kalau trialnya bukan baru, aturan yang sama seperti sebelumnya.
+    const trialCookie = anonTrial ? await buildAnonymousTrialCookie(anonTrial) : null;
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return {
+      status: 200,
+      body: result,
+      ...(trialCookie ? { cookiesToSet: [trialCookie] } : {}),
+    };
+  });
 }

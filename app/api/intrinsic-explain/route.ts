@@ -7,7 +7,12 @@ export const dynamic = 'force-dynamic';
 // (timeout 8 detik masing-masing), melebihi default 10 detik Vercel Hobby plan.
 export const maxDuration = 60;
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { UnauthorizedError } from '@/shared/errors/app-error';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
+import { z } from 'zod';
 import { getSession } from '@/modules/user';
 import { checkAiAccountBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
@@ -47,17 +52,33 @@ function fallbackExplanation(input: ExplainInput): string {
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+    return runController(async () => {
+      throw new UnauthorizedError();
+    }, req);
   }
 
   const budget = await checkAiAccountBudget(session.id, 'intrinsic-explain');
   if (!budget.allowed) return rateLimitExceeded(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
-  const body = (await req.json()) as { symbol?: string };
-  const symbol = typeof body?.symbol === 'string' ? body.symbol.trim().toUpperCase() : '';
-  if (!symbol) {
-    return NextResponse.json({ error: 'Simbol tidak valid' }, { status: 400 });
-  }
+  return runController(async () => {
+  // BUG NYATA YANG DITUTUP DI SINI, bukan sekadar penyeragaman validasi.
+  //
+  // `symbol` dulu hanya di-trim + uppercase, TIDAK dinormalisasi ke bentuk `.JK`. Nilainya
+  // langsung dipakai sebagai cache key `intrinsic:${symbol}` - dan komentar di bawah
+  // mengklaim endpoint ini "pakai cache valuasi yang sama dengan kartu publik".
+  // Klaim itu tidak pernah benar: /api/intrinsic/[ticker] menormalisasi lebih dulu dan
+  // menulis ke `intrinsic:BBCA.JK`, sementara components/IntrinsicValue.tsx mengirim
+  // `{ symbol: 'BBCA' }` (ticker di app/fundamental/page.tsx memang tanpa sufiks). Jadi
+  // key yang dibaca di sini `intrinsic:BBCA` - SELALU cache miss, dan setiap klik
+  // "Penjelasan LensAI" menghitung ulang seluruh DCF/PBV/PER yang baru saja dihitung
+  // kartu di sebelahnya.
+  //
+  // Memakai skema ticker bersama menormalisasi keduanya ke `BBCA.JK`, sehingga cache
+  // benar-benar dipakai bersama seperti yang selalu diniatkan.
+  const { symbol } = parseOrThrow(
+    z.object({ symbol: idxTickerParamSchema }),
+    await req.json(),
+  );
 
   // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-12): endpoint ini SEBELUMNYA
   // menerima `fairValue`, `harga`, `mos`, dan `methods` LANGSUNG dari body request lalu
@@ -74,10 +95,16 @@ export async function POST(req: NextRequest) {
     async () => (await calculateIntrinsicValue(symbol).catch(() => null)) ?? { notFound: true as const },
   );
   if ('notFound' in cachedIntrinsic || !(cachedIntrinsic.fair_value > 0)) {
-    return NextResponse.json(
-      { error: 'Data valuasi tidak tersedia', detail: `Nilai wajar ${symbol} tidak bisa dihitung dari data yang ada saat ini.` },
-      { status: 503 }
-    );
+    // TIDAK dilempar sebagai ServiceUnavailableError: body ini punya DUA field, dan
+    // `detail` yang menyebut simbolnya itu yang ditampilkan UI. AppError hanya
+    // menghasilkan { error, code }, jadi melemparnya akan membuang detailnya.
+    return {
+      status: 503,
+      body: {
+        error: 'Data valuasi tidak tersedia',
+        detail: `Nilai wajar ${symbol} tidak bisa dihitung dari data yang ada saat ini.`,
+      },
+    };
   }
 
   const intrinsic = cachedIntrinsic;
@@ -128,5 +155,6 @@ Balas hanya dengan paragraf penjelasannya, tanpa embel-embel lain.`;
         : { explanation: fallbackExplanation(input), source: 'fallback' as const };
     },
   );
-  return NextResponse.json(response);
+  return { status: 200, body: response };
+  }, req);
 }
