@@ -15,7 +15,7 @@ import { runController } from '@/shared/http/next-response.adapter';
 // disimpan agar refresh publik berikutnya tidak memicu ulang universe market pulse.
 const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_PULSE;
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   return runController(async () => {
     const cached = await cacheGet<any>(CACHE_KEY);
     if (cached) {
