@@ -6,7 +6,7 @@ import { normalizeChatText, getDeterministicSmallTalkResponse } from './chat-nor
 import { resolveChatDate } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
 import { buildChatVerifiedData, summarizeChatDataProvenance } from './chat-data-router';
-import { buildSystemPrompt } from './build-system-prompt';
+import { buildSystemPrompt, pakaiStrukturAnalisis, STRUKTUR_ANALISIS } from './build-system-prompt';
 import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
@@ -84,6 +84,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     `- Ticker ter-resolve: ${tickers.length ? tickers.join(', ') : 'tidak ada'}`,
     `- requested_as_of: ${date.requestedAsOf ?? 'tidak ada'}`,
     classification.intent === 'COMPARE_STOCKS' ? `- Comparison scope: ${classification.compareScope}` : '',
+    pakaiStrukturAnalisis(classification.intent, classification.dataIntent) ? STRUKTUR_ANALISIS : '',
     '- WAJIB: jelaskan data server yang tersedia; jangan mengisi angka yang tidak ada di Data Terverifikasi Server.',
   ].filter(Boolean).join('\n');
 

@@ -1,4 +1,5 @@
 import { SAHAMLENS_KNOWLEDGE_BASE } from '@/modules/ai/knowledge/sahamlens-knowledge';
+import type { ChatIntent } from './chat-intent';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 
 /**
@@ -31,6 +32,51 @@ const CAPABILITY_BLOCK = `## Kemampuan Komprehensif LensAI:
 - Eksekusi order nyata, transaksi finansial, atau pemindahan saldo pengguna (bukan broker).
 - Aset non-IDX (kripto, emas fisik, forex, saham luar negeri Wall Street).
 - Prediksi harga masa depan sebagai kepastian mutlak.`;
+
+/**
+ * Struktur jawaban analisis emiten (PRD SEC.23: "Faktor utama / Risiko / Evidence").
+ *
+ * KENAPA HANYA UNTUK SEBAGIAN INTENT. Aturan #3 dan #4 sengaja menahan LensAI supaya
+ * tidak menumpuk heading pada jawaban yang cukup satu paragraf. Memaksa tiga bagian ke
+ * SEMUA jawaban akan membuat sapaan, pertanyaan fitur, dan pertanyaan teori tampil
+ * sebagai laporan tiga bab - persis kebiasaan yang dilarang aturan #3 itu sendiri.
+ * Struktur ini karena itu hanya dipasang untuk pertanyaan yang jawabannya memang
+ * analisis satu (atau dua) emiten, dan pada turn itu ia menang atas aturan #3.
+ *
+ * KENAPA TIDAK MENGANCAM VERIFIKASI ANGKA. Bagian "Evidence" dibatasi eksplisit pada
+ * angka yang tertulis di Data Terverifikasi Server - sumber yang sama yang dipakai
+ * verify-numbers.ts untuk menelusuri angka jawaban. Struktur ini mengarahkan model
+ * menyebut angka yang memang bisa ditelusuri, bukan membuka ruang baru untuk mengarang.
+ */
+const INTENT_ANALISIS_EMITEN: ReadonlySet<ChatIntent> = new Set<ChatIntent>([
+  'STOCK_GENERAL',
+  'FUNDAMENTAL_CURRENT',
+  'FUNDAMENTAL_HISTORICAL',
+  'TECHNICAL_CURRENT',
+  'TECHNICAL_HISTORICAL',
+  'VALUATION',
+  'BUY_SELL_RECOMMENDATION',
+  'COMPARE_STOCKS',
+  'MOAT',
+  // "Besok naik gak?" tetap dijawab tanpa angka besok (aturan #12 & blok Batasan), tapi
+  // justru pertanyaan inilah yang paling butuh Faktor utama/Risiko/Evidence: tanpa
+  // rangka itu jawabannya gampang jatuh jadi paragraf normatif tanpa satu pun angka.
+  'PRICE_PREDICTION',
+]);
+
+/** Apakah turn ini dijawab dengan rangka analisis emiten. */
+export function pakaiStrukturAnalisis(intent: ChatIntent, dataIntent: ChatIntent): boolean {
+  // FOLLOW_UP tidak punya topik sendiri - bentuk jawabannya ditentukan intent data yang
+  // diwarisi dari turn sebelumnya ("terus risikonya?" sesudah pertanyaan teknikal).
+  return INTENT_ANALISIS_EMITEN.has(intent === 'FOLLOW_UP' ? dataIntent : intent);
+}
+
+export const STRUKTUR_ANALISIS = `- Struktur jawaban WAJIB untuk turn ini (menang atas aturan #3 soal hemat heading):
+  1. Simpulan lebih dulu, 1-2 kalimat.
+  2. **Faktor utama** - 2-4 poin yang paling menentukan simpulan itu.
+  3. **Risiko** - 1-3 poin yang bisa membatalkan simpulan itu.
+  4. **Evidence** - angka pendukung berikut namanya (mis. "RSI 62,3", "PER 8,4x"), HANYA yang benar-benar tertulis di "Data Terverifikasi Server".
+  Kalau satu bagian tidak punya datanya, tetap tulis judulnya dan katakan datanya belum tersedia - jangan diisi dari ingatan, perkiraan, atau Data Referensi.`;
 
 // Prompt dipisahkan dari route agar Next.js hanya melihat export handler/config resmi.
 // Context browser tidak dipercaya sebagai sumber angka; data terverifikasi server
