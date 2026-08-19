@@ -42,17 +42,23 @@ jobs:
               throw lastError;
             }
 
-            console.log(`[1/2] Probing public page ${base}/home ...`);
-            const pageRes = await fetchWithRetry(`${base}/home`, { headers, redirect: 'follow' });
+            console.log(`[1/2] Probing public page ${base}/ ...`);
+            const pageRes = await fetchWithRetry(`${base}/`, { headers, redirect: 'follow' });
             const pageText = await pageRes.text();
             if (!pageRes.ok) {
               if (pageRes.status === 403 && (pageText.includes('Just a moment...') || pageText.includes('Cloudflare') || pageText.includes('challenge'))) {
-                console.log(`[INFO] /home HTTP 403 Cloudflare challenge dari IP runner eksternal (Cloudflare WAF aktif).`);
+                console.log(`[INFO] / HTTP 403 Cloudflare challenge dari IP runner eksternal (Cloudflare WAF aktif).`);
               } else {
-                throw new Error(`/home HTTP ${pageRes.status}`);
+                throw new Error(`/ HTTP ${pageRes.status}`);
               }
+            } else if (!pageText.includes('<h1')) {
+              // Status saja tidak cukup. Sebelum ini probe menembak /home, yang membalas
+              // HTTP 200 berisi cangkang redirect (meta-refresh + NEXT_REDIRECT) tanpa
+              // konten sama sekali - jadi beranda bisa mati total dan probe tetap hijau.
+              // Satu penanda konten membuat 200 berarti "beranda benar-benar terender".
+              throw new Error('/ HTTP 200 tapi tidak merender <h1> - kemungkinan halaman kosong/stub');
             } else {
-              console.log(`[PASS] /home HTTP ${pageRes.status}`);
+              console.log(`[PASS] / HTTP ${pageRes.status} dan merender konten`);
             }
 
             console.log(`[2/2] Probing ${base}/api/health ...`);
@@ -71,7 +77,7 @@ jobs:
                 console.log(`[INFO] /api/health non-JSON response: ${healthText.slice(0, 100)}`);
               }
             } else if (healthRes.status === 403 && (healthText.includes('Just a moment...') || healthText.includes('Cloudflare') || healthText.includes('challenge'))) {
-              console.log(`[INFO] /api/health HTTP 403 Cloudflare challenge dari IP runner eksternal (Cloudflare WAF aktif). Akses publik /home terverifikasi normal.`);
+              console.log(`[INFO] /api/health HTTP 403 Cloudflare challenge dari IP runner eksternal (Cloudflare WAF aktif). Akses publik / terverifikasi normal.`);
             } else {
               throw new Error(`/api/health HTTP ${healthRes.status}: ${healthText.slice(0, 300)}`);
             }
