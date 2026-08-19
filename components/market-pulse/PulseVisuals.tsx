@@ -142,7 +142,7 @@ export function SectorDetailModal({ sector, onClose }: { sector: any; onClose: (
               rata-rata {isUp ? '+' : ''}{sector.changePct?.toFixed(2) ?? 'N/A'}%
             </span>
           </div>
-          <Button variant="bare" size="none" onClick={onClose} className="text-tv-muted hover:text-tv-text transition-colors">
+          <Button variant="bare" size="none" aria-label={`Tutup rincian sektor ${sector.sector}`} onClick={onClose} className="text-tv-muted hover:text-tv-text transition-colors">
             <X className="h-4 w-4" />
           </Button>
         </div>
