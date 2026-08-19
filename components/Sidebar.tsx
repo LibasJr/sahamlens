@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -173,7 +174,6 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { loading: authLoading, user, resolved: authResolved, effectiveRole } = useAuthUser();
-  const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
@@ -187,12 +187,11 @@ export default function Sidebar() {
     }
   }, [pathname]);
 
-  useEffect(() => {
-    fetch('/api/admin-status')
-      .then((res) => res.json())
-      .then((d) => setHasAdminAccess(Boolean(d.isAdmin)))
-      .catch(() => setHasAdminAccess(false));
-  }, []);
+  // Gagal-tertutup DIPERTAHANKAN: kalau statusnya tidak bisa dibaca, jawabannya "bukan
+  // admin", bukan "belum tahu". Grup menu Admin lebih baik tidak muncul untuk admin yang
+  // sedang offline daripada muncul untuk orang yang bukan admin.
+  const { data: adminStatus } = useSWR<{ isAdmin?: boolean }>('/api/admin-status');
+  const hasAdminAccess = Boolean(adminStatus?.isAdmin);
 
   useEffect(() => {
     const onToggle = () => setIsOpen((prev) => !prev);

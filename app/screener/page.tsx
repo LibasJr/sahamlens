@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -128,15 +129,11 @@ export default function ScreenerPage() {
   const [maxPriceInput, setMaxPriceInput] = useState('');
   const [minMarketCapInput, setMinMarketCapInput] = useState(''); // unit: Triliun
   const [minLiquidityInput, setMinLiquidityInput] = useState(''); // unit: Miliar
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
   const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   // Kegagalan fetch sebelumnya hanya menghasilkan setData(null), yang membuat tabel
   // menampilkan "Tidak ada saham yang memenuhi kriteria saat ini" - klaim bahwa
   // pemindaian sudah berjalan dan hasilnya nihil. Dua keadaan berbeda, satu pesan.
-  const [loadError, setLoadError] = useState(false);
-  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ScreenerTemplate[]>([]);
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
@@ -156,19 +153,33 @@ export default function ScreenerPage() {
     }
   };
 
-  const runScreener = useCallback(async (
-    profile: string, sector: string, maxPrice: string, minMarketCapTriliun: string, minLiquidityMiliar: string,
-  ) => {
-    setLoading(true);
-    setLoadError(false);
-    setLoadErrorMessage(null);
-    try {
+  // Debounce 500 ms DIPERTAHANKAN, tapi lewat state kunci alih-alih setTimeout yang
+  // memanggil fetch. Dua alasan, keduanya nyata:
+  //
+  //   1. Versi lama TIDAK punya penjaga urutan sama sekali - satu-satunya halaman
+  //      tersisa yang begitu. Debounce mengurangi peluangnya, tapi tidak menghapusnya:
+  //      dua pemindaian yang sempat berangkat (mis. filter diubah lagi setelah 500 ms
+  //      berlalu) bisa mendarat terbalik, dan hasil filter LAMA tampil sebagai hasil
+  //      filter yang sedang aktif. SWR mengunci hasil ke kuncinya.
+  //   2. Kombinasi filter yang sama kini kunci yang sama, jadi kembali ke filter
+  //      sebelumnya dijawab dari cache alih-alih memicu pemindaian ulang - dan endpoint
+  //      ini punya compute budget server-side yang ikut terhemat.
+  const buildScreenerQuery = useCallback(
+    (
+      profile: string,
+      sector: string,
+      maxPrice: string,
+      minMarketCapTriliun: string,
+      minLiquidityMiliar: string,
+    ) => {
       const params = new URLSearchParams({ profile });
       if (sector) params.set('sector', sector);
       // Cuma dikirim kalau benar-benar angka positif - backend sudah fail-open untuk
       // nilai tidak valid, tapi tidak perlu mengirim parameter kosong/rusak sama sekali.
       const parsedPrice = Number(maxPrice);
-      if (maxPrice && Number.isFinite(parsedPrice) && parsedPrice > 0) params.set('maxPrice', String(parsedPrice));
+      if (maxPrice && Number.isFinite(parsedPrice) && parsedPrice > 0) {
+        params.set('maxPrice', String(parsedPrice));
+      }
       // Input pengguna dalam Triliun/Miliar (angka yang wajar diketik), dikonversi ke
       // Rupiah mentah di sini - API selalu menerima/mengembalikan Rupiah penuh, tidak
       // pernah unit yang disingkat, supaya tidak ada dua konvensi unit berbeda.
@@ -180,38 +191,55 @@ export default function ScreenerPage() {
       if (minLiquidityMiliar && Number.isFinite(parsedLiquidity) && parsedLiquidity > 0) {
         params.set('minLiquidity', String(parsedLiquidity * 1e9));
       }
+      return params.toString();
+    },
+    [],
+  );
 
-      const res = await fetch('/api/screener?' + params.toString());
-      const json = await res.json();
-      if (!res.ok || json?.error) {
-        setLoadError(true);
-        setLoadErrorMessage(typeof json?.error === 'string' ? json.error : null);
-        setData(null);
-        return;
-      }
-      setData(json);
-    } catch (e) {
-      console.error(e);
-      setLoadError(true);
-      setLoadErrorMessage(null);
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [screenerQuery, setScreenerQuery] = useState<string | null>(null);
 
-  // BARU (2026-08-14) - filter sektor & harga MAKS ikut memicu pemindaian ulang,
-  // di-debounce 500ms supaya mengetik angka harga tidak mengirim satu request per
-  // digit (endpoint ini punya compute budget server-side, lihat app/api/screener/
-  // route.ts - debounce ini murni mengurangi request percuma, bukan pengaman utama).
   useEffect(() => {
     const t = setTimeout(() => {
-      runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput);
+      setScreenerQuery(
+        buildScreenerQuery(
+          riskProfile,
+          sectorFilter,
+          maxPriceInput,
+          minMarketCapInput,
+          minLiquidityInput,
+        ),
+      );
     }, 500);
     return () => clearTimeout(t);
-  }, [riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput, runScreener]);
+  }, [
+    riskProfile,
+    sectorFilter,
+    maxPriceInput,
+    minMarketCapInput,
+    minLiquidityInput,
+    buildScreenerQuery,
+  ]);
 
-  const top10 = data?.analysis?.top_10_stocks || [];
+  const {
+    data,
+    error: screenerError,
+    isLoading: loading,
+    mutate: retryScreener,
+  } = useSWR<any>(screenerQuery ? `/api/screener?${screenerQuery}` : null);
+
+  // Payload 200 yang membawa `error` tetap diperlakukan sebagai kegagalan, sama seperti
+  // sebelumnya - endpoint bisa menjawab sukses dengan penjelasan kenapa hasilnya kosong.
+  const loadError = Boolean(screenerError) || Boolean(data?.error);
+  const loadErrorMessage = screenerError
+    ? (screenerError as Error).message || null
+    : typeof data?.error === 'string'
+      ? data.error
+      : null;
+
+
+  // useMemo: `|| []` menghasilkan array baru setiap render dan membatalkan useMemo di
+  // bawahnya. Ditangkap react-hooks/exhaustive-deps.
+  const top10 = useMemo(() => data?.analysis?.top_10_stocks ?? [], [data]);
   const isConfirmedGuest = authResolved && !authLoading && !user;
   const isGuestLimited = Boolean(data?.analysis?.is_guest_limited ?? isConfirmedGuest);
   const lockedCount = isGuestLimited ? (data?.analysis?.locked_count ?? 8) : 0;
@@ -623,7 +651,7 @@ export default function ScreenerPage() {
               illustration="empty"
               title="Hasil pemindaian gagal dimuat"
               description={loadErrorMessage || 'Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria.'}
-              action={{ label: 'Coba lagi', onClick: () => runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput) }}
+              action={{ label: 'Coba lagi', onClick: () => void retryScreener() }}
             />
           )}
 

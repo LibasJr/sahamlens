@@ -1,9 +1,11 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
+import { NotFoundError, SubscriptionRequiredError } from '@/shared/errors/app-error';
 import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
-import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getMarketAwareTtlSec } from '@/shared/cache/ttl-policy';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import {
@@ -48,17 +50,18 @@ export async function GET(
 ) {
   const budget = await checkPublicComputeBudget(request.headers, 'flow');
   if (!budget.allowed) return rateLimitExceeded(budget);
+
+  return runController(async () => {
   // Tamu (session null) dapat akses PENUH tanpa perlu login - keputusan produk
   // 2026-08-13, lihat hasOpenOrProAccess(). Akun terdaftar tetap lewat gerbang
   // trial/Pro seperti sebelumnya.
   const session = await getSession();
   if (!(await hasOpenOrProAccess(session))) {
-    return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+    throw new SubscriptionRequiredError();
   }
 
   const { ticker: rawTicker } = await params;
-  const ticker = normalizeIdxTickerParam(rawTicker);
-  if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+  const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
   const cleanTicker = ticker.replace('.JK', '');
 
   // ---------------------------------------------------------------------------
@@ -67,7 +70,7 @@ export async function GET(
   const official = getRealForeignFlow(cleanTicker, 20);
   if (official && official.history.length > 0) {
     const summary = summarizeForeignFlow(official.history);
-    return NextResponse.json({
+    return { status: 200, body: {
       ticker: cleanTicker,
       source: IDX_FOREIGN_FLOW_SOURCE,
       updatedAt: official.updatedAt,
@@ -83,13 +86,13 @@ export async function GET(
         // Alias supaya komponen grafik memakai satu nama field untuk kedua sumber.
         netValueBillion: point.netForeignValueBillion,
       })),
-    });
+    } };
   }
 
   // ---------------------------------------------------------------------------
   // JALUR 2 - Fallback proxy CMF dari histori harga+volume Yahoo
   // ---------------------------------------------------------------------------
-  try {
+  {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=2mo&interval=1d`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
@@ -133,7 +136,7 @@ export async function GET(
     }
 
     if (history.length < 6) {
-      return NextResponse.json({ error: 'Histori harga tidak cukup untuk menghitung arus dana' }, { status: 404 });
+      throw new NotFoundError('Histori harga tidak cukup untuk menghitung arus dana');
     }
 
     const dailyFlow = computeDailyNetFlow(history).slice(-20);
@@ -157,7 +160,7 @@ export async function GET(
 
     const bandarmology = analyzeBandarmology(history.slice(-20));
 
-    return NextResponse.json({
+    return { status: 200, body: {
       ticker,
       source: FALLBACK_FLOW_SOURCE,
       foreignFlow20D: dailyFlow.map((d) => ({ ...d, close: closeByDate.get(d.date) ?? null })),
@@ -179,9 +182,9 @@ export async function GET(
         netPressurePct: bandarmology.netPressurePct,
         volRatio: accumulation.volRatio,
       },
-    });
-  } catch (error: any) {
-    console.error('Flow API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    } };
   }
+  // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+  // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }

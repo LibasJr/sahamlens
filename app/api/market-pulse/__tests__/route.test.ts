@@ -22,7 +22,13 @@ describe('GET /api/market-pulse', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ indices: [], breadth: { total: 0 } });
+    const { meta, ...payload } = json;
+    expect(payload).toEqual({ indices: [], breadth: { total: 0 } });
+    // `meta.requestId` ADITIF dari runController (lihat shared/http/next-response.adapter.ts):
+    // setiap respons membawa id yang sama dengan baris lognya. Diasersikan terpisah, bukan
+    // dilonggarkan jadi toMatchObject - kalau amplop standar itu hilang, tes ini harus gagal.
+    expect(meta.requestId).toEqual(expect.any(String));
+    expect(res.headers.get('X-Request-Id')).toBe(meta.requestId);
     expect(getMarketPulse).not.toHaveBeenCalled();
   });
 

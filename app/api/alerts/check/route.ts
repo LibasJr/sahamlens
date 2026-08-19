@@ -2,7 +2,8 @@ import { getTrustedClientIp } from '@/shared/http/client-ip';
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { UnauthorizedError, RateLimitedError } from '@/shared/errors/app-error';
 import { checkAndTriggerAlerts } from '@/modules/notification';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
@@ -34,24 +35,21 @@ function getClientIp(req: Request): string {
 }
 
 export async function GET(req: Request) {
-  try {
-    if (!(await getSession())) {
-      return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-    }
+  return runController(async () => {
+    if (!(await getSession())) throw new UnauthorizedError();
 
     const ip = getClientIp(req);
     const rate = await checkRateLimitShared(ip, Date.now(), RATE_LIMIT_CONFIG);
     if (!rate.allowed) {
-      return NextResponse.json(
-        { error: 'Terlalu banyak request. Coba lagi nanti.' },
-        { status: 429, headers: rate.retryAfterSec ? { 'Retry-After': String(rate.retryAfterSec) } : undefined }
-      );
+      // RateLimitedError meneruskan Retry-After lewat toErrorResponse (lihat
+      // shared/errors/app-error.ts), jadi header yang dulu disusun tangan di sini tetap
+      // terkirim - sekarang plus `code: 'RATE_LIMITED'` yang sebelumnya tidak ada.
+      throw new RateLimitedError('Terlalu banyak request. Coba lagi nanti.', rate.retryAfterSec);
     }
 
     const result = await checkAndTriggerAlerts(getTrustedAppOrigin());
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error('Error checking alerts:', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return { status: 200, body: result };
+  });
 }

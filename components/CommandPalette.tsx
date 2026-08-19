@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import useSWR from 'swr';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { useRouter } from 'next/navigation';
 import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
@@ -39,8 +40,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [emiten, setEmiten] = useState<Emiten[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  // `emiten` dan `loaded` kini turunan dari useSWR di bawah, bukan state.
   const [activeIdx, setActiveIdx] = useState(0);
   const [preview, setPreview] = useState<Preview>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -60,18 +60,27 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
     return () => window.removeEventListener('keydown', handleKey);
   }, [enableShortcut]);
 
+  // Daftar emiten dimuat MALAS (kunci null selama palet tertutup), persis seperti syarat
+  // `open && !loaded` sebelumnya - daftar 962 emiten tidak perlu diunduh oleh pengunjung
+  // yang tidak pernah membuka pencarian.
+  //
+  // Tapi begitu dimuat, ia dibagi: komponen ini dirender di TIGA tempat (TopMarketBar,
+  // Header, Dashboard), dan dulu masing-masing punya state `emiten`-nya sendiri - membuka
+  // palet dari tempat berbeda mengunduh daftar yang sama berulang kali. Endpoint-nya juga
+  // ber-`revalidate = 3600` di server, jadi isinya memang praktis statis.
+  const { data: emitenPayload } = useSWR<{ emiten?: Emiten[] }>(
+    open ? '/api/emiten' : null,
+    { revalidateOnFocus: false, dedupingInterval: 3_600_000 },
+  );
+  const emiten = useMemo(() => emitenPayload?.emiten ?? [], [emitenPayload]);
+  // `loaded` dulu juga bernilai true setelah kegagalan (catch menyetelnya), supaya
+  // palet menampilkan "tidak ada hasil" alih-alih menggantung di keadaan memuat
+  // selamanya. Dipertahankan: !== undefined benar untuk sukses MAUPUN gagal.
+  const loaded = emitenPayload !== undefined;
+
   useEffect(() => {
-    if (open && !loaded) {
-      fetch('/api/emiten')
-        .then((r) => r.json())
-        .then((data) => {
-          if (data && data.emiten) setEmiten(data.emiten);
-          setLoaded(true);
-        })
-        .catch(() => setLoaded(true));
-    }
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
-  }, [open, loaded]);
+  }, [open]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();

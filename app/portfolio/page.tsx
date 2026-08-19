@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
@@ -34,9 +35,6 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<'HOLDINGS' | 'RIWAYAT'>('HOLDINGS');
   const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [authResolved, setAuthResolved] = useState(false);
-  const [authError, setAuthError] = useState(false);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,7 +43,6 @@ export default function PortfolioPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ email: string; role: string } | null>(null);
   // BUG FIX (2026-08-01, audit dummy-data): form ini sebelumnya kirim {username,
   // password} tapi loginSchema/signupSchema (modules/user/validator/auth.validator.ts)
   // mewajibkan {email, password} - login/signup lewat form ini selalu gagal validasi.
@@ -101,32 +98,39 @@ export default function PortfolioPage() {
     setOrderLoading(false);
   };
 
-  useEffect(() => {
-    const controller = new AbortController();
-    checkAuth(controller.signal);
-    return () => controller.abort();
-  }, []);
+  // checkAuth() DIHAPUS: ia memanggil /api/auth/me sendiri, padahal useAuthUser membaca
+  // endpoint yang sama - dan halaman ini juga merender TopMarketBar, TrialCountdown, dan
+  // SmartBackNavigation yang semuanya memakai hook itu. Dulu beberapa permintaan identik
+  // pada satu kali muat halaman; sekarang satu kunci SWR bersama.
+  //
+  // Pemetaan ke nilai lama dijaga persis:
+  //   authResolved  = pemeriksaannya SELESAI (dulu di-set di blok finally, jadi true
+  //                   entah berhasil atau gagal) -> !authLoading
+  //   authError     = pemeriksaannya GAGAL dihubungi, BUKAN "belum login" -> !resolved.
+  //                   Bedanya penting dan sudah dijelaskan panjang di AuthState:
+  //                   pengguna yang sudah login tidak boleh diperlakukan sebagai tamu
+  //                   hanya karena jaringan berkedip.
+  // `sessionLoading`, bukan `authLoading`: nama itu sudah dipakai state tombol
+  // login/daftar di atas (setAuthLoading), dan keduanya artinya berbeda.
+  const { loading: sessionLoading, resolved: authKnown, user: authUser } = useAuthUser();
+  const isLoggedIn = Boolean(authUser);
+  const authResolved = !sessionLoading;
+  const authError = !authKnown;
+  const currentUser = authUser ? { email: authUser.email, role: authUser.role } : null;
 
-  const checkAuth = async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch('/api/auth/me', { signal });
-      const data = await res.json();
-      if (res.ok) {
-        setIsLoggedIn(true);
-        setCurrentUser({ email: data.user?.email, role: data.user?.role });
-        loadData(signal);
-      } else {
-        setLoading(false);
-      }
-    } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError')) {
-        setAuthError(true);
-        setLoading(false);
-      }
-    } finally {
-      if (!signal?.aborted) setAuthResolved(true);
+  // Portofolio hanya dimuat setelah sesi diketahui DAN ada penggunanya - sama seperti
+  // `if (res.ok) loadData()` sebelumnya. Tamu tidak menembak /api/portfolio sama sekali.
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!isLoggedIn) {
+      setLoading(false);
+      return;
     }
-  };
+    const controller = new AbortController();
+    void loadData(controller.signal);
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, isLoggedIn]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +156,9 @@ export default function PortfolioPage() {
           // email), baru login sungguhan lewat /api/auth/verify.
           setPendingVerification(true);
         } else {
-          setIsLoggedIn(true);
+          // setIsLoggedIn(true) dihapus: reload penuh di baris berikutnya membuang
+          // seluruh state React, jadi menyetelnya tidak pernah berefek. Sesi dibaca
+          // ulang oleh useAuthUser setelah halaman dimuat lagi.
           window.location.reload();
         }
       } else {
@@ -176,7 +182,7 @@ export default function PortfolioPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setIsLoggedIn(true);
+        // Lihat catatan di handleLogin: reload penuh membuang state React.
         window.location.reload();
       } else {
         setLoginError(data.error || 'Kode verifikasi salah/kadaluarsa');

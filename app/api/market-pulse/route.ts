@@ -1,7 +1,7 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
 import { getMarketPulse } from '@/modules/market';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
@@ -16,10 +16,10 @@ import { CACHE_TTL_SEC as TTL, CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/s
 const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_PULSE;
 
 export async function GET() {
-  try {
+  return runController(async () => {
     const cached = await cacheGet<any>(CACHE_KEY);
     if (cached) {
-      return NextResponse.json(cached, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.MARKET_PULSE) });
+      return { status: 200, body: cached, headers: publicCacheHeaders(CDN_FRESHNESS_SEC.MARKET_PULSE) };
     }
 
     const data = await getMarketPulse();
@@ -27,9 +27,9 @@ export async function GET() {
     // snapshot hasil fallback agar satu pengunjung tidak memicu ulang 100 quote Yahoo
     // untuk setiap refresh, dan semua pengguna menerima daftar breadth yang sama.
     await cacheSet(CACHE_KEY, data, TTL.MARKET_PULSE_CRON);
-    return NextResponse.json(data, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.MARKET_PULSE) });
-  } catch (error: any) {
-    console.error('Market pulse API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController menghasilkan 500 "Internal Server Error"
+    // yang sama, tapi mencatatnya ke shared/logger dengan X-Request-Id yang juga
+    // diterima klien - kaitan yang tidak pernah dimiliki console.error.
+    return { status: 200, body: data, headers: publicCacheHeaders(CDN_FRESHNESS_SEC.MARKET_PULSE) };
+  });
 }

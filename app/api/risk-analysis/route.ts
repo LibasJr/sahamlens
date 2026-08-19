@@ -1,7 +1,10 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { ValidationError, ServiceUnavailableError } from '@/shared/errors/app-error';
+import { z } from 'zod';
 import { fetchYahooHistory } from '@/modules/technical';
 import { calculateBeta } from '@/modules/market';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -38,23 +41,39 @@ function cachedYahooHistory(ticker: string, range: string) {
 // Rate (lihat modules/macro/ - hanya kurs USD/IDR yang tersinkronkan), jadi endpoint ini
 // mengembalikan `biRateAvailable: false` alih-alih mengarang sensitivitas BI Rate.
 
-interface PortfolioPosition {
-  ticker: string;
-  weight: number;
-}
+/**
+ * Satu posisi portofolio. Skema ini SENGAJA dipakai per-elemen lewat safeParse di bawah,
+ * bukan sebagai z.array() yang menolak seluruh permintaan.
+ *
+ * Alasannya menjaga perilaku yang sudah ada: route ini dulu MENYARING elemen yang rusak
+ * (`.filter(...)`) alih-alih menolak permintaannya. Mengubahnya jadi penolakan keras akan
+ * mengubah kontrak API di tengah refactor - portofolio 20 posisi yang salah satunya cacat
+ * mendadak gagal total padahal sebelumnya 19 sisanya tetap dianalisis. Yang berubah di
+ * sini hanya SUMBER aturannya: satu skema, bukan predikat inline.
+ */
+const positionSchema = z.object({
+  ticker: z.string().min(1),
+  weight: z.number().finite().positive(),
+});
+
+type PortfolioPosition = z.infer<typeof positionSchema>;
 
 const MAX_POSITIONS = 20;
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const rawPortfolio = Array.isArray(body?.portfolio) ? body.portfolio : [];
+  return runController(async () => {
+    const { portfolio: rawPortfolio } = parseOrThrow(
+      z.object({ portfolio: z.array(z.unknown()).default([]) }),
+      await request.json(),
+    );
     const portfolio: PortfolioPosition[] = rawPortfolio
-      .filter((p: any) => p && typeof p.ticker === 'string' && typeof p.weight === 'number' && p.weight > 0)
+      .map((item) => positionSchema.safeParse(item))
+      .filter((parsed): parsed is { success: true; data: PortfolioPosition } => parsed.success)
+      .map((parsed) => parsed.data)
       .slice(0, MAX_POSITIONS);
 
     if (portfolio.length === 0) {
-      return NextResponse.json({ error: 'Portofolio kosong atau tidak valid' }, { status: 400 });
+      throw new ValidationError('Portofolio kosong atau tidak valid');
     }
 
     const totalWeight = portfolio.reduce((sum, p) => sum + p.weight, 0);
@@ -65,7 +84,7 @@ export async function POST(request: Request) {
     ]);
 
     if (!ihsgData) {
-      return NextResponse.json({ error: 'Data historis IHSG tidak tersedia saat ini' }, { status: 503 });
+      throw new ServiceUnavailableError('Data historis IHSG tidak tersedia saat ini');
     }
 
     const perStock = await Promise.all(
@@ -101,7 +120,7 @@ export async function POST(request: Request) {
     const portfolioBetaIhsg = weightedPortfolioBeta('betaIhsg');
     const portfolioBetaUsdIdr = weightedPortfolioBeta('betaUsdIdr');
 
-    return NextResponse.json({
+    return { status: 200, body: {
       totalWeight: parseFloat(totalWeight.toFixed(1)),
       perStock,
       portfolioBetaIhsg,
@@ -113,9 +132,8 @@ export async function POST(request: Request) {
         usdIdrWeaken1Pct: portfolioBetaUsdIdr != null ? parseFloat((portfolioBetaUsdIdr * 1).toFixed(2)) : null,
       },
       biRateAvailable: false,
-    });
-  } catch (error: any) {
-    console.error('Risk analysis API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    } };
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }

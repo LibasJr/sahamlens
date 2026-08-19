@@ -37,7 +37,7 @@ describe('POST /api/chat/feedback', () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toMatchObject({ ok: true });
     expect(ensureSharedSchema).toHaveBeenCalledOnce();
     expect(pool.query).toHaveBeenCalledOnce();
     expect(vi.mocked(pool.query).mock.calls[0][1]).toEqual(expect.arrayContaining([

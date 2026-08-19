@@ -1,9 +1,11 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { NotFoundError } from '@/shared/errors/app-error';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
 import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
-import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { calculateDcfModel } from '@/modules/fundamental';
 import { getMarketAwareCacheHeaders, CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { getOrCompute } from '@/shared/cache/redis-cache';
@@ -29,10 +31,10 @@ export async function GET(
 ) {
   const budget = await checkPublicComputeBudget(request.headers, 'dcf');
   if (!budget.allowed) return rateLimitExceeded(budget);
-  try {
+
+  return runController(async () => {
     const { ticker: rawTicker } = await params;
-    const ticker = normalizeIdxTickerParam(rawTicker);
-    if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
     // Dibungkus jadi { notFound: true } sebelum di-cache - getOrCompute memperlakukan
     // `null` sebagai cache-miss (selalu dihitung ulang), jadi tanpa pembungkus ini
     // ticker yang datanya memang tidak tersedia akan tetap menembak live tiap request.
@@ -45,7 +47,7 @@ export async function GET(
       },
     );
     if ('notFound' in wrapped) {
-      return NextResponse.json({ error: 'Data DCF tidak tersedia untuk simbol ini' }, { status: 404 });
+      throw new NotFoundError('Data DCF tidak tersedia untuk simbol ini');
     }
 
     const session = await getSession().catch(() => null);
@@ -54,7 +56,7 @@ export async function GET(
     if (isGuest) {
       const rawQuant = wrapped.quant || {};
       const rawProjections = rawQuant.fcf_projections || [];
-      return NextResponse.json(
+      return { status: 200, headers: getMarketAwareCacheHeaders(), body:
         {
           ...wrapped,
           quant: {
@@ -65,20 +67,15 @@ export async function GET(
             is_guest_limited: true,
           },
           is_guest_limited: true,
-        },
-        { headers: getMarketAwareCacheHeaders() }
-      );
+        } };
     }
 
-    return NextResponse.json(
-      {
-        ...wrapped,
-        is_guest_limited: false,
-      },
-      { headers: getMarketAwareCacheHeaders() }
-    );
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return {
+      status: 200,
+      body: { ...wrapped, is_guest_limited: false },
+      headers: getMarketAwareCacheHeaders(),
+    };
+  });
 }

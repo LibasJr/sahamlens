@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 
 type Source = { sourceId: string; status: string; lastSuccessAt: string | null; dataObservedAt: string | null; consecutiveFailures: number };
@@ -13,21 +13,28 @@ function fmt(value: string | null | undefined) {
 }
 
 export default function PublicStatusPage() {
-  const [data, setData] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const res = await fetch('/api/health', { cache: 'no-store' });
-        const json = await res.json();
-        if (active) { setData(json); setError(res.ok ? null : `Health HTTP ${res.status}`); }
-      } catch { if (active) setError('Status belum dapat diambil.'); }
-    };
-    load();
-    const id = setInterval(load, 60_000);
-    return () => { active = false; clearInterval(id); };
-  }, []);
+  // FETCHER KHUSUS, bukan apiFetcher global. /api/health menjawab 503 dengan BODY
+  // DIAGNOSTIK LENGKAP saat sistem degraded (lihat app/api/health/route.ts) - dan justru
+  // body itulah isi halaman ini. apiFetcher melempar pada 503 dan membuang body-nya,
+  // yang akan mengubah halaman status jadi kosong persis ketika ada yang perlu dilihat.
+  //
+  // setInterval 60 detik diganti refreshInterval SWR, yang juga berhenti sendiri saat tab
+  // tersembunyi - dulu polling tetap jalan di tab latar belakang.
+  const { data: probe, error: probeError } = useSWR<{ status: number; json: Health }>(
+    '/api/health',
+    async (url: string) => {
+      const res = await fetch(url, { credentials: 'include' });
+      return { status: res.status, json: (await res.json()) as Health };
+    },
+    { refreshInterval: 60_000, refreshWhenHidden: false, keepPreviousData: true },
+  );
+
+  const data = probe?.json ?? null;
+  const error = probeError
+    ? 'Status belum dapat diambil.'
+    : probe && probe.status !== 200
+      ? `Health HTTP ${probe.status}`
+      : null;
 
   const sources = data?.sources?.items ?? [];
   return (

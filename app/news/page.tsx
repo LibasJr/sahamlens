@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import useSWR from 'swr';
 import { motion } from 'framer-motion';
 import { Newspaper } from 'lucide-react';
 import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
@@ -61,24 +62,31 @@ type SentimentKey = 'ALL' | 'POSITIF' | 'NEGATIF' | 'NETRAL';
 
 export default function NewsPage() {
   const { t, language } = useLanguage();
-  const [newsItems, setNewsItems] = useState<NewsItemDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<SentimentKey>('ALL');
 
-  const loadNews = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    fetch('/api/news', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(t('newsPage.errorTitle')))))
-      .then((d) => setNewsItems(d?.items || []))
-      .catch(() => setError(t('newsPage.errorTitle')))
-      .finally(() => setLoading(false));
-  }, [t]);
+  // SWR menggantikan loadNews + useEffect.
+  //
+  // `cache: 'no-store'` ikut dibuang. Niatnya dulu "jangan tampilkan berita basi", tapi
+  // caranya keliru: ia mematikan cache TANPA menyegarkan apa pun saat pengguna benar-benar
+  // kembali melihat halaman. revalidateOnFocus (lihat lib/api/ApiProvider.tsx) melakukan
+  // hal yang sebenarnya diinginkan.
+  //
+  // Ikut memperbaiki satu bug halus: `loadNews` bergantung pada `t`, jadi MENGGANTI BAHASA
+  // memicu pengambilan ulang seluruh berita - padahal isinya sama saja. Kunci SWR tidak
+  // bergantung pada bahasa, jadi itu tidak lagi terjadi.
+  const {
+    data: newsData,
+    error: newsError,
+    isLoading: loading,
+    mutate: loadNews,
+  } = useSWR<{ items?: NewsItemDto[] }>('/api/news');
 
-  useEffect(() => {
-    loadNews();
-  }, [loadNews]);
+  // useMemo WAJIB di sini, bukan kerapian: `?? []` menghasilkan array BARU setiap render,
+  // dan dua useMemo di bawah bergantung padanya - tanpa ini keduanya dihitung ulang di
+  // setiap render walau beritanya tidak berubah. Ditangkap oleh react-hooks/exhaustive-deps.
+  const newsItems = useMemo(() => newsData?.items ?? [], [newsData]);
+  // Pesan errornya tetap dilokalkan seperti sebelumnya - yang berubah hanya sumbernya.
+  const error = newsError ? t('newsPage.errorTitle') : null;
 
   const filters = useMemo<{ id: SentimentKey; label: string; tone: string }[]>(() => [
     { id: 'ALL', label: t('newsPage.filterAll'), tone: 'border-tv-blue/40 bg-tv-blue/10 text-tv-blue' },
