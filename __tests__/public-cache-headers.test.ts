@@ -52,7 +52,9 @@ function listRouteFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return listRouteFiles(full);
-    return entry.name === 'route.ts' ? [path.relative(REPO_ROOT, full)] : [];
+    // Selalu pisah '/' - di Windows path.relative memakai '\' dan tiap berkas jadi
+    // "pelanggar" palsu karena tidak pernah cocok dengan PUBLIC_CACHEABLE.
+    return entry.name === 'route.ts' ? [path.relative(REPO_ROOT, full).split(path.sep).join('/')] : [];
   });
 }
 

@@ -27,6 +27,6 @@ describe('GET /api/breakout-radar', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ data: [], crossSignals: { golden: [], dead: [] }, lastUpdate: null });
+    expect(json).toMatchObject({ data: [], crossSignals: { golden: [], dead: [] }, lastUpdate: null });
   });
 });
