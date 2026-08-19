@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verifikasi temuan audit SAHAMLENS_QUANT_FINANCIAL_AUDIT_2026.md, dijalankan terhadap
+ * Verifikasi temuan audit docs/audit/SAHAMLENS_QUANT_FINANCIAL_AUDIT_2026.md, dijalankan terhadap
  * kode produksi apa adanya. Skrip ini TIDAK mengubah apa pun.
  *
  *   node docs/audit-2026-08-11/verify-findings.mjs            # C-2 dan C-3 (offline)

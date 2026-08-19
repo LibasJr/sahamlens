@@ -22,7 +22,7 @@ export const MIN_TRADABLE_PRICE_IDR = 50;
  * berjalan saat sinyal berikutnya muncul. Mengalikan ribuan return T+20 secara
  * berurutan seolah-olah satu modal berpindah trade menghasilkan volatility drag
  * (E[log(1+r)] < log(1+E[r])) yang menekan equity ke nol, sehingga drawdown selalu
- * jatuh ke -100% tanpa peduli kualitas sinyal. Lihat DEPLOYMENT.md.
+ * jatuh ke -100% tanpa peduli kualitas sinyal. Lihat docs/operations/DEPLOYMENT.md.
  *
  * Drawdown level portofolio butuh position sizing dan aturan alokasi yang belum ada;
  * sampai itu dibangun, worst-trade adalah angka yang bisa dipertanggungjawabkan.

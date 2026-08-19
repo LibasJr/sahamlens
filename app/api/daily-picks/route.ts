@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
-import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
+import { CACHE_TTL_SEC, CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
 
 // Publik (tanpa login) - dipakai widget "Hari Ini AI Menemukan" di halaman utama (Dashboard.tsx)
 // DAN halaman AI Pick (app/breakout-radar/page.tsx, tab per kategori via ?cat=) untuk
@@ -93,7 +93,7 @@ export async function GET() {
       })), stale: breakoutStale, asOf: breakoutAsOf },
       foreignAccumulation: category(foreignAccumulationList, (s: any) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `${s.streak} hari akumulasi` })),
       timestamp: summary.timestamp,
-    });
+    }, { headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR) });
   } catch (error: any) {
     console.error('Daily picks API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

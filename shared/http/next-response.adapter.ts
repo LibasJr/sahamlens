@@ -46,7 +46,11 @@ function toNextResponse(result: HttpResult, requestId: string, req?: NextRequest
     res.headers.set('X-Request-Id', requestId);
     return applyCookies(res, result);
   }
-  const res = NextResponse.json(withRequestId(result.body, requestId), { status: result.status });
+  const res = NextResponse.json(withRequestId(result.body, requestId), {
+    status: result.status,
+    headers: result.headers,
+  });
+  // Disetel SESUDAH result.headers supaya controller tidak bisa menimpanya, sengaja.
   res.headers.set('X-Request-Id', requestId);
   return applyCookies(res, result);
 }

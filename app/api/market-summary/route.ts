@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
-import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { CACHE_TTL_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
 import { describeCacheAge } from '@/shared/http/freshness';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
@@ -39,7 +39,7 @@ export async function GET() {
     // acuan yang jauh lebih pendek dari TTL sungguhan dan salah label (selalu "FRESH").
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
     const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.MARKET_SUMMARY_CRON);
-    return NextResponse.json({ ...data, _meta });
+    return NextResponse.json({ ...data, _meta }, { headers: publicCacheHeaders(CACHE_TTL_SEC.MARKET_SUMMARY) });
   } catch (error: any) {
     console.error('Market summary API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

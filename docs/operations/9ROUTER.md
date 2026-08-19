@@ -2,7 +2,7 @@
 
 9Router adalah proxy OpenAI-compatible yang merutekan satu request ke banyak provider AI
 sekaligus (Claude/GPT/Gemini/GLM/dst) dengan fallback internal. SahamLens memakainya
-sebagai satu entri provider di `lib/aiProviders.ts` - lihat `DEPLOYMENT.md` bagian
+sebagai satu entri provider di `lib/aiProviders.ts` - lihat `docs/operations/DEPLOYMENT.md` bagian
 "2026-08-13" untuk daftar env var dan keputusan desainnya.
 
 Dokumen ini urutan kerjanya, dari VPS kosong sampai production.

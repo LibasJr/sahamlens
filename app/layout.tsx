@@ -94,7 +94,22 @@ export const viewport: Viewport = {
   ],
 };
 
-const themeBootScript = `(function(){try{var saved=localStorage.getItem('sahamlens_theme');var system=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var theme=saved==='light'||saved==='dark'?saved:system;document.documentElement.classList.add(theme);document.documentElement.style.colorScheme=theme;}catch(e){document.documentElement.classList.add('dark');}})()`;
+// Dijalankan SEBELUM paint pertama, sebelum React menghidrasi apa pun.
+//
+// Bagian bahasa ditambahkan 2026-08-19. Sebelumnya `lang` dikunci "id" di markup dan baru
+// diperbaiki LanguageContext di dalam useEffect - artinya SETELAH hidrasi. Pembaca layar
+// mengumumkan halaman dengan aturan pengucapan Indonesia sampai detik itu, dan bagi
+// pengguna EN nilainya sempat salah pada frame-frame pertama.
+//
+// Dibaca di sini, BUKAN lewat cookies() di server component: `cookies()` menandai seluruh
+// pohon render sebagai dinamis, dan itu akan mencabut prerender statis dari ~40 halaman -
+// harga yang jauh lebih mahal daripada masalah yang diperbaiki. Preferensinya memang milik
+// browser, jadi browser yang membacanya.
+//
+// Markup tetap lahir dengan lang="id" dan itu BENAR: tidak ada jalur render server
+// berbahasa Inggris di aplikasi ini (LanguageProvider seluruhnya 'use client'), jadi HTML
+// yang diterima crawler tanpa JS memang berbahasa Indonesia.
+const bootScript = `(function(){var d=document.documentElement;try{var saved=localStorage.getItem('sahamlens_theme');var system=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var theme=saved==='light'||saved==='dark'?saved:system;d.classList.add(theme);d.style.colorScheme=theme;}catch(e){d.classList.add('dark');}try{var lang=localStorage.getItem('sahamlens_lang');if(lang==='en'||lang==='id')d.lang=lang;}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -103,7 +118,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <head><script dangerouslySetInnerHTML={{ __html: themeBootScript }} /></head>
+      <head><script dangerouslySetInnerHTML={{ __html: bootScript }} /></head>
       <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25`}>
         <AppShell>{children}</AppShell>
       </body>

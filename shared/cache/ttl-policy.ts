@@ -42,6 +42,81 @@ export function getMarketAwareCacheHeaders(now: Date = new Date()): Record<strin
   };
 }
 
+/**
+ * Header cache CDN untuk endpoint baca-saja yang PUBLIK - isinya sama untuk semua orang.
+ *
+ * Sebelum ini hanya 4 dari 101 route yang menyetel Cache-Control sama sekali. Sisanya
+ * sudah rajin memakai Redis, tapi Redis berada DI BELAKANG origin: setiap kunjungan
+ * tetap membangunkan satu function dan satu perjalanan jaringan ke Redis untuk
+ * mengembalikan byte yang identik dengan kunjungan sebelumnya. Dengan header ini
+ * Cloudflare menjawabnya di edge dan origin tidak tersentuh sama sekali.
+ *
+ * Bentuknya sengaja sama dengan getMarketAwareCacheHeaders di atas:
+ *   - `max-age=0` menahan cache PERAMBAN. Angka pasar tidak boleh membeku di layar
+ *     pengguna hanya karena mereka menekan tombol kembali.
+ *   - `s-maxage` hanya ditujukan ke CDN, lewat `CDN-Cache-Control` (RFC 9213, dibaca
+ *     Cloudflare). Header milik Vercel TIDAK dipakai - produksi ada di VPS di belakang
+ *     Cloudflare sejak 2026-08-13, dan header Vercel di sana tidak dibaca siapa pun.
+ *   - `stale-while-revalidate` membuat permintaan pertama SETELAH TTL habis tetap
+ *     dijawab seketika dari salinan lama sementara edge menyegarkan di latar. Tanpa ini
+ *     setiap kedaluwarsa melempar satu pengguna yang tidak beruntung ke origin dingin.
+ *
+ * TTL-nya WAJIB berasal dari CACHE_TTL_SEC, bukan angka baru yang diketik di route -
+ * itu yang mencegah lahirnya sumber kebenaran kedua yang pelan-pelan menyimpang.
+ */
+/**
+ * Batas kesegaran untuk CDN. SENGAJA terpisah dari CACHE_TTL_SEC di bawah, karena
+ * keduanya menjawab pertanyaan yang berbeda dan mencampurnya sudah nyaris membuat
+ * kekeliruan nyata saat header ini pertama dipasang:
+ *
+ *   CACHE_TTL_SEC  = "berapa lama salinan ini masih boleh dipakai kalau TIDAK ADA yang
+ *                    menyegarkannya" - sebuah LANTAI melawan kekosongan. Karena itu
+ *                    MACRO_DASHBOARD bernilai 3 HARI: cron makro berhenti di luar jam
+ *                    bursa, dan lebih baik menyajikan data sesi terakhir yang ditandai
+ *                    umurnya daripada halaman kosong semalaman.
+ *
+ *   CDN_FRESHNESS_SEC = "berapa lama seorang pengunjung boleh melihat salinan ini tanpa
+ *                    kita memeriksa ulang" - sebuah LANGIT-LANGIT kesegaran. Memakai
+ *                    lantai 3 hari itu sebagai TTL CDN akan MEMBEKUKAN dasbor makro
+ *                    selama tiga hari di edge, padahal cron-nya menyegarkan tiap jam.
+ *
+ * Nilainya karena itu diturunkan dari IRAMA CRON yang mengisi cache (lihat
+ * config/scheduled-jobs.json), bukan dari TTL Redis-nya. `stale-while-revalidate`
+ * yang panjang tetap diberikan lewat argumen kedua publicCacheHeaders, sehingga
+ * perilaku "lebih baik lama daripada kosong" tidak hilang - ia hanya pindah ke tempat
+ * yang benar.
+ */
+export const CDN_FRESHNESS_SEC = {
+  // Cron market-pulse: tiap 5 menit selama jam bursa. Setengahnya supaya edge tidak
+  // pernah tertinggal lebih dari satu putaran cron.
+  MARKET_PULSE: 150,
+
+  // Cron macro: `0 9-16 * * 1-5` - sejam sekali. Seperempat jam memberi edge kesempatan
+  // menangkap rilis baru tanpa membanjiri origin.
+  MACRO: 15 * 60,
+
+  // Daftar emiten hanya berubah saat all.csv diperbarui, yaitu saat deploy.
+  EMITEN: 60 * 60,
+
+  // Angka validasi transparansi dihitung dari histori harian, bukan tick intraday.
+  TRANSPARENCY: 30 * 60,
+
+  // Skor LensRadar diisi cron breakout-scan tiap 5 menit selama jam bursa.
+  LENS_RADAR: 150,
+
+  // Deret harga historis untuk chart publik; bar harian tidak berubah intraday.
+  PUBLIC_CHART: 10 * 60,
+} as const;
+
+export function publicCacheHeaders(ttlSec: number, swrSec = ttlSec): Record<string, string> {
+  const ttl = Math.max(0, Math.floor(ttlSec));
+  const swr = Math.max(0, Math.floor(swrSec));
+  return {
+    'Cache-Control': 'public, max-age=0',
+    'CDN-Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${swr}`,
+  };
+}
+
 // BUILD 007 (Cache Layer) - satu titik dokumentasi TTL per domain, sesuai daftar di
 // roadmap ("Redis dengan TTL berbeda per Fundamental/Technical/Market/AI/News/Ticker").
 // Nilai di sini SUDAH mencerminkan angka yang sebelumnya tersebar sebagai magic
