@@ -13,6 +13,7 @@ import { getTickerName } from '@/lib/trendingTickers';
 import { Card, Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
+import { describeFreshness } from '@/shared/presentation/freshness-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { WatchlistHeader } from '@/components/watchlist/WatchlistHeader';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
@@ -346,6 +347,8 @@ export default function WatchlistPage() {
                 const code = item.symbol.replace('.JK', '');
                 const companyName = getTickerName(code);
 
+                const kesegaran = data?._meta ? describeFreshness(data._meta.freshness, data._meta.dataTimestamp) : null;
+
                 const srAnalyzer = data?.analyzers?.find((a: any) => a.label?.includes('Support & Resistance'));
                 const supportMatch = srAnalyzer?.value?.match(/Sup: ([\d.]+)/);
                 const supportTarget = supportMatch ? supportMatch[1] : '';
@@ -421,6 +424,15 @@ export default function WatchlistPage() {
                           ? `Beli: Rp ${item.buy_price.toLocaleString('id-ID')}${item.lot ? ` • ${item.lot} lot` : ''}`
                           : 'harga beli belum diisi'}
                       </span>
+                      {/* Watchlist adalah ruang PEMANTAUAN (PRD §24): angka di sini
+                          dipandangi berulang kali sepanjang hari, jadi umurnya harus
+                          ikut terlihat. Diambil dari payload /api/stock yang sudah
+                          dimuat baris ini - tidak ada request tambahan. */}
+                      {kesegaran && (
+                        <span className={`text-[10px] ${kesegaran.tone}`} title={kesegaran.detail}>
+                          {kesegaran.shortLabel}
+                        </span>
+                      )}
                     </div>
 
                     <div className="shrink-0 w-20 text-right">

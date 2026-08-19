@@ -20,6 +20,8 @@ import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getSession } from '@/modules/user';
 import { cookies } from 'next/headers';
 import { getAnalyzerDirectionLabel, getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
+import { susunTemuanDimensi, type TemuanDimensi } from '@/shared/presentation/stock-brief';
+import { describeFreshness } from '@/shared/presentation/freshness-labels';
 
 
 
@@ -138,6 +140,14 @@ function sinyalDariAnalyzer(decision: string): 'BUY' | 'SELL' | 'HOLD' {
 // membocorkan seluruh breakdown analyzer kepada pengunjung yang belum masuk.
 // Gunakan nama indikator, bukan posisi array, karena urutan dari API dapat berubah.
 const GUEST_VISIBLE_ANALYZER_KEYWORDS = ['EMA', 'RSI', 'MA Trend'];
+
+const ARAH_PENANDA: Record<TemuanDimensi['arah'], { simbol: string; tone: string; teks: string }> = {
+  // Simbol SELALU didampingi teks arah di `sr-only` - status tidak pernah hanya lewat
+  // warna maupun hanya lewat bentuk panah.
+  BULLISH: { simbol: '↑', tone: 'text-tv-green', teks: 'condong positif' },
+  BEARISH: { simbol: '↓', tone: 'text-tv-red', teks: 'condong negatif' },
+  NEUTRAL: { simbol: '→', tone: 'text-tv-muted', teks: 'netral' },
+};
 
 function isGuestVisibleAnalyzer(label: unknown): boolean {
   const normalizedLabel = typeof label === 'string' ? label : '';
@@ -280,6 +290,52 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     : kategoriTone === 'negative' ? 'text-tv-red'
     : 'text-tv-yellow';
 
+  // Semuanya dari payload yang SAMA (lihat getKonsensusData di atas) - tidak ada
+  // pengambilan data tambahan untuk blok ringkasan.
+  const harga: number | null = typeof data.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price)
+    ? data.stock.current_price
+    : null;
+  const perubahanPct: number | null = typeof data.stock?.change_pct === 'number' && Number.isFinite(data.stock.change_pct)
+    ? data.stock.change_pct
+    : null;
+  const coveragePct: number | null = typeof data.scoring?.coverage_pct === 'number' ? Math.round(data.scoring.coverage_pct) : null;
+
+  /** Skor kelompok dinormalkan ke 0-100 memakai bobot yang BENAR-BENAR punya data.
+   *
+   * Penyebutnya `available_max`, bukan bobot yang dideklarasikan (40/30/30). Itu bukan
+   * pilihan gaya: `combine()` di scoring.service.ts sudah menormalkan skor kelompok atas
+   * bobot yang tersedia, jadi `technical_score / 40` hanya benar saat coverage 100% dan
+   * meremehkan kelompok berdata lengkap di semua kasus lain (temuan H-03 audit
+   * kuantitatif 2026-08-11 - kesalahan yang sama pernah membuat calibration lab memilih
+   * bobot di atas model yang salah spesifikasi).
+   *
+   * Kelompok tanpa data sama sekali (availableMax 0) menghasilkan null, bukan 0: nol
+   * berarti "dinilai dan hasilnya nol", dan itu klaim yang tidak kita punya. */
+  const normalkanSkorKelompok = (skorKelompok: unknown, bobotTersedia: unknown): number | null => {
+    if (typeof skorKelompok !== 'number' || !Number.isFinite(skorKelompok)) return null;
+    if (typeof bobotTersedia !== 'number' || !Number.isFinite(bobotTersedia) || bobotTersedia <= 0) return null;
+    return Math.round((skorKelompok / bobotTersedia) * 100);
+  };
+
+  // Tiga kelompok, bukan empat. LensScore memang terdiri dari Technical / Fundamental /
+  // Flow; "Valuation" adalah SUB-faktor di dalam Fundamental (scoring.detail.valuasi),
+  // bukan kelompok sejajar. Menampilkannya berdampingan seolah setara akan menyatakan
+  // pembobotan yang tidak dipakai model mana pun. Valuasi punya halamannya sendiri
+  // (tab Valuation) dan label konsensusnya sendiri di /fundamental.
+  const subSkor: { label: string; nilai: number | null }[] = data.scoring
+    ? [
+        { label: 'Technical', nilai: normalkanSkorKelompok(data.scoring.technical_score, data.scoring.available_max?.technical) },
+        { label: 'Fundamental', nilai: normalkanSkorKelompok(data.scoring.fundamental_score, data.scoring.available_max?.fundamental) },
+        { label: 'Flow', nilai: normalkanSkorKelompok(data.scoring.flow_score, data.scoring.available_max?.flow) },
+      ]
+    : [];
+
+  /** Umur data ditampilkan apa adanya, termasuk saat basi (PRD §36). Kalimatnya sama
+   *  persis dengan permukaan lain yang menampilkan kesegaran - lihat
+   *  shared/presentation/freshness-labels.ts. */
+  const kesegaran = describeFreshness(data._meta?.freshness, data._meta?.dataTimestamp);
+
+  const temuan = susunTemuanDimensi(dimensi);
   const directionGap = bullPct - bearPct;
   const primaryRead = directionGap >= 20
     ? 'Arah teknikal lebih banyak condong positif, tetapi keselarasan analyzer tetap perlu dibaca bersama tren, volume, dan risiko.'
@@ -289,6 +345,9 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
 
   return (
     <div className="space-y-6">
+      {/* KESIMPULAN -> ALASAN -> BUKTI (PRD §16-17).
+          Harga, LensScore, dan rincian kelompoknya SEMUANYA berasal dari payload
+          /api/stock yang sudah diambil di atas - blok ini tidak menambah satu request pun. */}
       <section aria-labelledby="technical-brief-title" className="border-y border-tv-border/70 py-5">
         <div className="lens-meta mb-1.5 font-bold uppercase tracking-[0.16em] text-tv-muted">Ringkasan sebelum indikator</div>
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -298,12 +357,77 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           </div>
           <div className="lens-meta font-semibold text-tv-green">Rule-based · dapat diaudit</div>
         </div>
+
+        {/* Harga & skor berdampingan: dua angka yang paling dicari, sebelum apa pun. */}
+        <div className="mt-4 flex flex-wrap items-end gap-x-10 gap-y-4">
+          <div>
+            <div className="lens-meta font-semibold text-tv-muted">Harga</div>
+            {harga != null ? (
+              <>
+                <div className="lens-metric-lg mt-1 text-tv-text">Rp{harga.toLocaleString('id-ID')}</div>
+                {perubahanPct != null && (
+                  <div className={`mt-1 font-number text-sm font-bold ${perubahanPct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                    {perubahanPct >= 0 ? '+' : ''}{perubahanPct.toFixed(2)}%
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="mt-1 text-sm text-tv-muted">Harga tidak tersedia dari sumber data</div>
+            )}
+          </div>
+          <div>
+            <div className="lens-meta font-semibold text-tv-muted">LensScore</div>
+            <div className="lens-metric-lg mt-1 text-tv-text">
+              {skor ?? 'N/A'}{skor != null && <span className="lens-meta font-medium text-tv-muted"> / 100</span>}
+            </div>
+            <div className={`mt-1 text-sm font-bold ${warnaKategori}`}>{kategoriLabel}</div>
+            {/* Penyangkalan ini menempel pada SKORNYA, bukan disimpan di paragraf jauh di
+                bawah. Label seperti "BUY" dibaca sebagai ajakan transaksi kalau tidak ada
+                yang menyanggahnya di tempat yang sama - dan model ini belum lolos
+                validasi backtest out-of-sample. */}
+            <div className="mt-0.5 text-xs text-tv-muted">Informasi riset, bukan probabilitas harga.</div>
+          </div>
+        </div>
+
+        {/* Rincian kelompok LensScore. Penyebutnya `available_max`, BUKAN bobot yang
+            dideklarasikan - lihat temuan H-03 di scoring.service.ts: membagi dengan
+            40/30/30 saat coverage < 100% meremehkan kelompok yang datanya justru lengkap.
+            Kelompok tanpa data sama sekali ditulis N/A, bukan 0. */}
+        {subSkor.length > 0 && (
+          <div className="mt-4 grid grid-cols-3 border-y border-tv-border/60 sm:divide-x sm:divide-tv-border/60">
+            {subSkor.map((bagian, index) => (
+              <div key={bagian.label} className={index === 0 ? 'py-3 sm:pr-4' : index === subSkor.length - 1 ? 'py-3 pl-3 sm:pl-4' : 'py-3 pl-3 sm:px-4'}>
+                <div className="lens-meta font-semibold text-tv-muted">{bagian.label}</div>
+                <div className="lens-metric mt-1 text-tv-text">
+                  {bagian.nilai ?? 'N/A'}{bagian.nilai != null && <span className="lens-meta font-medium text-tv-muted"> / 100</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {temuan.length > 0 && (
+          <ul className="mt-5 space-y-4">
+            {temuan.map((item) => {
+              const penanda = ARAH_PENANDA[item.arah];
+              return (
+                <li key={item.judul} className="flex gap-3">
+                  <span aria-hidden="true" className={`mt-0.5 shrink-0 font-number text-base font-bold ${penanda.tone}`}>{penanda.simbol}</span>
+                  <div className="min-w-0">
+                    <div className="lens-label text-tv-text">
+                      {item.judul}
+                      <span className="sr-only"> ({penanda.teks})</span>
+                    </div>
+                    <p className="mt-0.5 text-sm leading-relaxed text-tv-muted">{item.bukti}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
         <div className="mt-4 grid border-y border-tv-border/60 sm:grid-cols-3 sm:divide-x sm:divide-tv-border/60">
           <div className="py-3 sm:pr-4">
-            <div className="lens-meta font-semibold text-tv-muted">LensScore</div>
-            <div className="mt-1 font-number text-xl font-bold text-tv-text">{skor ?? 'N/A'}{skor != null && <span className="text-xs font-medium text-tv-muted">/100</span>}</div>
-          </div>
-          <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:px-4">
             <div className="lens-meta font-semibold text-tv-muted">Keselarasan arah</div>
             <div className="mt-1 flex items-baseline gap-2 font-number text-sm font-bold">
               <span className="text-tv-green">{bullPct}% positif</span>
@@ -311,10 +435,16 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               <span className="text-tv-red">{bearPct}% negatif</span>
             </div>
           </div>
+          <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:px-4">
+            <div className="lens-meta font-semibold text-tv-muted">Kelengkapan data</div>
+            <div className="mt-1 text-sm font-bold text-tv-text">{coveragePct != null ? `${coveragePct}%` : 'N/A'}</div>
+            <div className="mt-0.5 text-xs text-tv-muted">Bagian bobot skor yang benar-benar punya data.</div>
+          </div>
+          {/* Trust metadata (PRD §36): umur data ditulis apa adanya, termasuk saat basi. */}
           <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:pl-4">
-            <div className="lens-meta font-semibold text-tv-muted">Status model</div>
-            <div className={`mt-1 text-sm font-bold ${warnaKategori}`}>{kategoriLabel}</div>
-            <div className="mt-0.5 text-xs text-tv-muted">Informasi riset, bukan probabilitas harga.</div>
+            <div className="lens-meta font-semibold text-tv-muted">Kesegaran data</div>
+            <div className={`mt-1 text-sm font-bold ${kesegaran.tone}`}>{kesegaran.label}</div>
+            <div className="mt-0.5 text-xs text-tv-muted">{kesegaran.detail}</div>
           </div>
         </div>
       </section>
@@ -562,8 +692,23 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             (data/foreign-flow/, lihat modules/market/service/idx-foreign-flow.service.ts);
             emiten yang artefaknya belum tersinkron otomatis jatuh ke proxy CMF Yahoo
             dengan label berbeda. IHSG dikecualikan: indeks bukan emiten, Bursa tidak
-            mencatat ForeignBuy/ForeignSell untuknya. */}
-        {!isIndex && <BandarFlowPro symbol={symbol} />}
+            mencatat ForeignBuy/ForeignSell untuknya.
+
+            Jangkarnya dipasang di <section> ini, BUKAN di dalam BandarFlowPro: panel itu
+            merender tiga pohon berbeda (memuat / gagal / data), jadi id di dalamnya akan
+            hilang persis saat tautan "Flow" paling mungkin diklik - selama data masih
+            dimuat. `lens-anchor-offset` mencegah header sticky menutupi judulnya. */}
+        {!isIndex && (
+          <section id="lens-flow" aria-labelledby="lens-flow-title" className="lens-anchor-offset">
+            <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Flow</div>
+            <h2 id="lens-flow-title" className="font-heading text-lg font-bold text-tv-text">Arus dana asing {code}</h2>
+            <p className="mb-3 mt-1 max-w-2xl text-sm text-tv-muted">
+              Net asing, partisipasi, dan pola akumulasi/distribusi. Sumber resmi Bursa
+              ditandai terpisah dari sinyal proxy - keduanya tidak dibaca dengan bobot yang sama.
+            </p>
+            <BandarFlowPro symbol={symbol} />
+          </section>
+        )}
 
         {!isIndex && SHOW_BROKER_DISTRIBUTION_PANEL && (
           <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>

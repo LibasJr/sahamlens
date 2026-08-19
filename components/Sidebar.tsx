@@ -42,7 +42,6 @@ import {
   Waves,
   Zap,
 } from 'lucide-react';
-import { defaultTicker, getTickerName } from '@/lib/trendingTickers';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { isProtectedPage } from '@/shared/constants/access';
 import { useLanguage } from '@/lib/i18n';
@@ -51,7 +50,7 @@ import { apiRequest } from '@/shared/http/api-client';
 
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
-interface NavItem {
+export interface NavItem {
   id: string;
   name: string;
   subtitle: string;
@@ -60,6 +59,11 @@ interface NavItem {
   guest?: boolean;
   live?: boolean;
   accent?: 'blue' | 'purple' | 'green' | 'gold';
+  /** Nama event window yang dikirim saat diklik, untuk kemampuan yang berupa panel dan
+   *  bukan halaman. Item ber-`action` dirender sebagai tombol, bukan tautan - menautkan
+   *  sesuatu yang tidak punya URL adalah janji yang tidak bisa ditepati (tautan yang
+   *  bisa dibuka di tab baru, di-bookmark, atau dibagikan). */
+  action?: string;
 }
 
 interface NavGroup {
@@ -68,7 +72,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'overview',
     label: 'Utama',
@@ -108,6 +112,15 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'intelligence',
     label: 'Intelligence',
     items: [
+      // LensAI ada di daftar ini karena arsitektur navigasi menempatkannya di
+      // INTELLIGENCE (PRD §7) - kemampuan yang hanya bisa ditemukan lewat tombol
+      // melayang praktis tidak ditemukan sama sekali oleh pengguna baru.
+      //
+      // `action` alih-alih `path`: LensAI adalah PANEL, bukan halaman. Versi sebelumnya
+      // menyiasatinya dengan menautkannya ke /technical/<ticker terakhir> - tautan yang
+      // membuka halaman yang berbeda dari namanya. Item beraksi membuka panelnya
+      // langsung, dari halaman mana pun, tanpa memindahkan pengguna.
+      { id: 'lensai', name: 'LensAI Research', subtitle: 'Tanya konteks, risiko, dan alasan di balik angka', path: '', icon: Sparkles, guest: true, accent: 'purple', action: 'open-ai-chat' },
       { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar dan konteks sentimen terbaru', path: '/news', icon: Newspaper, guest: true },
       { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, earnings, dan aksi korporasi', path: '/calendar', icon: CalendarDays, guest: true },
       { id: 'macro', name: 'Macro', subtitle: 'Konteks ekonomi makro Indonesia', path: '/macro', icon: Waves },
@@ -150,8 +163,12 @@ const ACCENT_CLASS: Record<NonNullable<NavItem['accent']>, string> = {
   gold: 'text-tv-yellow bg-tv-yellow/10',
 };
 
-function isPathActive(pathname: string, item: NavItem) {
-  if (item.id === 'lensai') return pathname.startsWith('/technical/');
+export function isPathActive(pathname: string, item: NavItem) {
+  // Item beraksi tidak punya rute, jadi tidak pernah "sedang dibuka". Ini bukan detail
+  // kosmetik: `item.path` mereka string kosong, dan `pathname.startsWith('/')` bernilai
+  // benar untuk SETIAP halaman - tanpa penjaga ini LensAI akan tampak aktif di seluruh
+  // aplikasi sekaligus, dan grupnya ikut terbuka paksa di setiap navigasi.
+  if (item.action) return false;
   if (item.path === '/') return pathname === '/';
   return pathname === item.path || pathname.startsWith(`${item.path}/`);
 }
@@ -162,19 +179,10 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { loading: authLoading, user, resolved: authResolved, effectiveRole } = useAuthUser();
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
-  const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, research: true, tools: false, intelligence: false, admin: false });
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem('last_searched_ticker');
-    if (saved) {
-      const symbol = saved.replace('.JK', '').toUpperCase();
-      setCouncilTicker({ symbol, name: getTickerName(symbol) });
-    }
-  }, [pathname]);
 
   useEffect(() => {
     apiRequest<any>('/api/admin-status')
@@ -360,47 +368,42 @@ export default function Sidebar() {
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const localized = getLocalizedItem(item.id, item.name, item.subtitle);
-                    const targetHref = item.id === 'lensai' ? `/technical/${councilTicker.symbol}.JK` : item.path;
                     const active = isPathActive(pathname, item);
                     const lockedForGuest = !authLoading && authResolved && !user && role === 'guest' && isProtectedPage(item.path);
                     const href = lockedForGuest
-                      ? `/login-required?next=${encodeURIComponent(targetHref)}&feature=${encodeURIComponent(localized.name)}`
-                      : targetHref;
+                      ? `/login-required?next=${encodeURIComponent(item.path)}&feature=${encodeURIComponent(localized.name)}`
+                      : item.path;
                     const Icon = item.icon;
                     const accentClass = item.accent ? ACCENT_CLASS[item.accent] : 'text-white/45 bg-white/[0.03]';
-                    return (
-                      <Link
-                        key={item.id}
-                        href={href}
-                        title={lockedForGuest ? `${localized.name} - ${t('nav.loginRequired')}` : localized.name}
-                        aria-label={lockedForGuest ? `${localized.name}, ${t('nav.loginRequired')}` : localized.name}
-                        onClick={() => setIsOpen(false)}
-                        onMouseEnter={(event) => {
-                          if (!isCollapsed) return;
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          setHoveredNav({
-                            label: localized.name,
-                            top: rect.top + rect.height / 2,
-                            locked: lockedForGuest,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredNav(null)}
-                        onFocus={(event) => {
-                          if (!isCollapsed) return;
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          setHoveredNav({
-                            label: localized.name,
-                            top: rect.top + rect.height / 2,
-                            locked: lockedForGuest,
-                          });
-                        }}
-                        onBlur={() => setHoveredNav(null)}
-                        className={`group relative flex min-h-14 items-center rounded-xl md:min-h-[46px] transition-all duration-200 ${
-                          isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
-                        } ${active ? 'bg-white/[0.075] text-white' : 'text-white/70 hover:bg-white/[0.045] hover:text-white'} ${
-                          lockedForGuest ? 'cursor-pointer' : ''
-                        }`}
-                      >
+                    // Item beraksi (mis. LensAI) memakai markup yang SAMA persis dengan item
+                    // bertautan. Yang berbeda hanya elemen terluarnya: tombol untuk yang
+                    // membuka panel, tautan untuk yang memang punya URL. Dipisah begini supaya
+                    // gaya keduanya tidak bisa menyimpang diam-diam.
+                    const sharedProps = {
+                      title: lockedForGuest ? `${localized.name} - ${t('nav.loginRequired')}` : localized.name,
+                      'aria-label': lockedForGuest ? `${localized.name}, ${t('nav.loginRequired')}` : localized.name,
+                      onMouseLeave: () => setHoveredNav(null),
+                      onBlur: () => setHoveredNav(null),
+                      className: `group relative flex w-full min-h-14 items-center rounded-xl text-left md:min-h-[46px] transition-all duration-200 ${
+                        isCollapsed ? 'md:justify-center md:px-0 px-2.5' : 'px-2.5'
+                      } ${active ? 'bg-white/[0.075] text-white' : 'text-white/70 hover:bg-white/[0.045] hover:text-white'} ${
+                        lockedForGuest ? 'cursor-pointer' : ''
+                      }`,
+                    };
+                    const hoverProps = {
+                      onMouseEnter: (event: React.MouseEvent<HTMLElement>) => {
+                        if (!isCollapsed) return;
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setHoveredNav({ label: localized.name, top: rect.top + rect.height / 2, locked: lockedForGuest });
+                      },
+                      onFocus: (event: React.FocusEvent<HTMLElement>) => {
+                        if (!isCollapsed) return;
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setHoveredNav({ label: localized.name, top: rect.top + rect.height / 2, locked: lockedForGuest });
+                      },
+                    };
+                    const isi = (
+                      <>
                         {active && (
                           <motion.span
                             layoutId="sidebar-active"
@@ -427,6 +430,38 @@ export default function Sidebar() {
                             <LockKeyhole className="h-2.5 w-2.5" aria-hidden="true" />
                           </span>
                         )}
+                      </>
+                    );
+
+                    if (item.action) {
+                      const eventName = item.action;
+                      return (
+                        <Button
+                          key={item.id}
+                          variant="bare"
+                          size="none"
+                          type="button"
+                          {...sharedProps}
+                          {...hoverProps}
+                          onClick={() => {
+                            setIsOpen(false);
+                            window.dispatchEvent(new Event(eventName));
+                          }}
+                        >
+                          {isi}
+                        </Button>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={item.id}
+                        href={href}
+                        {...sharedProps}
+                        {...hoverProps}
+                        onClick={() => setIsOpen(false)}
+                      >
+                        {isi}
                       </Link>
                     );
                   })}

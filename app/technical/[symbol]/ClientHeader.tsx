@@ -30,5 +30,11 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
     router.push(`/technical/${encodeURIComponent(routeSymbol)}`);
   };
 
-  return <Header currentTicker={symbol === '^JKSE' ? 'IHSG' : symbol.replace('.JK', '')} onTickerChange={handleTickerChange} />;
+  return (
+    <Header
+      currentTicker={symbol === '^JKSE' ? 'IHSG' : symbol.replace('.JK', '')}
+      onTickerChange={handleTickerChange}
+      stockNav
+    />
+  );
 }

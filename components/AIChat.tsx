@@ -24,6 +24,7 @@ const ReactMarkdown = dynamic(
 import { usePathname } from 'next/navigation';
 import { getTickerName } from '@/lib/trendingTickers';
 import { apiRequest } from '@/shared/http/api-client';
+import { ApiErrorHint } from '@/components/ui/ApiErrorHint';
 
 type ChatDataProvenance = {
   sourceLabel: string;
@@ -42,6 +43,10 @@ type ChatMessage = {
   content: string;
   routing?: ChatRouting;
   feedback?: 'up' | 'down';
+  /** X-Request-Id dari respons yang GAGAL. Dipisah dari `content` supaya kalimat
+   *  errornya tetap terbaca manusia, sementara referensinya bisa disalin utuh ke
+   *  laporan dukungan. Null/absen untuk jawaban yang berhasil. */
+  supportRequestId?: string | null;
 };
 
 
@@ -312,13 +317,19 @@ export default function AIChat() {
           || fallbackByCode[data?.errorCode]
           || data?.error
           || 'Maaf, LensAI belum dapat memproses pertanyaan ini.';
+        // Setiap respons runController membawa X-Request-Id. Jalur ini memakai fetch
+        // mentah (streaming NDJSON), jadi ApiClientError tidak pernah terbentuk dan
+        // referensinya harus diambil sendiri dari header - tanpa ini, kegagalan LensAI
+        // adalah satu-satunya error di aplikasi yang tidak bisa ditelusuri di log.
+        const supportRequestId = res.headers.get('X-Request-Id')
+          || (typeof data?.meta?.requestId === 'string' ? data.meta.requestId : null);
         // Hanya kegagalan PENYEDIA yang mematikan lampu status. Kuota habis, perlu
         // login, atau data kurang bukan berarti AI-nya mati - menyamakannya akan
         // membuat lampu itu berbohong ke arah sebaliknya.
         if (data?.detailCode === 'NO_PROVIDER_CONFIGURED' || data?.detailCode === 'PROVIDER_AUTH_ERROR') {
           setPenyediaSiap(false);
         }
-        setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: safeMessage }]);
+        setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: safeMessage, supportRequestId }]);
         return;
       }
 
@@ -411,9 +422,17 @@ export default function AIChat() {
                 <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-tv-border bg-tv-surface/80">
                   <Bot className="w-7 h-7 text-tv-blue" />
                 </div>
-                <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
+                {/* Layar pembuka mengikuti konteks, bukan menyapa (PRD §22). Saat pengguna
+                    sedang membuka satu emiten, judulnya menyebut emiten itu - jadi jelas
+                    pertanyaannya akan dijawab tentang apa, tanpa harus menuliskan kodenya
+                    lagi di kotak input. */}
+                <h4 className="font-heading text-lg font-bold text-tv-text">
+                  {activeSymbol ? `Tanyakan tentang ${activeSymbol}` : 'LensAI Research'}
+                </h4>
                 <p className="max-w-xs text-base leading-relaxed text-tv-muted sm:text-sm">
-                  Tanyakan apa yang penting dari saham yang sedang Anda lihat. LensAI membantu menjelaskan konteks, risiko, dan alasan di balik angka — lalu menunjukkan sumber data yang dipakai.
+                  {activeSymbol
+                    ? `Konteks, risiko, dan alasan di balik angka ${activeSymbol} — beserta sumber data yang dipakai untuk menjawabnya.`
+                    : 'Tanyakan kondisi pasar, kandidat LensRadar, atau cara sebuah skor dihitung. LensAI menjelaskan konteks dan risikonya, lalu menunjukkan sumber data yang dipakai.'}
                 </p>
                 <div className="mt-4 flex w-full max-w-xs flex-col gap-2">
                   {starters.map((starter) => (
@@ -442,6 +461,7 @@ export default function AIChat() {
                         ) : (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
                         )}
+                        <ApiErrorHint requestId={msg.supportRequestId} />
                         {msg.routing?.dataProvenance && (
                           <p className="mt-3 border-t border-white/[0.07] pt-2 text-[10px] leading-relaxed text-tv-muted">
                             {msg.routing.dataProvenance.sourceLabel}

@@ -24,13 +24,21 @@ export interface ChatStarter {
   prompt: string;
 }
 
-/** Emiten sedang dibuka: contoh diarahkan ke emiten itu. */
+/** Emiten sedang dibuka: contoh diarahkan ke emiten itu.
+ *
+ * LABELNYA SEKARANG PERTANYAAN, bukan nama topik (redesign v2, PRD §22). "Fundamental
+ * BBCA" memberi tahu pengguna kategori yang tersedia; "Valuasi BBCA mahal atau tidak?"
+ * memberi tahu apa yang akan ia dapat. Keduanya mengirim prompt yang sama-sama punya
+ * jalur data, tetapi yang kedua tidak menuntut pembaca merumuskan pertanyaannya sendiri
+ * lebih dulu - dan itulah hambatan sesungguhnya di layar kosong.
+ *
+ * Panjang label tetap dijaga <= 28 karakter oleh test supaya muat di panel sempit. */
 export function tickerStarters(symbol: string): ChatStarter[] {
   return [
-    { label: `Fundamental ${symbol}`, prompt: `${symbol} fundamentalnya gimana?` },
-    { label: `Teknikal ${symbol}`, prompt: `Teknikal ${symbol} gimana sekarang?` },
-    { label: `Dividen ${symbol}`, prompt: `Dividen ${symbol} gimana?` },
-    { label: `Arus dana ${symbol}`, prompt: `${symbol} lagi diakumulasi atau didistribusi?` },
+    { label: `Fundamental ${symbol}?`, prompt: `${symbol} fundamentalnya gimana?` },
+    { label: 'Valuasinya mahal?', prompt: `Valuasi ${symbol} mahal atau murah sekarang?` },
+    { label: 'Apa risikonya?', prompt: `Apa risiko ${symbol} sekarang?` },
+    { label: 'Diakumulasi bandar?', prompt: `${symbol} lagi diakumulasi atau didistribusi?` },
   ];
 }
 

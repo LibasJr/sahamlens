@@ -1417,6 +1417,45 @@ html.lens-battery-saver .sahamlens-signal-track {
   letter-spacing: -0.01em;
 }
 
+/* Sasaran tautan dalam-halaman. Header modul ber-`sticky top-0`, dan pada halaman emiten
+ * ia membawa baris kedua berisi navigasi sudut pandang - totalnya sekitar 132px, lebih
+ * tinggi lagi di layar sempit tempat header menumpuk vertikal. Tanpa offset ini, judul
+ * bagian yang dilompati berhenti persis DI BAWAH header dan yang pertama terlihat justru
+ * isinya, bukan judulnya.
+ *
+ * Dilebihkan sedikit dengan sengaja: kelebihan ruang di atas judul tidak merugikan,
+ * sedangkan kekurangannya menyembunyikan judul itu sepenuhnya. `scroll-margin-top`
+ * menyelesaikannya di CSS - tidak perlu JavaScript penggulir. */
+.lens-anchor-offset {
+  scroll-margin-top: 140px;
+}
+
+/* Angka keuangan. Mono karena lebar digitnya seragam: kolom harga/skor tidak bergoyang
+ * saat nilainya berubah, dan angka yang berdampingan tetap sejajar per digit.
+ *
+ * `font-variant-numeric: tabular-nums` disebut eksplisit meski JetBrains Mono sudah
+ * monospace - fallback stack-nya (Consolas, lalu `monospace` generik milik OS) tidak
+ * dijamin begitu, dan justru fallback itulah yang dipakai saat font gagal dimuat. */
+.lens-metric {
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 1.125rem;
+  line-height: 1.2;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.lens-metric-lg {
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 @media (min-width: 640px) {
   .lens-card-title { font-size: 1rem; }
+  .lens-metric { font-size: 1.25rem; }
+  .lens-metric-lg { font-size: 1.875rem; }
 }

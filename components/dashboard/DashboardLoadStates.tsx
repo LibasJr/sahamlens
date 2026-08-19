@@ -21,6 +21,7 @@ export function DashboardLoadingState(props: SharedProps) {
         onTickerChange={props.setTicker}
         moduleTitle="LensTechnical"
         moduleBank="LENSTECHNICAL"
+        stockNav
         analisaRemaining={props.analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={props.isAdminUser}
@@ -62,6 +63,7 @@ export function DashboardEmptyState(props: SharedProps & {
         onTickerChange={setTicker}
         moduleTitle="LensTechnical"
         moduleBank="LENSTECHNICAL"
+        stockNav
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}

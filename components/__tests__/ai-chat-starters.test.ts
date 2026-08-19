@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from '../ai-chat-starters';
 import fixtures from '@/app/api/chat/__tests__/fixtures/lensai-questions.json';
+import { classifyChatIntent } from '@/modules/ai/chat/chat-intent';
 
 describe('simbol emiten dari URL', () => {
   it.each([
@@ -37,6 +38,33 @@ describe('contoh pembuka', () => {
     for (const starter of MARKET_STARTERS) {
       expect(starter.prompt.trim().length).toBeGreaterThan(0);
       expect(starter.label.length).toBeLessThanOrEqual(28);
+    }
+  });
+
+  /**
+   * Gerbang yang sebenarnya menjaga janji berkas starter: "setiap contoh HARUS punya
+   * jalur data nyata". Pemeriksaan fixture di bawah hanya memastikan INTENT-nya diuji;
+   * ia tidak pernah melihat kalimat yang benar-benar dikirim tombolnya. Jadi contoh
+   * yang ditulis ulang - persis yang terjadi saat label diubah menjadi pertanyaan -
+   * bisa berhenti terklasifikasi tanpa satu pun test memerah.
+   *
+   * Di sini prompt aslinya dijalankan lewat classifier produksi. UNKNOWN dan
+   * OUT_OF_SCOPE berarti tombolnya akan menjawab "belum bisa saya bantu" - kegagalan
+   * yang paling mahal, karena pengguna mencobanya pada percobaan pertamanya.
+   */
+  const INTENT_TANPA_DATA = ['UNKNOWN', 'OUT_OF_SCOPE', 'SMALL_TALK'];
+
+  it('setiap contoh emiten benar-benar terklasifikasi ke intent berdata', () => {
+    for (const starter of tickerStarters('BBCA')) {
+      const { intent } = classifyChatIntent({ prompt: starter.prompt, tickerCount: 1, hasHistory: false, history: [] });
+      expect(INTENT_TANPA_DATA, `"${starter.prompt}" -> ${intent}`).not.toContain(intent);
+    }
+  });
+
+  it('setiap contoh pasar benar-benar terklasifikasi ke intent berdata', () => {
+    for (const starter of MARKET_STARTERS) {
+      const { intent } = classifyChatIntent({ prompt: starter.prompt, tickerCount: 0, hasHistory: false, history: [] });
+      expect(INTENT_TANPA_DATA, `"${starter.prompt}" -> ${intent}`).not.toContain(intent);
     }
   });
 
