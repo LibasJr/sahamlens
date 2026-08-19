@@ -78,7 +78,7 @@
       "provider": "qstash",
       "schedule": "*/5 9-15 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id - didaftarkan pengguna 2026-08-14 mengikuti instruksi DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan."
+      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id - didaftarkan pengguna 2026-08-14 mengikuti instruksi docs/operations/DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan."
     },
     {
       "path": "/api/cron/recommendation-scan",

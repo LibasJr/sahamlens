@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/modules/user';
 import { checkAiAccountBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
+import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 
 // BUG FIX (2026-08-01): dulu prompt ini merangkai "kondisi akun & pasar" (cash, jumlah
 // posisi) - Beranda sekarang sengaja tidak lagi menampilkan portofolio (SahamLens
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
   if (!budget.allowed) return rateLimitExceeded(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
   const input = (await req.json()) as BriefingInput;
-  const isEn = input.lang === 'en' || req.cookies.get('sahamlens_lang')?.value === 'en';
+  const isEn = input.lang === 'en' || req.cookies.get(LANG_COOKIE)?.value === 'en';
 
   if (!hasAnyAIProvider()) {
     return NextResponse.json({ briefing: fallbackBriefing(input, isEn), source: 'fallback' });

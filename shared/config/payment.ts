@@ -1,7 +1,7 @@
 // Nomor pembayaran (DANA/GoPay/bank) untuk upgrade Pro - dibaca dari env var
 // NEXT_PUBLIC_PAYMENT_* (client-safe, di-inline saat build oleh Next.js).
 // Nilai asli HANYA ada di Vercel dashboard + .env.local lokal (gitignored),
-// TIDAK PERNAH ditulis di file manapun yang ter-commit - lihat DEPLOYMENT.md
+// TIDAK PERNAH ditulis di file manapun yang ter-commit - lihat docs/operations/DEPLOYMENT.md
 // untuk daftar nama variabelnya.
 //
 // Metode yang env var-nya tidak lengkap (kosong/belum di-set) dilewati, bukan

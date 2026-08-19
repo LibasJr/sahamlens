@@ -1,11 +1,22 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { Globe, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
-import OwnershipFlowChart, { type OwnershipSeriesPoint } from './OwnershipFlowChart';
+import { type OwnershipSeriesPoint } from './OwnershipFlowChart';
+
+// Tipe di atas diimpor biasa (dihapus saat kompilasi, tidak menyeret apa pun ke bundle);
+// komponennya dimuat terpisah supaya recharts tidak ikut terunduh oleh halaman yang cuma
+// menampilkan angka komposisi tanpa pernah menggulir sampai grafiknya.
+const OwnershipFlowChart = dynamic(() => import('./OwnershipFlowChart'), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[280px] animate-pulse rounded-lg bg-tv-card" aria-label="Memuat grafik kepemilikan" />
+  ),
+});
 import {
   formatObservedDate,
   formatPercent,
