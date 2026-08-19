@@ -277,6 +277,22 @@ SATU BUG NYATA TERTANGKAP TEST BARU
    disentuh. Itu berada di prompt server dan jalur verifikasi angka; mengubahnya
    berisiko pada kontrak streaming dan verifikasi.
 
+   DITUTUP 2026-08-20 (branch feat/lensai-answer-structure), lewat jalur yang TIDAK
+   menyentuh keduanya. Rangkanya dipasang sebagai satu baris tambahan di
+   `routingBlock` - blok per-turn yang memang sudah membawa intent dan sudah
+   ditandai OTORITATIF - bukan sebagai aturan baru di badan system prompt.
+   Konsekuensinya: hanya turn dengan intent analisis emiten yang menerimanya
+   (10 intent, FOLLOW_UP mewarisi dari dataIntent), sementara sapaan, pertanyaan
+   fitur, dan pertanyaan teori tetap bebas heading sesuai aturan #3.
+
+   stream-answer.ts dan verify-numbers.ts TIDAK diubah satu baris pun. Bagian
+   "Evidence" justru dipagari eksplisit ke Data Terverifikasi Server - sumber yang
+   sama yang dipakai verify-numbers untuk menelusuri angka - sehingga instruksi ini
+   mengarahkan model menyebut angka yang bisa ditelusuri, bukan menambah ruang
+   mengarang. Dijaga app/api/chat/__tests__/answer-structure.test.ts (25 test),
+   termasuk pagar bahwa teks instruksinya tidak boleh kehilangan frasa "Data
+   Terverifikasi Server".
+
 5. /dashboard menampilkan navigasi sudut pandang tetapi tidak ada tab yang
    menyala aktif - ia permukaan teknikal kedua yang berbeda dari
    /technical/[symbol]. Menyalakan "Technical" di sana akan menandai tab aktif
