@@ -12,13 +12,13 @@ vi.mock('../../../../modules/backtest', () => ({
 }));
 vi.mock('../../../../shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
-  applyAnonymousTrialCookie: vi.fn(),
+  buildAnonymousTrialCookie: vi.fn(),
 }));
 
 import { POST } from '../route';
 import { getSession, hasOpenOrProAccess } from '../../../../modules/user';
 import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '../../../../modules/backtest';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/backtest', {
@@ -156,7 +156,7 @@ describe('POST /api/backtest (akses tamu)', () => {
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
 
     expect(res.status).toBe(200);
-    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), anonTrial);
+    expect(buildAnonymousTrialCookie).toHaveBeenCalledWith(anonTrial);
   });
 
   it('tamu (guest/unauthenticated) menerima trades dibatasi ke 2 item dan is_guest_limited true', async () => {
