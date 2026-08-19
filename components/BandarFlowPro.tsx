@@ -199,9 +199,13 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
           <div
             className={`px-4 py-1.5 rounded-full border font-bold text-sm font-sans ${
+              // `animate-pulse` dilepas dari tingkat kuat: gerak di sini tidak
+              // menyampaikan apa pun yang belum ditulis labelnya, dan denyut permanen
+              // di samping angka keuangan menarik mata terus-menerus ke satu chip.
+              // Intensitasnya tetap terbaca dari latar yang lebih pekat.
               summary.status === 'AKUMULASI'
                 ? isStrong
-                  ? 'bg-tv-green/30 border-tv-green text-tv-green animate-pulse'
+                  ? 'bg-tv-green/30 border-tv-green text-tv-green'
                   : 'bg-tv-green/10 border-tv-green/60 text-tv-green'
                 : summary.status === 'DISTRIBUSI'
                   ? isStrong
