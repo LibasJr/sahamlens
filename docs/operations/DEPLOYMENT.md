@@ -22,7 +22,7 @@ GitHub Actions.**
 
 ## Aturan wajib saat ada perubahan
 
-- **Setiap perubahan kode/config/dependency/job/deployment harus ikut memperbarui `DEPLOYMENT.md`
+- **Setiap perubahan kode/config/dependency/job/deployment harus ikut memperbarui `docs/operations/DEPLOYMENT.md`
   bila berdampak ke cara build, deploy, env var, cron/QStash/systemd, smoke test, cache, gating
   akses, atau jebakan operasional.**
 - Kalau perubahan murni UI/logic kecil dan tidak mengubah cara deploy, tetap tambahkan catatan

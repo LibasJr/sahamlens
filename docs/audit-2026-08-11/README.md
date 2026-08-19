@@ -1,6 +1,6 @@
 # Audit kuantitatif & validasi historis — 11 Agustus 2026
 
-Laporan lengkap: [`SAHAMLENS_QUANT_FINANCIAL_AUDIT_2026.md`](../../SAHAMLENS_QUANT_FINANCIAL_AUDIT_2026.md) di root repo.
+Laporan lengkap: [`docs/audit/SAHAMLENS_QUANT_FINANCIAL_AUDIT_2026.md`](../../SAHAMLENS_QUANT_FINANCIAL_AUDIT_2026.md) di root repo.
 
 Folder ini berisi **pemeriksa yang bisa dijalankan ulang** untuk tiga temuan CRITICAL yang punya bukti numerik.
 

@@ -71,40 +71,40 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'overview',
     label: 'Utama',
     items: [
-      { id: 'home', name: 'Beranda', subtitle: 'Snapshot market & akun', path: '/home', icon: LayoutDashboard, guest: true },
-      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Regime, IHSG & breadth', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
-      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Opportunity scanner', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
+      { id: 'home', name: 'Beranda', subtitle: 'Ringkasan pasar dan akun Anda', path: '/home', icon: LayoutDashboard, guest: true },
+      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Kondisi pasar — arah IHSG, regime, dan sebaran', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
+      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Pemindai peluang — saham yang sedang bergerak', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
     ],
   },
   {
     id: 'trading',
     label: 'Trading',
     items: [
-      { id: 'dashboard', name: 'LensTechnical', subtitle: 'Trend, momentum & timing', path: '/dashboard', icon: LineChart },
-      { id: 'screener', name: 'LensScanner', subtitle: 'Multi-factor stock screen', path: '/screener', icon: Filter },
-      { id: 'compare', name: 'Compare', subtitle: 'Bandingkan multi-emiten', path: '/compare', icon: GitCompare },
-      { id: 'backtest', name: 'Backtest', subtitle: 'Uji strategi historis', path: '/backtest', icon: History },
+      { id: 'dashboard', name: 'LensTechnical', subtitle: 'Analisis teknikal — tren, momentum, dan waktu masuk', path: '/dashboard', icon: LineChart },
+      { id: 'screener', name: 'LensScanner', subtitle: 'Screener — saring saham dari banyak faktor sekaligus', path: '/screener', icon: Filter },
+      { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
+      { id: 'backtest', name: 'Backtest', subtitle: 'Uji strategi pada data historis', path: '/backtest', icon: History },
     ],
   },
   {
     id: 'investing',
     label: 'Investing',
     items: [
-      { id: 'fundamental', name: 'LensFundamental', subtitle: 'Quality, growth & leverage', path: '/fundamental', icon: Building2 },
-      { id: 'dcf', name: 'Valuation', subtitle: 'Intrinsic value & margin', path: '/dcf', icon: CircleDollarSign },
-      { id: 'moat', name: 'Moat', subtitle: 'Competitive advantage', path: '/moat', icon: Target },
-      { id: 'earnings', name: 'Earnings', subtitle: 'Preview & event monitor', path: '/earnings', icon: BarChart3 },
-      { id: 'dividend', name: 'Dividend', subtitle: 'Yield & cash-flow simulator', path: '/dividend', icon: PieChart },
+      { id: 'fundamental', name: 'LensFundamental', subtitle: 'Analisis fundamental — kualitas, pertumbuhan, dan utang', path: '/fundamental', icon: Building2 },
+      { id: 'dcf', name: 'Valuation', subtitle: 'Hitung nilai wajar dan margin keamanan', path: '/dcf', icon: CircleDollarSign },
+      { id: 'moat', name: 'Moat', subtitle: 'Ukur keunggulan bersaing emiten', path: '/moat', icon: Target },
+      { id: 'earnings', name: 'Earnings', subtitle: 'Pantau jadwal dan hasil laba', path: '/earnings', icon: BarChart3 },
+      { id: 'dividend', name: 'Dividend', subtitle: 'Simulasi imbal hasil dan arus kas dividen', path: '/dividend', icon: PieChart },
     ],
   },
   {
     id: 'risk-portfolio',
     label: 'Portfolio & Risiko',
     items: [
-      { id: 'watchlist', name: 'LensWatch', subtitle: 'Watchlist & alerts', path: '/watchlist', icon: TrendingUp },
-      { id: 'portfolio', name: 'Akun Demo', subtitle: 'Paper trading & P/L', path: '/portfolio', icon: Wallet },
-      { id: 'risk', name: 'Risk Matrix', subtitle: 'Stress test portfolio', path: '/risk', icon: ShieldAlert },
-      { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Position sizing & R:R', path: '/risk-calculator', icon: Zap },
+      { id: 'watchlist', name: 'LensWatch', subtitle: 'Watchlist — pantau saham pilihan dan atur alert', path: '/watchlist', icon: TrendingUp },
+      { id: 'portfolio', name: 'Akun Demo', subtitle: 'Latihan transaksi tanpa uang sungguhan', path: '/portfolio', icon: Wallet },
+      { id: 'risk', name: 'Risk Matrix', subtitle: 'Uji ketahanan portofolio terhadap guncangan', path: '/risk', icon: ShieldAlert },
+      { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Hitung ukuran posisi dan rasio risiko', path: '/risk-calculator', icon: Zap },
     ],
   },
   {
@@ -114,17 +114,17 @@ const NAV_GROUPS: NavGroup[] = [
       // Ownership Flow - menu BARU (2026-08-16), BUKAN Broker Summary yang diganti
       // nama. Broker Summary tetap berada di grup Admin dan tetap nonaktif; keduanya
       // mengukur hal berbeda (lihat docs/ownership-flow/broker-vs-ownership.md).
-      { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal & asing', path: '/ownership-flow', icon: Users, guest: true },
-      { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar terbaru', path: '/news', icon: Newspaper, guest: true },
-      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS & aksi', path: '/calendar', icon: CalendarDays, guest: true },
-      { id: 'macro', name: 'Macro', subtitle: 'Konteks makro Indonesia', path: '/macro', icon: Waves },
-      { id: 'transparency', name: 'Transparansi', subtitle: 'Validasi & metodologi', path: '/transparency', icon: ShieldCheck, guest: true },
+      { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Lihat komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
+      { id: 'news', name: 'News & Sentiment', subtitle: 'Baca berita pasar terbaru', path: '/news', icon: Newspaper, guest: true },
+      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Jadwal dividen, RUPS, dan aksi korporasi', path: '/calendar', icon: CalendarDays, guest: true },
+      { id: 'macro', name: 'Macro', subtitle: 'Pahami konteks ekonomi makro Indonesia', path: '/macro', icon: Waves },
+      { id: 'transparency', name: 'Transparansi', subtitle: 'Periksa cara skor dihitung dan divalidasi', path: '/transparency', icon: ShieldCheck, guest: true },
       // Halaman /about sudah lama ada tapi nyaris tidak bisa dicapai: satu-satunya jalan
       // dulu hanya tautan di landing yang ditandai `hidden sm:inline`, jadi tidak terlihat
       // sama sekali di HP. SiteFooter memperbaikinya sebagian; entri ini membuatnya benar-
       // benar setara dengan halaman lain. `guest: true` - tidak butuh akun untuk membaca
       // filosofi produk, justru pengunjung baru yang paling perlu.
-      { id: 'about', name: 'Tentang', subtitle: 'Filosofi & prinsip aplikasi', path: '/about', icon: Info, guest: true },
+      { id: 'about', name: 'Tentang', subtitle: 'Kenali filosofi dan prinsip aplikasi', path: '/about', icon: Info, guest: true },
     ],
   },
 ];

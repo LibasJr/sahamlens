@@ -817,6 +817,47 @@ body > div > .lens-theme-toggle {
   outline-offset: 2px;
 }
 
+/* ====== Tautan lewati-ke-konten ======
+ *
+ * Disembunyikan dengan clip, BUKAN dengan `display:none` atau `visibility:hidden`:
+ * dua cara itu mengeluarkan elemen dari urutan tab sepenuhnya, jadi tautannya tidak
+ * akan pernah bisa difokus dan tidak pernah muncul - kegagalan diam yang membuat
+ * banyak skip link di lapangan hanya jadi hiasan markup.
+ *
+ * Warnanya memakai token, bukan hex mati, supaya ikut benar di tema terang - lihat
+ * catatan panjang di blok :root soal aksen yang dulu dikunci sebagai hex. */
+.lens-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.lens-skip-link:focus-visible {
+  left: 0.75rem;
+  top: calc(0.75rem + env(safe-area-inset-top));
+  width: auto;
+  height: auto;
+  padding: 0.625rem 1rem;
+  border-radius: 10px;
+  background: rgb(var(--lens-blue-solid));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.55);
+}
+
+/* <main> menerima fokus lewat tabIndex={-1} supaya skip link benar-benar memindahkan
+ * fokus. Tanpa aturan ini ia juga menggambar cincin fokus selebar layar setiap kali
+ * dilompati - benar secara mekanis, tapi terlihat seperti kerusakan. */
+.lens-main:focus {
+  outline: none;
+}
+
 
 /* Typography consistency: all native interactive controls inherit SahamLens
    body typography (Inter). Numeric/price surfaces keep using .font-number. */

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
@@ -11,7 +13,7 @@ vi.mock('@/shared/middleware/rate-limiter', () => ({
   checkRateLimitShared: vi.fn().mockResolvedValue({ allowed: false, retryAfterSec: 60 }),
 }));
 
-import { config, proxy } from '../proxy';
+import { config, proxy, isProxyExemptPath } from '../proxy';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { decrypt } from '@/shared/auth/jwt';
 import { verifyAdminToken } from '@/shared/auth/admin-token';
@@ -148,5 +150,83 @@ describe('halaman fitur analisis terbuka untuk tamu (keputusan produk 2026-08-13
 
   it('Portfolio & Watchlist tetap wajib akun - satu-satunya pengecualian', () => {
     expect(PROTECTED_PAGES).toEqual(['/portfolio', '/watchlist']);
+  });
+});
+
+/**
+ * MATCHER SEBAGAI DAFTAR-PENGECUALIAN, BUKAN DAFTAR-IZIN.
+ *
+ * Sebelum 2026-08-19, `config.matcher` menyebut 24 prefix /api satu per satu. Bentuk itu
+ * gagal secara diam-diam: route API baru tidak terlindungi sampai ada yang ingat
+ * menambahkannya, dan tidak ada satu pun sinyal bahwa ia terlewat. Enam route memang
+ * sedang terlewat saat itu.
+ *
+ * Tes ini menutup kemungkinan itu untuk selamanya: setiap berkas route yang ada di disk
+ * harus tercakup pola `/api/:path*` ATAU dibebaskan lewat isProxyExemptPath(). Menambah
+ * route baru tanpa memikirkan perlindungannya tidak lagi mungkin - pilihannya cuma dua,
+ * dan keduanya terlihat.
+ */
+describe('cakupan matcher proxy', () => {
+  const REPO_ROOT = path.join(__dirname, '..');
+
+  function listApiRoutes(dir: string): string[] {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return listApiRoutes(full);
+      if (entry.name !== 'route.ts') return [];
+      // app/api/foo/bar/route.ts -> /api/foo/bar  ([ticker] tetap apa adanya; yang
+      // diperiksa cakupan pola, bukan pencocokan nilai parameter sungguhan.)
+      const rel = path.relative(path.join(REPO_ROOT, 'app'), path.dirname(full));
+      return ['/' + rel.split(path.sep).join('/')];
+    });
+  }
+
+  const apiRoutes = listApiRoutes(path.join(REPO_ROOT, 'app', 'api'));
+
+  it('menemukan seluruh route API', () => {
+    expect(apiRoutes.length).toBeGreaterThan(90);
+  });
+
+  it('mencakup seluruh permukaan API dengan satu pola, bukan daftar prefix', () => {
+    expect(config.matcher).toContain('/api/:path*');
+    const leftoverApiPrefixes = config.matcher.filter(
+      (entry) => entry.startsWith('/api/') && entry !== '/api/:path*',
+    );
+    expect(leftoverApiPrefixes).toEqual([]);
+  });
+
+  it('setiap route API tercakup pola atau dibebaskan secara eksplisit', () => {
+    const uncovered = apiRoutes.filter(
+      (route) => !route.startsWith('/api/') && !isProxyExemptPath(route),
+    );
+    expect(uncovered).toEqual([]);
+  });
+
+  it('membebaskan cron, webhook pembayaran, health check, dan logo emiten', () => {
+    expect(isProxyExemptPath('/api/cron/news')).toBe(true);
+    expect(isProxyExemptPath('/api/payment/notify')).toBe(true);
+    expect(isProxyExemptPath('/api/health')).toBe(true);
+    expect(isProxyExemptPath('/api/company-logo')).toBe(true);
+  });
+
+  it('TIDAK membebaskan endpoint pengguna biasa', () => {
+    for (const route of ['/api/screener', '/api/watchlist', '/api/portfolio', '/api/auth/login']) {
+      expect(isProxyExemptPath(route), `${route} tidak boleh dibebaskan`).toBe(false);
+    }
+  });
+
+  it('melewatkan path yang dibebaskan tanpa menyentuh limiter', async () => {
+    const res = await proxy(request('/api/cron/news', { method: 'POST' }));
+    expect(res.status).toBe(200);
+    expect(checkRateLimitShared).not.toHaveBeenCalled();
+  });
+
+  it('webhook pembayaran tidak lagi ikut kuota harian', async () => {
+    // Regresi nyata: /api/payment/:path* dulu ADA di matcher dan tidak pernah dibebaskan,
+    // jadi notifikasi pembayaran ikut menghabiskan 150/hari dari IP penyedia - dan yang
+    // ditolak 429 hilang tanpa jejak.
+    const res = await proxy(request('/api/payment/notify', { method: 'POST' }));
+    expect(res.status).toBe(200);
+    expect(checkRateLimitShared).not.toHaveBeenCalled();
   });
 });

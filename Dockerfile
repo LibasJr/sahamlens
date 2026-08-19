@@ -1,6 +1,6 @@
 # BUILD 010 (Production Ready) - jalur deploy alternatif di luar Vercel (mis.
 # self-host/VPS). Deploy utama aplikasi ini TETAP Vercel (`vercel --prod`, lihat
-# DEPLOYMENT.md) - image ini tidak dipakai pipeline Vercel, murni untuk skenario
+# docs/operations/DEPLOYMENT.md) - image ini tidak dipakai pipeline Vercel, murni untuk skenario
 # di luar itu (staging lokal yang identik dengan production, atau migrasi host
 # di masa depan). Multi-stage supaya image akhir hanya berisi output standalone
 # Next.js (next.config.mjs: output:'standalone'), bukan devDependencies/source TS.
