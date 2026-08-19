@@ -1,0 +1,391 @@
+================================================================================
+SAHAMLENS REDESIGN FINAL V2 - "CALM INTELLIGENCE"
+Catatan implementasi
+Tanggal      : 20 Agustus 2026
+Repo acuan   : sahamlens-main (HEAD e71474d)
+Gerbang akhir: npm run verify:prod -> EXIT=0
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. RINGKASAN
+--------------------------------------------------------------------------------
+
+Repo acuan adalah `sahamlens-main` (HEAD e71474d), lebih baru dari checkout
+sebelahnya `sahamlens` yang berhenti di PR #52. Seluruh pekerjaan dilakukan di
+sana.
+
+Audit baseline menemukan SEBAGIAN BESAR PRD SUDAH TERPASANG:
+
+  - copy hero "Lihat Peluang / Lebih Jelas."
+  - blok interpretasi "Hari ini"
+  - running market ticker satu baris (pause on hover/focus, reduced-motion)
+  - sidebar Utama / Riset / Tools / Intelligence dengan grup yang bisa collapse
+  - band "Yang penting dari [ticker]"
+  - skala radius monotonik 6/8/12/16/20/24
+  - peran tipografi semantik (lens-page-title, lens-body, lens-meta, dst)
+  - kontrak tablet Screener (tabel penuh mulai md + sticky column)
+
+Semua itu TIDAK dibangun ulang.
+
+Sepuluh celah nyata ditutup:
+
+  G1  /api/live/^JKSE dan /api/market-summary masing-masing diminta DUA KALI di
+      halaman "/" (TopMarketBar + hero, MarketTicker + movers).
+      FIX: shared/http/shared-market-request.ts - peta in-flight/TTL tingkat
+      modul. Empat request untuk dua jawaban menjadi dua.
+
+  G2  Technical / Fundamental / Flow / Valuation terbaca sebagai empat produk
+      terpisah.
+      FIX: StockPerspectiveNav dirender dari Header lewat prop opt-in
+      `stockNav`. Rute TIDAK diubah.
+
+  G3  /fundamental dibuka dengan 13 kartu analyzer tanpa interpretasi.
+      FIX: FundamentalHealthSummary - lima dimensi bahasa biasa yang MEMAKAI
+      ULANG ambang analyzer yang sudah dikirim ke produksi, sehingga ringkasan
+      di atas tidak mungkin bertentangan dengan kartu di bawahnya.
+
+  G4  Flow per-emiten tanpa bingkai section dan tanpa jangkar.
+      FIX: <section id="lens-flow"> dengan eyebrow/judul/lede; `animate-pulse`
+      hiasan pada badge akumulasi kuat dilepas.
+
+  G5  Market snapshot hanya 3 kolom padahal `marketRegime` sudah ada di payload
+      /api/market-pulse dan dibuang begitu saja.
+      FIX: kolom Regime ditambahkan - nol request tambahan.
+
+  G6  Starter LensAI berupa label topik; error tanpa referensi dukungan.
+      FIX: prompt berbentuk pertanyaan, judul kontekstual "Tanyakan tentang
+      BBCA", X-Request-Id ditampilkan dan bisa disalin.
+
+  G7  lens-metric / lens-metric-lg belum ada di skala tipe.
+      FIX: ditambahkan, dengan `font-variant-numeric: tabular-nums` eksplisit
+      karena fallback stack (Consolas -> monospace generik OS) tidak dijamin
+      lebar digitnya seragam.
+
+  G8  Hero emiten tanpa harga, tanpa rincian LensScore, tanpa kesegaran data.
+      FIX: semuanya dari payload /api/stock yang memang sudah diambil.
+
+  G9  LensAI tidak ada di sidebar padahal PRD SEC.7 menyebutnya di INTELLIGENCE.
+      FIX: item bertipe `action` (panel, bukan rute). Sekaligus membuang cabang
+      `lensai` yang sudah mati dan satu effect localStorage yang berjalan pada
+      setiap navigasi tanpa dibaca siapa pun.
+
+  G10 Satu test flaky bawaan (timeout 5 detik pada pemindai sumber).
+      FIX: timeout eksplisit, persis obat yang sudah tertulis di CLAUDE.md SEC.2.
+
+TIDAK DISENTUH: backend, kontrak API, auth, entitlement, rate limit, request ID,
+provenance data, streaming LensAI, dan gerbang guest/Pro.
+
+
+--------------------------------------------------------------------------------
+2. BERKAS YANG BERUBAH
+--------------------------------------------------------------------------------
+
+GLOBAL SHELL
+  M  components/TopMarketBar.tsx          request pasar bersama
+  M  components/MarketTicker.tsx          request pasar bersama
+  M  components/Header.tsx                baris kedua stockNav (opt-in)
+  A  components/StockPerspectiveNav.tsx   navigasi 4 sudut pandang emiten
+  M  components/Sidebar.tsx               item LensAI, tipe item `action`,
+                                          kode mati dibuang
+  A  shared/http/shared-market-request.ts peta request bersama
+
+HOMEPAGE
+  M  components/home/useHomeWorkspaceData.ts   dedupe + regime
+  M  components/home/HomeTodayBrief.tsx        snapshot 4 kolom
+
+STOCK EXPERIENCE
+  M  app/technical/[symbol]/page.tsx           harga, LensScore, 3 sub-skor,
+                                               3-5 temuan, coverage, kesegaran,
+                                               jangkar #lens-flow
+  M  app/technical/[symbol]/ClientHeader.tsx   nyalakan stockNav
+  M  components/TickerAnalysisShell.tsx        nyalakan stockNav (dcf, moat,
+                                               earnings, dividend, pattern)
+  M  app/dashboard/page.tsx                    nyalakan stockNav
+  M  components/dashboard/DashboardLoadStates.tsx  nyalakan stockNav
+  M  app/fundamental/page.tsx                  ringkasan kesehatan + stockNav
+  M  components/fundamental/FundamentalOverview.tsx  urutan kontrol tampilan
+  A  components/fundamental/FundamentalHealthSummary.tsx
+  A  lib/fundamental/health-summary.ts         logika murni 5 dimensi
+  M  components/BandarFlowPro.tsx              lepas animate-pulse hiasan
+  M  app/watchlist/page.tsx                    cap kesegaran per baris
+  A  shared/presentation/stock-brief.ts        penyusun temuan dimensi
+  A  shared/presentation/freshness-labels.ts   satu cara menulis umur data
+
+LENSAI
+  M  components/AIChat.tsx                 judul kontekstual + request ID
+  M  components/ai-chat-starters.ts        prompt berbentuk pertanyaan
+
+DESIGN SYSTEM / RESPONSIVE
+  M  app/globals.css                       lens-metric, lens-metric-lg,
+                                           lens-anchor-offset
+
+TESTS
+  A  shared/http/__tests__/shared-market-request.test.ts
+  A  components/__tests__/stock-perspective-nav.test.ts
+  A  components/__tests__/sidebar-navigation.test.ts
+  A  lib/fundamental/__tests__/health-summary.test.ts
+  A  shared/presentation/__tests__/stock-brief.test.ts
+  A  shared/presentation/__tests__/freshness-labels.test.ts
+  M  components/__tests__/ai-chat-starters.test.ts   (diperluas)
+  M  shared/market/__tests__/previous-close-guard.test.ts  (timeout eksplisit)
+
+Total: 20 berkas diubah, 12 ditambah, 518 baris masuk / 87 baris keluar.
+
+
+--------------------------------------------------------------------------------
+3. UX SEBELUM -> SESUDAH
+--------------------------------------------------------------------------------
+
+BERANDA
+  Snapshot 3 -> 4 metrik (IHSG - Breadth - Regime - LensRadar), tetap memakai
+  tipografi dan pembatas, bukan empat kartu terpisah. Muat pertama mengirim dua
+  request pasar, bukan empat.
+
+HALAMAN EMITEN
+  Sebelum : kode + nama, satu kalimat pembacaan, lalu grid 3 sel.
+  Sesudah : kode + nama
+            -> HARGA & PERUBAHAN bersanding LENSSCORE /100 + label + penyangkalan
+            -> Technical / Fundamental / Flow dinormalkan ke 0-100
+            -> 3-5 TEMUAN dengan panah, judul bahasa biasa, dan analyzer yang
+               memilihnya
+            -> keselarasan arah, kelengkapan data, umur data
+            -> baru chart dan indikator.
+
+  Seluruh angka berasal dari payload yang sudah diambil. Temuan diturunkan dari
+  consensusData.dimensions, jadi tiap baris bisa ditelusuri ke kartu analyzer di
+  bawahnya. Tanpa model bahasa, tanpa narasi karangan. Bahasa tetap deskriptif
+  ("Momentum membaik", "Tekanan jual meningkat") - tidak pernah "pasti naik".
+
+FUNDAMENTAL
+  Toggle tampilan dan glosarium sebelumnya berada DI ATAS kartu identitas emiten,
+  sehingga hal pertama yang terlihat adalah dua pengatur tampilan. Keduanya
+  dipindah ke bawah, dan blok Kesehatan Fundamental (Profitabilitas /
+  Pertumbuhan / Neraca / Arus kas / Valuasi) menyatakan penilaian beserta
+  angkanya sebelum 13 kartu analyzer.
+
+  Bank dikecualikan dari penilaian neraca lewat DER/current ratio dan diarahkan
+  ke CAR/NPL/LDR - untuk bank, DER tinggi adalah model bisnisnya, bukan tanda
+  bahaya.
+
+SATU PRODUK
+  Setiap permukaan emiten kini membawa baris Technical - Fundamental - Flow -
+  Valuation yang sama.
+
+LENSAI
+  "LensAI" -> "Tanyakan tentang BBCA" saat ada konteks emiten. Prompt menjadi
+  pertanyaan. Kegagalan membawa X-Request-Id - sebelumnya LensAI adalah
+  satu-satunya jalur error di aplikasi yang tidak bisa ditelusuri di log, karena
+  fetch NDJSON mentahnya tidak pernah membentuk ApiClientError.
+
+KEPERCAYAAN
+  Umur data ditulis apa adanya, termasuk saat basi (amber, "Data mungkin
+  tertunda"). UNKNOWN ditulis sebagai tidak diketahui, bukan diam-diam dianggap
+  segar.
+
+
+--------------------------------------------------------------------------------
+4. DAMPAK PERFORMA
+--------------------------------------------------------------------------------
+
+DIHAPUS
+  2 request pada muat pertama beranda (/api/live/^JKSE x1,
+  /api/market-summary x1). Keduanya menembus penyedia data hulu, bukan sekadar
+  CDN.
+
+DITAMBAH
+  Nol. Regime, harga, rincian LensScore, coverage, kesegaran, dan penilaian
+  kesehatan fundamental semuanya membaca payload yang sudah diambil.
+
+KERJA YANG HILANG
+  Satu baca localStorage + setState di Sidebar yang berjalan pada tiap
+  perpindahan rute tanpa pernah dibaca.
+
+BUNDLE
+  250 chunk, total 5840 KB, terbesar 415 KB - sama dengan baseline.
+  audit:bundle PASS. Tanpa dependensi baru. Tidak ada batas dynamic() yang
+  berubah; streaming LensAI utuh.
+
+
+--------------------------------------------------------------------------------
+5. HASIL TEST
+--------------------------------------------------------------------------------
+
+Semua dijalankan pada working tree FINAL lewat `npm run verify:prod` (EXIT=0):
+
+  audit:schema         PASS
+  audit:cron           PASS   (23 cron route)
+  audit:ui             PASS   Errors: 0, Warnings: 35
+  audit:performance    PASS
+  audit:manual-market  PASS
+  audit:market-labels  PASS
+  audit:risk-controls  PASS   (seluruh cek S/D/T/O/P)
+  audit:zero-dummy     PASS   (684 berkas dipindai)
+  audit:adoption       PASS   0 / 0 / 0 / 0 - tanpa kemunduran
+  audit:a11y           PASS
+  typecheck            PASS
+  lint                 PASS   0 error, 100 warning
+  tests                PASS   231 berkas, 2045 test, 0 gagal
+  build                PASS   Compiled successfully in 54s, 126 halaman
+  audit:bundle         PASS   250 chunk, 5840 KB, terbesar 415 KB
+
+BASELINE PEMBANDING (diukur sebelum satu pun edit):
+  audit sama PASS, typecheck PASS, lint 0 error / 101 warning,
+  test 225 berkas / 1975 test DENGAN 1 GAGAL, build PASS.
+
+  Kegagalan baseline itu shared/market/__tests__/previous-close-guard.test.ts -
+  timeout pada batas bawaan vitest 5 detik saat suite penuh berjalan paralel,
+  karena ia memindai 200+ berkas sumber secara sinkron. Diperbaiki dengan timeout
+  eksplisit sesuai CLAUDE.md SEC.2. Tidak ada test yang dilemahkan atau dihapus.
+
+SATU BUG NYATA TERTANGKAP TEST BARU
+  stockCodeFor('IHSG') lolos pola empat huruf kapital, jadi /technical/IHSG akan
+  menampilkan tab Fundamental dan Valuation yang menuju ?symbol=IHSG.JK - emiten
+  yang tidak ada. Diperbaiki di sumber sebelum sampai ke pengguna.
+
+
+--------------------------------------------------------------------------------
+6. UTANG YANG TERSISA
+--------------------------------------------------------------------------------
+
+1. ANALYTICS (PRD SEC.40) - SENGAJA TIDAK DIKERJAKAN.
+   product_funnel_events punya
+     CHECK (event_type IN ('locked_view','signup_click','signup_completed'))
+   plus
+     UNIQUE (visitor_id, event_type, feature, event_date)
+   Tabel itu dirancang sebagai funnel sekali-per-hari, bukan click stream;
+   stock_tab_change yang dideduplikasi per hari tidak berarti apa-apa, dan
+   kardinalitas kolom `feature` akan membengkak. Mengerjakannya dengan benar
+   butuh migrasi + tabel event terpisah - di luar batasan "jangan ubah skema DB
+   kecuali benar-benar perlu". Analytics funnel yang ada dipertahankan; tidak ada
+   panggilan ganda yang ditambahkan.
+
+2. REQUEST ID baru muncul di Home, Dashboard, dan LensAI. Screener, Watchlist,
+   dan Compare belum.
+
+3. CAP KESEGARAN DI WATCHLIST hanya tampil pada breakpoint sm ke atas, karena
+   seluruh kolom harga memang `hidden sm:flex` - tata letak bawaan, bukan regresi.
+
+4. STRUKTUR JAWABAN LENSAI (PRD SEC.23 "Faktor utama / Risiko / Evidence") tidak
+   disentuh. Itu berada di prompt server dan jalur verifikasi angka; mengubahnya
+   berisiko pada kontrak streaming dan verifikasi.
+
+5. /dashboard menampilkan navigasi sudut pandang tetapi tidak ada tab yang
+   menyala aktif - ia permukaan teknikal kedua yang berbeda dari
+   /technical/[symbol]. Menyalakan "Technical" di sana akan menandai tab aktif
+   yang justru membawa ke halaman lain.
+
+6. VERIFIKASI RESPONSIF BERSIFAT STATIS - telaah kelas dan breakpoint, bukan
+   pengukuran di browser sungguhan. Repo ini tidak punya jsdom maupun Playwright;
+   kontrak tablet dijaga test pemindai sumber yang sudah ada. Poin 6 pada daftar
+   QA di bawah masih membutuhkan manusia.
+
+
+PENYIMPANGAN YANG DISENGAJA DARI PRD
+------------------------------------
+
+A. SEC.13 - kolom keempat snapshot memakai REGIME, bukan "Foreign Flow +320B".
+   Tidak ada endpoint agregat arus dana asing tingkat pasar. Artefak IDX
+   per-emiten tidak bisa dijumlahkan secara jujur menjadi satu angka pasar, dan
+   membuat endpoint baru justru menambah waterfall yang dilarang SEC.38.
+   `marketRegime` sudah ada di respons /api/market-pulse dan selama ini dibuang.
+
+B. SEC.16 - menampilkan 3 sub-skor, bukan 4.
+   LensScore memang terurai persis menjadi Technical (40) / Fundamental (30) /
+   Flow (30). "Valuation" adalah SUB-FAKTOR di dalam Fundamental
+   (scoring.detail.valuasi), bukan kelompok sejajar. Menampilkannya berdampingan
+   seolah setara akan menyatakan pembobotan yang tidak dipakai model mana pun.
+   Normalisasi memakai `available_max`, BUKAN bobot yang dideklarasikan 40/30/30 -
+   membagi dengan bobot deklarasi hanya benar saat coverage 100% (temuan H-03,
+   audit kuantitatif 2026-08-11).
+
+C. SEC.18 - tanpa tab "Overview" terpisah, dan "Flow" berupa jangkar dalam
+   halaman. Tiap halaman sudah membuka dengan ringkasannya sendiri. Panel arus
+   dana asing per-emiten berada di halaman technical; /ownership-flow adalah
+   komposisi kepemilikan KSEI se-universe - produk yang berbeda, dan menautkan
+   "Flow" ke sana akan menjanjikan hal yang berbeda dari yang dibuka.
+
+
+--------------------------------------------------------------------------------
+7. DAFTAR QA MANUAL
+--------------------------------------------------------------------------------
+
+[ ] /
+    Hero "Lihat Peluang Lebih Jelas" di viewport pertama. Snapshot 4 metrik
+    termasuk Regime. DevTools Network: TEPAT SATU /api/live/^JKSE dan SATU
+    /api/market-summary.
+
+[ ] technical/BBCA.JK
+    Harga + perubahan, LensScore + label + penyangkalan, 3 sub-skor, 3-5 temuan
+    berpanah, coverage %, umur data - semuanya sebelum chart. Navigasi sudut
+    pandang ada di header.
+
+[ ] technical/IHSG
+    Navigasi sudut pandang TIDAK muncul (indeks tidak punya fundamental
+    perusahaan, DCF, maupun arus dana asing).
+
+[ ] Fundamental BBCA
+    Kartu identitas dulu, lalu Kesehatan Fundamental (5 baris), baru kartu
+    analyzer. Coba juga bank (BBRI): baris Neraca berbunyi "DER & current ratio
+    tidak dipakai untuk bank".
+
+[ ] Ownership / Flow
+    Di halaman technical, tab "Flow" menggulir ke #lens-flow dengan judul tidak
+    tertutup header sticky. Label sumber resmi vs "Estimasi Arus Dana (Proxy
+    Harga & Volume)" tetap terpisah jelas.
+
+[ ] LensRadar
+    Pratinjau beranda 3 kandidat; tabel penuh hanya di /breakout-radar.
+
+[ ] Screener
+    >=768 px WAJIB tabel penuh dengan kolom ticker sticky, bukan kartu mobile.
+
+[ ] Watchlist
+    Cap kesegaran muncul di bawah harga. Add / remove / alert tidak berubah.
+
+[ ] LensAI
+    Di halaman emiten: judul "Tanyakan tentang BBCA", 4 prompt pertanyaan. Klik
+    satu per satu - tidak boleh ada yang menjawab "belum tersedia". Teks jawaban
+    tetap mengalir bertahap (bukan muncul sekaligus). Paksa satu error dan
+    pastikan referensi yang bisa disalin muncul.
+
+[ ] Mobile (375 px / 430 px)
+    Navigasi sudut pandang bisa digeser horizontal, tab >=44 px. Snapshot 2x2.
+
+[ ] Tablet (768 px / 1024 px)
+    Screener tabel penuh. Tab sudut pandang tetap 44 px.
+
+[ ] Desktop (1280 px / 1440 px+)
+    Snapshot 4 kolom, sub-skor 3 kolom.
+
+[ ] Tema gelap
+    Bawaan; cek juga mode terang - permukaan baru hanya memakai token, tanpa hex
+    mati.
+
+[ ] Reduced motion
+    Ticker menjadi daftar statis yang bisa digeser; badge flow tidak berdenyut
+    sama sekali.
+
+[ ] Guest
+    Gembok sidebar tidak berubah. LensAI terbuka dan kena kuota tamu, bukan
+    gembok.
+
+[ ] User login
+    Tabel bobot dimensi terlihat; tidak ada kartu analyzer yang diburamkan.
+
+[ ] User Pro
+    Market Pulse, LensRadar, dan daily picks tampil, bukan upsell.
+
+
+================================================================================
+CATATAN DEPLOY
+================================================================================
+
+Jalur yang benar: GitHub Actions -> Deploy VPS (lewat PR), BUKAN `git pull`
+manual. Workflow menjalankan verify:prod di runner lebih dulu; VPS baru disentuh
+setelah semuanya lolos. Lihat CLAUDE.md SEC.4 dan SEC.5.
+
+package.json TIDAK berubah, jadi `npm ci` di VPS tidak diwajibkan oleh perubahan
+ini.
+
+================================================================================
