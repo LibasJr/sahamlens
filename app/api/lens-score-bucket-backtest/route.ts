@@ -2,7 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { NextResponse } from 'next/server';
-import { getSession, hasOpenOrProAccess } from '@/modules/user';
+import { getSession, hasOpenOrProAccess, isAdminServer } from '@/modules/user';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { runLensScoreBucketBacktest } from '@/modules/recommendation/service/lens-score-bucket-backtest.service';
@@ -29,6 +29,14 @@ export async function GET(request: Request) {
 
     if (!isInternal && !(await hasOpenOrProAccess(session))) {
       return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+    }
+
+    // Backtest bucket adalah alat kalibrasi internal, bukan fitur pengguna. Membatasi
+    // hanya di render halaman tidak cukup: endpoint-nya tetap bisa dipanggil langsung
+    // oleh siapa pun yang punya akun Pro. Sumber status admin sama dengan yang dipakai
+    // Sidebar - cookie admin HttpOnly atau role pada sesi login.
+    if (!isInternal && !(await isAdminServer()) && session?.role !== 'admin') {
+      return NextResponse.json({ error: 'Khusus admin', code: 'ADMIN_REQUIRED' }, { status: 403 });
     }
 
     const scoreVersion = new URL(request.url).searchParams.get('scoreVersion');
