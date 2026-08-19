@@ -431,6 +431,12 @@ export const id = {
     classicMethod: 'Classic Floor',
     fibonacciMethod: 'Fibonacci Ratio',
     camarillaMethod: 'Camarilla Equation',
+    classicDesc:
+      'Titik pivot (PP) = rata-rata High + Low + Close sesi bursa terakhir, lalu R1-R3 dan S1-S3 dicerminkan simetris terhadap PP. Jaraknya paling lebar, cocok sebagai acuan support/resisten harian umum.',
+    fibonacciDesc:
+      'PP-nya sama dengan Classic, tapi jarak tiap level diambil dari rasio Fibonacci 38,2% / 61,8% / 100% atas rentang High-Low sesi terakhir. R1 dan S1 lebih rapat ke PP dibanding Classic.',
+    camarillaDesc:
+      'Bertumpu pada harga penutupan (bukan PP) dengan pengali 1,1/12, 1,1/6, dan 1,1/4 dari rentang sesi. Levelnya paling rapat, biasa dipakai untuk intraday mean-reversion. Nilai PP tetap ditampilkan sama karena rumus PP memang identik di ketiga metode.',
     pivotPoint: 'Pivot Point (PP)',
     resistance1: 'Resisten 1 (R1)',
     resistance2: 'Resisten 2 (R2)',
