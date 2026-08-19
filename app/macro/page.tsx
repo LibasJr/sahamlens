@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import {
   Activity,
   AlertTriangle,
@@ -35,10 +36,6 @@ export default function MacroPage() {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
 
-  const [data, setData] = useState<PublicMacroDashboard | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   function formatNumber(value: number, maximumFractionDigits = 2) {
     return new Intl.NumberFormat(isEn ? 'en-US' : 'id-ID', {
@@ -93,31 +90,26 @@ export default function MacroPage() {
     return <Badge variant="neutral">{isEn ? 'TREND N/A' : 'TREN N/A'}</Badge>;
   }
 
-  useEffect(() => {
-    const controller = new AbortController();
+  // SWR menggantikan useEffect + AbortController. Kunci ini SAMA dengan yang dipakai
+  // widget makro di tempat lain, jadi permintaannya dibagi.
+  //
+  // `reloadKey` diganti `mutate`. Dua tombol "Muat ulang"/"Coba lagi" di bawah dulu
+  // menaikkan counter itu hanya untuk memaksa useEffect berjalan lagi - cara tidak
+  // langsung yang juga mengambil ulang saat bahasa berganti (isEn ikut jadi dependency),
+  // padahal data makronya sama saja. mutate() meminta ulang secara langsung, dan berganti
+  // bahasa tidak lagi memicu permintaan.
+  const {
+    data,
+    error: loadError,
+    isLoading: loading,
+    mutate: reloadMacro,
+  } = useSWR<PublicMacroDashboard>('/api/macro');
 
-    async function loadMacro() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch('/api/macro', { signal: controller.signal });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload?.error || (isEn ? 'Macro data not available yet.' : 'Data makro belum tersedia.'));
-        }
-        setData(payload as PublicMacroDashboard);
-      } catch (caught) {
-        if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : (isEn ? 'Failed to fetch macro data.' : 'Gagal mengambil data makro.'));
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-
-    void loadMacro();
-    return () => controller.abort();
-  }, [reloadKey, isEn]);
+  // Pesan dari server dipakai kalau ada, sama seperti `payload?.error` sebelumnya.
+  const error = loadError
+    ? (loadError as Error).message ||
+      (isEn ? 'Failed to fetch macro data.' : 'Gagal mengambil data makro.')
+    : null;
 
   return (
     <div className="min-h-screen bg-tv-base text-tv-text">
@@ -151,7 +143,7 @@ export default function MacroPage() {
               size="sm"
               variant="secondary"
               loading={loading}
-              onClick={() => setReloadKey((value) => value + 1)}
+              onClick={() => void reloadMacro()}
             >
               <RefreshCw className="h-4 w-4" />
               {isEn ? 'Refresh' : 'Perbarui'}
@@ -184,7 +176,7 @@ export default function MacroPage() {
                 <p className="mt-1 text-sm text-tv-muted">{error}</p>
               </div>
             </div>
-            <Button type="button" variant="secondary" onClick={() => setReloadKey((value) => value + 1)}>
+            <Button type="button" variant="secondary" onClick={() => void reloadMacro()}>
               <RefreshCw className="h-4 w-4" />
               {isEn ? 'Try again' : 'Coba lagi'}
             </Button>

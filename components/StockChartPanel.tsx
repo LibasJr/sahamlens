@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { usePublicChart } from '@/lib/api/usePublicChart';
 import dynamic from 'next/dynamic';
 import { Sparkles } from 'lucide-react';
 import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
@@ -28,32 +29,11 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const code = symbol.replace('.JK', '');
   const isIndex = code.startsWith('^');
   const [timeframe, setTimeframe] = useState('1Y');
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [chartError, setChartError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setChartData([]);
-    setChartError(null);
-    fetch(`/api/public-chart/${encodeURIComponent(code)}?tf=${timeframe}`, { signal: controller.signal })
-      .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok || !Array.isArray(data?.history) || data.history.length === 0) {
-          throw new Error(data?.error || (isEn ? 'Chart data unavailable' : 'Data grafik belum tersedia'));
-        }
-        return data;
-      })
-      .then((data) => {
-        if (!controller.signal.aborted) setChartData(data.history);
-      })
-      .catch((error) => {
-        if (error?.name !== 'AbortError') {
-          console.error(error);
-          setChartError(error?.message || (isEn ? 'Failed to load chart' : 'Grafik gagal dimuat'));
-        }
-      });
-    return () => controller.abort();
-  }, [code, timeframe, isEn]);
+  // Hook bersama - lihat lib/api/usePublicChart.ts. Komponen ini dan
+  // TechnicalAnalysisSuite dirender bersamaan di halaman teknikal dan dulu meminta URL
+  // yang persis sama; sekarang berbagi satu permintaan.
+  const { candles: chartData, error: chartError } = usePublicChart(code, timeframe, isEn);
 
   const latestCandle = chartData.at(-1) ?? null;
   const latestSessionPartial = latestCandle?.sessionStatus === 'PARTIAL';
