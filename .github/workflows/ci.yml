@@ -21,11 +21,24 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      # SELURUH gerbang statis, bukan tiga. Sebelumnya `verify:prod` merangkai sepuluh
+      # pemeriksaan tapi CI hanya menjalankan tiga di antaranya - tujuh sisanya sudah
+      # ditulis, sudah lulus, dan tidak menggerbang apa pun. Audit yang tidak dijalankan
+      # otomatis akan berhenti dijalankan sama sekali dalam beberapa bulan.
+      #
+      # Kesepuluhnya jalan tanpa database maupun kredensial, jadi tidak ada alasan
+      # ongkos untuk menyisakan sebagian.
       - name: Static integrity audits
         run: |
+          npm run audit:schema
+          npm run audit:cron
+          npm run audit:ui
+          npm run audit:performance
           npm run audit:manual-market
           npm run audit:market-labels
           npm run audit:risk-controls
+          npm run audit:zero-dummy
+          npm run audit:adoption
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -52,3 +65,10 @@ jobs:
           APP_URL: https://sahamlens.id
           NEXT_PUBLIC_APP_URL: https://sahamlens.id
           NEXT_PUBLIC_TESTING_OPEN_ACCESS: ${{ vars.NEXT_PUBLIC_TESTING_OPEN_ACCESS || 'true' }}
+
+      # Harus SETELAH build - skrip ini mengukur .next/static/chunks yang baru dihasilkan.
+      # Tanpa direktori itu ia melewati diri sendiri, jadi urutannya bukan sekadar rapi:
+      # menaruhnya lebih awal membuatnya lulus tanpa memeriksa apa pun.
+      - name: Bundle size budget
+        run: npm run audit:bundle
+

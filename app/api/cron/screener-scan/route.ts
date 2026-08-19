@@ -18,10 +18,10 @@ export const maxDuration = 120;
 // 1 tahun untuk ~50 saham kurasi, lihat komentar maxDuration=60 di app/api/screener/route.ts)
 // di request-nya sendiri.
 //
-// QStash sudah penuh 10/10 job (lihat config/scheduled-jobs.json & DEPLOYMENT.md) - job ini
+// QStash sudah penuh 10/10 job (lihat config/scheduled-jobs.json & docs/operations/DEPLOYMENT.md) - job ini
 // SENGAJA cuma punya handler GET + CRON_SECRET (pola systemd timer, sama seperti
 // lens-bucket-backtest/lens-score-optimizer/broker-summary-scan), BUKAN POST+signature
-// QStash. Perlu timer systemd baru di VPS - lihat instruksi di DEPLOYMENT.md.
+// QStash. Perlu timer systemd baru di VPS - lihat instruksi di docs/operations/DEPLOYMENT.md.
 async function runScan() {
   const universe = await fetchScreenerUniverse();
   await cacheSet(COMPUTED_CACHE_KEY.SCREENER_UNIVERSE, universe, TTL.SCREENER_UNIVERSE);

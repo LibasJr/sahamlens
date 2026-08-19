@@ -12,7 +12,7 @@ export const maxDuration = 120;
 // BARU (2026-08-14, laporan pengguna: menu terkait cron harus punya cache biar tidak
 // lambat). Sama seperti screener-scan (lihat catatan di sana) - /api/dividend-plan murni
 // getOrCompute() TTL 30 menit TANPA cron warmer. GET + CRON_SECRET (pola systemd, QStash
-// sudah penuh 10/10) - lihat instruksi timer di DEPLOYMENT.md. Cuma universe yang
+// sudah penuh 10/10) - lihat instruksi timer di docs/operations/DEPLOYMENT.md. Cuma universe yang
 // di-cache di sini (fetchDividendUniverse) - buildDividendPlan (kalkulasi per modal/
 // target pengguna) tetap dihitung on-demand per request, murah & spesifik-user.
 async function runScan() {

@@ -14,8 +14,25 @@ const expensiveRoutes = [
   ['S-3 live', '/api/live/:path*', 'app/api/live/[ticker]/route.ts'],
   ['S-3 stock-news', '/api/news/stock/:path*', 'app/api/news/stock/[ticker]/route.ts'],
 ];
+// Matcher proxy dibalik jadi daftar-pengecualian pada 2026-08-19: satu pola `/api/:path*`
+// menutup seluruh permukaan API, dan yang ditulis satu per satu adalah pembebasannya di
+// isProxyExemptPath(). Karena itu syaratnya bukan lagi "ada matcher literal untuk endpoint
+// ini" (selalu benar sekarang, jadi tidak menguji apa pun), melainkan dua hal yang masih
+// bisa rusak: polanya benar-benar ada, dan endpoint mahal ini tidak ikut dibebaskan.
+const PROXY_EXEMPT_PREFIXES = ['/api/cron/'];
+const PROXY_EXEMPT_EXACT = ['/api/payment/notify', '/api/health', '/api/company-logo'];
+const matcherCoversAllApi = proxy.includes("'/api/:path*'");
+requireCheck('S-3 matcher', matcherCoversAllApi, 'satu pola /api/:path* menutup seluruh API');
+
 for (const [id, matcher, route] of expensiveRoutes) {
-  requireCheck(id, proxy.includes(`'${matcher}'`) && file(route).includes('checkPublicComputeBudget'), `${matcher} + route limiter`);
+  const sample = matcher.replace('/:path*', '/BBCA');
+  const exempted =
+    PROXY_EXEMPT_PREFIXES.some((p) => sample.startsWith(p)) || PROXY_EXEMPT_EXACT.includes(sample);
+  requireCheck(
+    id,
+    matcherCoversAllApi && !exempted && file(route).includes('checkPublicComputeBudget'),
+    `tercakup matcher, tidak dibebaskan, + route limiter`,
+  );
 }
 for (const route of ['app/api/ai-briefing/route.ts','app/api/intrinsic-explain/route.ts']) {
   requireCheck('S-2 '+route, file(route).includes('checkAiAccountBudget'), 'AI account limiter');

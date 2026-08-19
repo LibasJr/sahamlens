@@ -29,3 +29,9 @@ export const TELEGRAM_USER_COOKIE = 'sahamlens_user';
 // lihat shared/auth/anonymous-trial.ts). Beda dari SESSION_COOKIE (itu untuk akun
 // yang sudah login) - cookie ini murni penanda "kapan pertama kali dilihat".
 export const ANON_TRIAL_COOKIE = 'sahamlens_anon_trial';
+
+// Preferensi bahasa UI ('id' | 'en'). Non-HttpOnly: ditulis lib/i18n/LanguageContext.tsx
+// dari browser, dan dibaca server di app/api/ai-briefing untuk memilih bahasa jawaban.
+// Dulu literal 'sahamlens_lang' yang diketik ulang di dua tempat - satu salah ketik
+// sudah cukup untuk membuat briefing diam-diam selalu berbahasa Indonesia.
+export const LANG_COOKIE = 'sahamlens_lang';
