@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
 import { encrypt, decrypt } from './jwt';
 import { ANON_TRIAL_COOKIE } from '../constants/cookie-names';
+import type { CookieToSet } from '../types/http-result.types';
 
 // Trial 7 hari untuk pengunjung TANPA akun - dipakai 7 endpoint "lihat-analisa" yang
 // sebelumnya wajib login (Market Pulse, Calendar, Multi-agent, Council AI, Backtest,
@@ -62,6 +63,34 @@ export async function readOrIssueAnonymousTrial(): Promise<AnonTrialState> {
 
 // Tempelkan cookie ke response HANYA kalau trial.isNew (request-request berikutnya
 // yang membaca cookie yang sudah ada TIDAK menulis ulang setiap kali).
+/**
+ * Varian framework-agnostic dari applyAnonymousTrialCookie di bawah: mengembalikan
+ * deskripsi cookie alih-alih menempelkannya ke NextResponse.
+ *
+ * Dibutuhkan karena route yang dimigrasi ke runController tidak lagi memegang objek
+ * NextResponse - adapter yang membuatnya, dari HttpResult.cookiesToSet. Tanpa varian ini,
+ * satu-satunya cara route ber-trial-anonim bisa menyetel cookienya adalah keluar dari
+ * adapter, yaitu kehilangan X-Request-Id dan bentuk error seragam.
+ *
+ * Mengembalikan null kalau trial-nya bukan baru - aturan yang sama persis dengan versi
+ * NextResponse: request berikutnya yang membaca cookie yang sudah ada TIDAK menulis ulang.
+ */
+export async function buildAnonymousTrialCookie(trial: AnonTrialState): Promise<CookieToSet | null> {
+  if (!trial.isNew) return null;
+  const token = await encrypt<AnonTrialPayload>({ typ: 'anon_trial', firstSeenAt: trial.firstSeenAt }, `${ANON_TOKEN_TTL_DAYS}d`);
+  return {
+    name: ANON_TRIAL_COOKIE,
+    value: token,
+    options: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: ANON_TOKEN_MAX_AGE_SEC,
+      path: '/',
+    },
+  };
+}
+
 export async function applyAnonymousTrialCookie(res: NextResponse, trial: AnonTrialState): Promise<void> {
   if (!trial.isNew) return;
   const token = await encrypt<AnonTrialPayload>({ typ: 'anon_trial', firstSeenAt: trial.firstSeenAt }, `${ANON_TOKEN_TTL_DAYS}d`);

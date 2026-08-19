@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -20,7 +21,37 @@ const MODULE_SEARCH_ROUTES = ['/dashboard', '/fundamental', '/macro', '/screener
 
 export default function TopMarketBar() {
   const pathname = usePathname();
-  const [ihsg, setIhsg] = useState<{ price: number; change: number } | null>(null);
+  // IHSG lewat SWR, bukan useEffect+fetch. DUA hal yang diperbaiki sekaligus:
+  //
+  //   1. Dulu diambil SEKALI saat mount dan tidak pernah disegarkan - harga di bilah
+  //      global ini karena itu basi sepanjang sesi, padahal ia justru elemen paling
+  //      "live" di seluruh aplikasi. Sekarang menyegarkan tiap 60 detik dan berhenti
+  //      saat tab tersembunyi.
+  //   2. app/home/page.tsx mengambil endpoint yang SAMA. Kunci SWR yang sama membuat
+  //      keduanya berbagi satu permintaan alih-alih dua yang identik.
+  //
+  // Kegagalan sengaja diabaikan diam-diam, sama seperti `.catch(() => {})` sebelumnya:
+  // bilah ini hiasan konteks, dan pesan error di sana lebih mengganggu daripada
+  // sekadar tidak menampilkan angkanya.
+  const { data: ihsgRaw } = useSWR<{ price: unknown; changePercent: unknown }>(
+    '/api/live/^JKSE',
+    {
+      refreshInterval: 60_000,
+      refreshWhenHidden: false,
+      // Angka lama dipertahankan selama revalidasi supaya bilahnya tidak berkedip kosong.
+      keepPreviousData: true,
+    },
+  );
+
+  // Penjagaan tipe DIPERTAHANKAN persis seperti sebelumnya: endpoint ini mengembalikan
+  // `price: null` yang sah saat data tidak tersedia (lihat app/api/live/[ticker]), jadi
+  // "ada respons" tidak sama dengan "ada angka".
+  const ihsg =
+    ihsgRaw &&
+    typeof ihsgRaw.price === 'number' && Number.isFinite(ihsgRaw.price) && ihsgRaw.price > 0 &&
+    typeof ihsgRaw.changePercent === 'number' && Number.isFinite(ihsgRaw.changePercent)
+      ? { price: ihsgRaw.price, change: ihsgRaw.changePercent }
+      : null;
   const [now, setNow] = useState<Date | null>(null);
   const { loading: authLoading, user, effectiveRole, trialDaysLeft } = useAuthUser();
 
@@ -30,21 +61,6 @@ export default function TopMarketBar() {
       if (!document.hidden) setNow(new Date());
     }, 30000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/live/^JKSE')
-      .then((response) => response.json())
-      .then((data) => {
-        if (
-          data &&
-          typeof data.price === 'number' && Number.isFinite(data.price) && data.price > 0 &&
-          typeof data.changePercent === 'number' && Number.isFinite(data.changePercent)
-        ) {
-          setIhsg({ price: data.price, change: data.changePercent });
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const { t, language } = useLanguage();

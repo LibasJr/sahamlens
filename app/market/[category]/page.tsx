@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import useSWR from 'swr';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -39,28 +40,33 @@ export default function MarketCategoryPage() {
   const category = String(params.category || '');
   const config = CATEGORY_CONFIG[category];
 
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<'symbol' | 'price' | 'metric'>('metric');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  React.useEffect(() => {
-    if (!config) { setLoading(false); return; }
-    fetch('/api/market-summary')
-      .then(r => r.json())
-      .then(data => {
-        if (data && !data.error) {
-          setRows(data[config.dataKey] || []);
-          if (data.timestamp) {
-            setLastUpdated(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.timestamp)) + ' WIB');
-          }
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [category]);
+  // Kunci SWR-nya SAMA dengan app/home/page.tsx dan components/TopMarketBar.tsx. Berpindah
+  // dari Beranda ke halaman kategori ini karena itu tidak mengambil apa pun lagi - dulu
+  // permintaan ketiga ke endpoint yang isinya identik.
+  //
+  // Kuncinya null saat kategorinya tidak dikenal, menggantikan `if (!config) return;`.
+  const { data: summary, isLoading } = useSWR<any>(config ? '/api/market-summary' : null);
+  const loading = Boolean(config) && isLoading;
+
+  // Turunan murni, bukan state: `rows` dan `lastUpdated` sepenuhnya ditentukan respons +
+  // kategori yang sedang dibuka.
+  const rows = useMemo<Row[]>(
+    () => (config && summary && !summary.error ? (summary[config.dataKey] ?? []) : []),
+    [summary, config],
+  );
+
+  const lastUpdated = useMemo(() => {
+    if (!summary?.timestamp || summary.error) return null;
+    return `${new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(summary.timestamp))} WIB`;
+  }, [summary]);
 
   const displayRows = useMemo(() => {
     let out = rows.filter(r => r.symbol.toLowerCase().includes(search.trim().toLowerCase()));

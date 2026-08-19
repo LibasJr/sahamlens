@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
 import { getMarketSummary } from '@/modules/market';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET() {
-  try {
+  return runController(async () => {
     const data = await getOrCompute(CACHE_KEY, CACHE_TTL_SEC.MARKET_SUMMARY, getMarketSummary);
     // Audit BUILD 001 (timestamp/freshness) - _meta ADDITIF, tidak menyentuh field
     // yang sudah ada di `data`.
@@ -39,9 +39,15 @@ export async function GET() {
     // acuan yang jauh lebih pendek dari TTL sungguhan dan salah label (selalu "FRESH").
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
     const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.MARKET_SUMMARY_CRON);
-    return NextResponse.json({ ...data, _meta }, { headers: publicCacheHeaders(CACHE_TTL_SEC.MARKET_SUMMARY) });
-  } catch (error: any) {
-    console.error('Market summary API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController sudah mengubah error tak terduga jadi 500
+    // "Internal Server Error" yang sama, tapi SEKALIGUS mencatatnya ke shared/logger
+    // dengan X-Request-Id yang sama seperti yang diterima klien. console.error yang
+    // digantikannya tidak punya kaitan itu, jadi satu laporan bug tidak pernah bisa
+    // ditelusuri ke baris lognya.
+    return {
+      status: 200,
+      body: { ...data, _meta },
+      headers: publicCacheHeaders(CACHE_TTL_SEC.MARKET_SUMMARY),
+    };
+  });
 }

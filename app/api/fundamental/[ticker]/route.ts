@@ -5,8 +5,11 @@ import { fundamentalPitToAnalyzerPayload } from '@/modules/fundamental/service/f
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
-import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { NotFoundError } from '@/shared/errors/app-error';
+import { z } from 'zod';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -49,10 +52,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
-  try {
+  return runController(async () => {
     const { ticker: rawTicker } = await params;
-    const ticker = normalizeIdxTickerParam(rawTicker);
-    if (!ticker) return NextResponse.json({ error: 'Ticker tidak valid' }, { status: 400 });
+    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
 
 
     // ============================================================
@@ -63,28 +65,33 @@ export async function GET(
     const asOfDate = url.searchParams.get('as_of');
 
     if (asOfDate !== null) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) {
-        return NextResponse.json(
-          { error: 'as_of wajib format YYYY-MM-DD' },
-          { status: 400 },
-        );
-      }
+      // Regex tangan -> skema Zod lewat parseOrThrow. Bentuk 400-nya sama, tapi sekarang
+      // membawa `code: 'VALIDATION_ERROR'` dari katalog, jadi klien bisa menanganinya
+      // bersama kegagalan validasi lain alih-alih mencocokkan string pesan.
+      parseOrThrow(
+        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'as_of wajib format YYYY-MM-DD'),
+        asOfDate,
+      );
 
       console.log('[PIT ROUTE TEST]', ticker, asOfDate);
 
       const pit = await asOf(ticker, asOfDate);
 
       if (!pit) {
-        return NextResponse.json(
-          {
+        // 404 dengan BODY BERMAKNA, bukan amplop error: `available: false` berikut
+        // pesannya adalah jawaban yang UI tampilkan apa adanya ("belum ada fundamental
+        // yang diketahui pasar pada tanggal itu"). Melemparnya sebagai NotFoundError
+        // akan menggantinya dengan { error, code } dan menghapus konteks tanggalnya.
+        return {
+          status: 404,
+          body: {
             ticker,
             mode: 'PIT',
             requested_as_of: asOfDate,
             available: false,
             message: 'Belum ada fundamental yang diketahui pasar pada tanggal tersebut.',
           },
-          { status: 404 },
-        );
+        };
       }
 
       const [pitPayload, bankFundamentals] = await Promise.all([
@@ -124,7 +131,7 @@ export async function GET(
       const fundamentalQuality =
         computeFundamentalQuality(bullish, bearish);
 
-      return NextResponse.json({
+      return { status: 200, body: {
         ticker,
         mode: 'PIT',
         requested_as_of: asOfDate,
@@ -175,7 +182,7 @@ export async function GET(
           netProfitMargins: null,
           nim: null,
         },
-      });
+      } };
     }
     // BUG FIX (2026-08-14, laporan pengguna "Fundamental/Moat lambat"): endpoint ini
     // SEBELUMNYA tanpa cache sama sekali - beberapa panggilan Yahoo (quoteSummary,
@@ -190,14 +197,12 @@ export async function GET(
       () => computeCurrentFundamental(ticker),
     );
     if ('notFound' in result) {
-      return NextResponse.json({ error: 'Failed to fetch Fundamental data' }, { status: 404 });
+      throw new NotFoundError('Data fundamental tidak tersedia untuk emiten ini');
     }
-    return NextResponse.json(result);
-
-  } catch (error: any) {
-    console.error('Fundamental API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return { status: 200, body: result };
+  });
 }
 
 async function computeCurrentFundamental(ticker: string): Promise<Record<string, unknown> | { notFound: true }> {

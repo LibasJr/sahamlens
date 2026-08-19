@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import useSWR from 'swr';
+import { ApiError } from '@/lib/api/fetcher';
 import {
   Building,
   TrendingUp,
@@ -31,59 +33,61 @@ const OFFICIAL_SOURCE = 'IDX_OFFICIAL_API';
 // hasil seedRandom (acak tapi stabil per ticker). Sudah dihapus total.
 export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   const { t, language } = useLanguage();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   // Batang grafik 20 hari yang sedang dibaca. Dulu nilainya hanya muncul lewat tooltip
   // :hover, sehingga di layar sentuh angkanya TIDAK PERNAH bisa dibaca - grafiknya jadi
   // dekorasi untuk seluruh pengguna mobile. Sekarang pilihannya berupa state supaya bisa
   // digerakkan oleh sentuhan, klik, dan keyboard. null = pakai hari terakhir.
   const [activeFlowIdx, setActiveFlowIdx] = useState<number | null>(null);
 
-  useEffect(() => {
-    const fetchFlowData = async () => {
-      setLoading(true);
-      setError(null);
-      setData(null);
-      setActiveFlowIdx(null);
-      try {
-        const cleanSymbol = symbol.replace('.JK', '');
-        const res = await fetch(`/api/flow/${cleanSymbol}`);
-        const json = await res.json().catch(() => null);
-        if (!res.ok) {
-          setError(
-            json?.error ||
-              (res.status === 402
-                ? language === 'en'
-                  ? 'LensFlow requires an active account.'
-                  : 'LensFlow memerlukan akses akun.'
-                : language === 'en'
-                  ? 'Money flow data temporarily unavailable.'
-                  : 'Data arus dana sementara tidak tersedia.')
-          );
-        } else if (!json?.summary || !Array.isArray(json.foreignFlow20D)) {
-          setError(
-            language === 'en'
-              ? 'Incomplete money flow response. Please refresh the page.'
-              : 'Respons data arus dana tidak lengkap. Coba segarkan halaman.'
-          );
-        } else {
-          setData(json);
-        }
-      } catch (err) {
-        console.error('Failed to fetch flow data', err);
-        setError(
-          language === 'en'
-            ? 'Failed to fetch money flow data. Please try again.'
-            : 'Gagal mengambil data arus dana. Silakan coba lagi.'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+  // SWR menggantikan seluruh useEffect ini. Yang paling penting: versi lama TIDAK punya
+  // penjaga urutan (tanpa AbortController maupun flag cancelled) padahal kuncinya
+  // per-emiten - berpindah emiten lebih cepat dari respons menampilkan arus dana emiten
+  // LAIN di bawah nama emiten yang sedang dilihat. SWR mengunci hasil ke kuncinya.
+  //
+  // Tombol "Coba lagi" di bawah dulu punya SALINAN KEDUA dari logika fetch ini, dengan
+  // penanganan error yang berbeda dari yang di atas ("Data tidak tersedia." vs pesan
+  // lengkapnya). Kedua salinan itu kini satu: tombolnya cukup memanggil retry().
+  const cleanSymbol = symbol.replace('.JK', '');
+  const {
+    data: flowData,
+    error: flowError,
+    isLoading: loading,
+    mutate: retry,
+  } = useSWR<any>(symbol ? `/api/flow/${cleanSymbol}` : null);
 
-    fetchFlowData();
-  }, [symbol, language]);
+  // Bentuk respons tetap dijaga: payload yang datang tanpa summary/foreignFlow20D
+  // diperlakukan sebagai tidak lengkap, bukan dirender sebagai kartu kosong.
+  const shapeOk = Boolean(flowData?.summary && Array.isArray(flowData?.foreignFlow20D));
+  const data = shapeOk ? flowData : null;
+
+  const error = (() => {
+    if (flowError) {
+      const status = flowError instanceof ApiError ? flowError.status : null;
+      if (status === 402) {
+        return language === 'en'
+          ? 'LensFlow requires an active account.'
+          : 'LensFlow memerlukan akses akun.';
+      }
+      // Pesan dari server dipakai kalau ada - runController menjamin hanya pesan yang
+      // memang ditujukan ke pengguna yang lolos ke klien.
+      const serverMessage = (flowError as Error).message;
+      if (serverMessage) return serverMessage;
+      return language === 'en'
+        ? 'Money flow data temporarily unavailable.'
+        : 'Data arus dana sementara tidak tersedia.';
+    }
+    if (flowData && !shapeOk) {
+      return language === 'en'
+        ? 'Incomplete money flow response. Please refresh the page.'
+        : 'Respons data arus dana tidak lengkap. Coba segarkan halaman.';
+    }
+    return null;
+  })();
+
+  // Tooltip grafik kembali ke hari terakhir setiap kali emitennya berganti.
+  useEffect(() => {
+    setActiveFlowIdx(null);
+  }, [symbol]);
 
   if (loading) {
     return (
@@ -104,19 +108,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
         <AlertCircle className="w-8 h-8 text-tv-muted" />
         <p className="text-sm text-tv-muted max-w-sm">{error}</p>
         <button
-          onClick={() => {
-            const clean = symbol.replace('.JK', '');
-            setLoading(true);
-            setError(null);
-            fetch(`/api/flow/${clean}`)
-              .then((r) => r.json())
-              .then((d) => {
-                if (d?.summary && Array.isArray(d.foreignFlow20D)) setData(d);
-                else setError(language === 'en' ? 'Data unavailable.' : 'Data tidak tersedia.');
-              })
-              .catch(() => setError(language === 'en' ? 'Network error.' : 'Gagal menghubungi server.'))
-              .finally(() => setLoading(false));
-          }}
+          onClick={() => void retry()}
           className="text-xs text-tv-blue hover:underline font-semibold"
         >
           {language === 'en' ? 'Try Again' : 'Coba lagi'}

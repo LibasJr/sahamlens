@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import useSWR from 'swr';
+import { ApiError } from '@/lib/api/fetcher';
+import type { PresenceEntry } from '@/shared/auth/presence';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, User, ShieldCheck, Users, Loader2, Crown } from 'lucide-react';
@@ -41,9 +44,6 @@ function timeAgo(iso: string): string {
 // untuk tutup) - kontennya beda (info profil, bukan ajakan upgrade/daftar) jadi
 // komponen terpisah, bukan reuse PaywallModal yang props-nya spesifik untuk paywall.
 export default function UserProfileModal({ open, onClose }: UserProfileModalProps) {
-  const [data, setData] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -53,12 +53,14 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
     setShowPaywall(true);
   };
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const handleDeleteAccount = async () => {
     if (!data || data.role === 'admin') return;
     const confirmation = window.prompt('Penghapusan akun bersifat permanen. Ketik HAPUS AKUN untuk melanjutkan.');
     if (confirmation !== 'HAPUS AKUN') return;
     setDeletingAccount(true);
-    setError(null);
+    setDeleteError(null);
     try {
       const res = await fetch('/api/user/delete-account', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -68,29 +70,55 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
       if (!res.ok) throw new Error(json?.error || 'Gagal menghapus akun');
       window.location.href = '/';
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal menghapus akun');
+      setDeleteError(e instanceof Error ? e.message : 'Gagal menghapus akun');
       setDeletingAccount(false);
     }
   };
 
+  // Kunci null selama modal tertutup - profil tidak diambil sampai benar-benar dibuka,
+  // sama seperti `if (!open) return;` sebelumnya. Saat dibuka, kuncinya SAMA dengan yang
+  // dipakai app/home/page.tsx, jadi membuka modal dari Beranda tidak mengambil ulang.
+  // Tipe eksplisit, bukan `any`. Sebelum migrasi ini `data` juga longgar, tapi sekarang
+  // ia melewati satu tempat saja - jadi menuliskannya sekali di sini memberi seluruh
+  // pemakaian di bawah pengecekan yang nyata.
+  // Bentuknya diambil dari kontrak server yang sebenarnya (handleProfile di
+  // modules/user/controller/auth.controller.ts), bukan ditebak:
+  //   - `activeUsers` HANYA dikirim untuk role admin, jadi opsional - bukan array kosong.
+  //   - elemennya PresenceEntry, tipe yang sudah ada di shared/auth/presence.ts.
+  //   - `createdAt` non-null: user.created_at bertipe string di user.types.ts.
+  type ProfileData = {
+    email: string;
+    role: string;
+    isPro: boolean;
+    isVerified: boolean;
+    hasProAccess: boolean;
+    createdAt: string;
+    trialEndsAt: string | null;
+    proExpiresAt: string | null;
+    activeUsers?: PresenceEntry[];
+  };
+
+  const {
+    data,
+    error: profileError,
+    isLoading: loading,
+  } = useSWR<ProfileData>(open ? '/api/user/profile' : null);
+
+  // 401 = sesi habis saat modal terbuka. Menutupnya adalah tindakan yang benar: profil
+  // orang yang tidak login tidak ada isinya, dan pesan error di dalam modal hanya
+  // membuat pengguna menatap kotak kosong.
   useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    setError(null);
-    setData(null);
-    fetch('/api/user/profile')
-      .then((res) => {
-        if (res.status === 401) {
-          onClose();
-          return null;
-        }
-        if (!res.ok) throw new Error('Gagal memuat profil');
-        return res.json();
-      })
-      .then((json) => { if (json) setData(json); })
-      .catch(() => setError('Gagal memuat profil'))
-      .finally(() => setLoading(false));
-  }, [open, onClose]);
+    if (profileError instanceof ApiError && profileError.status === 401) onClose();
+  }, [profileError, onClose]);
+
+  // Error MUTASI (hapus akun) dipisah dari error pembacaan profil: keduanya punya sebab
+  // dan pesan yang berbeda, dan SWR tidak mengurus yang pertama. Ditampilkan lewat satu
+  // variabel `error` supaya render di bawah tidak perlu tahu bedanya.
+  const readError =
+    profileError && !(profileError instanceof ApiError && profileError.status === 401)
+      ? 'Gagal memuat profil'
+      : null;
+  const error = deleteError ?? readError;
 
   useModalBehavior({ open, onClose, containerRef: modalRef });
 

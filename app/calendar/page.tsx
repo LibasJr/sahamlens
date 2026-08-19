@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import useSWR from 'swr';
+import { ApiError } from '@/lib/api/fetcher';
 import {
   ChevronLeft,
   ChevronRight,
@@ -51,32 +53,46 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(today);
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [activeTab, setActiveTab] = useState('ALL');
-  const [calendarData, setCalendarData] = useState<Record<string, CalendarEvent[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Hanya kondisi 401-tapi-sesi-masih-hidup yang perlu state sendiri; sisanya diturunkan
+  // dari hasil SWR di bawah.
+  const [sessionReadError, setSessionReadError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const loadCalendar = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    fetch('/api/calendar')
-      .then(async (res) => {
-        if (res.status === 401) {
-          if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
-          else setError('Sesi masih aktif, tetapi kalender gagal dibaca. Coba muat ulang halaman.');
-          return null;
-        }
-        return res.json().then((data) => ({ ok: res.ok, data }));
-      })
-      .then((result) => {
-        if (!result) return;
-        const { ok, data } = result;
-        if (!ok) { setError(data?.error || 'Gagal memuat kalender'); return; }
-        setCalendarData(data.events || {});
-      })
-      .catch(() => setError('Gagal memuat kalender'))
-      .finally(() => setLoading(false));
-  }, []);
+  // SWR menggantikan loadCalendar. Cabang 401 DIPERTAHANKAN utuh: ia bukan sekadar
+  // "gagal", melainkan dua kemungkinan yang harus dibedakan - sesi memang habis (tampilkan
+  // ajakan login) atau sesi masih hidup tapi kalendernya gagal dibaca (tampilkan pesan,
+  // JANGAN suruh login orang yang sudah login). shouldShowLoginPromptFor401() itu async,
+  // jadi keputusannya dijalankan di efek terpisah, bukan di dalam render.
+  const {
+    data: calendarPayload,
+    error: calendarError,
+    isLoading: loading,
+    mutate: loadCalendar,
+  } = useSWR<{ events?: Record<string, CalendarEvent[]> }>('/api/calendar');
+
+  // Lihat catatan yang sama di app/news/page.tsx: `?? {}` menghasilkan objek baru setiap
+  // render dan membatalkan useMemo yang bergantung padanya.
+  const calendarData = useMemo(() => calendarPayload?.events ?? {}, [calendarPayload]);
+  const is401 = calendarError instanceof ApiError && calendarError.status === 401;
+
+  useEffect(() => {
+    if (!is401) return;
+    let cancelled = false;
+    shouldShowLoginPromptFor401().then((shouldPrompt) => {
+      if (cancelled) return;
+      if (shouldPrompt) setShowLoginPrompt(true);
+      else setSessionReadError('Sesi masih aktif, tetapi kalender gagal dibaca. Coba muat ulang halaman.');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [is401]);
+
+  const error =
+    sessionReadError ??
+    (calendarError && !is401
+      ? (calendarError as Error).message || 'Gagal memuat kalender'
+      : null);
 
   useEffect(() => {
     loadCalendar();
