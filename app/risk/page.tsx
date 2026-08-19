@@ -109,6 +109,7 @@ export default function RiskPage() {
                   <span className="text-tv-text font-bold font-number">{item.weight}%</span>
                 </div>
                 <Button variant="bare" size="none"
+                  aria-label={`Hapus ${item.ticker} dari daftar posisi`}
                   onClick={() => removePosition(idx)}
                   className="p-1 text-tv-muted hover:text-tv-red transition-colors"
                 >
