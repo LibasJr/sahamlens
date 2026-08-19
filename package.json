@@ -64,6 +64,7 @@
     "recharts": "^3.10.1",
     "redis": "^6.2.1",
     "rss-parser": "^3.13.0",
+    "swr": "^2.5.1",
     "tailwind-merge": "^2.5.4",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^4.0.0",
