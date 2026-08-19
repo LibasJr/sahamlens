@@ -34,12 +34,18 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Batang grafik 20 hari yang sedang dibaca. Dulu nilainya hanya muncul lewat tooltip
+  // :hover, sehingga di layar sentuh angkanya TIDAK PERNAH bisa dibaca - grafiknya jadi
+  // dekorasi untuk seluruh pengguna mobile. Sekarang pilihannya berupa state supaya bisa
+  // digerakkan oleh sentuhan, klik, dan keyboard. null = pakai hari terakhir.
+  const [activeFlowIdx, setActiveFlowIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchFlowData = async () => {
       setLoading(true);
       setError(null);
       setData(null);
+      setActiveFlowIdx(null);
       try {
         const cleanSymbol = symbol.replace('.JK', '');
         const res = await fetch(`/api/flow/${cleanSymbol}`);
@@ -184,6 +190,14 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
   }
 
   // --- Grafik 20 hari: batang arus dana + garis harga penutupan ------------------
+  // Batang yang nilainya sedang ditampilkan. Default-nya sesi terakhir, bukan kosong:
+  // grafik yang belum disentuh pun harus sudah memberi satu angka yang bisa dibaca.
+  const activeIdx = activeFlowIdx != null && flow[activeFlowIdx] ? activeFlowIdx : flow.length - 1;
+  const activeBar = flow[activeIdx] ?? null;
+  const activeBarValue = activeBar
+    ? num(activeBar.netValueBillion) ?? num(activeBar.netForeignValueBillion) ?? 0
+    : 0;
+
   const maxAbsFlow = Math.max(
     ...flow.map((d) => Math.abs(num(d.netValueBillion) ?? num(d.netForeignValueBillion) ?? 0)),
     0
@@ -363,20 +377,29 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                     // tidak bisa dihitung browser (parent tanpa tinggi eksplisit karena
                     // items-end tidak men-stretch flex item) - akibatnya semua bar tidak
                     // muncul sama sekali walau heightPct terhitung benar.
-                    <div key={i} className="flex-1 h-full flex flex-col justify-end items-center group relative">
+                    // <button>, bukan <div>: batangnya kini benar-benar dapat dipilih -
+                    // disentuh di ponsel, diklik di desktop, dan dijangkau Tab di keyboard.
+                    // Nilainya dibacakan di baris tetap di bawah grafik, bukan tooltip
+                    // melayang: di layar sempit tooltip tidak punya ruang untuk memuat, dan
+                    // tooltip :hover tidak pernah muncul sama sekali di layar sentuh.
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActiveFlowIdx(i)}
+                      onFocus={() => setActiveFlowIdx(i)}
+                      onMouseEnter={() => setActiveFlowIdx(i)}
+                      aria-label={`${d.date}: ${value > 0 ? '+' : ''}${value.toFixed(2)} miliar`}
+                      aria-pressed={i === activeIdx}
+                      className="flex-1 h-full flex flex-col justify-end items-center relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue rounded-sm"
+                    >
                       <div
                         className={`w-full rounded-t-sm transition-all duration-300 ${isPos ? 'bg-tv-green' : 'bg-tv-red'}`}
-                        style={{ height: `${Math.max(5, heightPct)}%`, opacity: isPos ? 0.8 : 0.7 }}
+                        style={{
+                          height: `${Math.max(5, heightPct)}%`,
+                          opacity: i === activeIdx ? 1 : isPos ? 0.8 : 0.7,
+                        }}
                       />
-                      <div className="absolute -top-10 bg-tv-card text-tv-text border border-tv-border shadow-md text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-20 pointer-events-none">
-                        <div>{d.date}: {value > 0 ? '+' : ''}{value.toFixed(2)}M</div>
-                        {isOfficial && num(d.close) !== null && (
-                          <div className="text-tv-muted">
-                            {isEn ? 'Close' : 'Tutup'} {formatInt(d.close)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -403,6 +426,33 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 </svg>
               )}
             </div>
+
+            {/* Pembaca nilai batang terpilih. Ini pengganti tooltip :hover yang dulu
+                dipakai - satu-satunya cara membaca angka grafik ini, dan ia tidak pernah
+                muncul di layar sentuh. Baris tetap juga lebih baik di layar sempit:
+                tidak ada kotak melayang yang harus memuat di ruang yang tidak ada.
+                aria-live supaya pembaca layar ikut mengumumkan pergantian batang. */}
+            {activeBar && (
+              <div
+                className="mt-3 flex items-baseline gap-x-3 gap-y-1 flex-wrap border-t border-tv-border pt-2.5"
+                aria-live="polite"
+              >
+                <span className="text-[11px] font-sans text-tv-muted">{activeBar.date}</span>
+                <span className={`text-sm font-bold font-number ${activeBarValue >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                  {activeBarValue > 0 ? '+' : ''}{activeBarValue.toFixed(2)} M
+                </span>
+                {isOfficial && num(activeBar.close) !== null && (
+                  <span className="text-[11px] font-sans text-tv-muted">
+                    {isEn ? 'Close' : 'Tutup'} <span className="font-number text-tv-text">{formatInt(activeBar.close)}</span>
+                  </span>
+                )}
+                {activeFlowIdx === null && (
+                  <span className="text-[10px] font-sans text-tv-muted/80">
+                    {isEn ? 'latest session - tap a bar for another day' : 'sesi terakhir - ketuk batang lain untuk hari berbeda'}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="mt-3 flex items-center gap-4 text-[10px] font-sans text-tv-muted flex-wrap">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-tv-green inline-block" /> {isEn ? 'Inflow' : 'Dana Masuk'}</span>
