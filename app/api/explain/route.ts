@@ -38,7 +38,15 @@ export async function POST(request: Request) {
       } else {
         explanation = `RSI ${data.value} berada di area netral. Momentum belum menunjukkan kondisi ekstrem ke arah manapun.`;
       }
-    } else if ((filter === 'LensFlow (Arus Dana Asing BEI)' || filter === 'Bandarmology (Net Asing BEI)') && status) {
+    } else if (
+      // Label lama masih diterima supaya respons yang sudah tersimpan di cache klien
+      // tetap dapat penjelasan yang benar setelah label di /api/stock diganti.
+      (filter === 'LensFlow (Arus Dana Asing)' ||
+        filter === 'Bandarmology (Net Asing)' ||
+        filter === 'LensFlow (Arus Dana Asing BEI)' ||
+        filter === 'Bandarmology (Net Asing BEI)') &&
+      status
+    ) {
       // Catatan resmi Bursa: lembar saham yang benar-benar dibeli dan dijual investor
       // asing, bukan tekanan yang ditebak dari harga.
       explanation = status === 'BULLISH'
