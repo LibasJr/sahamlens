@@ -28,10 +28,34 @@ describe('technical-levels calculation engine', () => {
     expect(pivots.CLASSIC.s1).toBe(1000); // 2 * 1050 - 1100 = 1000
 
     expect(pivots.FIBONACCI.pp).toBe(1050);
-    expect(pivots.FIBONACCI.r1).toBe(1088); // 1050 + 0.382 * 100 = 1088
-    expect(pivots.FIBONACCI.s1).toBe(1012); // 1050 - 0.382 * 100 = 1012
+    expect(pivots.FIBONACCI.r1).toBe(1088.2); // 1050 + 0.382 * 100 = 1088.2
+    expect(pivots.FIBONACCI.s1).toBe(1011.8); // 1050 - 0.382 * 100 = 1011.8
 
     expect(pivots.CAMARILLA.pp).toBe(1050);
+    expect(pivots.CAMARILLA.r1).toBe(1059.17); // 1050 + 100 * 1.1 / 12
+    expect(pivots.CAMARILLA.s1).toBe(1040.83);
+  });
+
+  it('keeps the three methods distinct on a narrow-range low-priced stock', () => {
+    // Saham Rp 148-an dengan rentang sesi cuma Rp 2 - kasus yang dulu membuat ketiga
+    // metode tampil identik karena hasilnya dibulatkan ke rupiah penuh.
+    const pivots = calculatePivotPoints(149, 147, 149);
+
+    // Titik pivot memang identik di ketiga metode, itu sifat rumusnya.
+    expect(pivots.FIBONACCI.pp).toBe(pivots.CLASSIC.pp);
+    expect(pivots.CAMARILLA.pp).toBe(pivots.CLASSIC.pp);
+
+    // Level turunannya tidak boleh saling tumpang tindih.
+    expect(pivots.FIBONACCI.r1).not.toBe(pivots.CLASSIC.r1);
+    expect(pivots.CAMARILLA.r1).not.toBe(pivots.CLASSIC.r1);
+    expect(pivots.CAMARILLA.r1).not.toBe(pivots.FIBONACCI.r1);
+    expect(pivots.FIBONACCI.s1).not.toBe(pivots.CLASSIC.s1);
+    expect(pivots.CAMARILLA.s3).not.toBe(pivots.CLASSIC.s3);
+
+    // Camarilla paling rapat, Classic paling lebar.
+    expect(pivots.CAMARILLA.r3 - pivots.CAMARILLA.s3).toBeLessThan(
+      pivots.CLASSIC.r3 - pivots.CLASSIC.s3
+    );
   });
 
   it('calculates 52-week high, low, and position percentage', () => {

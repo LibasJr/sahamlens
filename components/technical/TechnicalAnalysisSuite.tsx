@@ -77,6 +77,21 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
     return 'Rp ' + Math.round(val).toLocaleString(isEn ? 'en-US' : 'id-ID');
   }
 
+  // Level pivot butuh desimal untuk saham berharga rendah. Kalau dibulatkan ke rupiah
+  // penuh, saham Rp 150-an dengan rentang sesi 2-3 rupiah akan menampilkan angka yang
+  // sama persis di ketiga metode, sehingga tab Classic/Fibonacci/Camarilla terlihat
+  // seperti tidak berfungsi padahal hitungannya memang berbeda.
+  function formatLevel(val: number, reference: number) {
+    const decimals = reference < 200 ? 2 : reference < 1000 ? 1 : 0;
+    return (
+      'Rp ' +
+      val.toLocaleString(isEn ? 'en-US' : 'id-ID', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })
+    );
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -133,35 +148,46 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
           </div>
         </div>
 
+        {/* Penjelasan singkat metode aktif. Ketiga metode memakai titik pivot (PP) yang
+            sama persis, yang berbeda hanya cara menurunkan R1-R3 dan S1-S3, jadi tanpa
+            keterangan ini pembaca sulit tahu apa yang sebenarnya berubah saat ganti tab. */}
+        <p className="text-xs text-tv-muted leading-relaxed -mt-1">
+          {selectedPivotMethod === 'CLASSIC'
+            ? t('technicalEnhance.classicDesc')
+            : selectedPivotMethod === 'FIBONACCI'
+            ? t('technicalEnhance.fibonacciDesc')
+            : t('technicalEnhance.camarillaDesc')}
+        </p>
+
         {/* Pivot Levels Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
           <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-red/20 text-center">
             <span className="text-[10px] uppercase font-bold text-tv-red">R3</span>
-            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatRp(activePivots.r3)}</div>
+            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.r3, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-red/20 text-center">
             <span className="text-[10px] uppercase font-bold text-tv-red">R2</span>
-            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatRp(activePivots.r2)}</div>
+            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.r2, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-red/30 bg-tv-red/[0.04] text-center">
             <span className="text-[10px] uppercase font-bold text-tv-red">{t('technicalEnhance.resistance1')}</span>
-            <div className="text-sm font-bold font-number text-white mt-1">{formatRp(activePivots.r1)}</div>
+            <div className="text-sm font-bold font-number text-white mt-1">{formatLevel(activePivots.r1, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-blue/10 border border-tv-blue/40 text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold text-tv-blue">{t('technicalEnhance.pivotPoint')}</span>
-            <div className="text-base font-extrabold font-number text-tv-blue mt-0.5">{formatRp(activePivots.pp)}</div>
+            <div className="text-base font-extrabold font-number text-tv-blue mt-0.5">{formatLevel(activePivots.pp, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-green/[0.04] border border-tv-green/30 text-center">
             <span className="text-[10px] uppercase font-bold text-tv-green">{t('technicalEnhance.support1')}</span>
-            <div className="text-sm font-bold font-number text-white mt-1">{formatRp(activePivots.s1)}</div>
+            <div className="text-sm font-bold font-number text-white mt-1">{formatLevel(activePivots.s1, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-green/20 text-center">
             <span className="text-[10px] uppercase font-bold text-tv-green">S2</span>
-            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatRp(activePivots.s2)}</div>
+            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.s2, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-green/20 text-center">
             <span className="text-[10px] uppercase font-bold text-tv-green">S3</span>
-            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatRp(activePivots.s3)}</div>
+            <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.s3, currentPrice)}</div>
           </div>
         </div>
 
