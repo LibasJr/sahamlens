@@ -537,11 +537,11 @@ export default function AiPickPage() {
                     375px - `overflow-x-auto` sendirian cuma memindahkan masalahnya jadi
                     gulir horizontal pada tampilan data utama. Di bawah md dipakai daftar
                     kartu dengan data yang sama persis. */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="lens-table-sticky-col lens-table-sticky-col-2 hidden md:block overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
-                        <th className="py-3 px-4">#</th>
+                        <th className="w-12 py-3 px-4">#</th>
                         {RADAR_SORTABLE_COLUMNS.map((col) => (
                           <th key={col.key} className={`py-3 px-4 ${col.align === 'right' ? 'text-right' : ''}`}>
                             {/* Ikon dua-arah selalu tampil (redup) supaya terlihat kolom
@@ -573,7 +573,7 @@ export default function AiPickPage() {
                         return (
                         <React.Fragment key={it.symbol}>
                         <tr className={`hover:bg-tv-hover/30 border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}>
-                          <td className="py-3 px-4 text-tv-muted">{idx + 1}</td>
+                          <td className="w-12 py-3 px-4 text-tv-muted">{idx + 1}</td>
                           <td className="py-3 px-4 font-bold font-number whitespace-nowrap">
                             <div className="flex items-center gap-2.5">
                               <TickerAvatar symbol={it.symbol} size="sm" />

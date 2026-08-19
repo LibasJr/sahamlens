@@ -4,9 +4,8 @@
   "description": "Screener & Analisis Kuantitatif Saham IDX",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#080D16",
-  "theme_color": "#080D16",
+  "background_color": "#070B12",
+  "theme_color": "#070B12",
   "lang": "id",
   "categories": ["finance", "business", "productivity"],
   "icons": [

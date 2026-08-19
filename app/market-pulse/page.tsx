@@ -501,7 +501,7 @@ export default function MarketPulse() {
             {renderBlocker('Indeks pasar')}
           </div>
         ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
           {data?.indices ? data.indices.map((idx: any) => {
             // price/changePct sekarang bisa null (data tidak tersedia dari Yahoo, BUKAN
             // di-fallback ke angka dummy - lihat market-pulse.service.ts) - render N/A

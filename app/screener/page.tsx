@@ -1006,7 +1006,7 @@ export default function ScreenerPage() {
                     </div>
                     <div className="flex items-center justify-between gap-2 blur-sm select-none opacity-40">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-tv-border flex items-center justify-center text-[10px]">?</div>
+                        <div className="w-6 h-6 rounded-full bg-tv-border flex items-center justify-center text-[10px] leading-none">?</div>
                         <span className="font-bold text-white">••••</span>
                         <span className="text-xs text-tv-muted">PT •••••••••••• Tbk</span>
                       </div>

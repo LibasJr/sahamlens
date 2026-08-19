@@ -16,6 +16,12 @@ const PALETTE = [
   { bg: 'rgba(249,115,22,0.14)', fg: '#FB923C' },
 ];
 
+// leading-none dipasang di kelas dasar, bukan per pemakaian. Kotak avatar berukuran
+// TETAP (w-7/h-7 dst.), sementara lantai keterbacaan di globals.css menaikkan
+// `text-[10px]`/`text-xs` menjadi 13px dan tinggi barisnya diwarisi dari body -
+// 1,6 di layar <=768px. 13px x 1,6 = 20,8px, lebih tinggi daripada kotak 20px yang
+// dipakai beberapa pemanggil lewat override, sehingga inisialnya mendesak keluar
+// lingkaran. line-height 1 membuat tinggi kotak teks kembali sepadan dengan avatarnya.
 const SIZES = {
   sm: 'w-7 h-7 text-[10px] rounded-md',
   md: 'w-9 h-9 text-xs rounded-lg',
@@ -42,7 +48,7 @@ export function TickerAvatar({ symbol, size = 'md', className }: TickerAvatarPro
     // Menuliskan palet kedua di sini akan menggandakan daftar yang harus dijaga
     // selaras; color-mix menjaga identitas warnanya tetap satu sumber.
     <span
-      className={cn('lens-ticker-avatar shrink-0 inline-flex items-center justify-center font-number font-bold tracking-tight select-none', SIZES[size], className)}
+      className={cn('lens-ticker-avatar shrink-0 inline-flex items-center justify-center font-number font-bold leading-none tracking-tight select-none', SIZES[size], className)}
       style={{ background: bg, color: fg, border: `1px solid ${fg}33`, ['--lens-avatar-fg' as string]: fg }}
       aria-hidden="true"
     >

@@ -309,7 +309,7 @@ function CompareContent() {
 
               {/* Tabel 4 kolom dengan satu kolom penjelasan panjang tidak terbaca di
                   lebar ponsel; di bawah lg dipakai daftar kartu dengan isi yang sama. */}
-              <div className="hidden lg:block overflow-x-auto">
+              <div className="lens-table-sticky-col [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden lg:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-tv-bg border-b border-tv-border">
