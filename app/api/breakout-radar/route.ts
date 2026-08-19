@@ -1,13 +1,12 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import type { NextRequest } from 'next/server';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { runController } from '@/shared/http/next-response.adapter';
 
 const CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
-export async function GET(request: NextRequest) {
+export async function GET(request?: Request) {
   return runController(async () => {
     try {
       const cached = await cacheGet<any>(CACHE_KEY);

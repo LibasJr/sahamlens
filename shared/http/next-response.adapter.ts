@@ -64,6 +64,9 @@ function toNextResponse(result: HttpResult, requestId: string, req?: Request): N
  * X-Request-Id yang sama dengan yang dicatat di log server - itu yang membuat satu
  * laporan bug user bisa ditelusuri ke baris log persis (API Guideline poin 4).
  */
+export function runController(handler: () => Promise<HttpResult>, req?: Request): Promise<NextResponse>;
+export function runController(handler: () => Promise<Response>, req?: Request): Promise<Response>;
+export function runController(handler: () => Promise<HttpResult | Response>, req?: Request): Promise<Response>;
 export async function runController(handler: () => Promise<HttpResult | Response>, req?: Request): Promise<Response> {
   const requestId = crypto.randomUUID();
   try {
