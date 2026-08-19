@@ -20,6 +20,19 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
       <div role="alert" className="w-full max-w-lg rounded-2xl border border-tv-border bg-tv-card p-6 text-center">
         <h1 className="text-xl font-bold text-tv-text">Terjadi gangguan pada halaman</h1>
         <p className="mt-2 text-sm text-tv-muted">Data Anda tidak diubah. Coba muat ulang bagian ini.</p>
+        {/* DIGEST ADALAH SATU-SATUNYA JALAN dari layar ini ke penyebabnya. Di produksi
+            Next.js menyamarkan pesan error asli - `error.message` di sini hanya berbunyi
+            "An error occurred in the Server Components render" - dan mencetak stack
+            sebenarnya ke log server DENGAN digest yang sama sebagai penanda. Tanpa
+            menampilkannya, satu-satunya cara mencocokkan laporan pengguna dengan baris
+            log adalah menebak lewat jam kejadian.
+            Ini padanan X-Request-Id yang sudah dipakai runController untuk API; halaman
+            sebelumnya tidak punya apa pun yang setara. */}
+        {error.digest && (
+          <p className="mt-3 font-mono text-[11px] text-tv-muted/70">
+            Kode kejadian: <span className="select-all text-tv-muted">{error.digest}</span>
+          </p>
+        )}
         <Button
           type="button"
           onClick={reset}
