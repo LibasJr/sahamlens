@@ -45,7 +45,7 @@ export interface RadarItem {
   flagReason: string | null;
 }
 
-interface MarketPulse {
+export interface MarketPulse {
   sectorHeatmap: { sector: string; color: string; changePct: number }[];
   breadth: { advancing: number; declining: number; total: number };
 }

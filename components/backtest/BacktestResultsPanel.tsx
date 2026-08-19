@@ -50,10 +50,10 @@ function EquityTooltip({ active, payload, label, initialCapital }: any) {
 
 interface BacktestResultsPanelProps {
   liveLoading: boolean;
-  liveError: string;
+  liveError: string | null;
   liveResults: any;
   selectedFilters: string[];
-  error: string;
+  error: string | null;
   results: any;
   loading: boolean;
   runBacktest: () => void;

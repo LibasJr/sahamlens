@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, Smile, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ThumbsDown, ThumbsUp } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 /**
@@ -44,7 +44,6 @@ type ChatMessage = {
   feedback?: 'up' | 'down';
 };
 
-const QUICK_EMOJIS = ['😀', '👍', '🙏', '📈', '📉', '🤔', '💡', '✅'];
 
 function makeMessageId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `lensai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -68,7 +67,6 @@ export default function AIChat() {
   // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
   // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
   const [markdownReady, setMarkdownReady] = useState(false);
-  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -377,11 +375,11 @@ export default function AIChat() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center sm:h-9 sm:w-9 justify-center rounded-xl bg-gradient-accent shadow-[0_10px_26px_rgba(79,140,255,0.22)]">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="flex h-10 w-10 items-center sm:h-9 sm:w-9 justify-center rounded-xl border border-tv-blue/20 bg-tv-blue/10">
+                <Sparkles className="w-4 h-4 text-tv-blue" />
               </div>
               <div>
-                <h3 className="font-heading text-base font-bold text-tv-text sm:text-sm">LensAI Copilot</h3>
+                <h3 className="font-heading text-base font-bold text-tv-text sm:text-sm">LensAI Research</h3>
                 <p className={`flex items-center gap-1 text-xs font-semibold sm:text-[10px] ${
                   penyediaSiap === false ? 'text-tv-red' : penyediaSiap ? 'text-tv-green' : 'text-tv-muted'
                 }`}>
@@ -391,8 +389,8 @@ export default function AIChat() {
                   {penyediaSiap === false
                     ? 'Penyedia AI belum terpasang'
                     : penyediaSiap
-                      ? 'AI sedang aktif'
-                      : 'Siap menerima pertanyaan'}
+                      ? 'Data siap ditelusuri'
+                      : 'Tanya konteks, risiko, atau alasan'}
                 </p>
               </div>
             </div>
@@ -410,21 +408,19 @@ export default function AIChat() {
           <div className="flex-1 space-y-4 overflow-y-auto bg-transparent p-4">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-[22px] border border-tv-blue/15 bg-gradient-accent-soft">
-                  <Bot className="w-8 h-8 text-tv-blue" />
+                <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-tv-border bg-tv-surface/80">
+                  <Bot className="w-7 h-7 text-tv-blue" />
                 </div>
                 <h4 className="font-heading text-lg font-bold text-tv-text">LensAI</h4>
                 <p className="max-w-xs text-base leading-relaxed text-tv-muted sm:text-sm">
-                  Tanya soal emiten (fundamental, teknikal, valuasi, dividen, arus dana), kondisi pasar
-                  dan sektor, peringkat LensRadar, atau cara kerja fitur SahamLens. Jawaban selalu dari
-                  data aplikasi - kalau datanya belum ada, saya bilang belum ada.
+                  Tanyakan apa yang penting dari saham yang sedang Anda lihat. LensAI membantu menjelaskan konteks, risiko, dan alasan di balik angka — lalu menunjukkan sumber data yang dipakai.
                 </p>
                 <div className="mt-4 flex w-full max-w-xs flex-col gap-2">
                   {starters.map((starter) => (
                     <Button variant="bare" size="none"
                       key={starter.prompt}
                       onClick={() => setInput(starter.prompt)}
-                      className="rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
+                      className="group flex items-center justify-between border-b border-tv-border/60 px-1 py-3 text-left text-sm text-tv-muted transition-colors last:border-b-0 hover:text-tv-text sm:text-xs"
                     >
                       {starter.label}
                     </Button>
@@ -436,8 +432,8 @@ export default function AIChat() {
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] rounded-2xl p-4 text-base leading-relaxed sm:text-sm ${
                     msg.role === 'user'
-                      ? 'bg-tv-blue text-white rounded-tr-md shadow-[0_8px_24px_rgba(79,140,255,0.16)]'
-                      : 'border border-white/[0.07] bg-tv-hover text-tv-text rounded-tl-md'
+                      ? 'bg-tv-blue text-white rounded-tr-md'
+                      : 'border border-tv-border/70 bg-tv-card/70 text-tv-text rounded-tl-md'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
@@ -516,36 +512,10 @@ export default function AIChat() {
                 aria-label="Kirim pertanyaan"
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-gradient-accent p-2 text-white transition-all hover:brightness-110 disabled:opacity-40"
+                className="absolute right-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-tv-blue p-2 text-white transition-colors hover:bg-tv-blueHover disabled:opacity-40"
               >
                 <Send className="w-4 h-4" />
               </Button>
-            </div>
-            <div className="mt-2 flex items-center gap-1">
-              <Button variant="bare" size="none"
-                type="button"
-                aria-label="Buka pilihan emoji"
-                aria-expanded={emojiOpen}
-                onClick={() => setEmojiOpen((open) => !open)}
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${emojiOpen ? 'bg-tv-blue/15 text-tv-blue' : 'text-tv-muted hover:bg-white/[0.05] hover:text-tv-text'}`}
-              >
-                <Smile className="h-4 w-4" />
-              </Button>
-              {emojiOpen && (
-                <div className="flex flex-wrap items-center gap-1" aria-label="Pilihan emoji">
-                  {QUICK_EMOJIS.map((emoji) => (
-                    <Button variant="bare" size="none"
-                      key={emoji}
-                      type="button"
-                      aria-label={`Tambahkan emoji ${emoji}`}
-                      onClick={() => setInput((current) => `${current}${emoji}`)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-base transition-colors hover:bg-white/[0.08]"
-                    >
-                      {emoji}
-                    </Button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
           
@@ -560,7 +530,7 @@ export default function AIChat() {
           onClick={() => setIsOpen(true)}
           title="Ask LensAI"
           aria-label="Ask LensAI"
-          className="group flex h-12 items-center justify-center gap-2 rounded-2xl border border-tv-blue/25 bg-gradient-accent px-3.5 text-white shadow-[0_18px_50px_rgba(79,140,255,0.28)] transition-all hover:brightness-110 active:scale-95 md:h-12 md:px-4"
+          className="group flex h-12 items-center justify-center gap-2 rounded-2xl border border-tv-border bg-tv-card/95 px-3.5 text-tv-text shadow-[0_16px_45px_rgba(0,0,0,0.34)] transition-all hover:border-tv-blue/35 hover:text-tv-blue active:scale-95 md:h-12 md:px-4"
         >
           <Sparkles className="h-5 w-5" />
           <span className="hidden text-xs font-bold md:inline">LensAI</span>

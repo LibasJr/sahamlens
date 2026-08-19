@@ -1,4 +1,3 @@
-import type { NextRequest } from 'next/server';
 import { fetchCorporateCalendar } from '@/modules/market/service/corporate-calendar.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
@@ -10,7 +9,7 @@ import { runController } from '@/shared/http/next-response.adapter';
 // hanya mengembalikan agenda pasar/cache publik, bukan data user.
 const CACHE_KEY = COMPUTED_CACHE_KEY.CORPORATE_CALENDAR;
 
-export async function GET(request: NextRequest) {
+export async function GET(request?: Request) {
   return runController(async () => {
     const events = await getOrCompute(
       CACHE_KEY,

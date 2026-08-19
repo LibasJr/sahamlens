@@ -126,7 +126,7 @@ export default function TopMarketBar() {
             aria-label="Profil"
             className="flex h-9 items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2 text-tv-muted transition-colors hover:bg-white/[0.06] hover:text-white"
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-tv-blue/20 to-tv-purple/20 text-tv-blue">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-tv-blue/10 text-tv-blue">
               <UserIcon className="h-3.5 w-3.5" />
             </span>
             <span className="hidden max-w-[90px] truncate text-[10px] font-semibold text-white/80 2xl:block">{user.email?.split('@')[0]}</span>

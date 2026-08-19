@@ -49,7 +49,7 @@ export default function Signup() {
         body: JSON.stringify({ email, password, website }),
       });
       trackSignupCompleted();
-      setStep('VERIFY');
+      setStep(2);
       setResendCooldown(RESEND_COOLDOWN_SEC);
     } catch (err: any) {
       setError(apiErrorMessage(err, 'Terjadi kesalahan', true));

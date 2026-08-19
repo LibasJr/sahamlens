@@ -280,8 +280,45 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     : kategoriTone === 'negative' ? 'text-tv-red'
     : 'text-tv-yellow';
 
+  const directionGap = bullPct - bearPct;
+  const primaryRead = directionGap >= 20
+    ? 'Arah teknikal lebih banyak condong positif, tetapi keselarasan analyzer tetap perlu dibaca bersama tren, volume, dan risiko.'
+    : directionGap <= -20
+      ? 'Arah teknikal lebih banyak condong negatif. Cari penyebab kelemahan dan level risiko sebelum mempertimbangkan skenario pemulihan.'
+      : 'Arah teknikal masih campuran. Belum ada dominasi yang cukup lebar antar dimensi, jadi konteks harga dan flow menjadi lebih penting.';
+
   return (
     <div className="space-y-6">
+      <section aria-labelledby="technical-brief-title" className="border-y border-tv-border/70 py-5">
+        <div className="lens-meta mb-1.5 font-bold uppercase tracking-[0.16em] text-tv-muted">Ringkasan sebelum indikator</div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <h2 id="technical-brief-title" className="font-heading text-xl font-bold text-tv-text">Yang penting dari {symbol.replace('.JK', '')}</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-tv-muted">{primaryRead}</p>
+          </div>
+          <div className="lens-meta font-semibold text-tv-green">Rule-based · dapat diaudit</div>
+        </div>
+        <div className="mt-4 grid border-y border-tv-border/60 sm:grid-cols-3 sm:divide-x sm:divide-tv-border/60">
+          <div className="py-3 sm:pr-4">
+            <div className="lens-meta font-semibold text-tv-muted">LensScore</div>
+            <div className="mt-1 font-number text-xl font-bold text-tv-text">{skor ?? 'N/A'}{skor != null && <span className="text-xs font-medium text-tv-muted">/100</span>}</div>
+          </div>
+          <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:px-4">
+            <div className="lens-meta font-semibold text-tv-muted">Keselarasan arah</div>
+            <div className="mt-1 flex items-baseline gap-2 font-number text-sm font-bold">
+              <span className="text-tv-green">{bullPct}% positif</span>
+              <span className="text-tv-muted">vs</span>
+              <span className="text-tv-red">{bearPct}% negatif</span>
+            </div>
+          </div>
+          <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:pl-4">
+            <div className="lens-meta font-semibold text-tv-muted">Status model</div>
+            <div className={`mt-1 text-sm font-bold ${warnaKategori}`}>{kategoriLabel}</div>
+            <div className="mt-0.5 text-xs text-tv-muted">Informasi riset, bukan probabilitas harga.</div>
+          </div>
+        </div>
+      </section>
+
       <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-heading font-bold text-tv-text">
@@ -481,6 +518,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
   if (!code) notFound();
   if (!isIndex && !getEmitenSymbolSet().has(code)) notFound();
   const symbol = isIndex ? '^JKSE' : `${code}.JK`;
+  const emiten = isIndex ? null : loadEmitenList().find((item) => item.symbol === code) ?? null;
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
@@ -489,18 +527,34 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
           max-w-7xl = 1280px). */}
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
-        <div className="flex items-center gap-3 mb-8">
-          {/* Ikon Users generik (identik untuk semua emiten) diganti avatar per-emiten. */}
+        <div className="mb-2 flex items-center gap-3">
           <TickerAvatar symbol={symbol} size="lg" />
-          <div>
-            <h1 className="lens-page-title">{isIndex ? 'LensTechnical: IHSG' : `LensConsensus: ${symbol}`}</h1>
-            <p className="text-sm text-tv-muted">
-              {isIndex ? 'Chart dan indikator teknikal Indeks Harga Saham Gabungan' : 'Vote analyzer teknikal, ditimbang per dimensi'}
+          <div className="min-w-0">
+            <div className="lens-meta mb-0.5 font-bold uppercase tracking-[0.16em] text-tv-muted">LensTechnical</div>
+            <h1 className="lens-page-title">{isIndex ? 'IHSG' : code}</h1>
+            <p className="truncate text-sm text-tv-muted">
+              {isIndex ? 'Indeks Harga Saham Gabungan' : (emiten?.name || 'Analisis saham IDX')}
             </p>
           </div>
         </div>
 
         {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
+
+        {isIndex ? (
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4 text-sm leading-relaxed text-tv-muted">
+            IHSG adalah indeks pasar, bukan saham emiten. Karena itu halaman ini menampilkan chart, tren, momentum, dan volatilitas indeks tanpa fundamental perusahaan, broker summary, TP/CL saham, atau rekomendasi beli per lot.
+          </Card>
+        ) : (
+          <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
+            <LensConsensusAnalysisDisplay symbol={symbol} />
+          </Suspense>
+        )}
+
+        <section className="pt-2">
+          <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Bukti & detail</div>
+          <h2 className="font-heading text-lg font-bold text-tv-text">Periksa chart, flow, dan indikator</h2>
+          <p className="mt-1 max-w-2xl text-sm text-tv-muted">Ringkasan di atas adalah pintu masuk. Bagian berikut menunjukkan data yang membentuk konteksnya.</p>
+        </section>
 
         <StockChartPanel symbol={symbol} />
 
@@ -514,16 +568,6 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
         {!isIndex && SHOW_BROKER_DISTRIBUTION_PANEL && (
           <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
             <BrokerDistributionPanel symbol={symbol} />
-          </Suspense>
-        )}
-
-        {isIndex ? (
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4 text-sm leading-relaxed text-tv-muted">
-            IHSG adalah indeks pasar, bukan saham emiten. Karena itu halaman ini menampilkan chart, tren, momentum, dan volatilitas indeks tanpa fundamental perusahaan, broker summary, TP/CL saham, atau rekomendasi beli per lot.
-          </Card>
-        ) : (
-          <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
-            <LensConsensusAnalysisDisplay symbol={symbol} />
           </Suspense>
         )}
 

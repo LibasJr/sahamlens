@@ -10,6 +10,7 @@ import { useDashboardAnalysis } from '@/components/dashboard/useDashboardAnalysi
 import { DashboardEmptyState, DashboardLoadingState } from '@/components/dashboard/DashboardLoadStates';
 import { DashboardIndexSection } from '@/components/dashboard/DashboardIndexSection';
 import { DashboardStockOverview } from '@/components/dashboard/DashboardStockOverview';
+import { DashboardInsightSummary } from '@/components/dashboard/DashboardInsightSummary';
 import { DashboardFooterActions } from '@/components/dashboard/DashboardFooterActions';
 import { downloadTechnicalReport } from '@/components/dashboard/downloadTechnicalReport';
 import {
@@ -167,6 +168,12 @@ function DashboardContent() {
           viewMode={viewMode}
           onExplain={openFullAnalysis}
           onCollapse={collapseAnalysis}
+        />
+
+        <DashboardInsightSummary
+          data={data}
+          dataFreshness={dataFreshness}
+          decisionPresentation={decisionPresentation}
         />
 
         {/* AI Summary - breakdown skor + top alasan setelah chart agar konsensus
