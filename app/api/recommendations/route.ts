@@ -1,7 +1,6 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import type { NextRequest } from 'next/server';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
@@ -19,7 +18,7 @@ function cacheKeyFor(symbol: string): string {
 
 const MAX_SYMBOLS_PER_REQUEST = 20;
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   let anonTrial: AnonTrialState | null = null;
 
   const response = await runController(async () => {
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const symbolsParam = request.nextUrl.searchParams.get('symbols');
+    const symbolsParam = new URL(request.url).searchParams.get('symbols');
     const symbols = (symbolsParam ? symbolsParam.split(',') : ['BBCA.JK'])
       .map((symbol) => symbol.trim().toUpperCase())
       .filter(Boolean);

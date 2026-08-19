@@ -1,4 +1,3 @@
-import type { NextRequest } from 'next/server';
 import { fetchScreenerUniverse, rankScreener, type RiskProfile } from '@/modules/market/service/screener.service';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -19,9 +18,9 @@ function parsePositiveParam(value: string | null): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   return runController(async () => {
-    const { searchParams } = request.nextUrl;
+    const { searchParams } = new URL(request.url);
     const profile = (searchParams.get('profile') || 'Moderat') as RiskProfile;
     if (!['Konservatif', 'Moderat', 'Agresif'].includes(profile)) {
       return {
