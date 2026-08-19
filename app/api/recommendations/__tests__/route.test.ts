@@ -11,16 +11,19 @@ vi.mock('@/shared/cache/redis-cache', () => ({
   cacheGet: vi.fn(),
   getCacheTtlRemaining: vi.fn(),
 }));
+// buildAnonymousTrialCookie menggantikan applyAnonymousTrialCookie sejak route ini
+// memakai runController: route tidak lagi memegang NextResponse, jadi cookie dideskripsikan
+// lewat HttpResult.cookiesToSet dan adapter yang memasangnya.
 vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
-  applyAnonymousTrialCookie: vi.fn(),
+  buildAnonymousTrialCookie: vi.fn(),
 }));
 
 import { GET } from '../route';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheGet, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 
 function makeRequest(): Request {
@@ -53,7 +56,7 @@ describe('GET /api/recommendations', () => {
 
     expect(res.status).toBe(200);
     expect(readOrIssueAnonymousTrial).not.toHaveBeenCalled();
-    expect(applyAnonymousTrialCookie).not.toHaveBeenCalled();
+    expect(buildAnonymousTrialCookie).not.toHaveBeenCalled();
   });
 });
 
@@ -95,13 +98,24 @@ describe('GET /api/recommendations (akses tamu)', () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const trial = { firstSeenAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-09T00:00:00.000Z', active: true, isNew: true };
     vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(trial);
+    // Mock mengembalikan deskriptor cookie sungguhan, bukan undefined - kalau tidak,
+    // asersi set-cookie di bawah lulus/gagal karena mocknya, bukan karena adapternya.
+    vi.mocked(buildAnonymousTrialCookie).mockResolvedValue({
+      name: 'sahamlens_anon_trial',
+      value: 'token-uji',
+      options: { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 100 },
+    });
     vi.mocked(cacheGet).mockResolvedValue({ ticker: 'BBCA.JK', consensus: 'HOLD' } as any);
     vi.mocked(getCacheTtlRemaining).mockResolvedValue(null);
 
     const res = await GET(makeRequest());
 
     expect(res.status).toBe(200);
-    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), trial);
+    // Diperkuat: bukan lagi hanya "fungsinya dipanggil", tapi cookie-nya BENAR-BENAR
+    // terpasang pada respons. Itu hasil yang dipedulikan pengguna, dan asersi sebelumnya
+    // akan tetap lulus walau adapter lupa memasangnya.
+    expect(buildAnonymousTrialCookie).toHaveBeenCalledWith(trial);
+    expect(res.headers.get('set-cookie')).toContain('sahamlens_anon_trial=');
   });
 
   it('user dengan session valid tidak menyentuh logic trial anonim sama sekali', async () => {
@@ -113,6 +127,6 @@ describe('GET /api/recommendations (akses tamu)', () => {
 
     expect(res.status).toBe(200);
     expect(readOrIssueAnonymousTrial).not.toHaveBeenCalled();
-    expect(applyAnonymousTrialCookie).not.toHaveBeenCalled();
+    expect(buildAnonymousTrialCookie).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,10 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
+import { SubscriptionRequiredError, NotFoundError } from '@/shared/errors/app-error';
 import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { fetchYahooHistory, analyzeRsi } from '@/modules/technical';
@@ -201,22 +204,29 @@ function explainRow(
 export async function GET(request: Request) {
   const budget = await checkPublicComputeBudget(request.headers, 'compare');
   if (!budget.allowed) return rateLimitExceeded(budget);
+
+  return runController(async () => {
   // Tamu (session null) dapat akses PENUH tanpa perlu login - keputusan produk
   // 2026-08-13, lihat hasOpenOrProAccess(). Akun terdaftar tetap lewat gerbang
   // trial/Pro seperti sebelumnya.
   const session = await getSession();
-  if (!(await hasOpenOrProAccess(session))) {
-    return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
-  }
+  if (!(await hasOpenOrProAccess(session))) throw new SubscriptionRequiredError();
 
   const { searchParams } = new URL(request.url);
-  const symbol1 = searchParams.get('symbol1') || 'BBCA.JK';
+  // Dulu kedua simbol dipakai apa adanya dari query - tanpa validasi, tanpa
+  // normalisasi. 'bbca' dan 'BBCA.JK' menghasilkan dua cache key berbeda untuk emiten
+  // yang sama, dan sampah diteruskan ke penyedia untuk gagal di sana. Skema yang sama
+  // dengan route [ticker] dipakai supaya definisi "kode saham yang sah" tetap satu.
+  const rawSymbol1 = searchParams.get('symbol1');
+  const symbol1 = rawSymbol1 ? parseOrThrow(idxTickerParamSchema, rawSymbol1) : 'BBCA.JK';
   const rawSymbol2 = searchParams.get('symbol2');
-  const symbol2 = rawSymbol2 || (await pickSameSectorPeer(symbol1)) || 'BBRI.JK';
+  const symbol2 = rawSymbol2
+    ? parseOrThrow(idxTickerParamSchema, rawSymbol2)
+    : (await pickSameSectorPeer(symbol1)) || 'BBRI.JK';
 
   const [data1, data2] = await Promise.all([readCachedStockData(symbol1), readCachedStockData(symbol2)]);
   if (!data1 || !data2) {
-    return NextResponse.json({ error: 'Data tidak tersedia untuk salah satu simbol' }, { status: 404 });
+    throw new NotFoundError('Data tidak tersedia untuk salah satu simbol');
   }
 
   const scoreWinner = data1.score >= data2.score ? data1.symbol : data2.symbol;
@@ -250,10 +260,11 @@ export async function GET(request: Request) {
     ? `Dari ${rows.length} metrik yang dibandingkan, ${overallWinner} unggul di ${Math.max(winCount1, winCount2)} metrik yang tersedia. Gunakan baris metrik di atas sebagai konteks, bukan rekomendasi beli/jual otomatis.`
     : `${data1.symbol} dan ${data2.symbol} sama-sama unggul di ${winCount1} dari ${rows.length} metrik yang tersedia. Gunakan konteks sektor, valuasi, dan risiko sebelum mengambil keputusan.`;
 
-  return NextResponse.json({
+  return { status: 200, body: {
     data1: { symbol: data1.symbol, price: data1.price, _meta: data1._meta },
     data2: { symbol: data2.symbol, price: data2.price, _meta: data2._meta },
     rows,
     conclusion,
+  } };
   });
 }

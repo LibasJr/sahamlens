@@ -7,7 +7,12 @@ export const dynamic = 'force-dynamic';
 // (timeout 8 detik masing-masing), melebihi default 10 detik Vercel Hobby plan.
 export const maxDuration = 60;
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { UnauthorizedError } from '@/shared/errors/app-error';
+import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
+import { z } from 'zod';
 import { getSession } from '@/modules/user';
 import { checkAiAccountBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
 import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
@@ -17,12 +22,42 @@ import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 // posisi) - Beranda sekarang sengaja tidak lagi menampilkan portofolio (SahamLens
 // aplikasi analisis/screener, bukan sekuritas; portofolio cukup di halaman Akun Demo),
 // jadi briefing-nya diselaraskan jadi murni ringkasan PASAR & sinyal skor, tanpa data akun.
-interface BriefingInput {
-  topPick: { ticker: string; consensus: string; confidence: number } | null;
-  indices: { name: string; changePct: number }[];
-  pickCounts?: { attractive: number; breakout: number; undervalue: number };
-  lang?: 'id' | 'en';
-}
+/**
+ * Body ini DIINTERPOLASI LANGSUNG KE DALAM PROMPT LLM di bawah (nama indeks, ticker,
+ * consensus). Sebelumnya ia hanya di-cast `as BriefingInput` - yaitu tanpa validasi
+ * apa pun saat runtime: string sepanjang apa pun, berisi apa pun, dari klien mana pun
+ * masuk utuh ke prompt. Itu permukaan prompt-injection, dan sekaligus cara membuang
+ * kuota AI lewat prompt raksasa.
+ *
+ * Batas panjangnya karena itu bukan hiasan: nama indeks dan consensus dibatasi pendek
+ * karena nilainya memang berasal dari himpunan kecil yang aplikasi ini sendiri hasilkan,
+ * dan ticker memakai skema yang sama dengan seluruh route lain.
+ *
+ * Tipe BriefingInput diturunkan DARI skema (z.infer), bukan ditulis paralel - dua
+ * deklarasi yang harus dijaga sinkron secara manual akan menyimpang.
+ */
+const briefingInputSchema = z.object({
+  topPick: z
+    .object({
+      ticker: idxTickerParamSchema,
+      consensus: z.string().max(32),
+      confidence: z.number().finite().min(0).max(100),
+    })
+    .nullable(),
+  indices: z
+    .array(z.object({ name: z.string().min(1).max(32), changePct: z.number().finite() }))
+    .max(10),
+  pickCounts: z
+    .object({
+      attractive: z.number().int().nonnegative(),
+      breakout: z.number().int().nonnegative(),
+      undervalue: z.number().int().nonnegative(),
+    })
+    .optional(),
+  lang: z.enum(['id', 'en']).optional(),
+});
+
+type BriefingInput = z.infer<typeof briefingInputSchema>;
 
 function fallbackBriefing(input: BriefingInput, isEn: boolean): string {
   const parts: string[] = [];
@@ -62,17 +97,20 @@ function fallbackBriefing(input: BriefingInput, isEn: boolean): string {
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+    return runController(async () => {
+      throw new UnauthorizedError();
+    }, req);
   }
 
   const budget = await checkAiAccountBudget(session.id, 'ai-briefing');
   if (!budget.allowed) return rateLimitExceeded(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
-  const input = (await req.json()) as BriefingInput;
+  return runController(async () => {
+  const input = parseOrThrow(briefingInputSchema, await req.json());
   const isEn = input.lang === 'en' || req.cookies.get(LANG_COOKIE)?.value === 'en';
 
   if (!hasAnyAIProvider()) {
-    return NextResponse.json({ briefing: fallbackBriefing(input, isEn), source: 'fallback' });
+    return { status: 200, body: { briefing: fallbackBriefing(input, isEn), source: 'fallback' } };
   }
 
   const prompt = isEn
@@ -93,7 +131,8 @@ Balas hanya dengan paragraf ringkasannya, tanpa embel-embel lain.`;
 
   const text = await generateAI({ prompt, timeoutMs: 8000 });
   if (!text) {
-    return NextResponse.json({ briefing: fallbackBriefing(input, isEn), source: 'fallback' });
+    return { status: 200, body: { briefing: fallbackBriefing(input, isEn), source: 'fallback' } };
   }
-  return NextResponse.json({ briefing: text.trim(), source: 'ai' });
+  return { status: 200, body: { briefing: text.trim(), source: 'ai' } };
+  }, req);
 }
