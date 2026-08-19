@@ -150,6 +150,33 @@ describe('financial-health calculation engine — zero dummy', () => {
     expect(realMedian.source).toBe('verified-peer-snapshot');
   });
 
+  // Payout ratio negatif = dividen dibayar saat laba bersih negatif. Ambang lama hanya
+  // menguji batas atas (>85 / >65), sehingga angka negatif jatuh ke 'SAFE' - kondisi
+  // paling rawan justru dirating paling aman.
+  it('payout ratio negatif dirating CAUTION, bukan SAFE', () => {
+    const result = calculateDividendSafety({
+      dividendYield: 0.074,
+      payoutRatio: -0.42,
+      freeCashflow: 3_000_000_000,
+    });
+
+    expect(result.payoutRatioPct).toBe(-42);
+    expect(result.safetyRating).toBe('CAUTION');
+    expect(result.narrative).toContain('negatif');
+  });
+
+  it('payout ratio rendah yang wajar tetap SAFE', () => {
+    const result = calculateDividendSafety({
+      dividendYield: 0.074,
+      payoutRatio: 0.326,
+      freeCashflow: 3_000_000_000,
+    });
+
+    expect(result.payoutRatioPct).toBe(32.6);
+    expect(result.dividendYieldPct).toBe(7.4);
+    expect(result.safetyRating).toBe('SAFE');
+  });
+
   it('does not turn missing dividend data into no-dividend or safe coverage', () => {
     const missing = calculateDividendSafety({ freeCashflow: 3_000_000_000 });
     expect(missing.hasDividend).toBeNull();

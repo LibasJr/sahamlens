@@ -281,7 +281,12 @@ export default function FundamentalHealthSuite({
               <div className="text-base font-bold font-number text-tv-gold mt-1">
                 {dividendSafety.dividendYieldPct != null ? `${dividendSafety.dividendYieldPct.toFixed(2)}%` : 'N/A'}
               </div>
-              <span className="text-[10px] text-tv-muted">{isEn ? 'Trailing 12M' : 'Imbal hasil tahunan'}</span>
+              {/* Angka ini berasal dari summaryDetail.dividendYield milik provider, yang
+                  merupakan yield tahunan berjalan (disetahunkan dari rate terakhir yang
+                  diumumkan) - BUKAN realisasi 12 bulan ke belakang; field trailing punya
+                  provider adalah trailingAnnualDividendYield. Label lama "Trailing 12M"
+                  mengklaim hal yang tidak dihitung di sini. */}
+              <span className="text-[10px] text-tv-muted">{isEn ? 'Annualized yield' : 'Imbal hasil tahunan'}</span>
             </div>
 
             <div className="p-3 rounded-xl bg-tv-card/70 border border-tv-border">
