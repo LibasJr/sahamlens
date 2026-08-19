@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LockKeyhole, LogIn, RotateCcw } from 'lucide-react';
 import { safeInternalPath } from '@/shared/navigation/safe-internal-path';
+import { Card } from '@/components/ui/Card';
 
 export const metadata: Metadata = {
   title: 'Login diperlukan',
@@ -21,7 +22,7 @@ export default async function LoginRequiredPage({
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4 md:p-6">
-      <section className="w-full max-w-2xl rounded-2xl border border-tv-border bg-tv-card px-5 py-8 text-center shadow-2 sm:px-8 md:py-10">
+      <Card as="section" padding="none" radius="2xl" elevation="none" highlight={false} overflow="visible" className="w-full max-w-2xl border-tv-border px-5 py-8 text-center shadow-2 sm:px-8 md:py-10">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-tv-blue/15 bg-tv-blue/[0.07] text-tv-blue">
           <LockKeyhole className="h-6 w-6" aria-hidden="true" />
         </div>
@@ -42,14 +43,14 @@ export default async function LoginRequiredPage({
             Masuk untuk melanjutkan
           </Link>
           <Link
-            href="/home"
+            href="/"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-tv-border bg-tv-hover px-6 py-3 text-sm font-semibold text-tv-text transition-colors hover:border-tv-borderLight"
           >
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
             Kembali ke beranda
           </Link>
         </div>
-      </section>
+      </Card>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useLanguage } from '@/lib/i18n';
+import { apiRequest } from '@/shared/http/api-client';
 
 interface BrokerSummaryPanelProps {
   symbol: string;
@@ -42,8 +43,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
     let isMounted = true;
     setLoading(true);
 
-    fetch(`/api/broker-summary/${cleanSymbol}`)
-      .then((res) => res.json())
+    apiRequest<any>(`/api/broker-summary/${cleanSymbol}`)
       .then((json) => {
         if (isMounted) {
           setData(json);
@@ -125,7 +125,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
       </div>
 
       {hasData && data.provenance && (
-        <div className="rounded-lg border border-tv-border bg-tv-bg/60 px-3 py-2 text-[11px] text-tv-muted">
+        <div className="rounded-lg border border-tv-border bg-tv-bg/60 px-3 py-2 lens-meta text-tv-muted">
           Sumber: <span className="font-semibold text-tv-text">{data.provenance.source}</span>
           {' · '}Import: {data.provenance.importedAt ? new Date(data.provenance.importedAt).toLocaleString(language === 'id' ? 'id-ID' : 'en-US') : 'N/A'}
           {' · '}Status: <span className="font-semibold text-tv-yellow">provider eksternal, belum direkonsiliasi dengan sumber primer</span>
@@ -150,7 +150,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                   <span className="flex items-center gap-1.5">
                     <ArrowUpRight className="h-4 w-4" /> Top 5 Net Buyers
                   </span>
-                  <span className="text-[10px] text-tv-muted font-normal">Total Net Buy</span>
+                  <span className="lens-meta text-tv-muted font-normal">Total Net Buy</span>
                 </div>
                 <div className="space-y-1.5">
                   {data.topBuyers.map((b: any, idx: number) => (
@@ -159,7 +159,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                       className="flex items-center justify-between p-2 rounded-lg bg-tv-bg/50 border border-tv-border text-xs hover:border-tv-green/30 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-number text-[10px] text-tv-muted w-3">{idx + 1}</span>
+                        <span className="font-number lens-meta text-tv-muted w-3">{idx + 1}</span>
                         <span className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
                           b.brokerCategory === 'FOREIGN'
                             ? 'bg-tv-gold/20 text-tv-gold border border-tv-gold/40'
@@ -169,14 +169,14 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                         }`}>
                           {b.brokerCode}
                         </span>
-                        <span className="text-[10px] text-tv-muted">
+                        <span className="lens-meta text-tv-muted">
                           {b.brokerCategory === 'FOREIGN' ? 'Asing*' : b.brokerCategory === 'RETAIL' ? 'Ritel*' : 'Unknown'}
                         </span>
                       </div>
                       <div className="text-right font-number">
                         <div className="font-bold text-tv-green">{compactIdr(b.netValue)}</div>
                         {b.avgBuyPrice != null && (
-                          <div className="text-[10px] text-tv-muted">@ Rp {b.avgBuyPrice.toLocaleString('id-ID')}</div>
+                          <div className="lens-meta text-tv-muted">@ Rp {b.avgBuyPrice.toLocaleString('id-ID')}</div>
                         )}
                       </div>
                     </div>
@@ -190,7 +190,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                   <span className="flex items-center gap-1.5">
                     <ArrowDownRight className="h-4 w-4" /> Top 5 Net Sellers
                   </span>
-                  <span className="text-[10px] text-tv-muted font-normal">Total Net Sell</span>
+                  <span className="lens-meta text-tv-muted font-normal">Total Net Sell</span>
                 </div>
                 <div className="space-y-1.5">
                   {data.topSellers.map((s: any, idx: number) => (
@@ -199,7 +199,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                       className="flex items-center justify-between p-2 rounded-lg bg-tv-bg/50 border border-tv-border text-xs hover:border-tv-red/30 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-number text-[10px] text-tv-muted w-3">{idx + 1}</span>
+                        <span className="font-number lens-meta text-tv-muted w-3">{idx + 1}</span>
                         <span className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
                           s.brokerCategory === 'FOREIGN'
                             ? 'bg-tv-gold/20 text-tv-gold border border-tv-gold/40'
@@ -209,14 +209,14 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                         }`}>
                           {s.brokerCode}
                         </span>
-                        <span className="text-[10px] text-tv-muted">
+                        <span className="lens-meta text-tv-muted">
                           {s.brokerCategory === 'FOREIGN' ? 'Asing*' : s.brokerCategory === 'RETAIL' ? 'Ritel*' : 'Unknown'}
                         </span>
                       </div>
                       <div className="text-right font-number">
                         <div className="font-bold text-tv-red">{compactIdr(Math.abs(s.netValue))}</div>
                         {s.avgSellPrice != null && (
-                          <div className="text-[10px] text-tv-muted">@ Rp {s.avgSellPrice.toLocaleString('id-ID')}</div>
+                          <div className="lens-meta text-tv-muted">@ Rp {s.avgSellPrice.toLocaleString('id-ID')}</div>
                         )}
                       </div>
                     </div>
@@ -227,18 +227,18 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
 
             {/* Concentration Ratios */}
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-tv-border text-xs">
-              <div className="p-2.5 rounded-lg bg-tv-card/60 border border-tv-border text-center">
-                <span className="text-[10px] text-tv-muted block">Konsentrasi Top 1 Broker</span>
+              <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2.5 bg-tv-card/60 border-tv-border text-center">
+                <span className="lens-meta text-tv-muted block">Konsentrasi Top 1 Broker</span>
                 <span className="font-number font-bold text-white mt-1 block">
                   Beli {data.concentration.top1BuyPct}% · Jual {data.concentration.top1SellPct}%
                 </span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-tv-card/60 border border-tv-border text-center">
-                <span className="text-[10px] text-tv-muted block">Konsentrasi Top 3 Broker</span>
+              </Card>
+              <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2.5 bg-tv-card/60 border-tv-border text-center">
+                <span className="lens-meta text-tv-muted block">Konsentrasi Top 3 Broker</span>
                 <span className="font-number font-bold text-white mt-1 block">
                   Beli {data.concentration.top3BuyPct}% · Jual {data.concentration.top3SellPct}%
                 </span>
-              </div>
+              </Card>
             </div>
           </div>
 
@@ -251,7 +251,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                   <PieChart className="h-4 w-4 text-tv-blue" />
                   <span>Komposisi Pelaku Pasar</span>
                 </div>
-                <span className="text-[10px] text-tv-muted">Turnover Share</span>
+                <span className="lens-meta text-tv-muted">Turnover Share</span>
               </div>
 
               {comp && (
@@ -264,45 +264,45 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                   </div>
 
                   {/* Legends */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-                    <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
-                      <div className="flex items-center justify-center gap-1 text-[10px] text-tv-gold font-semibold">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 lens-meta pt-1">
+                    <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
+                      <div className="flex items-center justify-center gap-1 lens-meta text-tv-gold font-semibold">
                         <span className="h-1.5 w-1.5 rounded-full bg-tv-gold" /> Asing* ({comp.foreign?.pct}%)
                       </div>
-                      <div className={`font-number font-bold mt-1 text-[10px] ${
+                      <div className={`font-number font-bold mt-1 lens-meta ${
                         comp.foreign?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
                       }`}>
                         {comp.foreign?.netValue >= 0 ? '+' : ''}{compactIdr(comp.foreign?.netValue || 0)}
                       </div>
-                    </div>
+                    </Card>
 
-                    <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
-                      <div className="flex items-center justify-center gap-1 text-[10px] text-tv-blue font-semibold">
+                    <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
+                      <div className="flex items-center justify-center gap-1 lens-meta text-tv-blue font-semibold">
                         <span className="h-1.5 w-1.5 rounded-full bg-tv-blue" /> Institusi domestik
                       </div>
-                      <div className="font-number font-bold mt-1 text-[10px] text-tv-muted">N/A</div>
-                    </div>
+                      <div className="font-number font-bold mt-1 lens-meta text-tv-muted">N/A</div>
+                    </Card>
 
-                    <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
-                      <div className="flex items-center justify-center gap-1 text-[10px] text-tv-muted font-semibold">
+                    <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
+                      <div className="flex items-center justify-center gap-1 lens-meta text-tv-muted font-semibold">
                         <span className="h-1.5 w-1.5 rounded-full bg-tv-muted" /> Ritel* ({comp.retail?.pct}%)
                       </div>
-                      <div className={`font-number font-bold mt-1 text-[10px] ${
+                      <div className={`font-number font-bold mt-1 lens-meta ${
                         comp.retail?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
                       }`}>
                         {comp.retail?.netValue >= 0 ? '+' : ''}{compactIdr(comp.retail?.netValue || 0)}
                       </div>
-                    </div>
-                    <div className="p-2 rounded-lg bg-tv-card/40 border border-tv-border/50 text-center">
-                      <div className="flex items-center justify-center gap-1 text-[10px] text-tv-muted font-semibold">
+                    </Card>
+                    <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
+                      <div className="flex items-center justify-center gap-1 lens-meta text-tv-muted font-semibold">
                         <span className="h-1.5 w-1.5 rounded-full bg-tv-borderLight" /> Unknown ({comp.unknown?.pct || 0}%)
                       </div>
-                      <div className="font-number font-bold mt-1 text-[10px] text-tv-muted">
+                      <div className="font-number font-bold mt-1 lens-meta text-tv-muted">
                         {compactIdr(comp.unknown?.netValue || 0)}
                       </div>
-                    </div>
+                    </Card>
                   </div>
-                  <p className="text-[10px] text-tv-muted leading-relaxed">
+                  <p className="lens-meta text-tv-muted leading-relaxed">
                     * Klasifikasi Asing/Ritel berasal dari mapping internal kode broker. Institusi domestik belum dipetakan dan ditampilkan N/A; coverage terklasifikasi {comp.classifiedCoveragePct ?? 0}%.
                   </p>
                 </div>
@@ -317,22 +317,22 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                     <Target className="h-4 w-4 text-tv-purple" />
                     <span>Harga Rata-rata Broker Dominan</span>
                   </div>
-                  <span className="text-[10px] text-tv-muted">Top 3 net broker</span>
+                  <span className="lens-meta text-tv-muted">Top 3 net broker</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-2.5 rounded-lg bg-tv-card/60 border border-tv-border">
-                    <span className="text-[10px] text-tv-muted block">Rata-rata Beli Broker Dominan</span>
+                  <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2.5 bg-tv-card/60 border-tv-border">
+                    <span className="lens-meta text-tv-muted block">Rata-rata Beli Broker Dominan</span>
                     <span className="font-number font-bold text-sm text-tv-green mt-0.5 block">
                       {priceAnalysis.dominantBuyerAvgPrice != null ? `Rp ${priceAnalysis.dominantBuyerAvgPrice.toLocaleString('id-ID')}` : 'N/A'}
                     </span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-tv-card/60 border border-tv-border">
-                    <span className="text-[10px] text-tv-muted block">Rata-rata Jual Broker Dominan</span>
+                  </Card>
+                  <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2.5 bg-tv-card/60 border-tv-border">
+                    <span className="lens-meta text-tv-muted block">Rata-rata Jual Broker Dominan</span>
                     <span className="font-number font-bold text-sm mt-0.5 block text-tv-red">
                       {priceAnalysis.dominantSellerAvgPrice != null ? `Rp ${priceAnalysis.dominantSellerAvgPrice.toLocaleString('id-ID')}` : 'N/A'}
                     </span>
-                  </div>
+                  </Card>
                 </div>
               </div>
             )}
@@ -345,7 +345,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                     <Users className="h-4 w-4 text-tv-gold" />
                     <span>Arus Broker Terklasifikasi vs Ritel*</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                  <span className={`lens-meta font-bold px-2 py-0.5 rounded ${
                     retail.status === 'PANIC_SELLING'
                       ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
                       : retail.status === 'FOMO_BUYING'
@@ -359,7 +359,7 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                       : retail.status === 'UNAVAILABLE' ? 'Data Klasifikasi Terbatas' : 'Normal Flow'}
                   </span>
                 </div>
-                <p className="text-[11px] text-tv-muted leading-relaxed">
+                <p className="lens-meta text-tv-muted leading-relaxed">
                   {retail.summary}
                 </p>
               </div>

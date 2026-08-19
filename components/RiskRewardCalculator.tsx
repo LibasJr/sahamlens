@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Target, TrendingDown, TrendingUp, AlertCircle, Info } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 
 interface RiskRewardCalculatorProps {
   currentPrice: number;
@@ -55,7 +56,7 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
 
   if (downsideToSupport <= 0) {
     return (
-      <div className="bg-tv-card border border-tv-green/20 rounded-lg p-5 shadow-1 mb-6">
+      <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-green/20 p-5 shadow-1 mb-6">
         <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-tv-green" />
           Konteks Support / Resistance
@@ -63,7 +64,7 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
         <p className="text-sm text-tv-muted">
           Harga berada di bawah atau sama dengan support terdekat. Kartu ini bukan sumber TP/CL resmi.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -83,7 +84,7 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
   }
 
   return (
-    <div className="bg-tv-card border border-tv-green/20 rounded-lg p-5 shadow-1 mb-6">
+    <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-green/20 p-5 shadow-1 mb-6">
       <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 mb-4 border-b border-tv-border pb-3">
         <Target className="w-5 h-5 text-tv-green" />
         Konteks Support / Resistance
@@ -146,6 +147,6 @@ export default function RiskRewardCalculator({ currentPrice, analyzers }: RiskRe
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

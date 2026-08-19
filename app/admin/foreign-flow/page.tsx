@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/Card';
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -59,11 +60,11 @@ function ringkas(): { baris: Baris[]; adaArtefak: Baris[]; tanpaArtefak: Baris[]
 function Kartu({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'green' | 'amber' | 'red' }) {
   const warna = tone === 'green' ? 'text-tv-green' : tone === 'amber' ? 'text-amber-300' : tone === 'red' ? 'text-tv-red' : 'text-tv-text';
   return (
-    <div className="rounded-xl border border-tv-border bg-tv-card p-5">
+    <Card as="div" className="border-tv-border p-5" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
       <p className="text-xs uppercase tracking-wide text-tv-muted">{label}</p>
       <p className={`mt-2 font-number text-2xl font-bold ${warna}`}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-tv-muted">{hint}</p> : null}
-    </div>
+    </Card>
   );
 }
 
@@ -133,7 +134,7 @@ export default async function ForeignFlowCoveragePage() {
         {tertinggal.length === 0 ? (
           <p className="text-sm text-tv-muted">Tidak ada. Seluruh artefak berhenti di tanggal bursa yang sama.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-tv-border bg-tv-card">
+          <Card as="div" className="overflow-x-auto border-tv-border" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
             <table className="min-w-full text-sm">
               <thead className="border-b border-tv-border text-left text-xs uppercase tracking-wide text-tv-muted">
                 <tr>
@@ -159,7 +160,7 @@ export default async function ForeignFlowCoveragePage() {
                 Menampilkan 100 teratas dari {tertinggal.length}.
               </p>
             ) : null}
-          </div>
+          </Card>
         )}
       </section>
 
@@ -170,7 +171,7 @@ export default async function ForeignFlowCoveragePage() {
         {tanpaArtefak.length === 0 ? (
           <p className="text-sm text-tv-muted">Tidak ada. Seluruh emiten terdaftar punya arus asing resmi.</p>
         ) : (
-          <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+          <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
             <p className="mb-3 text-xs text-tv-muted">
               Emiten ini memakai proxy CMF Yahoo. Jalankan{' '}
               <code className="rounded bg-tv-hover px-1">
@@ -188,7 +189,7 @@ export default async function ForeignFlowCoveragePage() {
             {tanpaArtefak.length > 200 ? (
               <p className="mt-3 text-xs text-tv-muted">Menampilkan 200 teratas dari {tanpaArtefak.length}.</p>
             ) : null}
-          </div>
+          </Card>
         )}
       </section>
     </main>

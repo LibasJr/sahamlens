@@ -5,7 +5,7 @@ import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSqua
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
-import { EmptyState } from '@/components/ui';
+import { Card, EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
 import CreateTestUserForm from './CreateTestUserForm';
@@ -92,7 +92,7 @@ export default async function AdminPage() {
     <div className="min-h-screen bg-tv-bg text-tv-text p-4 sm:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
         <Link
-          href="/home"
+          href="/"
           className="inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -103,7 +103,7 @@ export default async function AdminPage() {
           <ExportButton />
         </div>
         <SetProForm />
-        <div className="mb-8 overflow-hidden rounded-lg border border-tv-border bg-tv-card">
+        <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="mb-8 border-tv-border">
           <div className="border-b border-tv-border px-5 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Payment Order Terbaru</h2>
             <p className="mt-1 text-xs text-tv-muted">Audit klaim transfer sebelum aktivasi Pro. Status PAID hanya muncul setelah rekonsiliasi admin berhasil satu transaksi dengan entitlement.</p>
@@ -129,7 +129,7 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
         <CreateTestUserForm />
         <ChangeSecretForm />
 
@@ -385,7 +385,7 @@ export default async function AdminPage() {
         </Link>
         </div>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+        <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
           <div className="px-6 py-4 border-b border-tv-border flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="relative flex h-2.5 w-2.5">
@@ -511,9 +511,9 @@ export default async function AdminPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+        <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
           <div className="border-b border-tv-border px-6 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Funnel pendaftaran</h2>
             <p className="mt-1 text-xs leading-relaxed text-tv-muted">
@@ -559,9 +559,9 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg overflow-hidden mb-8">
+        <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
           <div className="border-b border-tv-border px-6 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Jejak autentikasi terbaru</h2>
             <p className="mt-1 text-xs leading-relaxed text-tv-muted">
@@ -598,7 +598,7 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

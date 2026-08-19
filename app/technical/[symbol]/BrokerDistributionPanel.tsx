@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui';
 import { getLatestBrokerPeriodSummary } from '@/modules/broker-flow';
 
 function idr(value: number) {
@@ -13,7 +14,7 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
   const data = await getLatestBrokerPeriodSummary(symbol);
   if (!data || data.rows.length === 0) {
     return (
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <div className="text-xs font-bold uppercase tracking-wider text-tv-muted">Broker Distribution</div>
         <h2 className="mt-1 font-heading text-lg font-bold text-white">Akumulasi / Distribusi Broker</h2>
         <div className="mt-4 rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 p-4">
@@ -22,7 +23,7 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
             Jika baru selesai import dari Admin → Broker Summary, muat ulang halaman ini. Panel ini membaca tabel broker_summary_period langsung dari database.
           </p>
         </div>
-      </section>
+      </Card>
     );
   }
 
@@ -30,7 +31,7 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
   const sellers = [...data.rows].filter((row) => row.netValue < 0).sort((a, b) => a.netValue - b.netValue).slice(0, 5);
 
   return (
-    <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+    <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-xs font-bold uppercase tracking-wider text-tv-muted">Broker Distribution</div>
@@ -40,7 +41,7 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
           </p>
         </div>
         <div className="rounded-lg border border-tv-border bg-tv-bg px-3 py-2 text-right">
-          <div className="text-[10px] uppercase tracking-wider text-tv-muted">Net Top-Broker Subset</div>
+          <div className="lens-meta uppercase tracking-wider text-tv-muted">Net Top-Broker Subset</div>
           <div className={`mt-1 font-number text-lg font-bold ${data.netSubsetValue >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
             {data.netSubsetValue >= 0 ? '+' : ''}{idr(data.netSubsetValue)}
           </div>
@@ -77,7 +78,7 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
 
       <div className="lens-table-sticky-col [--lens-sticky-head-bg:rgb(var(--lens-bg))] mt-4 overflow-x-auto rounded-lg border border-tv-border">
         <table className="w-full min-w-[620px] text-sm">
-          <thead className="bg-tv-bg text-left text-[10px] uppercase tracking-wider text-tv-muted">
+          <thead className="bg-tv-bg text-left lens-meta uppercase tracking-wider text-tv-muted">
             <tr><th className="px-3 py-2">Broker</th><th className="px-3 py-2">Tipe</th><th className="px-3 py-2 text-right">Buy</th><th className="px-3 py-2 text-right">Sell</th><th className="px-3 py-2 text-right">Net</th></tr>
           </thead>
           <tbody>
@@ -94,9 +95,9 @@ export default async function BrokerDistributionPanel({ symbol }: { symbol: stri
         </table>
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
+      <p className="mt-3 lens-meta leading-relaxed text-tv-muted">
         Sumber: {data.source}. Data top-broker subset hasil import manual; belum memengaruhi LensScore, quant recommendation, atau advisory.
       </p>
-    </section>
+    </Card>
   );
 }

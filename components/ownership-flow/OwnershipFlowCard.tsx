@@ -26,6 +26,7 @@ import {
   type FreshnessKey,
   type OwnershipTrendKey,
 } from './ownership-flow-format';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 // KARTU RINGKAS OWNERSHIP FLOW untuk halaman detail saham / LensTechnical.
 //
@@ -77,18 +78,12 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
         // series=1 dibawa sekalian: satu round-trip untuk angka DAN grafik.
         // Deretnya dibaca dari tabel histori yang sama, jadi tidak ada risiko
         // kartu dan grafiknya menampilkan observasi yang berbeda umur.
-        const res = await fetch(`/api/ownership-flow/${encodeURIComponent(ticker)}?series=1`);
+        const detail = await apiRequest<OwnershipFlowDetail>(`/api/ownership-flow/${encodeURIComponent(ticker)}?series=1`);
         if (cancelled) return;
-        if (!res.ok) {
-          // 404 = fitur belum aktif pada deployment ini. Itu bukan error yang
-          // perlu ditampilkan ke pengguna; kartunya cukup tidak muncul.
-          setState('unavailable');
-          return;
-        }
-        setData((await res.json()) as OwnershipFlowDetail);
+        setData(detail);
         setState('ready');
-      } catch {
-        if (!cancelled) setState('unavailable');
+      } catch (error) {
+        if (!cancelled) setState(isApiClientError(error) && error.code === 'NOT_FOUND' ? 'unavailable' : 'unavailable');
       }
     })();
 

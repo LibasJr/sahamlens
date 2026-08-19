@@ -17,3 +17,4 @@ export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { SegmentedControl } from './SegmentedControl';
 export { default as Toast } from './Toast';
+export { ApiErrorHint } from './ApiErrorHint';

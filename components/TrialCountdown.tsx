@@ -19,7 +19,7 @@ export default function TrialCountdown({ daysLeft }: { daysLeft: number | null }
 
   return (
     <Link
-      href="/home"
+      href="/"
       title={`Masa trial tersisa ${daysLeft} hari. Klik untuk lihat paket Pro.`}
       className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
         urgent

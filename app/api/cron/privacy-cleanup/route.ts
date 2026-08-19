@@ -6,6 +6,7 @@ import { logger } from '@/shared/logger/logger';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -42,7 +43,7 @@ async function runCleanup(): Promise<PrivacyCleanupResult> {
   return parseResult(stdout);
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!(await authorized(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const result = await withJobRunLog('privacy-cleanup', async () => {
@@ -54,4 +55,8 @@ export async function GET(req: NextRequest) {
     logger.error('Job privacy-cleanup gagal', { error });
     return NextResponse.json({ error: 'Job privacy-cleanup gagal' }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

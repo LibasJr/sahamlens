@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -24,6 +26,7 @@ import { buildTechnicalSuite } from '@/lib/technical/technical-levels';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { TICKERS } from '@/lib/tickers';
+import { apiRequest } from '@/shared/http/api-client';
 
 type StudioCardMode = 'technical' | 'fundamental_moat_earnings';
 
@@ -93,11 +96,11 @@ export default function InfographicStudioPage() {
 
       // Parallel fetch payload technical, fundamental, earnings, intrinsic & ownership
       const [stockRes, fundRes, earningsRes, intrinsicRes, ownershipRes] = await Promise.all([
-        fetch(`/api/stock/${encodeURIComponent(apiTicker)}`).then((r) => r.json()).catch(() => null),
-        isIhsg ? null : fetch(`/api/fundamental/${cleanSym}.JK`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        isIhsg ? null : fetch(`/api/earnings/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        isIhsg ? null : fetch(`/api/intrinsic/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        isIhsg ? null : fetch(`/api/ownership-flow/${cleanSym}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        apiRequest<any>(`/api/stock/${encodeURIComponent(apiTicker)}`).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/fundamental/${cleanSym}.JK`).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/earnings/${cleanSym}`).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/intrinsic/${cleanSym}`).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/ownership-flow/${cleanSym}`).catch(() => null),
       ]);
 
       const stockPrice = stockRes?.price ?? fundRes?.stock?.current_price ?? null;
@@ -287,7 +290,7 @@ export default function InfographicStudioPage() {
   if (effectiveRole !== 'admin') {
     return (
       <div className="min-h-screen bg-tv-bg text-tv-text flex items-center justify-center p-6">
-        <div className="max-w-md rounded-2xl border border-tv-border bg-tv-card p-6 text-center">
+        <Card as="div" className="max-w-md border-tv-border p-6 text-center" padding="none" radius="2xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <AlertTriangle className="h-10 w-10 text-tv-gold mx-auto mb-3" />
           <h2 className="text-lg font-bold text-white">Khusus Hak Akses Admin</h2>
           <p className="text-xs text-tv-muted mt-2">
@@ -296,7 +299,7 @@ export default function InfographicStudioPage() {
           <Link href="/admin-login" className="mt-4 inline-block px-4 py-2 bg-tv-blue text-white text-xs font-bold rounded-xl">
             Login Admin
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -322,7 +325,7 @@ export default function InfographicStudioPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={handleDownloadImage}
               disabled={exporting || loading || !data}
@@ -336,7 +339,7 @@ export default function InfographicStudioPage() {
                   ? 'Download PNG 3D (Teknikal)'
                   : 'Download PNG 3D (Fundamental + Moat)'}
               </span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -352,7 +355,7 @@ export default function InfographicStudioPage() {
         </div>
 
         {/* Emiten Input Bar with Autocomplete Dropdown */}
-        <div className="mb-6 rounded-2xl border border-slate-700/80 bg-tv-card/90 p-5 shadow-sm">
+        <Card as="div" className="mb-6 border-slate-700/80 p-5 shadow-sm" padding="none" radius="2xl" surface="90" elevation="none" overflow="visible" highlight={false}>
           <div ref={searchContainerRef} className="relative">
             <form
               onSubmit={(e) => {
@@ -376,14 +379,14 @@ export default function InfographicStudioPage() {
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#060c18] border border-slate-700 text-white font-number font-bold text-base placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                 />
               </div>
-              <button
+              <Button variant="bare" size="none"
                 type="submit"
                 disabled={loading}
                 className={`w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r ${active3DTheme.buttonGrad} hover:brightness-110 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md shrink-0`}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 <span>{loading ? 'Memuat Data...' : 'Generate 3D Visual'}</span>
-              </button>
+              </Button>
             </form>
 
             {/* Autocomplete Dropdown Suggestions */}
@@ -395,7 +398,7 @@ export default function InfographicStudioPage() {
                 {filteredTickers.map((t) => {
                   const sym = t.symbol.replace('.JK', '');
                   return (
-                    <button
+                    <Button variant="bare" size="none"
                       key={t.symbol}
                       type="button"
                       onClick={() => selectTicker(sym)}
@@ -410,7 +413,7 @@ export default function InfographicStudioPage() {
                         </span>
                       </div>
                       <span className="text-[10px] font-mono text-cyan-400">Pilih</span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -421,7 +424,7 @@ export default function InfographicStudioPage() {
           <div className="mt-3 flex items-center gap-1.5 flex-wrap text-xs text-tv-muted">
             <span className="font-semibold text-slate-400">Pilihan Cepat:</span>
             {POPULAR_TICKERS.map((s) => (
-              <button
+              <Button variant="bare" size="none"
                 key={s}
                 type="button"
                 onClick={() => selectTicker(s)}
@@ -432,10 +435,10 @@ export default function InfographicStudioPage() {
                 }`}
               >
                 {s}
-              </button>
+              </Button>
             ))}
           </div>
-        </div>
+        </Card>
 
         {/* =========================================================================
          * MODULAR CONTROLS: 1. OUTPUT SELECTOR + 2. TEMA 3D SEKTOR + 3. ZOOM SLIDER
@@ -444,7 +447,7 @@ export default function InfographicStudioPage() {
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
             {/* 1. Output Card Switcher */}
             <div className="flex items-center gap-2 p-1 bg-[#030612] rounded-xl border border-slate-800 w-full lg:w-auto">
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={() => setCardMode('technical')}
                 className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
@@ -455,9 +458,9 @@ export default function InfographicStudioPage() {
               >
                 <LineChart className="w-4 h-4" />
                 <span>1. Output Teknikal 3D</span>
-              </button>
+              </Button>
 
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={() => setCardMode('fundamental_moat_earnings')}
                 className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
@@ -468,7 +471,7 @@ export default function InfographicStudioPage() {
               >
                 <Landmark className="w-4 h-4" />
                 <span>2. Fundamental + Moat + Earnings 3D</span>
-              </button>
+              </Button>
             </div>
 
             {/* 2. Theme Selector & Randomize Button */}
@@ -493,7 +496,7 @@ export default function InfographicStudioPage() {
                 </select>
               </div>
 
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={handleShuffleTheme}
                 title="Acak Tema Warna & Pencahayaan 3D"
@@ -501,7 +504,7 @@ export default function InfographicStudioPage() {
               >
                 <Dices className="w-4 h-4 text-cyan-400" />
                 <span className="hidden sm:inline">Acak Tema</span>
-              </button>
+              </Button>
             </div>
 
             {/* 3. Zoom Control */}
@@ -509,7 +512,7 @@ export default function InfographicStudioPage() {
               <span className="hidden xl:inline">Zoom:</span>
               <div className="flex items-center gap-1 bg-[#030612] border border-slate-800 rounded-lg p-1">
                 {[0.5, 0.65, 0.75, 0.88, 1.0].map((scale) => (
-                  <button
+                  <Button variant="bare" size="none"
                     key={scale}
                     type="button"
                     onClick={() => setZoomScale(scale)}
@@ -520,7 +523,7 @@ export default function InfographicStudioPage() {
                     }`}
                   >
                     {Math.round(scale * 100)}%
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -540,7 +543,7 @@ export default function InfographicStudioPage() {
               </span>
             </div>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={handleDownloadImage}
               disabled={exporting || loading || !data}
@@ -548,7 +551,7 @@ export default function InfographicStudioPage() {
             >
               <Download className="w-3.5 h-3.5" />
               <span>Unduh PNG HD</span>
-            </button>
+            </Button>
           </div>
 
           {/* Scaled Preview Wrapper to comfortably fit on screen */}

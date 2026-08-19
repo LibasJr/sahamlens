@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/Button';
 import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import Toast from '@/components/ui/Toast';
@@ -41,14 +42,14 @@ export default function ExportImageButton({ targetRef, fileName, label = 'Export
   return (
     <>
       <Toast message={errorMessage} variant="error" />
-      <button
+      <Button variant="bare" size="none"
       onClick={handleExport}
       disabled={disabled || loading}
       className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
     >
       <Download className="w-3 h-3" />
       {loading ? 'Mengekspor...' : label}
-      </button>
+      </Button>
     </>
   );
 }

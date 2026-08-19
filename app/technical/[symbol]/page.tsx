@@ -8,7 +8,7 @@ import { LogIn, Crown, Lock } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
-import { PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
@@ -154,32 +154,32 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     // Ajakan login HANYA untuk yang benar-benar belum punya sesi.
     if (!signedIn && status === 401) {
       return (
-        <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
+        <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
           <p className="text-white font-semibold mb-1">Masuk dulu, yuk, untuk lihat analisis lengkap</p>
           <p className="text-tv-muted text-sm mb-4">Grafik dan indikator dasar tetap bisa kamu lihat gratis. Untuk rangkuman LensConsensus yang lebih lengkap, masuk dulu supaya datanya bisa kami tampilkan.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Masuk sekarang
           </Link>
-        </div>
+        </Card>
       );
     }
     if (!signedIn && status === 429) {
       return (
-        <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
+        <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
           <p className="text-white font-semibold mb-1">Jatah coba LensConsensus kamu sudah habis</p>
           <p className="text-tv-muted text-sm mb-4">Masuk dulu untuk melanjutkan LensConsensus dan membuka analisis lengkap {symbol}.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Masuk untuk lanjut
           </Link>
-        </div>
+        </Card>
       );
     }
     if (status === 402) {
       const paymentMethods = getPaymentMethods();
       return (
-        <div className="bg-tv-card border border-tv-border rounded-xl p-8 text-center">
+        <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-8 text-center">
           <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
           <p className="text-white font-semibold mb-1">LensConsensus adalah fitur Pro</p>
           <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap LensConsensus pada {symbol}.</p>
@@ -200,7 +200,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           >
             Kirim Bukti Transfer via WhatsApp
           </a>
-        </div>
+        </Card>
       );
     }
     // Sisa kasus = kegagalan teknis (mis. 503 provider data down). Untuk user yang
@@ -208,7 +208,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     // Server Component, jadi "coba lagi" = memuat ulang rutenya; tautannya
     // disediakan eksplisit alih-alih membiarkan pengguna menebak.
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl">
+      <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border">
         <EmptyState
           illustration="empty"
           title={signedIn ? 'Analisis teknikal belum bisa ditampilkan' : 'Masuk dulu untuk lihat analisis lengkap'}
@@ -234,7 +234,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             Muat ulang
           </Link>
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -282,7 +282,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-tv-card border border-tv-border rounded-xl p-6">
+      <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-heading font-bold text-tv-text">
             Konsensus Teknikal · {total} analyzer
@@ -323,15 +323,15 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
         <div className="rounded-lg border border-tv-border bg-tv-hover p-4">
           <div className={`font-heading text-lg font-bold ${warnaKategori}`}>{kategoriLabel}</div>
           <p className="mt-2 text-sm text-tv-muted leading-relaxed">{ringkasan}</p>
-          <p className="mt-3 text-[11px] text-tv-muted">
+          <p className="mt-3 lens-meta text-tv-muted">
             Seluruh angka di halaman ini dihitung dari harga dan volume penutupan - tanpa
             model bahasa. Bobot tiap dimensi tertulis di tabel bawah dan dapat diperiksa.
           </p>
         </div>
-      </div>
+      </Card>
 
       {dimensi.length > 0 && (
-        <div className="bg-tv-card border border-tv-border rounded-xl p-6">
+        <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6">
           <h3 className="font-heading font-bold text-tv-text mb-1">Rincian bobot per dimensi</h3>
           <p className="text-sm text-tv-muted mb-4">
             Vote dihitung per dimensi, bukan per analyzer. Tanpa ini empat analyzer yang
@@ -378,7 +378,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               </Link>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {lockedAnalyzerCount > 0 && (
@@ -417,7 +417,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                     </span>
                   </div>
                   <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
-                  <p className="mt-1 text-[11px] text-tv-muted">Kekuatan rule {a.confidence ?? '-'} / 100</p>
+                  <p className="mt-1 lens-meta text-tv-muted">Kekuatan rule {a.confidence ?? '-'} / 100</p>
                 </div>
               </div>
             );
@@ -437,7 +437,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               </div>
               <p className="font-number text-sm text-tv-text">{a.value ?? '-'}</p>
               {typeof a.confidence === 'number' && a.confidence > 0 && (
-                <p className="mt-1 text-[11px] text-tv-muted">Kekuatan rule {a.confidence} / 100</p>
+                <p className="mt-1 lens-meta text-tv-muted">Kekuatan rule {a.confidence} / 100</p>
               )}
             </div>
           );
@@ -453,7 +453,7 @@ function LensConsensusAnalysisSkeleton({ symbol }: { symbol: string }) {
     // kotak-kotak kosong berdenyut yang tidak menyerupai apa pun. Tunggu 5-10 detik
     // itu lama - LoadingFact mengisi jeda itu dengan sesuatu yang berguna.
     <div className="space-y-6">
-      <div className="bg-tv-card border border-tv-border rounded-xl p-6 space-y-4">
+      <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6 space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton variant="text" className="w-32 h-4" />
           <Skeleton variant="text" className="w-20 h-4" />
@@ -464,7 +464,7 @@ function LensConsensusAnalysisSkeleton({ symbol }: { symbol: string }) {
           LensConsensus sedang merapatkan {symbol} - biasanya 5-10 detik.
         </p>
         <LoadingFact />
-      </div>
+      </Card>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[...Array(6)].map((_, i) => (
           <Skeleton key={i} className="h-24 w-full" />
@@ -518,9 +518,9 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
         )}
 
         {isIndex ? (
-          <div className="rounded-xl border border-tv-border bg-tv-card p-4 text-sm leading-relaxed text-tv-muted">
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4 text-sm leading-relaxed text-tv-muted">
             IHSG adalah indeks pasar, bukan saham emiten. Karena itu halaman ini menampilkan chart, tren, momentum, dan volatilitas indeks tanpa fundamental perusahaan, broker summary, TP/CL saham, atau rekomendasi beli per lot.
-          </div>
+          </Card>
         ) : (
           <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
             <LensConsensusAnalysisDisplay symbol={symbol} />

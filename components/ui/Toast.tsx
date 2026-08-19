@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
@@ -56,14 +57,14 @@ export default function Toast({
     >
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone.icon}`} />
       <span>{message}</span>
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={() => setOpen(false)}
         aria-label="Tutup notifikasi"
         className="ml-1 shrink-0 rounded p-1 text-tv-muted transition-colors hover:text-tv-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
       >
         <X className="h-3.5 w-3.5" />
-      </button>
+      </Button>
     </div>
   );
 }

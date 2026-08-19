@@ -1,6 +1,9 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui';
 import React, { useState } from 'react';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 type Status = { email: string; isPro: boolean; proExpiresAt: string | null };
 
@@ -30,15 +33,10 @@ export default function SetProForm() {
     setMessage(null);
     setStatus(null);
     try {
-      const res = await fetch(`/api/admin/pro-status?email=${encodeURIComponent(email.trim())}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage({ text: data.error || 'Gagal mengambil status', isError: true });
-        return;
-      }
+      const data = await apiRequest<any>(`/api/admin/pro-status?email=${encodeURIComponent(email.trim())}`);
       setStatus(data);
-    } catch {
-      setMessage({ text: 'Gagal terhubung ke server', isError: true });
+    } catch (error) {
+      setMessage({ text: apiErrorMessage(error, 'Gagal terhubung ke server', true), isError: true });
     } finally {
       setLoading(false);
     }
@@ -52,7 +50,7 @@ export default function SetProForm() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/admin/set-pro', {
+      const data = await apiRequest<any>('/api/admin/set-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,11 +59,6 @@ export default function SetProForm() {
           ...(payload.isPro && paymentReference.trim() ? { paymentReference: paymentReference.trim(), reconciliationNote: reconciliationNote.trim() || undefined } : {}),
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage({ text: data.error || 'Gagal memproses', isError: true });
-        return;
-      }
       setMessage({
         text: data.isPro
           ? `${data.email} Pro sampai ${formatTanggal(data.proExpiresAt)}`
@@ -73,8 +66,8 @@ export default function SetProForm() {
         isError: false,
       });
       setStatus({ email: data.email, isPro: data.isPro, proExpiresAt: data.proExpiresAt });
-    } catch {
-      setMessage({ text: 'Gagal terhubung ke server', isError: true });
+    } catch (error) {
+      setMessage({ text: apiErrorMessage(error, 'Gagal terhubung ke server', true), isError: true });
     } finally {
       setLoading(false);
     }
@@ -84,7 +77,7 @@ export default function SetProForm() {
     'text-white font-bold px-4 py-2 rounded-md text-sm transition-opacity disabled:opacity-50 hover:opacity-90';
 
   return (
-    <div className="bg-tv-card border border-tv-border rounded-lg p-6 mb-8">
+    <Card as="div" className="border-tv-border p-6 mb-8" padding="none" radius="lg" surface="solid" elevation="none" overflow="visible" highlight={false}>
       <h2 className="font-heading text-lg font-bold text-tv-text mb-4">Aktivasi Pro</h2>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-3">
@@ -98,9 +91,9 @@ export default function SetProForm() {
           placeholder="email@user.com"
           className="flex-1 bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
         />
-        <button type="button" disabled={loading} onClick={cek} className={`bg-tv-blue ${tombol}`}>
+        <Button variant="bare" size="none" type="button" disabled={loading} onClick={cek} className={`bg-tv-blue ${tombol}`}>
           Cek Status
-        </button>
+        </Button>
       </div>
 
       {status && (
@@ -144,56 +137,56 @@ export default function SetProForm() {
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         {paymentReference.trim() ? (
-          <button
+          <Button variant="bare" size="none"
             type="button"
             disabled={loading}
             onClick={() => simpan({ isPro: true })}
             className={`bg-tv-green ${tombol}`}
           >
             Aktifkan Sesuai Payment Order
-          </button>
+          </Button>
         ) : (
           <>
-            <button
+            <Button variant="bare" size="none"
               type="button"
               disabled={loading}
               onClick={() => simpan({ isPro: true, months: 1 })}
               className={`bg-tv-green ${tombol}`}
             >
               +1 Bulan
-            </button>
-            <button
+            </Button>
+            <Button variant="bare" size="none"
               type="button"
               disabled={loading}
               onClick={() => simpan({ isPro: true, months: 12 })}
               className={`bg-tv-green ${tombol}`}
             >
               +1 Tahun
-            </button>
+            </Button>
             <input
               type="date"
               value={customDate}
               onChange={(e) => setCustomDate(e.target.value)}
               className="bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text focus:outline-none focus:border-tv-blue"
             />
-            <button
+            <Button variant="bare" size="none"
               type="button"
               disabled={loading || !customDate}
               onClick={() => simpan({ isPro: true, expiresAt: new Date(customDate).toISOString() })}
               className={`bg-tv-blue ${tombol}`}
             >
               Set Tanggal
-            </button>
+            </Button>
           </>
         )}
-        <button
+        <Button variant="bare" size="none"
           type="button"
           disabled={loading || Boolean(paymentReference.trim())}
           onClick={() => simpan({ isPro: false })}
           className={`bg-tv-red ${tombol}`}
         >
           Cabut Pro
-        </button>
+        </Button>
       </div>
 
       <p className="text-[11px] text-tv-muted mt-3">
@@ -205,6 +198,6 @@ export default function SetProForm() {
       {message && (
         <p className={`mt-3 text-sm ${message.isError ? 'text-tv-red' : 'text-tv-green'}`}>{message.text}</p>
       )}
-    </div>
+    </Card>
   );
 }

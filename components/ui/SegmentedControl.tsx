@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React from 'react';
 import { cn } from '../../lib/utils/cn';
 
@@ -12,7 +13,7 @@ export function SegmentedControl({ options, value, onChange, className }: Segmen
       {options.map((opt) => {
         const active = opt.value === value;
         return (
-          <button
+          <Button variant="bare" size="none"
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
@@ -24,7 +25,7 @@ export function SegmentedControl({ options, value, onChange, className }: Segmen
             )}
           >
             {opt.label}
-          </button>
+          </Button>
         );
       })}
     </div>

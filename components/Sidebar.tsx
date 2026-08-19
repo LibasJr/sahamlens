@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import useSWR from 'swr';
+import { Button } from '@/components/ui/Button';
 import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -47,6 +47,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { isProtectedPage } from '@/shared/constants/access';
 import { useLanguage } from '@/lib/i18n';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { apiRequest } from '@/shared/http/api-client';
 
 const UserProfileModal = dynamic(() => import('./UserProfileModal'), { ssr: false, loading: () => null });
 
@@ -72,25 +73,19 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'overview',
     label: 'Utama',
     items: [
-      { id: 'home', name: 'Beranda', subtitle: 'Ringkasan pasar dan akun Anda', path: '/home', icon: LayoutDashboard, guest: true },
+      { id: 'home', name: 'Beranda', subtitle: 'Ringkasan pasar dan akun Anda', path: '/', icon: LayoutDashboard, guest: true },
       { id: 'market-pulse', name: 'LensMarket', subtitle: 'Kondisi pasar — arah IHSG, regime, dan sebaran', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
       { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Pemindai peluang — saham yang sedang bergerak', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
     ],
   },
   {
-    id: 'trading',
-    label: 'Trading',
+    id: 'analysis',
+    label: 'Analisis',
     items: [
       { id: 'dashboard', name: 'LensTechnical', subtitle: 'Analisis teknikal — tren, momentum, dan waktu masuk', path: '/dashboard', icon: LineChart },
       { id: 'screener', name: 'LensScanner', subtitle: 'Screener — saring saham dari banyak faktor sekaligus', path: '/screener', icon: Filter },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
       { id: 'backtest', name: 'Backtest', subtitle: 'Uji strategi pada data historis', path: '/backtest', icon: History },
-    ],
-  },
-  {
-    id: 'investing',
-    label: 'Investing',
-    items: [
       { id: 'fundamental', name: 'LensFundamental', subtitle: 'Analisis fundamental — kualitas, pertumbuhan, dan utang', path: '/fundamental', icon: Building2 },
       { id: 'dcf', name: 'Valuation', subtitle: 'Hitung nilai wajar dan margin keamanan', path: '/dcf', icon: CircleDollarSign },
       { id: 'moat', name: 'Moat', subtitle: 'Ukur keunggulan bersaing emiten', path: '/moat', icon: Target },
@@ -165,7 +160,7 @@ const ACCENT_CLASS: Record<NonNullable<NavItem['accent']>, string> = {
 
 function isPathActive(pathname: string, item: NavItem) {
   if (item.id === 'lensai') return pathname.startsWith('/technical/');
-  if (item.path === '/home') return pathname === '/home';
+  if (item.path === '/') return pathname === '/';
   return pathname === item.path || pathname.startsWith(`${item.path}/`);
 }
 
@@ -174,6 +169,7 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { loading: authLoading, user, resolved: authResolved, effectiveRole } = useAuthUser();
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
@@ -187,11 +183,11 @@ export default function Sidebar() {
     }
   }, [pathname]);
 
-  // Gagal-tertutup DIPERTAHANKAN: kalau statusnya tidak bisa dibaca, jawabannya "bukan
-  // admin", bukan "belum tahu". Grup menu Admin lebih baik tidak muncul untuk admin yang
-  // sedang offline daripada muncul untuk orang yang bukan admin.
-  const { data: adminStatus } = useSWR<{ isAdmin?: boolean }>('/api/admin-status');
-  const hasAdminAccess = Boolean(adminStatus?.isAdmin);
+  useEffect(() => {
+    apiRequest<any>('/api/admin-status')
+      .then((d) => setHasAdminAccess(Boolean(d.isAdmin)))
+      .catch(() => setHasAdminAccess(false));
+  }, []);
 
   useEffect(() => {
     const onToggle = () => setIsOpen((prev) => !prev);
@@ -249,8 +245,7 @@ export default function Sidebar() {
   const getLocalizedGroupName = useCallback((id: string, defaultLabel: string) => {
     switch (id) {
       case 'overview': return t('nav.groupMain');
-      case 'trading': return t('nav.groupTrading');
-      case 'investing': return t('nav.groupInvesting');
+      case 'analysis': return t('nav.groupAnalysis');
       case 'risk-portfolio': return t('nav.groupRiskPortfolio');
       case 'research': return t('nav.groupResearch');
       case 'admin': return t('nav.groupAdmin');
@@ -295,14 +290,14 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await apiRequest('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
   };
 
   return (
     <>
       {isOpen && (
-        <button
+        <Button variant="bare" size="none"
           type="button"
           aria-label={t('common.close')}
           className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm md:hidden"
@@ -328,7 +323,7 @@ export default function Sidebar() {
               <p className="mt-0.5 text-xs font-medium text-tv-muted md:text-[10px]">Intelligence for IDX investors</p>
             </div>
           </Link>
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={toggleCollapse}
             className={`hidden h-8 w-8 items-center justify-center rounded-xl text-tv-muted transition-colors hover:bg-white/[0.06] hover:text-white md:flex ${isCollapsed ? 'absolute left-[22px] top-[80px]' : ''}`}
@@ -336,7 +331,7 @@ export default function Sidebar() {
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </button>
+          </Button>
         </div>
 
         <div className={`flex-1 overflow-y-auto overflow-x-visible py-4 ${isCollapsed ? 'md:px-2 px-3' : 'px-3'}`}>
@@ -451,13 +446,13 @@ export default function Sidebar() {
                 <Sparkles className="h-4 w-4 text-tv-gold shrink-0" />
                 <span className={isCollapsed ? 'md:hidden' : ''}>Infographic Studio</span>
               </span>
-              <span className={`rounded bg-tv-blue/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${isCollapsed ? 'md:hidden' : ''}`}>Admin</span>
+              <span className={`rounded bg-tv-blue/20 px-1.5 py-0.5 lens-meta uppercase tracking-wider ${isCollapsed ? 'md:hidden' : ''}`}>Admin</span>
             </Link>
           )}
           {!authLoading && user ? (
             <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2 ${isCollapsed ? 'md:border-transparent md:bg-transparent md:p-0' : ''}`}>
               <div className={`flex items-center gap-2 ${isCollapsed ? 'md:justify-center' : ''}`}>
-                <button
+                <Button variant="bare" size="none"
                   type="button"
                   onClick={() => setShowProfileModal(true)}
                   className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl p-1.5 text-left transition-colors hover:bg-white/[0.04] ${isCollapsed ? 'md:flex-none md:p-1' : ''}`}
@@ -469,16 +464,15 @@ export default function Sidebar() {
                     <span className="block truncate text-sm font-semibold text-white md:text-xs">{user.email?.split('@')[0]}</span>
                     <span className="mt-0.5 block text-xs font-bold uppercase tracking-wider text-tv-muted md:text-[10px]">{user.role}</span>
                   </span>
-                </button>
-                <button
+                </Button>
+                <Button variant="bare" size="none"
                   type="button"
                   onClick={handleLogout}
                   title={t('nav.logout')}
-                  aria-label={t('nav.logout')}
                   className={`rounded-xl p-2 text-tv-muted transition-colors hover:bg-tv-red/10 hover:text-tv-red ${isCollapsed ? 'md:hidden' : ''}`}
                 >
                   <LogOut className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
             </div>
           ) : !authLoading ? (

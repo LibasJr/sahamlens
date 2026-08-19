@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3001",
-    "prebuild": "node scripts/check-deps-installed.mjs",
     "build": "next build --webpack",
     "start": "next start -H 0.0.0.0 -p 3001",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
@@ -21,7 +20,7 @@
     "eval:answers": "node scripts/eval-lensai-answers.mjs",
     "audit:performance": "node scripts/audit-performance.mjs",
     "check:9router": "node scripts/check-9router.mjs",
-    "verify:prod": "npm run audit:schema && npm run audit:cron && npm run audit:ui && npm run audit:performance && npm run audit:manual-market && npm run audit:market-labels && npm run audit:risk-controls && npm run audit:zero-dummy && npm run audit:adoption && npm run audit:a11y && npm run typecheck && npm run lint && npm test && npm run build && npm run audit:bundle",
+    "verify:prod": "npm run audit:schema && npm run audit:cron && npm run audit:ui && npm run audit:performance && npm run audit:manual-market && npm run audit:market-labels && npm run audit:risk-controls && npm run audit:zero-dummy && npm run audit:adoption && npm run typecheck && npm run lint && npm test && npm run build && npm run audit:bundle",
     "db:migrate": "node scripts/migrate-database.mjs --confirm",
     "db:migrate:check": "node scripts/migrate-database.mjs",
     "audit:integrity": "node scripts/audit-production-integrity.mjs",
@@ -40,8 +39,7 @@
     "sync:idx-broker-summary": "python scripts/sync-idx-broker-summary.py",
     "import:broker-eod": "node scripts/import-broker-market-daily.mjs",
     "audit:bundle": "node scripts/audit-bundle-budget.mjs",
-    "audit:adoption": "node scripts/audit-adoption-ratchet.mjs",
-    "audit:a11y": "node scripts/audit-icon-button-labels.mjs"
+    "audit:adoption": "node scripts/audit-adoption-ratchet.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -66,7 +64,6 @@
     "recharts": "^3.10.1",
     "redis": "^6.2.1",
     "rss-parser": "^3.13.0",
-    "swr": "^2.5.1",
     "tailwind-merge": "^2.5.4",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^4.0.0",

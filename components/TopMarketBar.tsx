@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -14,6 +13,8 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import NotificationCenter from '@/components/ui/NotificationCenter';
 import { useLanguage } from '@/lib/i18n';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { apiRequest } from '@/shared/http/api-client';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
@@ -21,37 +22,7 @@ const MODULE_SEARCH_ROUTES = ['/dashboard', '/fundamental', '/macro', '/screener
 
 export default function TopMarketBar() {
   const pathname = usePathname();
-  // IHSG lewat SWR, bukan useEffect+fetch. DUA hal yang diperbaiki sekaligus:
-  //
-  //   1. Dulu diambil SEKALI saat mount dan tidak pernah disegarkan - harga di bilah
-  //      global ini karena itu basi sepanjang sesi, padahal ia justru elemen paling
-  //      "live" di seluruh aplikasi. Sekarang menyegarkan tiap 60 detik dan berhenti
-  //      saat tab tersembunyi.
-  //   2. app/home/page.tsx mengambil endpoint yang SAMA. Kunci SWR yang sama membuat
-  //      keduanya berbagi satu permintaan alih-alih dua yang identik.
-  //
-  // Kegagalan sengaja diabaikan diam-diam, sama seperti `.catch(() => {})` sebelumnya:
-  // bilah ini hiasan konteks, dan pesan error di sana lebih mengganggu daripada
-  // sekadar tidak menampilkan angkanya.
-  const { data: ihsgRaw } = useSWR<{ price: unknown; changePercent: unknown }>(
-    '/api/live/^JKSE',
-    {
-      refreshInterval: 60_000,
-      refreshWhenHidden: false,
-      // Angka lama dipertahankan selama revalidasi supaya bilahnya tidak berkedip kosong.
-      keepPreviousData: true,
-    },
-  );
-
-  // Penjagaan tipe DIPERTAHANKAN persis seperti sebelumnya: endpoint ini mengembalikan
-  // `price: null` yang sah saat data tidak tersedia (lihat app/api/live/[ticker]), jadi
-  // "ada respons" tidak sama dengan "ada angka".
-  const ihsg =
-    ihsgRaw &&
-    typeof ihsgRaw.price === 'number' && Number.isFinite(ihsgRaw.price) && ihsgRaw.price > 0 &&
-    typeof ihsgRaw.changePercent === 'number' && Number.isFinite(ihsgRaw.changePercent)
-      ? { price: ihsgRaw.price, change: ihsgRaw.changePercent }
-      : null;
+  const [ihsg, setIhsg] = useState<{ price: number; change: number } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const { loading: authLoading, user, effectiveRole, trialDaysLeft } = useAuthUser();
 
@@ -61,6 +32,20 @@ export default function TopMarketBar() {
       if (!document.hidden) setNow(new Date());
     }, 30000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    apiRequest<any>('/api/live/^JKSE')
+      .then((data) => {
+        if (
+          data &&
+          typeof data.price === 'number' && Number.isFinite(data.price) && data.price > 0 &&
+          typeof data.changePercent === 'number' && Number.isFinite(data.changePercent)
+        ) {
+          setIhsg({ price: data.price, change: data.changePercent });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const { t, language } = useLanguage();
@@ -134,7 +119,7 @@ export default function TopMarketBar() {
         {authLoading ? (
           <span className="flex h-9 w-9 items-center justify-center rounded-xl text-tv-muted/40"><UserIcon className="h-4 w-4" /></span>
         ) : user ? (
-          <button
+          <PrimitiveButton variant="bare" size="none"
             type="button"
             onClick={() => window.dispatchEvent(new Event('open-profile-modal'))}
             title="Profil"
@@ -145,7 +130,7 @@ export default function TopMarketBar() {
               <UserIcon className="h-3.5 w-3.5" />
             </span>
             <span className="hidden max-w-[90px] truncate text-[10px] font-semibold text-white/80 2xl:block">{user.email?.split('@')[0]}</span>
-          </button>
+          </PrimitiveButton>
         ) : (
           <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-tv-blue px-3 py-2 text-sm font-bold md:min-h-0 md:text-[11px] text-white shadow-[0_8px_24px_rgba(79,140,255,0.18)] transition hover:bg-tv-blueHover">
             Masuk

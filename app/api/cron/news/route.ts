@@ -6,6 +6,7 @@ import { getMarketNews } from '@/modules/news';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 // BARU (2026-08-14, pertanyaan pengguna "apa ada cron untuk update news?" - sebelumnya
 // TIDAK ADA). Pola SAMA PERSIS dengan app/api/cron/market-summary/route.ts: /api/news
@@ -15,7 +16,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 // menghitung ulang di jadwal dan menyimpan ke Redis; GET /api/news tinggal baca cache.
 // TTL CACHE_TTL_SEC.MARKET_NEWS (6 menit) disamakan dengan interval cron 5 menit ini +
 // buffer 1 run telat.
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -36,4 +37,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job news gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

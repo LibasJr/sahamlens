@@ -1,7 +1,10 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui';
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Lock, PlayCircle, RefreshCw, RotateCcw, Shield, Target } from 'lucide-react';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 type MarketRegime = 'BULL' | 'SIDEWAYS' | 'BEAR' | 'UNKNOWN';
 type TpclHistoryRange = '1y' | '3y' | '5y' | '10y';
@@ -162,7 +165,7 @@ function ActionButton({
   icon?: React.ReactNode;
 }) {
   return (
-    <button
+    <Button variant="bare" size="none"
       type="button"
       onClick={onClick}
       disabled={disabled}
@@ -170,7 +173,7 @@ function ActionButton({
     >
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -185,13 +188,11 @@ export default function TpclValidationClient() {
   async function load(range: TpclHistoryRange = '5y') {
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/admin/tpcl-validation?range=${encodeURIComponent(range)}`, { cache: 'no-store' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Gagal memuat TP/CL Validation Lab');
+      const json = await apiRequest<any>(`/api/admin/tpcl-validation?range=${encodeURIComponent(range)}`, { cache: 'no-store' });
       setData(json);
       if (json?.historyRange) setHistoryRange(json.historyRange as TpclHistoryRange);
     } catch (e: any) {
-      setError(e?.message || 'Gagal memuat TP/CL Validation Lab');
+      setError(apiErrorMessage(e, 'Gagal memuat TP/CL Validation Lab', true));
       setData(null);
     } finally {
       setLoading(false);
@@ -203,13 +204,9 @@ export default function TpclValidationClient() {
     setBusy(action);
     setActionMessage(null);
     try {
-      const res = await fetch('/api/admin/tpcl-validation/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, historyRange }),
+      const json = await apiRequest<any>('/api/admin/tpcl-validation/actions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, historyRange }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Aksi TP/CL gagal');
 
       if (action === 'run_validation') {
         const runId = String(json?.runId ?? '');
@@ -217,9 +214,7 @@ export default function TpclValidationClient() {
         setActionMessage(`Research run ${historyRangeLabel(historyRange)} masuk antrean. Worker VPS akan memprosesnya; Anda boleh meninggalkan halaman karena status/hasil tersimpan persisten.`);
         for (let attempt = 0; attempt < 600; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
-          const statusRes = await fetch(`/api/admin/tpcl-validation/runs?id=${encodeURIComponent(runId)}`, { cache: 'no-store' });
-          const run = await statusRes.json();
-          if (!statusRes.ok) throw new Error(run?.error || 'Gagal membaca status research run');
+          const run = await apiRequest<any>(`/api/admin/tpcl-validation/runs?id=${encodeURIComponent(runId)}`, { cache: 'no-store' });
           setActionMessage(`Research run ${historyRangeLabel(historyRange)}: ${run.status} · ${run.progressPct ?? 0}%`);
           if (run.status === 'SUCCEEDED') {
             if (run.result) setData(run.result as Dashboard);
@@ -243,17 +238,17 @@ export default function TpclValidationClient() {
   }
 
   if (loading) return (
-    <div className="rounded-xl border border-tv-border bg-tv-card p-6 text-sm text-tv-muted">
+    <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6 text-sm text-tv-muted">
       Memuat TP/CL Validation Lab... cache kosong pertama kali dapat membutuhkan waktu karena OHLC dihitung ulang.
-    </div>
+    </Card>
   );
   if (error || !data) return (
     <div className="rounded-xl border border-tv-red/30 bg-tv-red/10 p-5">
       <div className="font-bold text-tv-red">Validation gagal dimuat</div>
       <div className="text-sm text-tv-muted mt-1">{error}</div>
-      <button onClick={() => void load(historyRange)} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-tv-border px-3 py-2 text-sm">
+      <Button variant="bare" size="none" onClick={() => void load(historyRange)} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-tv-border px-3 py-2 text-sm">
         <RefreshCw className="w-4 h-4" /> Coba lagi
-      </button>
+      </Button>
     </div>
   );
 
@@ -271,7 +266,7 @@ export default function TpclValidationClient() {
       </section>
 
 
-      <section className="rounded-xl border border-tv-border bg-tv-card overflow-hidden">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="hidden" highlight={false} className="border-tv-border">
         <div className="border-b border-tv-border px-5 py-4">
           <h2 className="font-heading text-lg font-bold">Aksi Riset TP / CL</h2>
           <p className="mt-1 text-xs text-tv-muted max-w-4xl">
@@ -346,7 +341,7 @@ export default function TpclValidationClient() {
             jendela observasi sinyal dan cache hasil. Backend boleh mengambil OHLC warm-up tambahan untuk ATR/structure; default tetap 5 tahun. Freeze OOS tidak dapat diubah dari browser.
           </p>
         </div>
-      </section>
+      </Card>
 
       <section className={`rounded-xl border p-4 ${
         data.robustnessStatus === 'ROBUST'
@@ -360,7 +355,7 @@ export default function TpclValidationClient() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Eligibility Funnel</h2>
         <p className="text-xs text-tv-muted mb-4">
           Menjelaskan kenapa raw LensScore ≥80 tidak semuanya menjadi trade executable.
@@ -375,7 +370,7 @@ export default function TpclValidationClient() {
           <MetricCard label="H+1 gap rejected" value={data.eligibilityFunnel.h1GapRejected.toLocaleString('id-ID')} />
           <MetricCard label="Executable baseline" value={data.eligibilityFunnel.executable.toLocaleString('id-ID')} />
         </div>
-      </section>
+      </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard label="History range" value={historyRangeLabel(data.historyRange)} />
@@ -390,7 +385,7 @@ export default function TpclValidationClient() {
       </div>
 
 
-      <section id="tpcl-forward-oos" className="scroll-mt-6 rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} id="tpcl-forward-oos" className="scroll-mt-6 border-tv-border p-5">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
           <div>
             <div className="text-xs uppercase tracking-wide text-tv-accent">Genuine Forward Validation</div>
@@ -445,9 +440,9 @@ export default function TpclValidationClient() {
           Minimum executable sample per protocol: {data.forwardOos.minimumExecutableSamples}. Status POSITIVE/NEGATIVE
           tetap hanya diagnostic; tidak ada auto-apply ke production.
         </div>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="font-heading text-lg font-bold flex items-center gap-2">
@@ -464,9 +459,9 @@ export default function TpclValidationClient() {
           </span>
         </div>
         <MetricsGrid metrics={b.overall} />
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Temporal Split Diagnostic</h2>
         <p className="text-xs text-tv-muted mb-4">
           Train sampai {data.splitDates.trainEnd ?? '—'} · Validation sampai {data.splitDates.validationEnd ?? '—'} · sisanya Holdout.
@@ -492,9 +487,9 @@ export default function TpclValidationClient() {
             );
           })}
         </div>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5 overflow-x-auto">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5 overflow-x-auto">
         <h2 className="font-heading text-lg font-bold mb-1">Parameter Sensitivity</h2>
         <p className="text-xs text-tv-muted mb-4">
           Candidate hanya untuk menguji apakah edge terlalu sensitif terhadap parameter. Tidak ada ranking otomatis dan tidak ada tombol apply.
@@ -531,9 +526,9 @@ export default function TpclValidationClient() {
             ))}
           </tbody>
         </table>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-4">Baseline by IHSG Regime</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {b.byRegime.map((row) => (
@@ -549,10 +544,10 @@ export default function TpclValidationClient() {
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-1">BEAR Regime Filter Diagnostic</h2>
         <p className="text-xs text-tv-muted mb-4">
           Counterfactual research: bagaimana metrik baseline terlihat bila trade ber-regime BEAR tidak diambil.
@@ -581,9 +576,9 @@ export default function TpclValidationClient() {
           })}
         </div>
         <div className="mt-3 text-[10px] text-tv-muted">{data.bearFilterDiagnostic.note}</div>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-tv-yellow" /> Guardrails
         </h2>
@@ -594,7 +589,7 @@ export default function TpclValidationClient() {
             </div>
           ))}
         </div>
-      </section>
+      </Card>
     </div>
   );
 }

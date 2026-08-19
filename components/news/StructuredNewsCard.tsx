@@ -38,7 +38,7 @@ function impactTone(direction: string): string {
 function Step({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0 flex-1">
-      <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-tv-muted/70">{label}</p>
+      <p className="mb-1 lens-meta font-bold uppercase tracking-[0.12em] text-tv-muted/70">{label}</p>
       {children}
     </div>
   );
@@ -196,7 +196,7 @@ export function StructuredNewsCard({
 
       <div className="mt-2 flex items-start justify-between gap-3">
         {item.reason && <p className="text-[10px] leading-relaxed text-tv-muted/70">{t('newsCard.sentimentReason', { reason: item.reason })}</p>}
-        <p className="ml-auto shrink-0 text-[9px] font-medium uppercase tracking-wide text-tv-muted/50">
+        <p className="ml-auto shrink-0 lens-meta font-medium uppercase tracking-wide text-tv-muted/50">
           {t('newsCard.rssInference')}
         </p>
       </div>

@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import useSWR from 'swr';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { useRouter } from 'next/navigation';
 import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { getMarketAwareTtlMs } from '@/shared/cache/ttl-policy';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { apiRequest } from '@/shared/http/api-client';
 
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
@@ -40,7 +41,8 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  // `emiten` dan `loaded` kini turunan dari useSWR di bawah, bukan state.
+  const [emiten, setEmiten] = useState<Emiten[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [preview, setPreview] = useState<Preview>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -60,27 +62,17 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
     return () => window.removeEventListener('keydown', handleKey);
   }, [enableShortcut]);
 
-  // Daftar emiten dimuat MALAS (kunci null selama palet tertutup), persis seperti syarat
-  // `open && !loaded` sebelumnya - daftar 962 emiten tidak perlu diunduh oleh pengunjung
-  // yang tidak pernah membuka pencarian.
-  //
-  // Tapi begitu dimuat, ia dibagi: komponen ini dirender di TIGA tempat (TopMarketBar,
-  // Header, Dashboard), dan dulu masing-masing punya state `emiten`-nya sendiri - membuka
-  // palet dari tempat berbeda mengunduh daftar yang sama berulang kali. Endpoint-nya juga
-  // ber-`revalidate = 3600` di server, jadi isinya memang praktis statis.
-  const { data: emitenPayload } = useSWR<{ emiten?: Emiten[] }>(
-    open ? '/api/emiten' : null,
-    { revalidateOnFocus: false, dedupingInterval: 3_600_000 },
-  );
-  const emiten = useMemo(() => emitenPayload?.emiten ?? [], [emitenPayload]);
-  // `loaded` dulu juga bernilai true setelah kegagalan (catch menyetelnya), supaya
-  // palet menampilkan "tidak ada hasil" alih-alih menggantung di keadaan memuat
-  // selamanya. Dipertahankan: !== undefined benar untuk sukses MAUPUN gagal.
-  const loaded = emitenPayload !== undefined;
-
   useEffect(() => {
+    if (open && !loaded) {
+      apiRequest<any>('/api/emiten')
+        .then((data) => {
+          if (data && data.emiten) setEmiten(data.emiten);
+          setLoaded(true);
+        })
+        .catch(() => setLoaded(true));
+    }
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
-  }, [open]);
+  }, [open, loaded]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,8 +133,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       return;
     }
     setPreviewLoading(true);
-    fetch(`/api/public-chart/${encodeURIComponent(symbol)}?tf=1M`)
-      .then((r) => r.json())
+    apiRequest<any>(`/api/public-chart/${encodeURIComponent(symbol)}?tf=1M`)
       .then((data) => {
         // Kalau user sudah hover ke baris lain sebelum response ini balik, jangan timpa
         // preview yang sedang ditampilkan dengan data saham yang sudah tidak di-hover
@@ -198,7 +189,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
   return (
     <>
       {/* Visible search trigger, header-mounted */}
-      <button
+      <PrimitiveButton variant="bare" size="none"
         onClick={() => setOpen(true)}
         title="Cari saham (Ctrl+K)"
         className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-tv-border bg-tv-hover/40 px-3 text-[11px] font-medium text-tv-muted transition-colors hover:border-tv-borderLight hover:bg-tv-hover hover:text-tv-text sm:justify-start"
@@ -206,7 +197,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
         <Search className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden sm:inline truncate">Cari saham, IHSG, kode emiten, atau perusahaan...</span>
         <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-tv-border bg-tv-hover px-1.5 py-0.5 text-[10px] font-mono text-tv-muted">⌘K</kbd>
-      </button>
+      </PrimitiveButton>
 
       {open && (
         // top-14 (bukan inset-0) - backdrop dulu nutup dari y=0, ikut nutup/dim TopMarketBar
@@ -235,13 +226,13 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
               {/* Tombol berisi ikon saja WAJIB punya nama aksesibel - tanpa aria-label
                   pembaca layar hanya mengumumkan "tombol". Ukurannya juga dinaikkan ke
                   44x44; sebelumnya hanya sebesar ikonnya. */}
-              <button
+              <PrimitiveButton variant="bare" size="none"
                 onClick={() => setOpen(false)}
                 aria-label="Tutup pencarian"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-tv-muted transition-colors hover:text-tv-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
-              </button>
+              </PrimitiveButton>
             </div>
 
             <div className="flex max-h-[60vh]">
@@ -255,7 +246,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                   <div className="px-4 py-8 text-center text-[12px] text-tv-muted">Tidak ada saham yang cocok.</div>
                 )}
                 {results.map((r, idx) => (
-                  <button
+                  <PrimitiveButton variant="bare" size="none"
                     key={r.symbol}
                     onMouseEnter={() => setActiveIdx(idx)}
                     onClick={() => goTo(r)}
@@ -266,7 +257,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                       <div className="text-[11px] text-tv-muted truncate">{r.name}</div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
-                  </button>
+                  </PrimitiveButton>
                 ))}
               </div>
 

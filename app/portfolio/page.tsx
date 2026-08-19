@@ -1,20 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Trophy, Download, FileText, Wallet, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Download, FileText, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 // xlsx/jsPDF/jspdf-autotable TIDAK di-import statis (optimasi loading 2026-08-05) -
 // ketiganya berat dan cuma dipakai saat tombol Export diklik; di-import dinamis di
 // dalam downloadExcel()/downloadPDF() supaya tidak ikut terunduh & ter-parse di setiap
 // kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
-import { PasswordToggle } from '@/components/ui/PasswordToggle';
+import { Card, Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
+import { PortfolioAuthGate } from '@/components/portfolio/PortfolioAuthGate';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { fadeUp } from '@/lib/motion';
 import { getDecisionPresentation } from '@/modules/eligibility';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 const formatIDR = (n: number | null | undefined) => n == null || !Number.isFinite(n) ? 'N/A' : 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
@@ -35,6 +36,9 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<'HOLDINGS' | 'RIWAYAT'>('HOLDINGS');
   const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState(false);
+  const { user: authUser, loading: authStateLoading, resolved: authResolved, refresh: refreshAuth } = useAuthUser();
+  const isLoggedIn = Boolean(authUser);
+  const authError = !authStateLoading && !authResolved;
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,103 +75,51 @@ export default function PortfolioPage() {
     setOrderLoading(true);
     try {
       const endpoint = orderType === 'BUY' ? '/api/portfolio/buy' : '/api/portfolio/sell';
-      const res = await fetch(endpoint, {
+      await apiRequest(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: orderSymbol.toUpperCase(),
           price: Number(orderPrice),
           lots: Number(orderLots),
-          note: 'Manual ' + orderType
-        })
+          note: 'Manual ' + orderType,
+        }),
       });
-      if (res.ok) {
-        setShowOrderModal(false);
-        setOrderSymbol('');
-        setOrderPrice('');
-        setOrderLots('');
-        showToast(`Order ${orderType} virtual berhasil dicatat.`, 'success');
-        loadData();
-      } else {
-        const err = await res.json();
-        showToast('Gagal: ' + (err.error || 'order tidak dapat diproses'), 'error');
-      }
-    } catch(err) {
-      showToast('Order virtual gagal dikirim. Coba lagi.', 'error');
+      setShowOrderModal(false);
+      setOrderSymbol('');
+      setOrderPrice('');
+      setOrderLots('');
+      showToast(`Order ${orderType} virtual berhasil dicatat.`, 'success');
+      void loadData();
+    } catch (error) {
+      showToast(apiErrorMessage(error, 'Order virtual gagal dikirim. Coba lagi.', true), 'error');
+    } finally {
+      setOrderLoading(false);
     }
-    setOrderLoading(false);
   };
-
-  // checkAuth() DIHAPUS: ia memanggil /api/auth/me sendiri, padahal useAuthUser membaca
-  // endpoint yang sama - dan halaman ini juga merender TopMarketBar, TrialCountdown, dan
-  // SmartBackNavigation yang semuanya memakai hook itu. Dulu beberapa permintaan identik
-  // pada satu kali muat halaman; sekarang satu kunci SWR bersama.
-  //
-  // Pemetaan ke nilai lama dijaga persis:
-  //   authResolved  = pemeriksaannya SELESAI (dulu di-set di blok finally, jadi true
-  //                   entah berhasil atau gagal) -> !authLoading
-  //   authError     = pemeriksaannya GAGAL dihubungi, BUKAN "belum login" -> !resolved.
-  //                   Bedanya penting dan sudah dijelaskan panjang di AuthState:
-  //                   pengguna yang sudah login tidak boleh diperlakukan sebagai tamu
-  //                   hanya karena jaringan berkedip.
-  // `sessionLoading`, bukan `authLoading`: nama itu sudah dipakai state tombol
-  // login/daftar di atas (setAuthLoading), dan keduanya artinya berbeda.
-  const { loading: sessionLoading, resolved: authKnown, user: authUser } = useAuthUser();
-  const isLoggedIn = Boolean(authUser);
-  const authResolved = !sessionLoading;
-  const authError = !authKnown;
-  const currentUser = authUser ? { email: authUser.email, role: authUser.role } : null;
-
-  // Portofolio hanya dimuat setelah sesi diketahui DAN ada penggunanya - sama seperti
-  // `if (res.ok) loadData()` sebelumnya. Tamu tidak menembak /api/portfolio sama sekali.
-  useEffect(() => {
-    if (sessionLoading) return;
-    if (!isLoggedIn) {
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    void loadData(controller.signal);
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionLoading, isLoggedIn]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-
     if (authMode === 'SIGNUP' && password !== confirmPassword) {
       setLoginError('Konfirmasi password tidak sama');
       return;
     }
-
     setAuthLoading(true);
     try {
       const endpoint = authMode === 'SIGNUP' ? '/api/auth/signup' : '/api/auth/login';
-      const res = await fetch(endpoint, {
+      await apiRequest<any>(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (authMode === 'SIGNUP') {
-          // Signup TIDAK membuat sesi - butuh verifikasi kode OTP dulu (dikirim ke
-          // email), baru login sungguhan lewat /api/auth/verify.
-          setPendingVerification(true);
-        } else {
-          // setIsLoggedIn(true) dihapus: reload penuh di baris berikutnya membuang
-          // seluruh state React, jadi menyetelnya tidak pernah berefek. Sesi dibaca
-          // ulang oleh useAuthUser setelah halaman dimuat lagi.
-          window.location.reload();
-        }
-      } else {
-        setLoginError(data.error || (authMode === 'SIGNUP' ? 'Gagal daftar' : 'Login gagal'));
-      }
-    } catch (e) {
-      setLoginError('Network error');
+      if (authMode === 'SIGNUP') setPendingVerification(true);
+      else await refreshAuth();
+    } catch (error) {
+      setLoginError(apiErrorMessage(error, authMode === 'SIGNUP' ? 'Gagal daftar' : 'Login gagal', true));
+    } finally {
+      setAuthLoading(false);
     }
-    setAuthLoading(false);
   };
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -175,31 +127,25 @@ export default function PortfolioPage() {
     setLoginError('');
     setAuthLoading(true);
     try {
-      const res = await fetch('/api/auth/verify', {
+      await apiRequest('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otpCode })
+        body: JSON.stringify({ email, code: otpCode }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        // Lihat catatan di handleLogin: reload penuh membuang state React.
-        window.location.reload();
-      } else {
-        setLoginError(data.error || 'Kode verifikasi salah/kadaluarsa');
-      }
-    } catch (e) {
-      setLoginError('Network error');
+      await refreshAuth();
+    } catch (error) {
+      setLoginError(apiErrorMessage(error, 'Kode verifikasi salah/kadaluarsa', true));
+    } finally {
+      setAuthLoading(false);
     }
-    setAuthLoading(false);
   };
 
-  const loadData = async (signal?: AbortSignal) => {
+  const loadData = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch('/api/portfolio', { signal });
-      const data = await res.json();
-      if (!res.ok || !data?.portfolio) throw new Error(data?.error || `Portfolio request failed: ${res.status}`);
+      const data = await apiRequest<any>('/api/portfolio', { signal });
+      if (!data?.portfolio) throw new Error('Portfolio response tidak lengkap');
 
       setPortfolio(data.portfolio);
       setTransactions(data.transactions || []);
@@ -215,8 +161,8 @@ export default function PortfolioPage() {
         let priceStale = true;
         let scoreLabel: string | null = null;
         try {
-          const res = await fetch(`/api/stock/${h.symbol}`, { signal });
-          const s = await res.json();
+          const stockData = await apiRequest<any>(`/api/stock/${h.symbol}`, { signal });
+          const s = stockData;
           if (typeof s?.stock?.current_price === 'number' && Number.isFinite(s.stock.current_price) && s.stock.current_price > 0) {
             currentPrice = s.stock.current_price;
             priceStale = false;
@@ -267,7 +213,19 @@ export default function PortfolioPage() {
       setLoadError(true);
     }
     if (!signal?.aborted) setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (authStateLoading) return;
+    if (!authResolved || !authUser) {
+      if (authResolved) setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    void loadData(controller.signal);
+    return () => controller.abort();
+  }, [authStateLoading, authResolved, authUser?.id, loadData]);
 
   const downloadExcel = async () => {
     const XLSX = await import('xlsx');
@@ -303,117 +261,38 @@ export default function PortfolioPage() {
     doc.save('SahamLens_Portfolio.pdf');
   };
 
-  if (!authResolved) {
+  if (authStateLoading) {
     return <div className="min-h-screen bg-tv-bg p-4"><Skeleton className="mx-auto mt-24 h-64 max-w-sm" /></div>;
   }
 
   if (authError) {
-    return <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4"><div className="w-full max-w-md rounded-xl border border-tv-border bg-tv-card"><EmptyState illustration="empty" title="Status akun belum dapat diperiksa" description="Koneksi ke server sedang bermasalah. Coba lagi agar akun yang sudah masuk tidak terlihat sebagai tamu." action={{ label: 'Coba lagi', onClick: () => window.location.reload() }} /></div></div>;
+    return <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4"><Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="w-full max-w-md border-tv-border"><EmptyState illustration="empty" title="Status akun belum dapat diperiksa" description="Koneksi ke server sedang bermasalah. Coba lagi agar akun yang sudah masuk tidak terlihat sebagai tamu." action={{ label: 'Coba lagi', onClick: () => window.location.reload() }} /></Card></div>;
   }
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-tv-bg flex items-center justify-center font-sans p-4">
-        <div className="bg-tv-card border border-tv-border p-8 rounded-xl shadow-1 max-w-sm w-full">
-          <div className="flex justify-center mb-6">
-            <div className="bg-tv-green/10 p-4 rounded-full text-tv-green">
-              <Wallet className="w-8 h-8" />
-            </div>
-          </div>
-          <h2 className="font-heading text-2xl font-bold text-center text-white mb-2">Akun Demo</h2>
-
-          {pendingVerification ? (
-            <>
-              <p className="text-sm text-tv-muted text-center mb-6">
-                Kode verifikasi sudah dikirim ke {email}. Masukkan kodenya untuk selesaikan pendaftaran.
-              </p>
-              <form onSubmit={handleVerify} className="space-y-4">
-                <Input
-                  label="Kode Verifikasi"
-                  type="text"
-                  value={otpCode}
-                  onChange={e => setOtpCode(e.target.value)}
-                  placeholder="6 digit dari email"
-                />
-                {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
-                <Button type="submit" variant="success" loading={authLoading} className="w-full mt-2">
-                  {authLoading ? 'Memverifikasi...' : 'Verifikasi & Masuk'}
-                </Button>
-              </form>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-tv-muted text-center mb-6">
-                {authMode === 'LOGIN' ? 'Masuk ke akun demo kamu.' : 'Daftar akun demo gratis.'}
-              </p>
-
-              <div className="flex bg-tv-bg p-1 rounded-lg mb-6 border border-tv-border">
-                <button
-                  onClick={() => { setAuthMode('LOGIN'); setLoginError(''); }}
-                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'LOGIN' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-tv-text'}`}
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => { setAuthMode('SIGNUP'); setLoginError(''); }}
-                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${authMode === 'SIGNUP' ? 'bg-tv-card shadow text-white' : 'text-tv-muted hover:text-tv-text'}`}
-                >
-                  Daftar
-                </button>
-              </div>
-
-              <form onSubmit={handleLogin} className="space-y-4">
-                <Input
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="Alamat email kamu"
-                />
-                <Input
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Password"
-                  rightIcon={
-                    <PasswordToggle
-                      shown={showPassword}
-                      onToggle={() => setShowPassword(v => !v)}
-                      label="password"
-                    />
-                  }
-                />
-                {authMode === 'SIGNUP' && (
-                  <Input
-                    label="Konfirmasi Password"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    placeholder="Ulangi password"
-                    rightIcon={
-                      <PasswordToggle
-                        shown={showConfirmPassword}
-                        onToggle={() => setShowConfirmPassword(v => !v)}
-                        label="konfirmasi password"
-                      />
-                    }
-                  />
-                )}
-                {loginError && <p className="text-tv-red text-xs text-center font-medium">{loginError}</p>}
-                <Button type="submit" variant="success" loading={authLoading} className="w-full mt-2">
-                  {authLoading ? 'Loading...' : authMode === 'LOGIN' ? 'Masuk' : 'Daftar'}
-                </Button>
-              </form>
-            </>
-          )}
-          <div className="mt-6 text-center">
-            <button onClick={() => router.push('/')} className="text-xs text-tv-muted hover:text-white font-medium">
-              Kembali ke Beranda
-            </button>
-          </div>
-        </div>
-      </div>
+      <PortfolioAuthGate
+        mode={authMode}
+        pendingVerification={pendingVerification}
+        email={email}
+        password={password}
+        confirmPassword={confirmPassword}
+        otpCode={otpCode}
+        showPassword={showPassword}
+        showConfirmPassword={showConfirmPassword}
+        error={loginError}
+        loading={authLoading}
+        onModeChange={(mode) => { setAuthMode(mode); setLoginError(''); }}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        onConfirmPasswordChange={setConfirmPassword}
+        onOtpCodeChange={setOtpCode}
+        onTogglePassword={() => setShowPassword((value) => !value)}
+        onToggleConfirmPassword={() => setShowConfirmPassword((value) => !value)}
+        onSubmit={handleLogin}
+        onVerify={handleVerify}
+        onBack={() => router.push('/')}
+      />
     );
   }
 
@@ -437,7 +316,7 @@ export default function PortfolioPage() {
       <div className="min-h-screen bg-tv-bg flex items-center justify-center p-4">
         {/* Sebelumnya satu baris teks merah "Gagal memuat portfolio." tanpa tombol
             apa pun - jalan buntu total. */}
-        <div className="w-full max-w-md rounded-xl border border-tv-border bg-tv-card">
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="w-full max-w-md border-tv-border">
           <EmptyState
             illustration="empty"
             title="Portofolio gagal dimuat"
@@ -446,7 +325,7 @@ export default function PortfolioPage() {
               : 'Data portofolio belum tersedia untuk akun ini.'}
             action={{ label: 'Coba lagi', onClick: loadData }}
           />
-        </div>
+        </Card>
       </div>
     );
   }
@@ -475,8 +354,8 @@ export default function PortfolioPage() {
             <p className="mt-0.5 text-xs text-tv-muted">Simulasikan posisi, pantau P/L, dan evaluasi disiplin trading tanpa dana riil.</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">BUY Virtual</button>
-            <button onClick={() => { setOrderType('SELL'); setShowOrderModal(true); }} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">SELL Virtual</button>
+            <Button variant="bare" size="none" onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">BUY Virtual</Button>
+            <Button variant="bare" size="none" onClick={() => { setOrderType('SELL'); setShowOrderModal(true); }} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">SELL Virtual</Button>
           </div>
         </div>
       </header>
@@ -562,8 +441,8 @@ export default function PortfolioPage() {
               )}
             </div>
             <div className="text-right flex items-center justify-end gap-2">
-              <button onClick={downloadExcel} title="Export Excel" aria-label="Export Excel" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><Download className="w-4 h-4" /></button>
-              <button onClick={downloadPDF} title="Export PDF" aria-label="Export PDF" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><FileText className="w-4 h-4" /></button>
+              <Button variant="bare" size="none" onClick={downloadExcel} title="Export Excel" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><Download className="w-4 h-4" /></Button>
+              <Button variant="bare" size="none" onClick={downloadPDF} title="Export PDF" className="p-1.5 bg-tv-card border border-tv-border rounded text-tv-muted hover:text-white transition-colors"><FileText className="w-4 h-4" /></Button>
             </div>
           </div>
         </motion.div>
@@ -573,21 +452,21 @@ export default function PortfolioPage() {
         {/* Tabs - "Order" (dulu selalu kosong, tidak menampilkan apa pun) diganti
             "Riwayat" yang benar-benar menampilkan transaksi nyata (data sudah
             difetch sejak awal tapi sebelumnya tidak pernah dirender). */}
-        <div className="bg-tv-card border border-tv-border rounded-t-xl flex px-2 sticky top-[57px] z-40">
+        <Card padding="none" radius="xl" elevation="none" highlight={false} className="rounded-b-none border-tv-border flex px-2 sticky top-[57px] z-40">
           {(['HOLDINGS', 'RIWAYAT'] as const).map((tab) => (
-            <button
+            <Button variant="bare" size="none"
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 text-center py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-tv-green text-tv-green' : 'border-transparent text-tv-muted hover:text-tv-text'}`}
             >
               {tab === 'HOLDINGS' ? 'Holdings' : 'Riwayat'}
-            </button>
+            </Button>
           ))}
-        </div>
+        </Card>
 
         {/* Holdings List */}
         {activeTab === 'HOLDINGS' && (
-          <div className="bg-tv-card border border-tv-border rounded-b-xl shadow-sm min-h-[300px]">
+          <Card padding="none" radius="xl" elevation="sm" highlight={false} className="rounded-t-none border-tv-border min-h-[300px]">
             <div className="flex items-center justify-between px-5 py-3 border-b border-tv-border bg-tv-bg text-xs font-semibold text-tv-muted">
               <div>SAHAM</div>
               <div className="text-right">RETURN</div>
@@ -661,14 +540,14 @@ export default function PortfolioPage() {
                 })}
               </div>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Riwayat Transaksi - sebelumnya tab ini (dulu bernama "History") SELALU
             menampilkan "Belum ada history transaksi" apa pun isi datanya, padahal
             transactions sudah difetch sejak awal, cuma tidak pernah dirender. */}
         {activeTab === 'RIWAYAT' && (
-          <div className="bg-tv-card border border-tv-border rounded-b-xl shadow-sm min-h-[300px]">
+          <Card padding="none" radius="xl" elevation="sm" highlight={false} className="rounded-t-none border-tv-border min-h-[300px]">
             {transactions.length === 0 ? (
               <EmptyState
                 illustration="empty"
@@ -706,7 +585,7 @@ export default function PortfolioPage() {
                 })}
               </div>
             )}
-          </div>
+          </Card>
         )}
         </div>
         </div>
@@ -715,7 +594,7 @@ export default function PortfolioPage() {
       {/* Order Modal */}
       {showOrderModal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-          <div className="bg-tv-card border border-tv-border rounded-xl w-full max-w-sm p-6">
+          <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border w-full max-w-sm p-6">
             <h2 className={`font-heading text-xl font-bold mb-4 ${orderType === 'BUY' ? 'text-tv-blue' : 'text-tv-red'}`}>{orderType === 'BUY' ? 'Beli' : 'Jual'} Saham</h2>
             <form onSubmit={submitOrder} className="space-y-4">
               <div>
@@ -736,7 +615,7 @@ export default function PortfolioPage() {
                 </Button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
     </div>

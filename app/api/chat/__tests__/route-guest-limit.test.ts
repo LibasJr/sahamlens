@@ -9,6 +9,7 @@ vi.mock('@/shared/middleware/compute-budget', () => ({
 }));
 vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
+  buildAnonymousTrialCookie: vi.fn(),
   applyAnonymousTrialCookie: vi.fn(),
 }));
 vi.mock('@/shared/usage/guest-chat-quota', () => ({
@@ -25,7 +26,7 @@ vi.mock('@/lib/aiProviders', () => ({
 import { POST } from '../route';
 import { getSession } from '@/modules/user';
 import { consumeComputeBudget } from '@/shared/middleware/compute-budget';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 import { consumeGuestChat } from '@/shared/usage/guest-chat-quota';
 
 const TRIAL = {
@@ -65,7 +66,7 @@ describe('POST /api/chat batas pertanyaan guest', () => {
     expect(json.errorCode).toBe('AUTH_REQUIRED_LIMIT');
     expect(json.content).toContain('Silakan masuk untuk melanjutkan percakapan');
     expect(consumeGuestChat).toHaveBeenCalledWith('2026-08-10T08:00:00.000Z');
-    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), TRIAL);
+    expect(buildAnonymousTrialCookie).toHaveBeenCalledWith(TRIAL);
   });
 
   // Compute budget adalah pengaman lonjakan CPU, BUKAN batas produk. Sebelum perbaikan

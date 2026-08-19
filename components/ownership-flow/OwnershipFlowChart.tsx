@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Card } from '@/components/ui/Card';
 
 // CHART DERET WAKTU KEPEMILIKAN.
 //
@@ -166,7 +167,7 @@ function OwnershipTooltip({
   const point = payload[0].payload;
 
   return (
-    <div className="rounded-lg border border-white/[0.1] bg-tv-card/95 px-2.5 py-2 shadow-lg backdrop-blur">
+    <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" surface="95" className="border-white/[0.1] px-2.5 py-2 shadow-lg backdrop-blur">
       {/* Tanggal OBSERVASI, bukan tanggal pengambilan - pembeda yang menjadi
           dasar seluruh modul ini. */}
       <p className="text-[10.5px] uppercase tracking-wide text-tv-muted">
@@ -185,7 +186,7 @@ function OwnershipTooltip({
           Lokal {point.localPct === null ? '—' : `${point.localPct.toFixed(2)}%`}
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 

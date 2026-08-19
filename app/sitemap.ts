@@ -8,7 +8,6 @@ const SITE_URL = 'https://sahamlens.id';
 // diakses tanpa sesi pengguna.
 const PUBLIC_ROUTES = [
   { path: '', priority: 1.0, changeFrequency: 'daily' as const },
-  { path: 'home', priority: 0.9, changeFrequency: 'daily' as const },
   { path: 'breakout-radar', priority: 0.8, changeFrequency: 'daily' as const },
   { path: 'screener', priority: 0.8, changeFrequency: 'daily' as const },
   { path: 'market-pulse', priority: 0.8, changeFrequency: 'daily' as const },
