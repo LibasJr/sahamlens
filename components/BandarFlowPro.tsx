@@ -167,8 +167,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     insightTitle = t('bandarFlow.consistentBuying');
     insightMessage = isOfficial
       ? isEn
-        ? `Foreign investors recorded a net buy of ${formatBillion(summary.netTodayBillion)} (IDX official record).`
-        : `Investor asing tercatat net beli ${formatBillion(summary.netTodayBillion)} menurut catatan resmi BEI.`
+        ? `Foreign investors recorded a net buy of ${formatBillion(summary.netTodayBillion)}.`
+        : `Investor asing tercatat net beli ${formatBillion(summary.netTodayBillion)}.`
       : accumulationStreak >= 3
         ? t('bandarFlow.accumulationStreakMessage', { count: accumulationStreak })
         : t('bandarFlow.accumulationMessage');
@@ -178,8 +178,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     insightTitle = t('bandarFlow.consistentSelling');
     insightMessage = isOfficial
       ? isEn
-        ? `Foreign investors recorded a net sell of ${formatBillion(summary.netTodayBillion)} (IDX official record).`
-        : `Investor asing tercatat net jual ${formatBillion(summary.netTodayBillion)} menurut catatan resmi BEI.`
+        ? `Foreign investors recorded a net sell of ${formatBillion(summary.netTodayBillion)}.`
+        : `Investor asing tercatat net jual ${formatBillion(summary.netTodayBillion)}.`
       : t('bandarFlow.distributionMessage');
   }
 
@@ -466,12 +466,13 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               </div>
             </div>
 
-            <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
-              {isEn
-                ? 'Foreign buy/sell are recorded share volumes, not estimates.'
-                : 'Beli/jual asing adalah volume lembar yang tercatat, bukan estimasi.'}
-              {data.updatedAt ? (isEn ? ` Synced ${data.updatedAt.slice(0, 10)}.` : ` Disinkronkan ${data.updatedAt.slice(0, 10)}.`) : ''}
-            </div>
+            {data.updatedAt && (
+              <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
+                {isEn
+                  ? `Synced ${data.updatedAt.slice(0, 10)}.`
+                  : `Disinkronkan ${data.updatedAt.slice(0, 10)}.`}
+              </div>
+            )}
           </div>
         ) : (
           /* Mode fallback: ringkasan 20 hari berbasis CMF dari histori harga dan volume. */
