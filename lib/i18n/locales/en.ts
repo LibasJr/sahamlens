@@ -433,6 +433,12 @@ export const en: TranslationDictionary = {
     classicMethod: 'Classic Floor',
     fibonacciMethod: 'Fibonacci Ratio',
     camarillaMethod: 'Camarilla Equation',
+    classicDesc:
+      'The pivot point (PP) is the average of the last session High + Low + Close, with R1-R3 and S1-S3 mirrored symmetrically around it. The widest spacing of the three, useful as general daily support/resistance.',
+    fibonacciDesc:
+      'Same PP as Classic, but each level is set at a Fibonacci ratio - 38.2% / 61.8% / 100% - of the last session High-Low range. R1 and S1 sit closer to PP than in Classic.',
+    camarillaDesc:
+      'Anchored on the closing price rather than PP, using 1.1/12, 1.1/6 and 1.1/4 multiples of the session range. The tightest levels of the three, commonly used for intraday mean reversion. PP reads the same in every method because the PP formula itself is identical.',
     pivotPoint: 'Pivot Point (PP)',
     resistance1: 'Resistance 1 (R1)',
     resistance2: 'Resistance 2 (R2)',

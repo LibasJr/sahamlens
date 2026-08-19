@@ -225,13 +225,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
           <div>
             <h3 className="font-heading font-bold text-white text-lg">{t('bandarFlow.title')}</h3>
-            <p className="text-xs text-tv-muted font-sans">
-              {isOfficial
-                ? isEn
-                  ? 'Official IDX foreign transaction record'
-                  : 'Catatan transaksi investor asing resmi BEI'
-                : t('bandarFlow.subtitle')}
-            </p>
+            <p className="text-xs text-tv-muted font-sans">{t('bandarFlow.subtitle')}</p>
           </div>
         </div>
 
@@ -474,8 +468,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
             <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
               {isEn
-                ? 'Source: IDX official API (ListedCompany/GetTradingInfoSS). Foreign buy/sell are share volumes recorded by the exchange, not estimates.'
-                : 'Sumber: API resmi BEI (ListedCompany/GetTradingInfoSS). Beli/jual asing adalah volume lembar yang dicatat Bursa, bukan estimasi.'}
+                ? 'Foreign buy/sell are recorded share volumes, not estimates.'
+                : 'Beli/jual asing adalah volume lembar yang tercatat, bukan estimasi.'}
               {data.updatedAt ? (isEn ? ` Synced ${data.updatedAt.slice(0, 10)}.` : ` Disinkronkan ${data.updatedAt.slice(0, 10)}.`) : ''}
             </div>
           </div>
