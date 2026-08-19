@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/modules/user', () => ({
   getSession: vi.fn(),
   hasOpenOrProAccess: vi.fn(),
+  isAdminServer: vi.fn(),
 }));
 vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
@@ -19,7 +20,7 @@ vi.mock('@/shared/cache/redis-cache', () => ({
 }));
 
 import { GET } from '../route';
-import { getSession, hasOpenOrProAccess } from '@/modules/user';
+import { getSession, hasOpenOrProAccess, isAdminServer } from '@/modules/user';
 import { runLensScoreBucketBacktest } from '@/modules/recommendation/service/lens-score-bucket-backtest.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 
@@ -35,6 +36,9 @@ describe('GET /api/lens-score-bucket-backtest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(hasOpenOrProAccess).mockResolvedValue(true);
+    // Backtest bucket adalah alat kalibrasi internal - default tes ini admin supaya
+    // perilaku cache di bawah tetap yang diuji, bukan gerbang aksesnya.
+    vi.mocked(isAdminServer).mockResolvedValue(true);
   });
 
   it('membaca lewat getOrCompute, BUKAN memanggil runLensScoreBucketBacktest langsung', async () => {
@@ -90,5 +94,29 @@ describe('GET /api/lens-score-bucket-backtest', () => {
 
     expect(res.status).toBe(402);
     expect(getOrCompute).not.toHaveBeenCalled();
+  });
+
+  // Backtest bucket dibatasi ke admin: user Pro biasa tidak boleh menariknya lewat
+  // panggilan endpoint langsung, meski di halaman LensRadar sudah tidak dirender.
+  it('Pro tapi bukan admin -> 403, tidak menyentuh cache', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1', role: 'user' } as any);
+    vi.mocked(isAdminServer).mockResolvedValue(false);
+
+    const res = await GET(makeRequest());
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'ADMIN_REQUIRED' });
+    expect(getOrCompute).not.toHaveBeenCalled();
+  });
+
+  it('role admin pada sesi diterima walau cookie admin tidak ada', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'u1', role: 'admin' } as any);
+    vi.mocked(isAdminServer).mockResolvedValue(false);
+    vi.mocked(getOrCompute).mockResolvedValue({} as any);
+
+    const res = await GET(makeRequest());
+
+    expect(res.status).toBe(200);
+    expect(getOrCompute).toHaveBeenCalledTimes(1);
   });
 });
