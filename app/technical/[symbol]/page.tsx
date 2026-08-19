@@ -339,7 +339,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             jumlahnya, bukan karena bukti yang berbeda.
           </p>
           {signedIn ? (
-            <div className="overflow-x-auto">
+            <div className="lens-table-sticky-col overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-tv-border text-left text-tv-muted">

@@ -113,7 +113,7 @@ export default function DividendPage() {
 
       {/* Metric Cards */}
       {data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
             <div className="text-[11px] text-tv-muted uppercase font-semibold">Rata-rata Yield Universe</div>
             <div className="text-2xl font-bold text-tv-yellow font-number mt-1">
@@ -191,7 +191,7 @@ export default function DividendPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
@@ -234,7 +234,7 @@ export default function DividendPage() {
             Skenario Compounding 10-Tahun (DRIP, yield konstan)
           </h3>
 
-          <div className="overflow-x-auto">
+          <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
