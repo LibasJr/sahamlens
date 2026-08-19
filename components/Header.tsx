@@ -3,6 +3,7 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { Sparkles } from 'lucide-react';
+import StockPerspectiveNav from './StockPerspectiveNav';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
@@ -14,6 +15,11 @@ interface HeaderProps {
   analisaRemaining?: number;
   analisaTotal?: number;
   isAdmin?: boolean;
+  /** Tampilkan navigasi lintas-sudut-pandang emiten (Technical / Fundamental / Flow /
+   *  Valuation). Opt-in, BUKAN diturunkan dari `currentTicker`: Header juga dipakai
+   *  /screener, /macro, dan /ownership-flow yang mengirim kode saham sebagai konteks
+   *  pencarian, bukan sebagai emiten yang sedang dianalisis. */
+  stockNav?: boolean;
 }
 
 export default function Header({
@@ -24,6 +30,7 @@ export default function Header({
   analisaRemaining,
   analisaTotal = 5,
   isAdmin = false,
+  stockNav = false,
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 backdrop-blur-xl">
@@ -67,6 +74,15 @@ export default function Header({
           )}
         </div>
       </div>
+
+      {/* Baris kedua, bukan disisipkan ke baris judul: di layar sempit baris judul sudah
+          menampung eyebrow, judul modul, dan kotak cari. Menambahkan empat tab ke sana
+          membuat ketiganya saling mendesak. */}
+      {stockNav && (
+        <div className="mx-auto w-full max-w-[1680px] border-t border-white/[0.045] px-3 py-1.5 md:px-5">
+          <StockPerspectiveNav symbol={currentTicker} />
+        </div>
+      )}
     </header>
   );
 }

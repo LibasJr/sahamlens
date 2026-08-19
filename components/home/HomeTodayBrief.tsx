@@ -84,6 +84,16 @@ const TONE_CLASS: Record<MarketTone, string> = {
   neutral: 'text-tv-text',
 };
 
+/** Warna posture regime memakai arti yang sama dengan sisa aplikasi: hijau = kondisi
+ *  pasar positif, merah = risiko, amber = perlu kehati-hatian. Label teksnya tetap
+ *  dirender penuh, jadi statusnya tidak pernah hanya disampaikan lewat warna. */
+const REGIME_TONE_CLASS: Record<NonNullable<MarketPulse['regime']>['posture'], string> = {
+  RISK_ON: 'text-tv-green',
+  NEUTRAL: 'text-tv-text',
+  RISK_OFF: 'text-tv-red',
+  WAIT_FOR_DATA: 'text-tv-muted',
+};
+
 export default function HomeTodayBrief(props: HomeTodayBriefProps) {
   const {
     ihsg,
@@ -106,6 +116,7 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
   const read = buildMarketRead(ihsg, marketPulse, isEn);
   const breadth = marketPulse?.breadth;
   const breadthPct = breadth && breadth.total > 0 ? Math.round((breadth.advancing / breadth.total) * 100) : null;
+  const regime = marketPulse?.regime ?? null;
   const topOpportunity = radarItems.find((item) => !item.flagged) ?? radarItems[0] ?? null;
   const nextOpportunities = radarItems.filter((item) => item.symbol !== topOpportunity?.symbol).slice(0, 2);
   const worstMover = topLosers[0] ?? null;
@@ -143,14 +154,16 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
         <div>
-          <div className="grid grid-cols-3 border-y border-tv-border/60">
+          {/* Market snapshot. Empat metrik dipisah garis, BUKAN empat kartu terpisah -
+              hierarki dibawa tipografi dan pembatas, sesuai prinsip kartu = objek. */}
+          <div className="grid grid-cols-2 border-y border-tv-border/60 sm:grid-cols-4">
             <div className="py-3 pr-3">
               <div className="lens-meta font-semibold text-tv-muted">IHSG</div>
               {loadingMarket ? (
                 <Skeleton variant="text" className="mt-2 h-6 w-20" />
               ) : ihsg ? (
                 <>
-                  <div className="mt-1 font-number text-lg font-bold text-tv-text">{Math.round(ihsg.price).toLocaleString('id-ID')}</div>
+                  <div className="lens-metric mt-1 text-tv-text">{Math.round(ihsg.price).toLocaleString('id-ID')}</div>
                   <div className={`mt-0.5 font-number text-xs font-semibold ${ihsg.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                     {ihsg.changePct >= 0 ? '+' : ''}{ihsg.changePct.toFixed(2)}%
                   </div>
@@ -163,20 +176,41 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
                 <Skeleton variant="text" className="mt-2 h-6 w-16" />
               ) : breadthPct != null ? (
                 <>
-                  <div className="mt-1 font-number text-lg font-bold text-tv-text">{breadthPct}%</div>
+                  <div className="lens-metric mt-1 text-tv-text">{breadthPct}%</div>
                   <div className="mt-0.5 text-xs font-medium text-tv-muted">{breadth?.advancing} {isEn ? 'up' : 'naik'} · {breadth?.declining} {isEn ? 'down' : 'turun'}</div>
                 </>
               ) : (
                 <div className="mt-1 text-sm text-tv-muted">{marketPulseLoginRequired ? (isEn ? 'Sign in' : 'Login') : marketPulseNeedPro ? 'Pro' : 'N/A'}</div>
               )}
             </div>
-            <div className="border-l border-tv-border/60 pl-3 py-3">
+            {/* Regime datang dari respons /api/market-pulse yang SUDAH diambil untuk
+                breadth - kolom ini tidak menambah satu request pun. */}
+            <div className="border-t border-tv-border/60 py-3 pr-3 sm:border-l sm:border-t-0 sm:px-3">
+              <div className="lens-meta font-semibold text-tv-muted">Regime</div>
+              {loadingMarketPulse ? (
+                <Skeleton variant="text" className="mt-2 h-6 w-20" />
+              ) : regime ? (
+                <>
+                  <div className={`mt-1 text-sm font-bold leading-snug ${REGIME_TONE_CLASS[regime.posture]}`}>{regime.label}</div>
+                  <div className="mt-0.5 text-xs font-medium text-tv-muted">
+                    {regime.confidence != null
+                      ? `${isEn ? 'Confidence' : 'Keyakinan'} ${Math.round(regime.confidence)}%`
+                      : (isEn ? 'Rule-based read' : 'Pembacaan rule-based')}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-1 text-sm text-tv-muted">
+                  {marketPulseLoginRequired ? (isEn ? 'Sign in' : 'Login') : marketPulseNeedPro ? 'Pro' : (isEn ? 'Not enough data' : 'Data belum cukup')}
+                </div>
+              )}
+            </div>
+            <div className="border-l border-t border-tv-border/60 py-3 pl-3 sm:border-t-0">
               <div className="lens-meta font-semibold text-tv-muted">LensRadar</div>
               {loadingRadar ? (
                 <Skeleton variant="text" className="mt-2 h-6 w-16" />
               ) : topOpportunity ? (
                 <>
-                  <div className="mt-1 font-number text-lg font-bold text-tv-text">{topOpportunity.finalScore}<span className="text-xs font-medium text-tv-muted">/100</span></div>
+                  <div className="lens-metric mt-1 text-tv-text">{topOpportunity.finalScore}<span className="text-xs font-medium text-tv-muted">/100</span></div>
                   <div className="mt-0.5 text-xs font-medium text-tv-muted">{radarStale ? (isEn ? 'Previous session' : 'Sesi terakhir') : (isEn ? 'Today snapshot' : 'Snapshot hari ini')}</div>
                 </>
               ) : (

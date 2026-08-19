@@ -106,6 +106,20 @@ function kode(line: string): boolean {
   return !(t.startsWith('//') || t.startsWith('*') || t.startsWith('/*'));
 }
 
+/**
+ * Kedua pemindai di bawah membaca >200 berkas sumber secara sinkron. Sendirian itu selesai
+ * dalam ratusan milidetik, tetapi saat suite penuh berjalan paralel keduanya melewati batas
+ * bawaan vitest 5 detik - dan gagalnya muncul sebagai "Test timed out in 5000ms", BUKAN
+ * sebagai pelanggaran penutupan acuan. Gerbang yang merah karena alasan yang salah tidak
+ * memberi tahu apa pun tentang hal yang seharusnya ia jaga.
+ *
+ * Terukur 20 Agustus 2026 pada `npm test` bersih: 1974 lulus, satu gagal - test ini,
+ * karena timeout. Obatnya sudah tertulis di CLAUDE.md §2 ("Test yang memanggil pemindai
+ * lewat execFileSync butuh timeout eksplisit"); alasannya sama persis untuk pemindai yang
+ * membaca berkas langsung.
+ */
+const BATAS_PEMINDAI_MS = 30_000;
+
 describe('penjaga penutupan sesi sebelumnya', () => {
   const files = SCAN_DIRS.flatMap(daftarFile);
 
@@ -128,7 +142,7 @@ describe('penjaga penutupan sesi sebelumnya', () => {
       });
     }
     expect(pelanggar, `Baca meta.previousClose lewat resolvePreviousClose():\n${pelanggar.join('\n')}`).toEqual([]);
-  });
+  }, BATAS_PEMINDAI_MS);
 
   it('tidak ada penutupan acuan yang diambil dari posisi larik [length - 2]', () => {
     const pelanggar: string[] = [];
@@ -151,5 +165,5 @@ describe('penjaga penutupan sesi sebelumnya', () => {
       `terbuang lebih dulu sehingga acuannya mundur satu sesi. Pakai resolvePreviousClose().\n` +
       `Kalau baris ini memang bukan perubahan harian, daftarkan di DIIZINKAN:\n${pelanggar.join('\n')}`,
     ).toEqual([]);
-  });
+  }, BATAS_PEMINDAI_MS);
 });

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Language } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import { sharedMarketRequest } from '@/shared/http/shared-market-request';
 
 export interface MarketMover {
   symbol: string;
@@ -45,9 +46,21 @@ export interface RadarItem {
   flagReason: string | null;
 }
 
+/** Ringkas dari QuantitativeMarketRegime (modules/market/service/market-regime.service).
+ *  Hanya field yang benar-benar dirender di snapshot beranda; sisanya tetap milik
+ *  /market-pulse. `posture` dipakai untuk nada warna, `label` untuk teksnya. */
+export interface MarketRegimeSummary {
+  label: string;
+  posture: 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF' | 'WAIT_FOR_DATA';
+  confidence: number | null;
+}
+
 export interface MarketPulse {
   sectorHeatmap: { sector: string; color: string; changePct: number }[];
   breadth: { advancing: number; declining: number; total: number };
+  /** Sudah ikut dalam respons /api/market-pulse sejak regime v1 - dibaca di sini supaya
+   *  snapshot beranda tidak perlu request tambahan untuk kolom keempatnya. */
+  regime: MarketRegimeSummary | null;
 }
 
 function todayJakarta(): string {
@@ -57,6 +70,17 @@ function todayJakarta(): string {
 async function jsonOrNull(url: string, init?: RequestInit, onError?: (error: unknown) => void): Promise<any | null> {
   try {
     return await apiRequest<any>(url, init);
+  } catch (error) {
+    onError?.(error);
+    return null;
+  }
+}
+
+/** Sama seperti jsonOrNull, tapi lewat peta request bersama - dua endpoint pasar di
+ *  bawah juga diminta TopMarketBar dan MarketTicker pada mount yang sama. */
+async function sharedOrNull(url: string, onError?: (error: unknown) => void): Promise<any | null> {
+  try {
+    return await sharedMarketRequest<any>(url);
   } catch (error) {
     onError?.(error);
     return null;
@@ -105,8 +129,8 @@ export function useHomeWorkspaceData(language: Language) {
     setMarketError(false);
 
     Promise.all([
-      jsonOrNull('/api/live/^JKSE', { cache: 'no-store' }, rememberApiError),
-      jsonOrNull('/api/market-summary', { cache: 'no-store' }, rememberApiError),
+      sharedOrNull('/api/live/^JKSE', rememberApiError),
+      sharedOrNull('/api/market-summary', rememberApiError),
     ])
       .then(([liveJkse, summary]) => {
         if (!liveJkse || !summary) {
@@ -158,7 +182,21 @@ export function useHomeWorkspaceData(language: Language) {
     apiRequest<any>('/api/market-pulse', { cache: 'no-store' })
       .then((data) => {
         if (data?.breadth && data?.sectorHeatmap) {
-          setMarketPulse({ sectorHeatmap: data.sectorHeatmap, breadth: data.breadth });
+          const rawRegime = data.marketRegime?.regime;
+          setMarketPulse({
+            sectorHeatmap: data.sectorHeatmap,
+            breadth: data.breadth,
+            // DATA_LIMITED bukan "regime netral" - itu pernyataan bahwa datanya belum
+            // cukup. Dibiarkan null supaya UI menampilkan "belum cukup data", bukan
+            // label yang terbaca sebagai kesimpulan pasar.
+            regime: rawRegime && rawRegime.code !== 'DATA_LIMITED' && typeof rawRegime.label === 'string'
+              ? {
+                  label: rawRegime.label,
+                  posture: rawRegime.posture,
+                  confidence: typeof data.marketRegime?.confidence === 'number' ? data.marketRegime.confidence : null,
+                }
+              : null,
+          });
         }
       })
       .catch((error) => {

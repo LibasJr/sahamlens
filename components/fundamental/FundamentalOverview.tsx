@@ -104,9 +104,6 @@ export default function FundamentalOverview({
         />
       </div>
 
-      <AnalysisViewModeToggle mode={viewMode} onChange={onViewModeChange} />
-      <AnalysisGlossary />
-
       {data && (
         <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
           <div ref={exportRef}>
@@ -221,6 +218,12 @@ export default function FundamentalOverview({
           </div>
         </div>
       </Card>
+
+      {/* Kontrol tampilan & glosarium dipindah ke BAWAH kartu identitas. Sebelumnya
+          keduanya berada di atasnya, sehingga hal pertama yang terlihat di halaman
+          emiten adalah dua pengatur tampilan - bukan emiten yang sedang dibuka. */}
+      <AnalysisViewModeToggle mode={viewMode} onChange={onViewModeChange} />
+      <AnalysisGlossary />
 
       {data?.consensus && data?.fundamentalQuality?.label && (() => {
         const murah = data.consensus.includes('UNDERVALUED');
