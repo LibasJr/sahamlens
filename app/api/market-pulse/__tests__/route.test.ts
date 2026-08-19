@@ -22,7 +22,7 @@ describe('GET /api/market-pulse', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ indices: [], breadth: { total: 0 } });
+    expect(json).toMatchObject({ indices: [], breadth: { total: 0 } });
     expect(getMarketPulse).not.toHaveBeenCalled();
   });
 

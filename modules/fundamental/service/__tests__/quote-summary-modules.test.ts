@@ -123,7 +123,9 @@ describe('quoteSummary - modul yang dibaca wajib diminta', () => {
   });
 
   it('route skor live tetap meminta assetProfile - inilah bug yang pernah terjadi', () => {
-    const route = findings.find((f) => f.file.includes('api/stock/') && f.file.includes('route.ts'));
+    // Pemanggil quoteSummary jalur skor live pindah dari app/api/stock/[ticker]/route.ts
+    // ke service ini saat route dipecah ke modules/. Gerbangnya ikut pindah, bukan dihapus.
+    const route = findings.find((f) => f.file.includes('modules/technical/service/stock-analysis-source.service.ts'));
     expect(route).toBeDefined();
     expect(Array.from(route!.requested)).toContain('assetProfile');
   });
