@@ -263,6 +263,13 @@ SATU BUG NYATA TERTANGKAP TEST BARU
 2. REQUEST ID baru muncul di Home, Dashboard, dan LensAI. Screener, Watchlist,
    dan Compare belum.
 
+   DITUTUP 2026-08-20 (branch feat/support-request-id-surfaces). Ketiganya kini
+   menyimpan `requestId` dari ApiClientError ke state dan merendernya lewat
+   <ApiErrorHint> di panel galat yang menetap - bukan cuma di toast yang hilang
+   sendiri. Compare juga membawa `meta.requestId` pada kasus 200-tapi-bentuk-
+   payload-salah, satu-satunya jalur galat yang tidak punya status HTTP untuk
+   dicari di log. Dijaga components/__tests__/support-request-id-surfaces.test.ts.
+
 3. CAP KESEGARAN DI WATCHLIST hanya tampil pada breakpoint sm ke atas, karena
    seluruh kolom harga memang `hidden sm:flex` - tata letak bawaan, bukan regresi.
 

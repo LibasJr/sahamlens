@@ -13,7 +13,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
+import { ApiErrorHint, Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
@@ -78,6 +78,7 @@ function CompareContent() {
   // kekosongan mutlak di bawah form - tanpa pesan, tanpa tombol, tanpa petunjuk bahwa
   // ada yang salah.
   const [fetchError, setFetchError] = useState(false);
+  const [fetchErrorRequestId, setFetchErrorRequestId] = useState<string | null>(null);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
   // Effect restore-dari-localStorage (di bawah) dan effect fetch (setelahnya) sama-sama
   // jalan saat mount - fetch pertama berangkat dengan symbol1 default 'BBCA.JK' SEBELUM
@@ -111,11 +112,19 @@ function CompareContent() {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
     setFetchError(false);
+    setFetchErrorRequestId(null);
     try {
       const qs = `symbol1=${encodeURIComponent(symbol1)}${symbol2 ? `&symbol2=${encodeURIComponent(symbol2)}` : ''}`;
       const json = await apiRequest<any>(`/api/compare?${qs}`);
       if (seq !== fetchSeqRef.current) return; // response basi, sudah ada request lebih baru
-      if (!json?.data1 || !json?.data2 || !Array.isArray(json?.rows)) { setFetchError(true); return; }
+      if (!json?.data1 || !json?.data2 || !Array.isArray(json?.rows)) {
+        // Server menjawab 200 tapi bentuk payload-nya bukan yang dijanjikan. Di sini ID
+        // request justru paling berguna: tidak ada status galat yang bisa dicari di log,
+        // hanya satu request tertentu yang perlu ditelusuri.
+        setFetchErrorRequestId(typeof json?.meta?.requestId === 'string' ? json.meta.requestId : null);
+        setFetchError(true);
+        return;
+      }
 
       {
         setGated(null);
@@ -128,7 +137,11 @@ function CompareContent() {
         }
       }
     } catch (e) {
-      if (seq === fetchSeqRef.current) { console.error(e); setFetchError(true); }
+      if (seq === fetchSeqRef.current) {
+        console.error(e);
+        setFetchErrorRequestId(isApiClientError(e) ? e.requestId : null);
+        setFetchError(true);
+      }
     } finally {
       if (seq === fetchSeqRef.current) setLoading(false);
     }
@@ -252,6 +265,7 @@ function CompareContent() {
                 description={`Data untuk ${displayTicker(symbol1)}${symbol2 ? ` atau ${displayTicker(symbol2)}` : ''} tidak bisa diambil. Pastikan kode emitennya benar - emiten yang baru tercatat kadang belum punya data pembanding yang cukup.`}
                 action={{ label: 'Coba lagi', onClick: fetchCompare }}
               />
+              <ApiErrorHint requestId={fetchErrorRequestId} className="justify-center pb-4" />
             </Card>
           ) : data ? (
             <Card padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border shadow-2 overflow-hidden">
