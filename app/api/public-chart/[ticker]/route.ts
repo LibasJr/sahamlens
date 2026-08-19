@@ -1,6 +1,7 @@
 import { runController } from '@/shared/http/next-response.adapter';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
+import { checkPublicComputeBudget } from '@/shared/security/api-rate-limit';
 
 
 function isFiniteNumber(value: unknown): value is number {
@@ -12,6 +13,15 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   return runController(async () => {
+  const budget = await checkPublicComputeBudget(request.headers, 'public-chart');
+  if (!budget.allowed) {
+    return {
+      status: 429,
+      body: { error: 'Terlalu banyak permintaan. Coba lagi nanti.' },
+      headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined,
+    };
+  }
+
   const { ticker: rawTicker } = await params;
   const normalizedTicker = normalizeIdxTickerParam(rawTicker, { allowMarketIndex: true });
   if (!normalizedTicker) return { status: 400, body: { error: 'Ticker tidak valid' } };
