@@ -37,6 +37,9 @@ export default function ScreenerPage() {
   // pemindaian sudah berjalan dan hasilnya nihil. Dua keadaan berbeda, satu pesan.
   const [loadError, setLoadError] = useState(false);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
+  // Pesannya menjelaskan APA yang gagal; ID ini yang membuat kegagalan itu bisa
+  // dicari di log server. Tanpa ID, laporan pengguna berhenti di "screener error".
+  const [loadErrorRequestId, setLoadErrorRequestId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ScreenerTemplate[]>([]);
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
@@ -62,6 +65,7 @@ export default function ScreenerPage() {
     setLoading(true);
     setLoadError(false);
     setLoadErrorMessage(null);
+    setLoadErrorRequestId(null);
     try {
       const params = new URLSearchParams({ profile });
       if (sector) params.set('sector', sector);
@@ -87,6 +91,7 @@ export default function ScreenerPage() {
       console.error(e);
       setLoadError(true);
       setLoadErrorMessage(isApiClientError(e) ? e.message : null);
+      setLoadErrorRequestId(isApiClientError(e) ? e.requestId : null);
       setData(null);
     } finally {
       setLoading(false);
@@ -229,6 +234,7 @@ export default function ScreenerPage() {
           loading={loading}
           loadError={loadError}
           loadErrorMessage={loadErrorMessage}
+          loadErrorRequestId={loadErrorRequestId}
           sortedRows={sortedRows}
           visibleRows={visibleRows}
           hasLockedGuestRows={hasLockedGuestRows}
