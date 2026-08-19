@@ -117,7 +117,7 @@ export default function MarketCategoryPage() {
     <div className="min-h-screen bg-tv-bg text-tv-text">
       <header className="sticky top-0 z-50 bg-tv-surface text-white border-b border-tv-border">
         <div className="mx-auto max-w-[1000px] px-4 sm:px-6 lg:px-8 h-[64px] flex items-center gap-4">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
+          <Link href="/" aria-label="Kembali ke beranda" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2.5">

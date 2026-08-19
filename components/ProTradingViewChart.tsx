@@ -526,6 +526,8 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               type="button"
               onClick={() => setShowVolume(!showVolume)}
               title="Toggle Volume Bar"
+              aria-label="Toggle Volume Bar"
+              aria-pressed={showVolume}
               className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
                 showVolume ? 'bg-tv-hover text-tv-text' : 'bg-transparent text-tv-muted/40'
               }`}
@@ -556,6 +558,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
             type="button"
             onClick={handleResetZoom}
             title="Reset Zoom / Fit Content"
+            aria-label="Reset Zoom / Fit Content"
             className="p-1 rounded-lg text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />

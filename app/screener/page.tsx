@@ -668,8 +668,13 @@ export default function ScreenerPage() {
               KODE SAHAM - satu-satunya yang membuat 15 kolom sisanya berarti - tetap
               ikut tergulir. --lens-sticky-head-bg menyamakan latar sel beku di header
               dengan bg-tv-bg milik baris headernya. */}
+          {/* md:, bukan lg: (FIX-11). Di 768-1023px tablet dulu mendapat daftar kartu
+              ponsel dan kehilangan 12 kolom sekaligus. Tabelnya sendiri sudah punya gulir
+              horizontal DAN kolom kode yang dibekukan (lens-table-sticky-col, FIX-3),
+              jadi lebar 768px cukup: pengguna menggulir angka sambil kode sahamnya tetap
+              terlihat - jauh lebih bisa dipindai daripada 12 kartu bertumpuk. */}
           {sortedRows.length > 0 && (
-          <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden lg:block overflow-x-auto">
+          <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs font-mono border-collapse">
               <thead>
                 <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase text-[10px]">
@@ -914,7 +919,7 @@ export default function ScreenerPage() {
               yang sama, dikelompokkan menurut cara membacanya (valuasi, kualitas,
               risiko) alih-alih dijejer dalam satu baris. */}
           {sortedRows.length > 0 && (
-            <div className="lg:hidden space-y-2">
+            <div className="md:hidden space-y-2">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                 <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
                 {SORTABLE_COLUMNS.filter((c) => c.align === 'right' || c.key === 'ticker').map((col) => (
