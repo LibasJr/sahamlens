@@ -359,12 +359,19 @@ export function calculateDividendSafety(fundamentals: any = {}): DividendSafetyR
     };
   }
 
-  const safetyRating: DividendSafetyResult['safetyRating'] = payoutRatioPct > 85
+  // Payout ratio negatif berarti dividen dibayar sementara laba bersihnya negatif -
+  // kondisi paling rawan dipangkas, bukan paling aman. Ambang di bawah hanya menguji
+  // batas ATAS, sehingga angka negatif dulu lolos ke 'SAFE' bersama emiten payout
+  // rendah yang sehat. Kasus ini diperiksa lebih dulu dan dipisahkan narasinya.
+  const payoutFromLoss = payoutRatioPct < 0;
+  const safetyRating: DividendSafetyResult['safetyRating'] = payoutFromLoss || payoutRatioPct > 85
     ? 'CAUTION'
     : payoutRatioPct > 65 || !fcfPositive
     ? 'MODERATE'
     : 'SAFE';
-  const narrative = safetyRating === 'SAFE'
+  const narrative = payoutFromLoss
+    ? 'Payout ratio negatif - provider melaporkan dividen dibayar saat laba bersih negatif. Pembayaran seperti ini bersumber dari kas/laba ditahan, bukan laba periode berjalan.'
+    : safetyRating === 'SAFE'
     ? 'Screening menunjukkan payout ratio moderat dan free cash flow positif. Ini indikator model, bukan jaminan dividen.'
     : safetyRating === 'CAUTION'
     ? 'Payout ratio tinggi; ruang laba ditahan terbatas dan risiko pemangkasan perlu diperhatikan.'
