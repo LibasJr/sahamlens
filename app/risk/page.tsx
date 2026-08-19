@@ -114,6 +114,7 @@ export default function RiskPage() {
                 </div>
                 <button
                   onClick={() => removePosition(idx)}
+                  aria-label={`Hapus ${item.ticker} dari daftar posisi`}
                   className="p-1 text-tv-muted hover:text-tv-red transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />

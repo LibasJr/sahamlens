@@ -1197,6 +1197,30 @@ a,
 
   html .md\:text-\[9px\] { font-size: 11px; }
   html .md\:text-\[12\.5px\] { font-size: 13px; }
+
+  /* ====== Target sentuh di tablet (FIX-11 audit UI/UX 2026-08-19) ======
+   *
+   * Blok ini sebelumnya HANYA mengurus ukuran huruf. Masalah keduanya: tablet adalah
+   * perangkat SENTUH yang mewarisi ukuran kontrol DESKTOP - varian `sm:` dan `md:` yang
+   * mengecilkan tombol sudah aktif di lebar ini, sementara jarinya tidak ikut mengecil.
+   *
+   * Dibatasi ke rentang tablet, BUKAN ditaruh di `@media (hover: none)` seperti usulan
+   * mentah audit. Alasannya: ponsel sudah punya aturannya sendiri di blok
+   * `@media (hover: none)` yang menaikkan `.min-h-9` ke 44px, dan itu sudah disetel
+   * terhadap tata letak ponsel yang sungguhan. Menambahkan lantai kedua yang berlaku
+   * untuk SEMUA perangkat sentuh akan ikut menggembungkan tombol ikon di dalam tabel
+   * padat pada ponsel - mengubah tata letak yang sudah benar demi memperbaiki tata letak
+   * yang belum.
+   *
+   * 40px, bukan 44px: di tablet kontrolnya berjajar horizontal dalam toolbar dan baris
+   * tabel, jadi 44px mulai memaksa pembungkusan baris. 40px sudah jauh di atas minimum
+   * WCAG 2.5.8 (24px) dan tetap nyaman untuk jempol.
+   *
+   * `:where()` menjaga spesifisitasnya tetap 0, jadi kontrol yang memang sengaja
+   * dibuat lebih besar di komponennya tetap menang tanpa perlu !important. */
+  .lens-main :where(button, [role='button'], a.inline-flex) {
+    min-height: 40px;
+  }
 }
 
 /* ====== Lantai keterbacaan menyeluruh (semua lebar layar) ======
