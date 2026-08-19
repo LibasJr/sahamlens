@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { apiRequest } from '@/shared/http/api-client';
+import { sharedMarketRequest } from '@/shared/http/shared-market-request';
 import { useLanguage } from '@/lib/i18n';
 
 /**
@@ -36,7 +36,8 @@ export default function MarketTicker() {
   const { language } = useLanguage();
 
   useEffect(() => {
-    apiRequest<any>('/api/market-summary')
+    // Endpoint yang sama dipakai daftar mover di beranda; satu request untuk keduanya.
+    sharedMarketRequest<any>('/api/market-summary')
       .then((data) => {
         const rows: Item[] = (data?.topValue ?? [])
           // changePct sengaja boleh null dari server saat provider tidak menyediakannya.

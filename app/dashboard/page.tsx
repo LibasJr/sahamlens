@@ -111,6 +111,7 @@ function DashboardContent() {
         onTickerChange={setTicker}
         moduleTitle="LensTechnical — Pure Algorithmic Trading"
         moduleBank="LENSTECHNICAL"
+        stockNav
         analisaRemaining={analisaRemaining}
         analisaTotal={FREE_LIMITS.analisaPerHari}
         isAdmin={isAdminUser}

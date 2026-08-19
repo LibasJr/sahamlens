@@ -14,7 +14,7 @@ import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import NotificationCenter from '@/components/ui/NotificationCenter';
 import { useLanguage } from '@/lib/i18n';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
-import { apiRequest } from '@/shared/http/api-client';
+import { sharedMarketRequest } from '@/shared/http/shared-market-request';
 import MarketTicker from './MarketTicker';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
@@ -36,7 +36,9 @@ export default function TopMarketBar() {
   }, []);
 
   useEffect(() => {
-    apiRequest<any>('/api/live/^JKSE')
+    // Dipakai bersama HomeWorkspace lewat shared-market-request: sebelum ini beranda
+    // mengirim /api/live/^JKSE dua kali - sekali dari sini, sekali dari hero.
+    sharedMarketRequest<any>('/api/live/^JKSE')
       .then((data) => {
         if (
           data &&

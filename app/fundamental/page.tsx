@@ -29,6 +29,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent } from '@/shared/analytics/product-funnel';
 import { useLanguage } from '@/lib/i18n';
 import FundamentalHealthSuite from '@/components/fundamental/FundamentalHealthSuite';
+import FundamentalHealthSummary from '@/components/fundamental/FundamentalHealthSummary';
 import FundamentalOverview from '@/components/fundamental/FundamentalOverview';
 import FundamentalAnalyzerGrid from '@/components/fundamental/FundamentalAnalyzerGrid';
 import dynamic from 'next/dynamic';
@@ -422,6 +423,14 @@ function FundamentalContent() {
     ? filteredAnalyzers.filter((algo: any) => !isVisibleForFundamentalGuest(algo.label)).length
     : 0;
 
+  // Klasifikasi yang sama dipakai FundamentalOverview untuk memutuskan blok rasio bank.
+  // Dihitung di sini juga karena ringkasan kesehatan harus tahu kapan DER & current ratio
+  // TIDAK boleh dijadikan penilaian neraca - untuk bank, DER tinggi adalah model
+  // bisnisnya, bukan tanda bahaya.
+  const isBankProfile = Boolean(
+    data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank'),
+  );
+
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Header
@@ -429,6 +438,7 @@ function FundamentalContent() {
         onTickerChange={setTicker}
         moduleTitle="LensFundamental"
         moduleBank="LENSFUNDAMENTAL"
+        stockNav
       />
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
@@ -446,6 +456,17 @@ function FundamentalContent() {
           onRefresh={handleRefresh}
           formatTime={formatTime}
         />
+
+          {/* Kesimpulan sebelum bukti: lima dimensi kesehatan bisnis lebih dulu, baru
+              tiga belas kartu analyzer yang menjadi rinciannya. Tidak ada request baru -
+              seluruh angkanya berasal dari payload /api/fundamental yang sama. */}
+          <FundamentalHealthSummary
+            fundamentals={data?.fundamentals}
+            consensus={data?.consensus}
+            isBank={isBankProfile}
+            loading={loading}
+            ticker={ticker}
+          />
 
           <FundamentalAnalyzerGrid
             displayedAnalyzers={displayedAnalyzers}
