@@ -152,7 +152,7 @@ function DcfContent() {
             Proyeksi Cash Flow 5-Tahun (Free Cash Flow Per Share)
           </h3>
 
-          <div className="overflow-x-auto">
+          <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">

@@ -76,6 +76,22 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   colorScheme: 'dark light',
+  // WAJIB agar env(safe-area-inset-*) punya nilai. Tanpa viewport-fit=cover, Safari
+  // dan seluruh webview berbasis WKWebView mengembalikan 0 untuk keempat inset,
+  // sehingga perhitungan di app/globals.css - `calc(0.375rem + env(safe-area-inset-bottom))`
+  // pada .lens-mobile-nav dan .lens-ai-floating - runtuh diam-diam ke jarak tetapnya.
+  // Akibatnya navigasi bawah duduk di belakang home indicator iPhone. Bug ini tidak
+  // pernah terlihat di Android karena di sana inset-nya memang sering 0.
+  viewportFit: 'cover',
+  // Warna status bar di mode standalone/webview. Dua entri, bukan satu nilai tetap:
+  // aplikasi punya tema terang, dan satu nilai gelap membuat pengguna tema terang
+  // mendapat bilah status gelap di atas halaman putih. Nilainya sengaja sama persis
+  // dengan --lens-bg di app/globals.css (7 11 18 dan 244 247 251) supaya tidak ada
+  // sambungan warna di tepi atas layar.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F4F7FB' },
+    { media: '(prefers-color-scheme: dark)', color: '#070B12' },
+  ],
 };
 
 const themeBootScript = `(function(){try{var saved=localStorage.getItem('sahamlens_theme');var system=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var theme=saved==='light'||saved==='dark'?saved:system;document.documentElement.classList.add(theme);document.documentElement.style.colorScheme=theme;}catch(e){document.documentElement.classList.add('dark');}})()`;

@@ -581,9 +581,13 @@ export default function TradingViewChart({
   }), [candles, oscillatorIndicators]);
 
   return (
+    // h-dvh, BUKAN h-screen. Di webview dan browser mobile, 100vh menghitung tinggi
+    // TERMASUK area di balik bilah alamat yang menyusut-mengembang saat menggulir, jadi
+    // chart layar penuh terpotong di bawah - persis pada mode yang dibuka orang untuk
+    // melihat lebih banyak. 100dvh mengikuti tinggi yang benar-benar terlihat.
     <div
       ref={shellRef}
-      className={`min-w-0 overflow-hidden border border-tv-border bg-tv-card shadow-1 ${isFullscreen ? 'h-screen w-screen rounded-none' : 'rounded-xl'}`}
+      className={`min-w-0 overflow-hidden border border-tv-border bg-tv-card shadow-1 ${isFullscreen ? 'h-dvh w-screen rounded-none' : 'rounded-xl'}`}
     >
       <FinancialChartToolbar
         symbol={displayedSymbol}
