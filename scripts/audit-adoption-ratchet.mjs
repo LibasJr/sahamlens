@@ -55,6 +55,51 @@ function countRawCards(text) {
   return n;
 }
 
+/**
+ * Route yang SENGAJA tidak lewat runController, masing-masing dengan alasan struktural -
+ * bukan sekadar belum dikerjakan. Dikecualikan dari metrik supaya angkanya bisa mencapai
+ * nol dan benar-benar berarti "selesai", bukan mengambang di angka yang tak pernah turun.
+ *
+ *   app/api/cron/**            Dipanggil penjadwal, bukan manusia. Dua manfaat adapter -
+ *                              bentuk error seragam untuk frontend dan X-Request-Id untuk
+ *                              menelusuri laporan bug pengguna - tidak berlaku sama sekali.
+ *                              Tiap job memverifikasi tanda tangan QStash/CRON_SECRET-nya
+ *                              sendiri dari RAW BODY; membungkusnya justru menambah risiko
+ *                              pada jalur yang tidak mendapat apa pun.
+ *
+ *   chat/route.ts              Punya jalur streaming yang mengembalikan ReadableStream.
+ *                              runController hanya bisa NextResponse.json, jadi
+ *                              memaksakannya akan mematikan streaming LensAI.
+ *
+ *   company-logo/route.ts      Mengembalikan byte gambar, bukan JSON.
+ *
+ *   analytics/funnel/route.ts  Mengembalikan 204 No Content. NextResponse.json selalu
+ *                              menulis body, dan body pada 204 itu tidak sah.
+ *
+ *   payment/notify/route.ts    Webhook penyedia pembayaran; keasliannya diverifikasi dari
+ *                              raw body sebelum apa pun boleh mem-parse-nya.
+ *
+ *   v1/**                      Alias kompatibilitas yang me-RE-EXPORT handler kanonik.
+ *                              Handler aslinya sudah memakai runController; berkas alias
+ *                              tidak memuat stringnya, dan itu benar - menambahkannya
+ *                              berarti menduplikasi implementasi yang sengaja tidak
+ *                              diduplikasi.
+ */
+const RUN_CONTROLLER_EXEMPT = [
+  (rel) => rel.startsWith('app/api/cron/'),
+  (rel) => rel.startsWith('app/api/v1/'),
+  (rel) => rel === 'app/api/chat/route.ts',
+  (rel) => rel === 'app/api/company-logo/route.ts',
+  (rel) => rel === 'app/api/analytics/funnel/route.ts',
+  (rel) => rel === 'app/api/payment/notify/route.ts',
+];
+
+function isUnmigratedClientRoute(file) {
+  const rel = path.relative(ROOT, file).split(path.sep).join('/');
+  if (RUN_CONTROLLER_EXEMPT.some((match) => match(rel))) return false;
+  return !fs.readFileSync(file, 'utf8').includes('runController');
+}
+
 const metrics = {
   rawCardClassNames: {
     label: 'className kartu mentah (pakai <Card>)',
@@ -68,8 +113,8 @@ const metrics = {
     ),
   },
   routesWithoutRunController: {
-    label: 'route API tanpa runController',
-    value: routeFiles.filter((f) => !fs.readFileSync(f, 'utf8').includes('runController')).length,
+    label: 'route API klien tanpa runController',
+    value: routeFiles.filter(isUnmigratedClientRoute).length,
   },
 };
 
