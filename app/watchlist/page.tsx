@@ -10,7 +10,7 @@ import { FREE_LIMITS } from '@/shared/constants/limits';
 import { hasProAccessFor, useAuthUser } from '@/lib/hooks/useAuthUser';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { getTickerName } from '@/lib/trendingTickers';
-import { Card, Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar } from '@/components/ui';
+import { ApiErrorHint, Card, Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
@@ -40,6 +40,7 @@ export default function WatchlistPage() {
   const hasPro = authResolved && hasProAccessFor(authUser);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistError, setWatchlistError] = useState(false);
+  const [watchlistErrorRequestId, setWatchlistErrorRequestId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveData, setLiveData] = useState<Record<string, any>>({});
@@ -79,8 +80,13 @@ export default function WatchlistPage() {
       const json = await apiRequest<any>('/api/watchlist', { signal });
       setWatchlist(json?.data || []);
       setWatchlistError(false);
+      setWatchlistErrorRequestId(null);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
+      // Toast menghilang sendiri setelah beberapa detik, jadi ID yang hanya lewat di sana
+      // praktis tidak bisa disalin ke tiket dukungan. Panel galat di bawah yang menetap -
+      // ID-nya disimpan supaya ikut dirender di situ juga.
+      setWatchlistErrorRequestId(isApiClientError(error) ? error.requestId : null);
       if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
         if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
         else setWatchlistError(true);
@@ -458,12 +464,15 @@ export default function WatchlistPage() {
                 );
               })}
               {watchlist.length === 0 && watchlistError && (
-                <EmptyState
-                  icon={<AlertCircle className="w-5 h-5 text-tv-red" />}
-                  title="Gagal memuat watchlist"
-                  description="Terjadi masalah saat mengambil data watchlist Anda (bukan berarti kosong). Coba refresh halaman ini."
-                  className="rounded-lg border border-dashed border-tv-red/40"
-                />
+                <>
+                  <EmptyState
+                    icon={<AlertCircle className="w-5 h-5 text-tv-red" />}
+                    title="Gagal memuat watchlist"
+                    description="Terjadi masalah saat mengambil data watchlist Anda (bukan berarti kosong). Coba refresh halaman ini."
+                    className="rounded-lg border border-dashed border-tv-red/40"
+                  />
+                  <ApiErrorHint requestId={watchlistErrorRequestId} className="justify-center" />
+                </>
               )}
               {watchlist.length === 0 && !watchlistError && (
                 <EmptyState
