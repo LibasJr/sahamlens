@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/Button';
 
 // BARU (2026-08-14, permintaan pengguna: "bisa buatkan akun user/user di sistem, ini
 // untuk user tes" -> "hak akses nya jgn admin, user testing biasa"). Akun yang dibuat
@@ -63,14 +64,14 @@ export default function CreateTestUserForm() {
           placeholder="Password (min. 8 karakter)"
           className="flex-1 bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
         />
-        <button
+        <Button
           type="button"
           disabled={loading}
           onClick={buat}
-          className="text-white font-bold px-4 py-2 rounded-md text-sm transition-opacity disabled:opacity-50 hover:opacity-90 bg-tv-blue"
+          className="shrink-0"
         >
           Buat Akun
-        </button>
+        </Button>
       </div>
 
       {message && (

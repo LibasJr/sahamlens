@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { BrokerSummaryMonitor } from '@/modules/broker-flow/service/broker-summary-monitor.service';
 import { TICKERS } from '@/lib/tickers';
+import { Button } from '@/components/ui/Button';
 
 interface Props {
   monitor: BrokerSummaryMonitor | null;
@@ -267,13 +268,12 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                   )}
                 </div>
 
-                <button
+                <Button
                   type='submit'
-                  className='inline-flex items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-tv-blue/90'
                 >
                   <Search className='h-4 w-4' />
                   Terapkan
-                </button>
+                </Button>
 
                 {monitor.selectedTicker ? (
                   <Link

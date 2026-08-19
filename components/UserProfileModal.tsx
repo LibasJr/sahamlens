@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, User, ShieldCheck, Users, Loader2, Crown } from 'lucide-react';
 import PaywallModal from './PaywallModal';
 import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
+import { Button } from '@/components/ui/Button';
 
 interface ProfileData {
   email: string;
@@ -224,13 +225,13 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                 </div>
 
                 {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && (
-                  <button
+                  <Button
                     onClick={handleUpgradeClick}
-                    className="w-full flex items-center justify-center gap-2 bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-2.5 rounded-md transition-all mb-5"
+                    className="mb-5 w-full"
                   >
                     <Crown className="w-4 h-4" />
                     Upgrade ke Pro
-                  </button>
+                  </Button>
                 )}
 
                 {data.role !== 'admin' && (

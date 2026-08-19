@@ -5,6 +5,7 @@ import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Check, Crown } from 'lucide-react';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
+import { Button } from '@/components/ui/Button';
 
 interface PromoUpgradeModalProps {
   open: boolean;
@@ -116,12 +117,12 @@ export default function PromoUpgradeModal({
                       </li>
                     ))}
                   </ul>
-                  <button
+                  <Button
                     onClick={() => onSelectPlan(plan.id)}
-                    className="w-full flex items-center justify-center gap-2 bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-2.5 rounded-md text-sm transition-colors"
+                    className="w-full"
                   >
                     <Crown className="w-4 h-4" /> Upgrade
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>

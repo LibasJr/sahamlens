@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AlertTriangle, CheckCircle2, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
 
 // Server menolak di atas 1 MB (MAX_CSV_BYTES di fundamental-backfill-import.service.ts).
 // Diperiksa juga di sisi klien supaya file besar ditolak seketika, bukan setelah
@@ -244,14 +245,13 @@ export default function FundamentalBackfillClient() {
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirmInsertOpen(false)} className="rounded-lg border border-tv-border px-4 py-2 text-sm font-semibold text-tv-muted hover:text-tv-text">Batal</button>
-              <button
+              <Button variant="secondary" type="button" onClick={() => setConfirmInsertOpen(false)}>Batal</Button>
+              <Button
                 type="button"
                 onClick={() => { setConfirmInsertOpen(false); submit('insert'); }}
-                className="rounded-lg bg-tv-blue px-4 py-2 text-sm font-bold text-white hover:bg-tv-blueHover"
               >
                 Ya, insert ke DB
-              </button>
+              </Button>
             </div>
           </div>
         </div>

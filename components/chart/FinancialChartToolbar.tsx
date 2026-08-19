@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import {
   Activity,
   AreaChart,
@@ -430,8 +431,8 @@ export default function FinancialChartToolbar({
             </div>
 
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setDraftIndicator(null)} className="min-h-11 flex-1 rounded-xl border border-tv-border px-4 text-sm font-semibold text-tv-muted hover:bg-tv-hover">Batal</button>
-              <button type="button" onClick={applyIndicatorSettings} className="min-h-11 flex-1 rounded-xl bg-tv-blue px-4 text-sm font-bold text-white hover:bg-tv-blueHover">Terapkan</button>
+              <Button variant="secondary" type="button" onClick={() => setDraftIndicator(null)} className="flex-1">Batal</Button>
+              <Button type="button" onClick={applyIndicatorSettings} className="flex-1">Terapkan</Button>
             </div>
           </div>
         </div>

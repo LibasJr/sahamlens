@@ -17,6 +17,7 @@ import {
   type NotificationPrefs,
 } from '@/lib/notifications/notificationManager';
 import { useLanguage } from '@/lib/i18n';
+import { Button } from '@/components/ui/Button';
 
 interface NotificationCenterProps {
   className?: string;
@@ -181,13 +182,14 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <span className="leading-snug font-medium">
                 {language === 'id' ? 'Aktifkan notifikasi browser untuk alert yang benar-benar dipicu fitur SahamLens.' : 'Enable browser notifications for alerts actually emitted by SahamLens features.'}
               </span>
-              <button
+              <Button
+                size="sm"
                 type="button"
                 onClick={handleRequestPush}
-                className="shrink-0 rounded-lg bg-tv-blue px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-tv-blueHover active:scale-95"
+                className="shrink-0 shadow-sm"
               >
                 {language === 'id' ? 'Izinkan' : 'Enable'}
-              </button>
+              </Button>
             </div>
           )}
 

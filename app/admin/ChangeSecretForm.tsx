@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { PasswordToggle } from '@/components/ui/PasswordToggle';
+import { Button } from '@/components/ui/Button';
 
 export default function ChangeSecretForm() {
   const [currentKey, setCurrentKey] = useState('');
@@ -120,13 +121,13 @@ export default function ChangeSecretForm() {
           </div>
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="bg-tv-blue hover:bg-tv-blueHover text-white font-bold px-4 py-2.5 rounded-md text-sm transition-colors disabled:opacity-50 mt-1 cursor-pointer"
+          className="mt-1"
         >
           {loading ? 'Memproses...' : 'Ganti Password'}
-        </button>
+        </Button>
       </form>
       {message && (
         <p className={`mt-3 text-sm ${message.isError ? 'text-tv-red' : 'text-tv-green'}`}>{message.text}</p>

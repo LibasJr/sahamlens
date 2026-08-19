@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 function AdminLoginContent() {
   const [key, setKey] = useState('');
@@ -100,14 +101,14 @@ function AdminLoginContent() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <button
+              <Button
                 type="submit"
                 disabled={loading || !key.trim()}
-                className="bg-tv-blue hover:bg-tv-blueHover disabled:opacity-50 text-white font-bold px-4 py-2 rounded-md text-sm transition-all whitespace-nowrap flex items-center gap-1.5 shadow-sm"
+                className="gap-1.5 whitespace-nowrap shadow-sm"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>{loading ? 'Memeriksa...' : 'Masuk'}</span>
-              </button>
+              </Button>
             </div>
           </div>
           <p className="text-tv-muted text-[11px]">
