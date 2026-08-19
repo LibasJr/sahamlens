@@ -1,7 +1,6 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import type { NextRequest } from 'next/server';
 import { getMarketPulse } from '@/modules/market';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
@@ -16,7 +15,7 @@ import { runController } from '@/shared/http/next-response.adapter';
 // disimpan agar refresh publik berikutnya tidak memicu ulang universe market pulse.
 const CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_PULSE;
 
-export async function GET(request: NextRequest) {
+export async function GET(request?: Request) {
   return runController(async () => {
     const cached = await cacheGet<any>(CACHE_KEY);
     if (cached) {

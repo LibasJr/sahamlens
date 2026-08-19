@@ -37,7 +37,7 @@ interface FundamentalOverviewProps {
   marketClosed: boolean;
   marketSnapshotAt: Date | null;
   lastUpdate: Date | null;
-  exportRef: RefObject<HTMLDivElement | null>;
+  exportRef: RefObject<HTMLDivElement>;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onRefresh: () => void;

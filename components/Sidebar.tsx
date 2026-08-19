@@ -73,54 +73,46 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'overview',
     label: 'Utama',
     items: [
-      { id: 'home', name: 'Beranda', subtitle: 'Ringkasan pasar dan akun Anda', path: '/', icon: LayoutDashboard, guest: true },
-      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Kondisi pasar — arah IHSG, regime, dan sebaran', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
-      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Pemindai peluang — saham yang sedang bergerak', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
+      { id: 'home', name: 'Beranda', subtitle: 'Konteks pasar, peluang, dan hal yang perlu diperhatikan', path: '/', icon: LayoutDashboard, guest: true },
+      { id: 'market-pulse', name: 'LensMarket', subtitle: 'Arah IHSG, breadth, regime, dan kekuatan sektor', path: '/market-pulse', icon: Activity, live: true, guest: true, accent: 'green' },
+      { id: 'breakout-radar', name: 'LensRadar', subtitle: 'Kandidat yang layak diperiksa dari pemindaian sesi', path: '/breakout-radar', icon: Radar, live: true, guest: true, accent: 'purple' },
+      { id: 'watchlist', name: 'LensWatch', subtitle: 'Pantau saham pilihan dan alert penting', path: '/watchlist', icon: TrendingUp },
     ],
   },
   {
-    id: 'analysis',
-    label: 'Analisis',
+    id: 'research',
+    label: 'Riset',
     items: [
-      { id: 'dashboard', name: 'LensTechnical', subtitle: 'Analisis teknikal — tren, momentum, dan waktu masuk', path: '/dashboard', icon: LineChart },
-      { id: 'screener', name: 'LensScanner', subtitle: 'Screener — saring saham dari banyak faktor sekaligus', path: '/screener', icon: Filter },
+      { id: 'dashboard', name: 'LensTechnical', subtitle: 'Tren, momentum, flow, dan bukti teknikal', path: '/dashboard', icon: LineChart },
+      { id: 'fundamental', name: 'LensFundamental', subtitle: 'Kualitas bisnis, pertumbuhan, neraca, dan profitabilitas', path: '/fundamental', icon: Building2 },
+      { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    items: [
+      { id: 'screener', name: 'LensScanner', subtitle: 'Saring saham dari banyak faktor sekaligus', path: '/screener', icon: Filter },
+      { id: 'dcf', name: 'Valuation', subtitle: 'Nilai wajar dan margin keamanan', path: '/dcf', icon: CircleDollarSign },
       { id: 'backtest', name: 'Backtest', subtitle: 'Uji strategi pada data historis', path: '/backtest', icon: History },
-      { id: 'fundamental', name: 'LensFundamental', subtitle: 'Analisis fundamental — kualitas, pertumbuhan, dan utang', path: '/fundamental', icon: Building2 },
-      { id: 'dcf', name: 'Valuation', subtitle: 'Hitung nilai wajar dan margin keamanan', path: '/dcf', icon: CircleDollarSign },
-      { id: 'moat', name: 'Moat', subtitle: 'Ukur keunggulan bersaing emiten', path: '/moat', icon: Target },
+      { id: 'risk', name: 'Risk Matrix', subtitle: 'Uji ketahanan portofolio terhadap guncangan', path: '/risk', icon: ShieldAlert },
+      { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Hitung ukuran posisi dan rasio risiko', path: '/risk-calculator', icon: Zap },
+      { id: 'portfolio', name: 'Akun Demo', subtitle: 'Latihan transaksi tanpa uang sungguhan', path: '/portfolio', icon: Wallet },
+      { id: 'moat', name: 'Moat', subtitle: 'Ukur daya tahan keunggulan bersaing emiten', path: '/moat', icon: Target },
       { id: 'earnings', name: 'Earnings', subtitle: 'Pantau jadwal dan hasil laba', path: '/earnings', icon: BarChart3 },
       { id: 'dividend', name: 'Dividend', subtitle: 'Simulasi imbal hasil dan arus kas dividen', path: '/dividend', icon: PieChart },
     ],
   },
   {
-    id: 'risk-portfolio',
-    label: 'Portfolio & Risiko',
+    id: 'intelligence',
+    label: 'Intelligence',
     items: [
-      { id: 'watchlist', name: 'LensWatch', subtitle: 'Watchlist — pantau saham pilihan dan atur alert', path: '/watchlist', icon: TrendingUp },
-      { id: 'portfolio', name: 'Akun Demo', subtitle: 'Latihan transaksi tanpa uang sungguhan', path: '/portfolio', icon: Wallet },
-      { id: 'risk', name: 'Risk Matrix', subtitle: 'Uji ketahanan portofolio terhadap guncangan', path: '/risk', icon: ShieldAlert },
-      { id: 'risk-calculator', name: 'Risk Calculator', subtitle: 'Hitung ukuran posisi dan rasio risiko', path: '/risk-calculator', icon: Zap },
-    ],
-  },
-  {
-    id: 'research',
-    label: 'Research & Lainnya',
-    items: [
-      // Ownership Flow - menu BARU (2026-08-16), BUKAN Broker Summary yang diganti
-      // nama. Broker Summary tetap berada di grup Admin dan tetap nonaktif; keduanya
-      // mengukur hal berbeda (lihat docs/ownership-flow/broker-vs-ownership.md).
-      { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Lihat komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
-      { id: 'news', name: 'News & Sentiment', subtitle: 'Baca berita pasar terbaru', path: '/news', icon: Newspaper, guest: true },
-      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Jadwal dividen, RUPS, dan aksi korporasi', path: '/calendar', icon: CalendarDays, guest: true },
-      { id: 'macro', name: 'Macro', subtitle: 'Pahami konteks ekonomi makro Indonesia', path: '/macro', icon: Waves },
-      { id: 'transparency', name: 'Transparansi', subtitle: 'Periksa cara skor dihitung dan divalidasi', path: '/transparency', icon: ShieldCheck, guest: true },
-      // Halaman /about sudah lama ada tapi nyaris tidak bisa dicapai: satu-satunya jalan
-      // dulu hanya tautan di landing yang ditandai `hidden sm:inline`, jadi tidak terlihat
-      // sama sekali di HP. SiteFooter memperbaikinya sebagian; entri ini membuatnya benar-
-      // benar setara dengan halaman lain. `guest: true` - tidak butuh akun untuk membaca
-      // filosofi produk, justru pengunjung baru yang paling perlu.
-      { id: 'about', name: 'Tentang', subtitle: 'Kenali filosofi dan prinsip aplikasi', path: '/about', icon: Info, guest: true },
+      { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar dan konteks sentimen terbaru', path: '/news', icon: Newspaper, guest: true },
+      { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, earnings, dan aksi korporasi', path: '/calendar', icon: CalendarDays, guest: true },
+      { id: 'macro', name: 'Macro', subtitle: 'Konteks ekonomi makro Indonesia', path: '/macro', icon: Waves },
+      { id: 'transparency', name: 'Transparansi', subtitle: 'Cara skor, data, dan validasi bekerja', path: '/transparency', icon: ShieldCheck, guest: true },
+      { id: 'about', name: 'Tentang', subtitle: 'Filosofi dan prinsip SahamLens', path: '/about', icon: Info, guest: true },
     ],
   },
 ];
@@ -173,6 +165,7 @@ export default function Sidebar() {
   const [councilTicker, setCouncilTicker] = useState(() => defaultTicker());
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, research: true, tools: false, intelligence: false, admin: false });
   const closeProfileModal = useCallback(() => setShowProfileModal(false), []);
 
   useEffect(() => {
@@ -242,12 +235,22 @@ export default function Sidebar() {
 
   const { t } = useLanguage();
 
+  useEffect(() => {
+    const activeGroup = visibleGroups.find((group) => group.items.some((item) => isPathActive(pathname, item)));
+    if (!activeGroup) return;
+    setExpandedGroups((current) => current[activeGroup.id] ? current : { ...current, [activeGroup.id]: true });
+  }, [pathname, visibleGroups]);
+
+  const toggleGroup = useCallback((groupId: string) => {
+    setExpandedGroups((current) => ({ ...current, [groupId]: !current[groupId] }));
+  }, []);
+
   const getLocalizedGroupName = useCallback((id: string, defaultLabel: string) => {
     switch (id) {
       case 'overview': return t('nav.groupMain');
-      case 'analysis': return t('nav.groupAnalysis');
-      case 'risk-portfolio': return t('nav.groupRiskPortfolio');
       case 'research': return t('nav.groupResearch');
+      case 'tools': return t('nav.groupTools');
+      case 'intelligence': return t('nav.groupIntelligence');
       case 'admin': return t('nav.groupAdmin');
       default: return defaultLabel;
     }
@@ -336,12 +339,24 @@ export default function Sidebar() {
 
         <div className={`flex-1 overflow-y-auto overflow-x-visible py-4 ${isCollapsed ? 'md:px-2 px-3' : 'px-3'}`}>
           <div className="space-y-5">
-            {visibleGroups.map((group) => (
+            {visibleGroups.map((group) => {
+              const groupHasActiveItem = group.items.some((item) => isPathActive(pathname, item));
+              const groupOpen = isCollapsed || expandedGroups[group.id] !== false || groupHasActiveItem;
+              return (
               <section key={group.id}>
-                <div className={`mb-2 px-2.5 text-xs font-bold uppercase tracking-[0.14em] text-white/55 md:text-[11px] md:tracking-[0.16em] ${isCollapsed ? 'md:hidden' : ''}`}>
-                  {getLocalizedGroupName(group.id, group.label)}
-                </div>
+                <Button
+                  variant="bare"
+                  size="none"
+                  type="button"
+                  onClick={() => toggleGroup(group.id)}
+                  aria-expanded={groupOpen}
+                  className={`mb-1.5 flex w-full items-center justify-between rounded-lg px-2.5 py-1 text-left text-xs font-bold uppercase tracking-[0.14em] text-white/50 transition hover:bg-white/[0.035] hover:text-white/75 md:text-[10.5px] md:tracking-[0.16em] ${isCollapsed ? 'md:hidden' : ''}`}
+                >
+                  <span>{getLocalizedGroupName(group.id, group.label)}</span>
+                  <ChevronRight className={`h-3.5 w-3.5 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true" />
+                </Button>
                 {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
+                {groupOpen && (
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const localized = getLocalizedItem(item.id, item.name, item.subtitle);
@@ -389,7 +404,7 @@ export default function Sidebar() {
                         {active && (
                           <motion.span
                             layoutId="sidebar-active"
-                            className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-gradient-to-b from-tv-blue to-tv-purple"
+                            className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-tv-blue"
                             transition={{ type: 'spring', stiffness: 520, damping: 34 }}
                           />
                         )}
@@ -416,8 +431,10 @@ export default function Sidebar() {
                     );
                   })}
                 </div>
+                )}
               </section>
-            ))}
+              );
+            })}
           </div>
         </div>
         {isCollapsed && hoveredNav && (
@@ -457,7 +474,7 @@ export default function Sidebar() {
                   onClick={() => setShowProfileModal(true)}
                   className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl p-1.5 text-left transition-colors hover:bg-white/[0.04] ${isCollapsed ? 'md:flex-none md:p-1' : ''}`}
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl md:h-8 md:w-8 bg-gradient-to-br from-tv-blue/25 to-tv-purple/20 text-tv-blue">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl md:h-8 md:w-8 bg-tv-blue/10 text-tv-blue">
                     <User className="h-4 w-4" />
                   </span>
                   <span className={`min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>

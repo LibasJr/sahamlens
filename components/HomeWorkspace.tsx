@@ -10,6 +10,7 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
+  Radar,
 } from 'lucide-react';
 import {
   Card,
@@ -39,6 +40,7 @@ import { useHomeWorkspaceData, type NewsInsight, type MarketMover } from '@/comp
 import HomeCalendarWatchlist from '@/components/home/HomeCalendarWatchlist';
 import HomeUpgradePrompt from '@/components/home/HomeUpgradePrompt';
 import HomeBrandHero from '@/components/home/HomeBrandHero';
+import HomeTodayBrief from '@/components/home/HomeTodayBrief';
 
 
 // Jeda antar insight LensConsensus (permintaan user 2026-08-06: 50 detik SEBELUMNYA
@@ -204,16 +206,30 @@ export default function HomeWorkspace() {
           adds no extra network request or competing home route. */}
       <HomeBrandHero ihsg={ihsg} loadingMarket={loadingMarket} marketError={marketError} />
 
-      {/* Panduan awal. DULU hanya dirender di components/Dashboard.tsx - yaitu halaman
-          landing "/" - padahal pengguna yang BARU MENDAFTAR mendarat di sini, bukan di
-          sana. Akibatnya panduannya menunggu di halaman yang baru ditemukan orang
-          setelah mereka selesai kebingungan sendiri.
-          Kunci "dibuang"-nya (localStorage) dipakai bersama dengan yang di landing, jadi
-          menutupnya di satu tempat menutupnya di kedua tempat - bukan dua panduan yang
-          harus ditutup dua kali. */}
-      <GettingStartedGuide />
       <ApiErrorHint requestId={supportRequestId} className="justify-end" />
 
+      <HomeTodayBrief
+        ihsg={ihsg}
+        marketPulse={marketPulse}
+        dailyPicks={dailyPicks}
+        radarItems={radarItems}
+        topLosers={topLosers}
+        loadingMarket={loadingMarket}
+        loadingMarketPulse={loadingMarketPulse}
+        loadingRadar={loadingRadar}
+        picksLoginRequired={picksLoginRequired}
+        picksNeedPro={picksNeedPro}
+        marketPulseLoginRequired={marketPulseLoginRequired}
+        marketPulseNeedPro={marketPulseNeedPro}
+        radarStale={radarStale}
+      />
+
+      {/* First-run guidance stays available, but no longer interrupts the brand →
+          market-context path on every fresh session. */}
+      <GettingStartedGuide />
+
+      {/* Detail pasar: evidence layer setelah ringkasan "Hari ini" di atas.
+          Pengguna mendapat konteks + peluang + risiko lebih dulu, baru drill-down. */}
       {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
           sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat
           upsell, bukan data kosong). IHSG dicabut dari sini (redundan - sudah tampil
@@ -222,7 +238,7 @@ export default function HomeWorkspace() {
         <Card hoverable>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-tv-purple" />
+              <Activity className="w-4 h-4 text-tv-muted" />
               {/* Judul menyebut FUNGSI, merek jadi keterangan. Sebelumnya kartu ini
                   menulis "LensMarket" dua kali dalam satu baris - judul di kiri dan
                   tautan di kanan - sehingga tautannya tidak memberi tahu apa pun. */}
@@ -332,7 +348,7 @@ export default function HomeWorkspace() {
           Badge Delayed/Data-Sesi-Terakhir naik ke CardHeader supaya statusnya terbaca
           sebelum angkanya, bukan terselip di dalam badan kartu. */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="default" padding="lg" className="border-tv-blue/30 shadow-2">
+        <Card variant="default" padding="lg" className="border-tv-border/80 shadow-none">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4 text-tv-gold" />
@@ -572,10 +588,10 @@ export default function HomeWorkspace() {
 
       {/* AI Insight - hero */}
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="glass" padding="lg" className="border-tv-blue/20 bg-gradient-to-br from-tv-blue/[0.07] via-tv-card/90 to-tv-purple/[0.05] shadow-2">
+        <Card variant="default" padding="lg" surface="40" className="border-tv-border/80 shadow-none">
           <div className="flex items-start gap-3 md:gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-accent shadow-[0_12px_32px_rgba(79,140,255,0.22)]">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-tv-blue/20 bg-tv-blue/10">
+              <Sparkles className="h-4 w-4 text-tv-blue" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
