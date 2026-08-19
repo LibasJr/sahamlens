@@ -283,7 +283,12 @@ export async function getMarketSummary() {
   }));
 
   const topValue = [...quotes].filter(s => typeof s.value === 'number' && Number.isFinite(s.value)).sort((a, b) => b.value - a.value).slice(0, LIST_CAP).map(s => ({
-    symbol: strip(s), value: s.value, price: s.price, partial: !!s.volumeIsPartial
+    symbol: strip(s), value: s.value, price: s.price, partial: !!s.volumeIsPartial,
+    // Perubahan harian ikut dikirim supaya konsumen (running text di TopMarketBar) tidak
+    // perlu memanggil endpoint kedua - angkanya sudah ada di `quotes` yang sama.
+    // `null` kalau provider tidak menyediakannya, BUKAN 0: nol berarti "tidak bergerak",
+    // dan itu klaim berbeda dari "tidak diketahui".
+    changePct: typeof s.changePct === 'number' && Number.isFinite(s.changePct) ? s.changePct : null,
   }));
 
   const topWeeklyGainers = [...quotes].sort((a, b) => b.weeklyChangePct - a.weeklyChangePct).slice(0, LIST_CAP).map(s => ({
