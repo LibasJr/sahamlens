@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import useSWR, { mutate } from 'swr';
+import { ApiError } from '@/lib/api/fetcher';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -306,193 +308,232 @@ function SectorHeatmap({ sectors }: { sectors: { sector: string; changePct: numb
 
 export default function HomePage() {
   const { t, dictionary, language } = useLanguage();
-  const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
-  const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
-  const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
-  const [topVolume, setTopVolume] = useState<MarketMover[]>([]);
-  const [topTechnical, setTopTechnical] = useState<MarketMover[]>([]);
-  const [topTechnicalBearish, setTopTechnicalBearish] = useState<MarketMover[]>([]);
-  const [topRsiOversold, setTopRsiOversold] = useState<MarketMover[]>([]);
-  const [dailyPicks, setDailyPicks] = useState<DailyPickCounts | null>(null);
-  // Menggantikan tampilan widget "Hari Ini AI Menemukan" (dailyPicks-nya sendiri TETAP
-  // di-fetch di atas - masih dipakai payload /api/ai-briefing) - jadwal Corporate
-  // Calendar terdekat belum ada baik di halaman ini maupun landing page "/".
-  const [calendarEvents, setCalendarEvents] = useState<
-    { date: string; symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[] | null
-  >(null);
-  const [radarItems, setRadarItems] = useState<
-    { symbol: string; price: number; changePct: number; finalScore: number; coverage?: number | null; signals?: string[]; topReasons?: string[]; flagged: boolean; flagReason: string | null }[]
-  >([]);
-  const [loadingRadar, setLoadingRadar] = useState(true);
-  const [radarError, setRadarError] = useState(false);
-  const [radarPreparing, setRadarPreparing] = useState(false);
-  const [radarStale, setRadarStale] = useState(false);
+  // Seluruh angka pasar kini turunan dari dua useSWR di bawah, bukan tujuh state yang
+  // harus diisi bersamaan di dalam satu .then().
+  // dailyPicks & calendarEvents kini turunan dari useSWR di bawah, bukan state.
+  // Seluruh keadaan radar kini turunan dari useSWR di bawah, bukan lima state terpisah
+  // yang harus dijaga konsisten satu sama lain.
+  type RadarItem = {
+    symbol: string;
+    price: number;
+    changePct: number;
+    finalScore: number;
+    coverage?: number | null;
+    signals?: string[];
+    topReasons?: string[];
+    flagged: boolean;
+    flagReason: string | null;
+  };
   const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold'>('gainer');
-  const [watchlistCount, setWatchlistCount] = useState<number | null>(null);
-  const [watchlistPreview, setWatchlistPreview] = useState<{ symbol: string }[]>([]);
+  // watchlistCount & watchlistPreview kini turunan dari useSWR di bawah, bukan state.
+  type WatchlistPreviewItem = { symbol: string };
 
-  const [moversFreshness, setMoversFreshness] = useState<string | null>(null);
-  const [moversTimeLabel, setMoversTimeLabel] = useState<string | null>(null);
-
-  const [marketError, setMarketError] = useState(false);
-  const [loadingMarket, setLoadingMarket] = useState(true);
-  const [loadingDailyPicks, setLoadingDailyPicks] = useState(true);
-  const [picksNeedPro, setPicksNeedPro] = useState(false);
-  const [picksLoginRequired, setPicksLoginRequired] = useState(false);
-  const [aiBriefing, setAiBriefing] = useState<string | null>(null);
-  const [newsInsights, setNewsInsights] = useState<NewsInsight[]>([]);
   const [insightIndex, setInsightIndex] = useState(0);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoPlan, setPromoPlan] = useState<PricingPlan['id']>('1m');
   const [showPaywallFromPromo, setShowPaywallFromPromo] = useState(false);
 
+  // Ringkasan pasar (IHSG + top gainer/loser) - publik, tanpa gerbang Pro, jadi Beranda
+  // tidak menampilkan teaser upgrade untuk sekadar lihat kondisi pasar.
+  //
+  // Promise.all DIBUANG dan diganti dua useSWR terpisah. Itu bukan sekadar gaya: bentuk
+  // lama menggabungkan keduanya jadi SATU keadaan, sehingga `if (!liveJkse || !summary)`
+  // membuat SELURUH blok pasar tampil error kalau salah satu saja gagal - padahal daftar
+  // top gainer/loser tetap berguna walau angka IHSG-nya sedang tidak terbaca, dan
+  // sebaliknya. Sekarang masing-masing gagal sendiri.
+  //
+  // Kunci '/api/live/^JKSE' SAMA dengan yang dipakai components/TopMarketBar.tsx, jadi
+  // bilah atas dan blok ini berbagi satu permintaan - dulu dua yang identik pada setiap
+  // kali membuka Beranda.
+  const { data: liveJkse, error: liveJkseError, isLoading: loadingJkse } = useSWR<{
+    price?: unknown;
+    changePercent?: unknown;
+  }>('/api/live/^JKSE');
+
+  const { data: summary, error: summaryError, isLoading: loadingSummary } = useSWR<any>(
+    '/api/market-summary',
+  );
+
+  const loadingMarket = loadingJkse || loadingSummary;
+  const marketError = Boolean(liveJkseError) && Boolean(summaryError);
+
   const fetchMarket = useCallback(() => {
-    setLoadingMarket(true);
-    setMarketError(false);
-    // Ringkasan pasar (IHSG + top gainer/loser) - publik, tanpa gerbang Pro, jadi
-    // Beranda tidak lagi menampilkan teaser upgrade untuk sekadar lihat kondisi pasar.
-    Promise.all([
-      fetch('/api/live/^JKSE', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/market-summary', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    ])
-      .then(([liveJkse, summary]) => {
-        if (!liveJkse || !summary) { setMarketError(true); return; }
-        if (
-          liveJkse &&
-          typeof liveJkse.price === 'number' &&
-          Number.isFinite(liveJkse.price) &&
-          liveJkse.price > 0 &&
-          typeof liveJkse.changePercent === 'number' &&
-          Number.isFinite(liveJkse.changePercent)
-        ) {
-          setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
-        }
-        if (summary) {
-          setTopGainers((summary.topGainers || []).slice(0, 10));
-          setTopLosers((summary.topLosers || []).slice(0, 10));
-          setTopVolume((summary.topVolume || []).slice(0, 10));
-          setTopTechnical((summary.topTechnical || []).slice(0, 10));
-          setTopTechnicalBearish((summary.topTechnicalBearish || []).slice(0, 10));
-          setTopRsiOversold((summary.topRsiOversold || []).slice(0, 10));
-          setMoversFreshness(summary._meta?.freshness ?? null);
-          const snapshotTime = new Date(summary.timestamp);
-          setMoversTimeLabel(Number.isNaN(snapshotTime.getTime())
-            ? null
-            : new Intl.DateTimeFormat('id-ID', {
-                timeZone: 'Asia/Jakarta', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-              }).format(snapshotTime) + ' WIB');
-        }
-      })
-      .finally(() => setLoadingMarket(false));
+    // Dipakai tombol "coba lagi": menyegarkan KEDUA kunci sekaligus.
+    void mutate('/api/live/^JKSE');
+    void mutate('/api/market-summary');
   }, []);
 
-  const [marketPulse, setMarketPulse] = useState<{
-    sectorHeatmap: { sector: string; color: string; changePct: number }[];
-    breadth: { advancing: number; declining: number; total: number };
-  } | null>(null);
-  const [marketPulseNeedPro, setMarketPulseNeedPro] = useState(false);
-  const [marketPulseLoginRequired, setMarketPulseLoginRequired] = useState(false);
-  const [marketPulseError, setMarketPulseError] = useState(false);
-  const [loadingMarketPulse, setLoadingMarketPulse] = useState(true);
+  // Penjagaan tipe DIPERTAHANKAN persis. /api/live mengembalikan `price: null` yang sah
+  // saat harga tidak tersedia (lihat app/api/live/[ticker]), jadi "ada respons" tidak
+  // sama dengan "ada angka".
+  const ihsg = useMemo(
+    () =>
+      liveJkse &&
+      typeof liveJkse.price === 'number' &&
+      Number.isFinite(liveJkse.price) &&
+      liveJkse.price > 0 &&
+      typeof liveJkse.changePercent === 'number' &&
+      Number.isFinite(liveJkse.changePercent)
+        ? { price: liveJkse.price, changePct: liveJkse.changePercent }
+        : null,
+    [liveJkse],
+  );
 
-  const fetchMarketPulse = useCallback(() => {
-    setLoadingMarketPulse(true);
-    setMarketPulseError(false);
-    fetch('/api/market-pulse', { cache: 'no-store' })
-      .then((r) => {
-        if (r.status === 401) { setMarketPulseLoginRequired(true); return null; }
-        if (r.status === 402) { setMarketPulseNeedPro(true); return null; }
-        if (!r.ok) { setMarketPulseError(true); return null; }
-        return r.json();
-      })
-      .then((d) => {
-        if (d?.breadth && d?.sectorHeatmap) setMarketPulse({ sectorHeatmap: d.sectorHeatmap, breadth: d.breadth });
-      })
-      .catch(() => setMarketPulseError(true))
-      .finally(() => setLoadingMarketPulse(false));
-  }, []);
+  const topGainers = useMemo(() => (summary?.topGainers ?? []).slice(0, 10), [summary]);
+  const topLosers = useMemo(() => (summary?.topLosers ?? []).slice(0, 10), [summary]);
+  const topVolume = useMemo(() => (summary?.topVolume ?? []).slice(0, 10), [summary]);
+  const topTechnical = useMemo(() => (summary?.topTechnical ?? []).slice(0, 10), [summary]);
+  const topTechnicalBearish = useMemo(
+    () => (summary?.topTechnicalBearish ?? []).slice(0, 10),
+    [summary],
+  );
+  const topRsiOversold = useMemo(() => (summary?.topRsiOversold ?? []).slice(0, 10), [summary]);
+  const moversFreshness = summary?._meta?.freshness ?? null;
+
+  const moversTimeLabel = useMemo(() => {
+    if (!summary?.timestamp) return null;
+    const snapshotTime = new Date(summary.timestamp);
+    return Number.isNaN(snapshotTime.getTime())
+      ? null
+      : `${new Intl.DateTimeFormat('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(snapshotTime)} WIB`;
+  }, [summary]);
+
+  type MarketPulseHeatmap = { sector: string; color: string; changePct: number };
+  type MarketPulseBreadth = { advancing: number; declining: number; total: number };
+  // Tiga kondisi 4xx DIBEDAKAN, sama seperti sebelumnya - dan bedanya penting bagi
+  // pengguna: 401 berarti "masuk dulu", 402 berarti "butuh Pro", sisanya berarti "rusak".
+  // Menggabungkan ketiganya jadi satu pesan error akan menyuruh pengguna gratis
+  // memperbaiki koneksinya padahal yang dibutuhkan cuma langganan.
+  //
+  // Kunci SWR-nya sama dengan yang dipakai halaman /market-pulse, jadi berpindah ke sana
+  // dari Beranda tidak mengambil ulang apa pun.
+  const {
+    data: marketPulseData,
+    error: marketPulseErr,
+    isLoading: loadingMarketPulse,
+    mutate: fetchMarketPulse,
+  } = useSWR<{ sectorHeatmap?: MarketPulseHeatmap[]; breadth?: MarketPulseBreadth }>(
+    '/api/market-pulse',
+  );
+
+  const marketPulseStatus = marketPulseErr instanceof ApiError ? marketPulseErr.status : null;
+  const marketPulseLoginRequired = marketPulseStatus === 401;
+  const marketPulseNeedPro = marketPulseStatus === 402;
+  const marketPulseError = Boolean(marketPulseErr) && !marketPulseLoginRequired && !marketPulseNeedPro;
+
+  // Penjagaan bentuk DIPERTAHANKAN: respons yang datang tanpa breadth/sectorHeatmap
+  // diperlakukan sebagai "belum ada data", bukan dirender sebagai kartu kosong.
+  const marketPulse = useMemo(
+    () =>
+      marketPulseData?.breadth && marketPulseData?.sectorHeatmap
+        ? { sectorHeatmap: marketPulseData.sectorHeatmap, breadth: marketPulseData.breadth }
+        : null,
+    [marketPulseData],
+  );
 
   useEffect(() => {
     fetchMarket();
     fetchMarketPulse();
-
-    // "Hari Ini AI Menemukan" - publik (sama seperti widget di landing page /),
-    // dipakai ulang di sini supaya Beranda terisi info pasar, bukan sekadar kosong
-    // setelah Portfolio & Market Pulse dilepas dari halaman ini.
-    fetch('/api/daily-picks', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d && !d.error) setDailyPicks(d); })
-      .catch(() => {})
-      .finally(() => setLoadingDailyPicks(false));
-
-    // Jadwal Corporate Calendar terdekat (Dividen/Earnings) - respons endpoint berbentuk
-    // { events: Record<'YYYY-MM-DD', CalendarEvent[]> }, diratakan dan diurutkan di sini
-    // supaya widget cukup ambil 5 teratas.
-    fetch('/api/calendar', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        const map = d?.events as Record<string, { symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string }[]> | undefined;
-        if (!map) { setCalendarEvents([]); return; }
-        const today = todayJakarta();
-        const flat = Object.entries(map)
-          .filter(([date]) => date >= today)
-          .flatMap(([date, events]) => events.map((e) => ({ date, ...e })))
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(0, 5);
-        setCalendarEvents(flat);
-      })
-      .catch(() => setCalendarEvents([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchRadar = useCallback(() => {
-    setLoadingRadar(true);
-    setRadarError(false);
-    setRadarPreparing(false);
-    fetch('/api/ai-pick', { cache: 'no-store' })
-      .then((r) => {
-        if (r.status === 401) { setPicksLoginRequired(true); return null; }
-        if (r.status === 402) { setPicksNeedPro(true); return null; }
-        if (!r.ok) { setRadarError(true); return null; }
-        return r.json();
-      })
-      .then((d) => {
-        if (!d) return;
-        if (d.error) { setRadarError(true); return; }
-        if (d.ready === false) { setRadarItems([]); setRadarStale(false); setRadarPreparing(true); return; }
-        setRadarItems(d.items || []);
-        setRadarStale(!!d.stale);
-      })
-      .catch(() => setRadarError(true))
-      .finally(() => setLoadingRadar(false));
-  }, []);
+  // "Hari Ini AI Menemukan" - publik (sama seperti widget di landing page /), dipakai
+  // ulang di sini supaya Beranda terisi info pasar. Lewat SWR: kegagalan tetap diabaikan
+  // diam-diam seperti sebelumnya (widget pelengkap, bukan isi utama halaman).
+  const { data: dailyPicksData, isLoading: loadingDailyPicks } = useSWR<any>('/api/daily-picks');
+  const dailyPicks = dailyPicksData && !dailyPicksData.error ? dailyPicksData : null;
+
+  // Jadwal Corporate Calendar terdekat. Kunci SWR-nya SAMA dengan yang dipakai
+  // app/calendar/page.tsx, jadi berpindah dari Beranda ke Kalender tidak mengambil ulang
+  // apa pun - dulu dua permintaan terpisah ke endpoint yang sama.
+  type HomeCalendarEvent = { symbol: string; type: 'DIVIDEND' | 'EARNINGS'; title: string };
+  const { data: calendarPayload } = useSWR<{ events?: Record<string, HomeCalendarEvent[]> }>(
+    '/api/calendar',
+  );
+
+  // useMemo, bukan state: hasilnya turunan murni dari respons. Dulu diratakan di dalam
+  // .then() lalu disimpan ke state - satu sumber kebenaran lebih yang harus dijaga sinkron.
+  //
+  // TETAP `null` sebelum ada respons, BUKAN []. Render di bawah membedakan ketiganya:
+  // null = skeleton "sedang dimuat", [] = EmptyState "tidak ada agenda", terisi = daftar.
+  // Mengembalikan [] sejak awal akan membuat halaman berkedip "tidak ada agenda" dulu
+  // sebelum datanya tiba - cabang skeleton-nya jadi mati.
+  const calendarEvents = useMemo(() => {
+    const map = calendarPayload?.events;
+    if (!map) return null;
+    const today = todayJakarta();
+    return Object.entries(map)
+      .filter(([date]) => date >= today)
+      .flatMap(([date, events]) => events.map((e) => ({ date, ...e })))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 5);
+  }, [calendarPayload]);
+
+  // LensRadar. Empat keadaan dipertahankan persis: 401 masuk dulu, 402 butuh Pro,
+  // `ready: false` berarti pemindaian belum siap (bukan error - endpoint sengaja menjawab
+  // apa adanya alih-alih menembak Yahoo ratusan kali di dalam request pengguna, lihat
+  // app/api/ai-pick/route.ts), dan sisanya error sungguhan.
+  const {
+    data: radarData,
+    error: radarErr,
+    isLoading: loadingRadar,
+    mutate: fetchRadar,
+  } = useSWR<{ ready?: boolean; items?: RadarItem[]; stale?: boolean; error?: string }>(
+    '/api/ai-pick',
+  );
+
+  const radarStatus = radarErr instanceof ApiError ? radarErr.status : null;
+  const picksLoginRequired = radarStatus === 401;
+  const picksNeedPro = radarStatus === 402;
+  const radarPreparing = radarData?.ready === false;
+  const radarError =
+    (Boolean(radarErr) && !picksLoginRequired && !picksNeedPro) || Boolean(radarData?.error);
+  const radarItems = useMemo(
+    () => (radarPreparing ? [] : (radarData?.items ?? [])),
+    [radarData, radarPreparing],
+  );
+  const radarStale = !radarPreparing && Boolean(radarData?.stale);
+
+  // Watchlist. Tiga keadaan yang harus tetap dibedakan, persis seperti sebelumnya:
+  //   -1   = belum login (widget menampilkan ajakan masuk)
+  //   null = gagal dibaca (widget diam, JANGAN menampilkan "0 saham" - itu klaim palsu
+  //          bahwa watchlist pengguna kosong padahal kita cuma tidak berhasil membacanya)
+  //   >= 0 = jumlah sungguhan
+  const { data: watchlistPayload, error: watchlistError } = useSWR<{ data?: unknown[] }>(
+    '/api/watchlist',
+  );
+  const watchlistIs401 = watchlistError instanceof ApiError && watchlistError.status === 401;
+  // useMemo pada KEDUANYA: `?? []` menghasilkan array baru setiap render, jadi tanpa ini
+  // watchlistPreview di bawah dihitung ulang terus dan dependency-nya tidak jujur.
+  const watchlistList = useMemo(
+    () => (watchlistPayload?.data ?? []) as WatchlistPreviewItem[],
+    [watchlistPayload],
+  );
+  const watchlistCount = watchlistIs401
+    ? -1
+    : watchlistError
+      ? null
+      : watchlistPayload
+        ? watchlistList.length
+        : null;
+  const watchlistPreview = useMemo(() => watchlistList.slice(0, 3), [watchlistList]);
+
+  // Modal promo untuk akun non-Pro. Kegagalan diabaikan diam-diam seperti sebelumnya -
+  // gagal membaca profil tidak boleh berubah jadi ajakan upgrade yang muncul asal-asalan.
+  const { data: userProfile } = useSWR<{ hasProAccess?: boolean }>('/api/user/profile');
 
   useEffect(() => {
-    fetchRadar();
-  }, [fetchRadar]);
-
-  useEffect(() => {
-    fetch('/api/watchlist', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : r.status === 401 ? { loginRequired: true } : null))
-      .then((d) => {
-        if (d?.loginRequired) { setWatchlistCount(-1); return; }
-        const list = d?.data || [];
-        setWatchlistCount(list.length);
-        setWatchlistPreview(list.slice(0, 3));
-      })
-      .catch(() => setWatchlistCount(null));
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/user/profile', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((profile) => {
-        if (profile && !profile.hasProAccess && !hasSeenPromoToday()) {
-          setShowPromoModal(true);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (userProfile && !userProfile.hasProAccess && !hasSeenPromoToday()) {
+      setShowPromoModal(true);
+    }
+  }, [userProfile]);
 
   const topPick = radarItems[0];
 
@@ -512,46 +553,73 @@ export default function HomePage() {
   // paragraf naratif (bukan sekadar gabungan angka) - gagal diam-diam ke pesan
   // rule-based di bawah kalau API/GEMINI_API_KEY tidak tersedia. Murni ringkasan
   // pasar (bukan akun) - lihat catatan di app/api/ai-briefing/route.ts.
-  useEffect(() => {
-    if (loadingMarket || loadingRadar || loadingDailyPicks) return;
-    setAiBriefing(null);
-    fetch('/api/ai-briefing', {
+  // Payload-nya diturunkan dulu, lalu MASUK KE DALAM KUNCI SWR. Itu yang membuat
+  // briefing di-cache per-kombinasi-masukan: membuka Beranda dua kali dengan kondisi
+  // pasar yang sama tidak lagi memanggil Gemini dua kali - dan panggilan AI adalah yang
+  // termahal di aplikasi ini. Sebelumnya setiap mount memanggilnya lagi tanpa syarat.
+  //
+  // Kuncinya `null` selama data pasar belum siap, menggantikan `if (...) return;` di awal
+  // efek lama - SWR tidak menjalankan apa pun untuk kunci null.
+  const briefingRequest = useMemo(() => {
+    if (loadingMarket || loadingRadar || loadingDailyPicks) return null;
+    return {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        topPick: topPick ? {
-          ticker: topPick.symbol.replace('.JK', ''),
-          consensus: topPick.flagged ? topPick.flagReason : (language === 'en' ? 'Strong Signal' : 'Sinyal Kuat'),
-          confidence: topPick.finalScore,
-        } : null,
+        topPick: topPick
+          ? {
+              ticker: topPick.symbol.replace('.JK', ''),
+              consensus: topPick.flagged
+                ? topPick.flagReason
+                : language === 'en'
+                  ? 'Strong Signal'
+                  : 'Sinyal Kuat',
+              confidence: topPick.finalScore,
+            }
+          : null,
         indices: ihsg ? [{ name: 'IHSG', changePct: ihsg.changePct }] : [],
-        pickCounts: dailyPicks ? {
-          attractive: dailyPicks.attractive.count,
-          breakout: dailyPicks.breakout.count,
-          undervalue: dailyPicks.undervalue.count,
-        } : undefined,
+        pickCounts: dailyPicks
+          ? {
+              attractive: dailyPicks.attractive.count,
+              breakout: dailyPicks.breakout.count,
+              undervalue: dailyPicks.undervalue.count,
+            }
+          : undefined,
         lang: language,
       }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.briefing) setAiBriefing(d.briefing); })
-      .catch(() => {});
+    } satisfies RequestInit;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMarket, loadingRadar, loadingDailyPicks, language]);
+  }, [loadingMarket, loadingRadar, loadingDailyPicks, language, topPick, ihsg, dailyPicks]);
+
+  // Kegagalan diabaikan diam-diam, sama seperti sebelumnya: kartu ini punya pesan
+  // rule-based sebagai cadangan, jadi AI yang tidak tersedia tidak boleh tampil sebagai
+  // error di halaman utama.
+  const { data: briefingPayload } = useSWR<{ briefing?: string }>(
+    briefingRequest ? (['/api/ai-briefing', briefingRequest] as const) : null,
+    {
+      // Briefing tidak berubah kalau masukannya tidak berubah, jadi jangan menembak
+      // ulang Gemini hanya karena tab kembali fokus.
+      revalidateOnFocus: false,
+    },
+  );
+  const aiBriefing = briefingPayload?.briefing ?? null;
 
   // Sumber insight tambahan untuk kartu LensConsensus: 4 berita pasar teratas dari
   // /api/news (judul + sentimen, sudah dihitung getMarketNews() - lihat
   // modules/news/service/news.service.ts). Dicache 15 menit di server, jadi fetch
   // ulang di sini murah.
-  useEffect(() => {
-    fetch('/api/news')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        const items = Array.isArray(d?.items) ? d.items.slice(0, 4) : [];
-        setNewsInsights(items.map((item: any) => ({ title: item.title, sentiment: item.sentiment })));
-      })
-      .catch(() => {});
-  }, []);
+  // Kunci SWR-nya SAMA dengan app/news/page.tsx, jadi berpindah dari Beranda ke Berita
+  // tidak mengambil ulang apa pun.
+  const { data: newsPayload } = useSWR<{ items?: { title: string; sentiment: string }[] }>(
+    '/api/news',
+  );
+  const newsInsights = useMemo<NewsInsight[]>(
+    () =>
+      (newsPayload?.items ?? [])
+        .slice(0, 4)
+        .map((item) => ({ title: item.title, sentiment: item.sentiment }) as NewsInsight),
+    [newsPayload],
+  );
 
   const primaryInsight: React.ReactNode | null = aiBriefing ? (
     <p className="text-sm text-tv-text mt-1.5 leading-relaxed">{aiBriefing}</p>
