@@ -230,6 +230,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                     {tickerQuery && (
                       <Button variant="bare" size="none"
                         type="button"
+                        aria-label="Kosongkan pencarian ticker"
                         onClick={() => {
                           setTickerQuery('');
                           setShowSuggestions(false);

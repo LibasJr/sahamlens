@@ -439,7 +439,7 @@ export default function WatchlistPage() {
                       )}
                     </div>
 
-                    <Button variant="bare" size="none" onClick={() => removeWatchlist(item.symbol)} className="shrink-0 p-2 text-tv-muted hover:text-tv-red hover:bg-tv-red/10 rounded-md transition-colors">
+                    <Button variant="bare" size="none" aria-label={`Hapus ${displayTicker(item.symbol)} dari watchlist`} onClick={() => removeWatchlist(item.symbol)} className="shrink-0 p-2 text-tv-muted hover:text-tv-red hover:bg-tv-red/10 rounded-md transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -567,7 +567,7 @@ export default function WatchlistPage() {
                       <span className="font-bold text-tv-text font-number">{displayTicker(alert.symbol)}</span>
                       <div className="flex items-center gap-2">
                         <Badge variant={alert.isActive ? 'success' : 'neutral'}>{alert.isActive ? 'Active' : 'Triggered'}</Badge>
-                        <Button variant="bare" size="none" onClick={() => removeAlert(alert.id)} className="text-tv-muted hover:text-tv-red">
+                        <Button variant="bare" size="none" aria-label={`Hapus alert ${displayTicker(alert.symbol)}`} onClick={() => removeAlert(alert.id)} className="text-tv-muted hover:text-tv-red">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>

@@ -20,7 +20,13 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.join(__dirname, '..');
 const CSS = fs.readFileSync(path.join(ROOT, 'app', 'globals.css'), 'utf8');
-const SCREENER = fs.readFileSync(path.join(ROOT, 'app', 'screener', 'page.tsx'), 'utf8');
+// Markup tabelnya ada di ScreenerResults, bukan di app/screener/page.tsx - halaman itu
+// tinggal merakit ScreenerControls + ScreenerResults. Membaca berkas halaman membuat
+// gerbang ini hijau tanpa memeriksa apa pun.
+const SCREENER = fs.readFileSync(
+  path.join(ROOT, 'components', 'screener', 'ScreenerResults.tsx'),
+  'utf8',
+);
 
 /** Isi blok @media rentang tablet, diambil dengan menghitung kurung. */
 function tabletMediaBlock(): string {

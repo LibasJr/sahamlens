@@ -28,10 +28,14 @@ describe('audit nama aksesibel kontrol ikon', () => {
     expect(CI).toContain('npm run audit:a11y');
   });
 
+  // Batas 30 detik, bukan 5 detik bawaan: kasus ini menjalankan proses node terpisah yang
+  // memindai seluruh app/ + components/. Sendirian ia selesai ~1 detik, tapi saat suite
+  // penuh berjalan paralel ia lewat 5 detik dan gagal sebagai "timeout" - kegagalan yang
+  // tidak ada hubungannya dengan aksesibilitas dan menyesatkan siapa pun yang membacanya.
   it('hijau pada kode saat ini', () => {
     const out = execFileSync('node', [SCRIPT], { cwd: ROOT, encoding: 'utf8' });
     expect(out).toMatch(/punya nama aksesibel/);
-  });
+  }, 30_000);
 
   it('menuntut aria-label, bukan menerima title= sebagai pelabelan', () => {
     // Kalau suatu saat title= dianggap cukup, audit ini berhenti menemukan apa pun yang

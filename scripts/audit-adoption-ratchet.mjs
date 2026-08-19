@@ -51,6 +51,17 @@ const cardAdoptionFiles = tsxFiles.filter(
     file !== path.join(ROOT, 'components', 'ui', 'Table.tsx'),
 );
 
+/**
+ * Buang komentar sebelum mencocokkan pola. `lib/api/fetcher.ts` menjelaskan dirinya
+ * sendiri dengan menuliskan `fetch('/api/...')` di komentar dokumentasinya, dan
+ * pemindai menghitungnya sebagai pemakaian nyata - ratchet gagal karena prosa, bukan
+ * karena kode. Menghitung penyebutan di komentar sebagai utang adopsi juga menghukum
+ * justru berkas yang mendokumentasikan pola yang seharusnya ditinggalkan.
+ */
+function stripComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
 const RAW_API_FETCH_ALLOWLIST = new Map([
   [path.join(ROOT, 'components', 'AIChat.tsx'), 1], // NDJSON stream: apiRequest intentionally buffers JSON.
 ]);
@@ -108,7 +119,7 @@ const metrics = {
   rawClientApiFetchCalls: {
     label: "fetch('/api/...') mentah di client (pakai apiRequest bila JSON)",
     value: clientSourceFiles.reduce((sum, file) => {
-      const text = fs.readFileSync(file, 'utf8');
+      const text = stripComments(fs.readFileSync(file, 'utf8'));
       const raw = (text.match(/fetch\(\s*['"]\/api\//g) || []).length;
       const intentional = Math.min(raw, RAW_API_FETCH_ALLOWLIST.get(file) ?? 0);
       return sum + raw - intentional;
