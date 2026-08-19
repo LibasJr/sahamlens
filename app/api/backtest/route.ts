@@ -1,11 +1,18 @@
 import { guard } from '../../../lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import {
+  SubscriptionRequiredError,
+  RateLimitedError,
+  ServiceUnavailableError,
+} from '@/shared/errors/app-error';
+import { z } from 'zod';
 import { getSession, hasOpenOrProAccess } from '../../../modules/user';
 import { logger } from '../../../shared/logger/logger';
 import { computeActorFromRequest, consumeComputeBudget } from '../../../shared/middleware/compute-budget';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '../../../shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie, type AnonTrialState } from '../../../shared/auth/anonymous-trial';
 import {
   readBacktestCache,
   precomputeBacktestData,
@@ -54,7 +61,7 @@ async function getCache(existing?: BacktestIndicatorCache | null): Promise<Backt
 }
 
 export async function POST(request: Request) {
-  try {
+  return runController(async () => {
     const session = await getSession();
     // Cookie trial anonim TETAP diterbitkan (dipakai identitas kuota chat guest &
     // telemetri), tapi TIDAK LAGI dipakai untuk gerbang akses fitur ini - keputusan
@@ -63,7 +70,7 @@ export async function POST(request: Request) {
     if (!session) anonTrial = await readOrIssueAnonymousTrial();
 
     if (!(await hasOpenOrProAccess(session))) {
-      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+      throw new SubscriptionRequiredError();
     }
 
     // BARU (2026-08-14): dulu tamu dipaksa tier 'public' (40/10 menit) sementara user
@@ -87,34 +94,30 @@ export async function POST(request: Request) {
       'authenticated',
     );
     if (!budget.allowed) {
-      return NextResponse.json(
-        { error: 'Terlalu banyak komputasi berat dalam waktu singkat. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
-        { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined },
+      // `code` berubah dari COMPUTE_BUDGET_EXCEEDED (di luar katalog ErrorCode) ke
+      // RATE_LIMITED yang ada di katalog. Statusnya tetap 429 dan Retry-After tetap
+      // dikirim - RateLimitedError meneruskannya lewat toErrorResponse.
+      throw new RateLimitedError(
+        'Terlalu banyak komputasi berat dalam waktu singkat. Coba lagi sebentar.',
+        budget.retryAfterSec,
       );
     }
 
-    const body = await request.json();
-
-    const rawFilters: unknown[] = Array.isArray(body?.filters) ? body.filters : [];
-    const hasUnknownFilter = rawFilters.some(
-      (f): boolean => !(typeof f === 'string' && VALID_FILTERS.includes(f as IndicatorName))
-    );
-    if (hasUnknownFilter) {
-      return NextResponse.json({ error: 'Filter tidak dikenal' }, { status: 400 });
-    }
-    const filters = rawFilters as IndicatorName[];
-    if (filters.length === 0) {
-      return NextResponse.json({ error: 'Pilih minimal 1 filter' }, { status: 400 });
-    }
-
-    const modal = Number(body?.modal);
-    const period = Number(body?.period);
-    if (!Number.isFinite(modal) || modal <= 0) {
-      return NextResponse.json({ error: 'Modal awal harus lebih dari 0' }, { status: 400 });
-    }
-    if (!VALID_PERIODS.includes(period)) {
-      return NextResponse.json({ error: 'Periode tidak valid' }, { status: 400 });
-    }
+    // Empat blok validasi tangan menjadi satu skema. Keempat pesannya dipertahankan
+    // persis supaya UI yang menampilkannya tidak berubah, dan kedua daftar nilai sah
+    // tetap bersumber dari VALID_FILTERS/VALID_PERIODS - bukan disalin ulang di sini.
+    const bodySchema = z.object({
+      filters: z
+        .array(z.enum(VALID_FILTERS as unknown as [IndicatorName, ...IndicatorName[]], {
+          message: 'Filter tidak dikenal',
+        }))
+        .min(1, 'Pilih minimal 1 filter'),
+      modal: z.coerce.number().finite().positive('Modal awal harus lebih dari 0'),
+      period: z.coerce
+        .number()
+        .refine((value) => VALID_PERIODS.includes(value), 'Periode tidak valid'),
+    });
+    const { filters, modal, period } = parseOrThrow(bodySchema, await request.json());
 
     const cache = await getCache(cachedBacktest);
     let result;
@@ -122,9 +125,8 @@ export async function POST(request: Request) {
       result = simulateBacktest(cache, { filters, modal, periodMonths: period });
     } catch (error) {
       if (error instanceof Error && error.message === 'BACKTEST_BENCHMARK_UNAVAILABLE') {
-        return NextResponse.json(
-          { error: 'Data benchmark IHSG tidak tersedia untuk periode ini. Backtest tidak dihitung agar alpha tidak difabrikasi.' },
-          { status: 503 },
+        throw new ServiceUnavailableError(
+          'Data benchmark IHSG tidak tersedia untuk periode ini. Backtest tidak dihitung agar alpha tidak difabrikasi.',
         );
       }
       throw error;
@@ -166,11 +168,13 @@ export async function POST(request: Request) {
       responseBody.message = 'Tidak ada saham yang memenuhi kriteria filter ini dalam periode terpilih.';
     }
 
-    const response = NextResponse.json(responseBody);
-    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
-    return response;
-  } catch (error) {
-    logger.error('Backtest gagal', { error });
-    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
-  }
+    const trialCookie = anonTrial ? await buildAnonymousTrialCookie(anonTrial) : null;
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return {
+      status: 200,
+      body: responseBody,
+      ...(trialCookie ? { cookiesToSet: [trialCookie] } : {}),
+    };
+  });
 }

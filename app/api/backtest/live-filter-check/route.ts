@@ -1,10 +1,13 @@
 import { guard } from '../../../../lib/sahamLensGuard';
 guard();
 
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { SubscriptionRequiredError } from '@/shared/errors/app-error';
+import { z } from 'zod';
 import { getSession, hasOpenOrProAccess } from '../../../../modules/user';
 import { logger } from '../../../../shared/logger/logger';
-import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '../../../../shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie, type AnonTrialState } from '../../../../shared/auth/anonymous-trial';
 import { scanLiveFilterCheck, type IndicatorName } from '../../../../modules/backtest';
 
 // "Live Filter Check" - endpoint TERPISAH dari /api/backtest (bukan mode di dalamnya,
@@ -20,7 +23,7 @@ const VALID_FILTERS: IndicatorName[] = [
 ];
 
 export async function POST(request: Request) {
-  try {
+  return runController(async () => {
     const session = await getSession();
     // Cookie trial anonim tetap diterbitkan (telemetri), tapi tidak lagi menggerbang
     // akses - lihat hasOpenOrProAccess() untuk alasannya.
@@ -28,21 +31,21 @@ export async function POST(request: Request) {
     if (!session) anonTrial = await readOrIssueAnonymousTrial();
 
     if (!(await hasOpenOrProAccess(session))) {
-      return NextResponse.json({ error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
+      throw new SubscriptionRequiredError();
     }
 
-    const body = await request.json();
-    const rawFilters: unknown[] = Array.isArray(body?.filters) ? body.filters : [];
-    const hasUnknownFilter = rawFilters.some(
-      (f): boolean => !(typeof f === 'string' && VALID_FILTERS.includes(f as IndicatorName))
-    );
-    if (hasUnknownFilter) {
-      return NextResponse.json({ error: 'Filter tidak dikenal' }, { status: 400 });
-    }
-    const filters = rawFilters as IndicatorName[];
-    if (filters.length === 0) {
-      return NextResponse.json({ error: 'Pilih minimal 1 filter' }, { status: 400 });
-    }
+    // Tiga pemeriksaan tangan (array?, tiap elemen dikenal?, minimal satu?) menjadi satu
+    // skema. Kedua pesan errornya dipertahankan persis supaya UI yang menampilkannya tidak
+    // berubah, dan daftar filter yang sah tetap bersumber dari VALID_FILTERS - bukan
+    // disalin ulang sebagai literal di dalam skema.
+    const bodySchema = z.object({
+      filters: z
+        .array(z.enum(VALID_FILTERS as unknown as [IndicatorName, ...IndicatorName[]], {
+          message: 'Filter tidak dikenal',
+        }))
+        .min(1, 'Pilih minimal 1 filter'),
+    });
+    const { filters } = parseOrThrow(bodySchema, await request.json());
 
     const result = await scanLiveFilterCheck(filters);
 
@@ -63,11 +66,13 @@ export async function POST(request: Request) {
         : undefined,
     };
 
-    const response = NextResponse.json(responseBody);
-    if (anonTrial) await applyAnonymousTrialCookie(response, anonTrial);
-    return response;
-  } catch (error) {
-    logger.error('Live filter check gagal', { error });
-    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
-  }
+    const trialCookie = anonTrial ? await buildAnonymousTrialCookie(anonTrial) : null;
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+    return {
+      status: 200,
+      body: responseBody,
+      ...(trialCookie ? { cookiesToSet: [trialCookie] } : {}),
+    };
+  });
 }

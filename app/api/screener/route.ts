@@ -1,4 +1,26 @@
-import { NextResponse } from 'next/server';
+import { runController } from '@/shared/http/next-response.adapter';
+import { parseOrThrow } from '@/shared/validation/parse-or-throw';
+import { RateLimitedError } from '@/shared/errors/app-error';
+import { z } from 'zod';
+
+// Empat parameter opsional yang dulu diurai tangan lewat parsePositiveParam() -
+// helper fail-open yang mengembalikan undefined untuk apa pun yang tidak masuk akal,
+// termasuk nilai negatif yang jelas salah tulis. Perilaku itu DIPERTAHANKAN persis
+// (`.catch(undefined)`), karena satu filter yang rusak memang tidak boleh
+// menggagalkan seluruh pemindaian - tapi sekarang aturannya tertulis satu kali di
+// sini alih-alih tersebar sebagai helper lokal per route.
+//
+// `profile` sebaliknya TIDAK fail-open: nilainya menentukan bobot skor, jadi profil
+// yang tidak dikenal harus ditolak, bukan diam-diam diperlakukan sebagai 'Moderat'.
+const screenerQuerySchema = z.object({
+  profile: z.enum(['Konservatif', 'Moderat', 'Agresif'], {
+    message: 'profile harus Konservatif/Moderat/Agresif',
+  }).default('Moderat'),
+  sector: z.string().trim().min(1).optional().catch(undefined),
+  maxPrice: z.coerce.number().finite().positive().optional().catch(undefined),
+  minMarketCap: z.coerce.number().finite().positive().optional().catch(undefined),
+  minLiquidity: z.coerce.number().finite().positive().optional().catch(undefined),
+});
 import { fetchScreenerUniverse, rankScreener, type RiskProfile } from '@/modules/market/service/screener.service';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
@@ -18,31 +40,22 @@ export const maxDuration = 60;
 
 const CACHE_KEY = COMPUTED_CACHE_KEY.SCREENER_UNIVERSE;
 
-/** Angka positif dari query param, atau `undefined` kalau kosong/rusak - fail-open,
- * satu parameter opsional yang rusak tidak boleh menggagalkan seluruh pemindaian. */
-function parsePositiveParam(value: string | null): number | undefined {
-  if (!value) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-}
-
 export async function GET(request: Request) {
-  try {
+  return runController(async () => {
     const { searchParams } = new URL(request.url);
-    const profile = (searchParams.get('profile') || 'Moderat') as RiskProfile;
-    if (!['Konservatif', 'Moderat', 'Agresif'].includes(profile)) {
-      return NextResponse.json({ error: 'profile harus Konservatif/Moderat/Agresif' }, { status: 400 });
-    }
-
-    // BARU (2026-08-14, masukan review eksternal - filter Sektor/Harga/Market Cap/
-    // Likuiditas di LensScanner). sector kosong/'Semua Sektor' = tidak difilter.
-    const sectorParam = searchParams.get('sector');
-    const sector = sectorParam && sectorParam.trim() ? sectorParam.trim() : undefined;
-    const maxPrice = parsePositiveParam(searchParams.get('maxPrice'));
     // minMarketCap & minLiquidity dikirim frontend dalam Rupiah PENUH (bukan
     // miliar/triliun) - konsisten dengan market_cap/adv20_idr mentah di response.
-    const minMarketCap = parsePositiveParam(searchParams.get('minMarketCap'));
-    const minLiquidity = parsePositiveParam(searchParams.get('minLiquidity'));
+    // sector kosong/'Semua Sektor' = tidak difilter (skema mengubahnya jadi undefined).
+    const { profile, sector, maxPrice, minMarketCap, minLiquidity } = parseOrThrow(
+      screenerQuerySchema,
+      {
+        profile: searchParams.get('profile') ?? undefined,
+        sector: searchParams.get('sector') ?? undefined,
+        maxPrice: searchParams.get('maxPrice') ?? undefined,
+        minMarketCap: searchParams.get('minMarketCap') ?? undefined,
+        minLiquidity: searchParams.get('minLiquidity') ?? undefined,
+      },
+    );
 
     const ttlBefore = await getCacheTtlRemaining(CACHE_KEY);
     const budget = await consumeComputeBudget(
@@ -51,9 +64,13 @@ export async function GET(request: Request) {
       'public',
     );
     if (!budget.allowed) {
-      return NextResponse.json(
-        { error: 'Screener terlalu sering diminta dalam waktu singkat. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
-        { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined },
+      // RateLimitedError meneruskan Retry-After lewat toErrorResponse, jadi header yang
+      // dulu disusun tangan tetap terkirim. `code` berubah dari COMPUTE_BUDGET_EXCEEDED
+      // (di luar katalog ErrorCode) ke RATE_LIMITED yang memang ada di katalog - keduanya
+      // 429, dan yang kedua bisa ditangani klien lewat switch(error.code).
+      throw new RateLimitedError(
+        'Screener terlalu sering diminta dalam waktu singkat. Coba lagi sebentar.',
+        budget.retryAfterSec,
       );
     }
 
@@ -75,7 +92,7 @@ export async function GET(request: Request) {
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
     const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.SCREENER_UNIVERSE);
 
-    return NextResponse.json({
+    return { status: 200, body: {
       profile,
       analysis: {
         top_10_stocks: visibleStocks,
@@ -85,9 +102,8 @@ export async function GET(request: Request) {
       },
       availableSectors,
       _meta,
-    });
-  } catch (error: any) {
-    console.error('Screener API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
+    } };
+    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
+    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
+  });
 }
