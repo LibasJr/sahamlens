@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Button } from './Button';
 import { Globe } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -20,7 +21,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
           <span>{language === 'id' ? 'Bahasa' : 'Language'}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={() => setLanguage('id')}
             className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
@@ -31,8 +32,8 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
             aria-label="Pilih Bahasa Indonesia"
           >
             ID
-          </button>
-          <button
+          </Button>
+          <Button variant="bare" size="none"
             type="button"
             onClick={() => setLanguage('en')}
             className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
@@ -43,7 +44,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
             aria-label="Select English"
           >
             EN
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -51,7 +52,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
 
   if (variant === 'compact') {
     return (
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={toggleLanguage}
         title={language === 'id' ? 'Switch to English' : 'Ganti ke Bahasa Indonesia'}
@@ -59,7 +60,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
         className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-tv-border bg-tv-card text-xs font-bold text-tv-text shadow-2 transition-all hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue md:h-9 md:w-9 font-number ${className}`}
       >
         <span className="text-[11px] font-extrabold tracking-wider">{language === 'id' ? 'ID' : 'EN'}</span>
-      </button>
+      </Button>
     );
   }
 
@@ -70,7 +71,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
       role="group"
       aria-label="Pilihan Bahasa / Language Selection"
     >
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={() => setLanguage('id')}
         className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all text-[11px] font-number ${
@@ -83,8 +84,8 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
       >
         <span>🇮🇩</span>
         <span>ID</span>
-      </button>
-      <button
+      </Button>
+      <Button variant="bare" size="none"
         type="button"
         onClick={() => setLanguage('en')}
         className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all text-[11px] font-number ${
@@ -97,7 +98,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
       >
         <span>🇬🇧</span>
         <span>EN</span>
-      </button>
+      </Button>
     </div>
   );
 }

@@ -119,7 +119,7 @@ export default function SmartBackNavigation() {
 
       // No SahamLens route remains behind the current page. Prevent a direct
       // deep-link Back from throwing the user out of the product.
-      const fallback = authRef.current.user ? '/home' : '/';
+      const fallback = '/';
       writeStack([fallback]);
 
       if (`${window.location.pathname}${window.location.search}` !== fallback) {

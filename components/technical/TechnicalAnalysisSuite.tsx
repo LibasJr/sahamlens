@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { usePublicChart } from '@/lib/api/usePublicChart';
 import {
   Activity,
   AlertCircle,
@@ -16,6 +15,7 @@ import {
   Target,
   Zap,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -26,6 +26,7 @@ import {
   type TechnicalSuiteResult,
 } from '@/lib/technical/technical-levels';
 import { useLanguage } from '@/lib/i18n';
+import { apiRequest } from '@/shared/http/api-client';
 
 interface TechnicalAnalysisSuiteProps {
   symbol: string;
@@ -36,11 +37,35 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
   const isEn = language === 'en';
   const code = symbol.replace('.JK', '');
 
+  const [candles, setCandles] = useState<OHLCVCandle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPivotMethod, setSelectedPivotMethod] = useState<PivotMethod>('CLASSIC');
 
-  // Hook bersama - lihat lib/api/usePublicChart.ts. Timeframe dikunci 1Y di sini, sama
-  // dengan default StockChartPanel, jadi keduanya berbagi satu permintaan.
-  const { candles, error, isLoading: loading } = usePublicChart(code, '1Y', isEn);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+
+    apiRequest<any>(`/api/public-chart/${encodeURIComponent(code)}?tf=1Y`, { signal: controller.signal })
+      .then((data) => {
+        if (!Array.isArray(data?.history) || data.history.length === 0) throw new Error(isEn ? 'Technical series unavailable' : 'Data teknikal belum tersedia');
+        return data.history as OHLCVCandle[];
+      })
+      .then((history) => {
+        if (!controller.signal.aborted) setCandles(history);
+      })
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          setError(err?.message || (isEn ? 'Failed to compute technical levels' : 'Gagal menghitung level teknikal'));
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [code, isEn]);
 
   const suite: TechnicalSuiteResult | null = useMemo(() => {
     if (candles.length < 5) return null;
@@ -102,7 +127,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
           </div>
           <div className="flex items-center gap-1 bg-tv-bg p-1 rounded-xl border border-tv-border text-xs">
             {(['CLASSIC', 'FIBONACCI', 'CAMARILLA'] as PivotMethod[]).map((method) => (
-              <button
+              <Button variant="bare" size="none"
                 key={method}
                 type="button"
                 onClick={() => setSelectedPivotMethod(method)}
@@ -117,7 +142,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
                   : method === 'FIBONACCI'
                   ? t('technicalEnhance.fibonacciMethod')
                   : t('technicalEnhance.camarillaMethod')}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -135,34 +160,34 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
 
         {/* Pivot Levels Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-          <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-red/20 text-center">
-            <span className="text-[10px] uppercase font-bold text-tv-red">R3</span>
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-red/20 text-center">
+            <span className="lens-meta uppercase font-bold text-tv-red">R3</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.r3, currentPrice)}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-red/20 text-center">
-            <span className="text-[10px] uppercase font-bold text-tv-red">R2</span>
+          </Card>
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-red/20 text-center">
+            <span className="lens-meta uppercase font-bold text-tv-red">R2</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.r2, currentPrice)}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-red/30 bg-tv-red/[0.04] text-center">
-            <span className="text-[10px] uppercase font-bold text-tv-red">{t('technicalEnhance.resistance1')}</span>
+          </Card>
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-red/30 bg-tv-red/[0.04] text-center">
+            <span className="lens-meta uppercase font-bold text-tv-red">{t('technicalEnhance.resistance1')}</span>
             <div className="text-sm font-bold font-number text-white mt-1">{formatLevel(activePivots.r1, currentPrice)}</div>
-          </div>
+          </Card>
           <div className="p-3 rounded-xl bg-tv-blue/10 border border-tv-blue/40 text-center shadow-sm">
-            <span className="text-[10px] uppercase font-bold text-tv-blue">{t('technicalEnhance.pivotPoint')}</span>
+            <span className="lens-meta uppercase font-bold text-tv-blue">{t('technicalEnhance.pivotPoint')}</span>
             <div className="text-base font-extrabold font-number text-tv-blue mt-0.5">{formatLevel(activePivots.pp, currentPrice)}</div>
           </div>
           <div className="p-3 rounded-xl bg-tv-green/[0.04] border border-tv-green/30 text-center">
-            <span className="text-[10px] uppercase font-bold text-tv-green">{t('technicalEnhance.support1')}</span>
+            <span className="lens-meta uppercase font-bold text-tv-green">{t('technicalEnhance.support1')}</span>
             <div className="text-sm font-bold font-number text-white mt-1">{formatLevel(activePivots.s1, currentPrice)}</div>
           </div>
-          <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-green/20 text-center">
-            <span className="text-[10px] uppercase font-bold text-tv-green">S2</span>
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-green/20 text-center">
+            <span className="lens-meta uppercase font-bold text-tv-green">S2</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.s2, currentPrice)}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-green/20 text-center">
-            <span className="text-[10px] uppercase font-bold text-tv-green">S3</span>
+          </Card>
+          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-green/20 text-center">
+            <span className="lens-meta uppercase font-bold text-tv-green">S3</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.s3, currentPrice)}</div>
-          </div>
+          </Card>
         </div>
 
         {/* 52-Week Range Position Indicator */}
@@ -184,7 +209,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
                 style={{ width: `${range52w.positionPct}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-tv-muted font-number">
+            <div className="flex items-center justify-between lens-meta text-tv-muted font-number">
               <span>{t('technicalEnhance.low52w')}: {formatRp(range52w.low52w)}</span>
               <span className="text-white font-bold">{formatRp(currentPrice)}</span>
               <span>{t('technicalEnhance.high52w')}: {formatRp(range52w.high52w)}</span>
@@ -214,7 +239,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
               </Badge>
             </div>
             <p className="text-xs text-tv-muted leading-relaxed">{trend.detail}</p>
-            <div className="pt-2 border-t border-tv-border text-[10px] text-tv-muted/80 flex items-center justify-between">
+            <div className="pt-2 border-t border-tv-border lens-meta text-tv-muted/80 flex items-center justify-between">
               <span>Benchmark:</span>
               <span className="font-semibold text-tv-text">{trend.benchmark}</span>
             </div>
@@ -233,7 +258,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
         </div>
 
         {dataQuality.latestObservationPartial && (
-          <div className="rounded-lg border border-tv-yellow/20 bg-tv-yellow/[0.04] px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+          <div className="rounded-lg border border-tv-yellow/20 bg-tv-yellow/[0.04] px-3 py-2 lens-meta leading-relaxed text-tv-muted">
             <strong className="text-tv-yellow">{isEn ? 'Confirmation basis:' : 'Basis konfirmasi:'}</strong>{' '}
             {isEn
               ? `the live daily candle is not treated as a confirmed pattern. Patterns below are evaluated through the latest completed session${dataQuality.patternAsOf ? ` (${dataQuality.patternAsOf.slice(0, 10)})` : ''}.`
@@ -241,7 +266,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
           </div>
         )}
 
-        <p className="text-[10px] leading-relaxed text-tv-muted/80">
+        <p className="lens-meta leading-relaxed text-tv-muted/80">
           {isEn
             ? 'Pattern labels are deterministic rule-based classifications, not empirical success probabilities.'
             : 'Label pattern adalah klasifikasi rule-based deterministik, bukan probabilitas keberhasilan empiris.'}
@@ -264,7 +289,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
                   <span className="font-bold text-xs text-white">{p.name}</span>
                   <div className="flex items-center gap-1.5">
                     {p.volumeConfirmed && (
-                      <Badge variant="info" className="text-[9px]">
+                      <Badge variant="info" className="lens-meta">
                         {t('technicalEnhance.volumeConfirmed')}
                       </Badge>
                     )}
@@ -301,46 +326,46 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl bg-tv-card/80 border border-tv-border">
-              <span className="text-[11px] text-tv-muted font-medium">{t('technicalEnhance.entryZone')}</span>
+            <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3.5 bg-tv-card/80 border-tv-border">
+              <span className="lens-meta text-tv-muted font-medium">{t('technicalEnhance.entryZone')}</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {formatRp(tradingPlan.entryZone[0])} – {formatRp(tradingPlan.entryZone[1])}
               </div>
-              <span className="text-[10px] text-tv-muted">Support to Current</span>
-            </div>
+              <span className="lens-meta text-tv-muted">Support to Current</span>
+            </Card>
 
             <div className="p-3.5 rounded-xl bg-tv-red/[0.04] border border-tv-red/25">
-              <span className="text-[11px] text-tv-red font-medium">{t('technicalEnhance.stopLoss')}</span>
+              <span className="lens-meta text-tv-red font-medium">{t('technicalEnhance.stopLoss')}</span>
               <div className="text-base font-bold font-number text-tv-red mt-1">
                 {formatRp(tradingPlan.stopLoss)}
               </div>
-              <span className="text-[10px] text-tv-muted">
+              <span className="lens-meta text-tv-muted">
                 {t('technicalEnhance.riskAmount')}: -{tradingPlan.riskPct}%
               </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-tv-green/[0.04] border border-tv-green/25">
-              <span className="text-[11px] text-tv-green font-medium">{t('technicalEnhance.targetPrice1')}</span>
+              <span className="lens-meta text-tv-green font-medium">{t('technicalEnhance.targetPrice1')}</span>
               <div className="text-base font-bold font-number text-tv-green mt-1">
                 {formatRp(tradingPlan.targetPrice1)}
               </div>
-              <span className="text-[10px] text-tv-muted">
+              <span className="lens-meta text-tv-muted">
                 {t('technicalEnhance.rewardAmount')}: +{tradingPlan.rewardPct1}%
               </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-tv-blue/[0.04] border border-tv-blue/25">
-              <span className="text-[11px] text-tv-blue font-medium">{t('technicalEnhance.targetPrice2')}</span>
+              <span className="lens-meta text-tv-blue font-medium">{t('technicalEnhance.targetPrice2')}</span>
               <div className="text-base font-bold font-number text-tv-blue mt-1">
                 {formatRp(tradingPlan.targetPrice2)}
               </div>
-              <span className="text-[10px] text-tv-muted">
+              <span className="lens-meta text-tv-muted">
                 Upside TP2: +{tradingPlan.rewardPct2}%
               </span>
             </div>
           </div>
 
-          <p className="text-[11px] text-tv-muted leading-relaxed bg-tv-bg/50 p-2.5 rounded-lg border border-tv-border">
+          <p className="lens-meta text-tv-muted leading-relaxed bg-tv-bg/50 p-2.5 rounded-lg border border-tv-border">
             <span className="font-semibold text-tv-text">Catatan Volatilitas: </span>
             Nilai volatilitas 14-hari (ATR) dari sesi harian lengkap adalah <strong className="text-white font-number">{formatRp(tradingPlan.atr14)}</strong> per hari{dataQuality.atrAsOf ? ` (s.d. ${dataQuality.atrAsOf.slice(0, 10)})` : ''}. {t('technicalEnhance.planDisclaimer')}
           </p>

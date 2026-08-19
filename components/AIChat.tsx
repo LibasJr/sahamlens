@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/Button';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, Smile, ThumbsDown, ThumbsUp } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -22,6 +23,7 @@ const ReactMarkdown = dynamic(
 );
 import { usePathname } from 'next/navigation';
 import { getTickerName } from '@/lib/trendingTickers';
+import { apiRequest } from '@/shared/http/api-client';
 
 type ChatDataProvenance = {
   sourceLabel: string;
@@ -264,6 +266,8 @@ export default function AIChat() {
     }
 
     try {
+      // Intentional raw fetch: LensAI mengirim NDJSON streaming; apiRequest() membaca
+      // body sampai selesai dan karena itu tidak boleh dipakai untuk jalur streaming ini.
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -341,7 +345,7 @@ export default function AIChat() {
 
     // Best-effort: feedback tidak boleh mengganggu percakapan ketika jaringan/database
     // sedang bermasalah. Pengguna tetap melihat pilihannya diterima di UI.
-    void fetch('/api/chat/feedback', {
+    void apiRequest('/api/chat/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -393,12 +397,12 @@ export default function AIChat() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setIsExpanded(!isExpanded)} aria-label={isExpanded ? "Kecilkan LensAI" : "Perbesar LensAI"} className="rounded-xl p-2 text-tv-muted hover:bg-white/[0.05] hover:text-tv-text">
+              <Button variant="bare" size="none" type="button" onClick={() => setIsExpanded(!isExpanded)} aria-label={isExpanded ? "Kecilkan LensAI" : "Perbesar LensAI"} className="rounded-xl p-2 text-tv-muted hover:bg-white/[0.05] hover:text-tv-text">
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
-              <button type="button" onClick={() => setIsOpen(false)} aria-label="Tutup LensAI" className="rounded-xl p-2 text-tv-muted hover:bg-white/[0.05] hover:text-tv-text">
+              </Button>
+              <Button variant="bare" size="none" type="button" onClick={() => setIsOpen(false)} aria-label="Tutup LensAI" className="rounded-xl p-2 text-tv-muted hover:bg-white/[0.05] hover:text-tv-text">
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -417,13 +421,13 @@ export default function AIChat() {
                 </p>
                 <div className="mt-4 flex w-full max-w-xs flex-col gap-2">
                   {starters.map((starter) => (
-                    <button
+                    <Button variant="bare" size="none"
                       key={starter.prompt}
                       onClick={() => setInput(starter.prompt)}
                       className="rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-2.5 text-left text-sm text-tv-muted sm:text-xs transition-colors hover:bg-white/[0.06] hover:text-white"
                     >
                       {starter.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -451,7 +455,7 @@ export default function AIChat() {
                         )}
                         <div className="mt-3 flex items-center gap-1 border-t border-white/[0.07] pt-2 text-[10px] text-tv-muted">
                           <span className="mr-1">Jawaban ini membantu?</span>
-                          <button
+                          <Button variant="bare" size="none"
                             type="button"
                             aria-label="Jawaban membantu"
                             title="Membantu"
@@ -459,8 +463,8 @@ export default function AIChat() {
                             className={`rounded p-1 transition-colors hover:text-tv-green ${msg.feedback === 'up' ? 'text-tv-green' : ''}`}
                           >
                             <ThumbsUp className="h-3.5 w-3.5" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button variant="bare" size="none"
                             type="button"
                             aria-label="Jawaban tidak tepat"
                             title="Tidak tepat"
@@ -468,7 +472,7 @@ export default function AIChat() {
                             className={`rounded p-1 transition-colors hover:text-tv-red ${msg.feedback === 'down' ? 'text-tv-red' : ''}`}
                           >
                             <ThumbsDown className="h-3.5 w-3.5" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -507,7 +511,7 @@ export default function AIChat() {
                 placeholder="Tanya LensAI tentang saham atau fitur SahamLens..."
                 className="w-full rounded-2xl border border-white/[0.08] bg-black/20 min-h-12 py-3 pl-4 pr-12 text-base text-tv-text sm:min-h-0 sm:text-sm placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
               />
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 aria-label="Kirim pertanyaan"
                 onClick={handleSend}
@@ -515,10 +519,10 @@ export default function AIChat() {
                 className="absolute right-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-gradient-accent p-2 text-white transition-all hover:brightness-110 disabled:opacity-40"
               >
                 <Send className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
             <div className="mt-2 flex items-center gap-1">
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 aria-label="Buka pilihan emoji"
                 aria-expanded={emojiOpen}
@@ -526,11 +530,11 @@ export default function AIChat() {
                 className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${emojiOpen ? 'bg-tv-blue/15 text-tv-blue' : 'text-tv-muted hover:bg-white/[0.05] hover:text-tv-text'}`}
               >
                 <Smile className="h-4 w-4" />
-              </button>
+              </Button>
               {emojiOpen && (
                 <div className="flex flex-wrap items-center gap-1" aria-label="Pilihan emoji">
                   {QUICK_EMOJIS.map((emoji) => (
-                    <button
+                    <Button variant="bare" size="none"
                       key={emoji}
                       type="button"
                       aria-label={`Tambahkan emoji ${emoji}`}
@@ -538,7 +542,7 @@ export default function AIChat() {
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-base transition-colors hover:bg-white/[0.08]"
                     >
                       {emoji}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -551,7 +555,7 @@ export default function AIChat() {
       {/* Floating LensAI trigger - sengaja menjadi SATU-SATUNYA tombol global.
           Tombol header dihapus supaya tidak dobel, dan trigger ini tetap terlihat di HP. */}
       {!isOpen && (
-        <button
+        <Button variant="bare" size="none"
           type="button"
           onClick={() => setIsOpen(true)}
           title="Ask LensAI"
@@ -560,7 +564,7 @@ export default function AIChat() {
         >
           <Sparkles className="h-5 w-5" />
           <span className="hidden text-xs font-bold md:inline">LensAI</span>
-        </button>
+        </Button>
       )}
     </div>
   );

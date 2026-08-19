@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   createChart,
@@ -470,7 +471,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         <div className="flex items-center gap-2 flex-wrap ml-auto">
           {/* EMA Pills */}
           <div className="flex items-center gap-1 border-r border-tv-border pr-2">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setShowEMA20(!showEMA20)}
               title="Toggle EMA 20 (Trend Jangka Pendek)"
@@ -481,9 +482,9 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               }`}
             >
               EMA 20
-            </button>
+            </Button>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setShowEMA50(!showEMA50)}
               title="Toggle EMA 50 (Trend Jangka Menengah)"
@@ -494,9 +495,9 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               }`}
             >
               EMA 50
-            </button>
+            </Button>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setShowEMA200(!showEMA200)}
               title="Toggle EMA 200 (Garis Batas Bullish/Bearish Mayor)"
@@ -507,9 +508,9 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               }`}
             >
               EMA 200
-            </button>
+            </Button>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setShowVPVR(!showVPVR)}
               title="Toggle Volume Profile (VPVR & POC)"
@@ -520,26 +521,24 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               }`}
             >
               VPVR / POC
-            </button>
+            </Button>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setShowVolume(!showVolume)}
               title="Toggle Volume Bar"
-              aria-label="Toggle Volume Bar"
-              aria-pressed={showVolume}
               className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
                 showVolume ? 'bg-tv-hover text-tv-text' : 'bg-transparent text-tv-muted/40'
               }`}
             >
               <BarChart2 className="h-3 w-3" />
-            </button>
+            </Button>
           </div>
 
           {/* Range Selector */}
           <div className="flex items-center gap-1 bg-tv-hover/50 p-0.5 rounded-lg border border-tv-border">
             {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map((r) => (
-              <button
+              <Button variant="bare" size="none"
                 key={r}
                 type="button"
                 onClick={() => handleRangeChange(r)}
@@ -550,19 +549,18 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
                 }`}
               >
                 {r === '1M' ? '1B' : r === '3M' ? '3B' : r === '6M' ? '6B' : r === '1Y' ? '1T' : 'Semua'}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={handleResetZoom}
             title="Reset Zoom / Fit Content"
-            aria-label="Reset Zoom / Fit Content"
             className="p-1 rounded-lg text-tv-muted hover:text-tv-text hover:bg-tv-hover transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
 

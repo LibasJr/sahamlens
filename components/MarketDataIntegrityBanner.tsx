@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { getLatestMarketIntegrity } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
+import { Card } from '@/components/ui/Card';
 
 export default async function MarketDataIntegrityBanner({ ticker }: { ticker: string }) {
   const row = await getLatestMarketIntegrity(ticker);
@@ -24,10 +25,10 @@ export default async function MarketDataIntegrityBanner({ ticker }: { ticker: st
 
   if (row.status === 'MATCH') {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-tv-border bg-tv-card/60 px-3 py-2 text-xs text-tv-muted">
+      <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" surface="60" className="flex items-center gap-2 border-tv-border px-3 py-2 text-xs text-tv-muted">
         <CheckCircle2 className="h-3.5 w-3.5 text-tv-green" />
         Harga penutupan {row.tradeDate} cocok dengan sumber pembanding independen.
-      </div>
+      </Card>
     );
   }
 

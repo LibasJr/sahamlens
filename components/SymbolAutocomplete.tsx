@@ -4,6 +4,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { TICKERS } from '@/lib/tickers';
 import TickerAvatar from '@/components/ui/TickerAvatar';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
 
 const POPULAR_SEARCH_RANK = new Map<string, number>([
   ['BBRI.JK', 0],
@@ -145,7 +146,7 @@ export default function SymbolAutocomplete({
             <Search className="h-3 w-3" /> Hasil emiten
           </div>
           {suggestions.map((item, index) => (
-            <button
+            <PrimitiveButton variant="bare" size="none"
               type="button"
               id={`${listboxId}-option-${index}`}
               role="option"
@@ -160,7 +161,7 @@ export default function SymbolAutocomplete({
                 <span className="block font-number text-xs font-bold text-tv-text">{item.symbol}</span>
                 <span className="mt-0.5 block truncate text-[10px] text-tv-muted">{item.name}</span>
               </span>
-            </button>
+            </PrimitiveButton>
           ))}
         </div>
       )}

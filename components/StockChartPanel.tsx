@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { usePublicChart } from '@/lib/api/usePublicChart';
 import dynamic from 'next/dynamic';
 import { Sparkles } from 'lucide-react';
 import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators } from '@/lib/miniCouncil';
 import { useLanguage } from '@/lib/i18n';
+import { Card } from '@/components/ui/Card';
+import { apiRequest } from '@/shared/http/api-client';
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
   ssr: false,
@@ -29,11 +30,29 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const code = symbol.replace('.JK', '');
   const isIndex = code.startsWith('^');
   const [timeframe, setTimeframe] = useState('1Y');
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartError, setChartError] = useState<string | null>(null);
 
-  // Hook bersama - lihat lib/api/usePublicChart.ts. Komponen ini dan
-  // TechnicalAnalysisSuite dirender bersamaan di halaman teknikal dan dulu meminta URL
-  // yang persis sama; sekarang berbagi satu permintaan.
-  const { candles: chartData, error: chartError } = usePublicChart(code, timeframe, isEn);
+  useEffect(() => {
+    const controller = new AbortController();
+    setChartData([]);
+    setChartError(null);
+    apiRequest<any>(`/api/public-chart/${encodeURIComponent(code)}?tf=${timeframe}`, { signal: controller.signal })
+      .then((data) => {
+        if (!Array.isArray(data?.history) || data.history.length === 0) throw new Error(isEn ? 'Chart data unavailable' : 'Data grafik belum tersedia');
+        return data;
+      })
+      .then((data) => {
+        if (!controller.signal.aborted) setChartData(data.history);
+      })
+      .catch((error) => {
+        if (error?.name !== 'AbortError') {
+          console.error(error);
+          setChartError(error?.message || (isEn ? 'Failed to load chart' : 'Grafik gagal dimuat'));
+        }
+      });
+    return () => controller.abort();
+  }, [code, timeframe, isEn]);
 
   const latestCandle = chartData.at(-1) ?? null;
   const latestSessionPartial = latestCandle?.sessionStatus === 'PARTIAL';
@@ -52,7 +71,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const finalSignal = council?.finalSignal ?? ind?.signal ?? 'HOLD';
 
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-4 sm:p-5 space-y-4">
+    <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-4 sm:p-5 space-y-4">
       {ind && (
         <div className="flex justify-end">
           <span
@@ -125,7 +144,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
             : 'Memuat data teknikal...'}
         </p>
       </div>
-    </div>
+    </Card>
   );
 }
 

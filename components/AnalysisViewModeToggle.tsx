@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui';
+
 interface AnalysisViewModeToggleProps {
   mode: 'compact' | 'full';
   onChange: (mode: 'compact' | 'full') => void;
@@ -16,22 +18,22 @@ export default function AnalysisViewModeToggle({ mode, onChange, className = '' 
         </div>
       </div>
       <div className="flex shrink-0 rounded-lg border border-tv-border bg-tv-bg p-1" role="group" aria-label="Pilih tampilan analisis">
-        <button
+        <Button variant="bare" size="none"
           type="button"
           onClick={() => onChange('compact')}
           aria-pressed={mode === 'compact'}
           className={`min-h-9 rounded-md px-3 text-xs font-semibold transition-colors ${mode === 'compact' ? 'bg-tv-blue/20 text-tv-blue' : 'text-tv-muted hover:text-tv-text'}`}
         >
           Ringkas
-        </button>
-        <button
+        </Button>
+        <Button variant="bare" size="none"
           type="button"
           onClick={() => onChange('full')}
           aria-pressed={mode === 'full'}
           className={`min-h-9 rounded-md px-3 text-xs font-semibold transition-colors ${mode === 'full' ? 'bg-tv-blue/20 text-tv-blue' : 'text-tv-muted hover:text-tv-text'}`}
         >
           Lengkap
-        </button>
+        </Button>
       </div>
     </div>
   );

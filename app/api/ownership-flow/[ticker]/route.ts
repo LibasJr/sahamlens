@@ -2,9 +2,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { runController } from '@/shared/http/next-response.adapter';
-import { parseOrThrow } from '@/shared/validation/parse-or-throw';
-import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
-import { NotFoundError } from '@/shared/errors/app-error';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getOwnershipFlowConfig } from '@/modules/ownership-flow/config/ownership-flow.config';
 import {
   getOwnershipFlowView,
@@ -31,26 +29,24 @@ export async function GET(
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   return runController(async () => {
-    const config = getOwnershipFlowConfig();
-    if (!config.enabled) {
-      // Lihat catatan di app/api/ownership-flow/route.ts: `code: 'FEATURE_DISABLED'`
-      // yang ditulis tangan bukan bagian dari katalog ErrorCode, jadi tidak pernah bisa
-      // ditangani klien lewat switch(error.code) bersama kode lain.
-      throw new NotFoundError('Ownership Flow belum diaktifkan');
-    }
+  const config = getOwnershipFlowConfig();
+  if (!config.enabled) {
+    return { status: 404, body: { error: 'Ownership Flow belum diaktifkan', code: 'FEATURE_DISABLED' } };
+  }
 
-    const { ticker: rawTicker } = await params;
-    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
-  {
+  const { ticker: rawTicker } = await params;
+  const ticker = normalizeIdxTickerParam(rawTicker);
+  if (!ticker) {
+    return { status: 400, body: { error: 'Ticker tidak valid' } };
+  }
+
+  try {
     const { searchParams } = new URL(request.url);
     const withSeries = searchParams.get('series') === '1';
 
     const view = await getOwnershipFlowView(ticker);
     if (!view) {
-      // Dulu 400 "Ticker tidak valid" - keliru: tickernya SUDAH lolos validasi di atas,
-      // yang tidak ada adalah datanya. 400 menyuruh klien memperbaiki masukan yang
-      // sebenarnya sudah benar; 404 menyampaikan keadaan yang sesungguhnya.
-      throw new NotFoundError('Data ownership flow belum tersedia untuk emiten ini');
+      return { status: 400, body: { error: 'Ticker tidak valid' } };
     }
 
     const source = (view.source ? getSourceById(view.source) : null) ?? getPrimarySource();
@@ -94,9 +90,10 @@ export async function GET(
       inFinalScore: view.inFinalScore,
       ...(series ? { series } : {}),
     } };
+  } catch (error) {
+    // Stack trace TIDAK PERNAH sampai ke klien (§30) - hanya ke log server.
+    logger.error('API ownership-flow gagal', { module: 'ownership-flow', ticker, error });
+    return { status: 500, body: { error: 'Gagal memuat Ownership Flow' } };
   }
-    // catch dihapus: runController mencatat error tak terduga ke shared/logger yang SAMA,
-    // dengan X-Request-Id yang juga diterima klien - dan tetap menjamin stack trace tidak
-    // pernah sampai ke klien (§30), yang sebelumnya dijaga tangan di sini.
-  });
+  }, request);
 }

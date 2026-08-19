@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import useSWR from 'swr';
 import {
   Activity,
   AlertTriangle,
@@ -31,11 +30,16 @@ import type {
   PublicMacroDashboard,
 } from '@/modules/macro/service/public-macro-dashboard.service';
 import { useLanguage } from '@/lib/i18n';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 export default function MacroPage() {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
 
+  const [data, setData] = useState<PublicMacroDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   function formatNumber(value: number, maximumFractionDigits = 2) {
     return new Intl.NumberFormat(isEn ? 'en-US' : 'id-ID', {
@@ -90,26 +94,27 @@ export default function MacroPage() {
     return <Badge variant="neutral">{isEn ? 'TREND N/A' : 'TREN N/A'}</Badge>;
   }
 
-  // SWR menggantikan useEffect + AbortController. Kunci ini SAMA dengan yang dipakai
-  // widget makro di tempat lain, jadi permintaannya dibagi.
-  //
-  // `reloadKey` diganti `mutate`. Dua tombol "Muat ulang"/"Coba lagi" di bawah dulu
-  // menaikkan counter itu hanya untuk memaksa useEffect berjalan lagi - cara tidak
-  // langsung yang juga mengambil ulang saat bahasa berganti (isEn ikut jadi dependency),
-  // padahal data makronya sama saja. mutate() meminta ulang secara langsung, dan berganti
-  // bahasa tidak lagi memicu permintaan.
-  const {
-    data,
-    error: loadError,
-    isLoading: loading,
-    mutate: reloadMacro,
-  } = useSWR<PublicMacroDashboard>('/api/macro');
+  useEffect(() => {
+    const controller = new AbortController();
 
-  // Pesan dari server dipakai kalau ada, sama seperti `payload?.error` sebelumnya.
-  const error = loadError
-    ? (loadError as Error).message ||
-      (isEn ? 'Failed to fetch macro data.' : 'Gagal mengambil data makro.')
-    : null;
+    async function loadMacro() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const payload = await apiRequest<PublicMacroDashboard>('/api/macro', { signal: controller.signal });
+        setData(payload);
+      } catch (caught) {
+        if (controller.signal.aborted) return;
+        setError(isApiClientError(caught) ? caught.message : (isEn ? 'Failed to fetch macro data.' : 'Gagal mengambil data makro.'));
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void loadMacro();
+    return () => controller.abort();
+  }, [reloadKey, isEn]);
 
   return (
     <div className="min-h-screen bg-tv-base text-tv-text">
@@ -143,7 +148,7 @@ export default function MacroPage() {
               size="sm"
               variant="secondary"
               loading={loading}
-              onClick={() => void reloadMacro()}
+              onClick={() => setReloadKey((value) => value + 1)}
             >
               <RefreshCw className="h-4 w-4" />
               {isEn ? 'Refresh' : 'Perbarui'}
@@ -176,7 +181,7 @@ export default function MacroPage() {
                 <p className="mt-1 text-sm text-tv-muted">{error}</p>
               </div>
             </div>
-            <Button type="button" variant="secondary" onClick={() => void reloadMacro()}>
+            <Button type="button" variant="secondary" onClick={() => setReloadKey((value) => value + 1)}>
               <RefreshCw className="h-4 w-4" />
               {isEn ? 'Try again' : 'Coba lagi'}
             </Button>
@@ -255,29 +260,29 @@ export default function MacroPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                  <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                     <span className="text-[11px] text-tv-muted">{t('macroEnhance.realYield')}</span>
                     <div className="text-lg font-bold font-number text-tv-green mt-1">
                       {data.health.realInterestRate != null ? `+${data.health.realInterestRate}%` : 'N/A'}
                     </div>
                     <span className="text-[10px] text-tv-muted/70">{isEn ? 'Attractive foreign carry buffer' : 'Buffer yield riil menarik'}</span>
-                  </div>
+                  </Card>
 
-                  <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                  <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                     <span className="text-[11px] text-tv-muted">{t('macroEnhance.fxReservesCover')}</span>
                     <div className="text-lg font-bold font-number text-tv-blue mt-1">
                       {data.health.fxImportCoverMonths != null ? `${data.health.fxImportCoverMonths} bln` : 'N/A'}
                     </div>
                     <span className="text-[10px] text-tv-muted/70">{isEn ? 'Above IMF 3-mo standard' : 'Di atas standar IMF 3 bln'}</span>
-                  </div>
+                  </Card>
 
-                  <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                  <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                     <span className="text-[11px] text-tv-muted">{t('macroEnhance.yieldSpread')}</span>
                     <div className="text-lg font-bold font-number text-tv-purple mt-1">
                       {data.health.yieldSpread10Y != null ? `+${data.health.yieldSpread10Y}%` : 'N/A'}
                     </div>
                     <span className="text-[10px] text-tv-muted/70">{isEn ? 'ID 10Y over US 10Y' : 'Premi Surat Utang Negara'}</span>
-                  </div>
+                  </Card>
                 </div>
               </Card>
             )}

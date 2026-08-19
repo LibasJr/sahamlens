@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
 
 type Theme = 'light' | 'dark';
 const STORAGE_KEY = 'sahamlens_theme';
@@ -43,7 +44,7 @@ export default function ThemeToggle() {
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
 
   return (
-    <button
+    <PrimitiveButton variant="bare" size="none"
       type="button"
       aria-label={`Gunakan mode ${nextTheme === 'light' ? 'terang' : 'gelap'}`}
       title={`Mode ${nextTheme === 'light' ? 'terang' : 'gelap'}`}
@@ -57,6 +58,6 @@ export default function ThemeToggle() {
       className="lens-theme-toggle inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-tv-border bg-tv-card text-tv-text shadow-2 transition-all hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue focus-visible:ring-offset-2 focus-visible:ring-offset-tv-bg md:h-9 md:w-9"
     >
       {theme === 'dark' ? <Sun className="h-5 w-5" aria-hidden="true" /> : <Moon className="h-5 w-5" aria-hidden="true" />}
-    </button>
+    </PrimitiveButton>
   );
 }

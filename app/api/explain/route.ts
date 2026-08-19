@@ -2,17 +2,6 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { runController } from '@/shared/http/next-response.adapter';
-import { parseOrThrow } from '@/shared/validation/parse-or-throw';
-import { z } from 'zod';
-
-// `data` sengaja z.unknown(): isinya bergantung filter mana yang dijelaskan (EMA/RSI/
-// arus dana), dan setiap cabang di bawah sudah menjaga field yang dibacanya sendiri
-// dengan `?.` + pemeriksaan tipe. Menguncinya jadi satu bentuk kaku di sini berarti
-// menambah sumber kebenaran kedua yang harus diperbarui tiap filter baru muncul.
-const explainBodySchema = z.object({
-  filter: z.string().min(1).max(120).optional(),
-  data: z.unknown().optional(),
-});
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan C-04): endpoint ini sebelumnya mengembalikan
 // statistik backtest yang TIDAK PERNAH dihitung ("3x terjadi di 6 bulan terakhir, 2x
@@ -30,10 +19,8 @@ const explainBodySchema = z.object({
 // pernah dihitung dan TANPA klaim data broker yang tidak ada.
 export async function POST(request: Request) {
   return runController(async () => {
-    const { filter, data } = parseOrThrow(explainBodySchema, await request.json()) as {
-      filter?: string;
-      data?: any;
-    };
+    const body = await request.json();
+    const { filter, data } = body;
 
     const status = data?.status === 'BULLISH' || data?.status === 'BEARISH' ? data.status : null;
 
@@ -81,8 +68,6 @@ export async function POST(request: Request) {
     // per-filter yang menghasilkan statistik semacam itu. Kalau pemanggil butuh
     // performa historis strategi, arahkan ke /api/backtest (data riil, bisa
     // direproduksi), bukan angka tebakan di sini.
-    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
-    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
     return { status: 200, body: { explanation } };
-  });
+  }, request);
 }

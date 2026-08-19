@@ -56,7 +56,8 @@ function installPoolErrorHandler(pool: Pool): void {
 function getPool(): Pool {
   if (!globalForPg.__sahamlensPgPool) {
     // Preserve strict TLS + URL normalization from the latest Round 4 source.
-    const databaseUrl = getNodeEnv().DATABASE_URL.replace(
+    const { DATABASE_URL, DATABASE_POOL_MAX } = getNodeEnv();
+    const databaseUrl = DATABASE_URL.replace(
       /([?&])sslmode=(?:prefer|require|verify-ca)(?=(&|$))/i,
       '$1sslmode=verify-full'
     );
@@ -64,7 +65,9 @@ function getPool(): Pool {
     const pgPool = new Pool({
       connectionString: databaseUrl,
       ssl: { rejectUnauthorized: true },
-      max: 10,
+      // Serverless-safe default is 3; increase only when the upstream URL is a
+      // transaction pooler and the database connection budget is known.
+      max: DATABASE_POOL_MAX,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
       // Rotate long-lived warm-serverless connections after they return idle.

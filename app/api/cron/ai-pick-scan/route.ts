@@ -7,13 +7,14 @@ import { scanAiPickScores } from '@/modules/recommendation/service/ai-pick-scan.
 import { writeAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { archiveLensRadarHistory } from '@/modules/lens-radar/service/history-archive.service';
 import { getAiPickScanWindow } from '@/shared/calendar/idx-trading-calendar';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const maxDuration = 300;
 
 // Menyiapkan skor siap pakai untuk /api/ai-pick. Inilah yang membuat halaman AI Pick
 // berhenti memindai sendiri: pekerjaan yang dulu dilakukan ~22 request per klik di tab
 // Rekomendasi sekarang dikerjakan sekali di sini untuk seluruh universe.
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -68,4 +69,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job ai-pick-scan gagal', { stage, err });
     return NextResponse.json({ error: 'Job gagal', stage }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

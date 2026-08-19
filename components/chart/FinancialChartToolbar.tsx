@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import {
   INDICATOR_LIBRARY,
   defaultIndicator,
@@ -167,7 +168,7 @@ export default function FinancialChartToolbar({
             <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max items-center gap-1 rounded-lg border border-tv-border bg-tv-bg p-1">
                 {timeframeOptions.map((option) => (
-                  <button
+                  <Button variant="bare" size="none"
                     key={option}
                     type="button"
                     onClick={() => onTimeframeChange(option)}
@@ -179,14 +180,14 @@ export default function FinancialChartToolbar({
                     aria-pressed={timeframe === option}
                   >
                     {option === 'ALL' ? 'MAX' : option}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
           )}
 
           <div className="relative shrink-0">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => {
                 setChartTypeOpen((open) => !open);
@@ -204,12 +205,12 @@ export default function FinancialChartToolbar({
               <ChartTypeIcon type={chartType} />
               <span className={variant === 'compact' ? 'hidden md:inline' : 'hidden sm:inline'}>{currentChartType.short}</span>
               <ChevronDown className="h-3.5 w-3.5 text-tv-muted" aria-hidden="true" />
-            </button>
+            </Button>
 
             {chartTypeOpen && (
               <div className="absolute right-0 top-[calc(100%+0.4rem)] z-50 w-48 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-tv-border bg-tv-surface p-1.5 shadow-2xl">
                 {CHART_TYPES.map((item) => (
-                  <button
+                  <Button variant="bare" size="none"
                     key={item.value}
                     type="button"
                     onClick={() => {
@@ -222,13 +223,13 @@ export default function FinancialChartToolbar({
                   >
                     <ChartTypeIcon type={item.value} />
                     <span>{item.label}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
           </div>
 
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={() => setIndicatorOpen(true)}
             className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-tv-border bg-tv-bg px-3 text-sm font-semibold text-tv-text hover:border-tv-borderLight hover:bg-tv-hover sm:min-h-10 sm:px-2.5 sm:text-xs"
@@ -236,19 +237,19 @@ export default function FinancialChartToolbar({
             <SlidersHorizontal className="h-4 w-4" />
             <span className="hidden sm:inline">Indicators</span>
             <span className="sm:hidden">Ind.</span>
-          </button>
+          </Button>
 
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={onToggleFullscreen}
             className="hidden min-h-10 shrink-0 items-center justify-center rounded-lg border border-tv-border bg-tv-bg px-2.5 text-tv-muted hover:border-tv-borderLight hover:bg-tv-hover hover:text-white sm:inline-flex"
             aria-label={isFullscreen ? 'Keluar dari layar penuh' : 'Buka chart layar penuh'}
           >
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </button>
+          </Button>
 
           <div className="relative shrink-0 sm:hidden">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => {
                 setMoreOpen((open) => !open);
@@ -260,32 +261,32 @@ export default function FinancialChartToolbar({
               aria-expanded={moreOpen}
             >
               <MoreHorizontal className="h-4 w-4" />
-            </button>
+            </Button>
             {moreOpen && (
               <div className="absolute right-0 top-[calc(100%+0.4rem)] z-50 w-48 rounded-xl border border-tv-border bg-tv-surface p-1.5 shadow-2xl">
-                <button type="button" onClick={() => { onFitContent(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
+                <Button variant="bare" size="none" type="button" onClick={() => { onFitContent(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
                   <RotateCcw className="h-4 w-4" /> Fit content
-                </button>
-                <button type="button" onClick={() => { onReset(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
+                </Button>
+                <Button variant="bare" size="none" type="button" onClick={() => { onReset(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
                   <Settings2 className="h-4 w-4" /> Reset chart
-                </button>
-                <button type="button" onClick={() => { onToggleFullscreen(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
+                </Button>
+                <Button variant="bare" size="none" type="button" onClick={() => { onToggleFullscreen(); setMoreOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm sm:min-h-10 sm:text-xs text-tv-text hover:bg-tv-hover">
                   {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   {isFullscreen ? 'Keluar fullscreen' : 'Fullscreen'}
-                </button>
+                </Button>
               </div>
             )}
           </div>
 
           <div className="hidden shrink-0 items-center gap-1 lg:flex">
-            <button type="button" onClick={onFitContent} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs text-tv-muted hover:bg-tv-hover hover:text-white" title="Fit content">
+            <Button variant="bare" size="none" type="button" onClick={onFitContent} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs text-tv-muted hover:bg-tv-hover hover:text-white" title="Fit content">
               <RotateCcw className="h-4 w-4" />
               <span className="hidden xl:inline">Fit</span>
-            </button>
-            <button type="button" onClick={onReset} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs text-tv-muted hover:bg-tv-hover hover:text-white" title="Reset chart">
+            </Button>
+            <Button variant="bare" size="none" type="button" onClick={onReset} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs text-tv-muted hover:bg-tv-hover hover:text-white" title="Reset chart">
               <Settings2 className="h-4 w-4" />
               <span className="hidden xl:inline">Reset</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -294,7 +295,7 @@ export default function FinancialChartToolbar({
             <div className="flex w-max items-center gap-1.5 pr-2">
               {activeIndicators.map((indicator) => (
                 <div key={indicator.id} className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-tv-border bg-tv-bg text-[12px] font-semibold text-tv-muted sm:text-[10px]">
-                  <button
+                  <Button variant="bare" size="none"
                     type="button"
                     className="inline-flex min-h-8 items-center gap-1 px-2 hover:text-white"
                     onClick={() => indicator.kind !== 'VOLUME' && setDraftIndicator({ ...indicator })}
@@ -302,15 +303,15 @@ export default function FinancialChartToolbar({
                   >
                     {indicatorLabel(indicator)}
                     {indicator.kind !== 'VOLUME' && <Settings2 className="h-3 w-3" />}
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="bare" size="none"
                     type="button"
                     onClick={() => removeIndicator(indicator.id)}
                     className="inline-flex min-h-8 min-w-8 items-center justify-center border-l border-tv-border text-tv-muted hover:bg-tv-red/10 hover:text-tv-red"
                     aria-label={`Hapus ${indicatorLabel(indicator)}`}
                   >
                     <X className="h-3 w-3" />
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -326,9 +327,9 @@ export default function FinancialChartToolbar({
                 <div className="text-sm font-bold text-white">Indicators</div>
                 <div className="text-sm text-tv-muted sm:text-[11px]">Visualisasi chart saja — tidak mengubah LensScore atau sinyal production.</div>
               </div>
-              <button type="button" onClick={() => setIndicatorOpen(false)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-white" aria-label="Tutup daftar indikator">
+              <Button variant="bare" size="none" type="button" onClick={() => setIndicatorOpen(false)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-white" aria-label="Tutup daftar indikator">
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-3">
@@ -357,7 +358,7 @@ export default function FinancialChartToolbar({
                         const atLimit = item.pane === 'overlay' ? metaCount >= 5 : metaCount >= 4;
                         const singleExisting = item.kind !== 'SMA' && item.kind !== 'EMA' && indicators.some((indicator) => indicator.kind === item.kind);
                         return (
-                          <button
+                          <Button variant="bare" size="none"
                             key={item.kind}
                             type="button"
                             onClick={() => addIndicator(item.kind)}
@@ -374,7 +375,7 @@ export default function FinancialChartToolbar({
                             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-tv-muted">
                               {singleExisting ? <Settings2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                             </span>
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -400,9 +401,9 @@ export default function FinancialChartToolbar({
                 <div className="text-sm font-bold text-white">{indicatorLabel(draftIndicator)}</div>
                 <div className="text-sm text-tv-muted sm:text-[11px]">Pengaturan visual chart, bukan parameter model SahamLens.</div>
               </div>
-              <button type="button" onClick={() => setDraftIndicator(null)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-white" aria-label="Tutup pengaturan indikator">
+              <Button variant="bare" size="none" type="button" onClick={() => setDraftIndicator(null)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-tv-muted hover:bg-tv-hover hover:text-white" aria-label="Tutup pengaturan indikator">
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -430,8 +431,8 @@ export default function FinancialChartToolbar({
             </div>
 
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setDraftIndicator(null)} className="min-h-11 flex-1 rounded-xl border border-tv-border px-4 text-sm font-semibold text-tv-muted hover:bg-tv-hover">Batal</button>
-              <button type="button" onClick={applyIndicatorSettings} className="min-h-11 flex-1 rounded-xl bg-tv-blue px-4 text-sm font-bold text-white hover:bg-tv-blueHover">Terapkan</button>
+              <Button variant="bare" size="none" type="button" onClick={() => setDraftIndicator(null)} className="min-h-11 flex-1 rounded-xl border border-tv-border px-4 text-sm font-semibold text-tv-muted hover:bg-tv-hover">Batal</Button>
+              <Button variant="bare" size="none" type="button" onClick={applyIndicatorSettings} className="min-h-11 flex-1 rounded-xl bg-tv-blue px-4 text-sm font-bold text-white hover:bg-tv-blueHover">Terapkan</Button>
             </div>
           </div>
         </div>

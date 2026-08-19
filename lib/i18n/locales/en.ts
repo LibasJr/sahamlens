@@ -36,8 +36,7 @@ export const en: TranslationDictionary = {
   },
   nav: {
     groupMain: 'Overview',
-    groupTrading: 'Trading',
-    groupInvesting: 'Investing',
+    groupAnalysis: 'Analysis',
     groupRiskPortfolio: 'Portfolio & Risk',
     groupResearch: 'Research & More',
     groupAdmin: 'Admin',

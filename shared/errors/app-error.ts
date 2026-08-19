@@ -7,17 +7,8 @@
 // Katalog kode error machine-readable (API Guideline poin 5) - string SNAKE_CASE
 // konstan, dipakai klien untuk switch(error.code) alih-alih menebak dari
 // error.message yang bisa berubah kapan saja tanpa breaking change yang disengaja.
-export type ErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'EMAIL_NOT_VERIFIED'
-  | 'FORBIDDEN'
-  | 'SUBSCRIPTION_REQUIRED'
-  | 'VALIDATION_ERROR'
-  | 'NOT_FOUND'
-  | 'CONFLICT'
-  | 'RATE_LIMITED'
-  | 'SERVICE_UNAVAILABLE'
-  | 'INTERNAL_ERROR';
+import type { ErrorCode } from './error-codes';
+export type { ErrorCode } from './error-codes';
 
 export class AppError extends Error {
   readonly status: number;
@@ -42,6 +33,12 @@ export class UnauthorizedError extends AppError {
 export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden') {
     super(message, 403, 'FORBIDDEN');
+  }
+}
+
+export class AdminRequiredError extends AppError {
+  constructor(message = 'Admin access required') {
+    super(message, 403, 'ADMIN_REQUIRED');
   }
 }
 
@@ -79,34 +76,29 @@ export class ConflictError extends AppError {
 // Class ini disiapkan untuk rate-limit PER-USER di level controller (bukan
 // per-IP di Edge) begitu kebutuhan itu muncul - lihat Cache Layer Strategy
 // bagian rate-limit per-user untuk endpoint mahal (council, stock/[ticker]).
+export class DataUnavailableError extends AppError {
+  constructor(message = 'Data belum tersedia') {
+    super(message, 503, 'DATA_UNAVAILABLE');
+  }
+}
+
+export class ProviderUnavailableError extends AppError {
+  constructor(message = 'Provider data sedang tidak tersedia') {
+    super(message, 503, 'PROVIDER_UNAVAILABLE');
+  }
+}
+
+export class UpstreamError extends AppError {
+  constructor(message = 'Layanan upstream gagal') {
+    super(message, 502, 'UPSTREAM_ERROR');
+  }
+}
+
 export class RateLimitedError extends AppError {
   readonly retryAfterSec?: number;
   constructor(message = 'Terlalu banyak permintaan', retryAfterSec?: number) {
     super(message, 429, 'RATE_LIMITED');
     this.retryAfterSec = retryAfterSec;
-  }
-}
-
-/**
- * Sumber data eksternal (Yahoo Finance, feed RSS, rilis makro) sedang tidak dapat
- * dijangkau. BEDA dari INTERNAL_ERROR secara bermakna bagi klien: yang ini fana dan
- * layak dicoba lagi, jadi UI boleh menawarkan "muat ulang" alih-alih menyerah.
- *
- * Sebelum ada kelas ini, route yang ingin mengatakan hal itu terpaksa keluar dari
- * runController dan menulis NextResponse.json 503-nya sendiri - dan begitu keluar, ia
- * kehilangan X-Request-Id sekaligus penyamaran error. Kelas ini menutup satu-satunya
- * alasan sah yang tersisa untuk melakukan itu.
- */
-export class ServiceUnavailableError extends AppError {
-  /**
-   * `cause` WAJIB diteruskan saat error ini dilempar dari dalam catch. Tanpa itu error
-   * asli dari penyedia data hilang sepenuhnya, dan log server cuma memuat kalimat ramah
-   * yang kita tulis sendiri - lebih buruk daripada console.error yang digantikannya.
-   * Target ES2022 (lihat tsconfig), jadi Error.cause tersedia asli.
-   */
-  constructor(message = 'Layanan data sedang tidak tersedia', options?: { cause?: unknown }) {
-    super(message, 503, 'SERVICE_UNAVAILABLE');
-    if (options?.cause !== undefined) this.cause = options.cause;
   }
 }
 

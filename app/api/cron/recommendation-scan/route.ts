@@ -6,6 +6,7 @@ import { logger } from '@/shared/logger/logger';
 import { analyzeStock } from '@/modules/recommendation';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 // BUILD 006 (Scheduler) - "Recommendation AI Scan" dari roadmap. Memakai daftar
 // simbol yang SAMA dengan modules/recommendation/service/breakout.service.ts
@@ -30,7 +31,7 @@ function cacheKeyFor(symbol: string): string {
 // menit". Sekarang RECOMMENDATION_CRON (shared/cache/ttl-policy.ts, 18 menit) - pola
 // sama dengan MARKET_PULSE_CRON/MARKET_SUMMARY_CRON.
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -62,4 +63,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job recommendation-scan gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

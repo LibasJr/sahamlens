@@ -4,7 +4,7 @@
  * terlihat seperti path relatif. Backslash dan slash yang di-encode ikut ditolak
  * karena browser dapat menormalkannya menjadi protocol-relative URL (`//host`).
  */
-export function safeInternalPath(value: string | string[] | null | undefined, fallback = '/home'): string {
+export function safeInternalPath(value: string | string[] | null | undefined, fallback = '/'): string {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (!candidate || !candidate.startsWith('/')) return fallback;
 

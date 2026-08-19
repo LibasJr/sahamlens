@@ -7,6 +7,7 @@ import { recordDataSourceHealth } from '@/modules/observability/service/data-sou
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 900;
@@ -79,7 +80,7 @@ async function isAuthorized(req: NextRequest): Promise<boolean> {
   );
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!(await isAuthorized(req))) {
     logger.warn('Menolak GET /api/cron/ownership-flow-ksei-sync - CRON_SECRET tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -122,4 +123,8 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

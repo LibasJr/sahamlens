@@ -1,6 +1,33 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 const checks = [];
+
+function resolveProjectImport(fromFile, specifier) {
+  if (!(specifier.startsWith('@/') || specifier.startsWith('.'))) return null;
+  const base = specifier.startsWith('@/')
+    ? path.resolve(specifier.slice(2))
+    : path.resolve(path.dirname(fromFile), specifier);
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx')]) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return path.relative(process.cwd(), candidate);
+  }
+  return null;
+}
+
+// Setelah route handler ditipiskan, guard bisa hidup di application controller. Audit
+// mengikuti dependency project secara bounded (maks 4 hop), bukan memaksa security policy
+// kembali ditulis di adapter Next.js. Hanya import lokal/@ yang ditelusuri; package luar
+// tidak dapat membuat sebuah route lolos audit secara kebetulan.
+function dependencyContains(entryFile, needle, depth = 4, seen = new Set()) {
+  if (depth < 0 || seen.has(entryFile) || !fs.existsSync(entryFile)) return false;
+  seen.add(entryFile);
+  const source = file(entryFile);
+  if (source.includes(needle)) return true;
+  const imports = [...source.matchAll(/(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g)]
+    .map((match) => resolveProjectImport(entryFile, match[1]))
+    .filter(Boolean);
+  return imports.some((dep) => dependencyContains(dep, needle, depth - 1, seen));
+}
 function file(path) { return fs.readFileSync(path, 'utf8'); }
 function requireCheck(id, ok, detail) { checks.push({ id, ok, detail }); }
 
@@ -30,12 +57,12 @@ for (const [id, matcher, route] of expensiveRoutes) {
     PROXY_EXEMPT_PREFIXES.some((p) => sample.startsWith(p)) || PROXY_EXEMPT_EXACT.includes(sample);
   requireCheck(
     id,
-    matcherCoversAllApi && !exempted && file(route).includes('checkPublicComputeBudget'),
+    matcherCoversAllApi && !exempted && dependencyContains(route, 'checkPublicComputeBudget'),
     `tercakup matcher, tidak dibebaskan, + route limiter`,
   );
 }
 for (const route of ['app/api/ai-briefing/route.ts','app/api/intrinsic-explain/route.ts']) {
-  requireCheck('S-2 '+route, file(route).includes('checkAiAccountBudget'), 'AI account limiter');
+  requireCheck('S-2 '+route, dependencyContains(route, 'checkAiAccountBudget'), 'AI account limiter');
 }
 const health = file('app/api/health/route.ts');
 requireCheck('D-2', health.includes('listDataSourceHealth') && health.includes('sources:'), 'provider health exposed separately');

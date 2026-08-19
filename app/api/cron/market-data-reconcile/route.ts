@@ -3,6 +3,7 @@ import { runDailyCloseReconciliation } from '@/modules/market-data-integrity/ser
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 900;
@@ -12,7 +13,7 @@ async function authorized(req: NextRequest): Promise<boolean> {
   return Boolean(secret) && timingSafeStringEqual(req.headers.get('authorization') ?? '', `Bearer ${secret}`);
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!(await authorized(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const result = await withJobRunLog('market-data-reconcile', async () => {
@@ -23,4 +24,8 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: 'Market data reconciliation gagal', detail: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

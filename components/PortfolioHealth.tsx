@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React from 'react';
 import { AlertTriangle, ShieldCheck, Activity, PieChart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -143,14 +144,14 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
             </div>
           </div>
 
-          <button
+          <Button variant="bare" size="none"
             onClick={() => router.push('/breakout-radar')}
             className={`mt-4 text-xs font-bold font-sans px-4 py-2 rounded self-start transition-colors ${
               isHighRisk ? 'bg-tv-red hover:bg-tv-redHover text-white' : 'bg-tv-blue hover:bg-tv-blueHover text-white'
             }`}
           >
             Buka Breakout Radar &rarr;
-          </button>
+          </Button>
         </div>
       </div>
     </Card>

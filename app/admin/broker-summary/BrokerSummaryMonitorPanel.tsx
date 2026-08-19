@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -97,7 +99,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
   const netValue = monitor ? monitor.coverage.totalBuyValue - monitor.coverage.totalSellValue : 0;
 
   return (
-    <section className='mb-8 rounded-xl border border-tv-border bg-tv-card p-5 sm:p-6'>
+    <Card as="section" className='mb-8 rounded-xl border border-tv-border bg-tv-card p-5 sm:p-6' padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
       <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
         <div>
           <div className='flex items-center gap-2'>
@@ -226,9 +228,8 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                       className='block w-full rounded-md border border-tv-border bg-tv-card px-3 py-2 text-sm text-white uppercase outline-none focus:border-tv-blue'
                     />
                     {tickerQuery && (
-                      <button
+                      <Button variant="bare" size="none"
                         type="button"
-                        aria-label='Bersihkan pencarian kode saham'
                         onClick={() => {
                           setTickerQuery('');
                           setShowSuggestions(false);
@@ -236,7 +237,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-tv-muted hover:text-white"
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     )}
                   </div>
 
@@ -244,7 +245,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                   {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-tv-border bg-tv-card p-1 shadow-2xl backdrop-blur-xl">
                       {suggestions.map((item, idx) => (
-                        <button
+                        <Button variant="bare" size="none"
                           key={item.symbol}
                           type="button"
                           onClick={() => handleSelectTicker(item.symbol)}
@@ -261,19 +262,19 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                             </span>
                           </div>
                           <span className="text-[10px] text-tv-muted uppercase font-mono">Pilih</span>
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <button
+                <Button variant="bare" size="none"
                   type='submit'
                   className='inline-flex items-center justify-center gap-2 rounded-md bg-tv-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-tv-blue/90'
                 >
                   <Search className='h-4 w-4' />
                   Terapkan
-                </button>
+                </Button>
 
                 {monitor.selectedTicker ? (
                   <Link
@@ -304,7 +305,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                       <p className='py-6 text-center text-xs text-tv-muted'>Tidak ada data net buyer.</p>
                     ) : (
                       buyers.map((row) => (
-                        <div key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs'>
+                        <Card as="div" key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs' padding="none" radius="lg" surface="60" elevation="none" overflow="visible" highlight={false}>
                           <div>
                             <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
                             <p className='mt-0.5 text-[11px] text-tv-muted'>
@@ -317,7 +318,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                               <p className='mt-0.5 text-[11px] text-tv-muted'>~{compactIdr(row.avgBuyValuePerTrade)}/trade</p>
                             ) : null}
                           </div>
-                        </div>
+                        </Card>
                       ))
                     )}
                   </div>
@@ -335,7 +336,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                       <p className='py-6 text-center text-xs text-tv-muted'>Tidak ada data net seller.</p>
                     ) : (
                       sellers.map((row) => (
-                        <div key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs'>
+                        <Card as="div" key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs' padding="none" radius="lg" surface="60" elevation="none" overflow="visible" highlight={false}>
                           <div>
                             <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
                             <p className='mt-0.5 text-[11px] text-tv-muted'>
@@ -348,7 +349,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                               <p className='mt-0.5 text-[11px] text-tv-muted'>~{compactIdr(row.avgSellValuePerTrade)}/trade</p>
                             ) : null}
                           </div>
-                        </div>
+                        </Card>
                       ))
                     )}
                   </div>
@@ -403,6 +404,6 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
           ) : null}
         </>
       ) : null}
-    </section>
+    </Card>
   );
 }

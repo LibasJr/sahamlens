@@ -5,6 +5,7 @@ import type {
   MarketRegimeIndicator,
   QuantitativeMarketRegime,
 } from '@/modules/market/service/market-regime.service';
+import { Card } from '@/components/ui/Card';
 
 // Token, bukan hex mati. Hex-nya dulu nilai tema GELAP yang ikut terpakai di tema
 // terang: terukur di atas kartu putih, #eab308 = 1,92:1 dan #22c55e = 2,28:1 - di bawah
@@ -84,7 +85,7 @@ function IndicatorCard({ indicator }: { indicator: MarketRegimeIndicator }) {
         />
       </div>
       <p className="mt-2 min-h-8 text-[10px] leading-relaxed text-tv-text/80">{rawSummary(indicator)}</p>
-      <div className="mt-2 flex items-center justify-between border-t border-tv-border pt-2 text-[9px] text-tv-muted/70">
+      <div className="mt-2 flex items-center justify-between border-t border-tv-border pt-2 lens-meta text-tv-muted/70">
         <span>Kontribusi {score == null ? '0' : indicator.contribution.toFixed(1)} poin</span>
         <span>Kualitas data {indicator.confidence}%</span>
       </div>
@@ -110,7 +111,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
   const contributionTotal = scoreTerms.reduce((sum, indicator) => sum + indicator.contribution, 0);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-tv-border bg-tv-card shadow-1">
+    <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} className="overflow-hidden border-tv-border shadow-1">
       <div className="border-b border-tv-border bg-gradient-to-r from-tv-blue/[0.09] via-transparent to-tv-green/[0.06] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -119,7 +120,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
             <div className="flex flex-wrap items-center gap-2">
               <Gauge className="h-5 w-5 text-tv-blue" />
               <h3 className="font-heading text-base font-bold text-tv-text">Market Regime / Fear-Greed Quant</h3>
-              <span className="rounded-full border border-tv-blue/25 bg-tv-blue/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-tv-blue">
+              <span className="rounded-full border border-tv-blue/25 bg-tv-blue/10 px-2 py-0.5 lens-meta font-bold uppercase tracking-wide text-tv-blue">
                 v1 auditable
               </span>
             </div>
@@ -143,7 +144,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
               <div className="grid h-[112px] w-[112px] place-items-center rounded-full border border-tv-border bg-tv-card text-center">
                 <div>
                   <p className="font-number text-4xl font-black text-tv-text">{score ?? 'N/A'}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-tv-muted">dari 100</p>
+                  <p className="lens-meta font-bold uppercase tracking-[0.12em] text-tv-muted">dari 100</p>
                 </div>
               </div>
             </div>
@@ -169,19 +170,19 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
-                <p className="text-[9px] uppercase tracking-wide text-tv-muted">Kualitas data</p>
+                <p className="lens-meta uppercase tracking-wide text-tv-muted">Kualitas data</p>
                 <p className="mt-1 font-number text-lg font-bold text-tv-text">{data.confidence}%</p>
               </div>
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
-                <p className="text-[9px] uppercase tracking-wide text-tv-muted">Weight coverage</p>
+                <p className="lens-meta uppercase tracking-wide text-tv-muted">Weight coverage</p>
                 <p className="mt-1 font-number text-lg font-bold text-tv-text">{data.coverage}%</p>
               </div>
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
-                <p className="text-[9px] uppercase tracking-wide text-tv-muted">History</p>
+                <p className="lens-meta uppercase tracking-wide text-tv-muted">History</p>
                 <p className="mt-1 font-number text-lg font-bold text-tv-text">{data.dataQuality.historyDays}D</p>
               </div>
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
-                <p className="text-[9px] uppercase tracking-wide text-tv-muted">Breadth sample</p>
+                <p className="lens-meta uppercase tracking-wide text-tv-muted">Breadth sample</p>
                 <p className="mt-1 font-number text-lg font-bold text-tv-text">
                   {data.dataQuality.breadthObserved}/{data.dataQuality.breadthExpected}
                 </p>
@@ -222,7 +223,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
             )}
           </div>
         </div>
-        <div className="mt-1 flex justify-between text-[9px] font-medium text-tv-muted">
+        <div className="mt-1 flex justify-between lens-meta font-medium text-tv-muted">
           <span>Extreme Fear</span>
           <span>Neutral</span>
           <span>Extreme Greed</span>
@@ -241,7 +242,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
                 </p>
               ))}
             </div>
-            <div className="rounded-md border border-tv-border bg-tv-card p-3">
+            <Card padding="none" radius="md" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
               <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-tv-muted">
                 <ShieldCheck className="h-3.5 w-3.5 text-tv-green" />
                 Guardrails
@@ -254,10 +255,10 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           </div>
         </details>
       </div>
-    </section>
+    </Card>
   );
 }

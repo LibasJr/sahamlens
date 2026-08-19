@@ -110,7 +110,7 @@ export function MetricCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           {icon && <span className="shrink-0 text-tv-muted">{icon}</span>}
-          <span className="truncate text-[12px] font-bold uppercase tracking-[0.1em] text-tv-muted sm:text-[10px] sm:tracking-[0.12em]">{label}</span>
+          <span className="lens-eyebrow truncate">{label}</span>
         </div>
         {hasValue && sparkline && sparkline.length >= 2 && <Sparkline points={sparkline} stroke={strokeColor} />}
       </div>
@@ -127,7 +127,7 @@ export function MetricCard({
           </div>
 
           {deltaPct !== null && deltaPct !== undefined && Number.isFinite(deltaPct) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm sm:text-[11px]">
+            <div className="lens-body-sm mt-1.5 flex flex-wrap items-center gap-1.5">
               <span
                 className={cn(
                   'font-number font-semibold tabular-nums',
@@ -145,7 +145,7 @@ export function MetricCard({
         <p className="mt-2 text-sm text-tv-muted leading-snug">{emptyHint}</p>
       )}
 
-      {hint && <p className="mt-2 text-sm leading-relaxed text-tv-muted/80 sm:text-[11px]">{hint}</p>}
+      {hint && <p className="lens-body-sm mt-2 text-tv-muted/80">{hint}</p>}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { cn } from '../../lib/utils/cn';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'bare';
+type ButtonSize = 'none' | 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -16,12 +16,17 @@ const VARIANTS: Record<ButtonVariant, string> = {
   ghost: 'border border-transparent bg-transparent text-tv-muted hover:bg-white/[0.05] hover:text-tv-text',
   danger: 'border border-tv-red/70 bg-tv-red text-white hover:bg-tv-redHover',
   success: 'border border-tv-green/70 bg-tv-green text-[#06130E] hover:bg-tv-greenHover',
+  // Escape hatch for bespoke controls (chart toolbars, tabs, chips). It keeps button
+  // semantics/loading/disabled behavior centralized while allowing the caller to own
+  // the visual treatment during the design-system migration.
+  bare: '',
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'min-h-11 rounded-lg px-3.5 text-sm sm:min-h-8 sm:px-3 sm:text-[11px]',
-  md: 'min-h-11 rounded-xl px-4 text-sm sm:min-h-10 sm:text-xs',
-  lg: 'min-h-12 rounded-xl px-5 text-base sm:min-h-11 sm:text-sm',
+  none: '',
+  sm: 'min-h-11 rounded-lg px-3.5 lens-label',
+  md: 'min-h-11 rounded-xl px-4 lens-body-sm',
+  lg: 'min-h-12 rounded-xl px-5 lens-body',
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -30,8 +35,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 ease-snap active:scale-[0.985]',
-        'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45',
+        variant === 'bare'
+          ? 'transition-colors duration-150 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45'
+          : 'inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 ease-snap active:scale-[0.985] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45',
         VARIANTS[variant],
         SIZES[size],
         className,

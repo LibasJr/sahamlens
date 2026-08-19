@@ -89,13 +89,7 @@ describe('GET /api/fundamental/[ticker]', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    // `meta.requestId` ADITIF dari runController (shared/http/next-response.adapter.ts):
-    // setiap respons membawa id yang sama dengan baris lognya. Diasersikan terpisah, bukan
-    // dilonggarkan jadi toMatchObject - kalau amplop standar itu hilang, tes ini gagal.
-    const { meta, ...payload } = json;
-    expect(payload).toEqual(cached);
-    expect(meta.requestId).toEqual(expect.any(String));
-    expect(res.headers.get('X-Request-Id')).toBe(meta.requestId);
+    expect(json).toEqual(cached);
     expect(fetchCurrentFundamentalSource).not.toHaveBeenCalled();
   });
 

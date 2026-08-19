@@ -3,7 +3,6 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { runController } from '@/shared/http/next-response.adapter';
-import { UnauthorizedError, RateLimitedError } from '@/shared/errors/app-error';
 import { checkAndTriggerAlerts } from '@/modules/notification';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
@@ -36,20 +35,26 @@ function getClientIp(req: Request): string {
 
 export async function GET(req: Request) {
   return runController(async () => {
-    if (!(await getSession())) throw new UnauthorizedError();
+    try {
+    if (!(await getSession())) {
+      return { status: 401, body: { error: 'Belum login' } };
+    }
 
     const ip = getClientIp(req);
     const rate = await checkRateLimitShared(ip, Date.now(), RATE_LIMIT_CONFIG);
     if (!rate.allowed) {
-      // RateLimitedError meneruskan Retry-After lewat toErrorResponse (lihat
-      // shared/errors/app-error.ts), jadi header yang dulu disusun tangan di sini tetap
-      // terkirim - sekarang plus `code: 'RATE_LIMITED'` yang sebelumnya tidak ada.
-      throw new RateLimitedError('Terlalu banyak request. Coba lagi nanti.', rate.retryAfterSec);
+      return {
+        status: 429,
+        body: { error: 'Terlalu banyak request. Coba lagi nanti.' },
+        headers: rate.retryAfterSec ? { 'Retry-After': String(rate.retryAfterSec) } : undefined,
+      };
     }
 
     const result = await checkAndTriggerAlerts(getTrustedAppOrigin());
-    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
-    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
     return { status: 200, body: result };
-  });
+  } catch (err) {
+    console.error('Error checking alerts:', err);
+    return { status: 500, body: { error: 'Internal Server Error' } };
+    }
+  }, req);
 }

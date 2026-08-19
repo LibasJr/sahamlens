@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import useSWR from 'swr';
-import { ApiError } from '@/lib/api/fetcher';
+import React, { useState, useEffect } from 'react';
 import { Coins, ShieldCheck, Repeat } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
-import { Input } from '@/components/ui';
+import { Card, Input } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { useLanguage } from '@/lib/i18n';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 export default function DividendPage() {
   const { t, language } = useLanguage();
@@ -16,6 +16,9 @@ export default function DividendPage() {
   const [capital, setCapital] = useState(200_000_000);
   const [targetMonthly, setTargetMonthly] = useState(10_000_000);
   const [ticker, setTicker] = useState('BBCA');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
 
   // Catatan: kalkulator ini menghitung statistik dari universe saham dividen yang berhasil dibaca provider
@@ -23,57 +26,31 @@ export default function DividendPage() {
   // BUKAN dividend yield khusus `ticker` yang dipilih di header - input ticker di sini
   // sengaja tetap ada untuk konsistensi shell (TickerAnalysisShellProps mewajibkannya),
   // tapi tidak memengaruhi hasil simulasi di bawah.
-  // Debounce 500 ms DIPERTAHANKAN, tapi lewat state kunci alih-alih setTimeout yang
-  // memanggil fetch. Bedanya penting: cara lama menembak satu request per "berhenti
-  // mengetik", dan dua nilai modal yang sama menghasilkan dua request yang sama pula -
-  // sekarang keduanya kunci SWR yang identik, jadi yang kedua dijawab dari cache.
-  const [debounced, setDebounced] = useState<{ capital: number; targetMonthly: number } | null>(
-    null,
-  );
+  const fetchDividendPlan = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const json = await apiRequest<any>(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
+      setData(json);
+    } catch (e) {
+      console.error(e);
+      setError('Gagal memuat simulasi dividen');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Ketikan angka tidak perlu mengirim satu request untuk setiap digit. Nilai nol
     // sementara saat field dikosongkan juga bukan simulasi yang bermakna.
-    if (capital <= 0 || targetMonthly < 0) {
-      setDebounced(null);
-      return;
-    }
-    const timeout = window.setTimeout(() => setDebounced({ capital, targetMonthly }), 500);
+    if (capital <= 0 || targetMonthly < 0) return;
+    const timeout = window.setTimeout(fetchDividendPlan, 500);
     return () => window.clearTimeout(timeout);
   }, [capital, targetMonthly]);
 
-  const {
-    data,
-    error: planError,
-    isLoading: loading,
-  } = useSWR<any>(
-    debounced
-      ? `/api/dividend-plan?capital=${debounced.capital}&targetMonthly=${debounced.targetMonthly}`
-      : null,
-  );
-
-  // 402 = butuh Pro. Tampilkan modal upgrade (jalan keluar yang bisa ditindaklanjuti),
-  // bukan teks error merah yang jadi jalan buntu seperti kegagalan teknis.
-  const needsPro =
-    planError instanceof ApiError &&
-    (planError.status === 402 || planError.code === 'SUBSCRIPTION_REQUIRED');
-
-  useEffect(() => {
-    if (needsPro) setShowPaywall(true);
-  }, [needsPro]);
-
-  const error =
-    planError && !needsPro
-      ? (planError as Error).message || 'Gagal memuat simulasi dividen'
-      : null;
-
-
-  // useMemo pada ketiganya: `|| {}` dan `|| []` menghasilkan identitas baru setiap render,
-  // dan filteredStocks di bawah bergantung pada `stocks` - tanpa ini ia dihitung ulang
-  // terus walau datanya tidak berubah. Ditangkap react-hooks/exhaustive-deps.
-  const quant = useMemo(() => data?.quant ?? {}, [data]);
-  const stocks = useMemo(() => quant?.div_stocks ?? [], [quant]);
-  const schedule = useMemo(() => quant?.compounding_schedule ?? [], [quant]);
+  const quant = data?.quant || {};
+  const stocks = quant?.div_stocks || [];
+  const schedule = quant?.compounding_schedule || [];
   const [aristocratFilter, setAristocratFilter] = useState<'all' | 'aristocrats'>('all');
 
   const filteredStocks = React.useMemo(() => {
@@ -115,9 +92,9 @@ export default function DividendPage() {
       }
     >
       {error && (
-        <div className="bg-tv-card border border-tv-red/30 rounded-lg p-4 text-sm text-tv-red">
+        <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-red/30 p-4 text-sm text-tv-red">
           {error}
-        </div>
+        </Card>
       )}
       {loading && !data && (
         <div className="text-sm text-tv-muted">Menghitung simulasi dari data dividen real...</div>
@@ -126,37 +103,37 @@ export default function DividendPage() {
       {/* Metric Cards */}
       {data && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
+          <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
             <div className="text-[11px] text-tv-muted uppercase font-semibold">Rata-rata Yield Universe</div>
             <div className="text-2xl font-bold text-tv-yellow font-number mt-1">
               {quant.average_portfolio_yield}%
             </div>
             <div className="text-[11px] text-tv-muted mt-0.5">Equal-weight snapshot universe · {stocks.length} saham tampil</div>
-          </div>
+          </Card>
 
-          <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
+          <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
             <div className="text-[11px] text-tv-muted uppercase font-semibold">Skenario Income / Bulan</div>
             <div className="text-2xl font-bold text-tv-green font-number mt-1">
               Rp {quant.est_monthly_income_now?.toLocaleString('id-ID')}
             </div>
             <div className="text-[11px] text-tv-muted mt-0.5">Modal Rp {capital.toLocaleString('id-ID')}</div>
-          </div>
+          </Card>
 
-          <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
+          <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
             <div className="text-[11px] text-tv-muted uppercase font-semibold">Skenario Income / Tahun</div>
             <div className="text-2xl font-bold text-tv-blue font-number mt-1">
               Rp {quant.est_annual_income_now?.toLocaleString('id-ID')}
             </div>
             <div className="text-[11px] text-tv-muted mt-0.5">Yield snapshot diasumsikan konstan</div>
-          </div>
+          </Card>
 
-          <div className="bg-tv-card border border-tv-border rounded-lg p-4 shadow-1">
+          <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
             <div className="text-[11px] text-tv-muted uppercase font-semibold">Modal Teoretis Untuk Target</div>
             <div className="text-2xl font-bold text-tv-text font-number mt-1">
               Rp {quant.required_capital_for_target?.toLocaleString('id-ID')}
             </div>
             <div className="text-[11px] text-tv-muted mt-0.5">Untuk Rp {targetMonthly.toLocaleString('id-ID')}/bln</div>
-          </div>
+          </Card>
         </div>
       )}
 
@@ -169,7 +146,7 @@ export default function DividendPage() {
 
       {/* Dividend Stocks Table & Compounding Schedule */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+        <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-tv-border pb-3">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-tv-green" />
@@ -178,7 +155,7 @@ export default function DividendPage() {
 
             {/* Filter Toggle */}
             <div className="flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.06] text-[11px]">
-              <button
+              <PrimitiveButton variant="bare" size="none"
                 type="button"
                 onClick={() => setAristocratFilter('all')}
                 className={`px-2.5 py-1 rounded-md font-bold transition-all ${
@@ -188,8 +165,8 @@ export default function DividendPage() {
                 }`}
               >
                 Semua ({stocks.length})
-              </button>
-              <button
+              </PrimitiveButton>
+              <PrimitiveButton variant="bare" size="none"
                 type="button"
                 onClick={() => setAristocratFilter('aristocrats')}
                 className={`px-2.5 py-1 rounded-md font-bold transition-all flex items-center gap-1 ${
@@ -199,7 +176,7 @@ export default function DividendPage() {
                 }`}
               >
                 <span>✓</span> Konsisten 5Y+ ({stocks.filter((s: any) => s.is_aristocrat).length})
-              </button>
+              </PrimitiveButton>
             </div>
           </div>
 
@@ -223,7 +200,7 @@ export default function DividendPage() {
                           {s.ticker}
                         </span>
                         {s.is_aristocrat && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-300">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full lens-meta font-extrabold bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-300">
                             ✓ Konsisten 5Y+
                           </span>
                         )}
@@ -238,9 +215,9 @@ export default function DividendPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+        <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <Repeat className="w-5 h-5 text-tv-blue" />
             Skenario Compounding 10-Tahun (DRIP, yield konstan)
@@ -270,7 +247,7 @@ export default function DividendPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       </div>
       <PaywallModal
         open={showPaywall}

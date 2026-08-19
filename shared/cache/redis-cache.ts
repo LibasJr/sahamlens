@@ -7,7 +7,20 @@ import { Redis } from './redis-local';
 // semua fungsi di bawah degrade dengan aman (cache miss / no-op), TIDAK PERNAH
 // melempar error yang menggagalkan request pengguna.
 
-const g = globalThis as unknown as { __sahamlensRedis?: Redis };
+const g = globalThis as unknown as {
+  __sahamlensRedis?: Redis;
+  __sahamlensCacheInflight?: Map<string, Promise<unknown>>;
+};
+
+const LOCAL_INFLIGHT = g.__sahamlensCacheInflight ??= new Map<string, Promise<unknown>>();
+const LOCK_TTL_SEC = 60;
+const LOCK_WAIT_MAX_MS = 15_000;
+const LOCK_POLL_MIN_MS = 150;
+const LOCK_POLL_JITTER_MS = 200;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function getClient(): Redis | null {
   const url = process.env.REDIS_URL;
@@ -151,41 +164,90 @@ export async function cacheMGet<T>(keys: string[]): Promise<(T | null)[]> {
 }
 
 /**
- * Single-flight getOrCompute (Cache Layer Strategy poin 4 - proteksi stampede):
- * kalau banyak request bersamaan cache-miss di key yang sama, cuma SATU yang
- * benar-benar menjalankan `compute()`; yang lain menunggu sebentar lalu ikut
- * membaca hasilnya dari cache, alih-alih semuanya memanggil provider eksternal
- * (Yahoo/Gemini) bersamaan.
+ * Single-flight getOrCompute (Cache Layer Strategy poin 4 - proteksi stampede).
+ *
+ * Dua lapis dedupe:
+ * 1. Map Promise per proses mencegah request paralel di server instance yang sama.
+ * 2. Redis lock bertoken mencegah provider dipanggil bersamaan lintas instance.
+ *
+ * Waiter melakukan polling bounded hingga 15 detik. Kalau compute yang memegang lock
+ * memang lebih lama dari itu, request tetap fail-open dan menghitung sendiri daripada
+ * menggantung sampai timeout platform. Lock 60 detik menutup mayoritas provider call
+ * mahal dan dilepas dengan compare-and-delete atomik agar lock baru tidak ikut terhapus.
  */
+async function computeWithDistributedLock<T>(key: string, ttlSec: number, compute: () => Promise<T>): Promise<T> {
+  const client = getClient();
+  if (!client) {
+    const value = await compute();
+    await cacheSet(key, value, ttlSec);
+    return value;
+  }
+
+  const lockKey = `sahamlens:cache:lock:${key}`;
+  const lockToken = crypto.randomUUID();
+  const deadline = Date.now() + LOCK_WAIT_MAX_MS;
+
+  while (Date.now() < deadline) {
+    let gotLock = false;
+    try {
+      gotLock = (await client.set(lockKey, lockToken, { nx: true, ex: LOCK_TTL_SEC })) === 'OK';
+    } catch {
+      // Redis degraded: fail-open ke compute, tapi tetap coba cacheSet agar recovery
+      // Redis di tengah request dapat menyimpan hasilnya.
+      const value = await compute();
+      await cacheSet(key, value, ttlSec);
+      return value;
+    }
+
+    if (gotLock) {
+      try {
+        // Cache bisa terisi di sela initial miss dan lock acquisition. Re-check agar
+        // request ini tidak menghitung ulang hasil yang baru saja ditulis request lain.
+        const raced = await cacheGet<T>(key);
+        if (raced !== null && raced !== undefined) return raced;
+
+        const value = await compute();
+        await cacheSet(key, value, ttlSec);
+        return value;
+      } finally {
+        try {
+          await client.compareAndDelete(lockKey, lockToken);
+        } catch {
+          // Lock punya TTL, jadi kegagalan unlock tidak boleh menggagalkan response.
+        }
+      }
+    }
+
+    const cached = await cacheGet<T>(key);
+    if (cached !== null && cached !== undefined) return cached;
+
+    const jitter = Math.floor(Math.random() * LOCK_POLL_JITTER_MS);
+    await sleep(LOCK_POLL_MIN_MS + jitter);
+  }
+
+  // Bounded fail-open untuk provider yang benar-benar lambat. Re-check terakhir
+  // menghindari duplicate compute bila pemegang lock selesai persis di deadline.
+  const lastChance = await cacheGet<T>(key);
+  if (lastChance !== null && lastChance !== undefined) return lastChance;
+
+  const value = await compute();
+  await cacheSet(key, value, ttlSec);
+  return value;
+}
+
 export async function getOrCompute<T>(key: string, ttlSec: number, compute: () => Promise<T>): Promise<T> {
   const cached = await cacheGet<T>(key);
   if (cached !== null && cached !== undefined) return cached;
 
-  const client = getClient();
-  if (!client) return compute();
+  const existing = LOCAL_INFLIGHT.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
 
-  const lockKey = `sahamlens:cache:lock:${key}`;
-  let gotLock = false;
+  const pending = computeWithDistributedLock(key, ttlSec, compute);
+  LOCAL_INFLIGHT.set(key, pending as Promise<unknown>);
+
   try {
-    gotLock = (await client.set(lockKey, '1', { nx: true, ex: 10 })) === 'OK';
-  } catch {
-    gotLock = false;
+    return await pending;
+  } finally {
+    if (LOCAL_INFLIGHT.get(key) === pending) LOCAL_INFLIGHT.delete(key);
   }
-
-  if (gotLock) {
-    try {
-      const value = await compute();
-      await cacheSet(key, value, ttlSec);
-      return value;
-    } finally {
-      await cacheDel(lockKey);
-    }
-  }
-
-  // Lock dipegang request lain - tunggu sebentar, coba baca ulang, fallback ke
-  // compute() sendiri kalau masih miss (lebih baik dobel hitung daripada gagal).
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  const retried = await cacheGet<T>(key);
-  if (retried !== null && retried !== undefined) return retried;
-  return compute();
 }

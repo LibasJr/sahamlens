@@ -38,7 +38,29 @@ const tsxFiles = [
   ...walk(path.join(ROOT, 'app'), (n) => n.endsWith('.tsx')),
   ...walk(path.join(ROOT, 'components'), (n) => n.endsWith('.tsx')),
 ];
+
+// Implementation primitives and fixed-size export canvases are not adoption debt:
+// the primitive must contain the native element it abstracts, while export cards are
+// deliberately isolated rendering surfaces rather than interactive product UI.
+const buttonAdoptionFiles = tsxFiles.filter(
+  (file) => file !== path.join(ROOT, 'components', 'ui', 'Button.tsx'),
+);
+const cardAdoptionFiles = tsxFiles.filter(
+  (file) =>
+    !file.includes(`${path.sep}components${path.sep}export${path.sep}`) &&
+    file !== path.join(ROOT, 'components', 'ui', 'Table.tsx'),
+);
+
+const RAW_API_FETCH_ALLOWLIST = new Map([
+  [path.join(ROOT, 'components', 'AIChat.tsx'), 1], // NDJSON stream: apiRequest intentionally buffers JSON.
+]);
 const routeFiles = walk(path.join(ROOT, 'app', 'api'), (n) => n === 'route.ts');
+const clientSourceFiles = [
+  ...walk(path.join(ROOT, 'app'), (n) => n.endsWith('.ts') || n.endsWith('.tsx')),
+  ...walk(path.join(ROOT, 'components'), (n) => n.endsWith('.ts') || n.endsWith('.tsx')),
+  ...walk(path.join(ROOT, 'lib'), (n) => n.endsWith('.ts') || n.endsWith('.tsx')),
+  ...walk(path.join(ROOT, 'shared'), (n) => n.endsWith('.ts') || n.endsWith('.tsx')),
+].filter((file) => !file.includes(`${path.sep}app${path.sep}api${path.sep}`) && !file.includes(`${path.sep}__tests__${path.sep}`));
 
 /**
  * Kartu yang dirakit tangan: satu atribut className yang sekaligus menyebut permukaan
@@ -48,73 +70,49 @@ const routeFiles = walk(path.join(ROOT, 'app', 'api'), (n) => n === 'route.ts');
  */
 function countRawCards(text) {
   let n = 0;
-  for (const m of text.matchAll(/className="([^"]*)"/g)) {
+  // Only card-like semantic containers count. Inputs, pills, labels and toolbar buttons
+  // may legitimately share the same surface/border/radius tokens without being Cards.
+  for (const m of text.matchAll(/<(?:div|section|article|form|aside)\b[^>]*className="([^"]*)"[^>]*>/gs)) {
     const cls = m[1];
-    if (cls.includes('bg-tv-card') && /\bborder\b/.test(cls) && /\brounded-/.test(cls)) n++;
+    if (
+      cls.includes('bg-tv-card') &&
+      /\bborder\b/.test(cls) &&
+      /\brounded-/.test(cls) &&
+      !/\brounded-full\b/.test(cls) &&
+      !/\babsolute\b/.test(cls) &&
+      !(/\btext-\[(?:9|10|11)px\]/.test(cls) && /\bpy-(?:0\.5|1)\b/.test(cls))
+    ) n++;
   }
   return n;
-}
-
-/**
- * Route yang SENGAJA tidak lewat runController, masing-masing dengan alasan struktural -
- * bukan sekadar belum dikerjakan. Dikecualikan dari metrik supaya angkanya bisa mencapai
- * nol dan benar-benar berarti "selesai", bukan mengambang di angka yang tak pernah turun.
- *
- *   app/api/cron/**            Dipanggil penjadwal, bukan manusia. Dua manfaat adapter -
- *                              bentuk error seragam untuk frontend dan X-Request-Id untuk
- *                              menelusuri laporan bug pengguna - tidak berlaku sama sekali.
- *                              Tiap job memverifikasi tanda tangan QStash/CRON_SECRET-nya
- *                              sendiri dari RAW BODY; membungkusnya justru menambah risiko
- *                              pada jalur yang tidak mendapat apa pun.
- *
- *   chat/route.ts              Punya jalur streaming yang mengembalikan ReadableStream.
- *                              runController hanya bisa NextResponse.json, jadi
- *                              memaksakannya akan mematikan streaming LensAI.
- *
- *   company-logo/route.ts      Mengembalikan byte gambar, bukan JSON.
- *
- *   analytics/funnel/route.ts  Mengembalikan 204 No Content. NextResponse.json selalu
- *                              menulis body, dan body pada 204 itu tidak sah.
- *
- *   payment/notify/route.ts    Webhook penyedia pembayaran; keasliannya diverifikasi dari
- *                              raw body sebelum apa pun boleh mem-parse-nya.
- *
- *   v1/**                      Alias kompatibilitas yang me-RE-EXPORT handler kanonik.
- *                              Handler aslinya sudah memakai runController; berkas alias
- *                              tidak memuat stringnya, dan itu benar - menambahkannya
- *                              berarti menduplikasi implementasi yang sengaja tidak
- *                              diduplikasi.
- */
-const RUN_CONTROLLER_EXEMPT = [
-  (rel) => rel.startsWith('app/api/cron/'),
-  (rel) => rel.startsWith('app/api/v1/'),
-  (rel) => rel === 'app/api/chat/route.ts',
-  (rel) => rel === 'app/api/company-logo/route.ts',
-  (rel) => rel === 'app/api/analytics/funnel/route.ts',
-  (rel) => rel === 'app/api/payment/notify/route.ts',
-];
-
-function isUnmigratedClientRoute(file) {
-  const rel = path.relative(ROOT, file).split(path.sep).join('/');
-  if (RUN_CONTROLLER_EXEMPT.some((match) => match(rel))) return false;
-  return !fs.readFileSync(file, 'utf8').includes('runController');
 }
 
 const metrics = {
   rawCardClassNames: {
     label: 'className kartu mentah (pakai <Card>)',
-    value: tsxFiles.reduce((sum, f) => sum + countRawCards(fs.readFileSync(f, 'utf8')), 0),
+    value: cardAdoptionFiles.reduce((sum, f) => sum + countRawCards(fs.readFileSync(f, 'utf8')), 0),
   },
   rawButtonElements: {
     label: '<button> mentah (pakai <Button>)',
-    value: tsxFiles.reduce(
+    value: buttonAdoptionFiles.reduce(
       (sum, f) => sum + (fs.readFileSync(f, 'utf8').match(/<button[\s>]/g) || []).length,
       0,
     ),
   },
   routesWithoutRunController: {
-    label: 'route API klien tanpa runController',
-    value: routeFiles.filter(isUnmigratedClientRoute).length,
+    label: 'route API tanpa response adapter',
+    value: routeFiles.filter((f) => {
+      const text = fs.readFileSync(f, 'utf8');
+      return !text.includes('runController') && !text.includes('runCronRoute');
+    }).length,
+  },
+  rawClientApiFetchCalls: {
+    label: "fetch('/api/...') mentah di client (pakai apiRequest bila JSON)",
+    value: clientSourceFiles.reduce((sum, file) => {
+      const text = fs.readFileSync(file, 'utf8');
+      const raw = (text.match(/fetch\(\s*['"]\/api\//g) || []).length;
+      const intentional = Math.min(raw, RAW_API_FETCH_ALLOWLIST.get(file) ?? 0);
+      return sum + raw - intentional;
+    }, 0),
   },
 };
 

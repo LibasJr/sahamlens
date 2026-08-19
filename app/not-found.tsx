@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Card } from '@/components/ui/Card';
 
 // Bukan <main>: AppShell sudah menyediakannya (lihat catatan di app/loading.tsx).
 //
@@ -9,7 +10,7 @@ import Link from 'next/link';
 export default function NotFound() {
   return (
     <div className="flex min-h-[60dvh] items-center justify-center p-6">
-      <div className="w-full max-w-lg rounded-2xl border border-tv-border bg-tv-card p-6 text-center">
+      <Card padding="none" radius="2xl" elevation="none" highlight={false} overflow="visible" className="w-full max-w-lg border-tv-border p-6 text-center">
         <div className="text-sm font-semibold uppercase tracking-wider text-tv-muted">404</div>
         <h1 className="mt-2 text-2xl font-bold text-tv-text">Halaman tidak ditemukan</h1>
         <p className="mt-2 text-sm text-tv-muted">Periksa alamat atau kembali ke SahamLens.</p>
@@ -19,7 +20,7 @@ export default function NotFound() {
         >
           Kembali ke beranda
         </Link>
-      </div>
+      </Card>
     </div>
   );
 }

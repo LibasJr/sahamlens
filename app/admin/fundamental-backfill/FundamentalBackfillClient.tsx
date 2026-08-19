@@ -1,9 +1,12 @@
 ﻿'use client';
 
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AlertTriangle, CheckCircle2, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 // Server menolak di atas 1 MB (MAX_CSV_BYTES di fundamental-backfill-import.service.ts).
 // Diperiksa juga di sisi klien supaya file besar ditolak seketika, bukan setelah
@@ -97,19 +100,11 @@ export default function FundamentalBackfillClient() {
     // untuk masukan yang baru.
     const submittedFingerprint = inputFingerprint;
     try {
-      const res = await fetch('/api/admin/fundamental-backfill', {
+      const data = await apiRequest<any>('/api/admin/fundamental-backfill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          csvText,
-          mode,
-          skipEmptyRows,
-          percentInput,
-          source,
-        }),
+        body: JSON.stringify({ csvText, mode, skipEmptyRows, percentInput, source }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Import gagal');
       setResult(data);
       setVerifiedInput(mode === 'dry-run' ? submittedFingerprint : null);
     } catch (err) {
@@ -132,7 +127,7 @@ export default function FundamentalBackfillClient() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-tv-border bg-tv-card p-5 shadow-1">
+      <Card as="div" className="border-tv-border p-5 shadow-1" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <div className="mb-4 flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-tv-accent" />
           <h2 className="font-heading text-lg font-bold text-tv-text">Upload / Paste CSV</h2>
@@ -197,7 +192,7 @@ export default function FundamentalBackfillClient() {
               <span>Lewati baris placeholder kosong</span>
             </label>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               disabled={!csvText.trim() || loadingMode !== null}
               onClick={() => submit('dry-run')}
@@ -205,9 +200,9 @@ export default function FundamentalBackfillClient() {
             >
               {loadingMode === 'dry-run' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Dry Run
-            </button>
+            </Button>
 
-            <button
+            <Button variant="bare" size="none"
               type="button"
               disabled={!csvText.trim() || loadingMode !== null || !dryRunValid}
               title={!dryRunValid ? 'Jalankan Dry Run atas masukan ini dulu' : undefined}
@@ -216,7 +211,7 @@ export default function FundamentalBackfillClient() {
             >
               {loadingMode === 'insert' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
               Insert ke DB
-            </button>
+            </Button>
 
             {/* Tombol nonaktif tanpa keterangan hanya terbaca sebagai rusak. */}
             {!dryRunValid && csvText.trim() && loadingMode === null && (
@@ -228,11 +223,11 @@ export default function FundamentalBackfillClient() {
             )}
           </div>
         </div>
-      </div>
+      </Card>
 
       {confirmInsertOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-backfill-title">
-          <div ref={confirmRef} className="w-full max-w-md rounded-2xl border border-tv-border bg-tv-card p-5 shadow-2xl">
+          <Card as="div" ref={confirmRef} className="w-full max-w-md border-tv-border p-5 shadow-2xl" padding="none" radius="2xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
             <div className="flex items-start gap-3">
               <div className="rounded-full bg-tv-yellow/10 p-2 text-tv-yellow"><AlertTriangle className="h-5 w-5" /></div>
               <div>
@@ -244,27 +239,27 @@ export default function FundamentalBackfillClient() {
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirmInsertOpen(false)} className="rounded-lg border border-tv-border px-4 py-2 text-sm font-semibold text-tv-muted hover:text-tv-text">Batal</button>
-              <button
+              <Button variant="bare" size="none" type="button" onClick={() => setConfirmInsertOpen(false)} className="rounded-lg border border-tv-border px-4 py-2 text-sm font-semibold text-tv-muted hover:text-tv-text">Batal</Button>
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={() => { setConfirmInsertOpen(false); submit('insert'); }}
                 className="rounded-lg bg-tv-blue px-4 py-2 text-sm font-bold text-white hover:bg-tv-blueHover"
               >
                 Ya, insert ke DB
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-tv-red/30 bg-tv-card">
+        <Card as="div" className="border-tv-red/30" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <EmptyState
             illustration="empty"
             title="Import ditolak"
             description={`${error} Tidak ada baris yang tertulis - validasi berjalan sebelum penulisan, jadi penolakan berarti basis data tidak tersentuh sama sekali.`}
           />
-        </div>
+        </Card>
       )}
 
       {result && (() => {

@@ -1,43 +1,38 @@
-import { runController } from '@/shared/http/next-response.adapter';
-import { ServiceUnavailableError } from '@/shared/errors/app-error';
-import { parseOrThrow } from '@/shared/validation/parse-or-throw';
-import { checkPublicComputeBudget, rateLimitExceeded } from '@/shared/security/api-rate-limit';
+import { checkPublicComputeBudget } from '@/shared/security/api-rate-limit';
 import { fetchPublicEarningsData } from '@/modules/fundamental/service/public-earnings-data.service';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
-import { idxTickerParamSchema } from '@/shared/market/ticker-schema';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { runController } from '@/shared/http/next-response.adapter';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ ticker: string }> },
 ) {
-  // Gerbang biaya tetap DI LUAR runController: rateLimitExceeded() sudah mengembalikan
-  // NextResponse 429 lengkap dengan Retry-After, dan membungkusnya berarti menerjemahkan
-  // bentuk yang sudah benar bolak-balik tanpa memperbaiki apa pun.
-  const budget = await checkPublicComputeBudget(_request.headers, 'earnings');
-  if (!budget.allowed) return rateLimitExceeded(budget);
-
   return runController(async () => {
-    const { ticker: rawTicker } = await params;
-    const ticker = parseOrThrow(idxTickerParamSchema, rawTicker);
+    const budget = await checkPublicComputeBudget(request.headers, 'earnings');
+    if (!budget.allowed) {
+      return {
+        status: 429,
+        body: { error: 'Terlalu banyak permintaan. Coba lagi nanti.' },
+        headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined,
+      };
+    }
 
-    // 503 dipertahankan sebagai ServiceUnavailableError berikut penyebab aslinya:
-    // Yahoo Finance yang sedang tidak menjawab itu kondisi fana, dan klien perlu bisa
-    // membedakannya dari kerusakan aplikasi. Dulu console.error tanpa X-Request-Id.
-    let data;
     try {
-      data = await getOrCompute(
-        'sahamlens:cache:computed:earnings:' + ticker,
+      const { ticker: rawTicker } = await params;
+      const ticker = normalizeIdxTickerParam(rawTicker);
+      if (!ticker) return { status: 400, body: { error: 'Ticker tidak valid' } };
+
+      const data = await getOrCompute(
+        `sahamlens:cache:computed:earnings:${ticker}`,
         CACHE_TTL_SEC.EARNINGS,
         () => fetchPublicEarningsData(ticker),
       );
+      return { status: 200, body: data };
     } catch (error) {
-      throw new ServiceUnavailableError(
-        'Data earnings publik belum tersedia untuk emiten ini',
-        { cause: error },
-      );
+      console.error('Public earnings API error:', error);
+      return { status: 503, body: { error: 'Data earnings publik belum tersedia untuk emiten ini' } };
     }
-
-    return { status: 200, body: data };
-  });
+  }, request);
 }

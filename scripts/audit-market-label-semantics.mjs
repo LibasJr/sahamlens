@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 const cap = fs.readFileSync('lib/utils/cap-tier.ts', 'utf8');
-const dashboard = fs.readFileSync('app/dashboard/page.tsx', 'utf8');
+const dashboard = [
+  fs.readFileSync('app/dashboard/page.tsx', 'utf8'),
+  fs.readFileSync('components/dashboard/DashboardStockOverview.tsx', 'utf8'),
+].join('\n');
 const forbiddenIdentity = [/['\"]BLUE_CHIP['\"]/, /['\"]SMALL_CAP['\"]/, />\s*Blue-chip\s*</i, />\s*Small-cap\s*</i];
 let fail = 0;
 for (const pattern of forbiddenIdentity) {

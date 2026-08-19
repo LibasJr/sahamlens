@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import useSWR from 'swr';
-import { ApiError } from '@/lib/api/fetcher';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock, Gauge, ArrowUpRight } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import { useLanguage } from '@/lib/i18n';
+import { Card } from '@/components/ui/Card';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 // BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
 // 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
@@ -21,6 +21,9 @@ function DcfContent() {
   const isEn = language === 'en';
   const searchParams = useSearchParams();
   const [ticker, setTickerState] = useState('TLKM');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -46,30 +49,23 @@ function DcfContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // SWR menggantikan fetchDcf + useEffect. Yang hilang bersamanya bukan cuma kode:
-  //
-  //   - Versi lama TIDAK punya penjaga urutan (tanpa AbortController maupun flag
-  //     `cancelled`), jadi mengganti emiten lebih cepat dari respons membuat hasil
-  //     emiten LAMA mendarat sebagai milik yang BARU. Di halaman valuasi itu berarti
-  //     harga wajar emiten lain ditampilkan di bawah nama emiten yang sedang dilihat.
-  //     SWR mengunci hasil ke kuncinya, jadi salah-pasang itu tidak bisa terjadi.
-  //   - Dua cabang error digabung jadi satu: ApiError membawa pesan dari server kalau
-  //     ada (`json?.error` dulu), dan `code: 'NETWORK_ERROR'` kalau servernya tidak
-  //     terjangkau sama sekali - perbedaan yang dulu ditulis tangan di catch.
-  //   - `keepPreviousData` TIDAK dinyalakan di sini, sengaja: menahan angka valuasi
-  //     emiten sebelumnya selama emiten baru dimuat adalah persis salah-pasang yang
-  //     baru saja diperbaiki.
-  const {
-    data,
-    error,
-    isLoading: loading,
-  } = useSWR<any>(ticker ? `/api/dcf/${ticker}` : null);
+  const fetchDcf = async (symbol: string) => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setData(await apiRequest<any>('/api/dcf/' + symbol));
+    } catch (e) {
+      console.error(e);
+      setData(null);
+      setLoadError(isApiClientError(e) ? e.message : 'Tidak dapat menghubungi layanan DCF. Coba lagi beberapa saat lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const loadError = error
-    ? error instanceof ApiError && error.code === 'NETWORK_ERROR'
-      ? 'Tidak dapat menghubungi layanan DCF. Coba lagi beberapa saat lagi.'
-      : (error as Error).message || 'Data DCF sementara tidak dapat dimuat.'
-    : null;
+  useEffect(() => {
+    fetchDcf(ticker);
+  }, [ticker]);
 
   const quant = data?.quant || {};
   const stock = data?.stock || {};
@@ -133,19 +129,19 @@ function DcfContent() {
       )}
       {/* DCF tidak berlaku (bank / data FCF tidak tersedia) */}
       {quant.not_applicable && (
-        <div className="bg-tv-card border border-tv-yellow/40 rounded-lg p-6 flex items-start gap-4">
+        <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-yellow/40 p-6 flex items-start gap-4">
           <AlertTriangle className="w-6 h-6 text-tv-yellow shrink-0 mt-0.5" />
           <div>
             <h3 className="font-heading text-tv-text font-bold mb-1">Model DCF Tidak Berlaku untuk {stock.symbol || ticker}.JK</h3>
             <p className="text-sm text-tv-muted leading-relaxed">{ai.executive_summary}</p>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* 5-Year FCF Projections Table */}
       {!quant.not_applicable && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+        <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <TrendingUp className="w-5 h-5 text-tv-blue" />
             Proyeksi Cash Flow 5-Tahun (Free Cash Flow Per Share)
@@ -210,10 +206,10 @@ function DcfContent() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* WACC vs Terminal Growth Sensitivity Matrix */}
-        <div className="bg-tv-card border border-tv-border rounded-lg p-5 shadow-1 space-y-4">
+        <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <TableIcon className="w-5 h-5 text-tv-yellow" />
             Tabel Sensitivitas Valuasi Discount Rate vs Terminal Growth
@@ -268,7 +264,7 @@ function DcfContent() {
               {ai.executive_summary || (loading ? (isEn ? 'Calculating DCF model...' : 'Menghitung model DCF...') : (isEn ? 'FCF data unavailable for this symbol.' : 'Data FCF tidak tersedia untuk simbol ini (mis. sektor bank tidak memakai model DCF FCF-based).'))}
             </p>
           </div>
-        </div>
+        </Card>
 
         {/* Temuan M-01 (audit 2026-08-19): saat harga pasar berada di luar rentang yang
             bisa dijelaskan model, bisection lama mengembalikan batas kurungnya sendiri

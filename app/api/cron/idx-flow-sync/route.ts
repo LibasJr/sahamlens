@@ -6,6 +6,7 @@ import { logger } from '@/shared/logger/logger';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 // Sinkronisasi harian data resmi BEI - menggantikan langkah manual:
 //   1. scripts/sync-idx-foreign-flow.py    -> data/foreign-flow/{TICKER}.json
@@ -128,7 +129,7 @@ async function runSync(): Promise<SyncResult> {
   };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const result = await withJobRunLog('idx-flow-sync', async () => {
@@ -143,4 +144,8 @@ export async function GET(req: NextRequest) {
     logger.error('idx-flow-sync gagal', { error });
     return NextResponse.json({ error: 'Sinkronisasi IDX gagal', detail: message }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

@@ -19,6 +19,7 @@ import {
   type ChartType,
   type IndicatorConfig,
 } from '@/lib/chart-indicators';
+import { Card } from '@/components/ui/Card';
 
 interface CandleData extends ChartCandle {}
 
@@ -639,7 +640,7 @@ export default function TradingViewChart({
         <div ref={chartHostRef} className="min-w-0 w-full" />
 
         {hoverOhlc && (
-          <div className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)] overflow-hidden rounded-lg border border-tv-border/70 bg-tv-card/90 px-2.5 py-2 shadow-lg backdrop-blur-sm sm:left-3 sm:top-3">
+          <Card padding="none" radius="lg" elevation="none" highlight={false} surface="90" className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)] overflow-hidden border-tv-border/70 px-2.5 py-2 shadow-lg backdrop-blur-sm sm:left-3 sm:top-3">
             <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-mono sm:text-[10px]">
               <span className="text-tv-muted">{hoverTime ? hoverTime.replace('T', ' ').replace('.000Z', ' UTC') : ''}</span>
               <span className={change >= 0 ? 'text-tv-green' : 'text-tv-red'}>{change >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
@@ -653,7 +654,7 @@ export default function TradingViewChart({
                 <span key={`${item.label}-${item.value}`} className="text-tv-muted">{item.label} <strong className="text-tv-text">{item.value}</strong></span>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {paneLabels.map((pane) => (

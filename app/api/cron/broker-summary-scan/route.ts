@@ -9,6 +9,7 @@ import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { logger } from '@/shared/logger/logger';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const maxDuration = 300;
 
@@ -42,7 +43,7 @@ async function execute() {
   return NextResponse.json({ success: true, skipped: false, result: guarded.value });
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
   if (!(await verifyQStashSignature(signature, rawBody))) {
@@ -67,4 +68,12 @@ export async function POST(req: NextRequest) {
     logger.error('Job broker-summary-scan gagal', { error });
     return NextResponse.json({ error: 'Job broker summary gagal' }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

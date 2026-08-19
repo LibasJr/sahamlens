@@ -4,8 +4,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { PageContainer, EmptyState, AnimatedNumber } from '@/components/ui';
+import { Button, PageContainer, EmptyState, AnimatedNumber } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
+import { Card } from '@/components/ui/Card';
+import { apiRequest } from '@/shared/http/api-client';
 
 // Risk Calculator - murni kalkulator matematika dari input pengguna (position sizing +
 // risk/reward), TIDAK ada angka yang dikarang/ditebak. Satu-satunya panggilan API adalah
@@ -58,13 +60,12 @@ function RiskCalculatorContent() {
     setPriceError(null);
     try {
       const code = symbol.replace('.JK', '');
-      const res = await fetch(`/api/live/${code}`);
-      const json = await res.json();
+      const json = await apiRequest<any>(`/api/live/${code}`);
       // BUG FIX (2026-08-06): kegagalan di sini sebelumnya hanya masuk console.
       // Pengguna menekan "Ambil Harga Live", tidak ada yang terjadi di layar, dan
       // tidak ada cara mengetahui apakah tombolnya rusak, simbolnya salah, atau
       // harganya memang tidak tersedia.
-      if (!res.ok || typeof json?.price !== 'number' || !Number.isFinite(json.price)) {
+      if (typeof json?.price !== 'number' || !Number.isFinite(json.price)) {
         setPriceError(`Harga live ${code} tidak tersedia. Isi Harga Entry secara manual.`);
         return;
       }
@@ -134,7 +135,7 @@ function RiskCalculatorContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Input Form */}
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
+          <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
             <h3 className="font-heading text-sm font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
               <Calculator className="w-4 h-4 text-tv-blue" />
               Parameter Trade
@@ -150,14 +151,14 @@ function RiskCalculatorContent() {
                   placeholder="Simbol (contoh: BBCA)"
                   className="w-full bg-tv-bg border border-tv-border text-white rounded-lg px-3 py-2 text-sm font-number focus:outline-none focus:border-tv-blue"
                 />
-                <button
+                <Button variant="bare" size="none"
                   onClick={fetchLivePrice}
                   disabled={loadingPrice}
                   className="shrink-0 px-3 py-2 rounded-lg bg-tv-hover border border-tv-border text-tv-text text-xs font-bold flex items-center gap-1.5 hover:bg-tv-border transition-colors disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingPrice ? 'animate-spin' : ''}`} />
                   Ambil Harga Live
-                </button>
+                </Button>
               </div>
               {priceError && (
                 <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-tv-yellow">
@@ -188,7 +189,7 @@ function RiskCalculatorContent() {
                     onChange={(e) => setRiskPct(e.target.value)}
                     className="w-full bg-tv-bg border border-tv-border text-white rounded-lg px-3 py-2 text-sm font-number focus:outline-none focus:border-tv-blue"
                   />
-                  <button
+                  <Button variant="bare" size="none"
                     type="button"
                     onClick={() => setRiskPct('1')}
                     className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
@@ -196,8 +197,8 @@ function RiskCalculatorContent() {
                     }`}
                   >
                     1%
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="bare" size="none"
                     type="button"
                     onClick={() => setRiskPct('2')}
                     className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
@@ -205,7 +206,7 @@ function RiskCalculatorContent() {
                     }`}
                   >
                     2%
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -252,10 +253,10 @@ function RiskCalculatorContent() {
                 <span>Harga Stop Loss harus lebih rendah dari Harga Entry, dan Modal/Entry harus diisi.</span>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Result */}
-          <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1 space-y-4">
+          <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
             <h3 className="font-heading text-sm font-bold text-white flex items-center gap-2 border-b border-tv-border pb-3">
               <ShieldAlert className="w-4 h-4 text-tv-red" />
               Hasil Perhitungan
@@ -365,7 +366,7 @@ function RiskCalculatorContent() {
                 )}
               </div>
             )}
-          </div>
+          </Card>
         </div>
       </PageContainer>
     </div>

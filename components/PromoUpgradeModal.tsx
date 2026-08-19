@@ -5,6 +5,7 @@ import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Check, Crown } from 'lucide-react';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
 
 interface PromoUpgradeModalProps {
   open: boolean;
@@ -59,13 +60,13 @@ export default function PromoUpgradeModal({
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
+            <PrimitiveButton variant="bare" size="none"
               onClick={onClose}
               className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
               aria-label="Tutup"
             >
               <X className="w-5 h-5" />
-            </button>
+            </PrimitiveButton>
 
             <h3 className="font-heading text-xl font-bold text-tv-text mb-1">{title}</h3>
             <p className="text-sm text-tv-muted mb-5">{subtitle}</p>
@@ -84,12 +85,12 @@ export default function PromoUpgradeModal({
                     </li>
                   ))}
                 </ul>
-                <button
+                <PrimitiveButton variant="bare" size="none"
                   onClick={onClose}
                   className="w-full border border-tv-border text-tv-text font-bold py-2.5 rounded-md text-sm hover:bg-tv-hover transition-colors"
                 >
                   Mulai Gratis
-                </button>
+                </PrimitiveButton>
               </div>
 
               {PRICING_PLANS.map((plan) => (
@@ -116,12 +117,12 @@ export default function PromoUpgradeModal({
                       </li>
                     ))}
                   </ul>
-                  <button
+                  <PrimitiveButton variant="bare" size="none"
                     onClick={() => onSelectPlan(plan.id)}
                     className="w-full flex items-center justify-center gap-2 bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-2.5 rounded-md text-sm transition-colors"
                   >
                     <Crown className="w-4 h-4" /> Upgrade
-                  </button>
+                  </PrimitiveButton>
                 </div>
               ))}
             </div>

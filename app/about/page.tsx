@@ -30,7 +30,7 @@ export default function AboutPage() {
   return (
     <PageContainer className="p-4 md:p-6 max-w-3xl">
       <Link
-        href="/home"
+        href="/"
         className="mb-6 inline-flex min-h-6 items-center gap-1.5 text-sm text-tv-muted transition-colors hover:text-tv-text"
       >
         <ArrowLeft className="w-4 h-4" />

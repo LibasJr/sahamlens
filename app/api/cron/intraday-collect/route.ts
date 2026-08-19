@@ -5,6 +5,7 @@ import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
 import { runIntradayCollection } from '@/modules/intraday';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const maxDuration = 300;
 
@@ -18,7 +19,7 @@ async function isAuthorizedCron(req: NextRequest): Promise<boolean> {
   return timingSafeStringEqual(req.headers.get('authorization') ?? '', `Bearer ${cronSecret}`);
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!(await isAuthorizedCron(req))) {
     logger.warn('Menolak GET /api/cron/intraday-collect - CRON_SECRET tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   return jalankan();
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
   if (!(await verifyQStashSignature(signature, rawBody))) {
@@ -59,4 +60,12 @@ async function jalankan() {
     logger.error('Job intraday-collect gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

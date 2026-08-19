@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
-import { ApiError } from '@/lib/api/fetcher';
-import type { PresenceEntry } from '@/shared/auth/presence';
+import { Button } from '@/components/ui/Button';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, User, ShieldCheck, Users, Loader2, Crown } from 'lucide-react';
 import PaywallModal from './PaywallModal';
 import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
+import { Card } from '@/components/ui/Card';
+import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 interface ProfileData {
   email: string;
@@ -44,6 +44,9 @@ function timeAgo(iso: string): string {
 // untuk tutup) - kontennya beda (info profil, bukan ajakan upgrade/daftar) jadi
 // komponen terpisah, bukan reuse PaywallModal yang props-nya spesifik untuk paywall.
 export default function UserProfileModal({ open, onClose }: UserProfileModalProps) {
+  const [data, setData] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -53,72 +56,37 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
     setShowPaywall(true);
   };
 
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
   const handleDeleteAccount = async () => {
     if (!data || data.role === 'admin') return;
     const confirmation = window.prompt('Penghapusan akun bersifat permanen. Ketik HAPUS AKUN untuk melanjutkan.');
     if (confirmation !== 'HAPUS AKUN') return;
     setDeletingAccount(true);
-    setDeleteError(null);
+    setError(null);
     try {
-      const res = await fetch('/api/user/delete-account', {
+      await apiRequest('/api/user/delete-account', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirmation }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || 'Gagal menghapus akun');
       window.location.href = '/';
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : 'Gagal menghapus akun');
+      setError(apiErrorMessage(e, 'Gagal menghapus akun', true));
       setDeletingAccount(false);
     }
   };
 
-  // Kunci null selama modal tertutup - profil tidak diambil sampai benar-benar dibuka,
-  // sama seperti `if (!open) return;` sebelumnya. Saat dibuka, kuncinya SAMA dengan yang
-  // dipakai app/home/page.tsx, jadi membuka modal dari Beranda tidak mengambil ulang.
-  // Tipe eksplisit, bukan `any`. Sebelum migrasi ini `data` juga longgar, tapi sekarang
-  // ia melewati satu tempat saja - jadi menuliskannya sekali di sini memberi seluruh
-  // pemakaian di bawah pengecekan yang nyata.
-  // Bentuknya diambil dari kontrak server yang sebenarnya (handleProfile di
-  // modules/user/controller/auth.controller.ts), bukan ditebak:
-  //   - `activeUsers` HANYA dikirim untuk role admin, jadi opsional - bukan array kosong.
-  //   - elemennya PresenceEntry, tipe yang sudah ada di shared/auth/presence.ts.
-  //   - `createdAt` non-null: user.created_at bertipe string di user.types.ts.
-  type ProfileData = {
-    email: string;
-    role: string;
-    isPro: boolean;
-    isVerified: boolean;
-    hasProAccess: boolean;
-    createdAt: string;
-    trialEndsAt: string | null;
-    proExpiresAt: string | null;
-    activeUsers?: PresenceEntry[];
-  };
-
-  const {
-    data,
-    error: profileError,
-    isLoading: loading,
-  } = useSWR<ProfileData>(open ? '/api/user/profile' : null);
-
-  // 401 = sesi habis saat modal terbuka. Menutupnya adalah tindakan yang benar: profil
-  // orang yang tidak login tidak ada isinya, dan pesan error di dalam modal hanya
-  // membuat pengguna menatap kotak kosong.
   useEffect(() => {
-    if (profileError instanceof ApiError && profileError.status === 401) onClose();
-  }, [profileError, onClose]);
-
-  // Error MUTASI (hapus akun) dipisah dari error pembacaan profil: keduanya punya sebab
-  // dan pesan yang berbeda, dan SWR tidak mengurus yang pertama. Ditampilkan lewat satu
-  // variabel `error` supaya render di bawah tidak perlu tahu bedanya.
-  const readError =
-    profileError && !(profileError instanceof ApiError && profileError.status === 401)
-      ? 'Gagal memuat profil'
-      : null;
-  const error = deleteError ?? readError;
+    if (!open) return;
+    setLoading(true);
+    setError(null);
+    setData(null);
+    apiRequest<any>('/api/user/profile')
+      .then((json) => setData(json))
+      .catch((error) => {
+        if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') { onClose(); return; }
+        setError(apiErrorMessage(error, 'Gagal memuat profil', true));
+      })
+      .finally(() => setLoading(false));
+  }, [open, onClose]);
 
   useModalBehavior({ open, onClose, containerRef: modalRef });
 
@@ -146,13 +114,13 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
+            <Button variant="bare" size="none"
               onClick={onClose}
               className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
               aria-label="Tutup"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
 
             <div className="w-12 h-12 rounded-lg bg-tv-blue flex items-center justify-center mb-4">
               <User className="w-6 h-6 text-white" />
@@ -224,26 +192,26 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                 </div>
 
                 {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && (
-                  <button
+                  <Button variant="bare" size="none"
                     onClick={handleUpgradeClick}
                     className="w-full flex items-center justify-center gap-2 bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-2.5 rounded-md transition-all mb-5"
                   >
                     <Crown className="w-4 h-4" />
                     Upgrade ke Pro
-                  </button>
+                  </Button>
                 )}
 
                 {data.role !== 'admin' && (
                   <div className="mb-5 border-t border-tv-border pt-4">
                     <p className="mb-2 text-xs text-tv-muted">Privasi & akun</p>
-                    <button
+                    <Button variant="bare" size="none"
                       type="button"
                       disabled={deletingAccount}
                       onClick={() => void handleDeleteAccount()}
                       className="w-full rounded-md border border-tv-red/30 bg-tv-red/[0.05] px-3 py-2 text-sm font-bold text-tv-red hover:bg-tv-red/10 disabled:opacity-50"
                     >
                       {deletingAccount ? 'Menghapus akun…' : 'Hapus akun & data pribadi'}
-                    </button>
+                    </Button>
                     <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">Watchlist, alert, portofolio virtual, histori autentikasi, dan feedback LensAI milik akun akan dihapus. Catatan pembayaran yang wajib untuk rekonsiliasi dipertahankan tanpa identitas akun.</p>
                   </div>
                 )}
@@ -258,13 +226,13 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                     ) : (
                       <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                         {data.activeUsers.map((u) => (
-                          <div key={u.id} className="flex items-center justify-between text-xs bg-tv-card border border-tv-border rounded-md px-3 py-2">
+                          <Card padding="none" radius="md" elevation="none" highlight={false} overflow="visible" key={u.id} className="flex items-center justify-between text-xs border-tv-border px-3 py-2">
                             <div className="min-w-0">
                               <div className="text-tv-text font-medium truncate">{u.email}</div>
                               <div className="text-tv-muted uppercase text-[10px]">{u.role}</div>
                             </div>
                             <span className="text-tv-muted shrink-0 ml-2">{timeAgo(u.lastSeen)}</span>
-                          </div>
+                          </Card>
                         ))}
                       </div>
                     )}

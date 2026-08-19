@@ -14,7 +14,7 @@ const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 // Public-read karena LensRadar ada di menu guest. TIDAK ADA fallback scan di sini: kalau
 // cache belum terisi, jawab apa adanya supaya UI bisa bilang "data sedang disiapkan",
 // bukan diam-diam menembak Yahoo ratusan kali di dalam request seorang pengguna.
-export async function GET() {
+export async function GET(request: Request) {
   return runController(async () => {
     const scoreData = await readAiPickScores();
     if (!scoreData) {
@@ -64,27 +64,25 @@ export async function GET() {
 
     return {
       status: 200,
-      body: {
-      ready: true,
-      items,
-      computedAt: scoreData.computedAt,
-      stale,
-      scanned,
-      eligible: rankedItems.length,
-      advisoryEnabled,
-      rankMode,
-      modelValidation,
-      note: !advisoryEnabled
-        ? `${modelValidation.message} Daftar LensRadar ditampilkan sebagai scanner/pantauan berbasis data real, bukan rekomendasi beli/jual.`
-        : !cachedBreakout
-        ? 'Data breakout belum siap - peringkat sementara tanpa tag breakout & golden cross.'
-        : legacyCacheShape
-          ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'
-          : null,
-      },
       headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR),
+      body: {
+        ready: true,
+        items,
+        computedAt: scoreData.computedAt,
+        stale,
+        scanned,
+        eligible: rankedItems.length,
+        advisoryEnabled,
+        rankMode,
+        modelValidation,
+        note: !advisoryEnabled
+          ? `${modelValidation.message} Daftar LensRadar ditampilkan sebagai scanner/pantauan berbasis data real, bukan rekomendasi beli/jual.`
+          : !cachedBreakout
+          ? 'Data breakout belum siap - peringkat sementara tanpa tag breakout & golden cross.'
+          : legacyCacheShape
+            ? 'Skor tersimpan berasal dari versi sebelum gerbang kelayakan ditambahkan - daftar disiapkan ulang pada pemindaian berikutnya.'
+            : null,
+      },
     };
-    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
-    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
-  });
+  }, request);
 }

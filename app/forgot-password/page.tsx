@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
 import { Input, Button } from '@/components/ui';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -27,22 +28,13 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      await apiRequest('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Terjadi kesalahan.');
-      }
-
       setSuccess('Jika email terdaftar, kode reset telah dikirim. Mengarahkan ke halaman verifikasi...');
-
-      setTimeout(() => {
-        router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-      }, 2000);
+      setTimeout(() => router.push(`/reset-password?email=${encodeURIComponent(email)}`), 1200);
     } catch (err: any) {
       setError(err.message);
     } finally {

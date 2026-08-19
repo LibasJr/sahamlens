@@ -1,8 +1,10 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React from 'react';
 import Link from 'next/link';
 import { Info, Layers, RefreshCw, Lock } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 
 // Filter yang tetap terlihat jelas di free tier - cocok dengan comment spek:
 // "cuma EMA, RSI, MA Trend". Dicocokkan berdasarkan label (bukan posisi index)
@@ -34,18 +36,18 @@ export default function AlgoFilters({
   const lowSampleCount = visibleAnalyzers.filter((a) => getAccuracyPct(a.label) == null).length;
 
   return (
-    <div className="bg-tv-card border border-tv-border rounded-xl p-5 shadow-1">
+    <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1">
       <div className="flex justify-between items-center border-b border-tv-border pb-3 mb-4">
         <h3 className="font-heading text-base font-bold text-white flex items-center gap-2">
           <Layers className="w-5 h-5 text-tv-accent" />
           LensTechnical
         </h3>
-        <button
+        <Button variant="bare" size="none"
           onClick={() => setSortByConfidence(!sortByConfidence)}
           className={`text-xs px-2 py-1 rounded border transition-colors ${sortByConfidence ? 'bg-tv-accent/20 border-tv-accent text-tv-accent' : 'border-tv-border text-tv-muted hover:text-white'}`}
         >
           Urutkan Kekuatan Rule
-        </button>
+        </Button>
       </div>
 
       <p className="mb-3 text-[10px] leading-relaxed text-tv-muted">
@@ -134,6 +136,6 @@ export default function AlgoFilters({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

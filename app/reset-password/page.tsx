@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
 import { Input, Button, PasswordToggle } from '@/components/ui';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -40,18 +41,13 @@ function ResetPasswordForm() {
     setError('');
     setResending(true);
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      await apiRequest('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Gagal mengirim ulang kode.');
-      } else {
-        setSuccess('Kode reset baru telah dikirim (jika email terdaftar).');
-        setResendCooldown(RESEND_COOLDOWN_SEC);
-      }
+      setSuccess('Kode reset baru telah dikirim (jika email terdaftar).');
+      setResendCooldown(RESEND_COOLDOWN_SEC);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -77,17 +73,11 @@ function ResetPasswordForm() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      await apiRequest('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code, newPassword })
+        body: JSON.stringify({ email, code, newPassword }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Terjadi kesalahan.');
-      }
-
       setSuccess('Password berhasil diubah.');
       setResetDone(true);
 
@@ -151,7 +141,7 @@ function ResetPasswordForm() {
             maxLength={6}
             className="font-number tracking-widest"
           />
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={handleResend}
             disabled={resending || resendCooldown > 0}
@@ -162,7 +152,7 @@ function ResetPasswordForm() {
               : resendCooldown > 0
               ? `Kirim ulang kode (${resendCooldown}s)`
               : 'Kirim ulang kode'}
-          </button>
+          </Button>
         </div>
 
         <Input

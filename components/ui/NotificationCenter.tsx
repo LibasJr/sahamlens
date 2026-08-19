@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Button } from './Button';
 import Link from 'next/link';
 import { Bell, Volume2, VolumeX, Check, Sparkles, AlertTriangle, Info, ExternalLink, X, ShieldAlert, CheckCheck } from 'lucide-react';
 import {
@@ -108,7 +109,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       {/* Bell Trigger Button */}
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label={language === 'id' ? 'Pusat Notifikasi & Alert' : 'Notification & Alert Center'}
@@ -120,7 +121,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
-      </button>
+      </Button>
 
       {/* Backdrop for Mobile */}
       {isOpen && (
@@ -148,12 +149,10 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
             <div className="flex items-center gap-1.5">
               {/* Sound Toggle */}
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={handleToggleSound}
                 title={prefs.soundEnabled ? (language === 'id' ? 'Suara Aktif' : 'Sound On') : (language === 'id' ? 'Suara Nonaktif' : 'Sound Muted')}
-                aria-label={language === 'id' ? 'Suara notifikasi' : 'Notification sound'}
-                aria-pressed={prefs.soundEnabled}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${
                   prefs.soundEnabled
                     ? 'border-tv-blue/50 bg-tv-blue/20 text-tv-blue'
@@ -161,17 +160,16 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 }`}
               >
                 {prefs.soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-              </button>
+              </Button>
 
               {/* Close Button */}
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={() => setIsOpen(false)}
-                aria-label={language === 'id' ? 'Tutup pusat notifikasi' : 'Close notification center'}
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -181,13 +179,13 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <span className="leading-snug font-medium">
                 {language === 'id' ? 'Aktifkan notifikasi browser untuk alert yang benar-benar dipicu fitur SahamLens.' : 'Enable browser notifications for alerts actually emitted by SahamLens features.'}
               </span>
-              <button
+              <Button variant="bare" size="none"
                 type="button"
                 onClick={handleRequestPush}
                 className="shrink-0 rounded-lg bg-tv-blue px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-tv-blueHover active:scale-95"
               >
                 {language === 'id' ? 'Izinkan' : 'Enable'}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -237,34 +235,34 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
           {/* Footer Controls */}
           <div className="mt-3 flex items-center justify-between border-t border-slate-700/80 pt-3 text-[11px]">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={handleTestAlert}
               className="font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5 text-tv-gold" />
               <span>Test Alert</span>
-            </button>
+            </Button>
 
             <div className="flex items-center gap-3">
               {unreadCount > 0 && (
-                <button
+                <Button variant="bare" size="none"
                   type="button"
                   onClick={markAllNotificationsAsRead}
                   className="font-bold text-tv-blue hover:underline flex items-center gap-1"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
                   <span>{language === 'id' ? 'Baca Semua' : 'Mark all read'}</span>
-                </button>
+                </Button>
               )}
               {notifications.length > 0 && (
-                <button
+                <Button variant="bare" size="none"
                   type="button"
                   onClick={clearAllNotifications}
                   className="font-medium text-slate-400 hover:text-tv-red transition-colors"
                 >
                   {language === 'id' ? 'Hapus' : 'Clear'}
-                </button>
+                </Button>
               )}
             </div>
           </div>

@@ -13,8 +13,9 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
+import { Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -112,33 +113,9 @@ function CompareContent() {
     setFetchError(false);
     try {
       const qs = `symbol1=${encodeURIComponent(symbol1)}${symbol2 ? `&symbol2=${encodeURIComponent(symbol2)}` : ''}`;
-      const res = await fetch(`/api/compare?${qs}`);
-      const json = await res.json();
-
+      const json = await apiRequest<any>(`/api/compare?${qs}`);
       if (seq !== fetchSeqRef.current) return; // response basi, sudah ada request lebih baru
-
-      if (res.status === 401) {
-        if (await shouldShowLoginPromptFor401()) {
-          setGated('login');
-          setShowLoginPrompt(true);
-        } else {
-          setFetchError(true);
-        }
-        return;
-      }
-      if (res.status === 402 || res.status === 403 || json.code === 'SUBSCRIPTION_REQUIRED') {
-        setGated('pro');
-        setShowPaywall(true);
-        return;
-      }
-
-      // Bentuk respons ikut divalidasi, bukan cuma status: seluruh tabel di bawah
-      // membaca data1/data2/rows tanpa pengaman, jadi respons 200 yang tidak lengkap
-      // akan melempar TypeError saat render dan mengosongkan halaman.
-      if (!res.ok || !json?.data1 || !json?.data2 || !Array.isArray(json?.rows)) {
-        setFetchError(true);
-        return;
-      }
+      if (!json?.data1 || !json?.data2 || !Array.isArray(json?.rows)) { setFetchError(true); return; }
 
       {
         setGated(null);
@@ -212,7 +189,7 @@ function CompareContent() {
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
         <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
 
-          <form onSubmit={handleCompare} className="bg-tv-card border border-tv-border rounded-lg p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
+          <Card as="form" onSubmit={handleCompare} padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <div className="relative flex-1 min-w-0 sm:flex-initial">
                 <Search className="w-5 h-5 text-tv-muted absolute left-3 top-1/2 -translate-y-1/2 z-10" />
@@ -241,43 +218,43 @@ function CompareContent() {
               {!loading && <Target className="w-5 h-5" />}
               Bandingkan
             </Button>
-          </form>
+          </Card>
 
           {loading ? (
-            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2 p-4 space-y-2">
+            <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border shadow-2 p-4 space-y-2">
               <Skeleton className="h-14 w-full" />
               {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
               <LoadingFact className="mt-3" />
-            </div>
+            </Card>
           ) : gated === 'login' ? (
-            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2">
+            <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border shadow-2">
               <EmptyState
                 illustration="locked"
                 title="Compare Tool butuh akun"
                 description="Daftar gratis untuk memakai seluruh fitur selama masa pengujian."
                 action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
               />
-            </div>
+            </Card>
           ) : gated === 'pro' ? (
-            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2">
+            <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border shadow-2">
               <EmptyState
                 illustration="locked"
                 title="Kuota analisa hari ini sudah habis"
                 description={`Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai. Kuota disetel ulang besok.`}
                 action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
               />
-            </div>
+            </Card>
           ) : fetchError ? (
-            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2">
+            <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border shadow-2">
               <EmptyState
                 illustration="empty"
                 title="Perbandingan gagal dimuat"
                 description={`Data untuk ${displayTicker(symbol1)}${symbol2 ? ` atau ${displayTicker(symbol2)}` : ''} tidak bisa diambil. Pastikan kode emitennya benar - emiten yang baru tercatat kadang belum punya data pembanding yang cukup.`}
                 action={{ label: 'Coba lagi', onClick: fetchCompare }}
               />
-            </div>
+            </Card>
           ) : data ? (
-            <div className="bg-tv-card border border-tv-border rounded-lg shadow-2 overflow-hidden">
+            <Card padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border shadow-2 overflow-hidden">
               {/* Storytelling: tabel di bawah menandai pemenang per baris, tapi tidak
                   pernah menjumlahkannya. Rekapitulasi ini murni menghitung ulang
                   `row.winner` yang sudah ada - tidak menambah penilaian baru. */}
@@ -408,7 +385,7 @@ function CompareContent() {
                   </p>
                 </div>
               )}
-            </div>
+            </Card>
           ) : null}
 
         </PageContainer>

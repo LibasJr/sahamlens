@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useState, Suspense } from 'react';
 import { ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
 
@@ -90,7 +91,7 @@ function AdminLoginContent() {
                   autoComplete="current-password"
                   required
                 />
-                <button
+                <Button variant="bare" size="none"
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-tv-muted hover:text-tv-text transition-colors p-0.5"
@@ -98,16 +99,16 @@ function AdminLoginContent() {
                   aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                </Button>
               </div>
-              <button
+              <Button variant="bare" size="none"
                 type="submit"
                 disabled={loading || !key.trim()}
                 className="bg-tv-blue hover:bg-tv-blueHover disabled:opacity-50 text-white font-bold px-4 py-2 rounded-md text-sm transition-all whitespace-nowrap flex items-center gap-1.5 shadow-sm"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>{loading ? 'Memeriksa...' : 'Masuk'}</span>
-              </button>
+              </Button>
             </div>
           </div>
           <p className="text-tv-muted text-[11px]">

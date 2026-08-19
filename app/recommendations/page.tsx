@@ -7,9 +7,10 @@ import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { PageContainer } from '@/components/ui';
+import { Card, Button, PageContainer } from '@/components/ui';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -43,7 +44,7 @@ const TH_ALIGN = { left: '', right: 'text-right justify-end', center: 'text-cent
  * SEBELUMNYA `<th onClick={...}>` polos. `<th>` bukan elemen fokusabel dan tidak punya
  * peran interaktif, jadi kedelapan kontrol pengurutan di tabel ini mustahil dipakai
  * tanpa mouse - dan pembaca layar tidak pernah diberi tahu kolom mana yang sedang
- * menjadi dasar urutan. Aksinya sekarang dibawa <button> sungguhan, dan `aria-sort`
+ * menjadi dasar urutan. Aksinya sekarang dibawa <Button variant="bare" size="none"> sungguhan, dan `aria-sort`
  * dipasang di `<th>` (bukan di tombolnya) sesuai WAI-ARIA.
  *
  * Didefinisikan di module scope, BUKAN di dalam Recommendations: komponen yang lahir
@@ -71,14 +72,14 @@ function SortableTh({
       aria-sort={active ? (sortConfig!.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       {children}
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={() => onSort(sortKey)}
         title={`Urutkan menurut ${label}`}
         className={`group inline-flex min-h-6 w-full items-center gap-1.5 rounded transition-colors hover:text-tv-text ${TH_ALIGN[align]} ${active ? 'text-tv-text' : ''}`}
       >
         {align === 'left' ? <>{label} {icon}</> : <>{icon} {label}</>}
-      </button>
+      </Button>
     </th>
   );
 }
@@ -105,8 +106,7 @@ export default function Recommendations() {
   // dividen+earnings dari Yahoo Finance) dan tanggal hari ini yang sesungguhnya.
   const [stocksWithEventToday, setStocksWithEventToday] = useState<Set<string>>(new Set());
   useEffect(() => {
-    fetch('/api/calendar')
-      .then((res) => (res.ok ? res.json() : null))
+    apiRequest<any>('/api/calendar')
       .then((resData) => {
         if (!resData?.events) return;
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
@@ -127,22 +127,20 @@ export default function Recommendations() {
       const chunkSize = 10;
       for (let i = 0; i < LIQUID_STOCKS.length; i += chunkSize) {
         const chunk = LIQUID_STOCKS.slice(i, i + chunkSize);
-        const res = await fetch(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store', signal });
-        
-        const json = await res.json();
-        if (res.status === 401) {
-          if (await shouldShowLoginPromptFor401()) {
-            setShowLoginPrompt(true);
+        let json: any;
+        try {
+          json = await apiRequest<any>(`/api/recommendations?symbols=${chunk.join(',')}`, { cache: 'no-store', signal });
+        } catch (error) {
+          if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
+            if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
+            return;
           }
-          return;
-        }
-        if (res.status === 402 || json.code === 'SUBSCRIPTION_REQUIRED') {
-          setShowPaywall(true);
-          return;
-        }
-        if (!res.ok) {
+          if (isApiClientError(error) && error.code === 'SUBSCRIPTION_REQUIRED') {
+            setShowPaywall(true);
+            return;
+          }
           setFailedChunks((count) => count + 1);
-          setScanError(json?.error || `Sebagian pemindaian gagal pada batch ${Math.floor(i / chunkSize) + 1}.`);
+          setScanError(isApiClientError(error) ? error.message : `Sebagian pemindaian gagal pada batch ${Math.floor(i / chunkSize) + 1}.`);
           continue;
         }
         if (json?.modelValidation?.validated === false && typeof json.modelValidation.message === 'string') {
@@ -296,14 +294,14 @@ export default function Recommendations() {
         )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-sans">
-            <button
+            <Button variant="bare" size="none"
               onClick={() => fetchRecommendations()}
               disabled={loading}
               className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Sedang Memindai...' : 'Refresh Data'}
-            </button>
+            </Button>
             <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
               Data sesi: {isClient && lastUpdate ? formatTime(lastUpdate) : 'menunggu timestamp sumber'}
               {cacheMeta && (
@@ -328,7 +326,7 @@ export default function Recommendations() {
           </div>
         </div>
 
-        <div className="bg-tv-card border border-tv-border rounded-xl shadow-1 overflow-hidden">
+        <Card padding="none" radius="xl" elevation="sm" overflow="hidden" highlight={false} className="border-tv-border">
           <div className="lens-table-sticky-col [--lens-sticky-head-bg:rgb(var(--lens-hover))] overflow-x-auto min-h-[500px]">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -444,7 +442,7 @@ export default function Recommendations() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       </PageContainer>
       <PaywallModal
         open={showPaywall}

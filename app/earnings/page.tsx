@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import useSWR from 'swr';
 import {
   AlertTriangle,
   BarChart3,
@@ -28,6 +27,7 @@ import EarningsExportCard from '@/components/export/EarningsExportCard';
 import ExportImageButton from '@/components/export/ExportImageButton';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { useLanguage } from '@/lib/i18n';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 function normalizeTicker(value: string) {
   return value.trim().toUpperCase().replace(/\.JK$/, '');
@@ -38,6 +38,9 @@ export default function EarningsPage() {
   const isEn = language === 'en';
 
   const [ticker, setTicker] = useState('BBCA');
+  const [data, setData] = useState<PublicEarningsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
   const exportRef = useRef<HTMLDivElement>(null);
@@ -96,22 +99,28 @@ export default function EarningsPage() {
     return <Badge variant="neutral">N/A</Badge>;
   }
 
-  // SWR menggantikan useEffect + AbortController. Penjaga urutannya tidak hilang - SWR
-  // mengunci hasil ke kuncinya, jadi respons emiten lama tidak bisa mendarat sebagai
-  // milik emiten baru. Yang DIDAPAT: berbagi permintaan dengan halaman lain yang memakai
-  // endpoint sama, revalidasi saat tab kembali fokus, dan retry berjenjang yang dulu
-  // tidak ada sama sekali.
-  const {
-    data: data,
-    error: loadError,
-    isLoading: loading,
-  } = useSWR<PublicEarningsData>(selectedTicker ? '/api/earnings/' + encodeURIComponent(selectedTicker) : null);
+  useEffect(() => {
+    const controller = new AbortController();
 
-  // Pesan dari server dipakai kalau ada, sama seperti `result.error` sebelumnya.
-  const error = loadError
-    ? (loadError as Error).message ||
-      (isEn ? 'Failed to fetch public earnings data.' : 'Gagal mengambil data earnings publik.')
-    : null;
+    async function loadEarnings() {
+      setLoading(true);
+      setError(null);
+      setData(null);
+
+      try {
+        const payload = await apiRequest<any>('/api/earnings/' + encodeURIComponent(selectedTicker), { signal: controller.signal });
+        setData(payload as PublicEarningsData);
+      } catch (caught) {
+        if (controller.signal.aborted) return;
+        setError(caught instanceof Error ? caught.message : (isEn ? 'Failed to fetch public earnings data.' : 'Gagal mengambil data earnings publik.'));
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void loadEarnings();
+    return () => controller.abort();
+  }, [selectedTicker, reloadKey, isEn]);
 
   const estimateCurrency = data?.expectation.eps.currency ?? data?.stock.currency ?? null;
   const financialCurrency = data?.latestFundamentals.financialCurrency ?? data?.stock.currency ?? null;
@@ -319,7 +328,7 @@ export default function EarningsPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                   <span className="text-[11px] text-tv-muted">{t('earningsEnhance.ocfToNetIncome')}</span>
                   <div className="text-lg font-bold font-number text-tv-green mt-1">
                     {earningsQuality.ocfRatio != null ? `${earningsQuality.ocfRatio.toFixed(2)}x` : 'N/A'}
@@ -331,23 +340,23 @@ export default function EarningsPage() {
                         ? isEn ? 'High Cash Backing (> 1.0x)' : 'Didukung Kas Kuat (> 1.0x)'
                         : isEn ? 'Lower Cash Conversion' : 'Konversi Kas Rendah'}
                   </span>
-                </div>
+                </Card>
 
-                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                   <span className="text-[11px] text-tv-muted">{isEn ? 'Operating Cash Flow (TTM)' : 'Arus Kas Operasional (TTM)'}</span>
                   <div className="text-lg font-bold font-number text-tv-blue mt-1">
                     {formatCompact(earningsQuality.ocf, financialCurrency)}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">{isEn ? 'Core cash generated' : 'Kas inti yang dihasilkan'}</span>
-                </div>
+                </Card>
 
-                <div className="p-3 rounded-xl bg-tv-card/60 border border-tv-border">
+                <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
                   <span className="text-[11px] text-tv-muted">{isEn ? 'Free Cash Flow (FCF)' : 'Free Cash Flow'}</span>
                   <div className={`text-lg font-bold font-number mt-1 ${earningsQuality.fcf == null ? 'text-tv-muted' : earningsQuality.fcf >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                     {formatCompact(earningsQuality.fcf, financialCurrency)}
                   </div>
                   <span className="text-[10px] text-tv-muted/70">{isEn ? 'After CapEx expenditures' : 'Setelah belanja modal CapEx'}</span>
-                </div>
+                </Card>
               </div>
               <p className="text-[10px] leading-relaxed text-tv-muted">
                 {isEn

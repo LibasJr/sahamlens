@@ -1,7 +1,10 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import React, { useState } from 'react';
 import { PasswordToggle } from '@/components/ui/PasswordToggle';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 export default function ChangeSecretForm() {
   const [currentKey, setCurrentKey] = useState('');
@@ -31,35 +34,24 @@ export default function ChangeSecretForm() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/admin/change-secret', {
+      await apiRequest('/api/admin/change-secret', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentKey, newKey }),
       });
-      let data: { success?: boolean; error?: string } = {};
-      try {
-        data = await res.json();
-      } catch {
-        setMessage({ text: `Server error (HTTP ${res.status})`, isError: true });
-        return;
-      }
-      if (!res.ok) {
-        setMessage({ text: data.error || 'Gagal memproses', isError: true });
-        return;
-      }
       setMessage({ text: 'Password admin berhasil diganti', isError: false });
       setCurrentKey('');
       setNewKey('');
       setConfirmKey('');
-    } catch {
-      setMessage({ text: 'Gagal terhubung ke server', isError: true });
+    } catch (error) {
+      setMessage({ text: apiErrorMessage(error, 'Gagal terhubung ke server', true), isError: true });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-tv-card border border-tv-border rounded-lg p-6 mb-8">
+    <Card as="div" className="border-tv-border p-6 mb-8" padding="none" radius="lg" surface="solid" elevation="none" overflow="visible" highlight={false}>
       <h2 className="font-heading text-lg font-bold text-tv-text mb-1">Ganti Password Admin</h2>
       <p className="text-xs text-tv-muted mb-4">Berlaku langsung, tanpa perlu deploy ulang. Minimal 12 karakter.</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-sm">
@@ -120,17 +112,17 @@ export default function ChangeSecretForm() {
           </div>
         </div>
 
-        <button
+        <Button variant="bare" size="none"
           type="submit"
           disabled={loading}
           className="bg-tv-blue hover:bg-tv-blueHover text-white font-bold px-4 py-2.5 rounded-md text-sm transition-colors disabled:opacity-50 mt-1 cursor-pointer"
         >
           {loading ? 'Memproses...' : 'Ganti Password'}
-        </button>
+        </Button>
       </form>
       {message && (
         <p className={`mt-3 text-sm ${message.isError ? 'text-tv-red' : 'text-tv-green'}`}>{message.text}</p>
       )}
-    </div>
+    </Card>
   );
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import TransparencyClient from './TransparencyClient';
+import { Card } from '@/components/ui/Card';
 
 // This page reads production-only reconciliation data. Keep it out of static
 // prerendering so CI/build does not require DATABASE_URL. The repository is
@@ -63,7 +64,7 @@ export default async function TransparencyPage() {
           </p>
         </section>
 
-        <section className="mb-6 rounded-xl border border-tv-border bg-tv-card p-4 sm:p-5">
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-4 sm:p-5">
           <h2 className="text-base font-semibold text-tv-text">Komitmen Integritas Data</h2>
           <div className="mt-3 grid gap-3 text-sm text-tv-muted md:grid-cols-2">
             <p><span className="font-semibold text-tv-text">Fail-closed.</span> Data yang tidak tersedia ditampilkan sebagai N/A/null, bukan diganti angka netral atau estimasi tanpa sumber.</p>
@@ -72,9 +73,9 @@ export default async function TransparencyPage() {
             <p><span className="font-semibold text-tv-text">Reproducible.</span> Perubahan scoring, asumsi makro, parameter riset, dan schema dipisahkan lewat versi/migration agar hasil lama dapat diaudit.</p>
           </div>
           <p className="mt-3 text-xs text-tv-muted">SahamLens adalah alat riset dan analisis, bukan jaminan hasil investasi. Detail risiko dan batas penggunaan tersedia di halaman Disclaimer.</p>
-        </section>
+        </Card>
 
-        <section className="mb-6 rounded-xl border border-tv-border bg-tv-card p-4 sm:p-5">
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-4 sm:p-5">
           <h2 className="text-base font-semibold text-tv-text">Verifikasi Harga Penutupan Lintas Sumber</h2>
           {latestRecon && matchPct != null ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-4">
@@ -86,7 +87,7 @@ export default async function TransparencyPage() {
             <p className="mt-2 text-sm text-tv-muted">Rekonsiliasi lintas sumber belum memiliki hasil produksi. SahamLens tidak mengklaim tingkat kecocokan sebelum bukti tersedia.</p>
           )}
           <p className="mt-3 text-xs text-tv-muted">Aturan v1 membandingkan close pada tanggal perdagangan yang sama dan menuntut kecocokan persis. Mismatch tidak dikoreksi otomatis.</p>
-        </section>
+        </Card>
 
         <TransparencyClient />
       </div>

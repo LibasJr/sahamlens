@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { apiRequest } from '@/shared/http/api-client';
 
 interface QuickWatchlistStarProps {
   ticker: string;
@@ -32,8 +34,7 @@ export function QuickWatchlistStar({
       }
 
       // Check server API if logged in
-      fetch('/api/watchlist')
-        .then((res) => (res.ok ? res.json() : null))
+      apiRequest<any>('/api/watchlist')
         .then((data) => {
           if (Array.isArray(data)) {
             const hasTicker = data.some(
@@ -83,13 +84,13 @@ export function QuickWatchlistStar({
     // Sync to API (fail-silent if guest)
     try {
       if (nextState) {
-        await fetch('/api/watchlist', {
+        await apiRequest('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol: cleanTicker }),
         });
       } else {
-        await fetch(`/api/watchlist?symbol=${cleanTicker}`, {
+        await apiRequest(`/api/watchlist?symbol=${encodeURIComponent(cleanTicker)}`, {
           method: 'DELETE',
         });
       }
@@ -97,7 +98,7 @@ export function QuickWatchlistStar({
   };
 
   return (
-    <button
+    <PrimitiveButton variant="bare" size="none"
       type="button"
       onClick={handleToggle}
       title={isSaved ? `Hapus ${cleanTicker} dari Watchlist` : `Tambah ${cleanTicker} ke Watchlist`}
@@ -118,6 +119,6 @@ export function QuickWatchlistStar({
           {isSaved ? 'Tersimpan' : 'Watchlist'}
         </span>
       )}
-    </button>
+    </PrimitiveButton>
   );
 }

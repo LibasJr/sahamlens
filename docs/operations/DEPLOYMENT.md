@@ -2744,26 +2744,6 @@ benar**: upgrade `eslint` ke `^9` + migrasi `.eslintrc.json` ke flat config `esl
 (ESLint 9 default-nya tidak baca `.eslintrc.*` lagi) - belum dikerjakan, `.npmrc` cuma nge-relax
 resolusi peer-dep, bukan benerin akar masalahnya.
 
----
-
-**"Module not found: Can't resolve '<paket>'" saat build di VPS = `npm ci` yang terlewat, bukan
-kode yang rusak.** Terjadi 2026-08-19: build manual di `/opt/sahamlens/app` gagal dengan tiga
-blok `Can't resolve 'swr'` yang menunjuk `app/dividend/page.tsx:4`, `app/earnings/page.tsx:4`,
-dan `app/home/page.tsx:4`. Paketnya ada di `package.json` maupun `package-lock.json` sejak
-commit yang sama dengan import-nya - yang terjadi hanyalah `git pull && npm run build` tanpa
-`npm ci` di antaranya, jadi `node_modules` di server masih dari sebelum dependensi itu masuk.
-
-Yang membuat kegagalan ini mahal adalah pesannya MENYESATKAN: ia menunjuk berkas sumber kita
-dan dokumentasi Next.js, jadi wajar kalau orang mulai mencari di kode. Jadi sebelum membaca
-diff, cek dulu apakah dependensinya memang terpasang.
-
-`npm run build` sekarang menjalankan `scripts/check-deps-installed.mjs` lebih dulu lewat hook
-`prebuild`, yang menghentikan build dengan daftar paket yang hilang dan perintah `npm ci` -
-jadi mode kegagalan ini seharusnya tidak lagi muncul sebagai error webpack. Skrip itu juga
-memperingatkan (tanpa menggagalkan) kalau versi terpasang berbeda dari lockfile, karena npm
-boleh menaikkan versi lain ke atas untuk menyelesaikan konflik bersarang dan ketidakcocokan
-di sana adalah sinyal "install basi", bukan bukti rusak.
-
 ## Environment variables production (di VPS, bukan di Vercel)
 
 **Sumber kebenaran env production = `/opt/sahamlens/app/.env.production` di VPS**

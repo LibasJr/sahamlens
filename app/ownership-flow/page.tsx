@@ -1,8 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import useSWR from 'swr';
-import { ApiError } from '@/lib/api/fetcher';
 import { AlertTriangle, Database, Globe, RefreshCw, Search, ShieldAlert } from 'lucide-react';
 import Header from '@/components/Header';
 import { Badge } from '@/components/ui/Badge';
@@ -11,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import {
   formatObservedDate,
   formatPercent,
@@ -34,6 +33,9 @@ type SortKey = 'ticker' | 'foreignPct' | 'prevForeign' | 'prevLocal';
 type FilterKey = 'ALL' | 'WITH_DATA' | 'MISSING' | 'STALE';
 
 export default function OwnershipFlowPage() {
+  const [data, setData] = useState<OwnershipFlowApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('ticker');
   const [sortAsc, setSortAsc] = useState(true);
@@ -43,22 +45,22 @@ export default function OwnershipFlowPage() {
   // tidak menyaring tabel di bawah.
   const [headerTicker, setHeaderTicker] = useState('BBCA');
 
-  // 404 tetap dibedakan dari kegagalan lain: ia berarti fiturnya memang belum diaktifkan
-  // pada deployment ini (lihat gerbang getOwnershipFlowConfig di app/api/ownership-flow),
-  // bukan bahwa datanya gagal dimuat. Menyuruh pengguna "coba muat ulang" untuk fitur yang
-  // sengaja dimatikan hanya membuatnya menunggu sesuatu yang tidak akan datang.
-  const {
-    data,
-    error: loadError,
-    isLoading: loading,
-    mutate: load,
-  } = useSWR<OwnershipFlowApiResponse>('/api/ownership-flow');
-
-  const error = !loadError
-    ? null
-    : loadError instanceof ApiError && loadError.status === 404
-      ? 'Ownership Flow belum diaktifkan pada deployment ini.'
-      : 'Gagal memuat Ownership Flow. Coba muat ulang beberapa saat lagi.';
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await apiRequest<OwnershipFlowApiResponse>('/api/ownership-flow'));
+    } catch (caught) {
+      if (isApiClientError(caught) && caught.code === 'NOT_FOUND') {
+        setError('Ownership Flow belum diaktifkan pada deployment ini.');
+      } else {
+        setError('Gagal memuat Ownership Flow. Coba muat ulang beberapa saat lagi.');
+      }
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void load();
@@ -181,7 +183,7 @@ export default function OwnershipFlowPage() {
             />
             <div className="flex flex-wrap gap-1.5">
               {(['ALL', 'WITH_DATA', 'STALE', 'MISSING'] as FilterKey[]).map((key) => (
-                <button
+                <Button variant="bare" size="none"
                   key={key}
                   type="button"
                   onClick={() => setFilter(key)}
@@ -192,7 +194,7 @@ export default function OwnershipFlowPage() {
                   }`}
                 >
                   {FILTER_LABEL[key]}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -354,14 +356,14 @@ function Th({
   return (
     <th className={`px-3.5 py-2.5 font-semibold ${align === 'right' ? 'text-right' : 'text-left'}`}>
       {onClick ? (
-        <button
+        <Button variant="bare" size="none"
           type="button"
           onClick={onClick}
           className={`inline-flex items-center gap-1 transition-colors hover:text-tv-text ${active ? 'text-tv-text' : ''}`}
         >
           {children}
           {active && <span aria-hidden="true">{asc ? '↑' : '↓'}</span>}
-        </button>
+        </Button>
       ) : (
         children
       )}

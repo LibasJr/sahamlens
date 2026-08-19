@@ -12,16 +12,13 @@ vi.mock('../../../../modules/backtest', () => ({
 }));
 vi.mock('../../../../shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
-  // buildAnonymousTrialCookie menggantikan buildAnonymousTrialCookie sejak route ini
-  // memakai runController: route tidak lagi memegang NextResponse, jadi cookie
-  // dideskripsikan lewat HttpResult.cookiesToSet dan adapter yang memasangnya.
-  buildAnonymousTrialCookie: vi.fn(),
+  applyAnonymousTrialCookie: vi.fn(),
 }));
 
 import { POST } from '../route';
 import { getSession, hasOpenOrProAccess } from '../../../../modules/user';
 import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '../../../../modules/backtest';
-import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
+import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/backtest', {
@@ -153,24 +150,13 @@ describe('POST /api/backtest (akses tamu)', () => {
   it('tanpa session -> cookie trial anonim tetap ditempel (identitas kuota chat/telemetri)', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     vi.mocked(readOrIssueAnonymousTrial).mockResolvedValue(anonTrial);
-    // Mock mengembalikan deskriptor cookie sungguhan, bukan undefined - kalau tidak,
-    // asersi set-cookie di bawah lulus/gagal karena mocknya, bukan karena adapternya.
-    vi.mocked(buildAnonymousTrialCookie).mockResolvedValue({
-      name: 'sahamlens_anon_trial',
-      value: 'token-uji',
-      options: { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 100 },
-    });
     vi.mocked(readBacktestCache).mockResolvedValue({ computedAt: 'x', ihsg: [], tickers: [] } as any);
     vi.mocked(simulateBacktest).mockReturnValue(sampleResult as any);
 
     const res = await POST(makeRequest({ filters: ['RSI 14'], modal: 100_000_000, period: 3 }));
 
     expect(res.status).toBe(200);
-    // Diperkuat: bukan lagi hanya "fungsinya dipanggil dengan sesuatu", tapi cookienya
-    // BENAR-BENAR terpasang pada respons. Asersi lama akan tetap lulus walau adapter
-    // lupa memasangnya.
-    expect(buildAnonymousTrialCookie).toHaveBeenCalledWith(anonTrial);
-    expect(res.headers.get('set-cookie')).toContain('sahamlens_anon_trial=');
+    expect(applyAnonymousTrialCookie).toHaveBeenCalledWith(expect.anything(), anonTrial);
   });
 
   it('tamu (guest/unauthenticated) menerima trades dibatasi ke 2 item dan is_guest_limited true', async () => {

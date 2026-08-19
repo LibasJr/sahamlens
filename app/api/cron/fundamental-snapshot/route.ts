@@ -8,6 +8,7 @@ import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 import { writeFundamentalSnapshot, type FundamentalSnapshot } from '@/shared/cache/ai-pick-cache';
 import { archiveFundamentalSnapshotSafe } from '@/modules/fundamental/repository/fundamental-history.repository';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const maxDuration = 300;
 
@@ -52,7 +53,7 @@ async function fetchOne(ticker: string) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -109,4 +110,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job fundamental-snapshot gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

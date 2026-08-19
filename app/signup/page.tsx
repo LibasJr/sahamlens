@@ -6,6 +6,7 @@ import { AuthShell } from '@/components/auth/AuthShell';
 import { AuthAlert } from '@/components/auth/AuthAlert';
 import { Input, Button, PasswordToggle } from '@/components/ui';
 import { trackSignupCompleted } from '@/shared/analytics/product-funnel';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 const RESEND_COOLDOWN_SEC = 45;
 
@@ -42,25 +43,16 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/signup', {
+      await apiRequest('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, website }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Terjadi kesalahan');
-      } else {
-        // Akun telah dibuat (meski email belum diverifikasi), jadi ini titik yang
-        // tepat untuk metrik "berhasil membuat akun" pada funnel.
-        trackSignupCompleted();
-        setSuccessMsg(data.message);
-        setStep(2);
-        setResendCooldown(RESEND_COOLDOWN_SEC);
-      }
+      trackSignupCompleted();
+      setStep('VERIFY');
+      setResendCooldown(RESEND_COOLDOWN_SEC);
     } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err, 'Terjadi kesalahan', true));
     } finally {
       setLoading(false);
     }
@@ -71,20 +63,15 @@ export default function Signup() {
     setError('');
     setResending(true);
     try {
-      const res = await fetch('/api/auth/signup', {
+      await apiRequest('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, website }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Gagal mengirim ulang kode');
-      } else {
-        setSuccessMsg('Kode verifikasi baru telah dikirim.');
-        setResendCooldown(RESEND_COOLDOWN_SEC);
-      }
+      setSuccessMsg('Kode verifikasi baru telah dikirim.');
+      setResendCooldown(RESEND_COOLDOWN_SEC);
     } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err, 'Terjadi kesalahan', true));
     } finally {
       setResending(false);
     }
@@ -96,20 +83,14 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/verify', {
+      await apiRequest('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Terjadi kesalahan');
-      } else {
-        router.push('/');
-      }
+      router.push('/');
     } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err, 'Terjadi kesalahan', true));
     } finally {
       setLoading(false);
     }
@@ -210,13 +191,13 @@ export default function Signup() {
               ? `Kirim ulang kode (${resendCooldown}s)`
               : 'Kirim ulang kode'}
           </Button>
-          <button
+          <Button variant="bare" size="none"
             type="button"
             onClick={() => { setStep(1); setSuccessMsg(''); }}
             className="w-full text-tv-muted hover:text-tv-text py-2 text-sm transition-colors"
           >
             Kembali
-          </button>
+          </Button>
         </form>
       )}
 

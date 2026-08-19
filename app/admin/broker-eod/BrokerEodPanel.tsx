@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
 import React from 'react';
 import Link from 'next/link';
 import { AlertTriangle, CalendarDays, Database, Layers, Receipt } from 'lucide-react';
@@ -41,7 +42,7 @@ export default function BrokerEodPanel({ data, error }: Props) {
 
   if (!data.tableReady) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-4 text-sm">
+      <Card as="div" className="flex items-start gap-3 border-tv-border p-4 text-sm" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <Database className="mt-0.5 h-5 w-5 shrink-0 text-tv-muted" />
         <div>
           <p className="font-bold text-tv-text">Tabel broker_market_daily belum ada di database ini.</p>
@@ -50,13 +51,13 @@ export default function BrokerEodPanel({ data, error }: Props) {
             (migration <code className="rounded bg-tv-bg px-1.5 py-0.5">009_broker_market_daily.sql</code>).
           </p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (data.dates.length === 0) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-4 text-sm">
+      <Card as="div" className="flex items-start gap-3 border-tv-border p-4 text-sm" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-tv-muted" />
         <div>
           <p className="font-bold text-tv-text">Belum ada data broker EOD yang diimpor.</p>
@@ -71,7 +72,7 @@ node --env-file=.env.production scripts/import-broker-market-daily.mjs --confirm
             Panel ini sengaja kosong selama belum ada data resmi - tidak ada angka contoh yang ditampilkan.
           </p>
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -101,30 +102,30 @@ node --env-file=.env.production scripts/import-broker-market-daily.mjs --confirm
 
       {/* Cakupan hari terpilih */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-muted">
             <Layers className="h-3.5 w-3.5" /> Broker tercatat
           </div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{data.coverage.brokerCount}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="text-[10px] font-bold uppercase tracking-wide text-tv-muted">Total nilai transaksi</div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{compactIdr(data.coverage.totalValue)}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="text-[10px] font-bold uppercase tracking-wide text-tv-muted">Total volume (lembar)</div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{compactNumber(data.coverage.totalVolume)}</div>
-        </div>
-        <div className="rounded-xl border border-tv-border bg-tv-card p-4">
+        </Card>
+        <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-muted">
             <Receipt className="h-3.5 w-3.5" /> Total frekuensi
           </div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{compactNumber(data.coverage.totalFrequency)}</div>
-        </div>
+        </Card>
       </div>
 
       {/* Tabel broker */}
-      <div className="overflow-x-auto rounded-xl border border-tv-border bg-tv-card">
+      <Card as="div" className="overflow-x-auto border-tv-border" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-tv-border text-left text-[11px] uppercase tracking-wide text-tv-muted">
@@ -153,7 +154,7 @@ node --env-file=.env.production scripts/import-broker-market-daily.mjs --confirm
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       <p className="text-xs leading-relaxed text-tv-muted">
         Sumber: API resmi BEI <code className="rounded bg-tv-card px-1.5 py-0.5">TradingSummary/GetBrokerSummary</code>.

@@ -1,8 +1,11 @@
 'use client';
 
+import { Card as UiCard } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Database, Loader2, Lock, PlayCircle, RefreshCw, Sliders } from 'lucide-react';
 import { readAdminJsonResponse } from './admin-json-response';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 // ---------------------------------------------------------------------------
 // Tipe longgar - halaman ini hanya MENAMPILKAN apa yang dikirim server. Tidak ada
@@ -190,9 +193,9 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function Card({ title, subtitle, children, action }: { title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode }) {
+function ValidationCard({ title, subtitle, children, action }: { title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <section className="bg-tv-card border border-tv-border rounded-lg mb-6 overflow-hidden">
+    <UiCard as="section" className="border-tv-border mb-6" padding="none" radius="lg" surface="solid" elevation="none" overflow="hidden" highlight={false}>
       <div className="px-4 sm:px-6 py-4 border-b border-tv-border flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-heading text-lg font-bold text-tv-text">{title}</h2>
@@ -201,7 +204,7 @@ function Card({ title, subtitle, children, action }: { title: string; subtitle?:
         {action}
       </div>
       <div className="p-4 sm:p-6">{children}</div>
-    </section>
+    </UiCard>
   );
 }
 
@@ -285,7 +288,7 @@ function SortableSampleTh({
   const direction = active ? sort.direction : undefined;
   return (
     <th className="px-3 py-2 text-left whitespace-nowrap font-semibold" aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}>
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={() => onSort(sortKey)}
         className="inline-flex items-center gap-1 rounded text-left hover:text-tv-text focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60"
@@ -294,7 +297,7 @@ function SortableSampleTh({
         {label}
         <span aria-hidden="true" className={active ? 'text-tv-blue' : 'text-tv-muted/60'}>{direction === 'asc' ? '↑' : direction === 'desc' ? '↓' : '↕'}</span>
         <span className="sr-only">{active ? `, urutan ${direction === 'asc' ? 'menaik' : 'menurun'}` : ', klik untuk mengurutkan'}</span>
-      </button>
+      </Button>
     </th>
   );
 }
@@ -343,12 +346,10 @@ export default function IntradayValidationClient() {
     setLoading(true);
       setError(null);
     try {
-      const res = await fetch('/api/admin/intraday-validation', { cache: 'no-store' });
-      const data = await readAdminJsonResponse<Dashboard & { error?: string }>(res);
-      if (!res.ok) throw new Error(data?.error || 'Gagal memuat dashboard');
+      const data = await apiRequest<Dashboard>('/api/admin/intraday-validation', { cache: 'no-store' });
       setDashboard(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal memuat dashboard');
+      setError(apiErrorMessage(err, 'Gagal memuat dashboard', true));
     } finally {
       setLoading(false);
     }
@@ -363,19 +364,15 @@ export default function IntradayValidationClient() {
       setBusy(action);
       setActionMessage(null);
       try {
-        const res = await fetch('/api/admin/intraday-validation/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, ...payload }),
+        const data = await apiRequest<any>('/api/admin/intraday-validation/actions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...payload }),
         });
-        const data = await readAdminJsonResponse<any>(res);
-        if (!res.ok) throw new Error(data?.error || 'Aksi gagal');
         if (action === 'threshold_simulation') setThresholdSim(data);
         else if (action === 'weight_proposal') setWeightProposal(data);
         else await load();
         setActionMessage(describeActionResult(action, data));
       } catch (err) {
-        setActionMessage(err instanceof Error ? err.message : 'Aksi gagal');
+        setActionMessage(apiErrorMessage(err, 'Aksi gagal', true));
       } finally {
         setBusy(null);
       }
@@ -422,9 +419,9 @@ export default function IntradayValidationClient() {
     return (
       <div className="rounded-lg border border-tv-red/40 bg-tv-red/10 p-4 text-sm text-tv-red">
         {error}
-        <button onClick={() => void load()} className="ml-3 underline">
+        <Button variant="bare" size="none" onClick={() => void load()} className="ml-3 underline">
           Coba lagi
-        </button>
+        </Button>
       </div>
     );
   }
@@ -440,17 +437,17 @@ export default function IntradayValidationClient() {
       </div>
 
       {/* 1. STATUS UTAMA */}
-      <Card
+      <ValidationCard
         title="Status Model"
         subtitle="Identitas dan cakupan data LensIntraday. Angka di sini hanya menyangkut model intraday, bukan LensScore T+20."
         action={
-          <button
+          <Button variant="bare" size="none"
             onClick={() => void load()}
             className="inline-flex items-center gap-1.5 rounded-md border border-tv-border bg-tv-bg px-2.5 py-1.5 text-xs font-semibold text-tv-muted hover:text-tv-text"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Segarkan
-          </button>
+          </Button>
         }
       >
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -509,10 +506,10 @@ export default function IntradayValidationClient() {
             <Warnings items={result.warnings} />
           </div>
         ) : null}
-      </Card>
+      </ValidationCard>
 
       {/* AKSI */}
-      <Card
+      <ValidationCard
         title="Aksi Riset"
         subtitle="Pekerjaan berat dijalankan sebagai job dengan lock terdistribusi. Tidak satu pun aksi di sini mengubah ambang atau bobot produksi."
       >
@@ -576,10 +573,10 @@ export default function IntradayValidationClient() {
           menyimpan 60 hari untuk interval 5 menit, jadi data lebih lama dari itu tidak bisa diambil ulang. Backfill dari browser
           berhenti aman sebelum timeout jaringan; tekan lagi bila status menyebut batas waktu tercapai.
         </p>
-      </Card>
+      </ValidationCard>
 
       {/* 2. DATA QUALITY */}
-      <Card title="Data Quality" subtitle="Validasi tidak dijalankan kalau kelengkapan bar di bawah batas minimum.">
+      <ValidationCard title="Data Quality" subtitle="Validasi tidak dijalankan kalau kelengkapan bar di bawah batas minimum.">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <Metric label="Candle valid" value={dataQuality.completenessPct == null ? NA : `${dataQuality.completenessPct}%`} />
           <Metric label="Bar mentah diharapkan" value={int(dataQuality.totalExpectedBars)} />
@@ -655,9 +652,9 @@ export default function IntradayValidationClient() {
             )}
           </div>
         </div>
-      </Card>
+      </ValidationCard>
 
-      <Card
+      <ValidationCard
         title="Contoh observasi intraday terbaru"
         subtitle="Sampel H30 dari data riset tersimpan untuk pemeriksaan admin. Klik judul kolom untuk mengurutkan naik/turun; ini tidak mengubah data, formula, atau hasil validasi."
       >
@@ -695,19 +692,19 @@ export default function IntradayValidationClient() {
             </table>
           </Scroller>
         )}
-      </Card>
+      </ValidationCard>
 
       {!result ? (
-        <Card title="Hasil Validasi" subtitle="Belum ada validation run yang selesai.">
+        <ValidationCard title="Hasil Validasi" subtitle="Belum ada validation run yang selesai.">
           <p className="text-sm text-tv-muted">
             Jalankan &quot;Kumpulkan data intraday&quot; lalu &quot;Jalankan validation run&quot;. Sampai itu terjadi, tidak ada
             angka performa yang ditampilkan - halaman ini tidak mengisi kekosongan dengan data contoh.
           </p>
-        </Card>
+        </ValidationCard>
       ) : (
         <>
           {/* 3. PERFORMANCE PER HORIZON */}
-          <Card
+          <ValidationCard
             title="Performa per Horizon"
             subtitle="Setiap horizon punya statistik sendiri. Angka utama adalah NET return setelah fee beli, fee jual, dan slippage dua sisi."
           >
@@ -799,10 +796,10 @@ export default function IntradayValidationClient() {
                 ) : null
               )}
             </div>
-          </Card>
+          </ValidationCard>
 
           {/* 4. BUCKET */}
-          <Card
+          <ValidationCard
             title="Performa per Bucket Skor"
             subtitle="Bucket dengan sampel kecil tetap ditampilkan dan dilabeli, tidak disembunyikan."
           >
@@ -846,28 +843,28 @@ export default function IntradayValidationClient() {
               ({result.monotonicity?.[horizon]?.monotonic ? 'skor tinggi cenderung lebih baik' : 'belum menunjukkan urutan yang konsisten'}),
               dihitung atas {int(result.monotonicity?.[horizon]?.bucketsCompared)} bucket.
             </p>
-          </Card>
+          </ValidationCard>
 
           {/* 5 & 6. TIME OF DAY + LIKUIDITAS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-6">
-            <Card title="Analisis Waktu Sinyal" subtitle="Grid sinyal mengikuti sesi bursa aktif. Pemilihan jam terbaik untuk produksi TIDAK boleh memakai tabel ini.">
+            <ValidationCard title="Analisis Waktu Sinyal" subtitle="Grid sinyal mengikuti sesi bursa aktif. Pemilihan jam terbaik untuk produksi TIDAK boleh memakai tabel ini.">
               <SliceTable rows={result.timeOfDay?.[horizon] ?? []} keyLabel="Jam WIB" />
-            </Card>
-            <Card title="Analisis Likuiditas" subtitle="Dikelompokkan dari nilai transaksi sesi berjalan sampai signal_timestamp.">
+            </ValidationCard>
+            <ValidationCard title="Analisis Likuiditas" subtitle="Dikelompokkan dari nilai transaksi sesi berjalan sampai signal_timestamp.">
               <SliceTable rows={result.liquidity?.[horizon] ?? []} keyLabel="Kelompok" />
-            </Card>
+            </ValidationCard>
           </div>
 
           {/* 7. KONSENTRASI */}
-          <Card title="Konsentrasi Ticker dan Sektor" subtitle={`Horizon utama ${result.horizons?.[1]?.horizon ?? 'H30'}. Sektor dibaca dari arsip point-in-time fundamental_history (hanya dibaca).`}>
+          <ValidationCard title="Konsentrasi Ticker dan Sektor" subtitle={`Horizon utama ${result.horizons?.[1]?.horizon ?? 'H30'}. Sektor dibaca dari arsip point-in-time fundamental_history (hanya dibaca).`}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <ConcentrationTable title="Per ticker" data={result.concentration?.ticker} />
               <ConcentrationTable title="Per sektor" data={result.concentration?.sector} />
             </div>
-          </Card>
+          </ValidationCard>
 
           {/* 8. REGIME */}
-          <Card title="Kondisi Pasar (Regime)" subtitle={result.regime?.definition}>
+          <ValidationCard title="Kondisi Pasar (Regime)" subtitle={result.regime?.definition}>
             {result.regime?.available ? (
               <SliceTable rows={result.regime.rows} keyLabel="Regime" />
             ) : (
@@ -876,10 +873,10 @@ export default function IntradayValidationClient() {
                 model stabil lintas kondisi pasar.
               </p>
             )}
-          </Card>
+          </ValidationCard>
 
           {/* 9. KALIBRASI */}
-          <Card
+          <ValidationCard
             title="Kalibrasi Skor"
             subtitle="Menguji apakah skor LensIntraday boleh dibaca sebagai probabilitas. Isotonic di-fit HANYA di TRAIN dan diuji di TEST."
           >
@@ -935,10 +932,10 @@ export default function IntradayValidationClient() {
             >
               {result.calibration?.conclusion}
             </p>
-          </Card>
+          </ValidationCard>
 
           {/* KELAYAKAN EKSEKUSI */}
-          <Card
+          <ValidationCard
             title="Irisan yang Bisa Dieksekusi"
             subtitle="Grid sinyal sengaja tidak terseleksi supaya bucket skor rendah punya pembanding. Tabel ini membaca hasil yang SAMA pada irisan yang benar-benar bisa dibeli/dijual - menandai, bukan membuang."
           >
@@ -983,10 +980,10 @@ export default function IntradayValidationClient() {
               waktu sinyal. Baris lama yang diarsipkan sebelum kolom ini ada dihitung{' '}
               <strong className="text-tv-text">tidak layak</strong> — &quot;tidak tahu&quot; bukan &quot;ya&quot;.
             </p>
-          </Card>
+          </ValidationCard>
 
           {/* SEBARAN KOMPONEN */}
-          <Card title="Sebaran Komponen Skor" subtitle={result.componentDiagnostics?.note}>
+          <ValidationCard title="Sebaran Komponen Skor" subtitle={result.componentDiagnostics?.note}>
             {result.componentDiagnostics?.rows?.length ? (
               <Scroller>
                 <table className="w-full text-xs">
@@ -1025,10 +1022,10 @@ export default function IntradayValidationClient() {
             ) : (
               <p className="text-sm text-tv-muted">Belum ada snapshot komponen untuk dianalisis.</p>
             )}
-          </Card>
+          </ValidationCard>
 
           {/* BIAYA */}
-          <Card title="Sensitivitas Biaya dan Slippage" subtitle="Dihitung ulang dari harga bar mentah yang tersimpan - tidak perlu mengambil data provider lagi.">
+          <ValidationCard title="Sensitivitas Biaya dan Slippage" subtitle="Dihitung ulang dari harga bar mentah yang tersimpan - tidak perlu mengambil data provider lagi.">
             <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Metric
                 label="Trade kena lantai (sisi mana pun)"
@@ -1076,10 +1073,10 @@ export default function IntradayValidationClient() {
                 </tbody>
               </table>
             </Scroller>
-          </Card>
+          </ValidationCard>
 
           {/* WALK FORWARD */}
-          <Card title="Walk-Forward (purged + embargo)" subtitle={result.walkForward?.note}>
+          <ValidationCard title="Walk-Forward (purged + embargo)" subtitle={result.walkForward?.note}>
             {result.walkForward?.folds?.length ? (
               <>
                 <Scroller>
@@ -1119,10 +1116,10 @@ export default function IntradayValidationClient() {
             ) : (
               <p className="text-sm text-tv-muted">{result.walkForward?.note ?? 'Belum cukup hari bursa untuk walk-forward.'}</p>
             )}
-          </Card>
+          </ValidationCard>
 
           {/* 10. THRESHOLD SIMULATOR */}
-          <Card
+          <ValidationCard
             title="Threshold Simulator"
             subtitle="Hanya untuk riset. Slider ini TIDAK mengubah ambang produksi, dan proposal ambang otomatis dibekukan sampai OOS asli memenuhi syarat."
           >
@@ -1203,10 +1200,10 @@ export default function IntradayValidationClient() {
             ) : (
               <p className="text-sm text-tv-muted">Tekan &quot;Simulasikan&quot; untuk melihat dampak ambang terhadap sampel dan statistik.</p>
             )}
-          </Card>
+          </ValidationCard>
 
           {/* 11. WEIGHT OPTIMIZER */}
-          <Card
+          <ValidationCard
             title="Weight Optimizer LensIntraday"
             subtitle="TRAIN / VALIDATION / TEST berurutan waktu dengan embargo, regularisasi terhadap bobot berjalan, dan batas bobot. Hasilnya proposal untuk ditinjau, bukan perubahan otomatis."
           >
@@ -1270,10 +1267,10 @@ export default function IntradayValidationClient() {
                 )}
               </div>
             ) : null}
-          </Card>
+          </ValidationCard>
 
           {/* GERBANG PENERIMAAN */}
-          <Card
+          <ValidationCard
             title="Acceptance Gate"
             subtitle={
               result.acceptance?.frozen
@@ -1309,12 +1306,12 @@ export default function IntradayValidationClient() {
               Status akhir: <StatusBadge status={result.status} />. Status <code>CANDIDATE_VALIDATED</code> hanya muncul
               kalau SELURUH kriteria lolos DAN run dijalankan dalam mode OOS atas protokol yang sudah dibekukan.
             </p>
-          </Card>
+          </ValidationCard>
         </>
       )}
 
       {/* PROTOKOL OOS */}
-      <Card title="Protokol Forward Out-of-Sample" subtitle="Sekali dibekukan, baris protokol tidak pernah di-UPDATE. Formula berubah = protokol dan model version baru.">
+      <ValidationCard title="Protokol Forward Out-of-Sample" subtitle="Sekali dibekukan, baris protokol tidak pernah di-UPDATE. Formula berubah = protokol dan model version baru.">
         {dashboard.oosProtocol ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1364,10 +1361,10 @@ export default function IntradayValidationClient() {
             TIDAK boleh disebut hasil out-of-sample.
           </p>
         )}
-      </Card>
+      </ValidationCard>
 
       {/* HISTORI RUN */}
-      <Card title="Histori Validation Run" subtitle="10 run terakhir.">
+      <ValidationCard title="Histori Validation Run" subtitle="10 run terakhir.">
         {dashboard.recentRuns.length === 0 ? (
           <p className="text-sm text-tv-muted">Belum ada run.</p>
         ) : (
@@ -1406,7 +1403,7 @@ export default function IntradayValidationClient() {
             </table>
           </Scroller>
         )}
-      </Card>
+      </ValidationCard>
     </div>
   );
 }
@@ -1427,14 +1424,14 @@ function ActionButton({
   icon?: React.ReactNode;
 }) {
   return (
-    <button
+    <Button variant="bare" size="none"
       onClick={onClick}
       disabled={disabled}
       className="inline-flex items-center gap-2 rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-xs font-semibold text-tv-text transition-colors hover:bg-tv-hover disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -1443,7 +1440,7 @@ function HorizonTabs({ horizon, setHorizon, available }: { horizon: string; setH
   return (
     <div className="mb-4 flex flex-wrap gap-2">
       {available.map((h) => (
-        <button
+        <Button variant="bare" size="none"
           key={h}
           onClick={() => setHorizon(h)}
           className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
@@ -1451,7 +1448,7 @@ function HorizonTabs({ horizon, setHorizon, available }: { horizon: string; setH
           }`}
         >
           {h}
-        </button>
+        </Button>
       ))}
     </div>
   );

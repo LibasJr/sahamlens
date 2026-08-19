@@ -1,28 +1,37 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Activity, Radar, LineChart, Menu, Sparkles } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { useLanguage } from '@/lib/i18n';
 
-const PUBLIC_ITEMS = [
-  { label: 'Home', href: '/home', icon: Home, matches: ['/home'] },
-  { label: 'Market', href: '/market-pulse', icon: Activity, matches: ['/market-pulse', '/market/'] },
-  { label: 'Radar', href: '/breakout-radar', icon: Radar, matches: ['/breakout-radar', '/recommendations'] },
-];
-
-const GUEST_PRIMARY_ITEM = { label: 'Konsensus', href: '/technical/BBCA.JK', icon: Sparkles, matches: ['/technical/'] };
-const MEMBER_PRIMARY_ITEM = { label: 'Analyze', href: '/dashboard', icon: LineChart, matches: ['/dashboard', '/fundamental', '/technical/', '/dcf', '/compare'] };
+const NAV_DEFS = {
+  home: { href: '/', icon: Home, matches: ['/'] },
+  market: { href: '/market-pulse', icon: Activity, matches: ['/market-pulse', '/market/'] },
+  radar: { href: '/breakout-radar', icon: Radar, matches: ['/breakout-radar', '/recommendations'] },
+  guestAnalysis: { href: '/technical/BBCA.JK', icon: Sparkles, matches: ['/technical/'] },
+  memberAnalysis: { href: '/dashboard', icon: LineChart, matches: ['/dashboard', '/fundamental', '/technical/', '/dcf', '/compare'] },
+} as const;
 
 export default function MobileNav() {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
   const { effectiveRole, loading, resolved } = useAuthUser();
+  const { t } = useLanguage();
   // Saat status sesi belum pasti, tampilkan pintu analisis anggota agar user yang
   // sudah login tidak melihat item tamu lalu berkedip berubah sesaat kemudian.
   const isConfirmedGuest = !loading && resolved && effectiveRole === 'guest';
-  const items = [...PUBLIC_ITEMS, isConfirmedGuest ? GUEST_PRIMARY_ITEM : MEMBER_PRIMARY_ITEM];
+  const items = [
+    { ...NAV_DEFS.home, label: t('nav.home') },
+    { ...NAV_DEFS.market, label: t('nav.marketPulse') },
+    { ...NAV_DEFS.radar, label: t('nav.radar') },
+    isConfirmedGuest
+      ? { ...NAV_DEFS.guestAnalysis, label: 'LensConsensus' }
+      : { ...NAV_DEFS.memberAnalysis, label: t('nav.technical') },
+  ];
 
   useEffect(() => {
     const nav = navRef.current;
@@ -65,7 +74,10 @@ export default function MobileNav() {
     <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 font-sans md:hidden" aria-label="Navigasi utama mobile">
       <div className="grid grid-cols-5 items-stretch rounded-[22px] border border-white/10 bg-[#0A101B]/95 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.55)] backdrop-blur-xl">
         {items.map((item) => {
-          const active = item.matches.some((match) => match.endsWith('/') ? pathname.startsWith(match) : pathname === match || pathname.startsWith(`${match}/`));
+          const active = item.matches.some((match) => {
+            if (match === '/') return pathname === '/';
+            return match.endsWith('/') ? pathname.startsWith(match) : pathname === match || pathname.startsWith(`${match}/`);
+          });
           const Icon = item.icon;
           return (
             <Link
@@ -80,14 +92,14 @@ export default function MobileNav() {
             </Link>
           );
         })}
-        <button
+        <Button variant="bare" size="none"
           type="button"
           onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
           className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/5 hover:text-white"
         >
           <Menu className="h-5 w-5" />
           <span>Menu</span>
-        </button>
+        </Button>
       </div>
     </nav>
   );

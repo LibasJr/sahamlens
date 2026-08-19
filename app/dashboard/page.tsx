@@ -1,585 +1,43 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import dynamic from 'next/dynamic';
+import React, { Suspense } from 'react';
 import Header from '@/components/Header';
 import RiskRewardCalculator from '@/components/RiskRewardCalculator';
 import { PositionSizingCalculator } from '@/components/PositionSizingCalculator';
-import { QuickWatchlistStar } from '@/components/QuickWatchlistStar';
-import { PriceRangeSlider } from '@/components/ui/PriceRangeSlider';
 import AlgoFilters from '@/components/AlgoFilters';
 import AnalysisGlossary from '@/components/AnalysisGlossary';
-import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
-import PaywallModal from '@/components/PaywallModal';
-import StockNewsModal from '@/components/StockNewsModal';
-import { AnimatedNumber, Skeleton, EmptyState, PageContainer, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
-import { classifyCapTier, CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR, CURRENT_LARGE_LIQUID_MIN_ADV20_IDR } from '@/lib/utils/cap-tier';
-import { isBlueChipConstituent, LQ45_BADGE_TITLE } from '@/lib/utils/blue-chip-index';
-import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
-import Toast, { type ToastVariant } from '@/components/ui/Toast';
-import { FREE_LIMITS } from '@/shared/constants/limits';
-import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
-import { useAuthUser } from '@/lib/hooks/useAuthUser';
-import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
-import { calculateRsi } from '@/modules/technical/service/rsi';
-import { isMarketOpen } from '@/lib/utils/market';
-import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
-import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
-import { resolvePreviousClose } from '@/shared/market/previous-close';
+import { useDashboardAnalysis } from '@/components/dashboard/useDashboardAnalysis';
+import { DashboardEmptyState, DashboardLoadingState } from '@/components/dashboard/DashboardLoadStates';
+import { DashboardIndexSection } from '@/components/dashboard/DashboardIndexSection';
+import { DashboardStockOverview } from '@/components/dashboard/DashboardStockOverview';
+import { DashboardFooterActions } from '@/components/dashboard/DashboardFooterActions';
+import { downloadTechnicalReport } from '@/components/dashboard/downloadTechnicalReport';
 import {
-  Zap, ArrowUpRight, ArrowDownRight,
-  RefreshCw, Users, AlertTriangle, ShieldCheck, TrendingUp, Activity, Download, FileText, Target,
-  Sparkles, Calculator, Newspaper, ChevronRight, Radar, CheckCircle2, X
-} from 'lucide-react';
-// jsPDF/jspdf-autotable TIDAK di-import statis di sini (optimasi loading 2026-08-05) -
-// keduanya cukup berat dan sebelumnya dibundel ke JS awal /dashboard (halaman paling
-// sering dibuka setelah landing page) padahal cuma dipakai kalau pengguna benar-benar
-// klik "Download PDF Report". Sekarang di-import dinamis di dalam downloadTechnicalPDF()
-// - library itu baru diunduh & di-parse browser saat tombolnya diklik, bukan di setiap
-// kunjungan halaman.
-
-
-const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
-  ssr: false,
-  loading: () => <div className="h-[420px] w-full animate-pulse rounded-xl bg-tv-surface" aria-label="Memuat chart" />,
-});
-
-const ProTradingViewChart = dynamic(() => import('@/components/ProTradingViewChart').then((m) => m.ProTradingViewChart), {
-  ssr: false,
-  loading: () => <div className="h-[420px] w-full animate-pulse rounded-2xl bg-tv-surface" aria-label="Memuat Pro Chart" />,
-});
-
-const SeasonalityMatrix = dynamic(() => import('@/components/SeasonalityMatrix').then((m) => m.SeasonalityMatrix), {
-  ssr: false,
-});
-
-// Normalisasi simbol: pastikan hanya 1x .JK. IHSG diperlakukan sebagai indeks pasar,
-// bukan emiten, sehingga tidak boleh masuk ke endpoint analisis saham /api/stock.
-const isIndexTicker = (s: string) => {
-  const value = s.trim().toUpperCase().replace(/\.JK$/, '');
-  return value === 'IHSG' || value === 'JKSE' || value === '^JKSE';
-};
-const normTicker = (s: string) => isIndexTicker(s) ? '^JKSE' : s.replace('.JK', '').replace('.JK', '') + '.JK';
-const displayTicker = (s: string) => isIndexTicker(s) ? 'IHSG' : s.replace('.JK', '').replace('.JK', '');
-
-function buildIndexPayload(symbol: string, candles: any[]) {
-  const last = candles[candles.length - 1];
-  const close = typeof last?.close === 'number' ? last.close : null;
-  // Jangan mengambil candles[length - 2] sebagai penutupan sebelumnya. Pada sesi
-  // berjalan Yahoo dapat mengirim/menyaring bar berbeda sehingga posisi larik bukan
-  // jaminan sesi bursa sebelumnya. Helper membandingkan tanggal bursa yang sebenarnya.
-  const timestamps = candles.map((candle) => {
-    const rawTime = candle?.time ?? candle?.Date ?? candle?.date;
-    const millis = typeof rawTime === 'number' ? rawTime * 1000 : Date.parse(rawTime);
-    return Number.isFinite(millis) ? Math.floor(millis / 1000) : null;
-  });
-  const closes = candles.map((candle) => candle?.close);
-  const { previousClose } = resolvePreviousClose({ timestamps, closes });
-  const changePct = close != null && previousClose != null && previousClose > 0
-    ? Number((((close - previousClose) / previousClose) * 100).toFixed(2))
-    : null;
-
-  return {
-    stock: {
-      symbol,
-      name: 'Indeks Harga Saham Gabungan (IHSG)',
-      current_price: close,
-      change_pct: changePct,
-      history: candles,
-    },
-    analyzers: [],
-    technical: {},
-    _meta: {
-      dataTimestamp: typeof last?.Date === 'string'
-        ? last.Date
-        : (typeof last?.date === 'string' ? last.date : null),
-      freshness: 'EOD',
-    },
-  };
-}
-
-const splitStatusText = (value?: string | null) => {
-  const text = (value || '').trim();
-  if (!text) return { primary: 'AWAITING', detail: '' };
-  const match = text.match(/^([^()]+?)\s*(?:\((.+)\))?$/);
-  return {
-    primary: (match?.[1] || text).trim(),
-    detail: (match?.[2] || '').trim(),
-  };
-};
-
-/** SMA dari candle yang sedang ditampilkan - `undefined` (bukan angka seadanya) kalau
- * bar-nya kurang dari periode, supaya legend chart menampilkan "-" alih-alih rata-rata
- * 60 hari yang dilabeli "MA 200" (audit logika & algoritma 2026-08-05, temuan H-2). */
-function smaOf(candles: { close: number }[], period: number): number | undefined {
-  if (!candles || candles.length < period) return undefined;
-  const slice = candles.slice(-period);
-  return Math.round(slice.reduce((sum, c) => sum + c.close, 0) / period);
-}
-
-function pctChange(candles: { close: number }[], days: number): number | null {
-  if (!candles || candles.length <= days) return null;
-  const last = candles[candles.length - 1]?.close;
-  const base = candles[candles.length - 1 - days]?.close;
-  if (typeof last !== 'number' || typeof base !== 'number' || base <= 0) return null;
-  return Number((((last - base) / base) * 100).toFixed(2));
-}
-
-function volatility20D(candles: { close: number }[]): number | null {
-  if (!candles || candles.length < 22) return null;
-  const returns = candles.slice(-21).slice(1).map((c, i) => {
-    const prev = candles[candles.length - 21 + i]?.close;
-    return prev > 0 ? (c.close - prev) / prev : 0;
-  });
-  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
-  const variance = returns.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / returns.length;
-  return Number((Math.sqrt(variance) * Math.sqrt(252) * 100).toFixed(1));
-}
-
-function formatPct(value: number | null) {
-  if (value == null) return 'N/A';
-  return `${value > 0 ? '+' : ''}${value}%`;
-}
-
-function toneClass(value: number | null) {
-  if (value == null) return 'text-tv-muted';
-  if (value > 0) return 'text-tv-green';
-  if (value < 0) return 'text-tv-red';
-  return 'text-tv-muted';
-}
-
-// BUG 3 FIX: MA Status Badge
-const getMAStatus = (price: number, ma50: number, ma200: number) => {
-  if (!price || !ma50 || !ma200) return { label: 'N/A', color: 'text-tv-muted', bg: 'bg-tv-hover' };
-  if (price > ma50 && ma50 > ma200) return { label: 'GOLDEN TREND - Uptrend Kuat', color: 'text-tv-green', bg: 'bg-tv-green/15 border-tv-green/30' };
-  if (price > ma50 && price < ma200) return { label: 'REBOUND LEMAH - Di bawah MA200', color: 'text-tv-yellow', bg: 'bg-tv-yellow/15 border-tv-yellow/30' };
-  if (price > ma200 && price < ma50) return { label: 'KOREKSI - Di bawah MA50', color: 'text-tv-yellow', bg: 'bg-tv-yellow/15 border-tv-yellow/30' };
-  if (price < ma50 && price < ma200) return { label: 'DOWNTREND - Di bawah MA50 & MA200', color: 'text-tv-red', bg: 'bg-tv-red/15 border-tv-red/30' };
-  return { label: 'SIDEWAYS', color: 'text-tv-muted', bg: 'bg-tv-hover' };
-};
-
-
-const signalBadgeTone = (signal: string | null | undefined) =>
-  signal === 'STRONG BUY' ? 'bg-tv-green/20 text-tv-green border-tv-green/50' :
-  signal === 'BUY' ? 'bg-tv-blue/20 text-tv-blue border-tv-blue/50' :
-  signal === 'HOLD' || signal === 'DATA TIDAK CUKUP' ? 'bg-tv-yellow/20 text-tv-yellow border-tv-yellow/50' :
-  signal === 'SELL' ? 'bg-tv-red/20 text-tv-red border-tv-red/50' :
-  'bg-tv-hover text-tv-muted border-tv-border';
-
+  buildChartTechnical,
+  buildDataFreshness,
+  buildIndexTechnicalSummary,
+  computeBacktestAccuracy,
+  displayDashboardTicker as displayTicker,
+  getMAStatus,
+  isIndexTicker,
+  signalBadgeTone,
+} from '@/components/dashboard/dashboard-analysis';
+import { AnimatedNumber, Button, Card, PageContainer } from '@/components/ui';
+import { FREE_LIMITS } from '@/shared/constants/limits';
+import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
+import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
+import { Activity, CheckCircle2, Download, FileText, Radar, RefreshCw, Sparkles } from 'lucide-react';
 function DashboardContent() {
-  const searchParams = useSearchParams();
   const {
-    loading: authLoading,
-    resolved: authResolved,
-    user: authUser,
-    isTrialExpired,
-  } = useAuthUser();
+    ticker, setTicker, loading, fetchError, fetchErrorRequestId, data, lastUpdate, marketClosed,
+    sortByConfidence, setSortByConfidence, viewMode, changeViewMode,
+    openFullAnalysis, collapseAnalysis, timeframe, setTimeframe, chartCandles,
+    radarRank, stockNews, loadingStockNews, newsModalOpen, setNewsModalOpen,
+    analisaRemaining, showPaywall, setShowPaywall, showLoginPrompt,
+    setShowLoginPrompt, usedSymbolsToday, isAdminUser, isTrialExpired, lockForGuest, handleRefresh,
+  } = useDashboardAnalysis();
 
-  // Blok fetch('/api/auth/me') terpisah DIHAPUS dari efek di bawah. Berkas ini sudah
-  // memanggil useAuthUser() di sini DAN mengimpor computeRole - jadi ia menulis ulang
-  // hook-nya secara inline di sebelah pemakaian hook yang asli, dan menembak endpoint
-  // yang sama dua kali pada setiap muat halaman.
-  //
-  // Catatan bug fix yang dulu menempel di blok itu tetap berlaku dan justru lebih kuat
-  // sekarang: keputusan Pro/trial datang dari computeRole() (di dalam useAuthUser),
-  // logic yang sama dengan checkProAccess() di server - bukan dari `role === 'pro'` yang
-  // membuat pelanggan berbayar disodori paywall, karena panel admin tidak pernah menulis
-  // kolom role.
-  const isAdminUser = authUser?.role === 'admin';
-  // `adminReady` = statusnya sudah diketahui, entah berhasil atau gagal terbaca. Sama
-  // seperti sebelumnya: cabang .catch juga menyetelnya true.
-  const adminReady = !authLoading;
-  const [ticker, setTickerState] = useState('DGWG.JK');
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState(false);
-  const [data, setData] = useState<any>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [marketClosed, setMarketClosed] = useState(false);
-  const [sortByConfidence, setSortByConfidence] = useState(true);
-  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
-
-  // Timeframe chart terpisah dari /api/stock (yang selalu histori 1 tahun untuk
-  // kebutuhan 10 analyzer/scoring) - sama seperti dashboard publik & halaman
-  // teknikal, chart di sini pakai /api/public-chart yang mendukung parameter tf.
-  const [timeframe, setTimeframe] = useState('1Y');
-  const [chartCandles, setChartCandles] = useState<any[]>([]);
-  const [chartRefreshKey, setChartRefreshKey] = useState(0);
-  const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem('sahamlens.analysis-view.dashboard.v2');
-    if (saved === 'compact' || saved === 'full') {
-      setViewMode(saved);
-      return;
-    }
-    if (window.matchMedia('(max-width: 767px)').matches) setViewMode('compact');
-  }, []);
-
-  const changeViewMode = (mode: 'compact' | 'full') => {
-    setViewMode(mode);
-    window.localStorage.setItem('sahamlens.analysis-view.dashboard.v2', mode);
-  };
-
-  const openFullAnalysis = () => {
-    changeViewMode('full');
-    window.requestAnimationFrame(() => {
-      const detail = document.getElementById('analysis-detail');
-      detail?.focus({ preventScroll: true });
-      detail?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
-  const collapseAnalysis = () => {
-    changeViewMode('compact');
-    window.requestAnimationFrame(() => {
-      document.getElementById('score-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
-  // Berita spesifik emiten yang sedang dilihat - BUKAN berita pasar umum (itu ada di
-  // Beranda). Difilter dari RSS yang sama berdasarkan penyebutan ticker/nama perusahaan.
-  const [stockNews, setStockNews] = useState<any[]>([]);
-  const [loadingStockNews, setLoadingStockNews] = useState(true);
-  // Judul beritanya dulu tidak pernah ditampilkan di mana pun - stockNews cuma dipakai
-  // menghitung angka di kartu Sentimen. Modal ini menampilkan data yang memang sudah ada.
-  const [newsModalOpen, setNewsModalOpen] = useState(false);
-  
-  // AI Explain Modal State
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiModalData, setAiModalData] = useState<any>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Free-tier "analisa per hari" limit
-  const [analisaRemaining, setAnalisaRemaining] = useState<number>(FREE_LIMITS.analisaPerHari);
-  const [showPaywall, setShowPaywall] = useState(false);
-
-  // Tetap state, bukan turunan: modal ini bisa DITUTUP pengguna, jadi nilainya tidak
-  // sepenuhnya ditentukan status trial. Yang berubah hanya sumber pemicunya.
-  useEffect(() => {
-    if (isTrialExpired) setShowPaywall(true);
-  }, [isTrialExpired]);
-  // ATURAN BARU (2026-08-01) - halaman ini sekarang bisa dibuka tanpa login (lihat
-  // middleware.ts), tapi /api/stock/[ticker] tetap wajib login. State terpisah dari
-  // showPaywall (itu utk trial/Pro habis) supaya pesannya jelas beda: ajakan DAFTAR,
-  // bukan upgrade Pro (user belum tentu punya akun sama sekali).
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [usedSymbolsToday, setUsedSymbolsToday] = useState<string[]>([]);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
-  const analyzerAbortRef = useRef<AbortController | null>(null);
-
-  const showToast = (message: string, variant: ToastVariant = 'info') => {
-    setToastVariant(variant);
-    setToastMessage(null);
-    window.setTimeout(() => setToastMessage(message), 0);
-  };
-
-  const setTicker = (newTicker: string) => {
-    const nextTicker = normTicker(newTicker);
-    setTickerState(nextTicker);
-    if (typeof window !== 'undefined') {
-      if (!isIndexTicker(nextTicker)) {
-        localStorage.setItem('last_searched_ticker', nextTicker);
-      }
-    }
-  };
-
-  const fetchAnalyzerData = async (symbol: string) => {
-    if (isIndexTicker(symbol)) {
-      // IHSG adalah indeks pasar. Jangan panggil /api/stock karena endpoint itu khusus
-      // emiten saham dan memang akan menolak ^JKSE. Data indeks diambil oleh effect
-      // /api/public-chart di bawah.
-      setLoading(false);
-      setFetchError(false);
-      return;
-    }
-    analyzerAbortRef.current?.abort();
-    const controller = new AbortController();
-    analyzerAbortRef.current = controller;
-    setLoading(true);
-    setFetchError(false);
-    // Jangan biarkan payload ticker sebelumnya tampil di bawah header ticker baru bila
-    // request berikutnya gagal atau masih berjalan.
-    setData(null);
-    setLastUpdate(null);
-    setRadarRank(null);
-    try {
-      // Abort request lama saat ticker berganti/refresh berikutnya dimulai supaya response
-      // BBCA yang lambat tidak bisa menimpa state setelah user sudah pindah ke BBRI.
-      const resAlgo = await fetch(`/api/stock/${symbol}`, { cache: 'no-store', signal: controller.signal });
-      const jsonAlgo = await resAlgo.json();
-
-      if (resAlgo.status === 401) {
-        if (await shouldShowLoginPromptFor401()) {
-          setShowLoginPrompt(true);
-        } else {
-          setFetchError(true);
-        }
-        return;
-      }
-      if (resAlgo.status === 402 || jsonAlgo.code === 'SUBSCRIPTION_REQUIRED') {
-        setAnalisaRemaining(0);
-        setUsedSymbolsToday(jsonAlgo.usedSymbols || []);
-        setShowPaywall(true);
-        return;
-      }
-      if (!resAlgo.ok || !jsonAlgo?.stock) {
-        setFetchError(true);
-        return;
-      }
-
-      if (jsonAlgo?.stock) {
-        setData(jsonAlgo);
-        const sourceTime = new Date(jsonAlgo?._meta?.dataTimestamp);
-        setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
-        // LensRadar rank badge - best-effort, tidak menghalangi render utama kalau gagal
-        // atau ticker ini memang tidak ada di daftar ranking hari ini (lihat spec section C).
-        fetch('/api/ai-pick', { cache: 'no-store', signal: controller.signal })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((d) => {
-            const match = (d?.items || []).find((it: any) => it.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
-            setRadarRank(match ? { finalScore: match.finalScore, topReasons: match.topReasons } : null);
-          })
-          .catch(() => setRadarRank(null));
-        if (jsonAlgo._quota) {
-          setAnalisaRemaining(jsonAlgo._quota.remaining);
-          setUsedSymbolsToday(jsonAlgo._quota.usedSymbols || []);
-        } else {
-          // Tidak ada _quota di response = Pro/internal (lihat withQuotaInfo di
-          // route) - Infinity supaya badge limit di Header disembunyikan
-          // (Number.isFinite check), bukan nyangkut di angka lama.
-          setAnalisaRemaining(Infinity);
-        }
-        
-        // Kirim data 10 Agent Council ke AI Chat supaya jawaban AI lebih substantif
-        window.dispatchEvent(new CustomEvent('update-ai-context', { 
-          detail: {
-            symbol,
-            price: jsonAlgo.stock?.current_price,
-            analyzers: jsonAlgo.analyzers,
-            council: jsonAlgo.council,
-            technical: jsonAlgo.technical,
-            consensus: jsonAlgo.consensus,
-            score: jsonAlgo.score,
-            modelSignal: jsonAlgo.scoring?.kategori,
-            decision: jsonAlgo.decision,
-            eligibility: jsonAlgo.eligibility
-          }
-        }));
-        
-      }
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
-      console.error('Failed to fetch data', e);
-      setFetchError(true);
-    } finally {
-      if (analyzerAbortRef.current === controller) {
-        analyzerAbortRef.current = null;
-        setLoading(false);
-      }
-    }
-  };
-
-  // LocalStorage visit-to-visit accuracy tracking was removed: its horizon depended on
-  // when a user revisited the page, so it was not a valid historical accuracy metric.
-  // Analyzer hit-rate shown below now comes only from deterministic historical bars.
-
-
-  const handleRefresh = () => {
-    if (isIndexTicker(ticker)) {
-      setChartRefreshKey((value) => value + 1);
-      return;
-    }
-    fetchAnalyzerData(ticker);
-  };
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setMounted(true);
-
-    const urlSymbol = searchParams.get('symbol');
-    if (urlSymbol) {
-      setTicker(urlSymbol.toUpperCase());
-    } else {
-      const savedTicker = localStorage.getItem('last_searched_ticker');
-      if (savedTicker && savedTicker !== ticker) {
-        setTickerState(normTicker(savedTicker));
-      }
-    }
-    return () => controller.abort();
-  }, [searchParams]);
-
-  useEffect(() => {
-    // Tunggu refreshAdminStatus() selesai dulu - supaya admin tidak sempat kehitung
-    // sebagai pemakaian free-tier biasa sebelum cache admin ke-update (lihat lib/limits.ts).
-    if (!mounted || !adminReady) return;
-    if (isIndexTicker(ticker)) {
-      setMarketClosed(!isMarketOpen(new Date()));
-      setLoading(false);
-      setShowLoginPrompt(false);
-      setShowPaywall(false);
-      return;
-    }
-
-    // Kuota "analisa/hari" free-tier sekarang ditegakkan & dihitung di server
-    // (app/api/stock/[ticker]/route.ts, lihat shared/usage/daily-analisa-quota.ts) -
-    // dulu incrementAnalisa() di sini cuma stub client (selalu allowed, remaining
-    // statis), state analisaRemaining/usedSymbolsToday di-update dari response asli
-    // di fetchAnalyzerData (field _quota saat sukses, usedSymbols saat 402).
-    setMarketClosed(!isMarketOpen(new Date()));
-    fetchAnalyzerData(ticker);
-
-    const interval = setInterval(() => {
-      const closed = !isMarketOpen(new Date());
-      setMarketClosed(closed);
-      if (!document.hidden && !closed) {
-        fetchAnalyzerData(ticker);
-      }
-    }, 60000);
-
-    return () => {
-      clearInterval(interval);
-      analyzerAbortRef.current?.abort();
-    };
-  }, [ticker, mounted, adminReady]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const controller = new AbortController();
-    const code = ticker.replace('.JK', '');
-    setChartCandles([]);
-    if (isIndexTicker(ticker)) {
-      setData(null);
-      setLoading(true);
-      setFetchError(false);
-    }
-    fetch(`/api/public-chart/${encodeURIComponent(isIndexTicker(ticker) ? 'IHSG' : code)}?tf=${timeframe}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.history?.length > 0) {
-          setChartCandles(d.history);
-          if (isIndexTicker(ticker)) {
-            const indexPayload = buildIndexPayload('^JKSE', d.history);
-            setData(indexPayload);
-            const sourceTime = new Date(indexPayload._meta?.dataTimestamp);
-            setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
-          }
-        } else if (isIndexTicker(ticker)) {
-          setFetchError(true);
-        }
-      })
-      .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          console.error('Chart fetch failed', error);
-          if (isIndexTicker(ticker)) setFetchError(true);
-        }
-      })
-      .finally(() => {
-        if (isIndexTicker(ticker) && !controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [ticker, timeframe, mounted, chartRefreshKey]);
-
-  useEffect(() => {
-    if (!mounted || !data?.stock?.symbol) return;
-    const controller = new AbortController();
-    setLoadingStockNews(true);
-    const code = ticker.replace('.JK', '');
-    const name = data.stock.name || '';
-    fetch(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setStockNews(d?.items || []))
-      .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Stock news fetch failed', error);
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoadingStockNews(false); });
-    return () => controller.abort();
-  }, [ticker, mounted, data?.stock?.symbol]);
-
-  const downloadTechnicalPDF = async () => {
-    if (!data?.scoring) return;
-
-    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-      import('jspdf'),
-      import('jspdf-autotable'),
-    ]);
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    // Presentation semantics: hasil LensScore tetap terlihat sebagai SINYAL MODEL,
-    // sedangkan recommendation actionable hanya boleh berasal dari `decision.action`.
-    // MODEL_UNVALIDATED bukan sinonim NETRAL dan bukan penolakan atas sahamnya.
-    const decisionPresentation = getDecisionPresentation(data.scoring.kategori, data.decision);
-    const reportLabel = decisionPresentation.recommendationLabel
-      ?? decisionPresentation.modelSignalLabel
-      ?? 'STATUS MODEL TIDAK TERSEDIA';
-    doc.text(`${displayTicker(stock.symbol || ticker)} Technical Report - Score ${data.scoring.total_score} - ${reportLabel}`, 14, 20);
-    
-    let finalY = 30;
-    
-    // Screenshot chart 
-    const chartEl = document.querySelector('.tv-lightweight-charts');
-    if (chartEl) {
-      try {
-        const html2canvas = (await import('html2canvas')).default;
-        // Latar PNG disamakan dengan tv-bg palet baru (#0B0F19) - sebelumnya #0F141D,
-        // sehingga chart di dalam PDF punya kotak latar yang sedikit beda dari halaman.
-        const canvas = await html2canvas(chartEl as HTMLElement, { scale: 1.5, useCORS: true, backgroundColor: '#0B0F19' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgHeight = (canvas.height * 180) / canvas.width;
-        doc.addImage(imgData, 'PNG', 14, 30, 180, imgHeight);
-        finalY = 30 + imgHeight + 10;
-      } catch (err) {
-        console.error("Screenshot error", err);
-      }
-    }
-    
-    doc.setFontSize(12);
-    doc.text('Technical Indicators', 14, finalY);
-    
-    const tableData = data.analyzers.map((a: any) => [
-      a.label,
-      a.value,
-      a.decision,
-      `${a.confidence}/100`
-    ]);
-    
-    autoTable(doc, {
-      startY: finalY + 5,
-      head: [['Filter', 'Value', 'Signal', 'Rule Strength']],
-      body: tableData
-    });
-
-    finalY = (doc as any).lastAutoTable?.finalY || finalY + 30;
-    
-    doc.setFontSize(11);
-    const decisionText = decisionPresentation.actionable
-      ? `${decisionPresentation.recommendationLabel} dengan skor ${data.scoring.total_score}/100.`
-      : `${decisionPresentation.modelSignalLabel || 'Sinyal model tidak tersedia'}. Status: ${decisionPresentation.statusLabel || 'rekomendasi tidak tersedia'}. ${decisionPresentation.explanation || ''} Skor ${data.scoring.total_score}/100 tetap ditampilkan sebagai informasi.`;
-    const decisionLines = doc.splitTextToSize(decisionText, 180);
-    doc.text(decisionLines, 14, finalY + 15);
-    doc.text(`Harga di bawah/atas indikator MA mengonfirmasi tren saat ini.`, 14, finalY + 20 + (decisionLines.length * 5));
-    
-    doc.setFontSize(9);
-    doc.text('Disclaimer: Laporan ini di-generate secara otomatis oleh AI. Bukan ajakan beli/jual.', 14, 280);
-    
-    doc.save(`${displayTicker(stock.symbol || ticker)}_Technical_Report.pdf`);
-  };
-
-  const formatTime = (date: Date | null) => {
-    if (!date) return '-';
-    return new Intl.DateTimeFormat('id-ID', {
-      timeZone: 'Asia/Jakarta',
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date) + ' WIB';
-  };
-
+  const downloadTechnicalPDF = () => downloadTechnicalReport({ data, ticker });
   const stock = data?.stock || {};
   const currentIsIndex = isIndexTicker(ticker);
   const candles = chartCandles.length > 0 ? chartCandles : (data?.stock?.history || []);
@@ -589,126 +47,12 @@ function DashboardContent() {
     analyzers = [...analyzers].sort((a, b) => b.confidence - a.confidence);
   }
 
-  // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-1): halaman ini SEBELUMNYA
-  // meneruskan `data?.technical || {}` ke TradingViewChart - dan /api/stock/[ticker]
-  // SELALU mengembalikan `technical: {}` (objek kosong permanen), jadi setiap field di
-  // header chart jatuh ke fallback-nya, termasuk "Bandar Flow: AKUMULASI" hardcoded yang
-  // tampil untuk SEMUA saham di SEMUA kondisi. Sekarang header chart diisi dari analyzer
-  // yang benar-benar dihitung route itu (EMA cross & Bandarmology CMF, keduanya lewat
-  // `raw` - bukan parsing string tampilan), dan `undefined`/null kalau analyzer-nya tidak
-  // tersedia sehingga UI menampilkan "N/A".
-  const emaAnalyzer = analyzers.find((a: any) => a.label?.includes('EMA'));
-  const cmfAnalyzer = analyzers.find((a: any) => a.label?.includes('Bandarmology'));
-  const cmfRaw = cmfAnalyzer?.raw;
-  const chartTechnical = {
-    cross_status:
-      typeof emaAnalyzer?.raw?.ema20 === 'number' && typeof emaAnalyzer?.raw?.ema50 === 'number'
-        ? (emaAnalyzer.raw.ema20 > emaAnalyzer.raw.ema50 ? 'BULLISH' : 'BEARISH')
-        : null,
-    money_flow_status:
-      typeof cmfRaw?.cmf20 === 'number'
-        ? `${cmfRaw.status === 'BULLISH' ? 'AKUMULASI' : cmfRaw.status === 'BEARISH' ? 'DISTRIBUSI' : 'NETRAL'} (${cmfRaw.cmf20 > 0 ? '+' : ''}${cmfRaw.cmf20}%)`
-        : null,
-    // MA50/MA200 dihitung dari candle yang SEDANG ditampilkan; `undefined` kalau bar-nya
-    // kurang dari periode - legend menampilkan "-", bukan rata-rata bar seadanya yang
-    // dilabeli MA200 (temuan H-2).
-    ma50: smaOf(candles, 50),
-    ma200: smaOf(candles, 200),
-  };
-
-  const indexTechnicalSummary = React.useMemo(() => {
-    if (!currentIsIndex || candles.length < 2) return null;
-    const closes = candles.map((c: any) => c.close).filter((value: unknown): value is number => typeof value === 'number' && Number.isFinite(value));
-    const price = closes[closes.length - 1] ?? null;
-    const ma20 = smaOf(candles, 20);
-    const ma50 = smaOf(candles, 50);
-    const ma200 = smaOf(candles, 200);
-    const rsi = calculateRsi(closes, 14);
-    const change1D = pctChange(candles, 1);
-    const change5D = pctChange(candles, 5);
-    const change20D = pctChange(candles, 20);
-    const vol20 = volatility20D(candles);
-
-    let trend = 'Netral / konsolidasi';
-    let trendTone = 'text-tv-yellow';
-    if (price != null && ma20 && ma50 && price > ma20 && ma20 > ma50) {
-      trend = 'Bullish jangka pendek';
-      trendTone = 'text-tv-green';
-    } else if (price != null && ma20 && ma50 && price < ma20 && ma20 < ma50) {
-      trend = 'Bearish jangka pendek';
-      trendTone = 'text-tv-red';
-    }
-
-    let structure = 'Struktur besar belum cukup data';
-    if (price != null && ma50 && ma200) {
-      if (price > ma50 && ma50 > ma200) structure = 'Uptrend utama masih sehat';
-      else if (price < ma50 && ma50 < ma200) structure = 'Downtrend utama masih dominan';
-      else if (price > ma200) structure = 'Masih di atas tren besar, tapi momentum belum rapi';
-      else structure = 'Di bawah tren besar, pemulihan perlu konfirmasi';
-    }
-
-    let momentum = 'Momentum netral';
-    let momentumTone = 'text-tv-yellow';
-    if (rsi != null) {
-      if (rsi >= 70) { momentum = 'Momentum kuat, mulai rawan jenuh beli'; momentumTone = 'text-tv-yellow'; }
-      else if (rsi >= 55) { momentum = 'Momentum positif'; momentumTone = 'text-tv-green'; }
-      else if (rsi <= 30) { momentum = 'Oversold, rawan technical rebound'; momentumTone = 'text-tv-yellow'; }
-      else if (rsi < 45) { momentum = 'Momentum melemah'; momentumTone = 'text-tv-red'; }
-    }
-
-    const score =
-      (change1D != null && change1D > 0 ? 1 : change1D != null && change1D < 0 ? -1 : 0) +
-      (change5D != null && change5D > 0 ? 1 : change5D != null && change5D < 0 ? -1 : 0) +
-      (change20D != null && change20D > 0 ? 1 : change20D != null && change20D < 0 ? -1 : 0) +
-      (price != null && ma20 && price > ma20 ? 1 : price != null && ma20 && price < ma20 ? -1 : 0) +
-      (price != null && ma50 && price > ma50 ? 1 : price != null && ma50 && price < ma50 ? -1 : 0) +
-      (rsi != null && rsi >= 55 && rsi < 75 ? 1 : rsi != null && rsi < 45 ? -1 : 0);
-
-    const sentiment =
-      score >= 3 ? 'Positif' :
-      score <= -3 ? 'Negatif' :
-      'Netral';
-    const sentimentTone =
-      sentiment === 'Positif' ? 'text-tv-green' :
-      sentiment === 'Negatif' ? 'text-tv-red' :
-      'text-tv-yellow';
-
-    const explanation = sentiment === 'Positif'
-      ? 'Mayoritas indikator teknikal mendukung risk-on: harga dan momentum indeks cenderung menguat. Tetap tunggu konfirmasi volume dan level support/resistance.'
-      : sentiment === 'Negatif'
-        ? 'Mayoritas indikator teknikal menunjukkan tekanan: momentum indeks melemah atau posisi harga berada di bawah moving average penting. Fokus ke proteksi risiko dan tunggu konfirmasi pemulihan.'
-        : 'Sinyal teknikal bercampur. IHSG belum memberi arah dominan, sehingga strategi lebih aman adalah selektif pada saham kuat dan menunggu breakout/breakdown yang jelas.';
-
-    return {
-      price, ma20, ma50, ma200, rsi, change1D, change5D, change20D, vol20,
-      trend, trendTone, structure, momentum, momentumTone, sentiment, sentimentTone, explanation,
-    };
-  }, [currentIsIndex, candles]);
-
-  // Kesegaran data pasar dari `_meta` yang dikirim /api/stock (temuan C-8). Tiga keadaan
-  // yang WAJIB bisa dibedakan pengguna: data intraday (delayed ~15 menit), data penutupan
-  // (EOD), dan data cache darurat saat Yahoo down (bisa berumur sampai 24 jam).
-  const dataFreshness = React.useMemo(() => {
-    const meta = data?._meta;
-    if (!meta) return null;
-    const ts = meta.dataTimestamp ? new Date(meta.dataTimestamp) : null;
-    const jam = ts ? ts.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' WIB' : null;
-    const isStaleCache = meta.source === 'stale-cache';
-    const ageJam = typeof meta.ageSeconds === 'number' ? Math.round(meta.ageSeconds / 3600) : null;
-    if (isStaleCache) {
-      return {
-        warn: true,
-        label: `CACHE DARURAT${ageJam != null ? ` (~${ageJam} jam lalu)` : ''}`,
-        detail: meta.staleReason || 'Sumber data sedang tidak bisa dihubungi - angka di halaman ini adalah data terakhir yang berhasil diambil, bukan kondisi pasar saat ini.',
-      };
-    }
-    if (meta.freshness === 'STALE') {
-      return { warn: true, label: `BASI${jam ? ` - bar terakhir ${jam}` : ''}`, detail: 'Bar harga terakhir dari sumber data lebih tua dari 1 hari bursa.' };
-    }
-    if (meta.freshness === 'EOD') return { warn: false, label: `Penutupan (EOD)${jam ? ` - ${jam}` : ''}`, detail: null };
-    if (meta.freshness === 'DELAYED') return { warn: false, label: `Delayed ~15 menit${jam ? ` - ${jam}` : ''}`, detail: null };
-    return { warn: true, label: 'Waktu data tidak diketahui', detail: 'Sumber data tidak mengirim timestamp bar harga.' };
-  }, [data]);
+  const chartTechnical = buildChartTechnical(analyzers, candles);
+  const indexTechnicalSummary = React.useMemo(
+    () => currentIsIndex ? buildIndexTechnicalSummary(candles) : null,
+    [currentIsIndex, candles],
+  );
+  const dataFreshness = React.useMemo(() => buildDataFreshness(data), [data]);
 
   // LensScore 5-category breakdown (BUILD 002) - turunan dari analyzer Momentum 1D/5D
   // & Volatility (ATR 14) yang sudah dihitung di atas (bagian dari `analyzers`), bukan
@@ -722,207 +66,40 @@ function DashboardContent() {
     ? getSimpleDecisionLabel(decisionPresentation)
     : null;
 
-  // Backtest hit-rate per indikator, dihitung dari histori harga NYATA saham yang sedang
-  // dibuka: "berapa persen dari sinyal indikator ini yang diikuti kenaikan > 3% dalam 10
-  // hari bursa berikutnya".
-  //
-  // BUG FIX (audit logika & algoritma 2026-08-05, temuan C-3): dua hal diperbaiki.
-  // (1) RSI di sini dihitung dengan RATA-RATA ARITMATIK SEDERHANA - persis bug H-01 yang
-  //     sudah diperbaiki di modules/technical/service/rsi.ts (Wilder smoothing) tapi tidak
-  //     pernah sampai ke blok ini, sehingga "akurasi RSI" diukur atas definisi RSI yang
-  //     BERBEDA dari RSI yang ditampilkan di kartu indikator persis di sebelahnya.
-  //     Sekarang memakai calculateRsi() bersama.
-  // (2) Hasilnya dulu di-clamp ke rentang 45-95% di getAccuracyPct() - hit-rate riil 20%
-  //     ditampilkan "45%", 100% jadi "95%". Itu bukan fallback data hilang, itu angka
-  //     hasil hitungan yang dipalsukan supaya terlihat kredibel. Clamp dihapus; jumlah
-  //     sampel ikut dilaporkan supaya pengguna tahu angka itu dari berapa kejadian.
-  const backtestAccuracy = React.useMemo<Record<string, { pct: number; samples: number }>>(() => {
-    const history = data?.stock?.history || [];
-    if (history.length < 50) return {};
-
-    const results: Record<string, { pct: number; samples: number }> = {};
-    // Fail-closed: hanya bar dengan close valid yang boleh masuk evaluasi. Volume tetap
-    // nullable karena "tidak tersedia" tidak sama dengan volume transaksi nol.
-    const validHistory = history.filter((h: any) => typeof h?.close === 'number' && Number.isFinite(h.close) && h.close > 0);
-    if (validHistory.length < 50) return {};
-    const closes: number[] = validHistory.map((h: any) => h.close);
-    const HORIZON = 10;      // hari bursa ke depan
-    const TARGET_GAIN = 1.03; // +3%
-    const MIN_SAMPLES = 20;   // di bawah ini tidak dilaporkan sama sekali
-
-    const record = (label: string, correct: number, total: number) => {
-      if (total >= MIN_SAMPLES) results[label] = { pct: Math.round((correct / total) * 100), samples: total };
-    };
-    const hit = (i: number) => closes[Math.min(i + HORIZON, closes.length - 1)] > closes[i] * TARGET_GAIN;
-
-    // RSI 14 (Wilder) - zona 50-70
-    let rsiCorrect = 0, rsiTotal = 0;
-    for (let i = 20; i < closes.length - HORIZON; i++) {
-      const rsi = calculateRsi(closes.slice(0, i + 1), 14);
-      if (rsi === null) continue;
-      if (rsi >= 50 && rsi <= 70) { rsiTotal++; if (hit(i)) rsiCorrect++; }
-    }
-    record('RSI 14', rsiCorrect, rsiTotal);
-
-    // Volume spike (> 1.5x rata-rata 20 hari) + candle hijau
-    let volCorrect = 0, volTotal = 0;
-    const volumes: Array<number | null> = validHistory.map((h: any) =>
-      typeof h?.volume === 'number' && Number.isFinite(h.volume) && h.volume >= 0 ? h.volume : null
-    );
-    for (let i = 20; i < closes.length - HORIZON; i++) {
-      const window = volumes.slice(i - 20, i);
-      const currentVolume = volumes[i];
-      if (currentVolume == null || window.some((value) => value == null)) continue;
-      const numericWindow = window as number[];
-      const avgVol = numericWindow.reduce((a, b) => a + b, 0) / numericWindow.length;
-      if (avgVol > 0 && currentVolume > avgVol * 1.5 && closes[i] > closes[i - 1]) {
-        volTotal++; if (hit(i)) volCorrect++;
-      }
-    }
-    record('Volume vs Avg 20D', volCorrect, volTotal);
-
-    // MA Trend penuh (P > MA20 > MA50 > MA200)
-    let maCorrect = 0, maTotal = 0;
-    for (let i = 200; i < closes.length - HORIZON; i++) {
-      const sma20 = closes.slice(i - 20, i).reduce((a, b) => a + b, 0) / 20;
-      const sma50 = closes.slice(i - 50, i).reduce((a, b) => a + b, 0) / 50;
-      const sma200 = closes.slice(i - 200, i).reduce((a, b) => a + b, 0) / 200;
-      if (closes[i] > sma20 && sma20 > sma50 && sma50 > sma200) {
-        maTotal++; if (hit(i)) maCorrect++;
-      }
-    }
-    record('MA Trend IDX (20,50,200)', maCorrect, maTotal);
-
-    // MACD histogram positif
-    let macdCorrect = 0, macdTotal = 0;
-    const ema12: number[] = [closes[0]];
-    const ema26: number[] = [closes[0]];
-    for (let i = 1; i < closes.length; i++) {
-      ema12.push(closes[i] * (2 / 13) + ema12[i - 1] * (11 / 13));
-      ema26.push(closes[i] * (2 / 27) + ema26[i - 1] * (25 / 27));
-    }
-    const macdLine = ema12.map((v: number, i: number) => v - ema26[i]);
-    const signal: number[] = [macdLine[0]];
-    for (let i = 1; i < macdLine.length; i++) {
-      signal.push(macdLine[i] * (2 / 10) + signal[i - 1] * (8 / 10));
-    }
-    for (let i = 30; i < closes.length - HORIZON; i++) {
-      if (macdLine[i] - signal[i] > 0) { macdTotal++; if (hit(i)) macdCorrect++; }
-    }
-    record('MACD (12,26,9)', macdCorrect, macdTotal);
-
-    return results;
-  }, [data]);
-
-  // Selalu menyertakan jumlah sampel. Hanya hasil historical-bar test yang dipakai;
-  // tracking visit-to-visit localStorage sengaja tidak dijadikan fallback karena horizon
-  // observasinya tidak tetap dan bukan backtest.
+  const backtestAccuracy = React.useMemo(() => computeBacktestAccuracy(data), [data]);
   const getAccuracyPct = (label: string): string | null => {
-    const bt = backtestAccuracy[label];
-    return bt ? `${bt.pct}% (n=${bt.samples})` : null;
+    const result = backtestAccuracy[label];
+    return result ? `${result.pct}% (n=${result.samples})` : null;
   };
 
   if (loading && !data) {
     return (
-      <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-        <Header
-          currentTicker={displayTicker(ticker)}
-          onTickerChange={setTicker}
-          moduleTitle="LensTechnical"
-          moduleBank="LENSTECHNICAL"
-          analisaRemaining={analisaRemaining}
-          analisaTotal={FREE_LIMITS.analisaPerHari}
-          isAdmin={isAdminUser}
-        />
-        {/* Dulu satu spinner tunggal berwarna teal-500 - warna yang tidak ada di
-            palet mana pun - di tengah halaman kosong, tanpa petunjuk apa yang
-            sedang disiapkan. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
-        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
-          </div>
-          <Skeleton className="h-[320px] w-full" />
-          <LoadingFact />
-        </PageContainer>
-      </div>
+      <DashboardLoadingState
+        ticker={ticker}
+        setTicker={setTicker}
+        analisaRemaining={analisaRemaining}
+        isAdminUser={isAdminUser}
+      />
     );
   }
 
-  // Handle case where fetch failed or returned 429
   if (!data) {
     return (
-      <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-        <Header
-          currentTicker={displayTicker(ticker)}
-          onTickerChange={setTicker}
-          moduleTitle="LensTechnical"
-          moduleBank="LENSTECHNICAL"
-          analisaRemaining={analisaRemaining}
-          analisaTotal={FREE_LIMITS.analisaPerHari}
-          isAdmin={isAdminUser}
-        />
-        {/* BUG FIX (2026-08-06): pesan lama - "Gagal memuat data. Limit analisa habis
-            atau terjadi kesalahan." - menggabungkan dua sebab yang sangat berbeda
-            menjadi satu tebakan, dan tidak menyediakan jalan keluar apa pun (tanpa
-            tombol coba lagi). Padahal state penyebabnya SUDAH dibedakan di
-            fetchAnalyzerData: showLoginPrompt (401), showPaywall (402), fetchError.
-            Blok EmptyState 'Coba lagi' yang ada di bawah tidak pernah terpakai untuk
-            kasus ini karena ia hidup di cabang yang menuntut `data` sudah terisi -
-            padahal kegagalan muat PERTAMA justru meninggalkan `data` null dan
-            berhenti di sini. */}
-        <PageContainer className="p-4 md:p-6 lg:p-7">
-          {showLoginPrompt ? (
-            <EmptyState
-              illustration="locked"
-              title="Analisa teknikal butuh akun"
-              description="Daftar gratis untuk memakai seluruh fitur selama masa pengujian."
-              action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
-            />
-          ) : showPaywall ? (
-            <EmptyState
-              illustration="locked"
-              title={isTrialExpired ? 'Akses akun belum tersedia' : 'Kuota analisa hari ini sudah habis'}
-              description={
-                isTrialExpired
-                  ? 'Silakan masuk kembali untuk melanjutkan analisa.'
-                  : `Kuota gratis ${FREE_LIMITS.analisaPerHari} analisa per hari sudah terpakai${usedSymbolsToday.length ? ` untuk ${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}` : ''}. Kuota disetel ulang besok.`
-              }
-              action={{ label: 'Lihat Paket Pro', onClick: () => setShowPaywall(true) }}
-            />
-          ) : (
-            <EmptyState
-              illustration="empty"
-              title={`Data ${displayTicker(ticker)} gagal dimuat`}
-              description={currentIsIndex
-                ? 'Data indeks IHSG sementara tidak tersedia dari sumber data pasar. Coba lagi beberapa saat.'
-                : 'Permintaan ke sumber data tidak sampai. Ini bukan berarti sahamnya bermasalah - coba lagi, atau cari emiten lain lewat kolom pencarian di atas.'}
-              action={{ label: 'Coba lagi', onClick: handleRefresh }}
-            />
-          )}
-        </PageContainer>
-        <PaywallModal
-          open={showPaywall}
-          onClose={() => { if (!isTrialExpired) setShowPaywall(false); }}
-          title={isTrialExpired ? "Akses Akun Belum Tersedia" : "Limit Gratis Habis"}
-          body={isTrialExpired ? "Silakan masuk kembali untuk melanjutkan penggunaan SahamLens." : `Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map((s: string) => s.replace('.JK', '')).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
-          benefits={[
-            'Unlimited LensTechnical (10 filter)',
-            'LensRadar scan berkala, LensConsensus & Compare Tool',
-            'Watchlist & Alert unlimited',
-          ]}
-        />
-        <PaywallModal
-          open={showLoginPrompt}
-          onClose={() => setShowLoginPrompt(false)}
-          title="Daftar Dulu untuk Lihat Hasil"
-          body="Analisa teknikal butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
-          ctaHref="/signup"
-          ctaLabel="Daftar Gratis"
-          secondaryLabel="Nanti"
-        />
-      </div>
+      <DashboardEmptyState
+        ticker={ticker}
+        setTicker={setTicker}
+        analisaRemaining={analisaRemaining}
+        isAdminUser={isAdminUser}
+        currentIsIndex={currentIsIndex}
+        showLoginPrompt={showLoginPrompt}
+        showPaywall={showPaywall}
+        isTrialExpired={isTrialExpired}
+        usedSymbolsToday={usedSymbolsToday}
+        requestId={fetchErrorRequestId}
+        onRetry={handleRefresh}
+        setShowLoginPrompt={setShowLoginPrompt}
+        setShowPaywall={setShowPaywall}
+      />
     );
   }
 
@@ -948,413 +125,54 @@ function DashboardContent() {
           <div className="rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
             {marketClosed ? 'No polling' : 'Refresh otomatis 1m'}
           </div>
-          <button 
+          <Button
+            variant="bare"
+            size="none"
             onClick={handleRefresh}
             disabled={loading}
             className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07] disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
-          </button>
+          </Button>
         </div>
 
         <AnalysisGlossary />
 
         {currentIsIndex && (
-          <>
-            <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 sm:p-5 shadow-2">
-              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                <TickerAvatar symbol="IHSG" size="lg" />
-                <div>
-                  <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
-                    <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">IHSG</h1>
-                    <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">Indeks Harga Saham Gabungan</span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3">
-                    {typeof stock.current_price === 'number' ? (
-                      <AnimatedNumber
-                        value={stock.current_price}
-                        format={(n) => n.toLocaleString('id-ID', { maximumFractionDigits: 2 })}
-                        className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
-                      />
-                    ) : (
-                      <span className="text-sm text-tv-muted">Level IHSG tidak tersedia</span>
-                    )}
-                    {stock.change_pct != null && (
-                      <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
-                        stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'
-                      }`}>
-                        {stock.change_pct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                        {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <TradingViewChart
-              candles={candles}
-              technical={chartTechnical}
-              symbol="^JKSE"
-              timeframe={timeframe}
-              timeframeOptions={['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL']}
-              onTimeframeChange={setTimeframe}
-              variant="full"
-              height={600}
-            />
-
-            {indexTechnicalSummary && (
-              <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 shadow-2 sm:p-5">
-                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-tv-muted">Analisa Teknikal IHSG</p>
-                    <h2 className="mt-1 font-heading text-lg font-bold text-white sm:text-xl">
-                      Sentimen pasar: <span className={indexTechnicalSummary.sentimentTone}>{indexTechnicalSummary.sentiment}</span>
-                    </h2>
-                  </div>
-                  <div className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold ${indexTechnicalSummary.trendTone}`}>
-                    {indexTechnicalSummary.trend}
-                  </div>
-                </div>
-
-                <p className="mb-4 text-sm leading-relaxed text-tv-muted">
-                  {indexTechnicalSummary.explanation}
-                </p>
-
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
-                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Perubahan</p>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-tv-muted">1D</span><span className={`font-number font-bold ${toneClass(indexTechnicalSummary.change1D)}`}>{formatPct(indexTechnicalSummary.change1D)}</span></div>
-                      <div className="flex justify-between"><span className="text-tv-muted">5D</span><span className={`font-number font-bold ${toneClass(indexTechnicalSummary.change5D)}`}>{formatPct(indexTechnicalSummary.change5D)}</span></div>
-                      <div className="flex justify-between"><span className="text-tv-muted">20D</span><span className={`font-number font-bold ${toneClass(indexTechnicalSummary.change20D)}`}>{formatPct(indexTechnicalSummary.change20D)}</span></div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Moving Average</p>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-tv-muted">MA20</span><span className="font-number font-bold text-white">{indexTechnicalSummary.ma20?.toLocaleString('id-ID') ?? 'N/A'}</span></div>
-                      <div className="flex justify-between"><span className="text-tv-muted">MA50</span><span className="font-number font-bold text-white">{indexTechnicalSummary.ma50?.toLocaleString('id-ID') ?? 'N/A'}</span></div>
-                      <div className="flex justify-between"><span className="text-tv-muted">MA200</span><span className="font-number font-bold text-white">{indexTechnicalSummary.ma200?.toLocaleString('id-ID') ?? 'N/A'}</span></div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Momentum</p>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-tv-muted">RSI14</span><span className={`font-number font-bold ${indexTechnicalSummary.momentumTone}`}>{indexTechnicalSummary.rsi?.toFixed(1) ?? 'N/A'}</span></div>
-                      <div className="text-xs leading-relaxed text-tv-muted">{indexTechnicalSummary.momentum}</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-tv-border bg-tv-bg/70 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tv-muted">Risiko Pasar</p>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-tv-muted">Vol 20D annual</span><span className="font-number font-bold text-white">{indexTechnicalSummary.vol20 != null ? `${indexTechnicalSummary.vol20}%` : 'N/A'}</span></div>
-                      <div className="text-xs leading-relaxed text-tv-muted">{indexTechnicalSummary.structure}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-tv-blue/20 bg-tv-blue/10 p-3 text-xs leading-relaxed text-tv-muted">
-                  Kesimpulan ini membaca IHSG sebagai kondisi pasar keseluruhan. Untuk keputusan saham individual, tetap cek teknikal emiten masing-masing karena saham kuat bisa naik saat IHSG datar, dan saham lemah bisa turun saat IHSG menguat.
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4 text-sm leading-relaxed text-tv-muted">
-              IHSG adalah indeks pasar, bukan saham emiten. Di menu Teknikal ini SahamLens menampilkan chart, tren, momentum, dan volatilitas IHSG. Analisis teknikal saham, TP/CL, fundamental, broker flow, dan rekomendasi per lot tidak ditampilkan untuk indeks.
-            </div>
-          </>
+          <DashboardIndexSection
+            stock={stock}
+            candles={candles}
+            chartTechnical={chartTechnical}
+            timeframe={timeframe}
+            setTimeframe={setTimeframe}
+            summary={indexTechnicalSummary}
+          />
         )}
 
         {!currentIsIndex && (
           <>
 
-        {/* Hero */}
-        {fetchError ? (
-          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2">
-            <EmptyState
-              title="Data pasar sementara tidak tersedia."
-              action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
-            />
-          </div>
-        ) : loading && !data ? (
-          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-2 flex items-center gap-4">
-            <Skeleton variant="circle" className="w-12 h-12" />
-            <div className="space-y-2">
-              <Skeleton variant="text" className="w-40 h-6" />
-              <Skeleton variant="text" className="w-28" />
-            </div>
-          </div>
-        ) : (
-          <>
-          {/* Peringatan kesegaran data (temuan C-8) - tampil HANYA kalau data yang sedang
-              dirender memang bukan data pasar terkini. Seluruh angka di halaman ini
-              (harga, skor, kategori BUY/SELL) diturunkan dari payload yang sama. */}
-          {dataFreshness?.warn && (
-            <div className="mb-4 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-tv-yellow shrink-0 mt-0.5" />
-              <div className="text-[11px] leading-relaxed text-tv-yellow">
-                <b>{dataFreshness.label}</b>
-                {dataFreshness.detail && <span className="block text-tv-text/80 mt-0.5">{dataFreshness.detail}</span>}
-              </div>
-            </div>
-          )}
-          <div className="rounded-2xl border border-white/[0.075] bg-tv-card p-4 sm:p-5 shadow-2 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-              {/* Ikon petir kuning yang sama dipakai untuk SEMUA saham - tidak
-                  membedakan apa pun. Diganti avatar berwarna deterministik per emiten. */}
-              <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
-              <div>
-                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                  <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
-                  <QuickWatchlistStar ticker={stock.symbol || ticker} />
-                  <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
-                </div>
-                {/* BUG FIX (2026-08-14, brainstorm lanjutan review eksternal - false
-                    signal di saham kecil/tidak likuid): badge INFORMASIONAL, tidak
-                    mengubah cara skor/sinyal dihitung - lihat classifyCapTier(). Tidak
-                    tampil kalau market cap ATAU likuiditas tidak diketahui (mis. IHSG,
-                    yang bukan saham individual) - diam lebih baik daripada menebak. */}
-                {(() => {
-                  const isLq45 = isBlueChipConstituent(ticker);
-                  const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
-                  // Papan dari `listing_board` IDX (all.csv) lewat /api/stock, bukan dari
-                  // daftar ticker ketikan tangan (temuan C-01). `null` = papan tidak
-                  // diketahui -> lencana tidak dirender sama sekali.
-                  const boardInfo = classifyTradingBoard(data?.stock?.listing_board);
-                  return (
-                    <>
-                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                        {isLq45 && (
-                          <Badge
-                            variant="info"
-                            title={LQ45_BADGE_TITLE}
-                          >
-                            Indeks LQ45
-                          </Badge>
-                        )}
-                        {boardInfo && (
-                          <Badge
-                            variant={boardInfo.badgeVariant}
-                            title={boardInfo.description}
-                          >
-                            {boardInfo.shortLabel}
-                          </Badge>
-                        )}
-                        {tier && (
-                          <Badge
-                            variant={tier === 'LARGE_LIQUID_CURRENT' ? 'neutral' : 'warning'}
-                            title={tier === 'LARGE_LIQUID_CURRENT'
-                              ? `Kondisi saat ini: market cap & likuiditas di atas ambang konteks (>= Rp ${(CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR / 1e12).toFixed(0)} T, ADV20 >= Rp ${(CURRENT_LARGE_LIQUID_MIN_ADV20_IDR / 1e9).toFixed(0)} M/hari)`
-                              : 'Kondisi saat ini: market cap lebih kecil dan/atau likuiditas lebih tipis. Ini konteks kondisi pasar, bukan penilaian kualitas atau identitas emiten.'}
-                          >
-                            {tier === 'LARGE_LIQUID_CURRENT' ? 'Large & Liquid · saat ini' : 'Small / Thin · saat ini'}
-                          </Badge>
-                        )}
-                      </div>
-                      {boardInfo?.isFca && (
-                        <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2.5 text-xs text-tv-gold">
-                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                          <div>
-                            <strong>Peringatan Papan Pemantauan Khusus (FCA):</strong> Emiten ini diperdagangkan dengan mekanisme <em>Periodic Call Auction</em> (5 sesi lelang per hari) dengan fraksi harga tetap Rp 1. Formasi pergerakan harga berbeda dari lelang kontinu biasa.
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-                <div className="flex items-center gap-3 mt-1">
-                  {/* `|| '-'` sebelumnya merender "Rp -" saat harga tidak ada: sebuah
-                      tanda hubung yang tidak memberi tahu apakah datanya hilang, nol,
-                      atau belum sempat dimuat. */}
-                  {typeof stock.current_price === 'number' ? (
-                    <AnimatedNumber
-                      value={stock.current_price}
-                      format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
-                      className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
-                    />
-                  ) : (
-                    <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
-                  )}
-                  {/* Temuan M-7: null (tidak terukur) dibedakan dari 0 (benar-benar flat). */}
-                  {stock.change_pct == null ? (
-                    <span className="font-number text-sm font-bold text-tv-muted">Perubahan N/A</span>
-                  ) : (
-                    <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${
-                      stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'
-                    }`}>
-                      {stock.change_pct >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                      {stock.change_pct > 0 ? `+${stock.change_pct}` : stock.change_pct}%
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-tv-muted mt-1">
-                  Data sesi: {formatTime(lastUpdate)}
-                  {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
-                </p>
-              </div>
-            </div>
-
-            {/* Price Range Slider (Day's Range) - hanya bar provider valid; tidak ada +/-2% fallback. */}
-            {(() => {
-              const lastCandle = candles?.[candles.length - 1];
-              const lowPrice = Number(lastCandle?.low);
-              const highPrice = Number(lastCandle?.high);
-              if (typeof stock.current_price !== 'number' || !Number.isFinite(stock.current_price) || stock.current_price <= 0 ||
-                  !Number.isFinite(lowPrice) || lowPrice <= 0 || !Number.isFinite(highPrice) || highPrice <= 0 || highPrice < lowPrice) {
-                return null;
-              }
-              return (
-                <div className="w-full md:w-72 shrink-0">
-                  <PriceRangeSlider
-                    currentPrice={stock.current_price}
-                    lowPrice={lowPrice}
-                    highPrice={highPrice}
-                    label="Rentang Harga Hari Ini"
-                  />
-                </div>
-              );
-            })()}
-
-            <div className="flex w-full min-w-0 items-stretch gap-4 md:w-auto md:items-center md:gap-6">
-               {data?.bestPerformer && (
-                  <div className="text-right border-r border-tv-border pr-6 hidden md:block">
-                    <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">TOP METHOD TODAY</div>
-                    <div className="text-lg font-bold text-white flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-tv-green" />
-                      {data.bestPerformer.label} (rule {data.bestPerformer.confidence}/100)
-                    </div>
-                  </div>
-               )}
-              <div className="w-full min-w-0 md:w-auto md:min-w-[250px]">
-                <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus Analyzer</div>
-                {(() => {
-                  const consensus = splitStatusText(data?.consensus);
-                  const consensusLabel = getKategoriPresentationLabel(consensus.primary);
-                  const consensusTone = getKategoriTone(consensus.primary);
-                  return (
-                    // Bobot visualnya diturunkan, UKURAN HURUFNYA TIDAK. Kotak ini dulu
-                    // paling menonjol di layar (62px, 18px tebal, latar /15, tepi /60)
-                    // padahal isinya sinyal PALING SEMPIT di halaman: vote teknikal
-                    // murni, buta fundamental, dan menurut decision-presentation.service
-                    // tidak boleh dibaca sebagai arah transaksi. Pembaca sekilas ambil
-                    // yang paling mencolok, jadi "STRONG BUY" mengalahkan putusan
-                    // sebenarnya (WATCH) hanya karena lebih besar.
-                    //
-                    // Yang dikurangi: tinggi, kepekatan latar, ketegasan tepi, lompatan
-                    // ke 18px. Yang DIPERTAHANKAN: 16px tebal - masih nyaman dibaca
-                    // mata yang sudah tidak muda.
-                    <div className={`flex min-h-[52px] w-full items-center gap-2.5 rounded-xl border px-3.5 py-2 md:min-w-[200px] ${
-                      consensusTone === 'positive'
-                        ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
-                        : consensusTone === 'negative'
-                          ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
-                          : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
-                    }`}>
-                      {loading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
-                      <div className="min-w-0 font-sans">
-                        {/* 14px, bukan 16px. Hirarki di kotak ini bersandar pada TEBAL
-                            dan WARNA, bukan ukuran - selisihnya dengan baris detail di
-                            bawah tinggal 1px karena lantai keterbacaan menahan yang
-                            kecil di 13px. Itu memang disengaja: kotak ini sinyal
-                            sekunder, tidak boleh mengalahkan putusan utama halaman. */}
-                        <div className="text-sm font-bold leading-tight">{loading ? 'Calculating...' : consensusLabel}</div>
-                        {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">Keselarasan analyzer: {consensus.detail}</div>}
-                      </div>
-                    </div>
-                  );
-                })()}
-                {data?.consensusData && (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-number text-tv-muted md:justify-end">
-                    <span>Vote <strong className="text-white">{data.consensusData.vote}</strong></span>
-                    <span className="text-tv-borderLight">•</span>
-                    <span>Median <strong className="text-white">{data.consensusData.median_skor}</strong></span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Chart ditempatkan langsung setelah konteks emiten: pengguna bisa membaca
-              harga dan struktur candle sebelum menafsirkan skor, voting, atau kartu
-              indikator. Detail indikator di bawah menjadi penjelas untuk chart ini. */}
-          <div className="mt-4 w-full space-y-4">
-            <ProTradingViewChart
-              candles={candles}
-              ticker={stock.symbol || ticker}
-            />
-
-            <SeasonalityMatrix
-              candles={candles}
-              ticker={stock.symbol || ticker}
-            />
-          </div>
-
-          {/* BUG FIX (2026-08-14, masukan review eksternal - "jangan hanya tampilkan
-              skor akhir 8/10, tampilkan breakdown voting: Tren Bullish, Momentum
-              Bearish, dst"): data per-indikator (data.analyzers) ini SEBELUMNYA cuma
-              dipakai untuk export PDF (downloadTechnicalPDF di bawah) - tidak pernah
-              dirender di layar sama sekali. "Konsensus Analyzer" di atas cuma
-              menampilkan HASIL AKHIR voting; tabel ini menampilkan APA yang divoting -
-              9 analyzer yang SAMA PERSIS memberi suara ke konsensus di atas (lihat
-              calculateConsensus di app/api/stock/[ticker]/route.ts). Default tertutup
-              (<details>) - info tambahan, bukan yang paling dicari saat halaman
-              pertama dibuka. */}
-          {!loading && data?.analyzers && data.analyzers.length > 0 && (
-            <details className="group mt-3 rounded-lg border border-tv-border bg-tv-bg/60">
-              <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-muted transition-colors hover:text-tv-text">
-                Rincian voting {data.analyzers.length} analyzer <span className="font-normal text-tv-muted/80">— lihat alasan di balik konsensus di atas</span>
-              </summary>
-              <div className="border-t border-tv-border">
-                {data.analyzers.map((a: any, i: number) => (
-                  <div
-                    key={`${a.label}-${i}`}
-                    className={`flex items-center justify-between gap-3 px-3 py-2 text-[11px] ${i > 0 ? 'border-t border-tv-border/60' : ''}`}
-                  >
-                    <span className="min-w-0 truncate font-medium text-tv-text">{a.label}</span>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="font-number text-tv-muted">{a.value}</span>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        a.decision === 'BULLISH'
-                          ? 'bg-tv-green/10 text-tv-green'
-                          : a.decision === 'BEARISH'
-                          ? 'bg-tv-red/10 text-tv-red'
-                          : 'bg-tv-yellow/10 text-tv-yellow'
-                      }`}>
-                        {a.decision === 'BULLISH' ? 'Bullish' : a.decision === 'BEARISH' ? 'Bearish' : 'Netral'}
-                      </span>
-                      <span className="w-9 text-right font-number text-tv-muted/70">{a.confidence}/100</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-          </>
-        )}
-
-        {data?.scoring && simpleDecisionLabel && (
-          <DecisionScoreCard
-            verdict={simpleDecisionLabel}
-            totalScore={data.scoring.total_score}
-            technicalScore={data.scoring.technical_score}
-            fundamentalScore={data.scoring.fundamental_score}
-            flowScore={data.scoring.flow_score}
-            coveragePct={data.scoring.coverage_pct}
-            expanded={viewMode === 'full'}
-            onExplain={openFullAnalysis}
-            onCollapse={collapseAnalysis}
-          />
-        )}
+        <DashboardStockOverview
+          fetchError={fetchError}
+          onRetry={handleRefresh}
+          loading={loading}
+          dataFreshness={dataFreshness}
+          stock={stock}
+          ticker={ticker}
+          data={data}
+          candles={candles}
+          lastUpdate={lastUpdate}
+          simpleDecisionLabel={simpleDecisionLabel}
+          viewMode={viewMode}
+          onExplain={openFullAnalysis}
+          onCollapse={collapseAnalysis}
+        />
 
         {/* AI Summary - breakdown skor + top alasan setelah chart agar konsensus
             dibaca dalam konteks struktur harga yang baru saja dilihat pengguna. */}
         {viewMode === 'full' && data?.scoring && (
-          <div id="analysis-detail" tabIndex={-1} className="w-full scroll-mt-4 rounded-2xl border border-white/[0.075] bg-tv-card p-5 shadow-1 outline-none md:p-6">
+          <Card id="analysis-detail" tabIndex={-1} padding="none" radius="2xl" elevation="sm" overflow="visible" highlight={false} className="w-full scroll-mt-4 border-white/[0.075] p-5 outline-none md:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-tv-blue" />
               <h2 className="font-heading text-sm font-semibold text-white">Technical Summary</h2>
@@ -1365,12 +183,14 @@ function DashboardContent() {
                   bingung. Jalur menuju LensConsensus sekarang lewat kartu di Beranda dan
                   MobileNav; entri Sidebar-nya sudah dihapus 2026-08-12. */}
               <div className="absolute top-0 right-0 flex gap-2 z-10">
-                <button
+                <Button
+                  variant="bare"
+                  size="none"
                   onClick={downloadTechnicalPDF}
-                  className="hidden md:flex bg-tv-card hover:bg-tv-hover border border-tv-borderLight text-white px-3 py-1.5 rounded-lg font-bold text-xs items-center justify-center gap-2 transition-colors"
+                  className="hidden items-center justify-center gap-2 rounded-lg border border-tv-borderLight bg-tv-card px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-tv-hover md:flex"
                 >
                   <FileText className="w-3.5 h-3.5" /> Report
-                </button>
+                </Button>
               </div>
 
               {/* Score Circle */}
@@ -1492,7 +312,7 @@ function DashboardContent() {
                 )}
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* LensRadar rank badge - muncul HANYA kalau ticker ini ada di /api/ai-pick
@@ -1543,14 +363,14 @@ function DashboardContent() {
                 </div>
               </div>
               {maDataReady && (
-                <div className="mt-2 rounded-lg border border-tv-border bg-tv-card/60 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+                <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" surface="60" className="mt-2 border-tv-border px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
                   <span className="font-semibold text-tv-text">Konteks tren:</span>{' '}
                   {price < (ma200 as number)
                     ? 'Momentum jangka pendek bisa membaik, tetapi tren besar belum pulih karena harga masih di bawah MA200. Sinyal bullish pendek tidak otomatis berarti uptrend jangka panjang.'
                     : price < (ma50 as number)
                       ? 'Harga masih di atas MA200, tetapi berada di bawah MA50. Ini lebih cocok dibaca sebagai koreksi jangka pendek di dalam struktur tren yang lebih kuat.'
                       : 'Harga berada di atas MA50 dan MA200. Momentum pendek dan struktur tren utama saat ini lebih selaras, tetapi tetap perlu melihat volume dan risiko.'}
-                </div>
+                </Card>
               )}
               </>
             );
@@ -1570,9 +390,9 @@ function DashboardContent() {
                   const entryPrice = data?.tradeSetup?.entryPrice ?? currentPrice;
                   if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
                     return (
-                      <div className="rounded-xl border border-tv-border bg-tv-card/50 px-4 py-3 text-xs text-tv-muted">
+                      <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">
                         Position sizing belum ditampilkan karena level stop-loss terverifikasi belum tersedia. SahamLens tidak membuat stop-loss/TP persentase default.
-                      </div>
+                      </Card>
                     );
                   }
                   return (
@@ -1592,7 +412,7 @@ function DashboardContent() {
                   getAccuracyPct={getAccuracyPct}
                   // Jangan membuka detail sebelum status sesi selesai diperiksa. Ini
                   // mencegah kilatan data lengkap untuk pengunjung saat halaman baru dimuat.
-                  lockForGuest={!authResolved || authLoading || !authUser}
+                  lockForGuest={lockForGuest}
                 />
               </div>
             </>
@@ -1609,9 +429,9 @@ function DashboardContent() {
                 const entryPrice = data?.tradeSetup?.entryPrice ?? currentPrice;
                 if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
                   return (
-                    <div className="rounded-xl border border-tv-border bg-tv-card/50 px-4 py-3 text-xs text-tv-muted">
+                    <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">
                       Position sizing belum ditampilkan karena level stop-loss terverifikasi belum tersedia. Tidak ada stop-loss/TP persentase default.
-                    </div>
+                    </Card>
                   );
                 }
                 return (
@@ -1624,161 +444,35 @@ function DashboardContent() {
                   />
                 );
               })()}
-              <button
+              <Button
                 type="button"
+                variant="bare"
+                size="none"
                 onClick={() => changeViewMode('full')}
                 className="w-full rounded-xl border border-tv-blue/30 bg-tv-blue/10 px-4 py-3 text-sm font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15"
               >
                 Lihat semua indikator teknikal & LensFlow
-              </button>
+              </Button>
             </div>
           )}
         </div>
         </>
         )}
 
-        {/* Fundamental (link-out) diganti Sentimen Berita AI - tabel Fundamental
-            lengkap sudah punya halaman sendiri (/fundamental), jadi kartu ini dulu
-            cuma duplikat pintu masuk. Sentimen dihitung langsung dari stockNews yang
-            sudah di-fetch untuk section "Berita" di bawah (bukan panggilan baru,
-            bukan data dummy) - vote mayoritas dari n.sentiment tiap artikel. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(() => {
-            const positif = stockNews.filter((n: any) => n.sentiment === 'POSITIF').length;
-            const negatif = stockNews.filter((n: any) => n.sentiment === 'NEGATIF').length;
-            const netral = stockNews.length - positif - negatif;
-            const overall = stockNews.length === 0 ? null : positif > negatif ? 'POSITIF' : negatif > positif ? 'NEGATIF' : 'NETRAL';
-            return (
-              // <button>, bukan <div onClick> - supaya bisa difokus keyboard dan terbaca
-              // pembaca layar sebagai elemen yang memang bisa ditekan.
-              <button
-                type="button"
-                onClick={() => setNewsModalOpen(true)}
-                className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 text-left w-full hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
-              >
-                <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${
-                  overall === 'POSITIF' ? 'bg-tv-green/15 text-tv-green' : overall === 'NEGATIF' ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'
-                }`}>
-                  <Newspaper className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-heading text-sm font-semibold text-white">Sentimen Berita</h3>
-                  <p className="text-xs text-tv-muted">
-                    {loadingStockNews
-                      ? 'Menganalisis berita...'
-                      : overall === null
-                      ? 'Belum ada berita spesifik untuk dianalisis'
-                      : `${overall} • ${positif} positif, ${negatif} negatif, ${netral} netral dari ${stockNews.length} berita`}
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-tv-muted group-hover:text-tv-text transition-colors shrink-0" />
-              </button>
-            );
-          })()}
-          <Link
-            href={`/dcf?symbol=${displayTicker(stock.symbol || ticker)}`}
-            className="group flex items-center gap-4 bg-tv-card border border-tv-border rounded-lg p-4 hover:border-tv-borderLight hover:shadow-2 transition-all duration-250 ease-settle"
-          >
-            <div className="w-10 h-10 rounded-md bg-tv-gold/15 flex items-center justify-center text-tv-gold shrink-0">
-              <Calculator className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-heading text-sm font-semibold text-white">DCF Valuation</h3>
-              <p className="text-xs text-tv-muted">Intrinsic Value & Margin of Safety</p>
-            </div>
-            <ArrowUpRight className="w-4 h-4 text-tv-muted group-hover:text-tv-gold transition-colors" />
-          </Link>
-        </div>
+        <DashboardFooterActions
+          stock={stock}
+          ticker={ticker}
+          stockNews={stockNews}
+          loadingStockNews={loadingStockNews}
+          newsModalOpen={newsModalOpen}
+          setNewsModalOpen={setNewsModalOpen}
+          showPaywall={showPaywall}
+          setShowPaywall={setShowPaywall}
+          showLoginPrompt={showLoginPrompt}
+          setShowLoginPrompt={setShowLoginPrompt}
+          usedSymbolsToday={usedSymbolsToday}
+        />
       </PageContainer>
-
-      {/* AI Explain Modal */}
-      {aiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-tv-bg border-2 border-tv-blue/50 rounded-xl w-full max-w-md overflow-hidden shadow-2 flex flex-col">
-            <div className="p-4 border-b border-tv-border flex items-center justify-between bg-tv-card">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-tv-blue" aria-hidden="true" />
-                <h3 className="font-heading text-tv-text font-bold">
-                  AI Explain: {aiModalData?.algo?.label}
-                </h3>
-              </div>
-              <button
-                onClick={() => setAiModalOpen(false)}
-                className="text-tv-muted hover:text-tv-text transition-colors"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-                <span className="sr-only">Tutup</span>
-              </button>
-            </div>
-
-            <div className="p-5 flex-1 overflow-y-auto">
-              {aiLoading ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <RefreshCw className="w-8 h-8 text-tv-blue animate-spin" />
-                  <span className="text-sm text-tv-muted">Menganalisis sinyal...</span>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="bg-tv-hover/50 border border-tv-border rounded-lg p-4">
-                    <h4 className="text-xs text-tv-muted mb-2 uppercase font-semibold tracking-wide">Penjelasan Logika</h4>
-                    <p className="text-sm text-tv-text leading-relaxed">
-                      {aiModalData?.explanation}
-                    </p>
-                  </div>
-
-                  <div className="bg-tv-hover/50 border border-tv-border rounded-lg p-4">
-                    <h4 className="text-xs text-tv-muted mb-2 uppercase font-semibold tracking-wide">Data Historis</h4>
-                    <p className="text-sm text-tv-text leading-relaxed flex items-start gap-2">
-                      <TrendingUp className="w-4 h-4 text-tv-blue mt-0.5" />
-                      {aiModalData?.historical}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-tv-border bg-tv-card flex justify-end gap-3">
-              <button
-                onClick={() => setAiModalOpen(false)}
-                className="px-4 py-2 text-sm text-tv-muted hover:text-tv-text transition-colors"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Toast message={toastMessage} variant={toastVariant} />
-
-      <StockNewsModal
-        open={newsModalOpen}
-        onClose={() => setNewsModalOpen(false)}
-        symbol={displayTicker(data?.stock?.symbol || ticker)}
-        items={stockNews}
-      />
-
-      <PaywallModal
-        open={showPaywall}
-        onClose={() => setShowPaywall(false)}
-        title="Limit Gratis Habis"
-        body={`Kamu sudah pakai ${FREE_LIMITS.analisaPerHari}/${FREE_LIMITS.analisaPerHari} analisa hari ini${usedSymbolsToday.length ? ` (${usedSymbolsToday.slice(0, 3).map(displayTicker).join(', ')}${usedSymbolsToday.length > 3 ? ', dll' : ''})` : ''}. Upgrade Pro Rp 99k/bulan untuk unlimited 10 filters + LensRadar scan berkala.`}
-        benefits={[
-          'Unlimited LensTechnical (10 filter)',
-          'LensRadar scan berkala, LensConsensus & Compare Tool',
-          'Watchlist & Alert unlimited',
-        ]}
-        secondaryLabel="Tunggu Besok"
-      />
-      <PaywallModal
-        open={showLoginPrompt}
-        onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat Hasil"
-        body="Analisa teknikal butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
-        ctaHref="/signup"
-        ctaLabel="Daftar Gratis"
-        secondaryLabel="Nanti"
-      />
 
       {/* Blok <style> .custom-scrollbar dihapus: kelas itu tidak dipakai satu kali pun
           di file ini (CSS mati), dan warnanya - #131722/#2A2E39 - berasal dari palet

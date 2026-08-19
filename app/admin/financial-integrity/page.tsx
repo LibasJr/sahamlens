@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, Building2, BarChart3, ShieldCheck, TriangleAlert, Waves } from 'lucide-react';
@@ -46,20 +47,20 @@ export default async function FinancialIntegrityAdminPage() {
         <section className="mb-10">
           <div className="mb-4 flex items-center gap-2"><Waves className="h-5 w-5 text-tv-blue"/><h2 className="font-heading text-xl font-bold">Macro Candidate Impact</h2></div>
           <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Risk-free</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.riskFreeRatePct)} → {pct(macro.candidate.riskFreeRatePct)}</p></div>
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">ERP</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.equityRiskPremiumPct)} → {pct(macro.candidate.equityRiskPremiumPct)}</p></div>
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Perpetual growth cap</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.maxPerpetualGrowthPct)} → {pct(macro.candidate.maxPerpetualGrowthPct)}</p></div>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Risk-free</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.riskFreeRatePct)} → {pct(macro.candidate.riskFreeRatePct)}</p></Card>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">ERP</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.equityRiskPremiumPct)} → {pct(macro.candidate.equityRiskPremiumPct)}</p></Card>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Perpetual growth cap</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.maxPerpetualGrowthPct)} → {pct(macro.candidate.maxPerpetualGrowthPct)}</p></Card>
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className={`rounded border px-2 py-1 text-[11px] font-bold ${statusClass(macro.status)}`}>{macro.status}</span>
             <span className="text-xs text-tv-muted">Largest |Δ cost of equity|: <span className="font-number text-tv-text">{macro.diagnostics.largestAbsoluteCostOfEquityDeltaPp == null ? '—' : `${macro.diagnostics.largestAbsoluteCostOfEquityDeltaPp.toFixed(2)} pp`}</span></span>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-tv-border bg-tv-card">
+          <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="overflow-x-auto border-tv-border">
             <table className="min-w-full text-sm"><thead className="border-b border-tv-border text-left text-xs text-tv-muted"><tr><th className="p-3">Beta</th><th className="p-3">Cost of equity production</th><th className="p-3">Cost of equity candidate</th><th className="p-3">Δ pp</th></tr></thead><tbody>{macro.scenarios.map((row)=><tr key={row.beta} className="border-b border-tv-border/60 last:border-0"><td className="p-3 font-number">{row.beta.toFixed(2)}</td><td className="p-3 font-number">{pct(row.productionPct)}</td><td className="p-3 font-number">{pct(row.evidencePct)}</td><td className="p-3 font-number">{row.deltaPp == null ? '—' : `${row.deltaPp >= 0 ? '+' : ''}${row.deltaPp.toFixed(2)} pp`}</td></tr>)}</tbody></table>
-          </div>
-          <div className="mt-3 rounded-xl border border-tv-border bg-tv-card p-4 text-sm text-tv-muted">
+          </Card>
+          <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="mt-3 border-tv-border p-4 text-sm text-tv-muted">
             {macro.reasons.map((reason)=><p key={reason} className="mb-1 last:mb-0">• {reason}</p>)}
-          </div>
+          </Card>
         </section>
 
         <section>
@@ -68,15 +69,15 @@ export default async function FinancialIntegrityAdminPage() {
             <div className="flex gap-2"><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-tv-yellow"/><div><p className="font-semibold">Scoring tetap OFF</p><p className="mt-1 text-tv-muted">{bank.guardrail}</p></div></div>
           </div>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Ticker</p><p className="mt-1 font-number text-2xl font-bold">{bank.tickerCount}</p></div>
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Evidence rows</p><p className="mt-1 font-number text-2xl font-bold">{bank.evidenceRows}</p></div>
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Research-analyzable</p><p className="mt-1 font-number text-2xl font-bold">{bank.tickers.filter((row)=>row.researchAnalyzable).length}</p></div>
-            <div className="rounded-xl border border-tv-border bg-tv-card p-4"><p className="text-xs text-tv-muted">Scoring enabled</p><p className="mt-1 font-number text-2xl font-bold">0</p></div>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Ticker</p><p className="mt-1 font-number text-2xl font-bold">{bank.tickerCount}</p></Card>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Evidence rows</p><p className="mt-1 font-number text-2xl font-bold">{bank.evidenceRows}</p></Card>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Research-analyzable</p><p className="mt-1 font-number text-2xl font-bold">{bank.tickers.filter((row)=>row.researchAnalyzable).length}</p></Card>
+            <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Scoring enabled</p><p className="mt-1 font-number text-2xl font-bold">0</p></Card>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-tv-border bg-tv-card">
+          <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="overflow-x-auto border-tv-border">
             <table className="min-w-full text-sm"><thead className="border-b border-tv-border text-left text-xs text-tv-muted"><tr><th className="p-3">Ticker</th><th className="p-3">Periods</th><th className="p-3">Metrics</th><th className="p-3">Research metrics</th><th className="p-3">Complete periods</th><th className="p-3">PIT violations</th><th className="p-3">Basis unspecified</th><th className="p-3">Research</th><th className="p-3">Scoring</th></tr></thead><tbody>{bank.tickers.map((row)=><tr key={row.ticker} className="border-b border-tv-border/60 last:border-0"><td className="p-3 font-semibold">{row.ticker}</td><td className="p-3 font-number">{row.periods}</td><td className="p-3 font-number">{row.distinctMetrics}/10</td><td className="p-3 font-number">{row.researchMetricsPresent}/6</td><td className="p-3 font-number">{row.completeResearchPeriods}</td><td className="p-3 font-number">{row.pitViolationRows}</td><td className="p-3 font-number">{row.unspecifiedBasisRows}</td><td className="p-3 text-xs">{row.researchAnalyzable ? 'ANALYZABLE' : 'WAIT'}</td><td className="p-3 text-xs">DATA_ONLY</td></tr>)}</tbody></table>
             {bank.tickers.length===0 && <p className="p-5 text-sm text-tv-muted">Belum ada bank metric evidence untuk dianalisis.</p>}
-          </div>
+          </Card>
         </section>
       </div>
     </div>

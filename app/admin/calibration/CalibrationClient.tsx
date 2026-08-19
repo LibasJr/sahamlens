@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bar,
@@ -17,11 +18,12 @@ import {
   ZAxis,
 } from 'recharts';
 import { Brain, Lock, RefreshCw, SlidersHorizontal, TrendingUp } from 'lucide-react';
-import { Skeleton, EmptyState, LoadingFact } from '@/components/ui';
+import { Card, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
 import {
   THRESHOLD_RECOMMENDER_ENABLED,
   MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION,
 } from '@/modules/lens-radar/constants/research-status';
+import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 type Bucket = '80-100' | '70-79' | '60-69' | '<60';
 
@@ -306,7 +308,7 @@ function BucketTooltip({ active, payload, label }: any) {
   const v = payload[0]?.value as number | null | undefined;
   const tipis = (row?.totalSamples ?? 0) > 0 && (row?.totalSamples ?? 0) < 30;
   return (
-    <div className="rounded-lg border border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
+    <Card as="div" padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
       <div className="text-[10px] uppercase tracking-wide text-tv-muted">Bucket {label}</div>
       <div className="mt-1 flex items-baseline gap-2">
         <span className="text-tv-muted text-xs">Avg T+20</span>
@@ -316,7 +318,7 @@ function BucketTooltip({ active, payload, label }: any) {
         {num(row?.totalSamples)} sampel
         {tipis && <span className="text-tv-warning"> · terlalu sedikit untuk disimpulkan</span>}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -362,17 +364,11 @@ export default function CalibrationClient() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/calibration');
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error || 'Gagal memuat data kalibrasi');
-        setData(null);
-        return;
-      }
+      const json = await apiRequest<any>('/api/admin/calibration');
       setData(json);
       setThreshold(DEFAULT_SIMULATION_THRESHOLD);
-    } catch {
-      setError('Gagal memuat data kalibrasi');
+    } catch (error) {
+      setError(apiErrorMessage(error, 'Gagal memuat data kalibrasi', true));
       setData(null);
     } finally {
       setLoading(false);
@@ -415,20 +411,9 @@ export default function CalibrationClient() {
     setRecommending(true);
     setRecommendation(null);
     try {
-      const res = await fetch('/api/admin/calibration/recommend-threshold', { method: 'POST' });
-      const json = await res.json();
-      if (res.ok) {
-        setRecommendation(json);
-        if (typeof json?.threshold === 'number') setThreshold(json.threshold);
-      } else {
-        setRecommendation({
-          threshold: null,
-          text: json?.error || 'AI belum bisa membuat rekomendasi saat ini.',
-          aiGenerated: false,
-          supportingSimulation: null,
-          baseline80: baseline80,
-        });
-      }
+      const json = await apiRequest<any>('/api/admin/calibration/recommend-threshold', { method: 'POST' });
+      setRecommendation(json);
+      if (typeof json?.threshold === 'number') setThreshold(json.threshold);
     } catch {
       setRecommendation({
         threshold: null,
@@ -446,14 +431,14 @@ export default function CalibrationClient() {
 
   if (error || !data) {
     return (
-      <div className="bg-tv-card border border-tv-border rounded-xl">
+      <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border">
         <EmptyState
           illustration="empty"
           title="Kalibrasi gagal dimuat"
           description={`${error || 'Data tidak tersedia.'} Perhitungan ini membaca lens_radar_history langsung, bukan cache - kegagalan di sini berarti query-nya tidak selesai, bukan bahwa datanya kosong.`}
           action={{ label: 'Coba muat ulang', onClick: loadData }}
         />
-      </div>
+      </Card>
     );
   }
 
@@ -462,24 +447,24 @@ export default function CalibrationClient() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">As-of</div>
           <div className="font-number text-xl font-bold mt-1">{data.asOfDate}</div>
-        </div>
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        </Card>
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Run Stats</div>
           <div className="font-number text-xl font-bold mt-1">{data.latestStatsRunDate || 'On-demand'}</div>
-        </div>
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        </Card>
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Histori Valid</div>
           <div className="font-number text-xl font-bold mt-1">{num(data.sourceRows)}</div>
-        </div>
-        <div className="bg-tv-card border border-tv-border rounded-xl p-4">
+        </Card>
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Observasi T+20</div>
           <div className="font-number text-xl font-bold mt-1">{data.observationsT20.toLocaleString('id-ID')}</div>
           {/* Angka telanjang tidak menyatakan ia sedang menuju ambang tertentu. */}
           <div className="text-[10px] text-tv-muted mt-0.5">dari {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum</div>
-        </div>
+        </Card>
       </div>
 
       <section className={`rounded-xl border p-4 ${
@@ -505,11 +490,11 @@ export default function CalibrationClient() {
         {data.fundamentalPitCoverage.byDate.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {data.fundamentalPitCoverage.byDate.slice(-12).map((row) => (
-              <div key={row.date} className="rounded-lg border border-tv-border bg-tv-card/70 px-3 py-2">
+              <Card as="div" padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} key={row.date} className="border-tv-border bg-tv-card/70 px-3 py-2">
                 <div className="text-[10px] text-tv-muted">{row.date}</div>
                 <div className="mt-0.5 font-number text-sm font-semibold">{pct(row.coveragePct)}</div>
                 <div className="text-[10px] text-tv-muted">{num(row.rowsWithFundamental)}/{num(row.totalRows)}</div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
@@ -519,7 +504,7 @@ export default function CalibrationClient() {
           sebelum bisa dihitung. Yang selama ini hilang adalah keterangan sudah sampai
           mana - satu paragraf kuning tidak menunjukkan progres apa pun. */}
       {!hasEnoughT20 && (
-        <div className="bg-tv-card border border-tv-border rounded-xl overflow-hidden">
+        <Card as="div" padding="none" radius="xl" elevation="none" overflow="hidden" highlight={false} className="border-tv-border">
           <EmptyState
             illustration="collecting"
             title="Observasi T+20 belum terkumpul"
@@ -535,11 +520,11 @@ export default function CalibrationClient() {
             Histori mentah tersedia: <span className="font-number text-tv-text">{num(data.sourceRows)}</span> baris
             dari <span className="font-number text-tv-text">{num(data.uniqueTickers)}</span> emiten.
           </p>
-        </div>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <section className="xl:col-span-3 bg-tv-card border border-tv-border rounded-xl p-5">
+        <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="xl:col-span-3 border-tv-border p-5">
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               <h2 className="font-heading text-lg font-bold flex items-center gap-2">
@@ -600,9 +585,9 @@ export default function CalibrationClient() {
           <p className="mt-2 text-[10px] text-tv-muted">
             <span className="text-tv-warning">*</span> di bawah 30 sampel - rata-ratanya masih didominasi kebetulan.
           </p>
-        </section>
+        </Card>
 
-        <section className="xl:col-span-2 bg-tv-card border border-tv-border rounded-xl p-5">
+        <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="xl:col-span-2 border-tv-border p-5">
           <h2 className="font-heading text-lg font-bold mb-1">T-test Validasi Edge</h2>
           <p className="text-xs text-tv-muted mb-4">
             Hipotesis: bucket 80-100 punya return T+20 lebih tinggi dari bucket &lt;60.
@@ -660,10 +645,10 @@ export default function CalibrationClient() {
               </tbody>
             </table>
           </div>
-        </section>
+        </Card>
       </div>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <h2 className="font-heading text-lg font-bold mb-1">Robust Validation</h2>
         <p className="text-xs text-tv-muted mb-4">Cross-check edge dengan calendar-week block bootstrap, permutation test, Spearman IC, monthly IC/ICIR, dan monotonicity. Semua memakai sampel efektif T+20 yang sudah didekorelasikan.</p>
 
@@ -722,9 +707,9 @@ export default function CalibrationClient() {
             </div>
           </div>
         </div>
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
           <div>
             <h2 className="font-heading text-lg font-bold">Forward / Out-of-Sample Protocol</h2>
@@ -759,13 +744,13 @@ export default function CalibrationClient() {
           </table>
         </div>
         <div className="text-[11px] text-tv-muted mt-3">{data.retrospectiveWalkForward.conclusion}</div>
-      </section>
+      </Card>
 
       {/* KALIBRASI (temuan C-04). Sebelum bagian ini ada, halaman bernama "Calibration Lab"
           hanya mengukur discrimination - apakah skor tinggi berakhir lebih baik daripada
           skor rendah. Pertanyaan kedua, apakah angka skornya berarti sesuatu dalam satuan
           probabilitas, tidak pernah ditanyakan sama sekali. */}
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
           <div>
             <h2 className="font-heading text-lg font-bold">Kalibrasi Skor</h2>
@@ -981,9 +966,9 @@ export default function CalibrationClient() {
             {data.scoreCalibration.conclusion}
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
           <div className="flex-1">
             <h2 className="font-heading text-lg font-bold flex items-center gap-2">
@@ -1109,14 +1094,14 @@ export default function CalibrationClient() {
           </div>
         ) : (
           <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
-            <button
+            <Button variant="bare" size="none"
               onClick={requestRecommendation}
               disabled={recommending || !hasEnoughT20}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-tv-accent px-4 py-2.5 text-sm font-bold text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {recommending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
               {recommending ? 'AI sedang menilai...' : 'Rekomendasikan Ambang Baru'}
-            </button>
+            </Button>
             <p className="text-xs text-tv-muted">
               AI hanya menyarankan ambang model, bukan rekomendasi beli/jual saham individual.
             </p>
@@ -1131,9 +1116,9 @@ export default function CalibrationClient() {
             <p className="text-sm leading-relaxed text-tv-text">{recommendation.text}</p>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className="bg-tv-card border border-tv-border rounded-xl p-5">
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="font-heading text-lg font-bold">Rekomendasi Bobot Baru</h2>
@@ -1239,7 +1224,7 @@ export default function CalibrationClient() {
             )}
           </div>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

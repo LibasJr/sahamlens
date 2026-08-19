@@ -17,8 +17,9 @@ const MARKET_SUMMARY_CACHE_KEY = COMPUTED_CACHE_KEY.MARKET_SUMMARY;
 const BREAKOUT_CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 const DETAIL_CAP = 20;
 
-export async function GET() {
+export async function GET(request: Request) {
   return runController(async () => {
+    try {
     // Reuse cache key yang sama dengan /api/market-summary supaya tidak scan ulang
     // 250 saham dua kali (cache-nya sudah dipenuhi request landing page yang sama).
     const summary = await getOrCompute(MARKET_SUMMARY_CACHE_KEY, CACHE_TTL_SEC.MARKET_SUMMARY, getMarketSummary);
@@ -98,7 +99,9 @@ export async function GET() {
       },
       headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR),
     };
-    // catch generik dihapus: runController menghasilkan 500 yang sama sambil mencatat
-    // error lengkap ke shared/logger dengan X-Request-Id yang juga diterima klien.
-  });
+    } catch (error: any) {
+      console.error('Daily picks API error:', error);
+      return { status: 500, body: { error: 'Internal Server Error' } };
+    }
+  }, request);
 }

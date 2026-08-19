@@ -55,17 +55,17 @@ export function PriceRangeSlider({
       {/* Bottom Range Limits */}
       <div className="flex items-center justify-between text-[11px] font-number text-tv-muted pt-0.5">
         <div>
-          <span className="text-[9px] uppercase tracking-wider block opacity-70">Low</span>
+          <span className="lens-meta uppercase tracking-wider block opacity-70">Low</span>
           <strong className="text-tv-text">Rp {lowPrice.toLocaleString('id-ID')}</strong>
         </div>
 
         <div className="text-center">
-          <span className="text-[9px] uppercase tracking-wider block opacity-70">Sesi</span>
+          <span className="lens-meta uppercase tracking-wider block opacity-70">Sesi</span>
           <strong className="text-tv-blue font-bold">Rp {currentPrice.toLocaleString('id-ID')}</strong>
         </div>
 
         <div className="text-right">
-          <span className="text-[9px] uppercase tracking-wider block opacity-70">High</span>
+          <span className="lens-meta uppercase tracking-wider block opacity-70">High</span>
           <strong className="text-tv-text">Rp {highPrice.toLocaleString('id-ID')}</strong>
         </div>
       </div>

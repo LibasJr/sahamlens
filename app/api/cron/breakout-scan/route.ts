@@ -6,6 +6,7 @@ import { logger } from '@/shared/logger/logger';
 import { scanBreakouts, scanCrossSignals } from '@/modules/recommendation';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 // BUILD 006 (Scheduler) - lihat catatan pola di app/api/cron/macro/route.ts.
 // GET /api/breakout-radar sebelumnya menjalankan scanBreakouts() (fetch Yahoo untuk
@@ -13,7 +14,7 @@ import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 // memindahkan komputasi itu ke jadwal, hasil ditaruh di Redis untuk dibaca cache-first.
 const CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
   const rawBody = await req.text();
 
@@ -44,4 +45,8 @@ export async function POST(req: NextRequest) {
     logger.error('Job breakout-scan gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+  return runCronRoute(req, () => handlePOST(req));
 }

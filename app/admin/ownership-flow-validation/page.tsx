@@ -1,3 +1,4 @@
+import { Card as UiCard } from '@/components/ui/Card';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, Database, ShieldAlert, TrendingUp } from 'lucide-react';
@@ -28,29 +29,29 @@ export default async function OwnershipFlowValidationPage() {
       </section>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card label="Snapshot" value={String(d.snapshots)} sub={`${date(d.firstObservedDate)} → ${date(d.lastObservedDate)}`}/>
-        <Card label="Rows" value={d.rows.toLocaleString('id-ID')} sub={`${d.comparableChanges.toLocaleString('id-ID')} comparable · ${d.structuralBreakChanges.toLocaleString('id-ID')} structural break`}/>
-        <Card label="PIT eligible" value={`${d.pitEligibleSnapshots}/${d.minPitSnapshotsForPredictiveStudy} snapshot`} sub={`${d.pitEligibleRows.toLocaleString('id-ID')} row · lag ≤ ${d.maxPublicationLagDaysAllowed} hari`}/>
-        <Card label="Threshold research" value={d.thresholdResearchStatus} sub="tidak mengaktifkan label otomatis"/>
+        <StatCard label="Snapshot" value={String(d.snapshots)} sub={`${date(d.firstObservedDate)} → ${date(d.lastObservedDate)}`}/>
+        <StatCard label="Rows" value={d.rows.toLocaleString('id-ID')} sub={`${d.comparableChanges.toLocaleString('id-ID')} comparable · ${d.structuralBreakChanges.toLocaleString('id-ID')} structural break`}/>
+        <StatCard label="PIT eligible" value={`${d.pitEligibleSnapshots}/${d.minPitSnapshotsForPredictiveStudy} snapshot`} sub={`${d.pitEligibleRows.toLocaleString('id-ID')} row · lag ≤ ${d.maxPublicationLagDaysAllowed} hari`}/>
+        <StatCard label="Threshold research" value={d.thresholdResearchStatus} sub="tidak mengaktifkan label otomatis"/>
       </div>
 
-      <section className="mt-4 rounded-xl border border-tv-border bg-tv-card p-4">
+      <UiCard as="section" className="mt-4 border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <h2 className="flex items-center gap-2 font-heading font-bold text-tv-text"><TrendingUp className="h-4 w-4 text-tv-blue"/>Distribusi |Δ Foreign| per snapshot</h2>
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Card label="P50" value={pp(d.absoluteDeltaPercentilesPp.p50)}/><Card label="P75" value={pp(d.absoluteDeltaPercentilesPp.p75)}/><Card label="P90" value={pp(d.absoluteDeltaPercentilesPp.p90)}/><Card label="P95" value={pp(d.absoluteDeltaPercentilesPp.p95)}/>
+          <StatCard label="P50" value={pp(d.absoluteDeltaPercentilesPp.p50)}/><StatCard label="P75" value={pp(d.absoluteDeltaPercentilesPp.p75)}/><StatCard label="P90" value={pp(d.absoluteDeltaPercentilesPp.p90)}/><StatCard label="P95" value={pp(d.absoluteDeltaPercentilesPp.p95)}/>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
           <div className="rounded-lg border border-tv-border p-3"><div className="text-tv-green font-bold">{d.positiveChanges.toLocaleString('id-ID')}</div><div className="text-tv-muted">naik</div></div>
           <div className="rounded-lg border border-tv-border p-3"><div className="text-tv-red font-bold">{d.negativeChanges.toLocaleString('id-ID')}</div><div className="text-tv-muted">turun</div></div>
           <div className="rounded-lg border border-tv-border p-3"><div className="text-tv-text font-bold">{d.unchangedChanges.toLocaleString('id-ID')}</div><div className="text-tv-muted">tetap</div></div>
         </div>
-      </section>
+      </UiCard>
 
-      <section className="mt-4 rounded-xl border border-tv-border bg-tv-card p-4">
+      <UiCard as="section" className="mt-4 border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <h2 className="flex items-center gap-2 font-heading font-bold text-tv-text"><Database className="h-4 w-4 text-tv-blue"/>Guardrail integritas</h2>
         <ul className="mt-3 space-y-2 text-sm text-tv-muted">{d.guardrails.map((g) => <li key={g} className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-2.5">• {g}</li>)}</ul>
-      </section>
+      </UiCard>
     </main>
   );
 }
-function Card({label,value,sub}:{label:string;value:string;sub?:string}){return <div className="rounded-xl border border-tv-border bg-tv-card p-3.5"><p className="text-[10.5px] uppercase tracking-wide text-tv-muted">{label}</p><p className="mt-1 break-words font-heading text-sm font-bold text-tv-text">{value}</p>{sub&&<p className="mt-1 text-[11px] text-tv-muted">{sub}</p>}</div>}
+function StatCard({label,value,sub}:{label:string;value:string;sub?:string}){return <UiCard as="div" className="border-tv-border p-3.5" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}><p className="text-[10.5px] uppercase tracking-wide text-tv-muted">{label}</p><p className="mt-1 break-words font-heading text-sm font-bold text-tv-text">{value}</p>{sub&&<p className="mt-1 text-[11px] text-tv-muted">{sub}</p>}</UiCard>}

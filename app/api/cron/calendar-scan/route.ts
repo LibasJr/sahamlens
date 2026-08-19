@@ -6,6 +6,7 @@ import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard';
 import { logger } from '@/shared/logger/logger';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const maxDuration = 120;
 
@@ -20,7 +21,7 @@ async function runScan() {
   return { count: events.length };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,4 +36,8 @@ export async function GET(req: NextRequest) {
     logger.error('Job calendar-scan gagal', { error });
     return NextResponse.json({ error: 'Job calendar-scan gagal' }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
@@ -8,6 +9,8 @@ import Link from 'next/link';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
+import { Card } from '@/components/ui/Card';
+import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 
 function createPaymentReference(): string {
@@ -59,21 +62,21 @@ function CopyRow({ label, value, name }: { label: string; value: string; name: s
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-tv-border bg-tv-card px-3 py-2">
+    <Card padding="none" radius="md" elevation="none" highlight={false} overflow="visible" className="flex items-center justify-between gap-3 border-tv-border px-3 py-2">
       <div className="min-w-0">
         <p className="text-xs text-tv-muted">{label}</p>
         <p className="text-sm font-bold text-tv-text truncate">{value}</p>
         <p className="text-xs text-tv-muted truncate">a.n. {name}</p>
       </div>
-      <button
+      <Button variant="bare" size="none"
         type="button"
         onClick={handleCopy}
         className="flex-shrink-0 flex items-center gap-1 text-xs font-bold text-tv-blue hover:text-tv-blueHover transition-colors"
       >
         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
         {copied ? 'Tersalin' : 'Salin'}
-      </button>
-    </div>
+      </Button>
+    </Card>
   );
 }
 
@@ -114,25 +117,18 @@ export default function PaywallModal({
     setPaymentSubmitting(true);
     setPaymentError(null);
     try {
-      // Order audit HARUS tersimpan sebelum pengguna diarahkan ke WhatsApp. Guest tidak
-      // boleh membuat klaim anonim karena entitlement akhirnya selalu melekat ke akun.
-      const res = await fetch('/api/payment/notify', {
+      await apiRequest('/api/payment/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planCode: selectedPlan.id, reference: paymentReference }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
+      window.location.assign(waLink);
+    } catch (error) {
+      if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
         window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
         return;
       }
-      if (!res.ok && res.status !== 202) {
-        setPaymentError(typeof data.error === 'string' ? data.error : 'Klaim pembayaran belum dapat dicatat. Coba lagi.');
-        return;
-      }
-      window.location.assign(waLink);
-    } catch {
-      setPaymentError('Klaim pembayaran belum dapat dicatat. Periksa koneksi lalu coba lagi.');
+      setPaymentError(apiErrorMessage(error, 'Klaim pembayaran belum dapat dicatat. Periksa koneksi lalu coba lagi.', true));
     } finally {
       setPaymentSubmitting(false);
     }
@@ -167,13 +163,13 @@ export default function PaywallModal({
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       >
-        <button
+        <Button variant="bare" size="none"
           onClick={onClose}
           className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
           aria-label="Tutup"
         >
           <X className="w-5 h-5" />
-        </button>
+        </Button>
 
         <div className="w-12 h-12 rounded-lg bg-tv-blue flex items-center justify-center text-2xl mb-4">
           🔒
@@ -197,7 +193,7 @@ export default function PaywallModal({
             <p className="text-xs font-bold text-tv-muted uppercase tracking-wide mb-2">Pilih Paket</p>
             <div className="grid grid-cols-2 gap-2">
               {PRICING_PLANS.map((plan) => (
-                <button
+                <Button variant="bare" size="none"
                   key={plan.id}
                   type="button"
                   onClick={() => setSelectedPlanId(plan.id)}
@@ -213,7 +209,7 @@ export default function PaywallModal({
                   )}
                   <p className="text-sm font-bold text-tv-blue font-number">{formatRupiah(plan.finalPrice)}</p>
                   {plan.discountPct > 0 && <p className="text-[10px] text-tv-green font-bold">Hemat {plan.discountPct}%</p>}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -221,14 +217,14 @@ export default function PaywallModal({
 
         {isUpgradeFlow && (
           <div className="mb-5">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setShowAllFeatures((v) => !v)}
               className="w-full flex items-center justify-between text-xs font-bold text-tv-muted uppercase tracking-wide mb-2 hover:text-tv-text transition-colors"
             >
               <span>Semua Fitur Pro ({FULL_FEATURE_LIST.length})</span>
               {showAllFeatures ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
+            </Button>
             {showAllFeatures && (
               <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {FULL_FEATURE_LIST.map((f) => (
@@ -284,12 +280,12 @@ export default function PaywallModal({
               {paymentSubmitting ? 'Mencatat klaim…' : ctaLabel}
             </a>
           )}
-          <button
+          <Button variant="bare" size="none"
             onClick={onClose}
             className="flex-1 border border-tv-border text-tv-muted hover:bg-tv-hover hover:text-tv-text font-bold py-3 rounded-md transition-colors"
           >
             {secondaryLabel}
-          </button>
+          </Button>
         </div>
       </motion.div>
     </motion.div>

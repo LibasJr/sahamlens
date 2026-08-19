@@ -11,6 +11,7 @@ import {
   failTpclValidationRun,
 } from '@/modules/recommendation/repository/tpcl-validation-run.repository';
 import type { TpclValidationDashboard } from '@/modules/recommendation/service/tpcl-validation.service';
+import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 900;
@@ -49,7 +50,7 @@ async function processOne() {
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const result = await withJobRunLog('tpcl-validation-worker', async () => {
@@ -61,4 +62,8 @@ export async function GET(req: NextRequest) {
     logger.error('TPCL Validation worker gagal', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: 'TPCL Validation worker gagal' }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return runCronRoute(req, () => handleGET(req));
 }

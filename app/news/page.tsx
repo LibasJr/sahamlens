@@ -1,13 +1,14 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import useSWR from 'swr';
 import { motion } from 'framer-motion';
 import { Newspaper } from 'lucide-react';
-import { Badge, PageContainer, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
+import { Card, Badge, PageContainer, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
 import { StructuredNewsCard, StructuredNewsIntro } from '@/components/news/StructuredNewsCard';
 import { staggerContainer } from '@/lib/motion';
 import { useLanguage } from '@/lib/i18n';
+import { apiRequest } from '@/shared/http/api-client';
 
 interface NewsItemDto {
   title: string;
@@ -62,31 +63,23 @@ type SentimentKey = 'ALL' | 'POSITIF' | 'NEGATIF' | 'NETRAL';
 
 export default function NewsPage() {
   const { t, language } = useLanguage();
+  const [newsItems, setNewsItems] = useState<NewsItemDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<SentimentKey>('ALL');
 
-  // SWR menggantikan loadNews + useEffect.
-  //
-  // `cache: 'no-store'` ikut dibuang. Niatnya dulu "jangan tampilkan berita basi", tapi
-  // caranya keliru: ia mematikan cache TANPA menyegarkan apa pun saat pengguna benar-benar
-  // kembali melihat halaman. revalidateOnFocus (lihat lib/api/ApiProvider.tsx) melakukan
-  // hal yang sebenarnya diinginkan.
-  //
-  // Ikut memperbaiki satu bug halus: `loadNews` bergantung pada `t`, jadi MENGGANTI BAHASA
-  // memicu pengambilan ulang seluruh berita - padahal isinya sama saja. Kunci SWR tidak
-  // bergantung pada bahasa, jadi itu tidak lagi terjadi.
-  const {
-    data: newsData,
-    error: newsError,
-    isLoading: loading,
-    mutate: loadNews,
-  } = useSWR<{ items?: NewsItemDto[] }>('/api/news');
+  const loadNews = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    apiRequest<any>('/api/news', { cache: 'no-store' })
+      .then((d) => setNewsItems(d?.items || []))
+      .catch(() => setError(t('newsPage.errorTitle')))
+      .finally(() => setLoading(false));
+  }, [t]);
 
-  // useMemo WAJIB di sini, bukan kerapian: `?? []` menghasilkan array BARU setiap render,
-  // dan dua useMemo di bawah bergantung padanya - tanpa ini keduanya dihitung ulang di
-  // setiap render walau beritanya tidak berubah. Ditangkap oleh react-hooks/exhaustive-deps.
-  const newsItems = useMemo(() => newsData?.items ?? [], [newsData]);
-  // Pesan errornya tetap dilokalkan seperti sebelumnya - yang berubah hanya sumbernya.
-  const error = newsError ? t('newsPage.errorTitle') : null;
+  useEffect(() => {
+    loadNews();
+  }, [loadNews]);
 
   const filters = useMemo<{ id: SentimentKey; label: string; tone: string }[]>(() => [
     { id: 'ALL', label: t('newsPage.filterAll'), tone: 'border-tv-blue/40 bg-tv-blue/10 text-tv-blue' },
@@ -128,7 +121,7 @@ export default function NewsPage() {
         )}
 
         {!loading && !error && newsItems.length > 0 && (
-          <div className="mb-5 rounded-lg border border-tv-border bg-tv-card p-4">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="mb-5 border-tv-border p-4">
             <div className="flex items-center gap-2 mb-3">
               <Newspaper className="w-4 h-4 text-tv-muted" />
               <h2 className="font-heading text-sm font-bold text-tv-text">
@@ -173,13 +166,13 @@ export default function NewsPage() {
                 return t('newsPage.toneBalanced', { base: dasar });
               })()}
             </p>
-          </div>
+          </Card>
         )}
 
         {!loading && !error && newsItems.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {filters.map((f) => (
-              <button
+              <Button variant="bare" size="none"
                 key={f.id}
                 type="button"
                 onClick={() => setFilter(f.id)}
@@ -188,7 +181,7 @@ export default function NewsPage() {
                 }`}
               >
                 {f.label} <span className="font-number">{counts[f.id]}</span>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -204,25 +197,25 @@ export default function NewsPage() {
             <LoadingFact />
           </div>
         ) : error ? (
-          <div className="rounded-lg border border-tv-border bg-tv-card">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border">
             <EmptyState
               illustration="empty"
               title={t('newsPage.errorTitle')}
               description={t('newsPage.errorDesc', { error })}
               action={{ label: t('newsPage.errorRetry'), onClick: loadNews }}
             />
-          </div>
+          </Card>
         ) : newsItems.length === 0 ? (
-          <div className="rounded-lg border border-tv-border bg-tv-card">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border">
             <EmptyState
               illustration="search"
               title={t('newsPage.emptyTitle')}
               description={t('newsPage.emptyDesc')}
               action={{ label: t('newsPage.emptyRefresh'), onClick: loadNews }}
             />
-          </div>
+          </Card>
         ) : visibleItems.length === 0 ? (
-          <div className="rounded-lg border border-tv-border bg-tv-card">
+          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border">
             <EmptyState
               illustration="search"
               title={t('newsPage.emptyFilteredTitle', {
@@ -231,7 +224,7 @@ export default function NewsPage() {
               description={t('newsPage.emptyFilteredDesc')}
               action={{ label: t('newsPage.emptyFilteredAction'), onClick: () => setFilter('ALL') }}
             />
-          </div>
+          </Card>
         ) : (
           <motion.div
             initial="hidden"

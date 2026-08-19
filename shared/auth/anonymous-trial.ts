@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
+import type { CookieToSet } from '../types/http-result.types';
 import { encrypt, decrypt } from './jwt';
 import { ANON_TRIAL_COOKIE } from '../constants/cookie-names';
-import type { CookieToSet } from '../types/http-result.types';
 
 // Trial 7 hari untuk pengunjung TANPA akun - dipakai 7 endpoint "lihat-analisa" yang
 // sebelumnya wajib login (Market Pulse, Calendar, Multi-agent, Council AI, Backtest,
@@ -61,20 +61,9 @@ export async function readOrIssueAnonymousTrial(): Promise<AnonTrialState> {
   return computeState(new Date().toISOString(), true);
 }
 
-// Tempelkan cookie ke response HANYA kalau trial.isNew (request-request berikutnya
-// yang membaca cookie yang sudah ada TIDAK menulis ulang setiap kali).
-/**
- * Varian framework-agnostic dari applyAnonymousTrialCookie di bawah: mengembalikan
- * deskripsi cookie alih-alih menempelkannya ke NextResponse.
- *
- * Dibutuhkan karena route yang dimigrasi ke runController tidak lagi memegang objek
- * NextResponse - adapter yang membuatnya, dari HttpResult.cookiesToSet. Tanpa varian ini,
- * satu-satunya cara route ber-trial-anonim bisa menyetel cookienya adalah keluar dari
- * adapter, yaitu kehilangan X-Request-Id dan bentuk error seragam.
- *
- * Mengembalikan null kalau trial-nya bukan baru - aturan yang sama persis dengan versi
- * NextResponse: request berikutnya yang membaca cookie yang sudah ada TIDAK menulis ulang.
- */
+// Bentuk cookie trial sebagai data biasa supaya application controller yang lewat
+// runController tidak perlu mengimpor NextResponse hanya untuk menempel cookie. Helper
+// applyAnonymousTrialCookie() tetap dipertahankan untuk response streaming/raw.
 export async function buildAnonymousTrialCookie(trial: AnonTrialState): Promise<CookieToSet | null> {
   if (!trial.isNew) return null;
   const token = await encrypt<AnonTrialPayload>({ typ: 'anon_trial', firstSeenAt: trial.firstSeenAt }, `${ANON_TOKEN_TTL_DAYS}d`);
@@ -91,14 +80,10 @@ export async function buildAnonymousTrialCookie(trial: AnonTrialState): Promise<
   };
 }
 
+// Tempelkan cookie ke response HANYA kalau trial.isNew (request-request berikutnya
+// yang membaca cookie yang sudah ada TIDAK menulis ulang setiap kali).
 export async function applyAnonymousTrialCookie(res: NextResponse, trial: AnonTrialState): Promise<void> {
-  if (!trial.isNew) return;
-  const token = await encrypt<AnonTrialPayload>({ typ: 'anon_trial', firstSeenAt: trial.firstSeenAt }, `${ANON_TOKEN_TTL_DAYS}d`);
-  res.cookies.set(ANON_TRIAL_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: ANON_TOKEN_MAX_AGE_SEC,
-    path: '/',
-  });
+  const cookie = await buildAnonymousTrialCookie(trial);
+  if (!cookie) return;
+  res.cookies.set(cookie.name, cookie.value, cookie.options);
 }

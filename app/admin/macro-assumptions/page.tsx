@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, ExternalLink, ShieldCheck, TriangleAlert, Waves } from 'lucide-react';
@@ -15,7 +16,7 @@ function pct(value: number | null | undefined) {
 function evidenceCard(title: string, evidence: MacroInputEvidence | null, production?: number) {
   const differs = evidence != null && production != null && Math.abs(evidence.valuePct - production) > 1e-9;
   return (
-    <div className="rounded-xl border border-tv-border bg-tv-card p-5">
+    <Card as="div" className="border-tv-border p-5" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-tv-muted">{title}</p>
@@ -46,7 +47,7 @@ function evidenceCard(title: string, evidence: MacroInputEvidence | null, produc
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

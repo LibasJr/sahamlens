@@ -1,5 +1,7 @@
 'use client';
 
+import { apiRequest } from '@/shared/http/api-client';
+
 /**
  * 401 dari endpoint fitur tidak selalu boleh diterjemahkan menjadi "user belum
  * login". Pada praktiknya, beberapa endpoint dapat gagal membaca akses fitur
@@ -8,9 +10,8 @@
  */
 export async function isAuthenticatedNow(): Promise<boolean> {
   try {
-    const res = await fetch('/api/auth/me', { cache: 'no-store' });
-    const data = await res.json().catch(() => null);
-    return Boolean(res.ok && data?.authenticated && data?.user);
+    const data = await apiRequest<{ authenticated?: boolean; user?: unknown }>('/api/auth/me', { cache: 'no-store' });
+    return Boolean(data?.authenticated && data?.user);
   } catch {
     return false;
   }

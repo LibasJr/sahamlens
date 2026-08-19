@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
 import { ArrowLeft, MessageSquare, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { redirect } from 'next/navigation';
@@ -36,14 +37,14 @@ export default async function LensAiFeedbackAdminPage() {
               Tinjau jawaban yang pengguna tandai membantu atau tidak tepat. Gunakan pertanyaan dan intent-nya untuk menentukan knowledge, routing, atau test regresi berikutnya.
             </p>
           </div>
-          <div className="rounded-xl border border-tv-border bg-tv-card px-4 py-3 text-sm">
+          <Card as="div" className="border-tv-border px-4 py-3 text-sm" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
             <div className="font-number text-lg font-bold">{feedback.length}</div>
             <div className="text-tv-muted">feedback terbaru · {negative} perlu ditinjau</div>
-          </div>
+          </Card>
         </div>
 
         {summaryByIntent.length > 0 && (
-          <section className="mb-7 rounded-xl border border-tv-border bg-tv-card p-4 sm:p-5" aria-labelledby="feedback-summary-title">
+          <Card as="section" className="mb-7 border-tv-border p-4 sm:p-5" aria-labelledby="feedback-summary-title" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <h2 id="feedback-summary-title" className="font-heading text-lg font-bold">Ringkasan otomatis per intent</h2>
@@ -63,14 +64,14 @@ export default async function LensAiFeedbackAdminPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </Card>
         )}
 
         {!feedback.length ? (
-          <div className="rounded-xl border border-dashed border-tv-border bg-tv-card p-8 text-center text-sm text-tv-muted">
+          <Card as="div" className="border-dashed border-tv-border p-8 text-center text-sm text-tv-muted" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
             <MessageSquare className="mx-auto mb-3 h-8 w-8 text-tv-blue" />
             Belum ada feedback. Tombol 👍/👎 pada jawaban LensAI akan mengisi daftar ini.
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {feedback.map((row) => {

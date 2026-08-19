@@ -5,6 +5,7 @@ import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Newspaper, ExternalLink } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { Button as PrimitiveButton } from '@/components/ui/Button';
 
 export interface StockNewsItem {
   title: string;
@@ -81,13 +82,13 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
+            <PrimitiveButton variant="bare" size="none"
               onClick={onClose}
               className="absolute top-4 right-4 text-tv-muted hover:text-tv-text transition-colors"
               aria-label={t('stockNewsModal.close')}
             >
               <X className="w-5 h-5" />
-            </button>
+            </PrimitiveButton>
 
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-md bg-tv-blue/15 flex items-center justify-center text-tv-blue shrink-0">
