@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { usePublicChart } from '@/lib/api/usePublicChart';
 import {
   Activity,
   AlertCircle,
@@ -35,38 +36,11 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
   const isEn = language === 'en';
   const code = symbol.replace('.JK', '');
 
-  const [candles, setCandles] = useState<OHLCVCandle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedPivotMethod, setSelectedPivotMethod] = useState<PivotMethod>('CLASSIC');
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    fetch(`/api/public-chart/${encodeURIComponent(code)}?tf=1Y`, { signal: controller.signal })
-      .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok || !Array.isArray(data?.history) || data.history.length === 0) {
-          throw new Error(data?.error || (isEn ? 'Technical series unavailable' : 'Data teknikal belum tersedia'));
-        }
-        return data.history as OHLCVCandle[];
-      })
-      .then((history) => {
-        if (!controller.signal.aborted) setCandles(history);
-      })
-      .catch((err) => {
-        if (err?.name !== 'AbortError') {
-          setError(err?.message || (isEn ? 'Failed to compute technical levels' : 'Gagal menghitung level teknikal'));
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [code, isEn]);
+  // Hook bersama - lihat lib/api/usePublicChart.ts. Timeframe dikunci 1Y di sini, sama
+  // dengan default StockChartPanel, jadi keduanya berbagi satu permintaan.
+  const { candles, error, isLoading: loading } = usePublicChart(code, '1Y', isEn);
 
   const suite: TechnicalSuiteResult | null = useMemo(() => {
     if (candles.length < 5) return null;

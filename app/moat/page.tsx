@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import useSWR from 'swr';
 import {
   AlertTriangle,
   Award,
@@ -83,9 +84,6 @@ export default function MoatPage() {
   const isEn = language === 'en';
 
   const [ticker, setTicker] = useState('BBCA');
-  const [payload, setPayload] = useState<MoatPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const selectedTicker = normalizeTicker(ticker) || 'BBCA';
   const exportRef = useRef<HTMLDivElement>(null);
@@ -126,34 +124,22 @@ export default function MoatPage() {
     'Quick Ratio (Liquidity)': 'Quick Ratio',
   };
 
-  useEffect(() => {
-    const controller = new AbortController();
+  // SWR menggantikan useEffect + AbortController. Penjaga urutannya tidak hilang - SWR
+  // mengunci hasil ke kuncinya, jadi respons emiten lama tidak bisa mendarat sebagai
+  // milik emiten baru. Yang DIDAPAT: berbagi permintaan dengan halaman lain yang memakai
+  // endpoint sama, revalidasi saat tab kembali fokus, dan retry berjenjang yang dulu
+  // tidak ada sama sekali.
+  const {
+    data: payload,
+    error: loadError,
+    isLoading: loading,
+  } = useSWR<MoatPayload>(selectedTicker ? '/api/fundamental/' + encodeURIComponent(selectedTicker) : null);
 
-    async function loadMoatData() {
-      setLoading(true);
-      setError(null);
-      setPayload(null);
-
-      try {
-        const response = await fetch('/api/fundamental/' + encodeURIComponent(selectedTicker), {
-          signal: controller.signal,
-        });
-        const result = (await response.json()) as MoatPayload;
-        if (!response.ok) {
-          throw new Error(result.error || (isEn ? 'Fundamental data not available yet.' : 'Data fundamental publik belum tersedia.'));
-        }
-        setPayload(result);
-      } catch (caught) {
-        if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : (isEn ? 'Failed to fetch public data.' : 'Gagal mengambil data publik.'));
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-
-    void loadMoatData();
-    return () => controller.abort();
-  }, [selectedTicker, reloadKey, isEn]);
+  // Pesan dari server dipakai kalau ada, sama seperti `result.error` sebelumnya.
+  const error = loadError
+    ? (loadError as Error).message ||
+      (isEn ? 'Failed to fetch public data.' : 'Gagal mengambil data publik.')
+    : null;
 
   const moat = useMemo(() => buildMoatProxy(payload?.analyzers ?? []), [payload?.analyzers]);
   const website = safeWebsite(payload?.profile?.website);
