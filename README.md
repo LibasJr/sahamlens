@@ -77,8 +77,18 @@ sinkronisasi ada di `data/`.
 
 ## Deployment
 
-Lihat `docs/operations/DEPLOYMENT.md`. Dua jalur didukung: Vercel (utama) dan container
-`output: 'standalone'` lewat `Dockerfile` untuk self-host.
+**Production: VPS + systemd + Cloudflare Tunnel.** Domain `sahamlens.id`. Deploy berjalan
+otomatis lewat GitHub Actions (workflow **Deploy VPS**) setelah CI hijau di `main` - tidak
+ada langkah manual. Container `output: 'standalone'` lewat `Dockerfile` tersedia untuk
+self-host.
+
+**Vercel: lingkungan standby, non-authoritative.** Ia tidak melayani pengguna dan tidak
+boleh menjalankan job terjadwal apa pun (`vercel.json` wajib tanpa blok `crons` -
+`npm run audit:cron` menggagalkan build kalau blok itu kembali). Auto-deploy-nya dimatikan
+lewat `git.deploymentEnabled: false` supaya tiap pull request tidak menunggu status dari
+lingkungan yang tidak menerbitkan apa pun; aktifkan manual kalau memang sedang dibutuhkan.
+
+Selengkapnya di `docs/operations/DEPLOYMENT.md`.
 
 ## Lisensi
 
