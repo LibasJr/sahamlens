@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import {
   CartesianGrid,
   Legend,
@@ -231,33 +232,19 @@ function Banner({ data }: { data: TransparencyData }) {
 }
 
 export default function TransparencyClient() {
-  const [data, setData] = useState<TransparencyData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  async function loadData() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/transparency');
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error || 'Gagal memuat data transparansi');
-        setData(null);
-        return;
-      }
-      setData(json);
-    } catch {
-      setError('Gagal memuat data transparansi');
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Pesan dari server dipakai kalau ada (`json?.error` dulu) - ApiError sudah membawanya,
+  // dan runController menjamin hanya pesan yang memang ditujukan ke pengguna yang lolos.
+  const {
+    data,
+    error: transparencyError,
+    isLoading: loading,
+    mutate: loadData,
+  } = useSWR<TransparencyData>('/api/transparency');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const error = transparencyError
+    ? (transparencyError as Error).message || 'Gagal memuat data transparansi'
+    : null;
 
   if (loading) {
     return (
