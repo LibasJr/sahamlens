@@ -51,7 +51,7 @@ const ELEVATION: Record<NonNullable<CardProps['elevation']>, string> = {
   glass: 'shadow-glass',
 };
 
-export function Card({
+export const Card = React.forwardRef<HTMLElement, CardProps>(function Card({
   as: Component = 'div',
   variant = 'default',
   surface = 'solid',
@@ -64,11 +64,12 @@ export function Card({
   className,
   children,
   ...props
-}: CardProps) {
+}: CardProps, ref) {
   const resolvedElevation = elevation ?? (variant === 'glass' ? 'glass' : variant === 'flat' ? 'none' : 'sm');
 
   return (
     <Component
+      ref={ref as React.Ref<never>}
       className={cn(
         'relative border transition-all duration-250 ease-settle',
         overflow === 'hidden' ? 'overflow-hidden' : 'overflow-visible',
@@ -88,7 +89,8 @@ export function Card({
       {children}
     </Component>
   );
-}
+});
+Card.displayName = 'Card';
 
 export function GlassCard({ className, ...props }: Omit<CardProps, 'variant'>) {
   return <Card variant="glass" hoverable className={className} {...props} />;
