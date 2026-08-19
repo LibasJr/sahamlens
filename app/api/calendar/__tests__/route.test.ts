@@ -10,13 +10,19 @@ vi.mock('@/shared/cache/redis-cache', () => ({
 import { GET } from '../route';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 
+// Route handler Next menerima Request wajib (bukan opsional) - itu kontrak yang
+// diperiksa saat `next build` membangkitkan tipe route.
+function makeRequest(): Request {
+  return new Request('http://localhost/api/calendar');
+}
+
 describe('GET /api/calendar', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('public-read: guest tanpa session tetap menerima corporate calendar', async () => {
     vi.mocked(getOrCompute).mockResolvedValue({ '2026-08-10': [{ symbol: 'BBCA', type: 'DIVIDEND' }] } as any);
 
-    const res = await GET();
+    const res = await GET(makeRequest());
     const json = await res.json();
 
     expect(res.status).toBe(200);

@@ -9,7 +9,7 @@ import { runController } from '@/shared/http/next-response.adapter';
 // hanya mengembalikan agenda pasar/cache publik, bukan data user.
 const CACHE_KEY = COMPUTED_CACHE_KEY.CORPORATE_CALENDAR;
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   return runController(async () => {
     const events = await getOrCompute(
       CACHE_KEY,
