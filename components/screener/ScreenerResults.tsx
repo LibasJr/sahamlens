@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Award, ArrowUpDown, Lock } from 'lucide-react';
-import { Button, Card, EmptyState, LoadingFact, Skeleton, TickerAvatar } from '@/components/ui';
+import { ApiErrorHint, Button, Card, EmptyState, LoadingFact, Skeleton, TickerAvatar } from '@/components/ui';
 import { fmtMiliar, fmtTriliun } from '@/shared/format/fundamental-format';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import { parseFormattedNumber, SORTABLE_COLUMNS, type ColumnKey } from './screener-model';
@@ -16,6 +16,7 @@ interface ScreenerResultsProps {
   loading: boolean;
   loadError: boolean;
   loadErrorMessage: string | null;
+  loadErrorRequestId: string | null;
   sortedRows: any[];
   visibleRows: any[];
   hasLockedGuestRows: boolean;
@@ -32,6 +33,7 @@ export default function ScreenerResults({
   loading,
   loadError,
   loadErrorMessage,
+  loadErrorRequestId,
   sortedRows,
   visibleRows,
   hasLockedGuestRows,
@@ -100,12 +102,15 @@ export default function ScreenerResults({
   )}
 
   {!loading && loadError && (
-    <EmptyState
-      illustration="empty"
-      title="Hasil pemindaian gagal dimuat"
-      description={loadErrorMessage || 'Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria.'}
-      action={{ label: 'Coba lagi', onClick: onRetry }}
-    />
+    <>
+      <EmptyState
+        illustration="empty"
+        title="Hasil pemindaian gagal dimuat"
+        description={loadErrorMessage || 'Permintaan ke server tidak sampai, jadi belum diketahui saham mana yang lolos untuk profil ini. Ini bukan berarti tidak ada yang memenuhi kriteria.'}
+        action={{ label: 'Coba lagi', onClick: onRetry }}
+      />
+      <ApiErrorHint requestId={loadErrorRequestId} className="justify-center" />
+    </>
   )}
 
   {!loading && !loadError && sortedRows.length === 0 && (
