@@ -79,3 +79,14 @@ sinkronisasi ada di `data/`.
 
 Lihat `docs/operations/DEPLOYMENT.md`. Dua jalur didukung: Vercel (utama) dan container
 `output: 'standalone'` lewat `Dockerfile` untuk self-host.
+
+## Lisensi
+
+**Hak cipta © 2026 SahamLens. Seluruh hak dilindungi.**
+
+Repositori ini publik agar rumus dan metodologinya dapat diperiksa — bukan agar kodenya
+dipakai ulang. Visibilitas publik BUKAN pemberian lisensi: tanpa izin tertulis, tidak ada
+hak untuk memakai, menyalin, memodifikasi, menyebarkan, atau menurunkan karya dari kode ini,
+baik untuk keperluan komersial maupun non-komersial.
+
+Selengkapnya di [`LICENSE`](LICENSE).
