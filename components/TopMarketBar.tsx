@@ -15,6 +15,7 @@ import NotificationCenter from '@/components/ui/NotificationCenter';
 import { useLanguage } from '@/lib/i18n';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { apiRequest } from '@/shared/http/api-client';
+import MarketTicker from './MarketTicker';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
@@ -61,6 +62,7 @@ export default function TopMarketBar() {
     : '--:--';
 
   return (
+    <>
     <header className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-white/[0.07] bg-[#080D16]/88 px-3 backdrop-blur-xl md:px-5">
       <Link
         href="/"
@@ -138,5 +140,7 @@ export default function TopMarketBar() {
         )}
       </div>
     </header>
+    <MarketTicker />
+    </>
   );
 }
