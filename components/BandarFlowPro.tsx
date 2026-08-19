@@ -7,7 +7,6 @@ import {
   TrendingDown,
   AlertCircle,
   Flame,
-  Globe,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -23,10 +22,10 @@ const OFFICIAL_SOURCE = 'IDX_OFFICIAL_API';
 // Indonesia (endpoint publik ListedCompany/GetTradingInfoSS, disinkronkan oleh
 // scripts/sync-idx-foreign-flow.py). Emiten yang artefak resminya belum tersinkron tetap
 // dilayani proxy Chaikin Money Flow dari harga+volume Yahoo, dan tampilannya SENGAJA
-// berbeda: hanya mode resmi yang boleh memakai badge "Real Foreign Flow (Resmi BEI)" dan
-// menyebut angka lembar/lot asing, karena hanya di mode itu angkanya benar-benar berasal
-// dari catatan transaksi investor asing di Bursa. Mode proxy tetap memakai bahasa
-// "estimasi tekanan beli/jual" - jangan pernah menyeragamkan dua label ini.
+// berbeda: hanya mode resmi yang boleh menyebut angka lembar/lot asing, karena hanya di
+// mode itu angkanya benar-benar berasal dari catatan transaksi investor asing di Bursa.
+// Mode proxy tetap memakai badge "Estimasi Arus Dana" dan bahasa "estimasi tekanan
+// beli/jual" - jangan pernah menyeragamkan dua label ini.
 //
 // Riwayat: sebelum 2026-08-01 komponen ini menampilkan nama broker dan volume beli/jual
 // hasil seedRandom (acak tapi stabil per ticker). Sudah dihapus total.
@@ -226,23 +225,12 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </div>
           <div>
             <h3 className="font-heading font-bold text-white text-lg">{t('bandarFlow.title')}</h3>
-            <p className="text-xs text-tv-muted font-sans">
-              {isOfficial
-                ? isEn
-                  ? 'Official IDX foreign transaction record'
-                  : 'Catatan transaksi investor asing resmi BEI'
-                : t('bandarFlow.subtitle')}
-            </p>
+            <p className="text-xs text-tv-muted font-sans">{t('bandarFlow.subtitle')}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {isOfficial ? (
-            <div className="px-3 py-1.5 rounded-full border border-tv-blue/60 bg-tv-blue/10 text-tv-blue font-bold text-[11px] font-sans flex items-center gap-1.5">
-              <Globe className="w-3.5 h-3.5" />
-              {isEn ? 'Real Foreign Flow (IDX Official)' : 'Real Foreign Flow (Resmi BEI)'}
-            </div>
-          ) : (
+          {!isOfficial && (
             <div className="px-3 py-1.5 rounded-full border border-tv-border bg-tv-hover text-tv-muted font-bold text-[11px] font-sans">
               {isEn ? 'Estimated Flow (Price & Volume Proxy)' : 'Estimasi Arus Dana (Proxy Harga & Volume)'}
             </div>
@@ -480,8 +468,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
 
             <div className="mt-5 pt-4 border-t border-tv-border text-[11px] font-sans text-tv-muted leading-relaxed">
               {isEn
-                ? 'Source: IDX official API (ListedCompany/GetTradingInfoSS). Foreign buy/sell are share volumes recorded by the exchange, not estimates.'
-                : 'Sumber: API resmi BEI (ListedCompany/GetTradingInfoSS). Beli/jual asing adalah volume lembar yang dicatat Bursa, bukan estimasi.'}
+                ? 'Foreign buy/sell are recorded share volumes, not estimates.'
+                : 'Beli/jual asing adalah volume lembar yang tercatat, bukan estimasi.'}
               {data.updatedAt ? (isEn ? ` Synced ${data.updatedAt.slice(0, 10)}.` : ` Disinkronkan ${data.updatedAt.slice(0, 10)}.`) : ''}
             </div>
           </div>

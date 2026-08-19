@@ -96,40 +96,47 @@ export function calculatePivotPoints(high: number, low: number, close: number): 
   const diff = high - low;
   const pp = (high + low + close) / 3;
 
+  // Level pivot TIDAK dibulatkan ke rupiah penuh. Saham lapis bawah di BEI sering
+  // punya rentang sesi cuma 2-3 rupiah, dan pembulatan integer membuat Classic,
+  // Fibonacci, dan Camarilla jatuh ke angka yang persis sama sehingga pemilihan
+  // metode jadi tidak ada artinya. Presisi 2 desimal dipertahankan di sini;
+  // pembulatan untuk tampilan diputuskan di layer UI sesuai harga sahamnya.
+  const round2 = (value: number) => Math.round(value * 100) / 100;
+
   // Classic Floor Pivots
   const classic: PivotLevels = {
     method: 'CLASSIC',
-    pp: Math.round(pp),
-    r1: Math.round(2 * pp - low),
-    r2: Math.round(pp + diff),
-    r3: Math.round(high + 2 * (pp - low)),
-    s1: Math.round(2 * pp - high),
-    s2: Math.round(pp - diff),
-    s3: Math.round(low - 2 * (high - pp)),
+    pp: round2(pp),
+    r1: round2(2 * pp - low),
+    r2: round2(pp + diff),
+    r3: round2(high + 2 * (pp - low)),
+    s1: round2(2 * pp - high),
+    s2: round2(pp - diff),
+    s3: round2(low - 2 * (high - pp)),
   };
 
   // Fibonacci Pivots
   const fibonacci: PivotLevels = {
     method: 'FIBONACCI',
-    pp: Math.round(pp),
-    r1: Math.round(pp + 0.382 * diff),
-    r2: Math.round(pp + 0.618 * diff),
-    r3: Math.round(pp + 1.0 * diff),
-    s1: Math.round(pp - 0.382 * diff),
-    s2: Math.round(pp - 0.618 * diff),
-    s3: Math.round(pp - 1.0 * diff),
+    pp: round2(pp),
+    r1: round2(pp + 0.382 * diff),
+    r2: round2(pp + 0.618 * diff),
+    r3: round2(pp + 1.0 * diff),
+    s1: round2(pp - 0.382 * diff),
+    s2: round2(pp - 0.618 * diff),
+    s3: round2(pp - 1.0 * diff),
   };
 
   // Camarilla Equation
   const camarilla: PivotLevels = {
     method: 'CAMARILLA',
-    pp: Math.round(pp),
-    r1: Math.round(close + diff * (1.1 / 12)),
-    r2: Math.round(close + diff * (1.1 / 6)),
-    r3: Math.round(close + diff * (1.1 / 4)),
-    s1: Math.round(close - diff * (1.1 / 12)),
-    s2: Math.round(close - diff * (1.1 / 6)),
-    s3: Math.round(close - diff * (1.1 / 4)),
+    pp: round2(pp),
+    r1: round2(close + diff * (1.1 / 12)),
+    r2: round2(close + diff * (1.1 / 6)),
+    r3: round2(close + diff * (1.1 / 4)),
+    s1: round2(close - diff * (1.1 / 12)),
+    s2: round2(close - diff * (1.1 / 6)),
+    s3: round2(close - diff * (1.1 / 4)),
   };
 
   return {
