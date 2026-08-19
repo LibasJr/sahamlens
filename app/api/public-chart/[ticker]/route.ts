@@ -1,11 +1,7 @@
 import { runController } from '@/shared/http/next-response.adapter';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
-<<<<<<< HEAD
 import { checkPublicComputeBudget, rateLimitResult } from '@/shared/security/api-rate-limit';
-=======
-import { checkPublicComputeBudget } from '@/shared/security/api-rate-limit';
->>>>>>> 0705cec16c9bb866b5e01e06de99d6d0c10d1f0a
 
 
 function isFiniteNumber(value: unknown): value is number {
@@ -19,15 +15,7 @@ export async function GET(
   return runController(async () => {
   const budget = await checkPublicComputeBudget(request.headers, 'public-chart');
   if (!budget.allowed) {
-<<<<<<< HEAD
     return rateLimitResult(budget, 'Terlalu banyak permintaan chart publik. Coba lagi sebentar.');
-=======
-    return {
-      status: 429,
-      body: { error: 'Terlalu banyak permintaan. Coba lagi nanti.' },
-      headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined,
-    };
->>>>>>> 0705cec16c9bb866b5e01e06de99d6d0c10d1f0a
   }
 
   const { ticker: rawTicker } = await params;

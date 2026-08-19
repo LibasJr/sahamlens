@@ -89,11 +89,7 @@ describe('GET /api/fundamental/[ticker]', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-<<<<<<< HEAD
     expect(json).toEqual({ ...cached, meta: { requestId: expect.any(String) } });
-=======
-    expect(json).toMatchObject(cached);
->>>>>>> 0705cec16c9bb866b5e01e06de99d6d0c10d1f0a
     expect(fetchCurrentFundamentalSource).not.toHaveBeenCalled();
   });
 

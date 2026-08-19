@@ -12,15 +12,11 @@ vi.mock('../../../../modules/backtest', () => ({
 }));
 vi.mock('../../../../shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
-<<<<<<< HEAD
   buildAnonymousTrialCookie: vi.fn(async (trial: any) => trial?.isNew ? ({
     name: 'sl_anon_trial',
     value: 'signed-test-token',
     options: { httpOnly: true, sameSite: 'lax', path: '/' },
   }) : null),
-=======
-  buildAnonymousTrialCookie: vi.fn(),
->>>>>>> 0705cec16c9bb866b5e01e06de99d6d0c10d1f0a
 }));
 
 import { POST } from '../route';
