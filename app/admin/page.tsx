@@ -5,6 +5,7 @@ import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSqua
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
+import { getResearchJourneySummary } from '@/modules/user/repository/product-journey.repository';
 import { Card, EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
@@ -68,11 +69,12 @@ export default async function AdminPage() {
 
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
-  const [activeUsers, activityReport, recentAuthEvents, funnelSummary, recentPayments] = await Promise.all([
+  const [activeUsers, activityReport, recentAuthEvents, funnelSummary, journeySummary, recentPayments] = await Promise.all([
     getActiveUsers(),
     getAdminUserActivityReport(),
     getRecentAuthEvents(),
     getProductFunnelSummary(),
+    getResearchJourneySummary(),
     listRecentPaymentOrders(20),
   ]);
   const snapshotAt = new Date().toISOString();
@@ -559,6 +561,62 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
+        </Card>
+
+        <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
+          <div className="border-b border-tv-border px-6 py-4">
+            <h2 className="font-heading text-lg font-bold text-tv-text">Perjalanan riset (beta)</h2>
+            <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+              {journeySummary.periodDays} hari terakhir, {journeySummary.sessions} kunjungan. Syarat evaluasi beta Calm Intelligence - perilaku, bukan preferensi tampilan. Anonim per browser: tanpa akun, tanpa kode saham, tanpa IP.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-px border-b border-tv-border bg-tv-border sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                label: 'Waktu sampai analisis pertama',
+                value: journeySummary.medianSecondsToFirstAnalysis === null ? null : `${journeySummary.medianSecondsToFirstAnalysis}s`,
+                note: `median dari ${journeySummary.analysisSessions} kunjungan yang sampai ke sana`,
+              },
+              {
+                label: 'Pencarian yang berlanjut ke analisis',
+                value: journeySummary.searchToAnalysisPct === null ? null : `${journeySummary.searchToAnalysisPct}%`,
+                note: `dari ${journeySummary.searchSessions} kunjungan yang mencari`,
+              },
+              {
+                label: 'LensRadar yang berlanjut ke analisis',
+                value: journeySummary.radarToAnalysisPct === null ? null : `${journeySummary.radarToAnalysisPct}%`,
+                note: `dari ${journeySummary.radarSessions} kunjungan yang membuka kandidat`,
+              },
+              {
+                label: 'Ringkasan yang ditembus ke bukti',
+                value: journeySummary.summaryToEvidencePct === null ? null : `${journeySummary.summaryToEvidencePct}%`,
+                note: `dari ${journeySummary.analysisSessions} kunjungan yang membuka analisis`,
+              },
+              {
+                label: 'Pertanyaan LensAI berkonteks emiten',
+                value: journeySummary.lensaiWithContextPct === null ? null : `${journeySummary.lensaiWithContextPct}%`,
+                note: `dari ${journeySummary.lensaiQuestions} pertanyaan`,
+              },
+              {
+                label: 'Watchlist dibuka lebih dari satu hari',
+                value: journeySummary.repeatWatchlistPct === null ? null : `${journeySummary.repeatWatchlistPct}%`,
+                note: `dari ${journeySummary.watchlistVisitors} browser yang membukanya`,
+              },
+            ].map((metric) => (
+              <div key={metric.label} className="bg-tv-card px-5 py-4">
+                {/* Nol persen dan "belum ada data" adalah dua temuan yang berbeda:
+                    yang pertama berarti dicoba dan tidak ada yang lanjut. Keduanya
+                    sengaja tidak ditampilkan sama. */}
+                <div className="font-number text-2xl font-bold text-tv-text">{metric.value ?? '--'}</div>
+                <div className="mt-0.5 text-xs text-tv-muted">{metric.label}</div>
+                <div className="mt-1 text-[11px] text-tv-muted/70">{metric.value === null ? 'belum ada data' : metric.note}</div>
+              </div>
+            ))}
+          </div>
+          <p className="px-6 py-4 text-xs leading-relaxed text-tv-muted">
+            Referensi dukungan yang sampai ke layar pengguna: <span className="font-number text-tv-text">{journeySummary.supportReferencesShown}</span> kali.
+            Data perjalanan dihapus setelah 90 hari (PRIVACY_JOURNEY_RETENTION_DAYS).
+          </p>
         </Card>
 
         <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
