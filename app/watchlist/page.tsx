@@ -411,6 +411,27 @@ export default function WatchlistPage() {
                           {scorePresentation.statusLabel}
                         </div>
                       )}
+                      {/* Di bawah 640px kolom kanan (`hidden sm:flex`) hilang seluruhnya - dan
+                          bersamanya HARGA TERKINI, bukan cuma cap kesegaran. Yang tersisa di
+                          layar telepon tinggal persentase P&L: angka turunan tanpa angka
+                          asalnya. Watchlist justru permukaan yang paling sering dibuka dari
+                          telepon di sela jam bursa (PRD SEC.24), jadi keduanya dibawa kembali
+                          ke kolom kiri di lebar itu - menambah tinggi, bukan kolom, supaya
+                          nama emiten tidak terjepit di 375px. */}
+                      <div className="sm:hidden mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        {currentPrice != null ? (
+                          <span className="text-tv-text font-bold text-xs font-number">Rp {currentPrice.toLocaleString('id-ID')}</span>
+                        ) : loading ? (
+                          <Skeleton variant="text" className="w-16 h-3" />
+                        ) : (
+                          <span className="text-[10px] text-tv-muted">harga tak terambil</span>
+                        )}
+                        {kesegaran && (
+                          <span className={`text-[10px] ${kesegaran.tone}`} title={kesegaran.detail}>
+                            {kesegaran.shortLabel}
+                          </span>
+                        )}
+                      </div>
                       {pnl < -20 && data?.scoring?.kategori?.includes('SELL') && supportTarget && (
                         <Button variant="bare" size="none"
                           type="button"
