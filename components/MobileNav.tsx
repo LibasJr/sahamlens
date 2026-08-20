@@ -24,13 +24,18 @@ export default function MobileNav() {
   // Saat status sesi belum pasti, tampilkan pintu analisis anggota agar user yang
   // sudah login tidak melihat item tamu lalu berkedip berubah sesaat kemudian.
   const isConfirmedGuest = !loading && resolved && effectiveRole === 'guest';
+  // Label bilah bawah SENGAJA berbeda dari label sidebar. Lima sel di layar 320px
+  // hanya selebar 56px masing-masing, sedangkan nama merek panjang ("LensConsensus"
+  // terukur 101px, "LensMarket" 74px) - keduanya melimpah keluar selnya dan saling
+  // menabrak tetangganya, jadi teks navigasi utama tumpang tindih di SETIAP halaman.
+  // Nama panjangnya tetap dipakai di Sidebar, tempat lebarnya memang tersedia.
   const items = [
     { ...NAV_DEFS.home, label: t('nav.home') },
-    { ...NAV_DEFS.market, label: t('nav.marketPulse') },
-    { ...NAV_DEFS.radar, label: t('nav.radar') },
+    { ...NAV_DEFS.market, label: 'Market' },
+    { ...NAV_DEFS.radar, label: 'Radar' },
     isConfirmedGuest
-      ? { ...NAV_DEFS.guestAnalysis, label: 'LensConsensus' }
-      : { ...NAV_DEFS.memberAnalysis, label: t('nav.technical') },
+      ? { ...NAV_DEFS.guestAnalysis, label: t('nav.groupAnalysis') }
+      : { ...NAV_DEFS.memberAnalysis, label: t('nav.groupAnalysis') },
   ];
 
   useEffect(() => {
@@ -83,22 +88,25 @@ export default function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-xs font-semibold leading-tight transition-colors ${
+              className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 text-xs font-semibold leading-tight transition-colors ${
                 active ? 'bg-tv-blue/15 text-white' : 'text-tv-muted hover:bg-white/5 hover:text-white'
               }`}
             >
-              <Icon className={`h-5 w-5 ${active ? 'text-tv-blue' : ''}`} />
-              <span>{item.label}</span>
+              <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-tv-blue' : ''}`} />
+              {/* truncate + w-full: pagar terakhir. Kalau suatu saat ada label yang lebih
+                  panjang dari selnya, ia dipotong di dalam selnya sendiri - tidak meluber
+                  menimpa label tetangga seperti sebelumnya. */}
+              <span className="w-full truncate text-center text-[11px]">{item.label}</span>
             </Link>
           );
         })}
         <Button variant="bare" size="none"
           type="button"
           onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/5 hover:text-white"
+          className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/5 hover:text-white"
         >
-          <Menu className="h-5 w-5" />
-          <span>Menu</span>
+          <Menu className="h-5 w-5 shrink-0" />
+          <span className="w-full truncate text-center text-[11px]">Menu</span>
         </Button>
       </div>
     </nav>

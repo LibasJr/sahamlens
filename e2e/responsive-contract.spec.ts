@@ -150,4 +150,59 @@ test.describe('kontrak responsif, diukur bukan dibaca', () => {
       expect(melebar, `dokumen menggulir horizontal di ${lebar}px`).toBe(false);
     }
   });
+
+  test('label bilah navigasi bawah tidak keluar dari selnya', async ({ page }) => {
+    // KEJADIANNYA, 20 Agustus 2026: bilah bawah memakai nama merek panjang sebagai label
+    // ("LensMarket", "LensRadar", "LensConsensus"). Lima sel di layar 320px hanya selebar
+    // 56px masing-masing, sedangkan "LensConsensus" terukur 101px - teksnya meluber keluar
+    // selnya dan menimpa label tetangganya, di SETIAP halaman aplikasi.
+    //
+    // Yang diuji di sini mekanismenya, bukan daftar labelnya: label sepanjang apa pun harus
+    // berhenti di batas selnya sendiri. Jadi test ini tetap berlaku kalau labelnya berubah.
+    const sumber = readSource('components/MobileNav.tsx');
+    const kelasWadah = classNameContaining(sumber, ['grid-cols-5', 'items-stretch']);
+    const kelasSel = classNameContaining(sumber, ['min-h-14', 'flex-col']);
+    const kelasLabel = classNameContaining(sumber, ['truncate', 'text-center']);
+
+    const label = ['Beranda', 'Market', 'Radar', 'Analisis', 'Menu'];
+
+    for (const lebar of [320, LEBAR.ponsel, LEBAR.ponselBesar]) {
+      await page.setViewportSize({ width: lebar, height: TINGGI });
+      // inset-x-3 pada .lens-mobile-nav: bilahnya 12px dari tiap tepi layar.
+      await page.setContent(pageHtml(`
+        <div style="width:${lebar - 24}px">
+          <div class="${kelasWadah}">
+            ${label.map((teks, i) => `<a href="#" data-i="${i}" class="${kelasSel}">
+              <span class="${kelasLabel}">${teks}</span>
+            </a>`).join('')}
+          </div>
+        </div>
+      `));
+
+      for (let i = 0; i < label.length; i += 1) {
+        const sel = await page.locator(`[data-i="${i}"]`).boundingBox();
+        const teks = await page.locator(`[data-i="${i}"] span`).boundingBox();
+        expect(sel, `sel ${label[i]} tidak terukur di ${lebar}px`).not.toBeNull();
+        expect(teks, `label ${label[i]} tidak terukur di ${lebar}px`).not.toBeNull();
+        // Batas selnya, bukan batas layar: yang merusak tampilan adalah label yang
+        // menabrak TETANGGANYA, dan itu terjadi jauh sebelum ada gulir horizontal.
+        expect(teks!.x, `label "${label[i]}" keluar ke kiri selnya di ${lebar}px`).toBeGreaterThanOrEqual(sel!.x - 0.5);
+        expect(
+          teks!.x + teks!.width,
+          `label "${label[i]}" keluar ke kanan selnya di ${lebar}px`,
+        ).toBeLessThanOrEqual(sel!.x + sel!.width + 0.5);
+      }
+
+      // Dan di lebar ponsel yang wajar, label sependek ini tidak boleh sampai terpotong -
+      // truncate itu pagar terakhir, bukan tampilan sehari-hari.
+      if (lebar >= LEBAR.ponsel) {
+        const terpotong = await page.evaluate(() =>
+          [...document.querySelectorAll('a[data-i] span')]
+            .filter((el) => el.scrollWidth > el.clientWidth + 1)
+            .map((el) => el.textContent?.trim()),
+        );
+        expect(terpotong, `label terpotong di ${lebar}px`).toEqual([]);
+      }
+    }
+  });
 });

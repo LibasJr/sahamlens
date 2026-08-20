@@ -3,7 +3,7 @@ export const id = {
     appName: 'SahamLens',
     appTagline: 'Intelligence for IDX investors',
     search: 'Cari',
-    searchPlaceholder: 'Cari kode saham (contoh: BBCA, ASII, TLKM, BREN)...',
+    searchPlaceholder: 'Cari kode saham, mis. BBCA',
     popular: 'Populer',
     viewAll: 'Lihat Semua',
     viewDetails: 'Lihat Detail',

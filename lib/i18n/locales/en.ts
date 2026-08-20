@@ -5,7 +5,7 @@ export const en: TranslationDictionary = {
     appName: 'SahamLens',
     appTagline: 'Intelligence for IDX investors',
     search: 'Search',
-    searchPlaceholder: 'Search ticker symbol (e.g., BBCA, ASII, TLKM, BREN)...',
+    searchPlaceholder: 'Search ticker, e.g. BBCA',
     popular: 'Popular',
     viewAll: 'View All',
     viewDetails: 'View Details',
