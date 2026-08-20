@@ -4,6 +4,7 @@ import {
   type BandarmologyStatus,
 } from './foreign-flow-proxy';
 import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
+import { ProviderUnavailableError } from '@/shared/errors/app-error';
 import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type ScoringResult } from '@/modules/technical';
@@ -392,6 +393,20 @@ async function fetchOne(ticker: string): Promise<RawStock | null> {
 // jauh lebih berat dari 1mo (~21 bar) sebelumnya.
 const FETCH_BATCH_SIZE = 15;
 
+// Ambang hasil minimum satu siklus scan. fetchOne() sengaja menelan tiap error per
+// saham dan mengembalikan null supaya satu ticker rusak tidak menggagalkan seluruh
+// pemindaian - tetapi kalau Yahoo sedang down atau me-rate-limit kita, SEMUA ticker
+// mengembalikan null dan fungsi ini dulu mengembalikan [] dengan tenang. Array kosong
+// itu bukan nilai yang tidak sah bagi pemanggilnya: getOrCompute menganggapnya cache
+// hit yang sah lalu menyimpannya 30 menit, dan cron warmer menimpanya di atas universe
+// yang masih sehat sambil melaporkan success. Hasilnya LensScanner menampilkan "tidak
+// ada saham yang lolos" selama setengah jam tanpa error di mana pun.
+//
+// Melempar di sini memperbaiki ketiga pemanggil sekaligus (route, cron, comparison
+// service): cache tidak pernah menerima universe kosong, dan cron gagal dengan berisik
+// ke withJobRunLog alih-alih meracuni cache diam-diam.
+const MIN_UNIVERSE_YIELD_RATIO = 0.5;
+
 export function getScreenerFetchTickers(): string[] {
   return Array.from(new Set(AI_PICK_UNIVERSE));
 }
@@ -403,6 +418,13 @@ export async function fetchScreenerUniverse(): Promise<RawStock[]> {
     const batch = tickers.slice(i, i + FETCH_BATCH_SIZE);
     const results = await Promise.all(batch.map(fetchOne));
     results.forEach((r) => { if (r) raw.push(r); });
+  }
+
+  const minYield = Math.ceil(tickers.length * MIN_UNIVERSE_YIELD_RATIO);
+  if (raw.length < minYield) {
+    throw new ProviderUnavailableError(
+      `Data pasar sedang tidak lengkap (${raw.length} dari ${tickers.length} emiten berhasil diambil). Coba lagi beberapa saat lagi.`,
+    );
   }
 
   // Sentimen berita per saham - SATU panggilan batch untuk SELURUH universe (bukan

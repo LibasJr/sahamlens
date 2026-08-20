@@ -81,6 +81,13 @@ function isPublicGuestApi(pathname: string): boolean {
 
 function hasOwnGuestLimiterApi(pathname: string): boolean {
   return (
+    // /api/screener terlewat sejak matcher diperluas jadi '/api/:path*' (2026-08-19):
+    // route-nya punya compute budget sendiri, tapi karena tidak terdaftar di sini ia
+    // JUGA kena limiter umum 150/hari PER IP - dan dengan TRUSTED_PROXY_MODE=direct
+    // "per IP" berarti satu ember untuk seluruh pengunjung, lalu blokir 1 jam. Ini
+    // persis kasus "menu bisa diklik tapi datanya kosong" yang dicatat di
+    // isPublicGuestApi() di atas, terulang di endpoint lain.
+    pathname === '/api/screener' ||
     pathname === '/api/chat' ||
     pathname === '/api/council' ||
     pathname === '/api/ai-briefing' ||

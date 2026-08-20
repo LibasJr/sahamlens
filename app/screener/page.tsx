@@ -20,6 +20,11 @@ import {
   type ScreenerTemplate,
 } from '@/components/screener/screener-model';
 
+// Konstanta modul, bukan `|| []` inline: literal baru tiap render mengubah identitas
+// dependensi useMemo di bawah, jadi memo-nya tidak pernah benar-benar memo (dan eslint
+// react-hooks/exhaustive-deps memperingatkannya).
+const EMPTY_ROWS: any[] = [];
+
 export default function ScreenerPage() {
   const router = useRouter();
   const { loading: authLoading, resolved: authResolved, user } = useAuthUser();
@@ -28,8 +33,17 @@ export default function ScreenerPage() {
   const [maxPriceInput, setMaxPriceInput] = useState('');
   const [minMarketCapInput, setMinMarketCapInput] = useState(''); // unit: Triliun
   const [minLiquidityInput, setMinLiquidityInput] = useState(''); // unit: Miliar
-  const [loading, setLoading] = useState(false);
+  // true sejak awal, BUKAN false. Pemindaian pertama ada di balik debounce 500ms, jadi
+  // dengan nilai awal false halaman sempat menyatakan "Pemindaian berjalan normal dan
+  // hasilnya nihil" selama setengah detik sebelum satu request pun dikirim - klaim
+  // tentang pemindaian yang belum terjadi, persis keadaan yang dijaga komentar di bawah.
+  const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  // Daftar sektor dipisah dari `data` supaya kegagalan fetch (yang men-set data=null)
+  // tidak ikut mengosongkan dropdown. Kalau ikut kosong, <select> terkontrol yang
+  // value-nya masih "Keuangan" tampil sebagai "Semua Sektor" sementara tombol Coba Lagi
+  // tetap mengirim filter yang sudah tidak terlihat itu - UI berhenti mencerminkan state.
+  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   // Kegagalan fetch sebelumnya hanya menghasilkan setData(null), yang membuat tabel
@@ -61,6 +75,7 @@ export default function ScreenerPage() {
 
   const runScreener = useCallback(async (
     profile: string, sector: string, maxPrice: string, minMarketCapTriliun: string, minLiquidityMiliar: string,
+    signal?: AbortSignal,
   ) => {
     setLoading(true);
     setLoadError(false);
@@ -85,16 +100,23 @@ export default function ScreenerPage() {
         params.set('minLiquidity', String(parsedLiquidity * 1e9));
       }
 
-      const json = await apiRequest<any>('/api/screener?' + params.toString());
+      const json = await apiRequest<any>('/api/screener?' + params.toString(), { signal });
       setData(json);
+      // Hanya ditimpa saat sukses. Sektor yang tersedia tidak berubah karena satu
+      // request gagal, jadi daftar terakhir yang benar tetap dipertahankan.
+      if (Array.isArray(json?.availableSectors)) setAvailableSectors(json.availableSectors);
     } catch (e) {
+      // Request yang sengaja dibatalkan (filter/profil diganti sebelum yang lama selesai)
+      // BUKAN kegagalan - menampilkannya sebagai error akan membuat pengalih filter
+      // yang cepat terlihat seperti server bermasalah.
+      if (signal?.aborted || (e instanceof DOMException && e.name === 'AbortError')) return;
       console.error(e);
       setLoadError(true);
       setLoadErrorMessage(isApiClientError(e) ? e.message : null);
       setLoadErrorRequestId(isApiClientError(e) ? e.requestId : null);
       setData(null);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
@@ -102,17 +124,31 @@ export default function ScreenerPage() {
   // di-debounce 500ms supaya mengetik angka harga tidak mengirim satu request per
   // digit (endpoint ini punya compute budget server-side, lihat app/api/screener/
   // route.ts - debounce ini murni mengurangi request percuma, bukan pengaman utama).
+  //
+  // clearTimeout saja TIDAK cukup: ia membatalkan debounce yang belum berangkat, bukan
+  // request yang sudah terbang. Saat cache dingin satu request bisa berjalan puluhan
+  // detik, jadi request lama bisa selesai SESUDAH request baru dan menimpa hasilnya -
+  // baris profil Agresif tampil di bawah judul "Profil Moderat". AbortController
+  // menutup celah itu.
   useEffect(() => {
+    const controller = new AbortController();
     const t = setTimeout(() => {
-      runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput);
+      runScreener(riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput, controller.signal);
     }, 500);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput, runScreener]);
 
-  const top10 = data?.analysis?.top_10_stocks || [];
+  const top10: any[] = data?.analysis?.top_10_stocks ?? EMPTY_ROWS;
   const isConfirmedGuest = authResolved && !authLoading && !user;
   const isGuestLimited = Boolean(data?.analysis?.is_guest_limited ?? isConfirmedGuest);
-  const lockedCount = isGuestLimited ? (data?.analysis?.locked_count ?? 8) : 0;
+  // ?? 0, BUKAN ?? 8. Angka 8 adalah nilai karangan: saat data masih null (debounce awal)
+  // atau saat request gagal, spanduk tetap menyatakan "8 emiten lanjutan terkunci" -
+  // jumlah yang tidak pernah dihitung siapa pun - tepat di atas panel "gagal dimuat",
+  // dan ikut memicu event funnel locked_view untuk tampilan tanpa satu baris terkunci pun.
+  const lockedCount = isGuestLimited ? (data?.analysis?.locked_count ?? 0) : 0;
   const hasLockedGuestRows = isGuestLimited && lockedCount > 0;
 
   const sortedRows = useMemo(() => {
@@ -204,7 +240,8 @@ export default function ScreenerPage() {
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         <ScreenerControls
-          data={data}
+          availableSectors={availableSectors}
+          momentumScored={data?.momentumScored !== false}
           riskProfile={riskProfile}
           setRiskProfile={setRiskProfile}
           sectorFilter={sectorFilter}
