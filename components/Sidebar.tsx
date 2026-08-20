@@ -380,21 +380,21 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh flex-col border-r border-white/[0.07] bg-[#090E18]/98 shadow-[18px_0_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-300 md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh flex-col border-r border-tv-border bg-tv-bg/95 backdrop-blur-xl transition-all duration-300 md:relative md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${isCollapsed ? 'w-[min(22rem,calc(100vw-1rem))] md:w-[76px]' : 'w-[min(22rem,calc(100vw-1rem))] md:w-[292px]'}`}
       >
-        <div className={`flex h-[72px] items-center border-b border-white/[0.06] ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
+        <div className={`flex h-[72px] items-center border-b border-tv-border ${isCollapsed ? 'md:justify-center md:px-2' : 'justify-between px-4'}`}>
           <Link href="/" className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-inner p-1">
               <Image src="/sahamlens-logo.png" alt="SahamLens" fill sizes="40px" className="object-contain" />
             </div>
             <div className={isCollapsed ? 'md:hidden' : ''}>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold tracking-tight text-white md:text-[15px]">SahamLens</span>
-                <span className="rounded-full border border-tv-blue/20 bg-tv-blue/10 px-1.5 py-0.5 text-[12px] font-bold uppercase tracking-[0.14em] text-tv-blue md:text-[10px] md:tracking-[0.16em]">Beta</span>
+                <span className="lens-label font-bold tracking-tight text-tv-text">SahamLens</span>
+                <span className="rounded-full border border-tv-blue/20 bg-tv-blue/10 px-1.5 py-0.5 lens-chip font-bold uppercase tracking-[0.16em] text-tv-blue">Beta</span>
               </div>
-              <p className="mt-0.5 text-xs font-medium text-tv-muted md:text-[10px]">Intelligence for IDX investors</p>
+              <p className="lens-meta mt-0.5 text-tv-muted">Intelligence for IDX investors</p>
             </div>
           </Link>
           <Button variant="bare" size="none"
@@ -425,12 +425,12 @@ export default function Sidebar() {
                   type="button"
                   onClick={() => toggleGroup(group.id)}
                   aria-expanded={groupOpen}
-                  className={`mb-1.5 flex w-full items-center justify-between rounded-lg px-2.5 py-1 text-left text-xs font-bold uppercase tracking-[0.14em] text-white/50 transition hover:bg-white/[0.035] hover:text-white/75 md:text-[10.5px] md:tracking-[0.16em] ${isCollapsed ? 'md:hidden' : ''}`}
+                  className={`mb-1.5 flex w-full items-center justify-between rounded-lg px-2.5 py-1 text-left lens-eyebrow text-tv-muted/70 transition hover:bg-white/[0.035] hover:text-tv-muted ${isCollapsed ? 'md:hidden' : ''}`}
                 >
                   <span>{getLocalizedGroupName(group.id, group.label)}</span>
                   <ChevronRight className={`h-3.5 w-3.5 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true" />
                 </Button>
-                {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-white/[0.06] md:block" />}
+                {isCollapsed && <div className="mx-2 mb-2 hidden border-t border-tv-border md:block" />}
                 <div className={`space-y-0.5 ${kelasIsiGrup(groupOpen, isCollapsed)}`}>
                   {group.items.map((item) => {
                     const localized = getLocalizedItem(item.id, item.name, item.subtitle);
@@ -482,10 +482,10 @@ export default function Sidebar() {
                         </span>
                         <span className={`ml-2.5 min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-semibold md:text-[13px] text-white/95">{localized.name}</span>
-                            {item.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.9)]" />}
+                            <span className="lens-label truncate text-tv-text">{localized.name}</span>
+                            {item.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-tv-green" />}
                           </span>
-                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-medium leading-snug text-white/60 md:truncate md:text-[11.5px] md:leading-normal md:text-white/50">{localized.subtitle}</span>
+                          <span className="lens-meta mt-0.5 block whitespace-normal break-words text-tv-muted md:truncate">{localized.subtitle}</span>
                         </span>
                         {!isCollapsed && lockedForGuest && (
                           <LockKeyhole className="h-4 w-4 shrink-0 text-tv-muted" aria-hidden="true" />
@@ -539,17 +539,17 @@ export default function Sidebar() {
         </div>
         {isCollapsed && hoveredNav && (
           <div
-            className="pointer-events-none fixed left-[86px] z-[100] hidden -translate-y-1/2 items-center rounded-xl border border-white/10 bg-[#111A29] px-3 py-2 text-xs font-semibold text-white shadow-2xl md:flex"
+            className="pointer-events-none fixed left-[86px] z-[100] hidden -translate-y-1/2 items-center rounded-xl border border-tv-border bg-tv-card px-3 py-2 lens-label text-tv-text shadow-1 md:flex"
             style={{ top: hoveredNav.top }}
           >
-            <span className="absolute -left-1.5 h-3 w-3 rotate-45 border-b border-l border-white/10 bg-[#111A29]" aria-hidden="true" />
+            <span className="absolute -left-1.5 h-3 w-3 rotate-45 border-b border-l border-tv-border bg-tv-card" aria-hidden="true" />
             <span className="relative">
               {hoveredNav.label}{hoveredNav.locked ? ` · ${t('nav.loginRequired')}` : ''}
             </span>
           </div>
         )}
 
-        <div className="border-t border-white/[0.06] p-3">
+        <div className="border-t border-tv-border p-3">
           <LanguageSwitcher variant="sidebar" className={`mb-2.5 ${isCollapsed ? 'md:hidden' : ''}`} />
           {hasAdminAccess && (
             <Link
@@ -567,7 +567,7 @@ export default function Sidebar() {
             </Link>
           )}
           {!authLoading && user ? (
-            <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2 ${isCollapsed ? 'md:border-transparent md:bg-transparent md:p-0' : ''}`}>
+            <div className={`rounded-2xl border border-tv-border bg-white/[0.025] p-2 ${isCollapsed ? 'md:border-transparent md:bg-transparent md:p-0' : ''}`}>
               <div className={`flex items-center gap-2 ${isCollapsed ? 'md:justify-center' : ''}`}>
                 <Button variant="bare" size="none"
                   type="button"
@@ -579,7 +579,7 @@ export default function Sidebar() {
                   </span>
                   <span className={`min-w-0 flex-1 ${isCollapsed ? 'md:hidden' : ''}`}>
                     <span className="block truncate text-sm font-semibold text-white md:text-xs">{user.email?.split('@')[0]}</span>
-                    <span className="mt-0.5 block text-xs font-bold uppercase tracking-wider text-tv-muted md:text-[10px]">{user.role}</span>
+                    <span className="lens-chip mt-0.5 block font-bold uppercase tracking-wider text-tv-muted">{user.role}</span>
                   </span>
                 </Button>
                 <Button variant="bare" size="none"
@@ -600,7 +600,7 @@ export default function Sidebar() {
             </Link>
           ) : null}
 
-          <div className={`mt-2.5 flex items-center justify-between px-1 text-[10px] font-medium text-white/25 ${isCollapsed ? 'md:hidden' : ''}`}>
+          <div className={`mt-2.5 flex items-center justify-between px-1 lens-meta text-tv-muted/60 ${isCollapsed ? 'md:hidden' : ''}`}>
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-tv-green" /> {t('nav.idxConnected')}</span>
             <span>{t('nav.v2Ui')}</span>
           </div>
