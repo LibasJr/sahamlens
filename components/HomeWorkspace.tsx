@@ -201,7 +201,7 @@ export default function HomeWorkspace() {
   };
 
   return (
-    <PageContainer className="min-h-full flex flex-col space-y-5 p-4 md:p-6 lg:p-7">
+    <PageContainer className="min-h-full flex flex-col space-y-10 p-4 md:p-6 lg:p-7">
       {/* Canonical home hero: brand promise + direct stock search + live IHSG.
           Uses the workspace market snapshot below, so restoring the brand proposition
           adds no extra network request or competing home route. */}
