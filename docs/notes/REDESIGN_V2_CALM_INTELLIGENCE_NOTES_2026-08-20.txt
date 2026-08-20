@@ -260,6 +260,38 @@ SATU BUG NYATA TERTANGKAP TEST BARU
    kecuali benar-benar perlu". Analytics funnel yang ada dipertahankan; tidak ada
    panggilan ganda yang ditambahkan.
 
+   DITUTUP 2026-08-20 (branch feat/product-journey-analytics), persis lewat jalan
+   yang disebut di atas: migrasi 010 + tabel event terpisah
+   (product_journey_events). product_funnel_events beserta datanya tidak disentuh -
+   ia tetap menjawab pertanyaannya sendiri, dan dedup hariannya memang fiturnya.
+
+   Tabel baru menyimpan visitor, sesi, nama event, permukaan, dan jarak milidetik
+   dari awal sesi yang DIUKUR DI KLIEN - bukan selisih created_at, karena event
+   dikirim berkelompok dengan keepalive dan bisa tiba jauh setelah kliknya; jam
+   server mengukur waktu tiba, bukan waktu perilaku. Tanpa user_id, tanpa ticker,
+   tanpa URL: pertanyaannya soal URUTAN.
+
+   DDL-nya sengaja TIDAK memasang CHECK pada event_name - mengunci daftar event
+   beta di DDL produksi berarti setiap event baru menuntut migrasi, dan itu cara
+   paling pasti agar pengukurannya ditinggalkan. Yang menjaga kardinalitas adalah
+   allowlist tertutup di controller, satu-satunya jalan tulis ke tabel itu, dan ia
+   menolak SELURUH kiriman alih-alih menyaring: event yang dibuang diam-diam
+   meninggalkan lubang di dalam sesi, dan metrik urutan paling rusak justru oleh
+   lubang yang tidak terlihat.
+
+   Terinstrumentasi: analisis emiten dibuka, bukti benar-benar terlihat
+   (IntersectionObserver, bukan saat halaman dimuat - buktinya di bawah lipatan),
+   pencarian dikirim, kandidat LensRadar dibuka, Watchlist dibuka, pertanyaan
+   LensAI dengan dan tanpa konteks emiten, serta referensi dukungan yang sampai ke
+   layar. Panel admin "Perjalanan riset (beta)" membedakan 0% dari "belum ada
+   data" - dua temuan yang berbeda. Retensi 90 hari ikut
+   scripts/cleanup-privacy-retention.mjs.
+
+   Dijaga shared/analytics/__tests__/journey-instrumentation.test.ts, yang gagal
+   kalau sebuah event terdefinisi tapi tidak punya satu pun pemanggil di produksi -
+   metrik yang tidak pernah dikirim terbaca "belum ada data" selamanya, dan tidak
+   ada test lain yang menyadarinya.
+
 2. REQUEST ID baru muncul di Home, Dashboard, dan LensAI. Screener, Watchlist,
    dan Compare belum.
 
@@ -272,6 +304,20 @@ SATU BUG NYATA TERTANGKAP TEST BARU
 
 3. CAP KESEGARAN DI WATCHLIST hanya tampil pada breakpoint sm ke atas, karena
    seluruh kolom harga memang `hidden sm:flex` - tata letak bawaan, bukan regresi.
+
+   DITUTUP 2026-08-20 (branch fix/watchlist-freshness-mobile). Catatan di atas
+   benar soal mekanismenya dan meremehkan akibatnya: yang hilang di bawah 640px
+   bukan cuma cap kesegaran melainkan HARGA TERKINI, karena keduanya tinggal di
+   kolom yang sama. Yang tersisa di layar ponsel adalah persentase P&L - angka
+   turunan tanpa angka asalnya - di permukaan yang justru paling sering dibuka
+   dari ponsel di sela jam bursa.
+
+   Keduanya kini ikut dirender di kolom kiri pada lebar itu: menambah tinggi,
+   bukan kolom, supaya nama emiten tidak terjepit di 375px. Cap tetap memakai
+   describeFreshness, jadi STALE tetap amber, bukan turun menjadi teks polos.
+   Dijaga __tests__/watchlist-mobile-visibility.test.ts, yang menghitung
+   kemunculan DI LUAR setiap elemen yang tersembunyi di bawah sm - dicari lewat
+   penghitungan tag, bukan pencocokan daftar kelas persis.
 
 4. STRUKTUR JAWABAN LENSAI (PRD SEC.23 "Faktor utama / Risiko / Evidence") tidak
    disentuh. Itu berada di prompt server dan jalur verifikasi angka; mengubahnya
@@ -298,10 +344,57 @@ SATU BUG NYATA TERTANGKAP TEST BARU
    /technical/[symbol]. Menyalakan "Technical" di sana akan menandai tab aktif
    yang justru membawa ke halaman lain.
 
+   DITUTUP 2026-08-20 (branch fix/dashboard-perspective-active-tab). Keberatannya
+   tetap sah, jadi yang diubah bukan cuma keadaan tab: tab aktif SELALU menunjuk
+   ke halaman tempat pengguna sedang berdiri. Di /dashboard ia menunjuk ke
+   /dashboard?symbol=... - bentuk yang memang sudah diterima halaman itu dari
+   Portfolio - sehingga tidak ada tab aktif yang memindahkan siapa pun.
+
+   Yang membuat empat tab mati terasa seperti navigasi rusak justru namanya:
+   sidebar menamai /dashboard "LensTechnical", persis nama tab pertamanya.
+
+   Karena tab Technical berhenti menjadi jalan keluar dari /dashboard, jalur ke
+   halaman analisis emiten dinamai apa adanya - kartu di DashboardFooterActions
+   sebelah DCF Valuation, hanya muncul kalau stockCodeFor menyatakan itu emiten.
+
+   /moat, /earnings, /dividend, dan /pattern memakai shell yang sama dan SENGAJA
+   tetap tanpa tab menyala: mereka Tools, bukan sudut pandang.
+
+   Pemilihan tab dan href-nya dipindah ke fungsi murni perspectiveTabsFor(symbol,
+   pathname), jadi aturan "tab aktif tidak pernah memindahkan pengguna" benar-benar
+   diuji, bukan di-grep di dalam JSX.
+
 6. VERIFIKASI RESPONSIF BERSIFAT STATIS - telaah kelas dan breakpoint, bukan
    pengukuran di browser sungguhan. Repo ini tidak punya jsdom maupun Playwright;
    kontrak tablet dijaga test pemindai sumber yang sudah ada. Poin 6 pada daftar
    QA di bawah masih membutuhkan manusia.
+
+   DITUTUP SEBAGIAN 2026-08-20 (branch test/responsive-measurement-harness).
+   Playwright masuk sebagai devDependency dan e2e/responsive-contract.spec.ts
+   mengompilasi stylesheet produksi dengan Tailwind sungguhan, MENGAMBIL KELASNYA
+   DARI SUMBER komponen, lalu mengukur hasilnya di Chromium pada 375/430/768/1024/
+   1440 px.
+
+   Bedanya dengan pemindai sumber: pemindai menjawab "apakah aturannya tertulis",
+   harness ini menjawab "apakah aturan itu menghasilkan yang dimaksud". min-h-11
+   bisa tertulis dan tetap kalah oleh aturan lain; `hidden sm:flex` bisa tertulis
+   sementara breakpoint sm digeser di tailwind.config.js. Keduanya lolos pemindai
+   tanpa cela. Terbukti menggigit: mengganti min-h-11 menjadi min-h-8 membuat
+   harness melaporkan 32px terhadap lantai 44px.
+
+   TIDAK menjalankan aplikasinya. Menyalakan Next.js di CI menuntut database,
+   kredensial, dan penyedia data hulu; hasilnya test yang gagal karena jaringan
+   lalu diabaikan orang dalam sebulan.
+
+   Batasnya jujur: yang diukur adalah ATURAN CSS-nya, bukan komposisi halaman
+   utuh. Poin 6 pada daftar QA di bawah - tablet 768/1024 pada halaman sungguhan -
+   MASIH MILIK MANUSIA.
+
+   Jalannya sebagai job CI tersendiri dan `npm run test:responsive`, sengaja di
+   luar verify:prod: melipat unduhan browser ke dalam gerbang lokal akan membuat
+   seluruh pemeriksaan yang tidak ada hubungannya bergantung pada Chromium.
+   Vitest kini mengecualikan e2e/. package.json berubah, jadi VPS wajib `npm ci`
+   (CLAUDE.md SEC.4).
 
 
 PENYIMPANGAN YANG DISENGAJA DARI PRD
