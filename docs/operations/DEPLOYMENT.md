@@ -1001,11 +1001,24 @@ Description=Jadwal SahamLens - screener-scan
 
 [Timer]
 OnCalendar=Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta
+# DITAMBAHKAN 2026-08-21. Baris di atas berhenti jam 16:40 Senin-Jumat, sementara TTL
+# universe screener cuma 30 menit - jadi tiap malam dan SELURUH akhir pekan cache selalu
+# dingin, dan pengunjung pertama menanggung scan 200 ticker live di request-nya sendiri
+# (gejalanya: LensScanner "tidak menampilkan data"). Satu run per hari akhir pekan sudah
+# cukup karena CACHE_TTL_SEC.SCREENER_UNIVERSE kini 24 jam saat bursa tutup.
+OnCalendar=Sat,Sun 09:00 Asia/Jakarta
 Persistent=true
 
 [Install]
 WantedBy=timers.target
 ```
+
+> **Timer yang sudah terpasang perlu diperbarui**, bukan cuma yang baru: tambahkan baris
+> `OnCalendar=Sat,Sun 09:00 Asia/Jakarta` ke unit `sahamlens-screener-scan.timer` yang ada
+> di VPS, lalu `sudo systemctl daemon-reload && sudo systemctl restart sahamlens-screener-scan.timer`
+> dan konfirmasi dengan `systemctl list-timers --all | grep screener`. Setelah terlihat,
+> ubah `scheduleStatus` job ini di `config/scheduled-jobs.json` dari `verify-server`
+> kembali ke `known`.
 
 ```bash
 sudo systemctl daemon-reload
