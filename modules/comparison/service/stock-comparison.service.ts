@@ -7,9 +7,34 @@ import { classifyFreshness } from '@/shared/http/freshness';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 
 const COMPARE_STOCK_CACHE_VERSION = 'v1';
+const COMPARE_PEER_CACHE_VERSION = 'v1';
 
 function normalizeYahooSymbol(rawSymbol: string): string {
   return rawSymbol.endsWith('.JK') ? rawSymbol : `${rawSymbol}.JK`;
+}
+
+/**
+ * Lawan banding sesektor untuk symbol1, DI-CACHE tersendiri.
+ *
+ * Yang di-cache adalah keputusannya ("peer BBCA adalah BBRI"), bukan bahan bakunya.
+ * Bedanya bukan kosmetik: bahan bakunya adalah universe screener, sebuah entri
+ * bersama ber-TTL 30 menit yang juga melayani screener, dividend, dan calendar.
+ * Selama /compare menumpang entri itu, setiap kali ia kedaluwarsa pengunjung
+ * /compare berikutnya membayar quoteSummary untuk 200 ticker - 17 detik terukur -
+ * hanya untuk menyimpulkan satu kode saham yang jawabannya tidak berubah.
+ */
+async function resolveSameSectorPeer(symbol1: string): Promise<string | null> {
+  const code1 = symbol1.replace('.JK', '').toUpperCase();
+  // Nilai null ikut disimpan lewat pembungkus objek. Tanpa itu "tidak ada peer" selalu
+  // terbaca sebagai cache miss oleh getOrCompute, sehingga justru emiten di luar universe
+  // - yang penelusurannya paling mahal - yang tidak pernah mendapat cache. Bentuknya
+  // sengaja sama dengan sentinel { notFound: true } di readCachedStockData di bawah.
+  const cached = await getOrCompute(
+    `sahamlens:cache:computed:compare-peer:${COMPARE_PEER_CACHE_VERSION}:${code1}`,
+    CACHE_TTL_SEC.COMPARE_PEER,
+    async () => ({ peer: await pickSameSectorPeer(symbol1) }),
+  );
+  return cached.peer;
 }
 
 async function pickSameSectorPeer(symbol1: string): Promise<string | null> {
@@ -131,7 +156,7 @@ async function readCachedStockData(rawSymbol: string): Promise<ComparisonStockDa
   const symbol = normalizeYahooSymbol(rawSymbol);
   const value = await getOrCompute(
     `sahamlens:cache:computed:compare-stock:${COMPARE_STOCK_CACHE_VERSION}:${symbol}`,
-    CACHE_TTL_SEC.TECHNICAL,
+    CACHE_TTL_SEC.COMPARE_STOCK,
     async () => (await buildStockData(symbol)) ?? { notFound: true as const },
   );
   return 'notFound' in value ? null : value;
@@ -167,7 +192,7 @@ export interface StockComparisonResult {
 }
 
 export async function buildStockComparison(symbol1: string, requestedSymbol2?: string | null): Promise<StockComparisonResult | null> {
-  const symbol2 = requestedSymbol2 || (await pickSameSectorPeer(symbol1)) || 'BBRI.JK';
+  const symbol2 = requestedSymbol2 || (await resolveSameSectorPeer(symbol1)) || 'BBRI.JK';
   const [data1, data2] = await Promise.all([readCachedStockData(symbol1), readCachedStockData(symbol2)]);
   if (!data1 || !data2) return null;
 

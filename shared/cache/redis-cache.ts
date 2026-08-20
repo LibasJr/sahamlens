@@ -10,6 +10,7 @@ import { Redis } from './redis-local';
 const g = globalThis as unknown as {
   __sahamlensRedis?: Redis;
   __sahamlensCacheInflight?: Map<string, Promise<unknown>>;
+  __sahamlensMemoryCache?: Map<string, { value: unknown; expiresAt: number }>;
 };
 
 const LOCAL_INFLIGHT = g.__sahamlensCacheInflight ??= new Map<string, Promise<unknown>>();
@@ -17,6 +18,50 @@ const LOCK_TTL_SEC = 60;
 const LOCK_WAIT_MAX_MS = 15_000;
 const LOCK_POLL_MIN_MS = 150;
 const LOCK_POLL_JITTER_MS = 200;
+
+/**
+ * ====== Cache memori, cadangan saat Redis tidak tersedia ======
+ *
+ * Sebelum ini, `REDIS_URL` yang belum diset berarti aplikasi berjalan TANPA CACHE SAMA
+ * SEKALI - bukan "cache lebih lambat", melainkan nol. Single-flight di bawah hanya
+ * menyatukan request yang tumpang tindih; request yang datang berurutan tidak
+ * tertolong olehnya. Terukur 21 Agustus 2026 pada build produksi tanpa Redis:
+ * /api/compare?symbol1=BBCA.JK 17,14 detik, lalu 17,27 detik saat diulang.
+ *
+ * Ini BUKAN pengganti Redis dan tidak boleh diperlakukan begitu:
+ *   - isinya per proses, jadi ia tidak menyatukan beban lintas instance;
+ *   - hilang setiap restart/deploy;
+ *   - dibatasi jumlah entri, jadi key yang jarang dipakai memang akan terbuang.
+ * Fungsinya cuma satu: menahan degradasi supaya Redis mati bukan berarti nol cache.
+ *
+ * SENGAJA hanya menopang cacheGet/cacheSet. incrWithExpiry (kuota harian) TIDAK ikut:
+ * hitungan per proses akan mengalikan kuota sebanyak jumlah instance, dan fail-open
+ * yang sekarang - sengaja longgar - lebih jujur daripada batas yang terlihat berlaku
+ * padahal bocor.
+ */
+const MEMORY_CACHE_MAX_ENTRIES = 500;
+const MEMORY_CACHE = g.__sahamlensMemoryCache ??= new Map<string, { value: unknown; expiresAt: number }>();
+
+function memoryGet<T>(key: string): T | null {
+  const hit = MEMORY_CACHE.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    MEMORY_CACHE.delete(key);
+    return null;
+  }
+  return hit.value as T;
+}
+
+function memorySet<T>(key: string, value: T, ttlSec: number): void {
+  // Map di JavaScript mempertahankan urutan penyisipan, jadi key pertama adalah yang
+  // paling lama masuk. Pembuangan paling sederhana yang benar - bukan LRU, dan memang
+  // tidak perlu: ini cadangan, bukan lapisan cache utama.
+  if (MEMORY_CACHE.size >= MEMORY_CACHE_MAX_ENTRIES && !MEMORY_CACHE.has(key)) {
+    const oldest = MEMORY_CACHE.keys().next().value;
+    if (oldest !== undefined) MEMORY_CACHE.delete(oldest);
+  }
+  MEMORY_CACHE.set(key, { value, expiresAt: Date.now() + ttlSec * 1000 });
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,21 +92,27 @@ export async function pingRedis(): Promise<'ok' | 'not_configured' | 'error'> {
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
   const client = getClient();
-  if (!client) return null;
+  if (!client) return memoryGet<T>(key);
   try {
     return await client.get<T>(key);
   } catch {
-    return null;
+    return memoryGet<T>(key);
   }
 }
 
 export async function cacheSet<T>(key: string, value: T, ttlSec: number): Promise<void> {
   const client = getClient();
-  if (!client) return;
+  if (!client) {
+    memorySet(key, value, ttlSec);
+    return;
+  }
   try {
     await client.set(key, value, { ex: ttlSec });
   } catch {
-    // Redis gagal tulis - diamkan, request tetap lanjut dengan data yang baru dihitung.
+    // Redis gagal tulis - request tetap lanjut dengan data yang baru dihitung, tapi
+    // hasilnya disimpan di memori supaya request berikutnya di proses yang sama tidak
+    // membayar komputasi yang sama lagi selama Redis masih bermasalah.
+    memorySet(key, value, ttlSec);
   }
 }
 
