@@ -192,10 +192,17 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       <PrimitiveButton variant="bare" size="none"
         onClick={() => setOpen(true)}
         title="Cari saham (Ctrl+K)"
-        className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-tv-border bg-tv-hover/40 px-3 text-[11px] font-medium text-tv-muted transition-colors hover:border-tv-borderLight hover:bg-tv-hover hover:text-tv-text sm:justify-start"
+        className="flex h-11 w-full items-center justify-start gap-2 rounded-xl border border-tv-border bg-tv-hover/40 px-3 text-[11px] font-medium text-tv-muted transition-colors hover:border-tv-borderLight hover:bg-tv-hover hover:text-tv-text md:h-9"
       >
         <Search className="h-3.5 w-3.5 shrink-0" />
-        <span className="hidden sm:inline truncate">Cari saham, IHSG, kode emiten, atau perusahaan...</span>
+        {/* Labelnya dulu `hidden sm:inline`, jadi di HP tombol ini tampil sebagai batang
+            selebar layar berisi HANYA ikon kaca pembesar - tidak ada yang menjelaskan
+            gunanya, dan bentuknya terbaca seperti input yang gagal dirender. Sekarang
+            selalu ada label; truncate yang mengurus layar sempit, dan teks panjangnya
+            baru muncul saat lebarnya memang tersedia. Tingginya juga naik ke 44px di
+            HP - h-9 (36px) di bawah ambang target sentuh. */}
+        <span className="truncate sm:hidden">Cari saham atau kode emiten...</span>
+        <span className="hidden truncate sm:inline">Cari saham, IHSG, kode emiten, atau perusahaan...</span>
         <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-tv-border bg-tv-hover px-1.5 py-0.5 text-[10px] font-mono text-tv-muted">⌘K</kbd>
       </PrimitiveButton>
 
