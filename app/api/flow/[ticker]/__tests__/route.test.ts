@@ -73,40 +73,35 @@ describe('GET /api/flow/[ticker] source contract', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('labels Yahoo CMF explicitly as proxy only when official flow is unavailable', async () => {
+  it('states that official BEI data is unavailable instead of falling back to a proxy', async () => {
+    // Sampai 20 Agustus 2026 jalur ini menjawab dengan proxy Chaikin Money Flow dari
+    // harga+volume Yahoo. Proxy itu MENYIMPULKAN tekanan beli/jual; ia bukan catatan
+    // transaksi investor asing. Menyajikan keduanya di panel yang sama selalu berisiko
+    // disalahbaca, betapapun labelnya dibedakan - jadi panel Flow kini hanya menyajikan
+    // Net Foreign Buy/Sell resmi Bursa.
+    //
+    // Yang dikembalikan adalah PERNYATAAN, bukan 404 dan bukan galat: emiten tanpa
+    // artefak resmi adalah keadaan yang normal dan bisa dijelaskan, bukan kerusakan.
     vi.mocked(getRealForeignFlow).mockReturnValue(null as any);
-    const timestamps = Array.from({ length: 6 }, (_, i) => Math.floor(Date.parse(`2026-08-${String(11 + i).padStart(2, '0')}T00:00:00Z`) / 1000));
-    vi.mocked(global.fetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        chart: { result: [{
-          timestamp: timestamps,
-          indicators: { quote: [{
-            high: [101, 102, 103, 104, 105, 106],
-            low: [98, 99, 100, 101, 102, 103],
-            close: [100, 101, 102, 103, 104, 105],
-            volume: [1000, 1100, 1200, 1300, 1400, 1500],
-          }] },
-        }] },
-      }),
-    });
-    const flow = timestamps.map((ts, i) => ({
-      date: new Date(ts * 1000).toISOString().slice(0, 10),
-      netValueBillion: i % 2 === 0 ? 1 : -0.5,
-    }));
-    vi.mocked(computeDailyNetFlow).mockReturnValue(flow as any);
-    vi.mocked(computeAccumulationStreak).mockReturnValue(1);
-    vi.mocked(analyzeAccumulationSignal).mockReturnValue({ status: 'NETRAL', volRatio: 1.1 } as any);
-    vi.mocked(analyzeBandarmology).mockReturnValue({ cmf20: 0.12, netPressurePct: 4.2 } as any);
 
     const res = await GET(makeRequest(), makeParams());
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.source).toBe('YAHOO_CMF_PROXY');
-    expect(json.updatedAt).toBeUndefined();
-    expect(json.summary.cmf20).toBe(0.12);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(json.source).toBe('IDX_OFFICIAL_FOREIGN_FLOW');
+    expect(json.available).toBe(false);
+    expect(json.foreignFlow20D).toEqual([]);
+    expect(json.summary).toBeNull();
+    // Yahoo tidak boleh disentuh sama sekali - tidak ada lagi jalur kedua.
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('never reaches an upstream price provider for flow data', async () => {
+    // Pagar terhadap kemunculan kembali fallback: kalau suatu saat ada yang menambahkan
+    // sumber kedua, gerbang ini merah sebelum sumber itu sampai ke pengguna.
+    vi.mocked(getRealForeignFlow).mockReturnValue(null as any);
+    await GET(makeRequest(), makeParams());
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('rate-limits before auth/source/provider work and preserves Retry-After', async () => {
