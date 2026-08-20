@@ -8,6 +8,7 @@ import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from '
 import PaywallModal from '@/components/PaywallModal';
 import { BucketBacktestCard, BucketBacktestPending } from '@/components/radar/BucketBacktestPanel';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
+import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 import { Badge, Button, Card, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber, EmptyState } from '@/components/ui';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import {
@@ -309,6 +310,10 @@ export default function AiPickPage() {
                               <div className="min-w-0">
                                 <Link
                                   href={`/technical/${it.symbol}`}
+                                  // Penyebut "LensRadar -> analisis emiten" (PRD, Beta
+                                  // evaluation): yang dihitung adalah kandidat yang
+                                  // benar-benar dibuka, bukan tabel yang dilihat.
+                                  onClick={() => trackJourneyEvent('radar_candidate_open', 'breakout_radar')}
                                   className="text-tv-text hover:text-tv-blue transition-colors"
                                 >
                                   {displayTicker(it.symbol)}
@@ -459,7 +464,7 @@ export default function AiPickPage() {
                             <TickerAvatar symbol={it.symbol} size="md" />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <Link href={`/technical/${it.symbol}`} className="font-number font-bold text-tv-text hover:text-tv-blue transition-colors">
+                                <Link href={`/technical/${it.symbol}`} onClick={() => trackJourneyEvent('radar_candidate_open', 'breakout_radar')} className="font-number font-bold text-tv-text hover:text-tv-blue transition-colors">
                                   {displayTicker(it.symbol)}
                                 </Link>
                                 <span className={`text-xs font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
