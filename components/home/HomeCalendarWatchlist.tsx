@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, Filter, Flame } from 'lucide-react';
-import { AnimatedNumber, Badge, Card, CardHeader, CardTitle, EmptyState, Skeleton, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Badge, Card, EmptyState, SectionHeader, Skeleton, TickerAvatar } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { useLanguage } from '@/lib/i18n';
 import type { CalendarEventPreview } from '@/components/home/useHomeWorkspaceData';
@@ -25,14 +25,12 @@ export default function HomeCalendarWatchlist({
     <>
       <motion.div initial="hidden" animate="show" variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <motion.div variants={fadeUp}>
-          <Card hoverable>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-tv-gold" />
-                <CardTitle>{t('calendar.title')}</CardTitle>
-              </div>
-              <Link href="/calendar" className="text-[11px] text-tv-blue hover:underline">{t('calendar.viewAll')}</Link>
-            </CardHeader>
+          <section className="space-y-3">
+            <SectionHeader
+              eyebrow="Agenda"
+              title={t('calendar.title')}
+              action={<Link href="/calendar" className="lens-meta text-tv-blue hover:underline">{t('calendar.viewAll')}</Link>}
+            />
             {calendarEvents === null ? (
               <div className="space-y-2">
                 {[0, 1].map((index) => <Skeleton key={index} className="h-10 w-full" />)}
@@ -64,9 +62,9 @@ export default function HomeCalendarWatchlist({
                             {event.type === 'DIVIDEND' ? t('calendar.dividendType') : t('calendar.earningsType')}
                           </Badge>
                         </div>
-                        <div className="text-[10px] text-tv-muted truncate">{event.title}</div>
+                        <div className="lens-meta text-tv-muted truncate">{event.title}</div>
                       </div>
-                      <span className="text-[11px] text-tv-muted font-number shrink-0">
+                      <span className="lens-meta text-tv-muted font-number shrink-0">
                         {new Date(event.date).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'short' })}
                       </span>
                     </Link>
@@ -74,18 +72,16 @@ export default function HomeCalendarWatchlist({
                 ))}
               </div>
             )}
-          </Card>
+          </section>
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-tv-blue" />
-                <CardTitle>Saham Dipantau</CardTitle>
-              </div>
-              <Link href="/watchlist" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
-            </CardHeader>
+          <section className="space-y-3">
+            <SectionHeader
+              eyebrow="LensWatch"
+              title="Saham Dipantau"
+              action={<Link href="/watchlist" className="lens-meta text-tv-blue hover:underline">Lihat semua</Link>}
+            />
             <div className="min-h-[300px] flex flex-col justify-center">
               {watchlistCount === null ? (
                 <Skeleton className="h-11 w-full" />
@@ -113,7 +109,7 @@ export default function HomeCalendarWatchlist({
                         href={`/technical/${item.symbol}`}
                         className="flex items-center gap-2 font-number text-xs font-bold text-white bg-tv-bg/50 border border-tv-border rounded-md pl-1.5 pr-2.5 py-1.5 hover:border-tv-borderLight hover:bg-tv-hover/40 transition-colors"
                       >
-                        <TickerAvatar symbol={item.symbol} size="sm" className="!w-5 !h-5 !text-[10px]" />
+                        <TickerAvatar symbol={item.symbol} size="sm" className="!w-5 !h-5 !lens-meta" />
                         {item.symbol.replace('.JK', '')}
                       </Link>
                     ))}
@@ -124,7 +120,7 @@ export default function HomeCalendarWatchlist({
                 </div>
               )}
             </div>
-          </Card>
+          </section>
         </motion.div>
       </motion.div>
 
