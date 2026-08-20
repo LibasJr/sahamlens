@@ -997,7 +997,7 @@ textarea {
  * menular ke setiap halaman berikutnya. Sekarang ikut token. */
 .lens-page-title {
   font-family: var(--font-inter), 'Inter', sans-serif;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -1008,7 +1008,7 @@ textarea {
  * the hero does not regress to arbitrary per-component pixel typography. */
 .lens-hero-title {
   font-family: var(--font-inter), 'Inter', sans-serif;
-  font-size: 2rem;
+  font-size: 2.25rem;
   line-height: 1.08;
   font-weight: 750;
   letter-spacing: -0.035em;
@@ -1016,7 +1016,7 @@ textarea {
 
 .lens-section-title {
   font-family: var(--font-inter), 'Inter', sans-serif;
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1035,21 +1035,25 @@ textarea {
 
 @media (min-width: 640px) {
   .lens-page-title {
-    font-size: 1.5rem;
+    font-size: 1.875rem;
   }
 
   .lens-hero-title {
-    font-size: 2.625rem;
+    font-size: 3.25rem;
   }
 
   .lens-section-title {
-    font-size: 1rem;
+    font-size: 1.25rem;
   }
 }
 
 @media (min-width: 1024px) {
   .lens-hero-title {
-    font-size: 3rem;
+    font-size: 3.75rem;
+  }
+
+  .lens-page-title {
+    font-size: 2.125rem;
   }
 }
 
