@@ -12,6 +12,11 @@ export default defineConfig({
     },
   },
   test: {
+    // e2e/ dijalankan Playwright (npm run test:responsive), bukan Vitest. Tanpa exclude
+    // ini pola bawaan Vitest ikut memungut *.spec.ts di sana, lalu gagal mengimpor
+    // @playwright/test - kegagalan yang terbaca seperti test rusak, padahal runner-nya
+    // yang salah.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'e2e/**'],
     env: {
       // shared/auth/jwt.ts throw keras kalau kosong (guard produksi, tidak boleh
       // jalan dengan secret hardcoded) - nilai ini HANYA dipakai proses test,

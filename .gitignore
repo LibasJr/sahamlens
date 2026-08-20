@@ -65,3 +65,7 @@ __pycache__/
 # APK rilis native. Aplikasi Android punya repositori sendiri (lihat sahamlens-android);
 # binari 60+ MB tidak boleh masuk repo web lagi - sekali masuk, ia ada di riwayat selamanya.
 *.apk
+
+# Playwright (harness responsif)
+/test-results/
+/playwright-report/
