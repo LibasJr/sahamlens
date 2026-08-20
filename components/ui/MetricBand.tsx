@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils/cn';
+import { Skeleton } from './Skeleton';
 
 /**
  * Deret metrik yang dibaca sebagai satu baris konteks, bukan sebagai empat objek terpisah.
@@ -16,6 +17,14 @@ export interface MetricBandItem {
   detail?: string;
   tone?: 'neutral' | 'positive' | 'negative' | 'caution';
   emptyHint?: string;
+  /**
+   * Metrik ini masih dimuat.
+   *
+   * Per-item, bukan per-band: di beranda IHSG, breadth, dan hasil radar datang dari tiga
+   * request berbeda yang selesai pada waktu berbeda. Satu bendera untuk seluruh band akan
+   * menahan angka yang sudah siap sampai yang paling lambat tiba.
+   */
+  loading?: boolean;
 }
 
 const TONE: Record<NonNullable<MetricBandItem['tone']>, string> = {
@@ -38,12 +47,14 @@ export function MetricBand({ items, className }: { items: MetricBandItem[]; clas
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
           <div className="lens-label mb-1 truncate text-tv-muted">{item.label}</div>
-          {item.value === null ? (
+          {item.loading ? (
+            <Skeleton variant="text" className="mt-1 h-6 w-20" />
+          ) : item.value === null ? (
             <div className="lens-body-sm text-tv-muted">{item.emptyHint ?? 'belum ada data'}</div>
           ) : (
             <div className={cn('lens-metric', TONE[item.tone ?? 'neutral'])}>{item.value}</div>
           )}
-          {item.detail && item.value !== null && (
+          {item.detail && item.value !== null && !item.loading && (
             <div className={cn('lens-meta mt-0.5', TONE[item.tone ?? 'neutral'])}>{item.detail}</div>
           )}
         </div>
