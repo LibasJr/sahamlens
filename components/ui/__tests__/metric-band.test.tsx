@@ -66,3 +66,27 @@ describe('MetricBand', () => {
     expect(html).toMatch(/(sm|md):grid-cols-4/);
   });
 });
+
+describe('MetricBand saat memuat', () => {
+  const render = (ui: React.ReactElement) => renderToStaticMarkup(ui);
+
+  it('menampilkan skeleton hanya pada metrik yang masih dimuat', () => {
+    // Per-item, bukan per-band: di beranda tiga metrik datang dari tiga request berbeda,
+    // dan satu bendera bersama akan menahan angka yang sudah siap.
+    const html = render(<MetricBand items={[
+      { label: 'IHSG', value: '8.123', detail: '+0,62%', tone: 'positive' },
+      { label: 'Breadth', value: null, loading: true },
+    ]} />);
+
+    expect(html).toContain('8.123');
+    expect(html).toContain('IHSG');
+    expect(html).toContain('Breadth');
+    // Yang sedang dimuat tidak boleh mengaku "belum ada data" - itu dua hal berbeda.
+    expect(html).not.toContain('belum ada data');
+  });
+
+  it('tidak menampilkan detail metrik yang sedang dimuat', () => {
+    const html = render(<MetricBand items={[{ label: 'A', value: '1', detail: 'seharusnya tersembunyi', loading: true }]} />);
+    expect(html).not.toContain('seharusnya tersembunyi');
+  });
+});
