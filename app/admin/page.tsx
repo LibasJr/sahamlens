@@ -6,6 +6,7 @@ import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
 import { getResearchJourneySummary } from '@/modules/user/repository/product-journey.repository';
+import { loadPanel, panelValueOr } from '@/shared/presentation/panel-result';
 import { Card, EmptyState } from '@/components/ui';
 import ExportButton from './ExportButton';
 import SetProForm from './SetProForm';
@@ -69,14 +70,30 @@ export default async function AdminPage() {
 
   // "Aktif sekarang" - presence Redis (lihat shared/auth/presence.ts), TTL 5 menit -
   // BUKAN query database, langsung dari sesi yang benar-benar melakukan request.
-  const [activeUsers, activityReport, recentAuthEvents, funnelSummary, journeySummary, recentPayments] = await Promise.all([
-    getActiveUsers(),
-    getAdminUserActivityReport(),
-    getRecentAuthEvents(),
-    getProductFunnelSummary(),
-    getResearchJourneySummary(),
-    listRecentPaymentOrders(20),
+  // Tiap panel dimuat terisolasi. Sebelum ini keenamnya berbagi satu Promise.all telanjang,
+  // jadi satu yang reject menjatuhkan SELURUH halaman ke app/error.tsx - termasuk Payment
+  // Order dan Kesehatan Operasional yang tidak ada hubungannya. Terjadi 20 Agustus 2026:
+  // product_journey_events sampai ke produksi lewat deploy otomatis sebelum migrasi 010
+  // dijalankan, dan /admin ikut hilang seluruhnya justru saat dibutuhkan untuk diagnosa.
+  const [activeUsersPanel, activityPanel, authEventsPanel, funnelPanel, journeyPanel, paymentsPanel] = await Promise.all([
+    loadPanel('Aktivitas Pengguna', () => getActiveUsers()),
+    loadPanel('Aktivitas Pengguna', () => getAdminUserActivityReport()),
+    loadPanel('Jejak autentikasi terbaru', () => getRecentAuthEvents()),
+    loadPanel('Funnel pendaftaran', () => getProductFunnelSummary()),
+    loadPanel('Perjalanan riset (beta)', () => getResearchJourneySummary()),
+    loadPanel('Payment Order Terbaru', () => listRecentPaymentOrders(20)),
   ]);
+
+  // Nilai cadangan hanya untuk panel yang bentuk kosongnya memang punya arti ("belum ada
+  // data"). Pesan galatnya tetap dirender di panelnya masing-masing, jadi kosong-karena-
+  // gagal tidak pernah terbaca sebagai kosong-karena-belum-ada.
+  const activeUsers = panelValueOr(activeUsersPanel, [] as Awaited<ReturnType<typeof getActiveUsers>>);
+  const activityReport = panelValueOr(activityPanel, {
+    summary: { active24h: 0, active7d: 0, active30d: 0, inactive30d: 0 },
+    inactiveUsers: [],
+  });
+  const recentAuthEvents = panelValueOr(authEventsPanel, [] as Awaited<ReturnType<typeof getRecentAuthEvents>>);
+  const recentPayments = panelValueOr(paymentsPanel, [] as Awaited<ReturnType<typeof listRecentPaymentOrders>>);
   const snapshotAt = new Date().toISOString();
 
   // Rekap peran: 12 baris tabel tidak langsung memberi tahu komposisinya, dan itu
@@ -110,7 +127,9 @@ export default async function AdminPage() {
             <h2 className="font-heading text-lg font-bold text-tv-text">Payment Order Terbaru</h2>
             <p className="mt-1 text-xs text-tv-muted">Audit klaim transfer sebelum aktivasi Pro. Status PAID hanya muncul setelah rekonsiliasi admin berhasil satu transaksi dengan entitlement.</p>
           </div>
-          {recentPayments.length === 0 ? (
+          {!paymentsPanel.ok ? (
+            <p className="px-5 py-5 text-sm text-tv-yellow">{paymentsPanel.message}</p>
+          ) : recentPayments.length === 0 ? (
             <p className="px-5 py-5 text-sm text-tv-muted">Belum ada payment order.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -396,7 +415,9 @@ export default async function AdminPage() {
               </span>
               <h2 className="font-heading text-lg font-bold text-tv-text">Aktivitas Pengguna</h2>
               <span className="text-xs text-tv-muted">
-                ({activeUsers.length} user aktif sekarang · presence 5 menit{rekapPeran ? ` — ${rekapPeran}` : ''})
+                {activeUsersPanel.ok
+                  ? `(${activeUsers.length} user aktif sekarang · presence 5 menit${rekapPeran ? ` — ${rekapPeran}` : ''})`
+                  : '(presence tidak terbaca)'}
               </span>
             </div>
             {/* Titik hijau berdenyut menyiratkan data ini hidup, padahal ia snapshot
@@ -486,7 +507,12 @@ export default async function AdminPage() {
               <h3 className="font-heading text-base font-bold text-tv-text">Pengguna tidak aktif ≥30 hari</h3>
               <p className="mt-1 text-xs text-tv-muted">Termasuk akun yang belum mempunyai aktivitas tercatat sejak fitur ini aktif.</p>
             </div>
-            {activityReport.inactiveUsers.length === 0 ? (
+            {!activeUsersPanel.ok && (
+              <p className="border-t border-tv-border px-6 py-4 text-sm text-tv-yellow">{activeUsersPanel.message}</p>
+            )}
+            {!activityPanel.ok ? (
+              <p className="border-t border-tv-border px-6 py-5 text-sm text-tv-yellow">{activityPanel.message}</p>
+            ) : activityReport.inactiveUsers.length === 0 ? (
               <p className="border-t border-tv-border px-6 py-5 text-sm text-tv-muted">Tidak ada pengguna tidak aktif dalam daftar saat ini.</p>
             ) : (
               <div className="overflow-x-auto border-t border-tv-border">
@@ -516,17 +542,19 @@ export default async function AdminPage() {
         </Card>
 
         <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
+          {funnelPanel.ok ? (
+            <>
           <div className="border-b border-tv-border px-6 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Funnel pendaftaran</h2>
             <p className="mt-1 text-xs leading-relaxed text-tv-muted">
-              {funnelSummary.periodDays} hari terakhir. Angka memakai browser unik anonim; bukan IP, email, atau pelacakan lintas perangkat.
+              {funnelPanel.value.periodDays} hari terakhir. Angka memakai browser unik anonim; bukan IP, email, atau pelacakan lintas perangkat.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-px border-b border-tv-border bg-tv-border sm:grid-cols-3">
             {[
-              ['Melihat kartu terkunci', funnelSummary.lockedViewVisitors, null],
-              ['Klik daftar', funnelSummary.signupClickVisitors, funnelSummary.clickRatePct],
-              ['Akun berhasil dibuat', funnelSummary.signupCompletedVisitors, funnelSummary.completionRatePct],
+              ['Melihat kartu terkunci', funnelPanel.value.lockedViewVisitors, null],
+              ['Klik daftar', funnelPanel.value.signupClickVisitors, funnelPanel.value.clickRatePct],
+              ['Akun berhasil dibuat', funnelPanel.value.signupCompletedVisitors, funnelPanel.value.completionRatePct],
             ].map(([label, count, rate]) => (
               <div key={String(label)} className="bg-tv-card px-5 py-4">
                 <div className="font-number text-2xl font-bold text-tv-text">{count}</div>
@@ -535,7 +563,7 @@ export default async function AdminPage() {
               </div>
             ))}
           </div>
-          {funnelSummary.topFeatures.length === 0 ? (
+          {funnelPanel.value.topFeatures.length === 0 ? (
             <p className="px-6 py-5 text-sm text-tv-muted">Belum ada data funnel. Pencatatan dimulai setelah pembaruan ini aktif.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -549,7 +577,7 @@ export default async function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-tv-border">
-                  {funnelSummary.topFeatures.map((feature) => (
+                  {funnelPanel.value.topFeatures.map((feature) => (
                     <tr key={feature.feature} className="hover:bg-tv-hover">
                       <td className="px-6 py-3 text-tv-text">{funnelFeatureLabel(feature.feature)}</td>
                       <td className="px-6 py-3 font-number text-tv-muted">{feature.lockedViews}</td>
@@ -561,46 +589,55 @@ export default async function AdminPage() {
               </table>
             </div>
           )}
+            </>
+          ) : (
+            <div className="px-6 py-5">
+              <h2 className="font-heading text-lg font-bold text-tv-text">Funnel pendaftaran</h2>
+              <p className="mt-1 text-sm text-tv-yellow">{funnelPanel.message}</p>
+            </div>
+          )}
         </Card>
 
         <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
+          {journeyPanel.ok ? (
+            <>
           <div className="border-b border-tv-border px-6 py-4">
             <h2 className="font-heading text-lg font-bold text-tv-text">Perjalanan riset (beta)</h2>
             <p className="mt-1 text-xs leading-relaxed text-tv-muted">
-              {journeySummary.periodDays} hari terakhir, {journeySummary.sessions} kunjungan. Syarat evaluasi beta Calm Intelligence - perilaku, bukan preferensi tampilan. Anonim per browser: tanpa akun, tanpa kode saham, tanpa IP.
+              {journeyPanel.value.periodDays} hari terakhir, {journeyPanel.value.sessions} kunjungan. Syarat evaluasi beta Calm Intelligence - perilaku, bukan preferensi tampilan. Anonim per browser: tanpa akun, tanpa kode saham, tanpa IP.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-px border-b border-tv-border bg-tv-border sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 label: 'Waktu sampai analisis pertama',
-                value: journeySummary.medianSecondsToFirstAnalysis === null ? null : `${journeySummary.medianSecondsToFirstAnalysis}s`,
-                note: `median dari ${journeySummary.analysisSessions} kunjungan yang sampai ke sana`,
+                value: journeyPanel.value.medianSecondsToFirstAnalysis === null ? null : `${journeyPanel.value.medianSecondsToFirstAnalysis}s`,
+                note: `median dari ${journeyPanel.value.analysisSessions} kunjungan yang sampai ke sana`,
               },
               {
                 label: 'Pencarian yang berlanjut ke analisis',
-                value: journeySummary.searchToAnalysisPct === null ? null : `${journeySummary.searchToAnalysisPct}%`,
-                note: `dari ${journeySummary.searchSessions} kunjungan yang mencari`,
+                value: journeyPanel.value.searchToAnalysisPct === null ? null : `${journeyPanel.value.searchToAnalysisPct}%`,
+                note: `dari ${journeyPanel.value.searchSessions} kunjungan yang mencari`,
               },
               {
                 label: 'LensRadar yang berlanjut ke analisis',
-                value: journeySummary.radarToAnalysisPct === null ? null : `${journeySummary.radarToAnalysisPct}%`,
-                note: `dari ${journeySummary.radarSessions} kunjungan yang membuka kandidat`,
+                value: journeyPanel.value.radarToAnalysisPct === null ? null : `${journeyPanel.value.radarToAnalysisPct}%`,
+                note: `dari ${journeyPanel.value.radarSessions} kunjungan yang membuka kandidat`,
               },
               {
                 label: 'Ringkasan yang ditembus ke bukti',
-                value: journeySummary.summaryToEvidencePct === null ? null : `${journeySummary.summaryToEvidencePct}%`,
-                note: `dari ${journeySummary.analysisSessions} kunjungan yang membuka analisis`,
+                value: journeyPanel.value.summaryToEvidencePct === null ? null : `${journeyPanel.value.summaryToEvidencePct}%`,
+                note: `dari ${journeyPanel.value.analysisSessions} kunjungan yang membuka analisis`,
               },
               {
                 label: 'Pertanyaan LensAI berkonteks emiten',
-                value: journeySummary.lensaiWithContextPct === null ? null : `${journeySummary.lensaiWithContextPct}%`,
-                note: `dari ${journeySummary.lensaiQuestions} pertanyaan`,
+                value: journeyPanel.value.lensaiWithContextPct === null ? null : `${journeyPanel.value.lensaiWithContextPct}%`,
+                note: `dari ${journeyPanel.value.lensaiQuestions} pertanyaan`,
               },
               {
                 label: 'Watchlist dibuka lebih dari satu hari',
-                value: journeySummary.repeatWatchlistPct === null ? null : `${journeySummary.repeatWatchlistPct}%`,
-                note: `dari ${journeySummary.watchlistVisitors} browser yang membukanya`,
+                value: journeyPanel.value.repeatWatchlistPct === null ? null : `${journeyPanel.value.repeatWatchlistPct}%`,
+                note: `dari ${journeyPanel.value.watchlistVisitors} browser yang membukanya`,
               },
             ].map((metric) => (
               <div key={metric.label} className="bg-tv-card px-5 py-4">
@@ -614,9 +651,16 @@ export default async function AdminPage() {
             ))}
           </div>
           <p className="px-6 py-4 text-xs leading-relaxed text-tv-muted">
-            Referensi dukungan yang sampai ke layar pengguna: <span className="font-number text-tv-text">{journeySummary.supportReferencesShown}</span> kali.
+            Referensi dukungan yang sampai ke layar pengguna: <span className="font-number text-tv-text">{journeyPanel.value.supportReferencesShown}</span> kali.
             Data perjalanan dihapus setelah 90 hari (PRIVACY_JOURNEY_RETENTION_DAYS).
           </p>
+            </>
+          ) : (
+            <div className="px-6 py-5">
+              <h2 className="font-heading text-lg font-bold text-tv-text">Perjalanan riset (beta)</h2>
+              <p className="mt-1 text-sm text-tv-yellow">{journeyPanel.message}</p>
+            </div>
+          )}
         </Card>
 
         <Card as="div" padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border mb-8">
@@ -626,7 +670,9 @@ export default async function AdminPage() {
               Menampilkan maksimal 100 pendaftaran, verifikasi, dan login berhasil. IP mentah tidak disimpan: hanya prefiks jaringan dan ID hash untuk menghubungkan kejadian dari jaringan yang sama. Data dihapus setelah 90 hari.
             </p>
           </div>
-          {recentAuthEvents.length === 0 ? (
+          {!authEventsPanel.ok ? (
+            <p className="px-6 py-5 text-sm text-tv-yellow">{authEventsPanel.message}</p>
+          ) : recentAuthEvents.length === 0 ? (
             <p className="px-6 py-5 text-sm text-tv-muted">Belum ada jejak autentikasi. Pencatatan mulai aktif setelah pembaruan ini.</p>
           ) : (
             <div className="overflow-x-auto">
