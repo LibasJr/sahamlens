@@ -15,6 +15,7 @@ function retentionDays(name, fallback) {
 const policy = {
   authDays: retentionDays('PRIVACY_AUTH_EVENT_RETENTION_DAYS', 90),
   funnelDays: retentionDays('PRIVACY_FUNNEL_RETENTION_DAYS', 90),
+  journeyDays: retentionDays('PRIVACY_JOURNEY_RETENTION_DAYS', 90),
   feedbackDays: retentionDays('PRIVACY_LENSAI_FEEDBACK_RETENTION_DAYS', 180),
   unpaidDays: retentionDays('PRIVACY_UNPAID_ORDER_RETENTION_DAYS', 180),
   adminAuditDays: retentionDays('PRIVACY_ADMIN_AUDIT_RETENTION_DAYS', 365),
@@ -33,6 +34,7 @@ try {
   const statements = [
     ['user_auth_events', 'DELETE FROM user_auth_events WHERE created_at < now() - make_interval(days => $1::int)', policy.authDays],
     ['product_funnel_events', 'DELETE FROM product_funnel_events WHERE created_at < now() - make_interval(days => $1::int)', policy.funnelDays],
+    ['product_journey_events', 'DELETE FROM product_journey_events WHERE created_at < now() - make_interval(days => $1::int)', policy.journeyDays],
     ['lensai_feedback', 'DELETE FROM lensai_feedback WHERE created_at < now() - make_interval(days => $1::int)', policy.feedbackDays],
     ['payment_orders_non_paid', "DELETE FROM payment_orders WHERE status <> 'PAID' AND created_at < now() - make_interval(days => $1::int)", policy.unpaidDays],
     ['admin_audit_events', 'DELETE FROM admin_audit_events WHERE created_at < now() - make_interval(days => $1::int)', policy.adminAuditDays],
