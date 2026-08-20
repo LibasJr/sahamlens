@@ -7,8 +7,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      // Endpoint/API dan panel admin bukan konten hasil pencarian.
-      disallow: ['/api/', '/admin', '/admin-login'],
+      // Endpoint/API, panel admin, dan workbench internal bukan konten hasil pencarian.
+      disallow: ['/api/', '/admin', '/admin-login', '/_workbench'],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,
