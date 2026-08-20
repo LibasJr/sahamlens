@@ -16,6 +16,7 @@ import { getKategoriPresentationLabel } from '@/shared/presentation/signal-label
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { WatchlistHeader } from '@/components/watchlist/WatchlistHeader';
+import { JourneyBeacon } from '@/components/analytics/JourneyBeacon';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 interface WatchlistItem {
@@ -269,6 +270,10 @@ export default function WatchlistPage() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      {/* "Pemakaian Watchlist berulang" (PRD, Beta evaluation) dihitung dari browser yang
+          kembali di HARI yang berbeda - lihat query di
+          modules/user/repository/product-journey.repository.ts. */}
+      <JourneyBeacon event="watchlist_view" surface="watchlist" />
       <Toast message={toastMessage} variant={toastVariant} />
       <WatchlistHeader
         loading={loading}
