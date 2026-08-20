@@ -283,7 +283,19 @@ export const CACHE_TTL_SEC = {
   // ROE, DER, dividend yield) juga tidak berubah dalam hitungan menit seperti harga,
   // jadi TTL lebih panjang dari MARKET_SUMMARY wajar. Skor per profil risiko dihitung
   // ulang dari universe yang sama (murah), jadi TTL ini cuma menutupi fetch mentahnya.
-  SCREENER_UNIVERSE: 30 * 60,
+  //
+  // SADAR JAM PASAR sejak 2026-08-21. Sebelumnya 30 menit sepanjang waktu, sementara
+  // cron warmer (app/api/cron/screener-scan) HANYA jalan Senin-Jumat 09:00-16:40 WIB.
+  // Artinya tiap sore setelah ~17:10, tiap malam, dan seluruh akhir pekan, cache SELALU
+  // dingin - pengunjung pertama menanggung scan 200 ticker LIVE (14 batch berurutan,
+  // fundamental + histori 1 tahun per emiten) di dalam request-nya sendiri, yang mudah
+  // melewati batas waktu route dan tampil sebagai "gagal dimuat".
+  //
+  // Di luar jam bursa harganya memang tidak bergerak, jadi menahan entri 24 jam bukan
+  // menyajikan data basi - melainkan menyajikan data terakhir yang benar. 24 jam dipilih
+  // supaya satu run warmer harian menutup penuh sampai run berikutnya (lihat jadwal
+  // akhir pekan yang ditambahkan di config/scheduled-jobs.json).
+  get SCREENER_UNIVERSE() { return isIdxMarketOpen() ? 30 * 60 : 24 * 60 * 60; },
 
   // Deret keputusan indikator harian utk 100 saham universe backtest (diisi cron
   // app/api/cron/backtest-precompute sekali sehari) - BARU. TTL lebih panjang dari

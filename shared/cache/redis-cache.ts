@@ -52,6 +52,13 @@ function memoryGet<T>(key: string): T | null {
   return hit.value as T;
 }
 
+function memoryTtlRemaining(key: string): number | null {
+  const hit = MEMORY_CACHE.get(key);
+  if (!hit) return null;
+  const remaining = Math.ceil((hit.expiresAt - Date.now()) / 1000);
+  return remaining > 0 ? remaining : null;
+}
+
 function memorySet<T>(key: string, value: T, ttlSec: number): void {
   // Map di JavaScript mempertahankan urutan penyisipan, jadi key pertama adalah yang
   // paling lama masuk. Pembuangan paling sederhana yang benar - bukan LRU, dan memang
@@ -160,18 +167,24 @@ export async function getSetMembers(key: string): Promise<string[]> {
 
 /** Sisa TTL (detik) key cache - dipakai turunkan "berapa lama data ini sudah
  * dihitung" TANPA mengubah bentuk value yang di-cache (tidak menyentuh kontrak
- * getOrCompute yang dipakai banyak caller). Null kalau Redis tidak dikonfigurasi
- * ATAU key tidak ada (baru saja dihitung ulang lewat compute(), atau memang belum
- * pernah di-cache) - caller memperlakukan null sebagai "anggap baru saja dihitung",
- * BUKAN error. */
+ * getOrCompute yang dipakai banyak caller). Null kalau key tidak ada (baru saja
+ * dihitung ulang lewat compute(), atau memang belum pernah di-cache) - caller
+ * memperlakukan null sebagai "anggap baru saja dihitung", BUKAN error.
+ *
+ * Tanpa Redis, TTL dibaca dari cache memori - BUKAN null. Sejak cadangan memori
+ * ada, `REDIS_URL` kosong tidak lagi berarti "tidak ada cache": cacheGet melayani
+ * dari MEMORY_CACHE, jadi mengembalikan null di sini membuat caller menyimpulkan
+ * dua hal yang salah sekaligus - chip kesegaran selalu menulis "baru saja
+ * dihitung" untuk entri berumur 29 menit, dan /api/screener selalu menagih biaya
+ * cache-miss (5) padahal tidak menghitung apa pun. */
 export async function getCacheTtlRemaining(key: string): Promise<number | null> {
   const client = getClient();
-  if (!client) return null;
+  if (!client) return memoryTtlRemaining(key);
   try {
     const ttl = await client.ttl(key);
     return ttl >= 0 ? ttl : null; // -2 = key tidak ada, -1 = key ada tanpa TTL (tidak dipakai app ini)
   } catch {
-    return null;
+    return memoryTtlRemaining(key); // sejalan dengan cacheGet yang juga jatuh ke memori saat Redis error
   }
 }
 

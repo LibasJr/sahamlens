@@ -97,9 +97,9 @@
     {
       "path": "/api/cron/screener-scan",
       "provider": "systemd",
-      "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta",
-      "scheduleStatus": "known",
-      "source": "BARU 2026-08-14 (laporan pengguna: LensScanner lama sekali dimuat - /api/screener sebelumnya tidak punya cron warmer, giliran pengunjung pertama setelah cache 30 menit basi menanggung fetchScreenerUniverse() live). QStash sudah penuh 10/10, jadi dipasang sebagai timer systemd baru (pola sama seperti lens-bucket-backtest/lens-score-optimizer/broker-summary-scan). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar)."
+      "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta; Sat,Sun 09:00 Asia/Jakarta",
+      "scheduleStatus": "verify-server",
+      "source": "BARU 2026-08-14 (laporan pengguna: LensScanner lama sekali dimuat - /api/screener sebelumnya tidak punya cron warmer, giliran pengunjung pertama setelah cache 30 menit basi menanggung fetchScreenerUniverse() live). QStash sudah penuh 10/10, jadi dipasang sebagai timer systemd baru (pola sama seperti lens-bucket-backtest/lens-score-optimizer/broker-summary-scan). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar). DIPERLUAS 2026-08-21 (laporan pengguna: LensScanner tidak menampilkan data): jadwal lama berhenti jam 16:40 Senin-Jumat sementara TTL cuma 30 menit, jadi tiap malam & seluruh akhir pekan cache SELALU dingin dan pengunjung pertama menanggung scan 200 ticker live. Baris Sat,Sun 09:00 ditambahkan, dan CACHE_TTL_SEC.SCREENER_UNIVERSE dibuat sadar jam pasar (24 jam saat bursa tutup) supaya satu run harian menutup penuh sampai run berikutnya. Baris akhir pekan BELUM dipasang di VPS - lihat docs/operations/DEPLOYMENT.md."
     },
     {
       "path": "/api/cron/dividend-scan",
