@@ -27,17 +27,78 @@ const FLOW_ANCHOR_ID = 'lens-flow';
 type Perspective = {
   id: string;
   label: string;
-  href: (code: string) => string;
+  /** `pathname` ikut masuk karena satu sudut pandang bisa punya lebih dari satu rumah -
+   *  lihat catatan `/dashboard` di bawah. */
+  href: (code: string, pathname: string) => string;
   /** Rute yang membuat tab ini aktif. Kosong = tab lompat-jangkar, tidak pernah aktif. */
-  activePath?: string;
+  activePaths?: string[];
 };
 
+/**
+ * `/dashboard` adalah RUMAH KEDUA sudut pandang Technical, bukan halaman asing.
+ *
+ * Sidebar menamainya "LensTechnical" - nama yang sama persis dengan tab pertama - jadi
+ * sebelum ini pengguna berdiri di halaman bernama Technical sambil melihat tab Technical
+ * yang mati, bersama tiga tab mati lainnya. Empat tab mati sekaligus tidak terbaca
+ * sebagai "kamu di antara sudut pandang", melainkan sebagai navigasi rusak.
+ *
+ * Sekadar menyalakannya justru menciptakan masalah kedua yang dicatat aslinya: tab yang
+ * tampak aktif tetapi memindahkan pengguna ke `/technical/[symbol]` saat diklik. Karena
+ * itu tab aktif SELALU menunjuk ke halaman tempat pengguna sedang berdiri - di
+ * `/dashboard` ia menunjuk ke `/dashboard?symbol=...`, bukan ke rute technical.
+ *
+ * `/moat`, `/earnings`, `/dividend`, dan `/pattern` sengaja TIDAK ikut: mereka Tools,
+ * bukan sudut pandang, jadi nol tab menyala di sana memang keadaan yang benar.
+ */
+const DASHBOARD_PATH = '/dashboard';
+
 const PERSPECTIVES: Perspective[] = [
-  { id: 'technical', label: 'Technical', href: (code) => `/technical/${code}.JK`, activePath: '/technical' },
-  { id: 'fundamental', label: 'Fundamental', href: (code) => `/fundamental?symbol=${code}.JK`, activePath: '/fundamental' },
+  {
+    id: 'technical',
+    label: 'Technical',
+    href: (code, pathname) => (
+      isUnder(pathname, DASHBOARD_PATH)
+        ? `${DASHBOARD_PATH}?symbol=${code}.JK`
+        : `/technical/${code}.JK`
+    ),
+    activePaths: ['/technical', DASHBOARD_PATH],
+  },
+  { id: 'fundamental', label: 'Fundamental', href: (code) => `/fundamental?symbol=${code}.JK`, activePaths: ['/fundamental'] },
   { id: 'flow', label: 'Flow', href: (code) => `/technical/${code}.JK#${FLOW_ANCHOR_ID}` },
-  { id: 'valuation', label: 'Valuation', href: (code) => `/dcf?symbol=${code}.JK`, activePath: '/dcf' },
+  { id: 'valuation', label: 'Valuation', href: (code) => `/dcf?symbol=${code}.JK`, activePaths: ['/dcf'] },
 ];
+
+function isUnder(pathname: string, route: string): boolean {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
+
+export type PerspectiveTab = {
+  id: string;
+  label: string;
+  href: string;
+  active: boolean;
+};
+
+/**
+ * Tab yang harus dirender untuk `symbol` saat pengguna berada di `pathname`.
+ *
+ * Dipisah dari komponennya supaya aturan "tab aktif tidak boleh memindahkan pengguna"
+ * bisa diuji sungguhan - repo ini tidak punya jsdom maupun Playwright, jadi apa pun yang
+ * hanya hidup di dalam JSX praktis tidak tergerbang.
+ */
+export function perspectiveTabsFor(
+  symbol: string | null | undefined,
+  pathname: string,
+): PerspectiveTab[] {
+  const code = stockCodeFor(symbol);
+  if (!code) return [];
+  return PERSPECTIVES.map((perspective) => ({
+    id: perspective.id,
+    label: perspective.label,
+    href: perspective.href(code, pathname),
+    active: Boolean(perspective.activePaths?.some((route) => isUnder(pathname, route))),
+  }));
+}
 
 /** Nama indeks yang beredar sebagai "kode" di UI ini.
  *
@@ -61,22 +122,19 @@ export function stockCodeFor(symbol: string | null | undefined): string | null {
 export default function StockPerspectiveNav({ symbol }: { symbol: string | null | undefined }) {
   const pathname = usePathname();
   const code = stockCodeFor(symbol);
-  if (!code) return null;
+  const tabs = perspectiveTabsFor(symbol, pathname ?? '');
+  if (!code || tabs.length === 0) return null;
 
   return (
     <nav
       aria-label={`Sudut pandang analisis ${code}`}
       className="lens-stock-nav -mx-1 flex items-center gap-1 overflow-x-auto px-1"
     >
-      {PERSPECTIVES.map((perspective) => {
-        const active = Boolean(
-          perspective.activePath &&
-          (pathname === perspective.activePath || pathname.startsWith(`${perspective.activePath}/`)),
-        );
+      {tabs.map(({ id, label, href, active }) => {
         return (
           <Link
-            key={perspective.id}
-            href={perspective.href(code)}
+            key={id}
+            href={href}
             aria-current={active ? 'page' : undefined}
             // 44px di SEMUA lebar, tanpa varian yang mengecilkannya di md+. Tablet
             // mewarisi ukuran kontrol desktop sementara alat masukannya tetap jari -
@@ -87,7 +145,7 @@ export default function StockPerspectiveNav({ symbol }: { symbol: string | null 
                 : 'text-tv-muted hover:bg-white/[0.05] hover:text-tv-text'
             }`}
           >
-            {perspective.label}
+            {label}
           </Link>
         );
       })}
