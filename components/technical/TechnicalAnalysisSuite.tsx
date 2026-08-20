@@ -116,7 +116,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
   return (
     <div className="space-y-6">
       {/* 1. SECTION: PIVOT POINTS & 52-WEEK RANGE */}
-      <Card padding="md" className="space-y-5 border-tv-blue/20 bg-gradient-to-br from-tv-blue/[0.03] to-tv-card">
+      <Card padding="md" className="space-y-5 border-tv-blue/20">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
           <div className="flex items-center gap-2">
             <Compass className="h-5 w-5 text-tv-blue" />
@@ -159,35 +159,35 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
         </p>
 
         {/* Pivot Levels Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-red/20 text-center">
+        <div className="grid grid-cols-2 divide-x divide-tv-border/50 border-y border-tv-border/50 sm:grid-cols-4 lg:grid-cols-7">
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-red">R3</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.r3, currentPrice)}</div>
-          </Card>
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-red/20 text-center">
+          </div>
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-red">R2</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.r2, currentPrice)}</div>
-          </Card>
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-red/30 bg-tv-red/[0.04] text-center">
+          </div>
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-red">{t('technicalEnhance.resistance1')}</span>
             <div className="text-sm font-bold font-number text-white mt-1">{formatLevel(activePivots.r1, currentPrice)}</div>
-          </Card>
-          <div className="p-3 rounded-xl bg-tv-blue/10 border border-tv-blue/40 text-center shadow-sm">
+          </div>
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-blue">{t('technicalEnhance.pivotPoint')}</span>
             <div className="text-base font-extrabold font-number text-tv-blue mt-0.5">{formatLevel(activePivots.pp, currentPrice)}</div>
           </div>
-          <div className="p-3 rounded-xl bg-tv-green/[0.04] border border-tv-green/30 text-center">
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-green">{t('technicalEnhance.support1')}</span>
             <div className="text-sm font-bold font-number text-white mt-1">{formatLevel(activePivots.s1, currentPrice)}</div>
           </div>
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-green/20 text-center">
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-green">S2</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.s2, currentPrice)}</div>
-          </Card>
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/60 border-tv-green/20 text-center">
+          </div>
+          <div className="rounded-lg py-2 text-center">
             <span className="lens-meta uppercase font-bold text-tv-green">S3</span>
             <div className="text-sm font-bold font-number text-tv-text mt-1">{formatLevel(activePivots.s3, currentPrice)}</div>
-          </Card>
+          </div>
         </div>
 
         {/* 52-Week Range Position Indicator */}
@@ -311,7 +311,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
 
       {/* 4. SECTION: ATR TRADING PLAN & RISK / REWARD HELPER */}
       {tradingPlan && (
-        <Card padding="md" className="space-y-4 border-tv-purple/20 bg-gradient-to-br from-tv-purple/[0.04] to-tv-card">
+        <Card padding="md" className="space-y-4 border-tv-purple/20">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3">
             <div className="flex items-center gap-2">
               <Calculator className="h-5 w-5 text-tv-purple" />

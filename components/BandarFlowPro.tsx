@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, MetricBand } from '@/components/ui';
 import {
   Building,
   TrendingUp,
@@ -219,70 +219,48 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
         </div>
       </div>
 
-      {/* Kartu ringkasan resmi BEI - hanya untuk data resmi, karena hanya di sana
-          ada angka lembar/lot asing yang sungguh dicatat Bursa. */}
+      {/* Ringkasan resmi BEI - hanya untuk data resmi, karena hanya di sana ada angka
+          lembar/lot asing yang sungguh dicatat Bursa.
+
+          Empat angka ini hanya berarti BERSAMA-SAMA: net hari ini dibaca terhadap net 5
+          hari, partisipasi, dan beruntunnya. Membungkus masing-masing dengan kartu memutus
+          hubungan yang justru ingin ditunjukkan (PRD SEC.13), jadi mereka memakai
+          MetricBand. Di sini hijau/merah memang berarti positif/negatif - berbeda dari
+          deret pivot, yang warnanya konvensi support/resistance. */}
       {isOfficial && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
-          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
-            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
-              {isEn ? 'Net Foreign Today' : 'Net Asing Hari Ini'}
-            </div>
-            <div className={`text-2xl font-bold font-mono ${(num(summary.netTodayBillion) ?? 0) > 0 ? 'text-tv-green' : (num(summary.netTodayBillion) ?? 0) < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
-              {formatBillion(summary.netTodayBillion)}
-            </div>
-            <div className="lens-meta font-sans text-tv-muted mt-1">
-              {formatInt(summary.netTodayLot)} {isEn ? 'lot' : 'lot'}
-            </div>
-          </Card>
-
-          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
-            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
-              {isEn ? 'Net Foreign 5 Days' : 'Net Asing 5 Hari'}
-            </div>
-            <div className={`text-2xl font-bold font-mono ${(num(summary.net5DBillion) ?? 0) > 0 ? 'text-tv-green' : (num(summary.net5DBillion) ?? 0) < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
-              {formatBillion(summary.net5DBillion)}
-            </div>
-            <div className="lens-meta font-sans text-tv-muted mt-1">
-              {isEn ? 'Accumulated 5 trading days' : 'Akumulasi 5 hari bursa'}
-            </div>
-          </Card>
-
-          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
-            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
-              {isEn ? 'Foreign Participation' : 'Partisipasi Asing'}
-            </div>
-            <div className="text-2xl font-bold font-mono text-tv-text">
-              {num(summary.foreignParticipationPct) === null ? 'N/A' : `${summary.foreignParticipationPct}%`}
-            </div>
-            <div className="lens-meta font-sans text-tv-muted mt-1">
-              {isEn ? 'Foreign share of daily turnover' : 'Porsi asing atas transaksi harian'}
-            </div>
-          </Card>
-
-          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
-            <div className="lens-meta font-sans text-tv-muted uppercase tracking-wide">
-              {isEn ? 'Streak' : 'Beruntun'}
-            </div>
-            {accumulationStreak > 0 ? (
-              <div className="text-lg font-bold font-sans text-tv-green flex items-center gap-1.5">
-                <Flame className="w-4 h-4" />
-                {isEn ? `Accumulation ${accumulationStreak} days` : `Akumulasi ${accumulationStreak} Hari`}
-              </div>
-            ) : distributionStreak > 0 ? (
-              <div className="text-lg font-bold font-sans text-tv-red flex items-center gap-1.5">
-                <TrendingDown className="w-4 h-4" />
-                {isEn ? `Distribution ${distributionStreak} days` : `Distribusi ${distributionStreak} Hari`}
-              </div>
-            ) : (
-              <div className="text-lg font-bold font-sans text-tv-muted">
-                {isEn ? 'No streak' : 'Tidak beruntun'}
-              </div>
-            )}
-            <div className="lens-meta font-sans text-tv-muted mt-1">
-              {summary.latestDate ? (isEn ? `As of ${summary.latestDate}` : `Data per ${summary.latestDate}`) : ''}
-            </div>
-          </Card>
-        </div>
+        <MetricBand
+          className="border-y border-tv-border/60 py-4"
+          items={[
+            {
+              label: isEn ? 'Net Foreign Today' : 'Net Asing Hari Ini',
+              value: formatBillion(summary.netTodayBillion),
+              detail: `${formatInt(summary.netTodayLot)} lot`,
+              tone: (num(summary.netTodayBillion) ?? 0) > 0 ? 'positive' : (num(summary.netTodayBillion) ?? 0) < 0 ? 'negative' : 'neutral',
+            },
+            {
+              label: isEn ? 'Net Foreign 5 Days' : 'Net Asing 5 Hari',
+              value: formatBillion(summary.net5DBillion),
+              detail: isEn ? 'Accumulated 5 trading days' : 'Akumulasi 5 hari bursa',
+              tone: (num(summary.net5DBillion) ?? 0) > 0 ? 'positive' : (num(summary.net5DBillion) ?? 0) < 0 ? 'negative' : 'neutral',
+            },
+            {
+              label: isEn ? 'Foreign Participation' : 'Partisipasi Asing',
+              value: num(summary.foreignParticipationPct) === null ? null : `${summary.foreignParticipationPct}%`,
+              detail: isEn ? 'Foreign share of daily turnover' : 'Porsi asing atas transaksi harian',
+              emptyHint: 'N/A',
+            },
+            {
+              label: isEn ? 'Streak' : 'Beruntun',
+              value: accumulationStreak > 0
+                ? (isEn ? `Accumulation ${accumulationStreak} days` : `Akumulasi ${accumulationStreak} hari`)
+                : distributionStreak > 0
+                  ? (isEn ? `Distribution ${distributionStreak} days` : `Distribusi ${distributionStreak} hari`)
+                  : (isEn ? 'No streak' : 'Tidak beruntun'),
+              detail: summary.latestDate ? (isEn ? `As of ${summary.latestDate}` : `Data per ${summary.latestDate}`) : undefined,
+              tone: accumulationStreak > 0 ? 'positive' : distributionStreak > 0 ? 'negative' : 'neutral',
+            },
+          ]}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
