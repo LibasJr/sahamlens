@@ -20,3 +20,4 @@ export { default as Toast } from './Toast';
 export { ApiErrorHint } from './ApiErrorHint';
 export { SectionHeader } from './SectionHeader';
 export { MetricBand, type MetricBandItem } from './MetricBand';
+export { InsightRow, type InsightDirection } from './InsightRow';
