@@ -27,6 +27,18 @@ const FIXTURE = path.resolve(__dirname, '../../../e2e/__fixtures__/workbench.htm
 function markupWorkbench(): string {
   return renderToStaticMarkup(
     <div className="p-4 md:p-6 lg:p-7 space-y-12">
+      {/* Hierarki tipografi ikut dipotret: hero, judul halaman, judul bagian, dan body
+          berdampingan. Tanpa ini, perubahan skala tidak pernah terlihat di gambar - dan
+          skala yang datar justru masalah yang paling sulit dilihat dari kode. */}
+      <div className="space-y-2">
+        <h1 className="lens-hero-title text-tv-text">Lihat Peluang Lebih Jelas.</h1>
+        <h2 className="lens-page-title text-tv-text">BBCA</h2>
+        <h3 className="lens-section-title">Yang penting dari BBCA</h3>
+        <p className="lens-body text-tv-muted">
+          Momentum membaik dan harga bertahan di atas MA20 dengan volume yang menguat.
+        </p>
+      </div>
+
       <SectionHeader
         eyebrow="Redesign V3"
         title="Visual workbench"
