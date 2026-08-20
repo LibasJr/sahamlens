@@ -92,102 +92,30 @@ export async function GET(
   }
 
   // ---------------------------------------------------------------------------
-  // JALUR 2 - Fallback proxy CMF dari histori harga+volume Yahoo
+  // TIDAK ADA JALUR KEDUA (sejak 20 Agustus 2026)
   // ---------------------------------------------------------------------------
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=2mo&interval=1d`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      next: { revalidate: getMarketAwareTtlSec() },
-    });
-    if (!res.ok) throw new Error('Gagal mengambil data Yahoo Finance');
-
-    const json = await res.json();
-    const result = json?.chart?.result?.[0];
-    if (!result) throw new Error('Data tidak ditemukan');
-
-    const timestamps: number[] = result.timestamp || [];
-    const quote = result.indicators?.quote?.[0] || {};
-
-    const history: { date: string; high: number; low: number; close: number; volume: number }[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const timestamp = timestamps[i];
-      const high = quote.high?.[i];
-      const low = quote.low?.[i];
-      const close = quote.close?.[i];
-      const volume = quote.volume?.[i];
-
-      if (
-        isFiniteNumber(timestamp) &&
-        isFiniteNumber(high) &&
-        isFiniteNumber(low) &&
-        isFiniteNumber(close) &&
-        isFiniteNumber(volume) &&
-        close > 0 &&
-        high >= low &&
-        volume >= 0
-      ) {
-        history.push({
-          date: new Date(timestamp * 1000).toISOString().split('T')[0],
-          high,
-          low,
-          close,
-          volume,
-        });
-      }
-    }
-
-    if (history.length < 6) {
-      return { status: 404, body: { error: 'Histori harga tidak cukup untuk menghitung arus dana' } };
-    }
-
-    const dailyFlow = computeDailyNetFlow(history).slice(-20);
-    const closeByDate = new Map(history.map((h) => [h.date, h.close]));
-    const net5D = parseFloat(dailyFlow.slice(-5).reduce((sum, d) => sum + d.netValueBillion, 0).toFixed(2));
-    const streak = computeAccumulationStreak(dailyFlow);
-
-    const upDays = dailyFlow.filter((d) => d.netValueBillion > 0);
-    const downDays = dailyFlow.filter((d) => d.netValueBillion < 0);
-    const avgUpValueBillion = upDays.length ? parseFloat((upDays.reduce((s, d) => s + d.netValueBillion, 0) / upDays.length).toFixed(2)) : null;
-    const avgDownValueBillion = downDays.length ? parseFloat((downDays.reduce((s, d) => s + Math.abs(d.netValueBillion), 0) / downDays.length).toFixed(2)) : null;
-
-    // Dulu status AKUMULASI/DISTRIBUSI cuma dari "3 hari netValue positif berturut-turut"
-    // - gampang lolos meski sinyalnya lemah (positif tipis-tipis). Diganti konfirmasi
-    // 4-lapis (CMF20 + CLV kuat 3 hari + volume spike + tren MFM menguat) - harus lolos
-    // SEMUA baru diklaim "KONSISTEN", bukan cuma 1 syarat lemah.
-    const accumulation = analyzeAccumulationSignal(history.slice(-20));
-    const isAccumulation3D = accumulation.status === 'AKUMULASI';
-    const isDistribution3D = accumulation.status === 'DISTRIBUSI';
-    const status = accumulation.status;
-
-    const bandarmology = analyzeBandarmology(history.slice(-20));
-
-    return { status: 200, body: {
-      ticker,
-      source: FALLBACK_FLOW_SOURCE,
-      foreignFlow20D: dailyFlow.map((d) => ({ ...d, close: closeByDate.get(d.date) ?? null })),
-      summary: {
-        status,
-        net5D,
-        // Nama yang sama dengan jalur resmi supaya UI tidak perlu dua cabang untuk
-        // angka yang artinya sama-sama "akumulasi 5 hari terakhir".
-        net5DBillion: net5D,
-        streak,
-        accumulationStreak: streak,
-        isAccumulation3D,
-        isDistribution3D,
-        upDays20D: upDays.length,
-        downDays20D: downDays.length,
-        avgUpValueBillion,
-        avgDownValueBillion,
-        cmf20: bandarmology.cmf20,
-        netPressurePct: bandarmology.netPressurePct,
-        volRatio: accumulation.volRatio,
-      },
-    } };
-  } catch (error: any) {
-    console.error('Flow API error:', error);
-    return { status: 500, body: { error: 'Internal Server Error' } };
-  }
+  // Sebelumnya emiten tanpa artefak resmi dilayani proxy Chaikin Money Flow dari histori
+  // harga+volume Yahoo. Proxy itu MENYIMPULKAN tekanan beli/jual dari pergerakan harga;
+  // ia bukan catatan transaksi investor asing. Dua hal yang berbeda asalnya disajikan di
+  // panel yang sama selalu berisiko disalahbaca, betapapun labelnya dibedakan.
+  //
+  // Cakupan artefak resmi terukur 962 emiten pada 20 Agustus 2026, disegarkan systemd
+  // timer sahamlens-idx-flow-sync (Sen-Jum 17:30 WIB) dengan IDX_FLOW_SYNC_UNIVERSE=all.
+  //
+  // Balasannya PERNYATAAN, bukan 404 dan bukan galat: emiten tanpa artefak adalah keadaan
+  // normal yang bisa dijelaskan, bukan kerusakan. `available: false` membuat UI bisa
+  // mengatakannya apa adanya alih-alih menampilkan panel kosong.
+  //
+  // modules/market/service/foreign-flow-proxy.ts SENGAJA tidak dihapus: LensAI
+  // (modules/ai/chat/blocks/emiten-blocks.ts) dan ringkasan pasar masih memakainya, dan
+  // membuangnya akan mengubah keduanya - perubahan yang berbeda dari keputusan ini.
+  return { status: 200, body: {
+    ticker: cleanTicker,
+    source: IDX_FOREIGN_FLOW_SOURCE,
+    available: false,
+    reason: 'Data Net Foreign Buy/Sell resmi Bursa belum tersedia untuk emiten ini.',
+    foreignFlow20D: [],
+    summary: null,
+  } };
   }, request);
 }

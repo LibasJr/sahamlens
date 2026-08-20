@@ -42,6 +42,42 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-20 - Panel Flow hanya menyajikan data resmi BEI; proxy CMF dihentikan
+
+`/api/flow/[ticker]` tidak lagi punya jalur kedua. Sebelumnya emiten tanpa artefak resmi
+dilayani proxy Chaikin Money Flow dari histori harga+volume Yahoo. Proxy itu MENYIMPULKAN
+tekanan beli/jual dari pergerakan harga - ia bukan catatan transaksi investor asing, dan
+dua hal yang berbeda asalnya di panel yang sama selalu berisiko disalahbaca betapapun
+labelnya dibedakan.
+
+Emiten tanpa artefak kini menerima `available: false` beserta alasannya, dan panelnya
+menyatakan itu apa adanya - bukan panel kosong, bukan 404.
+
+**ENV WAJIB: `IDX_FLOW_SYNC_UNIVERSE=all`.** Bawaan kode adalah `lq45` (~45 emiten). Dengan
+bawaan itu, sekitar 855 emiten kehilangan panel Flow sepenuhnya karena tidak ada lagi
+fallback. Terukur 20 Agustus 2026: 962 artefak di `data/foreign-flow/`.
+
+**Beban sync naik.** Dari ~45 menjadi ~900 permintaan ke idx.co.id per hari, durasi dari
+sekitar satu menit menjadi 12-20 menit. `TimeoutStartSec=1860` (31 menit) pada
+`sahamlens-idx-flow-sync.service` masih memadai, tetapi periksa ulang kalau durasinya
+mendekati batas:
+
+```bash
+systemctl list-timers --all sahamlens-idx-flow-sync.timer --no-pager
+journalctl -u sahamlens-idx-flow-sync -n 50 --no-pager
+ls /opt/sahamlens/app/data/foreign-flow/*.json | wc -l
+```
+
+`data/foreign-flow/` adalah artefak runtime: tidak dilacak git dan tidak di-gitignore, jadi
+`git pull` tidak pernah membuat maupun menimpanya. Kalau folder itu kosong di server baru,
+panel Flow kosong untuk SEMUA emiten sampai sync pertama selesai.
+
+**`modules/market/service/foreign-flow-proxy.ts` TIDAK dihapus.** LensAI
+(`modules/ai/chat/blocks/emiten-blocks.ts`) dan ringkasan pasar masih memakainya, dan
+analyzer scoring `stock-analysis-flow.service.ts` masih memakainya sebagai cadangan saat
+artefak resmi tidak ada. Membuangnya akan mengubah LensScore emiten tanpa artefak - itu
+perubahan angka finansial, terpisah dari keputusan ini.
+
 ### 2026-08-20 - Penutupan utang Redesign V2 (analytics perjalanan riset, harness responsif, dua perbaikan UI)
 
 Lima PR mendarat berurutan: #67 (`02efe6d`), #70 (`f082b05`), #68 (`d450930`), #69 (`1a75b35`),
