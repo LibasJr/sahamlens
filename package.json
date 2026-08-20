@@ -43,6 +43,7 @@
     "import:broker-eod": "node scripts/import-broker-market-daily.mjs",
     "audit:bundle": "node scripts/audit-bundle-budget.mjs",
     "audit:adoption": "node scripts/audit-adoption-ratchet.mjs",
+    "audit:frontend-only": "node scripts/audit-frontend-only.mjs",
     "test:responsive": "playwright test"
   },
   "dependencies": {
