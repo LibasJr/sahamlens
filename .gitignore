@@ -69,5 +69,7 @@ __pycache__/
 # Playwright (harness responsif)
 /test-results/
 /playwright-report/
+
+# Artefak harness responsif (dibuat ulang tiap `npm run test:responsive`)
 /e2e/__screenshots__/
 /e2e/__fixtures__/

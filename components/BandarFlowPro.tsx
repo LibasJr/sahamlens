@@ -23,7 +23,6 @@ interface BandarFlowProProps {
   symbol: string;
 }
 
-const OFFICIAL_SOURCE = 'IDX_OFFICIAL_API';
 
 // Bandar & Foreign Flow.
 //
@@ -117,13 +116,22 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     );
   }
 
+  if (data && data.available === false) {
+    return (
+      <p className="lens-body-sm border-y border-tv-border/60 py-4 text-tv-muted">
+        {data.reason ?? (language === 'en'
+          ? 'Official IDX foreign flow data is not available for this stock yet.'
+          : 'Data Net Foreign Buy/Sell resmi Bursa belum tersedia untuk emiten ini.')}
+      </p>
+    );
+  }
+
   if (!data || !data.summary) {
     return null;
   }
 
   const { summary } = data;
   const isEn = language === 'en';
-  const isOfficial = data.source === OFFICIAL_SOURCE;
   const flow: any[] = data.foreignFlow20D;
 
   const locale = isEn ? 'en-US' : 'id-ID';
@@ -156,22 +164,16 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     insightColor = 'bg-tv-green/10 border-tv-green/50 text-tv-green';
     insightBadge = 'bg-tv-green text-white';
     insightTitle = t('bandarFlow.consistentBuying');
-    insightMessage = isOfficial
-      ? isEn
-        ? `Foreign investors recorded a net buy of ${formatBillion(summary.netTodayBillion)}.`
-        : `Investor asing tercatat net beli ${formatBillion(summary.netTodayBillion)}.`
-      : accumulationStreak >= 3
-        ? t('bandarFlow.accumulationStreakMessage', { count: accumulationStreak })
-        : t('bandarFlow.accumulationMessage');
+    insightMessage = isEn
+      ? `Foreign investors recorded a net buy of ${formatBillion(summary.netTodayBillion)}.`
+      : `Investor asing tercatat net beli ${formatBillion(summary.netTodayBillion)}.`;
   } else if (summary.status === 'DISTRIBUSI') {
     insightColor = 'bg-tv-red/10 border-tv-red/50 text-tv-red';
     insightBadge = 'bg-tv-red text-white';
     insightTitle = t('bandarFlow.consistentSelling');
-    insightMessage = isOfficial
-      ? isEn
-        ? `Foreign investors recorded a net sell of ${formatBillion(summary.netTodayBillion)}.`
-        : `Investor asing tercatat net jual ${formatBillion(summary.netTodayBillion)}.`
-      : t('bandarFlow.distributionMessage');
+    insightMessage = isEn
+      ? `Foreign investors recorded a net sell of ${formatBillion(summary.netTodayBillion)}.`
+      : `Investor asing tercatat net jual ${formatBillion(summary.netTodayBillion)}.`;
   }
 
 
@@ -191,12 +193,6 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {!isOfficial && (
-            <div className="px-3 py-1.5 rounded-full border border-tv-border bg-tv-hover text-tv-muted font-bold lens-meta font-sans">
-              {isEn ? 'Estimated Flow (Price & Volume Proxy)' : 'Estimasi Arus Dana (Proxy Harga & Volume)'}
-            </div>
-          )}
-
           <div
             className={`px-4 py-1.5 rounded-full border font-bold text-sm font-sans ${
               // `animate-pulse` dilepas dari tingkat kuat: gerak di sini tidak
@@ -227,7 +223,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           hubungan yang justru ingin ditunjukkan (PRD SEC.13), jadi mereka memakai
           MetricBand. Di sini hijau/merah memang berarti positif/negatif - berbeda dari
           deret pivot, yang warnanya konvensi support/resistance. */}
-      {isOfficial && (
+      {(
         <MetricBand
           className="border-y border-tv-border/60 py-4"
           items={[
@@ -286,9 +282,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border flex-1">
             <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
               <h4 className="text-sm font-bold text-white font-heading">
-                {isOfficial
-                  ? isEn ? 'Foreign Net Flow 20 Days' : 'Arus Dana Asing 20 Hari'
-                  : t('bandarFlow.netBuy20DTitle')}
+                {isEn ? 'Foreign Net Flow 20 Days' : 'Arus Dana Asing 20 Hari'}
               </h4>
               <span className={`text-xs font-bold font-mono ${(num(summary.net5DBillion) ?? num(summary.net5D) ?? 0) > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 {t('bandarFlow.net5DLabel')} {formatBillion(summary.net5DBillion ?? summary.net5D)}
@@ -370,7 +364,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                 <span className={`text-sm font-bold font-number ${activeBarValue >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   {activeBarValue > 0 ? '+' : ''}{activeBarValue.toFixed(2)} M
                 </span>
-                {isOfficial && num(activeBar.close) !== null && (
+                {num(activeBar.close) !== null && (
                   <span className="lens-meta font-sans text-tv-muted">
                     {isEn ? 'Close' : 'Tutup'} <span className="font-number text-tv-text">{formatInt(activeBar.close)}</span>
                   </span>
@@ -391,8 +385,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
           </Card>
         </div>
 
-        {isOfficial ? (
-          /* Komposisi transaksi asing hari terakhir - langsung dari ForeignBuy/ForeignSell BEI. */
+        {/* Komposisi transaksi asing hari terakhir - langsung dari ForeignBuy/ForeignSell BEI. */}
           <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
             <h4 className="text-sm font-bold text-tv-text font-heading mb-4">
               {isEn ? 'Foreign Buy vs Sell (Latest Session)' : 'Komposisi Beli vs Jual Asing (Sesi Terakhir)'}
@@ -453,57 +446,6 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               </div>
             )}
           </Card>
-        ) : (
-          /* Mode fallback: ringkasan 20 hari berbasis CMF dari histori harga dan volume. */
-          <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
-            <h4 className="text-sm font-bold text-tv-text font-heading mb-4">
-              {isEn ? '20-Day Summary' : 'Ringkasan 20 Hari'}
-            </h4>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="text-xs font-sans text-tv-green border-b border-tv-border pb-1 flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5" /> {isEn ? 'Up Days' : 'Hari Naik'}
-                </div>
-                <div className="text-2xl font-bold font-mono text-tv-text">{summary.upDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-                <div className="lens-meta font-sans text-tv-muted">
-                  {isEn ? 'Avg value: ' : 'Rata² nilai: '}<span className="font-mono text-tv-green">{formatFlowValue(summary.avgUpValueBillion)}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs font-sans text-tv-red border-b border-tv-border pb-1 flex items-center gap-1.5">
-                  <TrendingDown className="w-3.5 h-3.5" /> {isEn ? 'Down Days' : 'Hari Turun'}
-                </div>
-                <div className="text-2xl font-bold font-mono text-tv-text">{summary.downDays20D}<span className="text-sm text-tv-muted"> /20</span></div>
-                <div className="lens-meta font-sans text-tv-muted">
-                  {isEn ? 'Avg value: ' : 'Rata² nilai: '}<span className="font-mono text-tv-red">{formatFlowValue(summary.avgDownValueBillion)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-                <div className="lens-meta font-sans text-tv-muted uppercase">{isEn ? '20-Day CMF' : 'CMF 20 Hari'}</div>
-                <div className={`text-xl font-bold font-mono ${summary.cmf20 > 0 ? 'text-tv-green' : summary.cmf20 < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
-                  {summary.cmf20 > 0 ? '+' : ''}{summary.cmf20}%
-                </div>
-              </div>
-              <div className="bg-tv-bg rounded-lg p-3 border border-tv-border">
-                <div className="lens-meta font-sans text-tv-muted uppercase">{isEn ? "Today's Net Pressure" : 'Tekanan Beli/Jual Hari Ini'}</div>
-                <div className={`text-xl font-bold font-mono ${summary.netPressurePct > 0 ? 'text-tv-green' : summary.netPressurePct < 0 ? 'text-tv-red' : 'text-tv-text'}`}>
-                  {summary.netPressurePct > 0 ? '+' : ''}{summary.netPressurePct}%
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-tv-border lens-meta font-sans text-tv-muted leading-relaxed">
-              {isEn
-                ? 'Estimate derived from Chaikin Money Flow (CMF) & volume distribution - not the exchange foreign transaction record.'
-                : 'Estimasi dihitung dari Chaikin Money Flow (CMF) & distribusi volume transaksi - bukan catatan transaksi asing resmi Bursa.'}
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );
