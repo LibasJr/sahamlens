@@ -69,3 +69,5 @@ __pycache__/
 # Playwright (harness responsif)
 /test-results/
 /playwright-report/
+/e2e/__screenshots__/
+/e2e/__fixtures__/

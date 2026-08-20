@@ -44,7 +44,7 @@
     "audit:bundle": "node scripts/audit-bundle-budget.mjs",
     "audit:adoption": "node scripts/audit-adoption-ratchet.mjs",
     "audit:frontend-only": "node scripts/audit-frontend-only.mjs",
-    "test:responsive": "playwright test"
+    "test:responsive": "vitest run components/ui/__tests__/workbench-fixture.test.tsx && playwright test"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
