@@ -162,7 +162,7 @@
       "provider": "systemd",
       "schedule": "Mon..Fri *-*-* 17:30:00 Asia/Jakarta",
       "scheduleStatus": "known",
-      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup. PERHATIAN: `systemctl list-timers --all` 2026-08-18 20:40 WIB menunjukkan timer terpasang tetapi LAST masih n/a - belum pernah sekali pun tereksekusi, padahal jadwalnya Sen-Jum 17:30 dan hari itu Selasa. NEXT Rab 2026-08-19 17:32:59 WIB. Bersama broker-summary-scan yang timernya tidak ada, ini menjelaskan data broker summary yang berhenti di 2026-08-14."
+      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup. Terverifikasi berjalan: `systemctl list-timers` 2026-08-20 menunjukkan LAST Rab 2026-08-19 17:31:49 WIB dan NEXT Kam 2026-08-20 17:34 WIB. (Catatan sebelumnya menyatakan timer belum pernah tereksekusi - itu benar pada 2026-08-18 dan sudah tidak berlaku sejak run 19 Agustus.) Cakupan diatur IDX_FLOW_SYNC_UNIVERSE; sejak panel Flow hanya menyajikan data resmi BEI (2026-08-20), nilainya WAJIB `all` - dengan `lq45` hanya ~45 emiten yang punya artefak dan sisanya kehilangan panel Flow sepenuhnya."
     }
   ]
 }
