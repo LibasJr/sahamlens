@@ -104,8 +104,8 @@ export default function MarketTicker() {
           href={`/technical/${it.symbol}`}
           className="inline-flex items-baseline gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-1 focus-visible:outline-tv-blue"
         >
-          <span className="text-[11px] font-semibold text-white/85">{it.symbol}</span>
-          <span className="font-number text-[11px] text-tv-muted">{it.price.toLocaleString(locale)}</span>
+          <span className="lens-label text-tv-text/85">{it.symbol}</span>
+          <span className="font-number lens-meta text-tv-muted">{it.price.toLocaleString(locale)}</span>
           {/* Hijau/merah HANYA di sini. Kode saham dan harganya sengaja netral - kalau
               seluruh baris ikut berwarna, warnanya berhenti berarti "naik/turun" dan
               berubah jadi hiasan.
@@ -115,14 +115,14 @@ export default function MarketTicker() {
               padahal tidak bergerak sama sekali. Tanda "+" juga hanya untuk yang benar
               benar positif. */}
           <span
-            className={`font-number text-[11px] font-semibold ${
+            className={`font-number lens-meta font-semibold ${
               it.changePct > 0 ? 'text-tv-green' : it.changePct < 0 ? 'text-tv-red' : 'text-tv-muted'
             }`}
           >
             {it.changePct > 0 ? '+' : ''}{it.changePct.toFixed(2)}%
           </span>
         </Link>
-        <span aria-hidden="true" className="px-3 text-[11px] text-tv-muted/40">·</span>
+        <span aria-hidden="true" className="lens-meta px-3 text-tv-muted/40">·</span>
       </React.Fragment>
     ));
 
