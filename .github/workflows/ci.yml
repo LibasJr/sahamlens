@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # `redesign/**` ikut dipicu karena PR ke base selain main TIDAK menjalankan CI sama
+    # sekali - dan nol check terbaca persis seperti hijau di daftar PR (terukur PR #70,
+    # 20 Agustus 2026). Visual Redesign V3 mendarat lewat sembilan PR ke redesign/v3.
+    branches: [main, 'redesign/**']
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -93,3 +96,22 @@ jobs:
       # shell sudah cukup dan unduhannya jauh lebih kecil daripada Chromium penuh.
       - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:responsive
+
+  # Backend beku selama Visual Redesign V3. Hanya berjalan untuk PR yang menargetkan
+  # branch redesign - PR biasa ke main memang boleh menyentuh backend.
+  frontend-only:
+    if: startsWith(github.base_ref, 'redesign/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run audit:frontend-only
+        env:
+          FRONTEND_ONLY_BASE: origin/${{ github.base_ref }}
