@@ -19,3 +19,4 @@ export { SegmentedControl } from './SegmentedControl';
 export { default as Toast } from './Toast';
 export { ApiErrorHint } from './ApiErrorHint';
 export { SectionHeader } from './SectionHeader';
+export { MetricBand, type MetricBandItem } from './MetricBand';
