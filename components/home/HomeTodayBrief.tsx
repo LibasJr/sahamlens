@@ -152,18 +152,8 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
         </Link>
       </div>
 
-      {/* `min-w-0` pada KEDUA item grid.
-          BUG YANG DIPERBAIKI (ditemukan 2026-08-20 oleh potret beranda terapan di 375px):
-          item grid bawaannya `min-width: auto`, jadi lebar min-content isinya menjadi
-          lantai yang tidak bisa ditembus. MetricBand dua kolom di ponsel memuat
-          "Bull Expansion" dan "74 naik - 13 turun"; gabungannya 399px, sementara
-          track-nya cuma 343px - dan seluruh halaman ikut menggulir horizontal, yang
-          justru dilarang PRD SEC.23.
-
-          Gerbang responsif lama tidak menangkapnya karena ia mengukur primitif berdiri
-          sendiri; lubernya baru muncul setelah primitif itu diletakkan di dalam grid. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <div className="min-w-0">
+        <div>
           {/* Market snapshot memakai primitif MetricBand (Redesign V3 fase 1), bukan
               grid yang dirakit ulang di sini. Bentuknya sama seperti V2 - empat metrik
               dipisah jarak, bukan empat kartu - yang berubah cuma siapa yang memiliki
@@ -241,18 +231,7 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
                       </div>
                       <p className="mt-0.5 truncate text-xs text-tv-muted">{item.topReasons?.[0] ?? item.signals?.[0] ?? (isEn ? 'Passed the scan threshold; open the analysis for full evidence.' : 'Lolos ambang pemindaian; buka analisis untuk bukti lengkap.')}</p>
                     </div>
-                    {/* SKOR SENGAJA TIDAK DI SINI. Daftar ini dan bagian LensRadar di
-                        bawahnya membaca array `radarItems` YANG SAMA, jadi selama keduanya
-                        menampilkan kode, perubahan, alasan, DAN skor, halaman terbaca
-                        seperti mengulang dirinya sendiri - keluhan yang tercatat di
-                        docs/notes/UTANG_V3_TAMPILAN_BELUM_BERUBAH.
-
-                        Pembagian tugasnya sekarang: di sini "apa yang layak dilihat"
-                        (PRD SEC.14 minta baris ringan), di LensRadar "peringkatnya berapa
-                        dan kenapa" (PRD SEC.15 minta daftar terkurasi berikut buktinya).
-                        Skor tetap satu klik jauhnya, dan nilai tertinggi tetap terbaca di
-                        MetricBand snapshot di atas. */}
-                    <ArrowRight className="h-4 w-4 shrink-0 text-tv-muted transition group-hover:text-tv-blue" aria-hidden="true" />
+                    <div className="font-number text-sm font-bold text-tv-text">{item.finalScore}<span className="lens-meta font-medium text-tv-muted">/100</span></div>
                   </Link>
                 ))}
               </div>
@@ -262,7 +241,7 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
           </div>
         </div>
 
-        <div className="min-w-0 border-l-0 border-tv-border/60 lg:border-l lg:pl-6">
+        <div className="border-l-0 border-tv-border/60 lg:border-l lg:pl-6">
           <div className="mb-3 flex items-center gap-2">
             <CircleAlert className="h-4 w-4 text-tv-yellow" aria-hidden="true" />
             <h3 className="text-sm font-bold text-tv-text">{isEn ? 'What needs attention' : 'Perlu diperhatikan'}</h3>

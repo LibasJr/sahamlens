@@ -94,11 +94,8 @@ export const id = {
     badge: 'Analisis saham IDX berbasis data kuantitatif',
     titleLine1: 'Lihat Peluang',
     titleLine2: 'Lebih Jelas.',
-    // Kalimat ini DITENTUKAN PRD SEC.12 secara harfiah, bukan pilihan penulis. Versi
-    // sebelumnya menyampaikan hal yang sama dalam dua baris penuh; memendekkannya ikut
-    // melayani tuntutan "hero harus compact" pada pasal yang sama.
     description:
-      'Riset saham Indonesia dengan data, konteks pasar, dan intelligence yang dapat ditelusuri.',
+      'Riset saham Indonesia yang membantu Anda melihat apa yang penting lebih dulu — konteks pasar, peluang, risiko, lalu bukti di balik setiap insight. Data, skor, dan sumbernya tetap dapat ditelusuri.',
     disclaimerBox:
       'Model SahamLens berstatus riset dan formula perhitungannya 100% transparan.',
     ihsgTitle: 'IHSG Hari Ini',
