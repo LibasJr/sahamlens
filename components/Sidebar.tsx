@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -538,15 +539,19 @@ export default function Sidebar() {
           </div>
         </div>
         {isCollapsed && hoveredNav && (
-          <div
-            className="pointer-events-none fixed left-[86px] z-[100] hidden -translate-y-1/2 items-center rounded-xl border border-tv-border bg-tv-card px-3 py-2 lens-label text-tv-text shadow-1 md:flex"
+          <Card
+            as="div"
+            padding="none"
+            radius="xl"
+            elevation="sm"
+            className="pointer-events-none fixed left-[86px] z-[100] hidden -translate-y-1/2 items-center px-3 py-2 lens-label text-tv-text md:flex"
             style={{ top: hoveredNav.top }}
           >
             <span className="absolute -left-1.5 h-3 w-3 rotate-45 border-b border-l border-tv-border bg-tv-card" aria-hidden="true" />
             <span className="relative">
               {hoveredNav.label}{hoveredNav.locked ? ` · ${t('nav.loginRequired')}` : ''}
             </span>
-          </div>
+          </Card>
         )}
 
         <div className="border-t border-tv-border p-3">
