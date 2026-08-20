@@ -298,7 +298,7 @@ function FundamentalContent() {
         <Header currentTicker={ticker} onTickerChange={setTicker} moduleTitle="LensFundamental" moduleBank="LENSFUNDAMENTAL" />
         {/* Sebelumnya satu spinner teal-500 - warna yang tidak ada di palet - di tengah
             halaman kosong. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
-        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <PageContainer className="p-4 md:p-6 lg:p-7 space-y-10">
           <Skeleton className="h-24 w-full" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Skeleton className="h-48 w-full" />
@@ -441,7 +441,7 @@ function FundamentalContent() {
         stockNav
       />
 
-      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-10">
         <FundamentalOverview
           data={data}
           ticker={ticker}

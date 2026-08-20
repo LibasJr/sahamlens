@@ -634,7 +634,7 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
       
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
           max-w-7xl = 1280px). */}
-      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-10">
         <div className="mb-2 flex items-center gap-3">
           <TickerAvatar symbol={symbol} size="lg" />
           <div className="min-w-0">
