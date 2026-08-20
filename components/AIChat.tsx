@@ -395,14 +395,14 @@ export default function AIChat() {
         <div className={`overflow-hidden flex flex-col mb-3 origin-bottom-right w-[calc(100vw-1.5rem)] max-h-[80vh] rounded-[24px] border border-tv-border bg-tv-surface shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl transition-all duration-300 ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
 
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] p-4">
+          <div className="flex items-center justify-between border-b border-tv-border bg-white/[0.025] p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center sm:h-9 sm:w-9 justify-center rounded-xl border border-tv-blue/20 bg-tv-blue/10">
                 <Sparkles className="w-4 h-4 text-tv-blue" />
               </div>
               <div>
                 <h3 className="font-heading text-base font-bold text-tv-text sm:text-sm">LensAI Research</h3>
-                <p className={`flex items-center gap-1 text-xs font-semibold sm:text-[10px] ${
+                <p className={`lens-meta flex items-center gap-1 font-semibold ${
                   penyediaSiap === false ? 'text-tv-red' : penyediaSiap ? 'text-tv-green' : 'text-tv-muted'
                 }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${
@@ -459,11 +459,14 @@ export default function AIChat() {
               </div>
             ) : (
               messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl p-4 text-base leading-relaxed sm:text-sm ${
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start border-t border-tv-border/50 pt-4 first:border-t-0 first:pt-0'}`}
+                >
+                  <div className={`text-base leading-relaxed sm:text-sm ${
                     msg.role === 'user'
-                      ? 'bg-tv-blue text-white rounded-tr-md'
-                      : 'border border-tv-border/70 bg-tv-card/70 text-tv-text rounded-tl-md'
+                      ? 'max-w-[85%] rounded-2xl rounded-tr-md bg-tv-blue p-4 text-white'
+                      : 'w-full max-w-prose text-tv-text'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
@@ -474,13 +477,13 @@ export default function AIChat() {
                         )}
                         <ApiErrorHint requestId={msg.supportRequestId} />
                         {msg.routing?.dataProvenance && (
-                          <p className="mt-3 border-t border-white/[0.07] pt-2 text-[10px] leading-relaxed text-tv-muted">
+                          <p className="lens-meta mt-3 border-t border-tv-border/50 pt-2 leading-relaxed text-tv-muted">
                             {msg.routing.dataProvenance.sourceLabel}
                             {msg.routing.dataProvenance.timestamp ? ` · ${msg.routing.dataProvenance.timestamp}` : ''}
                             {!msg.routing.dataProvenance.timestamp && msg.routing.dataProvenance.freshness ? ` · ${msg.routing.dataProvenance.freshness}` : ''}
                           </p>
                         )}
-                        <div className="mt-3 flex items-center gap-1 border-t border-white/[0.07] pt-2 text-[10px] text-tv-muted">
+                        <div className="lens-meta mt-3 flex items-center gap-1 border-t border-tv-border/50 pt-2 text-tv-muted">
                           <span className="mr-1">Jawaban ini membantu?</span>
                           <Button variant="bare" size="none"
                             type="button"
@@ -512,7 +515,7 @@ export default function AIChat() {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-white/[0.07] bg-tv-hover p-4 text-base text-tv-muted sm:text-sm">
+                <div className="flex w-full max-w-prose items-center gap-3 text-base text-tv-muted sm:text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks, jadi
                       larangan lama memakai kata "menulis" sudah tidak berlaku. Spinner
@@ -528,7 +531,7 @@ export default function AIChat() {
           </div>
 
           {/* Input Box */}
-          <div className="border-t border-white/[0.07] bg-white/[0.025] p-3">
+          <div className="border-t border-tv-border bg-white/[0.025] p-3">
             <div className="relative flex items-center">
               <input
                 type="text"
