@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { Sparkles } from 'lucide-react';
 import StockPerspectiveNav from './StockPerspectiveNav';
+import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
 
@@ -58,7 +59,13 @@ export default function Header({
               search bersisian. */}
           <div className="relative min-w-0 flex-1 md:w-[320px] md:flex-none">
             <CommandPalette
-              onSelect={(symbol) => onTickerChange(symbol.toUpperCase())}
+              onSelect={(symbol) => {
+                // Penyebut metrik "search-to-analysis". Dicatat di titik PILIH, bukan di
+                // setiap ketikan: yang ditanyakan PRD adalah apakah pencarian berlanjut
+                // menjadi analisis, bukan seberapa banyak orang mengetik.
+                trackJourneyEvent('stock_search_submit', 'other');
+                onTickerChange(symbol.toUpperCase());
+              }}
               enableShortcut={false}
             />
           </div>

@@ -11,6 +11,7 @@ import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
+import { JourneyBeacon, JourneyVisibilityBeacon } from '@/components/analytics/JourneyBeacon';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import TechnicalAnalysisSuite from '@/components/technical/TechnicalAnalysisSuite';
@@ -668,6 +669,13 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           </div>
         </div>
 
+        {/* "Tindakan berguna pertama" dalam metrik beta (PRD, Beta evaluation) berarti
+            halaman analisis EMITEN. IHSG dikecualikan: indeks tidak punya fundamental
+            perusahaan maupun arus dana asing, jadi membukanya bukan langkah riset yang
+            sama - menghitungnya akan memendekkan mediannya dengan kunjungan yang tidak
+            menjawab pertanyaan siapa pun. */}
+        {!isIndex && <JourneyBeacon event="stock_analysis_view" surface="technical" />}
+
         {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
 
         {isIndex ? (
@@ -679,6 +687,11 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             <LensConsensusAnalysisDisplay symbol={symbol} />
           </Suspense>
         )}
+
+        {/* Ambang "ringkasan -> bukti". Diukur saat blok ini BENAR-BENAR terlihat, bukan
+            saat halaman dimuat: bukti berada di bawah lipatan, jadi memuat halaman bukan
+            berarti menembus ke sana. */}
+        {!isIndex && <JourneyVisibilityBeacon event="stock_evidence_view" surface="technical" />}
 
         <section className="pt-2">
           <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Bukti & detail</div>
