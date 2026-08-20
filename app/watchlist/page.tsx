@@ -310,7 +310,7 @@ export default function WatchlistPage() {
 
             <form onSubmit={addWatchlist} className="space-y-3 mb-6">
               <div>
-                <label className="text-[11px] text-tv-muted uppercase tracking-wide mb-1 block">Simbol Saham</label>
+                <label className="lens-meta text-tv-muted uppercase tracking-wide mb-1 block">Simbol Saham</label>
                 <SymbolAutocomplete
                   containerClassName="relative w-full"
                   placeholder="Contoh: BBCA"
@@ -322,7 +322,7 @@ export default function WatchlistPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-tv-muted uppercase tracking-wide mb-1 block">Harga Beli (opsional)</label>
+                  <label className="lens-meta text-tv-muted uppercase tracking-wide mb-1 block">Harga Beli (opsional)</label>
                   <Input
                     type="number"
                     placeholder="0"
@@ -332,7 +332,7 @@ export default function WatchlistPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-tv-muted uppercase tracking-wide mb-1 block">Total Lot</label>
+                  <label className="lens-meta text-tv-muted uppercase tracking-wide mb-1 block">Total Lot</label>
                   <Input
                     type="number"
                     placeholder="0"
@@ -373,11 +373,17 @@ export default function WatchlistPage() {
                   : scorePresentation?.modelSignal;
                 // Jangan membuat threshold BUY/HOLD/SELL kedua di UI. Arah sinyal selalu
                 // memakai kategori dari scoring engine; action hanya dari decision.action.
-                const scoreColor = scoreVal == null ? '#94A3B8'
-                  : scoreSignal === 'STRONG BUY' || scoreSignal === 'BUY' ? '#22C55E'
-                  : scoreSignal === 'HOLD' || scoreSignal === 'DATA TIDAK CUKUP' ? '#F59E0B'
-                  : scoreSignal === 'SELL' ? '#EF4444'
-                  : '#94A3B8';
+                // Warna lewat token, bukan hex mati: hex tidak ikut berganti saat tema
+                // berubah, dan badge ini muncul di halaman yang punya mode terang.
+                const scoreToneClass = scoreVal == null
+                  ? 'bg-tv-muted/15 border-tv-muted/40 text-tv-muted'
+                  : scoreSignal === 'STRONG BUY' || scoreSignal === 'BUY'
+                    ? 'bg-tv-green/15 border-tv-green/50 text-tv-green'
+                    : scoreSignal === 'HOLD' || scoreSignal === 'DATA TIDAK CUKUP'
+                      ? 'bg-tv-yellow/15 border-tv-yellow/50 text-tv-yellow'
+                      : scoreSignal === 'SELL'
+                        ? 'bg-tv-red/15 border-tv-red/50 text-tv-red'
+                        : 'bg-tv-muted/15 border-tv-muted/40 text-tv-muted';
                 const scoreLabel = scoreVal == null
                   ? (loading ? 'memuat' : 'skor N/A')
                   : scorePresentation?.actionable && data?.decision?.action
@@ -397,15 +403,14 @@ export default function WatchlistPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-tv-text font-number">{code}</span>
                         <span
-                          className="lens-chip font-bold px-1.5 py-0.5 rounded border"
-                          style={{ backgroundColor: `${scoreColor}22`, borderColor: scoreColor, color: scoreColor }}
+                          className={`lens-chip font-bold px-1.5 py-0.5 rounded border ${scoreToneClass}`}
                         >
                           {scoreLabel}
                         </span>
                       </div>
-                      <div className="text-[11px] text-tv-muted truncate">{companyName}</div>
+                      <div className="lens-meta text-tv-muted truncate">{companyName}</div>
                       {scorePresentation && !scorePresentation.actionable && scorePresentation.statusLabel && (
-                        <div className={`text-[10px] font-semibold uppercase tracking-wide mt-0.5 ${
+                        <div className={`lens-meta font-semibold uppercase tracking-wide mt-0.5 ${
                           scorePresentation.kind === 'INELIGIBLE' ? 'text-tv-red' : 'text-tv-yellow'
                         }`}>
                           {scorePresentation.statusLabel}
@@ -424,10 +429,10 @@ export default function WatchlistPage() {
                         ) : loading ? (
                           <Skeleton variant="text" className="w-16 h-3" />
                         ) : (
-                          <span className="text-[10px] text-tv-muted">harga tak terambil</span>
+                          <span className="lens-meta text-tv-muted">harga tak terambil</span>
                         )}
                         {kesegaran && (
-                          <span className={`text-[10px] ${kesegaran.tone}`} title={kesegaran.detail}>
+                          <span className={`lens-meta ${kesegaran.tone}`} title={kesegaran.detail}>
                             {kesegaran.shortLabel}
                           </span>
                         )}
@@ -436,7 +441,7 @@ export default function WatchlistPage() {
                         <Button variant="bare" size="none"
                           type="button"
                           onClick={() => { setAlertSymbol(item.symbol); setAlertCondition('PRICE_BELOW'); setAlertValue(supportTarget); }}
-                          className="mt-1 flex items-center gap-1 text-[10px] text-tv-warning hover:text-tv-warning/80"
+                          className="mt-1 flex items-center gap-1 lens-meta text-tv-warning hover:text-tv-warning/80"
                         >
                           <AlertCircle className="w-3 h-3" /> Suggest: Alert Support {supportTarget}
                         </Button>
@@ -449,9 +454,9 @@ export default function WatchlistPage() {
                       ) : loading ? (
                         <Skeleton variant="text" className="w-20 h-4" />
                       ) : (
-                        <span className="text-[10px] text-tv-muted">harga tak terambil</span>
+                        <span className="lens-meta text-tv-muted">harga tak terambil</span>
                       )}
-                      <span className="text-[10px] text-tv-muted font-number">
+                      <span className="lens-meta text-tv-muted font-number">
                         {item.buy_price
                           ? `Beli: Rp ${item.buy_price.toLocaleString('id-ID')}${item.lot ? ` • ${item.lot} lot` : ''}`
                           : 'harga beli belum diisi'}
@@ -461,7 +466,7 @@ export default function WatchlistPage() {
                           ikut terlihat. Diambil dari payload /api/stock yang sudah
                           dimuat baris ini - tidak ada request tambahan. */}
                       {kesegaran && (
-                        <span className={`text-[10px] ${kesegaran.tone}`} title={kesegaran.detail}>
+                        <span className={`lens-meta ${kesegaran.tone}`} title={kesegaran.detail}>
                           {kesegaran.shortLabel}
                         </span>
                       )}
@@ -477,7 +482,7 @@ export default function WatchlistPage() {
                         // Sebelumnya '-' polos. Dua sebab berbeda dinamai: harga beli
                         // belum diisi (P&L memang tidak bisa dihitung) vs harga pasar
                         // belum masuk (perhitungannya tertunda, bukan mustahil).
-                        <span className="text-[10px] text-tv-muted leading-tight">
+                        <span className="lens-meta text-tv-muted leading-tight">
                           {!item.buy_price ? 'P&L perlu harga beli' : 'menunggu harga'}
                         </span>
                       )}
@@ -527,7 +532,7 @@ export default function WatchlistPage() {
                 const best = withPnl[0];
                 const worst = withPnl[withPnl.length - 1];
                 return (
-                  <p className="mt-3 border-t border-tv-border pt-3 text-[11px] leading-relaxed text-tv-muted">
+                  <p className="mt-3 border-t border-tv-border pt-3 lens-meta leading-relaxed text-tv-muted">
                     Dari {withPnl.length} posisi berharga beli:{' '}
                     <span className="font-number font-semibold text-tv-green">{best.code}</span> paling menopang
                     ({best.pnl >= 0 ? '+' : ''}{best.pnl.toFixed(1)}%),{' '}
@@ -560,7 +565,7 @@ export default function WatchlistPage() {
                   mentahnya - tampilan internal yang tidak seharusnya sampai ke
                   pengguna biasa. Sekarang benar-benar digerbangi. */}
               {isAdmin && (
-                <Button variant="bare" size="none" onClick={triggerCron} className="text-[10px] text-tv-muted hover:text-tv-text underline">
+                <Button variant="bare" size="none" onClick={triggerCron} className="lens-meta text-tv-muted hover:text-tv-text underline">
                   Test Cron
                 </Button>
               )}

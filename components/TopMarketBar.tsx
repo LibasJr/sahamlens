@@ -65,7 +65,7 @@ export default function TopMarketBar() {
 
   return (
     <>
-    <header className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-white/[0.07] bg-[#080D16]/88 px-3 backdrop-blur-xl md:px-5">
+    <header className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-tv-border bg-tv-bg/90 px-3 backdrop-blur-xl md:px-5">
       <Link
         href="/"
         title="SahamLens Beranda"
@@ -77,21 +77,21 @@ export default function TopMarketBar() {
           alt="SahamLens"
           width={32}
           height={32}
-          className="h-8 w-8 rounded-xl object-contain shadow-xs border border-white/10"
+          className="h-8 w-8 rounded-xl object-contain border border-tv-border"
         />
       </Link>
 
-      <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.025] min-h-11 px-2.5 py-1.5 md:min-h-0 md:px-3">
-        <span className="text-xs font-bold uppercase tracking-[0.14em] text-tv-muted md:text-[10px] md:tracking-[0.16em]">IHSG</span>
+      <div className="flex min-w-0 items-center gap-2 min-h-11 md:min-h-0">
+        <span className="lens-eyebrow text-tv-muted">IHSG</span>
         {ihsg ? (
           <>
-            <span className="hidden font-number text-xs font-bold text-white sm:inline">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
-            <span className={`font-number text-xs font-bold md:text-[11px] ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+            <span className="hidden font-number lens-label text-tv-text sm:inline">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
+            <span className={`font-number lens-label ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
               {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%
             </span>
           </>
         ) : (
-          <span className="font-number text-xs text-tv-muted">--</span>
+          <span className="font-number lens-label text-tv-muted">--</span>
         )}
       </div>
 
@@ -103,12 +103,12 @@ export default function TopMarketBar() {
       {hasModuleSearch && <div className="hidden flex-1 lg:block" />}
 
       <div className="ml-auto flex items-center gap-1.5">
-        <div className={`hidden items-center gap-2 rounded-xl border px-2.5 py-1.5 text-[10px] font-semibold md:flex ${marketStatus.isOpen ? 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green' : marketStatus.holidayName ? 'border-tv-gold/30 bg-tv-gold/10 text-tv-gold' : 'border-white/[0.06] bg-white/[0.025] text-tv-muted'}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-tv-green shadow-[0_0_8px_rgba(35,196,131,0.8)]' : marketStatus.holidayName ? 'bg-tv-gold' : 'bg-tv-muted/50'}`} />
+        <div className={`hidden items-center gap-1.5 px-2 lens-meta md:flex ${marketStatus.isOpen ? 'text-tv-green' : marketStatus.holidayName ? 'text-tv-gold' : 'text-tv-muted'}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-tv-green' : marketStatus.holidayName ? 'bg-tv-gold' : 'bg-tv-muted/50'}`} />
           {marketStatusLabel}
         </div>
 
-        <div className="hidden items-center gap-1.5 px-2 text-[10px] font-medium text-tv-muted xl:flex">
+        <div className="hidden items-center gap-1.5 px-2 lens-meta text-tv-muted xl:flex">
           <Clock3 className="h-3.5 w-3.5" /> {jakartaTime}
         </div>
 
@@ -133,10 +133,10 @@ export default function TopMarketBar() {
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-tv-blue/10 text-tv-blue">
               <UserIcon className="h-3.5 w-3.5" />
             </span>
-            <span className="hidden max-w-[90px] truncate text-[10px] font-semibold text-white/80 2xl:block">{user.email?.split('@')[0]}</span>
+            <span className="hidden max-w-[90px] truncate lens-meta text-tv-text/80 2xl:block">{user.email?.split('@')[0]}</span>
           </PrimitiveButton>
         ) : (
-          <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-tv-blue px-3 py-2 text-sm font-bold md:min-h-0 md:text-[11px] text-white shadow-[0_8px_24px_rgba(79,140,255,0.18)] transition hover:bg-tv-blueHover">
+          <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-tv-blue px-3 py-2 lens-label text-white transition hover:bg-tv-blueHover">
             Masuk
           </Link>
         )}

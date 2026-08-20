@@ -60,7 +60,7 @@ export function TickerAnalysisShell({
                 {icon}
               </div>
               <div className="min-w-0">
-                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">Analysis workspace</div>
+                <div className="mb-1 lens-meta font-bold uppercase tracking-[0.14em] text-tv-muted">Analysis workspace</div>
                 <h1 className="font-heading text-xl font-bold leading-tight tracking-tight text-tv-text sm:text-2xl">{title}</h1>
                 {subtitle && <p className="mt-1 max-w-3xl text-sm leading-relaxed text-tv-muted">{subtitle}</p>}
               </div>

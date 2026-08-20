@@ -63,7 +63,7 @@ export default function ScreenerResults({
           halaman ini tidak pernah merendernya - hasil 29 menit tampil identik
           dengan yang baru dihitung. */}
       {data?._meta && (
-        <span className="text-[10px] font-mono text-tv-muted/80 block mt-1">
+        <span className="lens-chip font-mono text-tv-muted/80 block mt-1">
           {data._meta.cachedAgeSec < 60
             ? 'Baru saja dihitung'
             : `Dihitung ${Math.round(data._meta.cachedAgeSec / 60)} menit lalu (disegarkan tiap ${Math.round(data._meta.cacheTtlSec / 60)} menit)`}
@@ -130,7 +130,7 @@ export default function ScreenerResults({
   <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden md:block overflow-x-auto">
     <table className="w-full text-left text-xs font-mono border-collapse">
       <thead>
-        <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase text-[10px]">
+        <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase lens-chip">
           <th className="w-12 p-3">#</th>
           {SORTABLE_COLUMNS.map((col) => (
             <th key={col.key} className={`p-3 ${col.align === 'right' ? 'text-right' : ''}`}>
@@ -179,7 +179,7 @@ export default function ScreenerResults({
                   emiten ber-PER valid tidak punya rata-rata) - tampilkan "N/A"
                   apa adanya, jangan angka pengganti (temuan H-8). */}
               {item.per != null ? `${item.per}x` : 'N/A'}{' '}
-              <span className="text-[10px] text-tv-muted font-normal">
+              <span className="lens-chip text-tv-muted font-normal">
                 ({item.per_sector != null ? `${item.per_sector}x` : 'sektor N/A'})
               </span>
             </td>
@@ -198,7 +198,7 @@ export default function ScreenerResults({
             <td className="p-3 text-right text-tv-text font-number">{item.der}</td>
             <td className="p-3 text-right text-tv-yellow font-bold font-number">{item.div_yield}</td>
             <td className="p-3">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                 item.bandarmology === 'Akumulasi'
                   ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
                   : item.bandarmology === 'Distribusi'
@@ -211,7 +211,7 @@ export default function ScreenerResults({
             <td className="p-3 text-tv-text">{item.moat}</td>
             <td className="p-3">
               {item.decision?.advisory === true && item.decision?.action ? (
-                <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans text-[10px] ${
+                <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans lens-chip ${
                   item.decision.action.includes('BUY')
                     ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
                     : item.decision.action === 'SELL'
@@ -222,7 +222,7 @@ export default function ScreenerResults({
                 </span>
               ) : item.signal ? (
                 <div className="flex flex-col items-start gap-1">
-                  <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans text-[10px] ${
+                  <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans lens-chip ${
                     item.signal.includes('BUY')
                       ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
                       : item.signal === 'SELL'
@@ -231,7 +231,7 @@ export default function ScreenerResults({
                   }`}>
                     {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`}
                   </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-tv-yellow">
+                  <span className="lens-chip font-semibold uppercase tracking-wide text-tv-yellow">
                     {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED')
                       ? 'Model belum tervalidasi'
                       : item.eligibility_status && item.eligibility_status !== 'ELIGIBLE'
@@ -241,7 +241,7 @@ export default function ScreenerResults({
                 </div>
               ) : (
                 <span
-                  className="text-tv-muted text-[10px] cursor-help border-b border-dotted border-tv-borderLight"
+                  className="text-tv-muted lens-chip cursor-help border-b border-dotted border-tv-borderLight"
                   title={
                     item.eligibility_reasons?.length
                       ? item.eligibility_reasons.join(' · ')
@@ -254,11 +254,11 @@ export default function ScreenerResults({
                 </span>
               )}
             </td>
-            <td className="p-3 text-tv-text text-[11px]">
+            <td className="p-3 text-tv-text lens-meta">
               {item.pattern_tag || <span className="text-tv-muted">Tidak ada pola cocok</span>}
             </td>
             <td className="p-3">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                 item.sentiment === 'POSITIF'
                   ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
                   : item.sentiment === 'NEGATIF'
@@ -278,13 +278,13 @@ export default function ScreenerResults({
                   <span className="text-tv-red font-bold font-number">Rp {item.week52_low.toLocaleString('id-ID')}</span>
                 </>
               ) : (
-                <span className="text-tv-muted text-[10px]">N/A</span>
+                <span className="text-tv-muted lens-chip">N/A</span>
               )}
             </td>
             <td className="p-3 text-right text-white">
               {item.entry != null
                 ? <span className="text-tv-yellow font-bold font-number">Rp {item.entry.toLocaleString('id-ID')}</span>
-                : <span className="text-tv-muted text-[10px]">N/A</span>}
+                : <span className="text-tv-muted lens-chip">N/A</span>}
             </td>
             <td className="p-3 text-right text-tv-text font-number">
               {item.atr_pct != null ? `±${item.atr_pct.toFixed(1)}%/hari` : 'N/A'}
@@ -321,7 +321,7 @@ export default function ScreenerResults({
                   <Link
                     onClick={() => trackSignupClick('screener_results')}
                     href="/login?next=%2Fscreener"
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-0.5 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm shrink-0 whitespace-nowrap"
+                    className="inline-flex items-center gap-1 lens-chip font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-0.5 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm shrink-0 whitespace-nowrap"
                   >
                     <Lock className="h-3 w-3" /> Masuk
                   </Link>
@@ -334,15 +334,15 @@ export default function ScreenerResults({
               <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">••</td>
               <td className="p-3 text-right text-tv-yellow font-bold font-number blur-sm select-none opacity-40">••%</td>
               <td className="p-3 blur-sm select-none opacity-40">
-                <span className="px-2 py-0.5 rounded text-[10px] bg-tv-hover text-tv-text font-bold">••••••••</span>
+                <span className="px-2 py-0.5 rounded lens-chip bg-tv-hover text-tv-text font-bold">••••••••</span>
               </td>
               <td className="p-3 text-tv-text blur-sm select-none opacity-40">••••••</td>
               <td className="p-3 blur-sm select-none opacity-40">
-                <span className="px-2 py-0.5 rounded text-[10px] bg-tv-green/20 text-tv-green font-bold">REKOMENDASI: BUY</span>
+                <span className="px-2 py-0.5 rounded lens-chip bg-tv-green/20 text-tv-green font-bold">REKOMENDASI: BUY</span>
               </td>
-              <td className="p-3 text-tv-text text-[11px] blur-sm select-none opacity-40">••••••••</td>
+              <td className="p-3 text-tv-text lens-meta blur-sm select-none opacity-40">••••••••</td>
               <td className="p-3 blur-sm select-none opacity-40">
-                <span className="px-2 py-0.5 rounded text-[10px] bg-tv-hover text-tv-text font-bold">Positif</span>
+                <span className="px-2 py-0.5 rounded lens-chip bg-tv-hover text-tv-text font-bold">Positif</span>
               </td>
               <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp •••• / Rp ••••</td>
               <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp ••••</td>
@@ -353,7 +353,7 @@ export default function ScreenerResults({
                   <Link
                     onClick={() => trackSignupClick('screener_results')}
                     href="/login?next=%2Fscreener"
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2.5 py-1 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm whitespace-nowrap"
+                    className="inline-flex items-center gap-1 lens-chip font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2.5 py-1 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm whitespace-nowrap"
                   >
                     <Lock className="h-3 w-3" /> Masuk
                   </Link>
@@ -374,13 +374,13 @@ export default function ScreenerResults({
   {sortedRows.length > 0 && (
     <div className="md:hidden space-y-2">
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
+        <span className="lens-chip uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
         {SORTABLE_COLUMNS.filter((c) => c.align === 'right' || c.key === 'ticker').map((col) => (
           <Button variant="bare" size="none"
             key={col.key}
             type="button"
             onClick={() => handleSort(col.key)}
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+            className={`shrink-0 rounded-full border px-2.5 py-1 lens-meta transition-colors ${
               sortKey === col.key
                 ? 'border-tv-blue/40 bg-tv-blue/10 text-tv-blue'
                 : 'border-tv-border text-tv-muted hover:text-tv-text'
@@ -402,20 +402,20 @@ export default function ScreenerResults({
             className="rounded-lg border border-tv-border bg-tv-bg/40 p-3"
           >
             <div className="flex items-center gap-3">
-              <span className="text-[11px] font-number text-tv-muted w-4 shrink-0">{idx + 1}</span>
+              <span className="lens-meta font-number text-tv-muted w-4 shrink-0">{idx + 1}</span>
               <TickerAvatar symbol={item.ticker} size="md" />
               <div className="min-w-0 flex-1">
                 <Link href={`/technical/${item.ticker}.JK`} className="font-number font-bold text-white hover:text-tv-blue transition-colors">
                   {item.ticker}
                 </Link>
-                <div className="text-[11px] text-tv-muted truncate">{item.name}</div>
-                <div className="text-[10px] text-tv-muted/80 truncate">{item.sector}</div>
+                <div className="lens-meta text-tv-muted truncate">{item.name}</div>
+                <div className="lens-chip text-tv-muted/80 truncate">{item.sector}</div>
               </div>
               <div className="text-right shrink-0">
                 <div className="font-number font-bold text-tv-yellow">
                   {item.entry != null ? `Rp ${item.entry.toLocaleString('id-ID')}` : 'N/A'}
                 </div>
-                <div className="text-[10px] text-tv-muted font-number">
+                <div className="lens-chip text-tv-muted font-number">
                   {item.atr_pct != null ? `±${item.atr_pct.toFixed(1)}%/hari` : 'volatilitas N/A'}
                 </div>
               </div>
@@ -429,7 +429,7 @@ export default function ScreenerResults({
                 ['Div', item.div_yield, 'text-tv-yellow'],
               ] as const).map(([label, value, tone]) => (
                 <div key={label}>
-                  <div className="text-[10px] uppercase tracking-wide text-tv-muted">{label}</div>
+                  <div className="lens-chip uppercase tracking-wide text-tv-muted">{label}</div>
                   <div className={`font-number text-xs font-bold ${tone}`}>{value ?? 'N/A'}</div>
                 </div>
               ))}
@@ -437,13 +437,13 @@ export default function ScreenerResults({
 
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {item.decision?.advisory === true && item.decision?.action ? (
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                   item.decision.action.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
                     : item.decision.action === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
                     : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/40'
                 }`}>REKOMENDASI: {item.decision.action}</span>
               ) : item.signal ? (
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                   item.signal.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
                     : item.signal === 'SELL' ? 'bg-tv-red/10 text-tv-red border border-tv-red/30'
                     : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
@@ -451,21 +451,21 @@ export default function ScreenerResults({
                   {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`} · {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED') ? 'BELUM VALID' : 'NON-ACTIONABLE'}
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded text-[10px] bg-tv-hover text-tv-muted">
+                <span className="px-2 py-0.5 rounded lens-chip bg-tv-hover text-tv-muted">
                   {item.eligibility_status && item.eligibility_status !== 'ELIGIBLE' ? 'Tidak lolos gerbang' : 'Histori kurang'}
                 </span>
               )}
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                 item.bandarmology === 'Akumulasi' ? 'bg-tv-green/20 text-tv-green border border-tv-green/30'
                   : item.bandarmology === 'Distribusi' ? 'bg-tv-red/20 text-tv-red border border-tv-red/30'
                   : 'bg-tv-hover text-tv-text'
               }`}>{item.bandarmology}</span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-number font-bold ${
+              <span className={`px-2 py-0.5 rounded lens-chip font-number font-bold ${
                 (growth ?? 0) > 0 ? 'bg-tv-green/10 text-tv-green' : (growth ?? 0) < 0 ? 'bg-tv-red/10 text-tv-red' : 'bg-tv-hover text-tv-muted'
               }`}>Rev {item.rev_growth_ttm}</span>
             </div>
 
-            <div className="mt-2 text-[10px] text-tv-muted leading-relaxed">
+            <div className="mt-2 lens-chip text-tv-muted leading-relaxed">
               {item.moat}
               {item.pattern_tag ? ` · ${item.pattern_tag}` : ' · tidak ada pola backtest yang cocok'}
             </div>
@@ -485,20 +485,20 @@ export default function ScreenerResults({
               <Link
                 onClick={() => trackSignupClick('screener_results')}
                 href="/login?next=%2Fscreener"
-                className="flex items-center gap-1 text-[11px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-3 py-1.5 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm"
+                className="flex items-center gap-1 lens-meta font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-3 py-1.5 rounded-full hover:bg-tv-yellow/20 hover:text-white transition-all shadow-sm"
               >
                 <Lock className="h-3.5 w-3.5" /> Masuk
               </Link>
             </div>
             <div className="flex items-center justify-between gap-2 blur-sm select-none opacity-40">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-tv-border flex items-center justify-center text-[10px] leading-none">?</div>
+                <div className="w-6 h-6 rounded-full bg-tv-border flex items-center justify-center lens-chip leading-none">?</div>
                 <span className="font-bold text-white">••••</span>
                 <span className="text-xs text-tv-muted">PT •••••••••••• Tbk</span>
               </div>
               <span className="text-xs font-bold text-tv-muted">#{cardIdx}</span>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-2 blur-sm select-none opacity-40 text-[11px]">
+            <div className="mt-2 grid grid-cols-3 gap-2 blur-sm select-none opacity-40 lens-meta">
               <div>PER: ••.x</div>
               <div>ROE: ••%</div>
               <div>Div: ••%</div>
@@ -509,13 +509,13 @@ export default function ScreenerResults({
     </div>
   )}
 
-  <p className="text-[10px] text-tv-muted">
+  <p className="lens-chip text-tv-muted">
     Bandarmology = Chaikin Money Flow (posisi close di range High-Low + rasio volume 20 hari), estimasi tekanan beli/jual - BUKAN data broker/asing resmi (IDX tidak menyediakan feed itu gratis).
   </p>
-  <p className="text-[10px] text-tv-muted">
+  <p className="lens-chip text-tv-muted">
     Signal = skor komposit Teknikal+Fundamental+Flow yang sama dengan Detail Saham/LensRadar (bukan angka terpisah). Pola Backtest = preset filter di menu Backtest yang SAAT INI cocok untuk saham ini (semua indikatornya BULLISH bersamaan) - &ldquo;Tidak ada pola cocok&rdquo; berarti jujur tidak ada, bukan kosong karena error. Sentimen Berita = hasil klasifikasi AI/kata kunci atas judul berita RSS riil yang menyebut saham ini - &ldquo;N/A&rdquo; berarti saham ini tidak disebut media dalam siklus data terakhir, bukan sentimen netral yang terukur.
   </p>
-  <p className="text-[10px] text-tv-muted mt-2">
+  <p className="lens-chip text-tv-muted mt-2">
     Volatilitas Harian = rata-rata pergerakan 14 hari terakhir (ATR). Stop loss di bawah
     angka ini akan sering tersentuh oleh fluktuasi biasa - pengujian atas 4.705 sampel
     menunjukkan stop 5% tersentuh di 77% transaksi dan memangkas hampir seluruh
