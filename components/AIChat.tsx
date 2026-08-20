@@ -25,6 +25,7 @@ import { usePathname } from 'next/navigation';
 import { getTickerName } from '@/lib/trendingTickers';
 import { apiRequest } from '@/shared/http/api-client';
 import { ApiErrorHint } from '@/components/ui/ApiErrorHint';
+import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 
 type ChatDataProvenance = {
   sourceLabel: string;
@@ -204,6 +205,16 @@ export default function AIChat() {
     // symbol/isIndex secara eksplisit).
     const currentSymbol: string = activeContextData?.symbol ?? pathSymbol;
     const isIndex: boolean = activeContextData?.isIndex ?? currentSymbol.startsWith('^');
+
+    // "Pertanyaan LensAI yang merujuk konteks emiten yang terlihat" (PRD, Beta
+    // evaluation). Keduanya dicatat: yang pertama penyebutnya, yang kedua pembilangnya.
+    // Konteks di sini adalah konteks yang SAMA yang dikirim ke model di bawah - kalau
+    // suatu saat keduanya menyimpang, angka ini ikut salah, jadi ia sengaja dibaca dari
+    // variabel yang sama, bukan dihitung ulang.
+    trackJourneyEvent('lensai_question_asked', 'lensai');
+    if (!isIndex && currentSymbol && currentSymbol !== 'Umum') {
+      trackJourneyEvent('lensai_question_with_stock_context', 'lensai');
+    }
 
     // BUG FIX (permintaan eksplisit): index (mis. IHSG) BUKAN saham/emiten - sebelumnya
     // context SELALU bilang "halaman saham: X" apa pun X-nya, jadi saat X = index, AI

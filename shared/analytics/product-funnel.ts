@@ -1,21 +1,13 @@
 'use client';
 
 import { apiRequest } from '@/shared/http/api-client';
+// Identitas anonim dipakai bersama dengan analitik perjalanan riset - dua kunci berarti
+// dua populasi yang tidak bisa dibandingkan. Lihat shared/analytics/visitor-id.ts.
+import { getVisitorId } from '@/shared/analytics/visitor-id';
 
 export type ProductFunnelEventType = 'locked_view' | 'signup_click' | 'signup_completed';
 
-const VISITOR_KEY = 'sahamlens.product-funnel.visitor.v1';
 const SIGNUP_SOURCE_KEY = 'sahamlens.product-funnel.signup-source.v1';
-
-function getVisitorId(): string | null {
-  if (typeof window === 'undefined') return null;
-  const saved = window.localStorage.getItem(VISITOR_KEY);
-  if (saved && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved)) return saved;
-  if (!window.crypto?.randomUUID) return null;
-  const visitorId = window.crypto.randomUUID();
-  window.localStorage.setItem(VISITOR_KEY, visitorId);
-  return visitorId;
-}
 
 export function trackProductFunnelEvent(eventType: ProductFunnelEventType, feature: string): void {
   const visitorId = getVisitorId();
