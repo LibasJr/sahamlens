@@ -250,6 +250,30 @@ export const CACHE_TTL_SEC = {
   // respons hanya dipakai ulang bila harga/nilai wajar/MOS memang sama.
   INTRINSIC_EXPLANATION: 15 * 60,
 
+  // Lawan banding sesektor untuk /compare saat pengguna hanya menyebut satu emiten.
+  // BARU (2026-08-21, laporan pengguna "buka menu compare lama sekali"). Terukur pada
+  // build produksi: 17,1 detik dengan symbol2 kosong versus 1,7 detik saat symbol2
+  // disebut - selisihnya seluruhnya pemilihan peer, yang dulu berarti fetchScreenerUniverse()
+  // (quoteSummary 200 ticker, batch 15) hanya untuk membaca satu field `sector`.
+  //
+  // TTL-nya panjang karena yang disimpan bukan angka pasar melainkan KEPUTUSAN
+  // "peer BBCA adalah BBRI". Sektor emiten tidak berubah harian; kalaupun berubah,
+  // salah peer selama sehari jauh lebih murah daripada 200 panggilan Yahoo di jalur
+  // request setiap kali cache universe 30 menit itu kedaluwarsa.
+  COMPARE_PEER: 24 * 60 * 60,
+
+  // Data per emiten untuk tabel /compare (histori 1 tahun + nilai intrinsik).
+  // BUG FIX (2026-08-21, ditemukan bersama COMPARE_PEER): ini dulu memakai TECHNICAL,
+  // yang berarti 60 DETIK selama jam bursa - pola yang sama dengan MARKET_SUMMARY dan
+  // RECOMMENDATION di atas, dan tidak ada cron yang menghangatkannya (compare tidak
+  // ada di config/scheduled-jobs.json). Praktisnya hampir setiap kunjungan di jam bursa
+  // menghitung ulang 2 panggilan Yahoo per emiten.
+  //
+  // TECHNICAL memang benar untuk harga yang berdenyut per menit. Isi baris /compare
+  // bukan itu: MA20/50/200, RSI-14, PER, PBV, dan range 20 hari semuanya diturunkan
+  // dari bar HARIAN, jadi tidak ada yang berubah dalam 60 detik selain harga terakhirnya.
+  COMPARE_STOCK: 15 * 60,
+
   // Fallback basi kalau Yahoo Finance sedang down - lebih baik data lama daripada
   // error keras (app/api/stock/[ticker]).
   STALE_FALLBACK: 24 * 60 * 60,
