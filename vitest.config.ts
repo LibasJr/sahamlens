@@ -17,6 +17,8 @@ export default defineConfig({
     // @playwright/test - kegagalan yang terbaca seperti test rusak, padahal runner-nya
     // yang salah.
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'e2e/**'],
+    // Mengosongkan cadangan cache di memori sebelum tiap test - lihat vitest.setup.ts.
+    setupFiles: ['./vitest.setup.ts'],
     env: {
       // shared/auth/jwt.ts throw keras kalau kosong (guard produksi, tidak boleh
       // jalan dengan secret hardcoded) - nilai ini HANYA dipakai proses test,
