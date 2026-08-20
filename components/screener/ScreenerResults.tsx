@@ -62,7 +62,14 @@ export default function ScreenerResults({
           (umur cache universe screener, TTL 30 menit) sejak audit sebelumnya, tapi
           halaman ini tidak pernah merendernya - hasil 29 menit tampil identik
           dengan yang baru dihitung. */}
-      {data?._meta && (
+      {/* Saat memindai ulang dengan hasil lama masih di layar, chip umur cache
+          menggambarkan data yang sedang diganti - jadi diganti penanda proses.
+          Sebelumnya tidak ada isyarat APA PUN pada refetch (skeleton hanya muncul
+          kalau tabel kosong), sehingga mengganti profil membiarkan baris profil
+          lama duduk di bawah judul profil baru tanpa tanda. */}
+      {loading && sortedRows.length > 0 ? (
+        <span className="lens-chip font-mono text-tv-muted/80 block mt-1">Memindai ulang…</span>
+      ) : data?._meta && (
         <span className="lens-chip font-mono text-tv-muted/80 block mt-1">
           {data._meta.cachedAgeSec < 60
             ? 'Baru saja dihitung'
@@ -127,7 +134,8 @@ export default function ScreenerResults({
       ikut tergulir. --lens-sticky-head-bg menyamakan latar sel beku di header
       dengan bg-tv-bg milik baris headernya. */}
   {sortedRows.length > 0 && (
-  <div className="lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden md:block overflow-x-auto">
+  <div aria-busy={loading}
+       className={`lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden md:block overflow-x-auto${loading ? ' opacity-50 pointer-events-none' : ''}`}>
     <table className="w-full text-left text-xs font-mono border-collapse">
       <thead>
         <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase lens-chip">
@@ -372,7 +380,7 @@ export default function ScreenerResults({
       yang sama, dikelompokkan menurut cara membacanya (valuasi, kualitas,
       risiko) alih-alih dijejer dalam satu baris. */}
   {sortedRows.length > 0 && (
-    <div className="md:hidden space-y-2">
+    <div aria-busy={loading} className={`md:hidden space-y-2${loading ? ' opacity-50 pointer-events-none' : ''}`}>
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         <span className="lens-chip uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
         {SORTABLE_COLUMNS.filter((c) => c.align === 'right' || c.key === 'ticker').map((col) => (

@@ -12,13 +12,23 @@ vi.mock('@/shared/cache/redis-cache', () => ({
   getCacheTtlRemaining: vi.fn(),
 }));
 vi.mock('@/shared/middleware/compute-budget', () => ({
-  computeActorFromRequest: vi.fn(() => 'ip:unknown'),
+  computeActorFromRequest: vi.fn((_request: Request, userId?: string | null) => (userId ? `user:${userId}` : 'ip:unknown')),
   consumeComputeBudget: vi.fn(async () => ({ allowed: true, used: 1, limit: 5, remaining: 4 })),
+}));
+// readOrIssueAnonymousTrial() memanggil cookies() milik Next, yang melempar di luar
+// request scope - route ini memakainya untuk memberi tiap tamu ember rate limit sendiri
+// (lihat komentar di route.ts), jadi harus di-mock seperti di test controller chat.
+vi.mock('@/shared/auth/anonymous-trial', () => ({
+  readOrIssueAnonymousTrial: vi.fn(async () => ({
+    firstSeenAt: '2026-08-21T00:00:00.000Z', expiresAt: '2026-08-28T00:00:00.000Z', active: true, isNew: true,
+  })),
+  buildAnonymousTrialCookie: vi.fn(async () => ({ name: 'anon_trial', value: 'token', options: { path: '/' } })),
 }));
 
 import { GET } from '../route';
 import { rankScreener } from '@/modules/market/service/screener.service';
 import { getOrCompute, getCacheTtlRemaining } from '@/shared/cache/redis-cache';
+import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import { getSession } from '@/modules/user';
 
 function makeRequest(qs = ''): Request {
@@ -50,6 +60,7 @@ describe('GET /api/screener', () => {
     vi.mocked(getOrCompute).mockResolvedValue(universe as any);
     vi.mocked(getCacheTtlRemaining).mockResolvedValue(null);
     vi.mocked(rankScreener).mockReturnValue(mockTop10 as any);
+    vi.mocked(consumeComputeBudget).mockResolvedValue({ allowed: true, used: 1, limit: 40, remaining: 39 });
   });
 
   it('meneruskan sector, maxPrice, minMarketCap, minLiquidity dari query string ke rankScreener', async () => {
@@ -96,6 +107,62 @@ describe('GET /api/screener', () => {
     expect(json.analysis.total_count).toBe(10);
     expect(json.analysis.locked_count).toBe(8);
     expect(json.analysis.is_guest_limited).toBe(true);
+  });
+
+  // Regresi BUG-1: dengan TRUSTED_PROXY_MODE=direct, getTrustedClientIp() mengembalikan
+  // 'unknown' untuk SETIAP pengunjung, jadi aktor berbasis IP membuat seluruh deployment
+  // berbagi satu ember 40 unit - habis setelah 8 request per 10 menit dan LensScanner
+  // tampil kosong untuk semua orang. Aktor tamu harus datang dari cookie trial, bukan IP.
+  it('tamu ditagih ke ember per-browser (cookie trial), bukan ember IP bersama', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    await GET(makeRequest('?profile=Moderat'));
+
+    const [actor, , tier] = vi.mocked(consumeComputeBudget).mock.calls[0]!;
+    expect(actor).toBe('guest-screener:2026-08-21T00:00:00.000Z');
+    expect(actor).not.toContain('unknown');
+    expect(tier).toBe('public');
+  });
+
+  // Regresi BUG-7: budget dulu dipotong SEBELUM sesi dibaca, selalu tier 'public' dengan
+  // aktor IP - batas tier 'authenticated' (160) tidak pernah bisa tercapai.
+  it('pengguna login ditagih ke tier authenticated dengan aktor user-nya sendiri', async () => {
+    vi.mocked(getSession).mockResolvedValue({ id: 'user-123', email: 'user@sahamlens.id' } as any);
+
+    await GET(makeRequest('?profile=Moderat'));
+
+    const [actor, , tier] = vi.mocked(consumeComputeBudget).mock.calls[0]!;
+    expect(actor).toBe('user:user-123');
+    expect(tier).toBe('authenticated');
+    expect(computeActorFromRequest).toHaveBeenCalledWith(expect.any(Request), 'user-123');
+  });
+
+  // Regresi BUG-2: tanpa Redis, getCacheTtlRemaining kini melapor dari cache memori.
+  // TTL tersisa > 0 berarti universe datang dari cache tanpa komputasi apa pun, jadi
+  // biayanya 1 - bukan 5 seperti cache-miss.
+  it('cache hit ditagih 1 unit, cache miss ditagih 5', async () => {
+    vi.mocked(getCacheTtlRemaining).mockResolvedValue(900);
+    await GET(makeRequest('?profile=Moderat'));
+    expect(vi.mocked(consumeComputeBudget).mock.calls[0]![1]).toBe(1);
+
+    vi.mocked(consumeComputeBudget).mockClear();
+    vi.mocked(getCacheTtlRemaining).mockResolvedValue(null);
+    await GET(makeRequest('?profile=Moderat'));
+    expect(vi.mocked(consumeComputeBudget).mock.calls[0]![1]).toBe(5);
+  });
+
+  it('budget habis membalas 429 dengan kode COMPUTE_BUDGET_EXCEEDED dan Retry-After', async () => {
+    vi.mocked(consumeComputeBudget).mockResolvedValue({ allowed: false, used: 45, limit: 40, remaining: 0, retryAfterSec: 600 });
+
+    const res = await GET(makeRequest('?profile=Moderat'));
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(json.code).toBe('COMPUTE_BUDGET_EXCEEDED');
+    expect(res.headers.get('Retry-After')).toBe('600');
+    // Cookie trial WAJIB ikut walau ditolak: tanpa itu tamu menerima firstSeenAt baru
+    // tiap request dan rate limit tidak membatasi apa pun.
+    expect(res.headers.get('set-cookie')).toContain('anon_trial');
   });
 
   it('pengguna login menerima seluruh 10 emiten tanpa batasan tamu', async () => {

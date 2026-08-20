@@ -10,7 +10,15 @@ import type { ScreenerTemplate } from './screener-model';
 type RiskProfile = 'Konservatif' | 'Moderat' | 'Agresif';
 
 interface ScreenerControlsProps {
-  data: any;
+  // Daftar sektor, BUKAN seluruh objek `data`. Dulu dropdown membacanya dari
+  // data?.availableSectors, sehingga satu request gagal (data=null) ikut mengosongkan
+  // pilihan sektor padahal daftarnya tidak berubah - lihat komentar di app/screener/page.tsx.
+  availableSectors: string[];
+  // false = universe dihitung saat bursa buka, jadi vol_ratio null untuk semua emiten
+  // dan komponen momentum TIDAK ikut menentukan peringkat (bobot sisanya dinormalisasi
+  // ulang). Teks bobot di bawah harus mengatakan itu, bukan menjanjikan "momentum 30%"
+  // tanpa syarat.
+  momentumScored: boolean;
   riskProfile: RiskProfile;
   setRiskProfile: (value: RiskProfile) => void;
   sectorFilter: string;
@@ -35,7 +43,8 @@ interface ScreenerControlsProps {
 }
 
 export default function ScreenerControls({
-  data,
+  availableSectors,
+  momentumScored,
   riskProfile,
   setRiskProfile,
   sectorFilter,
@@ -96,7 +105,9 @@ export default function ScreenerControls({
       <p className="-mt-3 text-[11px] leading-relaxed text-tv-muted">
         {riskProfile === 'Konservatif' && 'Konservatif: DER 35%, dividen 30%, ROE 20%, PER 15%. Pertumbuhan dan momentum tidak dihitung sama sekali - saham bertumbuh cepat tapi berutang besar akan tenggelam di profil ini.'}
         {riskProfile === 'Moderat' && 'Moderat: ROE 25%, PER 25%, pertumbuhan 20%, DER 15%, dividen 15%. Momentum tidak dihitung - peringkat di sini murni soal kualitas dan harga, bukan pergerakan harga terkini.'}
-        {riskProfile === 'Agresif' && 'Agresif: pertumbuhan 35%, momentum 30%, ROE 20%, PER 15%. Utang dan dividen berbobot NOL - emiten berutang besar tidak dihukum sedikit pun di profil ini.'}
+        {riskProfile === 'Agresif' && (momentumScored
+          ? 'Agresif: pertumbuhan 35%, momentum 30%, ROE 20%, PER 15%. Utang dan dividen berbobot NOL - emiten berutang besar tidak dihukum sedikit pun di profil ini.'
+          : 'Agresif: pertumbuhan 35%, ROE 20%, PER 15% - momentum (bobot 30%) TIDAK dihitung untuk peringkat ini karena volume sesi hari ini masih berjalan, jadi bobot ketiga komponen sisanya dinormalisasi ulang. Utang dan dividen tetap berbobot NOL. Peringkat momentum penuh tersedia setelah bursa tutup.')}
       </p>
 
       <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4 space-y-3">
@@ -116,7 +127,7 @@ export default function ScreenerControls({
             <label htmlFor="screener-sector" className="mb-1 block lens-meta font-semibold uppercase tracking-wide text-tv-muted">Sektor</label>
             <select id="screener-sector" value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="h-9 rounded-lg border border-tv-border bg-tv-bg px-2.5 text-xs text-tv-text focus:border-tv-blue focus:outline-none">
               <option value="">Semua Sektor</option>
-              {(data?.availableSectors || []).map((sector: string) => <option key={sector} value={sector}>{sector}</option>)}
+              {availableSectors.map((sector) => <option key={sector} value={sector}>{sector}</option>)}
             </select>
           </div>
           <div>
