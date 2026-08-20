@@ -8,7 +8,7 @@ import { LogIn, Crown, Lock } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
-import { Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Card, InsightRow, PageContainer, SectionHeader, Skeleton, StatusMeta, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
 import { JourneyBeacon, JourneyVisibilityBeacon } from '@/components/analytics/JourneyBeacon';
@@ -141,14 +141,6 @@ function sinyalDariAnalyzer(decision: string): 'BUY' | 'SELL' | 'HOLD' {
 // membocorkan seluruh breakdown analyzer kepada pengunjung yang belum masuk.
 // Gunakan nama indikator, bukan posisi array, karena urutan dari API dapat berubah.
 const GUEST_VISIBLE_ANALYZER_KEYWORDS = ['EMA', 'RSI', 'MA Trend'];
-
-const ARAH_PENANDA: Record<TemuanDimensi['arah'], { simbol: string; tone: string; teks: string }> = {
-  // Simbol SELALU didampingi teks arah di `sr-only` - status tidak pernah hanya lewat
-  // warna maupun hanya lewat bentuk panah.
-  BULLISH: { simbol: '↑', tone: 'text-tv-green', teks: 'condong positif' },
-  BEARISH: { simbol: '↓', tone: 'text-tv-red', teks: 'condong negatif' },
-  NEUTRAL: { simbol: '→', tone: 'text-tv-muted', teks: 'netral' },
-};
 
 function isGuestVisibleAnalyzer(label: unknown): boolean {
   const normalizedLabel = typeof label === 'string' ? label : '';
@@ -350,7 +342,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           Harga, LensScore, dan rincian kelompoknya SEMUANYA berasal dari payload
           /api/stock yang sudah diambil di atas - blok ini tidak menambah satu request pun. */}
       <section aria-labelledby="technical-brief-title" className="border-y border-tv-border/70 py-5">
-        <div className="lens-meta mb-1.5 font-bold uppercase tracking-[0.16em] text-tv-muted">Ringkasan sebelum indikator</div>
+        <div className="lens-eyebrow mb-1.5 text-tv-muted">Ringkasan sebelum indikator</div>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <h2 id="technical-brief-title" className="font-heading text-xl font-bold text-tv-text">Yang penting dari {symbol.replace('.JK', '')}</h2>
@@ -408,49 +400,34 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
         )}
 
         {temuan.length > 0 && (
-          <ul className="mt-5 space-y-4">
-            {temuan.map((item) => {
-              const penanda = ARAH_PENANDA[item.arah];
-              return (
-                <li key={item.judul} className="flex gap-3">
-                  <span aria-hidden="true" className={`mt-0.5 shrink-0 font-number text-base font-bold ${penanda.tone}`}>{penanda.simbol}</span>
-                  <div className="min-w-0">
-                    <div className="lens-label text-tv-text">
-                      {item.judul}
-                      <span className="sr-only"> ({penanda.teks})</span>
-                    </div>
-                    <p className="mt-0.5 text-sm leading-relaxed text-tv-muted">{item.bukti}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="mt-4">
+            {temuan.map((item) => (
+              <InsightRow key={item.judul} direction={item.arah} title={item.judul} detail={item.bukti} />
+            ))}
+          </div>
         )}
 
-        <div className="mt-4 grid border-y border-tv-border/60 sm:grid-cols-3 sm:divide-x sm:divide-tv-border/60">
-          <div className="py-3 sm:pr-4">
-            <div className="lens-meta font-semibold text-tv-muted">Keselarasan arah</div>
-            <div className="mt-1 flex items-baseline gap-2 font-number text-sm font-bold">
-              <span className="text-tv-green">{bullPct}% positif</span>
-              <span className="text-tv-muted">vs</span>
-              <span className="text-tv-red">{bearPct}% negatif</span>
-            </div>
-          </div>
-          <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:px-4">
-            <div className="lens-meta font-semibold text-tv-muted">Kelengkapan data</div>
-            <div className="mt-1 text-sm font-bold text-tv-text">{coveragePct != null ? `${coveragePct}%` : 'N/A'}</div>
-            <div className="mt-0.5 text-xs text-tv-muted">Bagian bobot skor yang benar-benar punya data.</div>
-          </div>
-          {/* Trust metadata (PRD §36): umur data ditulis apa adanya, termasuk saat basi. */}
-          <div className="border-t border-tv-border/60 py-3 sm:border-t-0 sm:pl-4">
-            <div className="lens-meta font-semibold text-tv-muted">Kesegaran data</div>
-            <div className={`mt-1 text-sm font-bold ${kesegaran.tone}`}>{kesegaran.label}</div>
-            <div className="mt-0.5 text-xs text-tv-muted">{kesegaran.detail}</div>
-          </div>
-        </div>
+        {/* Baris kepercayaan (PRD SEC.36): umur data ditulis apa adanya, termasuk saat basi.
+            Satu baris, bukan tiga sel bergaris - ini konteks yang menyertai skor, dan
+            memberinya bingkai setara membuatnya terbaca seperti metrik utama. */}
+        <StatusMeta
+          className="mt-4 border-t border-tv-border/60 pt-3"
+          items={[
+            { label: `Keselarasan arah ${bullPct}% positif · ${bearPct}% negatif` },
+            {
+              label: `Kelengkapan data ${coveragePct != null ? `${coveragePct}%` : 'N/A'}`,
+              title: 'Bagian bobot skor yang benar-benar punya data.',
+            },
+            {
+              label: kesegaran.label,
+              tone: kesegaran.tone.includes('yellow') ? 'caution' : 'neutral',
+              title: kesegaran.detail,
+            },
+          ]}
+        />
       </section>
 
-      <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6">
+      <section className="space-y-4">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-heading font-bold text-tv-text">
             Konsensus Teknikal · {total} analyzer
@@ -496,10 +473,10 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             model bahasa. Bobot tiap dimensi tertulis di tabel bawah dan dapat diperiksa.
           </p>
         </div>
-      </Card>
+      </section>
 
       {dimensi.length > 0 && (
-        <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6">
+        <section className="space-y-4">
           <h3 className="font-heading font-bold text-tv-text mb-1">Rincian bobot per dimensi</h3>
           <p className="text-sm text-tv-muted mb-4">
             Vote dihitung per dimensi, bukan per analyzer. Tanpa ini empat analyzer yang
@@ -546,7 +523,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               </Link>
             </div>
           )}
-        </Card>
+        </section>
       )}
 
       {lockedAnalyzerCount > 0 && (
@@ -679,9 +656,9 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
         {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
 
         {isIndex ? (
-          <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4 text-sm leading-relaxed text-tv-muted">
+          <p className="lens-body-sm border-t border-tv-border pt-4 text-tv-muted">
             IHSG adalah indeks pasar, bukan saham emiten. Karena itu halaman ini menampilkan chart, tren, momentum, dan volatilitas indeks tanpa fundamental perusahaan, broker summary, TP/CL saham, atau rekomendasi beli per lot.
-          </Card>
+          </p>
         ) : (
           <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
             <LensConsensusAnalysisDisplay symbol={symbol} />
@@ -693,11 +670,12 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             berarti menembus ke sana. */}
         {!isIndex && <JourneyVisibilityBeacon event="stock_evidence_view" surface="technical" />}
 
-        <section className="pt-2">
-          <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Bukti & detail</div>
-          <h2 className="font-heading text-lg font-bold text-tv-text">Periksa chart, flow, dan indikator</h2>
-          <p className="mt-1 max-w-2xl text-sm text-tv-muted">Ringkasan di atas adalah pintu masuk. Bagian berikut menunjukkan data yang membentuk konteksnya.</p>
-        </section>
+        <SectionHeader
+          className="pt-2"
+          eyebrow="Bukti & detail"
+          title="Periksa chart, flow, dan indikator"
+          lede="Ringkasan di atas adalah pintu masuk. Bagian berikut menunjukkan data yang membentuk konteksnya."
+        />
 
         <StockChartPanel symbol={symbol} />
 
@@ -713,12 +691,13 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             dimuat. `lens-anchor-offset` mencegah header sticky menutupi judulnya. */}
         {!isIndex && (
           <section id="lens-flow" aria-labelledby="lens-flow-title" className="lens-anchor-offset">
-            <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Flow</div>
-            <h2 id="lens-flow-title" className="font-heading text-lg font-bold text-tv-text">Arus dana asing {code}</h2>
-            <p className="mb-3 mt-1 max-w-2xl text-sm text-tv-muted">
-              Net asing, partisipasi, dan pola akumulasi/distribusi. Sumber resmi Bursa
-              ditandai terpisah dari sinyal proxy - keduanya tidak dibaca dengan bobot yang sama.
-            </p>
+            <SectionHeader
+              className="mb-3"
+              id="lens-flow-title"
+              eyebrow="Flow"
+              title={`Arus dana asing ${code}`}
+              lede="Net asing, partisipasi, dan pola akumulasi/distribusi. Sumber resmi Bursa ditandai terpisah dari sinyal proxy - keduanya tidak dibaca dengan bobot yang sama."
+            />
             <BandarFlowPro symbol={symbol} />
           </section>
         )}
