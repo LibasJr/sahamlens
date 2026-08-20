@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, Calculator, ChevronRight, Newspaper } from 'lucide-react';
+import { ArrowUpRight, Calculator, ChevronRight, LineChart, Newspaper } from 'lucide-react';
+import { stockCodeFor } from '@/components/StockPerspectiveNav';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
 import { Button } from '@/components/ui';
@@ -30,6 +31,12 @@ export function DashboardFooterActions(props: {
   const neutral = stockNews.length - positive - negative;
   const overall = stockNews.length === 0 ? null : positive > negative ? 'POSITIF' : negative > positive ? 'NEGATIF' : 'NETRAL';
   const symbol = displayDashboardTicker(stock.symbol || ticker);
+  // Navigasi sudut pandang kini menandai tab "Technical" AKTIF di halaman ini, jadi ia
+  // menunjuk ke /dashboard sendiri - tab aktif yang memindahkan pengguna ke halaman lain
+  // adalah kontradiksi. Jalur ke halaman analisis emiten karenanya dinamai apa adanya di
+  // sini, bukan disamarkan sebagai tab. Indeks tidak punya halaman itu, jadi
+  // stockCodeFor yang memutuskan - bukan pengecekan kedua yang bisa menyimpang.
+  const stockCode = stockCodeFor(stock.symbol || ticker);
 
   return (
     <>
@@ -70,6 +77,22 @@ export function DashboardFooterActions(props: {
           </div>
           <ArrowUpRight className="h-4 w-4 text-tv-muted transition-colors group-hover:text-tv-gold" />
         </Link>
+
+        {stockCode && (
+          <Link
+            href={`/technical/${stockCode}.JK`}
+            className="group flex items-center gap-4 rounded-lg border border-tv-border bg-tv-card p-4 transition-all duration-250 ease-settle hover:border-tv-borderLight hover:shadow-2"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-tv-blue/15 text-tv-blue">
+              <LineChart className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-heading text-sm font-semibold text-white">Halaman Analisis {stockCode}</h3>
+              <p className="text-xs text-tv-muted">Ringkasan, chart, arus dana asing, dan bukti indikator</p>
+            </div>
+            <ArrowUpRight className="h-4 w-4 text-tv-muted transition-colors group-hover:text-tv-blue" />
+          </Link>
+        )}
       </div>
 
       <StockNewsModal
