@@ -96,8 +96,9 @@ export const en: TranslationDictionary = {
     badge: 'Quantitative data-driven IDX stock analytics',
     titleLine1: 'See Opportunities',
     titleLine2: 'More Clearly.',
+    // Padanan dari kalimat yang ditentukan PRD SEC.12 untuk bahasa Indonesia.
     description:
-      'Indonesian equity research that puts what matters first — market context, opportunities, risks, then the evidence behind each insight. Data, scores, and sources remain traceable.',
+      'Indonesian equity research with traceable data, market context, and intelligence.',
     disclaimerBox:
       'SahamLens is an active research model with 100% transparent and open computational formulas.',
     ihsgTitle: 'IHSG Index Today',

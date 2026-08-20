@@ -202,10 +202,10 @@ export default function HomeWorkspace() {
 
   return (
     <PageContainer className="min-h-full flex flex-col space-y-10 p-4 md:p-6 lg:p-7">
-      {/* Canonical home hero: brand promise + direct stock search + live IHSG.
-          Uses the workspace market snapshot below, so restoring the brand proposition
-          adds no extra network request or competing home route. */}
-      <HomeBrandHero ihsg={ihsg} loadingMarket={loadingMarket} marketError={marketError} />
+      {/* Hero: janji produk + pencarian saham langsung. Angka pasarnya sengaja TIDAK
+          di sini - MetricBand snapshot tepat di bawah yang memilikinya (PRD SEC.13), dan
+          TopMarketBar sudah menampilkan IHSG terus-menerus. */}
+      <HomeBrandHero />
 
       <ApiErrorHint requestId={supportRequestId} className="justify-end" />
 
@@ -228,108 +228,6 @@ export default function HomeWorkspace() {
       {/* First-run guidance stays available, but no longer interrupts the brand →
           market-context path on every fresh session. */}
       <GettingStartedGuide />
-
-      {/* Detail pasar: evidence layer setelah ringkasan "Hari ini" di atas.
-          Pengguna mendapat konteks + peluang + risiko lebih dulu, baru drill-down. */}
-      {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
-          sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat
-          upsell, bukan data kosong). IHSG dicabut dari sini (redundan - sudah tampil
-          terus-menerus di TopMarketBar global sejak Phase 1). */}
-      <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
-        <SectionHeader
-          eyebrow="Pasar"
-          title="Kondisi Pasar"
-          action={<Link href="/market-pulse" className="lens-label text-tv-blue hover:underline">Lihat semua</Link>}
-        />
-          {marketPulseLoginRequired ? (
-            <EmptyState title="Login untuk melihat kondisi pasar" description="Sector & breadth butuh akun." />
-          ) : marketPulseNeedPro ? (
-            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat sector strength & market breadth." />
-          ) : marketPulseError ? (
-            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
-          ) : loadingMarketPulse ? (
-            <div className="space-y-3">
-              <Skeleton className="h-14 w-full" />
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-              </div>
-              <LoadingFact />
-            </div>
-          ) : !marketPulse ? (
-            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
-          ) : (
-            <div className="space-y-3">
-              <MarketBreadthBar breadth={marketPulse.breadth} />
-              <SectorHeatmap sectors={marketPulse.sectorHeatmap} />
-              <p className="lens-meta leading-relaxed text-tv-muted/80">
-                Heatmap menampilkan 11 sektor IDX berbasis sampel saham representatif per sektor, bukan seluruh emiten.
-              </p>
-            </div>
-          )}
-
-          {/* Persilangan MA20/MA50 - dulu kartu terpisah dengan judul dan tautannya
-              sendiri. Dilebur ke sini (audit tata letak 2026-08-13) karena keduanya
-              menjawab satu pertanyaan yang sama: "pasar hari ini bagaimana". Dua judul
-              sejajar membuat pembaca mengira ini dua topik berbeda.
-
-              Sumber datanya TETAP beda - dailyPicks, bukan marketPulse - jadi gerbang
-              loading/kosongnya berdiri sendiri di dalam blok ini dan tidak ikut gerbang
-              Pro milik breadth/heatmap di atas. */}
-          <div className="mt-4 border-t border-tv-border pt-4">
-            <div className="mb-2.5 flex items-center gap-2">
-              <TrendingUp className="h-3.5 w-3.5 text-tv-blue" />
-              <h4 className="lens-meta font-bold uppercase tracking-wider text-tv-muted">Persilangan Rata-rata Bergerak</h4>
-            </div>
-            {loadingDailyPicks ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-              <LoadingFact />
-            </div>
-          ) : !dailyPicks ? (
-            <EmptyState illustration="empty" title="Data insight sementara tidak tersedia" description="Hitungan Golden/Dead Cross diperbarui tiap sesi perdagangan." />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <MetricCard
-                    label="Golden Cross"
-                    value={dailyPicks.goldenCross.count}
-                    tone="positive"
-                    suffix="saham"
-                    hint={dailyPicks.goldenCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari bawah hari ini'}
-                  />
-                  <CrossSymbolChips symbols={dailyPicks.goldenCross.items} tone="positive" />
-                </div>
-                <div className="space-y-2">
-                  <MetricCard
-                    label="Dead Cross"
-                    value={dailyPicks.deadCross.count}
-                    tone="negative"
-                    suffix="saham"
-                    hint={dailyPicks.deadCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari atas hari ini'}
-                  />
-                  <CrossSymbolChips symbols={dailyPicks.deadCross.items} tone="negative" />
-                </div>
-              </div>
-              {/* Storytelling: dua angka mentah tidak memberi tahu apa pun sampai
-                  dibandingkan satu sama lain. */}
-              <p className="mt-3 lens-meta leading-relaxed text-tv-muted">
-                {(() => {
-                  const g = dailyPicks.goldenCross.count;
-                  const d = dailyPicks.deadCross.count;
-                  if (g === 0 && d === 0) return 'Tidak ada persilangan MA20/MA50 hari ini - tren jangka menengah sedang tidak berubah arah.';
-                  if (g > d * 1.5) return `Persilangan naik ${g} berbanding ${d} turun - momentum jangka menengah condong ke atas, tapi persilangan MA adalah sinyal telat: ia mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
-                  if (d > g * 1.5) return `Persilangan turun ${d} berbanding ${g} naik - lebih banyak saham kehilangan tren jangka menengahnya. Persilangan MA mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
-                  return `Berimbang: ${g} persilangan naik dan ${d} turun. Tidak ada arah jangka menengah yang dominan hari ini.`;
-                })()}
-              </p>
-            </>
-            )}
-          </div>
-      </motion.section>
 
       {/* Peluang Hari Ini - SATU kartu, dulu DUA ("Peluang Teratas" + "Kandidat
           Berikutnya"). Penggabungan ini bukan sekadar kosmetik: keduanya membaca
@@ -492,9 +390,186 @@ export default function HomeWorkspace() {
           })()}
       </motion.section>
 
-      {/* Market Movers - dulu 3 card grid (Gainer/Loser/Volume) sekaligus, sekarang
-          1 card ber-tab (spec BUILD 001: kurangi section panjang dengan tabs) -
-          MarketMoverCard & formatCardItems tidak berubah, cuma dipilih satu per waktu. */}
+      <HomeCalendarWatchlist
+        calendarEvents={calendarEvents}
+        watchlistCount={watchlistCount}
+        watchlistPreview={watchlistPreview}
+      />
+
+      {/* AI Insight - hero */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <Card variant="default" padding="lg" surface="40" className="border-tv-border/80 shadow-none">
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-tv-blue/20 bg-tv-blue/10">
+              <Sparkles className="h-4 w-4 text-tv-blue" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading text-sm font-semibold text-white">{t('homePage.lensConsensusTitle')}</h3>
+                <Badge variant="info" dot title={t('homePage.lensConsensusLiveTooltip')}>{t('common.live')}</Badge>
+              </div>
+              {loadingRadar ? (
+                <div className="mt-1.5 space-y-1.5">
+                  <Skeleton variant="text" className="w-full max-w-md" />
+                  <Skeleton variant="text" className="w-2/3 max-w-xs" />
+                </div>
+              ) : (
+                <div onTouchStart={handleInsightTouchStart} onTouchEnd={handleInsightTouchEnd} className="touch-pan-y">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeInsightIndex}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.35 }}
+                    >
+                      {insightSlots[activeInsightIndex]}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              )}
+              {!loadingRadar && insightSlots.length > 1 && (
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  {insightSlots.map((_, i) => (
+                    <Button variant="bare" size="none"
+                      key={i}
+                      type="button"
+                      onClick={() => goToInsight(i)}
+                      aria-label={t('homePage.viewSlideAria', { index: i + 1, total: insightSlots.length })}
+                      aria-current={i === activeInsightIndex}
+                      className="flex h-4 items-center px-0.5 -my-1.5"
+                    >
+                      <span
+                        className={`h-1 rounded-full transition-all duration-300 ${
+                          i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
+                        }`}
+                      />
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <p className="mt-2 lens-meta text-tv-muted">
+                {language === 'en' ? 'Source: Yahoo Finance, delay ±15 min' : 'Sumber: Yahoo Finance, delay ±15 menit'}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* BUKTI PASAR - bagian PALING BAWAH halaman (PRD SEC.11: "Deep Market
+          Evidence" adalah entri terakhir hierarki beranda).
+
+          Sebelumnya bagian ini duduk di TENGAH, tepat sesudah "Hari ini" dan
+          SEBELUM LensRadar - jadi breadth, heatmap 11 sektor, dan persilangan MA
+          memotong jalan antara jawaban ("pasar cukup positif") dan tindakan
+          ("kandidat mana yang layak dibuka"). Heatmap sektor juga satu-satunya
+          permukaan bersaturasi di seluruh halaman, sehingga dari kejauhan ia menarik
+          mata lebih kuat daripada jawaban yang seharusnya dibaca lebih dulu.
+
+          Datanya, gerbang Pro-nya, dan permintaan jaringannya TIDAK berubah - yang
+          berpindah hanya posisinya dalam urutan baca. */}
+      {/* Market Pulse - sector strength + breadth dari /api/market-pulse (Pro-gated,
+          sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat
+          upsell, bukan data kosong). IHSG dicabut dari sini (redundan - sudah tampil
+          terus-menerus di TopMarketBar global sejak Phase 1). */}
+      <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
+        <SectionHeader
+          eyebrow="Pasar"
+          title="Kondisi Pasar"
+          action={<Link href="/market-pulse" className="lens-label text-tv-blue hover:underline">Lihat semua</Link>}
+        />
+          {marketPulseLoginRequired ? (
+            <EmptyState title="Login untuk melihat kondisi pasar" description="Sector & breadth butuh akun." />
+          ) : marketPulseNeedPro ? (
+            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat sector strength & market breadth." />
+          ) : marketPulseError ? (
+            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
+          ) : loadingMarketPulse ? (
+            <div className="space-y-3">
+              <Skeleton className="h-14 w-full" />
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+              <LoadingFact />
+            </div>
+          ) : !marketPulse ? (
+            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
+          ) : (
+            <div className="space-y-3">
+              <MarketBreadthBar breadth={marketPulse.breadth} />
+              <SectorHeatmap sectors={marketPulse.sectorHeatmap} />
+              <p className="lens-meta leading-relaxed text-tv-muted/80">
+                Heatmap menampilkan 11 sektor IDX berbasis sampel saham representatif per sektor, bukan seluruh emiten.
+              </p>
+            </div>
+          )}
+
+          {/* Persilangan MA20/MA50 - dulu kartu terpisah dengan judul dan tautannya
+              sendiri. Dilebur ke sini (audit tata letak 2026-08-13) karena keduanya
+              menjawab satu pertanyaan yang sama: "pasar hari ini bagaimana". Dua judul
+              sejajar membuat pembaca mengira ini dua topik berbeda.
+
+              Sumber datanya TETAP beda - dailyPicks, bukan marketPulse - jadi gerbang
+              loading/kosongnya berdiri sendiri di dalam blok ini dan tidak ikut gerbang
+              Pro milik breadth/heatmap di atas. */}
+          <div className="mt-4 border-t border-tv-border pt-4">
+            <div className="mb-2.5 flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5 text-tv-blue" />
+              <h4 className="lens-meta font-bold uppercase tracking-wider text-tv-muted">Persilangan Rata-rata Bergerak</h4>
+            </div>
+            {loadingDailyPicks ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+              <LoadingFact />
+            </div>
+          ) : !dailyPicks ? (
+            <EmptyState illustration="empty" title="Data insight sementara tidak tersedia" description="Hitungan Golden/Dead Cross diperbarui tiap sesi perdagangan." />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <MetricCard
+                    label="Golden Cross"
+                    value={dailyPicks.goldenCross.count}
+                    tone="positive"
+                    suffix="saham"
+                    hint={dailyPicks.goldenCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari bawah hari ini'}
+                  />
+                  <CrossSymbolChips symbols={dailyPicks.goldenCross.items} tone="positive" />
+                </div>
+                <div className="space-y-2">
+                  <MetricCard
+                    label="Dead Cross"
+                    value={dailyPicks.deadCross.count}
+                    tone="negative"
+                    suffix="saham"
+                    hint={dailyPicks.deadCross.stale ? 'Data sesi terakhir' : 'MA20 memotong MA50 dari atas hari ini'}
+                  />
+                  <CrossSymbolChips symbols={dailyPicks.deadCross.items} tone="negative" />
+                </div>
+              </div>
+              {/* Storytelling: dua angka mentah tidak memberi tahu apa pun sampai
+                  dibandingkan satu sama lain. */}
+              <p className="mt-3 lens-meta leading-relaxed text-tv-muted">
+                {(() => {
+                  const g = dailyPicks.goldenCross.count;
+                  const d = dailyPicks.deadCross.count;
+                  if (g === 0 && d === 0) return 'Tidak ada persilangan MA20/MA50 hari ini - tren jangka menengah sedang tidak berubah arah.';
+                  if (g > d * 1.5) return `Persilangan naik ${g} berbanding ${d} turun - momentum jangka menengah condong ke atas, tapi persilangan MA adalah sinyal telat: ia mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
+                  if (d > g * 1.5) return `Persilangan turun ${d} berbanding ${g} naik - lebih banyak saham kehilangan tren jangka menengahnya. Persilangan MA mengkonfirmasi tren yang sudah jalan, bukan memprediksinya.`;
+                  return `Berimbang: ${g} persilangan naik dan ${d} turun. Tidak ada arah jangka menengah yang dominan hari ini.`;
+                })()}
+              </p>
+            </>
+            )}
+          </div>
+      </motion.section>
+
+      {/* Peringkat pasar ikut turun bersama bukti pasar di atasnya: Top Gainer/Loser
+          /Volume/Bearish/RSI adalah data mentah untuk digali, bukan jawaban. */}
       {(() => {
         type MoversTabKey = 'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold';
         const isEn = language === 'en';
@@ -577,72 +652,6 @@ export default function HomeWorkspace() {
           </motion.div>
         );
       })()}
-
-      {/* AI Insight - hero */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="default" padding="lg" surface="40" className="border-tv-border/80 shadow-none">
-          <div className="flex items-start gap-3 md:gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-tv-blue/20 bg-tv-blue/10">
-              <Sparkles className="h-4 w-4 text-tv-blue" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-heading text-sm font-semibold text-white">{t('homePage.lensConsensusTitle')}</h3>
-                <Badge variant="info" dot title={t('homePage.lensConsensusLiveTooltip')}>{t('common.live')}</Badge>
-              </div>
-              {loadingRadar ? (
-                <div className="mt-1.5 space-y-1.5">
-                  <Skeleton variant="text" className="w-full max-w-md" />
-                  <Skeleton variant="text" className="w-2/3 max-w-xs" />
-                </div>
-              ) : (
-                <div onTouchStart={handleInsightTouchStart} onTouchEnd={handleInsightTouchEnd} className="touch-pan-y">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeInsightIndex}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.35 }}
-                    >
-                      {insightSlots[activeInsightIndex]}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              )}
-              {!loadingRadar && insightSlots.length > 1 && (
-                <div className="flex items-center gap-1.5 mt-2.5">
-                  {insightSlots.map((_, i) => (
-                    <Button variant="bare" size="none"
-                      key={i}
-                      type="button"
-                      onClick={() => goToInsight(i)}
-                      aria-label={t('homePage.viewSlideAria', { index: i + 1, total: insightSlots.length })}
-                      aria-current={i === activeInsightIndex}
-                      className="flex h-4 items-center px-0.5 -my-1.5"
-                    >
-                      <span
-                        className={`h-1 rounded-full transition-all duration-300 ${
-                          i === activeInsightIndex ? 'w-5 bg-tv-blue' : 'w-1 bg-white/15'
-                        }`}
-                      />
-                    </Button>
-                  ))}
-                </div>
-              )}
-              <p className="mt-2 lens-meta text-tv-muted">
-                {language === 'en' ? 'Source: Yahoo Finance, delay ±15 min' : 'Sumber: Yahoo Finance, delay ±15 menit'}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-
-      <HomeCalendarWatchlist
-        calendarEvents={calendarEvents}
-        watchlistCount={watchlistCount}
-        watchlistPreview={watchlistPreview}
-      />
 
       <HomeUpgradePrompt shouldOffer={authResolved && Boolean(authUser) && effectiveRole === 'guest'} />
     </PageContainer>
