@@ -10,8 +10,16 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
-  "connect-src 'self' https://*.ingest.sentry.io wss:",
+  // static.cloudflareinsights.com: beacon Cloudflare Web Analytics DISUNTIKKAN OTOMATIS
+  // oleh Cloudflare ke setiap respons HTML, jadi ia tidak pernah terlihat di kode ini.
+  // Tanpa izin di sini, CSP kita memblokir analytics kita sendiri dan angkanya nol tanpa
+  // penjelasan - terlihat di konsol produksi sebagai "Loading the script
+  // 'https://static.cloudflareinsights.com/beacon.min.js/...' violates ... script-src".
+  `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com${isProd ? '' : " 'unsafe-eval'"}`,
+  // Beacon-nya mengirim hasil pengukuran ke cloudflareinsights.com. Mengizinkan skripnya
+  // saja tidak cukup: tanpa baris ini skrip berhasil dimuat lalu gagal di langkah kirim,
+  // dan gejalanya sama persis - data tidak pernah sampai.
+  "connect-src 'self' https://*.ingest.sentry.io https://cloudflareinsights.com wss:",
   "worker-src 'self' blob:",
   isProd ? 'upgrade-insecure-requests' : '',
 ].filter(Boolean).join('; ');
