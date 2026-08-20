@@ -21,3 +21,4 @@ export { ApiErrorHint } from './ApiErrorHint';
 export { SectionHeader } from './SectionHeader';
 export { MetricBand, type MetricBandItem } from './MetricBand';
 export { InsightRow, type InsightDirection } from './InsightRow';
+export { StatusMeta, type StatusMetaItem } from './StatusMeta';
