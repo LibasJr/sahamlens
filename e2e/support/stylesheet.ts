@@ -39,11 +39,28 @@ export function productionStylesheet(): string {
   return cached;
 }
 
+/**
+ * Variabel font yang di produksi diinjeksikan next/font ke elemen <html>.
+ *
+ * Tanpa ini setiap peran tipografi RUNTUH ke serif: `font-family: var(--font-inter),
+ * 'Inter', sans-serif` menjadi invalid at computed-value time begitu `--font-inter` tidak
+ * terdefinisi - bukan jatuh ke item berikutnya dalam daftar, melainkan membatalkan seluruh
+ * deklarasinya. Akibatnya potret dan pengukuran memakai bentuk huruf yang tidak pernah
+ * dilihat pengguna.
+ *
+ * Nilainya sengaja stack sistem, bukan berkas font sungguhan: harness ini mengukur tata
+ * letak dan ritme, dan mengunduh font hanya menambah kerapuhan jaringan.
+ */
+const FONT_VARS = `:root {
+  --font-inter: system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+  --font-jetbrains-mono: 'Cascadia Mono', Consolas, 'Courier New';
+}`;
+
 /** Halaman kosong bergaya produksi, siap diisi markup uji. */
 export function pageHtml(body: string): string {
   return `<!doctype html>
 <html lang="id" class="dark">
-  <head><meta charset="utf-8"><style>${productionStylesheet()}</style></head>
+  <head><meta charset="utf-8"><style>${FONT_VARS}</style><style>${productionStylesheet()}</style></head>
   <body>${body}</body>
 </html>`;
 }

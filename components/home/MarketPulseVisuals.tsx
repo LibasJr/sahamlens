@@ -90,7 +90,7 @@ export function MarketBreadthBar({ breadth }: { breadth: { advancing: number; de
       </div>
 
       {/* Storytelling Verdict Box */}
-      <div className={`p-3 rounded-lg border text-xs sm:text-[13px] leading-relaxed flex items-center gap-2.5 ${verdict.bgTone}`}>
+      <div className={`p-3 rounded-lg border text-xs leading-relaxed flex items-center gap-2.5 ${verdict.bgTone}`}>
         <Activity className="w-4 h-4 shrink-0 opacity-80" />
         <span>{verdict.text}</span>
       </div>
@@ -123,7 +123,7 @@ export function CrossSymbolChips({ symbols, tone }: { symbols?: string[]; tone: 
         <Link
           key={s}
           href={`/technical/${s}.JK`}
-          className={`font-number inline-flex min-h-11 items-center rounded-md border px-2.5 text-[11px] font-bold transition-colors ${warna}`}
+          className={`font-number inline-flex min-h-11 items-center rounded-md border px-2.5 lens-meta font-bold transition-colors ${warna}`}
         >
           {s}
         </Link>
@@ -160,7 +160,7 @@ export function SectorHeatmap({ sectors }: { sectors: { sector: string; changePc
         <h4 className="text-xs font-bold uppercase tracking-wider text-tv-muted">
           {isEn ? 'IDX 11 Sectors Performance' : 'Performa 11 Sektor IDX'}
         </h4>
-        <span className="text-[11px] text-tv-muted/80">{isEn ? 'Sorted by strength' : 'Disortir dari terkuat'}</span>
+        <span className="lens-meta text-tv-muted/80">{isEn ? 'Sorted by strength' : 'Disortir dari terkuat'}</span>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
@@ -179,10 +179,10 @@ export function SectorHeatmap({ sectors }: { sectors: { sector: string; changePc
               style={{ background: `rgba(${rgb}, ${alpha})` }}
             >
               <div className="flex items-center justify-between gap-1.5">
-                <span className="text-xs sm:text-[13px] font-semibold text-tv-text/95 truncate">
+                <span className="text-xs font-semibold text-tv-text/95 truncate">
                   {s.sector}
                 </span>
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isPos ? 'bg-tv-green/20 text-tv-green' : isNeg ? 'bg-tv-red/20 text-tv-red' : 'bg-tv-muted/20 text-tv-muted'}`}>
+                <span className={`lens-meta font-bold px-1.5 py-0.5 rounded ${isPos ? 'bg-tv-green/20 text-tv-green' : isNeg ? 'bg-tv-red/20 text-tv-red' : 'bg-tv-muted/20 text-tv-muted'}`}>
                   {isPos ? '▲' : isNeg ? '▼' : '●'}
                 </span>
               </div>
@@ -195,7 +195,7 @@ export function SectorHeatmap({ sectors }: { sectors: { sector: string; changePc
       </div>
 
       {sorted.length > 1 && (
-        <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" surface="30" className="p-3 border-tv-border/60 text-xs text-tv-muted leading-relaxed">
+        <p className="lens-body-sm border-t border-tv-border/60 pt-3 text-tv-muted">
           {isEn ? (
             <>
               <span className="text-tv-green font-semibold">{best.sector}</span> leading ({best.changePct >= 0 ? '+' : ''}{best.changePct.toFixed(2)}%),{' '}
@@ -209,7 +209,7 @@ export function SectorHeatmap({ sectors }: { sectors: { sector: string; changePc
               <span className="font-number font-bold text-tv-text">{(best.changePct - worst.changePct).toFixed(2)} poin persen</span> antar sektor terkuat dan terlemah.
             </>
           )}
-        </Card>
+        </p>
       )}
     </div>
   );
