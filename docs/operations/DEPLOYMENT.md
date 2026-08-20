@@ -42,6 +42,39 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-20 - Penutupan utang Redesign V2 (analytics perjalanan riset, harness responsif, dua perbaikan UI)
+
+Lima PR mendarat berurutan: #67 (`02efe6d`), #70 (`f082b05`), #68 (`d450930`), #69 (`1a75b35`),
+#71 (`05db1f6`). Gerbang gabungan di `main` setelah semuanya masuk: `npm run verify:prod`
+EXIT=0 (240 berkas test / 2155 test, lint 0 error, build sukses, `audit:bundle` PASS) dan
+`npm run test:responsive` EXIT=0.
+
+**Tiga hal di bawah berdampak operasional dan tidak otomatis - baca sebelum deploy berikutnya.**
+
+- **MIGRASI BARU: `010_product_journey_events.sql`.** Tabel click stream beranotasi sesi untuk
+  metrik beta Calm Intelligence (PRD SEC.40). `product_funnel_events` tidak disentuh.
+  Auto-deploy **tidak menjalankan migrasi**, jadi jalankan sendiri di VPS:
+
+  ```bash
+  cd /opt/sahamlens/app
+  node --env-file=.env.production scripts/migrate-database.mjs            # dry-run, lapor pending
+  node --env-file=.env.production scripts/migrate-database.mjs --confirm
+  ```
+
+- **DEPENDENSI BARU: `@playwright/test` (devDependency) + job CI `responsive`.** `package.json`
+  berubah, jadi VPS wajib `npm ci` - dan `scripts/check-deps-installed.mjs` memang akan
+  menggagalkan build kalau tidak. Job `responsive` di `ci.yml` berdiri sendiri tanpa `needs:`,
+  mengunduh `--only-shell chromium`, dan **tidak** ikut `verify:prod` (melipat unduhan browser ke
+  gerbang lokal akan membuat seluruh pemeriksaan lain bergantung pada Chromium).
+
+- **ENV VAR BARU (opsional): `PRIVACY_JOURNEY_RETENTION_DAYS`**, bawaan 90 hari, dibaca
+  `scripts/cleanup-privacy-retention.mjs`. Tidak wajib diisi; lihat bagian "Retensi privasi" di
+  bawah untuk keluarga var ini.
+
+Perubahan produk: cap kesegaran + harga Watchlist kembali terlihat di bawah 640px; `/dashboard`
+menyalakan tab "Technical" yang menunjuk ke halaman itu sendiri; panel admin baru "Perjalanan
+riset (beta)" antara "Funnel pendaftaran" dan "Jejak autentikasi terbaru".
+
 ### 2026-08-17 - Perbaikan External Health Watch & CI Audit Risk Controls (T-2 Smoke Test)
 
 - **External Health Watch (`.github/workflows/external-health-watch.yml`)**: Runner GitHub Actions sebelumnya menerima HTTP 403 Challenge Cloudflare ("Just a moment...") saat memanggil `/api/health` secara langsung tanpa browser headers. Workflow kini dilengkapi browser User-Agent & Accept headers, retry mechanism 3x dengan backoff, validasi `/home` (HTTP 200), serta penanganan Cloudflare WAF challenge secara anggun bila IP runner eksternal di-challenge.
@@ -2668,6 +2701,21 @@ Kunci publik pasangan `VPS_SSH_KEY*` harus ada di `~lens/.ssh/authorized_keys` d
 
 ## ⚠️ Jebakan yang sudah pernah bikin deploy gagal
 
+**Migrasi dulu, baru kode - deploy otomatis tidak menunggu siapa pun** (kejadian 2026-08-20,
+migrasi `010`). Deploy berjalan sendiri begitu CI `main` hijau, sedangkan migrasi dijalankan
+manusia. Kalau kode yang membaca tabel baru mendarat lebih dulu, ada jendela waktu di mana
+tabelnya belum ada - dan pada kejadian ini seluruh `/admin` ikut jatuh, bukan cuma panel yang
+bersangkutan, karena halaman itu memuat semua panelnya dalam satu `Promise.all`. Urutan yang
+benar: jalankan migrasi di VPS **sebelum** PR-nya di-merge. Isolasi panel sudah diperbaiki
+(`shared/presentation/panel-result.ts`), tapi urutannya tetap yang menentukan.
+
+**PR dengan base bukan `main` tidak menjalankan CI sama sekali** (kejadian 2026-08-20, PR #70).
+`ci.yml` terpicu `pull_request: branches: [main]`, jadi PR bertumpuk di atas branch lain berdiri
+dengan **nol check** - dan nol check terbaca persis seperti hijau di daftar PR. Mengubah base ke
+`main` **tidak** memicu CI (event `edited` tidak ada di trigger default); yang menyalakannya
+hanya perubahan SHA (`synchronize`). Kalau memakai PR bertumpuk, rebase ke `main` lalu
+force-push sebelum menganggapnya teruji.
+
 **Jangan kembalikan blok `crons` ke `vercel.json`** (kejadian 2026-08-12, commit `2a64988`).
 Cron sudah dipindah ke VPS dan dihapus dari dashboard Vercel - tapi muncul lagi sendiri, karena
 Vercel Cron BUKAN state dashboard: ia dibaca ulang dari `vercel.json` **setiap deployment**, dan
@@ -2808,6 +2856,32 @@ grep pemakaian di source) dan diperbarui saat migrasi VPS:
 panggilan server-to-server ke `/api/stock`, dst bisa lewati gate session) - status di
 `.env.production` **belum pernah diverifikasi ulang setelah pindah VPS**. Kalau menyentuh alur
 cron/alert, cek dulu di server: `sudo grep -c INTERNAL_API_SECRET /opt/sahamlens/app/.env.production`.
+
+### Retensi privasi (semuanya opsional, semuanya punya bawaan)
+
+Dibaca `scripts/cleanup-privacy-retention.mjs`. **Tidak ada yang wajib diisi** - kalau var tidak
+ada, skrip memakai bawaan di bawah. Skrip menolak nilai di bawah 30 hari.
+
+| Var | Bawaan | Tabel yang disapu |
+|---|---|---|
+| `PRIVACY_AUTH_EVENT_RETENTION_DAYS` | 90 | `user_auth_events` |
+| `PRIVACY_FUNNEL_RETENTION_DAYS` | 90 | `product_funnel_events` |
+| `PRIVACY_JOURNEY_RETENTION_DAYS` | 90 | `product_journey_events` (sejak 2026-08-20) |
+| `PRIVACY_LENSAI_FEEDBACK_RETENTION_DAYS` | 180 | `lensai_feedback` |
+| `PRIVACY_UNPAID_ORDER_RETENTION_DAYS` | 180 | `payment_orders` berstatus non-PAID |
+| `PRIVACY_ADMIN_AUDIT_RETENTION_DAYS` | 365 | `admin_audit_events` |
+
+Tanpa `--confirm` skrip hanya melaporkan (dry run):
+
+```bash
+cd /opt/sahamlens/app
+node --env-file=.env.production scripts/cleanup-privacy-retention.mjs
+node --env-file=.env.production scripts/cleanup-privacy-retention.mjs --confirm
+```
+
+**Tabel analitik baru wajib masuk daftar itu.** Tabel yang tidak pernah disapu adalah kebocoran
+retensi yang tumbuh diam-diam; `shared/analytics/__tests__/journey-instrumentation.test.ts`
+menjaga khusus untuk `product_journey_events`.
 
 ## Kapasitas VPS dan beban cron terukur (baseline 2026-08-13)
 
