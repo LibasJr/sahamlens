@@ -27,6 +27,7 @@ import {
   TickerAvatar,
   AnimatedNumber,
   ApiErrorHint,
+  SectionHeader,
 } from '@/components/ui';
 import { fadeUp, staggerContainer } from '@/lib/motion';
 import { useLanguage } from '@/lib/i18n';
@@ -234,18 +235,12 @@ export default function HomeWorkspace() {
           sama seperti gerbang Today's Opportunities di bawah - user non-Pro/anon lihat
           upsell, bukan data kosong). IHSG dicabut dari sini (redundan - sudah tampil
           terus-menerus di TopMarketBar global sejak Phase 1). */}
-      <motion.div initial="hidden" animate="show" variants={fadeUp}>
-        <Card hoverable>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-tv-muted" />
-              {/* Judul menyebut FUNGSI, merek jadi keterangan. Sebelumnya kartu ini
-                  menulis "LensMarket" dua kali dalam satu baris - judul di kiri dan
-                  tautan di kanan - sehingga tautannya tidak memberi tahu apa pun. */}
-              <CardTitle>Kondisi Pasar</CardTitle>
-            </div>
-            <Link href="/market-pulse" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
-          </CardHeader>
+      <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
+        <SectionHeader
+          eyebrow="Pasar"
+          title="Kondisi Pasar"
+          action={<Link href="/market-pulse" className="lens-label text-tv-blue hover:underline">Lihat semua</Link>}
+        />
           {marketPulseLoginRequired ? (
             <EmptyState title="Login untuk melihat kondisi pasar" description="Sector & breadth butuh akun." />
           ) : marketPulseNeedPro ? (
@@ -266,7 +261,7 @@ export default function HomeWorkspace() {
             <div className="space-y-3">
               <MarketBreadthBar breadth={marketPulse.breadth} />
               <SectorHeatmap sectors={marketPulse.sectorHeatmap} />
-              <p className="text-[10px] leading-relaxed text-tv-muted/80">
+              <p className="lens-meta leading-relaxed text-tv-muted/80">
                 Heatmap menampilkan 11 sektor IDX berbasis sampel saham representatif per sektor, bukan seluruh emiten.
               </p>
             </div>
@@ -283,7 +278,7 @@ export default function HomeWorkspace() {
           <div className="mt-4 border-t border-tv-border pt-4">
             <div className="mb-2.5 flex items-center gap-2">
               <TrendingUp className="h-3.5 w-3.5 text-tv-blue" />
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-tv-muted">Persilangan Rata-rata Bergerak</h4>
+              <h4 className="lens-meta font-bold uppercase tracking-wider text-tv-muted">Persilangan Rata-rata Bergerak</h4>
             </div>
             {loadingDailyPicks ? (
             <div className="space-y-3">
@@ -321,7 +316,7 @@ export default function HomeWorkspace() {
               </div>
               {/* Storytelling: dua angka mentah tidak memberi tahu apa pun sampai
                   dibandingkan satu sama lain. */}
-              <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
+              <p className="mt-3 lens-meta leading-relaxed text-tv-muted">
                 {(() => {
                   const g = dailyPicks.goldenCross.count;
                   const d = dailyPicks.deadCross.count;
@@ -334,8 +329,7 @@ export default function HomeWorkspace() {
             </>
             )}
           </div>
-        </Card>
-      </motion.div>
+      </motion.section>
 
       {/* Peluang Hari Ini - SATU kartu, dulu DUA ("Peluang Teratas" + "Kandidat
           Berikutnya"). Penggabungan ini bukan sekadar kosmetik: keduanya membaca
@@ -347,20 +341,21 @@ export default function HomeWorkspace() {
 
           Badge Delayed/Data-Sesi-Terakhir naik ke CardHeader supaya statusnya terbaca
           sebelum angkanya, bukan terselip di dalam badan kartu. */}
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Card variant="default" padding="lg" className="border-tv-border/80 shadow-none">
-          <CardHeader>
+      <motion.section variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
+        <SectionHeader
+          eyebrow="LensRadar"
+          title="Peluang Hari Ini"
+          action={(
             <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-tv-gold" />
-              <CardTitle>Peluang Hari Ini</CardTitle>
               {radarStale || !isMarketOpen() ? (
                 <Badge variant="neutral" dot>Data Sesi Terakhir</Badge>
               ) : (
                 <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Delayed</Badge>
               )}
+              <Link href="/breakout-radar" className="lens-label text-tv-blue hover:underline">Lihat semua</Link>
             </div>
-            <Link href="/breakout-radar" className="text-[11px] text-tv-blue hover:underline">Lihat semua</Link>
-          </CardHeader>
+          )}
+        />
 
           {loadingRadar ? (
             <div className="space-y-3">
@@ -414,13 +409,13 @@ export default function HomeWorkspace() {
                       coverage (porsi bobot yang benar-benar punya data) tidak pernah tampil
                       meski sudah lama dihitung. */}
                   <div className="text-right">
-                    <div className="text-[10px] text-tv-muted uppercase tracking-wide">LensScore</div>
+                    <div className="lens-meta text-tv-muted uppercase tracking-wide">LensScore</div>
                     <div className="font-number text-3xl font-bold text-tv-blue">
                       <AnimatedNumber value={hero.finalScore} format={(n) => String(Math.round(n))} />
                       <span className="text-sm font-normal text-tv-muted">/100</span>
                     </div>
                     {typeof hero.coverage === 'number' && (
-                      <div className="text-[10px] text-tv-muted">data {hero.coverage}%</div>
+                      <div className="lens-meta text-tv-muted">data {hero.coverage}%</div>
                     )}
                   </div>
                 </div>
@@ -447,7 +442,7 @@ export default function HomeWorkspace() {
                   <div className="mt-1 border-t border-tv-border pt-3">
                     <div className="mb-2.5 flex items-center gap-2">
                       <Radar className="h-3.5 w-3.5 text-tv-purple" />
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-tv-muted">Kandidat Berikutnya</h4>
+                      <h4 className="lens-meta font-bold uppercase tracking-wider text-tv-muted">Kandidat Berikutnya</h4>
                     </div>
                 <div className="space-y-2">
                   {radarItems.slice(1, 6).map((it) => (
@@ -460,15 +455,15 @@ export default function HomeWorkspace() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-number text-sm font-bold text-white">{it.symbol.replace('.JK', '')}</span>
-                            <span className={`text-[11px] font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                            <span className={`lens-meta font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                               {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(2)}%
                             </span>
                           </div>
-                          {it.flagged && <span className="text-tv-red text-[10px]">! {it.flagReason}</span>}
+                          {it.flagged && <span className="text-tv-red lens-meta">! {it.flagReason}</span>}
                           {/* Sebelumnya baris ini jatuh ke '-' polos saat topReasons kosong -
                               user tidak bisa membedakan "tidak ada alasan" dari "alasannya
                               gagal dimuat". Sekarang kekosongannya dinamai. */}
-                          <div className="text-[10px] text-tv-muted truncate">
+                          <div className="lens-meta text-tv-muted truncate">
                             {it.topReasons?.[0] ?? (it.signals?.[0] || 'Lolos ambang skor, rincian alasan belum tersedia')}
                           </div>
                         </div>
@@ -476,7 +471,7 @@ export default function HomeWorkspace() {
                             membandingkan angka satu per satu antar baris. */}
                         <div className="text-right shrink-0 w-20">
                           <div className="font-number text-sm font-semibold text-white">
-                            {it.finalScore}<span className="text-[10px] font-normal text-tv-muted">/100</span>
+                            {it.finalScore}<span className="lens-meta font-normal text-tv-muted">/100</span>
                           </div>
                           <div className="mt-1 h-1 w-full rounded-full bg-tv-hover overflow-hidden">
                             <div
@@ -484,7 +479,7 @@ export default function HomeWorkspace() {
                               style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
                             />
                           </div>
-                          <div className="text-[10px] text-tv-muted font-number mt-1">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
+                          <div className="lens-meta text-tv-muted font-number mt-1">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>
                         </div>
                       </Link>
                     </motion.div>
@@ -495,8 +490,7 @@ export default function HomeWorkspace() {
               </div>
             );
           })()}
-        </Card>
-      </motion.div>
+      </motion.section>
 
       {/* Market Movers - dulu 3 card grid (Gainer/Loser/Volume) sekaligus, sekarang
           1 card ber-tab (spec BUILD 001: kurangi section panjang dengan tabs) -
@@ -562,9 +556,7 @@ export default function HomeWorkspace() {
         return (
           <motion.div initial="hidden" animate="show" variants={fadeUp} className="space-y-3">
             {marketError ? (
-              <Card>
                 <EmptyState title={isEn ? 'Market data temporarily unavailable.' : 'Data pasar sementara tidak tersedia.'} action={{ label: isEn ? 'Retry' : 'Coba lagi', onClick: fetchMarket }} />
-              </Card>
             ) : (
               <>
                 <SegmentedControl
@@ -638,7 +630,7 @@ export default function HomeWorkspace() {
                   ))}
                 </div>
               )}
-              <p className="mt-2 text-[10px] text-tv-muted">
+              <p className="mt-2 lens-meta text-tv-muted">
                 {language === 'en' ? 'Source: Yahoo Finance, delay ±15 min' : 'Sumber: Yahoo Finance, delay ±15 menit'}
               </p>
             </div>
