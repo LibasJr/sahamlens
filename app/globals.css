@@ -1300,6 +1300,20 @@ html .lens-chip {
   vertical-align: middle;
 }
 
+/* PENJAGA. `lens-chip` menyetel `display: inline-flex` - benar untuk pil/badge, MERUSAK
+ * untuk elemen struktur tabel. Terpasang di <tr> header LensScanner ia membuat thead
+ * berhenti ikut menentukan lebar kolom, sel pertama tbody membengkak ~1654px, dan
+ * seluruh kolom lain terdorong ke luar viewport - tabelnya tampak kosong padahal
+ * datanya utuh (terukur di produksi 2026-08-21).
+ *
+ * Kegagalannya SENYAP: tidak ada error, teksnya tetap ada di DOM, dan Export CSV tetap
+ * benar. Karena itu ditutup di sini, bukan hanya diperbaiki di satu pemakaian - `revert`
+ * mengembalikan tiap elemen ke display bawaannya (`table-row`, `table-cell`, dst).
+ * `:is()` dipakai supaya spesifisitasnya melampaui `html .lens-chip` di atas. */
+html :is(table, thead, tbody, tfoot, tr, th, td).lens-chip {
+  display: revert;
+}
+
 /* Pengecualian kartu ekspor - dikembalikan ke ukuran aslinya. */
 .lens-export-dark .text-\[9px\],
 .lens-export-dark .text-\[10px\],

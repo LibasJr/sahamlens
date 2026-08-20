@@ -138,7 +138,16 @@ export default function ScreenerResults({
        className={`lens-table-sticky-col lens-table-sticky-col-2 [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden md:block overflow-x-auto${loading ? ' opacity-50 pointer-events-none' : ''}`}>
     <table className="w-full text-left text-xs font-mono border-collapse">
       <thead>
-        <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase lens-chip">
+        {/* JANGAN pasang `lens-chip` di sini. Kelas itu untuk pil/badge dan menyetel
+            `display: inline-flex`; pada <tr> ia mengubah baris header jadi wadah flex,
+            <th>-nya menjadi `display: block`, dan thead BERHENTI ikut menentukan lebar
+            kolom. Akibatnya tbody menghitung kolomnya sendiri: sel pertama membengkak
+            jadi ~1654px (terukur di produksi 2026-08-21) sehingga seluruh kolom lain
+            terdorong ke luar viewport. Tabelnya terlihat "kosong" padahal datanya ada -
+            hanya nomor baris yang tersisa di layar.
+            Tipografinya sudah dipenuhi `text-xs` di <table>, jadi kelas itu memang tidak
+            memberi apa pun di sini selain kerusakan. */}
+        <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase leading-none">
           <th className="w-12 p-3">#</th>
           {SORTABLE_COLUMNS.map((col) => (
             <th key={col.key} className={`p-3 ${col.align === 'right' ? 'text-right' : ''}`}>
