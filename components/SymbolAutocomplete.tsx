@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { TICKERS } from '@/lib/tickers';
 import TickerAvatar from '@/components/ui/TickerAvatar';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { tickerLabel } from '@/lib/utils/ticker-label';
 
 const POPULAR_SEARCH_RANK = new Map<string, number>([
   ['BBRI.JK', 0],
@@ -94,7 +95,7 @@ export default function SymbolAutocomplete({
         role="combobox"
         aria-controls={listboxId}
         aria-activedescendant={showDropdown && suggestions.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined}
-        value={value}
+        value={tickerLabel(value)}
         onChange={(event) => {
           const next = event.target.value;
           onChange(next);
@@ -158,7 +159,7 @@ export default function SymbolAutocomplete({
             >
               <TickerAvatar symbol={item.symbol} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block font-number text-xs font-bold text-tv-text">{item.symbol.replace(/\.JK$/i, '')}</span>
+                <span className="block font-number text-xs font-bold text-tv-text">{tickerLabel(item.symbol)}</span>
                 <span className="mt-0.5 block truncate text-[10px] text-tv-muted">{item.name}</span>
               </span>
             </PrimitiveButton>
