@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens local schedule - backtest-precompute
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 05:30:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1s
+Unit=sahamlens-local-cron@backtest-precompute.service
+
+[Install]
+WantedBy=timers.target
