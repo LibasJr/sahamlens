@@ -57,7 +57,7 @@ export default function HomeCalendarWatchlist({
                       <TickerAvatar symbol={event.symbol} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-number text-sm font-bold text-white">{event.symbol}</span>
+                          <span className="font-number text-sm font-bold text-white">{event.symbol.replace(/\.JK$/i, '')}</span>
                           <Badge variant={event.type === 'DIVIDEND' ? 'success' : 'info'}>
                             {event.type === 'DIVIDEND' ? t('calendar.dividendType') : t('calendar.earningsType')}
                           </Badge>
