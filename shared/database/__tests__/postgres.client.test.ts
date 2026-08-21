@@ -38,4 +38,22 @@ describe('postgres.client', () => {
     expect(first).toBeDefined();
     expect(second).toBe(first);
   });
+
+  it.each([
+    'postgresql://user:pass@127.0.0.1:5432/db',
+    'postgresql://user:pass@localhost:5432/db',
+    'postgresql://user:pass@[::1]:5432/db',
+  ])('menonaktifkan TLS hanya untuk database loopback: %s', async (databaseUrl) => {
+    const { resolveDatabaseSsl } = await import('../postgres.client');
+
+    expect(resolveDatabaseSsl(databaseUrl)).toBe(false);
+  });
+
+  it('mempertahankan verifikasi TLS ketat untuk database remote', async () => {
+    const { resolveDatabaseSsl } = await import('../postgres.client');
+
+    expect(resolveDatabaseSsl('postgresql://user:pass@example.com:5432/db')).toEqual({
+      rejectUnauthorized: true,
+    });
+  });
 });
