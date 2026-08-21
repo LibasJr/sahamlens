@@ -42,6 +42,17 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-21 - OTP email melalui SMTP Hostinger
+
+- Pengiriman OTP signup dan reset password tidak lagi memakai preset Nodemailer Gmail.
+  Transport menggunakan SMTP eksplisit dengan default `smtp.hostinger.com:465` dan TLS.
+- Production memakai `SMTP_EMAIL=no-reply@sahamlens.id`; password hanya disimpan di
+  `/opt/sahamlens/app/.env.production` dan tidak boleh dimasukkan ke chat, commit, atau log.
+- Variabel SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_EMAIL`, `SMTP_PASSWORD`, dan
+  `SMTP_FROM_NAME`. Setelah mengubahnya, restart `sahamlens.service`.
+- DNS publik yang diverifikasi: MX Hostinger, SPF Hostinger, dan tiga selector DKIM Hostinger.
+  DMARC tetap perlu ditambahkan pada `_dmarc.sahamlens.id`.
+
 ### 2026-08-20 - Panel Flow hanya menyajikan data resmi BEI; proxy CMF dihentikan
 
 `/api/flow/[ticker]` tidak lagi punya jalur kedua. Sebelumnya emiten tanpa artefak resmi
@@ -110,7 +121,6 @@ EXIT=0 (240 berkas test / 2155 test, lint 0 error, build sukses, `audit:bundle` 
 Perubahan produk: cap kesegaran + harga Watchlist kembali terlihat di bawah 640px; `/dashboard`
 menyalakan tab "Technical" yang menunjuk ke halaman itu sendiri; panel admin baru "Perjalanan
 riset (beta)" antara "Funnel pendaftaran" dan "Jejak autentikasi terbaru".
-
 ### 2026-08-17 - Perbaikan External Health Watch & CI Audit Risk Controls (T-2 Smoke Test)
 
 - **External Health Watch (`.github/workflows/external-health-watch.yml`)**: Runner GitHub Actions sebelumnya menerima HTTP 403 Challenge Cloudflare ("Just a moment...") saat memanggil `/api/health` secara langsung tanpa browser headers. Workflow kini dilengkapi browser User-Agent & Accept headers, retry mechanism 3x dengan backoff, validasi `/home` (HTTP 200), serta penanganan Cloudflare WAF challenge secara anggun bila IP runner eksternal di-challenge.
