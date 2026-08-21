@@ -16,9 +16,10 @@ const CACHE_KEY = 'sahamlens:cache:computed:breakout-radar';
 
 async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
+  const authorization = req.headers.get('authorization');
   const rawBody = await req.text();
 
-  const isValid = await verifyQStashSignature(signature, rawBody);
+  const isValid = await verifyQStashSignature(signature, rawBody, authorization);
   if (!isValid) {
     logger.warn('Menolak request /api/cron/breakout-scan - signature QStash tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
