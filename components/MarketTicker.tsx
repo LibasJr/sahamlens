@@ -104,7 +104,7 @@ export default function MarketTicker() {
           href={`/technical/${it.symbol}`}
           className="inline-flex items-baseline gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-1 focus-visible:outline-tv-blue"
         >
-          <span className="lens-label text-tv-text/85">{it.symbol}</span>
+          <span className="lens-label text-tv-text/85">{it.symbol.replace(/\.JK$/i, '')}</span>
           <span className="font-number lens-meta text-tv-muted">{it.price.toLocaleString(locale)}</span>
           {/* Hijau/merah HANYA di sini. Kode saham dan harganya sengaja netral - kalau
               seluruh baris ikut berwarna, warnanya berhenti berarti "naik/turun" dan
