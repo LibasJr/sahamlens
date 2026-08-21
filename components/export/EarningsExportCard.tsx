@@ -73,7 +73,7 @@ export default function EarningsExportCard({ ticker, stock, upcoming, expectatio
       <div className="flex-1 p-16 flex flex-col justify-between">
         <div>
           <div className="mb-8">
-            <div className="text-6xl font-heading font-extrabold leading-tight">{displaySymbol}.JK</div>
+            <div className="text-6xl font-heading font-extrabold leading-tight">{displaySymbol}</div>
             <div className="text-xl text-tv-muted mt-1">{stock.name || displaySymbol}{stock.sector ? ` · ${stock.sector}` : ''}</div>
           </div>
 

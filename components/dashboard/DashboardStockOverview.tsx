@@ -77,7 +77,7 @@ export function DashboardStockOverview(props: {
       <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
       <div>
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}.JK</h1>
+          <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}</h1>
           <QuickWatchlistStar ticker={stock.symbol || ticker} />
           <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
         </div>
