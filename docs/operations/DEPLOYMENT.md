@@ -42,6 +42,15 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-21 - Dropdown pencarian hero beranda tidak terlihat
+
+- Autocomplete bersama sudah berfungsi pada pencarian lain, tetapi dropdown di bawah hero
+  “Lihat Peluang Lebih Jelas” terpotong oleh `overflow-hidden` milik kartu hero.
+- Kartu kini mengizinkan konten interaktif melampaui batasnya; hanya lapisan dekorasi glow
+  yang tetap dipotong. Mengetik `BB` dapat menampilkan pilihan seperti `BBRI`, `BBCA`,
+  `BBNI`, dan ticker awalan `BB` lainnya.
+- Tidak ada endpoint, env var, atau prosedur deploy baru.
+
 ### 2026-08-21 - Template email OTP profesional
 
 - Email verifikasi akun dan reset kata sandi memakai bahasa Indonesia formal, versi teks
