@@ -165,6 +165,8 @@ export interface CalibrationDashboardData {
   latestStatsRunDate: string | null;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -468,6 +470,8 @@ export async function calculateCalibrationObservations(
   tradingCalendarSource: TradingCalendarSource;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -591,6 +595,8 @@ export async function calculateCalibrationObservations(
     tradingCalendarSource: calendar.source,
     scoreVersion: partition.version,
     requestedScoreVersion,
+    scoreConfigHash: partition.configHash ?? requestedConfigHash,
+    configRejectedRows: partition.configRejectedCount,
     rejectedRows: partition.rejected.length,
     unversionedRows: partition.unversionedCount,
     versionMixed: partition.mixed,
@@ -937,6 +943,8 @@ export async function getCalibrationDashboardData(
     unversionedRows,
     versionMixed,
     versionRejectedReason,
+    scoreConfigHash,
+    configRejectedRows,
     fundamentalPitCoverage,
   } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
@@ -972,6 +980,8 @@ export async function getCalibrationDashboardData(
     latestStatsRunDate: latestStats.runDate,
     scoreVersion,
     requestedScoreVersion,
+    scoreConfigHash,
+    configRejectedRows,
     rejectedRows,
     unversionedRows,
     versionMixed,

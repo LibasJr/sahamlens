@@ -194,6 +194,8 @@ describe('calculateLensBucketStats', () => {
     });
 
     expect(result.scoreVersion).toBe('lens-score-v1.2.0');
+    expect(result.scoreConfigHash).toBe('legacy-v1.2-hash');
+    expect(result.configRejectedRows).toBe(0);
     expect(result.rejectedRows).toBe(6);
     expect(result.sourceRows).toBe(6);
     expect(result.stats.find((s) => s.bucket === '80-100')?.avg_T1).toBeLessThan(0);
