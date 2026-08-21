@@ -59,7 +59,7 @@ export default function MoatExportCard({ ticker, stock, profile, moat, durabilit
               <SectorIcon className={`w-8 h-8 ${sectorTheme.chipText}`} />
             </div>
             <div>
-              <div className="text-5xl font-heading font-extrabold leading-tight">{displaySymbol}.JK</div>
+              <div className="text-5xl font-heading font-extrabold leading-tight">{displaySymbol}</div>
               <div className="text-lg text-tv-muted mt-1">{stock.name || displaySymbol} &middot; {profile.sector || '-'}</div>
             </div>
           </div>

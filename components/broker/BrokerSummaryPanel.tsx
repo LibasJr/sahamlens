@@ -31,6 +31,27 @@ function compactIdr(val: number): string {
   return `Rp ${val.toLocaleString('id-ID')}`;
 }
 
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function percentLabel(value: unknown): string {
+  const number = finiteNumber(value);
+  return number == null ? 'N/A' : `${number}%`;
+}
+
+function signedIdrLabel(value: unknown): string {
+  const number = finiteNumber(value);
+  if (number == null) return 'N/A';
+  return `${number >= 0 ? '+' : ''}${compactIdr(number)}`;
+}
+
+function valueTone(value: unknown): string {
+  const number = finiteNumber(value);
+  if (number == null) return 'text-tv-muted';
+  return number >= 0 ? 'text-tv-green' : 'text-tv-red';
+}
+
 export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
@@ -258,21 +279,19 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                 <div className="space-y-2 text-xs">
                   {/* Multi-segment Bar */}
                   <div className="h-2 w-full rounded-full bg-tv-bg flex overflow-hidden">
-                    <div style={{ width: `${comp.foreign?.pct || 0}%` }} className="bg-tv-gold" title={`Asing: ${comp.foreign?.pct}%`} />
-                    <div style={{ width: `${comp.retail?.pct || 0}%` }} className="bg-tv-muted" title={`Ritel*: ${comp.retail?.pct}%`} />
-                    <div style={{ width: `${comp.unknown?.pct || 0}%` }} className="bg-tv-borderLight" title={`Belum terklasifikasi: ${comp.unknown?.pct}%`} />
+                    <div style={{ width: `${finiteNumber(comp.foreign?.pct) ?? 0}%` }} className="bg-tv-gold" title={`Asing: ${percentLabel(comp.foreign?.pct)}`} />
+                    <div style={{ width: `${finiteNumber(comp.retail?.pct) ?? 0}%` }} className="bg-tv-muted" title={`Ritel*: ${percentLabel(comp.retail?.pct)}`} />
+                    <div style={{ width: `${finiteNumber(comp.unknown?.pct) ?? 0}%` }} className="bg-tv-borderLight" title={`Belum terklasifikasi: ${percentLabel(comp.unknown?.pct)}`} />
                   </div>
 
                   {/* Legends */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 lens-meta pt-1">
                     <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
                       <div className="flex items-center justify-center gap-1 lens-meta text-tv-gold font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-gold" /> Asing* ({comp.foreign?.pct}%)
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-gold" /> Asing* ({percentLabel(comp.foreign?.pct)})
                       </div>
-                      <div className={`font-number font-bold mt-1 lens-meta ${
-                        comp.foreign?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
-                      }`}>
-                        {comp.foreign?.netValue >= 0 ? '+' : ''}{compactIdr(comp.foreign?.netValue || 0)}
+                      <div className={`font-number font-bold mt-1 lens-meta ${valueTone(comp.foreign?.netValue)}`}>
+                        {signedIdrLabel(comp.foreign?.netValue)}
                       </div>
                     </Card>
 
@@ -285,25 +304,23 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
 
                     <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
                       <div className="flex items-center justify-center gap-1 lens-meta text-tv-muted font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-muted" /> Ritel* ({comp.retail?.pct}%)
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-muted" /> Ritel* ({percentLabel(comp.retail?.pct)})
                       </div>
-                      <div className={`font-number font-bold mt-1 lens-meta ${
-                        comp.retail?.netValue >= 0 ? 'text-tv-green' : 'text-tv-red'
-                      }`}>
-                        {comp.retail?.netValue >= 0 ? '+' : ''}{compactIdr(comp.retail?.netValue || 0)}
+                      <div className={`font-number font-bold mt-1 lens-meta ${valueTone(comp.retail?.netValue)}`}>
+                        {signedIdrLabel(comp.retail?.netValue)}
                       </div>
                     </Card>
                     <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-2 bg-tv-card/40 border-tv-border/50 text-center">
                       <div className="flex items-center justify-center gap-1 lens-meta text-tv-muted font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-tv-borderLight" /> Unknown ({comp.unknown?.pct || 0}%)
+                        <span className="h-1.5 w-1.5 rounded-full bg-tv-borderLight" /> Unknown ({percentLabel(comp.unknown?.pct)})
                       </div>
                       <div className="font-number font-bold mt-1 lens-meta text-tv-muted">
-                        {compactIdr(comp.unknown?.netValue || 0)}
+                        {signedIdrLabel(comp.unknown?.netValue)}
                       </div>
                     </Card>
                   </div>
                   <p className="lens-meta text-tv-muted leading-relaxed">
-                    * Klasifikasi Asing/Ritel berasal dari mapping internal kode broker. Institusi domestik belum dipetakan dan ditampilkan N/A; coverage terklasifikasi {comp.classifiedCoveragePct ?? 0}%.
+                    * Klasifikasi Asing/Ritel berasal dari mapping internal kode broker. Institusi domestik belum dipetakan dan ditampilkan N/A; coverage terklasifikasi {percentLabel(comp.classifiedCoveragePct)}.
                   </p>
                 </div>
               )}

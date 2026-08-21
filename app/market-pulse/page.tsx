@@ -241,6 +241,9 @@ export default function MarketPulse() {
                   )}
                   {hasData && <Sparkline data={idx.sparkline} color={isUp ? '#22C55E' : '#EF4444'} />}
                 </div>
+                {idx.name === 'IHSG' && idx.source === 'IDX_OFFICIAL_INDEX_SUMMARY' && (
+                  <div className="mt-1 text-[10px] font-semibold text-tv-blue">Penutupan resmi BEI</div>
+                )}
               </motion.div>
             );
           }) : (
@@ -296,7 +299,7 @@ export default function MarketPulse() {
                     <div className="font-bold text-tv-text font-number flex items-center gap-2 min-w-0">
                       <span className="text-xs text-tv-muted shrink-0">#{idx + 1}</span>
                       <TickerAvatar symbol={item.symbol} size="sm" />
-                      <span className="truncate">{item.symbol}</span>
+                      <span className="truncate">{item.symbol.replace(/\.JK$/i, '')}</span>
                     </div>
                     <div className="text-xs font-bold text-tv-blue font-number shrink-0">{item.change}</div>
                   </div>

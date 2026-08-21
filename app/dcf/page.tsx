@@ -83,7 +83,7 @@ function DcfContent() {
       moduleBank="LENSAI"
       icon={<Calculator className="w-6 h-6" />}
       accent="blue"
-      title={`${stock.symbol || ticker}.JK Intrinsic Valuation`}
+      title={`${(stock.symbol || ticker).replace(/\.JK$/i, '')} Intrinsic Valuation`}
       subtitle={`Discount rate proxy ${discountRatePct != null ? `${discountRatePct}%` : '-'} (asumsi SBN 10Y ${quant.sbn_10y_yield != null ? `${quant.sbn_10y_yield}%` : '-'} + risk premium ${quant.risk_premium != null ? `${quant.risk_premium}%` : '-'})`}
       // flex-wrap: tiga blok metrik + gap 24px tidak muat di 320-375px, dan karena
       // <main> memakai overflow-y-auto (yang membuat overflow-x terhitung auto),
@@ -132,7 +132,7 @@ function DcfContent() {
         <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-yellow/40 p-6 flex items-start gap-4">
           <AlertTriangle className="w-6 h-6 text-tv-yellow shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-heading text-tv-text font-bold mb-1">Model DCF Tidak Berlaku untuk {stock.symbol || ticker}.JK</h3>
+            <h3 className="font-heading text-tv-text font-bold mb-1">Model DCF Tidak Berlaku untuk {(stock.symbol || ticker).replace(/\.JK$/i, '')}</h3>
             <p className="text-sm text-tv-muted leading-relaxed">{ai.executive_summary}</p>
           </div>
         </Card>
