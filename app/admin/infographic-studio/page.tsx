@@ -92,7 +92,7 @@ export default function InfographicStudioPage() {
     setActiveTicker(cleanSym);
     try {
       const apiTicker = isIhsg ? '^JKSE' : `${cleanSym}.JK`;
-      const displaySymbol = isIhsg ? 'IHSG' : `${cleanSym}.JK`;
+      const displaySymbol = isIhsg ? 'IHSG' : cleanSym;
 
       // Parallel fetch payload technical, fundamental, earnings, intrinsic & ownership
       const [stockRes, fundRes, earningsRes, intrinsicRes, ownershipRes] = await Promise.all([
