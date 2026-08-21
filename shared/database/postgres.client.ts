@@ -52,6 +52,19 @@ function installPoolErrorHandler(pool: Pool): void {
   globalForPg.__sahamlensPgPoolErrorHandlerInstalled = true;
 }
 
+export function resolveDatabaseSsl(databaseUrl: string): false | { rejectUnauthorized: true } {
+  const databaseHost = new URL(databaseUrl).hostname;
+  const isLoopbackDatabase =
+    databaseHost === '127.0.0.1' ||
+    databaseHost === 'localhost' ||
+    databaseHost === '::1' ||
+    databaseHost === '[::1]';
+
+  // PostgreSQL production VPS hanya diekspos melalui loopback dan tidak memakai TLS.
+  // Database remote tetap wajib lolos verifikasi sertifikat dan hostname.
+  return isLoopbackDatabase ? false : { rejectUnauthorized: true };
+}
+
 // Pool dibuat saat PERTAMA DIPAKAI, bukan saat modul diimpor.
 function getPool(): Pool {
   if (!globalForPg.__sahamlensPgPool) {
@@ -64,7 +77,7 @@ function getPool(): Pool {
 
     const pgPool = new Pool({
       connectionString: databaseUrl,
-      ssl: { rejectUnauthorized: true },
+      ssl: resolveDatabaseSsl(databaseUrl),
       // Serverless-safe default is 3; increase only when the upstream URL is a
       // transaction pooler and the database connection budget is known.
       max: DATABASE_POOL_MAX,
