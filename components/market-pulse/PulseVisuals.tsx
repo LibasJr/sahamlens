@@ -109,7 +109,7 @@ export function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }:
               s.changePct >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'
             }`}
           >
-            {s.symbol} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%
+            {s.symbol.replace(/\.JK$/i, '')} {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(1)}%
           </span>
         ))}
         {stocks?.length > 4 && (
@@ -158,7 +158,7 @@ export function SectorDetailModal({ sector, onClose }: { sector: any; onClose: (
                 className="flex items-center gap-3 rounded-lg bg-tv-hover hover:bg-tv-border px-3 py-2 transition-colors"
               >
                 <TickerAvatar symbol={s.symbol} size="sm" />
-                <span className="text-sm font-bold text-tv-text flex-1">{s.symbol}</span>
+                <span className="text-sm font-bold text-tv-text flex-1">{s.symbol.replace(/\.JK$/i, '')}</span>
                 <span className={`text-xs font-number font-semibold ${s.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
                 </span>
@@ -220,7 +220,7 @@ export function BreadthDetailModal({ direction, stocks, onClose }: { direction: 
             <motion.div key={stock.symbol} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
               <Link href={`/technical/${stock.symbol}.JK`} onClick={onClose} className="flex items-center gap-3 rounded-lg bg-tv-hover px-3 py-2 transition-colors hover:bg-tv-border">
                 <TickerAvatar symbol={stock.symbol} size="sm" />
-                <span className="flex-1 text-sm font-bold text-tv-text">{stock.symbol}</span>
+                <span className="flex-1 text-sm font-bold text-tv-text">{stock.symbol.replace(/\.JK$/i, '')}</span>
                 <span className="text-right">
                   <span className={'block text-xs font-number font-semibold ' + detail.tone}>
                     {stock.changePct > 0 ? '+' : ''}{stock.changePct.toFixed(2)}%
