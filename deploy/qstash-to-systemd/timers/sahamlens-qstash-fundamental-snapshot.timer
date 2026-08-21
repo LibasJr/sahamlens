@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens local schedule - fundamental-snapshot
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 05:00:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1s
+Unit=sahamlens-local-cron@fundamental-snapshot.service
+
+[Install]
+WantedBy=timers.target

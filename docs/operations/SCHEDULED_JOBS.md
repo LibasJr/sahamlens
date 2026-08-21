@@ -8,12 +8,13 @@ npm run audit:cron
 
 ## Siapa yang menjadwalkan apa
 
-Production berjalan di VPS sendiri sejak 2026-08-12/13. Ada 12 route cron dan **dua** penjadwal:
+Production berjalan di VPS sendiri sejak 2026-08-12/13. Seluruh 23 route cron
+dijadwalkan oleh systemd di VPS setelah migrasi dari QStash pada 2026-08-21:
 
 | Penjadwal | Jumlah | Cara memanggil | Guard | Sumber jam |
 | --- | --- | --- | --- | --- |
-| systemd timer di VPS | 3 | `GET https://sahamlens.id/api/cron/...` | `Authorization: Bearer <CRON_SECRET>` | unit timer di VPS (`systemctl list-timers`) |
-| QStash (Upstash) | 9 | `POST` dari QStash | `verifyQStashSignature()` | dashboard Upstash (`GET /v2/schedules`) |
+| systemd timer di VPS | 23 | `GET` atau `POST` ke `127.0.0.1:3001/api/cron/...` | `Authorization: Bearer <CRON_SECRET>` | unit timer di VPS (`systemctl list-timers`) |
+| QStash (Upstash) | 0 | - | - | - |
 | Vercel Cron | 0 | - | - | - |
 
 **Vercel Cron sengaja kosong dan harus tetap kosong.** Vercel Cron bukan state dashboard - ia
@@ -28,6 +29,8 @@ commit `2a64988`). `npm run audit:cron` sekarang gagal kalau `vercel.json` beris
   systemd di unit timer VPS. Selama belum diverifikasi, manifest harus memakai `schedule: null`
   dengan `scheduleStatus: "verify-dashboard"` (QStash) atau `"verify-server"` (systemd).
   Setelah diverifikasi, salin nilai persisnya dan ubah status menjadi `known`.
+- Sepuluh timer hasil migrasi berada di `deploy/qstash-to-systemd/timers`. Ubah jadwal
+  pada unit timer dan manifest dalam commit yang sama agar keduanya tidak drift.
 - **Jangan memindahkan job antar penjadwal tanpa mengubah manifest dan handler-nya.** Tiga route
   systemd menyediakan `GET` (CRON_SECRET) *dan* `POST` (signature QStash) sekaligus. Menghapus
   handler yang "kelihatan tidak dipakai" pernah mematikan dua job tanpa jejak di aplikasi
