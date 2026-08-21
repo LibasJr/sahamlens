@@ -60,6 +60,7 @@ export const DATA_SNAPSHOT_VERSION = 'lens-radar-history-v1.3.0';
 
 export interface ModelVersionStamp {
   score_version: string;
+  score_config_hash: string;
   valuation_version: string;
   signal_version: string;
   data_snapshot_version: string;
@@ -69,6 +70,7 @@ export interface ModelVersionStamp {
 export function currentModelVersionStamp(now = new Date()): ModelVersionStamp {
   return {
     score_version: SCORE_VERSION,
+    score_config_hash: LENS_SCORE_MODEL_METADATA.configHash,
     valuation_version: VALUATION_VERSION,
     signal_version: SIGNAL_VERSION,
     data_snapshot_version: DATA_SNAPSHOT_VERSION,
@@ -78,7 +80,8 @@ export function currentModelVersionStamp(now = new Date()): ModelVersionStamp {
 
 export function partitionByScoreVersion<T extends object>(
   rows: T[],
-  requestedVersion: string | null = SCORE_VERSION
+  requestedVersion: string | null = SCORE_VERSION,
+  requestedConfigHash: string | null = LENS_SCORE_MODEL_METADATA.configHash,
 ): {
   version: string | null;
   accepted: T[];
@@ -86,6 +89,8 @@ export function partitionByScoreVersion<T extends object>(
   rejectedReason: string | null;
   mixed: boolean;
   unversionedCount: number;
+  configHash: string | null;
+  configRejectedCount: number;
 } {
   const counts = new Map<string, number>();
   let unversionedCount = 0;
@@ -110,24 +115,33 @@ export function partitionByScoreVersion<T extends object>(
       rejectedReason: rows.length ? 'Semua baris histori belum memiliki versi model.' : null,
       mixed: false,
       unversionedCount,
+      configHash: requestedConfigHash,
+      configRejectedCount: rows.length,
     };
   }
 
   const accepted: T[] = [];
   const rejected: T[] = [];
+  let configRejectedCount = 0;
   for (const row of rows) {
     const scoreVersion = (row as { score_version?: string | null }).score_version;
     const rowVersion = typeof scoreVersion === 'string' ? scoreVersion.trim() : '';
-    if (rowVersion === version) accepted.push(row);
-    else rejected.push(row);
+    const rowHash = (row as { score_config_hash?: string | null }).score_config_hash?.trim() || '';
+    if (rowVersion === version && requestedConfigHash && rowHash === requestedConfigHash) accepted.push(row);
+    else {
+      rejected.push(row);
+      if (rowVersion === version && rowHash !== requestedConfigHash) configRejectedCount++;
+    }
   }
 
   return {
     version: accepted.length ? version : null,
     accepted,
     rejected,
-    rejectedReason: rejected.length ? `Dataset berisi histori campuran/legacy; hanya score_version ${version} yang dipakai.` : null,
+    rejectedReason: rejected.length ? `Dataset berisi histori model campuran/legacy; hanya score_version ${version} dengan config_hash ${requestedConfigHash} yang dipakai.` : null,
     mixed: counts.size > 1,
     unversionedCount,
+    configHash: requestedConfigHash,
+    configRejectedCount,
   };
 }

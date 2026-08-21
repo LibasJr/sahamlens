@@ -12,6 +12,7 @@ import {
 } from './history-return-utils';
 import { logger } from '@/shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import {
   PRICE_ADJUSTMENT_VERSION,
@@ -60,6 +61,7 @@ export interface LensRadarHistoryEntry {
   close_price: number | string;
   market_cap: number | string | null;
   score_version?: string | null;
+  score_config_hash?: string | null;
   universe_version?: string | null;
   raw_close_price?: number | string | null;
   adjusted_close_price?: number | string | null;
@@ -420,10 +422,11 @@ export async function calculateLensBucketStats(
   rows: LensRadarHistoryEntry[],
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
   asOfDate = todayDateKeyWIB(),
-  options: { scoreVersion?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
 ): Promise<LensBucketBacktestResult> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
-  const partition = partitionByScoreVersion(rows, requestedScoreVersion);
+  const requestedConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
+  const partition = partitionByScoreVersion(rows, requestedScoreVersion, requestedConfigHash);
   const { entries: normalized, skippedGocap, skippedIlliquid, unknownLiquidity, productionGate } = normalizeHistory(partition.accepted);
   const calendar = buildIdxTradingCalendar(
     await provider.getIdxTradingCalendarDates().catch(() => []),
@@ -604,7 +607,7 @@ export async function calculateLensBucketStats(
 export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, score_config_hash, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
            avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
