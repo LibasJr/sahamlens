@@ -1,4 +1,5 @@
 import { normalizeChatText } from './chat-normalize';
+import { isAllFeaturesProductQuery } from './product-help';
 import { resolveChatDate, type ChatDateResolution, type ChatHistoryMessage } from './chat-date';
 
 export type ChatIntent =
@@ -123,6 +124,11 @@ const PRODUCT_FEATURE_DEFINITION_TERMS = /\b(beranda|home|lensmarket|market puls
  */
 const PRODUCT_RESEARCH_ADMIN_FEATURE_TERMS = /\b(kesehatan operasional|operational health|ownership flow validation lab|bank fundamentals? evidence|bank fundamental evidence|financial integrity(?:\s*&\s*adoption gate)?|adoption gate|fundamental backfill|tp\s*\/?\s*cl validation lab|tpcl validation lab|intraday validation lab|macro pit|macro assumptions|data integrity|market data reconciliation|bank fundamental collector|ownership flow status ingestion)\b/;
 const PRODUCT_CALC_TERMS = /\b(cara|bagaimana|gimana)\b.*\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(hitung|dihitung|perhitungan)\b|\b(tp|cl|take profit|cut loss|stop loss)\b.*\b(cara|bagaimana|gimana)\b.*\b(hitung|dihitung|perhitungan)\b/;
+// Pertanyaan metodologi TP/CL tidak membutuhkan ticker. Ticker baru wajib ketika user
+// meminta LEVEL aktual sebuah emiten. Variasi ini berasal dari feedback produksi:
+// "Maksud nya menentukan TP/CL" dan "Kalau menentukan tp cl" sebelumnya salah masuk
+// intent rekomendasi lalu meminta kode saham, padahal user sedang bertanya cara kerja.
+const TPCL_METHODOLOGY_QUERY = /\b(cara|bagaimana|gimana|maksud(?:nya| nya)?|menentukan|nentuin|penentuan|menghitung|hitung)\b[\s\S]*\b(tp\s*\/?\s*cl|take profit|cut loss|stop loss)\b|\b(tp\s*\/?\s*cl|take profit|cut loss|stop loss)\b[\s\S]*\b(cara|bagaimana|gimana|maksud(?:nya| nya)?|menentukan|nentuin|penentuan|menghitung|hitung)\b/;
 const FOLLOW_UP_TERMS = /^(kenapa|kok|terus|lalu|gimana|bagaimana|kalau|kalo|jadi|yang tadi|tadi|data yang|periode kapan|yang kamu pakai|nya\b|itu\b|sehari sebelumnya)/;
 const CONCEPT_QUERY = /\b(apa itu|apa artinya|artinya apa|maksudnya|definisi|fungsi|cara kerja)\b/;
 /**
@@ -365,6 +371,8 @@ function classifyPrimaryIntent(args: NormalizedClassifyArgs): Omit<IntentClassif
     compareScope: 'GENERAL',
     requestedMetrics: metrics,
   };
+  if (isAllFeaturesProductQuery(args.prompt)) return productHelp;
+  if (args.tickerCount === 0 && TPCL_METHODOLOGY_QUERY.test(text)) return productHelp;
   // Fitur riset/admin yang nama menunya juga mengandung istilah data harus dicek
   // paling awal dalam blok product-help. Ini mencegah false routing seperti
   // "Ownership Flow Validation Lab itu apa?" -> OWNERSHIP_FLOW atau

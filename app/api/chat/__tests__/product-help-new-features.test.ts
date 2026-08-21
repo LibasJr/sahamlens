@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classifyChatIntent } from '../chat-intent';
 import { resolveChatDate } from '../chat-date';
 import { getFocusedMenuKnowledge } from '../menu-focus-knowledge';
+import { getDeterministicProductHelpResponse } from '@/modules/ai/chat/product-help';
 
 const classify = (prompt: string) => classifyChatIntent({
   prompt,
@@ -48,5 +49,45 @@ describe('LensAI product help - fitur baru SahamLens', () => {
     const block = getFocusedMenuKnowledge('fungsi Broker Summary apa?');
     expect(block).toContain('Broker Summary');
     expect(block).toContain('belum memengaruhi LensScore');
+  });
+
+  it.each([
+    'jelaskan semua fitur yang ada',
+    'fiturnya apa saja?',
+    'LensAI bisa apa?',
+  ])('merutekan permintaan katalog fitur tanpa bergantung provider: %s', (prompt) => {
+    expect(classify(prompt).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+    const answer = getDeterministicProductHelpResponse(prompt);
+    expect(answer).toContain('Fitur pengguna');
+    expect(answer).toContain('LensTechnical');
+    expect(answer).toContain('LensScanner');
+    expect(answer).toContain('Lab riset dan admin');
+  });
+
+  it('memberi jawaban operasional fitur walau provider AI tidak dipakai', () => {
+    const answer = getDeterministicProductHelpResponse('cara pakai LensScanner?');
+    expect(answer).toContain('LensScanner');
+    expect(answer).toContain('Cara pakai');
+    expect(answer).toContain('Hasil yang dibaca');
+    expect(answer).toContain('Batasan');
+  });
+
+  it('tidak mencampur TP/CL Validation Lab dengan LensTechnical', () => {
+    const answer = getDeterministicProductHelpResponse('cara pakai TP/CL Validation Lab?');
+    expect(answer).toContain('TP/CL Validation Lab');
+    expect(answer).toContain('expectancy');
+    expect(answer).not.toContain('LensTechnical');
+  });
+
+  it.each([
+    'Maksud nya menentukan TP/CL',
+    'Kalau menentukan tp cl',
+    'cara nentuin take profit dan cut loss',
+  ])('menjawab metodologi TP/CL tanpa meminta ticker: %s', (prompt) => {
+    expect(classify(prompt).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+    const answer = getDeterministicProductHelpResponse(prompt);
+    expect(answer).toContain('Penentuan TP/CL');
+    expect(answer).toContain('Wilder ATR');
+    expect(answer).toContain('tidak perlu ticker');
   });
 });
