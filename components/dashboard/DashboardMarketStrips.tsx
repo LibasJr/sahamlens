@@ -60,7 +60,7 @@ export function TickerTape({ items, failed }: { items: { symbol: string; price: 
             href={`/technical/${item.symbol}.JK`}
             className="flex min-h-6 shrink-0 items-center gap-1.5 border-r border-tv-border px-4 text-[12px] font-number transition-opacity hover:opacity-80"
           >
-            <span className="font-bold text-tv-text">{item.symbol}</span>
+            <span className="font-bold text-tv-text">{item.symbol.replace(/\.JK$/i, '')}</span>
             <span className="text-tv-muted">
               {Number.isFinite(item.price) ? `Rp ${Math.round(item.price).toLocaleString('id-ID')}` : 'Harga N/A'}
             </span>
@@ -152,4 +152,3 @@ export function StockSignalRunningText({ items, advisoryEnabled }: { items: Stoc
     </div>
   );
 }
-

@@ -76,7 +76,7 @@ export default function TechnicalExportCard({
       <div className="flex-1 p-16 flex flex-col justify-between">
         <div>
           <div className="mb-6">
-            <div className="text-6xl font-heading font-extrabold">{displaySymbol}.JK</div>
+            <div className="text-6xl font-heading font-extrabold">{displaySymbol}</div>
             <div className={`text-2xl mt-2 font-mono font-bold ${finalSuggestionColorClass}`}>{finalSuggestion}</div>
             {typeof score === 'number' && (
               <div className="text-lg text-tv-muted mt-1 font-mono">Skor Komposit: {score}/100</div>
